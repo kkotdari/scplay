@@ -27,7 +27,7 @@ const APP_TOKENS = new Set([
    판'을 집으려고 단 표식이고, 배치는 부모 .scr-motion-mapvec이 한다.) */
 const MARKERS = new Set([
   "scr-mapvec-base", "scr-mapvec-sharp",
-  "scr-motion-searchpick",   // 검색 돋보기 감싸개(2026-10-12) — 꼴은 .scr-motion-mapbtns .scr-motion-pick 이 진다
+  "scr-motion-searchbtn",   // 검색 돋보기(2026-10-12) — 꼴은 형제 규칙 · 펴진 알약 안 덮어쓰기는 .scr-motion-searchwrap.is-open 이 진다
   /* 관문을 조이니 드러난 셋(아래 ★) — 모두 **이름표**다. 규칙이 없는 게 맞고, 쓰는 자리는
      소스에도 CSS에도 선택자로 안 나온다(붙는 몸이 제 화장을 다 진다):
        scr-motion-pitched   — 지도 상자에 붙는 '입체다' 표(상태를 JS가 아니라 DOM에 남겨 둔다)

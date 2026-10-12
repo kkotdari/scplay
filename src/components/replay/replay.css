@@ -4813,52 +4813,42 @@
 .scr-doc-calbox { position: relative; flex: 0 0 auto; }
 .scr-doc .scr-doc-calbox .scr-doc-svg { width: 100%; height: 100%; display: block; }
 
-/* ── 재생기 검색(2026-10-12, 요청: "재생기 검색 기능 추가 · 돋보기 아이콘(왼쪽 버튼 그룹) · 팝오버 · 기술·유닛·전술 검색 · 결과는 진행바에 태그 · 이전/다음") ──
-   팝오버는 목록 판(.scr-motion-pickmenu · is-left — 오른쪽으로 자람)의 꼴을 받는다. 입력 글자는 16px 아래로 안 내린다(iOS 사파리가 16px 아래 입력을 누르면 화면을 당긴다). */
-.scr-motion-pickmenu.scr-motion-search { width: calc(264px * var(--ui)); max-width: calc(100vw - 24px); padding: calc(8px * var(--ui)); gap: calc(6px * var(--ui)); }
-.scr-motion-search-input {
-  width: 100%; box-sizing: border-box; padding: calc(6px * var(--ui)) calc(8px * var(--ui));
-  font: inherit; font-size: max(16px, calc(13px * var(--ui))); color: inherit;
-  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 4px; outline: none;
-}
-.scr-motion-search-input:focus { border-color: rgba(255, 255, 255, 0.55); }
-.scr-motion-search-nav { display: flex; align-items: center; gap: calc(4px * var(--ui)); }
-.scr-motion-search-step {
-  flex: none; width: calc(28px * var(--ui)); height: calc(28px * var(--ui)); padding: 0; border: none; border-radius: 4px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.1); color: inherit; cursor: pointer;
-}
-.scr-motion-search-step:disabled { opacity: 0.4; cursor: default; }
-@media (hover: hover) { .scr-motion-search-step:not(:disabled):hover { background: rgba(255, 255, 255, 0.2); } }
-.scr-motion-search-count { flex: 1 1 auto; text-align: center; font-size: calc(12px * var(--ui)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.scr-motion-search-list {
-  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px;
-  max-height: min(40vh, calc(280px * var(--ui))); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
-}
-.scr-motion-search-hit {
-  display: flex; align-items: baseline; gap: calc(8px * var(--ui)); width: 100%; min-width: 0;
-  padding: calc(5px * var(--ui)) calc(6px * var(--ui)); border: none; border-radius: 2px;
-  background: transparent; color: inherit; cursor: pointer; text-align: left;
-  font-family: inherit; font-size: calc(12px * var(--ui)); font-weight: 600; line-height: 1.35;
-}
-@media (hover: hover) { .scr-motion-search-hit:hover { background: rgba(255, 255, 255, 0.12); } }
-.scr-motion-search-hit.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }
-.scr-motion-search-at { flex: none; font-variant-numeric: tabular-nums; opacity: 0.7; }
-.scr-motion-search-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scr-motion-search-chips { display: flex; flex-wrap: wrap; gap: calc(4px * var(--ui)); }
-.scr-motion-search-chip {
-  padding: calc(3px * var(--ui)) calc(10px * var(--ui)); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px;
-  background: transparent; color: inherit; cursor: pointer; font-family: inherit; font-size: calc(12px * var(--ui)); font-weight: 600;
-}
-@media (hover: hover) { .scr-motion-search-chip:hover { background: rgba(255, 255, 255, 0.12); } }
-/* 팝오버를 닫아도 검색이 살아 있으면 돋보기 곁에 [◀ n/N ▶] 알약 — 쇠판 위의 우물(형제 단추와 같은 결). */
-.scr-motion-searchnav {
-  flex: none; display: inline-flex; align-items: center; gap: calc(2px * var(--ui)); height: var(--mapbtn-h, calc(30px * var(--ui)));
-  padding: 0 calc(3px * var(--ui)); border-radius: 999px; box-sizing: border-box; color: #f5f6f7;
+/* ── 재생기 검색(2026-10-12, 요청: "재생기 검색 기능 추가 · 돋보기 아이콘(왼쪽 버튼 그룹) · 결과는 진행바에 태그 · 이전/다음") ──
+   ★ 한 알약(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면 1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음") —
+   쉼은 형제와 같은 돋보기 원 · 펴지면(is-open) 감싸개가 쇠판 위 우물 알약이 되고 돋보기는 그 안의 맨 막(바탕 없음)이다. 입력칸은 펴질 때 옆으로 자란다(scr-search-grow).
+   입력 글자는 16px 아래로 안 내린다(iOS 사파리가 16px 아래 입력을 누르면 화면을 당긴다). */
+.scr-motion-searchwrap { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(2px * var(--ui)); height: var(--mapbtn-h, calc(30px * var(--ui))); border-radius: 999px; box-sizing: border-box; color: #f5f6f7; }
+.scr-motion-searchwrap.is-open {
+  padding-right: calc(4px * var(--ui));
   background: #0d1116; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.scr-motion-searchnav > .scr-motion-search-step { width: calc(22px * var(--ui)); height: calc(22px * var(--ui)); background: transparent; border-radius: 999px; }
-.scr-motion-searchnav > .scr-motion-search-count { flex: none; min-width: calc(34px * var(--ui)); font-size: calc(11px * var(--ui)); }
+/* 펴진 알약 안의 돋보기는 막 없이(무게: 형제 우물 규칙 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.… (0,4,1) 위로 · .is-on 은 안 쓴다). */
+.scr-tb .scr-motion-mapbtns .scr-motion-searchwrap.is-open button.scr-motion-mapbtn.scr-motion-searchbtn,
+.scr-motion-mapbtns .scr-motion-searchwrap.is-open button.scr-motion-mapbtn.scr-motion-searchbtn { background: transparent; box-shadow: none; }
+.scr-motion-searchwrap.is-open button.scr-motion-searchbtn.is-hit { color: #ffb000; }
+/* 줄이 좁으면(폰) 입력칸이 줄어든다 — 알약이 오른쪽 무리(스크랩·공유) 밑으로 파고들지 않게(폰 실측: 펴진 알약 230px 이 책갈피 단추를 덮었다). */
+.scr-motion-searchbox { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(4px * var(--ui)); margin: 0; }
+.scr-motion-search-input {
+  flex: 1 1 auto; width: calc(150px * var(--ui)); min-width: calc(48px * var(--ui)); box-sizing: border-box; padding: 0 calc(4px * var(--ui));
+  font: inherit; font-size: max(16px, calc(13px * var(--ui))); font-weight: 600; color: inherit;
+  background: transparent; border: none; outline: none;
+  animation: scr-search-grow 0.18s ease-out;
+}
+.scr-motion-search-input::placeholder { color: rgba(245, 246, 247, 0.45); }
+@keyframes scr-search-grow { from { width: 0; opacity: 0; } to { width: calc(150px * var(--ui)); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .scr-motion-search-input { animation: none; } }
+.scr-motion-search-step {
+  flex: none; width: calc(22px * var(--ui)); height: calc(22px * var(--ui)); padding: 0; border: none; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.scr-motion-search-step:disabled { opacity: 0.4; cursor: default; }
+@media (hover: hover) { .scr-motion-search-step:not(:disabled):hover { background: rgba(255, 255, 255, 0.14); } }
+.scr-motion-search-count {
+  flex: none; min-width: calc(34px * var(--ui)); padding: 0 calc(2px * var(--ui)); border: none; background: transparent; color: inherit; cursor: pointer;
+  font-family: inherit; font-size: calc(11px * var(--ui)); font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap;
+}
+.scr-motion-search-count.is-miss { cursor: default; color: #ff9b85; padding-right: calc(4px * var(--ui)); }
 /* 진행바 태그 — 바를 감싼 칸(.scr-motion-rangewrap) 위에 겹친 얇은 판. 손잡이 폭(--th)의 반씩 양끝을 비워 손잡이 가운데와 같은 자다(손잡이 폭은 아래 미디어가 바꾼다). */
 .scr-motion-rangewrap { --th: calc(12px * var(--ui, 1)); position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; }
 .scr-motion-rangewrap > .scr-motion-range { flex: 1 1 auto; width: 100%; position: relative; z-index: 1; }
@@ -4870,17 +4860,3 @@
   transform: translate(-50%, -50%); border-radius: 1px; background: #ffb000; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 .scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: #ff4d1f; }
-/* (2026-10-12 · 이어서, 요청: "Enter 눌러야 검색 · 검색 취소와 창 닫기 구분 · 결과 있으면 접기") — 머리 줄 [검색 · 접기/닫기] · 입력 줄 [입력 · 찾기] · 앞뒤 줄 끝의 '검색 취소'. */
-.scr-motion-search-head { display: flex; align-items: center; justify-content: space-between; gap: calc(6px * var(--ui)); }
-.scr-motion-search-title { font-size: calc(12px * var(--ui)); font-weight: 800; opacity: 0.8; }
-.scr-motion-search-fold, .scr-motion-search-cancel {
-  flex: none; display: inline-flex; align-items: center; gap: calc(3px * var(--ui)); height: calc(26px * var(--ui));
-  padding: 0 calc(8px * var(--ui)); border: none; border-radius: 4px; cursor: pointer;
-  background: rgba(255, 255, 255, 0.1); color: inherit; font-family: inherit; font-size: calc(12px * var(--ui)); font-weight: 700; white-space: nowrap;
-}
-@media (hover: hover) { .scr-motion-search-fold:hover, .scr-motion-search-cancel:hover { background: rgba(255, 255, 255, 0.2); } }
-.scr-motion-search-cancel { height: calc(28px * var(--ui)); color: #ffb3a1; }
-.scr-motion-search-row { display: flex; align-items: stretch; gap: calc(4px * var(--ui)); margin: 0; }
-.scr-motion-search-row > .scr-motion-search-input { flex: 1 1 auto; min-width: 0; width: auto; }
-.scr-motion-search-row > .scr-motion-search-go { height: auto; min-height: calc(28px * var(--ui)); width: calc(34px * var(--ui)); }
-.scr-motion-search-hint { font-size: calc(11px * var(--ui)); opacity: 0.65; padding: 0 calc(2px * var(--ui)); }

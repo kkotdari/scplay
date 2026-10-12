@@ -12352,7 +12352,7 @@ export default function ReplayMotionPlayer({
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
-  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | "search" | null>(null);
+  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -12424,13 +12424,32 @@ export default function ReplayMotionPlayer({
     return out9;
   }, [searchIndex9, searchQ9]);
   useEffect(() => { setSearchCur9(-1); }, [searchHits9]);
-  /** Enter·찾기 단추 — 초안이 올린 검색어와 다르면 올리고(빈 초안이면 검색 취소), 같으면 다음(back 이면 이전) 결과로. */
-  const searchSubmit9 = (back9: boolean): void => {
+  /** 입력 꼴(위 JSX ★★) · 찾은 게 없었나('0건') · Enter 뒤 첫 결과로 갈 차례인가(검색어가 바뀌면 결과가 다음 렌더에 서므로 아래 effect 가 간다). */
+  const [searchEdit9, setSearchEdit9] = useState(false);
+  const [searchMiss9, setSearchMiss9] = useState(false);
+  const searchFirst9 = useRef(false);
+  const searchEditOpen9 = (): void => { setSearchDraft9(searchQ9); setSearchMiss9(false); setSearchEdit9(true); };
+  /** Enter·돋보기(입력 꼴) — 검색어를 올리고 첫 결과(1/N)로 간다 · 빈 글이면 검색 취소. */
+  const searchSubmit9 = (): void => {
     const d9 = searchDraft9.trim();
-    if (d9 !== searchQ9.trim()) { setSearchQ9(d9); return; }
-    if (d9 !== "") searchGo9(back9 ? -1 : 1);
+    if (d9 === "") { setSearchQ9(""); setSearchEdit9(false); return; }
+    searchFirst9.current = true;
+    if (d9 !== searchQ9.trim()) setSearchQ9(d9);
+    else setSearchHitTick9((v9) => v9 + 1);   // 같은 검색어 — 결과는 그대로라 effect 를 손으로 깨운다
   };
-  const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); };
+  const [searchHitTick9, setSearchHitTick9] = useState(0);
+  const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); };
+  /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
+  useEffect(() => {
+    if (!searchEdit9) return undefined;
+    const off9 = (e9: Event): void => {
+      const t9 = e9.target as Element | null;
+      if (t9 && typeof t9.closest === "function" && t9.closest(".scr-motion-searchwrap")) return;
+      setSearchEdit9(false);
+    };
+    window.addEventListener("pointerdown", off9, true);
+    return () => window.removeEventListener("pointerdown", off9, true);
+  }, [searchEdit9]);
   /** 키 판(B/N · 아래 keydown ★)이 읽는 지금의 앞뒤 손잡이 — 결과가 없으면 false(키를 안 먹는다). */
   const searchKeyRef9 = useRef<(dir9: 1 | -1) => boolean>(() => false);
   const searchGo9 = (dir9: 1 | -1 | 0, at9?: number): void => {
@@ -12448,10 +12467,20 @@ export default function ReplayMotionPlayer({
     }
     const v9 = Math.min(total, Math.max(0, hs9[i9].sec - SEARCH_LEAD9));
     setSearchCur9(i9);
-    setT(v9);   // ←→ 키와 같은 길(살아 있는 시계는 렌더가 맞춘다)
+    /* 살아 있는 시계도 곧장 옮긴다 — 재생 중엔 붓 틱이 setT(옛 시계 + 한 걸음)를 놓아, 이 setT 와 한 렌더에 묶이면 뒤엣것(틱)이 이겨 이동이 사라졌다
+       (폰 실측: n/N 은 1/5 인데 시계 그대로 · Enter 뒤 첫 결과 이동은 effect 라 틱과 더 잘 겹친다). */
+    tLiveRef9.current = v9;
+    setT(v9);
     setDone(v9 >= total);
   };
   searchKeyRef9.current = (dir9) => { if (searchHits9.length === 0) return false; searchGo9(dir9); return true; };
+  /* Enter 뒤 — 결과가 서면 첫 결과(1/N)로 가고 결과 꼴로 · 없으면 입력 꼴에 '0건'. */
+  useEffect(() => {
+    if (!searchFirst9.current) return;
+    searchFirst9.current = false;
+    if (searchHits9.length > 0) { searchGo9(0, 0); setSearchEdit9(false); setSearchMiss9(false); } else setSearchMiss9(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchHits9, searchHitTick9]);
   const fsUiRef = useRef(true);
   fsUiRef.current = fsUi;
   const fsHideRef = useRef(0);
@@ -17790,7 +17819,7 @@ export default function ReplayMotionPlayer({
   /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
   /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
   const pickMenu9 = (
-    kind9: "speed" | "zoom" | "bgm" | "cast" | "search",
+    kind9: "speed" | "zoom" | "bgm" | "cast",
     items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string; keep?: boolean }[], list9 = false, left9 = false,
     /** 목록 맨 아래에 붙는 줄(2026-10-10 · 음악의 음량 슬라이더 + 끄기). */
     tail9?: React.ReactNode,
@@ -17811,7 +17840,7 @@ export default function ReplayMotionPlayer({
       {tail9 && <li className="scr-motion-picktail">{tail9}</li>}
     </ul>
   ) : null);
-  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast" | "search"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
+  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
   /* ★★ **배속 다이얼**(2026-10-10, 요청: "화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에 배속 눈금 ·
      터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래(받침 솟음 위). 상자 어디를 눌러도 그 높이의 배속으로 가고 끌면 따라온다
      (눈금 곁에서는 붙는다 · uSpd9). 휠은 제 것으로 받는다(판 뿌리 휠 손잡이가 .scr-speeddial 은 흘려보낸다 · 아래 effect 가 passive:false 로 막는다). 손짓이 무대의
@@ -18063,81 +18092,43 @@ export default function ReplayMotionPlayer({
         ))}
       </span>
       )}
-      {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기. 팝오버(위로 · 오른쪽으로 자람)에 입력 · 앞뒤 · 결과 줄. 검색어가 있으면 단추가 켜지고,
-          팝오버를 닫아도 진행바의 태그와 단추 곁의 [◀ n/N ▶] 알약이 남아 앞뒤로 간다(요청: "이전 다음 결과로 이동 — 버튼을 어디에 넣을지 미지수"). Enter 다음 · Shift+Enter 이전. */}
-      <span className="scr-motion-pick scr-motion-searchpick">
+      {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
+          1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
+            쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].
+          Enter 가 찾고 결과가 있으면 **첫 결과(1/N)로 가며** 결과 꼴로 바뀐다(없으면 입력 꼴에 '0건'). 결과 꼴에서 돋보기·n/N 을 누르면 그 검색어로 다시 입력 ·
+          ✕ 는 검색 취소. 입력 중 Esc·바깥 누름은 입력을 접는다(검색이 살아 있으면 결과 꼴로). 앞뒤는 ‹ › 와 B/N. */}
+      <span className={cx("scr-motion-searchwrap", (searchEdit9 || searchOn9) && "is-open")}>
         <button
           type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", (pick9 === "search" || searchOn9) && "is-on")}
-          onClick={() => pickToggle9("search")}
-          aria-haspopup="dialog" aria-expanded={pick9 === "search"}
-          aria-label="검색 — 유닛·기술·전술"
-          title="검색"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-searchbtn", searchOn9 && !searchEdit9 && "is-hit")}
+          onClick={() => (searchEdit9 ? searchSubmit9() : searchEditOpen9())}
+          aria-label={searchEdit9 ? "찾기" : "검색 — 유닛·기술·전술"}
+          title={searchEdit9 ? "찾기 (Enter)" : "검색"}
         >
           <Search size={18} />
         </button>
-        {pick9 === "search" && (
-          <div className="scr-motion-pickmenu is-left scr-motion-search" role="dialog" aria-label="검색">
-            {/* ★ 머리 줄 — **닫기와 검색 취소를 가른다**(2026-10-12, 요청: "검색 취소와 검색창 닫기 구분 필요하고 검색 결과 있는 상태에서는 접기로 표현") —
-                오른쪽 단추는 창만 닫는다: 검색이 살아 있으면 '접기'(⌄ · 태그와 곁 알약이 남는다) · 아니면 '닫기'(✕). 결과를 지우는 것은 아래 '검색 취소' 하나다. */}
-            <div className="scr-motion-search-head">
-              <span className="scr-motion-search-title">검색</span>
-              <button type="button" className="scr-motion-search-fold" onClick={() => setPick9(null)} aria-label={searchOn9 ? "검색창 접기" : "검색창 닫기"}>
-                {searchOn9 ? <><ChevronDown size={14} />접기</> : <><X size={14} />닫기</>}
-              </button>
-            </div>
-            {/* ★ **Enter 를 눌러야 찾는다**(2026-10-12, 요청: "검색어 입력 시 바로 검색하지 않고 엔터 눌러야 검색") — 치는 글은 초안(searchDraft9)이고 Enter·찾기 단추가
-                검색어(searchQ9)로 올린다. 올린 검색어 그대로면 Enter 는 다음 결과(Shift+Enter 이전) · 낱말 칩은 누르면 바로 찾는다. */}
-            <form className="scr-motion-search-row" onSubmit={(e) => { e.preventDefault(); searchSubmit9(false); }}>
-              <input
-                className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus
-                value={searchDraft9} placeholder="유닛·기술·전술·이름"
-                onChange={(e) => setSearchDraft9(e.currentTarget.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); searchSubmit9(true); } }}
-                aria-label="검색어"
-              />
-              <button type="submit" className="scr-motion-search-step scr-motion-search-go" aria-label="찾기" title="찾기 (Enter)"><Search size={16} /></button>
-            </form>
-            {searchDraft9.trim() !== "" && searchDraft9.trim() !== searchQ9.trim() && <div className="scr-motion-search-hint">Enter 를 눌러 찾기</div>}
-            {searchOn9 ? (
-              <>
-                <div className="scr-motion-search-nav">
-                  <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} disabled={searchHits9.length === 0} aria-label="이전 결과"><ChevronLeft size={16} /></button>
-                  <span className="scr-motion-search-count">{searchHits9.length === 0 ? "결과 없음" : `${searchCur9 >= 0 ? searchCur9 + 1 : "–"} / ${searchHits9.length}`}</span>
-                  <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} disabled={searchHits9.length === 0} aria-label="다음 결과"><ChevronRight size={16} /></button>
-                  <button type="button" className="scr-motion-search-cancel" onClick={searchCancel9}>검색 취소</button>
-                </div>
-                {searchHits9.length > 0 && (
-                  <ul className="scr-motion-search-list">
-                    {searchHits9.map((h9, i9) => (
-                      <li key={`${h9.sec}-${i9}`}>
-                        <button type="button" className={cx("scr-motion-search-hit", i9 === searchCur9 && "is-on")} onClick={() => searchGo9(0, i9)}>
-                          <span className="scr-motion-search-at">{fmtClock(h9.sec)}</span>
-                          <span className="scr-motion-search-label">{h9.label}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <div className="scr-motion-search-chips">
-                {["교전", "공격", "드랍", "러시", "견제", "파괴", "스톰", "핵", "건설", "완료"].map((c9) => (
-                  <button key={c9} type="button" className="scr-motion-search-chip" onClick={() => { setSearchDraft9(c9); setSearchQ9(c9); }}>{c9}</button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {searchEdit9 ? (
+          <form className="scr-motion-searchbox" onSubmit={(e) => { e.preventDefault(); searchSubmit9(); }}>
+            <input
+              className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus
+              value={searchDraft9} placeholder="유닛·기술·전술"
+              onChange={(e) => { setSearchDraft9(e.currentTarget.value); setSearchMiss9(false); }}
+              onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSearchEdit9(false); } }}
+              aria-label="검색어"
+            />
+            {searchMiss9 && <span className="scr-motion-search-count is-miss">0건</span>}
+          </form>
+        ) : searchOn9 ? (
+          <>
+            <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} disabled={searchHits9.length === 0} aria-label="이전 결과 (B)" title="이전 (B)"><ChevronLeft size={16} /></button>
+            <button type="button" className="scr-motion-search-count" onClick={searchEditOpen9} aria-label={`검색어 "${searchQ9}" — 누르면 고치기`} title={searchQ9}>
+              {searchHits9.length === 0 ? "0" : `${searchCur9 >= 0 ? searchCur9 + 1 : "–"}/${searchHits9.length}`}
+            </button>
+            <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} disabled={searchHits9.length === 0} aria-label="다음 결과 (N)" title="다음 (N)"><ChevronRight size={16} /></button>
+            <button type="button" className="scr-motion-search-step" onClick={searchCancel9} aria-label="검색 취소" title="검색 취소"><X size={14} /></button>
+          </>
+        ) : null}
       </span>
-      {searchOn9 && pick9 !== "search" && (
-        <span className="scr-motion-searchnav">
-          <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} disabled={searchHits9.length === 0} aria-label="이전 결과"><ChevronLeft size={16} /></button>
-          <span className="scr-motion-search-count">{searchHits9.length === 0 ? "0" : `${searchCur9 >= 0 ? searchCur9 + 1 : "–"}/${searchHits9.length}`}</span>
-          <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} disabled={searchHits9.length === 0} aria-label="다음 결과"><ChevronRight size={16} /></button>
-          <button type="button" className="scr-motion-search-step" onClick={searchCancel9} aria-label="검색 취소" title="검색 취소"><X size={14} /></button>
-        </span>
-      )}
       {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
     </div>
   );
