@@ -1514,7 +1514,8 @@ function applyBenchTier9(bench: number): void {
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
 const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1, re: 0 };
-const CROWD_BENCH_MS9 = 24;
+/* ★ 폰은 20 으로 죈다(2026-10-12, 요청: "폰 매우 낮음 떨어지는 문턱도 낮추고") — 같은 폰이 매우 낮음(덜어내기 전부)에 더 쉽게 든다. PC 는 24 그대로. */
+const CROWD_BENCH_MS9 = DEV9.name === "phone" ? 20 : 24;
 /* ★★ **매우 낮음(폰 0단 + 벤치 미달)은 더 덜어낸다**(2026-10-12, 요청: "매우 낮음에서 좀 더 줄일 수 있는 거 있는지 검토 — 발열이 심해") — 열은 대부분
    **칠하는 화소 × 장 수**다(perf9 DPRCAP9 머리말: dpr 3 은 1배의 아홉 배). 그래서 셋을 함께 죈다:
      ① 배킹 배수 상한 WEAK_DPR9(1.5) — 유닛·GL·효과 캔버스(dpr 3 폰이면 화소가 4분의 1) · 1·2배 화면에서는 눈에 거의 안 띈다.
@@ -1525,6 +1526,10 @@ const WEAK_DPR9 = 1.5;
 const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
 const WEAK_GAP_MS9 = 33;
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
+/** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
+ *  60 과 30 사이에 설 자리가 없어(rAF 16.7ms 의 배수) 화소만 덜어낸다: dpr 3 폰이면 4/9 · dpr 2 폰은 그대로. 매우 낮음은 위 WEAK_DPR9(1.5). */
+const LOW_DPR9 = 2;
+const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
   if (DEV9.name !== "phone" || TIER9.v !== 0) return;   // 단이 오르면 그 표가 덮는다
@@ -4948,7 +4953,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, phoneWeak9() ? WEAK_DPR9 : Infinity, 4096 / Math.max(cw, ch, 1));
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, phoneWeak9() ? WEAK_DPR9 : phoneLow9() ? LOW_DPR9 : Infinity, 4096 / Math.max(cw, ch, 1));
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
