@@ -18335,6 +18335,8 @@ export default function ReplayMotionPlayer({
         setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
       }}
     >
+      {/* 맨 위 라벨(2026-10-12, 요청: "배속창에 맨 위에 라벨 속도 넣기"). */}
+      <span className="scr-speeddial-lab" aria-hidden>속도</span>
       <span className="scr-speeddial-val">×{spdTxt9(speed)}</span>
       <div className="scr-speeddial-track" ref={dialTrackRef9}>
         <i className="scr-speeddial-line" aria-hidden />
