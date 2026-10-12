@@ -1127,3 +1127,9 @@ flat 은 깊이 시험은 켜고 쓰기만 끈다(gl9 runs 루프 `r.flat` 갈�
   2D 위 카메라(`TOP_ELEV9` 40°)는 그대로.
 - 🔎 `node scripts/model-gl.mjs --kinds tankbody,factory --rots 45 --cell 300 --cam 0.866,0.5,0 --out x.png`(옛 값 `--cam 0.606,1,0.34`).
   `--cam squash,zk,lean` 은 이번에 더한 플래그.
+
+## 3D 시점 기본각 60 → 45도(2026-10-12)
+요청: "45도로 해줘"(바로 위 절에서 모델 카메라를 지도 피치에 맞춘 직후). `bake9.ts` `PITCH_DEGS` 의 기본 60 → 45 — 지도 눌림 sin45 = 0.707,
+모델 높이 cos45 = 0.707. 옛 45도 되물림(2026-10-10 "평면이랑 구분감이 없다")은 모델이 ≈37° 로 따로 그려지던 때다.
+- 🔎 `node scripts/scene-sheet.mjs --race 테란 --deg 45 --out x`(`--deg` 이번에 더함 · 이름표·격자는 평면 자리라 어긋난다 — 모델 각만 본다).
+  perf-check 의 합성 세계는 확대 자리에 유닛이 잘 안 걸려 각 비교에 못 쓴다.

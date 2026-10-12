@@ -2,6 +2,7 @@
  * 크기 비교를 위해서, 종족별로") ────────────────────────────────────────────────
  *
  *   node scripts/scene-sheet.mjs --out <dir>            → scene_terran.png · scene_protoss.png · scene_zerg.png
+ *   --deg N — 3D 시점각(기본 90 평면 · 이름표·격자는 평면 자리 그대로라 어긋난다 · 모델 각만 본다)
  *   node scripts/scene-sheet.mjs --race 테란 --zoom 2
  *
  * 도록(doc-sheet)은 모델을 칸마다 정규화해 담으므로 크기 비교가 안 된다. 이 도구는 perf-check와 같은 길로 **진짜
@@ -408,7 +409,7 @@ for (const race of RACES) {
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
-    [world.motion, world.players, walkFixture, makeTerrain(), { z: world.zoom, cx: 0.5, cy: world.cy, deg: 90 }]);
+    [world.motion, world.players, walkFixture, makeTerrain(), { z: world.zoom, cx: 0.5, cy: world.cy, deg: Number(flag("--deg", 90)) }]);
   await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 60000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   await page.waitForTimeout(4000);
