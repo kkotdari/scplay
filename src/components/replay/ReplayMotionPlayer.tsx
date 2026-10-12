@@ -19016,7 +19016,8 @@ export default function ReplayMotionPlayer({
     /** [큰 그림(모델 kind 또는 null = 원래 건물의 실루엣), 이름] */
     const wip9: [string | null, string] | null = !wipRace9 ? null
       : from9 ? [null, BUILDING_KO[from9] ?? from9]
-        : wipRace9 === "저그" ? ["cocoon", "공사 고치"] : wipRace9 === "프로토스" ? ["warpin", "소환구"] : ["scaffold", "공사장"];
+        : wipRace9 === "저그" ? ["cocoon", "공사 고치"] : wipRace9 === "프로토스" ? ["warpin", "소환구"]
+          : null;   // 테란은 **건물 그대로**(2026-10-12, 요청: "테란 공사장은 놔두고 인포창만 건물로 변경") — 옛 ["scaffold", "공사장"]. 지도의 공사 발판 탑은 그대로.
     return (
       <div className="scr-motion-infodock-one">
         {/* 이름은 **메인 아이콘 위**다(2026-09, 요청: "유닛 건물 이름을 메인 아이콘 위로 · 메인 아이콘을 좀 내리더라도") — 격자 1행이
