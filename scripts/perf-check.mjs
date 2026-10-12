@@ -50,11 +50,12 @@ const capProbe9 = async (page) => {
   await page.evaluate((role) => {
     const solo = document.querySelector(".scr-fs-solo");
     if (!solo) return;
+    solo.querySelectorAll(".scr-cast-caption").forEach((el) => el.remove());   // 진짜 자막(중계가 낸 것)은 걷고 가짜만(2026-10-12 — 둘이 겹쳐 찍혔다)
     const cap = document.createElement("span");
     cap.className = "scr-cast-caption";
-    /* 사람은 이름표 칩(.scr-cast-chip · 2026-10-09) — 재생기 castCap9 와 같은 꼴. long 은 줄바꿈 검산. */
-    const chip = (nm, bg, fg) => `<span class="scr-split-chip scr-cast-chip" style="background:${bg};color:${fg}">${nm}</span>`;
-    const J = chip("정구", "#2b62e8", "#fff"); const R = chip("Rex", "#e07b1a", "#111"); const S = chip("수달이", "#c9c9a3", "#111"); const T = chip("타센", "#8a3fb8", "#fff");
+    /* 사람은 이름표 칩(.scr-cast-chip · 2026-10-09 · 2026-10-12 칩 되물림) — 재생기 castCap9 와 같은 꼴(글자 칸 + 팀 배지). long 은 줄바꿈 검산. */
+    const chip = (nm, bg, fg, tm) => `<span class="scr-split-chip scr-cast-chip" style="background:${bg};color:${fg}"><span class="scr-cast-chip-txt">${nm}</span><i class="scr-team-badge" style="background:${tm === 1 ? "#2050d0" : "#d81f28"}">${tm}</i></span>`;
+    const J = chip("정구", "#2b62e8", "#fff", 1); const R = chip("Rex", "#e07b1a", "#111", 1); const S = chip("수달이", "#c9c9a3", "#111", 2); const T = chip("타센", "#8a3fb8", "#fff", 2);
     cap.innerHTML = role === "def" ? `${R}가 공격함 · ${S}가 헬프옴` : role === "war" ? `${J}${S} vs ${R}${T} 교전`   // 칩 사이 점 없음(2026-10-10)
       : role === "long" ? `${J}의 ${R} 사이언스 퍼실리티 파괴 · ${S}가 헬프옴 · ${T} 메타볼릭 부스트 개발` : `${J}의 ${R} 공격`;
     solo.appendChild(cap);

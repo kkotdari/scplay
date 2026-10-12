@@ -4906,6 +4906,10 @@
 .scr-cast-caption .scr-cast-name { position: relative; z-index: auto; font-weight: 800; text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1px rgba(0, 0, 0, 0.9); }   /* 검은 테 — 예전 굵기·자리로 되돌림(2026-10-12, 요청: "그림자나 음영 원래대로 복구 — 예전 굵기와 위치로") · 그 사이의 얇게(1px·0.5px)·위아래 대칭은 되물림 */
 /* 사람을 잇달아 늘어놓을 때(앞 조각이 조사 없는 사람) 사이를 조금 띄운다 — 띄어쓰기(0.25em)보다 좁게(2026-10-12, 요청: "자막에 사람 나열 시 사이 좀 띄우기 · 띄어쓰기만큼은 말고"). */
 .scr-cast-caption .scr-cast-name.is-next { margin-left: 0.2em; }   /* 이 글꼴의 띄어쓰기 = 0.25em(실측) — 그 80% */
+/* ★ 자막 이름은 다시 **칩**(2026-10-12, 요청: "자막의 색깔 다시 칩 형태로 복구 · 단 칩의 패딩을 작게 하고 래디우스도 작게") — 여백 0.3 → **0.16em** · 모서리 2px(.scr-split-chip) → **1px**.
+   팀 배지는 칩 뒤(z −1 · 칩은 쌓임 판을 안 세워 배지가 자막 바탕 바로 위·칩 바탕 아래 — 칩 밖으로 나온 왼위 귀퉁이만 보인다). 위 .scr-cast-name 규칙들은 쓰는 곳이 없다. */
+.scr-cast-caption .scr-cast-chip.scr-cast-chip { padding: 0 round(nearest, 0.16em, 2px); border-radius: 1px; }
+.scr-cast-caption .scr-cast-chip > .scr-team-badge { z-index: -1; transform: translate(-62%, -22%); }
 .scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-62%, -6%); text-shadow: none; }   /* −45,−30 → −62,−6%(같은 날 "자막의 팀 배지 좀 아래로 · 왼쪽으로 좀") */
 /* ★ 자동 중계 단추만 **아이콘·좌우 여백 축소**(2026-10-12, 요청: "자동 중계 버튼 TV 아이콘 축소 및 좌우 패딩 축소") — TV 0.6 → 0.46·줄 키 · 여백 6 → 3·dk. 전체 알약·사람 카메라는 그대로.
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */

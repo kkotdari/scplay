@@ -19993,7 +19993,9 @@ export default function ReplayMotionPlayer({
                     /* ★ (2026-10-12, 요청: "일단 자막에서 이름의 색을 다 빼 줘") — 이름은 이제 **자막 글자와 같은 흰색**(임자색 style 걷음) · 팀 배지는 그대로. 아래 옛 설명은 임자색 시절.
                        ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
-                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", i9 > 0 && castCap9[i9 - 1].raw !== undefined && !castCap9[i9 - 1].p && "is-next")}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    /* ★ 다시 **임자색 칩**(2026-10-12, 요청: "자막의 색깔 다시 칩 형태로 복구 · 단 칩의 패딩을 작게 하고 래디우스도 작게") — 옛 칩 마크업(.scr-split-chip.scr-cast-chip ·
+                       capOf9.chip · 색 모드를 탄다) 그대로 · 여백·모서리만 작게(replay.css). 팀 배지는 칩 **뒤**(남의 글자보다도 뒤 규칙 그대로 — 칩 밖으로 나온 몫만 보인다). */
+                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip" style={capOf9(p9.raw, p9.raw).chip}><span className="scr-cast-chip-txt">{capName9(p9.raw)}</span>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
