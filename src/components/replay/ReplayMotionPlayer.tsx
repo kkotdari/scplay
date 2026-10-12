@@ -1315,18 +1315,24 @@ const PC_TIERS9: readonly BenchTier9[] = [
    벤치 기준 높이자") — 효과 GL 심·번짐 MRT·광택·파편이 든 뒤의 값이다. 헤드리스는 GPU 몫을 못 재므로(여섯 변형이 다 p50 417~450ms ·
    소프트웨어 GL 이 78%) 실기에서 값이 드는 자리에 손잡이를 달고(MSAA 표본 수 `glMsaa` · 심 마디 몫 `fxQual` · 빛 없는 장의 빛 판
    생략) 문턱도 함께 죈다: 26 → 23 · 11 → 10 · 입체 24 → 22. 폰 0·1단은 MSAA 2 표본·심 마디 0.6/0.8 이고 2단부터 제값이다. */
+/* ★ 한 칸 더 죈다(2026-10-12, 요청: "모바일 벤치마크 문턱 높이고 · 발열이 심해"): 보통 23 → **18** · 높음 10 → **8** · 입체 22 → **18**(약 2할) —
+   같은 폰이 한 단 아래에 머물 몫이 커진다. 벤치 미달(매우 낮음)의 덜어내기는 아래 phoneWeak9. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
-  { name: "보통", upMs: 23, aheadSec: 2.5, aheadMB: 10,
+  { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 10,
     glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
-  { name: "높음", upMs: 10, up3Ms: 22, aheadSec: 4, aheadMB: 16,
+  { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
     shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1,
     /* 사영 그림자는 **8배부터**(PC 는 4배) — 이 단은 번짐·MSAA 4·요잉 16칸이 다 켜진 단이라(지적: "폰도 엄청 뜨거워져") DPR 3 에서
        실루엣 넓이만큼 더 채우는 몫을 몸이 열 남짓만 드는 배율로 죈다. 뜨거우면 `#glshadow=0`. */
     meshShadow: true, meshShadowMinZoom: 8 },
 ];
-const DEV9 = smallDevice9 ? {
+/** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
+ *  사영 그림자·MSAA·앞 한도가 다 PC 값이고, 단은 N 에 못 박는다(오르기만 하는 규칙 그대로 · 벤치는 재야 단이 선다). 화면 배치(폰 UI)는 그대로다 — 그리는 예산만 PC.
+ *  뜨겁거나 버벅이면 지우면 된다. 없으면 -1. */
+const PC_TIER_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /pctier=(\d)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
+const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   name: "phone",
   /** 데칼(크립 얼룩) 굽는 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) · 판 한 변 상한 — 남은 판은 크립과 효과 래스터뿐이다. */
   decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6, bakeSideMax: 2304,
@@ -1422,7 +1428,7 @@ function ssK9(dpr: number): number {
    다시 재어 단이 오를 수 있으므로, 눈금이 **바뀔 때마다** 알린다(같은 값이면 조용하다). 컴포넌트는 fn을 꽂고 3초 뒤 걷는다;
    첫 벤치는 렌더 중에 돌아 fn이 아직 없으니 level만 적어 두고, 꽂히는 순간 그 값을 한 번 보인다. */
 const QUALITY9 = { level: "", fn: null as ((lv: string) => void) | null };
-const qualityLevel9 = (): string => (smallDevice9
+const qualityLevel9 = (): string => (DEV9.name === "phone"
   /* 폰도 이제 단이 셋이다 — 0단은 벤치 미달(효과를 덜어내는 기기)이면 **매우 낮음**, 아니면 낮음. */
   ? (TIER9.v >= 2 ? "높음" : TIER9.v === 1 ? "보통" : CROWD9.weak ? "매우 낮음" : "낮음")
   : TIER9.v >= 3 ? "매우 높음" : TIER9.v === 2 ? "높음" : TIER9.v === 1 ? "보통" : "낮음");
@@ -1454,8 +1460,8 @@ function applyBenchTier9(bench: number): void {
   if (tiers9.length < 2 || (!smallDevice9 && touchPc9) || !(bench > 0)) return;
   const top9 = tiers9.length - 1;
   if (TIER9.force < 0 && typeof window !== "undefined") {
-    const m9 = /tier=(\d)/.exec(window.location.hash);
-    TIER9.force = m9 ? Math.min(top9, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
+    const m9 = /(?:^|[#&,])tier=(\d)/.exec(window.location.hash);   // pctier= 는 따로(위 PC_TIER_HASH9)
+    TIER9.force = PC_TIER_HASH9 >= 0 ? Math.min(top9, PC_TIER_HASH9) : m9 ? Math.min(top9, Number(m9[1])) : -2;   // -2: 살펴봤고 없음
   }
   /** 표가 스스로 문턱을 든다 — 벤치가 그 줄의 upMs 이하이고 메모리 하한(minMem)을 채우는 **가장 높은 줄**. */
   let lv9 = 0;
@@ -1508,7 +1514,27 @@ function applyBenchTier9(bench: number): void {
      2단 — 피격 불티 통째로 생략(붓) · 죽음 파편 3분의 1(붓)
    안 빼는 것: 유닛 본체 판·원거리 트레이서 자체(절반은 남는다)·죽음 여운·미니맵 점. */
 const CROWD9 = { lv: 0, weak: false, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: false, k3: 1, re: 0 };
-const CROWD_BENCH_MS9 = 24;          // 2D: 이 위면 미달 기기(실측 PC 7ms · 헤드리스 SW 래스터 19ms)
+const CROWD_BENCH_MS9 = 24;
+/* ★★ **매우 낮음(폰 0단 + 벤치 미달)은 더 덜어낸다**(2026-10-12, 요청: "매우 낮음에서 좀 더 줄일 수 있는 거 있는지 검토 — 발열이 심해") — 열은 대부분
+   **칠하는 화소 × 장 수**다(perf9 DPRCAP9 머리말: dpr 3 은 1배의 아홉 배). 그래서 셋을 함께 죈다:
+     ① 배킹 배수 상한 WEAK_DPR9(1.5) — 유닛·GL·효과 캔버스(dpr 3 폰이면 화소가 4분의 1) · 1·2배 화면에서는 눈에 거의 안 띈다.
+     ② 그리기 간격 WEAK_GAP_MS9(33ms = 30fps) — 옛 12ms(60fps · 120Hz 폰이면 rAF 두 번에 한 번)의 절반.
+     ③ MSAA 2 → 0 · 효과 곡선 몫 0.6 → 0.5 · 피격 불티 0.6 → 0.4 · 죽음 파편 12 → 8.
+   벤치를 유휴에 다시 재어 미달이 풀리거나 단이 오르면 ①② 는 저절로 풀리고(매 장 phoneWeak9 를 읽는다) ③ 은 applyWeak9 가 되돌린다. */
+const WEAK_DPR9 = 1.5;
+const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
+const WEAK_GAP_MS9 = 33;
+const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
+const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
+function applyWeak9(): void {
+  if (DEV9.name !== "phone" || TIER9.v !== 0) return;   // 단이 오르면 그 표가 덮는다
+  const w9 = CROWD9.weak;
+  DEV9.glMsaa = w9 ? 0 : WEAK_KEEP9.glMsaa;
+  DEV9.fxQual = w9 ? 0.5 : WEAK_KEEP9.fxQual;
+  DEV9.hitShardK = w9 ? 0.4 : WEAK_KEEP9.hitShardK;
+  DEV9.dieShards = w9 ? 8 : WEAK_KEEP9.dieShards;
+  DEV9_DIRTY9.v = true;
+}          // 2D: 이 위면 미달 기기(실측 PC 7ms · 헤드리스 SW 래스터 19ms)
 /* 3D는 따로 낮춘다(요청: "벤치 기준을 좀 낮추는 건?") — 3D 짐은 벤치가 재는 채우기 말고도 판 가짓수·큰 판
    굽기가 얹혀, 같은 자로는 '충분'이 후하다. PC 실측 8ms는 넉넉히 통과하고, 그 두 배 언저리부터 미달로 본다. */
 const CROWD_BENCH3D_MS9 = 16;
@@ -1608,9 +1634,12 @@ function crowdInit9(): void {
   /* 두 번 돌려 **작은 값**을 쓴다 — 한 번은 첫 판 굽기·GC와 겹쳐 곱절로 나올 수 있다(perf-check에서
      같은 조임인데 29ms와 62ms가 나왔다). 작은 쪽이 기기의 힘이고 큰 쪽은 그 순간의 짐이다. */
   c.bench = Math.min(benchDevice9(), benchDevice9());
+  if (BENCH_HASH9 > 0) c.bench = BENCH_HASH9;
   c.weak = c.bench > CROWD_BENCH_MS9;
   c.k = c.bench > CROWD_BENCH_MS9 * 2 ? 0.5 : 1;
   c.bench3 = Math.min(benchDevice9(true), benchDevice9(true));   // 입체 몫은 따로 — 같은 자, 무거운 짐
+  /* `#benchms=N` — 벤치 값을 N ms 로 못 박는다(2026-10-12 · 재보기 깃발): 단·미달(매우 낮음) 판정을 기기와 무관하게 본다. 입체는 2D 의 두 배로 둔다. */
+  if (BENCH_HASH9 > 0) { c.bench = BENCH_HASH9; c.bench3 = BENCH_HASH9 * 2; }
   c.weak3 = c.bench3 > CROWD_BENCH3D_MS9;
   c.k3 = c.bench3 > CROWD_BENCH3D_MS9 * 2 ? 0.5 : 1;
   /* 강제 단(#crowd=0·1·2) — 기기 판정과 무관하게 그 단으로 못 박는다. 효과를 눈으로 견주거나
@@ -1621,6 +1650,7 @@ function crowdInit9(): void {
      그것을 쓰던 glowBake9 는 판 굽기 길을 걷으며 부르는 자리가 사라져 한 번도 안 돌았는데, 표에는 켜진
      것처럼 적혀 있어 '켜 있는데 안 보인다'는 혼동을 두 번 냈다. 모델 광택은 GL 셰이더가 낸다(DEV9.glSpec). */
   crowdRecheck9();  applyBenchTier9(c.bench);   // PC 벤치 단(위 PC_TIERS9의 ★)
+  applyWeak9();     // 매우 낮음 덜어내기(위 phoneWeak9 ★)
   qualityNote9();        // 첫 눈금(위 QUALITY9) — 렌더 중이라 fn은 아직 없고 level만 적힌다
 }
 /** ★ **벤치를 유휴에 다시 잰다**(지적: 실측 PC 7ms인데 27ms로 찍혀 미달 판정 — 단 "너무 늦게는 의미없으니
@@ -1632,7 +1662,7 @@ function crowdInit9(): void {
  *  0.7초 만에 끊고 잰다(늦게 재면 뜻이 없다 — 그 사이 단·문턱은 이미 부풀린 값으로 돌아간다). */
 let crowdReQ9: boolean[] | null = null;
 function crowdRecheck9(): void {
-  if (typeof window === "undefined" || crowdReQ9) return;
+  if (typeof window === "undefined" || crowdReQ9 || BENCH_HASH9 > 0) return;   // #benchms 로 못 박았으면 다시 안 잰다
   crowdReQ9 = [false, true, false, true];   // 2D·3D 두 벌
   const ric9 = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
   const plan9 = (): void => {
@@ -1656,6 +1686,7 @@ function crowdRecheck9(): void {
       } else if (c9.bench < 0 || ms9 < c9.bench) {
         c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
         applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★) — 글로우·번짐도 그 표가 켠다
+        applyWeak9();           // 미달이 풀렸으면 매우 낮음 덜어내기를 되돌린다
         qualityNote9();         // 폰의 미달이 풀렸을 수도 있다(위 QUALITY9)
       }
     }
@@ -4914,10 +4945,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          요잉 8칸·자세 컷 없이도 179장 35MB로 예산 끝이었다). 한 장의 픽셀이 2.25분의 1이라 같은 예산에 두 배 넘게
          담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
          우선이다(더 낮은 쪽). */
-      const capSmall9 = smallDevice9 && zoom >= 6 ? 2 : Infinity;
+      const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, 4096 / Math.max(cw, ch, 1));
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, phoneWeak9() ? WEAK_DPR9 : Infinity, 4096 / Math.max(cw, ch, 1));
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
@@ -16788,7 +16819,7 @@ export default function ReplayMotionPlayer({
        (30fps)이었다. 12ms면 60Hz는 매 rAF(60fps), 120Hz는 두 번에 한 번(60fps). 워커·보간이 있어 붓은 그만큼 가볍다. */
     const MOBILE_GAP_MS = 12;
     const drawGapMs = (): number => (
-      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : MOBILE_GAP_MS));
+      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : phoneWeak9() ? WEAK_GAP_MS9 : MOBILE_GAP_MS));
     const tick = (now: number) => {
       const c = clockRef.current;
       /* 한 틱 상한 — 브라우저가 rAF를 멈췄다 되살리면(백그라운드 탭) dt가 자리 비운

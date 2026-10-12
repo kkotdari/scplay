@@ -1538,3 +1538,15 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 ## 자동 중계 단추 — TV · "자동중계"(2026-10-12)
 - 요청: "자동 중계 아이콘을 TV로 바꿔 줘 · 라벨은 한글로 자동중계" — 전광판 머리 줄 `.scr-roster-cam-auto` 의 lucide Video + "AUTO" → **Tv + "자동중계"**. 사람 줄 카메라·"전체" 알약은 그대로.
   안내(ReplayGuide)의 그림·글귀도 같이(옛 "AUTO(자동)").
+
+## 폰에 PC 단 강제 · 폰 문턱 올림 · '매우 낮음' 발열 덜기(2026-10-12)
+- 요청: "1. 모바일에서도 파라미터로 pc 티어 적용 가능하게 2. 모바일 벤치마크 문턱 높이고 매우낮음에서 좀 더 줄일 수 있는 것(발열이 심해)".
+- **`#pctier=N`**(0~3): 폰이어도 `DEV9` 를 PC 프로필로 고르고 `TIER9.force` 를 그 단으로(표 끝에서 자름). 옛 `#tier=N` 은 그 기기 표 안에서만 단을 고른다.
+  `qualityLevel9`·`capSmall9`(줌 6↑ 배킹 2 상한)는 이제 `smallDevice9` 가 아니라 `DEV9.name === "phone"` 으로 가른다 — pctier 면 PC 그대로.
+- 폰 문턱(`PHONE_TIERS9`, 진입 벤치 2D ms 이하): 보통 23→**18** · 높음 10→**8**, 입체 up3 22→**18**. '매우 낮음'(0단 + 벤치 > `CROWD_BENCH_MS9` 24)은 그대로.
+- '매우 낮음'에서 더 덜어 낸 것(`phoneWeak9` = 폰 · 0단 · `CROWD9.weak`, 재측정에서 풀리면 되돌린다 — `applyWeak9`·`WEAK_KEEP9`):
+  배킹 상한 `WEAK_DPR9` 1.5(dpr 3 폰이면 화소 수 1/4) · 그리기 간격 `WEAK_GAP_MS9` 33(≈30fps, 보통 폰 12) ·
+  GL MSAA 0 · `fxQual` 0.5 · 피격 파편 `hitShardK` 0.4 · 죽음 파편 `dieShards` 8.
+- **`#benchms=N`**: 벤치 값을 N(2D)·2N(입체)으로 박고 재측정을 끈다 — 헤드리스는 CPU 스로틀이 캔버스 벤치에 안 먹어 약한 길을 못 밟아서 넣었다.
+  🔎 `node scripts/perf-check.mjs --ios --vw 390 --vh 844 --warm 0 --diag --tierprobe --hash benchms=40` → `phone 0단(낮음) · 배킹 1.50`.
+  실측: 40→매우 낮음(배킹 1.50) · 20→낮음 · 16→보통 · 7→높음.

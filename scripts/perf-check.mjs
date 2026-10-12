@@ -1221,6 +1221,12 @@ if (has("--locktoast")) {
     await got9("한 번 누름(몸 집기 — 토스트 없어야)", async () => { await page.mouse.click(x9 - 40, y9 - 40); });
   } else console.log("[잠금 토스트] 지도 없음");
 }
+/* 단 자(--tierprobe · 2026-10-12) — 벤치·프로필·단(SCR_DIAG.crowd) · 유닛 캔버스 배킹 배수(unitB) · dpr. `--hash pctier=2` 로 폰의 PC 단을 본다. */
+if (has("--tierprobe")) {
+  await page.waitForTimeout(1500);
+  const d9 = await page.evaluate(() => { const d = window.__scrDiag ?? {}; return { crowd: d.crowd, B: d.unitB, dpr: window.devicePixelRatio }; });
+  console.log(`[단] ${d9.crowd ?? "?"} · 배킹 ${typeof d9.B === "number" ? d9.B.toFixed(2) : d9.B} · dpr ${d9.dpr}`);
+}
 if (has("--clockprobe")) {
   const rd9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
   const bx9 = await page.evaluate(() => { const r = document.querySelector("input[type=range]")?.getBoundingClientRect(); return r ? [r.left, r.top, r.width, r.height] : null; });
