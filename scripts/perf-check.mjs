@@ -76,6 +76,8 @@ const PROFILE = !has("--no-profile");
 /** 감싸개 클래스(--wrap) — 예: scr-activity-detail-full · scr-activity-group-page. */
 const WRAP = String(flag("--wrap", ""));
 
+/** --res 의 자원(2026-10-12) — [타일 x, 타일 y, 가스 1] · 정구 본진(18,18) 왼쪽 미네랄 셋 + 제 간헐천(home + 4). */
+const RES_EXTRA9 = [[11, 14, 0], [11, 17, 0], [11, 20, 0], [22, 22, 1], [60, 64, 0]];   // 끝의 (60,64) — 개인 화면(46초 난전 자리)에 걸리는 우클릭 표적
 /* ── OBWT 판 4 합성 ──────────────────────────────────────────────────────────── */
 
 /** 작은 끝 쓰기 + zigzag varint — openbwTracks.ts 의 Cursor 와 짝. varint는 **전부**
@@ -448,6 +450,9 @@ function makeWorld() {
       if (armyTags.has(2)) cmds9.push([F(s0 + 0.15), armyTags.get(2)[0], 70 * 32, 66 * 32, 7]);
     }
   }
+  /* --res 의 자원 우클릭(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 정구 병력 하나가 45.8초에 미네랄(60,64 · 난전 자리 — 개인 화면에 걸린다)로 이동 명령(0).
+     --track 정구 --t 46 이면 땅 마커 대신 그 미네랄의 노란 링이 켜져 있다(0.9초 창 · 0.225초 켜고 끄기). */
+  if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 60 * 32, 64 * 32, 0]); cmds9.sort((a, b) => a[0] - b[0]); }
   w.u32(cmds9.length); { let pf = 0; for (const [f, tg, x, y, k] of cmds9) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(x); w.u16(y); w.u8(k); } }
   w.u32(0); w.u16(119);                // APM(빈) — 통 크기만 적는다
   w.u32(0);                            // 자원밭단
@@ -459,7 +464,15 @@ function makeWorld() {
   { let pf = 0; for (const [f, tg, v] of [...energyRows].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(v); } }
   w.u32(loadRows.length);              // 탑승(판 11)
   { let pf = 0; for (const [f, px, sh] of [...loadRows].sort((a, b) => a[0] - b[0])) { w.vz(f - pf); pf = f; w.u32(px); w.u32(sh); } }
-  w.u32(0);                            // 자원량(판 11)
+  /* --res(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시") — 정구 본진 왼쪽 미네랄 셋(RES_EXTRA9)·간헐천(home + 4)의 자원량 절: 0초 처음 양(1500 · 5000),
+     20·40초에 줄어든 양. 자리는 타일 × 32(px) — 덤퍼의 자와 같다. 재생기는 반 타일 칸으로 짝짓는다. */
+  const amt9 = [];
+  if (has("--res")) {
+    for (const [x9, y9, g9] of RES_EXTRA9) { amt9.push([0, x9 * 32, y9 * 32, g9 ? 5000 : 1500], [F(20), x9 * 32, y9 * 32, g9 ? 4760 : 1420], [F(40), x9 * 32, y9 * 32, g9 ? 4520 : 1240]); }
+    amt9.sort((a, b) => a[0] - b[0]);
+  }
+  w.u32(amt9.length);                  // 자원량(판 11)
+  { let pf = 0; for (const [f, x, y, v] of amt9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u16(v); } }
   w.u32(killRows.length);              // 처치(판 11 · 맨 뒤)
   { let pf = 0; for (const [f, ko, kt, vt] of killRows) { w.vz(f - pf); pf = f; w.u8(ko); w.u32(kt); w.u32(vt); } }
   /* 데미지 절(판 13 · --dmg · 2026-10, 폰 두 줄 현황의 데미지 칸 폭 검산) — 10초 통 · 20초부터 통마다 사람마다 준(유닛·건물)·입은(유닛·건물)을
@@ -537,7 +550,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 지도 크기(--mapw/--maph) — 실제 판은 정사각이 아닌 것이 많고, 프레임의 가로세로비가
        지도 것을 따르므로 크롭이 어느 쪽으로 나는지가 달라진다(가운데 치우침 조사). */
     width: window.__mapw || 128, height: window.__maph || 128, palette: [0], tiles,
-    resources: players.map((p) => [p.home[0] + 4, p.home[1] + 4, 1]),
+    resources: [...players.map((p) => [p.home[0] + 4, p.home[1] + 4, 1]), ...(window.__resx ?? [])],   // --res 면 정구 본진 왼쪽 미네랄 셋을 더 둔다
     image: null, walk: walkJson, terrain: terrainB64 ?? null, imageId: null, imageName: null,
   };
   const bases = players.map((p) => ({
@@ -807,6 +820,7 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9]) => {
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
   Number(flag("--winner", 0)), Number(flag("--speed", 1))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.

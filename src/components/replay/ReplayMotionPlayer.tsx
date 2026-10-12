@@ -97,7 +97,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  resUniq9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -794,7 +794,7 @@ let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
  *  꼭 같은 눌림 · 그림자·오라는 평면에서의 링 대비 비를 그대로 지닌다. */
 const RING_TOP_K9 = 0.31 / 0.55;
 const pitchGroundK9 = (op: { pitch?: boolean }): number => (op.pitch ? pitchFlatNow / RING_TOP_K9 : 1);
-let ATK_FLASH9: Map<number, number> | null = null;
+let ATK_FLASH9: Map<number | string, number> | null = null;   // 열쇠 = 표적 태그 · 자원은 pickKey("r…" · 2026-10-12 자원 우클릭)
 let ATK_T9 = 0;
 function tagOfOp9(op: UnitDrawOp): number | undefined {
   if (op.pickTag !== undefined) return op.pickTag;
@@ -803,6 +803,13 @@ function tagOfOp9(op: UnitDrawOp): number | undefined {
 }
 function atkFlashOn9(op: UnitDrawOp): boolean {
   if (!ATK_FLASH9) return false;
+  /* ★ 자원 우클릭(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 자원은 태그가 없어 pickKey 로 건다(entClicks 일곱째 칸). */
+  if (op.pickKey?.startsWith("r")) {
+    const cr9 = ATK_FLASH9.get(op.pickKey);
+    if (cr9 === undefined) return false;
+    const ar9 = ATK_T9 - cr9;
+    return ar9 >= 0 && ar9 < 0.9 && Math.floor(ar9 / 0.225) % 2 === 0;
+  }
   const tag9 = tagOfOp9(op);
   if (tag9 === undefined) return false;
   const cs9 = ATK_FLASH9.get(tag9);
@@ -816,6 +823,7 @@ function ownSel9(op: UnitDrawOp): boolean {
 }
 /** 선택 링의 색 — 공격 표적 깜빡임(빨강) › 주인 제 몸(초록) › 주인이 고른 **적**(빨강 · 원작: "적 클릭 시 빨간 선택 링") › null(색 모드). */
 function selRingCol9(op: UnitDrawOp): string | null {
+  if (op.pickKey?.startsWith("r")) return UI_ALLY9;   // 자원(미네랄·간헐천)은 원작처럼 **노란** 링 — 중립 · 우클릭 깜빡임도 노랑(2026-10-12, 요청: "자원 선택 링 표시(원작 표현 참조)")
   if (atkFlashOn9(op)) return UI_ATK9;
   const own9 = ownUiCol9(op.pickRaw);
   if (own9) return own9;
@@ -9933,13 +9941,28 @@ export default function ReplayMotionPlayer({
      별도 저장이 필요 없어 이미 재분석된 경기에서도 바로 나온다. */
   /** 공격 명령의 표적 유닛(워커 clickTargets9 · 열쇠 = 아래 key) — 유닛을 겨눈 명령은 땅 마커 대신 표적 몸의 빨간 링(위 ATK_FLASH9). */
   const clickTargets9 = useMemo(() => new Map<string, number>(world.clickTargets9 ?? []), [world.clickTargets9]);
-  const entClicks = useMemo<[number, number, number, string, number, number][]>(() => {
+  /** 자원 자리(엔진 자원 op 와 같은 resUniq9 · 열쇠도 같은 `r<x×2>|<y×2>`) — 우클릭이 자원을 겨눴나 가른다(아래 entClicks 일곱째 칸). */
+  const resSpots9 = useMemo(() => resUniq9(grid.resources ?? []).map((r9) => ({ x: r9[0], y: r9[1], gas: r9[2] === 1, key: `r${Math.round(r9[0] * 2)}|${Math.round(r9[1] * 2)}` })), [grid.resources]);
+  const entClicks = useMemo<[number, number, number, string, number, number, string][]>(() => {
     if (!entData) return [];
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const seen = new Set<string>();
     /* 다섯째 값은 클릭의 종류(지적: 클릭·우클릭이 구분이 안 된다) — 0 이동 우클릭,
        7 공격 클릭. 선택(드래그)은 자리가 아니라 잡힌 유닛들 몸에 켜지는 링이 맡는다. */
-    const out: [number, number, number, string, number, number][] = [];
+    const out: [number, number, number, string, number, number, string][] = [];
+    /* ★ 일곱째 — **자원을 겨눈 우클릭**의 자원 열쇠(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 이동 명령(0)의 자리가 미네랄
+       발자국(2×1 · 반폭 1.1 × 반깊이 0.65타일)이나 간헐천(4×2 · 2.1 × 1.1) 안이면 그 자원이다(일꾼의 채취 우클릭). 땅 마커 대신 그 자원의 노란 링이 두 번
+       깜빡인다(ATK_FLASH9 — 유닛 표적과 같은 창). 공격(7)은 안 본다. 여럿이면 가운데에 가장 가까운 것. */
+    const resHit9 = (x9: number, y9: number): string => {
+      let best9 = ""; let bd9 = Infinity;
+      for (const r9 of resSpots9) {
+        const dx9 = Math.abs(x9 - r9.x) / (r9.gas ? 2.1 : 1.1); const dy9 = Math.abs(y9 - r9.y) / (r9.gas ? 1.1 : 0.65);
+        if (dx9 > 1 || dy9 > 1) continue;
+        const d9 = dx9 * dx9 + dy9 * dy9;
+        if (d9 < bd9) { bd9 = d9; best9 = r9.key; }
+      }
+      return best9;
+    };
     for (const e of entData.lives) {
       if (e.tag < 0) continue;
       const raw = nameOfId.get(e.owner) ?? "";
@@ -9948,26 +9971,27 @@ export default function ReplayMotionPlayer({
         const key = `${e.owner}:${o[0]}:${o[1]}:${o[2]}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, clickTargets9.get(key) ?? -1]);   // 여섯째 — 표적 태그(없으면 −1 = 땅)
+        const tg9 = clickTargets9.get(key) ?? -1;
+        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, !o[3] && tg9 < 0 ? resHit9(o[1], o[2]) : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
-  }, [entData, obsNames, clickTargets9]);
+  }, [entData, obsNames, clickTargets9, resSpots9]);
   const entClicksRef9 = useRef(entClicks);
   entClicksRef9.current = entClicks;
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
-  const atkFlashFor9 = (raw9: string | null, t9: number): Map<number, number> | null => {
+  const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
     const cl9 = entClicksRef9.current;
     if (raw9 === null || cl9.length === 0) return null;
     let lo9 = 0; let hi9 = cl9.length;
     while (lo9 < hi9) { const mid9 = (lo9 + hi9) >> 1; if (cl9[mid9][0] < t9 - 0.9) lo9 = mid9 + 1; else hi9 = mid9; }
-    let m9: Map<number, number> | null = null;
+    let m9: Map<number | string, number> | null = null;
     for (let i9 = lo9; i9 < cl9.length; i9 += 1) {
       const c9 = cl9[i9];
       if (c9[0] > t9) break;
-      if (c9[3] !== raw9 || c9[5] < 0) continue;
+      if (c9[3] !== raw9 || (c9[5] < 0 && !c9[6])) continue;
       if (!m9) m9 = new Map();
-      m9.set(c9[5], c9[0]);
+      m9.set(c9[5] >= 0 ? c9[5] : c9[6], c9[0]);   // 유닛 표적 태그 · 자원 우클릭은 자원 열쇠
     }
     return m9;
   };
@@ -15707,9 +15731,9 @@ export default function ReplayMotionPlayer({
   const splitMarks9 = (ctx9: CanvasRenderingContext2D, raw9: string, team9: number | null, tNow9: number,
     zx9: (tx: number) => number, zy9: (ty: number) => number, tile9: number): void => {
     if (clickFx) {
-      for (const [cs, cx2, cy2, craw, ck, tgt9] of entClicks) {
+      for (const [cs, cx2, cy2, craw, ck, tgt9, rk9] of entClicks) {
         if (cs > tNow9) break;
-        if (tNow9 - cs > 0.9 || craw !== raw9 || tgt9 >= 0) continue;   // 유닛을 겨눈 공격은 땅 마커 없음 — 표적 몸의 빨간 링(ATK_FLASH9)
+        if (tNow9 - cs > 0.9 || craw !== raw9 || tgt9 >= 0 || rk9) continue;   // 자원 우클릭도 땅 마커 없음 — 자원의 노란 링 깜빡임   // 유닛을 겨눈 공격은 땅 마커 없음 — 표적 몸의 빨간 링(ATK_FLASH9)
         const a9 = (tNow9 - cs) / 0.9;
         const k9 = a9 < 0.2 ? 1.15 - (a9 / 0.2) * 0.4 : 0.75 - ((a9 - 0.2) / 0.8) * 0.15;
         const r9 = (Math.max(10, tile9) * k9) / 2;
@@ -18730,7 +18754,32 @@ export default function ReplayMotionPlayer({
     Lair: "Hatchery", Hive: "Lair", "Greater Spire": "Spire", "Sunken Colony": "Creep Colony", "Spore Colony": "Creep Colony",
   };
   /** 한 몸의 칸 — 왼쪽 실루엣·숫자 · 가운데 글 · 오른쪽 탄 몸. */
+  /** ★ 자원 한 칸(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시") — 이름 · 그 자원 모델(지금 고갈 별본 그대로) · 그림 밑 [남은/처음] ·
+   *  글 칸에 남은 몫(%). 양은 엔진이 판 11 자원량 절에서 싣는다(resAmt·resMax) — 줄이 없는 판은 '–'. */
+  const dockRes9 = (op: UnitDrawOp): React.ReactNode => {
+    const gas9 = op.pickName === "Vespene Geyser";
+    const col9 = gas9 ? "#7dd87d" : "#8fd0ff";
+    const has9 = op.resAmt !== undefined && op.resMax !== undefined;
+    return (
+      <div className="scr-motion-infodock-one">
+        <div className="scr-motion-infodock-name">{gas9 ? "베스핀 간헐천" : "미네랄 필드"}</div>
+        <div className="scr-motion-infodock-pic">
+          <DocIcon9 kind={op.kind} flat fit fitPad={0.06} className="scr-motion-infodock-big" />
+          <div className="scr-motion-infodock-nums">
+            <span className="is-row"><span style={{ color: col9 }}>{has9 ? `${op.resAmt}/${op.resMax}` : "–"}</span></span>
+          </div>
+        </div>
+        <div className="scr-motion-infodock-text">
+          <div className="scr-motion-infodock-lines">
+            <div className="scr-motion-info-line">{gas9 ? "가스" : "광물"} {has9 ? `${op.resAmt} / ${op.resMax}` : "–"}</div>
+            {has9 && op.resMax! > 0 && <div className="scr-motion-info-line">{`남은 양 ${Math.round((op.resAmt! / op.resMax!) * 100)}%`}</div>}
+          </div>
+        </div>
+      </div>
+    );
+  };
   const dockOne9 = (op: UnitDrawOp): React.ReactNode => {
+    if (op.pickKey?.startsWith("r")) return dockRes9(op);   // 자원(위 dockRes9)
     const en = op.pickName ?? "";
     const bld9 = !!op.pickBld;
     const ko = bld9 ? BUILDING_KO[en] ?? en : UNIT_KO[en] ?? en;
@@ -19580,9 +19629,9 @@ export default function ReplayMotionPlayer({
           {/* 클릭 자국(요청: 동그라미 안에 점, 납작하게 + 토글) — 브루드워의 이동 클릭
               표시처럼, 명령이 떨어진 자리에 찍은 사람 색의 납작한 고리+가운데 점이 잠깐
               남는다. v2 데이터로 그리므로 v2 모드 + 클릭 토글이 켜져 있을 때만이다. */}
-          {clickFx && entClicks.map(([cs, cx2, cy2, raw, ck, tgt9], i) => {
+          {clickFx && entClicks.map(([cs, cx2, cy2, raw, ck, tgt9, rk9], i) => {
             if (t < cs || t - cs > 0.9) return null;
-            if (tgt9 >= 0) return null;   // 유닛을 겨눈 공격 — 땅 마커 없음(원작) · 표적 몸의 빨간 링은 붓이 그린다(ATK_FLASH9)
+            if (tgt9 >= 0 || rk9) return null;   // 자원을 겨눈 우클릭도 땅 마커 없음 — 그 자원의 노란 링이 두 번 깜빡인다(2026-10-12 · ATK_FLASH9)   // 유닛을 겨눈 공격 — 땅 마커 없음(원작) · 표적 몸의 빨간 링은 붓이 그린다(ATK_FLASH9)
             /* 시점 보기에서는 **상대편 손짓을 안 보여 준다**(지적: "상대편 마우스조작은
                감춰야해 이땐") — 클릭 자국은 '그 사람이 무엇을 눌렀나'라, 안개로 유닛을
                가려 놓고 조작만 보이면 시야를 가린 뜻이 사라진다. 같은 팀은 보인다

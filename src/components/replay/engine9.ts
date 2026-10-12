@@ -2028,6 +2028,10 @@ export type UnitDrawOp = {
   /** 아직 짓는(변태하는) 중인 건물인가 — 그런 건물은 생산도 큐도 연구도 못 한다.
    *  팝업이 그 줄들을 아예 안 쓰는 표다(요청). */
   pickWip?: boolean;
+  /** 자원(미네랄·간헐천)의 남은 양 · 처음 양(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시") — 판 11 자원량 절(amounts)의 그 자리 줄:
+   *  처음 = 가장 이른 줄 · 남은 = t 이하 마지막 줄. 줄이 없으면 둘 다 없다. 자원 op 의 pickKey 는 `r<x×2>|<y×2>`(반 타일 칸). */
+  resAmt?: number;
+  resMax?: number;
   /** 이 건물이 제 종류의 **대표**인가(지적: "업그레이드 상황이 같은 종류의 건물 인포팝업에
    *  공통으로 뜨는 현상") ─────────────────────────────────────────────────────────────
    *  연구 기록(ups)에는 **어느 건물에서 했는지가 안 남는다** — [초, 이름, 임자]뿐이다.
@@ -4273,6 +4277,18 @@ export function deriveWorld9(inp: {
     for (const arr9 of m.values()) arr9.sort((a, b) => a[0] - b[0]);
     return m;
   })();
+  /** 자원량 계단(판 11 amounts · 2026-10-12 자원 클릭) — resStageSeries 와 같은 반 타일 열쇠 → [초, 양] 오름차순. */
+  const resAmtSeries = (() => {
+    const m = new Map<string, [number, number][]>();
+    for (const [sec9, rx9, ry9, v9] of entData?.amounts ?? []) {
+      const k9 = `${Math.round(rx9 * 2)}|${Math.round(ry9 * 2)}`;
+      const arr9 = m.get(k9);
+      if (arr9) arr9.push([sec9, v9]);
+      else m.set(k9, [[sec9, v9]]);
+    }
+    for (const arr9 of m.values()) arr9.sort((a, b) => a[0] - b[0]);
+    return m;
+  })();
   const gridHasGasFlags = (grid.resources ?? []).some((r) => r[2] === 1);
   const gasHideOf = (() => {
     const rs = (grid.resources ?? []).filter((r) => !gridHasGasFlags || r[2] === 1);
@@ -4382,7 +4398,7 @@ export function deriveWorld9(inp: {
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc, recallArr9,
     nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
+    resStageSeries, resAmtSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
   };
 }
 
@@ -4419,7 +4435,7 @@ export type EngineView9 = {
  *  남은 단(resStageAt)은 어차피 반 타일 격자의 자리로 읽으므로 한 장이 곧 그 자리의 밭이다. 간헐천은 안 겹치니 그대로 둔다.
  *  ⚠ 배열이 같은 동안은 한 번만 거른다(WeakMap) — 프레임마다 도는 자리다. */
 const RES_UNIQ9 = new WeakMap<object, [number, number, 0 | 1][]>();
-function resUniq9(res: [number, number, 0 | 1][]): [number, number, 0 | 1][] {
+export function resUniq9(res: [number, number, 0 | 1][]): [number, number, 0 | 1][] {
   const got = RES_UNIQ9.get(res); if (got) return got;
   const seen = new Set<string>(); const out: [number, number, 0 | 1][] = [];
   for (const r of res) {
@@ -4438,7 +4454,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, recallArr9, nukeImpacts,
     goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
-    resStageSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
+    resStageSeries, resAmtSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
     selRows9,
   } = world;
   /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
@@ -4841,6 +4857,22 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       let lv9 = 4;
       for (const [s9, v9] of arr9) { if (s9 > t) break; lv9 = v9; }
       return lv9;
+    };
+    /** 그 자리 자원의 [남은, 처음] 양(위 resAmtSeries · 이웃 반 타일 칸까지 — resStageAt 과 같은 찾기). 줄이 없으면 null. */
+    const resAmtAt = (rx: number, ry: number): [number, number] | null => {
+      if (resAmtSeries.size === 0) return null;
+      const gx9 = Math.round(rx * 2);
+      const gy9 = Math.round(ry * 2);
+      let arr9: [number, number][] | undefined;
+      for (let dx9 = -1; dx9 <= 1 && !arr9; dx9 += 1) {
+        for (let dy9 = -1; dy9 <= 1 && !arr9; dy9 += 1) {
+          arr9 = resAmtSeries.get(`${gx9 + dx9}|${gy9 + dy9}`);
+        }
+      }
+      if (!arr9 || arr9.length === 0) return null;
+      let v9 = arr9[0][1];
+      for (const [s9, a9] of arr9) { if (s9 > t) break; v9 = a9; }
+      return [v9, arr9[0][1]];
     };
     const castsNow = castsSrc.filter((c) => c[0] <= t
       && t - c[0] <= (c[3] === "Nuclear Strike" ? NUKE_FALL_SEC + NUKE_BOOM_SEC
@@ -7388,6 +7420,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          밝혔지만 지금 안 보이는 자리의 자원은 절반만 — 기억이라는 표시다. */
       // 미네랄 밭 알파 0.9 → 0.72(요청: 더 연하고 투명하게) — 비침은 알파가 낸다.
       alpha: (gasSpot ? 1 : 0.72) * (rSeen9 === 1 ? 0.5 : 1), noShadow: true,
+      /* ★ 자원도 **집힌다**(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시 · 마우스로 자원 클릭 시 자원 선택 링 표시(원작 표현 참조)") — 열쇠는 반 타일 칸
+         (`r` 머리 — 유닛 u·건물 t/b 와 안 겹친다). pickBld 는 안 싣는다(1배의 '건물만 집기'·가스 불빛 고리에 안 들게). 링은 건물 갈래의 GL 링이 그대로 긋는다(노랑 — selRingCol9). */
+      pickKey: `r${Math.round(res[0] * 2)}|${Math.round(res[1] * 2)}`,
+      pickName: gasSpot ? "Vespene Geyser" : "Mineral Field",
+      ...((): { resAmt?: number; resMax?: number } => { const a9 = resAmtAt(res[0], res[1]); return a9 ? { resAmt: a9[0], resMax: a9[1] } : {}; })(),
     });
     return null;
   });
