@@ -247,7 +247,11 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   px?: number; py?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
-export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
+/** ★ 검색 거리(2026-10-12, 요청: "자막에 나온 내용이 아니더라도 검색되면 좋겠는데") — 편성표 밖의 글귀: **모든 장면**(잔 장면·밀린 장면 포함 · 그 장면 1등을 주인공으로 지은
+ *  자막)과 **사람마다 빌드 이정표**. 재생기 검색이 토막 자막과 함께 찾는다(편성표 배열의 search 칸). */
+export type CastSearch9 = { at: number; caps: CapPart9[] };
+export type CastPlan9 = CastSeg9[] & { search?: CastSearch9[] };
+export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const total = Math.max(1, opts.total);
   /** 임자 번호 → 이름. 관전자·로스터 밖은 아예 안 담는다(그 사람은 중계에 안 선다). */
   const rawOf9 = new Map<number, string>();
@@ -2567,7 +2571,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     }
     sg9.caps = cycleCaps9(sg9.raw, sg9.at, i9 + 1 < out9.length ? out9[i9 + 1].at : total);
   }
-  return out9;
+  /* 검색 거리(위 CastSearch9 ★) — 장면마다 1등의 자막 · 사람마다 빌드 이정표. 자막 짓기가 한 장면에서 넘어져도 나머지는 싣는다. */
+  const search9: CastSearch9[] = [];
+  for (const sc9 of scs9) {
+    if (sc9.by.size === 0) continue;
+    const pick9 = [...sc9.by.entries()].sort((a9, b9) => b9[1] - a9[1])[0][0];
+    try {
+      const caps9 = sceneCaps9(sc9, pick9, duel9(sc9, pick9, baseOwner9(sc9) ?? battleOwner9(bidOf9.get(sc9) ?? -1)));
+      if (caps9.length > 0) search9.push({ at: sc9.t0, caps: caps9 });
+    } catch { /* 한 장면의 자막 실패는 검색에서만 빠진다 */ }
+  }
+  for (const raw9 of new Set(rawOf9.values())) for (const m9 of buildMiles9(raw9)) search9.push({ at: m9.at, caps: m9.caps });
+  const plan9 = out9 as CastPlan9;
+  plan9.search = search9;
+  return plan9;
 }
 
 /** t 에 보여줄 토막 번호 — 없으면 -1(이분 탐색). */

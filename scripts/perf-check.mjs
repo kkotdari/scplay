@@ -1487,7 +1487,8 @@ if (SHOT) {
     const st9 = () => page.evaluate(() => { const w = document.querySelector(".scr-motion-searchwrap"); const r = w?.getBoundingClientRect();
       return { cls: w?.className ?? null, w: r ? Math.round(r.width) : null, input: !!document.querySelector(".scr-motion-search-input"),
         count: document.querySelector(".scr-motion-searchwrap .scr-motion-search-count")?.textContent ?? null,
-        tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null }; });
+        tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null,
+        sug: [...document.querySelectorAll(".scr-motion-searchsug-opt")].map((e) => e.textContent) }; });
     console.log("[검색 쉼]", JSON.stringify(await st9()));
     await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
     await page.waitForTimeout(400);
@@ -1495,6 +1496,7 @@ if (SHOT) {
     await page.fill(".scr-motion-search-input", q9);
     await page.waitForTimeout(300);
     console.log("[검색 치기만]", q9, JSON.stringify(await st9()));
+    if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png") });   // 자동 완성이 뜬 꼴
     await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(1200);
     console.log("[검색 Enter]", JSON.stringify(await st9()));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }

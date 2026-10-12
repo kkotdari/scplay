@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castPlan9, type CapPart9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -10346,17 +10346,20 @@ export default function ReplayMotionPlayer({
   /** 재생기 검색어(아래 searchHits9 ★★) — 편성표 앞에 선다: 중계가 꺼져 있어도 검색이 전술 자막을 찾으려면 편성표를 굽는다(planAll9). */
   const [searchQ9, setSearchQ9] = useState("");
   const searchOn9 = searchQ9.trim() !== "";
+  /** 입력 꼴(돋보기 알약 · 아래 JSX ★★) — 치는 동안에도 자동 완성이 찾을 거리(편성표·색인)를 굽는다. */
+  const [searchEdit9, setSearchEdit9] = useState(false);
+  const searchNeed9 = searchOn9 || searchEdit9;
   /** 검색창에 치는 글(초안) — Enter·찾기 단추가 searchQ9 로 올린다(아래 searchSubmit9 ★). */
   const [searchDraft9, setSearchDraft9] = useState("");
   const planAll9 = useMemo<CastSeg9[]>(
-    () => ((castOn || searchOn9) && entData
+    () => ((castOn || searchNeed9) && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
         bank: truth?.res })   // 인구 막힘은 돈이 있을 때만(2026-10-11)
       : NO_PLAN9),
-    [castOn, searchOn9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
+    [castOn, searchNeed9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
   const castPlan = castOn ? planAll9 : NO_PLAN9;
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
@@ -12375,46 +12378,81 @@ export default function ReplayMotionPlayer({
   const SEARCH_MERGE9 = 8;
   const SEARCH_LEAD9 = 2;
   const [searchCur9, setSearchCur9] = useState(-1);
-  const searchIndex9 = useMemo((): { sec: number; label: string; hay: string }[] => {
-    if (!entData || !searchOn9) return [];
+  /* ★ 찾는 거리를 넓힌다(2026-10-12, 요청: "자막에 나온 내용이 아니더라도 검색되면 좋겠는데" · 지적: "분명 핵을 쓴 판인데 핵 쳐도 안 나와") —
+     ① 편성표 밖의 글귀(planAll9.search — 잔 장면·밀린 장면까지 모든 장면의 자막 · 사람마다 빌드 이정표 · cast9 CastSearch9)
+     ② 몸의 죽음("마린 사망" · 건물은 "배럭 파괴" · 변태로 사라진 것은 빼고) · 시즈 모드/해제 · 클로킹(레이스·고스트) · 건물 띄움
+     ③ **핵** — 덤퍼의 시전 기록에는 핵이 한 번도 안 실린다(위 핵 연출 ★ — 시전 훅이 핵 길을 안 지난다). 그래서 핵탄두 개체("Nuclear Missile")의 자취로 짓는다:
+        태어남 = "핵 장전" · 움직여 죽음 = "핵 투하"(사일로째 부서진 탄두는 제자리라 거른다). 옛 색인은 탄두를 딸림으로 빼(SEARCH_SKIP9) 핵이 통째로 없었다.
+     자동 완성(searchSug9)이 쓰는 낱말 표(terms)도 여기서 같이 모은다 — **그 경기에 나온 것만**(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 낱말). */
+  const SEARCH_TACTIC9 = ["교전", "공격", "방어", "헬프", "견제", "드랍", "폭탄드랍", "포토러시", "성큰러시", "캐논러시", "저글링러시", "러시", "반파", "대파", "궤멸", "파괴",
+    "사망", "빠른", "늘리기", "선스포닝풀", "노스포닝풀", "선포지", "더블넥서스", "노배럭", "더블커맨드", "투게이트", "쓰리게이트", "투배럭", "쓰리배럭", "투팩", "테크",
+    "입구 막음", "이사", "인구 막힘", "gg 선언", "노엘 외침", "핵 투하", "핵 장전", "시즈 모드", "클로킹", "띄움", "사냥", "전원"];
+  const searchIndex9 = useMemo((): { list: { sec: number; label: string; hay: string }[]; terms: Map<string, string> } => {
+    const terms9 = new Map<string, string>();
+    if (!entData || !searchNeed9) return { list: [], terms: terms9 };
     const nameOf9 = new Map(bases.map((b9) => [b9.key, b9.name] as const));
     const rawOf9 = new Map(entData.players.map((pl9) => [pl9.owner, pl9.name] as const));
     const out9: { sec: number; label: string; hay: string }[] = [];
+    const term9 = (t9: string, tag9: string): void => { if (t9 && !terms9.has(t9)) terms9.set(t9, tag9); };
+    for (const b9 of bases) term9(b9.name, "사람");   // 사람은 몸 기록이 없어도(자막에만 나와도) 든다
     const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string): void => {
       let who9 = "";
       if (owner9 !== null) {
         const raw9 = rawOf9.get(owner9);
         if (!raw9 || !nameOf9.has(raw9)) return;   // 관전자·임자 모름은 뺀다
         who9 = nameOf9.get(raw9)!;
+        term9(who9, "사람");
       }
       const lab9 = who9 ? `${who9} ${label9}` : label9;
       out9.push({ sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
     };
     for (const e9 of entData.lives) {
-      if (e9.born <= 1 || SEARCH_SKIP9.has(e9.kind)) continue;
-      if (e9.bld) add9(e9.born, e9.owner, `${BUILDING_KO[e9.kind] ?? e9.kind} 건설`, e9.kind);
-      else add9(e9.born, e9.owner, `${UNIT_KO[e9.kind] ?? e9.kind} 생산`, e9.kind);
+      if (e9.kind === "Nuclear Missile") {
+        if (e9.born > 1) { add9(e9.born, e9.owner, "핵 장전", "nuke 핵미사일"); term9("핵", "전술"); }
+        if (e9.died !== null && e9.endX !== undefined && e9.endY !== undefined && Math.hypot(e9.endX - e9.bornX, e9.endY - e9.bornY) > 1) {
+          add9(e9.died, e9.owner, "핵 투하", "nuke 핵미사일 착탄");
+        }
+        continue;
+      }
+      if (SEARCH_SKIP9.has(e9.kind)) continue;
+      const ko9 = (e9.bld ? BUILDING_KO[e9.kind] : UNIT_KO[e9.kind]) ?? e9.kind;
+      if (e9.born > 1) {
+        add9(e9.born, e9.owner, `${ko9} ${e9.bld ? "건설" : "생산"}`, e9.kind);
+        term9(ko9, e9.bld ? "건물" : "유닛");
+      }
+      if (e9.died !== null && e9.end !== "morph") add9(e9.died, e9.owner, `${ko9} ${e9.bld ? "파괴" : "사망"}`, `${e9.kind} 잃음 죽음`);
+      for (const [ss9, on9] of e9.sieges) add9(ss9, e9.owner, `${ko9} 시즈 ${on9 ? "모드" : "해제"}`, "siege");
+      if (e9.kind === "Wraith" || e9.kind === "Ghost") for (const [cs9] of e9.cloaks) add9(cs9, e9.owner, `${ko9} 클로킹`, "cloak 은신");
+      for (const ls9 of e9.lifts) add9(ls9, e9.owner, `${ko9} 띄움`, "lift");
     }
     for (const [us9, un9, uo9] of entData.ups) {
       const lv9 = / (\d)$/.exec(un9)?.[1];
-      add9(us9, uo9, `${researchKo(un9.replace(/ \d$/, ""))}${lv9 ? ` ${lv9}` : ""} 완료`, un9);
+      const rko9 = researchKo(un9.replace(/ \d$/, ""));
+      add9(us9, uo9, `${rko9}${lv9 ? ` ${lv9}` : ""} 완료`, un9);
+      term9(rko9, "기술");
     }
-    for (const [cs9, , , ct9, co9] of entData.casts) add9(cs9, co9, TECH_KO[ct9] ?? ct9, ct9);
+    for (const [cs9, , , ct9, co9] of entData.casts) { const k9 = TECH_KO[ct9] ?? ct9; add9(cs9, co9, k9, ct9); term9(k9, "마법"); }
+    const capTxt9 = (caps9: CapPart9[]): string => caps9.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
-      const txt9 = g9.caps.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
+      const txt9 = capTxt9(g9.caps);
       if (txt9) add9(g9.at, null, txt9, g9.why ?? "");
     }
+    for (const x9 of (planAll9 as CastPlan9).search ?? []) {
+      const txt9 = capTxt9(x9.caps);
+      if (txt9) add9(x9.at, null, txt9, "");
+    }
     out9.sort((a9, b9) => a9.sec - b9.sec);
-    return out9;
+    for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
+    return { list: out9, terms: terms9 };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, searchOn9, bases, planAll9]);
+  }, [entData, searchNeed9, bases, planAll9]);
   const searchHits9 = useMemo((): { sec: number; label: string }[] => {
     const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks9.length === 0) return [];
     const out9: { sec: number; label: string }[] = [];
     const last9 = new Map<string, number>();
-    for (const h9 of searchIndex9) {
+    for (const h9 of searchIndex9.list) {
       if (!toks9.every((k9) => h9.hay.includes(k9))) continue;
       const prev9 = last9.get(h9.label);
       last9.set(h9.label, h9.sec);
@@ -12424,20 +12462,46 @@ export default function ReplayMotionPlayer({
     return out9;
   }, [searchIndex9, searchQ9]);
   useEffect(() => { setSearchCur9(-1); }, [searchHits9]);
+  /* ★ **자동 완성**(2026-10-12, 요청: "자동 완성해 보자 · 게임 목록 검색처럼 · 단 그 게임에 나온 것만") — 치는 글의 **마지막 낱말**을 그 경기의 낱말 표(searchIndex9.terms)에서
+     찾아 입력칸 위로 띄운다(같은 글 > 앞이 같은 글 > 짧은 글 차례 · 여덟 개). ↑↓ 고르기 · Enter 고르고 바로 찾기 · Tab 채우기만 · 누르면 고르고 찾기 — 게임 목록 검색
+     (sg-web SearchFilterBar)의 손버릇 그대로. 한글 조합 중의 Enter 는 글자를 끝낼 뿐이라 안 받는다. */
+  const [sugHi9, setSugHi9] = useState(0);
+  const searchSug9 = useMemo((): { term: string; tag: string }[] => {
+    if (!searchEdit9) return [];
+    const toks9 = searchDraft9.split(/\s+/);
+    const last9 = searchNorm9(toks9[toks9.length - 1] ?? "");
+    if (!last9) return [];
+    const got9: { term: string; tag: string; rank: number; len: number }[] = [];
+    for (const [t9, tag9] of searchIndex9.terms) {
+      const n9 = searchNorm9(t9);
+      if (!n9.includes(last9)) continue;
+      got9.push({ term: t9, tag: tag9, rank: n9 === last9 ? 0 : n9.startsWith(last9) ? 1 : 2, len: n9.length });
+    }
+    got9.sort((a9, b9) => a9.rank - b9.rank || a9.len - b9.len || a9.term.localeCompare(b9.term));
+    return got9.slice(0, 8).map(({ term, tag }) => ({ term, tag }));
+  }, [searchEdit9, searchDraft9, searchIndex9]);
+  useEffect(() => { setSugHi9(0); }, [searchSug9]);
   /** 입력 꼴(위 JSX ★★) · 찾은 게 없었나('0건') · Enter 뒤 첫 결과로 갈 차례인가(검색어가 바뀌면 결과가 다음 렌더에 서므로 아래 effect 가 간다). */
-  const [searchEdit9, setSearchEdit9] = useState(false);
   const [searchMiss9, setSearchMiss9] = useState(false);
   const searchFirst9 = useRef(false);
   const searchEditOpen9 = (): void => { setSearchDraft9(searchQ9); setSearchMiss9(false); setSearchEdit9(true); };
   /** Enter·돋보기(입력 꼴) — 검색어를 올리고 첫 결과(1/N)로 간다 · 빈 글이면 검색 취소. */
-  const searchSubmit9 = (): void => {
-    const d9 = searchDraft9.trim();
+  const searchSubmit9 = (val9?: string): void => {
+    const d9 = (val9 ?? searchDraft9).trim();
     if (d9 === "") { setSearchQ9(""); setSearchEdit9(false); return; }
     searchFirst9.current = true;
     if (d9 !== searchQ9.trim()) setSearchQ9(d9);
     else setSearchHitTick9((v9) => v9 + 1);   // 같은 검색어 — 결과는 그대로라 effect 를 손으로 깨운다
   };
   const [searchHitTick9, setSearchHitTick9] = useState(0);
+  /** 자동 완성 고르기 — 마지막 낱말을 그 낱말로 갈고, go 면 곧장 찾는다. */
+  const searchPick9 = (term9: string, go9: boolean): void => {
+    const toks9 = searchDraft9.trimEnd().split(/\s+/);
+    toks9[toks9.length - 1] = term9;
+    const next9 = toks9.join(" ");
+    setSearchDraft9(next9);
+    if (go9) searchSubmit9(next9);
+  };
   const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); };
   /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
   useEffect(() => {
@@ -18110,15 +18174,41 @@ export default function ReplayMotionPlayer({
         {searchEdit9 ? (
           <form className="scr-motion-searchbox" onSubmit={(e) => { e.preventDefault(); searchSubmit9(); }}>
             <input
-              className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus
+              className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus autoComplete="off"
               value={searchDraft9} placeholder="유닛·기술·전술"
               onChange={(e) => { setSearchDraft9(e.currentTarget.value); setSearchMiss9(false); }}
-              onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSearchEdit9(false); } }}
-              aria-label="검색어"
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.keyCode === 229) return;   // 한글 조합 중(위 자동 완성 ★)
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSearchEdit9(false); return; }
+                if (searchSug9.length === 0) return;
+                if (e.key === "ArrowDown") { e.preventDefault(); setSugHi9((h9) => (h9 + 1) % searchSug9.length); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setSugHi9((h9) => (h9 - 1 + searchSug9.length) % searchSug9.length); }
+                else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); searchPick9(searchSug9[Math.min(sugHi9, searchSug9.length - 1)].term, e.key === "Enter"); }
+              }}
+              aria-label="검색어" aria-autocomplete="list"
             />
             {searchMiss9 && <span className="scr-motion-search-count is-miss">0건</span>}
           </form>
-        ) : searchOn9 ? (
+        ) : null}
+        {searchEdit9 && searchSug9.length > 0 && (
+          <ul className="scr-motion-searchsug" role="listbox" aria-label="검색어 자동 완성">
+            {searchSug9.map((g9, i9) => (
+              <li key={g9.term}>
+                <button
+                  type="button" role="option" aria-selected={i9 === sugHi9}
+                  className={cx("scr-motion-searchsug-opt", i9 === sugHi9 && "is-on")}
+                  onMouseEnter={() => setSugHi9(i9)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => searchPick9(g9.term, true)}
+                >
+                  <span className="scr-motion-searchsug-name">{g9.term}</span>
+                  <span className="scr-motion-searchsug-tag">{g9.tag}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!searchEdit9 && searchOn9 ? (
           <>
             <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} disabled={searchHits9.length === 0} aria-label="이전 결과 (B)" title="이전 (B)"><ChevronLeft size={16} /></button>
             <button type="button" className="scr-motion-search-count" onClick={searchEditOpen9} aria-label={`검색어 "${searchQ9}" — 누르면 고치기`} title={searchQ9}>

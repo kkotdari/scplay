@@ -4817,7 +4817,7 @@
    ★ 한 알약(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면 1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음") —
    쉼은 형제와 같은 돋보기 원 · 펴지면(is-open) 감싸개가 쇠판 위 우물 알약이 되고 돋보기는 그 안의 맨 막(바탕 없음)이다. 입력칸은 펴질 때 옆으로 자란다(scr-search-grow).
    입력 글자는 16px 아래로 안 내린다(iOS 사파리가 16px 아래 입력을 누르면 화면을 당긴다). */
-.scr-motion-searchwrap { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(2px * var(--ui)); height: var(--mapbtn-h, calc(30px * var(--ui))); border-radius: 999px; box-sizing: border-box; color: #f5f6f7; }
+.scr-motion-searchwrap { position: relative; flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(2px * var(--ui)); height: var(--mapbtn-h, calc(30px * var(--ui))); border-radius: 999px; box-sizing: border-box; color: #f5f6f7; }
 .scr-motion-searchwrap.is-open {
   padding-right: calc(4px * var(--ui));
   background: #0d1116; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -4860,3 +4860,18 @@
   transform: translate(-50%, -50%); border-radius: 1px; background: #ffb000; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 .scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: #ff4d1f; }
+/* 자동 완성(2026-10-12, 요청: "자동 완성해 보자 · 게임 목록 검색처럼 · 단 그 게임에 나온 것만") — 알약 **위로** 뜬다(쇠판이 화면 아래라). 목록 판(.scr-motion-pickmenu)과 같은 결. */
+.scr-motion-searchsug {
+  position: absolute; left: 0; bottom: calc(100% + 6px * var(--ui)); z-index: 7600;
+  min-width: max(100%, calc(180px * var(--ui))); max-width: calc(100vw - 24px); margin: 0; padding: calc(4px * var(--ui)); list-style: none;
+  display: flex; flex-direction: column; gap: 1px;
+  background: rgba(14, 18, 26, 0.94); color: #eef2f7; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 4px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.scr-motion-searchsug-opt {
+  display: flex; align-items: baseline; justify-content: space-between; gap: calc(10px * var(--ui)); width: 100%;
+  padding: calc(5px * var(--ui)) calc(8px * var(--ui)); border: none; border-radius: 2px; cursor: pointer;
+  background: transparent; color: inherit; text-align: left; font-family: inherit; font-size: calc(13px * var(--ui)); font-weight: 600;
+}
+.scr-motion-searchsug-opt.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; }
+.scr-motion-searchsug-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr-motion-searchsug-tag { flex: none; font-size: calc(11px * var(--ui)); opacity: 0.6; }
