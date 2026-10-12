@@ -1649,3 +1649,7 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   앞에서 멈추고 searchHold9 — 멈춘 동안은 창을 조금 넘어도 그 자막을 세워 둔다(배속·느린 기기는 한 틱이 끝을 넘긴다 · 멈춘 뒤 시계를 되돌리면 재생 틱이 덮었다).
 - 🔎 `perf-check.mjs --searchprobe 정구 --searchkeep 1 --searchwait 14 --speed 16 --t 0` — 8→9→10 넘김 · 10/10 에서 시계가 서고 자막이 남는다 · owner null.
   `--speed N`(sceneLink s) · 줄 끝은 SCR_DIAG.searchHit(지금 결과 글귀·창·자리).
+- 같은 날 되요청: "아니다 — 검색 결과 볼 때도 중계랑 똑같이 잠가 줘" — '중계 꺼짐 꼴'의 조작 부분을 되물렸다. 이제 검색어가 서 있는 동안(개인 추적·손 분할 아닐 때) `searchSegNow9` 가
+  창과 상관없이 지금 결과를 쥔다: 카메라는 그 사건 자리(spot · 없으면 점)를 trackView #spot 으로 따라가고, 잠금(camLockRef9)·잠금 토스트("중계 모드에선 …")·줌 당김(castZoomFit9)이
+  중계와 같다. 중계를 꺼 둔 판에서도 잠근다. 편성표(castOn = castUser9 && !searchOn9)는 그대로 물러나 있고 넘김·마지막 멈춤·검색 자막도 그대로.
+  🔎 `perf-check.mjs --locktoast --castoff --searchprobe 정구 --searchkeep 1 --searchlock` — 검색 전 휠 토스트 없음 · 검색 중 "중계 모드에선 줌·화면 이동이 안 돼요".

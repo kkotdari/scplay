@@ -10324,8 +10324,8 @@ export default function ReplayMotionPlayer({
   /** 재생기 검색어(아래 searchHits9 ★★) — 편성표 앞에 선다: 중계가 꺼져 있어도 검색이 전술 자막을 찾으려면 편성표를 굽는다(planAll9). */
   const [searchQ9, setSearchQ9] = useState("");
   const searchOn9 = searchQ9.trim() !== "";
-  /* ★ **검색은 중계 꺼짐과 똑같이 조작된다**(2026-10-12, 요청: "기본적으로 키워드 검색은 중계 off 상태와 똑같이 조작됨") — 검색어가 서 있는 동안 자동 중계는 물러난다(카메라 잠금 ·
-     줌 당김 · 시야 · 화면 주인 줄 · 중계 자막이 다 꺼짐 쪽). 결과로 가면 그 자리로 한 번 옮기고(searchGo9 · lookAtTile9) 그 뒤는 손 카메라다. 검색을 닫으면 켜 두었던 중계로 돌아간다. */
+  /* ★ 검색어가 서 있는 동안 **자동 중계 편성표는 물러난다**(2026-10-12, 요청: "키워드 검색은 중계 off 상태와 똑같이" → 같은 날 되요청: "검색 결과 볼 때도 중계랑 똑같이 잠가 줘") —
+     카메라·잠금·줌 당김은 검색 장면이 중계처럼 쥔다(아래 searchSegNow9 ★). 화면 주인 줄·중계 자막은 검색 자막(searchCapNow9)으로 갈음. 검색을 닫으면 켜 두었던 중계로 돌아간다. */
   const castOn = castUser9 && !searchOn9;
   /** 입력 꼴(돋보기 알약 · 아래 JSX ★★) — 치는 동안에도 자동 완성이 찾을 거리(편성표·색인)를 굽는다. */
   const [searchEdit9, setSearchEdit9] = useState(false);
@@ -10390,7 +10390,10 @@ export default function ReplayMotionPlayer({
     }
     return { at: f9.from, raw: f9.raw ?? "", why: "검색", cyc: false, score: 0, caps: caps9, capTo: f9.to, ...(spot9 ? { spot: spot9 } : {}) };
   }, [searchFocus9, bases]);
-  const searchSegNow9 = searchSeg9 && searchFocus9 && castOn && trackRaw === null && !splitUser9 && t >= searchFocus9.from - 1 && t <= searchFocus9.to ? searchSeg9 : null;
+  /* ★ **검색 결과를 볼 때는 중계처럼 잠근다**(2026-10-12, 되요청: "검색 결과 볼 때도 중계랑 똑같이 잠가 줘" — 바로 앞의 '중계 꺼짐 꼴'을 되물림) — 검색어가 서 있는 동안(개인 추적·손 분할
+     아닐 때) 카메라는 지금 결과의 사건 자리(장면 길 spot · 없으면 그 점)를 쥐고(trackView #spot) 손짓·줌은 잠근다. 창 밖이어도 그 결과를 쥔다(길 끝에 머문다 — 놓으면 옛 손 자리로 튀었다).
+     자동 중계 편성표는 검색 중엔 물러나 있다(castOn = castUser9 && !searchOn9). */
+  const searchSegNow9 = searchSeg9 && searchFocus9 && searchOn9 && trackRaw === null && !splitUser9 ? searchSeg9 : null;
   const castRaw = searchSegNow9 ? (searchSegNow9.spot ? null : searchSegNow9.raw) : castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
   /* ★★ 자동 중계는 **늘 한 사람 화면**이다(2026-10-09, 요청 2: "자동 카메라 모드 — 무조건 1사람 화면만 노출 · 공격이나 교전 발생시 더 잘한 사람
@@ -10399,7 +10402,7 @@ export default function ReplayMotionPlayer({
      몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
   const castSeg9 = searchSegNow9 ?? (castIdx9 >= 0 ? castPlan[castIdx9] : null);
   /** 지금 따라가는 교전 자리 길(위 castRaw ★) — 자동 중계 · 개인 추적·손 분할이 아닐 때만. */
-  const spotNow9 = castOn && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
+  const spotNow9 = (castOn || searchSegNow9 !== null) && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
   /** 그 길의 t 자리(1초 간격 키 사이를 직선으로). */
   const spotAt9 = (p9: readonly [number, number, number][], t9: number): { x: number; y: number } => {
     if (t9 <= p9[0][0]) return { x: p9[0][1], y: p9[0][2] };
@@ -10422,7 +10425,7 @@ export default function ReplayMotionPlayer({
    *  자동도 포함) 드래그 줌(마우스, 손제스쳐, 단축키) 다 막혀야해 꼭 분할화면이 아니라 단독화면이라도") — 휠(onWheel) · 핀치(onTS) · 한 손 줌
    *  (quickZoom) · ↑↓(zoomStep9) · 미니맵 휠(fsWheelZoom). 카메라가 기계 것일 때 배율은 중계의 자(castZoomFit9)다. 옛 '분할만 막는다'는 이 안에 든다. */
   const camLockRef9 = useRef(false);
-  camLockRef9.current = castOn || trackRaw !== null || splitOn9;
+  camLockRef9.current = castOn || searchSegNow9 !== null || trackRaw !== null || splitOn9;
   /* ★ 카메라가 잠긴 동안의 **줌·화면 이동** 손짓도 토스트로 말한다(2026-10-11, 요청: "중계 중 줌 기능이나 화면 이동 사용 시에도 토스트") — 미니맵 손짓(miniLockToast9)과
      같은 결. 휠·핀치·↑↓·더블탭·끌기·WASD 가 이 하나를 부른다(효과 안의 처리기도 읽게 ref). 끌면 pointermove 마다라 2.5초에 한 번만. 가장자리 밀기는 마우스가
      가장자리에 머무는 것만으로 걸려 안 부른다. */
@@ -10432,7 +10435,7 @@ export default function ReplayMotionPlayer({
     const now9 = performance.now();
     if (now9 - camLockToastAt9.current < 2500) return;
     camLockToastAt9.current = now9;
-    replayToast(castOn ? "중계 모드에선 줌·화면 이동이 안 돼요" : splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : "개인 화면에선 줌·화면 이동이 안 돼요", { kind: "info" });
+    replayToast(castOn || searchSegNow9 !== null ? "중계 모드에선 줌·화면 이동이 안 돼요" : splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : "개인 화면에선 줌·화면 이동이 안 돼요", { kind: "info" });
   };
   /** 잠긴 동안 누른 손가락 — 실제로 끌면(DRAG_SLOP 넘게) 토스트(위 ★). 그냥 누름(몸 집기)은 안 부른다. */
   const lockDragRef9 = useRef<{ id: number; sx: number; sy: number } | null>(null);
@@ -10639,13 +10642,13 @@ export default function ReplayMotionPlayer({
      "개인추적도 모바일는 6배"). 처음엔 중계에만 따로 상수를 두었는데(요청이 이름 붙인 것만) 이어진 요청이 둘을 한 값으로 묶었다. */
   const castZoomRef9 = useRef(false);
   useEffect(() => {
-    if (!castOn || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다
+    if (!(castOn || searchSegNow9 !== null) || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다 · 검색 장면도 중계처럼(위 searchSegNow9 ★)
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
     setView9(castZoomFit9(), panRef.current);
     // setView9·castZoomFit9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [castOn, castRaw, spotNow9 !== null]);
+  }, [castOn, castRaw, spotNow9 !== null, searchSegNow9 !== null]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
@@ -19715,7 +19718,7 @@ export default function ReplayMotionPlayer({
     const now9 = performance.now();
     if (now9 - miniLockToastAt9.current < 2500) return;
     miniLockToastAt9.current = now9;
-    replayToast(castOn ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
+    replayToast(castOn || searchSegNow9 !== null ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
   };
   /** 미니맵을 짚으면 그 자리가 가운데로 온다. */
   const fsSeek = (mx: number, my: number): void => {

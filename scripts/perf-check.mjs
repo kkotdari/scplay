@@ -1514,6 +1514,14 @@ if (SHOT) {
     console.log("[검색 화면 자리]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: await page.evaluate(() => window.scrollY), 판키: sc9[2], 창키: sc9[3] }));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }
     /* --searchwait 초(2026-10-12) — 재생을 두고 1초마다 찍는다: 결과 창이 끝나면 다음 결과(count)로 넘어가고 마지막이면 멈추나(clock 이 선다) · 잠금 토스트 없이 끌리나는 손으로. */
+    /* --searchlock(2026-10-12) — 검색 결과를 보는 동안 휠이 잠겼나("중계 모드에선 …" 토스트 · --castoff 로 중계를 끈 판에서도). */
+    if (has("--searchlock")) {
+      const n09 = await page.evaluate(() => window.__toasts?.length ?? 0);
+      const mp9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+      if (mp9) { await page.mouse.move(mp9[0], mp9[1]); await page.mouse.wheel(0, -200); }
+      await page.waitForTimeout(400);
+      console.log("[검색 잠금 휠]", JSON.stringify(await page.evaluate((n) => (window.__toasts ?? []).slice(n), n09)));
+    }
     for (let s9 = 0; s9 < Number(flag("--searchwait", 0)); s9 += 1) { await page.waitForTimeout(1000); const v9 = await st9(); console.log(`[검색 기다림 ${s9 + 1}s]`, v9.count, v9.clock, v9.cap, v9.owner, await page.evaluate(() => window.__scrDiag?.searchHit ?? "")); }
     if (!flag("--searchkeep", false)) {
       /* ✕ = 검색어 지우고 빈 입력칸 · 돋보기 = 닫기(2026-10-12 되요청). */
