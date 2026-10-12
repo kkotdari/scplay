@@ -707,7 +707,9 @@ rmSync(tmp, { recursive: true, force: true });
     sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
   mk(0, "Command Center", true, 20, 20, 0);
   for (let i = 0; i < 4; i += 1) mk(0, "SCV", false, 20, 20, 0);
-  const ms = [200, 203, 206, 209, 212, 215].map((t) => mk(0, "Marine", false, 22, 22, t));
+  /* 시작 상한(10)의 꽉 참은 막힘이 아니므로(2026-10-12 · 9드론 유지) 서플 하나(100초 → 18)를 먼저 두고 마린 열넷으로 215초에 18/18 → 260초 둘째 서플까지 막힘. */
+  mk(0, "Supply Depot", true, 26, 20, 100);
+  const ms = [176, 179, 182, 185, 188, 191, 194, 197, 200, 203, 206, 209, 212, 215].map((t) => mk(0, "Marine", false, 22, 22, t));
   mk(0, "Supply Depot", true, 24, 24, 260);
   const hc = mk(1, "Hatchery", true, 100, 100, 0, { died: 600, end: "atk" });
   kills.push([600, 0, ms[0].tag, hc.tag]);
@@ -718,11 +720,18 @@ rmSync(tmp, { recursive: true, force: true });
   const poor = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 40, 0]]]]) });
   const rich = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 120, 0]]]]) });
   const blk = (pl) => pl.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘");
+  /* 9드론 유지(2026-10-12, 요청: "저그는 일부러 9드론 유지하는 경우도 있어") — B 저그가 드론 여덟을 더해 30~90초 9/9(시작 상한 18) · 돈 넉넉 → 막힘 아님. */
+  const L2 = L.slice(); const z9 = [];
+  for (let i = 0; i < 9; i += 1) { const e = { tag: (vt += 1), owner: 1, kind: "Drone", born: i < 4 ? 0 : 20 + i * 2, bornX: 100, bornY: 100, died: null, end: "", bld: false,
+    sites: [], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] }; L2.push(e); z9.push(e); }
+  L2.push({ tag: (vt += 1), owner: 1, kind: "Overlord", born: 95, bornX: 100, bornY: 100, died: null, end: "", bld: false, sites: [], doneAt: 0, lifts: [], cloaks: [], sieges: [], orders: [] });
+  const hold9 = castPlan9({ ...w, lives: L2 }, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[1, [[0, 50, 0], [30, 180, 0]]]]) });
   console.log(`\n인구 막힘·엘리: ${[...new Set(plan.map((s) => `${s.raw} ${capTxt(s)}`))].filter((c) => !/발전 중$/.test(c)).join(" · ")}`);
   for (const [name, pass] of [
     ["꽉 찬 인구 → '[A] 인구 막힘'(숫자 없음 · 2026-10-11)", blk(plan)],
     ["막힌 동안 미네랄 40(일꾼 값 아래) → 막힘 아님", !poor.some((s) => /인구 막힘/.test(capTxt(s)))],
     ["막힌 동안 미네랄 120 → 막힘", blk(rich)],
+    ["저그 9드론 유지(시작 상한 9/9 · 돈 있음) → 막힘 아님(2026-10-12)", !hold9.some((s) => s.raw === "B" && /인구 막힘/.test(capTxt(s)))],
     ["유일한 건물이 깨짐 → '[A]ga [B] 엘리시킴'", plan.some((s) => capTxt(s) === "[A]ga [B] 엘리시킴")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

@@ -2419,7 +2419,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       while (i9 < ev9.length && ev9[i9][0] === sec9) { used9 += ev9[i9][1]; give9 += ev9[i9][2]; i9 += 1; }
       const cap9 = Math.min(SUPPLY_CAP, base9 + give9);
       /* 상한에 **닿은** 동안만(상한 − 1 ~ 상한 · 저글링 반 칸) — 상한을 넘은 것은 공급 건물을 잃은 것이지 막힘(서플을 늦게 지음)이 아니다. */
-      const blocked9 = cap9 < SUPPLY_CAP && used9 > 0 && used9 >= cap9 - 1 && used9 <= cap9;
+      /* ★ **시작 상한(첫 보급 건물 전)의 꽉 참은 막힘이 아니다**(2026-10-12, 요청: "인구막힘 조건을 좀 더 강화해 줘 왜냐면 저그는 일부러 9드론 유지하는 경우도 있어") —
+         9드론 유지(9풀·9오버) · 8·9파일런 · 9·10서플 같은 빌드 초반의 '일부러 멈춤'이다. 제 종족 보급(오버로드·파일런·서플·본진)을 하나라도 더 얻은 뒤(give9 > 0)부터만 센다. */
+      const blocked9 = cap9 < SUPPLY_CAP && give9 > 0 && used9 > 0 && used9 >= cap9 - 1 && used9 <= cap9;
       if (blocked9 && !open9) open9 = { t0: sec9, t1: sec9, used: used9, cap: cap9 };
       else if (blocked9 && open9) { open9.used = used9; open9.cap = cap9; }
       else if (!blocked9 && open9) {
