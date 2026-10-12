@@ -1494,11 +1494,11 @@ if (SHOT) {
     await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
     await page.waitForTimeout(400);
     console.log("[검색 펴짐]", JSON.stringify(await st9()));
-    await page.fill(".scr-motion-search-input", q9);
+    await page.keyboard.type(q9);   // 입력칸은 펴질 때 자라고 판이 늘 다시 그려 fill 의 '가만히 있나' 기다림이 걸린다 — 곧장 친다(autoFocus)
     await page.waitForTimeout(300);
     console.log("[검색 치기만]", q9, JSON.stringify(await st9()));
     if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png") });   // 자동 완성이 뜬 꼴
-    await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(1200);
+    await page.keyboard.press("Enter"); await page.waitForTimeout(1200);   // 자동 완성이 떠 있으면 Enter 가 고르고 찾는다(입력칸이 사라져 page.press 는 걸린다)
     console.log("[검색 Enter]", JSON.stringify(await st9()));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }
     if (!flag("--searchkeep", false)) {

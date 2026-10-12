@@ -10376,8 +10376,21 @@ export default function ReplayMotionPlayer({
     if (!f9) return null;
     const spot9 = f9.spot && f9.spot.length > 0 ? f9.spot : f9.x !== undefined && f9.y !== undefined ? [[f9.from, f9.x, f9.y], [f9.to, f9.x, f9.y]] as [number, number, number][] : undefined;
     if (!spot9 && !f9.raw) return null;
-    return { at: f9.from, raw: f9.raw ?? "", why: "검색", cyc: false, score: 0, caps: [{ text: f9.label }], capTo: f9.to, ...(spot9 ? { spot: spot9 } : {}) };
-  }, [searchFocus9]);
+    /* 자막은 중계 자막과 **같은 꼴**(2026-10-12, 요청: "검색 자막도 그냥 같은 디자인 써도 될 것 같은데 중계 자막이랑") — 글귀 속 사람 이름(표시 이름 · 긴 것부터)을
+       사람 조각({raw})으로 갈라 임자색 글자 + 팀 배지로 그린다(조사는 글귀에 이미 붙어 있어 글 조각으로 남는다). */
+    const caps9: CapPart9[] = [];
+    const names9 = [...bases].filter((b9) => b9.name).sort((a9, b9) => b9.name.length - a9.name.length);
+    let rest9 = f9.label;
+    while (rest9.length > 0) {
+      let hit9: { i: number; b: (typeof bases)[number] } | null = null;
+      for (const b9 of names9) { const i9 = rest9.indexOf(b9.name); if (i9 >= 0 && (!hit9 || i9 < hit9.i)) hit9 = { i: i9, b: b9 }; }
+      if (!hit9) { caps9.push({ text: rest9 }); break; }
+      if (hit9.i > 0) caps9.push({ text: rest9.slice(0, hit9.i) });
+      caps9.push({ raw: hit9.b.key });
+      rest9 = rest9.slice(hit9.i + hit9.b.name.length);
+    }
+    return { at: f9.from, raw: f9.raw ?? "", why: "검색", cyc: false, score: 0, caps: caps9, capTo: f9.to, ...(spot9 ? { spot: spot9 } : {}) };
+  }, [searchFocus9, bases]);
   const searchSegNow9 = searchSeg9 && searchFocus9 && castOn && trackRaw === null && !splitUser9 && t >= searchFocus9.from - 1 && t <= searchFocus9.to ? searchSeg9 : null;
   const castRaw = searchSegNow9 ? (searchSegNow9.spot ? null : searchSegNow9.raw) : castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
@@ -19802,8 +19815,9 @@ export default function ReplayMotionPlayer({
               {castCap9 && (
                 <span key={castIdx9} className="scr-cast-caption">
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
-                    /* 팀 배지(2026-10-11, 요청: "자막 이름칩에도 똑같이 팀 배지 달기") — 미니맵 이름표와 같은 꼴(칩 오른위 · 칩 앞 · 팀전만). 글자 자르기는 안쪽 칸이(배지가 안 잘리게). */
-                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip" style={capOf9(p9.raw, p9.raw).chip}><span className="scr-cast-chip-txt">{capName9(p9.raw)}</span>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    /* ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
+                       닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
+                    ? <React.Fragment key={i9}><span className="scr-cast-name" style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
