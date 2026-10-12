@@ -558,6 +558,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
       ...(window.__zoom > 1 && window.__cx != null ? { cx: window.__cx } : {}),
       ...(window.__zoom > 1 && window.__cy != null ? { cy: window.__cy } : {}),
       ...(window.__deg && window.__deg !== 90 ? { a: window.__deg } : {}),
+      ...(window.__speed > 1 ? { s: window.__speed } : {}),   // --speed N(2026-10-12) — 배속(&s=) · 헤드리스는 느려 창 끝까지 기다리는 탐침(--searchwait)에 쓴다
     },
     loadUnitTracks: async () => ({ motion }),
     /* 장면 스크랩·공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백 둘이다. 버튼은 재생기가 그린다(아이콘 원).
@@ -798,13 +799,13 @@ if (cssFile) {
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
-  Number(flag("--winner", 0))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+  Number(flag("--winner", 0)), Number(flag("--speed", 1))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
@@ -1512,6 +1513,8 @@ if (SHOT) {
     console.log("[검색 Enter]", JSON.stringify(await st9()));
     console.log("[검색 화면 자리]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: await page.evaluate(() => window.scrollY), 판키: sc9[2], 창키: sc9[3] }));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }
+    /* --searchwait 초(2026-10-12) — 재생을 두고 1초마다 찍는다: 결과 창이 끝나면 다음 결과(count)로 넘어가고 마지막이면 멈추나(clock 이 선다) · 잠금 토스트 없이 끌리나는 손으로. */
+    for (let s9 = 0; s9 < Number(flag("--searchwait", 0)); s9 += 1) { await page.waitForTimeout(1000); const v9 = await st9(); console.log(`[검색 기다림 ${s9 + 1}s]`, v9.count, v9.clock, v9.cap, v9.owner, await page.evaluate(() => window.__scrDiag?.searchHit ?? "")); }
     if (!flag("--searchkeep", false)) {
       /* ✕ = 검색어 지우고 빈 입력칸 · 돋보기 = 닫기(2026-10-12 되요청). */
       await page.evaluate(() => { document.querySelector(".scr-motion-searchwrap [aria-label='검색어 지우기']")?.click(); });

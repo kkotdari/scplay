@@ -10304,7 +10304,8 @@ export default function ReplayMotionPlayer({
    *  ★ 자동 중계 표식(`&tr=*` · linkAuto9)이면 자리와 무관하게 **켠 채로** 연다 — 그 링크의 뜻이 곧 '자동 중계로 보라'다. */
   const linkPos9 = !!initialView && (initialView.z > 1.001
     || Math.abs(initialView.cx - 0.5) > 0.0005 || Math.abs(initialView.cy - 0.5) > 0.0005);
-  const [castOn, setCastOn] = useState(linkAuto9 || (!initialTrack9 && !linkPos9));
+  /** 손으로 켠 자동 중계(TV · AUTO 단추) — 실제로 먹는 것은 아래 castOn(검색 중이면 꺼진 것과 같다). */
+  const [castUser9, setCastOn] = useState(linkAuto9 || (!initialTrack9 && !linkPos9));
   /* ★★ 분할보기(2026-09, 요청: "중계에 분할보기 추가 — 모든 플레이어의 화면을 동시에 보여줌 · 2명은 좌우 · 3,4명은 2x2 ·
      5,6명 3x2 · 7,8은 3*3(가운데 비움) · 독에는 화면을 누른 사람거 보여주기" · "해당 모드에서는 로스터 숨기고 대신 각 화면
      위에 닉네임과 자원 인구 apm k/d 표시" · "가능하면 스타팅 포인트 위치에 따라 배치") — 중계(자동)·개인 추적과 배타다
@@ -10323,6 +10324,9 @@ export default function ReplayMotionPlayer({
   /** 재생기 검색어(아래 searchHits9 ★★) — 편성표 앞에 선다: 중계가 꺼져 있어도 검색이 전술 자막을 찾으려면 편성표를 굽는다(planAll9). */
   const [searchQ9, setSearchQ9] = useState("");
   const searchOn9 = searchQ9.trim() !== "";
+  /* ★ **검색은 중계 꺼짐과 똑같이 조작된다**(2026-10-12, 요청: "기본적으로 키워드 검색은 중계 off 상태와 똑같이 조작됨") — 검색어가 서 있는 동안 자동 중계는 물러난다(카메라 잠금 ·
+     줌 당김 · 시야 · 화면 주인 줄 · 중계 자막이 다 꺼짐 쪽). 결과로 가면 그 자리로 한 번 옮기고(searchGo9 · lookAtTile9) 그 뒤는 손 카메라다. 검색을 닫으면 켜 두었던 중계로 돌아간다. */
+  const castOn = castUser9 && !searchOn9;
   /** 입력 꼴(돋보기 알약 · 아래 JSX ★★) — 치는 동안에도 자동 완성이 찾을 거리(편성표·색인)를 굽는다. */
   const [searchEdit9, setSearchEdit9] = useState(false);
   const searchNeed9 = searchOn9 || searchEdit9;
@@ -10364,6 +10368,8 @@ export default function ReplayMotionPlayer({
      누구 화면 표시 없애기") — 중계 주인을 비우면 시야는 모두의 것(viewRawNow9 null) · 화면 주인 줄은 안 선다 · 카메라는 아래 spotNow9 의 길을 탄다. */
   /* 검색 장면(위 searchFocus9 ★) — 자동 중계 중(개인 추적·손 분할이 아닐 때) 창 안이면 그 토막을 세운다: 장면 길(spot)이 있으면 그 길을 따라가고(오버로드 사냥처럼
      움직이는 장면도) · 자리만 있으면 그 점 · 둘 다 없으면 그 사람 화면. 자막은 그 결과의 글귀. */
+  /** 마지막 결과에서 멈췄다(아래 사건 끝 넘김 ★) — 멈춘 동안은 창 끝을 조금 넘었어도 그 결과의 자막을 세워 둔다(배속·느린 기기는 한 틱이 끝을 넘긴다). */
+  const [searchHold9, setSearchHold9] = useState(false);
   const searchSeg9 = useMemo((): CastSeg9 | null => {
     const f9 = searchFocus9;
     if (!f9) return null;
@@ -10507,8 +10513,10 @@ export default function ReplayMotionPlayer({
    *  닉네임택보다 1스텝 작게") — 글귀는 편성표(cast9 castCaps9)가 토막마다 조각(CapPart9 · 글 / 사람)으로 적어 두고, 여기서는 사람 조각을 **이름표 칩**(chipStyle · 색 모드를
    *  따른다)으로, 조사(가/이 · 를/을 · 와/과)는 그 사람의 **표시 이름**(bases)의 받침으로 붙인다. 자동 중계일 때만(개인 추적·손 분할은 없음). 옛 맞대결 창(foeTo) 문은 걷었다. */
   /* ★ 싸움 자막은 **capTo 까지만**(2026-10-11, 지적: "자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯" · cast9 emitScene9 ★) — 카메라는 그 사람에 머물러도 싸움이 끝나면 걷는다. */
-  const castCap9: CapPart9[] | null = castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0
-    && (castSeg9.capTo === undefined || t <= castSeg9.capTo) ? castSeg9.caps : null;
+  /* 검색 장면의 자막(searchSeg9)은 중계와 상관없이 그 창 안이면 선다(검색은 중계 꺼짐 꼴 · 위 castOn ★). */
+  const searchCapNow9 = searchSeg9 && searchFocus9 && searchOn9 && t >= searchFocus9.from - 1 && (t <= searchFocus9.to || (searchHold9 && !playing)) && searchSeg9.caps && searchSeg9.caps.length > 0 ? searchSeg9.caps : null;
+  const castCap9: CapPart9[] | null = searchCapNow9 ?? (castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0
+    && (castSeg9.capTo === undefined || t <= castSeg9.capTo) ? castSeg9.caps : null);
   const capName9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
   /** 자막 이름의 테를 **흰색**으로 뒤집을까(2026-10-12, 지적: "어두운 임자색이면 이름이 잘 안 보여 — 흰 테두리" → 되지적: "충분히 잘 보이는 빨강·초록에도 넣었네 — 안 보이는 건
    *  진짜 어두운 남색 같은 것"). 옛 자(밝기 < 100)는 빨강(#f40404 ≈ 77)·초록까지 걸었다. 이제 자막 바탕(거의 검정 · 상대 휘도 ≈ 0.003)에 대한 **명암비**(WCAG)가
@@ -10577,6 +10585,7 @@ export default function ReplayMotionPlayer({
   /** 중계 켜기·끄기(로스터 맨 아래 TV 단추) — 켜면 개인 추적이 풀린다(배타). */
   const toggleCast9 = (): void => {
     if (castOn) { stopCast9(); return; }
+    if (searchOn9) searchCancel9();   // 검색 중에 AUTO 를 누르면 검색을 닫고 중계로(검색 중엔 중계가 물러나 있다 · 위 castOn ★)
     if (pitchDegRef9.current < 90) setPitchDeg(90);   // 중계 중엔 평면(위 toggleTrack 과 같은 문)
     stopTrack9();
     setViewRaw(null);
@@ -12602,6 +12611,23 @@ export default function ReplayMotionPlayer({
   const searchFirst9 = useRef(false);
   const searchEditOpen9 = (): void => { setSearchDraft9(searchQ9); setSearchMiss9(false); setSearchEdit9(true); };
   /** Enter·돋보기(입력 꼴) — 검색어를 올리고 첫 결과(1/N)로 간다 · 빈 글이면 검색 취소. */
+  /* ★ **사건이 끝나면 다음 결과로 · 마지막이면 그 장면에서 멈춤**(2026-10-12, 요청: "키워드 검색 시 사건이 끝나면 다음 사건으로 이동하고 마지막이면 그 장면에서 정지") — 재생 중 지금 결과의
+     창 끝(searchFocus9.to)을 막 지나면(SEARCH_NEXT_SLACK9 안 — 손으로 멀리 감은 것은 안 친다) 다음 결과로 간다 · 마지막 결과면 재생을 멈춘다. */
+  const SEARCH_NEXT_SLACK9 = 4;   // 배속에서는 한 틱이 1초 넘게 건너뛴다 — 그보다 멀면 손으로 감은 것
+  /** 마지막 결과는 창 끝 이만큼(초) 앞에서 멈춘다 — 끝을 넘겨 멈추면 자막이 걷힌다(멈춘 뒤 시계를 되돌리면 재생 틱이 덮는다). */
+  const SEARCH_LAST_STOP9 = 0.3;
+  const searchEndRef9 = useRef<number | null>(null);
+  useEffect(() => { searchEndRef9.current = null; setSearchHold9(false); }, [searchFocus9]);
+  useEffect(() => { if (playing) setSearchHold9(false); }, [playing]);   // 다시 재생하면 멈춤 자막 붙듦을 푼다   // 결과로 (다시) 가면 그 결과의 끝을 다시 본다
+  useEffect(() => {
+    const f9 = searchFocus9;
+    if (!f9 || !searchOn9 || !playing || searchCur9 < 0 || searchEndRef9.current === f9.from) return;
+    const last9 = searchCur9 + 1 >= searchHits9.length;
+    if (t < f9.to - (last9 ? SEARCH_LAST_STOP9 : 0) || t - f9.to > SEARCH_NEXT_SLACK9) return;
+    searchEndRef9.current = f9.from;   // 한 결과에 한 번
+    if (last9) { setPlaying(false); setSearchHold9(true); } else searchGo9(0, searchCur9 + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, searchFocus9, searchOn9, playing, searchCur9, searchHits9.length]);
   const searchSubmit9 = (val9?: string): void => {
     const d9 = (val9 ?? searchDraft9).trim();
     if (d9 === "") { setSearchQ9(""); setSearchEdit9(false); return; }
@@ -12716,7 +12742,11 @@ export default function ReplayMotionPlayer({
        그 사람 화면으로 갔다. 이제 그 사람이 그때(±SEARCH_ACT_SEC9) 명령한 자리들의 가운데(없으면 시작 본진)를 사건 자리로 삼는다 — searchSeg9 는 자리(spot)가 있으면 사람 화면을 안 세운다. */
     const p9 = h9.x !== undefined && h9.y !== undefined ? { x: h9.x, y: h9.y } : h9.spot && h9.spot.length > 0 ? null : searchActAt9(h9.raw, h9.sec);
     setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: p9?.x, y: p9?.y, raw: h9.raw, spot: h9.spot });
-    if (!camLockRef9.current) {
+    (SCR_DIAG as unknown as Record<string, unknown>).searchHit = `${h9.label} @${h9.sec.toFixed(1)}~${Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9).toFixed(1)} ${p9 ? `(${p9.x.toFixed(0)},${p9.y.toFixed(0)})` : "-"} ${h9.raw ?? "-"} spot${h9.spot?.length ?? 0}`;   // perf-check --searchwait 가 찍는다
+    /* 검색은 중계 꺼짐 꼴(위 castOn ★)이라 자동 중계가 켜져 있어도 손 카메라를 그 자리로 옮긴다 — 누른 장(Enter)은 아직 중계 잠금이 선 렌더라 camLockRef9 로 거르면 건너뛰어
+       중계 전 옛 자리로 튀었다. 검색 중에도 남는 잠금(개인 추적·분할)일 때만 안 옮긴다. 자리가 없으면 중계 카메라가 보던 자리에 머문다(stopCast9 와 같은 문). */
+    if (trackRaw === null && !splitOn9) {
+      if (castUser9 && trackCamRef.current.raw) setView9(zoomRef.current, { ...trackCamRef.current.pan });
       const q9 = p9 ?? (h9.spot && h9.spot.length > 0 ? { x: h9.spot[0][1], y: h9.spot[0][2] } : null);
       if (q9) lookAtTile9(q9.x, q9.y);
     }
@@ -19931,7 +19961,7 @@ export default function ReplayMotionPlayer({
               )}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — **바닥 가운데**(옛 이름표 자리 · 같은 날 되요청: "자막을 내리기" · 정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
               {castCap9 && (
-                <span key={castIdx9} className="scr-cast-caption">
+                <span key={searchCapNow9 ? `s${searchFocus9?.from ?? 0}` : castIdx9} className="scr-cast-caption">
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
                     /* ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
