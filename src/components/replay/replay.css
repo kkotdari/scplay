@@ -4901,3 +4901,5 @@
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */
 .scr-motion .scr-dock-head .scr-roster-cam-auto svg { width: round(nearest, calc(var(--rp) * 0.46), 2px); height: round(nearest, calc(var(--rp) * 0.46), 2px); }
 .scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto { padding: 0 calc(3px * var(--dk)); }
+/* 어두운 임자색 이름은 테를 흰색으로(2026-10-12 · ReplayMotionPlayer CAST_NAME_DARK9) — 자막 바탕(어두운 반투명) 위에서 검은 테로는 글자가 묻혔다. */
+.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 1px rgba(255, 255, 255, 0.95), 0 1px 1px rgba(255, 255, 255, 0.6); }

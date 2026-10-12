@@ -10527,6 +10527,8 @@ export default function ReplayMotionPlayer({
   const castCap9: CapPart9[] | null = castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0
     && (castSeg9.capTo === undefined || t <= castSeg9.capTo) ? castSeg9.caps : null;
   const capName9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
+  /** 자막 이름 글자색이 이만큼(밝기 0~255) 어두우면 테를 **흰색**으로 뒤집는다(2026-10-12, 지적: "어두운 임자색이면 이름이 잘 안 보여 — 지금과 반대로 흰 테두리"). 파랑 #2b62e8 ≈ 97. */
+  const CAST_NAME_DARK9 = 100;
   const capParticle9 = (nm9: string, p9: CapPart9["p"]): string =>
     (p9 === "ga" ? koGa9(nm9) : p9 === "eul" ? koEul9(nm9) : p9 === "wa" ? koWa9(nm9) : p9 === "ui" ? "의" : "");
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
@@ -19884,7 +19886,7 @@ export default function ReplayMotionPlayer({
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
                     /* ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
-                    ? <React.Fragment key={i9}><span className="scr-cast-name" style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", lumOf(capOf9(p9.raw, p9.raw).col) < CAST_NAME_DARK9 && "is-dark")} style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
