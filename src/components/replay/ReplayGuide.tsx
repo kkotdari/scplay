@@ -1,4 +1,4 @@
-import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Video, X } from "lucide-react";
+import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Search, Share2, Tv, Video, X } from "lucide-react";
 import QMarkIcon from "./QMarkIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -55,7 +55,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(색 · 보기 · 음악) ·
+          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(색 · 보기 · 음악 · 검색) ·
           오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
           <b>배속</b>은 버튼 줄이 아니라 <b>지도 오른쪽 아래의 세로 다이얼</b>입니다.
         </p>
@@ -93,6 +93,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn scr-guide-colsw is-personal"><Palette size={18}/></span>
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
+            <span className="scr-guide-mbtn"><Search size={18}/></span>
             <span className="scr-guide-tpill"><Bookmark size={15}/></span>
             <span className="scr-guide-tpill"><Share2 size={15}/></span>
             <span className="scr-guide-tpill"><QMarkIcon size={15}/></span>
@@ -102,6 +103,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있고, 중계 중에는 평면으로 고정됩니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터 나옵니다. 맨 아래 줄은 <b>음량 슬라이더</b>(처음 50% · 떼면 닫힘)와 <b>끄기</b>입니다. 아이폰 사파리는 웹에서 음량을 못 바꿔 끄기만 섭니다(기기 음량을 따릅니다).</span></li>
+            <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 유닛·건물·기술 이름이나 <b>전술</b>(드랍 · 러시 · 견제 · 교전 · 파괴 …), 사람 이름으로 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. <b>◀ ▶</b>(또는 Enter · Shift+Enter)로 이전·다음 결과로 가며, 그 일이 벌어지기 2초 전부터 봅니다. 목록을 닫아도 검색 단추 곁의 <b>◀ n/N ▶</b>로 계속 넘깁니다. ✕ 로 지웁니다.</span></li>
             <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 전체화면이 아닐 때만).</span></li>
             <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서도 쇠판(전광판·미니맵·인포창)은 그대로 섭니다.</span></li>
           </ul>

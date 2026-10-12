@@ -6,7 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { Bookmark, Check, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Video } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, ChevronRight, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -8320,6 +8320,12 @@ const bldPreCache9 = new WeakMap<object, { bases: any; v: any }>();
 /* 계측기는 공용 파일에 있다(perf9) — 캔버스 붓 셋(유닛·안개·지도벡터)도 같은 자를
    써야 그 삯이 '브라우저' 한 통에 섞이지 않는다. 그쪽 머리말 참고. */
 
+/** 중계가 꺼졌을 때의 빈 편성표(같은 정체 — 검색이 굽는 표를 중계로 새지 않게 · 아래 planAll9). */
+const NO_PLAN9: CastSeg9[] = [];
+/** 검색 비교용 — 소문자 · 빈칸 걷음. */
+const searchNorm9 = (s9: string): string => s9.toLowerCase().replace(/\s+/g, "");
+/** 검색에서 뺄 몸 — 애벌레·알·고치·딸림(스캐럽·요격기·마인)은 '생산'이 아니다. */
+const SEARCH_SKIP9 = new Set(["Larva", "Egg", "Lurker Egg", "Cocoon", "Scarab", "Interceptor", "Vulture Spider Mine", "Spider Mine", "Nuclear Missile"]);
 const fmtClock = (sec: number): string => {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -10337,15 +10343,19 @@ export default function ReplayMotionPlayer({
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
   /* 순환 고리의 자(cast9 의 ★) — 로스터 차례(bases)와 팀. 밀리는 팀이 없으니 차례만 준다. */
-  const castPlan = useMemo<CastSeg9[]>(
-    () => (castOn && entData
+  /** 재생기 검색어(아래 searchHits9 ★★) — 편성표 앞에 선다: 중계가 꺼져 있어도 검색이 전술 자막을 찾으려면 편성표를 굽는다(planAll9). */
+  const [searchQ9, setSearchQ9] = useState("");
+  const searchOn9 = searchQ9.trim() !== "";
+  const planAll9 = useMemo<CastSeg9[]>(
+    () => ((castOn || searchOn9) && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
         bank: truth?.res })   // 인구 막힘은 돈이 있을 때만(2026-10-11)
-      : []),
-    [castOn, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
+      : NO_PLAN9),
+    [castOn, searchOn9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
+  const castPlan = castOn ? planAll9 : NO_PLAN9;
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
@@ -12340,7 +12350,7 @@ export default function ReplayMotionPlayer({
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
-  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
+  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | "search" | null>(null);
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -12353,6 +12363,83 @@ export default function ReplayMotionPlayer({
     window.addEventListener("keydown", key9, true);
     return () => { window.removeEventListener("pointerdown", off9, true); window.removeEventListener("keydown", key9, true); };
   }, [pick9]);
+  /* ★★ **재생기 검색**(2026-10-12, 요청: "재생기 검색 기능 추가 — 검색 버튼(돋보기) 아이콘을 왼쪽 버튼 그룹에 · 누르면 팝오버 · 기술이나 유닛 · 전술 등으로 검색 ·
+     결과는 진행바에 태그로 · 이전·다음 결과로 이동") ─────────────────────────────────────────────────────────────────────────────
+     찾는 거리(searchIndex9) — 참값 한 벌에서 사람마다: 몸 생산("마린 생산" · 애벌레·알·딸림 빼고) · 건물 착공("배럭 건설") · 연구 완료("속업 완료") · 마법("사이오닉 스톰")
+     · **편성표 자막 전부**(전술 — "A가 B에게 포토러시" · "폭탄드랍" · "기지 대파" · "선스포닝풀" · "gg 선언" …). 줄마다 사람 표시 이름이 머리에 붙어 "기수 드랍"처럼 사람과
+     함께 찾는다(낱말마다 다 들어야 맞음 · 빈칸 무시 · 영문 원 이름도 든다). 같은 글귀가 SEARCH_MERGE9 초 안에 잇달면 한 결과(마린 열 기 = 한 태그).
+     이동(searchGo9) — 결과 때 − SEARCH_LEAD9 초로 간다(그 일이 벌어지기 직전부터 보게). 지금 결과(searchCur9)를 들고 있어 '다음'이 같은 자리에 맴돌지 않고, 손으로 딴
+     데로 감았으면 그 때부터 앞뒤를 다시 찾는다. 편성표는 중계가 꺼져 있어도 검색어가 있으면 굽는다(위 planAll9). */
+  const SEARCH_MERGE9 = 8;
+  const SEARCH_LEAD9 = 2;
+  const [searchCur9, setSearchCur9] = useState(-1);
+  const searchIndex9 = useMemo((): { sec: number; label: string; hay: string }[] => {
+    if (!entData || !searchOn9) return [];
+    const nameOf9 = new Map(bases.map((b9) => [b9.key, b9.name] as const));
+    const rawOf9 = new Map(entData.players.map((pl9) => [pl9.owner, pl9.name] as const));
+    const out9: { sec: number; label: string; hay: string }[] = [];
+    const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string): void => {
+      let who9 = "";
+      if (owner9 !== null) {
+        const raw9 = rawOf9.get(owner9);
+        if (!raw9 || !nameOf9.has(raw9)) return;   // 관전자·임자 모름은 뺀다
+        who9 = nameOf9.get(raw9)!;
+      }
+      const lab9 = who9 ? `${who9} ${label9}` : label9;
+      out9.push({ sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
+    };
+    for (const e9 of entData.lives) {
+      if (e9.born <= 1 || SEARCH_SKIP9.has(e9.kind)) continue;
+      if (e9.bld) add9(e9.born, e9.owner, `${BUILDING_KO[e9.kind] ?? e9.kind} 건설`, e9.kind);
+      else add9(e9.born, e9.owner, `${UNIT_KO[e9.kind] ?? e9.kind} 생산`, e9.kind);
+    }
+    for (const [us9, un9, uo9] of entData.ups) {
+      const lv9 = / (\d)$/.exec(un9)?.[1];
+      add9(us9, uo9, `${researchKo(un9.replace(/ \d$/, ""))}${lv9 ? ` ${lv9}` : ""} 완료`, un9);
+    }
+    for (const [cs9, , , ct9, co9] of entData.casts) add9(cs9, co9, TECH_KO[ct9] ?? ct9, ct9);
+    for (const g9 of planAll9) {
+      if (!g9.caps || g9.caps.length === 0) continue;
+      const txt9 = g9.caps.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
+      if (txt9) add9(g9.at, null, txt9, g9.why ?? "");
+    }
+    out9.sort((a9, b9) => a9.sec - b9.sec);
+    return out9;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entData, searchOn9, bases, planAll9]);
+  const searchHits9 = useMemo((): { sec: number; label: string }[] => {
+    const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (toks9.length === 0) return [];
+    const out9: { sec: number; label: string }[] = [];
+    const last9 = new Map<string, number>();
+    for (const h9 of searchIndex9) {
+      if (!toks9.every((k9) => h9.hay.includes(k9))) continue;
+      const prev9 = last9.get(h9.label);
+      last9.set(h9.label, h9.sec);
+      if (prev9 !== undefined && h9.sec - prev9 <= SEARCH_MERGE9) continue;   // 잇단 같은 글귀는 한 결과
+      out9.push({ sec: h9.sec, label: h9.label });
+    }
+    return out9;
+  }, [searchIndex9, searchQ9]);
+  useEffect(() => { setSearchCur9(-1); }, [searchHits9]);
+  const searchGo9 = (dir9: 1 | -1 | 0, at9?: number): void => {
+    const hs9 = searchHits9;
+    if (hs9.length === 0) return;
+    let i9: number;
+    if (at9 !== undefined) i9 = at9;
+    else {
+      const now9 = tLiveRef9.current;
+      const cur9 = searchCur9 >= 0 && searchCur9 < hs9.length && Math.abs(now9 - Math.max(0, hs9[searchCur9].sec - SEARCH_LEAD9)) < 1.5 ? searchCur9 : -1;
+      /* 끝을 넘으면 처음으로 · 처음 앞이면 끝으로 돈다(찾기 막대의 버릇). */
+      if (cur9 >= 0) i9 = (cur9 + dir9 + hs9.length) % hs9.length;
+      else if (dir9 >= 0) { i9 = hs9.findIndex((h9) => h9.sec - SEARCH_LEAD9 > now9 + 0.25); if (i9 < 0) i9 = 0; }
+      else { i9 = -1; for (let k9 = hs9.length - 1; k9 >= 0; k9 -= 1) if (hs9[k9].sec - SEARCH_LEAD9 < now9 - 0.25) { i9 = k9; break; } if (i9 < 0) i9 = hs9.length - 1; }
+    }
+    const v9 = Math.min(total, Math.max(0, hs9[i9].sec - SEARCH_LEAD9));
+    setSearchCur9(i9);
+    setT(v9);   // ←→ 키와 같은 길(살아 있는 시계는 렌더가 맞춘다)
+    setDone(v9 >= total);
+  };
   const fsUiRef = useRef(true);
   fsUiRef.current = fsUi;
   const fsHideRef = useRef(0);
@@ -17374,6 +17461,15 @@ export default function ReplayMotionPlayer({
         </button>
         {/* 비제어 탐색바(지적: 드래그가 안 먹고 느림 — 위 rangeRef 주석). step이 없어야
             ×4에서도 손잡이가 툭툭 안 뛴다. --p는 지나온 자리를 채우는 그라데이션 경계다. */}
+        {/* 검색 결과 태그(위 searchHits9 ★★) — 진행바 위에 겹친 얇은 판(누름은 바로 흘린다). 지금 결과는 밝게. 손잡이 폭(--th)만큼 양끝을 비워 손잡이 가운데와 맞춘다. */}
+        <span className="scr-motion-rangewrap">
+        {searchHits9.length > 0 && total > 0 && (
+          <span className="scr-motion-searchtags" aria-hidden>
+            {searchHits9.map((h9, i9) => (
+              <i key={`${h9.sec}-${i9}`} className={cx("scr-motion-searchtag", i9 === searchCur9 && "is-on")} style={{ ["--sp" as string]: String(Math.min(1, Math.max(0, h9.sec / total))) } as React.CSSProperties} />
+            ))}
+          </span>
+        )}
         <input
           ref={rangeRef}
           className="scr-motion-range" type="range"
@@ -17415,6 +17511,7 @@ export default function ReplayMotionPlayer({
           }}
           aria-label="재생 위치"
         />
+        </span>
         {/* 시계 폭은 **글자 자신**이 고정한다(지적: "진행바 옆에 자리를 너무 남김 다
             써야지") — 여태 이 칸에 `min-width: 13ch`를 걸어 뒀는데, ch는 이 칸의 글꼴
             (16px)로 재고 정작 글자는 9px이라 자리가 두 배로 잡혔다. 실측(390px 화면):
@@ -17677,7 +17774,7 @@ export default function ReplayMotionPlayer({
   /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
   /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
   const pickMenu9 = (
-    kind9: "speed" | "zoom" | "bgm" | "cast",
+    kind9: "speed" | "zoom" | "bgm" | "cast" | "search",
     items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string; keep?: boolean }[], list9 = false, left9 = false,
     /** 목록 맨 아래에 붙는 줄(2026-10-10 · 음악의 음량 슬라이더 + 끄기). */
     tail9?: React.ReactNode,
@@ -17698,7 +17795,7 @@ export default function ReplayMotionPlayer({
       {tail9 && <li className="scr-motion-picktail">{tail9}</li>}
     </ul>
   ) : null);
-  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
+  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast" | "search"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
   /* ★★ **배속 다이얼**(2026-10-10, 요청: "화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에 배속 눈금 ·
      터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래(받침 솟음 위). 상자 어디를 눌러도 그 높이의 배속으로 가고 끌면 따라온다
      (눈금 곁에서는 붙는다 · uSpd9). 휠은 제 것으로 받는다(판 뿌리 휠 손잡이가 .scr-speeddial 은 흘려보낸다 · 아래 effect 가 passive:false 로 막는다). 손짓이 무대의
@@ -17949,6 +18046,68 @@ export default function ReplayMotionPlayer({
           </div>
         ))}
       </span>
+      )}
+      {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기. 팝오버(위로 · 오른쪽으로 자람)에 입력 · 앞뒤 · 결과 줄. 검색어가 있으면 단추가 켜지고,
+          팝오버를 닫아도 진행바의 태그와 단추 곁의 [◀ n/N ▶] 알약이 남아 앞뒤로 간다(요청: "이전 다음 결과로 이동 — 버튼을 어디에 넣을지 미지수"). Enter 다음 · Shift+Enter 이전. */}
+      <span className="scr-motion-pick scr-motion-searchpick">
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", (pick9 === "search" || searchOn9) && "is-on")}
+          onClick={() => pickToggle9("search")}
+          aria-haspopup="dialog" aria-expanded={pick9 === "search"}
+          aria-label="검색 — 유닛·기술·전술"
+          title="검색"
+        >
+          <Search size={18} />
+        </button>
+        {pick9 === "search" && (
+          <div className="scr-motion-pickmenu is-left scr-motion-search" role="dialog" aria-label="검색">
+            <input
+              className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus
+              value={searchQ9} placeholder="유닛·기술·전술·이름"
+              onChange={(e) => setSearchQ9(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); searchGo9(e.shiftKey ? -1 : 1); }
+              }}
+              aria-label="검색어"
+            />
+            {searchOn9 ? (
+              <>
+                <div className="scr-motion-search-nav">
+                  <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} disabled={searchHits9.length === 0} aria-label="이전 결과"><ChevronLeft size={16} /></button>
+                  <span className="scr-motion-search-count">{searchHits9.length === 0 ? "결과 없음" : `${searchCur9 >= 0 ? searchCur9 + 1 : "–"} / ${searchHits9.length}`}</span>
+                  <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} disabled={searchHits9.length === 0} aria-label="다음 결과"><ChevronRight size={16} /></button>
+                  <button type="button" className="scr-motion-search-step" onClick={() => setSearchQ9("")} aria-label="검색 지우기" title="지우기"><X size={16} /></button>
+                </div>
+                {searchHits9.length > 0 && (
+                  <ul className="scr-motion-search-list">
+                    {searchHits9.map((h9, i9) => (
+                      <li key={`${h9.sec}-${i9}`}>
+                        <button type="button" className={cx("scr-motion-search-hit", i9 === searchCur9 && "is-on")} onClick={() => searchGo9(0, i9)}>
+                          <span className="scr-motion-search-at">{fmtClock(h9.sec)}</span>
+                          <span className="scr-motion-search-label">{h9.label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <div className="scr-motion-search-chips">
+                {["교전", "공격", "드랍", "러시", "견제", "파괴", "스톰", "핵", "건설", "완료"].map((c9) => (
+                  <button key={c9} type="button" className="scr-motion-search-chip" onClick={() => setSearchQ9(c9)}>{c9}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </span>
+      {searchOn9 && pick9 !== "search" && searchHits9.length > 0 && (
+        <span className="scr-motion-searchnav">
+          <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(-1)} aria-label="이전 결과"><ChevronLeft size={16} /></button>
+          <span className="scr-motion-search-count">{`${searchCur9 >= 0 ? searchCur9 + 1 : "–"}/${searchHits9.length}`}</span>
+          <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} aria-label="다음 결과"><ChevronRight size={16} /></button>
+        </span>
       )}
       {/* (옮김) 전체화면 단추 — 툴박스 꼬리의 **맨 오른쪽**으로 갔다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
     </div>

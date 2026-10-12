@@ -1480,6 +1480,33 @@ if (SHOT) {
       console.log("[다이얼 휠]", seen9.join(" "));
     }
   }
+  /* --searchprobe 검색어 — 돋보기를 눌러 검색어를 치고 결과 수·첫 결과 몇 줄·'다음' 두 번의 시각을 찍는다(2026-10-12 · 재생기 검색).
+     --searchclose 면 팝오버를 닫고(알약·태그만 남은 꼴) 찍는다. */
+  if (flag("--searchprobe", null)) {
+    const q9 = String(flag("--searchprobe"));
+    console.log("[검색 단추]", JSON.stringify(await page.evaluate(() => { const b = document.querySelector("[aria-label='검색 — 유닛·기술·전술']"); if (!b) return null;
+      const r = b.getBoundingClientRect(); const row = b.closest(".scr-motion-mapbtns")?.getBoundingClientRect();
+      return { r: [r.left, r.top, r.width, r.height].map(Math.round), row: row ? [row.left, row.top, row.width, row.height].map(Math.round) : null, vis: getComputedStyle(b).visibility, op: getComputedStyle(b.closest(".scr-tb") ?? b).opacity }; })));
+    await page.evaluate(() => { document.querySelector("[aria-label='검색 — 유닛·기술·전술']")?.click(); });
+    await page.waitForTimeout(300);
+    await page.fill(".scr-motion-search-input", q9);
+    await page.waitForTimeout(1500);
+    const rd9 = () => page.evaluate(() => ({ count: document.querySelector(".scr-motion-search-count")?.textContent ?? null,
+      tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null,
+      hits: [...document.querySelectorAll(".scr-motion-search-hit")].slice(0, 6).map((e) => e.textContent) }));
+    console.log("[검색]", q9, JSON.stringify(await rd9()));
+    await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(600);
+    console.log("[검색 다음 1]", JSON.stringify(await rd9()));
+    await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(600);
+    console.log("[검색 다음 2]", JSON.stringify(await rd9()));
+    await page.press(".scr-motion-search-input", "Shift+Enter"); await page.waitForTimeout(600);
+    console.log("[검색 이전]", JSON.stringify(await rd9()));
+    if (flag("--searchclose", false)) {
+      await page.keyboard.press("Escape"); await page.waitForTimeout(400);
+      console.log("[검색 닫음]", JSON.stringify(await page.evaluate(() => ({ pill: document.querySelector(".scr-motion-searchnav")?.textContent ?? null,
+        tags: document.querySelectorAll(".scr-motion-searchtag").length }))));
+    }
+  }
   /* --clicksel 선택자 — 그 요소를 눌러 둔 채 찍는다(2026-10-10 · 음악 목록 같은 펼침 확인). */
   if (flag("--clicksel", null)) {
     await page.click(String(flag("--clicksel")), { timeout: 10000 }).catch((e) => console.log("[clicksel 실패]", String(e).slice(0, 120)));
