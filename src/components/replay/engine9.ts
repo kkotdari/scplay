@@ -2952,6 +2952,8 @@ export const DETECT_TILES = 9;
 /** 스캐너 스윕이 그 자리를 디텍터로 만드는 시간(초) — 화면 효과도 같은 길이로 남는다.
  *  원작의 스캔 수명은 220프레임(빠른 속도에서 약 9초)이라 12초는 길었다(지적). */
 export const SCAN_DETECT_SEC = 9;
+/** 스캔이 밝히는 시야(타일) — 원작 Scanner Sweep 의 시야 10(2026-10-12 · 안개 눈). 탐지 반경(DETECT_TILES)과 따로다. */
+export const SCAN_SIGHT9 = 10;
 /* (걷어냄) ZERG_HALLS — 라바·변태알을 발치에 그릴 저그 본진 명단이다. 그 장식을
    걷었으므로(위 '라바·변태알 장식' 주석) 명단도 함께. */
 /* ── 애드온 통로의 자리·길이 — 두 벽이 정한다(2026-09) ──────────────────────────────────────────
@@ -4583,6 +4585,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
               b9[2] + (to9[2] - b9[2]) * k9 + fp9[1] / 2, r9, s9, s9);
           }
         }
+        /* ★ 스캔 — 그 자리를 SCAN_DETECT_SEC 동안 SCAN_SIGHT9 로 본다(2026-10-12, 물음: "스캔 쓴 자리 안개 어떻게 돼?" → "응 고쳐 줘"). 스캔은 참값에
+           몸 없는 유닛(Scanner Sweep · NO_BODY_UNITS)으로 실려 표적 명단(engageFoes)에서 빠지는데, 눈도 그 명단에서 나서 시야까지 함께 빠졌다. 시전 줄(castsSrc)로 낸다. */
+        for (const [cs9, cx9, cy9, tech9, craw9] of castsSrc) {
+          if (tech9 !== "Scanner Sweep" || cs9 > tCap) continue;
+          if (!visAll && teamOfRaw(craw9) !== viewTeam) continue;
+          eye(cx9, cy9, SCAN_SIGHT9, cs9, cs9 + SCAN_DETECT_SEC);
+        }
         /* 유닛 — 제 자취를 1.2초 간격으로 훑는다. **같은 칸이면 건너뛴다**: 무거워지는
            자리는 표본 수가 아니라 찍는 원의 넓이라(시야 8타일이면 원 하나가 200칸),
            서 있는 유닛은 첫 한 번이면 족하다. */
@@ -5265,6 +5274,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       for (const f9 of bldFoes) {
         if (!visAll && f9.team !== viewTeam) continue;
         eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"), f9.eid ?? 0);
+      }
+      /* 스캔 자리의 눈(위 fogSrcFor scan 의 ★ — 2026-10-12) · 신원은 −(1e6 + 줄 번호)라 유닛(양수)·건물(−줄 번호)과 안 겹친다. */
+      for (let ci9 = 0; ci9 < castsSrc.length; ci9 += 1) {
+        const [cs9, cx9, cy9, tech9, craw9] = castsSrc[ci9];
+        if (tech9 !== "Scanner Sweep" || t < cs9 || t - cs9 > SCAN_DETECT_SEC) continue;
+        if (!visAll && (teamOfRaw(craw9) ?? 0) !== viewTeam) continue;
+        eye(cx9, cy9, SCAN_SIGHT9, -(1e6 + ci9));
       }
       /* ★ **공사 중인 건물도 시야를 갖는다**(물음: "공사중 건물은 원래 시야가 없나?"
          — 없지 않다. 원작은 착공하는 순간 건물 개체를 만들고, 그 개체는 미완성인 채로도
