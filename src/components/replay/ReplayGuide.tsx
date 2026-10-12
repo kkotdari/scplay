@@ -130,7 +130,7 @@ export default function ReplayGuide({ onClose }: {
           <li><span className="scr-guide-ic scr-guide-ic-txt">휠</span><span><b>마우스 휠</b> — 굴리면 그 자리를 중심으로 한 배씩 키우고 줄입니다. E·Q 키는 1·2·4·8·16배를 한 칸씩 오갑니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">✌</span><span><b>핀치</b> — 폰에서 두 손가락을 벌리면 커지고 모으면 작아집니다. 한 손가락으로 끌면서 함께 해도 됩니다.</span></li>
           <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>두 번 누르기</b> — 그 자리를 한 번에 8배로 당깁니다(더블클릭·더블탭). 한 번 더 누르면 1배로 돌아옵니다.</span></li>
-          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 가운데의 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다. 중계·개인 화면·분할 중에는 카메라가 잠겨 안내만 뜹니다.</span></li>
+          <li><span className="scr-guide-ic"><MapIcon size={15}/></span><span><b>미니맵</b> — 쇠판 가운데의 작은 지도를 누르거나 끌면 그 자리로 화면이 갑니다. 그 위에서 휠을 굴려도 확대·축소됩니다. 중계·개인 화면·분할(PC) 중에는 카메라가 잠겨 안내만 뜹니다.</span></li>
         </ul>
 
         <h3 className="scr-guide-h3">중계 고르기</h3>
@@ -170,7 +170,7 @@ export default function ReplayGuide({ onClose }: {
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름+</span>
-              <span><b>여러 사람</b> — 카메라를 더 켜면 <b>그 사람들만 화면을 나눠</b> 함께 봅니다. 폰에서는 <b>두 명까지</b>입니다.
+              <span><b>여러 사람</b> — (PC) 카메라를 더 켜면 <b>그 사람들만 화면을 나눠</b> 함께 봅니다. 폰에는 분할이 없고, 다른 사람 카메라를 누르면 <b>그 사람 화면으로 바뀝니다</b>.
               칸마다 그 사람 팀의 <b>시야</b>이고, 칸 안에는 <b>그 사람의</b> 클릭 자국·선택 링·건설 자리와 <b>같은 편의 핑</b>만 보입니다.
               처음엔 미니맵이 전체이고 인포창은 <b>'화면을 선택해주세요'</b>입니다. <b>칸을 누르면</b> 미니맵·인포창이 그 사람 것이 되고 칸에 흰 테가 둘립니다. 한 번 더 누르면 놓습니다.</span>
             </li>
@@ -227,6 +227,7 @@ export default function ReplayGuide({ onClose }: {
           <span className="scr-guide-group">보기</span>
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체" desc="중계 중에는 평면 고정."/>
+          <K keys={["1~8"]} title="플레이어 화면 전환" desc="로스터 차례대로 그 사람 화면을 따라갑니다."/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
           <K keys={["B", "N"]} title="검색 결과 이전 / 다음"/>
 

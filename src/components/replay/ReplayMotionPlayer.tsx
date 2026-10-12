@@ -1175,8 +1175,7 @@ declare const __SCPLAY_BUILD__: string | undefined;
 /** `?lite=1` — 붓 간이화를 모든 배율에 강제한다(요잉 8칸·자세 컷 없음·포탑 한 판). 폰에서 판 스래싱이 남는지
  *  배포 없이 시험하는 깃발. */
 const liteFlag9 = typeof location !== "undefined" && /[?&]lite=1/.test(location.search);
-/** 폰의 분할보기 상한(2026-09, 요청: "모바일에서 분할모드 최대 2명"). */
-const SPLIT_PHONE_MAX9 = 2;
+/* (걷어냄 · 2026-10-12, 요청: "모바일 분할 화면 완전제거 … 여러명 선택 기능 아예 없고 토스터도 없음") SPLIT_PHONE_MAX9 = 2 — 폰 분할 상한. 폰은 분할이 없다(아래 pickPerson9). */
 /** 독 로스터의 자료 쪽(2026-10-09, 요청: "모바일은 자원&인구/데미지/일꾼& APM 세 페이지로 자동 슬라이딩 순환" → 같은 날 "3페이지에서 4페이지로:
  *  일꾼&인구 - 광물&가스 - 데미지 - APM") — PC 는 넷이 나란히 = 여섯 칸 전부(차례도 이 차례 = 옛 로스터 차례). */
 /* 광물·가스는 **한 칸 "자원"**("1234/567" · 2026-10-09, 요청: "광물도 하나로 합쳐 보이기 — 사이에 / · 라벨은 자원 · PC 도") · 데미지는 퍼센트만(dmgPctNode9). */
@@ -10589,6 +10588,7 @@ export default function ReplayMotionPlayer({
    *  (칸의 붓은 평면 한 벌이다). ★ 처음엔 **아무 칸도 안 고른다**(2026-09, 요청: "처음엔 화면 미선택 · 선택 상태에서 또 누르면
    *  미선택으로") — 이미 켜진 분할에서 사람만 바뀌면 고른 칸이 남아 있을 때 그대로 둔다. */
   const startSplit9 = (sel9: string[] | null): void => {
+    if (smallDevice9) return;   // 폰은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★)
     if (castOn) stopCast9();
     if (trackRaw !== null) stopTrack9();
     setViewRaw(null);
@@ -10611,12 +10611,13 @@ export default function ReplayMotionPlayer({
   };
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
-    const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
-    /* ★ 폰은 **두 명까지**다(2026-09, 요청: "모바일에서 분할모드 최대 2명 지정가능으로 변경") — 셋째부터는 칸이 너무 작다. */
-    if (smallDevice9 && next9.length > SPLIT_PHONE_MAX9) {
-      replayToast(`모바일에서는 분할보기를 ${SPLIT_PHONE_MAX9}명까지 볼 수 있어요`, { kind: "info" });
+    /* ★ 폰은 **분할이 없다**(2026-10-12, 요청: "모바일 분할 화면 완전제거 및 로스터 클릭시 그사람 화면으로 변경" · "여러명 선택 기능 아예 없고 토스터도 없음") —
+       옛 '두 명까지 + 셋째에 토스트'(SPLIT_PHONE_MAX9)를 걷었다. 다른 사람을 누르면 그 사람 화면으로 **바꾸고**, 켜진 사람을 다시 누르면 놓는다. */
+    if (smallDevice9) {
+      if (trackRaw === key9) { stopTrack9(); setViewRaw(null); } else toggleTrack(key9);
       return;
     }
+    const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
     if (next9.length === 0) {
       if (splitUser9) setSplitOn9(false);
       if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
@@ -10624,6 +10625,16 @@ export default function ReplayMotionPlayer({
       if (trackRaw !== next9[0]) toggleTrack(next9[0]);   // 분할에서 내려오면 toggleTrack 이 분할을 끈다
     } else if (next9.length >= bases.length) startSplit9(null);   // 다 고르면 곧 '전체'다
     else startSplit9(next9);
+  };
+  /* ★ 숫자키 1~8 = 그 차례 사람의 화면(2026-10-12, 요청: "숫자키 1~8로 플레이어 화면 전환") — 차례는 독 로스터 그대로(밀리 = bases · 팀전 = 1팀 → 2팀).
+     **전환**이다: 중계·분할·다른 사람 추적을 놓고 그 한 사람 개인 추적(toggleTrack) · 이미 그 사람만 보고 있으면 그대로 둔다(끄지 않는다). 없는 번호면 키를 흘린다. */
+  const personKeyRef9 = useRef<(n9: number) => boolean>(() => false);
+  personKeyRef9.current = (n9) => {
+    const order9 = melee ? bases : [...bases.filter((m) => m.team !== 2), ...bases.filter((m) => m.team === 2)];
+    const m9 = order9[n9 - 1];
+    if (!m9) return false;
+    if (trackRaw !== m9.key || splitOn9) toggleTrack(m9.key);
+    return true;
   };
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
@@ -16861,6 +16872,9 @@ export default function ReplayMotionPlayer({
         /* ★ 검색 결과 앞뒤 — B 이전 · N 다음(2026-10-12, 요청: "검색 결과 이전/다음은 B/N 으로 매핑하고 검색창 닫아도 동작") — 검색창(입력)에 있을 땐 이 판이
            안 들으므로(위 INPUT 문) 창을 닫거나 접은 뒤에 먹는다. 결과가 없으면 키를 흘린다. */
         if (searchKeyRef9.current(e.code === "KeyN" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
+      } else if (/^Digit[1-8]$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // 1~8 = 그 차례 사람 화면으로 전환(위 personKeyRef9 · 2026-10-12 요청) — e.code 라 한글 자판·시프트와 무관.
+        if (personKeyRef9.current(Number(e.code.slice(5)))) { e.preventDefault(); wakeUi(); }
       } else if (e.code === "KeyF") {
         /* 재생/일시정지 — p → 스페이스바 → **f**(2026-10-11, 요청). 스페이스는 이제 안 듣는다(안내에 없는 매핑은 두지 않는다). */
         e.preventDefault();
@@ -17721,7 +17735,7 @@ export default function ReplayMotionPlayer({
                       <button
                         type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
                         aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
-                        title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                        title={on9 ? "이 사람 화면을 놓는다" : smallDevice9 ? "이 사람 화면으로 바꾼다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                       >
                         <Video aria-hidden />
                       </button>

@@ -999,6 +999,24 @@ if (has("--pickshot")) {
   console.log(`[목록] 단추 ${r9 ? "눌렀다" : "없음"} · 목록 ${JSON.stringify(bx9.m)} · 자막 ${JSON.stringify(bx9.c)} · 겹친 자리 맨 위: ${bx9.top} · 화면 안 ${bx9.fit} · 확대 ${bx9.zoom}`);
   await page.screenshot({ path: String(flag("--pickshot", "pick.png")), timeout: 120000 });
 }
+/* --campick(2026-10-12, 요청: "모바일 분할 화면 완전제거 및 로스터 클릭시 그사람 화면으로 변경" · "숫자키 1~8로 플레이어 화면 전환") — 로스터 사람 카메라를
+   첫째 → 둘째 차례로 누르고, 숫자키 3 · 1 을 친 뒤마다 켜진 단추 차례 · 분할 칸 수 · 토스트 글귀를 찍는다. 폰(--ios)은 늘 한 사람 · 칸 0 · 토스트 없음이어야 한다. */
+if (has("--campick")) {
+  await page.waitForTimeout(800);
+  const st9 = (lab) => page.evaluate((lab) => {
+    const cams = [...document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")];
+    const on = cams.map((b, i) => (b.classList.contains("is-on") ? i + 1 : 0)).filter(Boolean);
+    const toast = [...document.querySelectorAll("[class*=toast]")].map((el) => el.textContent.trim()).filter(Boolean).join(" | ");
+    return `[카메라 고르기] ${lab}: 켜짐 ${JSON.stringify(on)} · 분할 칸 ${document.querySelectorAll(".scr-split-cell").length} · 토스트 ${toast || "-"}`;
+  }, lab);
+  const click9 = (k) => page.evaluate((k) => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")[k]; if (b instanceof HTMLElement) b.click(); }, k);
+  await click9(0); await page.waitForTimeout(400); console.log(await st9("1번 누름"));
+  await click9(1); await page.waitForTimeout(400); console.log(await st9("2번 누름"));
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement) && document.activeElement.blur());
+  await page.keyboard.press("Digit3"); await page.waitForTimeout(400); console.log(await st9("숫자키 3"));
+  await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1"));
+  await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1 다시"));
+}
 /* 분할보기 자(--split [png]) — TV 목록에서 '분할'을 골라 칸 수·자리·칸 그림(빈 판인가)·칸 머리 글귀를 찍고, 둘째 칸을 눌러
    독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */
 if (has("--split")) {
