@@ -4870,3 +4870,17 @@
   transform: translate(-50%, -50%); border-radius: 1px; background: #ffb000; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 .scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: #ff4d1f; }
+/* (2026-10-12 · 이어서, 요청: "Enter 눌러야 검색 · 검색 취소와 창 닫기 구분 · 결과 있으면 접기") — 머리 줄 [검색 · 접기/닫기] · 입력 줄 [입력 · 찾기] · 앞뒤 줄 끝의 '검색 취소'. */
+.scr-motion-search-head { display: flex; align-items: center; justify-content: space-between; gap: calc(6px * var(--ui)); }
+.scr-motion-search-title { font-size: calc(12px * var(--ui)); font-weight: 800; opacity: 0.8; }
+.scr-motion-search-fold, .scr-motion-search-cancel {
+  flex: none; display: inline-flex; align-items: center; gap: calc(3px * var(--ui)); height: calc(26px * var(--ui));
+  padding: 0 calc(8px * var(--ui)); border: none; border-radius: 4px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.1); color: inherit; font-family: inherit; font-size: calc(12px * var(--ui)); font-weight: 700; white-space: nowrap;
+}
+@media (hover: hover) { .scr-motion-search-fold:hover, .scr-motion-search-cancel:hover { background: rgba(255, 255, 255, 0.2); } }
+.scr-motion-search-cancel { height: calc(28px * var(--ui)); color: #ffb3a1; }
+.scr-motion-search-row { display: flex; align-items: stretch; gap: calc(4px * var(--ui)); margin: 0; }
+.scr-motion-search-row > .scr-motion-search-input { flex: 1 1 auto; min-width: 0; width: auto; }
+.scr-motion-search-row > .scr-motion-search-go { height: auto; min-height: calc(28px * var(--ui)); width: calc(34px * var(--ui)); }
+.scr-motion-search-hint { font-size: calc(11px * var(--ui)); opacity: 0.65; padding: 0 calc(2px * var(--ui)); }

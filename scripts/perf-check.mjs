@@ -1490,11 +1490,13 @@ if (SHOT) {
     await page.evaluate(() => { document.querySelector("[aria-label='검색 — 유닛·기술·전술']")?.click(); });
     await page.waitForTimeout(300);
     await page.fill(".scr-motion-search-input", q9);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(800);
     const rd9 = () => page.evaluate(() => ({ count: document.querySelector(".scr-motion-search-count")?.textContent ?? null,
       tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null,
       hits: [...document.querySelectorAll(".scr-motion-search-hit")].slice(0, 6).map((e) => e.textContent) }));
-    console.log("[검색]", q9, JSON.stringify(await rd9()));
+    console.log("[검색 치기만]", q9, JSON.stringify({ ...(await rd9()), hint: await page.evaluate(() => document.querySelector(".scr-motion-search-hint")?.textContent ?? null) }));
+    await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(1200);
+    console.log("[검색 Enter]", JSON.stringify({ ...(await rd9()), fold: await page.evaluate(() => document.querySelector(".scr-motion-search-fold")?.textContent ?? null) }));
     await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(600);
     console.log("[검색 다음 1]", JSON.stringify(await rd9()));
     await page.press(".scr-motion-search-input", "Enter"); await page.waitForTimeout(600);
