@@ -1,4 +1,4 @@
-import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Video, X } from "lucide-react";
+import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Share2, Tv, Video, X } from "lucide-react";
 import QMarkIcon from "./QMarkIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -133,7 +133,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">중계 고르기</h3>
         <p className="scr-guide-sub">
-          <strong>전광판</strong>의 단추로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>AUTO</strong>(자동)로 켜져 있습니다.
+          <strong>전광판</strong>의 단추로 <strong>누구 화면</strong>을 볼지 고릅니다. 들어오면 <strong>자동중계</strong>로 켜져 있습니다.
           켜진 단추는 <b>초록</b>이고, 지금 보여 주는 사람은 전광판에서 <b>이름이 빛납니다</b>. 화면 위 가운데에 <b>누구 화면인지</b> 이름표가 서고, 쇠판의 미니맵은 그 사람 시야입니다.
         </p>
         <div className="scr-guide-mock">
@@ -141,7 +141,7 @@ export default function ReplayGuide({ onClose }: {
               AUTO·전체 알약 · 줄마다 카메라 단추 + 종족 배지 이름칩 · 켜짐은 반투명 초록 · 보여 주는 사람은 칩이 빛난다. */}
           <div className="scr-guide-castlist" aria-hidden="true">
             <div className="scr-guide-castrow">
-              <span className="scr-guide-cam is-on is-pill"><Video size={14}/>AUTO</span>
+              <span className="scr-guide-cam is-on is-pill"><Tv size={14}/>자동중계</span>
               <span className="scr-guide-cam is-pill"><Video size={14}/>전체</span>
             </div>
             <div className="scr-guide-castrow">
@@ -156,10 +156,10 @@ export default function ReplayGuide({ onClose }: {
           <ul className="scr-guide-legend">
             <li>
               <span className="scr-guide-ic"><Video size={14}/></span>
-              <span><b>AUTO</b>(자동) — 지금 가장 볼 만한 사람에게 저절로 갑니다. 큰 교전·기지 공격·견제·드랍·마법이 벌어지는 쪽을 장면이
+              <span><b>자동중계</b> — 지금 가장 볼 만한 사람에게 저절로 갑니다. 큰 교전·기지 공격·견제·드랍·마법이 벌어지는 쪽을 장면이
               시작되기 <b>조금 전에</b> 미리 잡아 두고, 장면이 이어지는 동안은 그 사람에 머뭅니다. 작은 일(몇 기 싸움·일꾼 하나)은 건너뜁니다.
               볼 만한 일이 없으면 <b>전광판 차례로 팀을 번갈아</b> 6초씩 돌아가고, 그 칸에 <b>인구가 막힌</b> 사람이 있으면 그 사람을 먼저 보여 줍니다.
-              켜진 AUTO를 다시 누르면 꺼지고, 보던 자리에서 지도를 손으로 움직입니다(시야도 전체로).</span>
+              켜진 자동중계를 다시 누르면 꺼지고, 보던 자리에서 지도를 손으로 움직입니다(시야도 전체로).</span>
             </li>
             <li>
               <span className="scr-guide-ic scr-guide-ic-txt">이름</span>

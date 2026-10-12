@@ -6,7 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { Bookmark, Check, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Video } from "lucide-react";
+import { Bookmark, Check, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Share2, Tv, Video } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -17202,7 +17202,8 @@ export default function ReplayMotionPlayer({
                 type="button" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-pressed={castOn}
                 aria-label={castOn ? "자동 중계 끄기" : "자동 중계 켜기"} title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
               >
-                <Video aria-hidden /><span className="scr-roster-cam-txt">AUTO</span>
+                {/* TV + "자동중계"(2026-10-12, 요청: "자동 중계 아이콘을 TV로 바꿔 줘 · 라벨은 한글로 자동중계") — 옛 비디오카메라 + AUTO. 사람 줄의 카메라 단추는 그대로. */}
+                <Tv aria-hidden /><span className="scr-roster-cam-txt">자동중계</span>
               </button>
               {/* ★ 전체 알약 — PC 만(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요") · 모든 사람 화면 나누기(옛 TV 목록의 '전체'). 폰은 분할이 둘까지라 없다. */}
               {!smallDevice9 && (
