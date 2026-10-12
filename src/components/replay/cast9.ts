@@ -105,8 +105,10 @@ export type CastPlanOpts9 = {
 /** ★ 옮겨진 무리의 도착(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯") — at 첫 도착(초) · to 마지막 도착
  *  (나이더스는 한 마리씩 들어간다) · 그 사람 · 도착 자리(타일). 편성표의 참값(TruthWorld)은 몸의 실제 자리를 안 들고 있어서 재생기가 자취로 재어 건넨다. */
 export type CastMove9 = { at: number; to?: number; raw: string; x: number; y: number; kind: "recall" | "nydus";
-  /** 리콜만 — 시전 때(초)와 시전 자리(표적 · 병력이 불려 가는 곳) — 길이 거기 먼저 들러 지글거리는 구를 보인다(2026-10-12). */
-  cast?: number; fx?: number; fy?: number };
+  /** 출발 자리 — 리콜은 시전 자리(표적 · 병력이 불려 가는 곳 · 지글거리는 구) · 나이더스는 들어간 입구. cast 는 리콜의 시전 때(초). */
+  cast?: number; fx?: number; fy?: number;
+  /** 리콜만 — 시전 때 시전자 아비터의 자리(도착 자리에 가장 가까운 것 · 2026-10-12 "아비터 → 출발지 → 도착지"). 못 찾으면 없다. */
+  ax?: number; ay?: number };
 /** 리콜이 시전 뒤 실제로 옮기는 때(초) — 엔진의 RECALL_DELAY_SEC(OpenBW order_CastRecall 22프레임)와 같은 값. */
 const RECALL_LAG9 = 0.92;
 /** 나이더스 입구에서 이 타일 안에서 사라져 출구에서 이 타일 안에 나타난 순간이동만 나이더스로 센다(드랍 내림·리콜과 가른다). */
@@ -137,13 +139,20 @@ export function castMoves9(tracks: readonly TruthTrack[], world: TruthWorld): Ca
     const mx9 = mid9(arr9.map((p9) => p9[0]));
     const my9 = mid9(arr9.map((p9) => p9[1]));
     const near9 = arr9.filter(([x9, y9]) => Math.hypot(x9 - mx9, y9 - my9) <= 8);
-    out9.push({ at: s9 + RECALL_LAG9, raw: r9, kind: "recall", cast: s9, fx: cx9, fy: cy9,
-      x: near9.reduce((a9, p9) => a9 + p9[0], 0) / near9.length, y: near9.reduce((a9, p9) => a9 + p9[1], 0) / near9.length });
+    const dx9 = near9.reduce((a9, p9) => a9 + p9[0], 0) / near9.length;
+    const dy9 = near9.reduce((a9, p9) => a9 + p9[1], 0) / near9.length;
+    let arb9: { x: number; y: number } | null = null;
+    for (const tr9 of tracks) {
+      if (tr9.kind !== "Arbiter" || tr9.owner !== o9 || tr9.born > s9 || (tr9.died !== null && tr9.died < s9)) continue;
+      const q9 = posAtTruth(tr9, s9);
+      if (q9 && (!arb9 || Math.hypot(q9.x - dx9, q9.y - dy9) < Math.hypot(arb9.x - dx9, arb9.y - dy9))) arb9 = { x: q9.x, y: q9.y };
+    }
+    out9.push({ at: s9 + RECALL_LAG9, raw: r9, kind: "recall", cast: s9, fx: cx9, fy: cy9, x: dx9, y: dy9, ...(arb9 ? { ax: arb9.x, ay: arb9.y } : {}) });
   }
   /* 나이더스 — 같은 임자의 나이더스 둘 사이를 뛴 몸(keyJump · 입구 곁에서 사라져 딴 나이더스 곁에 나타남). 출구·임자마다 NYDUS_GAP9 안이면 한 번의 이동이다. */
   const canals9 = tracks.filter((tr9) => tr9.kind === "Nydus Canal" && kN(tr9) > 0);
   if (canals9.length >= 2) {
-    const hops9: { t: number; o: number; c: TruthTrack }[] = [];
+    const hops9: { t: number; o: number; c: TruthTrack; e: TruthTrack }[] = [];
     const canalNear9 = (o9: number, x9: number, y9: number, t9: number, not9?: TruthTrack): TruthTrack | undefined => canals9.find((c9) => c9 !== not9 && c9.owner === o9
       && c9.born <= t9 && (c9.died === null || c9.died >= t9 - 1) && Math.hypot(kX(c9, 0) - x9, kY(c9, 0) - y9) <= NYDUS_NEAR9);
     const owners9 = new Set(canals9.map((c9) => c9.owner));
@@ -155,7 +164,7 @@ export function castMoves9(tracks: readonly TruthTrack[], world: TruthWorld): Ca
         const a9 = canalNear9(tr9.owner, kX(tr9, i9 - 1), kY(tr9, i9 - 1), t9);
         if (!a9) continue;
         const b9 = canalNear9(tr9.owner, kX(tr9, i9), kY(tr9, i9), t9, a9);
-        if (b9) hops9.push({ t: t9, o: tr9.owner, c: b9 });
+        if (b9) hops9.push({ t: t9, o: tr9.owner, c: b9, e: a9 });
       }
     }
     hops9.sort((a9, b9) => a9.t - b9.t);
@@ -165,12 +174,69 @@ export function castMoves9(tracks: readonly TruthTrack[], world: TruthWorld): Ca
       if (!r9) continue;
       const m9 = open9.get(h9.c);
       if (m9 && h9.t - (m9.to ?? m9.at) <= NYDUS_GAP9) { m9.to = h9.t; continue; }
-      const n9: CastMove9 = { at: h9.t, to: h9.t, raw: r9, kind: "nydus", x: kX(h9.c, 0), y: kY(h9.c, 0) };
+      const n9: CastMove9 = { at: h9.t, to: h9.t, raw: r9, kind: "nydus", x: kX(h9.c, 0), y: kY(h9.c, 0), fx: kX(h9.e, 0), fy: kY(h9.e, 0) };
       open9.set(h9.c, n9);
       out9.push(n9);
     }
   }
   return out9.sort((a9, b9) => a9.at - b9.at);
+}
+
+/** 핵의 때(초) — 엔진 NUKE_LEAD_SEC(착탄을 앞당겨 보이는 몫) · NUKE_DROP_SEC(탄두가 떨어지는 창) · NUKE_BOOM_SEC(폭발이 서 있는 창)와 같은 값. */
+const NUKE_LEAD9 = 1.1;
+const NUKE_DROP9 = 4;
+const NUKE_BOOM9 = 4;
+/** 핵 조준(빨간 점)의 끝을 낙하 앞 이만큼(초) 보인다(2026-10-12, 요청: "핵 — 조준 뒷부분 좀 보이고 이어서 투하부터 쭉"). = CAST_LEAD9(장면이 겨눔 앞에 서는 몫). */
+const NUKE_AIM_SHOW9 = 3;
+/** 경기의 핵 — 덤퍼의 시전 기록에는 핵이 안 실린다(재생기 검색 색인의 ★ 핵) → 핵탄두("Nuclear Missile")가 움직여 죽은 것으로: 보이는 착탄(죽음 − NUKE_LEAD9) · 떨어진 자리. */
+export function castNukes9(world: TruthWorld): { raw: string; hit: number; x: number; y: number }[] {
+  const raw9 = new Map(world.players.map((p9) => [p9.owner, p9.name]));
+  const out9: { raw: string; hit: number; x: number; y: number }[] = [];
+  for (const e9 of world.lives) {
+    if (e9.kind !== "Nuclear Missile" || e9.died === null || e9.endX === undefined || e9.endY === undefined) continue;
+    if (Math.hypot(e9.endX - e9.bornX, e9.endY - e9.bornY) <= 1) continue;   // 사일로째 부서진 탄두(제자리)
+    const r9 = raw9.get(e9.owner);
+    if (r9) out9.push({ raw: r9, hit: e9.died - NUKE_LEAD9, x: e9.endX, y: e9.endY });
+  }
+  return out9;
+}
+
+/** ★★ **볼 자리의 차례**(2026-10-12, 요청: "리콜 보여 주는 순서 아비터 - 출발지 - 도착지(아비터 쪽) · 나이더스 시작 시 출발지 보여 주고 그 후로 도착지 끝까지 ·
+ *  핵 조준 뒷부분 좀 보이고 이어서 투하부터 쭉") — 한 사람의 한 사건을 [t0, t1] 구간들로 편다. 장소 중계 길(pinPath9)과 개인 화면 자국(재생기 picksOf9)이 같은 표를 쓴다.
+ *  hold — 개인 화면에서 그 구간 동안 그 사람의 딴 명령·선택 자국을 지운다(끝나면 다음 자국에 옮긴다). 스캔은 hold 가 아니다("다른 명령이 있으면 그때 화면 옮김").
+ *  · 리콜(시전 c · 도착 a): 아비터 [c − 1.5, c − 0.2] → 시전 자리(구 · 불려 가는 병력) [c − 0.2, c + 0.8] → 도착 자리 [c + 0.8, a + 3]. 아비터를 못 찾으면 시전 자리가 c − 1.5 부터.
+ *  · 나이더스(첫 a · 끝 to): 입구 [a − 1.5, a − 0.1] → 출구 [a − 0.1, to + 2].
+ *  · 핵(보이는 착탄 h): 떨어진 자리 [h − 낙하 4 − 조준 끝 3, h + 폭발 4].
+ *  · 스캔(s): 스캔 자리 [s − 0.3, s + 3] · hold 아님. */
+export type CastLeg9 = { t0: number; t1: number; x: number; y: number; hold: boolean };
+export type CastFocus9 = { raw: string; kind: "recall" | "nydus" | "nuke" | "scan"; legs: CastLeg9[] };
+export function castFocus9(world: TruthWorld, moves: readonly CastMove9[]): CastFocus9[] {
+  const raw9 = new Map(world.players.map((p9) => [p9.owner, p9.name]));
+  const out9: CastFocus9[] = [];
+  for (const m9 of moves) {
+    const end9 = (m9.to ?? m9.at);
+    if (m9.kind === "recall" && m9.cast !== undefined && m9.fx !== undefined && m9.fy !== undefined) {
+      const c9 = m9.cast;
+      const legs9: CastLeg9[] = [];
+      if (m9.ax !== undefined && m9.ay !== undefined) legs9.push({ t0: c9 - 1.5, t1: c9 - 0.2, x: m9.ax, y: m9.ay, hold: true });
+      legs9.push({ t0: legs9.length > 0 ? c9 - 0.2 : c9 - 1.5, t1: c9 + 0.8, x: m9.fx, y: m9.fy, hold: true });
+      legs9.push({ t0: c9 + 0.8, t1: end9 + 3, x: m9.x, y: m9.y, hold: true });
+      out9.push({ raw: m9.raw, kind: "recall", legs: legs9 });
+    } else if (m9.kind === "nydus") {
+      const legs9: CastLeg9[] = [];
+      if (m9.fx !== undefined && m9.fy !== undefined) legs9.push({ t0: m9.at - 1.5, t1: m9.at - 0.1, x: m9.fx, y: m9.fy, hold: true });
+      legs9.push({ t0: legs9.length > 0 ? m9.at - 0.1 : m9.at - 1.5, t1: end9 + 2, x: m9.x, y: m9.y, hold: true });
+      out9.push({ raw: m9.raw, kind: "nydus", legs: legs9 });
+    }
+  }
+  for (const n9 of castNukes9(world)) {
+    out9.push({ raw: n9.raw, kind: "nuke", legs: [{ t0: n9.hit - NUKE_DROP9 - NUKE_AIM_SHOW9, t1: n9.hit + NUKE_BOOM9, x: n9.x, y: n9.y, hold: true }] });
+  }
+  for (const [s9, x9, y9, tech9, o9] of world.casts) {
+    const r9 = raw9.get(o9);
+    if (tech9 === "Scanner Sweep" && r9) out9.push({ raw: r9, kind: "scan", legs: [{ t0: s9 - 0.3, t1: s9 + 3, x: x9, y: y9, hold: false }] });
+  }
+  return out9.sort((a9, b9) => a9.legs[0].t0 - b9.legs[0].t0);
 }
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
@@ -1033,6 +1099,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const r9 = rawOf9.get(own9);
     if (!r9 || sec9 > total - 3) continue;
     evs9.push({ sec: sec9, raw: r9, w: w9, why: tech9 === "Nuclear Strike" ? "핵" : "마법", tech: tech9, px: cx9, py: cy9 });
+  }
+  /* ★ **핵은 탄두로 센다**(2026-10-12, 요청: "핵 — 조준 뒷부분 좀 보이고 이어서 투하부터 쭉") — 덤퍼는 핵 시전을 안 적어(castNukes9) 여태 핵은 장면이 아니었고 착탄에 죽은 몸만
+     장면이 됐다(죽음 − 3초에 서서 조준·낙하는 거의 못 봤다). 이제 보이는 착탄을 사건 때로 · 낙하 시작을 겨눔(eng)으로 — 장면이 낙하 CAST_LEAD9(3) 초 앞(조준 끝)에 서고 착탄 뒤까지 간다. */
+  for (const n9 of castNukes9(world)) {
+    if (n9.hit > total - 3) continue;
+    evs9.push({ sec: n9.hit, eng: n9.hit - NUKE_DROP9, raw: n9.raw, w: CAST_W9["Nuclear Strike"] ?? 1400, why: "핵", tech: "Nuclear Strike", px: n9.x, py: n9.y, tail: NUKE_BOOM9 + GAP9 });
   }
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
@@ -2469,24 +2541,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const SPOT_NEAR9 = 14;
   const SPOT_SPEED9 = 4;
   /* ★ **들를 자리**(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯 · 스캔 사용 시에도 스캔한 곳 보여 주기") —
-     그 장면에 든 사람(sc9.by)의 리콜·나이더스 도착(opts.moves)은 첫 도착 MOVE_LEAD9 초 앞부터 마지막 도착 + MOVE_HOLD9 까지, 스캔은 친 때 SCAN_LEAD9 앞부터 + SCAN_HOLD9 까지
-     길이 그 자리에 선다(멀어도 — 재생기는 창 하나 넘게 떨어지면 곧장 선다). 창이 겹치면 나중 것이 그 시작부터 잇는다 · 끝나면 교전 자리 길로 돌아간다. */
-  const MOVE_LEAD9 = 1.2;
-  const MOVE_HOLD9 = 3;
-  /* ★ 리콜은 **시전 자리 먼저**(2026-10-12, 물음: "중계 시 1.2초 전 옮기면 이동 전 구도 보여?" → 아니었다(도착 1.2초 전 = 시전 0.28초 전이라 이미 도착 자리) · "응 그렇게 바꿔 줘") —
-     시전 RECALL_SRC_LEAD9 앞부터 + RECALL_SRC_HOLD9 까지 시전 자리(지글거리는 구 · 불려 가는 병력)를 보고 곧장 도착 자리로 건너간다(도착 0.42초 전). 나이더스는 종전대로. */
-  const RECALL_SRC_LEAD9 = 0.3;
-  const RECALL_SRC_HOLD9 = 0.5;
-  const SCAN_LEAD9 = 0.3;
-  const SCAN_HOLD9 = 3;
-  const pins9: { raw: string; t0: number; t1: number; x: number; y: number }[] = [
-    ...(opts.moves ?? []).flatMap((m9) => (m9.cast !== undefined && m9.fx !== undefined && m9.fy !== undefined
-      ? [{ raw: m9.raw, t0: m9.cast - RECALL_SRC_LEAD9, t1: m9.cast + RECALL_SRC_HOLD9, x: m9.fx, y: m9.fy },
-        { raw: m9.raw, t0: m9.cast + RECALL_SRC_HOLD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y }]
-      : [{ raw: m9.raw, t0: m9.at - MOVE_LEAD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y }])),
-    ...world.casts.filter((c9) => c9[3] === "Scanner Sweep" && rawOf9.has(c9[4]))
-      .map(([s9, x9, y9, , o9]) => ({ raw: rawOf9.get(o9)!, t0: s9 - SCAN_LEAD9, t1: s9 + SCAN_HOLD9, x: x9, y: y9 })),
-  ].sort((a9, b9) => a9.t0 - b9.t0);
+     길이 그 자리에 선다(멀어도 — 재생기는 창 하나 넘게 떨어지면 곧장 선다). 차례·때는 castFocus9(볼 자리의 차례 ★★). */
+  /* 들를 자리는 castFocus9(볼 자리의 차례 ★★)의 구간들 — 그 장면에 든 사람(sc9.by)의 것만 · 창이 겹치면 나중 것이 그 시작부터 잇는다 · 끝나면 교전 자리 길로 돌아간다. */
+  const pins9 = castFocus9(world, opts.moves ?? []).flatMap((f9) => f9.legs.map((l9) => ({ raw: f9.raw, t0: l9.t0, t1: l9.t1, x: l9.x, y: l9.y })))
+    .sort((a9, b9) => a9.t0 - b9.t0);
   /** 길에 들를 자리를 끼운다 — 창 안의 키를 걷고 [t0, t1] 동안 그 자리 · 창 양끝 바로 밖은 본 길의 그때 자리(그 사이는 곧장 건너뛴다). */
   const PIN_EPS9 = 0.05;
   const PIN_CHAIN9 = 1;

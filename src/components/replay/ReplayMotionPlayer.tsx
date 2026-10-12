@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castMoves9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castFocus9, castMoves9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -10344,6 +10344,8 @@ export default function ReplayMotionPlayer({
   /** 리콜·나이더스 도착(cast9 castMoves9 · 2026-10-12) — 교전 자리 길이 들를 자리. 편성표를 구울 때만 잰다. */
   /* 개인 화면도 리콜 자국에 쓴다(picksOf9 ★ 리콜) — 중계가 꺼진 개인 추적에서도 재므로 편성표와 따로 늘 잰다(참값 한 벌에 한 번). */
   const castMovesV9 = useMemo(() => (truth && entData ? castMoves9(truth.tracks, entData) : undefined), [truth, entData]);
+  /** 볼 자리의 차례(cast9 castFocus9 ★★) — 리콜·나이더스·핵·스캔의 구간들. 개인 화면 자국(picksOf9)이 쓴다(장소 중계 길은 편성표가 같은 셈으로 짓는다). */
+  const castFocusV9 = useMemo(() => (entData ? castFocus9(entData, castMovesV9 ?? []) : []), [entData, castMovesV9]);
   const planAll9 = useMemo<CastSeg9[]>(
     () => (planWant9 && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
@@ -10736,31 +10738,30 @@ export default function ReplayMotionPlayer({
       mode9.set(Math.round(s9 * 4) / 4, m9);   // 같은 칸에서는 나중 갈래가 이긴다
     }
     const scanAt9 = new Map<number, { x: number; y: number }>();
-    /* ★ **리콜도 자국이다**(2026-10-12, 지적: "리콜한 도착 장소로 화면이 안 옮기는데") — 장소 중계의 들르기(cast9 pinPath9)는 교전 자리 토막만 탄다. 리콜 장면은 대개 시전자 한 사람의
-       개인 화면 토막이라 그 길을 안 탔다. 개인 화면에서도 그 사람의 리콜마다 시전 − 0.3초 칸에 시전 자리(지글거리는 구) · 시전 + 0.5초 칸에 도착 자리(castMoves9)를 보는 자국을
-       세우고, 그 사이 칸(아비터 명령·선택)은 지운다. 그 뒤는 스캔과 같다 — 다음 명령·선택 자국이 오면 옮긴다. */
+    /* ★ **볼 자리의 차례도 자국이다**(cast9 castFocus9 ★★ · 2026-10-12, 지적: "리콜한 도착 장소로 화면이 안 옮기는데" → 요청: "리콜 아비터 - 출발지 - 도착지 · 나이더스 출발지 → 도착지 끝까지 ·
+       핵 조준 뒷부분 → 투하부터 쭉") — 장소 중계의 들르기(pinPath9)는 교전 자리 토막만 탄다. 리콜·나이더스·핵 장면은 대개 그 사람 한 명의 개인 화면 토막이라 그 길을 안 탔다.
+       이제 그 사람의 구간마다 시작 칸에 그 자리를 보는 자국(at · jump — 화면 밖일 때만 곧장 선다)을 세우고, hold 구간 안의 딴 명령·선택 칸은 지운다(끝나면 다음 자국에 옮긴다).
+       스캔은 hold 가 아니다 — 앞뒤 SCAN_EAT_SEC9 안의 컴샛 자국만 지우고 다음 명령·선택이 오면 옮긴다. */
     if (scan9) {
-      for (const m9 of castMovesV9 ?? []) {
-        if (m9.kind !== "recall" || m9.raw !== raw9 || m9.cast === undefined || m9.fx === undefined || m9.fy === undefined) continue;
-        const k09 = Math.round((m9.cast - 0.3) * 4) / 4;
-        const k19 = Math.round((m9.cast + 0.5) * 4) / 4;
-        for (const k9 of [...by9.keys()]) if (k9 >= k09 && k9 <= k19) by9.delete(k9);
-        scanAt9.set(k09, { x: m9.fx, y: m9.fy });
-        scanAt9.set(k19, { x: m9.x, y: m9.y });
-        by9.set(k09, new Set());
-        by9.set(k19, new Set());
-      }
       const comsat9 = new Set(entData.lives.filter((e9) => mine9.has(e9.owner) && e9.kind === "Comsat Station").map((e9) => e9.tag));
-      for (const [s9, x9, y9, tech9, o9] of entData.casts) {
-        if (tech9 !== "Scanner Sweep" || !mine9.has(o9)) continue;
-        for (const [k9, g9] of by9) {
-          if (Math.abs(k9 - s9) > SCAN_EAT_SEC9 || scanAt9.has(k9)) continue;
-          for (const c9 of comsat9) g9.delete(c9);
-          if (g9.size === 0) by9.delete(k9);
+      for (const f9 of castFocusV9) {
+        if (f9.raw !== raw9) continue;
+        for (const l9 of f9.legs) {
+          const k09 = Math.round(l9.t0 * 4) / 4;
+          if (l9.hold) {
+            const k19 = Math.round(l9.t1 * 4) / 4;
+            for (const k9 of [...by9.keys()]) if (k9 > k09 && k9 <= k19 && !scanAt9.has(k9)) by9.delete(k9);
+          } else if (f9.kind === "scan") {
+            const s9 = l9.t0 + 0.3;
+            for (const [k9, g9] of by9) {
+              if (Math.abs(k9 - s9) > SCAN_EAT_SEC9 || scanAt9.has(k9)) continue;
+              for (const c9 of comsat9) g9.delete(c9);
+              if (g9.size === 0) by9.delete(k9);
+            }
+          }
+          scanAt9.set(k09, { x: l9.x, y: l9.y });
+          if (!by9.has(k09)) by9.set(k09, new Set());
         }
-        const k9 = Math.round(s9 * 4) / 4;
-        scanAt9.set(k9, { x: x9, y: y9 });
-        if (!by9.has(k9)) by9.set(k9, new Set());
       }
     }
     return [...by9.entries()]
@@ -10769,7 +10770,7 @@ export default function ReplayMotionPlayer({
         return at9 ? { sec, tags: [...tags], sel: `at${sec}`, mode: "jump", at: at9 } : { sec, tags: [...tags], sel: selKey9(tags), mode: mode9.get(sec) };
       })
       .sort((a, b) => a.sec - b.sec);
-  }, [entData, castMovesV9]);
+  }, [entData, castFocusV9]);
   const trackPicks = useMemo(() => (camRaw9 ? picksOf9(camRaw9, true) : []), [camRaw9, picksOf9]);
   /** 지금 추적이 보고 있는 자리(타일) — 마지막 자국의 몸들을 평균한 점.
    *

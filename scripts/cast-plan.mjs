@@ -26,10 +26,10 @@ const ALL = argv.includes("--plan");
 const EBIN = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
 const tmp = mkdtempSync(join(tmpdir(), "cast-"));
 const src = join(tmp, "entry.ts");
-writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
+writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9, castFocus9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
 execFileSync(EBIN, [src, "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(tmp, "b.mjs")}`],
   { cwd: ROOT, stdio: "inherit" });
-const { castPlan9, castAt9, castValue9, castMoves9 } = await import(join(tmp, "b.mjs"));
+const { castPlan9, castAt9, castValue9, castMoves9, castFocus9 } = await import(join(tmp, "b.mjs"));
 
 console.log("몸값:", ["Zergling", "Marine", "Dragoon", "Siege Tank", "Archon", "Battlecruiser", "Lurker", "Guardian", "Command Center"]
   .map((k) => `${k} ${castValue9(k)}`).join(" · "));
@@ -1233,7 +1233,7 @@ rmSync(tmp, { recursive: true, force: true });
   }
   const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "프로토스", 2], ["D", "저그", 2], ["E", "테란", 1]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [[304, 100, 100, "Scanner Sweep", 0], [315, 20, 110, "Scanner Sweep", 4]], pings: [], resFields: [], kills, sels: [], builds: [] };
-  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D", "E"], teamOf: { A: 1, B: 1, C: 2, D: 2, E: 1 }, moves: [{ at: 311, raw: "C", x: 40, y: 90, kind: "recall", cast: 310.08, fx: 70, fy: 30 }] });
+  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D", "E"], teamOf: { A: 1, B: 1, C: 2, D: 2, E: 1 }, moves: [{ at: 311, raw: "C", x: 40, y: 90, kind: "recall", cast: 310.08, fx: 70, fy: 30, ax: 45, ay: 88 }] });
   const sp = plan.find((s) => !s.cyc && s.spot && s.at > 290 && s.at < 330)?.spot ?? [];
   const pos = (t) => {
     if (sp.length === 0) return [NaN, NaN];
@@ -1252,6 +1252,7 @@ rmSync(tmp, { recursive: true, force: true });
     ...[0, 1, 2].map((i) => trk(10 + i, 3, "Zergling", [[300, 30, 30], [399 + i * 0.5, 21, 21], [400 + i * 0.75, 91, 91, 0]])),
     trk(20, 3, "Zergling", [[300, 60, 60], [450, 62, 62]]),   // 그냥 걷는 몸 — 이동이 아니다
     ...[0, 1].map((i) => trk(30 + i, 2, "Zealot", [[300, 50 + i, 50, 0], [500.9, 70 + i, 20, 0]], 65)),
+    trk(40, 2, "Arbiter", [[300, 68, 22, 0]], 71), trk(41, 2, "Arbiter", [[300, 10, 120, 0]], 71),   // 가까운 아비터가 시전자
   ];
   const mv = castMoves9(tracks, { players: w.players, casts: [[500, 50, 50, "Recall", 2]] });
   const ny = mv.find((m) => m.kind === "nydus");
@@ -1260,10 +1261,42 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["스캔(304) — 304.5 에 스캔 자리(100,100)", near(304.5, 100, 100)],
     ["스캔 3초 뒤(308.5)엔 교전 자리로 돌아온다", far(308.5, 100, 100) && far(308.5, 40, 90)],
-    ["리콜 시전(310.08) 자리(70,30)를 먼저 — 310.2", near(310.2, 70, 30)],
-    ["리콜 시전 + 0.5초(310.6)부터 도착 자리(40,90) · 그 사이 교전 자리에 안 들름", near(310.6, 40, 90) && sp.every((p) => !(p[0] > 310.2 && p[0] < 310.58) || Math.hypot(p[1] - 70, p[2] - 30) < 0.5 || Math.hypot(p[1] - 40, p[2] - 90) < 0.5)],
+    ["리콜 ① 아비터(45,88) — 309", near(309, 45, 88)],
+    ["리콜 ② 시전 자리(70,30) — 310.2", near(310.2, 70, 30)],
+    ["리콜 ③ 도착 자리(40,90) — 311 · 그 사이 교전 자리에 안 들름", near(311, 40, 90) && sp.every((p) => !(p[0] > 308.6 && p[0] < 314) || [[45, 88], [70, 30], [40, 90]].some(([x, y]) => Math.hypot(p[1] - x, p[2] - y) < 0.5))],
     ["싸움에 안 든 사람의 스캔(315)은 안 들른다", far(316, 20, 110)],
     ["나이더스 — 셋이 한 번의 이동 · 출구 자리 · 첫·끝 도착", !!ny && mv.filter((m) => m.kind === "nydus").length === 1 && Math.abs(ny.at - 400) < 0.01 && Math.abs((ny.to ?? 0) - 401.5) < 0.01 && Math.hypot(ny.x - 90, ny.y - 90) < 0.5 && ny.raw === "D"],
     ["리콜 — 시전 + 0.92초 · 도착 자리 (70.5,20)", !!rc && Math.abs(rc.at - 500.92) < 0.01 && Math.hypot(rc.x - 70.5, rc.y - 20) < 0.5 && rc.raw === "C"],
+    ["리콜 — 아비터는 도착 자리에 가까운 것(68,22)", !!rc && rc.ax === 68 && rc.ay === 22],
+    ["나이더스 — 입구 자리(20,20)", !!ny && ny.fx === 20 && ny.fy === 20],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㊶ 핵은 탄두로 센다 · 조준 끝 3초부터 투하·폭발까지(2026-10-12, 요청: "핵 — 조준 뒷부분 좀 보이고 이어서 투하부터 쭉") — 1v1 · A 의 탄두가 280초에 나 500초에 (90,40)에서 죽는다
+   (보이는 착탄 498.9 · 낙하 494.9 · 장면은 그 3초 앞 491.9) · 볼 자리 구간 [491.9, 502.9] (90,40) hold. 리콜 차례(아비터 → 시전 자리 → 도착)·나이더스(입구 → 출구)도 구간으로 본다. */
+{
+  const L = [];
+  let t9 = 260000;
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Hatchery", true, 118, 118, 0);
+  mk(0, "Nuclear Missile", false, 12, 12, 280, { died: 500, end: "self", endX: 90, endY: 40 });
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 900, order: ["A", "B"], teamOf: { A: 1, B: 2 } });
+  const nk = plan.find((s) => !s.cyc && s.raw === "A" && s.at > 480 && s.at < 510);
+  const fo = castFocus9(w, [{ at: 311, to: 312, raw: "B", x: 40, y: 90, kind: "nydus", fx: 20, fy: 20 },
+    { at: 311, raw: "A", x: 40, y: 90, kind: "recall", cast: 310.08, fx: 70, fy: 30, ax: 45, ay: 88 }]);
+  const nf = fo.find((f) => f.kind === "nuke");
+  const rf = fo.find((f) => f.kind === "recall");
+  const yf = fo.find((f) => f.kind === "nydus");
+  const legs = (f) => (f ? f.legs.map((l) => `[${l.t0.toFixed(2)},${l.t1.toFixed(2)}](${l.x},${l.y})${l.hold ? "" : "~"}`).join("→") : "-");
+  console.log(`\n핵·볼 자리 차례: 핵 토막 ${nk ? `${nk.at.toFixed(1)} "${capTxt(nk)}"` : "-"} | 핵 ${legs(nf)} | 리콜 ${legs(rf)} | 나이더스 ${legs(yf)}`);
+  for (const [name, pass] of [
+    ["핵 장면은 낙하 3초 앞(491.9 — 조준 끝)에 선다", !!nk && Math.abs(nk.at - 491.9) < 0.3],
+    ["핵 자막은 '핵 투하'", !!nk && capTxt(nk).includes("핵 투하")],
+    ["핵 볼 자리 [491.9, 502.9] (90,40) hold", !!nf && nf.legs.length === 1 && Math.abs(nf.legs[0].t0 - 491.9) < 0.01 && Math.abs(nf.legs[0].t1 - 502.9) < 0.01 && nf.legs[0].x === 90 && nf.legs[0].hold],
+    ["리콜 차례 아비터 → 시전 자리 → 도착(이어짐)", !!rf && rf.legs.length === 3 && rf.legs[0].x === 45 && rf.legs[1].x === 70 && rf.legs[2].x === 40 && rf.legs[0].t1 === rf.legs[1].t0 && rf.legs[1].t1 === rf.legs[2].t0],
+    ["나이더스 차례 입구 → 출구(끝 + 2초까지)", !!yf && yf.legs.length === 2 && yf.legs[0].x === 20 && yf.legs[1].x === 40 && Math.abs(yf.legs[1].t1 - 314) < 0.01],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
