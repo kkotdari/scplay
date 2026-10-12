@@ -92,6 +92,8 @@ const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
+/* --cam 납작비,높이,숙임(2026-10-12) — 입체 카메라를 손으로(옛 입체 0.606,1,0.34 · 새 60도 0.866,0.5,0 견줌). 없으면 평면 CAM_TOP9. */
+const CAM9 = ${JSON.stringify(flag("--cam", null))} ? ((v) => ({ squash: v[0], zk: v[1], lean: v[2], shear: 0, key: "c" + v.join(":") }))(String(${JSON.stringify(flag("--cam", ""))}).split(",").map(Number)) : CAM_TOP9;
 import { SPIN_ANIM9, modelNormOf, bldNormOf } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
 const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) => g.kind));
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
@@ -121,7 +123,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
       const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
       meshes[i] = { m, kk };
       const sh9 = ${SHADOW} && !fit && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
-      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });   // 발광 종류는 붓과 같이 음영·깊이 없이
+      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });   // 발광 종류는 붓과 같이 음영·깊이 없이
     });
     g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     if (fit) {
@@ -145,7 +147,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         const ax0 = i * cell + cell / 2; const ay0 = cell / 2 + k * 4;   // 첫 굽기의 원점(요잉 축)
         const ax = i * cell + cell / 2 - (bx.cx - ax0) * sc; const ay = cell / 2 - (bx.cy - ay0) * sc - k * 4;
         const sh9 = ${SHADOW} && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
-        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM_TOP9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });
+        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });
       });
       g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     }

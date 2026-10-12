@@ -1117,3 +1117,13 @@ flat 은 깊이 시험은 켜고 쓰기만 끈다(gl9 runs 루프 `r.flat` 갈�
 - 이제 붓 `recall` 은 도착장 `recallU` 와 같은 갈래(속 비친 하늘빛 거품이 초당 20번 떨고 하얀 낱알 여섯 · 바닥에 안 눕힘)를 표적 한가운데 **하나** —
   시전부터 RECALL_DELAY_SEC + RECALL_FIELD_SEC(≈2.1초) 동안(앞 0.1 · 끝 0.3초 페이드). 지름 AREA_FX Recall 4 → **3** 타일. recallSpr9 는 걷었다.
 - 🔎 `perf-check.mjs --recall --t 44.4 --castoff --zoom 4 --cx 0.43 --cy 0.5 --glblit --shot x.png`(오른쪽 표적 구 하나 · 왼쪽 도착 거품 넷).
+
+## 3D 시점 모델 카메라 = 지도 피치(2026-10-12)
+지적: "3D 피치가 60도인데 실제로 지도만 그 각도고 모델은 그 각도로 안 보이네".
+- 까닭: 지도는 `flatOf` = sin(피치)(60° → 0.866)로 눌렀는데, 모델 카메라는 squash `pitchFlatNow*0.7`(0.606) · zk `PITCH_ZK9`(1) · lean 0.34 였다
+  → 모델만 ≈37° 로 보였고, 건물 바닥판도 지도 칸보다 더 눌려 있었다.
+- 고침: squash = sin p · zk = cos p(√(1−s²)) · lean 0(`PITCH_LEAN9`). `shapeOblique.ts` `setPitchSquash` 가 `pitchZk` 를 함께 셈하고
+  `zScaleNow` 가 그것을 돌려준다 · `gl9.ts` `camOf9` 같은 식 · `ReplayMotionPlayer.tsx` 의 `pitchFlatNow * 0.7` 세 곳 · `bake9.ts` `pitchFlatSet9` 의 0.7 배 걷음.
+  2D 위 카메라(`TOP_ELEV9` 40°)는 그대로.
+- 🔎 `node scripts/model-gl.mjs --kinds tankbody,factory --rots 45 --cell 300 --cam 0.866,0.5,0 --out x.png`(옛 값 `--cam 0.606,1,0.34`).
+  `--cam squash,zk,lean` 은 이번에 더한 플래그.

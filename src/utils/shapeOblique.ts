@@ -166,6 +166,11 @@ export function withTopView<T>(fn: () => T): T {
    아니다. 그리는 쪽(재생기)이 고른 각의 눌림을 여기 내려 주고, 이 판에서 굽는 모델이
    그 값을 쓴다. 기본값 0.52는 여태 붙박이로 있던 수 그대로다(=48도). */
 let pitchSquash = 0.52;
+/** ★ 입체 높이 배율 = **cos(시점각)**(2026-10-12, 지적: "3D 피치가 60도인데 지도만 그 각도고 모델은 그 각도로 안 보이네") — 옛 입체 모델 카메라는 바닥 눌림을 지도 눌림의 0.7배로
+ *  더 누르고(60도: 0.606) 높이는 그대로(PITCH_ZK9 1) + 꼭대기 앞숙임 z·0.34 라, 합치면 ≈37도에서 본 꼴이었다(지도는 60도). 이제 한 카메라 —
+ *  바닥 sin θ(= 납작비) · 높이 cos θ(= √(1 − 납작비²)) · 숙임 0(PITCH_LEAN9). gl9 camOf9 도 같은 자다. */
+let pitchZk = PITCH_ZK9;
+export const PITCH_LEAN9 = 0;
 export function setPitchSquash(v: number): void {
   /* 죄는 폭 0.2~0.95 → **0.06~1**(지적: "각도가 제한돼 있는 듯") ────────────────────
      이 값은 바닥 원의 납작비다: 1이면 완전한 원(곧장 내려다봄), 0에 가까울수록 눌려
@@ -174,6 +179,7 @@ export function setPitchSquash(v: number): void {
      끌어 보면 금세 벽에 닿았다. 1을 넘기지는 않는다 — 넘기면 세로가 가로보다 긴 원이
      되어 '내려다봄'을 지나 뒤집힌 그림이 된다. */
   pitchSquash = Math.min(1, Math.max(0.06, v));
+  pitchZk = Math.sqrt(Math.max(0, 1 - pitchSquash * pitchSquash));
 }
 /** 지금 유효한 바닥 납작비. */
 export function groundSquashNow(): number {
@@ -213,7 +219,7 @@ function zScaleNow(): number {
   /* 평면은 cos45(0.707)에 **누름 몫**을 한 번 더 곱한다(요청: "2d에서 모델 공통 높이
      누르기") — 카메라 각과는 딴 손잡이다. 각을 더 올려 누르면 바닥 원까지 둥글어져
      지도 격자와 어긋나는데, 이 몫은 **높이만** 줄여 실루엣을 낮춘다. */
-  return pitchView ? PITCH_ZK9 : topView ? TOP_COS9 * TOP_Z_PRESS9 : 0.89;
+  return pitchView ? pitchZk : topView ? TOP_COS9 * TOP_Z_PRESS9 : 0.89;
 }
 function originYNow(): number {
   return pitchView ? 12.6 : topView ? 12 : 12.6;
@@ -873,7 +879,7 @@ export function project(x0: number, y0: number, z0: number): [number, number] {
   /* 앞으로 숙임(지적: 시청자 쪽으로 숙여야 한다) — 입체 판에서 꼭대기일수록 시청자
      쪽으로 기운다(z가 깊이에 태워짐). 지붕 윗면이 드러나 45도 내려다보는 지형과 자세가
      맞는다. sin20° ≈ 0.34. */
-  const ry2 = pitchView ? ry + z * 0.34 : ry;
+  const ry2 = pitchView ? ry + z * PITCH_LEAN9 : ry;   // 0.34 → 0(2026-10-12 · 위 pitchZk ★ — 높이가 cos θ 로 정직해져 숙임으로 지붕을 드러낼 까닭이 없다)
   /* 원근 배율은 원래 깊이만(지적: 원근이 과함) — 앞숙임 몫(z×0.34)까지 넣으면 키 큰
      꼭대기가 덩달아 확대돼 과한 원근으로 보였다. */
   const f = MODEL_PERSP <= 0 ? 1 : MODEL_PERSP / (MODEL_PERSP - Math.max(-10, Math.min(10, ry)));

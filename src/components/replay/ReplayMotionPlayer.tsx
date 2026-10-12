@@ -2743,7 +2743,7 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
   const u0 = f.age ?? 0;
   if (u0 < 0) return;
   const vq9 = f.pv && f.deg ? Math.max(-36, Math.min(36, Math.round(f.deg / 6) * 6)) : 0;
-  const cam = f.pv ? camOf9(true, pitchFlatNow * 0.7, vq9) : CAM_TOP9;
+  const cam = f.pv ? camOf9(true, pitchFlatNow, vq9) : CAM_TOP9;
   const put = (kind: string, spin: number, w9: number, h9: number, cx: number, cy: number, alpha: number): void => {
     if (alpha <= 0.01) return;
     const mesh = gl9.fxMesh(kind, spin); if (!mesh) return;
@@ -5511,7 +5511,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* ★ 끌기(재생바) 중 예산 밖의 메시는 이 프레임에 안 짓는다(gl9 glScrubSet9 의 ★★) — 그 몸은 이번 장에서
              그냥 빠진다. 폴백(면 곧장 그리기)으로 떨어뜨리면 굽기보다 더 느려 손이 도로 멎는다. */
           if (gl9 && !glB9 && glScrubbing9() && SHAPE_BUILDERS[op.kind]) continue;
-          const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, true)) : CAM_TOP9;
+          const glBcam9 = glB9 ? camOf9(!!op.pitch, pitchFlatNow, vqOf9(op.viewYaw, true)) : CAM_TOP9;
           /* ★ 잉크 상자는 **딸림 부품까지 아울러** 잰다(2026-09) — 터렛은 몸의 절반 넘는 몫이 딸림
              부품(포탑부)이라, 밑동만 재면 상자가 통째로 낮고 좁아져 체력바·링·총구 앵커가 따라 내려온다.
              각은 **몸의 요잉으로 못 박아** 잰다(도는 각으로 재면 상자가 프레임마다 바뀌어, 성큰이
@@ -5772,7 +5772,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            (그림자·링·체력바의 자: 폭 w·가운데 cx·바닥 bot)는 메시의 요잉 칸별 화면 상자(footOf)가 같은 자로 준다.
            GL 이 못 서거나(WebGL 없음·`#gl=0`) 메시를 못 지은 종류만 아래 폴백(면 직접 그리기)으로 떨어진다. */
         const glM9 = glPre9 && !rot ? glPre9 : null;
-        const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow * 0.7, vqOf9(op.viewYaw, false)) : CAM_TOP9;
+        const glCam9 = glM9 ? camOf9(!!op.pitch, pitchFlatNow, vqOf9(op.viewYaw, false)) : CAM_TOP9;
         const glFt9 = glM9 && gl9 ? gl9.footOf(glM9, -(op.rotDeg ?? 0), glCam9) : null;
         /* 몸의 실제 폭(화면 px) — contentBox가 이미 재 둔 값이라 공짜다(지적: 체력바가
            몸을 덮는다 / 그림자가 몸만큼 크다 / 링이 몸보다 크다). 정규화가 맞추는 것은

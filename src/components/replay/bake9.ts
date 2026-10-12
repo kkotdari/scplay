@@ -71,7 +71,7 @@ export let pitchFlatNow = flatOf(PITCH_3D);        // 3D 한 칸(30도 = 눌림 
 /** 굽기·스프라이트 캐시 열쇠에 박는 각도 표식 — 각이 바뀌면 옛 판을 못 쓴다(예전에는
  *  입체가 한 각뿐이라 켬/끔 한 비트로 족했다). 평면은 각과 무관하므로 "0"이다. */
 /** 입체 눌림을 세운다(메인의 레이아웃 이펙트·굽기 일꾼의 요청) — 모델 안쪽 바닥 눌림(shapeOblique)도 같이 간다(0.7배). */
-export function pitchFlatSet9(v: number): void { pitchFlatNow = v; setPitchSquash(v * 0.7); }
+export function pitchFlatSet9(v: number): void { pitchFlatNow = v; setPitchSquash(v); }   // 0.7배 걷음(2026-10-12 · shapeOblique pitchZk ★ — 모델도 지도와 같은 각)
 export const pitchTag = (pitch?: boolean): string => (pitch ? pitchFlatNow.toFixed(3) : "0");
 /* 포탑 각(요청: "포톤, 터렛, 시즈탱크는 공격방향에 맞게 포탑부를 돌려줘야함") ──────────
    시즈탱크는 차체와 포탑이 **딴 판**이라(tankbody·tankgun) 포탑 판에 rotDeg만 달리 주면
