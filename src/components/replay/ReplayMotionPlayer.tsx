@@ -19968,7 +19968,7 @@ export default function ReplayMotionPlayer({
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
                     /* ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
-                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", castNameDark9(capOf9(p9.raw, p9.raw).col) && "is-dark")} style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", castNameDark9(capOf9(p9.raw, p9.raw).col) && "is-dark", i9 > 0 && castCap9[i9 - 1].raw !== undefined && !castCap9[i9 - 1].p && "is-next")} style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
