@@ -117,6 +117,10 @@ const MIN_HOLD9 = 8;   // 5 → 8(2026-10-10 · 긴 호흡 — 갈아탄 뒤 그
 const MIN_SHOW9 = 10;
 /** ★ 주인공이 애매한 자(2026-10-11) — 장면의 둘째 몫이 첫째의 이만큼 이상이면 한 사람 화면이 아니라 교전 자리를 따라간다(CastSeg9.spot). */
 const SPOT_TIE9 = 0.8;
+/** ★ **셋 이상 싸우면 교전 자리**(2026-10-12, 요청: "3인 이상 교전 시 정말 활약도 차이가 나지 않는 이상 장소 중계로") — 장면 몫이 첫째의 SPOT_PART9 이상인 사람이 셋 이상이면
+ *  첫째가 둘째의 SPOT_STAND9 배를 넘을 때만 한 사람 화면이다(둘이면 종전 SPOT_TIE9). */
+const SPOT_PART9 = 0.2;
+const SPOT_STAND9 = 2;
 /** ★ 싸움이 끝난 뒤 **여유**(2026-10-11, 요청: "끝나도 좀 여유를 주고 넘기고") — 마지막 사건(+ 꼬리) 뒤 이만큼은 그 장면에 머문다(순환·밀린 전투가 그 뒤에 온다). */
 const END_PAD9 = 4;
 /** 머무는 중에도 갈아탈 만한 무게 배수 — 이만큼 크면 바로 넘긴다(요청: 바로 다른 사람으로 전환). */
@@ -2373,17 +2377,43 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     return bo9;
   };
   /** 토막을 자막 창으로 세운다 — 첫 창은 at 에(카메라를 먼저 옮기는 자리), 그 뒤 창은 그 창 첫 사건 때에. from 앞의 사건은 안 본다(밀린 전투로 돌아갈 때). */
-  /* ★ **교전 자리 길**(위 CastSeg9.spot ★) — 1초마다 그 때 ±SPOT_WIN9 초 사건 자리(몸값 무게)의 가운데 · 사건이 없는 초는 앞 자리를 잇는다. */
+  /* ★ **교전 자리 길**(위 CastSeg9.spot ★) — 1초마다 그 때 ±SPOT_WIN9 초 사건들 가운데 **가장 무거운 무리**(SPOT_R9 타일 안 몸값 합)의 가운데를 겨눈다.
+     ★ (2026-10-12, 요청: "장소는 부드럽게 중요 장소를 드래그하듯 이동 — 가까운 경우만!") — 옛 길은 그 창 사건 전부의 무게 중심이라, 두 곳에서 싸우면 그 사이 빈 땅을 보다가
+     사건이 들고 날 때마다 튀었다. 이제 ① 지금 보는 무리가 가장 무거운 무리의 1/SPOT_STAY9 넘게 무거우면 그 자리에 남고(흔들림 막기) ② 겨눈 자리가 SPOT_NEAR9 타일 안이면
+     초당 SPOT_SPEED9 타일까지 끌듯이 다가가며 ③ 그보다 멀면 한 번에 건너뛴다(먼 길을 끌면 지도를 훑는다). 사건이 없는 초는 앞 자리를 잇는다. 재생기는 1초 키 사이를 직선으로 잇는다. */
   const SPOT_WIN9 = 3;
+  const SPOT_R9 = 6;
+  const SPOT_STAY9 = 1.5;
+  const SPOT_NEAR9 = 14;
+  const SPOT_SPEED9 = 4;
   const spotPath9 = (sc9: Sc9, from9: number): [number, number, number][] | undefined => {
     const pts9 = sc9.evs.filter((e9) => e9.px !== undefined && e9.py !== undefined);
     const out9: [number, number, number][] = [];
     let lx9: number | undefined = sc9.cx;
     let ly9: number | undefined = sc9.cy;
-    for (let t9 = Math.floor(from9); t9 <= sc9.t1 + END_PAD9 + 1; t9 += 1) {
+    /** (x, y) 둘레 SPOT_R9 안 사건들의 무게 합과 무게 중심. */
+    const clus9 = (win9: Ev9[], x9: number, y9: number): [number, number, number] => {
       let sx9 = 0; let sy9 = 0; let sw9 = 0;
-      for (const e9 of pts9) if (Math.abs(e9.sec - t9) <= SPOT_WIN9) { const w9 = Math.max(1, e9.w); sx9 += e9.px! * w9; sy9 += e9.py! * w9; sw9 += w9; }
-      if (sw9 > 0) { lx9 = sx9 / sw9; ly9 = sy9 / sw9; }
+      for (const e9 of win9) {
+        if (Math.hypot(e9.px! - x9, e9.py! - y9) > SPOT_R9) continue;
+        const w9 = Math.max(1, e9.w); sx9 += e9.px! * w9; sy9 += e9.py! * w9; sw9 += w9;
+      }
+      return sw9 > 0 ? [sw9, sx9 / sw9, sy9 / sw9] : [0, x9, y9];
+    };
+    for (let t9 = Math.floor(from9); t9 <= sc9.t1 + END_PAD9 + 1; t9 += 1) {
+      const win9 = pts9.filter((e9) => Math.abs(e9.sec - t9) <= SPOT_WIN9);
+      if (win9.length > 0) {
+        let best9: [number, number, number] = [0, 0, 0];
+        for (const e9 of win9) { const c9 = clus9(win9, e9.px!, e9.py!); if (c9[0] > best9[0]) best9 = c9; }
+        let tx9 = best9[1]; let ty9 = best9[2];
+        if (lx9 !== undefined && ly9 !== undefined) {
+          const here9 = clus9(win9, lx9, ly9);
+          if (here9[0] * SPOT_STAY9 >= best9[0]) { tx9 = here9[1]; ty9 = here9[2]; }
+          const d9 = Math.hypot(tx9 - lx9, ty9 - ly9);
+          if (d9 <= SPOT_NEAR9 && d9 > SPOT_SPEED9) { tx9 = lx9 + (tx9 - lx9) * SPOT_SPEED9 / d9; ty9 = ly9 + (ty9 - ly9) * SPOT_SPEED9 / d9; }
+        }
+        lx9 = tx9; ly9 = ty9;
+      }
       if (lx9 !== undefined && ly9 !== undefined) out9.push([t9, lx9, ly9]);
     }
     return out9.length > 0 ? out9 : undefined;
@@ -2411,24 +2441,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (first9) push9(at9, pick9, sc9.why, false, score9, dW9, sceneCaps9(sc9, pick9, dW9), sc9.t1 + CAP_TAIL9, spot9);   // 창마다 주인공이 안 들면 옛 길
   };
   let curBid9 = -1;
-  const skipped9: Sc9[] = [];
-  /** 밀린 전투로 돌아가기 — 지금 전투가 끝났고(upTo 가 그 끝 뒤) 밀린 토막 가운데 그 끝 뒤로도 이어지는 것이 있으면 가장 무거운 전투의 것을 그 끝에 세운다. */
-  const resume9 = (upTo9: number): void => {
-    if (curBid9 < 0) return;
-    const end9 = bEnd9.get(curBid9)!;
-    if (upTo9 <= end9 + 1) return;
-    let best9: Sc9 | null = null;
-    for (const s9 of skipped9) {
-      if (bidOf9.get(s9) === curBid9 || s9.t1 <= end9 + 1) continue;
-      if (!best9 || bTot9.get(bidOf9.get(s9)!)! > bTot9.get(bidOf9.get(best9)!)!) best9 = s9;
-    }
-    skipped9.length = 0;
-    if (!best9) return;
-    const bid9 = bidOf9.get(best9)!;
-    const rank9 = [...best9.by.entries()].sort((a9, b9) => b9[1] - a9[1]);
-    emitScene9(end9, best9, rank9[0][0], bTot9.get(bid9)!, end9);
-    curBid9 = bid9;
-    cur9 = Math.max(cur9, bEnd9.get(bid9)!);
+  /* ★ **밀린 전투로 돌아가기(resume9)는 걷었다**(2026-10-12, 지적: "아직도 이벤트 시작 부분이 잘린 채 나오는 게 있어 — 그럴 거면 안 나오든가") — 지금 전투가
+     끝난 때 그 한가운데로 들어가 늘 시작이 잘렸다. 끊지 못한 딴 전투는 이제 안 보여 주고, 그 전투의 뒷장면(제 시작이 있는 것)만 차례대로 온다.
+     그리고 끼어든 장면은 앞 장면이 미리 세워 둔 **뒤 자막 창 토막(at ≥ 끼어든 때)을 걷고** 선다(trimFrom9) — 옛 길은 push9 가 '뒤로 가는 토막'으로 첫 창을 버려
+     장면이 몇 초 늦게(시작이 잘린 채) 섰다. */
+  const trimFrom9 = (at9: number, pick9: string, spot9: boolean): void => {
+    let i9 = out9.length;
+    while (i9 > 0 && out9[i9 - 1].at >= at9) i9 -= 1;
+    if (i9 === out9.length) return;
+    const tail9 = out9.slice(i9);
+    if (!spot9 && tail9.every((g9) => g9.raw === pick9 && !g9.spot)) return;   // 같은 사람 화면이면 이어 붙인다(push9)
+    out9.length = i9;
   };
   let cur9 = 0;
   for (const sc9 of scs9) {
@@ -2439,11 +2462,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const bid9 = bidOf9.get(sc9)!;
     const btot9 = bTot9.get(bid9)!;
     if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
-    resume9(at9);
     const cont9 = bid9 === curBid9;
     const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
     const must9 = !!sc9.hall?.[3];   // 뚝배기(시작 본진) 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다 · 멀티 본진은 덧무게만
-    if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) { skipped9.push(sc9); continue; }   // 한창인 전투를 안 끊는다
+    if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) continue;   // 한창인 전투를 안 끊는다(밀린 전투로 돌아가기는 걷었다 · 위 trimFrom9 ★)
     const tot9 = btot9;
     /* 소강이 길면 그 사이를 순환으로 채운다(요청) — 장면 바로 앞까지만. */
     if (at9 - cur9 >= IDLE9 || out9.length === 0) fill9(cur9, at9);
@@ -2469,16 +2491,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     const heavy9 = tot9 >= lastScore9() * JUMP9;
     /* ★ **주인공이 애매하면 교전 자리**(위 CastSeg9.spot ★) — 그 장면의 둘째 몫이 첫째의 SPOT_TIE9 배 이상이면(맞대결이 엇비슷 · 여럿이 비슷하게 싸움) 한 사람의
        화면이 아니라 싸움터를 따라간다. 뚝배기는 깬 쪽의 화면 그대로. */
-    const spot9 = !must9 && rank9.length > 1 && rank9[1][1] >= rank9[0][1] * SPOT_TIE9 ? spotPath9(sc9, at9) : undefined;
+    const crowd9 = rank9.filter(([, w9]) => w9 >= rank9[0][1] * SPOT_PART9).length >= 3;   // 셋 이상이 싸움(위 SPOT_PART9 ★)
+    const tieSpot9 = rank9.length > 1 && (crowd9 ? rank9[0][1] < rank9[1][1] * SPOT_STAND9 : rank9[1][1] >= rank9[0][1] * SPOT_TIE9);
+    const spot9 = !must9 && tieSpot9 ? spotPath9(sc9, at9) : undefined;
     if (must9 || pick9 === cur9raw || !held9 || heavy9 || (busy9 && at9 - lastSwitch9() >= MIN_SHOW9)) {
+      trimFrom9(at9, pick9, !!spot9);
       emitScene9(at9, sc9, pick9, tot9, -Infinity, spot9);
       curBid9 = bid9;
-    } else if (bid9 !== curBid9) skipped9.push(sc9);   // 최소 시간에 걸린 딴 전투는 밀린 전투로 — 지금 전투가 끝난 뒤에도 이어지면 그때 간다(resume9)
+    }   // 최소 시간에 걸린 딴 전투는 안 보여 준다(위 trimFrom9 ★)
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
     cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9) + END_PAD9);
   }
-  resume9(total + 2);
   fill9(cur9, total);
   /* ★★ **gg 선언 · 노엘 외침**(2026-10-10, 요청: "엘리 gg(ㅈㅈ) 선언 ㄴㅇ 노엘 외침도") — 채팅에서 그 말을 한 사람을 그때 CHAT_HOLD9 초 보여 주고 "[A] gg 선언" ·
      "[A] 노엘 외침"을 띄운 뒤 보던 토막으로 돌아간다(그 토막이 그 뒤에도 이어지면 같은 토막을 다시 세운다). 같은 사람의 같은 말은 CHAT_DEDUP9 초에 한 번.

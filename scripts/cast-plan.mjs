@@ -1166,3 +1166,44 @@ rmSync(tmp, { recursive: true, force: true });
     ["일방적인 싸움은 그 사람 화면(spot 없음)", one.length > 0 && one.every((s) => !s.spot) && one[0].raw === "A"],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㊴ 셋 이상 싸우면 교전 자리 · 자리 길은 가까우면 끌고 멀면 건너뛴다 · 끼어든 장면은 시작이 안 잘린다(2026-10-12, 요청: "3인 이상 교전 시 정말 활약도 차이가 나지
+   않는 이상 장소 중계로 · 장소는 부드럽게 중요 장소를 드래그하듯 이동 — 가까운 경우만!" · 지적: "아직도 이벤트 시작 부분이 잘린 채 나오는 게 있어") —
+   ① 2:2(A·B vs C·D) 300초~ (60,60)→(66,60)→(79,68): A 가 1.5배 더 잡아도 spot · 가까운 옮김(6타일)은 초당 4타일 안 · 먼 옮김(14타일 넘게 — 장면은 20타일 안이라 그 사이)은 한 번에.
+   ② 700초~ A 가 (30,30)에서 C 마린을 잡고 710초부터 건물을 깨는 동안 712초에 B 가 (100,30)에서 D 울트라 여섯을 잡는다(무게 두 배 넘음) → B 토막이 겨눔 − 3초(≤ 709.5)에 선다. */
+{
+  let t9 = 240000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 118, 0); mk(2, "Hatchery", true, 118, 10, 0); mk(3, "Hatchery", true, 118, 118, 0);
+  const kil = [0, 1, 2, 3].map((o) => mk(o, "Marine", false, 10, 10, 200));
+  const at = (t) => (t < 306 ? [60, 60] : t < 312 ? [66, 60] : [79, 68]);
+  /* A 셋에 B·C·D 둘씩 — 넷이 다 몫이 있다(A 가 둘째의 1.5배). */
+  const who = [0, 0, 0, 1, 1, 2, 2, 3, 3];
+  for (let i = 0; i < 18; i += 1) {
+    const t = 300 + i; const k = who[i % who.length]; const v = (k + 2) % 4;
+    const [x, y] = at(t);
+    const m = mk(v, "Marine", false, 10, 10, 200, { died: t, end: "atk", endX: x, endY: y }); kills.push([t, k, kil[k].tag, m.tag]);
+  }
+  for (let i = 0; i < 4; i += 1) { const t = 700 + i * 2; const m = mk(2, "Marine", false, 118, 10, 600, { died: t, end: "atk", endX: 30, endY: 30 }); kills.push([t, 0, kil[0].tag, m.tag]); }
+  /* 둘째 창(710~)은 글귀가 다르다(건물 파괴) — 앞 장면이 뒤 창 토막을 미리 세워 둔다(옛 길은 이 토막 때문에 B 의 첫 창이 버려졌다). */
+  for (let i = 0; i < 4; i += 1) { const t = 710 + i * 3; const b = mk(2, i % 2 ? "Spawning Pool" : "Evolution Chamber", true, 30 + i, 30, 600, { died: t, end: "atk", endX: 30 + i, endY: 30 }); kills.push([t, 0, kil[0].tag, b.tag]); }
+  for (let i = 0; i < 6; i += 1) { const t = 712 + i; const u = mk(3, "Ultralisk", false, 118, 118, 600, { died: t, end: "atk", endX: 100, endY: 30 }); kills.push([t, 1, kil[1].tag, u.tag]); }
+  const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "저그", 2], ["D", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
+  const four = plan.filter((s) => !s.cyc && s.at > 290 && s.at < 330);
+  const sp = four.find((s) => s.spot)?.spot ?? [];
+  const steps = sp.slice(1).map((p, i) => Math.hypot(p[1] - sp[i][1], p[2] - sp[i][2]));
+  const glide = steps.filter((d) => d > 0.01 && d <= 14);
+  const jump = steps.some((d) => d > 14);
+  const cut = plan.find((s) => s.raw === "B" && s.at > 690 && s.at < 730);
+  console.log(`\n셋 이상·자리 길·끼어들기: ${four.map((s) => `${s.at.toFixed(1)} ${s.raw}${s.spot ? ` spot ${s.spot.length}점` : ""}`).join(" · ")} | 걸음 ${steps.map((d) => d.toFixed(1)).join(",")} | B ${cut ? cut.at.toFixed(1) : "-"}`);
+  for (const [name, pass] of [
+    ["넷이 싸우면 1.5배 앞서도 교전 자리(spot)", sp.length > 0],
+    ["가까운 옮김은 초당 4타일 안으로 끈다", glide.length > 0 && glide.every((d) => d <= 4.01)],
+    ["먼 옮김은 한 번에 건너뛴다", jump],
+    ["끼어든 장면은 겨눔 3초 앞에 선다(시작이 안 잘림)", !!cut && cut.at <= 709.5],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
