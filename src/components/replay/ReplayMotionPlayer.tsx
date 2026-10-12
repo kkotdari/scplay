@@ -12580,6 +12580,27 @@ export default function ReplayMotionPlayer({
     if (go9) searchSubmit9(next9);
   };
   const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); setSearchFocus9(null); };
+  /* ★ **폰 키보드가 민 화면을 되돌린다**(2026-10-12, 지적: "모바일에서 검색 시 키보드 때문에 스크롤되고 다시 안 올라가") — 입력칸에 손이 가면 브라우저가 키보드 위로
+     입력칸을 보이려고 페이지를 굴리는데, Enter 뒤 입력칸이 사라지면(결과 꼴) 굴린 자리가 그대로 남았다. 펼 때 페이지 자리를 적어 두고 · 손은 preventScroll 로 얹고
+     (autoFocus 는 굴린다) · 접힐 때 곧장 · 한 장 뒤 · 키보드가 다 내려간 뒤(350ms) 세 번 되돌린다. */
+  const searchInputRef9 = useRef<HTMLInputElement | null>(null);
+  const searchScroll9 = useRef<{ x: number; y: number } | null>(null);
+  /* 레이아웃 effect — 누름(사용자 손짓) 안에서 손을 얹어야 iOS 가 키보드를 연다. */
+  useLayoutEffect(() => {
+    if (searchEdit9) {
+      if (!searchScroll9.current) searchScroll9.current = { x: window.scrollX, y: window.scrollY };
+      searchInputRef9.current?.focus({ preventScroll: true });
+      return undefined;
+    }
+    const at9 = searchScroll9.current;
+    searchScroll9.current = null;
+    if (!at9) return undefined;
+    const back9 = (): void => { if (window.scrollX !== at9.x || window.scrollY !== at9.y) window.scrollTo(at9.x, at9.y); };
+    back9();
+    const raf9 = requestAnimationFrame(back9);
+    const tm9 = window.setTimeout(back9, 350);
+    return () => { cancelAnimationFrame(raf9); window.clearTimeout(tm9); };
+  }, [searchEdit9]);
   /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
   useEffect(() => {
     if (!searchEdit9) return undefined;
@@ -18273,7 +18294,8 @@ export default function ReplayMotionPlayer({
         {searchEdit9 ? (
           <form className="scr-motion-searchbox" onSubmit={(e) => { e.preventDefault(); searchSubmit9(); }}>
             <input
-              className="scr-motion-search-input" type="text" enterKeyHint="search" autoFocus autoComplete="off"
+              ref={searchInputRef9}
+              className="scr-motion-search-input" type="text" enterKeyHint="search" autoComplete="off"
               value={searchDraft9} placeholder="유닛·기술·전술"
               onChange={(e) => { setSearchDraft9(e.currentTarget.value); setSearchMiss9(false); }}
               onKeyDown={(e) => {

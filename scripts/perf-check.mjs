@@ -1498,8 +1498,11 @@ if (SHOT) {
     await page.waitForTimeout(300);
     console.log("[검색 치기만]", q9, JSON.stringify(await st9()));
     if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png") });   // 자동 완성이 뜬 꼴
+    /* 폰 키보드가 민 화면 흉내(2026-10-12) — 입력 중 페이지를 굴려 두고, Enter 뒤 펴기 전 자리로 돌아오는지 본다(굴릴 데가 없는 판이면 0 그대로). */
+    const sc9 = await page.evaluate(() => { document.body.style.paddingBottom = "1200px"; const before = window.scrollY; window.scrollTo(0, before + 240); return [before, window.scrollY, document.documentElement.scrollHeight, innerHeight]; });
     await page.keyboard.press("Enter"); await page.waitForTimeout(1200);   // 자동 완성이 떠 있으면 Enter 가 고르고 찾는다(입력칸이 사라져 page.press 는 걸린다)
     console.log("[검색 Enter]", JSON.stringify(await st9()));
+    console.log("[검색 화면 자리]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: await page.evaluate(() => window.scrollY), 판키: sc9[2], 창키: sc9[3] }));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }
     if (!flag("--searchkeep", false)) {
       await page.evaluate(() => { document.querySelector("[aria-label='검색 취소']")?.click(); });
