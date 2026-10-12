@@ -1148,3 +1148,12 @@ B 기지를 대파시킴 궤멸시킴 이렇게 정당하게 표현".
   팀 배지는 칩 뒤(z −1 · translate(−62%, −22%)) — 칩 밖 왼위 귀퉁이만 보인다. 잇단 칩 사이는 칩 여백(0.12em)이 가른다(is-next 없음).
 - 🔎 `perf-check.mjs --wide --capprobe war --shot x.png`(probe 가짜 자막도 이제 글자 칸 + 팀 배지 · 진짜 자막은 걷고 찍는다).
 - 같은 때 물음: "피시도 숫자는 단독 화면으로 전환" — 숫자키는 처음부터 PC 에서도 분할을 놓고 한 사람 화면이다(--campick PC: [1,2] 분할 → 키 3 [3] · 칸 0).
+
+## 팀 배지 걷음 → 칩 왼위 팀색 삼각 귀퉁이(2026-10-12)
+- 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로 칠할거야 · 글자와 겹치지 않게 주의".
+- 걷음: `.scr-team-badge`(자막 칩 · 화면 주인 칩) · `.scr-fs-minitag-team`(미니맵) 마크업과 CSS 전부 · 미니맵 죄기의 배지 몫(ex·ey·exr = 0) · 화면 주인 칩 margin-left 0.35em(배지 몫).
+- 새 꼴 `.scr-tcorner` + `--tcol`(replay.css · 팀전만 · 팀색은 markers TEAM_COLOR — 색 모드 안 탐): `::before` 다리 0.5em 직각삼각(clip-path) · 칩 모서리 따라감.
+  재생기 `tcorner9(raw)`(자막·화면 주인) · 미니맵은 바탕 든 안쪽 칸(.scr-fs-minitag-txt)에. 겹침 셈: 빗변 x + y = 0.5em, 글자 잉크 왼위 ≈ (왼 여백, 0.18em↓) →
+  왼 여백 ≥ 0.34em. 자막 칩(0.16em)만 `.scr-cast-caption .scr-cast-chip.scr-tcorner` 로 0.36em · 화면 주인(0.36em)·미니맵(0.35em)은 그대로.
+- ⚠ 칩 바탕이 팀색과 비슷하면(1팀 #2050d0 위 파랑 임자 칩 · 팀색 모드) 귀퉁이가 거의 안 보인다.
+- 🔎 `perf-check.mjs --wide --capprobe war --track 정구 --shot x.png` — 자막·화면 주인·미니맵 칩 귀퉁이.

@@ -3770,14 +3770,13 @@
   padding: 0 round(nearest, 0.35em, 2px); border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
 }
-/* ★ 팀 배지(2026-10-11, 요청: "미니맵 유저칩에 팀 배지(팀색 동그라미에 팀 숫자)" → "크기·숫자 축소" → "닉네임칩 뒤에 걸쳐서 보이게 · 우상단으로") — 칩 **오른위 귀퉁이 뒤**로
-   안쪽으로 걸친 작은 동그라미(z-index 1 · 칩보다 앞 — 되요청). 팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 분할 칸 테두리와 같은 색) · 숫자 0.5em · 지름 = 숫자의 1.6em(짝수) · 팀전만. */
-.scr-fs-minitag-team, .scr-team-badge {
-  /* ★ **왼위**로 옮겼다(2026-10-12, 요청: "팀 배지 … 닉네임 왼쪽 위에 · 미니맵과 화면 주인에서도 마찬가지로 왼쪽 위로") — 옛 오른위(52% · 미니맵 74%)의 거울. */
-  position: absolute; left: 0; right: auto; top: 0; transform: translate(-88%, -35%); z-index: 1;   /* −52 → −68 → −88%(같은 날 "자막·화면 주인·미니맵 팀 배지 모두 왼쪽으로 좀" → "화면 주인과 미니맵의 팀 배지만 더 왼쪽으로") · 자막은 아래 제 규칙 */   /* 가로 30 → 42 → 52%(같은 날 "살짝 우측으로" 두 번 · 자막 배지 몫 — 미니맵은 아래 덮어쓰기) · 칩 **앞** · 안쪽으로 걸침(같은 날 되요청: "바깥으로 빼지 말고 오히려 안쪽으로 하고 대신 이름칩보다 앞으로") */
-  display: grid; place-items: center; width: round(nearest, 1.6em, 2px); height: round(nearest, 1.6em, 2px); border-radius: 50%;
-  font-style: normal; font-weight: 800; font-size: 0.58em; line-height: 1; color: #fff;   /* 0.6 → 0.5 → 0.58em(같은 날 "미니맵 팀 배지 크기 키우기") · 자막은 아래 0.38em */
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+/* ★ 팀 표시 = 칩 왼위 **팀색 삼각 귀퉁이**(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로 칠할거야 · 글자와 겹치지 않게 주의") —
+   옛 팀 배지(.scr-fs-minitag-team · .scr-team-badge — 팀색 동그라미 + 숫자)는 미니맵·화면 주인·자막에서 모두 걷었다. 칩(바탕을 든 상자)에 `scr-tcorner` + `--tcol`(TSX · 팀전만).
+   귀퉁이 다리 0.5em · 빗변 x + y = 0.5em. 글자 잉크의 왼위는 (왼 여백, 줄 키 위 반여백 + 글꼴 윗몫 ≈ 0.18em 이상)이라 왼 여백 ≥ 0.34em 이면 안 겹친다 — 자막 칩만 0.16em 이라 제 규칙으로 늘린다. */
+.scr-tcorner { position: relative; }
+.scr-tcorner::before {
+  content: ""; position: absolute; left: 0; top: 0; width: 0.5em; height: 0.5em; pointer-events: none;
+  background: var(--tcol, #666); clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: inherit;
 }
 .scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 
@@ -4576,13 +4575,11 @@
 /* 자막 칩의 팀 배지(2026-10-11) — 배지가 칩 밖으로 걸치므로 칩은 안 자르고(overflow visible) 글자 칸이 말줄임한다. 배지 꼴은 미니맵과 한 규칙(.scr-team-badge). */
 .scr-cast-caption .scr-cast-chip.scr-cast-chip { overflow: visible; }
 .scr-cast-chip-txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scr-cast-caption .scr-team-badge { font-size: 0.38em; }
 /* ★ 화면 주인 줄(2026-10-11) — [깜빡이는 카메라] [이름 칩 + 팀 배지] "개인 화면". 배지가 칩 위로 걸치므로 줄·칩은 안 자르고 이름 칸이 말줄임한다. 카메라는 초록(아래 2026-10-12)이 1.2초에 한 번 깜빡. */
 .scr-fs-solo-cap { overflow: visible; align-items: center; }
 .scr-fs-solo-cap .scr-solo-chip { position: relative; overflow: visible; }
-.scr-fs-solo-cap .scr-team-badge { font-size: 0.38em; transform: translate(-78%, -35%); }   /* 화면 주인만 −88 → −78%(2026-10-12, 요청: "화면 주인의 팀 배지만 아주 살짝 오른쪽으로") */
 .scr-fs-solo-cap > .scr-split-word { margin-left: 0.3em; }
-.scr-fs-solo-cap .scr-solo-chip { margin-left: 0.35em; }   /* 배지가 칩 왼위로 걸치므로(2026-10-12) 카메라와 칩 사이를 조금 띄운다 */
+/* (걷어냄 · 2026-10-12) 화면 주인 칩 margin-left 0.35em — 왼위로 걸치던 팀 배지 몫이었다(배지 걷음 · 팀은 칩 안 삼각 귀퉁이). */
 /* ★ 화면 주인 줄만 **10% 작게**(2026-10-12, 요청: "화면 유저칩 부분 10프로 축소(모바일 피시) · 화면 주인 유저칩만 · 카메라 아이콘 개인 화면 글자까지 다 통째로") —
    줄의 글자 크기 하나를 줄이면 카메라(1em)·칩·배지(0.38em)·"개인 화면"이 다 같이 준다. 자막(--cap-fs)·분할 칸 머리는 그대로. 짝수: PC 34 → 30.6 → 30 · 폰 16·dk → 14.4·dk → 2px 반올림.
    카메라는 빨강 → **초록**(같은 날 "초록색이 좋을 듯" — 로스터 켜진 카메라 #3dffa8 과 한 빛). */
@@ -4907,10 +4904,9 @@
 /* 사람을 잇달아 늘어놓을 때(앞 조각이 조사 없는 사람) 사이를 조금 띄운다 — 띄어쓰기(0.25em)보다 좁게(2026-10-12, 요청: "자막에 사람 나열 시 사이 좀 띄우기 · 띄어쓰기만큼은 말고"). */
 .scr-cast-caption .scr-cast-name.is-next { margin-left: 0.2em; }   /* 이 글꼴의 띄어쓰기 = 0.25em(실측) — 그 80% */
 /* ★ 자막 이름은 다시 **칩**(2026-10-12, 요청: "자막의 색깔 다시 칩 형태로 복구 · 단 칩의 패딩을 작게 하고 래디우스도 작게") — 여백 0.3 → **0.16em** · 모서리 2px(.scr-split-chip) → **1px**.
-   팀 배지는 칩 뒤(z −1 · 칩은 쌓임 판을 안 세워 배지가 자막 바탕 바로 위·칩 바탕 아래 — 칩 밖으로 나온 왼위 귀퉁이만 보인다). 위 .scr-cast-name 규칙들은 쓰는 곳이 없다. */
+   팀은 칩 왼위 팀색 삼각 귀퉁이(.scr-tcorner · 옛 팀 배지 걷음). 위 .scr-cast-name 규칙들은 쓰는 곳이 없다. */
 .scr-cast-caption .scr-cast-chip.scr-cast-chip { padding: 0 round(nearest, 0.16em, 2px); border-radius: 1px; }
-.scr-cast-caption .scr-cast-chip > .scr-team-badge { z-index: -1; transform: translate(-62%, -22%); }
-.scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-62%, -6%); text-shadow: none; }   /* −45,−30 → −62,−6%(같은 날 "자막의 팀 배지 좀 아래로 · 왼쪽으로 좀") */
+.scr-cast-caption .scr-cast-chip.scr-tcorner { padding-left: round(nearest, 0.36em, 2px); }   /* 팀색 삼각 귀퉁이(0.5em) 몫 — 글자와 안 겹치게(위 .scr-tcorner) */
 /* ★ 자동 중계 단추만 **아이콘·좌우 여백 축소**(2026-10-12, 요청: "자동 중계 버튼 TV 아이콘 축소 및 좌우 패딩 축소") — TV 0.6 → 0.46·줄 키 · 여백 6 → 3·dk. 전체 알약·사람 카메라는 그대로.
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */
 .scr-motion .scr-dock-head .scr-roster-cam-auto svg { width: round(nearest, calc(var(--rp) * 0.46), 2px); height: round(nearest, calc(var(--rp) * 0.46), 2px); }

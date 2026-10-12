@@ -163,10 +163,8 @@ export default function ReplayFullscreenMinimap({
     const H = host.clientHeight || 1;
     const items = els.map((el) => {
       const r = el.getBoundingClientRect();
-      /* 왼위로 걸친 팀 배지(2026-10-11)의 삐져나온 몫 — 죄기(아래)가 그만큼 더 안으로 민다(배지가 판 밖으로 안 잘리게). */
-      const bd = el.querySelector(".scr-fs-minitag-team")?.getBoundingClientRect();
-      const ex = bd ? Math.max(0, r.left - bd.left) : 0; const ey = bd ? Math.max(0, r.top - bd.top) : 0;
-      const exr = bd ? Math.max(0, bd.right - r.right) : 0;   // 오른위로 걸친 배지(2026-10-11 · 우상단)의 오른쪽 몫
+      /* 칩 밖으로 걸친 몫(옛 팀 배지 · 2026-10-11) — 배지를 걷어(2026-10-12 · 팀은 칩 안 삼각 귀퉁이) 이제 0 이다. */
+      const ex = 0; const ey = 0; const exr = 0;
       return { el, x: (parseFloat(el.style.left) / 100) * W, y: (parseFloat(el.style.top) / 100) * H, w: r.width, h: r.height, dy: 0, ex, ey, exr };
     });
     for (let pass = 0; pass < 3; pass += 1) {
@@ -596,8 +594,11 @@ export default function ReplayFullscreenMinimap({
               title={tg.dim ? `${tg.name} — 나감·탈락` : tg.name}
             >
               {/* 칩의 바탕·여백은 안쪽 글자 칸이 든다(말줄임도) — 팀 배지가 그 **뒤**로 오른위에 걸친다(2026-10-11, 요청: "닉네임칩 뒤에 걸쳐서 · 우상단으로"). */}
-              <span className="scr-fs-minitag-txt" style={{ background: tg.bg }}>{tg.name}</span>
-              {tg.team !== undefined && <i className="scr-fs-minitag-team" style={{ background: TEAM_COLOR[tg.team] ?? "#666" }}>{tg.team}</i>}
+              {/* ★ 팀 배지 → 왼위 팀색 삼각 귀퉁이(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로" · replay.css .scr-tcorner). */}
+              <span
+                className={`scr-fs-minitag-txt${tg.team !== undefined ? " scr-tcorner" : ""}`}
+                style={{ background: tg.bg, ...(tg.team !== undefined ? { ["--tcol" as string]: TEAM_COLOR[tg.team] ?? "#666" } : {}) } as React.CSSProperties}
+              >{tg.name}</span>
             </span>
           ))}
         </div>
