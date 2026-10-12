@@ -4571,12 +4571,17 @@
 .scr-cast-caption .scr-cast-chip.scr-cast-chip { overflow: visible; }
 .scr-cast-chip-txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scr-cast-caption .scr-team-badge { font-size: 0.38em; }
-/* ★ 화면 주인 줄(2026-10-11) — [깜빡이는 카메라] [이름 칩 + 팀 배지] "개인 화면". 배지가 칩 위로 걸치므로 줄·칩은 안 자르고 이름 칸이 말줄임한다. 카메라는 '방송 중' 빨강이 1.2초에 한 번 깜빡. */
+/* ★ 화면 주인 줄(2026-10-11) — [깜빡이는 카메라] [이름 칩 + 팀 배지] "개인 화면". 배지가 칩 위로 걸치므로 줄·칩은 안 자르고 이름 칸이 말줄임한다. 카메라는 초록(아래 2026-10-12)이 1.2초에 한 번 깜빡. */
 .scr-fs-solo-cap { overflow: visible; align-items: center; }
 .scr-fs-solo-cap .scr-solo-chip { position: relative; overflow: visible; }
 .scr-fs-solo-cap .scr-team-badge { font-size: 0.38em; }
 .scr-fs-solo-cap > .scr-split-word { margin-left: 0.55em; }   /* 배지가 칩 오른위로 걸치므로 글자를 조금 더 띄운다 */
-.scr-solo-cam { flex: none; width: 1em; height: 1em; margin-right: 0.3em; color: #ff5a5a; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); animation: scr-solo-cam 1.2s steps(1, end) infinite; }
+/* ★ 화면 주인 줄만 **10% 작게**(2026-10-12, 요청: "화면 유저칩 부분 10프로 축소(모바일 피시) · 화면 주인 유저칩만 · 카메라 아이콘 개인 화면 글자까지 다 통째로") —
+   줄의 글자 크기 하나를 줄이면 카메라(1em)·칩·배지(0.38em)·"개인 화면"이 다 같이 준다. 자막(--cap-fs)·분할 칸 머리는 그대로. 짝수: PC 34 → 30.6 → 30 · 폰 16·dk → 14.4·dk → 2px 반올림.
+   카메라는 빨강 → **초록**(같은 날 "초록색이 좋을 듯" — 로스터 켜진 카메라 #3dffa8 과 한 빛). */
+.scr-motion-pc9 .scr-fs-solo-cap { font-size: round(nearest, calc(30.6px * var(--dks, 1)), 2px); }
+.scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { font-size: round(nearest, calc(14.4px * var(--dk)), 2px); }
+.scr-solo-cam { flex: none; width: 1em; height: 1em; margin-right: 0.3em; color: #3dffa8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); animation: scr-solo-cam 1.2s steps(1, end) infinite; }
 @keyframes scr-solo-cam { 0% { opacity: 1; } 60% { opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .scr-solo-cam { animation: none; } }   /* 자막 배지는 한 단 작게(같은 날 요청: "자막의 팀 배지는 크기를 좀 줄이기") — 미니맵 0.5em */
 .scr-fs-minitag-team { transform: translate(74%, -35%); }   /* 미니맵 42 → 52 → 62 → 74%(2026-10-11 "살짝 더 우측으로" 세 번) · 자막은 52% */
