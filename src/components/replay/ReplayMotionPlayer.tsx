@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castMoves9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -283,7 +283,11 @@ type PickMode9 = "view" | "hold" | "jump";
 const VIEW_LEAD_SEC9 = 0.6;
 /** 같은 부대를 이 안(경기 초)에 두 번 부르면 '두 번 누름'(화면이 뛴다). */
 const RECALL_DBL_SEC9 = 0.5;
-type Pick9 = { sec: number; tags: number[]; sel: string; mode?: PickMode9 };
+type Pick9 = { sec: number; tags: number[]; sel: string; mode?: PickMode9;
+  /** 스캔 자리(타일 · 아래 picksOf9 의 ★ 스캔) — 있으면 몸이 아니라 이 자리를 본다. */
+  at?: { x: number; y: number } };
+/** 스캔을 친 때 이 초 안의 컴샛 명령·선택 자국은 지운다 — 스캔 자국 앞뒤로 카메라가 본진 컴샛에 들르지 않게. */
+const SCAN_EAT_SEC9 = 0.5;
 /** 자국 목록에서 t 에 쓸 자국 번호 — 다음 자국이 view 이고 VIEW_LEAD_SEC9 안이면 그것(미리 미끄러진다). */
 const pickIdx9 = (picks: Pick9[], t: number): { at: number; lead: boolean } => {
   let lo9 = 0;
@@ -10364,15 +10368,18 @@ export default function ReplayMotionPlayer({
   const [searchFocus9, setSearchFocus9] = useState<{ from: number; to: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][] } | null>(null);
   /** 검색창에 치는 글(초안) — Enter·찾기 단추가 searchQ9 로 올린다(아래 searchSubmit9 ★). */
   const [searchDraft9, setSearchDraft9] = useState("");
+  /** 리콜·나이더스 도착(cast9 castMoves9 · 2026-10-12) — 교전 자리 길이 들를 자리. 편성표를 구울 때만 잰다. */
+  const castMovesV9 = useMemo(() => (planWant9 && truth && entData ? castMoves9(truth.tracks, entData) : undefined), [planWant9, truth, entData]);
   const planAll9 = useMemo<CastSeg9[]>(
     () => (planWant9 && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
-        bank: truth?.res })   // 인구 막힘은 돈이 있을 때만(2026-10-11)
+        bank: truth?.res,   // 인구 막힘은 돈이 있을 때만(2026-10-11)
+        moves: castMovesV9 })   // 리콜·나이더스 도착 — 교전 자리 길이 들른다(2026-10-12)
       : NO_PLAN9),
-    [planWant9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
+    [planWant9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth, castMovesV9]);
   const castPlan = castOn ? planAll9 : NO_PLAN9;
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
@@ -10720,7 +10727,10 @@ export default function ReplayMotionPlayer({
      **명령을 받은 몸**뿐이라, 건물·유닛을 고르기만 하고(생산 · 확인) 명령을 안 내리면 독(인포창)에는 그 몸이 떠 있는데 카메라는 옛 무리에
      머물렀다. 판 10 선택 절(entData.sels — 그 명령 뒤의 선택 전체)을 같은 0.25초 칸에 섞는다 — 가장 늦은 자국이 이기므로 '고르고 →
      명령'은 그대로 그 무리이고, 고르기만 한 것도 카메라가 본다. 독과 카메라가 같은 몸을 본다. */
-  const picksOf9 = useCallback((raw9: string): Pick9[] => {
+  /* ★ **스캔도 자국이다**(2026-10-12, 요청: "개인 화면 중계 시 스캔 사용 시 사용한 곳 보여 주고 다른 명령이 있으면 그때 화면 옮김") — scan9 이 참이면(개인 화면 · trackPicks)
+     그 사람의 Scanner Sweep 마다 친 때의 칸에 '그 자리'를 보는 자국(at · 두 번 누름 갈래 — 화면 밖일 때만 곧장 선다)을 세운다. 앞뒤 SCAN_EAT_SEC9 안의 컴샛 자국은
+     지운다(스캔 명령을 받은 컴샛은 본진에 있다). 다음 명령·선택 자국이 오면 그 무리로 옮긴다. 분할 칸은 안 건드린다. */
+  const picksOf9 = useCallback((raw9: string, scan9 = false): Pick9[] => {
     if (!entData) return [];
     const mine9 = new Set(entData.players.filter((pl) => pl.name === raw9).map((pl) => pl.owner));
     const by9 = new Map<number, Set<number>>();
@@ -10751,11 +10761,29 @@ export default function ReplayMotionPlayer({
       }
       mode9.set(Math.round(s9 * 4) / 4, m9);   // 같은 칸에서는 나중 갈래가 이긴다
     }
+    const scanAt9 = new Map<number, { x: number; y: number }>();
+    if (scan9) {
+      const comsat9 = new Set(entData.lives.filter((e9) => mine9.has(e9.owner) && e9.kind === "Comsat Station").map((e9) => e9.tag));
+      for (const [s9, x9, y9, tech9, o9] of entData.casts) {
+        if (tech9 !== "Scanner Sweep" || !mine9.has(o9)) continue;
+        for (const [k9, g9] of by9) {
+          if (Math.abs(k9 - s9) > SCAN_EAT_SEC9) continue;
+          for (const c9 of comsat9) g9.delete(c9);
+          if (g9.size === 0) by9.delete(k9);
+        }
+        const k9 = Math.round(s9 * 4) / 4;
+        scanAt9.set(k9, { x: x9, y: y9 });
+        if (!by9.has(k9)) by9.set(k9, new Set());
+      }
+    }
     return [...by9.entries()]
-      .map(([sec, tags]): Pick9 => ({ sec, tags: [...tags], sel: selKey9(tags), mode: mode9.get(sec) }))
+      .map(([sec, tags]): Pick9 => {
+        const at9 = scanAt9.get(sec);
+        return at9 ? { sec, tags: [...tags], sel: `scan${sec}`, mode: "jump", at: at9 } : { sec, tags: [...tags], sel: selKey9(tags), mode: mode9.get(sec) };
+      })
       .sort((a, b) => a.sec - b.sec);
   }, [entData]);
-  const trackPicks = useMemo(() => (camRaw9 ? picksOf9(camRaw9) : []), [camRaw9, picksOf9]);
+  const trackPicks = useMemo(() => (camRaw9 ? picksOf9(camRaw9, true) : []), [camRaw9, picksOf9]);
   /** 지금 추적이 보고 있는 자리(타일) — 마지막 자국의 몸들을 평균한 점.
    *
    *  자국의 **클릭 좌표**가 아니라 집힌 몸의 **지금 자리**다(요청: "선택 위치") — 그래야
@@ -10769,6 +10797,8 @@ export default function ReplayMotionPlayer({
     if (!camRaw9 || trackPicks.length === 0) return null;
     const { at: at9 } = pickIdx9(trackPicks, t);
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
+      const sa9 = trackPicks[k9].at;   // 스캔 자국 — 그 자리(위 picksOf9 ★)
+      if (sa9) return { x: sa9.x, y: sa9.y, pts: [sa9], sel: trackPicks[k9].sel, mode: trackPicks[k9].mode, sec: trackPicks[k9].sec };
       let sx9 = 0;
       let sy9 = 0;
       let n9 = 0;

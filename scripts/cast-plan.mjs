@@ -26,10 +26,10 @@ const ALL = argv.includes("--plan");
 const EBIN = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
 const tmp = mkdtempSync(join(tmpdir(), "cast-"));
 const src = join(tmp, "entry.ts");
-writeFileSync(src, `export { castPlan9, castAt9, castValue9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
+writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
 execFileSync(EBIN, [src, "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(tmp, "b.mjs")}`],
   { cwd: ROOT, stdio: "inherit" });
-const { castPlan9, castAt9, castValue9 } = await import(join(tmp, "b.mjs"));
+const { castPlan9, castAt9, castValue9, castMoves9 } = await import(join(tmp, "b.mjs"));
 
 console.log("몸값:", ["Zergling", "Marine", "Dragoon", "Siege Tank", "Archon", "Battlecruiser", "Lurker", "Guardian", "Command Center"]
   .map((k) => `${k} ${castValue9(k)}`).join(" · "));
@@ -1210,5 +1210,59 @@ rmSync(tmp, { recursive: true, force: true });
     ["가까운 옮김은 초당 4타일 안으로 끈다", glide.length > 0 && glide.every((d) => d <= 4.01)],
     ["먼 옮김은 한 번에 건너뛴다", jump],
     ["끼어든 장면은 겨눔 3초 앞에 선다(시작이 안 잘림)", !!cut && cut.at <= 709.5],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㊵ 교전 자리 길은 스캔·리콜·나이더스 도착에 들른다(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 · 스캔 사용 시에도
+   스캔한 곳 보여 주기") — ① ㊴ 의 넷 싸움(300~317 · (60,60)→(79,68))에 A 의 스캔(304 · (100,100))과 C 의 리콜 도착(311 · (40,90) · opts.moves)을 얹는다:
+   길은 303.7~307 스캔 자리 · 309.8~314 리콜 도착 자리 · 그 사이·뒤는 교전 자리. 싸움에 안 든 사람(E)의 스캔(315)은 안 들른다.
+   ② castMoves9 — 합성 자취: 나이더스 둘((20,20)·(90,90)) 사이를 뛴 저글링 셋(400~401.5) → 한 번의 이동(at 400 · to 401.5 · 출구 자리) · 리콜(500 · 표적 (50,50) → (70,20)). */
+{
+  let t9 = 250000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 118, 0); mk(2, "Hatchery", true, 118, 10, 0); mk(3, "Hatchery", true, 118, 118, 0); mk(4, "Command Center", true, 64, 120, 0);
+  const kil = [0, 1, 2, 3].map((o) => mk(o, "Marine", false, 10, 10, 200));
+  const at = (t) => (t < 306 ? [60, 60] : t < 312 ? [66, 60] : [79, 68]);
+  const who = [0, 0, 0, 1, 1, 2, 2, 3, 3];
+  for (let i = 0; i < 18; i += 1) {
+    const t = 300 + i; const k = who[i % who.length]; const v = (k + 2) % 4;
+    const [x, y] = at(t);
+    const m = mk(v, "Marine", false, 10, 10, 200, { died: t, end: "atk", endX: x, endY: y }); kills.push([t, k, kil[k].tag, m.tag]);
+  }
+  const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "프로토스", 2], ["D", "저그", 2], ["E", "테란", 1]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [[304, 100, 100, "Scanner Sweep", 0], [315, 20, 110, "Scanner Sweep", 4]], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D", "E"], teamOf: { A: 1, B: 1, C: 2, D: 2, E: 1 }, moves: [{ at: 311, raw: "C", x: 40, y: 90, kind: "recall" }] });
+  const sp = plan.find((s) => !s.cyc && s.spot && s.at > 290 && s.at < 330)?.spot ?? [];
+  const pos = (t) => {
+    if (sp.length === 0) return [NaN, NaN];
+    if (t <= sp[0][0]) return [sp[0][1], sp[0][2]];
+    for (let i = 1; i < sp.length; i += 1) if (t <= sp[i][0]) { const [a0, ax, ay] = sp[i - 1]; const [a1, bx, by] = sp[i]; const u = a1 > a0 ? (t - a0) / (a1 - a0) : 1; return [ax + (bx - ax) * u, ay + (by - ay) * u]; }
+    return [sp[sp.length - 1][1], sp[sp.length - 1][2]];
+  };
+  const near = (t, x, y) => { const [px, py] = pos(t); return Math.hypot(px - x, py - y) < 0.5; };
+  const far = (t, x, y) => { const [px, py] = pos(t); return Math.hypot(px - x, py - y) > 10; };
+  /* ② 합성 자취 — kt/kxy(픽셀)/kst/types 만 채운다. */
+  const trk = (tag, owner, kind, keys, type = 37) => ({ tag, owner, kind, born: keys[0][0], died: null, own: [],
+    kt: Float32Array.from(keys.map((k) => k[0])), kxy: Int16Array.from(keys.flatMap((k) => [k[1] * 32, k[2] * 32])), kh: new Uint8Array(keys.length),
+    kst: Uint8Array.from(keys.map((k) => k[3] ?? 1)), done: new Uint8Array(keys.length).fill(1), types: new Uint16Array(keys.length).fill(type) });
+  const tracks = [
+    trk(1, 3, "Nydus Canal", [[100, 20, 20, 0]], 134), trk(2, 3, "Nydus Canal", [[100, 90, 90, 0]], 134),
+    ...[0, 1, 2].map((i) => trk(10 + i, 3, "Zergling", [[300, 30, 30], [399 + i * 0.5, 21, 21], [400 + i * 0.75, 91, 91, 0]])),
+    trk(20, 3, "Zergling", [[300, 60, 60], [450, 62, 62]]),   // 그냥 걷는 몸 — 이동이 아니다
+    ...[0, 1].map((i) => trk(30 + i, 2, "Zealot", [[300, 50 + i, 50, 0], [500.9, 70 + i, 20, 0]], 65)),
+  ];
+  const mv = castMoves9(tracks, { players: w.players, casts: [[500, 50, 50, "Recall", 2]] });
+  const ny = mv.find((m) => m.kind === "nydus");
+  const rc = mv.find((m) => m.kind === "recall");
+  console.log(`\n들를 자리: 길 ${sp.length}점 · 304.5 ${pos(304.5).map((v) => v.toFixed(1))} · 308.5 ${pos(308.5).map((v) => v.toFixed(1))} · 310.5 ${pos(310.5).map((v) => v.toFixed(1))} · 316 ${pos(316).map((v) => v.toFixed(1))} | 이동 ${mv.map((m) => `${m.kind} ${m.at.toFixed(2)}~${(m.to ?? m.at).toFixed(2)} (${m.x.toFixed(1)},${m.y.toFixed(1)}) ${m.raw}`).join(" · ")}`);
+  for (const [name, pass] of [
+    ["스캔(304) — 304.5 에 스캔 자리(100,100)", near(304.5, 100, 100)],
+    ["스캔 3초 뒤(308.5)엔 교전 자리로 돌아온다", far(308.5, 100, 100) && far(308.5, 40, 90)],
+    ["리콜 도착(311)은 1.2초 앞(310.5)부터 도착 자리(40,90)", near(310.5, 40, 90)],
+    ["싸움에 안 든 사람의 스캔(315)은 안 들른다", far(316, 20, 110)],
+    ["나이더스 — 셋이 한 번의 이동 · 출구 자리 · 첫·끝 도착", !!ny && mv.filter((m) => m.kind === "nydus").length === 1 && Math.abs(ny.at - 400) < 0.01 && Math.abs((ny.to ?? 0) - 401.5) < 0.01 && Math.hypot(ny.x - 90, ny.y - 90) < 0.5 && ny.raw === "D"],
+    ["리콜 — 시전 + 0.92초 · 도착 자리 (70.5,20)", !!rc && Math.abs(rc.at - 500.92) < 0.01 && Math.hypot(rc.x - 70.5, rc.y - 20) < 0.5 && rc.raw === "C"],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

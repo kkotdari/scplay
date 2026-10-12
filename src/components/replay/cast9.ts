@@ -35,7 +35,7 @@
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
 import { BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
-import { SEL_KIND9, tkN, tkT, tkV } from "../../utils/openbwTracks";
+import { kN, kT, kX, kY, keyJump, posAtTruth, SEL_KIND9, tkN, tkT, tkV, type TruthTrack } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
 /** 한 토막 — 이 시각부터 다음 토막까지 이 사람을 보여준다. */
@@ -98,7 +98,78 @@ export type CastPlanOpts9 = {
   chats?: readonly { sec: number; name: string; text: string }[];
   /** 임자별 자원 [초, 미네랄, 가스] 변곡점(openbwTracks res — 2026-10-11) — 인구 막힘은 그동안 가장 싼 유닛 값(BLOCK_MIN9)이 있을 때만 센다. 없으면 안 거른다. */
   bank?: ReadonlyMap<number, readonly (readonly [number, number, number])[]>;
+  /** 리콜·나이더스로 옮겨진 무리의 도착(아래 castMoves9 · 2026-10-12) — 교전 자리 길이 그 도착 자리에 잠깐 들른다. 없으면 스캔만 들른다. */
+  moves?: readonly CastMove9[];
 };
+
+/** ★ 옮겨진 무리의 도착(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯") — at 첫 도착(초) · to 마지막 도착
+ *  (나이더스는 한 마리씩 들어간다) · 그 사람 · 도착 자리(타일). 편성표의 참값(TruthWorld)은 몸의 실제 자리를 안 들고 있어서 재생기가 자취로 재어 건넨다. */
+export type CastMove9 = { at: number; to?: number; raw: string; x: number; y: number; kind: "recall" | "nydus" };
+/** 리콜이 시전 뒤 실제로 옮기는 때(초) — 엔진의 RECALL_DELAY_SEC(OpenBW order_CastRecall 22프레임)와 같은 값. */
+const RECALL_LAG9 = 0.92;
+/** 나이더스 입구에서 이 타일 안에서 사라져 출구에서 이 타일 안에 나타난 순간이동만 나이더스로 센다(드랍 내림·리콜과 가른다). */
+const NYDUS_NEAR9 = 4;
+/** 한 출구로 나온 순간이동을 한 번의 이동으로 묶는 틈(초). */
+const NYDUS_GAP9 = 3;
+/** 참값 자취에서 리콜·나이더스 도착을 잰다 — 재생기가 편성표를 구울 때 한 번(opts.moves). */
+export function castMoves9(tracks: readonly TruthTrack[], world: TruthWorld): CastMove9[] {
+  const raw9 = new Map(world.players.map((p9) => [p9.owner, p9.name]));
+  const out9: CastMove9[] = [];
+  /* 리콜 — 엔진 recallArr9 와 같은 셈: 시전 순간 표적 ±2.2타일 안 시전자의 몸 가운데 옮겨질 때 + 0.8초에 3타일 넘게 뛴 몸의 자리 · 중앙값 8타일 안만. */
+  for (const [s9, cx9, cy9, tech9, o9] of world.casts) {
+    if (tech9 !== "Recall") continue;
+    const r9 = raw9.get(o9);
+    if (!r9) continue;
+    const tA9 = s9 + RECALL_LAG9 + 0.8;
+    const arr9: [number, number][] = [];
+    for (const tr9 of tracks) {
+      if (tr9.owner !== o9 || tr9.born > s9 || (tr9.died !== null && tr9.died < tA9)) continue;
+      const p09 = posAtTruth(tr9, s9);
+      if (!p09 || Math.abs(p09.x - cx9) > 2.2 || Math.abs(p09.y - cy9) > 2.2) continue;
+      const p19 = posAtTruth(tr9, tA9);
+      if (!p19 || Math.hypot(p19.x - p09.x, p19.y - p09.y) < 3) continue;
+      arr9.push([p19.x, p19.y]);
+    }
+    if (arr9.length === 0) continue;
+    const mid9 = (v9: number[]): number => { const q9 = [...v9].sort((a9, b9) => a9 - b9); return q9[q9.length >> 1]; };
+    const mx9 = mid9(arr9.map((p9) => p9[0]));
+    const my9 = mid9(arr9.map((p9) => p9[1]));
+    const near9 = arr9.filter(([x9, y9]) => Math.hypot(x9 - mx9, y9 - my9) <= 8);
+    out9.push({ at: s9 + RECALL_LAG9, raw: r9, kind: "recall",
+      x: near9.reduce((a9, p9) => a9 + p9[0], 0) / near9.length, y: near9.reduce((a9, p9) => a9 + p9[1], 0) / near9.length });
+  }
+  /* 나이더스 — 같은 임자의 나이더스 둘 사이를 뛴 몸(keyJump · 입구 곁에서 사라져 딴 나이더스 곁에 나타남). 출구·임자마다 NYDUS_GAP9 안이면 한 번의 이동이다. */
+  const canals9 = tracks.filter((tr9) => tr9.kind === "Nydus Canal" && kN(tr9) > 0);
+  if (canals9.length >= 2) {
+    const hops9: { t: number; o: number; c: TruthTrack }[] = [];
+    const canalNear9 = (o9: number, x9: number, y9: number, t9: number, not9?: TruthTrack): TruthTrack | undefined => canals9.find((c9) => c9 !== not9 && c9.owner === o9
+      && c9.born <= t9 && (c9.died === null || c9.died >= t9 - 1) && Math.hypot(kX(c9, 0) - x9, kY(c9, 0) - y9) <= NYDUS_NEAR9);
+    const owners9 = new Set(canals9.map((c9) => c9.owner));
+    for (const tr9 of tracks) {
+      if (!owners9.has(tr9.owner) || (tr9.types[0] ?? 0) >= 106) continue;   // 건물(106~)은 안 탄다
+      for (let i9 = 1; i9 < kN(tr9); i9 += 1) {
+        if (!keyJump(tr9, i9 - 1, i9)) continue;
+        const t9 = kT(tr9, i9);
+        const a9 = canalNear9(tr9.owner, kX(tr9, i9 - 1), kY(tr9, i9 - 1), t9);
+        if (!a9) continue;
+        const b9 = canalNear9(tr9.owner, kX(tr9, i9), kY(tr9, i9), t9, a9);
+        if (b9) hops9.push({ t: t9, o: tr9.owner, c: b9 });
+      }
+    }
+    hops9.sort((a9, b9) => a9.t - b9.t);
+    const open9 = new Map<TruthTrack, CastMove9>();
+    for (const h9 of hops9) {
+      const r9 = raw9.get(h9.o);
+      if (!r9) continue;
+      const m9 = open9.get(h9.c);
+      if (m9 && h9.t - (m9.to ?? m9.at) <= NYDUS_GAP9) { m9.to = h9.t; continue; }
+      const n9: CastMove9 = { at: h9.t, to: h9.t, raw: r9, kind: "nydus", x: kX(h9.c, 0), y: kY(h9.c, 0) };
+      open9.set(h9.c, n9);
+      out9.push(n9);
+    }
+  }
+  return out9.sort((a9, b9) => a9.at - b9.at);
+}
 
 /** 장면보다 몇 초 먼저 갈아타나(요청: "1-2초전에 미리") — 그 사이에 카메라가 자리를 잡는다. */
 export const CAST_LEAD9 = 3;   // 1.5 → 3(2026-10-11, 요청: "장면 전환도 딱 시작할 때가 아니라 좀 전에 전환돼야 자연스러워") — 싸움이 붙기(eng) 3초 전
@@ -2395,6 +2466,55 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const SPOT_STAY9 = 1.5;
   const SPOT_NEAR9 = 14;
   const SPOT_SPEED9 = 4;
+  /* ★ **들를 자리**(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯 · 스캔 사용 시에도 스캔한 곳 보여 주기") —
+     그 장면에 든 사람(sc9.by)의 리콜·나이더스 도착(opts.moves)은 첫 도착 MOVE_LEAD9 초 앞부터 마지막 도착 + MOVE_HOLD9 까지, 스캔은 친 때 SCAN_LEAD9 앞부터 + SCAN_HOLD9 까지
+     길이 그 자리에 선다(멀어도 — 재생기는 창 하나 넘게 떨어지면 곧장 선다). 창이 겹치면 나중 것이 그 시작부터 잇는다 · 끝나면 교전 자리 길로 돌아간다. */
+  const MOVE_LEAD9 = 1.2;
+  const MOVE_HOLD9 = 3;
+  const SCAN_LEAD9 = 0.3;
+  const SCAN_HOLD9 = 3;
+  const pins9: { raw: string; t0: number; t1: number; x: number; y: number }[] = [
+    ...(opts.moves ?? []).map((m9) => ({ raw: m9.raw, t0: m9.at - MOVE_LEAD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y })),
+    ...world.casts.filter((c9) => c9[3] === "Scanner Sweep" && rawOf9.has(c9[4]))
+      .map(([s9, x9, y9, , o9]) => ({ raw: rawOf9.get(o9)!, t0: s9 - SCAN_LEAD9, t1: s9 + SCAN_HOLD9, x: x9, y: y9 })),
+  ].sort((a9, b9) => a9.t0 - b9.t0);
+  /** 길에 들를 자리를 끼운다 — 창 안의 키를 걷고 [t0, t1] 동안 그 자리 · 창 양끝 바로 밖은 본 길의 그때 자리(그 사이는 곧장 건너뛴다). */
+  const PIN_EPS9 = 0.05;
+  const PIN_CHAIN9 = 1;
+  const pinPath9 = (sc9: Sc9, base9: [number, number, number][]): [number, number, number][] => {
+    const b09 = base9[0][0];
+    const b19 = base9[base9.length - 1][0];
+    const ps9 = pins9.filter((p9) => sc9.by.has(p9.raw) && p9.t1 > b09 && p9.t0 < b19).map((p9) => ({ ...p9, t0: Math.max(b09, p9.t0) }));
+    if (ps9.length === 0) return base9;
+    for (let i9 = 0; i9 + 1 < ps9.length; i9 += 1) ps9[i9].t1 = Math.min(ps9[i9].t1, ps9[i9 + 1].t0 - 2 * PIN_EPS9);
+    const at9 = (t9: number): [number, number, number] => {
+      if (t9 <= b09) return [t9, base9[0][1], base9[0][2]];
+      for (let i9 = 1; i9 < base9.length; i9 += 1) {
+        if (t9 > base9[i9][0]) continue;
+        const [a09, ax9, ay9] = base9[i9 - 1]; const [a19, bx9, by9] = base9[i9];
+        const u9 = a19 > a09 ? (t9 - a09) / (a19 - a09) : 1;
+        return [t9, ax9 + (bx9 - ax9) * u9, ay9 + (by9 - ay9) * u9];
+      }
+      return [t9, base9[base9.length - 1][1], base9[base9.length - 1][2]];
+    };
+    const out9: [number, number, number][] = [];
+    let k9 = 0;
+    /** 앞 자리에서 곧장 왔나 — 들를 자리가 PIN_CHAIN9 초 안에 이어지면 본 길로 안 돌아가고 다음 자리로 건너간다(한순간 교전 자리로 튀었다 오지 않게). */
+    let chain9 = false;
+    const live9 = ps9.filter((p9) => p9.t1 > p9.t0);
+    live9.forEach((p9, i9) => {
+      while (k9 < base9.length && base9[k9][0] < p9.t0 - PIN_EPS9) { out9.push(base9[k9]); k9 += 1; }
+      if (!chain9 && p9.t0 - PIN_EPS9 > b09 && (out9.length === 0 || out9[out9.length - 1][0] < p9.t0 - PIN_EPS9)) out9.push(at9(p9.t0 - PIN_EPS9));
+      out9.push([p9.t0, p9.x, p9.y], [p9.t1, p9.x, p9.y]);
+      while (k9 < base9.length && base9[k9][0] <= p9.t1 + PIN_EPS9) k9 += 1;
+      const nx9 = live9[i9 + 1];
+      chain9 = !!nx9 && nx9.t0 - p9.t1 <= PIN_CHAIN9;
+      if (chain9) { while (k9 < base9.length && base9[k9][0] < nx9.t0) k9 += 1; return; }
+      if (p9.t1 + PIN_EPS9 < b19) out9.push(at9(p9.t1 + PIN_EPS9));
+    });
+    while (k9 < base9.length) { out9.push(base9[k9]); k9 += 1; }
+    return out9;
+  };
   const spotPath9 = (sc9: Sc9, from9: number): [number, number, number][] | undefined => {
     const pts9 = sc9.evs.filter((e9) => e9.px !== undefined && e9.py !== undefined);
     const out9: [number, number, number][] = [];
@@ -2425,7 +2545,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
       if (lx9 !== undefined && ly9 !== undefined) out9.push([t9, lx9, ly9]);
     }
-    return out9.length > 0 ? out9 : undefined;
+    return out9.length > 0 ? pinPath9(sc9, out9) : undefined;
   };
   const emitScene9 = (at9: number, sc9: Sc9, pick9: string, score9: number, from9 = -Infinity, spot9?: [number, number, number][]): void => {
     const bBo9 = battleOwner9(bidOf9.get(sc9) ?? -1);

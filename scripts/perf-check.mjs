@@ -428,6 +428,8 @@ function makeWorld() {
   const irrXY9 = String(flag("--irrxy", "62,64")).split(",").map(Number);
   const casts9 = has("--irr") ? [[F(44), irrXY9[0] * 32, irrXY9[1] * 32, 7, Number(flag("--irrby", 0))]] : [];
   if (has("--recall")) casts9.push([F(44), 62.5 * 32, 64.5 * 32, 21, 0]);
+  /* --scan(2026-10-12) — 정구(0)가 45초에 먼 곳(--scanxy · 기본 (20,100))을 스캔(기술 4) → --track 정구 --t 46 이면 개인 화면 카메라가 그 자리를 본다(다음 명령까지). */
+  if (has("--scan")) { const sxy9 = String(flag("--scanxy", "20,100")).split(",").map(Number); casts9.push([F(45), sxy9[0] * 32, sxy9[1] * 32, 4, 0]); }
   w.u32(casts9.length); { let pf = 0; for (const [f, x, y, tc, o] of casts9) { w.vz(f - pf); pf = f; w.u16(x); w.u16(y); w.u8(tc); w.u8(o); } }   // 마법
   /* 핑(--marks · 2026-10, UI 색 검산) — 44.5초에 정구(0 · 화면 주인이면 원작 초록 rgb(16,252,24)) · Rex(1 · 같은 편 → 제 색) · 수달이(2 · 적 →
      시점 보기에선 안 보임).
