@@ -103,7 +103,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있고, 중계 중에는 평면으로 고정됩니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터 나옵니다. 맨 아래 줄은 <b>음량 슬라이더</b>(처음 50% · 떼면 닫힘)와 <b>끄기</b>입니다. 아이폰 사파리는 웹에서 음량을 못 바꿔 끄기만 섭니다(기기 음량을 따릅니다).</span></li>
-            <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 유닛·건물·기술 이름이나 <b>전술</b>(드랍 · 러시 · 견제 · 교전 · 파괴 …), 사람 이름으로 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 검색어를 치고 <b>Enter</b>(또는 찾기 단추)를 눌러야 찾습니다. 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. <b>◀ ▶</b>(또는 다시 Enter · Shift+Enter)로 이전·다음 결과로 가며, 그 일이 벌어지기 2초 전부터 봅니다. 결과가 있을 때 창의 <b>접기</b>는 창만 닫고 결과는 남깁니다 — 검색 단추 곁의 <b>‹ n/N › ✕</b>로 계속 넘기거나 지웁니다. 결과를 지우는 것은 <b>검색 취소</b>입니다.</span></li>
+            <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 유닛·건물·기술 이름이나 <b>전술</b>(드랍 · 러시 · 견제 · 교전 · 파괴 …), 사람 이름으로 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 검색어를 치고 <b>Enter</b>(또는 찾기 단추)를 눌러야 찾습니다. 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. <b>◀ ▶</b>(또는 다시 Enter · Shift+Enter)로 이전·다음 결과로 가며, 그 일이 벌어지기 2초 전부터 봅니다. 결과가 있을 때 창의 <b>접기</b>는 창만 닫고 결과는 남깁니다 — 검색 단추 곁의 <b>‹ n/N › ✕</b>나 키보드 <b>B</b>(이전)·<b>N</b>(다음)으로 계속 넘기거나 지웁니다. 결과를 지우는 것은 <b>검색 취소</b>입니다.</span></li>
             <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 전체화면이 아닐 때만).</span></li>
             <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서도 쇠판(전광판·미니맵·인포창)은 그대로 섭니다.</span></li>
           </ul>
@@ -228,6 +228,7 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체" desc="중계 중에는 평면 고정."/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
+          <K keys={["B", "N"]} title="검색 결과 이전 / 다음"/>
 
           <span className="scr-guide-group">창</span>
           <K keys={["Alt", "Enter"]} plus title="전체화면 들어가기 / 나가기"/>

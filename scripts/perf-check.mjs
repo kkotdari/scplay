@@ -1507,6 +1507,13 @@ if (SHOT) {
       await page.keyboard.press("Escape"); await page.waitForTimeout(400);
       console.log("[검색 닫음]", JSON.stringify(await page.evaluate(() => ({ pill: document.querySelector(".scr-motion-searchnav")?.textContent ?? null,
         tags: document.querySelectorAll(".scr-motion-searchtag").length }))));
+      const pill9 = () => page.evaluate(() => ({ pill: document.querySelector(".scr-motion-searchnav")?.textContent ?? null, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null }));
+      await page.keyboard.press("n"); await page.waitForTimeout(500);
+      console.log("[검색 N]", JSON.stringify(await pill9()));
+      await page.keyboard.press("n"); await page.waitForTimeout(500);
+      console.log("[검색 N]", JSON.stringify(await pill9()));
+      await page.keyboard.press("b"); await page.waitForTimeout(500);
+      console.log("[검색 B]", JSON.stringify(await pill9()));
     }
   }
   /* --clicksel 선택자 — 그 요소를 눌러 둔 채 찍는다(2026-10-10 · 음악 목록 같은 펼침 확인). */

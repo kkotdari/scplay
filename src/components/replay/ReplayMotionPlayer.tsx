@@ -12431,6 +12431,8 @@ export default function ReplayMotionPlayer({
     if (d9 !== "") searchGo9(back9 ? -1 : 1);
   };
   const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); };
+  /** 키 판(B/N · 아래 keydown ★)이 읽는 지금의 앞뒤 손잡이 — 결과가 없으면 false(키를 안 먹는다). */
+  const searchKeyRef9 = useRef<(dir9: 1 | -1) => boolean>(() => false);
   const searchGo9 = (dir9: 1 | -1 | 0, at9?: number): void => {
     const hs9 = searchHits9;
     if (hs9.length === 0) return;
@@ -12449,6 +12451,7 @@ export default function ReplayMotionPlayer({
     setT(v9);   // ←→ 키와 같은 길(살아 있는 시계는 렌더가 맞춘다)
     setDone(v9 >= total);
   };
+  searchKeyRef9.current = (dir9) => { if (searchHits9.length === 0) return false; searchGo9(dir9); return true; };
   const fsUiRef = useRef(true);
   fsUiRef.current = fsUi;
   const fsHideRef = useRef(0);
@@ -16516,6 +16519,10 @@ export default function ReplayMotionPlayer({
         });
         holdWasPlaying.current = holdApiRef.current.playing;
         KS.timer = window.setTimeout(() => { holdApiRef.current.start(dir); }, 260);
+      } else if ((e.code === "KeyB" || e.code === "KeyN") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        /* ★ 검색 결과 앞뒤 — B 이전 · N 다음(2026-10-12, 요청: "검색 결과 이전/다음은 B/N 으로 매핑하고 검색창 닫아도 동작") — 검색창(입력)에 있을 땐 이 판이
+           안 들으므로(위 INPUT 문) 창을 닫거나 접은 뒤에 먹는다. 결과가 없으면 키를 흘린다. */
+        if (searchKeyRef9.current(e.code === "KeyN" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
       } else if (e.code === "KeyF") {
         /* 재생/일시정지 — p → 스페이스바 → **f**(2026-10-11, 요청). 스페이스는 이제 안 듣는다(안내에 없는 매핑은 두지 않는다). */
         e.preventDefault();
