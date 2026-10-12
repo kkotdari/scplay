@@ -97,7 +97,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -2652,24 +2652,7 @@ const dustSpr9 = (): HTMLCanvasElement => domSpr9("dust", (c9, S9) => {
   star9(1, 1, 0);
   star9(0.55, 0.65, Math.PI / 4);
 }, 32);
-/** 리콜의 소용돌이 — conic-gradient를 부채꼴 일흔둘로 흉내 낸다(한 번만 굽는다). */
-const recallSpr9 = (): HTMLCanvasElement => domSpr9("recall", (c9, S9) => {
-  const at9 = (u9: number): number => {           // CSS 칸: 0→.55 · 30%→0 · 50%→.55 · 80%→0 · 100%→.55
-    if (u9 < 0.3) return 0.55 * (1 - u9 / 0.3);
-    if (u9 < 0.5) return 0.55 * ((u9 - 0.3) / 0.2);
-    if (u9 < 0.8) return 0.55 * (1 - (u9 - 0.5) / 0.3);
-    return 0.55 * ((u9 - 0.8) / 0.2);
-  };
-  const N9 = 180;   /* 부채꼴이 성기면 이음매가 줄무늬로 보인다 — 한 번만 굽는 판이라 촘촘해도 값이 없다. */
-  for (let i9 = 0; i9 < N9; i9 += 1) {
-    c9.globalAlpha = at9((i9 + 0.5) / N9);
-    c9.fillStyle = "rgb(120,180,255)";
-    c9.beginPath();
-    c9.moveTo(S9 / 2, S9 / 2);
-    c9.arc(S9 / 2, S9 / 2, S9 / 2, (i9 / N9) * Math.PI * 2 - Math.PI / 2, ((i9 + 1.02) / N9) * Math.PI * 2 - Math.PI / 2);
-    c9.closePath(); c9.fill();
-  }
-});
+/* (걷음 · 2026-10-12) 리콜 표적의 소용돌이 판 recallSpr9 — 표적 쪽도 도착장과 같은 지글거리는 구 하나다(아래 recallU ★). */
 /** 디스럽션 웹 — 바큇살 열둘 + 그 살을 잇는 고리, 그 아래 보랏빛 그늘. */
 /** ★ 디스럽션 웹은 **전기 줄기가 겹친 난수 그물**이다(2026-09, 지적: "웹은 동그라미 모임이라기보다 전기줄기가 겹쳐져 난수 그물처럼
  *  보여야 하는데") — 앞서 구름 덩이 열여덟으로 그렸더니 '동그라미 모임'으로 읽혔다. 원작의 웹은 땅 위에 깔린 반투명 하늘빛 판 위에
@@ -3137,8 +3120,10 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       }
       /* ★ **리콜 도착장**(2026-10-11, 요청: "리콜 캐스팅 효과 아비터 쪽에도 · 원작은 투명 구체들이 지글지글") — 엔진이 옮겨진 몸마다 싣는다(RECALL_FIELD_SEC 동안).
          속이 비친 거품(recallU)이 초당 20번 크기·밝기를 떨고, 그 안에 하얀 낱알 여섯이 장마다 자리를 바꾼다(지글). 앞 0.1초에 피고 끝 0.3초에 스러진다. 구체라 바닥에 안 눕힌다. */
-      if (cls9 === "recallU") {
-        const d9 = RECALL_FIELD_SEC;
+      /* ★ **시전 자리도 지글거리는 구 하나**(2026-10-12, 지적: "리콜 캐스트 자리는 지금 같은 레이더 형태가 아니라 지글거리는 구 한 개만 중심에") — 옛 표적 쪽은 도는 부채꼴
+         소용돌이(recallSpr9 · 레이더)였다. 이제 도착장과 같은 거품이 표적 한가운데 하나 · 부르는 동안(RECALL_DELAY_SEC)과 도착장이 서 있는 동안(RECALL_FIELD_SEC) 선다. */
+      if (cls9 === "recallU" || cls9 === "recall") {
+        const d9 = cls9 === "recall" ? RECALL_DELAY_SEC + RECALL_FIELD_SEC : RECALL_FIELD_SEC;
         if (u0 > d9) break;
         const env9 = Math.min(1, u0 / 0.1, Math.max(0, (d9 - u0) / 0.3));
         const fr9 = Math.floor(u0 * 20);
@@ -3153,18 +3138,6 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
           ctx.globalAlpha = env9 * (0.4 + 0.6 * h9(40 + k9));
           ctx.drawImage(dsp9, ax + Math.cos(an9) * rr9 - dw9 / 2, ay + Math.sin(an9) * rr9 - dw9 / 2, dw9, dw9);
         }
-        break;
-      }
-      if (cls9 === "recall") {
-        const rot9 = ((u0 % 1) / 1) * Math.PI * 2;
-        ctx.globalCompositeOperation = "lighter";
-        lay9(() => {
-          ctx.save();
-          ctx.globalAlpha = 1;
-          ctx.translate(ax, ay); ctx.rotate(rot9); ctx.translate(-ax, -ay);
-          ctx.drawImage(recallSpr9(), ax - W9 / 2, ay - W9 / 2, W9, W9);
-          ctx.restore();
-        });
         break;
       }
       if (cls9 === "dweb") {

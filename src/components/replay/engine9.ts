@@ -10028,7 +10028,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            요청: 이 둘은 **걸린 몸마다** 우리를 씌운다(UnitLayer의 cage 갈래).
            판은 '어디에 걸었나'는 말해도 '누가 걸렸나'는 못 말한다. */
         "EMP Shockwave": ["emp", 6],
-        Maelstrom: ["mael", 5], Recall: ["recall", 4],
+        Maelstrom: ["mael", 5], Recall: ["recall", 3],   // 리콜 4 → 3: 표적의 지글거리는 구 하나(2026-10-12 · 붓 recallU ★)
         /* 스캔 지름은 실제 탐지 반경 그대로(요청) — 8타일짜리 장식 고리가 아니라,
            그 안의 은신이 벗겨지는 바로 그 원이다. */
         "Scanner Sweep": ["scan", DETECT_TILES * 2], "Disruption Web": ["dweb", 5.5],
