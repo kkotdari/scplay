@@ -104,7 +104,9 @@ export type CastPlanOpts9 = {
 
 /** ★ 옮겨진 무리의 도착(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯") — at 첫 도착(초) · to 마지막 도착
  *  (나이더스는 한 마리씩 들어간다) · 그 사람 · 도착 자리(타일). 편성표의 참값(TruthWorld)은 몸의 실제 자리를 안 들고 있어서 재생기가 자취로 재어 건넨다. */
-export type CastMove9 = { at: number; to?: number; raw: string; x: number; y: number; kind: "recall" | "nydus" };
+export type CastMove9 = { at: number; to?: number; raw: string; x: number; y: number; kind: "recall" | "nydus";
+  /** 리콜만 — 시전 때(초)와 시전 자리(표적 · 병력이 불려 가는 곳) — 길이 거기 먼저 들러 지글거리는 구를 보인다(2026-10-12). */
+  cast?: number; fx?: number; fy?: number };
 /** 리콜이 시전 뒤 실제로 옮기는 때(초) — 엔진의 RECALL_DELAY_SEC(OpenBW order_CastRecall 22프레임)와 같은 값. */
 const RECALL_LAG9 = 0.92;
 /** 나이더스 입구에서 이 타일 안에서 사라져 출구에서 이 타일 안에 나타난 순간이동만 나이더스로 센다(드랍 내림·리콜과 가른다). */
@@ -135,7 +137,7 @@ export function castMoves9(tracks: readonly TruthTrack[], world: TruthWorld): Ca
     const mx9 = mid9(arr9.map((p9) => p9[0]));
     const my9 = mid9(arr9.map((p9) => p9[1]));
     const near9 = arr9.filter(([x9, y9]) => Math.hypot(x9 - mx9, y9 - my9) <= 8);
-    out9.push({ at: s9 + RECALL_LAG9, raw: r9, kind: "recall",
+    out9.push({ at: s9 + RECALL_LAG9, raw: r9, kind: "recall", cast: s9, fx: cx9, fy: cy9,
       x: near9.reduce((a9, p9) => a9 + p9[0], 0) / near9.length, y: near9.reduce((a9, p9) => a9 + p9[1], 0) / near9.length });
   }
   /* 나이더스 — 같은 임자의 나이더스 둘 사이를 뛴 몸(keyJump · 입구 곁에서 사라져 딴 나이더스 곁에 나타남). 출구·임자마다 NYDUS_GAP9 안이면 한 번의 이동이다. */
@@ -2471,10 +2473,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
      길이 그 자리에 선다(멀어도 — 재생기는 창 하나 넘게 떨어지면 곧장 선다). 창이 겹치면 나중 것이 그 시작부터 잇는다 · 끝나면 교전 자리 길로 돌아간다. */
   const MOVE_LEAD9 = 1.2;
   const MOVE_HOLD9 = 3;
+  /* ★ 리콜은 **시전 자리 먼저**(2026-10-12, 물음: "중계 시 1.2초 전 옮기면 이동 전 구도 보여?" → 아니었다(도착 1.2초 전 = 시전 0.28초 전이라 이미 도착 자리) · "응 그렇게 바꿔 줘") —
+     시전 RECALL_SRC_LEAD9 앞부터 + RECALL_SRC_HOLD9 까지 시전 자리(지글거리는 구 · 불려 가는 병력)를 보고 곧장 도착 자리로 건너간다(도착 0.42초 전). 나이더스는 종전대로. */
+  const RECALL_SRC_LEAD9 = 0.3;
+  const RECALL_SRC_HOLD9 = 0.5;
   const SCAN_LEAD9 = 0.3;
   const SCAN_HOLD9 = 3;
   const pins9: { raw: string; t0: number; t1: number; x: number; y: number }[] = [
-    ...(opts.moves ?? []).map((m9) => ({ raw: m9.raw, t0: m9.at - MOVE_LEAD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y })),
+    ...(opts.moves ?? []).flatMap((m9) => (m9.cast !== undefined && m9.fx !== undefined && m9.fy !== undefined
+      ? [{ raw: m9.raw, t0: m9.cast - RECALL_SRC_LEAD9, t1: m9.cast + RECALL_SRC_HOLD9, x: m9.fx, y: m9.fy },
+        { raw: m9.raw, t0: m9.cast + RECALL_SRC_HOLD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y }]
+      : [{ raw: m9.raw, t0: m9.at - MOVE_LEAD9, t1: (m9.to ?? m9.at) + MOVE_HOLD9, x: m9.x, y: m9.y }])),
     ...world.casts.filter((c9) => c9[3] === "Scanner Sweep" && rawOf9.has(c9[4]))
       .map(([s9, x9, y9, , o9]) => ({ raw: rawOf9.get(o9)!, t0: s9 - SCAN_LEAD9, t1: s9 + SCAN_HOLD9, x: x9, y: y9 })),
   ].sort((a9, b9) => a9.t0 - b9.t0);
@@ -2486,7 +2495,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const b19 = base9[base9.length - 1][0];
     const ps9 = pins9.filter((p9) => sc9.by.has(p9.raw) && p9.t1 > b09 && p9.t0 < b19).map((p9) => ({ ...p9, t0: Math.max(b09, p9.t0) }));
     if (ps9.length === 0) return base9;
-    for (let i9 = 0; i9 + 1 < ps9.length; i9 += 1) ps9[i9].t1 = Math.min(ps9[i9].t1, ps9[i9 + 1].t0 - 2 * PIN_EPS9);
+    for (let i9 = 0; i9 + 1 < ps9.length; i9 += 1) ps9[i9].t1 = Math.min(ps9[i9].t1, ps9[i9 + 1].t0 - 0.01);   // 겹치면 다음 자리 바로 앞까지(곧장 건너간다 — 사이 보간 틈이 길면 카메라가 중간에 한 번 더 선다)
     const at9 = (t9: number): [number, number, number] => {
       if (t9 <= b09) return [t9, base9[0][1], base9[0][2]];
       for (let i9 = 1; i9 < base9.length; i9 += 1) {

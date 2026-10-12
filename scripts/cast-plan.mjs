@@ -1215,7 +1215,7 @@ rmSync(tmp, { recursive: true, force: true });
 
 /* ── ㊵ 교전 자리 길은 스캔·리콜·나이더스 도착에 들른다(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 · 스캔 사용 시에도
    스캔한 곳 보여 주기") — ① ㊴ 의 넷 싸움(300~317 · (60,60)→(79,68))에 A 의 스캔(304 · (100,100))과 C 의 리콜 도착(311 · (40,90) · opts.moves)을 얹는다:
-   길은 303.7~307 스캔 자리 · 309.8~314 리콜 도착 자리 · 그 사이·뒤는 교전 자리. 싸움에 안 든 사람(E)의 스캔(315)은 안 들른다.
+   길은 303.7~307 스캔 자리 · 309.78~310.58 리콜 시전 자리(70,30) · 310.58~314 도착 자리 · 그 사이·뒤는 교전 자리. 싸움에 안 든 사람(E)의 스캔(315)은 안 들른다.
    ② castMoves9 — 합성 자취: 나이더스 둘((20,20)·(90,90)) 사이를 뛴 저글링 셋(400~401.5) → 한 번의 이동(at 400 · to 401.5 · 출구 자리) · 리콜(500 · 표적 (50,50) → (70,20)). */
 {
   let t9 = 250000;
@@ -1233,7 +1233,7 @@ rmSync(tmp, { recursive: true, force: true });
   }
   const w = { players: [["A", "테란", 1], ["B", "테란", 1], ["C", "프로토스", 2], ["D", "저그", 2], ["E", "테란", 1]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [[304, 100, 100, "Scanner Sweep", 0], [315, 20, 110, "Scanner Sweep", 4]], pings: [], resFields: [], kills, sels: [], builds: [] };
-  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D", "E"], teamOf: { A: 1, B: 1, C: 2, D: 2, E: 1 }, moves: [{ at: 311, raw: "C", x: 40, y: 90, kind: "recall" }] });
+  const plan = castPlan9(w, { total: 900, order: ["A", "C", "B", "D", "E"], teamOf: { A: 1, B: 1, C: 2, D: 2, E: 1 }, moves: [{ at: 311, raw: "C", x: 40, y: 90, kind: "recall", cast: 310.08, fx: 70, fy: 30 }] });
   const sp = plan.find((s) => !s.cyc && s.spot && s.at > 290 && s.at < 330)?.spot ?? [];
   const pos = (t) => {
     if (sp.length === 0) return [NaN, NaN];
@@ -1260,7 +1260,8 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["스캔(304) — 304.5 에 스캔 자리(100,100)", near(304.5, 100, 100)],
     ["스캔 3초 뒤(308.5)엔 교전 자리로 돌아온다", far(308.5, 100, 100) && far(308.5, 40, 90)],
-    ["리콜 도착(311)은 1.2초 앞(310.5)부터 도착 자리(40,90)", near(310.5, 40, 90)],
+    ["리콜 시전(310.08) 자리(70,30)를 먼저 — 310.2", near(310.2, 70, 30)],
+    ["리콜 시전 + 0.5초(310.6)부터 도착 자리(40,90) · 그 사이 교전 자리에 안 들름", near(310.6, 40, 90) && sp.every((p) => !(p[0] > 310.2 && p[0] < 310.58) || Math.hypot(p[1] - 70, p[2] - 30) < 0.5 || Math.hypot(p[1] - 40, p[2] - 90) < 0.5)],
     ["싸움에 안 든 사람의 스캔(315)은 안 들른다", far(316, 20, 110)],
     ["나이더스 — 셋이 한 번의 이동 · 출구 자리 · 첫·끝 도착", !!ny && mv.filter((m) => m.kind === "nydus").length === 1 && Math.abs(ny.at - 400) < 0.01 && Math.abs((ny.to ?? 0) - 401.5) < 0.01 && Math.hypot(ny.x - 90, ny.y - 90) < 0.5 && ny.raw === "D"],
     ["리콜 — 시전 + 0.92초 · 도착 자리 (70.5,20)", !!rc && Math.abs(rc.at - 500.92) < 0.01 && Math.hypot(rc.x - 70.5, rc.y - 20) < 0.5 && rc.raw === "C"],
