@@ -1917,8 +1917,9 @@
   /* 전역 리셋(* { box-sizing })은 가상요소를 안 덮는다 — content-box로 그려져 테두리
      두께만큼 고리 중심이 오른쪽·아래로 밀렸다(지적: 중심점 위치 안 맞음). */
   box-sizing: border-box;
-  width: var(--ckw, 9px); height: calc(var(--ckw, 9px) / 2);
-  margin: calc(var(--ckw, 9px) / -4) 0 0 calc(var(--ckw, 9px) / -2);
+  /* 세로 = 폭 × --ckk(평면 0.5 · 입체는 재생기가 sin(시점각)을 싣는다 — 2026-10-12, 지적: "3D 에서 선택 링·마우스 마커 등 눌림이 안 맞는 것"). */
+  width: var(--ckw, 9px); height: calc(var(--ckw, 9px) * var(--ckk, 0.5));
+  margin: calc(var(--ckw, 9px) * var(--ckk, 0.5) / -2) 0 0 calc(var(--ckw, 9px) / -2);
   /* 실처럼 가늘게(재지적: 색으로 구분되니 선은 실 굵기) — 0.5~0.7px 고정 헤어라인.
      0.6 → 0.4 → 0.28px(요청: 마우스 마커·선택 링 모두 더 가늘게) — 선택 링과 늘 같은 결.
      이보다 얇으면 기기에 따라 선이 통째로 사라진다(서브픽셀 반올림). */
@@ -1931,8 +1932,8 @@
   /* 점 축소 + 납작(재재지적: 점이 너무 커 고리가 면으로 보였다) — 테두리 타원과 같은
      2:1 비율로 눌린 작은 점. */
   /* 점도 한 단 작게(요청: 굵기 감소) — 0.24 → 0.18. */
-  width: var(--ckdot); height: calc(var(--ckdot) / 2);
-  margin: calc(var(--ckdot) / -4) 0 0 calc(var(--ckdot) / -2);
+  width: var(--ckdot); height: calc(var(--ckdot) * var(--ckk, 0.5));
+  margin: calc(var(--ckdot) * var(--ckk, 0.5) / -2) 0 0 calc(var(--ckdot) / -2);
   border-radius: 50%; background: currentColor;
   animation: scr-clickdot 0.9s ease-out forwards;
 }
@@ -4336,8 +4337,8 @@
    눕힌 X로 보인다(바닥에 누운 표식). 선 굵기는 고리 선(--ckline)의 1.5배. 크기는 옛 점(--ckdot)의 3배 폭.
    모서리에서 모서리로 가는 그라디언트의 가운데 띠가 곧 대각선이다 — 상자 비율이 바뀌어도 늘 대각선이다. */
 .scr-clickfx-atk::after {
-  width: var(--ckx); height: calc(var(--ckx) / 2);
-  margin: calc(var(--ckx) / -4) 0 0 calc(var(--ckx) / -2);
+  width: var(--ckx); height: calc(var(--ckx) * var(--ckk, 0.5));
+  margin: calc(var(--ckx) * var(--ckk, 0.5) / -2) 0 0 calc(var(--ckx) / -2);
   border-radius: 0;
   background:
     linear-gradient(to top right, transparent calc(50% - var(--ckline) * 0.5), currentColor calc(50% - var(--ckline) * 0.5),

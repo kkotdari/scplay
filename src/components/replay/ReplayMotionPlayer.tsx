@@ -788,6 +788,12 @@ let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
 /** ★ **공격 표적의 빨간 링**(2026-10-09, 사용자 원작 조사: "적 공격(또는 우클릭) 시 빨간 링 두 번 깜빡이고 사라짐") — 화면 주인이 유닛을
  *  겨눈 공격 명령(워커 clickTargets9 가 짝지은 표적 태그 → 명령 초)의 0.9초 창. 표적 몸의 선택 링 자리에 UI_ATK9 로, 0.225초마다 켜고 끈다
  *  (켬 0~0.225 · 끔 · 켬 0.45~0.675 · 끔 = 두 번). 땅 마커는 안 찍는다(원작은 유닛을 겨눈 명령에 땅 마커가 없다). */
+/** ★ 땅에 눕는 바닥 도형(선택 링·그림자·오라)의 입체 눌림 배수(2026-10-12, 지적: "3D 에서 선택 링·마우스 마커 등 눌림이 안 맞는 것") — 바닥 도형의 세로 비는
+ *  평면(위 카메라)에 맞춰 링 0.31/0.55 = 0.564 로 적혀 있고, 입체는 거기에 sin(시점각)(pitchFlatNow)을 **한 번 더** 곱해 왔다. 모델이 지도 피치를 따르게 된 뒤로
+ *  (gl-renderer.md '3D 시점 모델 카메라 = 지도 피치') 땅의 동그라미는 세로 비가 곧 sin(시점각)이다 — 평면 링 비(0.564)를 걷어 내고 sin 을 건다. 링은 땅과
+ *  꼭 같은 눌림 · 그림자·오라는 평면에서의 링 대비 비를 그대로 지닌다. */
+const RING_TOP_K9 = 0.31 / 0.55;
+const pitchGroundK9 = (op: { pitch?: boolean }): number => (op.pitch ? pitchFlatNow / RING_TOP_K9 : 1);
 let ATK_FLASH9: Map<number, number> | null = null;
 let ATK_T9 = 0;
 function tagOfOp9(op: UnitDrawOp): number | undefined {
@@ -5672,7 +5678,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* ★ 세로는 **부감에 눌린다**(2026-09, 지적: "건물 선택 링에 눌림 적용안된듯") — 발자국 px 를 그대로 반지름으로
                주어 땅 위에 선 동그라미가 아니라 세로로 선 타원이었다. 유닛 링과 같은 눌림(0.31/0.55)을 건다 — 둘이 한 자라야
                같은 화면의 링끼리 결이 맞는다. 입체 보기는 유닛 링처럼 pitchFlatNow 를 더 곱한다. */
-            const ryK9 = (0.31 / 0.55) * (op.pitch ? pitchFlatNow : 1);
+            const ryK9 = (0.31 / 0.55) * pitchGroundK9(op);
             /* ★ 크기는 **발자국과 그린 몸 중 큰 쪽**이다(같은 지적) — 링은 몸 밑(바닥 도형 패스)에 깔리므로 몸이 발자국보다
                넓은 종류(벙커 · 3×2 발자국에 날개가 넓다)에서는 링이 통째로 몸에 덮여 안 보였다. 비(세로/가로)는 그대로 둔다. */
             const rk9 = Math.max(1, (glBf9.w * gk9 * 0.56) / Math.max(1, wPx * 0.62));
@@ -5863,9 +5869,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                 −0.24 × px 옮겨 그려지고(아래 by9), 발끝은 판 안의 잉크가 정한다. 그러니
                 땅 줄은 footY가 맞다. 지면선(groundY)이 실려 온 것(건물·자원)만 그 값을 쓴다.
              가로는 footX 그대로다(앞선 지적: 그림자·링이 몸과 안 맞음). */
-          if (gl9 && gl9.primOk) gl9.prim(1, sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), "#000", op.alpha * (op.air ? 0.36 : 0.25));
+          if (gl9 && gl9.primOk) gl9.prim(1, sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * pitchGroundK9(op), "#000", op.alpha * (op.air ? 0.36 : 0.25));
           else {
-            ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * pitchGroundK9(op), 0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
@@ -5902,7 +5908,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* ★ 상자꼴 차량은 그림자 중심을 위로 당긴다(지적: "탱크의 유닛 그림자가 너무 아래쪽") — 타원 중심을 판의 잉크
              바닥(footY)에 두는 자는 다리 달린 몸(발끝 아래로 몸이 없다)에 맞춘 것이라, 궤도가 바닥까지 꽉 찬 탱크는 타원
              절반이 몸 아래로 빠져나와 떠 있는 것처럼 읽혔다(12배에서 뚜렷). 세로 반지름의 몫만큼 올려 몸 밑에 깔리게 한다. */
-          const ry9 = shR * 0.58 * (op.pitch ? pitchFlatNow : 1);
+          const ry9 = shR * 0.58 * pitchGroundK9(op);
           // (걷어냄) SHADOW_UP_K9 — 탱크 손값. 땅 원점(groundOy9)에 두면 손값이 필요 없다(위 주석).
           if (gl9 && gl9.primOk) gl9.prim(1, sx, groundY ?? groundOy9, shR, ry9, "#000", op.alpha * 0.23);
           else { ctx.ellipse(sx, groundY ?? groundOy9, shR, ry9, 0, 0, Math.PI * 2); ctx.fill(); }
@@ -5919,7 +5925,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ringK9 = RING_K9[op.kind] ?? 1;
           const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
           const ringY = (groundY ?? groundOy9) - lift;
-          return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1) + ringW / 2 };
+          return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * pitchGroundK9(op) + ringW / 2 };
         };
         if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
@@ -5947,13 +5953,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.save();
             ctx.translate(ringX, ringY);
             if (op.pitch && op.viewYaw) ctx.transform(1, 0, Math.tan((op.viewYaw * Math.PI) / 180), 1, 0, 0);
-            ctx.ellipse(0, 0, ringWd9 * 0.55 * ringK9, ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, ringWd9 * 0.55 * ringK9, ringWd9 * 0.31 * ringK9 * pitchGroundK9(op), 0, 0, Math.PI * 2);
             ctx.restore();
           };
           /* 검은 테는 걷었다(지적: 깔려면 마우스 마커에도 깔아야 한다) — 링만 두 겹이라
              둘이 따로 놀았다. 실선 한 겹으로 통일한다. */
           if (gl9 && gl9.primOk) {
-            const rg9: GlRing9 = { kind: 2, x: ringX, y: ringY, rx: ringWd9 * 0.55 * ringK9, ry: ringWd9 * 0.31 * ringK9 * (op.pitch ? pitchFlatNow : 1), color: ringCol9,
+            const rg9: GlRing9 = { kind: 2, x: ringX, y: ringY, rx: ringWd9 * 0.55 * ringK9, ry: ringWd9 * 0.31 * ringK9 * pitchGroundK9(op), color: ringCol9,
               alpha: op.alpha * 0.95, lineW: ringW, shear: op.pitch && op.viewYaw ? Math.tan((op.viewYaw * Math.PI) / 180) : 0 };
             if (op.air && glM9) airRing9 = rg9;
             else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW, rg9.shear);
@@ -5976,14 +5982,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              링(0.55)보다 조금만 크게(0.62) — 링을 삼키지 않으면서 발밑에 깔린다. */
         if (op.tint) {
           const auraR9 = inkW * 0.62 * (RING_K9[op.kind] ?? 1);
-          if (gl9 && gl9.primOk) gl9.prim(1, footX, op.air ? footY - lift : footY - px * 0.03, auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), op.tint, op.alpha * 0.32);
+          if (gl9 && gl9.primOk) gl9.prim(1, footX, op.air ? footY - lift : footY - px * 0.03, auraR9, auraR9 * 0.564 * pitchGroundK9(op), op.tint, op.alpha * 0.32);
           else {
             ctx.globalAlpha = op.alpha * 0.32;
             ctx.fillStyle = op.tint;
             ctx.beginPath();
             ctx.ellipse(
               footX, op.air ? footY - lift : footY - px * 0.03,
-              auraR9, auraR9 * 0.564 * (op.pitch ? pitchFlatNow : 1), 0, 0, Math.PI * 2,
+              auraR9, auraR9 * 0.564 * pitchGroundK9(op), 0, 0, Math.PI * 2,
             );
             ctx.fill();
           }
@@ -19624,6 +19630,9 @@ export default function ReplayMotionPlayer({
                   // 화면 주인 제 것은 원작 초록 — 땅 공격(X)도 초록(2026-10-09, 요청: "우클릭도 초록색으로" · 옛 '공격 빨강' 되물림)
                   ...posStyle(cx2, cy2), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,
                   "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
+                  /* 입체는 둥근 고리(1:1)를 아래 눕히기(scaleY sin 시점각)가 눌러 땅과 같은 눌림이다 — 옛 판은 평면의 2:1 납작 고리를 한 번 더 눌러
+                     지도보다 훨씬 납작했다(2026-10-12, 지적: "3D 에서 선택 링·마우스 마커 등 눌림이 안 맞는 것"). */
+                  "--ckk": pitched ? "1" : "0.5",
                   ...groundXfAt9(cx2, cy2),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
               />
