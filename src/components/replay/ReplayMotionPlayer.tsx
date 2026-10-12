@@ -793,6 +793,8 @@ let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
  *  (gl-renderer.md '3D 시점 모델 카메라 = 지도 피치') 땅의 동그라미는 세로 비가 곧 sin(시점각)이다 — 평면 링 비(0.564)를 걷어 내고 sin 을 건다. 링은 땅과
  *  꼭 같은 눌림 · 그림자·오라는 평면에서의 링 대비 비를 그대로 지닌다. */
 const RING_TOP_K9 = 0.31 / 0.55;
+/** 가스 건물 — 인포창이 그 간헐천 양을 한 줄 더 쓴다(2026-10-12). */
+const GAS_BLDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
 const pitchGroundK9 = (op: { pitch?: boolean }): number => (op.pitch ? pitchFlatNow / RING_TOP_K9 : 1);
 let ATK_FLASH9: Map<number | string, number> | null = null;   // 열쇠 = 표적 태그 · 자원은 pickKey("r…" · 2026-10-12 자원 우클릭)
 let ATK_T9 = 0;
@@ -11358,6 +11360,7 @@ export default function ReplayMotionPlayer({
     return m9;
   }, [entData]);
   /** 화면 주인의 지금 선택(태그들) — 카메라를 기계가 쥐었을 때만(중계·개인 추적). 없으면 null. */
+  let ownerSelAt9: number | null = null;   // 그 선택 줄의 초(아래 ★ 새 선택이면 보는 사람이 누른 몸을 놓는다)
   const ownerSel9: number[] | null = (() => {
     const selRaw9 = (splitOn9 ? splitPick9 : null) ?? camRaw9;   // 분할보기는 누른 칸의 사람이 먼저(맞대결은 castRaw 가 켜져 있다)
     if (!selRaw9 || !entData) return null;
@@ -11370,8 +11373,18 @@ export default function ReplayMotionPlayer({
       while (lo9 <= hi9) { const m9 = (lo9 + hi9) >> 1; if (rows9[m9][0] <= t) { at9 = m9; lo9 = m9 + 1; } else hi9 = m9 - 1; }
       if (at9 >= 0 && (!best9 || rows9[at9][0] > best9[0])) best9 = rows9[at9];
     }
+    ownerSelAt9 = best9 ? best9[0] : null;
     return best9 ? best9[1] : null;
   })();
+  /* ★ 중계(화면 주인이 있는 때)에 보는 사람이 누른 몸은 **주인의 다음 선택까지만**(2026-10-12, 요청: "중계 모드에서 유닛 건물 등 선택 시 다음 선택에서 바로 인포창 강제로
+     바뀌게") — 옛 판은 누른 몸(picked)이 늘 이겨, 주인이 무엇을 골라도 인포창이 누른 몸에 묶여 있었다. 주인의 선택 줄(초)이 바뀌면 누른 몸을 놓아 인포창이 주인 선택으로 간다.
+     주인이 없으면(중계 끔 · 전체 보기) ownerSelAt9 는 늘 null 이라 이 판은 안 돈다. */
+  const ownerSelPrev9 = useRef<number | null>(null);
+  useEffect(() => {
+    const prev9 = ownerSelPrev9.current;
+    ownerSelPrev9.current = ownerSelAt9;
+    if (ownerSelAt9 !== null && prev9 !== null && ownerSelAt9 !== prev9) setPicked(null);
+  }, [ownerSelAt9]);
   /** 태그 → 생애들(메인의 개체 표 — 태그·종류·임자·생애 경계만 남아 있다). */
   const livesByTag9 = useMemo(() => {
     const m9 = new Map<number, TruthLife[]>();
@@ -18797,6 +18810,26 @@ export default function ReplayMotionPlayer({
       </div>
     );
   };
+  /* ★ 가스 건물의 간헐천 양(2026-10-12, 요청: "가스 건물에도 간헐천 자원량 표시") — 판 11 자원량 절(amounts)의 밭 자리마다 [초, 양] 계단 · 건물 자리(pickX·pickY)에서
+     2.5타일 안의 가장 가까운 밭 자리를 쓴다(정제소는 간헐천 위에 앉는다 — 원작도 건물이 그 양을 넘겨받는다). 처음 = 가장 이른 줄 · 남은 = t 이하 마지막 줄. */
+  const amtFields9 = useMemo(() => {
+    const m9 = new Map<string, { x: number; y: number; rows: [number, number][] }>();
+    for (const [s9, x9, y9, v9] of entData?.amounts ?? []) {
+      const k9 = `${Math.round(x9 * 2)}|${Math.round(y9 * 2)}`;
+      const f9 = m9.get(k9);
+      if (f9) f9.rows.push([s9, v9]); else m9.set(k9, { x: x9, y: y9, rows: [[s9, v9]] });
+    }
+    for (const f9 of m9.values()) f9.rows.sort((a, b) => a[0] - b[0]);
+    return [...m9.values()];
+  }, [entData]);
+  const gasAmtAt9 = (x9: number, y9: number): [number, number] | null => {
+    let f9: (typeof amtFields9)[number] | null = null; let d9 = 2.5;
+    for (const g9 of amtFields9) { const dd9 = Math.hypot(g9.x - x9, g9.y - y9); if (dd9 < d9) { d9 = dd9; f9 = g9; } }
+    if (!f9) return null;
+    let v9 = f9.rows[0][1];
+    for (const [s9, a9] of f9.rows) { if (s9 > t) break; v9 = a9; }
+    return [v9, f9.rows[0][1]];
+  };
   const dockOne9 = (op: UnitDrawOp): React.ReactNode => {
     if (op.pickKey?.startsWith("r")) return dockRes9(op);   // 자원(위 dockRes9)
     const en = op.pickName ?? "";
@@ -19083,6 +19116,8 @@ export default function ReplayMotionPlayer({
     }
     const off9 = (op as { offView?: boolean }).offView === true;
     const col9 = off9 ? "#8fc98f" : hpCol9(hpR);
+    /** 가스 건물(정제소·어시밀레이터·익스트랙터)이면 그 간헐천의 [남은, 처음] 양(위 gasAmtAt9) — 짓는 중엔 안 보인다. */
+    const gasAmt9 = bld9 && !op.pickWip && GAS_BLDS9.has(en) && op.pickX !== undefined && op.pickY !== undefined ? gasAmtAt9(op.pickX, op.pickY) : null;
     /* ★ 짓는 중의 큰 그림·이름은 **공사 모양**이다(2026-09, 요청: "건설시 메인그림과 타이틀은 저그 공사고치 플토 소환구 테란 공사장") —
        지도가 그리는 그 몸(고치·소환구)과 테란은 공사 발판. 짓는 건물 자신은 진행 바 왼쪽 칸이 든다. */
     const wipRace9 = bld9 && op.pickWip ? (bases.find((b) => b.key === op.pickRaw)?.race ?? "") : "";
@@ -19115,6 +19150,7 @@ export default function ReplayMotionPlayer({
         <div className="scr-motion-infodock-text">
           <div className="scr-motion-infodock-lines">
             {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
+            {gasAmt9 && <div className="scr-motion-info-line">{`가스 ${gasAmt9[0]} / ${gasAmt9[1]}`}</div>}
             {lines}
           </div>
           {foot9.length > 0 && <div className="scr-motion-infodock-foot">{foot9}</div>}
