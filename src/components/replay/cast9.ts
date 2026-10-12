@@ -1681,12 +1681,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 잡은 것을 이름으로(2026-10-10, 요청: "스톰으로 일꾼 몇 기 잡음") — 다 일꾼이면 "일꾼 N기" · 한 종류면 그 이름 · 섞이면 "많은 것 등 N기". */
     if (by9) {
       if (n9 < SPELL_ACT9.kills) return null;
-      return detail9 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9))} 잡음` : `${ko9}${koRo9(ko9)} 활약함`;
+      /* ★ "스톰으로 활약함" → **"스톰으로 N킬"**(2026-10-12, 요청: "스톰으로 활약함 같은 문장을 스톰으로 7킬") — 잡는 마법은 잡은 수를 말한다. 잡지 않는 마법(스테이시스 …)은 아래 '활약함' 그대로. */
+      /* (같은 날 이어서: "스톰으로 방어해냄 등으로 표현") — 장면의 몫(role9)을 탄다: 방어 "X로 방어해냄" · 공격 "X로 돌파함" · 그 밖(교전) "X로 N킬". */
+      return detail9 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9))} 잡음` : `${ko9}${koRo9(ko9)} ${spellHow9(role9) ?? `${n9}킬`}`;
     }
     let dealt9 = 0; let got9 = 0;
     for (const [key9, w9] of sc9.pair) { const [a9, b9] = key9.split(">"); if (a9 === pick9) dealt9 += w9; if (b9 === pick9) got9 += w9; }
-    return dealt9 >= SPELL_ACT9.value && dealt9 > got9 * SPELL_ACT9.k ? `${ko9}${koRo9(ko9)} 활약함` : null;
+    return dealt9 >= SPELL_ACT9.value && dealt9 > got9 * SPELL_ACT9.k ? `${ko9}${koRo9(ko9)} ${spellHow9(role9) ?? "활약함"}` : null;
   };
+  /** 마법 활약의 꼴(2026-10-12, 요청: "스톰으로 방어해냄 등으로 표현") — 방어 장면 "방어해냄" · 공격 장면 "돌파함" · 그 밖 null(잡는 마법은 "N킬", 나머지는 "활약함"). */
+  const spellHow9 = (role9: string | undefined): string | null => (role9 === "def" ? "방어해냄" : role9 === "atk" ? "돌파함" : null);
   /** 잡은 몸들의 글귀 — 다 일꾼 "일꾼 N기" · 한 종류 "히드라 N기" · 섞이면 가장 많은 것 "히드라 등 N기". */
   const vicTxt9 = (m9: Map<string, number> | undefined): string => {
     if (!m9 || m9.size === 0) return "";
