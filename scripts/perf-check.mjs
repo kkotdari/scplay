@@ -1488,7 +1488,8 @@ if (SHOT) {
       return { cls: w?.className ?? null, w: r ? Math.round(r.width) : null, input: !!document.querySelector(".scr-motion-search-input"),
         count: document.querySelector(".scr-motion-searchwrap .scr-motion-search-count")?.textContent ?? null,
         tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null,
-        sug: [...document.querySelectorAll(".scr-motion-searchsug-opt")].map((e) => e.textContent) }; });
+        sug: [...document.querySelectorAll(".scr-motion-searchsug-opt")].map((e) => e.textContent),
+        cap: document.querySelector(".scr-cast-caption")?.textContent ?? null, owner: document.querySelector(".scr-fs-solo-cap")?.textContent ?? null }; });
     console.log("[검색 쉼]", JSON.stringify(await st9()));
     await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
     await page.waitForTimeout(400);

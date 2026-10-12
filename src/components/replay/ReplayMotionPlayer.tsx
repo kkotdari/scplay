@@ -10349,6 +10349,9 @@ export default function ReplayMotionPlayer({
   /** 입력 꼴(돋보기 알약 · 아래 JSX ★★) — 치는 동안에도 자동 완성이 찾을 거리(편성표·색인)를 굽는다. */
   const [searchEdit9, setSearchEdit9] = useState(false);
   const searchNeed9 = searchOn9 || searchEdit9;
+  /** ★ 검색 결과의 **장면 잡기**(2026-10-12, 지적: "키워드 검색이랑 중계가 섞여서 문제 — 검색을 해도 그 장면이 나오는 게 아니라 중계 장면이 나오네") — 결과로 가면
+   *  그 결과의 자리·사람·장면 길로 [from, to] 동안 중계 토막을 **대신한다**(아래 searchSeg9 · castSeg9). 창이 끝나거나(to) 손으로 딴 데 감거나 검색을 취소하면 중계로 돌아간다. */
+  const [searchFocus9, setSearchFocus9] = useState<{ from: number; to: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][] } | null>(null);
   /** 검색창에 치는 글(초안) — Enter·찾기 단추가 searchQ9 로 올린다(아래 searchSubmit9 ★). */
   const [searchDraft9, setSearchDraft9] = useState("");
   const planAll9 = useMemo<CastSeg9[]>(
@@ -10366,13 +10369,23 @@ export default function ReplayMotionPlayer({
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
   /* ★ 교전 자리 토막(spot · cast9 ★)은 **누구의 화면도 아니다**(2026-10-11, 요청: "주인공을 딱 한 명 정하기 애매한 경우 개인 화면이 아닌 교전 위치를 추적해서 보여 주고
      누구 화면 표시 없애기") — 중계 주인을 비우면 시야는 모두의 것(viewRawNow9 null) · 화면 주인 줄은 안 선다 · 카메라는 아래 spotNow9 의 길을 탄다. */
-  const castRaw = castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
+  /* 검색 장면(위 searchFocus9 ★) — 자동 중계 중(개인 추적·손 분할이 아닐 때) 창 안이면 그 토막을 세운다: 장면 길(spot)이 있으면 그 길을 따라가고(오버로드 사냥처럼
+     움직이는 장면도) · 자리만 있으면 그 점 · 둘 다 없으면 그 사람 화면. 자막은 그 결과의 글귀. */
+  const searchSeg9 = useMemo((): CastSeg9 | null => {
+    const f9 = searchFocus9;
+    if (!f9) return null;
+    const spot9 = f9.spot && f9.spot.length > 0 ? f9.spot : f9.x !== undefined && f9.y !== undefined ? [[f9.from, f9.x, f9.y], [f9.to, f9.x, f9.y]] as [number, number, number][] : undefined;
+    if (!spot9 && !f9.raw) return null;
+    return { at: f9.from, raw: f9.raw ?? "", why: "검색", cyc: false, score: 0, caps: [{ text: f9.label }], capTo: f9.to, ...(spot9 ? { spot: spot9 } : {}) };
+  }, [searchFocus9]);
+  const searchSegNow9 = searchSeg9 && searchFocus9 && castOn && trackRaw === null && !splitUser9 && t >= searchFocus9.from - 1 && t <= searchFocus9.to ? searchSeg9 : null;
+  const castRaw = searchSegNow9 ? (searchSegNow9.spot ? null : searchSegNow9.raw) : castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
   /* ★★ 자동 중계는 **늘 한 사람 화면**이다(2026-10-09, 요청 2: "자동 카메라 모드 — 무조건 1사람 화면만 노출 · 공격이나 교전 발생시 더 잘한 사람
      보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 / 누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에") —
      옛 **맞대결 자동 분할**(2026-10 · 편성표의 foe 로 두 사람을 나란히 · 배지 → 화살표·⚔️ 표)은 되물렸다. 편성표는 여전히 장면마다 상대역·
      몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
-  const castSeg9 = castIdx9 >= 0 ? castPlan[castIdx9] : null;
+  const castSeg9 = searchSegNow9 ?? (castIdx9 >= 0 ? castPlan[castIdx9] : null);
   /** 지금 따라가는 교전 자리 길(위 castRaw ★) — 자동 중계 · 개인 추적·손 분할이 아닐 때만. */
   const spotNow9 = castOn && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
   /** 그 길의 t 자리(1초 간격 키 사이를 직선으로). */
@@ -12377,6 +12390,8 @@ export default function ReplayMotionPlayer({
      데로 감았으면 그 때부터 앞뒤를 다시 찾는다. 편성표는 중계가 꺼져 있어도 검색어가 있으면 굽는다(위 planAll9). */
   const SEARCH_MERGE9 = 8;
   const SEARCH_LEAD9 = 2;
+  /** 결과 장면을 잡아 두는 최소 길이(결과 때부터 · 장면은 제 끝까지). */
+  const SEARCH_HOLD9 = 6;
   const [searchCur9, setSearchCur9] = useState(-1);
   /* ★ 찾는 거리를 넓힌다(2026-10-12, 요청: "자막에 나온 내용이 아니더라도 검색되면 좋겠는데" · 지적: "분명 핵을 쓴 판인데 핵 쳐도 안 나와") —
      ① 편성표 밖의 글귀(planAll9.search — 잔 장면·밀린 장면까지 모든 장면의 자막 · 사람마다 빌드 이정표 · cast9 CastSearch9)
@@ -12385,79 +12400,128 @@ export default function ReplayMotionPlayer({
         태어남 = "핵 장전" · 움직여 죽음 = "핵 투하"(사일로째 부서진 탄두는 제자리라 거른다). 옛 색인은 탄두를 딸림으로 빼(SEARCH_SKIP9) 핵이 통째로 없었다.
      자동 완성(searchSug9)이 쓰는 낱말 표(terms)도 여기서 같이 모은다 — **그 경기에 나온 것만**(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 낱말). */
   const SEARCH_TACTIC9 = ["교전", "공격", "방어", "헬프", "견제", "드랍", "폭탄드랍", "포토러시", "성큰러시", "캐논러시", "저글링러시", "러시", "반파", "대파", "궤멸", "파괴",
-    "사망", "빠른", "늘리기", "선스포닝풀", "노스포닝풀", "선포지", "더블넥서스", "노배럭", "더블커맨드", "투게이트", "쓰리게이트", "투배럭", "쓰리배럭", "투팩", "테크",
+    "사망", "처치", "빠른", "늘리기", "선스포닝풀", "노스포닝풀", "선포지", "더블넥서스", "노배럭", "더블커맨드", "투게이트", "쓰리게이트", "투배럭", "쓰리배럭", "투팩", "테크",
     "입구 막음", "이사", "인구 막힘", "gg 선언", "노엘 외침", "핵 투하", "핵 장전", "시즈 모드", "클로킹", "띄움", "사냥", "전원"];
-  const searchIndex9 = useMemo((): { list: { sec: number; label: string; hay: string }[]; terms: Map<string, string> } => {
+  /** 색인 한 줄 — 글귀·비교 글 · 장면 잡기 거리(자리 · 사람 · 장면 길 · 끝 · 위 searchFocus9 ★). */
+  type SearchHit9 = { sec: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number };
+  const searchIndex9 = useMemo((): { list: (SearchHit9 & { hay: string })[]; terms: Map<string, string> } => {
     const terms9 = new Map<string, string>();
     if (!entData || !searchNeed9) return { list: [], terms: terms9 };
     const nameOf9 = new Map(bases.map((b9) => [b9.key, b9.name] as const));
     const rawOf9 = new Map(entData.players.map((pl9) => [pl9.owner, pl9.name] as const));
-    const out9: { sec: number; label: string; hay: string }[] = [];
+    const out9: (SearchHit9 & { hay: string })[] = [];
     const term9 = (t9: string, tag9: string): void => { if (t9 && !terms9.has(t9)) terms9.set(t9, tag9); };
     for (const b9 of bases) term9(b9.name, "사람");   // 사람은 몸 기록이 없어도(자막에만 나와도) 든다
-    const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string): void => {
+    const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string, at9: Partial<SearchHit9> & { lead?: string } = {}): void => {
       let who9 = "";
+      let raw9: string | undefined;
       if (owner9 !== null) {
-        const raw9 = rawOf9.get(owner9);
+        raw9 = rawOf9.get(owner9);
         if (!raw9 || !nameOf9.has(raw9)) return;   // 관전자·임자 모름은 뺀다
         who9 = nameOf9.get(raw9)!;
         term9(who9, "사람");
       }
-      const lab9 = who9 ? `${who9} ${label9}` : label9;
-      out9.push({ sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
+      /* lead — 목적어 사람(핵이 떨어진 기지의 임자): "A가 B 기지에 핵 투하". */
+      const lead9 = (at9 as { lead?: string }).lead;
+      const lab9 = who9 ? (lead9 ? `${who9}${koGa9(who9)} ${lead9} ${label9}` : `${who9} ${label9}`) : label9;
+      const { lead: _lead9, ...rest9 } = at9 as Partial<SearchHit9> & { lead?: string };
+      out9.push({ raw: raw9, ...rest9, sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
+    };
+    const tagLife9 = new Map(entData.lives.map((e9) => [e9.tag, e9] as const));
+    /* ★ 글귀는 **묘사**다(2026-10-12, 요청: "자막도 넣어 주면 좋을 듯 — 자막이라기보다 묘사 · A가 B 기지에 핵 투하 · A 3해처리 건설") — 결과로 가면 이 글귀가 화면 자막이 된다
+       (위 searchSeg9). 처치는 누가 잡았나(kills · 판 11부터) · 본진은 그 사람의 몇 번째인가 · 핵은 누구 기지에 떨어졌나를 붙인다. */
+    const whoOf9 = (o9: number): string | null => { const r9 = rawOf9.get(o9); return r9 && nameOf9.has(r9) ? nameOf9.get(r9)! : null; };
+    const ga9 = (nm9: string): string => `${nm9}${koGa9(nm9)}`;
+    const killerOf9 = new Map<number, number>();
+    for (const [, ko9, , vt9] of entData.kills ?? []) killerOf9.set(vt9, ko9);
+    const HALL_SHORT9: Record<string, string> = { Hatchery: "해처리", Nexus: "넥서스", "Command Center": "커맨드" };
+    const hallN9 = new Map<number, number>();   // 태그 → 그 사람의 몇 번째 본진인가(시작 본진 = 1)
+    {
+      const seen9 = new Map<number, number>();
+      for (const e9 of [...entData.lives].filter((l9) => l9.bld && HALL_SHORT9[l9.kind]).sort((a9, b9) => a9.born - b9.born)) {
+        const n9 = (seen9.get(e9.owner) ?? 0) + 1;
+        seen9.set(e9.owner, n9);
+        hallN9.set(e9.tag, n9);
+      }
+    }
+    /** 그 때 그 자리에서 가장 가까운 남의 본진의 임자(16타일 안) — 핵이 누구 기지에 떨어졌나. */
+    const baseOwnerAt9 = (x9: number, y9: number, t9: number, not9: number): string | null => {
+      let best9: { d: number; o: number } | null = null;
+      for (const e9 of entData.lives) {
+        if (!e9.bld || !TAG_HALL9.has(e9.kind) || e9.owner === not9 || e9.born > t9 || (e9.died !== null && e9.died <= t9)) continue;
+        const d9 = Math.hypot(e9.bornX - x9, e9.bornY - y9);
+        if (d9 <= 16 && (!best9 || d9 < best9.d)) best9 = { d: d9, o: e9.owner };
+      }
+      return best9 ? whoOf9(best9.o) : null;
     };
     for (const e9 of entData.lives) {
       if (e9.kind === "Nuclear Missile") {
-        if (e9.born > 1) { add9(e9.born, e9.owner, "핵 장전", "nuke 핵미사일"); term9("핵", "전술"); }
+        if (e9.born > 1) { add9(e9.born, e9.owner, "핵 장전", "nuke 핵미사일", { x: e9.bornX, y: e9.bornY }); term9("핵", "전술"); }
         if (e9.died !== null && e9.endX !== undefined && e9.endY !== undefined && Math.hypot(e9.endX - e9.bornX, e9.endY - e9.bornY) > 1) {
-          add9(e9.died, e9.owner, "핵 투하", "nuke 핵미사일 착탄");
+          const foe9 = baseOwnerAt9(e9.endX, e9.endY, e9.died, e9.owner);
+          add9(e9.died, e9.owner, foe9 ? `기지에 핵 투하` : "핵 투하", `nuke 핵미사일 착탄 ${foe9 ?? ""}`, { x: e9.endX, y: e9.endY, to: e9.died + 4, ...(foe9 ? { lead: foe9 } : {}) });
         }
         continue;
       }
       if (SEARCH_SKIP9.has(e9.kind)) continue;
       const ko9 = (e9.bld ? BUILDING_KO[e9.kind] : UNIT_KO[e9.kind]) ?? e9.kind;
+      if (whoOf9(e9.owner)) term9(ko9, e9.bld ? "건물" : "유닛");   // 시작부터 있던 몸(본진·일꾼)도 낱말 표에
       if (e9.born > 1) {
-        add9(e9.born, e9.owner, `${ko9} ${e9.bld ? "건설" : "생산"}`, e9.kind);
+        const hn9 = hallN9.get(e9.tag);
+        add9(e9.born, e9.owner, hn9 && hn9 > 1 ? `${hn9}${HALL_SHORT9[e9.kind]} 건설` : `${ko9} ${e9.bld ? "건설" : "생산"}`, e9.kind, { x: e9.bornX, y: e9.bornY });
         term9(ko9, e9.bld ? "건물" : "유닛");
       }
-      if (e9.died !== null && e9.end !== "morph") add9(e9.died, e9.owner, `${ko9} ${e9.bld ? "파괴" : "사망"}`, `${e9.kind} 잃음 죽음`);
-      for (const [ss9, on9] of e9.sieges) add9(ss9, e9.owner, `${ko9} 시즈 ${on9 ? "모드" : "해제"}`, "siege");
+      if (e9.died !== null && e9.end !== "morph") {
+        const kw9 = killerOf9.has(e9.tag) ? whoOf9(killerOf9.get(e9.tag)!) : null;
+        const vw9 = whoOf9(e9.owner);
+        if (kw9 && vw9 && kw9 !== vw9) add9(e9.died, null, `${ga9(kw9)} ${vw9} ${ko9} ${e9.bld ? "파괴" : "처치"}`, `${e9.kind} 잃음 죽음 사망 ${e9.bld ? "" : "처치"}`, { x: e9.endX ?? e9.bornX, y: e9.endY ?? e9.bornY, raw: rawOf9.get(e9.owner) });
+        else add9(e9.died, e9.owner, `${ko9} ${e9.bld ? "파괴됨" : "사망"}`, `${e9.kind} 잃음 죽음 파괴`, { x: e9.endX ?? e9.bornX, y: e9.endY ?? e9.bornY });
+      }
+      for (const [ss9, on9] of e9.sieges) add9(ss9, e9.owner, `${ko9} 시즈 ${on9 ? "모드" : "해제"}`, "siege");   // 그때 자리는 몰라 그 사람 화면
       if (e9.kind === "Wraith" || e9.kind === "Ghost") for (const [cs9] of e9.cloaks) add9(cs9, e9.owner, `${ko9} 클로킹`, "cloak 은신");
-      for (const ls9 of e9.lifts) add9(ls9, e9.owner, `${ko9} 띄움`, "lift");
+      for (const ls9 of e9.lifts) add9(ls9, e9.owner, `${ko9} 띄움`, "lift", { x: e9.bornX, y: e9.bornY });
     }
-    for (const [us9, un9, uo9] of entData.ups) {
+    for (const [us9, un9, uo9, ut9] of entData.ups) {
       const lv9 = / (\d)$/.exec(un9)?.[1];
       const rko9 = researchKo(un9.replace(/ \d$/, ""));
-      add9(us9, uo9, `${rko9}${lv9 ? ` ${lv9}` : ""} 완료`, un9);
+      const b9 = ut9 ? tagLife9.get(ut9) : undefined;   // 연구한 건물(판 7부터 · 0 이면 모름 → 그 사람 화면)
+      add9(us9, uo9, `${rko9}${lv9 ? ` ${lv9}` : ""} 완료`, un9, b9 ? { x: b9.bornX, y: b9.bornY } : {});
       term9(rko9, "기술");
     }
-    for (const [cs9, , , ct9, co9] of entData.casts) { const k9 = TECH_KO[ct9] ?? ct9; add9(cs9, co9, k9, ct9); term9(k9, "마법"); }
+    for (const [cs9, cx9, cy9, ct9, co9] of entData.casts) {
+      const k9 = TECH_KO[ct9] ?? ct9;
+      const w9 = whoOf9(co9);
+      if (w9) add9(cs9, null, `${ga9(w9)} ${k9} 사용`, `${ct9} ${w9}`, { x: cx9, y: cy9, raw: rawOf9.get(co9) });
+      term9(k9, "마법");
+    }
     const capTxt9 = (caps9: CapPart9[]): string => caps9.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
+    /* 장면 글귀 — 편성표 밖 거리(search)를 먼저 싣는다: 장면 길(spot)과 끝(to)을 들고 있어 같은 글귀가 겹치면(아래 8초 합침) 그쪽이 남는다. */
+    for (const x9 of (planAll9 as CastPlan9).search ?? []) {
+      const txt9 = capTxt9(x9.caps);
+      if (txt9) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
+    }
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
       const txt9 = capTxt9(g9.caps);
-      if (txt9) add9(g9.at, null, txt9, g9.why ?? "");
-    }
-    for (const x9 of (planAll9 as CastPlan9).search ?? []) {
-      const txt9 = capTxt9(x9.caps);
-      if (txt9) add9(x9.at, null, txt9, "");
+      if (txt9) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
     }
     out9.sort((a9, b9) => a9.sec - b9.sec);
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
     return { list: out9, terms: terms9 };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entData, searchNeed9, bases, planAll9]);
-  const searchHits9 = useMemo((): { sec: number; label: string }[] => {
+  const searchHits9 = useMemo((): SearchHit9[] => {
     const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks9.length === 0) return [];
-    const out9: { sec: number; label: string }[] = [];
+    const out9: SearchHit9[] = [];
     const last9 = new Map<string, number>();
     for (const h9 of searchIndex9.list) {
       if (!toks9.every((k9) => h9.hay.includes(k9))) continue;
       const prev9 = last9.get(h9.label);
       last9.set(h9.label, h9.sec);
       if (prev9 !== undefined && h9.sec - prev9 <= SEARCH_MERGE9) continue;   // 잇단 같은 글귀는 한 결과
-      out9.push({ sec: h9.sec, label: h9.label });
+      const { hay: _hay9, ...hit9 } = h9;
+      out9.push(hit9);
     }
     return out9;
   }, [searchIndex9, searchQ9]);
@@ -12502,7 +12566,7 @@ export default function ReplayMotionPlayer({
     setSearchDraft9(next9);
     if (go9) searchSubmit9(next9);
   };
-  const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); };
+  const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); setSearchFocus9(null); };
   /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
   useEffect(() => {
     if (!searchEdit9) return undefined;
@@ -12531,6 +12595,14 @@ export default function ReplayMotionPlayer({
     }
     const v9 = Math.min(total, Math.max(0, hs9[i9].sec - SEARCH_LEAD9));
     setSearchCur9(i9);
+    /* ★ 장면 잡기(위 searchFocus9 ★) — 결과 때부터 끝(to · 없으면 결과 + SEARCH_HOLD9)까지 그 결과의 자리·사람·장면 길이 중계 토막을 대신한다.
+       중계가 꺼져 있으면(손 카메라) 그 자리를 한 번 가운데로 데려온다(그 뒤로는 손 카메라 그대로). */
+    const h9 = hs9[i9];
+    setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: h9.x, y: h9.y, raw: h9.raw, spot: h9.spot });
+    if (!camLockRef9.current) {
+      const p9 = h9.x !== undefined && h9.y !== undefined ? { x: h9.x, y: h9.y } : h9.spot && h9.spot.length > 0 ? { x: h9.spot[0][1], y: h9.spot[0][2] } : null;
+      if (p9) lookAtTile9(p9.x, p9.y);
+    }
     /* 살아 있는 시계도 곧장 옮긴다 — 재생 중엔 붓 틱이 setT(옛 시계 + 한 걸음)를 놓아, 이 setT 와 한 렌더에 묶이면 뒤엣것(틱)이 이겨 이동이 사라졌다
        (폰 실측: n/N 은 1/5 인데 시계 그대로 · Enter 뒤 첫 결과 이동은 effect 라 틱과 더 잘 겹친다). */
     tLiveRef9.current = v9;
@@ -13071,6 +13143,20 @@ export default function ReplayMotionPlayer({
     if (!keepLink9) linkHoldRef9.current = null;
     zoomRef.current = z9; panRef.current = p9; setZoom(z9); setPan(p9);
   }, []);
+  /** 타일 한 점을 화면 가운데로(손 카메라 · 지금 배율 그대로) — 검색 결과로 갈 때 중계가 꺼져 있으면 부른다(searchGo9). 자리는 추적 카메라(trackView)와 같은 사상(mapFracRef). */
+  const lookAtTile9 = (x9: number, y9: number): void => {
+    const cov9 = coverRef.current;
+    if (cov9.w < 4 || cov9.h < 4) return;
+    const z9 = zoomRef.current;
+    const lim9 = panLimit(z9);
+    const fr9 = mapFracRef.current?.(x9, y9);
+    const cx9 = fr9 ? fr9[0] : x9 / Math.max(1, grid.width);
+    const cy9 = fr9 ? fr9[1] : y9 / Math.max(1, grid.height);
+    setView9(z9, {
+      x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx9) * cov9.w * z9)),
+      y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
+    });
+  };
   /* ★ **무대 크기가 바뀌면 중계 배율을 다시 맞춘다**(2026-10, 지적: "모바일 전체화면에서 타일이 더 적게 나옴 화면 비율은
      비슷한데") — 배율은 '덮는 판(fsCoverW) 폭의 몇 배'라 무대가 커지면(전체화면 · 회전 · 창 크기) 같은 배율이 더 적은 타일을
      보인다. castZoomFit9 는 켤 때 한 번만 돌았으므로 그 차가 그대로 남았다. 중계·개인 추적이 카메라를 쥔 동안(분할 아님)
