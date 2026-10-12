@@ -1661,3 +1661,4 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 요청: "정지 상태여도 검색 시 자동 재생" — searchGo9 가 setPlaying(true)(Enter·N·B·자동 넘김 모두).
 - 🔎 `perf-check.mjs --searchpause --searchprobe 핵 --searchkeep 1 --searchwait 6` — 1/3(장전·투하 둘 · 합성 판 탄두 둘) · 멈춘 뒤에도 시계가 간다.
 - 같은 날 요청: "검색 결과 태그는 흰색으로 하고 액티브만 녹색(액티브 녹색)" — `.scr-motion-searchtag` #ffb000 → #fff · is-on #ff4d1f → #3dffa8(카메라 단추 .scr-roster-cam.is-on 의 글자색).
+- 같은 날 요청: "검색창 돋보기 버튼과 인풋창 사이 갭 좀 주기" — `.scr-motion-searchbox` margin-left 0 → 6·ui(알약 gap 2 + 입력 안 여백 4 위에).

@@ -4845,7 +4845,7 @@
 .scr-motion-mapbtns .scr-motion-searchwrap.is-open button.scr-motion-mapbtn.scr-motion-searchbtn { background: transparent; box-shadow: none; }
 .scr-motion-searchwrap.is-open button.scr-motion-searchbtn.is-hit { color: #ffb000; }
 /* 줄이 좁으면(폰) 입력칸이 줄어든다 — 알약이 오른쪽 무리(스크랩·공유) 밑으로 파고들지 않게(폰 실측: 펴진 알약 230px 이 책갈피 단추를 덮었다). */
-.scr-motion-searchbox { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(4px * var(--ui)); margin: 0; }
+.scr-motion-searchbox { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(4px * var(--ui)); margin: 0 0 0 calc(6px * var(--ui)); }   /* 돋보기와 입력칸 사이 6·ui(2026-10-12, 요청: "돋보기 버튼과 인풋창 사이 갭 좀 주기" · 옛 0 — 알약 gap 2 + 입력 안 여백 4 뿐) */
 .scr-motion-search-input {
   flex: 1 1 auto; width: calc(150px * var(--ui)); min-width: calc(48px * var(--ui)); box-sizing: border-box; padding: 0 calc(4px * var(--ui));
   font: inherit; font-size: max(16px, calc(13px * var(--ui))); font-weight: 600; color: inherit;
