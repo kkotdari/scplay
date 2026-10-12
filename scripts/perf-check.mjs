@@ -77,7 +77,7 @@ const PROFILE = !has("--no-profile");
 const WRAP = String(flag("--wrap", ""));
 
 /** --res 의 자원(2026-10-12) — [타일 x, 타일 y, 가스 1] · 정구 본진(18,18) 왼쪽 미네랄 셋 + 제 간헐천(home + 4). */
-const RES_EXTRA9 = [[11, 14, 0], [11, 17, 0], [11, 20, 0], [22, 22, 1], [60, 64, 0]];   // 끝의 (60,64) — 개인 화면(46초 난전 자리)에 걸리는 우클릭 표적
+const RES_EXTRA9 = [[11, 14, 0], [11, 17, 0], [11, 20, 0], [22, 22, 1], [52, 76, 0]];   // 끝의 (52,76) — 개인 화면(46초 난전 자리)에 걸리는 우클릭 표적
 /* ── OBWT 판 4 합성 ──────────────────────────────────────────────────────────── */
 
 /** 작은 끝 쓰기 + zigzag varint — openbwTracks.ts 의 Cursor 와 짝. varint는 **전부**
@@ -452,7 +452,7 @@ function makeWorld() {
   }
   /* --res 의 자원 우클릭(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 정구 병력 하나가 45.8초에 미네랄(60,64 · 난전 자리 — 개인 화면에 걸린다)로 이동 명령(0).
      --track 정구 --t 46 이면 땅 마커 대신 그 미네랄의 노란 링이 켜져 있다(0.9초 창 · 0.225초 켜고 끄기). */
-  if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 60 * 32, 64 * 32, 0]); cmds9.sort((a, b) => a[0] - b[0]); }
+  if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 52 * 32, 76 * 32 - 20, 7]); /* 덤퍼는 표적 있는 우클릭을 7 로 적는다 · 자리는 마우스(그림 위 · 가운데보다 20px 위) */ cmds9.sort((a, b) => a[0] - b[0]); }
   w.u32(cmds9.length); { let pf = 0; for (const [f, tg, x, y, k] of cmds9) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(x); w.u16(y); w.u8(k); } }
   w.u32(0); w.u16(119);                // APM(빈) — 통 크기만 적는다
   w.u32(0);                            // 자원밭단
@@ -1183,6 +1183,19 @@ const supProbe9 = async (label9) => {
   }
 }
 if (has("--mc")) await supProbe9("A");
+/* --res 깜빡임 자(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — --diag 와 함께 · 0.1초마다 스무 번 붓이 칠한 링을 떠서 자원(mineral·geyser) 링만 시계와 함께 찍는다.
+   45.8초 우클릭(--track 정구 --t 45.8)이면 0.9초 창 안에서 노란(#fcfc38) 링이 켜졌다 꺼졌다 해야 한다. */
+if (has("--res") && has("--diag")) {
+  const got9 = [];
+  for (let i9 = 0; i9 < 20; i9 += 1) {
+    const r9 = await page.evaluate(() => ({ ring: window.__scrDiag?.ring ?? "", t: (() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(2) : "?"; })() }));
+    const res9 = String(r9.ring).split(/\s*·\s*|,\s*/).filter((x) => /mineral|geyser/.test(x));
+    got9.push(`${r9.t}:${res9.length ? res9.join("+") : "-"}`);
+    if (has("--resraw") && i9 < 6) console.log(`  [링 원문] ${r9.t} ${r9.ring}`);
+    await page.waitForTimeout(100);
+  }
+  console.log(`[자원 링] ${got9.join(" ")}`);
+}
 /* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
 if (has("--marks")) {
   const r9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-pingfx, .scr-motion-clickfx")].map((el) => {

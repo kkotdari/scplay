@@ -9942,7 +9942,23 @@ export default function ReplayMotionPlayer({
   /** 공격 명령의 표적 유닛(워커 clickTargets9 · 열쇠 = 아래 key) — 유닛을 겨눈 명령은 땅 마커 대신 표적 몸의 빨간 링(위 ATK_FLASH9). */
   const clickTargets9 = useMemo(() => new Map<string, number>(world.clickTargets9 ?? []), [world.clickTargets9]);
   /** 자원 자리(엔진 자원 op 와 같은 resUniq9 · 열쇠도 같은 `r<x×2>|<y×2>`) — 우클릭이 자원을 겨눴나 가른다(아래 entClicks 일곱째 칸). */
-  const resSpots9 = useMemo(() => resUniq9(grid.resources ?? []).map((r9) => ({ x: r9[0], y: r9[1], gas: r9[2] === 1, key: `r${Math.round(r9[0] * 2)}|${Math.round(r9[1] * 2)}` })), [grid.resources]);
+  /* ★ 판정은 **밭 하나하나의 참 자리**로(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — 지도 자료(grid.resources)의 미네랄은 앱 파서가 가까운 밭끼리 묶은
+     **평균점**이라(세로로 한 타일씩 붙은 밭은 한 점 · 옛 판은 더 넓게 묶였다) 밭 하나를 누른 자리와 어긋났다. 덤퍼의 자원량·자원밭단 절(amounts·resFields)은
+     밭마다 제 픽셀 자리라 그것으로 고르고, 깜빡일 그림(op)은 그 밭에서 가장 가까운 지도 자원 점(3.5타일 안)의 열쇠로 찾는다. 판 11 자료가 없으면 지도 점 그대로. */
+  const resSpots9 = useMemo(() => {
+    const grid9 = resUniq9(grid.resources ?? []).map((r9) => ({ x: r9[0], y: r9[1], gas: r9[2] === 1, key: `r${Math.round(r9[0] * 2)}|${Math.round(r9[1] * 2)}` }));
+    const seen9 = new Set<string>();
+    const out9: { x: number; y: number; gas: boolean; key: string }[] = [];
+    for (const [, fx9, fy9] of [...(entData?.amounts ?? []), ...(entData?.resFields ?? [])]) {
+      const k9 = `${Math.round(fx9 * 2)}|${Math.round(fy9 * 2)}`;
+      if (seen9.has(k9)) continue;
+      seen9.add(k9);
+      let near9: (typeof grid9)[number] | null = null; let nd9 = 3.5;
+      for (const g9 of grid9) { const d9 = Math.hypot(g9.x - fx9, g9.y - fy9); if (d9 < nd9) { nd9 = d9; near9 = g9; } }
+      if (near9) out9.push({ x: fx9, y: fy9, gas: near9.gas, key: near9.key });
+    }
+    return out9.length > 0 ? out9 : grid9;
+  }, [grid.resources, entData]);
   const entClicks = useMemo<[number, number, number, string, number, number, string][]>(() => {
     if (!entData) return [];
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
@@ -9950,13 +9966,14 @@ export default function ReplayMotionPlayer({
     /* 다섯째 값은 클릭의 종류(지적: 클릭·우클릭이 구분이 안 된다) — 0 이동 우클릭,
        7 공격 클릭. 선택(드래그)은 자리가 아니라 잡힌 유닛들 몸에 켜지는 링이 맡는다. */
     const out: [number, number, number, string, number, number, string][] = [];
-    /* ★ 일곱째 — **자원을 겨눈 우클릭**의 자원 열쇠(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 이동 명령(0)의 자리가 미네랄
+    /* ★ 일곱째 — **자원을 겨눈 우클릭**의 자원 열쇠(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 명령(갈래 무관 · 아래 ★)의 자리가 미네랄
        발자국(2×1 · 반폭 1.1 × 반깊이 0.65타일)이나 간헐천(4×2 · 2.1 × 1.1) 안이면 그 자원이다(일꾼의 채취 우클릭). 땅 마커 대신 그 자원의 노란 링이 두 번
-       깜빡인다(ATK_FLASH9 — 유닛 표적과 같은 창). 공격(7)은 안 본다. 여럿이면 가운데에 가장 가까운 것. */
+       깜빡인다(ATK_FLASH9 — 유닛 표적과 같은 창). 여럿이면 가운데에 가장 가까운 것. */
     const resHit9 = (x9: number, y9: number): string => {
       let best9 = ""; let bd9 = Infinity;
       for (const r9 of resSpots9) {
-        const dx9 = Math.abs(x9 - r9.x) / (r9.gas ? 2.1 : 1.1); const dy9 = Math.abs(y9 - r9.y) / (r9.gas ? 1.1 : 0.65);
+        /* 너그럽게 — 우클릭 자리는 마우스가 짚은 그림 위라 몸 가운데보다 위일 때가 많다(밭 그림은 발자국보다 솟는다). 미네랄 1.25 × 1.0 · 간헐천 2.3 × 1.5 타일. */
+        const dx9 = Math.abs(x9 - r9.x) / (r9.gas ? 2.3 : 1.25); const dy9 = Math.abs(y9 - r9.y) / (r9.gas ? 1.5 : 1.0);
         if (dx9 > 1 || dy9 > 1) continue;
         const d9 = dx9 * dx9 + dy9 * dy9;
         if (d9 < bd9) { bd9 = d9; best9 = r9.key; }
@@ -9972,7 +9989,9 @@ export default function ReplayMotionPlayer({
         if (seen.has(key)) continue;
         seen.add(key);
         const tg9 = clickTargets9.get(key) ?? -1;
-        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, !o[3] && tg9 < 0 ? resHit9(o[1], o[2]) : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
+        /* ★ 갈래와 무관하게 본다(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — 덤퍼(sg-api openbw-scr.patch action_default_order)는 **표적이 있는 우클릭을 다 7** 로
+           적는다(`target ? 7 : 0`) — 미네랄 우클릭(채취)도 7 이라 옛 '이동(0)만' 문을 못 지났다. 적 표적(clickTargets9)이 없는 줄이면 자원 자리인지 본다. */
+        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, tg9 < 0 ? resHit9(o[1], o[2]) : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
