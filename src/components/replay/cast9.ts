@@ -287,7 +287,10 @@ const CENTER_K9 = { def: 0.12, hold: 0.18 };
 const CENTER_HOLD9 = { n: 8, k: 2 };
 /** 장면 자막에 활약을 붙이는 마법(2026-10-10, 요청: "스톰도 중요한 기술 · 마엘스트롬·마인드컨트롤·스테이시스 등도 중요 · EMP·이레디에이트 등 마법 유닛의 활약도 묘사") — 앞일수록 먼저. */
 const SPELL_NOTE9 = ["Psionic Storm", "Maelstrom", "Stasis Field", "Mind Control", "EMP Shockwave", "Irradiate", "Plague", "Dark Swarm",
-  "Lockdown", "Ensnare", "Disruption Web", "Recall", "Spawn Broodlings", "Feedback", "Defensive Matrix"];
+  "Lockdown", "Ensnare", "Disruption Web", "Recall", "Spawn Broodlings", "Feedback", "Defensive Matrix",
+  /* ★ **모든 스킬**(2026-10-12, 요청: "스톰뿐 아니라 · 모든 스킬") — 빠져 있던 전투 마법을 더한다. 야마토는 배틀 처치가 레이저와 섞여 잡은 수로는 못 세므로 몸값 문(활약함/방어해냄/돌파함)이다.
+     스캔·클로킹·버로우·시즈·마인 깔기·아콘 합체 같은 쓰임 기술은 활약 글귀가 아니라 뺀다. */
+  "Yamato Gun", "Optical Flare", "Restoration", "Hallucination", "Parasite", "Consume"];
 /** 마법으로 잡은 몸의 '죽인 유닛 종류'(처치 절) — 스톰은 stormBy9 가 하이템플러로 적는다. */
 /** 마법 활약의 문턱(2026-10-11) — 잡는 마법은 잡은 수 · 그 밖은 쓴 사람이 준 몸값(value)과 받은 것의 배(k). */
 const SPELL_ACT9 = { kills: 3, value: 300, k: 1.5 };
