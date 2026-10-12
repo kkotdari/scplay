@@ -12675,6 +12675,25 @@ export default function ReplayMotionPlayer({
   }, [searchEdit9]);
   /** 키 판(B/N · 아래 keydown ★)이 읽는 지금의 앞뒤 손잡이 — 결과가 없으면 false(키를 안 먹는다). */
   const searchKeyRef9 = useRef<(dir9: 1 | -1) => boolean>(() => false);
+  /** 자리를 모르는 검색 결과의 사건 자리(searchGo9 ★) — 그 사람의 명령 자리(±SEARCH_ACT_SEC9) 가운데 · 없으면 그때 선 첫 건물(시작 본진). */
+  const SEARCH_ACT_SEC9 = 3;
+  const searchActAt9 = (raw9: string | undefined, sec9: number): { x: number; y: number } | null => {
+    if (!entData || !raw9) return null;
+    const mine9 = new Set(entData.players.filter((pl9) => pl9.name === raw9).map((pl9) => pl9.owner));
+    let sx9 = 0; let sy9 = 0; let n9 = 0;
+    let hall9: TruthLife | null = null;
+    for (const e9 of entData.lives) {
+      if (!mine9.has(e9.owner)) continue;
+      if (e9.bld && e9.born <= sec9 && (e9.died === null || e9.died > sec9) && (!hall9 || e9.born < hall9.born)) hall9 = e9;
+      for (const o9 of e9.orders) {
+        if (o9[0] < sec9 - SEARCH_ACT_SEC9) continue;
+        if (o9[0] > sec9 + SEARCH_ACT_SEC9) break;
+        sx9 += o9[1]; sy9 += o9[2]; n9 += 1;
+      }
+    }
+    if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9 };
+    return hall9 ? { x: hall9.bornX, y: hall9.bornY } : null;
+  };
   const searchGo9 = (dir9: 1 | -1 | 0, at9?: number): void => {
     const hs9 = searchHits9;
     if (hs9.length === 0) return;
@@ -12693,10 +12712,13 @@ export default function ReplayMotionPlayer({
     /* ★ 장면 잡기(위 searchFocus9 ★) — 결과 때부터 끝(to · 없으면 결과 + SEARCH_HOLD9)까지 그 결과의 자리·사람·장면 길이 중계 토막을 대신한다.
        중계가 꺼져 있으면(손 카메라) 그 자리를 한 번 가운데로 데려온다(그 뒤로는 손 카메라 그대로). */
     const h9 = hs9[i9];
-    setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: h9.x, y: h9.y, raw: h9.raw, spot: h9.spot });
+    /* ★ **검색 결과는 늘 사건 중계**(2026-10-12, 요청: "키워드는 전부 사건 중계로 변경(개인 화면 X)") — 자리를 모르는 결과(시즈·클로킹·건물 모름 연구·자리 없는 장면 자막)는
+       그 사람 화면으로 갔다. 이제 그 사람이 그때(±SEARCH_ACT_SEC9) 명령한 자리들의 가운데(없으면 시작 본진)를 사건 자리로 삼는다 — searchSeg9 는 자리(spot)가 있으면 사람 화면을 안 세운다. */
+    const p9 = h9.x !== undefined && h9.y !== undefined ? { x: h9.x, y: h9.y } : h9.spot && h9.spot.length > 0 ? null : searchActAt9(h9.raw, h9.sec);
+    setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: p9?.x, y: p9?.y, raw: h9.raw, spot: h9.spot });
     if (!camLockRef9.current) {
-      const p9 = h9.x !== undefined && h9.y !== undefined ? { x: h9.x, y: h9.y } : h9.spot && h9.spot.length > 0 ? { x: h9.spot[0][1], y: h9.spot[0][2] } : null;
-      if (p9) lookAtTile9(p9.x, p9.y);
+      const q9 = p9 ?? (h9.spot && h9.spot.length > 0 ? { x: h9.spot[0][1], y: h9.spot[0][2] } : null);
+      if (q9) lookAtTile9(q9.x, q9.y);
     }
     /* 살아 있는 시계도 곧장 옮긴다 — 재생 중엔 붓 틱이 setT(옛 시계 + 한 걸음)를 놓아, 이 setT 와 한 렌더에 묶이면 뒤엣것(틱)이 이겨 이동이 사라졌다
        (폰 실측: n/N 은 1/5 인데 시계 그대로 · Enter 뒤 첫 결과 이동은 effect 라 틱과 더 잘 겹친다). */
