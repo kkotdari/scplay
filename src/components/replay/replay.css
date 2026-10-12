@@ -4909,4 +4909,7 @@
 /* 어두운 임자색 이름은 테를 흰색으로(2026-10-12 · ReplayMotionPlayer CAST_NAME_DARK9) — 자막 바탕(어두운 반투명) 위에서 검은 테로는 글자가 묻혔다. */
 /* 흰 테는 **번지지 않게** 흐림 없는 1px 여덟 방향(2026-10-12, 되지적: "흰 테두리가 번져 보여서 눈 아파 — 또렷하게"). */
 /* 같은 날 "좀 더 얇게" → 1 → 0.5px(고밀도 화면은 기기 화소 1~1.5 · 흐림은 여전히 0). */
-.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 0.5px 0 0 #fff, -0.5px 0 0 #fff, 0 0.5px 0 #fff, 0 -0.5px 0 #fff, 0.5px 0.5px 0 #fff, -0.5px -0.5px 0 #fff, 0.5px -0.5px 0 #fff, -0.5px 0.5px 0 #fff; }
+/* ★ 흰 테 → **흰 상자**(2026-10-12, 요청: "하얀 외곽선이 부자연스러워서 그냥 하얀 박스를 뒤에 대는 걸로 · 패딩을 아주 작게 · 글자 크기보다 살짝만 큰" · 이어서 "그림자나 음영 원래대로") —
+   줄 상자(inline)를 칠하면 글꼴 높이(≈1.45em)만큼 위아래로 커서 inline-block · 줄 키 1.1em · 여백 0.02em/0.12em · 모서리 0.15em. 글자 그림자는 다른 이름과 같은 검은 테 그대로.
+   팀 배지(−1)는 상자 뒤로 든다(밖으로 나온 몫만 보인다). */
+.scr-cast-caption .scr-cast-name.is-dark { display: inline-block; line-height: 1.1em; padding: 0.02em 0.12em; border-radius: 0.15em; background: #fff; }
