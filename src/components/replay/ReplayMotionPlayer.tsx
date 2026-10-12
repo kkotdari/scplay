@@ -12579,6 +12579,28 @@ export default function ReplayMotionPlayer({
     setSearchDraft9(next9);
     if (go9) searchSubmit9(next9);
   };
+  /** 결과 꼴의 ✕ — 검색어·결과를 지우고 빈 입력칸으로(손은 레이아웃 effect 가 얹는다). */
+  const searchClear9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchMiss9(false); setSearchFocus9(null); setSearchEdit9(true); };
+  /** ★ 닫기는 **부드럽게**(2026-10-12, 요청: "검색창 접기 펴기 부드럽게") — 알약 속이 SEARCH_FOLD_MS9 동안 오그라든(is-closing · CSS) 뒤에 실제로 닫는다. 펴기는 입력칸이 자라며
+   *  (scr-search-grow) · 결과 꼴의 ‹ n/N › 는 옆으로 펴지며(scr-search-in) 선다. 움직임 줄이기 설정이면 곧장 닫는다. */
+  const SEARCH_FOLD_MS9 = 180;
+  const [searchClosing9, setSearchClosing9] = useState(false);
+  const searchClosingRef9 = useRef(false);
+  const searchClose9 = (): void => {
+    if (searchClosing9) return;
+    const calm9 = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (calm9) { searchCancel9(); return; }
+    searchClosingRef9.current = true;
+    setSearchClosing9(true);
+    window.setTimeout(searchFoldEnd9, SEARCH_FOLD_MS9 + 60);   // 움직임 끝(animationend · 아래 JSX)이 먼저 오면 그것이 닫는다 — 타이머는 밀릴 수 있어 대비책
+  };
+  /** 접기 마침 — 움직임 끝과 대비 타이머 중 먼저 온 것 하나만 닫는다. */
+  const searchFoldEnd9 = (): void => {
+    if (!searchClosingRef9.current) return;
+    searchClosingRef9.current = false;
+    searchCancel9();
+    setSearchClosing9(false);
+  };
   const searchCancel9 = (): void => { setSearchQ9(""); setSearchDraft9(""); setSearchEdit9(false); setSearchMiss9(false); setSearchFocus9(null); };
   /* ★ **폰 키보드가 민 화면을 되돌린다**(2026-10-12, 지적: "모바일에서 검색 시 키보드 때문에 스크롤되고 다시 안 올라가") — 입력칸에 손이 가면 브라우저가 키보드 위로
      입력칸을 보이려고 페이지를 굴리는데, Enter 뒤 입력칸이 사라지면(결과 꼴) 굴린 자리가 그대로 남았다. 펼 때 페이지 자리를 적어 두고 · 손은 preventScroll 로 얹고
@@ -18281,13 +18303,18 @@ export default function ReplayMotionPlayer({
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].
           Enter 가 찾고 결과가 있으면 **첫 결과(1/N)로 가며** 결과 꼴로 바뀐다(없으면 입력 꼴에 '0건'). 결과 꼴에서 돋보기·n/N 을 누르면 그 검색어로 다시 입력 ·
           ✕ 는 검색 취소. 입력 중 Esc·바깥 누름은 입력을 접는다(검색이 살아 있으면 결과 꼴로). 앞뒤는 ‹ › 와 B/N. */}
-      <span className={cx("scr-motion-searchwrap", (searchEdit9 || searchOn9) && "is-open")}>
+      <span
+        className={cx("scr-motion-searchwrap", (searchEdit9 || searchOn9) && "is-open", searchClosing9 && "is-closing")}
+        onAnimationEnd={(e) => { if (e.animationName === "scr-search-out") searchFoldEnd9(); }}
+      >
         <button
           type="button"
           className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-searchbtn", searchOn9 && !searchEdit9 && "is-hit")}
-          onClick={() => (searchEdit9 ? searchSubmit9() : searchEditOpen9())}
-          aria-label={searchEdit9 ? "찾기" : "검색 — 유닛·기술·전술"}
-          title={searchEdit9 ? "찾기 (Enter)" : "검색"}
+          /* ★ 펴진 알약의 돋보기는 **닫기**(2026-10-12, 요청: "돋보기를 누르면 창이 닫히고 x 는 지금 검색어를 지우는 게 더 직관적") — 검색을 끝내고(결과·태그·장면 잡기 다)
+             쉼 꼴로. 찾기는 Enter 다(옛: 입력 꼴의 돋보기 = 찾기 · 결과 꼴 = 고치기). */
+          onClick={() => (searchEdit9 || searchOn9 ? searchClose9() : searchEditOpen9())}
+          aria-label={searchEdit9 || searchOn9 ? "검색 닫기" : "검색 — 유닛·기술·전술"}
+          title={searchEdit9 || searchOn9 ? "검색 닫기" : "검색"}
         >
           <Search size={18} />
         </button>
@@ -18309,6 +18336,13 @@ export default function ReplayMotionPlayer({
               aria-label="검색어" aria-autocomplete="list"
             />
             {searchMiss9 && <span className="scr-motion-search-count is-miss">0건</span>}
+            {searchDraft9 !== "" && (
+              <button
+                type="button" className="scr-motion-search-step" aria-label="검색어 지우기" title="지우기"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setSearchDraft9(""); setSearchMiss9(false); searchInputRef9.current?.focus({ preventScroll: true }); }}
+              ><X size={14} /></button>
+            )}
           </form>
         ) : null}
         {searchEdit9 && searchSug9.length > 0 && (
@@ -18336,7 +18370,8 @@ export default function ReplayMotionPlayer({
               {searchHits9.length === 0 ? "0" : `${searchCur9 >= 0 ? searchCur9 + 1 : "–"}/${searchHits9.length}`}
             </button>
             <button type="button" className="scr-motion-search-step" onClick={() => searchGo9(1)} disabled={searchHits9.length === 0} aria-label="다음 결과 (N)" title="다음 (N)"><ChevronRight size={16} /></button>
-            <button type="button" className="scr-motion-search-step" onClick={searchCancel9} aria-label="검색 취소" title="검색 취소"><X size={14} /></button>
+            {/* ✕ = 지금 검색어를 지우고 빈 입력칸으로(새로 찾기) — 검색을 끝내는 건 돋보기(위 ★). */}
+            <button type="button" className="scr-motion-search-step" onClick={searchClear9} aria-label="검색어 지우기" title="검색어 지우기"><X size={14} /></button>
           </>
         ) : null}
       </span>

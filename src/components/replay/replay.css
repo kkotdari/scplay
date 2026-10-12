@@ -3769,7 +3769,7 @@
    안쪽으로 걸친 작은 동그라미(z-index 1 · 칩보다 앞 — 되요청). 팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 분할 칸 테두리와 같은 색) · 숫자 0.5em · 지름 = 숫자의 1.6em(짝수) · 팀전만. */
 .scr-fs-minitag-team, .scr-team-badge {
   /* ★ **왼위**로 옮겼다(2026-10-12, 요청: "팀 배지 … 닉네임 왼쪽 위에 · 미니맵과 화면 주인에서도 마찬가지로 왼쪽 위로") — 옛 오른위(52% · 미니맵 74%)의 거울. */
-  position: absolute; left: 0; right: auto; top: 0; transform: translate(-52%, -35%); z-index: 1;   /* 가로 30 → 42 → 52%(같은 날 "살짝 우측으로" 두 번 · 자막 배지 몫 — 미니맵은 아래 덮어쓰기) · 칩 **앞** · 안쪽으로 걸침(같은 날 되요청: "바깥으로 빼지 말고 오히려 안쪽으로 하고 대신 이름칩보다 앞으로") */
+  position: absolute; left: 0; right: auto; top: 0; transform: translate(-88%, -35%); z-index: 1;   /* −52 → −68 → −88%(같은 날 "자막·화면 주인·미니맵 팀 배지 모두 왼쪽으로 좀" → "화면 주인과 미니맵의 팀 배지만 더 왼쪽으로") · 자막은 아래 제 규칙 */   /* 가로 30 → 42 → 52%(같은 날 "살짝 우측으로" 두 번 · 자막 배지 몫 — 미니맵은 아래 덮어쓰기) · 칩 **앞** · 안쪽으로 걸침(같은 날 되요청: "바깥으로 빼지 말고 오히려 안쪽으로 하고 대신 이름칩보다 앞으로") */
   display: grid; place-items: center; width: round(nearest, 1.6em, 2px); height: round(nearest, 1.6em, 2px); border-radius: 50%;
   font-style: normal; font-weight: 800; font-size: 0.58em; line-height: 1; color: #fff;   /* 0.6 → 0.5 → 0.58em(같은 날 "미니맵 팀 배지 크기 키우기") · 자막은 아래 0.38em */
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
@@ -4577,7 +4577,7 @@
 .scr-fs-solo-cap .scr-solo-chip { position: relative; overflow: visible; }
 .scr-fs-solo-cap .scr-team-badge { font-size: 0.38em; }
 .scr-fs-solo-cap > .scr-split-word { margin-left: 0.3em; }
-.scr-fs-solo-cap .scr-solo-chip { margin-left: 0.25em; }   /* 배지가 칩 왼위로 걸치므로(2026-10-12) 카메라와 칩 사이를 조금 띄운다 */
+.scr-fs-solo-cap .scr-solo-chip { margin-left: 0.35em; }   /* 배지가 칩 왼위로 걸치므로(2026-10-12) 카메라와 칩 사이를 조금 띄운다 */
 /* ★ 화면 주인 줄만 **10% 작게**(2026-10-12, 요청: "화면 유저칩 부분 10프로 축소(모바일 피시) · 화면 주인 유저칩만 · 카메라 아이콘 개인 화면 글자까지 다 통째로") —
    줄의 글자 크기 하나를 줄이면 카메라(1em)·칩·배지(0.38em)·"개인 화면"이 다 같이 준다. 자막(--cap-fs)·분할 칸 머리는 그대로. 짝수: PC 34 → 30.6 → 30 · 폰 16·dk → 14.4·dk → 2px 반올림.
    카메라는 빨강 → **초록**(같은 날 "초록색이 좋을 듯" — 로스터 켜진 카메라 #3dffa8 과 한 빛). */
@@ -4820,10 +4820,21 @@
    쉼은 형제와 같은 돋보기 원 · 펴지면(is-open) 감싸개가 쇠판 위 우물 알약이 되고 돋보기는 그 안의 맨 막(바탕 없음)이다. 입력칸은 펴질 때 옆으로 자란다(scr-search-grow).
    입력 글자는 16px 아래로 안 내린다(iOS 사파리가 16px 아래 입력을 누르면 화면을 당긴다). */
 .scr-motion-searchwrap { position: relative; flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(2px * var(--ui)); height: var(--mapbtn-h, calc(30px * var(--ui))); border-radius: 999px; box-sizing: border-box; color: #f5f6f7; }
+.scr-motion-searchwrap {
+  background: transparent; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0), inset 0 0 0 1px rgba(0, 0, 0, 0), 0 1px 0 rgba(255, 255, 255, 0);
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, padding 0.18s ease;   /* 펴기·접기 부드럽게(2026-10-12) — 우물 바탕이 스며든다 */
+}
 .scr-motion-searchwrap.is-open {
   padding-right: calc(4px * var(--ui));
   background: #0d1116; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
+/* 결과 꼴의 ‹ n/N › ✕ 는 옆으로 펴지며 선다 · 닫을 때는 돋보기만 남기고 속이 오그라든다(is-closing · SEARCH_FOLD_MS9 180ms 와 같은 길이). */
+.scr-motion-searchwrap.is-open > .scr-motion-search-step, .scr-motion-searchwrap.is-open > .scr-motion-search-count { animation: scr-search-in 0.18s ease-out; }
+.scr-motion-searchwrap.is-closing > :not(.scr-motion-searchbtn):not(.scr-motion-searchsug) { overflow: hidden; animation: scr-search-out 0.18s ease-in forwards; }
+.scr-motion-searchwrap.is-closing > .scr-motion-searchsug { display: none; }
+@keyframes scr-search-in { from { max-width: 0; opacity: 0; } to { max-width: calc(60px * var(--ui)); opacity: 1; } }
+@keyframes scr-search-out { from { max-width: calc(240px * var(--ui)); opacity: 1; } to { max-width: 0; opacity: 0; padding: 0; margin: 0; } }
+@media (prefers-reduced-motion: reduce) { .scr-motion-searchwrap.is-open > .scr-motion-search-step, .scr-motion-searchwrap.is-open > .scr-motion-search-count, .scr-motion-searchwrap.is-closing > * { animation: none; } }
 /* 펴진 알약 안의 돋보기는 막 없이(무게: 형제 우물 규칙 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.… (0,4,1) 위로 · .is-on 은 안 쓴다). */
 .scr-tb .scr-motion-mapbtns .scr-motion-searchwrap.is-open button.scr-motion-mapbtn.scr-motion-searchbtn,
 .scr-motion-mapbtns .scr-motion-searchwrap.is-open button.scr-motion-mapbtn.scr-motion-searchbtn { background: transparent; box-shadow: none; }
@@ -4880,4 +4891,4 @@
 /* ★ 자막 속 이름 — 칩 없이 임자색 글자(2026-10-12 · ReplayMotionPlayer castCap9 ★). 팀 배지는 이름 왼위 귀퉁이 **뒤**: 이름이 제 쌓임 판(z 0)을 세우고 배지는 그 안의 −1
    (자막 바탕보다는 위 · 이름 글자보다는 아래). 색이 어두워도 읽히게 글자 테를 한 겹 더. */
 .scr-cast-caption .scr-cast-name { position: relative; z-index: 0; font-weight: 800; text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1px rgba(0, 0, 0, 0.9); }
-.scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-45%, -30%); text-shadow: none; }
+.scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-62%, -6%); text-shadow: none; }   /* −45,−30 → −62,−6%(같은 날 "자막의 팀 배지 좀 아래로 · 왼쪽으로 좀") */

@@ -1497,7 +1497,7 @@ if (SHOT) {
     await page.keyboard.type(q9);   // 입력칸은 펴질 때 자라고 판이 늘 다시 그려 fill 의 '가만히 있나' 기다림이 걸린다 — 곧장 친다(autoFocus)
     await page.waitForTimeout(300);
     console.log("[검색 치기만]", q9, JSON.stringify(await st9()));
-    if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png") });   // 자동 완성이 뜬 꼴
+    if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png"), timeout: 8000 }).catch(() => console.log("[검색 자동 완성 찍기 건너뜀]"));   // 자동 완성이 뜬 꼴(헤드리스가 가끔 30초 막힌다 — 진단이라 안 멈춘다)
     /* 폰 키보드가 민 화면 흉내(2026-10-12) — 입력 중 페이지를 굴려 두고, Enter 뒤 펴기 전 자리로 돌아오는지 본다(굴릴 데가 없는 판이면 0 그대로). */
     const sc9 = await page.evaluate(() => { document.body.style.paddingBottom = "1200px"; const before = window.scrollY; window.scrollTo(0, before + 240); return [before, window.scrollY, document.documentElement.scrollHeight, innerHeight]; });
     await page.keyboard.press("Enter"); await page.waitForTimeout(1200);   // 자동 완성이 떠 있으면 Enter 가 고르고 찾는다(입력칸이 사라져 page.press 는 걸린다)
@@ -1505,9 +1505,13 @@ if (SHOT) {
     console.log("[검색 화면 자리]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: await page.evaluate(() => window.scrollY), 판키: sc9[2], 창키: sc9[3] }));
     for (const k9 of ["n", "n", "b"]) { await page.keyboard.press(k9); await page.waitForTimeout(500); console.log(`[검색 ${k9.toUpperCase()}]`, JSON.stringify(await st9())); }
     if (!flag("--searchkeep", false)) {
-      await page.evaluate(() => { document.querySelector("[aria-label='검색 취소']")?.click(); });
+      /* ✕ = 검색어 지우고 빈 입력칸 · 돋보기 = 닫기(2026-10-12 되요청). */
+      await page.evaluate(() => { document.querySelector(".scr-motion-searchwrap [aria-label='검색어 지우기']")?.click(); });
       await page.waitForTimeout(400);
-      console.log("[검색 취소]", JSON.stringify(await st9()));
+      console.log("[검색 ✕ 지우기]", JSON.stringify({ ...(await st9()), val: await page.evaluate(() => document.querySelector(".scr-motion-search-input")?.value ?? null) }));
+      await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
+      await page.waitForTimeout(2500);   // 접기 움직임(180ms) 뒤 — 움직임 끝(animationend)·대비 타이머가 닫는다(헤드리스 SW GL 은 장·타이머가 밀려 넉넉히)
+      console.log("[검색 돋보기 닫기]", JSON.stringify(await st9()));
     }
   }
   /* --clicksel 선택자 — 그 요소를 눌러 둔 채 찍는다(2026-10-10 · 음악 목록 같은 펼침 확인). */
