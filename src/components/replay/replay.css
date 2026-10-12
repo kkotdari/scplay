@@ -3780,6 +3780,12 @@
   content: ""; position: absolute; left: 0; top: 0; z-index: -1; width: 0.5em; height: 0.5em; pointer-events: none;
   background: var(--tcol, #666); clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: inherit;
 }
+/* ★ **가장자리에 딱 · 더 크게**(2026-10-12, 지적: "팀 모서리 위치 잘 안 맞는 부분 있으니 딱 맞게 조절하고 팀 모서리 크기를 눈에 잘 띄게 좀 더 키워 줘") —
+   옛 귀퉁이는 칩 안쪽 0px 에서 시작해, 칩 상자가 소수 px 에 앉으면 귀퉁이 변이 칩 변과 반 화소 갈려 비어 보였고 둥근 모서리에서 꼭짓점이 따로 깎였다.
+   이제 귀퉁이를 칩 밖으로 1px 내밀고(left·top −1px · 다리 + 1px) 칩이 제 경계로 자른다(overflow hidden — 팀 배지가 걷혀 칩 밖으로 걸칠 것이 없다) →
+   늘 칩의 바깥 변·모서리 곡선과 한 몸이다. 다리 0.5 → **0.72em**(글자 뒤라 겹쳐도 읽힌다). 무게는 칩의 overflow visible 규칙들(0,3,0)보다 위. */
+.scr-motion .scr-tcorner.scr-tcorner.scr-tcorner { overflow: hidden; }
+.scr-motion .scr-tcorner.scr-tcorner.scr-tcorner::before { left: -1px; top: -1px; width: calc(0.72em + 1px); height: calc(0.72em + 1px); border-top-left-radius: 0; }
 .scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
 
 /* (삭제·요청: "모바일 전체화면 메뉴 버튼 제거") — 구석에 떠 있던 '⋯' 깨우기 알약
