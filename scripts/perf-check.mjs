@@ -1135,6 +1135,12 @@ const supProbe9 = async (label9) => {
       const b = e.getBoundingClientRect(); const cs = getComputedStyle(e.firstElementChild ?? e);
       return `${e.textContent}@${b.left.toFixed(0)}+${b.width.toFixed(0)} col${cs.color} op${cs.opacity} vis${cs.visibility} ff${cs.fontFamily.slice(0, 24)}`;
     }).join(" | ")));
+    console.log("[로스터 바닥]", await page.evaluate(() => {   // 마지막 줄 아래 ~ 판 바닥 남은 키(2026-10-12 "아래 여백 너무 넓게 남음")
+      const r = document.querySelector(".scr-dock-roster")?.getBoundingClientRect(); const p = document.querySelector(".scr-fs-rosterpanel")?.getBoundingClientRect();
+      const rows = [...document.querySelectorAll(".scr-dock-roster .scr-dock-row, .scr-dock-roster .scr-dock-name")].map((e) => e.getBoundingClientRect().bottom);
+      const last = rows.length ? Math.max(...rows) : 0;
+      return r && p ? `판 ${p.top.toFixed(0)}~${p.bottom.toFixed(0)} · 로스터 ${r.top.toFixed(0)}~${r.bottom.toFixed(0)} · 마지막 줄 바닥 ${last.toFixed(1)} · 남음 ${(r.bottom - last).toFixed(1)}` : "-";
+    }));
     console.log("[로스터 값]", await page.evaluate(() => [...document.querySelectorAll(".scr-dock-team:not(.scr-dock-headrow) .scr-dock-row")].slice(0, 2).map((r) => `${r.textContent}`).join(" | ")));
   }
   /* --diag 면 진단 머리 두 줄(dpr·배율·UI·초해상·⚠재표본 / 흐림: …)을 그대로 적는다 — 사용자가 찍어 보내는 그 줄과 같은 글. */
