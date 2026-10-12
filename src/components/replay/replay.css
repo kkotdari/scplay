@@ -4575,7 +4575,7 @@
 /* ★ 화면 주인 줄(2026-10-11) — [깜빡이는 카메라] [이름 칩 + 팀 배지] "개인 화면". 배지가 칩 위로 걸치므로 줄·칩은 안 자르고 이름 칸이 말줄임한다. 카메라는 초록(아래 2026-10-12)이 1.2초에 한 번 깜빡. */
 .scr-fs-solo-cap { overflow: visible; align-items: center; }
 .scr-fs-solo-cap .scr-solo-chip { position: relative; overflow: visible; }
-.scr-fs-solo-cap .scr-team-badge { font-size: 0.38em; }
+.scr-fs-solo-cap .scr-team-badge { font-size: 0.38em; transform: translate(-78%, -35%); }   /* 화면 주인만 −88 → −78%(2026-10-12, 요청: "화면 주인의 팀 배지만 아주 살짝 오른쪽으로") */
 .scr-fs-solo-cap > .scr-split-word { margin-left: 0.3em; }
 .scr-fs-solo-cap .scr-solo-chip { margin-left: 0.35em; }   /* 배지가 칩 왼위로 걸치므로(2026-10-12) 카메라와 칩 사이를 조금 띄운다 */
 /* ★ 화면 주인 줄만 **10% 작게**(2026-10-12, 요청: "화면 유저칩 부분 10프로 축소(모바일 피시) · 화면 주인 유저칩만 · 카메라 아이콘 개인 화면 글자까지 다 통째로") —
@@ -4902,4 +4902,5 @@
 .scr-motion .scr-dock-head .scr-roster-cam-auto svg { width: round(nearest, calc(var(--rp) * 0.46), 2px); height: round(nearest, calc(var(--rp) * 0.46), 2px); }
 .scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto { padding: 0 calc(3px * var(--dk)); }
 /* 어두운 임자색 이름은 테를 흰색으로(2026-10-12 · ReplayMotionPlayer CAST_NAME_DARK9) — 자막 바탕(어두운 반투명) 위에서 검은 테로는 글자가 묻혔다. */
-.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 0 0 2px rgba(255, 255, 255, 0.95), 0 0 1px rgba(255, 255, 255, 0.95), 0 1px 1px rgba(255, 255, 255, 0.6); }
+/* 흰 테는 **번지지 않게** 흐림 없는 1px 여덟 방향(2026-10-12, 되지적: "흰 테두리가 번져 보여서 눈 아파 — 또렷하게"). */
+.scr-cast-caption .scr-cast-name.is-dark { text-shadow: 1px 0 0 #fff, -1px 0 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
