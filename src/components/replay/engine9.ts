@@ -2327,6 +2327,8 @@ export type FxOp = {
   tx?: number; ty?: number;
   /** tether: 반대 끝의 들림(렌즈 px) — 배는 떠 있으므로 이쪽만 따로 든다. 없으면 lift. beam/shot: 표적의 들기. */
   tlift?: number;
+  /** tether: 배의 개체 태그 — 붓이 그 배의 GL 몸 깊이에 줄을 건다(2026-10-12 · 배에 가려지게). */
+  stag?: number;
   /** wound(다친 건물의 상처): 그림의 결 — 테란 불길·저그 피·프로토스 플라즈마.
    *  낱개(불꽃 하나)마다 op 하나다: 자리는 fx·fy + mx·my(렌즈 px), 크기는 size,
    *  심함은 tier(1·2), 흩는 씨앗은 seed(0~99), 흔들리는 시계는 clk(초)다. */
@@ -5551,7 +5553,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined,
         sfx: uk9 ? SUICIDE_FX9[uk9] : undefined };
     };
-    const RIDE_TETHER_SEC = 1.1;
+    const RIDE_TETHER_SEC = 1.0;   // 1.1 → 1.0(2026-10-12, 요청: "1초 정도 계속 실시간으로 움직이며 노출")
     /* ★ 배 쪽 끝은 **배에게 묻는다**(지적: "드랍십 내리기 점선이 전혀 엉뚱한 데랑 이어져.
        드랍십이 아니라 엄청 먼 곳") ────────────────────────────────────────────────────
        여태 그 자리를 **탄 몸의 자취**에서 뽑았다 — 배 안에 있는 동안 참값이 싣는 자리가
@@ -5661,7 +5663,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           : 0;
         fxOps.push({
           kind: "tether", fx: ufx9, fy: ufy9, tx: sfx9, ty: sfy9,
-          lift: ubody9, tlift: slift9,
+          lift: ubody9, tlift: slift9, stag: ship9.tag,
           ph: ((inW9 ? t - r9.a : t - r9.b) / RIDE_TETHER_SEC),
         });
       }

@@ -43,7 +43,11 @@ export interface GlInst9 {
   /** ★ **제 깊이 칸을 타는 바닥 테**(2026-10-10, 지적: "공중유닛의 링이 왜 지상건물에 가려지지") — 바닥 도형 패스는 몸보다 먼저 깊이
    *  없이 그리므로 뒤에 칠하는 지상 건물이 공중 유닛·뜬 건물의 선택 링을 덮었다. 이 테는 몸 패스 **뒤**에 그 몸의 칸 바로 뒤 깊이
    *  (1 − 칸폭·(칸 + 0.5))로 깊이를 재며 그린다 — 몸이 이기는 것(아래 칸)보다 앞 · 제 몸과 위 칸의 몸보다 뒤. 값은 prim() 의 인자 그대로. */
-  ring?: { kind: 0 | 1 | 2; x: number; y: number; rx: number; ry: number; color: string; alpha: number; lineW: number; shear: number };
+  ring?: { kind: 0 | 1 | 2 | 3; x: number; y: number; rx: number; ry: number; color: string; alpha: number; lineW: number; shear: number };
+  /** ★ 같은 깊이(ring 과 같은 칸 바로 뒤)로 그리는 **선분들**(2026-10-12, 요청: "수송선 타기·내리기 줄 … 공중 유닛보다 아래 지상 유닛보다 위에 그려져서
+   *  수송선에는 가려지게") — prim 꼴 3(x·y 시작 · rx·ry 끝 · lineW 굵기). 배 몸 패스 뒤에 그 배의 칸 바로 뒤 깊이로 그리므로 배와 배 앞(위 칸)의 몸에는
+   *  가리고, 배보다 먼저 칠한(아래 칸) 지상 몸은 덮는다. */
+  lines?: GlRing9[];
 }
 export type GlRing9 = NonNullable<GlInst9["ring"]>;
 /** 카메라 — squash(앞뒤 납작비)·zk(높이 배율)·lean(z→앞뒤, 입체 0.34)·shear(시각 밀림 tan(vq), 입체만). project() 의 식 그대로. */
@@ -703,11 +707,21 @@ attribute vec2 aQ; attribute vec4 aPA; attribute vec4 aPB; attribute vec4 aPC;
 uniform vec2 uCanvas;
 varying vec2 vP; varying vec4 vC; varying vec4 vK; varying vec2 vR;
 void main() {
-  float m = aPC.y * 0.5 + 1.5;   // 선 굵기의 반 + AA 여유
-  vec2 e = vec2(aPA.z + m + abs(aPC.z) * (aPA.w + m), aPA.w + m);
-  vP = aQ * e;
-  vC = aPB; vK = aPC; vR = aPA.zw;
-  vec2 X = aPA.xy + vP;
+  vec2 X;
+  if (aPC.x > 2.5) {
+    /* 꼴 3 — 선분: aPA.xy 시작 · aPA.zw 끝 · aPC.y 굵기. 선을 따라 누운 네모(조각 셰이더는 네모 갈래로 끝을 자른다). */
+    vec2 d = aPA.zw - aPA.xy; float L = max(length(d), 0.001); vec2 u = d / L; vec2 n = vec2(-u.y, u.x);
+    float hw = aPC.y * 0.5;
+    vP = vec2(aQ.x * (L * 0.5 + 1.0), aQ.y * (hw + 1.0));
+    vC = aPB; vK = vec4(aPC.x, aPC.y, 0.0, aPC.w); vR = vec2(L * 0.5, hw);
+    X = (aPA.xy + aPA.zw) * 0.5 + u * vP.x + n * vP.y;
+  } else {
+    float m = aPC.y * 0.5 + 1.5;   // 선 굵기의 반 + AA 여유
+    vec2 e = vec2(aPA.z + m + abs(aPC.z) * (aPA.w + m), aPA.w + m);
+    vP = aQ * e;
+    vC = aPB; vK = aPC; vR = aPA.zw;
+    X = aPA.xy + vP;
+  }
   gl_Position = vec4(X.x / uCanvas.x * 2.0 - 1.0, 1.0 - X.y / uCanvas.y * 2.0, aPC.w, 1.0);
 }`;
 const PR_FS = `
@@ -716,7 +730,7 @@ varying vec2 vP; varying vec4 vC; varying vec4 vK; varying vec2 vR;
 void main() {
   vec2 p = vec2(vP.x - vK.z * vP.y, vP.y);   // 전단을 되돌린 자리(입체의 시점 밀림)
   float a;
-  if (vK.x < 0.5) {
+  if (vK.x < 0.5 || vK.x > 2.5) {
     a = clamp(vR.x - abs(p.x) + 0.5, 0.0, 1.0) * clamp(vR.y - abs(p.y) + 0.5, 0.0, 1.0);
   } else {
     vec2 R = max(vR, vec2(0.001));
@@ -989,8 +1003,8 @@ export class GlUnits9 implements VecSink9 {
     }
     return v;
   }
-  /** 바닥 도형 하나 — kind 0 네모 · 1 타원 채움 · 2 타원 테. (x, y) 가운데 · rx·ry 반지름(CSS px) · 색·알파 · lineW(테) · shear(전단 = 입체 시점 밀림). */
-  prim(kind: 0 | 1 | 2, x: number, y: number, rx: number, ry: number, color: string, alpha: number, lineW = 0, shear = 0, z = 0): void {
+  /** 바닥 도형 하나 — kind 0 네모 · 1 타원 채움 · 2 타원 테 · 3 선분(x·y 시작 · rx·ry 끝 · lineW 굵기). (x, y) 가운데 · rx·ry 반지름(CSS px) · 색·알파 · lineW(테) · shear(전단 = 입체 시점 밀림). */
+  prim(kind: 0 | 1 | 2 | 3, x: number, y: number, rx: number, ry: number, color: string, alpha: number, lineW = 0, shear = 0, z = 0): void {
     if (!this.primOk || alpha <= 0) return;
     if ((this.nPr + 1) * PR_F9 > this.prArr.length) { const n = new Float32Array(this.prArr.length * 2); n.set(this.prArr); this.prArr = n; }
     const c = this.prColOf(color); const a = Math.min(1, alpha * c[3]);
@@ -1727,6 +1741,8 @@ export class GlUnits9 implements VecSink9 {
     for (let i = 0; i < q.length; i += 1) {
       const g = q[i].ring;
       if (g) this.prim(g.kind, g.x, g.y, g.rx, g.ry, g.color, g.alpha, g.lineW, g.shear, 1 - slot * (slotOf[i] + 0.5));
+      const ls = q[i].lines;
+      if (ls) for (const l of ls) this.prim(l.kind, l.x, l.y, l.rx, l.ry, l.color, l.alpha, l.lineW, l.shear, 1 - slot * (slotOf[i] + 0.5));
     }
     if (this.nPr > 0) this.primPass(cw, ch, true);
     /* 4) **번짐(블룸)** — 빛나는 낯만 1/4 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 더한다.

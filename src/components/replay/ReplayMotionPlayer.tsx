@@ -793,6 +793,12 @@ let UI_ENEMY9: ((raw9: string) => boolean) | null = null;
  *  (gl-renderer.md '3D 시점 모델 카메라 = 지도 피치') 땅의 동그라미는 세로 비가 곧 sin(시점각)이다 — 평면 링 비(0.564)를 걷어 내고 sin 을 건다. 링은 땅과
  *  꼭 같은 눌림 · 그림자·오라는 평면에서의 링 대비 비를 그대로 지닌다. */
 const RING_TOP_K9 = 0.31 / 0.55;
+/** ★ 승하차 줄(2026-10-12, 요청: "수송선 타기·내리기 효과를 점선에서 실선으로 바꾸고 밝기 높이기 · 공중 유닛보다 아래 지상 유닛보다 위에 그려져서 수송선에는 가려지게 ·
+ *  수송선 중심과 유닛 중심을 이어서 1초 정도 계속 실시간으로 움직이며 노출") — 밝은 사이언 실선. GL 이 서면 UnitLayer 가 배의 몸 깊이(GlInst9.lines)로 긋고
+ *  여기 적어 효과 붓(paintFxList9)이 건너뛴다. */
+const TETHER_COL9 = "#b4feff";
+const tetherW9 = (zoom: number): number => Math.max(1.2, 0.42 * zoom);
+const TETHER_GL9 = new WeakSet<object>();
 /** 가스 건물 — 인포창이 그 간헐천 양을 한 줄 더 쓴다(2026-10-12). */
 const GAS_BLDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
 const pitchGroundK9 = (op: { pitch?: boolean }): number => (op.pitch ? pitchFlatNow / RING_TOP_K9 : 1);
@@ -4058,6 +4064,7 @@ export function paintFxList9(
        점선은 **흐른다**: 눈금을 위상만큼 밀어 두면 한쪽으로 빨려 드는 결이 난다.
        두 겹으로 긋는다 — 넓고 옅은 겹이 네온의 번짐이고, 가늘고 밝은 심이 점선이다. */
     if (f.kind === "tether") {
+      if (TETHER_GL9.has(f)) continue;   // 배의 GL 깊이로 이미 그렸다(아래 UnitLayer 의 ★ 승하차 줄 · 2026-10-12)
       const bx9 = zx(f.tx ?? f.fx);
       const by9 = zy(f.ty ?? f.fy) - (f.tlift ?? f.lift) * zoom;
       const len9 = Math.hypot(bx9 - ax, by9 - ay);
@@ -4079,16 +4086,15 @@ export function paintFxList9(
          글로우 없는 단색 얇은 네온색 선으로 변경") — 넓고 옅은 번짐 겹을 걷고 심
          하나만 남긴다. 색도 흰빛을 뺀 **단색 사이언**이다: 흰빛이 섞이면 밝기가
          올라가 곁의 몸을 눌렀다. */
-      const dash9 = Math.max(1.6, 1.8 * zoom);
-      ctx.setLineDash([dash9, dash9 * 0.85]);
-      ctx.lineDashOffset = -p9 * dash9 * 6;
+      /* ★ **실선 · 더 밝게**(2026-10-12, 요청: "수송선 타기·내리기 효과를 점선에서 실선으로 바꾸고 밝기 높이기") — 점선·흐르는 눈금을 걷고 밝은 사이언 한 줄(알파 1).
+         GL 이 서면 이 길은 안 탄다(배 깊이로 그린다 — TETHER_GL9) · 여기는 2D 폴백. */
       ctx.lineCap = "butt";
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx9, by9);
-      ctx.globalAlpha = fade9 * 0.8;
-      ctx.strokeStyle = "rgba(0,224,255,1)";
-      ctx.lineWidth = Math.max(0.28, 0.22 * zoom);
+      ctx.globalAlpha = fade9;
+      ctx.strokeStyle = TETHER_COL9;
+      ctx.lineWidth = tetherW9(zoom);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
@@ -6088,7 +6094,22 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const gm9 = gkind9 ? (gkind9 === op.kind ? glM9 : gl9.unitMesh(gkind9, op.pose ?? 0)) : null;
             if (!gm9) continue;
             const grot9 = gkind9 === op.kind ? (op.rotDeg ?? 0) : (op.attachRot ?? op.rotDeg ?? 0);
-            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air, ...(op.solid ? { solid: op.solid } : {}), ...(gkind9 === op.kind && airRing9 ? { ring: airRing9 } : {}) });
+            /* ★ 승하차 줄은 **배의 몸 깊이**로(위 TETHER_COL9 의 ★) — 배 몸 패스 뒤 그 배 칸 바로 뒤 깊이라 배(와 배 앞 몸)에는 가리고 아래 지상 몸은 덮는다.
+               두 끝은 **몸 가운데**끼리: 유닛은 땅 자리에서 몸 키(lift)의 반만큼 위 · 배는 이 몸의 앵커(가운데). 위상(ph)으로 마지막 3할에 스러진다. */
+            let tl9: GlRing9[] | undefined;
+            if (gkind9 === op.kind && fx && op.pickKey?.charCodeAt(0) === 117) {
+              const stag9 = Number(op.pickKey.slice(1));
+              for (const f9 of fx) {
+                if (f9.kind !== "tether" || f9.stag !== stag9) continue;
+                const p9 = Math.max(0, Math.min(1, f9.ph ?? 0));
+                const fade9 = p9 < 0.7 ? 1 : Math.max(0, (1 - p9) / 0.3);
+                const ux9 = zx(f9.fx); const uy9 = zy(f9.fy) - f9.lift * zoom * 0.5;
+                if (Math.hypot(gax9 - ux9, gay9 - uy9) < 2) continue;
+                (tl9 ??= []).push({ kind: 3, x: ux9, y: uy9, rx: gax9, ry: gay9, color: TETHER_COL9, alpha: fade9 * op.alpha, lineW: tetherW9(zoom), shear: 0 });
+                TETHER_GL9.add(f9);
+              }
+            }
+            gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: (px / 16) * ((op.flat ? 12 : 12.6) - 8), yawDeg: -grot9, color: op.color, alpha: op.alpha, cam: glCam9, gradR: px * 0.707, gradCy: 0, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: !!op.air, ...(op.solid ? { solid: op.solid } : {}), ...(gkind9 === op.kind && airRing9 ? { ring: airRing9 } : {}), ...(tl9 ? { lines: tl9 } : {}) });
           }
           ctx.setTransform(Bd, 0, 0, Bd, 0, 0);
           continue;
