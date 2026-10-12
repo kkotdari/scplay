@@ -1662,3 +1662,9 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 🔎 `perf-check.mjs --searchpause --searchprobe 핵 --searchkeep 1 --searchwait 6` — 1/3(장전·투하 둘 · 합성 판 탄두 둘) · 멈춘 뒤에도 시계가 간다.
 - 같은 날 요청: "검색 결과 태그는 흰색으로 하고 액티브만 녹색(액티브 녹색)" — `.scr-motion-searchtag` #ffb000 → #fff · is-on #ff4d1f → #3dffa8(카메라 단추 .scr-roster-cam.is-on 의 글자색).
 - 같은 날 요청: "검색창 돋보기 버튼과 인풋창 사이 갭 좀 주기" — `.scr-motion-searchbox` margin-left 0 → 6·ui(알약 gap 2 + 입력 안 여백 4 위에).
+
+## 낮은 창에선 자막·화면 주인을 무대 높이로 줄인다 · 검색 입력 2단 축소(2026-10-12)
+- 요청: "화면 주인과 자막 부분도 해상도에 따라 크기 다르게 — 저해상도에서 너무 크게 나와" — PC 크기는 해상도 단(--dks · 창 세로 세 칸)만 따라 FHD 아래 창(노트북 768 등)도 자막 32·
+  이름표 34px 그대로였다. `capK9 = min(1, max(0.5, 무대 높이 × CAP_STAGE_K9(0.046) / (32 × dks)))` 를 `.scr-fs-solo` 의 `--capk` 로 · PC `--cap-fs`(이름표)·자막 글자에 곱한다.
+  큰 창은 상한 1(그대로) · 폰은 1. 진단 `SCR_DIAG.capk`. 🔎 `perf-check.mjs --wide --vw 1366 --vh 650 --diag` vs `--vw 1920 --vh 1080`.
+- 요청: "키워드 검색창의 인풋 글자 크기를 2스텝 축소" — `.scr-motion-search-input` max(16px, 13·ui) − 4px. 16 하한은 iOS 입력 확대 막이였지만 앱 뷰포트가 maximum-scale=1.

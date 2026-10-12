@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castFocus9, castMoves9, castPlan9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castFocus9, castMoves9, castPlan9, NUKE_SHOW_PRE9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -11495,6 +11495,12 @@ export default function ReplayMotionPlayer({
   /** 판 뿌리(.scr-fs-root) — 휠은 지도 상자가 아니라 **판 전체**가 받는다(아래 onWheel). */
   const fsRootRef = useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  /* ★ **자막·화면 주인 크기의 무대 높이 자**(2026-10-12, 요청: "화면 주인과 자막 부분도 해상도에 따라 크기 다르게 — 저해상도에서 너무 크게 나와") — PC 크기는 해상도 단(--dks · 창 세로
+     FHD·QHD·UHD 세 칸)만 따라 FHD 아래 창(노트북 768 등)에서도 자막 32·이름표 34px 그대로였다. 무대 높이 × CAP_STAGE_K9 를 자막 글자 크기의 목표로 삼아 단 값(32·dks)보다 작으면
+     그 몫(--capk · 0.5~1)만큼 줄인다 — 큰 창은 그대로(상한 1). 폰은 기기 단(--dk)이 이미 맞아 1. */
+  const CAP_STAGE_K9 = 0.046;
+  const capK9 = smallDevice9 || stage.h <= 0 ? 1 : Math.min(1, Math.max(0.5, (stage.h * CAP_STAGE_K9) / (32 * ((1.8 * ui9.k) / 1.35))));
+  (SCR_DIAG as unknown as Record<string, unknown>).capk = `${capK9.toFixed(2)} · 무대 ${Math.round(stage.h)}`;   // perf-check 가 읽는다
   /** 무대 높이 붙들기(지적: "팬·핀치 뒤 안개·모델이 떨린다") — 무대는 100dvh라 폰의 주소창이 접히고 펴질 때마다 몇 프레임에
    *  걸쳐 높이가 바뀐다. 그 값이 상태(stage)에 실리면 재중심(centerOnTile)·팬 재죔·덮는 폭·캔버스 크기가 줄줄이 돌아 판이
    *  들썩였다. 굵은 포인터 기기에서 폭이 같고 높이 변화가 35% 미만이면 붙든 높이를 쓴다. 회전·전체화면 전환·fsOn 토글은
@@ -12464,10 +12470,12 @@ export default function ReplayMotionPlayer({
         태어남 = "핵 장전" · 움직여 죽음 = "핵 투하"(사일로째 부서진 탄두는 제자리라 거른다). 옛 색인은 탄두를 딸림으로 빼(SEARCH_SKIP9) 핵이 통째로 없었다.
      자동 완성(searchSug9)이 쓰는 낱말 표(terms)도 여기서 같이 모은다 — **그 경기에 나온 것만**(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 낱말). */
   const SEARCH_TACTIC9 = ["교전", "공격", "방어", "헬프", "견제", "드랍", "폭탄드랍", "포토러시", "성큰러시", "캐논러시", "저글링러시", "러시", "반파", "대파", "궤멸", "파괴",
-    "사망", "처치", "빠른", "늘리기", "선스포닝풀", "노스포닝풀", "선포지", "더블넥서스", "노배럭", "더블커맨드", "투게이트", "쓰리게이트", "투배럭", "쓰리배럭", "투팩", "테크",
+    "사망", "처치", "빠른", "늘리기", "선스포닝풀", "선해처리", "선포지", "더블넥서스", "선커맨드", "더블커맨드", "투게이트", "쓰리게이트", "투배럭", "쓰리배럭", "투팩", "테크",
     "입구 막음", "이사", "인구 막힘", "gg 선언", "노엘 외침", "핵 투하", "핵 장전", "시즈 모드", "클로킹", "띄움", "사냥", "전원"];
   /** 색인 한 줄 — 글귀·비교 글 · 장면 잡기 거리(자리 · 사람 · 장면 길 · 끝 · 위 searchFocus9 ★). */
-  type SearchHit9 = { sec: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number };
+  type SearchHit9 = { sec: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number;
+    /** 결과 때보다 이만큼(초) 앞에서 연다 — 없으면 SEARCH_LEAD9. 핵 투하는 조준 끝부터(cast9 NUKE_SHOW_PRE9). */
+    pre?: number };
   const searchIndex9 = useMemo((): { list: (SearchHit9 & { hay: string })[]; terms: Map<string, string> } => {
     const terms9 = new Map<string, string>();
     if (!entData || !searchWarm9) return { list: [], terms: terms9 };
@@ -12523,7 +12531,8 @@ export default function ReplayMotionPlayer({
         if (e9.born > 1) { add9(e9.born, e9.owner, "핵 장전", "nuke 핵미사일", { x: e9.bornX, y: e9.bornY }); term9("핵", "전술"); }
         if (e9.died !== null && e9.endX !== undefined && e9.endY !== undefined && Math.hypot(e9.endX - e9.bornX, e9.endY - e9.bornY) > 1) {
           const foe9 = baseOwnerAt9(e9.endX, e9.endY, e9.died, e9.owner);
-          add9(e9.died, e9.owner, foe9 ? `기지에 핵 투하` : "핵 투하", `nuke 핵미사일 착탄 ${foe9 ?? ""}`, { x: e9.endX, y: e9.endY, to: e9.died + 4, ...(foe9 ? { lead: foe9 } : {}) });
+          /* 조준 끝부터(2026-10-12, 지적: "핵이 아직도 조준 시간을 거의 안 보여 줌" — 옛 결과는 죽은 때 − 2초에 열려 조준은 물론 낙하도 대부분 지나 있었다). */
+          add9(e9.died, e9.owner, foe9 ? `기지에 핵 투하` : "핵 투하", `nuke 핵미사일 착탄 ${foe9 ?? ""}`, { x: e9.endX, y: e9.endY, to: e9.died + 4, pre: NUKE_SHOW_PRE9, ...(foe9 ? { lead: foe9 } : {}) });
         }
         continue;
       }
@@ -12555,7 +12564,13 @@ export default function ReplayMotionPlayer({
     for (const [cs9, cx9, cy9, ct9, co9] of entData.casts) {
       const k9 = TECH_KO[ct9] ?? ct9;
       const w9 = whoOf9(co9);
-      if (w9) add9(cs9, null, `${ga9(w9)} ${k9} 사용`, `${ct9} ${w9}`, { x: cx9, y: cy9, raw: rawOf9.get(co9) });
+      /* ★ 리콜은 **볼 자리의 차례**(cast9 castFocus9 — 아비터 → 시전 자리 → 도착)를 장면 길로 싣는다(2026-10-12, 지적: "리콜 사용이 아까 말한 거랑 다르게 나와 — 그냥 출발 지점만
+         나오고 끝") — 옛 결과는 시전 자리 한 점이라 검색 장면이 거기 머물다 끝났다. 구간마다 [시작, 자리]·[끝, 자리] 키(사이는 곧장 건너뛴다) · 첫 구간 시작부터 연다. */
+      const fo9 = ct9 === "Recall" ? castFocusV9.find((f9) => f9.kind === "recall" && f9.raw === rawOf9.get(co9) && Math.abs(f9.legs[0].t0 - (cs9 - 1.5)) < 0.6) : undefined;
+      const sp9 = fo9 ? fo9.legs.flatMap((l9): [number, number, number][] => [[l9.t0, l9.x, l9.y], [l9.t1 - 0.01, l9.x, l9.y]]) : undefined;
+      if (w9) add9(cs9, null, `${ga9(w9)} ${k9} 사용`, `${ct9} ${w9}`, fo9 && sp9
+        ? { raw: rawOf9.get(co9), spot: sp9, to: fo9.legs[fo9.legs.length - 1].t1, pre: cs9 - fo9.legs[0].t0 }
+        : { x: cx9, y: cy9, raw: rawOf9.get(co9) });
       term9(k9, "마법");
     }
     const capTxt9 = (caps9: CapPart9[]): string => caps9.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
@@ -12576,7 +12591,7 @@ export default function ReplayMotionPlayer({
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
     return { list: out9, terms: terms9 };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, searchWarm9, bases, planAll9]);
+  }, [entData, searchWarm9, bases, planAll9, castFocusV9]);
   const searchHits9 = useMemo((): SearchHit9[] => {
     const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks9.length === 0) return [];
@@ -12733,13 +12748,13 @@ export default function ReplayMotionPlayer({
     if (at9 !== undefined) i9 = at9;
     else {
       const now9 = tLiveRef9.current;
-      const cur9 = searchCur9 >= 0 && searchCur9 < hs9.length && Math.abs(now9 - Math.max(0, hs9[searchCur9].sec - SEARCH_LEAD9)) < 1.5 ? searchCur9 : -1;
+      const cur9 = searchCur9 >= 0 && searchCur9 < hs9.length && Math.abs(now9 - Math.max(0, hs9[searchCur9].sec - (hs9[searchCur9].pre ?? SEARCH_LEAD9))) < 1.5 ? searchCur9 : -1;
       /* 끝을 넘으면 처음으로 · 처음 앞이면 끝으로 돈다(찾기 막대의 버릇). */
       if (cur9 >= 0) i9 = (cur9 + dir9 + hs9.length) % hs9.length;
-      else if (dir9 >= 0) { i9 = hs9.findIndex((h9) => h9.sec - SEARCH_LEAD9 > now9 + 0.25); if (i9 < 0) i9 = 0; }
-      else { i9 = -1; for (let k9 = hs9.length - 1; k9 >= 0; k9 -= 1) if (hs9[k9].sec - SEARCH_LEAD9 < now9 - 0.25) { i9 = k9; break; } if (i9 < 0) i9 = hs9.length - 1; }
+      else if (dir9 >= 0) { i9 = hs9.findIndex((h9) => h9.sec - (h9.pre ?? SEARCH_LEAD9) > now9 + 0.25); if (i9 < 0) i9 = 0; }
+      else { i9 = -1; for (let k9 = hs9.length - 1; k9 >= 0; k9 -= 1) if (hs9[k9].sec - (hs9[k9].pre ?? SEARCH_LEAD9) < now9 - 0.25) { i9 = k9; break; } if (i9 < 0) i9 = hs9.length - 1; }
     }
-    const v9 = Math.min(total, Math.max(0, hs9[i9].sec - SEARCH_LEAD9));
+    const v9 = Math.min(total, Math.max(0, hs9[i9].sec - (hs9[i9].pre ?? SEARCH_LEAD9)));
     setSearchCur9(i9);
     setPlaying(true);   // 멈춰 있어도 결과로 가면 재생한다(2026-10-12, 요청: "정지 상태여도 검색 시 자동 재생")
     /* ★ 장면 잡기(위 searchFocus9 ★) — 결과 때부터 끝(to · 없으면 결과 + SEARCH_HOLD9)까지 그 결과의 자리·사람·장면 길이 중계 토막을 대신한다.
@@ -19949,6 +19964,7 @@ export default function ReplayMotionPlayer({
             <div
               /* 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게") — 위 introReady9 · .scr-motion-map.is-warming 과 같은 깃발. */
               className={cx("scr-fs-solo", !introReady9 && "is-warming")}
+              style={{ "--capk": capK9 } as React.CSSProperties}
             >
               {camRaw9 !== null && (
                 <span className="scr-split-cap scr-fs-solo-cap">

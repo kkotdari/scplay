@@ -187,7 +187,9 @@ const NUKE_LEAD9 = 1.1;
 const NUKE_DROP9 = 4;
 const NUKE_BOOM9 = 4;
 /** 핵 조준(빨간 점)의 끝을 낙하 앞 이만큼(초) 보인다(2026-10-12, 요청: "핵 — 조준 뒷부분 좀 보이고 이어서 투하부터 쭉"). = CAST_LEAD9(장면이 겨눔 앞에 서는 몫). */
-const NUKE_AIM_SHOW9 = 3;
+const NUKE_AIM_SHOW9 = 5;   // 3 → 5(2026-10-12, 지적: "핵이 아직도 조준 시간을 거의 안 보여 줌")
+/** 핵탄두가 죽은 때(참값)보다 이만큼(초) 앞에서 핵 장면을 연다 — 보이는 착탄 앞당김 + 낙하 + 조준 끝. 재생기 검색이 그 결과를 이때부터 보인다. */
+export const NUKE_SHOW_PRE9 = NUKE_LEAD9 + NUKE_DROP9 + NUKE_AIM_SHOW9;
 /** 경기의 핵 — 덤퍼의 시전 기록에는 핵이 안 실린다(재생기 검색 색인의 ★ 핵) → 핵탄두("Nuclear Missile")가 움직여 죽은 것으로: 보이는 착탄(죽음 − NUKE_LEAD9) · 떨어진 자리. */
 export function castNukes9(world: TruthWorld): { raw: string; hit: number; x: number; y: number }[] {
   const raw9 = new Map(world.players.map((p9) => [p9.owner, p9.name]));
@@ -1104,7 +1106,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
      장면이 됐다(죽음 − 3초에 서서 조준·낙하는 거의 못 봤다). 이제 보이는 착탄을 사건 때로 · 낙하 시작을 겨눔(eng)으로 — 장면이 낙하 CAST_LEAD9(3) 초 앞(조준 끝)에 서고 착탄 뒤까지 간다. */
   for (const n9 of castNukes9(world)) {
     if (n9.hit > total - 3) continue;
-    evs9.push({ sec: n9.hit, eng: n9.hit - NUKE_DROP9, raw: n9.raw, w: CAST_W9["Nuclear Strike"] ?? 1400, why: "핵", tech: "Nuclear Strike", px: n9.x, py: n9.y, tail: NUKE_BOOM9 + GAP9 });
+    evs9.push({ sec: n9.hit, eng: n9.hit - NUKE_DROP9 - (NUKE_AIM_SHOW9 - CAST_LEAD9), raw: n9.raw, w: CAST_W9["Nuclear Strike"] ?? 1400, why: "핵", tech: "Nuclear Strike", px: n9.x, py: n9.y, tail: NUKE_BOOM9 + GAP9 });
   }
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
@@ -2142,15 +2144,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           let text9: string;
           if (nat9 >= 0 && mine9.includes(nat9)) {
             if (before9 > 1) text9 = `앞마당 ${ko9}`;
-            else if (hallKind9 === "Hatchery") text9 = coreAt9 === Infinity ? "노스포닝풀 앞마당 해처리" : "앞마당 해처리";
+            /* 부정의 '노'는 빼고 '선'으로(2026-10-12, 요청: "노스포닝풀 해처리, 노게이트 포지 등을 부정적인 노를 빼고 그냥 선해처리 선포지 등으로") — 노스포닝풀 앞마당 해처리 → 선해처리 ·
+               노배럭 더블커맨드 → 선커맨드 · 노스포닝풀 N해처리 → 선N해처리. */
+            else if (hallKind9 === "Hatchery") text9 = coreAt9 === Infinity ? "선해처리" : "앞마당 해처리";
             else if (hallKind9 === "Nexus") text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스" : coreAt9 === Infinity ? "빠른 앞마당 넥서스" : "앞마당 넥서스";
-            else text9 = firstProdAt9 === Infinity ? "노배럭 더블커맨드" : coreAt9 === Infinity ? `빠른 앞마당 ${ko9}` : `앞마당 ${ko9}`;
+            else text9 = firstProdAt9 === Infinity ? "선커맨드" : coreAt9 === Infinity ? `빠른 앞마당 ${ko9}` : `앞마당 ${ko9}`;
           } else text9 = before9 <= 1 ? "첫 멀티" : `${before9}번째 멀티`;
           mile9(t9, text9);
           continue;
         }
         const n9 = hallsNow9.length + 1;
-        mile9(t9, hallKind9 === "Hatchery" ? (coreAt9 === Infinity ? `노스포닝풀 ${n9}해처리` : `${n9}해처리`) : `${n9}${ko9}`);
+        mile9(t9, hallKind9 === "Hatchery" ? (coreAt9 === Infinity ? `선${n9}해처리` : `${n9}해처리`) : `${n9}${ko9}`);
         continue;
       }
       const t9 = TECH_MILE9[k9];

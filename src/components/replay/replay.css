@@ -4432,7 +4432,7 @@
 .scr-split, .scr-fs-solo { --cap-fs: calc(8px * var(--dk)); }
 /* PC 이름표·자막 글자 ×1.1 **정수**(2026-10-10, 요청: "PC 에서 자막과 네임택도 크기 10프로 정도 키우기(정수)") — 이름표 8·dk = 10.8 → **12**·dks · 자막(× 0.875) 9.45 → **10**
    (아래 .scr-cast-caption 의 PC 내림). 폰(16·dk)은 그대로. */
-.scr-motion-pc9 :is(.scr-split, .scr-fs-solo) { --cap-fs: round(nearest, calc(34px * var(--dks, 1)), 2px); }   /* 12 → 18 → 28 → 46(×2.5) → **34**(46 × 0.75 = 34.5 → 짝수 · 2026-10-11 요청: "피시 유저칩 25프로 정도 축소") */
+.scr-motion-pc9 :is(.scr-split, .scr-fs-solo) { --cap-fs: round(nearest, calc(34px * var(--dks, 1) * var(--capk, 1)), 2px); }   /* --capk — 낮은 창이면 무대 높이 몫만큼 준다(2026-10-12 · ReplayMotionPlayer capK9 ★) */   /* 12 → 18 → 28 → 46(×2.5) → **34**(46 × 0.75 = 34.5 → 짝수 · 2026-10-11 요청: "피시 유저칩 25프로 정도 축소") */
 .scr-motion:not(.scr-motion-pc9) :is(.scr-split, .scr-fs-solo) { --cap-fs: round(nearest, calc(16px * var(--dk)), 2px); }   /* 짝수(2026-10-10) — 16 · 큰 폰 18 · 폴드 20 */
 /* 이름표·자막의 칩 안 여백·줄 키도 짝수(2026-10-10 — em 을 2px 로 반올림). */
 .scr-split-cap { line-height: round(nearest, 1.25em, 2px); height: round(nearest, 1.25em, 2px); }
@@ -4588,7 +4588,7 @@
 @media (prefers-reduced-motion: reduce) { .scr-solo-cam { animation: none; } }   /* 자막 배지는 한 단 작게(같은 날 요청: "자막의 팀 배지는 크기를 좀 줄이기") — 미니맵 0.5em */
 /* (걷어냄 · 2026-10-12) 미니맵 배지의 오른쪽 덮어쓰기(74%) — 배지는 이제 왼위(위 공통 규칙 −52%)라 미니맵도 같은 자다. */
 .scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 round(nearest, 0.12em, 2px); font-size: 1em; line-height: round(nearest, 1.2em, 2px); padding: 0 round(nearest, 0.3em, 2px); text-shadow: none; max-width: 14em; }   /* 여백 0.08 → 0.12em — 잇닿은 칩 사이를 점 대신 여백이 가른다(2026-10-10, 지적: "유저칩 사이 점이 아래에 내려가 있음" → "점 굳이 없어도 될듯") */
-.scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(32px * var(--dks, 1)), 2px); }   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
+.scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(32px * var(--dks, 1) * var(--capk, 1)), 2px); }   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
 .scr-motion-pc9 .scr-cast-caption .scr-cast-chip { top: round(nearest, -0.08em, 2px); }   /* 칩 들림도 짝수(28 → −2) */
 /* PC 단독 화면 여백(2026-10-10, 요청: "화면의 유저칩 위쪽 여백 늘리고 자막은 아래쪽 여백 많이 늘려서 위로 올리기") — 이름표 위 3·dk(≈4) → **16** · 자막 바닥 3·dk(≈4) → **48**(받침 솟음 더함 · 1080p 짝수). */
 .scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dks, 1)), 2px); }
@@ -4848,7 +4848,7 @@
 .scr-motion-searchbox { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(4px * var(--ui)); margin: 0 0 0 calc(6px * var(--ui)); }   /* 돋보기와 입력칸 사이 6·ui(2026-10-12, 요청: "돋보기 버튼과 인풋창 사이 갭 좀 주기" · 옛 0 — 알약 gap 2 + 입력 안 여백 4 뿐) */
 .scr-motion-search-input {
   flex: 1 1 auto; width: calc(150px * var(--ui)); min-width: calc(48px * var(--ui)); box-sizing: border-box; padding: 0 calc(4px * var(--ui));
-  font: inherit; font-size: max(16px, calc(13px * var(--ui))); font-weight: 600; color: inherit;
+  font: inherit; font-size: calc(max(16px, calc(13px * var(--ui))) - 4px); font-weight: 600; color: inherit;   /* 2단(−4px) 축소(2026-10-12, 요청: "키워드 검색창의 인풋 글자 크기 2스텝 축소") — 16 하한은 iOS 입력 확대 막이였는데 앱 뷰포트가 maximum-scale=1 이라 안 든다 */
   background: transparent; border: none; outline: none;
   animation: scr-search-grow 0.18s ease-out;
 }
@@ -4898,7 +4898,7 @@
    (자막 바탕보다는 위 · 이름 글자보다는 아래). 색이 어두워도 읽히게 글자 테를 한 겹 더. */
 /* ★ 팀 배지는 **남의 글자보다도 뒤**(2026-10-12, 요청: "팀 배지는 남의 글자라도 뒤에 배치") — 옛 이름은 제 쌓임 판(z-index 0)을 세워, 뒤 이름의 배지(그 판 안 −1)가 앞 이름 글자 위에
    그려졌다. 이름은 판을 안 세우고(z-index auto) 배지(−1)는 자막(.scr-cast-caption — 절대 자리 · z 1 · 쌓임 판)의 바탕 바로 위·모든 글자 아래에 선다. */
-.scr-cast-caption .scr-cast-name { position: relative; z-index: auto; font-weight: 800; text-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 0.5px 0.5px rgba(0, 0, 0, 0.8); }   /* 검은 테 얇게 — 흐림 2 → 1px · 내림 1 → 0.5px(2026-10-12, 요청: "자막의 테두리 검정이든 흰색이든 좀 더 얇게") */
+.scr-cast-caption .scr-cast-name { position: relative; z-index: auto; font-weight: 800; text-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 -0.5px 0.5px rgba(0, 0, 0, 0.8), 0 0.5px 0.5px rgba(0, 0, 0, 0.8); }   /* 검은 테 얇게 — 흐림 2 → 1px · 내림 1 → 0.5px(2026-10-12, 요청: "자막의 테두리 검정이든 흰색이든 좀 더 얇게") · 같은 날 "닉네임 외곽선이 위쪽이 잘 안 나오는 느낌" → 아래로만 내리던 몫을 위로도(위아래 대칭) */
 /* 사람을 잇달아 늘어놓을 때(앞 조각이 조사 없는 사람) 사이를 조금 띄운다 — 띄어쓰기(0.25em)보다 좁게(2026-10-12, 요청: "자막에 사람 나열 시 사이 좀 띄우기 · 띄어쓰기만큼은 말고"). */
 .scr-cast-caption .scr-cast-name.is-next { margin-left: 0.2em; }   /* 이 글꼴의 띄어쓰기 = 0.25em(실측) — 그 80% */
 .scr-cast-caption .scr-cast-name > .scr-team-badge { z-index: -1; transform: translate(-62%, -6%); text-shadow: none; }   /* −45,−30 → −62,−6%(같은 날 "자막의 팀 배지 좀 아래로 · 왼쪽으로 좀") */

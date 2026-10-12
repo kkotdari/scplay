@@ -208,7 +208,7 @@ const bw9 = (() => {
   const nat = (o) => toward9(bstarts9[o], 22);
   const third = (o) => toward9(bstarts9[o], 44);
   bmk(0, "Hatchery", 0); bmk(1, "Hatchery", 0); bmk(2, "Nexus", 0); bmk(3, "Command Center", 0);
-  // Z1 선스포닝풀 → 앞마당 해처리 → 레어   |  Z2 노스포닝풀 앞마당 해처리 → 스포닝풀 → 셋째 기지 해처리
+  // Z1 선스포닝풀 → 앞마당 해처리 → 레어   |  Z2 선해처리(옛 노스포닝풀 앞마당 해처리) → 스포닝풀 → 셋째 기지 해처리
   bmk(0, "Spawning Pool", 60); bmk(0, "Hatchery", 150, true, nat(0)); bmk(0, "Lair", 500);
   bmk(1, "Hatchery", 90, true, nat(1)); bmk(1, "Spawning Pool", 150); bmk(1, "Hatchery", 400, true, third(1));
   // P1 게이트 → 앞마당 넥서스(코어 앞 = 빠른) → 코어 → 로보틱스   |  T1 배럭 둘(팩토리 앞 = 2배럭) → 팩토리 → 앞마당 커맨드(팩토리 뒤)
@@ -229,7 +229,7 @@ const capIn9 = (plan, raw, t) => { const sg = plan.find((s) => s.raw === raw && 
 const capAt9 = (raw, t) => capIn9(bplan9, raw, t);
 const bcases9 = [
   ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 변태"],
-  ["Z2", 95, "[Z2] 노스포닝풀 앞마당 해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 2번째 멀티"], ["Z2", 800, "[Z2] 3기지 운영 중"],
+  ["Z2", 95, "[Z2] 선해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 2번째 멀티"], ["Z2", 800, "[Z2] 3기지 운영 중"],
   ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 건설"], ["P1", 405, "[P1] 로보틱스 건설"], ["P1", 730, "[P1] 병력 모으는 중"],
   ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 건설"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조롭게 발전 중"],
   ["Z3", 75, "[Z3] 8드론 스포닝풀 건설"], ["P2", 245, "[P2] 3게이트"],
@@ -237,7 +237,7 @@ const bcases9 = [
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
 for (const [raw, t, want] of bcases9) { const got = capAt9(raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`); }
 /* 자원 자료가 없으면 본진 건물은 수로만(2026-10-10 — "확실하게 알아낸 것만"). */
-for (const [raw, t, want] of [["Z1", 155, "[Z1] 2해처리"], ["Z2", 95, "[Z2] 노스포닝풀 2해처리"], ["Z2", 405, "[Z2] 3해처리"], ["P1", 155, "[P1] 2넥서스"], ["T1", 305, "[T1] 2커맨드"]]) {
+for (const [raw, t, want] of [["Z1", 155, "[Z1] 2해처리"], ["Z2", 95, "[Z2] 선2해처리"], ["Z2", 405, "[Z2] 3해처리"], ["P1", 155, "[P1] 2넥서스"], ["T1", 305, "[T1] 2커맨드"]]) {
   const got = capIn9(bplanNo9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} 자원 자료 없음 ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
 }
 
@@ -255,7 +255,7 @@ const fw9 = (() => {
 const fplan9 = castPlan9(fw9, { total: 900, order: ["F1", "F2"], resources: [...baseRes9(30, 30), ...baseRes9(150, 30)] });
 console.log(`\n빨무: ${[["F1", 205], ["F1", 305], ["F1", 405], ["F2", 85], ["F2", 305]].map(([r, t]) => `${r}@${t}s ${capIn9(fplan9, r, t)}`).join(" · ")}`);
 for (const [raw, t, want] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 800, "[F1] 순조롭게 발전 중"],
-  ["F2", 85, "[F2] 노스포닝풀 2해처리"], ["F2", 305, "[F2] 3해처리"]]) {
+  ["F2", 85, "[F2] 선2해처리"], ["F2", 305, "[F2] 3해처리"]]) {
   const got = capIn9(fplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
 }
 
@@ -1293,9 +1293,9 @@ rmSync(tmp, { recursive: true, force: true });
   const legs = (f) => (f ? f.legs.map((l) => `[${l.t0.toFixed(2)},${l.t1.toFixed(2)}](${l.x},${l.y})${l.hold ? "" : "~"}`).join("→") : "-");
   console.log(`\n핵·볼 자리 차례: 핵 토막 ${nk ? `${nk.at.toFixed(1)} "${capTxt(nk)}"` : "-"} | 핵 ${legs(nf)} | 리콜 ${legs(rf)} | 나이더스 ${legs(yf)}`);
   for (const [name, pass] of [
-    ["핵 장면은 낙하 3초 앞(491.9 — 조준 끝)에 선다", !!nk && Math.abs(nk.at - 491.9) < 0.3],
+    ["핵 장면은 낙하 5초 앞(489.9 — 조준 끝)에 선다", !!nk && Math.abs(nk.at - 489.9) < 0.3],
     ["핵 자막은 '핵 투하'", !!nk && capTxt(nk).includes("핵 투하")],
-    ["핵 볼 자리 [491.9, 502.9] (90,40) hold", !!nf && nf.legs.length === 1 && Math.abs(nf.legs[0].t0 - 491.9) < 0.01 && Math.abs(nf.legs[0].t1 - 502.9) < 0.01 && nf.legs[0].x === 90 && nf.legs[0].hold],
+    ["핵 볼 자리 [489.9, 502.9] (90,40) hold", !!nf && nf.legs.length === 1 && Math.abs(nf.legs[0].t0 - 489.9) < 0.01 && Math.abs(nf.legs[0].t1 - 502.9) < 0.01 && nf.legs[0].x === 90 && nf.legs[0].hold],
     ["리콜 차례 아비터 → 시전 자리 → 도착(이어짐)", !!rf && rf.legs.length === 3 && rf.legs[0].x === 45 && rf.legs[1].x === 70 && rf.legs[2].x === 40 && rf.legs[0].t1 === rf.legs[1].t0 && rf.legs[1].t1 === rf.legs[2].t0],
     ["나이더스 차례 입구 → 출구(끝 + 2초까지)", !!yf && yf.legs.length === 2 && yf.legs[0].x === 20 && yf.legs[1].x === 40 && Math.abs(yf.legs[1].t1 - 314) < 0.01],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
