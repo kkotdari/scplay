@@ -10313,13 +10313,30 @@ export default function ReplayMotionPlayer({
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
-  const castRaw = castIdx9 >= 0 ? castPlan[castIdx9].raw : null;
+  /* ★ 교전 자리 토막(spot · cast9 ★)은 **누구의 화면도 아니다**(2026-10-11, 요청: "주인공을 딱 한 명 정하기 애매한 경우 개인 화면이 아닌 교전 위치를 추적해서 보여 주고
+     누구 화면 표시 없애기") — 중계 주인을 비우면 시야는 모두의 것(viewRawNow9 null) · 화면 주인 줄은 안 선다 · 카메라는 아래 spotNow9 의 길을 탄다. */
+  const castRaw = castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
   /* ★★ 자동 중계는 **늘 한 사람 화면**이다(2026-10-09, 요청 2: "자동 카메라 모드 — 무조건 1사람 화면만 노출 · 공격이나 교전 발생시 더 잘한 사람
      보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 / 누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에") —
      옛 **맞대결 자동 분할**(2026-10 · 편성표의 foe 로 두 사람을 나란히 · 배지 → 화살표·⚔️ 표)은 되물렸다. 편성표는 여전히 장면마다 상대역·
      몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
   const castSeg9 = castIdx9 >= 0 ? castPlan[castIdx9] : null;
+  /** 지금 따라가는 교전 자리 길(위 castRaw ★) — 자동 중계 · 개인 추적·손 분할이 아닐 때만. */
+  const spotNow9 = castOn && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
+  /** 그 길의 t 자리(1초 간격 키 사이를 직선으로). */
+  const spotAt9 = (p9: readonly [number, number, number][], t9: number): { x: number; y: number } => {
+    if (t9 <= p9[0][0]) return { x: p9[0][1], y: p9[0][2] };
+    for (let i9 = 1; i9 < p9.length; i9 += 1) {
+      if (t9 <= p9[i9][0]) {
+        const [a0, ax9, ay9] = p9[i9 - 1]; const [a1, bx9, by9] = p9[i9];
+        const u9 = a1 > a0 ? (t9 - a0) / (a1 - a0) : 1;
+        return { x: ax9 + (bx9 - ax9) * u9, y: ay9 + (by9 - ay9) * u9 };
+      }
+    }
+    const l9 = p9[p9.length - 1];
+    return { x: l9[1], y: l9[2] };
+  };
   /** 분할보기가 서 있나 — 손으로 켠 분할이다(자동 분할은 걷었다 · 위). */
   const splitOn9 = splitUser9;
   const splitBases9 = useMemo(() => (splitSel9 ? bases.filter((b9) => splitSel9.includes(b9.key)) : bases), [splitSel9, bases]);
@@ -10364,10 +10381,10 @@ export default function ReplayMotionPlayer({
   /** ★ 주인공색은 **중계가 켜졌을 때만** 선다(2026-09, 요청: "주인공색은 중계 on일때만 켜지고 만약 중계를 끄면
    *  개인색으로 돌아감(기본)") — 중계 = TV 목록의 두 갈래(자동 · 개인 추적) 어느 쪽이든 카메라를 기계가 쥔 동안이다.
    *  끄면 아래 effect 가 개인색으로 되돌리고, 꺼진 동안은 단추의 돌림에서도 빠진다. */
-  const heroOk9 = camRaw9 !== null && !splitOn9;   // 맞대결 분할은 칸이 둘이라 '나'가 없다
+  const heroOk9 = (camRaw9 !== null || spotNow9 !== null) && !splitOn9;   // 맞대결 분할은 칸이 둘이라 '나'가 없다 · 교전 자리 토막은 '나'가 없어도 모드는 지킨다(아래 colorNow)
   /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화) ·
    *  주인공색은 중계가 꺼지면 개인색이다(effect 가 상태를 되돌리기 전 한 렌더도 안 새게 여기서도 막는다). */
-  const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && !heroOk9) ? "personal" : colorMode;
+  const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && (!heroOk9 || camRaw9 === null)) ? "personal" : colorMode;
   useEffect(() => { if (!heroOk9) setColorMode((m) => (m === "hero" ? "personal" : m)); }, [heroOk9]);
   /** C 키가 도는 다음 갈래 — 키 처리기는 의존성이 길어 렌더마다 다시 안 짓으므로 ref 로 읽는다(단추와 같은 셈). */
   const colorNextRef9 = useRef<ColorMode9>("team");
@@ -10472,7 +10489,8 @@ export default function ReplayMotionPlayer({
   };
   /** 중계를 끈다 — 개인 추적을 끄는 것과 같은 자리에 머문다(위 stopTrack9의 ★). */
   const stopCast9 = (): void => {
-    if (castRaw && trackCamRef.current.raw === castRaw) setView9(zoomRef.current, { ...trackCamRef.current.pan });
+    const ck9 = castRaw ?? (spotNow9 ? "#spot" : null);   // 교전 자리 토막도 보던 자리에 머문다
+    if (ck9 && trackCamRef.current.raw === ck9) setView9(zoomRef.current, { ...trackCamRef.current.pan });
     setCastOn(false);
   };
   /** 중계 켜기·끄기(로스터 맨 아래 TV 단추) — 켜면 개인 추적이 풀린다(배타). */
@@ -10531,13 +10549,13 @@ export default function ReplayMotionPlayer({
      "개인추적도 모바일는 6배"). 처음엔 중계에만 따로 상수를 두었는데(요청이 이름 붙인 것만) 이어진 요청이 둘을 한 값으로 묶었다. */
   const castZoomRef9 = useRef(false);
   useEffect(() => {
-    if (!castOn || !castRaw) { castZoomRef9.current = false; return; }
+    if (!castOn || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
     setView9(castZoomFit9(), panRef.current);
     // setView9·castZoomFit9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [castOn, castRaw]);
+  }, [castOn, castRaw, spotNow9 !== null]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
@@ -10646,6 +10664,10 @@ export default function ReplayMotionPlayer({
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
   const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[]; sel: string; mode?: PickMode9; sec: number } | null => {
+    if (!camRaw9 && spotNow9 && spotNow9.length > 0) {   // 교전 자리(위 spotNow9) — 그 길의 지금 자리 하나
+      const q9 = spotAt9(spotNow9, t);
+      return { x: q9.x, y: q9.y, pts: [q9], sel: `spot${castIdx9}`, sec: castSeg9?.at ?? t };
+    }
     if (!camRaw9 || trackPicks.length === 0) return null;
     const { at: at9 } = pickIdx9(trackPicks, t);
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {
@@ -11836,7 +11858,9 @@ export default function ReplayMotionPlayer({
   const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number } | null>(null);
   const [camGlideTick9, setCamGlideTick9] = useState(0);
   const trackView = ((): { pan: { x: number; y: number } } | null => {
-    if (!camRaw9) return null;
+    /** 카메라 임자 열쇠 — 사람이거나 교전 자리(spot)다. */
+    const camKey9 = camRaw9 ?? (spotNow9 ? "#spot" : null);
+    if (!camKey9) return null;
     const cov9 = coverRef.current;
     if (cov9.w < 4 || cov9.h < 4) return null;
     /* ★ 잡을 자리가 아직 없으면 **보던 자리에 머문다**(요청: 중계) — 갈아탄 사람의 걷기가
@@ -11871,7 +11895,7 @@ export default function ReplayMotionPlayer({
     const cur9 = trackCamRef.current;
     /* 다시 잡아야 하나 — 사람이 바뀌었거나(처음 켬 포함), 배율이 바뀌었거나(잡아 둔
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
-    let keep9 = cur9.raw === camRaw9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
+    let keep9 = cur9.raw === camKey9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
     /** 카메라가 지금 보여 주는 무리 그대로인가 — 미끄러짐은 이것이 참일 때만이다(아래 ★). */
     const selSame9 = cur9.sel === trackAt.sel;
     if (keep9) {
@@ -11893,7 +11917,7 @@ export default function ReplayMotionPlayer({
       }
     }
     /* 선택 갈래(판 12 · 위 PickMode9) — 부대 한 번 불러오기는 화면을 안 옮기고 · 두 번 누름은 한 번 곧장 선다. */
-    const same9 = cur9.raw === camRaw9 && cur9.z === z9;
+    const same9 = cur9.raw === camKey9 && cur9.z === z9;
     /** 그 무리가 지금 화면 안인가(선택 갈래로 덮어쓰기 전의 기하 판정). */
     const inView9 = keep9;
     let jump9 = false;
@@ -11912,7 +11936,7 @@ export default function ReplayMotionPlayer({
     if (!selSame9 && scrDiagOn()) viewDiagPush9("sel", `${inView9 ? "안" : "밖"} ${trackAt.mode ?? "-"} ${trackAt.pts.length}기${keep9 ? "" : " →잡음"}`);
     if (!keep9) {
       if (scrDiagOn()) {
-        const why9 = cur9.raw !== camRaw9 ? "사람" : cur9.z !== z9 ? "배율" : jump9 ? "두번누름" : !inView9 ? (selSame9 ? "밖" : "새선택밖") : "?";
+        const why9 = cur9.raw !== camKey9 ? "사람" : cur9.z !== z9 ? "배율" : jump9 ? "두번누름" : !inView9 ? (selSame9 ? "밖" : "새선택밖") : "?";
         viewDiagPush9("cam", `${why9} Δ${(mid9.x - cur9.pan.x).toFixed(0)},${(mid9.y - cur9.pan.y).toFixed(0)}px`);
       }
       /* ★ 미끄러짐은 **선택이 그대로인 무리가 화면 밖으로 걸어 나갈 때만**이다(2026-10, 지적: "미니맵으로 찍은 명령등에도 드래그
@@ -11925,7 +11949,7 @@ export default function ReplayMotionPlayer({
         const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
         camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
       } else camGlideRef9.current = null;
-      trackCamRef.current = { raw: camRaw9, z: z9, pan: mid9, sel: trackAt.sel, jump: jump9 ? trackAt.sec : cur9.jump };
+      trackCamRef.current = { raw: camKey9, z: z9, pan: mid9, sel: trackAt.sel, jump: jump9 ? trackAt.sec : cur9.jump };
     }
     const g9 = camGlideRef9.current;
     const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;

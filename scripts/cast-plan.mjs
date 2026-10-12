@@ -1136,3 +1136,33 @@ rmSync(tmp, { recursive: true, force: true });
     ["마지막 킬(314) 뒤 3초 언저리에 걷힌다", fight.length > 0 && Math.abs((fight[fight.length - 1].capTo ?? 999) - 317) <= 1],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+
+/* ── ㊳ 주인공이 애매하면 교전 자리(2026-10-11, 요청: "주인공을 딱 한 명 정하기 애매한 경우 개인 화면이 아닌 교전 위치를 추적해서 보여 주고 누구 화면 표시 없애기") —
+   ① 300초 가운데(60,60)에서 A 마린 여섯 · C 마린 여섯이 서로 하나씩 번갈아 잡는다(엇비슷) → 토막에 spot 길이 실리고 그 자리가 (60,60) 언저리.
+   ② 600초 A 가 (40,40)에서 C 저글링 여덟을 일방으로 잡는다 → spot 없음(A 화면). */
+{
+  let t9 = 230000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 16, 16, 0); mk(1, "Hatchery", true, 110, 110, 0);
+  const am = mk(0, "Marine", false, 16, 16, 200); const ch = mk(1, "Marine", false, 110, 110, 200);
+  for (let i = 0; i < 6; i += 1) {
+    const tA = 300 + i * 2; const tC = 301 + i * 2;
+    const m = mk(0, "Marine", false, 16, 16, 200, { died: tC, end: "atk", endX: 59 + (i % 2), endY: 60 }); kills.push([tC, 1, ch.tag, m.tag]);
+    const h = mk(1, "Marine", false, 110, 110, 200, { died: tA, end: "atk", endX: 61, endY: 60 + (i % 2) }); kills.push([tA, 0, am.tag, h.tag]);
+  }
+  for (let i = 0; i < 8; i += 1) { const t = 600 + i * 1.5; const z = mk(1, "Zergling", false, 110, 110, 500, { died: t, end: "atk", endX: 40, endY: 40 }); kills.push([t, 0, am.tag, z.tag]); }
+  const w = { players: [["A", "테란", 1], ["C", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 900, order: ["A", "C"], teamOf: { A: 1, C: 2 } });
+  const even = plan.filter((s) => !s.cyc && s.at > 290 && s.at < 320);
+  const one = plan.filter((s) => !s.cyc && s.at > 590 && s.at < 620);
+  const sp = even.find((s) => s.spot)?.spot;
+  const mid = sp ? sp[Math.floor(sp.length / 2)] : null;
+  console.log(`\n교전 자리: 엇비슷 ${even.map((s) => `${s.at.toFixed(1)} ${s.raw}${s.spot ? ` spot ${s.spot.length}점` : ""} ${capTxt(s)}`).join(" · ")} | 일방 ${one.map((s) => `${s.at.toFixed(1)} ${s.raw}${s.spot ? " spot" : ""}`).join(" · ")}`);
+  for (const [name, pass] of [
+    ["엇비슷한 맞대결은 교전 자리를 따라간다(spot)", !!sp && !!mid && Math.hypot(mid[1] - 60, mid[2] - 60) < 3],
+    ["일방적인 싸움은 그 사람 화면(spot 없음)", one.length > 0 && one.every((s) => !s.spot) && one[0].raw === "A"],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
