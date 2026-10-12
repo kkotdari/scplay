@@ -676,9 +676,11 @@ rmSync(tmp, { recursive: true, force: true });
   const L = []; const sels = []; const builds = [];
   const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (ut += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
     sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
-  mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const nx = mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
   const pr = mk(0, "Probe", false, 20, 20, 0);
   for (const t of [100, 110, 120, 130]) { builds.push([t, 0, pr.tag, 24, 24, "Pylon"]); sels.push([t, 0, [pr.tag], 0]); }
+  for (let t = 5; t < 800; t += 20) sels.push([t, 0, [nx.tag], 0]);   // 손을 안 놓은 사람(2026-10-12 · 멈춘 때부터 거꾸로 빼는 자 — 활동이 띄엄띄엄이면 빠진다)
+  sels.sort((a, b) => a[0] - b[0]);
   mk(0, "Pylon", true, 24, 24, 102);
   mk(0, "Gateway", true, 26, 20, 300); mk(0, "Gateway", true, 26, 24, 320);
   const w = { players: [["A", "프로토스", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
@@ -779,6 +781,8 @@ rmSync(tmp, { recursive: true, force: true });
   mk(0, "Engineering Bay", true, 20, 40, 60);
   mk(0, "Supply Depot", true, 31, 31, 100); mk(0, "Barracks", true, 32, 34.5, 150);
   for (const t of [300, 310, 320, 330]) sels.push([t, 0, [cc.tag], 0]);
+  for (let t = 5; t < 600; t += 20) sels.push([t, 0, [cc.tag], 0]);   // 손을 안 놓은 사람(2026-10-12 · 위와 같은 까닭)
+  sels.sort((a, b) => a[0] - b[0]);
   for (let t = 301; t < 340; t += 6) mk(0, "SCV", false, 12, 34, t);
   const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels, builds: [] };
@@ -993,6 +997,7 @@ rmSync(tmp, { recursive: true, force: true });
   console.log(`\n손 놓은 뒤 순환: ${after.join("")}`);
   for (const [name, pass] of [
     ["건물이 남아도 60초 넘게 활동이 없으면 순환에 안 나온다", after.length > 0 && !after.includes("C")],
+    ["멈춘 때(마지막 고름 97초)부터 거꾸로 빠진다(2026-10-12)", !plan.some((s) => s.raw === "C" && s.at >= 100)],
     ["손 놓기 전에는 나온다", plan.some((s) => s.raw === "C" && s.at < 100)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

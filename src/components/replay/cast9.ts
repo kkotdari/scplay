@@ -1070,8 +1070,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
   const shown9 = new Map<string, number>();
   for (const r9 of rawOf9.values()) shown9.set(r9, -1000);
   /* ★ **손을 놓은 사람은 순환에서 뺀다**(2026-10-11, 되지적: "건물이 남아도 생산을 안 할 수도") — 건물이 남아 있어도 명령·선택·건설 명령·유닛 생산이 IDLE_OUT9 초 넘게 없으면
-     (기지를 잃고 손 놓음 · 잠수) 보여 줄 것이 없고 카메라도 앞 화면에 멈춘다. 활동 시각을 사람마다 모아(정렬) 그 창 [sec − IDLE_OUT9, sec + CYCLE9] 에 하나라도 있어야
-     후보다. 아무도 안 남으면 옛 자(살아 있는 사람)로 물러난다. */
+     (기지를 잃고 손 놓음 · 잠수) 보여 줄 것이 없고 카메라도 앞 화면에 멈춘다. 활동 시각을 사람마다 모아(정렬) sec 를 감싼 빈틈이 IDLE_OUT9 보다 짧아야
+     후보다(아래 activeAt9 ★ — 멈춘 때부터 거꾸로). 아무도 안 남으면 옛 자(살아 있는 사람)로 물러난다. */
   const IDLE_OUT9 = 60;
   const acts9 = new Map<string, number[]>();
   {
@@ -1096,9 +1096,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastSeg9[] {
     if (!idleOn9) return true;
     const a9 = acts9.get(raw9);
     if (!a9 || a9.length === 0) return true;   // 활동 자료가 없는 판(옛 판 · 합성)은 안 거른다
+    /* ★ **멈춘 때부터 거꾸로 뺀다**(2026-10-12, 요청: "60초가 지난 걸 역산해서 시작점부터 제외하라고") — 옛 자는 '지난 60초에 활동 없음'이라 멈춘 뒤 60초 동안은
+       순환에 남아 멈춘 화면을 비췄다. 이제 sec 를 감싼 빈틈(앞 활동 ~ 다음 활동 · 다음이 없으면 경기 끝)이 IDLE_OUT9 이상이면 그 빈틈 내내(시작점부터) 뺀다. */
     let lo9 = 0; let hi9 = a9.length;
-    while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (a9[m9] < sec9 - IDLE_OUT9) lo9 = m9 + 1; else hi9 = m9; }
-    return lo9 < a9.length && a9[lo9] <= sec9 + CYCLE9;
+    while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (a9[m9] <= sec9) lo9 = m9 + 1; else hi9 = m9; }
+    const prev9 = lo9 > 0 ? a9[lo9 - 1] : 0;
+    const next9 = lo9 < a9.length ? a9[lo9] : total;
+    return next9 - prev9 < IDLE_OUT9;
   };
   /** 그때 살아 있고 손을 안 놓은 사람들 — 순환 후보. */
   const aliveAt9 = (sec9: number): string[] => {
