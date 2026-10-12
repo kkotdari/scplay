@@ -3772,10 +3772,11 @@
 }
 /* ★ 팀 표시 = 칩 왼위 **팀색 삼각 귀퉁이**(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로 칠할거야 · 글자와 겹치지 않게 주의") —
    옛 팀 배지(.scr-fs-minitag-team · .scr-team-badge — 팀색 동그라미 + 숫자)는 미니맵·화면 주인·자막에서 모두 걷었다. 칩(바탕을 든 상자)에 `scr-tcorner` + `--tcol`(TSX · 팀전만).
-   귀퉁이 다리 0.5em · 빗변 x + y = 0.5em. 글자 잉크의 왼위는 (왼 여백, 줄 키 위 반여백 + 글꼴 윗몫 ≈ 0.18em 이상)이라 왼 여백 ≥ 0.34em 이면 안 겹친다 — 자막 칩만 0.16em 이라 제 규칙으로 늘린다. */
-.scr-tcorner { position: relative; }
+   귀퉁이 다리 0.5em. ★ 여백을 늘려 비키지 않고 **글자 뒤에 깐다**(같은 날 되요청: "글자와 겹치지 않게 왼쪽 여백을 주지 말고 글자 뒤에 깔리게 하면 돼") — 칩이 제 쌓임 판을
+   세우고(isolation) 귀퉁이는 그 안의 z −1: 칩 바탕 위 · 칩 글자(흐름 속 글 — 글 칸이 따로 없는 미니맵 칩도) 아래. */
+.scr-tcorner { position: relative; isolation: isolate; }
 .scr-tcorner::before {
-  content: ""; position: absolute; left: 0; top: 0; width: 0.5em; height: 0.5em; pointer-events: none;
+  content: ""; position: absolute; left: 0; top: 0; z-index: -1; width: 0.5em; height: 0.5em; pointer-events: none;
   background: var(--tcol, #666); clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: inherit;
 }
 .scr-fs-minitag:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
@@ -4906,7 +4907,7 @@
 /* ★ 자막 이름은 다시 **칩**(2026-10-12, 요청: "자막의 색깔 다시 칩 형태로 복구 · 단 칩의 패딩을 작게 하고 래디우스도 작게") — 여백 0.3 → **0.16em** · 모서리 2px(.scr-split-chip) → **1px**.
    팀은 칩 왼위 팀색 삼각 귀퉁이(.scr-tcorner · 옛 팀 배지 걷음). 위 .scr-cast-name 규칙들은 쓰는 곳이 없다. */
 .scr-cast-caption .scr-cast-chip.scr-cast-chip { padding: 0 round(nearest, 0.16em, 2px); border-radius: 1px; }
-.scr-cast-caption .scr-cast-chip.scr-tcorner { padding-left: round(nearest, 0.36em, 2px); }   /* 팀색 삼각 귀퉁이(0.5em) 몫 — 글자와 안 겹치게(위 .scr-tcorner) */
+/* (걷어냄 · 2026-10-12, 요청: "글자와 겹치지 않게 왼쪽 여백을 주지 말고 글자 뒤에 깔리게 하면 돼") 자막 칩 .scr-tcorner 왼 여백 0.36em — 귀퉁이는 이제 글자 뒤(위 .scr-tcorner). */
 /* ★ 자동 중계 단추만 **아이콘·좌우 여백 축소**(2026-10-12, 요청: "자동 중계 버튼 TV 아이콘 축소 및 좌우 패딩 축소") — TV 0.6 → 0.46·줄 키 · 여백 6 → 3·dk. 전체 알약·사람 카메라는 그대로.
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */
 .scr-motion .scr-dock-head .scr-roster-cam-auto svg { width: round(nearest, calc(var(--rp) * 0.46), 2px); height: round(nearest, calc(var(--rp) * 0.46), 2px); }
