@@ -10521,17 +10521,7 @@ export default function ReplayMotionPlayer({
   const castCap9: CapPart9[] | null = searchCapNow9 ?? (castOn && trackRaw === null && castSeg9?.caps && castSeg9.caps.length > 0
     && (castSeg9.capTo === undefined || t <= castSeg9.capTo) ? castSeg9.caps : null);
   const capName9 = (r9: string): string => bases.find((b9) => b9.key === r9)?.name ?? r9;
-  /** 자막 이름의 테를 **흰색**으로 뒤집을까(2026-10-12, 지적: "어두운 임자색이면 이름이 잘 안 보여 — 흰 테두리" → 되지적: "충분히 잘 보이는 빨강·초록에도 넣었네 — 안 보이는 건
-   *  진짜 어두운 남색 같은 것"). 옛 자(밝기 < 100)는 빨강(#f40404 ≈ 77)·초록까지 걸었다. 이제 자막 바탕(거의 검정 · 상대 휘도 ≈ 0.003)에 대한 **명암비**(WCAG)가
-   *  CAST_NAME_CR9 아래인 것만: 남색 #0c48cc 2.7 · 갈색 #703014 2.0 은 들고 · 빨강 4.6 · 초록 3.9 · 보라 3.1 은 안 든다. #rrggbb 가 아니면(팀색 이름) 안 든다. */
-  const CAST_NAME_CR9 = 2.8;
-  const castNameDark9 = (hex9: string): boolean => {
-    const m9 = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex9);
-    if (!m9) return false;
-    const lin9 = (h9: string): number => { const c9 = parseInt(h9, 16) / 255; return c9 <= 0.03928 ? c9 / 12.92 : ((c9 + 0.055) / 1.055) ** 2.4; };
-    const L9 = 0.2126 * lin9(m9[1]) + 0.7152 * lin9(m9[2]) + 0.0722 * lin9(m9[3]);
-    return (L9 + 0.05) / (0.003 + 0.05) < CAST_NAME_CR9;
-  };
+  /* (걷음 · 2026-10-12) castNameDark9 — 어두운 임자색 이름에 흰 테·흰 상자를 대던 가름. 이름이 임자색을 안 쓰게 되어(아래 자막 JSX ★) 쓸 데가 없다. */
   const capParticle9 = (nm9: string, p9: CapPart9["p"]): string =>
     (p9 === "ga" ? koGa9(nm9) : p9 === "eul" ? koEul9(nm9) : p9 === "wa" ? koWa9(nm9) : p9 === "ui" ? "의" : "");
   /** 첫 칸의 자리를 미리 잡는 **이름표 전부**(요청: "자막이 글자길이에 따라 레이아웃 흔들리지 않게 미리 공간 확보") —
@@ -19986,9 +19976,10 @@ export default function ReplayMotionPlayer({
               {castCap9 && (
                 <span key={searchCapNow9 ? `s${searchFocus9?.from ?? 0}` : castIdx9} className="scr-cast-caption">
                   {castCap9.map((p9, i9) => (p9.raw !== undefined
-                    /* ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
+                    /* ★ (2026-10-12, 요청: "일단 자막에서 이름의 색을 다 빼 줘") — 이름은 이제 **자막 글자와 같은 흰색**(임자색 style 걷음) · 팀 배지는 그대로. 아래 옛 설명은 임자색 시절.
+                       ★ 이름은 **칩 없이 임자색 글자**(2026-10-12, 요청: "자막을 현재 검색 자막처럼 칩이 없는 형태로 · 유저 닉네임은 임자색으로 칠하고 팀 배지도 글자 뒤에 달기 —
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
-                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", castNameDark9(capOf9(p9.raw, p9.raw).col) && "is-dark", i9 > 0 && castCap9[i9 - 1].raw !== undefined && !castCap9[i9 - 1].p && "is-next")} style={{ color: capOf9(p9.raw, p9.raw).col }}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    ? <React.Fragment key={i9}><span className={cx("scr-cast-name", i9 > 0 && castCap9[i9 - 1].raw !== undefined && !castCap9[i9 - 1].p && "is-next")}>{!melee && teamOfRaw(p9.raw) !== undefined && <i className="scr-team-badge" style={{ background: TEAM_COLOR[teamOfRaw(p9.raw)!] ?? "#666" }}>{teamOfRaw(p9.raw)}</i>}{capName9(p9.raw)}</span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
