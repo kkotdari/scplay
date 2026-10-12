@@ -10349,20 +10349,30 @@ export default function ReplayMotionPlayer({
   /** 입력 꼴(돋보기 알약 · 아래 JSX ★★) — 치는 동안에도 자동 완성이 찾을 거리(편성표·색인)를 굽는다. */
   const [searchEdit9, setSearchEdit9] = useState(false);
   const searchNeed9 = searchOn9 || searchEdit9;
+  /* ★ **여닫기가 끊기던 것**(2026-10-12, 지적: "검색창 여닫기 모두 렉이 있는 것처럼 중간에 끊겨 — 열 때는 누르고 한참 가만히 있다가 열리고 닫힐 때는 2단계로 닫혀") — 여닫을 때마다
+     편성표(castPlan9 — 장면 전부의 자막·이정표)와 색인을 **누름과 같은 장에서** 새로 구웠다(편성표 의존에 searchNeed9 이 들어 중계가 켜져 있어도 다시 구웠다). 이제
+     ① 찾을 거리는 처음 펼 때 **한 번**만 데우고(searchWarm9 — 입력칸이 먼저 선 다음 장에 · 그 뒤로는 안 끈다) ② 편성표는 '구울 일이 있나'(중계 ∨ 데움)가 갈릴 때만 다시 굽는다. */
+  const [searchWarm9, setSearchWarm9] = useState(false);
+  useEffect(() => {
+    if (!searchNeed9 || searchWarm9) return undefined;
+    const tm9 = window.setTimeout(() => setSearchWarm9(true), 60);   // 입력칸·키보드가 먼저 서게 한 박자 뒤
+    return () => window.clearTimeout(tm9);
+  }, [searchNeed9, searchWarm9]);
+  const planWant9 = castOn || searchWarm9;
   /** ★ 검색 결과의 **장면 잡기**(2026-10-12, 지적: "키워드 검색이랑 중계가 섞여서 문제 — 검색을 해도 그 장면이 나오는 게 아니라 중계 장면이 나오네") — 결과로 가면
    *  그 결과의 자리·사람·장면 길로 [from, to] 동안 중계 토막을 **대신한다**(아래 searchSeg9 · castSeg9). 창이 끝나거나(to) 손으로 딴 데 감거나 검색을 취소하면 중계로 돌아간다. */
   const [searchFocus9, setSearchFocus9] = useState<{ from: number; to: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][] } | null>(null);
   /** 검색창에 치는 글(초안) — Enter·찾기 단추가 searchQ9 로 올린다(아래 searchSubmit9 ★). */
   const [searchDraft9, setSearchDraft9] = useState("");
   const planAll9 = useMemo<CastSeg9[]>(
-    () => ((castOn || searchNeed9) && entData
+    () => (planWant9 && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
         bank: truth?.res })   // 인구 막힘은 돈이 있을 때만(2026-10-11)
       : NO_PLAN9),
-    [castOn, searchNeed9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
+    [planWant9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth]);
   const castPlan = castOn ? planAll9 : NO_PLAN9;
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
@@ -12419,7 +12429,7 @@ export default function ReplayMotionPlayer({
   type SearchHit9 = { sec: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number };
   const searchIndex9 = useMemo((): { list: (SearchHit9 & { hay: string })[]; terms: Map<string, string> } => {
     const terms9 = new Map<string, string>();
-    if (!entData || !searchNeed9) return { list: [], terms: terms9 };
+    if (!entData || !searchWarm9) return { list: [], terms: terms9 };
     const nameOf9 = new Map(bases.map((b9) => [b9.key, b9.name] as const));
     const rawOf9 = new Map(entData.players.map((pl9) => [pl9.owner, pl9.name] as const));
     const out9: (SearchHit9 & { hay: string })[] = [];
@@ -12522,7 +12532,7 @@ export default function ReplayMotionPlayer({
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
     return { list: out9, terms: terms9 };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, searchNeed9, bases, planAll9]);
+  }, [entData, searchWarm9, bases, planAll9]);
   const searchHits9 = useMemo((): SearchHit9[] => {
     const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks9.length === 0) return [];
@@ -12668,11 +12678,11 @@ export default function ReplayMotionPlayer({
   searchKeyRef9.current = (dir9) => { if (searchHits9.length === 0) return false; searchGo9(dir9); return true; };
   /* Enter 뒤 — 결과가 서면 첫 결과(1/N)로 가고 결과 꼴로 · 없으면 입력 꼴에 '0건'. */
   useEffect(() => {
-    if (!searchFirst9.current) return;
+    if (!searchFirst9.current || !searchWarm9) return;   // 색인이 아직 안 데워졌으면 데워진 뒤에(위 searchWarm9 ★)
     searchFirst9.current = false;
     if (searchHits9.length > 0) { searchGo9(0, 0); setSearchEdit9(false); setSearchMiss9(false); } else setSearchMiss9(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchHits9, searchHitTick9]);
+  }, [searchHits9, searchHitTick9, searchWarm9]);
   const fsUiRef = useRef(true);
   fsUiRef.current = fsUi;
   const fsHideRef = useRef(0);

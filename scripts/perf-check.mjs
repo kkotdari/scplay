@@ -1491,9 +1491,15 @@ if (SHOT) {
         sug: [...document.querySelectorAll(".scr-motion-searchsug-opt")].map((e) => e.textContent),
         cap: document.querySelector(".scr-cast-caption")?.textContent ?? null, owner: document.querySelector(".scr-fs-solo-cap")?.textContent ?? null }; });
     console.log("[검색 쉼]", JSON.stringify(await st9()));
-    await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
+    /* 여닫기 걸림 재기(2026-10-12 지적: "열 때 한참 가만히 있다가") — 누름 → 입력칸이 설 때까지 ms. */
+    const openMs9 = await page.evaluate(() => new Promise((res) => {
+      const t0 = performance.now();
+      document.querySelector(".scr-motion-searchbtn")?.click();
+      const tick = () => (document.querySelector(".scr-motion-search-input") ? res(Math.round(performance.now() - t0)) : requestAnimationFrame(tick));
+      tick();
+    }));
     await page.waitForTimeout(400);
-    console.log("[검색 펴짐]", JSON.stringify(await st9()));
+    console.log("[검색 펴짐]", `${openMs9}ms`, JSON.stringify(await st9()));
     await page.keyboard.type(q9);   // 입력칸은 펴질 때 자라고 판이 늘 다시 그려 fill 의 '가만히 있나' 기다림이 걸린다 — 곧장 친다(autoFocus)
     await page.waitForTimeout(300);
     console.log("[검색 치기만]", q9, JSON.stringify(await st9()));
@@ -1509,8 +1515,14 @@ if (SHOT) {
       await page.evaluate(() => { document.querySelector(".scr-motion-searchwrap [aria-label='검색어 지우기']")?.click(); });
       await page.waitForTimeout(400);
       console.log("[검색 ✕ 지우기]", JSON.stringify({ ...(await st9()), val: await page.evaluate(() => document.querySelector(".scr-motion-search-input")?.value ?? null) }));
-      await page.evaluate(() => { document.querySelector(".scr-motion-searchbtn")?.click(); });
-      await page.waitForTimeout(2500);   // 접기 움직임(180ms) 뒤 — 움직임 끝(animationend)·대비 타이머가 닫는다(헤드리스 SW GL 은 장·타이머가 밀려 넉넉히)
+      const closeMs9 = await page.evaluate(() => new Promise((res) => {
+        const t0 = performance.now();
+        document.querySelector(".scr-motion-searchbtn")?.click();
+        const tick = () => (!document.querySelector(".scr-motion-searchwrap.is-open") ? res(Math.round(performance.now() - t0)) : performance.now() - t0 > 5000 ? res(-1) : requestAnimationFrame(tick));
+        tick();
+      }));
+      console.log("[검색 닫힘]", `${closeMs9}ms`);
+      await page.waitForTimeout(400);   // 접기 움직임(180ms) 뒤 — 움직임 끝(animationend)·대비 타이머가 닫는다(헤드리스 SW GL 은 장·타이머가 밀려 넉넉히)
       console.log("[검색 돋보기 닫기]", JSON.stringify(await st9()));
     }
   }

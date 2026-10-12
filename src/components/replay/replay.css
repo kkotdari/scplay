@@ -4832,6 +4832,11 @@
 .scr-motion-searchwrap.is-open > .scr-motion-search-step, .scr-motion-searchwrap.is-open > .scr-motion-search-count { animation: scr-search-in 0.18s ease-out; }
 .scr-motion-searchwrap.is-closing > :not(.scr-motion-searchbtn):not(.scr-motion-searchsug) { overflow: hidden; animation: scr-search-out 0.18s ease-in forwards; }
 .scr-motion-searchwrap.is-closing > .scr-motion-searchsug { display: none; }
+/* 접힐 때 우물 바탕·여백도 **같은 박자에** 걷는다(2026-10-12, 지적: "닫힐 때는 2단계로 닫혀" — 속이 다 오그라든 뒤에야 바탕이 스며 나갔다). */
+.scr-motion-searchwrap.is-open.is-closing {
+  padding-right: 0; background: transparent;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0), inset 0 0 0 1px rgba(0, 0, 0, 0), 0 1px 0 rgba(255, 255, 255, 0);
+}
 @keyframes scr-search-in { from { max-width: 0; opacity: 0; } to { max-width: calc(60px * var(--ui)); opacity: 1; } }
 @keyframes scr-search-out { from { max-width: calc(240px * var(--ui)); opacity: 1; } to { max-width: 0; opacity: 0; padding: 0; margin: 0; } }
 @media (prefers-reduced-motion: reduce) { .scr-motion-searchwrap.is-open > .scr-motion-search-step, .scr-motion-searchwrap.is-open > .scr-motion-search-count, .scr-motion-searchwrap.is-closing > * { animation: none; } }
