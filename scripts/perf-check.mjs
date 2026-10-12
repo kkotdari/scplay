@@ -1493,6 +1493,8 @@ if (SHOT) {
         tags: document.querySelectorAll(".scr-motion-searchtag").length, clock: document.querySelector(".scr-motion-clock")?.textContent ?? null,
         sug: [...document.querySelectorAll(".scr-motion-searchsug-opt")].map((e) => e.textContent),
         cap: document.querySelector(".scr-cast-caption")?.textContent ?? null, owner: document.querySelector(".scr-fs-solo-cap")?.textContent ?? null }; });
+    /* --searchpause(2026-10-12) — 멈춘 채 검색해도 결과로 가면 재생하나(시계가 가나). 스페이스로 멈춘다. */
+    if (has("--searchpause")) { await page.mouse.click(5, 5); await page.keyboard.press("Space"); await page.waitForTimeout(800); }
     console.log("[검색 쉼]", JSON.stringify(await st9()));
     /* 여닫기 걸림 재기(2026-10-12 지적: "열 때 한참 가만히 있다가") — 누름 → 입력칸이 설 때까지 ms. */
     const openMs9 = await page.evaluate(() => new Promise((res) => {

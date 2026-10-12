@@ -12560,14 +12560,17 @@ export default function ReplayMotionPlayer({
     }
     const capTxt9 = (caps9: CapPart9[]): string => caps9.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
     /* 장면 글귀 — 편성표 밖 거리(search)를 먼저 싣는다: 장면 길(spot)과 끝(to)을 들고 있어 같은 글귀가 겹치면(아래 8초 합침) 그쪽이 남는다. */
+    /* ★ 핵은 탄두 색인(위 ③)이 한 발에 한 줄을 이미 낸다 — 장면 글귀("A가 핵 투하" · cast9 castNukes9 장면)까지 실으면 한 발이 결과 둘이 되어, 다음 결과로 넘어가며 시계가
+       되감겨 같은 핵이 두 번 재생됐다(2026-10-12, 지적: "핵 투하가 두 번씩 재생됨"). 장면 쪽 핵 글귀는 뺀다. */
+    const nukeDup9 = (txt9: string): boolean => txt9.includes("핵 투하");
     for (const x9 of (planAll9 as CastPlan9).search ?? []) {
       const txt9 = capTxt9(x9.caps);
-      if (txt9) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
+      if (txt9 && !nukeDup9(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
     }
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
       const txt9 = capTxt9(g9.caps);
-      if (txt9) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
+      if (txt9 && !nukeDup9(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
     }
     out9.sort((a9, b9) => a9.sec - b9.sec);
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
@@ -12738,6 +12741,7 @@ export default function ReplayMotionPlayer({
     }
     const v9 = Math.min(total, Math.max(0, hs9[i9].sec - SEARCH_LEAD9));
     setSearchCur9(i9);
+    setPlaying(true);   // 멈춰 있어도 결과로 가면 재생한다(2026-10-12, 요청: "정지 상태여도 검색 시 자동 재생")
     /* ★ 장면 잡기(위 searchFocus9 ★) — 결과 때부터 끝(to · 없으면 결과 + SEARCH_HOLD9)까지 그 결과의 자리·사람·장면 길이 중계 토막을 대신한다.
        중계가 꺼져 있으면(손 카메라) 그 자리를 한 번 가운데로 데려온다(그 뒤로는 손 카메라 그대로). */
     const h9 = hs9[i9];

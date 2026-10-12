@@ -1653,3 +1653,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   창과 상관없이 지금 결과를 쥔다: 카메라는 그 사건 자리(spot · 없으면 점)를 trackView #spot 으로 따라가고, 잠금(camLockRef9)·잠금 토스트("중계 모드에선 …")·줌 당김(castZoomFit9)이
   중계와 같다. 중계를 꺼 둔 판에서도 잠근다. 편성표(castOn = castUser9 && !searchOn9)는 그대로 물러나 있고 넘김·마지막 멈춤·검색 자막도 그대로.
   🔎 `perf-check.mjs --locktoast --castoff --searchprobe 정구 --searchkeep 1 --searchlock` — 검색 전 휠 토스트 없음 · 검색 중 "중계 모드에선 줌·화면 이동이 안 돼요".
+
+## 배속창 왼아래 · 핵 결과 한 발에 하나 · 멈춰 있어도 검색하면 재생(2026-10-12)
+- 요청: "배속창 왼쪽으로 이동" — `.scr-speeddial` right → **left**(var(--sd-gap)) · 자막 양쪽 비움(--sd-room)은 그대로.
+- 지적: "핵 투하가 두 번씩 재생됨" — 같은 핵이 검색 결과 둘이었다(탄두 색인 "A가 B 기지에 핵 투하" + cast9 핵 장면의 글귀 "A가 핵 투하" · 장면 글귀는 그 장면 겨눔 −3초) →
+  다음 결과로 넘어가며 시계가 되감겨 폭발이 다시 나왔다. 장면 쪽(planAll9.search · 토막 자막)의 '핵 투하' 글귀는 색인에서 뺀다(nukeDup9).
+- 요청: "정지 상태여도 검색 시 자동 재생" — searchGo9 가 setPlaying(true)(Enter·N·B·자동 넘김 모두).
+- 🔎 `perf-check.mjs --searchpause --searchprobe 핵 --searchkeep 1 --searchwait 6` — 1/3(장전·투하 둘 · 합성 판 탄두 둘) · 멈춘 뒤에도 시계가 간다.
