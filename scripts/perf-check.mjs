@@ -1035,7 +1035,7 @@ if (has("--pickshot")) {
   await page.screenshot({ path: String(flag("--pickshot", "pick.png")), timeout: 120000 });
 }
 /* --campick(2026-10-12, 요청: "모바일 분할 화면 완전제거 및 로스터 클릭시 그사람 화면으로 변경" · "숫자키 1~8로 플레이어 화면 전환") — 로스터 사람 카메라를
-   첫째 → 둘째 차례로 누르고, 숫자키 3 · 1 을 친 뒤마다 켜진 단추 차례 · 분할 칸 수 · 토스트 글귀를 찍는다. 폰(--ios)은 늘 한 사람 · 칸 0 · 토스트 없음이어야 한다. */
+   첫째 → 둘째 차례로 누르고, 숫자패드 키(3 · 1 · -/+ · 9 · . · 0 · / · *)를 친 뒤마다 켜진 단추 차례 · 분할 칸 수 · 토스트 글귀를 찍는다. 폰(--ios)은 늘 한 사람 · 칸 0 · 토스트 없음이어야 한다. */
 if (has("--campick")) {
   await page.waitForTimeout(800);
   const st9 = (lab) => page.evaluate((lab) => {
@@ -1048,24 +1048,32 @@ if (has("--campick")) {
   await click9(0); await page.waitForTimeout(400); console.log(await st9("1번 누름"));
   await click9(1); await page.waitForTimeout(400); console.log(await st9("2번 누름"));
   await page.evaluate(() => (document.activeElement instanceof HTMLElement) && document.activeElement.blur());
-  await page.keyboard.press("Digit3"); await page.waitForTimeout(400); console.log(await st9("숫자키 3"));
-  await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1"));
-  await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1 다시"));
-  /* 2026-10-13 — -/+ 이전·다음 사람 · 0 전체 · ` AUTO · F 검색창 손 · P 재생/일시정지. */
+  /* 2026-10-13 — 화면 키는 숫자패드 한 벌(1~8 · -/+ · 9 전체 · . AUTO · 0 끄기 · / 색) · 스페이스 재생/일시정지 · F 장면 검색 · 윗줄 숫자·P·패드 Enter·* 는 안 먹어야 한다. */
+  const kp9 = async (code, lab) => { await page.keyboard.press(code); await page.waitForTimeout(400); console.log(await st9(lab), await auto9()); };
   const auto9 = () => page.evaluate(() => (document.querySelector(".scr-dock-roster .scr-roster-cam-auto")?.classList.contains("is-on") ? "AUTO 켜짐" : "AUTO 꺼짐"));
-  await page.keyboard.press("Equal"); await page.waitForTimeout(400); console.log(await st9("+"));
-  await page.keyboard.press("Equal"); await page.waitForTimeout(400); console.log(await st9("+ 다시"));
-  await page.keyboard.press("Minus"); await page.waitForTimeout(400); console.log(await st9("-"));
-  await page.keyboard.press("Minus"); await page.waitForTimeout(400); console.log(await st9("- 다시"));
-  await page.keyboard.press("Digit0"); await page.waitForTimeout(400); console.log(await st9("0"));
-  await page.keyboard.press("Backquote"); await page.waitForTimeout(400); console.log(await st9("`"), await auto9());
-  await page.keyboard.press("Backquote"); await page.waitForTimeout(400); console.log(await st9("` 다시"), await auto9());
+  await kp9("Numpad3", "패드 3"); await kp9("Numpad1", "패드 1"); await kp9("Numpad1", "패드 1 다시");
+  await kp9("NumpadAdd", "패드 +"); await kp9("NumpadAdd", "패드 + 다시"); await kp9("NumpadSubtract", "패드 -"); await kp9("NumpadSubtract", "패드 - 다시");
+  await kp9("Digit3", "윗줄 3(안 먹어야)");
+  await kp9("Numpad9", "패드 9"); await kp9("Numpad9", "패드 9 다시"); await kp9("NumpadDecimal", "패드 ."); await kp9("NumpadDecimal", "패드 . 다시"); await kp9("Numpad0", "패드 0");
+  const col9 = () => page.evaluate(() => document.querySelector(".scr-motion-colorbtn, [aria-label*='색']")?.getAttribute("aria-label") ?? "-");
+  console.log("[키] 색 전", await col9()); await page.keyboard.press("NumpadDivide"); await page.waitForTimeout(300); console.log("[키] 패드 / 뒤", await col9());
   const play9 = () => page.evaluate(() => document.querySelector(".scr-motion-play, [aria-label*='일시정지'], [aria-label*='재생']")?.getAttribute("aria-label") ?? "-");
   console.log("[키] 재생 단추 전", await play9());
-  await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 뒤", await play9());
-  await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 다시", await play9());
+  await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 뒤(안 먹어야)", await play9());
+  await page.keyboard.press("NumpadEnter"); await page.waitForTimeout(400); console.log("[키] 패드 Enter 뒤(안 먹어야)", await play9());
+  await page.keyboard.press("Space"); await page.waitForTimeout(400); console.log("[키] 스페이스 뒤", await play9());
+  await page.keyboard.press("Space"); await page.waitForTimeout(400); console.log("[키] 스페이스 다시", await play9());
+  /* 초점이 사람 카메라 단추에 있어도 스페이스는 그 단추를 안 누른다(요청: "엔터키가 현재 선택된 요소 선택으로 동작 안되게" → 스페이스도) — 켜진 단추가 그대로여야 한다. */
+  await page.evaluate(() => { const b = document.querySelectorAll(".scr-dock-roster .scr-roster-cam:not(.scr-roster-cam-auto):not(.scr-roster-cam-all)")[1]; if (b instanceof HTMLElement) b.focus(); });
+  console.log(await st9("둘째 단추에 초점"));
+  await page.keyboard.press("Space"); await page.waitForTimeout(400); console.log(await st9("초점 둔 채 스페이스"), "·", await play9());
+  await page.keyboard.press("Space"); await page.waitForTimeout(400); console.log("[키] 스페이스 되돌림", await play9());
+  await page.keyboard.press("NumpadMultiply"); await page.waitForTimeout(300);
+  console.log("[키] 패드 * 뒤 손(안 먹어야):", await page.evaluate(() => document.activeElement?.className ?? "-"));
   await page.keyboard.press("KeyF"); await page.waitForTimeout(400);
   console.log("[키] F 뒤 손:", await page.evaluate(() => { const a = document.activeElement; return a ? `${a.tagName}.${a.className} 값「${a.value ?? ""}」` : "-"; }));
+  await page.keyboard.press("Space"); await page.waitForTimeout(200);
+  console.log("[키] 입력칸에서 스페이스(빈칸이어야):", await page.evaluate(() => `「${document.activeElement?.value ?? "-"}」`), await play9());
 }
 /* 분할보기 자(--split [png]) — TV 목록에서 '분할'을 골라 칸 수·자리·칸 그림(빈 판인가)·칸 머리 글귀를 찍고, 둘째 칸을 눌러
    독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */

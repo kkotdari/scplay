@@ -10714,8 +10714,8 @@ export default function ReplayMotionPlayer({
     if (trackRaw !== m9.key || splitOn9) toggleTrack(m9.key);
     return true;
   };
-  /* ★ -/+ = 이전/다음 사람 · 0 = 전체 알약 · ` = AUTO(2026-10-13, 요청: "-: 이전사람 화면 +: 다음사람화면 0: 전체화면 `: 자동중계") — 차례는 위 숫자키와 같다.
-     -/+ 는 지금 보는 한 사람에서 한 칸(끝에서 돌아 든다) · 한 사람을 안 보고 있으면 + 는 첫 사람 · - 는 끝 사람. 0·` 은 전광판의 그 단추와 똑같다(켜진 채 누르면 끈다). */
+  /* ★ 숫자패드 -/+ = 이전/다음 사람 · 9 = 전체 · . = AUTO · 0 = 중계 끄기(2026-10-13, 요청 — 키 판의 숫자패드 ★) — 차례는 위 숫자키와 같다.
+     -/+ 는 지금 보는 한 사람에서 한 칸(끝에서 돌아 든다) · 한 사람을 안 보고 있으면 + 는 첫 사람 · - 는 끝 사람. 9·. 은 켜기만(전환) · 끄기는 0. */
   const personStepRef9 = useRef<(d9: 1 | -1) => boolean>(() => false);
   personStepRef9.current = (d9) => {
     const order9 = melee ? bases : [...bases.filter((m) => m.team !== 2), ...bases.filter((m) => m.team === 2)];
@@ -10725,9 +10725,16 @@ export default function ReplayMotionPlayer({
     return personKeyRef9.current(i9 + 1);
   };
   const allKeyRef9 = useRef<() => boolean>(() => false);
-  allKeyRef9.current = () => { if (smallDevice9 || bases.length === 0) return false; toggleAll9(); return true; };   // 폰은 전체(분할)가 없다
+  allKeyRef9.current = () => { if (smallDevice9 || bases.length === 0) return false; if (!allOn9) startSplit9(null); return true; };   // 폰은 전체(분할)가 없다
   const castKeyRef9 = useRef<() => void>(() => {});
-  castKeyRef9.current = () => toggleCast9();
+  castKeyRef9.current = () => { if (!castOn) toggleCast9(); };
+  /** 중계 끄기 — 자동·전체/분할·개인 추적 다 놓고 손 시점으로(각 단추를 끈 것과 같은 자리에 머문다). */
+  const offKeyRef9 = useRef<() => void>(() => {});
+  offKeyRef9.current = () => {
+    if (castOn) stopCast9();
+    if (splitOn9) setSplitOn9(false);
+    if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+  };
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
      추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
@@ -16943,7 +16950,7 @@ export default function ReplayMotionPlayer({
          알트+엔터는 예외다(전체화면 토글은 어디에 초점이 있든 들어야 한다). */
       const onBtn9 = !!t2 && (t2.tagName === "BUTTON" || t2.tagName === "A"
         || t2.tagName === "SELECT" || t2.getAttribute("role") === "button");
-      if (onBtn9 && (e.key === " " || (e.key === "Enter" && !e.altKey))) return;
+      if (onBtn9 && e.key === "Enter" && !e.altKey) return;   // 스페이스는 이 판의 재생 키다 — 아래 onKeyCap(캡처)이 단추보다 먼저 잡아 이리 넘긴다
       const k = e.key;
       /** 오버레이에 손잡이가 있는 조작이면 판을 깨운다(위 주석). */
       const wakeUi = (): void => { if (fsOn) fsWake(); };
@@ -17008,28 +17015,30 @@ export default function ReplayMotionPlayer({
         /* ★ 검색 결과 앞뒤 — B 이전 · N 다음(2026-10-12, 요청: "검색 결과 이전/다음은 B/N 으로 매핑하고 검색창 닫아도 동작") — 검색창(입력)에 있을 땐 이 판이
            안 들으므로(위 INPUT 문) 창을 닫거나 접은 뒤에 먹는다. 결과가 없으면 키를 흘린다. */
         if (searchKeyRef9.current(e.code === "KeyN" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
-      } else if (/^Digit[1-8]$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // 1~8 = 그 차례 사람 화면으로 전환(위 personKeyRef9 · 2026-10-12 요청) — e.code 라 한글 자판·시프트와 무관.
-        if (personKeyRef9.current(Number(e.code.slice(5)))) { e.preventDefault(); wakeUi(); }
-      } else if ((e.code === "Minus" || e.code === "NumpadSubtract" || e.code === "Equal" || e.code === "NumpadAdd") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // - = 이전 사람 · + (= 자리 · 시프트 무관) = 다음 사람(위 personStepRef9 · 2026-10-13 요청).
-        if (personStepRef9.current(e.code === "Minus" || e.code === "NumpadSubtract" ? -1 : 1)) { e.preventDefault(); wakeUi(); }
-      } else if ((e.code === "Digit0" || e.code === "Numpad0") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // 0 = 전체 알약(모든 사람 분할 · 켜진 채면 끔 · 2026-10-13 요청). 폰은 분할이 없어 흘린다.
-        if (allKeyRef9.current()) { e.preventDefault(); wakeUi(); }
-      } else if (e.code === "Backquote" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // ` = AUTO(자동 중계 켬·끔 · 2026-10-13 요청).
-        e.preventDefault();
-        wakeUi();
-        castKeyRef9.current();
+      } else if (/^Numpad[0-9]$|^Numpad(Subtract|Add|Decimal|Divide)$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        /* ★ **숫자패드 한 벌**(2026-10-13, 요청: "숫자패드 1~8: 각 플레이어 화면(단독) · 9: 전체중계 · 0: 중계 끄기 · .: 자동중계 · -: 이전사람(순번) · +: 다음사람 ·
+           /: 색깔 변경 · *: 검색 — 이전 매핑된 키는 이걸로 다 바꾸기") — 옛 윗줄 1~8 · -/= · 0 · ` · c 를 걷었다. e.code 라 NumLock 과 무관하다.
+           이어 "장면검색은 F · 숫자패드 엔터는 아무것도 매핑 X · 매핑은 기능당 한 키에만" — * 도 걷었다(검색은 F 하나 · 재생은 스페이스 하나).
+           켜는 키(1~9 · .)는 **전환**이다(이미 그것이면 그대로) — 끄기는 0 하나다. */
+        const c9 = e.code.slice(6);
+        let ok9 = true;
+        if (/^[1-8]$/.test(c9)) ok9 = personKeyRef9.current(Number(c9));
+        else if (c9 === "9") ok9 = allKeyRef9.current();
+        else if (c9 === "0") offKeyRef9.current();
+        else if (c9 === "Decimal") castKeyRef9.current();
+        else if (c9 === "Subtract" || c9 === "Add") ok9 = personStepRef9.current(c9 === "Add" ? 1 : -1);
+        else if (c9 === "Divide") setColorMode(colorNextRef9.current);   // 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공)
+        if (ok9) { e.preventDefault(); wakeUi(); }
       } else if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        /* f = 검색창 펴고 손 얹기(2026-10-13, 요청: "키워드검색창 포커싱 단축키 F 재생일시정지를 P") — keydown 을 막아 f 글자가 입력칸에 안 들어간다. */
+        // f = 장면 검색 — 검색 알약을 펴고 입력칸에 손(위 searchFocusKeyRef9 · 2026-10-13 요청). keydown 을 막아 f 글자는 입력칸에 안 들어간다.
         e.preventDefault();
         wakeUi();
         searchFocusKeyRef9.current();
-      } else if (e.code === "KeyP") {
-        /* 재생/일시정지 — p → 스페이스바 → f(2026-10-11) → **p**(2026-10-13, 요청 — f 는 검색창으로). 스페이스는 안 듣는다(안내에 없는 매핑은 두지 않는다). */
+      } else if (e.code === "Space" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        /* 재생/일시정지 — p → 스페이스 → f(2026-10-11) → p → 숫자패드 Enter → **스페이스**(2026-10-13, 요청: "스페이스도 그렇게 할 수 있으면 재생을 스페이스에" ·
+           "매핑은 기능당 한 키에만" — p·숫자패드 Enter 는 안 듣는다). 단추에 초점이 있어도 그 단추를 안 누른다(아래 onKeyCap). 눌러 둔 채 되풀이되는 keydown 은 버린다. */
         e.preventDefault();
+        if (e.repeat) return;
         wakeUi();
         if (done) { setT(0); setDone(false); setPlaying(true); return; }
         setPlaying((v) => !v);
@@ -17056,13 +17065,7 @@ export default function ReplayMotionPlayer({
            입력칸·단추 초점 걸러내기는 위에 그대로 있어, 자판이 붙어 있어도 글 쓰는 중에는
            안 뺏는다. */
       // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
-      } else if (e.code === "KeyC") {
-        // c = 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공 · 밀리는 팀을, 중계가 꺼지면 주인공을 건너뛴다).
-        e.preventDefault();
-        wakeUi();
-        setColorMode(colorNextRef9.current);
-      /* (걷어냄 · 2026-10-09) b = 로스터 현황 켬·끔 — 로스터가 독에서 늘 전부를 보인다. */
-      /* (걷어냄 · 2026-10-10, 요청: "미니맵 숨김 버튼 및 단축키 제거") n = 미니맵 여닫이. */
+      /* (걷어냄 · 2026-10-13) c = 색 모드 — 숫자패드 / 로 옮겼다(위 숫자패드 ★). */
       } else if (e.code === "KeyV") {
         // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
         e.preventDefault();
@@ -17104,10 +17107,27 @@ export default function ReplayMotionPlayer({
     /* 창을 떠나면 키를 놓은 것으로 본다 — 알트탭으로 나가면 keyup이 안 와서, 눌린
        채로 남은 키가 돌아왔을 때 지도를 저 혼자 밀고 간다. */
     const onBlur = (): void => { KP.keys.clear(); seekRelease(); };
+    /* ★ 스페이스는 **재생 키일 뿐**이다(2026-10-13, 요청: "엔터키가 현재 선택된 요소 선택으로 동작 안되게 주의" → "스페이스도 그렇게") — 초점이 단추·로스터 칸·
+       분할 칸(role=button 의 React onKeyDown)에 있으면 스페이스가 그것을 누르고(단추는 keyup 에) 페이지를 굴린다. 캡처 단계(창 맨 앞)에서 먼저 잡아 기본 동작을
+       막고 전파를 끊은 뒤 재생 키로만 쓴다 · keyup 도 막는다. 입력칸(검색)은 건드리지 않는다 — 거기 스페이스는 빈칸이다. */
+    const capKey9 = (e: KeyboardEvent): boolean => {
+      if (e.code !== "Space" || e.ctrlKey || e.metaKey || e.altKey) return false;
+      const t9 = e.target as HTMLElement | null;
+      if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.tagName === "SELECT" || t9.isContentEditable)) return false;
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    };
+    const onKeyCap = (e: KeyboardEvent): void => { if (capKey9(e)) onKey(e); };
+    const onUpCap = (e: KeyboardEvent): void => { capKey9(e); };
+    window.addEventListener("keydown", onKeyCap, true);
+    window.addEventListener("keyup", onUpCap, true);
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onUp);
     window.addEventListener("blur", onBlur);
     return () => {
+      window.removeEventListener("keydown", onKeyCap, true);
+      window.removeEventListener("keyup", onUpCap, true);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onUp);
       window.removeEventListener("blur", onBlur);
