@@ -9167,8 +9167,8 @@ export default function ReplayMotionPlayer({
   /** 눈 목록 보간용 되쓰는 배열과 판 번호(아래 lerpFrame9) — 경로별. */
   const visLerpRef9 = useRef<[{ buf: Float32Array | null; ver: number }, { buf: Float32Array | null; ver: number }]>([{ buf: null, ver: 0 }, { buf: null, ver: 0 }]);
   /** ★ 눈 목록의 **단조 빗장**(슬롯별) — 마지막으로 **낸** 목록 한 벌과 그 시각. 아래 ★ 참고. */
-  const visMonoRef9 = useRef<[{ buf: Float32Array | null; ver: number; t: number }, { buf: Float32Array | null; ver: number; t: number }]>(
-    [{ buf: null, ver: 0, t: -1 }, { buf: null, ver: 0, t: -1 }],
+  const visMonoRef9 = useRef<[{ buf: Float32Array | null; spare: Float32Array | null; ver: number; t: number; pos: Map<number, number> }, { buf: Float32Array | null; spare: Float32Array | null; ver: number; t: number; pos: Map<number, number> }]>(
+    [{ buf: null, spare: null, ver: 0, t: -1, pos: new Map() }, { buf: null, spare: null, ver: 0, t: -1, pos: new Map() }],
   );
   /** 빗장이 걸린 장을 담아 낼 껍데기(슬롯별 하나) — 앞 장 캐시를 못 건드리므로. */
   const holdFrameRef9 = useRef<[Frame9 | null, Frame9 | null]>([null, null]);
@@ -15282,10 +15282,61 @@ export default function ReplayMotionPlayer({
    *  뒤 장(b)에서 같은 개체(lerpKey9)를 찾아 자리·방향을 t의 비율로 섞는다 — 장 밀도와 무관하게 매끄럽다. 뒤 장이
    *  없으면(워커가 뒤처짐) 앞 장 그대로. 자세·z·알파는 앞 장 것이다. 보간 op는 장마다 한 번 복사해 두고 제자리에서
    *  값만 바꾼다(그리기마다 객체를 안 만든다). */
+  /** 안개 눈 목록의 **단조 빗장**(눈마다) — 아래 lerpFrame9의 세 출구(제장·뒤장없음·이음)가 모두 지난다. 까닭은 출구 쪽 ★★.
+   *  null이면 후보가 비어 손대지 않은 것. 낸 목록은 늘 베낀 것이다(이음 버퍼는 다음 틱이 덮어쓴다). */
+  const latchVis9 = (slot9: 0 | 1, cand9: Float32Array | null | undefined, t0: number): { src: Float32Array; ver: number } | null => {
+    if (!cand9 || cand9.length === 0) return null;
+    const mo9 = visMonoRef9.current[slot9];
+    if (cand9 === mo9.buf) return { src: mo9.buf, ver: mo9.ver };
+    const cT9 = FOGT9.get(cand9) ?? t0;
+    const back9 = mo9.buf !== null && mo9.t >= 0 && cT9 < mo9.t - 1e-4 && mo9.t - cT9 < 1;
+    if (back9 && mo9.buf && mo9.buf.length === cand9.length) {
+      let same9 = true;
+      for (let i9 = 3; i9 < cand9.length; i9 += 4) if (mo9.buf[i9] !== cand9[i9]) { same9 = false; break; }
+      if (same9) {   // 같은 눈들 — 방금 낸 목록 그대로(옛 빗장)
+        fogWhy9 += "빗장";
+        return { src: mo9.buf, ver: mo9.ver };
+      }
+    }
+    const prevPos9 = mo9.pos;
+    const prevBuf9 = mo9.buf;
+    /* 두 벌을 번갈아 쓴다(틱마다 새로 안 만든다) — 직전 것(prevBuf9)은 아래에서 자리를 베껴야 하니 덮지 않는다. */
+    const out9 = mo9.spare && mo9.spare.length === cand9.length && mo9.spare !== cand9 ? mo9.spare : new Float32Array(cand9.length);
+    out9.set(cand9);
+    if (back9 && prevBuf9) {
+      fogWhy9 += "빗장눈";
+      for (let i9 = 0; i9 + 3 < out9.length; i9 += 4) {
+        const id9 = out9[i9 + 3];
+        if (id9 === 0) continue;
+        const j9 = prevPos9.get(id9);
+        if (j9 === undefined) continue;
+        out9[i9] = prevBuf9[j9]; out9[i9 + 1] = prevBuf9[j9 + 1];
+      }
+    }
+    const outT9 = back9 ? mo9.t : cT9;
+    prevPos9.clear();
+    for (let i9 = 0; i9 + 3 < out9.length; i9 += 4) { const id9 = out9[i9 + 3]; if (id9 !== 0) prevPos9.set(id9, i9); }
+    mo9.spare = prevBuf9;
+    mo9.buf = out9;
+    mo9.t = outT9;
+    mo9.ver += 1;
+    FOGT9.set(out9, outT9);
+    return { src: out9, ver: mo9.ver };
+  };
   const lerpFrame9 = (a9: PackedFrame9, tNow9: number, slot9: 0 | 1): Frame9 => {
     const fa9 = decodeFrame9(a9);
     const bs9 = brushStatRef9.current;
-    if (tNow9 <= a9.t + 1e-6) { fogWhy9 = "제장"; return fa9; }
+    if (tNow9 <= a9.t + 1e-6) {
+      fogWhy9 = "제장";
+      const lz9 = latchVis9(slot9, fa9.visSrc, fa9.t);
+      if (!lz9 || lz9.src === fa9.visSrc) return fa9;
+      let hz9 = holdFrameRef9.current[slot9];
+      if (!hz9) { hz9 = { ...fa9 }; holdFrameRef9.current[slot9] = hz9; }
+      else Object.assign(hz9, fa9);
+      hz9.visSrc = lz9.src;
+      hz9.visVer = lz9.ver;
+      return hz9;
+    }
     const b9 = pickNextFrame9(a9);
     if (!b9) {
       bs9.noB += 1;
@@ -15302,30 +15353,15 @@ export default function ReplayMotionPlayer({
          떨어지면 그것 역시 되돌아가는 걸음이다. 앞 장 자체(fa9)는 캐시에 든 그 장이라
          못 건드리므로, 빗장이 걸릴 때만 껍데기 하나에 담아 낸다. */
       fogWhy9 = "뒤장없음";
-      const mb9 = visMonoRef9.current[slot9];
       /* 여기서도 프레임이 든 것이 아니라 **그 시각의 안개 판**을 쓴다(위 fogPairFor9의 ★). */
       const fpb9 = fogPairFor9(tNow9, a9.fseq);
-      const cb9 = fpb9 ? fpb9.a : fa9.visSrc;
-      if (cb9 && cb9.length > 0 && mb9.buf && mb9.t >= 0 && mb9.buf.length === cb9.length) {
-        const cbT9 = FOGT9.get(cb9) ?? fa9.t;
-        if (cbT9 < mb9.t - 1e-4 && mb9.t - cbT9 < 1) {
-          fogWhy9 = "뒤장없음빗장";
-          let hf9 = holdFrameRef9.current[slot9];
-          if (!hf9) { hf9 = { ...fa9 }; holdFrameRef9.current[slot9] = hf9; }
-          else Object.assign(hf9, fa9);
-          hf9.visSrc = mb9.buf;
-          hf9.visVer = mb9.ver;
-          return hf9;
-        }
-        if (!mb9.buf || mb9.buf.length !== cb9.length) mb9.buf = new Float32Array(cb9.length);
-        mb9.buf.set(cb9); mb9.t = cbT9; mb9.ver += 1; FOGT9.set(mb9.buf, cbT9);
-      }
-      if (cb9 !== fa9.visSrc && cb9.length > 0) {
+      const lb9 = latchVis9(slot9, fpb9 ? fpb9.a : fa9.visSrc, fa9.t);
+      if (lb9 && lb9.src !== fa9.visSrc) {
         let hb9 = holdFrameRef9.current[slot9];
         if (!hb9) { hb9 = { ...fa9 }; holdFrameRef9.current[slot9] = hb9; }
         else Object.assign(hb9, fa9);
-        hb9.visSrc = cb9;
-        hb9.visVer = undefined;
+        hb9.visSrc = lb9.src;
+        hb9.visVer = lb9.ver;
         return hb9;
       }
       return fa9;
@@ -15507,25 +15543,14 @@ export default function ReplayMotionPlayer({
          목록에 얼어붙는다. 눈 수가 바뀐 장도 받는다(다른 목록을 억지로 들 까닭이 없다).
        ※ 낸 목록은 한 벌 **베껴** 둔다 — 이음 버퍼는 다음 틱이 덮어쓰므로 가리키기만 하면
          빗장이 제 것을 잃는다. 눈 400이면 4.8KB 옮기기다. */
-    const cand9 = fr9.visSrc;
-    const mo9 = visMonoRef9.current[slot9];
-    if (cand9 && cand9.length > 0) {
-      const cT9 = FOGT9.get(cand9) ?? fa9.t;
-      const back9 = mo9.buf !== null && mo9.t >= 0 && cT9 < mo9.t - 1e-4;
-      if (back9 && mo9.buf && mo9.t - cT9 < 1 && mo9.buf.length === cand9.length) {
-        fogWhy9 = "빗장";
-        fr9.visSrc = mo9.buf;
-        fr9.visVer = mo9.ver;
-      } else {
-        if (!mo9.buf || mo9.buf.length !== cand9.length) mo9.buf = new Float32Array(cand9.length);
-        mo9.buf.set(cand9);
-        mo9.t = cT9;
-        mo9.ver += 1;
-        FOGT9.set(mo9.buf, cT9);
-        fr9.visSrc = mo9.buf;
-        fr9.visVer = mo9.ver;
-      }
-    }
+    /* ★★ **빗장을 눈마다**(2026-10-13, 지적: "안개 문제가 아직 종종 — 유닛이 하나일 때는 괜찮은데 둘 이상에서, 시야가 겹칠 때. 시야가 아주 약간 이전 시간으로
+       돌아갔다 현시점으로 돌아오고 반복") — 옛 빗장은 **목록 통째**로 걸고 **길이가 같을 때만** 섰다. 그런데 눈 수는 둘 이상이면 수시로 바뀐다(가스 캐는 일꾼이
+       정제소를 드나든다 · 태우고 내린다 · 짓기 시작한다) — 그 장마다 빗장이 풀려 더 이른 목록(앞장 생짜·옛 판)이 그대로 들어갔고, 다음 장에 제 시각으로
+       돌아왔다. 하나뿐이면 수가 안 바뀌어 안 났다 — 지적의 그 갈림이다.
+       이제 목록이 뒤로 가면(1초 안) **신원이 같은 눈은 방금 낸 자리를 그대로** 두고, 새 눈만 받는다. 시각표는 방금 낸 시각 그대로 — 그러니 길이가 바뀌어도
+       어느 눈도 뒤로 안 간다. 탐색·세대 갈림(1초 넘게 뒤)은 종전대로 통째로 받는다. */
+    const lv9 = latchVis9(slot9, fr9.visSrc, fa9.t);
+    if (lv9) { fr9.visSrc = lv9.src; fr9.visVer = lv9.ver; }
     /* (걷어냄) 눈 수가 바뀐 장에서 **직전 목록을 들고 가던** 갈래 — 계측이 그 자리를 그대로
        집었다(6배: 역행6/60 최대225ms(듦)). 든 목록은 최대 네 틱 전의 것이라, 그 사이에 앞 장
        생짜가 더 늦은 시각으로 지나갔으면 드는 순간이 곧 역행이다. 되돌림을 막으려고 넣은 것이
