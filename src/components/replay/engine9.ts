@@ -3516,10 +3516,14 @@ export function deriveWorld9(inp: {
         seen9.add(key9);
         let best9 = -1; let bd9 = Infinity;
         for (const [own2, trs9] of byOwner9) {
-          if (own2 === e.owner) continue;
           const raw2 = nameOfId9.get(own2) ?? "";
-          if (!raw2 || (tm9 !== undefined && teamOfRaw(raw2) === tm9)) continue;
+          if (!raw2) continue;
+          /* ★ **건물은 누구 것이든 표적**이다(2026-10-13, 요청: "모든 건물 우클릭 대상으로! 원작이 그럼") — 제 건물(일꾼 자원 돌려주기·수리·벙커 태우기·랠리)·동맹 건물을
+             우클릭해도 원작은 땅 마커 없이 그 건물의 링을 깜빡인다(색은 붓이 관계로 — 제 것 초록 · 동맹 노랑 · 적 빨강). 유닛은 종전대로 적만. */
+          const friend9 = own2 === e.owner || (tm9 !== undefined && teamOfRaw(raw2) === tm9);
           for (const tr of trs9) {
+            if (friend9 && !FOOTPRINT[tr.kind]) continue;
+            if (tr.tag === e.tag) continue;   // 제 몸(건물이 제게 찍은 랠리)은 표적이 아니다
             if (o[0] < tr.born - 0.1 || (tr.died !== null && o[0] > tr.died + 0.1)) continue;
             const b9 = boxOf9(tr);
             if (o[1] < b9[0] - b9[4] || o[1] > b9[2] + b9[4] || o[2] < b9[1] - b9[4] || o[2] > b9[3] + b9[4]) continue;

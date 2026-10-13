@@ -290,6 +290,12 @@ function makeWorld() {
     }
   }
 
+  /* --bldclick(2026-10-13, 요청: "모든 건물 우클릭 대상으로! 원작이 그럼") — 46초 난전 자리 곁에 정구 서플라이(58,60)·Rex(같은 편) 풀(68,60)·수달이(적) 파일런(62,58)을
+     세운다. 정구 병력이 45.8초 제 서플라이 · 46.0초 Rex 풀 · 46.2초 수달이 파일런을 우클릭(7)한다 → 땅 마커 없이 링이 초록·노랑·빨강으로 깜빡인다(0.9초 창). */
+  const bldClick9 = [];
+  if (has("--bldclick")) {
+    for (const [o9, ty9, x9, y9] of [[0, T.Depot, 58, 60], [1, Z.Pool, 68, 60], [2, P.Pylon, 62, 58]]) { bldClick9.push([tag, x9, y9]); track(o9, ty9, null, { buildingAt: [x9, y9] }); }
+  }
   /* 마인드 컨트롤(--mc · 2026-10, "인구 칸의 종족 풀 덧줄" 검산) — 임자 바뀜(판 8)을 셋 심는다. 30초에 정구(테란)가 Rex(저그)의
      오버로드 하나를 뺏고(정구에 저그 풀 0/8 · Rex 상한 −8), Rex 가 정구의 마린 하나를 뺏는다(Rex 에 테란 풀 1/0). --players 3 이상이면
      정구가 수달이(프로토스)의 질럿도 뺏어 정구는 세 줄(테란 본줄 · 저 0/8 · 프 1/0)이다. 오버로드는 5초에 나서(2초 규칙 밖) Rex 의
@@ -453,6 +459,10 @@ function makeWorld() {
   /* --res 의 자원 우클릭(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 정구 병력 하나가 45.8초에 미네랄(60,64 · 난전 자리 — 개인 화면에 걸린다)로 이동 명령(0).
      --track 정구 --t 46 이면 땅 마커 대신 그 미네랄의 노란 링이 켜져 있다(0.9초 창 · 0.225초 켜고 끄기). */
   if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 52 * 32, 76 * 32 - 20, 7]); /* 덤퍼는 표적 있는 우클릭을 7 로 적는다 · 자리는 마우스(그림 위 · 가운데보다 20px 위) */ cmds9.sort((a, b) => a[0] - b[0]); }
+  if (bldClick9.length > 0 && armyTags.has(0)) {
+    bldClick9.forEach(([, x9, y9], i9) => cmds9.push([F(45.8 + i9 * 0.2), armyTags.get(0)[3 + i9], x9 * 32, y9 * 32, 7]));
+    cmds9.sort((a, b) => a[0] - b[0]);
+  }
   w.u32(cmds9.length); { let pf = 0; for (const [f, tg, x, y, k] of cmds9) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(x); w.u16(y); w.u8(k); } }
   w.u32(0); w.u16(119);                // APM(빈) — 통 크기만 적는다
   w.u32(0);                            // 자원밭단
@@ -1240,7 +1250,7 @@ if (has("--res") && has("--diag")) {
   console.log(`[자원 링] ${got9.join(" ")}`);
 }
 /* 자국 자(--marks 와 함께 · 2026-10) — 큰 지도의 핑·클릭 마커 DOM 과 그 색·자리 · 선택 링은 캔버스라 못 읽으니 색 규칙은 눈으로. */
-if (has("--marks")) {
+if (has("--marks") || has("--bldclick")) {
   const r9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-pingfx, .scr-motion-clickfx")].map((el) => {
     const b = el.getBoundingClientRect();
     return { cls: el.className.replace("scr-motion-", ""), col: getComputedStyle(el).color, x: Math.round(b.left), y: Math.round(b.top) };
@@ -1250,6 +1260,18 @@ if (has("--marks")) {
   /* 선택 링은 캔버스라 DOM 으로 못 읽는다 — --diag 로 켜면 붓이 마지막 장의 링(종류#태그:임자:고른이:색(몸 색 폭 N))을 SCR_DIAG.ring 에 적는다. */
   const ring9 = await page.evaluate(() => window.__scrDiag?.ring ?? null);
   console.log(`[링] ${ring9 ?? "(진단 없음 — --diag)"}`);
+  /* --bldclick — 0.08초마다 스무다섯 장 링 진단을 떠서 건물 링(diamond#b…)의 색을 모은다 · 땅 자국(DOM)도 함께. 셋이 다 나와야 한다:
+     정구 서플라이 초록(#10fc18) · Rex 풀 노랑(#fcfc38) · 수달이 파일런 빨강(#f40404). */
+  if (has("--bldclick")) {
+    const got9 = new Set(); let marks9 = 0;
+    for (let i9 = 0; i9 < 25; i9 += 1) {
+      const r = await page.evaluate(() => [window.__scrDiag?.ring ?? "", document.querySelectorAll(".scr-motion-clickfx").length]);
+      for (const m of String(r[0]).matchAll(/#b([^|]+)\|([A-Za-z ]+)\|\d+\|\d+:\S*:\S*:(#[0-9a-f]{6})/g)) got9.add(`${m[1]} ${m[2]} ${m[3]}`);
+      marks9 = Math.max(marks9, r[1]);
+      await page.waitForTimeout(80);
+    }
+    console.log(`[건물 우클릭] 링 ${[...got9].join(" · ") || "(없음)"} · 땅 자국 최대 ${marks9}`);
+  }
   /* --ringprobe N — 링 폭이 자세·동작에 따라 뛰나(2026-10, 지적: "아직도 자세나 동작에 따라 선택링이 달라져"): 0.3초마다 N번 장을 떠서
      태그마다 폭의 최소·최대를 모은다. 같은 태그의 폭이 두 값이면 흔들리는 것이다. */
   if (has("--ringprobe")) {

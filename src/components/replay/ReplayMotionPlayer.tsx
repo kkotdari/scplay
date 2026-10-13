@@ -832,7 +832,8 @@ function ownSel9(op: UnitDrawOp): boolean {
 /** 선택 링의 색 — 공격 표적 깜빡임(빨강) › 주인 제 몸(초록) › 주인이 고른 **적**(빨강 · 원작: "적 클릭 시 빨간 선택 링") › null(색 모드). */
 function selRingCol9(op: UnitDrawOp): string | null {
   if (op.pickKey?.startsWith("r")) return UI_ALLY9;   // 자원(미네랄·간헐천)은 원작처럼 **노란** 링 — 중립 · 우클릭 깜빡임도 노랑(2026-10-12, 요청: "자원 선택 링 표시(원작 표현 참조)")
-  if (atkFlashOn9(op)) return UI_ATK9;
+  /* 우클릭 표적 깜빡임 — 적 빨강 · 제 것 초록 · 동맹 노랑(2026-10-13, 요청: "모든 건물 우클릭 대상으로" — 제·동맹 건물도 표적이 됐다 · 원작 선택 원색 셋). */
+  if (atkFlashOn9(op)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : ownUiCol9(op.pickRaw) ?? UI_ALLY9;
   const own9 = ownUiCol9(op.pickRaw);
   if (own9) return own9;
   /* 주인이 고른 남의 몸 — 적은 빨강 · 동맹(같은 편)과 중립(임자 없음)은 **노랑**(2026-10-09, 요청) · 원작 선택 원색 셋(초록·노랑·빨강). 옛 판은 적만 빨강이고

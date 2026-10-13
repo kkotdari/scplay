@@ -1741,3 +1741,11 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 스페이스는 **캡처 단계**(`onKeyCap`·`onUpCap`)에서 먼저 잡아 preventDefault+stopPropagation — 초점이 단추·role=button 칸에 있어도 그것을 안 누르고 페이지도 안 굴린다.
   입력칸(검색)에선 손대지 않는다(빈칸). 숫자패드 Enter 는 이 판이 안 듣는다(브라우저 기본 그대로).
 - 🔎 `perf-check --wide --players 4 --campick` 끝 줄들 — 안 먹어야 할 키(윗줄 3·P·패드 Enter·*)와 초점 둔 채 스페이스를 함께 찍는다.
+
+## 건물은 누구 것이든 우클릭 표적(2026-10-13)
+요청: "모든 건물 우클릭 대상으로! 원작이 그럼".
+- engine9 `clickTargets9` — 옛 판은 **적**(밀리는 남)만 찾았다. 이제 건물(FOOTPRINT 있는 종류)은 **제 것·같은 편도** 표적이다(일꾼 자원 돌려주기·수리·벙커 태우기·
+  랠리 등). 유닛은 종전대로 적만. 명령 낸 제 몸(건물이 제게 찍은 랠리)은 뺀다. 짝이 되면 종전 길 그대로 땅 마커 없음 + 그 건물 링 두 번 깜빡임(ATK_FLASH9).
+- 깜빡임 색 `selRingCol9` — 적 빨강 `UI_ATK9` · 제 것 초록(`ownUiCol9`) · 동맹 노랑 `UI_ALLY9`(옛 판은 늘 빨강).
+- 🔎 `perf-check --wide --players 3 --track 정구 --diag --bldclick --t 45.4 --warm 0` → `[건물 우클릭] 링 정구 Supply Depot #10fc18 · Rex Spawning Pool #fcfc38 ·
+  수달이 Pylon #f40404 · 땅 자국 최대 0`.
