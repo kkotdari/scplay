@@ -14844,10 +14844,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 드러난 판의 명암은 세계 광원이 정한다(요청: 돌려도 광원 고정). */
       const nearLit = faceLight(nearIs0 ? -1 : 1, 0);
       const TN = 10;                       // 이빨 수
-      const TH = R9 * 0.32;                // 이빨 높이(화면 자)
+      const TH = R9 * 0.1;                 // 이빨 높이(화면 자) — 0.32 → 0.1(2026-10-13, 요청: "포지 톱니바퀴의 이빨들 높이 아주 낮게 납작하게")
       const TW = (Math.PI / TN) * 0.42;    // 이빨 반각
-      /** 굴러간 각 — 여덟 칸이 이빨 한 칸(2π/TN)을 채운다. 안 돌면 0이다. */
-      const roll = spinRad() / TN;
+      /** 굴러간 각 — 여덟 칸이 이빨 한 칸(2π/TN)을 채운다. 안 돌면 0이다.
+       *  부호를 뒤집었다(2026-10-13, 요청: "포지 회전 방향 반대 · 톱니바퀴 회전 방향") — 옛 +spinRad. */
+      const roll = -spinRad() / TN;
       /* ③ **잘린 현이 지면에 딱 닿는다**(지적: "평평하게 잘린 부분은 지면에 딱
          닿아있어") — 이제 각이 **모델 평면의 각**이라 셈이 아예 간단하다: 모델 z가
          0 이상인 반쪽이 곧 땅 위다. 바퀴 중심이 지면(CZ 0)에 있으므로 그 반쪽은
@@ -28511,20 +28512,24 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       const TZ9 = 0.42;                 // 반높이(옛 관의 반지름 그대로)
       const TEX9 = 4.2;                 // 가로/세로 비 — 반폭 1.76(옛 두 관의 바깥 가장자리 1.57 언저리)
+      /* 앞뒤 길이 1.35 → 0.7(2026-10-13, 요청: "셔틀 스러스터 앞뒤 길이 줄여서 납작하게") — 뿌리(−2.15)는 그대로 · 꽁무니 TY9 에
+         테·불꽃·플라즈마 원반이 함께 매달린다(한 줄로 꿴 부품은 한 값). 옛 꽁무니 −3.50. */
+      const TL9 = 0.7;
+      const TY9 = -2.15 - TL9;
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: TZ9, tipW: TZ9, segs: 1, sides: 16,
         oval: TEX9, ref: [0, 0, 1], trueNormal: true, caps: "both",
-        path: (t9: number): [number, number, number] => [0, -2.15 - 1.35 * t9, 3.08],
+        path: (t9: number): [number, number, number] => [0, -2.15 - TL9 * t9, 3.08],
         widthOf: (): number => TZ9,
-      }), TOSS_GOLD_D), partKey(0, -2.8, 3.08)));
+      }), TOSS_GOLD_D), partKey(0, -2.15 - TL9 / 2, 3.08)));
       if (poseNow === 1 && facingRatio(0, -1) > 0.05) {   // 이동할 때만(요청)
         out.push(...tagKey([
-          [wallDiscPath(0, -3.55, 3.08, 0.36 * TEX9, 0.24), 0.85, P_PLASMA] as ShapeFace,
-        ], partKey(0, -3.55, 3.08) + 0.5));
+          [wallDiscPath(0, TY9 - 0.05, 3.08, 0.36 * TEX9, 0.24), 0.85, P_PLASMA] as ShapeFace,
+        ], partKey(0, TY9 - 0.05, 3.08) + 0.5));
       }
-      out.push(...nozzleRim9(0, -3.50, 3.08, 0.38, partKey(0, -4.2, 3.08) + 0.3,
+      out.push(...nozzleRim9(0, TY9, 3.08, 0.38, partKey(0, TY9 - 0.7, 3.08) + 0.3,
         { th: 0.1, dep: 0.85, fill: TOSS_GOLD_D, ex: TEX9, sides: 16 }));
-      if (poseNow === 1) out.push(...thrustFlame(0, -3.55, 3.08, 0.38, "toss", partKey(0, -4.2, 3.08) + 0.4, TEX9));
+      if (poseNow === 1) out.push(...thrustFlame(0, TY9 - 0.05, 3.08, 0.38, "toss", partKey(0, TY9 - 0.7, 3.08) + 0.4, TEX9));
     }
     // 아가리 어두운 속은 제거(지적: 앞 검정 반투명 부품) — 빛 줄만 남긴다.
     out.push(topFace(curvePath3([-1.6, 1.1, 3.12], [
