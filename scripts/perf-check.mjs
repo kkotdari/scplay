@@ -1051,6 +1051,21 @@ if (has("--campick")) {
   await page.keyboard.press("Digit3"); await page.waitForTimeout(400); console.log(await st9("숫자키 3"));
   await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1"));
   await page.keyboard.press("Digit1"); await page.waitForTimeout(400); console.log(await st9("숫자키 1 다시"));
+  /* 2026-10-13 — -/+ 이전·다음 사람 · 0 전체 · ` AUTO · F 검색창 손 · P 재생/일시정지. */
+  const auto9 = () => page.evaluate(() => (document.querySelector(".scr-dock-roster .scr-roster-cam-auto")?.classList.contains("is-on") ? "AUTO 켜짐" : "AUTO 꺼짐"));
+  await page.keyboard.press("Equal"); await page.waitForTimeout(400); console.log(await st9("+"));
+  await page.keyboard.press("Equal"); await page.waitForTimeout(400); console.log(await st9("+ 다시"));
+  await page.keyboard.press("Minus"); await page.waitForTimeout(400); console.log(await st9("-"));
+  await page.keyboard.press("Minus"); await page.waitForTimeout(400); console.log(await st9("- 다시"));
+  await page.keyboard.press("Digit0"); await page.waitForTimeout(400); console.log(await st9("0"));
+  await page.keyboard.press("Backquote"); await page.waitForTimeout(400); console.log(await st9("`"), await auto9());
+  await page.keyboard.press("Backquote"); await page.waitForTimeout(400); console.log(await st9("` 다시"), await auto9());
+  const play9 = () => page.evaluate(() => document.querySelector(".scr-motion-play, [aria-label*='일시정지'], [aria-label*='재생']")?.getAttribute("aria-label") ?? "-");
+  console.log("[키] 재생 단추 전", await play9());
+  await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 뒤", await play9());
+  await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 다시", await play9());
+  await page.keyboard.press("KeyF"); await page.waitForTimeout(400);
+  console.log("[키] F 뒤 손:", await page.evaluate(() => { const a = document.activeElement; return a ? `${a.tagName}.${a.className} 값「${a.value ?? ""}」` : "-"; }));
 }
 /* 분할보기 자(--split [png]) — TV 목록에서 '분할'을 골라 칸 수·자리·칸 그림(빈 판인가)·칸 머리 글귀를 찍고, 둘째 칸을 눌러
    독의 정보줄이 그 사람으로 갈리나 본다(2026-09, 요청: "중계에 분할보기 추가 … 독에는 화면을 누른 사람거 보여주기"). */

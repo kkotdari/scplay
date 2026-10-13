@@ -10714,6 +10714,20 @@ export default function ReplayMotionPlayer({
     if (trackRaw !== m9.key || splitOn9) toggleTrack(m9.key);
     return true;
   };
+  /* ★ -/+ = 이전/다음 사람 · 0 = 전체 알약 · ` = AUTO(2026-10-13, 요청: "-: 이전사람 화면 +: 다음사람화면 0: 전체화면 `: 자동중계") — 차례는 위 숫자키와 같다.
+     -/+ 는 지금 보는 한 사람에서 한 칸(끝에서 돌아 든다) · 한 사람을 안 보고 있으면 + 는 첫 사람 · - 는 끝 사람. 0·` 은 전광판의 그 단추와 똑같다(켜진 채 누르면 끈다). */
+  const personStepRef9 = useRef<(d9: 1 | -1) => boolean>(() => false);
+  personStepRef9.current = (d9) => {
+    const order9 = melee ? bases : [...bases.filter((m) => m.team !== 2), ...bases.filter((m) => m.team === 2)];
+    if (order9.length === 0) return false;
+    const at9 = trackRaw !== null && !splitOn9 ? order9.findIndex((m) => m.key === trackRaw) : -1;
+    const i9 = at9 < 0 ? (d9 > 0 ? 0 : order9.length - 1) : (at9 + d9 + order9.length) % order9.length;
+    return personKeyRef9.current(i9 + 1);
+  };
+  const allKeyRef9 = useRef<() => boolean>(() => false);
+  allKeyRef9.current = () => { if (smallDevice9 || bases.length === 0) return false; toggleAll9(); return true; };   // 폰은 전체(분할)가 없다
+  const castKeyRef9 = useRef<() => void>(() => {});
+  castKeyRef9.current = () => toggleCast9();
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
      추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
@@ -12812,6 +12826,7 @@ export default function ReplayMotionPlayer({
   }, [searchEdit9]);
   /** 키 판(B/N · 아래 keydown ★)이 읽는 지금의 앞뒤 손잡이 — 결과가 없으면 false(키를 안 먹는다). */
   const searchKeyRef9 = useRef<(dir9: 1 | -1) => boolean>(() => false);
+  const searchFocusKeyRef9 = useRef<() => void>(() => {});
   /** 자리를 모르는 검색 결과의 사건 자리(searchGo9 ★) — 그 사람의 명령 자리(±SEARCH_ACT_SEC9) 가운데 · 없으면 그때 선 첫 건물(시작 본진). */
   const SEARCH_ACT_SEC9 = 3;
   const searchActAt9 = (raw9: string | undefined, sec9: number): { x: number; y: number } | null => {
@@ -12869,6 +12884,13 @@ export default function ReplayMotionPlayer({
     setDone(v9 >= total);
   };
   searchKeyRef9.current = (dir9) => { if (searchHits9.length === 0) return false; searchGo9(dir9); return true; };
+  /* F = 검색창 펴고 손 얹기(2026-10-13, 요청: "키워드 검색창 포커싱 단축키 F") — 접혀 있으면 돋보기 누른 것과 같이 입력 꼴로 편다(손은 위 레이아웃 effect 가 얹는다) ·
+     이미 펴져 있으면 입력칸에 손만. 접는 중이면 접기를 거둔다. */
+  searchFocusKeyRef9.current = () => {
+    if (searchClosingRef9.current) { searchClosingRef9.current = false; setSearchClosing9(false); }
+    if (searchEdit9) searchInputRef9.current?.focus({ preventScroll: true });
+    else searchEditOpen9();
+  };
   /* Enter 뒤 — 결과가 서면 첫 결과(1/N)로 가고 결과 꼴로 · 없으면 입력 꼴에 '0건'. */
   useEffect(() => {
     if (!searchFirst9.current || !searchWarm9) return;   // 색인이 아직 안 데워졌으면 데워진 뒤에(위 searchWarm9 ★)
@@ -16989,8 +17011,24 @@ export default function ReplayMotionPlayer({
       } else if (/^Digit[1-8]$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // 1~8 = 그 차례 사람 화면으로 전환(위 personKeyRef9 · 2026-10-12 요청) — e.code 라 한글 자판·시프트와 무관.
         if (personKeyRef9.current(Number(e.code.slice(5)))) { e.preventDefault(); wakeUi(); }
-      } else if (e.code === "KeyF") {
-        /* 재생/일시정지 — p → 스페이스바 → **f**(2026-10-11, 요청). 스페이스는 이제 안 듣는다(안내에 없는 매핑은 두지 않는다). */
+      } else if ((e.code === "Minus" || e.code === "NumpadSubtract" || e.code === "Equal" || e.code === "NumpadAdd") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // - = 이전 사람 · + (= 자리 · 시프트 무관) = 다음 사람(위 personStepRef9 · 2026-10-13 요청).
+        if (personStepRef9.current(e.code === "Minus" || e.code === "NumpadSubtract" ? -1 : 1)) { e.preventDefault(); wakeUi(); }
+      } else if ((e.code === "Digit0" || e.code === "Numpad0") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // 0 = 전체 알약(모든 사람 분할 · 켜진 채면 끔 · 2026-10-13 요청). 폰은 분할이 없어 흘린다.
+        if (allKeyRef9.current()) { e.preventDefault(); wakeUi(); }
+      } else if (e.code === "Backquote" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // ` = AUTO(자동 중계 켬·끔 · 2026-10-13 요청).
+        e.preventDefault();
+        wakeUi();
+        castKeyRef9.current();
+      } else if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        /* f = 검색창 펴고 손 얹기(2026-10-13, 요청: "키워드검색창 포커싱 단축키 F 재생일시정지를 P") — keydown 을 막아 f 글자가 입력칸에 안 들어간다. */
+        e.preventDefault();
+        wakeUi();
+        searchFocusKeyRef9.current();
+      } else if (e.code === "KeyP") {
+        /* 재생/일시정지 — p → 스페이스바 → f(2026-10-11) → **p**(2026-10-13, 요청 — f 는 검색창으로). 스페이스는 안 듣는다(안내에 없는 매핑은 두지 않는다). */
         e.preventDefault();
         wakeUi();
         if (done) { setT(0); setDone(false); setPlaying(true); return; }

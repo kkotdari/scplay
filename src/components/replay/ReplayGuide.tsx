@@ -75,7 +75,7 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
-            <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — F 키와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
+            <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — P 키와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속 다이얼</b> — 지도 오른쪽 아래의 세로 눈금(1·2·4·8). 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고, 눈금 근처에서는 그 눈금에 붙습니다. PC에서는 그 위에서 <b>휠</b>을 굴려도 되고, 휠은 눈금마다 한 번씩 걸립니다. ↑·↓ 키로도 눈금 한 칸씩. 중계 중에도 됩니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 전광판·미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
@@ -103,7 +103,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Palette size={15}/></span><span><b>색</b> — 누를 때마다 색 모드가 바뀝니다. 기본인 개인색에서는 <b>꺼진 버튼</b>(바탕 없음)이고, 팀색·주인공색에서는 버튼의 <b>원그래프</b>가 곧 그 모드입니다(아래 <b>색 모드</b>).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">2D</span><span><b>보기</b> — 평면(2D)과 입체(3D)를 오갑니다. 언덕·램프는 입체에서 더 잘 읽힙니다. PC에만 있고, 중계 중에는 평면으로 고정됩니다.</span></li>
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터 나옵니다. 맨 아래 줄은 <b>음량 슬라이더</b>(처음 50% · 떼면 닫힘)와 <b>끄기</b>입니다. 아이폰 사파리는 웹에서 음량을 못 바꿔 끄기만 섭니다(기기 음량을 따릅니다).</span></li>
-            <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 돋보기를 누르면 옆으로 입력칸이 펴집니다. 치는 동안 <b>이 경기에 나온 말만</b> 위로 자동 완성됩니다(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 — ↑↓ 고르기 · Enter 고르고 찾기 · Tab 채우기). 유닛·건물은 생산/건설 · 사망/파괴 · 시즈 · 클로킹 · 띄움까지, 전술은 화면에 안 나온 장면과 빌드(선스포닝풀 · 더블넥서스 …) · <b>핵</b>(장전 · 투하)까지 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 결과로 가면 중계 대신 <b>그 장면</b>을 보여 주고(움직이는 장면은 따라감 · 자막은 "A가 B 기지에 핵 투하" 같은 묘사) 장면이 끝나면 중계로 돌아갑니다. Enter 를 누르면 곧장 <b>첫 결과(1/N)</b>로 가고 알약이 <b>‹ 1/N › ✕</b>로 바뀝니다. 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. <b>‹ ›</b>나 키보드 <b>B</b>(이전)·<b>N</b>(다음)으로 넘기며, 그 일이 벌어지기 2초 전부터 봅니다. n/N 이나 돋보기를 누르면 검색어를 고치고, ✕ 는 검색 취소입니다.</span></li>
+            <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 돋보기를 누르면 옆으로 입력칸이 펴집니다. 치는 동안 <b>이 경기에 나온 말만</b> 위로 자동 완성됩니다(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 — ↑↓ 고르기 · Enter 고르고 찾기 · Tab 채우기). 유닛·건물은 생산/건설 · 사망/파괴 · 시즈 · 클로킹 · 띄움까지, 전술은 화면에 안 나온 장면과 빌드(선스포닝풀 · 더블넥서스 …) · <b>핵</b>(장전 · 투하)까지 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 결과로 가면 중계 대신 <b>그 장면</b>을 보여 주고(움직이는 장면은 따라감 · 자막은 "A가 B 기지에 핵 투하" 같은 묘사) 장면이 끝나면 중계로 돌아갑니다. Enter 를 누르면 곧장 <b>첫 결과(1/N)</b>로 가고 알약이 <b>‹ 1/N › ✕</b>로 바뀝니다. 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. 키보드 <b>F</b>로 바로 입력칸을 열 수 있습니다. <b>‹ ›</b>나 키보드 <b>B</b>(이전)·<b>N</b>(다음)으로 넘기며, 그 일이 벌어지기 2초 전부터 봅니다. n/N 이나 돋보기를 누르면 검색어를 고치고, ✕ 는 검색 취소입니다.</span></li>
             <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 전체화면이 아닐 때만).</span></li>
             <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서도 쇠판(전광판·미니맵·인포창)은 그대로 섭니다.</span></li>
           </ul>
@@ -206,13 +206,13 @@ export default function ReplayGuide({ onClose }: {
         <span className="scr-guide-eyebrow">02</span>
         <h2 className="scr-guide-h2">PC 단축키</h2>
         <p className="scr-guide-lede">
-          재생 화면에서 바로 먹습니다. <strong>F</strong>와{" "}
+          재생 화면에서 바로 먹습니다. <strong>P</strong>와{" "}
           <strong>좌우 화살표</strong> 둘만 익혀도 대부분 됩니다.
         </p>
 
         <div className="scr-guide-keys">
           <span className="scr-guide-group">재생</span>
-          <K keys={["F"]} title="재생 / 일시정지" desc="끝까지 본 뒤에 누르면 처음부터 다시 돕니다."/>
+          <K keys={["P"]} title="재생 / 일시정지" desc="끝까지 본 뒤에 누르면 처음부터 다시 돕니다."/>
           <K keys={["←", "→"]} title="되감기 / 빨리감기" desc="누르고 있으면 계속 감깁니다 — 떼면 그 자리에서 멈춥니다."/>
           <K keys={["↑", "↓"]} title="배속 올리기 / 내리기" desc="다이얼 눈금(1·2·4·8)을 한 칸씩."/>
 
@@ -228,7 +228,11 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["C"]} title="색 모드 바꾸기" desc="개인색 → 팀색 → 주인공색. 색 버튼과 같습니다."/>
           <K keys={["V"]} title="평면 ↔ 입체" desc="중계 중에는 평면 고정."/>
           <K keys={["1~8"]} title="플레이어 화면 전환" desc="로스터 차례대로 그 사람 화면을 따라갑니다."/>
+          <K keys={["−", "+"]} title="이전 / 다음 플레이어 화면" desc="로스터 차례로 한 칸씩 — 끝에서는 처음으로 돌아갑니다."/>
+          <K keys={["0"]} title="전체 화면" desc="전광판의 '전체'와 같습니다 — 모든 플레이어를 나눠 봅니다(PC)."/>
+          <K keys={["`"]} title="자동 중계 켜기 / 끄기" desc="전광판의 AUTO 와 같습니다."/>
           <K keys={["M"]} title="음악 켜기 / 끄기"/>
+          <K keys={["F"]} title="검색창 열기" desc="검색 알약을 펴고 입력칸에 바로 칠 수 있게 합니다."/>
           <K keys={["B", "N"]} title="검색 결과 이전 / 다음"/>
 
           <span className="scr-guide-group">창</span>
