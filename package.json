@@ -1,0 +1,30 @@
+{
+  "name": "scplay",
+  "version": "0.1.0",
+  "description": "StarCraft: Remastered replay player — 참값(OpenBW) 자취를 그리는 재생기 모듈",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "vite build",
+    "model-depth-check": "node scripts/model-depth-check.mjs",
+    "openbw-tracks-check": "node scripts/openbw-tracks-check.mjs",
+    "css-guard": "node scripts/css-guard.mjs"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "dependencies": {
+    "lucide-react": "^0.454.0"
+  },
+  "scplaySource": "396ce574dbdd6e6021d084ac9cf837a01f1868e8"
+}
