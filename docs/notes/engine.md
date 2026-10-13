@@ -268,3 +268,13 @@ landed9) ㉡ 내려앉는 이음 빠짐(landsAt9). 둘 다 `(!g2 || g2 − s2 >=
 - 이제 시전 줄(castsSrc 의 "Scanner Sweep")로 눈을 낸다 — 지금 시야(eyes9 · 신원 −(1e6 + 줄 번호)) · 밝힌 기록·마지막으로 본 초(fogSrcFor 의 scan) 둘 다.
   반경 `SCAN_SIGHT9` 10타일(원작 스캔 시야) · 길이 SCAN_DETECT_SEC 9초 · 스캔한 사람의 편만(시점 보기).
 - 🔎 `perf-check.mjs --wide --glblit --scan --scanxy 100,64 --track 정구 --t 46 --shot x.png` — 옛 판은 별밭(안 밝힘) 위 원만 · 새 판은 그 원 안이 밝다.
+
+## 배포 길 — 빌드 결과물은 `dist` 브랜치로(2026-10-13)
+요청: "요새 배포하면 왜 이렇게 빌드가 오래 걸리지 · main 아닌 브랜치도 vercel 에서 빌드하는 것 같고" → "그렇게 배포 변경해서 같이 배포하자".
+- 실측(이 컨테이너 · 빈 캐시): scplayer `npm ci` 104초 — 그중 scplay 얕은 clone 2초 · devDependencies 7초 · **빌드 32초**(vite + vite-plugin-dts).
+  scplay main 에는 dist 가 없고 `prepare: npm run build` 라 git 의존을 깔 때마다 npm 이 빌드했다.
+- 이제 `scripts/publish-dist.sh` — dist/ + prepare·devDependencies 를 뺀 package.json(+ `scplaySource` = 소스 커밋 40자)을 `dist` 브랜치에 한 커밋으로
+  올리고 그 해시를 찍는다. scplayer 는 `github:kkotdari/scplay#dist` · 락 resolved = dist 커밋. dist 커밋 메시지 `dist: <소스 해시>`.
+- ⚠ dist 브랜치는 배포마다 결과물 한 벌(≈12MB · 압축 몇 MB)이 쌓인다 — 깊은 clone 이 무거워지면 dist 브랜치를 새로 판다(락은 그때의 커밋만 본다).
+- scplayer vercel.json: `git.deploymentEnabled` 로 feat/fix/style/claude 브랜치는 배포 자체를 안 세운다(옛 ignoreCommand 는 배포를 세우고 clone 한 뒤 취소해
+  Hobby 동시 빌드 1칸을 잡았다 · 겹 안전장치로 남김). main 을 덮는 `"**": false` 는 규칙 겹침 우선순위를 확인 못 해 안 썼다.

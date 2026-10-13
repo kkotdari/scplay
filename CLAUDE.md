@@ -63,8 +63,10 @@ wtA = scplay `1e20b08` · hist-shot-make)과 시대별 카메라·그림자 규�
 
 ## 배포
 **사용자가 "배포"라고 할 때만** 한다. 그 전엔 feature 브랜치 푸시까지만.
-배포 = ① scplay `git push origin HEAD:main` → ② scplayer의 `package-lock.json`에서 `node_modules/scplay`의
-`resolved` 해시를 그 main 커밋으로 올리는 커밋("재생기 갱신: …")을 브랜치와 main에 푸시.
+배포 = ① scplay `npx vite build` → `git push origin HEAD:main` → **`sh scripts/publish-dist.sh`**(dist 를 `dist` 브랜치에 한 커밋으로 올리고
+그 **dist 커밋 해시**를 찍는다) → ② scplayer의 `package-lock.json`에서 `node_modules/scplay`의 `resolved` 해시를 **그 dist 커밋**으로 올리는
+커밋("재생기 갱신: …")을 브랜치와 main에 푸시. scplayer 는 `github:kkotdari/scplay#dist` 를 받는다 — dist 커밋엔 prepare·devDependencies 가 없어
+Vercel `npm ci` 가 scplay 를 빌드하지 않는다(2026-10-13 · 옛 길은 main 커밋을 가리켜 배포마다 scplay 빌드 40초). 보고는 main·dist 해시 둘 다.
 scplayer 쪽 소스를 만졌으면 그쪽에서 **`npx tsc -b`**(Vercel 의 `npm run build` = `tsc -b && vite build` 그대로 · 그쪽 `tsconfig.json` 은 `files: []` 참조뿐이라 `--noEmit -p tsconfig.json` 은 아무것도 안 본다 — 2026-10-11 배포 실패)와 **`npx vite build`까지** 돌린다(CSS 문법 오류는 tsc가 못 잡는다).
 scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
 ⚠ **해시를 보고할 때는 늘 40자리 전체다**(`git rev-parse HEAD` 그대로 · scplay·scplayer 둘 다).
