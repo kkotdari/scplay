@@ -172,17 +172,19 @@ const dw9 = (() => {
   const rv = dmk(2, "Reaver", false, 100, 100, 600, null, "");
   for (const t of [700, 704, 708]) { const p = dmk(0, "Probe", false, 12, 12, 0, t, "atk", [[t - 2, 12, 12, false]]); kills.push([t, 2, rv.tag, p.tag]); }
   // ④ 폭탄드랍 — F 의 셔틀이 P 본진으로(845초 명령) · F 의 질럿 둘이 P 의 프로브 둘·드라군 하나를 잡는다
-  dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[845, 12, 12, false]]);
-  dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[846, 13, 12, false]]);   // 폭탄드랍은 수송선 둘 이상(2026-10-10)
+  const sh1 = dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[845, 12, 12, false]]);
+  const sh2 = dmk(2, "Shuttle", false, 100, 100, 700, null, "", [[846, 13, 12, false]]);   // 폭탄드랍은 수송선 둘 이상(2026-10-10)
   const vict = [dmk(0, "Probe", false, 12, 12, 0, 850, "atk", [[848, 12, 12, false]]), dmk(0, "Probe", false, 12, 12, 0, 851, "atk", [[848, 12, 12, false]]),
     dmk(0, "Dragoon", false, 10, 10, 800, 852, "atk", [[848, 12, 12, false]])];
-  for (const v of vict) dmk(2, "Zealot", false, 100, 100, 700, null, "", [], [849, v.tag, 852.5, v.tag, 853, 0]);
+  const zs = vict.map((v) => dmk(2, "Zealot", false, 100, 100, 700, null, "", [], [849, v.tag, 852.5, v.tag, 853, 0]));
+  /* 탑승 절(2026-10-13 · cast9 dropFollow9) — 질럿 셋이 760초에 두 셔틀에 타고 846~847초에 내린다 → 장면은 내리기 5초 앞(841초)부터 · 수송선 → 질럿을 따라간다. */
+  const loads = [[760, zs[0].tag, sh1.tag], [760, zs[1].tag, sh1.tag], [760.5, zs[2].tag, sh2.tag], [846, zs[0].tag, 0], [846.4, zs[1].tag, 0], [847, zs[2].tag, 0]];
   return { players: [["P", 1], ["Q", 1], ["F", 2], ["G", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
-    lives: dl, ups: [], casts: [], pings: [], resFields: [], kills };
+    lives: dl, ups: [], casts: [], pings: [], resFields: [], kills, loads, dropTags: { ships: [sh1.tag, sh2.tag], riders: zs.map((z) => z.tag) } };
 })();
 const dplan9 = castPlan9(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 } }).filter((s) => !s.cyc);
 const dAt9 = (t) => dplan9.find((s) => Math.abs(s.at - t) < 6);
-const d1 = dAt9(298.5); const d2 = dAt9(498.5); const d3 = dAt9(698.5); const d4 = dAt9(848.5);
+const d1 = dAt9(298.5); const d2 = dAt9(498.5); const d3 = dAt9(698.5); const d4 = dplan9.find((s) => s.at > 830 && s.at < 860);
 const dshow = (s) => (s ? `${s.at.toFixed(0)}s ${s.raw} ${s.role ?? "-"} ${capTxt(s)}` : "(장면 없음)");
 console.log(`\n기지 싸움·vs·견제·드랍: ${[d1, d2, d3, d4].map(dshow).join(" · ")}`);
 for (const [name, pass] of [
@@ -191,6 +193,10 @@ for (const [name, pass] of [
   ["리버가 잡은 일꾼은 '리버로 … 일꾼 견제'(서술 · 2026-10-10)", !!d3 && /\[F\]ga 리버로 \[P\] 일꾼 견제/.test(capTxt(d3))],
   ["공격·방어 자막은 'A가 B를 공격' 서술 — '의' 꼴이 없다(2026-10-10)", [d1, d3, d4].every((d) => !d || !/\]ui/.test(capTxt(d)))],
   ["셔틀이 본진으로 간 뒤의 싸움은 '폭탄드랍'", !!d4 && /폭탄드랍/.test(capTxt(d4))],
+  ["폭탄드랍 장면은 내리기 5초 앞(841초)에 드랍한 F 화면으로 선다(2026-10-13)", !!d4 && Math.abs(d4.at - 841) < 0.01 && d4.raw === "F"],
+  ["카메라는 수송선(841~847) → 내린 질럿(847~장면 끝)을 따라간다", !!d4?.follow && d4.follow.length === 2
+    && d4.follow[0].t0 === 841 && d4.follow[0].t1 === 847 && [...d4.follow[0].tags].sort().join() === [...dw9.dropTags.ships].sort().join()
+    && d4.follow[1].t0 === 847 && d4.follow[1].t1 > 852 && [...d4.follow[1].tags].sort().join() === [...dw9.dropTags.riders].sort().join()],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 
 /* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 여섯 · 착공 차례만 다르다 ──

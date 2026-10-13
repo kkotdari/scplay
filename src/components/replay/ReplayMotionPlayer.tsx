@@ -10894,6 +10894,20 @@ export default function ReplayMotionPlayer({
       const q9 = spotAt9(spotNow9, t);
       return { x: q9.x, y: q9.y, pts: [q9], sel: `spot${castIdx9}`, sec: castSeg9?.at ?? t };
     }
+    /* ★ **따라갈 몸**(cast9 CastSeg9.follow ★ · 2026-10-13, 요청: "폭탄드랍 … 드랍하러 이동하는 수송선들 … 드랍한 후 유닛들 활약도(화면도 따라가고)") — 자동 중계의 그 사람
+       토막이 그 구간이면 선택 자국 대신 그 태그들(산 것)의 지금 자리 평균이다(수송선 → 내린 유닛). 다 죽었으면 종전대로 선택 자국. 손으로 고른 개인 추적(trackRaw)은 안 탄다. */
+    const fol9 = camRaw9 && trackRaw === null && castSeg9?.raw === camRaw9 && !castSeg9.spot ? castSeg9.follow?.find((f9) => t >= f9.t0 && t < f9.t1) : undefined;
+    if (fol9) {
+      let sx9 = 0; let sy9 = 0; let n9 = 0;
+      const pts9: { x: number; y: number }[] = [];
+      for (const tg9 of fol9.tags) {
+        const p9 = bodyAt9(tg9, t);
+        if (!p9) continue;
+        sx9 += p9.x; sy9 += p9.y; n9 += 1;
+        pts9.push(p9);
+      }
+      if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: `follow${fol9.t0}`, sec: fol9.t0 };
+    }
     if (!camRaw9 || trackPicks.length === 0) return null;
     const { at: at9 } = pickIdx9(trackPicks, t);
     for (let k9 = at9; k9 >= 0 && k9 > at9 - 8; k9 -= 1) {

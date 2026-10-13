@@ -70,7 +70,13 @@ export type CastSeg9 = {
    *  누구의 화면도 아니다: 재생기는 시야를 모두의 것으로 · 화면 주인 줄을 걷고 · 카메라를 이 길([초, x, y] · 1초 간격 · 그 때 ±3초 사건 자리의 무게 중심)로 끈다.
    *  raw 는 편성(순환 차례·잇기)용으로만 남는다. */
   spot?: [number, number, number][];
+  /** ★ **따라갈 몸**(2026-10-13, 요청: "폭탄드랍 사건 중계 시 드랍하러 이동하는 수송선들부터 좀 보여 주고 드랍한 후 유닛들 활약도 좀 보여 줘야(화면도 따라가고)" →
+   *  "출발 시각이 아니라 적 기지에 거의 다 와 갈 때 · 한 5초 전") — 그 구간 [t0, t1) 동안 재생기 카메라는 그 사람의 선택 자국 대신 이 태그들의 지금 자리 평균을
+   *  따라간다(수송선 → 내린 유닛). 시각은 절대 초라 같은 사람의 앞뒤 토막에 함께 실려도 그 구간에서만 먹는다. */
+  follow?: CastFollow9[];
 };
+/** 따라갈 몸 한 구간 — 그 동안 이 태그들(산 것)의 자리 평균이 카메라 자리다. */
+export type CastFollow9 = { t0: number; t1: number; tags: number[] };
 /** 자막 한 조각 — 글귀(text) 또는 사람(raw · 뒤에 붙일 조사 p: ga 가/이 · eul 를/을 · wa 와/과 · ui 의). */
 export type CapPart9 = { text: string; raw?: undefined; p?: undefined } | { raw: string; p?: "ga" | "eul" | "wa" | "ui"; text?: undefined };
 export type CastRole9 = "atk" | "def" | "war";
@@ -1560,6 +1566,43 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     return n9;
   };
   const dropKind9 = (att9: string, def9: string, sec9: number): string | null => (dropN9(att9, def9, sec9) >= BOMB_DROP_N9 ? "폭탄드랍" : null);
+  /** ★ **폭탄드랍의 카메라 길**(위 CastSeg9.follow ★ · 2026-10-13) — att 의 수송선(dropN9 와 같은 자) 가운데 그 기지로 간 것들이 **처음 내린 때**(탑승 절 · 판 11)를 찾아,
+   *  그 DROP_ARRIVE9 초 앞부터 내림이 끝날 때까지 수송선을, 그 뒤 장면 끝까지 내린 유닛을 따라간다. 수송선이 BOMB_DROP_N9 대 아래거나 내린 기록이 없으면(옛 덤프) null. */
+  const DROP_ARRIVE9 = 5;
+  /** 처음 내린 때부터 이 초 안에 내린 몸만 '이 드랍의 유닛'이다(그 뒤 내림은 딴 일) · 수송선 구간도 그때까지. */
+  const DROP_UNLOAD9 = 4;
+  const loadsSorted9 = [...(world.loads ?? [])].sort((a9, b9) => a9[0] - b9[0]);
+  const dropFollow9 = (att9: string, def9: string, sec9: number, end9: number): { arrive: number; follow: CastFollow9[] } | null => {
+    if (loadsSorted9.length === 0) return null;
+    const own9 = ownersOf9(att9);
+    const halls9 = hallsAt9(def9, sec9);
+    if (halls9.length === 0) return null;
+    const sacs9 = world.ups.some(([us9, name9, uo9]) => name9 === "Ventral Sacs" && own9.has(uo9) && us9 <= sec9);
+    const ships9 = new Set<number>();
+    for (const e9 of world.lives) {
+      if (e9.bld || !own9.has(e9.owner) || !TRANSPORT9.has(e9.kind) || e9.born > sec9 || (e9.died !== null && e9.died < sec9 - DROP_W9)) continue;
+      if (e9.kind === "Overlord" && !sacs9) continue;
+      if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5 && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) ships9.add(e9.tag);
+    }
+    if (ships9.size < BOMB_DROP_N9) return null;
+    const rideOf9 = new Map<number, number>();
+    const riders9: number[] = [];
+    let un09 = Infinity;
+    for (const [s9, pax9, ship9] of loadsSorted9) {
+      if (s9 > sec9 + DROP_W9) break;
+      if (ship9 !== 0) { rideOf9.set(pax9, ship9); continue; }
+      const from9 = rideOf9.get(pax9);
+      rideOf9.delete(pax9);
+      if (from9 === undefined || !ships9.has(from9) || s9 < sec9 - DROP_W9 || s9 > un09 + DROP_UNLOAD9) continue;
+      if (un09 === Infinity) un09 = s9;
+      riders9.push(pax9);
+    }
+    if (riders9.length === 0) return null;
+    let unEnd9 = un09;
+    for (const [s9, , ship9] of loadsSorted9) if (ship9 === 0 && s9 >= un09 && s9 <= un09 + DROP_UNLOAD9) unEnd9 = Math.max(unEnd9, s9);
+    const arrive9 = Math.max(0, un09 - DROP_ARRIVE9);
+    return { arrive: arrive9, follow: [{ t0: arrive9, t1: unEnd9, tags: [...ships9] }, { t0: unEnd9, t1: Math.max(unEnd9 + 1, end9), tags: riders9 }] };
+  };
   /** ★ **한 대 드랍도 실은 것이 무거우면 이름이다**(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음") — 수송선이 그 기지로 갔고(한 대라도) 잡은 것의
    *  대개를 DROP_UNIT9 의 유닛이 냈으면 "하이템플러 드랍"·"리버 드랍". 여럿이면 폭탄드랍(위) · 마린 한 대 드랍은 종전대로 일꾼 견제다. */
   const DROP_UNIT9 = new Set(["High Templar", "Reaver", "Scarab", "Dark Templar", "Lurker", "Siege Tank (Tank Mode)", "Siege Tank (Siege Mode)"]);
@@ -2667,8 +2710,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 카메라도 **싸움이 붙은 때**에 간다(위 emitScene9 ★ · 2026-10-11) — 장면 첫 CAP_WIN9 초 사건들의 eng 가운데 가장 이른 때 − CAST_LEAD9. */
     let eng9 = sc9.t0;
     for (const e9 of sc9.evs) if (e9.sec < sc9.t0 + CAP_WIN9) eng9 = Math.min(eng9, e9.eng ?? e9.sec);
-    const at9 = Math.max(0, eng9 - CAST_LEAD9);
+    let at9 = Math.max(0, eng9 - CAST_LEAD9);
     const bid9 = bidOf9.get(sc9)!;
+    /* ★ **폭탄드랍은 내리기 5초 앞부터 · 수송선 → 내린 유닛을 따라간다**(위 dropFollow9 ★ · 2026-10-13) — 그 기지 임자를 상대로 드랍한 사람을 찾는다(무게 차례). */
+    const scEnd9 = sc9.t1 + (sc9.tail - GAP9) + END_PAD9;
+    let drop9: { raw: string; arrive: number; follow: CastFollow9[] } | null = null;
+    const dDef9 = baseOwner9(sc9) ?? battleOwner9(bid9);
+    if (dDef9) {
+      for (const [r9] of [...sc9.by.entries()].sort((a9, b9) => b9[1] - a9[1])) {
+        if (sameSide9(r9, dDef9)) continue;
+        const f9 = dropFollow9(r9, dDef9, sc9.t0, scEnd9);
+        if (f9) { drop9 = { raw: r9, ...f9 }; break; }
+      }
+    }
+    if (drop9) at9 = Math.min(at9, drop9.arrive);
     const btot9 = bTot9.get(bid9)!;
     if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
     const cont9 = bid9 === curBid9;
@@ -2696,17 +2751,28 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (held9 && tot9 < lastScore9() * JUMP9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;
     if (cont9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;   // 같은 전투는 같은 주인공으로 잇는다(위 ★★)
     if (must9 && pick9 !== sc9.hall![0] && pick9 !== sc9.hall![1]) pick9 = cur9raw === sc9.hall![1] ? sc9.hall![1] : sc9.hall![0];   // 뚝배기는 깬 쪽(지금 잃는 쪽을 보던 중이면 그대로)
+    if (drop9 && !must9) pick9 = drop9.raw;   // 폭탄드랍은 드랍한 사람의 화면(위 ★)
     /* ★ 같은 전투·딴 전투의 문도 **장면 최소 시간**을 지난다(위 MIN_SHOW9) — 카메라가 갈리는 경우(pick ≠ 지금)에만. */
     const heavy9 = tot9 >= lastScore9() * JUMP9;
     /* ★ **주인공이 애매하면 교전 자리**(위 CastSeg9.spot ★) — 그 장면의 둘째 몫이 첫째의 SPOT_TIE9 배 이상이면(맞대결이 엇비슷 · 여럿이 비슷하게 싸움) 한 사람의
        화면이 아니라 싸움터를 따라간다. 뚝배기는 깬 쪽의 화면 그대로. */
     const crowd9 = rank9.filter(([, w9]) => w9 >= rank9[0][1] * SPOT_PART9).length >= 3;   // 셋 이상이 싸움(위 SPOT_PART9 ★)
     const tieSpot9 = rank9.length > 1 && (crowd9 ? rank9[0][1] < rank9[1][1] * SPOT_STAND9 : rank9[1][1] >= rank9[0][1] * SPOT_TIE9);
-    const spot9 = !must9 && tieSpot9 ? spotPath9(sc9, at9) : undefined;
+    const spot9 = !must9 && tieSpot9 && !(drop9 && pick9 === drop9.raw) ? spotPath9(sc9, at9) : undefined;
     if (must9 || pick9 === cur9raw || !held9 || heavy9 || (busy9 && at9 - lastSwitch9() >= MIN_SHOW9)) {
       trimFrom9(at9, pick9, !!spot9);
       emitScene9(at9, sc9, pick9, tot9, -Infinity, spot9);
       curBid9 = bid9;
+      /* 따라갈 몸은 그 사람의 토막 가운데 그 구간에 걸친 것에 싣는다(앞 토막에 이어 붙었어도 — 시각이 절대 초라 그 구간에서만 먹는다). */
+      if (drop9 && pick9 === drop9.raw) {
+        const f09 = drop9.follow[0].t0; const f19 = drop9.follow[drop9.follow.length - 1].t1;
+        for (let i9 = out9.length - 1; i9 >= 0; i9 -= 1) {
+          const g9 = out9[i9];
+          const nx9 = out9[i9 + 1]?.at ?? Infinity;
+          if (nx9 <= f09) break;
+          if (g9.raw === pick9 && !g9.spot && g9.at < f19) g9.follow = drop9.follow;
+        }
+      }
     }   // 최소 시간에 걸린 딴 전투는 안 보여 준다(위 trimFrom9 ★)
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
