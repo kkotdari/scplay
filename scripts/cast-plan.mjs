@@ -368,7 +368,7 @@ rmSync(tmp, { recursive: true, force: true });
   const tw = {
     level: (x, y) => (Math.hypot(x - 60, y - 60) <= 3 ? 2 : 0),
     walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !wall(x, y),
-    ramp: (x, y) => x === 84 && y === 100,
+    ramp: (x, y) => (x === 84 && y === 100) || (x === 54 && y === 2),   // (54,2) — 맵 끝 램프 칸(2026-10-13 · 아래 맵 끝 포토)
   };
   let tt = 19000;
   const tl = [];
@@ -381,6 +381,7 @@ rmSync(tmp, { recursive: true, force: true });
   tmk(0, "Siege Tank (Tank Mode)", false, 20, 20, 100, { orders: [[150, 34, 22, false]], sieges: [[160, true]] });
   tmk(0, "Siege Tank (Tank Mode)", false, 20, 20, 100, { orders: [[300, 60, 60, false]], sieges: [[310, true]] });
   tmk(1, "Photon Cannon", true, 64, 64, 100); tmk(1, "Photon Cannon", true, 82, 100, 200);
+  tmk(1, "Photon Cannon", true, 52, 2, 700);   // 맵 끝(y 2) — Y 본진에서 18타일 · 램프 칸 곁이어도 입구가 아니다(2026-10-13, 지적: "맵 끝부분인데 입구 막기라고")
   tmk(3, "Lurker", false, 100, 100, 280, { orders: [[300, 88, 100, false]] });
   for (let i = 0; i < 10; i += 1) tmk(1, "Zealot", false, 20, 100, 380, { orders: [[380, 62 + (i % 3), 64, false]] });
   const cs = tmk(1, "Corsair", false, 20, 100, 550);
@@ -396,6 +397,7 @@ rmSync(tmp, { recursive: true, force: true });
     ["언덕 위 시즈 → 언덕탱", has(/\[T\]ga 언덕탱으로 \[Y\]eul 공격/)],
     ["가운데 포토 → 센터 포토", has(/\[P\] 센터 포토/)],
     ["적 램프 곁 포토 → 입구 막기", has(/\[P\]ga \[Z\] 입구를 포토로 막음/)],
+    ["맵 끝 포토는 입구 막기가 아니다(2026-10-13)", !has(/\[Y\] 입구를 포토로 막음/)],
     ["제 입구 안쪽 럴커 → 입구 럴커", has(/\[Z\] 입구 럴커로 방어/)],
     ["센터에 모인 병력 → 센터 장악", has(/\[P\] 센터 장악/)],
     ["커세어가 오버로드 넷 → 오버로드 사냥", has(/\[P\]ga \[Z\] 오버로드 사냥/)],
@@ -706,6 +708,27 @@ rmSync(tmp, { recursive: true, force: true });
     ["게이트 둘 → '생산 건물 늘리는 중'(또는 빌드 읽기 '2게이트')", inA(300, 400).some((c) => c === "[A] 생산 건물 늘리는 중" || c === "[A] 2게이트")],
     ["오래 골라 둔 일꾼은 '일꾼 이동' 자막이 아니다", !plan.some((s) => /일꾼 \d+기 이동/.test(capTxt(s)))],
     ["돌고 있는 연구 → 이름으로 '질럿 속업 연구 중'(2026-10-11 · 옛 '업그레이드 진행 중')", inA(490, 600).some((c) => c === "[A] 질럿 속업 연구 중")],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉒' 남의 몸을 골라 봄(2026-10-13, 지적: "테란인데 포토 건설이 뜨거나") — 1v1 T(테란 20,20) · P(프로토스 100,100). 100~400초 T 는 제 커맨드를 고르다
+   200~240초 P 의 프로브를 눌러 본다 · 그 프로브는 그때 포토 건설 명령 → T 의 자막에 '포토'가 안 선다(화면 글귀는 제 몸만). */
+{
+  let ot = 71000;
+  const L = []; const sels = []; const builds = [];
+  const mk = (o, kind, bld, x, y, born) => { const e = { tag: (ot += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; L.push(e); return e; };
+  const cc = mk(0, "Command Center", true, 20, 20, 0); mk(1, "Nexus", true, 100, 100, 0);
+  const pr = mk(1, "Probe", false, 100, 100, 0);
+  for (let t = 5; t < 400; t += 20) sels.push([t, 0, [cc.tag], 0]);
+  for (const t of [200, 210, 220, 230, 240]) { builds.push([t, 1, pr.tag, 96, 96, "Photon Cannon"]); sels.push([t + 0.5, 0, [pr.tag], 0]); }
+  sels.sort((a, b) => a[0] - b[0]);
+  const w = { players: [["T", "테란", 1], ["P", "프로토스", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels, builds };
+  const plan = castPlan9(w, { total: 400, order: ["T", "P"], teamOf: { T: 1, P: 2 } });
+  console.log(`\n남의 몸: ${plan.filter((s) => s.raw === "T").map((s) => `${s.at.toFixed(0)}s ${capTxt(s)}`).join(" · ")}`);
+  for (const [name, pass] of [
+    ["남의 프로브를 골라 봐도 그 포토 건설은 테란의 자막이 아니다", !plan.some((s) => s.raw === "T" && /포토/.test(capTxt(s)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 

@@ -813,6 +813,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     };
     const tr9 = opts.terrain;
     const st9 = start9.get(raw9);
+    /** 맵 가장자리 EDGE9 타일 안인가 — 입구(길목·램프)는 맵 끝에 없다. 맵 크기를 모르면 거짓. */
+    const EDGE9 = 4;
+    const nearEdge9 = (x9: number, y9: number): boolean => !!opts.mapW && !!opts.mapH
+      && (x9 < EDGE9 || y9 < EDGE9 || x9 > opts.mapW - EDGE9 || y9 > opts.mapH - EDGE9);
     /** 그 자리에서 가장 가까운 적 출발 자리·본진 건물(이름 · 거리 · 자리). */
     const nearFoeBase9 = (x9: number, y9: number, sec9: number): { raw: string; d: number; x: number; y: number } | null => {
       let best9: { raw: string; d: number; x: number; y: number } | null = null;
@@ -858,6 +862,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         const fb9 = nearFoeBase9(x9, y9, t9);
         if (!fb9 || fb9.d <= BASE_R9 - 4 || fb9.d > BASE_R9 + 12) return;
         if (tr9?.ramp && !rampNear9(x9, y9, 6)) return;
+        /* ★ 맵 가장자리(EDGE9 타일 안)는 입구가 아니다(2026-10-13, 지적: "맵 끝부분인데 입구 막기라고 뜨거나") — 원 거리(14~30타일)만 보던 옛 자는 본진 뒤쪽 맵 끝도
+           '입구 밖'으로 읽었다. ⚠ 기지 영역(inBaseArea9)으로 거르지 마라 — 영역은 설계상 램프와 그 앞 BASE_GATE9 걸음(입구)까지 품어 진짜 입구 막기가 지워진다. */
+        if (nearEdge9(x9, y9)) return;
         add9(`block|${fb9.raw}`, t9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: fb9.raw }, { text: e9.kind === "Lurker" ? " 입구를 럴커로 막음" : " 입구를 포토로 막음" }], "입구 막기");
       };
       if (e9.bld && e9.kind === "Photon Cannon") blockAt9(e9.born, e9.bornX, e9.bornY);
@@ -960,6 +967,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         }
         const seen9 = flood9(g9, seed9(g9, st9.x, st9.y));
         if (reaches9(g9, seen9)) continue;
+        /* ★ **이 건물이 길을 끊은 것**이어야 한다(2026-10-13, 지적: "맵 끝부분인데 입구 막기라고 뜨거나") — 출발 자리 곁 씨앗이 제 건물 사이 작은 틈에 떨어지면 길은
+           처음부터 '막혀' 보이고, 그 뒤 아무 데(맵 끝 서플라이 · nearEdge9 도 걸러 둠)나 건물이 설 때마다 '입구 막음'이 됐다. 이 건물 발자국을 도로 비우면 길이 다시
+           열려야(= 이 건물이 막은 마지막 조각) 막은 것이다. */
+        if (nearEdge9(c9.bornX, c9.bornY)) continue;
+        {
+          const g29 = g9.slice();
+          const [cw9, ch9] = BUILDING_FOOT[c9.kind];
+          const cx0 = Math.round(c9.bornX - cw9 / 2); const cy0 = Math.round(c9.bornY - ch9 / 2);
+          for (let y9 = cy0; y9 < cy0 + ch9; y9 += 1) for (let x9 = cx0; x9 < cx0 + cw9; x9 += 1) if (x9 >= 0 && y9 >= 0 && x9 < W9 && y9 < H9) g29[y9 * W9 + x9] = walk9[y9 * W9 + x9];
+          if (!reaches9(g29, flood9(g29, seed9(g29, st9.x, st9.y)))) continue;
+        }
         let area9 = 0; for (let i9 = 0; i9 < seen9.length; i9 += 1) area9 += seen9[i9];
         if (area9 < WALL9.area) continue;
         const names9: string[] = [];
@@ -2352,9 +2370,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     for (const g9 of dur9.values()) if (!best9 || g9.d > best9.d) best9 = g9;
     if (!best9) return null;
     const at9 = best9.at;
-    const lives9 = best9.tags.map((tg9) => lifeAt9(tg9, at9)).filter((e9): e9 is NonNullable<typeof e9> => !!e9);
-    if (lives9.length === 0) return null;
     const own9 = ownersOf9(raw9);
+    /* ★ **제 것만**(2026-10-13, 지적: "테란인데 포토 건설이 뜨거나") — 선택 절에는 클릭해 본 **남의 몸**도 든다(상대 프로브를 눌러 보면 그 프로브의 포토 건설 명령이
+       테란의 자막이 됐다). 화면 글귀는 그 사람의 몸만 말한다. */
+    const lives9 = best9.tags.map((tg9) => lifeAt9(tg9, at9)).filter((e9): e9 is NonNullable<typeof e9> => !!e9 && own9.has(e9.owner));
+    if (lives9.length === 0) return null;
     const blds9 = lives9.filter((e9) => e9.bld);
     if (blds9.length > 0) {
       const b9 = blds9[0];
@@ -2386,7 +2406,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const army9 = lives9.filter((e9) => !WORKER9.has(e9.kind) && !NON_ARMY9.has(e9.kind));
     if (wk9.length > 0 && army9.length === 0) {
       const tags9 = new Set(wk9.map((e9) => e9.tag));
-      const bd9 = (world.builds ?? []).find(([bs9, , btg9]) => tags9.has(btg9) && bs9 >= t0 - 2 && bs9 < t1);
+      const bd9 = (world.builds ?? []).find(([bs9, bo9, btg9]) => tags9.has(btg9) && own9.has(bo9) && bs9 >= t0 - 2 && bs9 < t1);
       /* 짓는 것은 늘 일꾼이라 "프로브로"는 군말이다(2026-10-10, 요청: "프로브로 파일런 건설 — 당연한 거라 프로브로는 빼") — "[A] 파일런 건설". */
       /* 파일런·서플라이·가스는 군말이다(2026-10-10) — 말하지 않고 국면 요약으로 · 생산 건물은 "생산 건물 늘리는 중". */
       if (bd9 && PLAIN_BLD9.has(bd9[5])) return null;
