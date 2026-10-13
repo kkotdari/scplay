@@ -828,6 +828,22 @@ await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.bl
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
+/* --namefit(2026-10-13, 지적: "전광판 로스터 … 글자가 너무 커지면서 모바일에서 세 글자도 안 들어가") — 전광판 이름 칩마다 글자·칸 폭·잘림(scrollWidth > clientWidth)과 줄 키(--rp)·글자(--rf)·판 폭을 찍는다. */
+if (has("--namefit")) {
+  const r9 = await page.evaluate(() => {
+    const ro = document.querySelector(".scr-dock-roster"); if (!ro) return "로스터 없음";
+    const cs = getComputedStyle(ro);
+    const names = [...ro.querySelectorAll(".scr-dock-name")].map((el) => {
+      const t = el.querySelector(".scr-dock-nametxt, .scr-motion-teamcol-nametxt") ?? el;
+      return `${el.textContent.trim()}:${Math.round(el.getBoundingClientRect().width)}w/${getComputedStyle(el).fontSize}${t.scrollWidth > t.clientWidth + 1 ? "✂" : ""}`;
+    });
+    const nm9 = ro.querySelector(".scr-dock-names.is-grid2"); const cam9 = ro.querySelector(".scr-dock-names .scr-roster-cam"); const rw9 = ro.querySelector(".scr-dock-names .scr-dock-row");
+    const bd9 = ro.querySelector(".scr-dock-name .scr-motion-teamcol-race"); const ch9 = ro.querySelector(".scr-dock-name");
+    const geo9 = `기둥 ${nm9 ? Math.round(nm9.getBoundingClientRect().width) : "-"} · 줄 ${rw9 ? Math.round(rw9.getBoundingClientRect().width) : "-"} · 카메라 ${cam9 ? Math.round(cam9.getBoundingClientRect().width) : "-"} · 배지 ${bd9 ? Math.round(bd9.getBoundingClientRect().width) : "-"} · 칩 여백 ${ch9 ? getComputedStyle(ch9).paddingLeft : "-"}`;
+    return `${geo9} · 판 ${Math.round(ro.getBoundingClientRect().width)}×${Math.round(ro.getBoundingClientRect().height)} · --rp ${cs.getPropertyValue("--rp").trim()} · 글자 ${cs.fontSize} · ${names.join(" ")}`;
+  });
+  console.log(`[이름 맞춤] ${r9}`);
+}
 /* --pause(2026-10-12) — 들어오자마자 멈춘다(--t 그 시각의 짧은 효과 — 승하차 줄 1초 같은 것 — 를 찍을 때 · 재생 단추를 한 번 누른다). */
 if (has("--pause")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
 const SHOT = flag("--shot", null);

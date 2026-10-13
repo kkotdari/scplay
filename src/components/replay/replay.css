@@ -3478,8 +3478,11 @@
 /* ★ 폰 전광판 짝수(2026-10-10, 요청: "모바일도 … 모든 요소를 짝수로") — 줄 키는 짝수로 내림 · 글자 = 줄 키 × 0.52 짝수(4:4 줄 22 · 글자 12) · 칩 키 0.84줄 · 카메라 단추 0.64줄(2×2)·0.84줄 ·
    그림 0.5·0.6줄 · 배지 0.42줄(글자 0.34줄) · AUTO 글자 0.42줄 · 트로피 0.5줄 · 머리 아래 0.3줄 · 팀 틈 0.6줄 — 다 2px 반올림. 칩 글자는 줄 글자 그대로(옛 0.88em ≈ 같은 12) ·
    두 기둥 틈 9 → 8 · 칩 좌우 3 → 4. */
+/* ★ 줄 키 상한 30 → **24·dk** · 이름 글자는 **칩 폭에 맞춘다**(2026-10-13, 지적: "전광판 로스터 세로 최대를 정해야 하나 — 글자가 너무 커지면서 모바일에서 세 글자도 안 들어가네") —
+   사람이 적으면(1:1 · 2:2) 줄 키가 상한까지 커지고 글자(줄 × 0.52)·종족 배지·카메라 단추가 함께 커지는데, 2×2 칸의 칩 폭은 판 폭의 반이라 그대로다(실측 390 폰: 칩 50px ·
+   글자 16px → "정구"도 잘림). 줄 키 상한을 낮춰 배지·단추가 덜 먹게 하고, 칩 글자는 아래 is-grid2 규칙이 **세 글자가 드는 크기**로 죈다. */
 .scr-motion:not(.scr-motion-pc9) .scr-dock-roster {
-  --rp: round(down, min(calc(30px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6))), 2px);
+  --rp: round(down, min(calc(24px * var(--dk)), calc((var(--dock-h) - 12px * var(--dk)) / var(--rows, 6))), 2px);
   --rf: round(nearest, calc(var(--rp) * 0.52), 2px);
   font-size: var(--rf);
 }
@@ -3488,6 +3491,12 @@
 .scr-motion:not(.scr-motion-pc9) .scr-dock-names.is-grid2 { column-gap: calc(8px * var(--dk)); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-row .scr-dock-name { height: round(nearest, calc(var(--rp) * 0.84), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name { font-size: var(--rf); padding: 0 round(nearest, calc(4px * var(--dk)), 2px); }
+/* 칩 글자 = min(줄 글자, 세 글자가 드는 크기) — 칩 폭 ≈ (판 폭(100cqw · .scr-fs-rosterpanel 그릇) − 판 좌우 여백 16·dk − 두 기둥 틈 8·dk) / 2 − 카메라 0.64줄 − 줄 틈·여유 4px,
+   그 안의 글자 몫 = 칩 − 좌우 여백 8·dk − 배지 0.42줄 · 한글 한 자 ≈ 1em 에 배지 뒤 틈(0.15em)까지 3.25 로 나눈다(2026-10-13 · 위 ★ · 390 폰 실측 칩 54 = (168 − 24)/2 − 14 − 4). */
+.scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name {
+  font-size: round(down, max(calc(10px * var(--dk)), min(var(--rf), calc(((100cqw - 24px * var(--dk)) / 2 - var(--rp) * 1.06 - 4px * var(--dk) - 4px) / 3.2))), 1px);
+  padding: 0 calc(2px * var(--dk));   /* 좌우 4 → 2·dk — 글자 몫을 넓힌다(같은 날) · 바닥 10·dk(더 작으면 못 읽는다 — 아주 좁은 폰은 말줄임) */
+}
 .scr-motion:not(.scr-motion-pc9) .scr-roster-cam { height: round(nearest, calc(var(--rp) * 0.84), 2px); min-width: round(nearest, calc(var(--rp) * 0.84), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-roster-cam svg { width: round(nearest, calc(var(--rp) * 0.6), 2px); height: round(nearest, calc(var(--rp) * 0.6), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-roster-cam-txt { font-size: round(nearest, calc(var(--rp) * 0.42), 2px); }
