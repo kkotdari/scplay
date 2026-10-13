@@ -295,6 +295,9 @@ function makeWorld() {
   const bldClick9 = [];
   if (has("--bldclick")) {
     for (const [o9, ty9, x9, y9] of [[0, T.Depot, 58, 60], [1, Z.Pool, 68, 60], [2, P.Pylon, 62, 58]]) { bldClick9.push([tag, x9, y9]); track(o9, ty9, null, { buildingAt: [x9, y9] }); }
+    /* 유닛도(같은 날 "유닛도 전부 다 되는데?") — 46.4초 정구 마린(54,66) · 46.6초 Rex 히드라(56,70)를 우클릭 → 초록 · 노랑. 몸은 제자리에 선다. */
+    for (const [o9, ty9, x9, y9] of [[0, T.Marine, 54, 66], [1, Z.Hydra, 56, 70]]) { bldClick9.push([tag, x9, y9]); track(o9, ty9, () => [x9, y9, 1]); }
+    /* 랠리(같은 날 "심지어 랠리 포인트도 돼") — 47.0초 정구 서플라이(건물)가 수달이 파일런에 명령(7) → 땅 마커 없이 파일런 빨강. 명령 낸 몸이 건물이어도 같은 길이다. */
   }
   /* 마인드 컨트롤(--mc · 2026-10, "인구 칸의 종족 풀 덧줄" 검산) — 임자 바뀜(판 8)을 셋 심는다. 30초에 정구(테란)가 Rex(저그)의
      오버로드 하나를 뺏고(정구에 저그 풀 0/8 · Rex 상한 −8), Rex 가 정구의 마린 하나를 뺏는다(Rex 에 테란 풀 1/0). --players 3 이상이면
@@ -460,7 +463,8 @@ function makeWorld() {
      --track 정구 --t 46 이면 땅 마커 대신 그 미네랄의 노란 링이 켜져 있다(0.9초 창 · 0.225초 켜고 끄기). */
   if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 52 * 32, 76 * 32 - 20, 7]); /* 덤퍼는 표적 있는 우클릭을 7 로 적는다 · 자리는 마우스(그림 위 · 가운데보다 20px 위) */ cmds9.sort((a, b) => a[0] - b[0]); }
   if (bldClick9.length > 0 && armyTags.has(0)) {
-    bldClick9.forEach(([, x9, y9], i9) => cmds9.push([F(45.8 + i9 * 0.2), armyTags.get(0)[3 + i9], x9 * 32, y9 * 32, 7]));
+    bldClick9.forEach(([, x9, y9], i9) => cmds9.push([F(45.8 + i9 * 0.2), armyTags.get(0)[3 + i9], x9 * 32, y9 * 32, 7]));   // 셋 건물 · 둘 유닛
+    cmds9.push([F(47.0), bldClick9[0][0], bldClick9[2][1] * 32, bldClick9[2][2] * 32, 7]);   // 랠리 — 정구 서플라이 → 수달이 파일런
     cmds9.sort((a, b) => a[0] - b[0]);
   }
   w.u32(cmds9.length); { let pf = 0; for (const [f, tg, x, y, k] of cmds9) { w.vz(f - pf); pf = f; w.u32(tg); w.u16(x); w.u16(y); w.u8(k); } }
@@ -1261,12 +1265,13 @@ if (has("--marks") || has("--bldclick")) {
   const ring9 = await page.evaluate(() => window.__scrDiag?.ring ?? null);
   console.log(`[링] ${ring9 ?? "(진단 없음 — --diag)"}`);
   /* --bldclick — 0.08초마다 스무다섯 장 링 진단을 떠서 건물 링(diamond#b…)의 색을 모은다 · 땅 자국(DOM)도 함께. 셋이 다 나와야 한다:
-     정구 서플라이 초록(#10fc18) · Rex 풀 노랑(#fcfc38) · 수달이 파일런 빨강(#f40404). */
+     정구 서플라이 초록(#10fc18) · Rex 풀 노랑(#fcfc38) · 수달이 파일런 빨강(#f40404) · 유닛 — 정구 마린 초록 · Rex 히드라 노랑. */
   if (has("--bldclick")) {
     const got9 = new Set(); let marks9 = 0;
-    for (let i9 = 0; i9 < 25; i9 += 1) {
+    for (let i9 = 0; i9 < 35; i9 += 1) {
       const r = await page.evaluate(() => [window.__scrDiag?.ring ?? "", document.querySelectorAll(".scr-motion-clickfx").length]);
       for (const m of String(r[0]).matchAll(/#b([^|]+)\|([A-Za-z ]+)\|\d+\|\d+:\S*:\S*:(#[0-9a-f]{6})/g)) got9.add(`${m[1]} ${m[2]} ${m[3]}`);
+      for (const m of String(r[0]).matchAll(/([a-z0-9_]+)#u(\d+):(\S+?):(\S*?):(#[0-9a-f]{6})/g)) if (m[5] !== "#10fc18" || m[4] === "-") got9.add(`${m[3]} ${m[1]}#${m[2]} ${m[5]}`);   // 유닛 링 — 고르지 않은 몸의 링은 깜빡임뿐
       marks9 = Math.max(marks9, r[1]);
       await page.waitForTimeout(80);
     }

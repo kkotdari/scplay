@@ -1749,3 +1749,7 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 깜빡임 색 `selRingCol9` — 적 빨강 `UI_ATK9` · 제 것 초록(`ownUiCol9`) · 동맹 노랑 `UI_ALLY9`(옛 판은 늘 빨강).
 - 🔎 `perf-check --wide --players 3 --track 정구 --diag --bldclick --t 45.4 --warm 0` → `[건물 우클릭] 링 정구 Supply Depot #10fc18 · Rex Spawning Pool #fcfc38 ·
   수달이 Pylon #f40404 · 땅 자국 최대 0`.
+- 같은 날 이어서 "유닛도 전부 다 되는데?" · "심지어 랠리 포인트도 돼" — **유닛도 제 것·같은 편 모두 표적**(옛 '유닛은 적만' 걷음 · 명령 낸 제 몸만 뺀다).
+  랠리는 따로 할 일이 없었다: 덤퍼(sg-api openbw-scr.patch)는 action_default_order·action_order 둘 다 고른 몸마다(건물 포함) 한 줄씩 적고, 갈래 7 은
+  **표적이 있을 때만**(`target ? 7 : 0` — 땅 A-클릭은 0) — 건물이 낸 7 이 곧 표적 랠리다.
+  🔎 `--bldclick` 이 정구 마린(초록)·Rex 히드라(노랑)·47초 서플라이 → 수달이 파일런 랠리(빨강)까지 심는다 · `--t 46.9` 로 랠리 창만 본다.
