@@ -17755,7 +17755,10 @@ export default function ReplayMotionPlayer({
        이름 기둥 자리(카메라 단추 열의 머리)에 앉는다. 4:4 는 열한 줄 → 9.6 줄이라 줄 키가 그만큼 는다. */
     /* ★ 폰은 팀마다 이름이 **두 기둥**(2×2 · 2026-10-09, 요청: "모바일에서 로스터는 각팀 2*2배열로 — 그만큼 폰트를 키우라는 뜻") — 줄 수가 반으로 줄어 줄 키(--rp)가 그만큼
        큰다(replay.css 폰 상한 30·dk). 머리 줄 아래 틈(ROSTER_HEAD_GAP9 · AUTO 단추 밖 아래 갭)도 줄 수에 든다. */
-    const rows9 = 1 + ROSTER_HEAD_GAP9 + teams9.reduce((n9, t9) => n9 + (smallDevice9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
+    /* ★ 폰 2×2 는 **한 팀이 셋 이상일 때만**(2026-10-13, 요청: "글자 수는 최대한 확보 · 적어도 4~5글자는 보여야 할 듯") — 1:1·2:2 는 한 기둥이라 칩이 판 폭을 다 쓴다
+       (390 폰: 2×2 칩 54px → 한 기둥 ≈ 138px). 셋 이상이면 한 기둥은 줄 키가 너무 작아져(3:3 → 16px) 2×2 그대로. */
+    const grid2_9 = smallDevice9 && teams9.some((t9) => t9.mates.length > 2);
+    const rows9 = 1 + ROSTER_HEAD_GAP9 + teams9.reduce((n9, t9) => n9 + (grid2_9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
       + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
     const pages9 = rosterPaged9 ? [...ROSTER_PAGES9, ROSTER_PAGES9[0]] : ROSTER_PAGES9;   // 끝의 복제 첫 쪽(위 ★ 되감기)은 쪽 꼴에서만
     const stripStyle9 = rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined;
@@ -17814,7 +17817,7 @@ export default function ReplayMotionPlayer({
           <React.Fragment key={team}>
             {ti9 > 0 && <div className="scr-dock-gap" aria-hidden />}
             <div className="scr-dock-team">
-              <div className={cx("scr-dock-names", smallDevice9 && "is-grid2")}>
+              <div className={cx("scr-dock-names", grid2_9 && "is-grid2")}>
                 {mates.map((m) => {
                   const fallen9 = m.ghost || fallenHome(m);
                   const on9 = castSel9.includes(m.key);

@@ -840,7 +840,9 @@ if (has("--namefit")) {
     const nm9 = ro.querySelector(".scr-dock-names.is-grid2"); const cam9 = ro.querySelector(".scr-dock-names .scr-roster-cam"); const rw9 = ro.querySelector(".scr-dock-names .scr-dock-row");
     const bd9 = ro.querySelector(".scr-dock-name .scr-motion-teamcol-race"); const ch9 = ro.querySelector(".scr-dock-name");
     const geo9 = `기둥 ${nm9 ? Math.round(nm9.getBoundingClientRect().width) : "-"} · 줄 ${rw9 ? Math.round(rw9.getBoundingClientRect().width) : "-"} · 카메라 ${cam9 ? Math.round(cam9.getBoundingClientRect().width) : "-"} · 배지 ${bd9 ? Math.round(bd9.getBoundingClientRect().width) : "-"} · 칩 여백 ${ch9 ? getComputedStyle(ch9).paddingLeft : "-"}`;
-    return `${geo9} · 판 ${Math.round(ro.getBoundingClientRect().width)}×${Math.round(ro.getBoundingClientRect().height)} · --rp ${cs.getPropertyValue("--rp").trim()} · 글자 ${cs.fontSize} · ${names.join(" ")}`;
+    const mp9 = document.querySelector(".scr-fs-minipanel"); const dr9 = document.querySelector(".scr-fs-dockrow"); const ip9 = document.querySelector(".scr-motion-infodock");
+    const box9 = (e) => e ? `${Math.round(e.getBoundingClientRect().width)}×${Math.round(e.getBoundingClientRect().height)}` : "-";
+    return `독 줄 ${box9(dr9)} · 미니맵 판 ${box9(mp9)} · 인포 ${box9(ip9)} · ${geo9} · 판 ${Math.round(ro.getBoundingClientRect().width)}×${Math.round(ro.getBoundingClientRect().height)} · --rp ${cs.getPropertyValue("--rp").trim()} · 글자 ${cs.fontSize} · ${names.join(" ")}`;
   });
   console.log(`[이름 맞춤] ${r9}`);
 }

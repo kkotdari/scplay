@@ -3488,13 +3488,15 @@
 }
 .scr-motion:not(.scr-motion-pc9) .scr-dock-headrow { margin-bottom: round(nearest, calc(var(--rp) * 0.3), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-dock-gap { height: round(nearest, calc(var(--rp) * 0.6), 2px); }
-.scr-motion:not(.scr-motion-pc9) .scr-dock-names.is-grid2 { column-gap: calc(8px * var(--dk)); }
+.scr-motion:not(.scr-motion-pc9) .scr-dock-names.is-grid2 { column-gap: calc(4px * var(--dk)); }   /* 8 → 4·dk(2026-10-13 · 이름 글자 몫 — 아래 칩 글자 ★) */
+/* 폰 판 좌우 여백 8 → 4·dk(같은 날 · 이름 글자 몫). 칩 글자 셈(아래)의 '판 − 좌우 여백 − 기둥 틈' = 100cqw − 12·dk. */
+.scr-motion:not(.scr-motion-pc9) .scr-dock-roster { padding-left: calc(4px * var(--dk)); padding-right: calc(4px * var(--dk)); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-row .scr-dock-name { height: round(nearest, calc(var(--rp) * 0.84), 2px); }
 .scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name { font-size: var(--rf); padding: 0 round(nearest, calc(4px * var(--dk)), 2px); }
-/* 칩 글자 = min(줄 글자, 세 글자가 드는 크기) — 칩 폭 ≈ (판 폭(100cqw · .scr-fs-rosterpanel 그릇) − 판 좌우 여백 16·dk − 두 기둥 틈 8·dk) / 2 − 카메라 0.64줄 − 줄 틈·여유 4px,
-   그 안의 글자 몫 = 칩 − 좌우 여백 8·dk − 배지 0.42줄 · 한글 한 자 ≈ 1em 에 배지 뒤 틈(0.15em)까지 3.25 로 나눈다(2026-10-13 · 위 ★ · 390 폰 실측 칩 54 = (168 − 24)/2 − 14 − 4). */
+/* 칩 글자 = min(줄 글자, **네다섯 글자**가 드는 크기) — 칩 폭 ≈ (판 폭(100cqw · .scr-fs-rosterpanel 그릇) − 판 좌우 여백 8·dk − 두 기둥 틈 4·dk) / 2 − 카메라 0.64줄 − 줄 틈·여유 4px,
+   그 안의 글자 몫 = 칩 − 좌우 여백 4·dk − 배지 0.42줄 · 한글 한 자 ≈ 1em 에 배지 뒤 틈(0.15em)까지 4.75 로 나눈다(2026-10-13 · 위 ★ · 처음 3.25(세 글자) → 같은 날 "적어도 4~5글자"). */
 .scr-motion:not(.scr-motion-pc9) .scr-fs-rosterpanel .scr-dock-names.is-grid2 .scr-dock-row .scr-dock-name {
-  font-size: round(down, max(calc(10px * var(--dk)), min(var(--rf), calc(((100cqw - 24px * var(--dk)) / 2 - var(--rp) * 1.06 - 4px * var(--dk) - 4px) / 3.2))), 1px);
+  font-size: round(down, max(calc(10px * var(--dk)), min(var(--rf), calc(((100cqw - 12px * var(--dk)) / 2 - var(--rp) * 1.06 - 4px * var(--dk) - 4px) / 4.75))), 1px);
   padding: 0 calc(2px * var(--dk));   /* 좌우 4 → 2·dk — 글자 몫을 넓힌다(같은 날) · 바닥 10·dk(더 작으면 못 읽는다 — 아주 좁은 폰은 말줄임) */
 }
 .scr-motion:not(.scr-motion-pc9) .scr-roster-cam { height: round(nearest, calc(var(--rp) * 0.84), 2px); min-width: round(nearest, calc(var(--rp) * 0.84), 2px); }
