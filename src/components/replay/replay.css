@@ -4929,5 +4929,9 @@
 /* ★ 자동 중계 단추만 **아이콘·좌우 여백 축소**(2026-10-12, 요청: "자동 중계 버튼 TV 아이콘 축소 및 좌우 패딩 축소") — TV 0.6 → 0.46·줄 키 · 여백 6 → 3·dk. 전체 알약·사람 카메라는 그대로.
    무게: PC(.scr-motion-pc9 .scr-roster-cam svg · 0,2,1)·폰(0,3,1 · 파일 앞)보다 뒤 · 폰 2×2(is-grid2 · 0,4,1)는 제 값(0.5)이 이긴다. */
 .scr-motion .scr-dock-head .scr-roster-cam-auto svg { width: round(nearest, calc(var(--rp) * 0.46), 2px); height: round(nearest, calc(var(--rp) * 0.46), 2px); }
+/* ★ 전체·사람 카메라 그림 **한 단 작게**(2026-10-13, 요청: "전체 중계와 개인 중계의 카메라 아이콘 1스텝 축소") — 짝수 자에서 한 단 = 2px. 자동중계(TV)는 그대로(위 규칙).
+   PC 0.6줄 → 0.6줄 − 2px · 폰 2×2 0.5줄 → 0.5줄 − 2px(둘 다 2px 반올림). 무게는 각 갈래의 원 규칙 + :not(자동) 한 칸. */
+.scr-motion-pc9 .scr-roster-cam:not(.scr-roster-cam-auto) svg { width: round(nearest, calc(var(--rp) * 0.6 - 2px), 2px); height: round(nearest, calc(var(--rp) * 0.6 - 2px), 2px); }
+.scr-motion:not(.scr-motion-pc9) .scr-dock-names.is-grid2 .scr-roster-cam:not(.scr-roster-cam-auto) svg { width: round(nearest, calc(var(--rp) * 0.5 - 2px), 2px); height: round(nearest, calc(var(--rp) * 0.5 - 2px), 2px); }
 .scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto { padding: 0 calc(3px * var(--dk)); }
 /* (걷음 · 2026-10-12, 요청: "하얀 박스도 없애고 · 자막에서 이름의 색을 다 빼 줘") 어두운 임자색 이름의 흰 테(.is-dark · 0.5px 여덟 방향) → 흰 상자 — 이름이 흰 글자라 쓸 데가 없다. */
