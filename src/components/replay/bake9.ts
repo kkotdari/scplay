@@ -19319,18 +19319,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ③ **발 — 반 고리 세 쌍**(2026-10-14, 요청: "발밑의 바퀴 통나무 제거하고 사진처럼 반 고리를 세 개") — 옛 판은 옆구리 아래로 가로 누운 짧은 통(tubeFaces ·
        바퀴 통나무)이었다. 이제 옆구리 아래에 몸과 나란한 면(y-z)에 선 **아래 반원** 고리 — 두 끝이 몸 옆구리 속에 박히고 활이 바닥(z 0.05)까지 내려온다.
        반원은 설계 자로 셈하고 z 몫에 Z8 을 곱한다(굽은 관 규약). 자리는 그 마디 옆 몫의 0.66(초타원 옆구리 안 · 아래 활은 밖으로 드러난다). */
+    /* ★ **양끝은 옆구리에 위아래로 박히고 둥근 데는 바깥으로**(2026-10-14, 되요청: "반고리는 면이 지면에 수직이 되도록 롤링" → "고리의 양끝이 몸에 닿고 둥근
+       부분은 옆(바깥)을 향하라구") — 처음 판은 몸과 나란한 면(y-z)에서 아래로 처진 U 였다(두 끝이 앞뒤). 이제 고리 면은 몸 길이에 수직(x-z · 땅에도 수직)이고
+       두 끝이 옆구리의 위·아래(축 아래 0.55r ± 0.6·Z8)에 닿으며 활이 바깥(±x)으로 0.6 나간다. 가운데 x 는 두 끝 높이 가운데 **좁은 쪽** 옆구리(초타원 단면 ·
+       판 반두께 r = W·1.03 · 옆 r·OVL9) − 0.05 — 아래 끝이 옆구리에 닿고 위 끝은 파고든다. */
     for (const u9 of [0.24, 0.5, 0.76]) {
-      const [, ly9] = SP9(u9);
-      const lx9 = W9(u9) * OVL9 * 0.66;
-      const RR9 = 0.6; const RZ9 = 0.05 + RR9 * Z8;
+      const [, ly9, az9] = SP9(u9);
+      const r9 = W9(u9) * 1.03;
+      const RR9 = 0.6;
+      const zc9 = az9 - 0.55 * r9;
+      const sideAt9 = (z9: number): number => {
+        const q9 = Math.min(1, Math.abs(z9 - az9) / r9);
+        return r9 * OVL9 * (1 - q9 ** SQN9) ** (1 / SQN9);
+      };
+      const lx9 = Math.min(sideAt9(zc9 - RR9 * Z8), sideAt9(zc9 + RR9 * Z8)) - 0.05;
       for (const m9 of [-1, 1] as const) {
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 6, caps: "none",
           path: (t9: number): [number, number, number] => [
-            m9 * lx9, ly9 + RR9 * Math.cos(Math.PI * t9), RZ9 - RR9 * Z8 * Math.sin(Math.PI * t9),
+            m9 * (lx9 + RR9 * Math.sin(Math.PI * t9)), ly9, zc9 - RR9 * Z8 * Math.cos(Math.PI * t9),
           ],
           widthOf: (): number => 0.15,
-        }), GOLD_D), depthNow(m9 * lx9, ly9) * 1.6 + 1.2));
+        }), GOLD_D), depthNow(m9 * (lx9 + RR9 * 0.5), ly9) * 1.6 + 1.2));
       }
     }
 
