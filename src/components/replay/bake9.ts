@@ -19244,25 +19244,70 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 앞뒤로 갈수록 더 좁아진다(재요청) — 앞 1.68 → 1.14, 꽁무니 1.36 → 0.95, 허리 2.15 그대로.
     const W9 = (u9: number): number => 0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9));
 
-    /* ② 속막 — 판 사이 틈으로만 드러난다. 색을 안 주므로 임자 색이 든다. */
-    out.push(...tagKey(spirePillar({
+    /* ② 속막 — 판 사이 틈으로만 드러난다. ★ 금색(2026-10-14, 요청: "리버 안의 임자색 금색으로") — 옛 판은 색을 안 줘 임자 색이었다.
+       판(밝은 금 · 금)과 갈리게 어두운 금(GOLD_D)이다. 임자 색은 이제 등판 위 무늬(아래 ①b)가 든다. */
+    out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 18, sides: 12, oval: 1.12, caps: "both",
       path: SP9, widthOf: (u9: number): number => W9(u9) * 0.93,
-    }), 0));
+    }), GOLD_D), 0));
 
     /* ① 등판 일곱 — 저마다 짧은 마디라, 판 사이에 속막이 드러나는 띠가 남는다.
        판 하나 안에서도 앞이 두껍고 뒤로 갈수록 얇아져 다음 판 밑으로 물린다.
        한 장 걸러 밝기를 달리해 포개진 결이 위에서도 읽힌다. */
+    /* ①b **임자색 무늬**(2026-10-14, 요청: "임자색은 등마루를 따라 각 마디 껍질의 앞에 가운데에 양옆에 대칭으로 두 개씩 · 모양은 사각형인데 뒤쪽 모서리 두 개는
+       둥글게"(사진)) — 판마다 그 판과 **같은 살**(같은 길·옆선·oval·낯 수 24·위상)을 0.03 밖으로 한 겹 더 씌우고 `cutFace` 로 무늬 밖을 베어 낸다(굽은 살 위 데칼 규약).
+       무늬는 판 앞쪽(판 길이의 6% ~ 70%) · 등마루(x 0)에서 0.13 떨어져 옆으로 반폭의 60% · 뒤 두 모서리 반지름 0.2 · 위 반쪽(축보다 위)만. 색을 안 줘 임자 색이다.
+       판의 낯 수는 12 → 24 — 둥근 모서리가 판 낯 안에서 베어지려면 낯이 잘아야 한다(한 낯을 경계가 두 번 넘으면 cutFace 가 못 벤다). */
+    const PAT_F9 = 0.06; const PAT_R9 = 0.7; const PAT_B09 = 0.13; const PAT_BW9 = 0.6; const PAT_RR9 = 0.2;
     for (let i9 = 0; i9 < 7; i9 += 1) {
       const u0 = 0.02 + i9 * 0.134;
       const u1 = u0 + 0.112;
       const [, my9] = SP9((u0 + u1) / 2);
-      out.push(...tagKey(paintBase(spirePillar({
+      const plate9 = (grow9: number, segs9: number, cut9?: (x: number, y: number, z: number) => number): ShapeFace[] => spirePillar({
         // 등진 벽은 걷는다 — 뚫린 관이라 안쪽 벽이 겉면 위로 비쳐 판이 검게 얼룩졌다.
-        x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 12, oval: 1.18, caps: "none", trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 1, segs: segs9, sides: 24, oval: 1.18, caps: "none", trueNormal: true,
         path: (t9: number): [number, number, number] => SP9(u0 + (u1 - u0) * t9),
-        widthOf: (t9: number): number => W9(u0 + (u1 - u0) * t9) * (1.07 - 0.07 * t9),
-      }), i9 % 2 === 0 ? GOLD_L : GOLD), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02));
+        widthOf: (t9: number): number => W9(u0 + (u1 - u0) * t9) * (1.07 - 0.07 * t9) + grow9,
+        ...(cut9 ? { cutFace: cut9 } : {}),
+      });
+      out.push(...tagKey(paintBase(plate9(0, 3), i9 % 2 === 0 ? GOLD_L : GOLD), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02));
+      /* 무늬의 부호 있는 거리(양수 = 무늬 안) — 길이 자 s(모형 칸 · 판 앞끝 0) · 옆 자 b = |x|.
+         ⚠ s 를 꼭짓점의 y 로 재면 틀린다 — 앞쪽 판은 등뼈가 35° 넘게 비탈져 단면이 기울어, 윗면 꼭짓점의 y 가 축보다 판 길이 넘게 어긋났다(첫 굽기: 무늬가
+           거의 다 베어졌다). 꼭짓점을 **등뼈에 수직으로 내린 발**의 u(이분법 · dot(P − SP9(u), T(u)) = 0)로 잰다. 위아래도 그 자리의 등뼈 법선(위)으로 가른다. */
+      const tanAt9 = (u9: number): [number, number] => {
+        const a9 = SP9(u9 - 0.004); const b9 = SP9(u9 + 0.004);
+        const l9 = Math.hypot(b9[1] - a9[1], b9[2] - a9[2]) || 1;
+        return [(b9[1] - a9[1]) / l9, (b9[2] - a9[2]) / l9];
+      };
+      const footU9 = (y9: number, z9: number): number => {
+        let lo9 = u0 - 0.12; let hi9 = u1 + 0.12;
+        for (let it9 = 0; it9 < 24; it9 += 1) {
+          const m9 = (lo9 + hi9) / 2;
+          const a9 = SP9(m9); const [ty9, tz9] = tanAt9(m9);
+          if ((y9 - a9[1]) * ty9 + (z9 - a9[2]) * tz9 > 0) lo9 = m9; else hi9 = m9;
+        }
+        return (lo9 + hi9) / 2;
+      };
+      const [, pyA9, pzA9] = SP9(u0); const [, pyB9, pzB9] = SP9(u1);
+      const LP9 = Math.hypot(pyB9 - pyA9, pzB9 - pzA9);   // 판의 길이(모형 칸)
+      const sF9 = PAT_F9 * LP9; const sR9 = PAT_R9 * LP9;
+      const b19 = PAT_B09 + PAT_BW9 * W9((u0 + u1) / 2);
+      /* 무늬는 **한 쪽씩** 벤다(m9 = ±1) — 둘을 한 함수로(b = |x|) 베면 등마루 위 낯(x ±0.27)이 경계를 양쪽에서 두 번 넘어 cutPoly9 가 통째로 남겼다
+         (첫 굽기: 무늬가 등마루를 가로질러 한 장으로 붙었다). 한 쪽만 보면 그 낯은 경계를 한 번만 넘는다. */
+      const pat9 = (m9: number) => (x9: number, y9: number, z9: number): number => {
+        if (x9 * m9 <= 0) return -1;
+        const u9 = footU9(y9, z9);
+        const a9 = SP9(u9); const [ty9, tz9] = tanAt9(u9);
+        if ((y9 - a9[1]) * tz9 - (z9 - a9[2]) * ty9 < 0) return -1;   // 배 쪽은 안 칠한다(위 법선 (tz, −ty))
+        const s9 = ((u9 - u0) / (u1 - u0)) * LP9; const b9 = Math.abs(x9);
+        let d9 = Math.min(s9 - sF9, sR9 - s9, b9 - PAT_B09, b19 - b9);
+        if (s9 > sR9 - PAT_RR9 && (b9 < PAT_B09 + PAT_RR9 || b9 > b19 - PAT_RR9)) {
+          const cb9 = b9 < PAT_B09 + PAT_RR9 ? PAT_B09 + PAT_RR9 : b19 - PAT_RR9;
+          d9 = Math.min(d9, PAT_RR9 - Math.hypot(s9 - (sR9 - PAT_RR9), b9 - cb9));
+        }
+        return d9;
+      };
+      for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
     }
 
     /* ③ 발 마디 세 쌍 — 옆구리 아래에 붙은 짧은 고리. 몸을 미는 발이라 바닥 가까이
