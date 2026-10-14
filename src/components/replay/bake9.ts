@@ -31058,7 +31058,7 @@ SHAPE_FACES_TOP.cocoon1 = withTopView(() => bake(SHAPE_BUILDERS.cocoon1));
 SHAPE_BUILDERS.cocoon2 = (): ShapeFace[] => cocoonBuild9(2);
 SHAPE_FACES.cocoon2 = bake(SHAPE_BUILDERS.cocoon2);
 SHAPE_FACES_TOP.cocoon2 = withTopView(() => bake(SHAPE_BUILDERS.cocoon2));
-SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 5);
+SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 4, 2);   // 5 → 4 · 단 둘(2026-10-14 · 공사장 탑과 같은 짜임)
 SHAPE_FACES.scaffold = bake(SHAPE_BUILDERS.scaffold);
 SHAPE_FACES_TOP.scaffold = withTopView(() => bake(SHAPE_BUILDERS.scaffold));
 /** 공사 발판 탑 한 채 — 가는 기둥 넷이 서고 그 안을 계단이 돌며 오르며, 밑동에 해저드
@@ -31067,7 +31067,7 @@ SHAPE_FACES_TOP.scaffold = withTopView(() => bake(SHAPE_BUILDERS.scaffold));
  *  ★ 자리는 **완성 모델의 평면 상자 안쪽 모퉁이**다 — 밖에 세우면 짓는 칸마다 잉크 상자가
  *    커졌다 작아졌다 해 체력바·링이 흔들린다. 안에 세우면 상자는 완성 때와 같다.
  *  ★ 키는 **완성 높이**다 — 칸마다 탑이 자라면 공사가 아니라 탑이 주인공이 된다. */
-export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
+export function scaffold9(cx: number, cy: number, h: number, maxLv = Infinity): ShapeFace[] {
   const out: ShapeFace[] = [];
   const S9 = 0.46;      // 기둥 넷이 앉는 사각형의 반폭
   const PW9 = 0.13;     // 기둥 굵기
@@ -31115,7 +31115,7 @@ export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
     }
     return fs9;
   };
-  const nLv9 = Math.max(1, Math.floor((hh9 - 0.2) / LV9));
+  const nLv9 = Math.max(1, Math.min(maxLv, Math.floor((hh9 - 0.2) / LV9)));
   for (let lv9 = 1; lv9 <= nLv9; lv9 += 1) {
     const z9 = lv9 * LV9;
     const sg9 = lv9 % 2 === 0 ? 1 : -1;              // 경사로가 올라 닿는 쪽(층마다 뒤집힌다)
@@ -31129,9 +31129,10 @@ export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
     ), "#767e87"), key9(z9) + 0.01));
   }
   /* ④ **층마다 가로 파이프 넷** — 기둥 넷을 한 바퀴 잇는다(요청). 층이 있다고 말해 주는 자다. */
-  for (let lv9 = 1; lv9 <= nLv9 + 1; lv9 += 1) {
-    const z9 = Math.min(hh9 - 0.06, lv9 * LV9 + 0.30);
-    if (z9 <= 0.7) continue;
+  /* 단을 줄인 탑(maxLv)은 경사로 위가 빈 기둥이라 꼭대기 아래에 고리를 한 바퀴 더 두른다(마지막 칸). */
+  for (let lv9 = 1; lv9 <= nLv9 + 2; lv9 += 1) {
+    const z9 = lv9 <= nLv9 + 1 ? Math.min(hh9 - 0.06, lv9 * LV9 + 0.30) : hh9 - 0.06;
+    if (z9 <= 0.7 || (lv9 === nLv9 + 2 && hh9 - 0.06 - ((nLv9 + 1) * LV9 + 0.30) < 0.5)) continue;
     const C9: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     for (let k9 = 0; k9 < 4; k9 += 1) {
       const a9 = C9[k9]; const b9 = C9[(k9 + 1) % 4];
@@ -31148,11 +31149,16 @@ export function scaffold9(cx: number, cy: number, h: number): ShapeFace[] {
      사라진 것으로 읽힌다) 발광 표에 안 넣는다.
      ⚠ 이 칸은 **메시 열쇠에 든다**(gl9 bldMesh) — 그래서 짓는 중인 건물 한 채가 단계마다
        벌 둘을 쥔다. 다 지으면 그 열쇠는 안 쓰이고 LRU 가 걷어 간다. */
-  const BEACON9 = bldBlinkNow9 ? "#ff4433" : "#8a2f26";
-  if (bldBlinkNow9) EMIT_FILL9.add(BEACON9);
+  /* ★ **더 세게 번지게**(2026-10-14, 요청: "스캐폴더 … 대신 경광등을 더 강하게 빛이 번지게 글로우") — 등을 키우고(0.15 → 0.21) 켠 칸의 색을 더 달군 빨강으로,
+     둘레에 **빛나는 반투명 껍질**(반지름 0.46 · 알파 0.32)을 한 겹 씌워 번짐 판(EMIT_FILL9)에 넓게 문다 — 블룸 반경은 전역이라 빛나는 넓이를 키우는 것이 곧
+     번짐을 키우는 길이다. 끈 칸은 껍질 없이 식은 색. */
+  const BEACON9 = bldBlinkNow9 ? "#ff5a3c" : "#8a2f26";
+  const BEACON_GLOW9 = "#ff3a22";
+  if (bldBlinkNow9) { EMIT_FILL9.add(BEACON9); EMIT_FILL9.add(BEACON_GLOW9); }
   const bz9 = hh9 + 0.1;
-  out.push(...tagKey(paintBase(boxFaces3(cx, cy, 0.17, 0.17, 0.13, bz9), DKS9), key9(bz9)));
-  out.push(...tagKey([[orbPath3(cx, cy, bz9 + 0.22, 0.15), 1, BEACON9] as ShapeFace], key9(bz9 + 0.22)));
+  out.push(...tagKey(paintBase(boxFaces3(cx, cy, 0.2, 0.2, 0.13, bz9), DKS9), key9(bz9)));
+  out.push(...tagKey([[orbPath3(cx, cy, bz9 + 0.28, 0.21), 1, BEACON9] as ShapeFace], key9(bz9 + 0.28)));
+  if (bldBlinkNow9) out.push(...tagKey([[orbPath3(cx, cy, bz9 + 0.28, 0.46), 0.32, BEACON_GLOW9] as ShapeFace], key9(bz9 + 0.28) + 0.01));
   /* ⑦ 지브 크레인 — 건물 한가운데 쪽으로 뻗은 팔에 도르래와 갈고리가 달린다. */
   const L9 = Math.hypot(cx, cy) || 1;
   const ex9 = cx - (cx / L9) * 1.95; const ey9 = cy - (cy / L9) * 1.95;
@@ -31427,11 +31433,13 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
     }
     if (bx1 > bx0 && by1 > by0) {
       const IN9 = 0.72;   // 기둥 사각형의 반폭(0.46) + 한 뼘 — 상자 밖으로 안 나간다
-      const px9 = Math.min(bx1 - IN9, Math.max(bx0 + IN9, bx1 - IN9));
-      const py9 = Math.min(by1 - IN9, Math.max(by0 + IN9, by1 - IN9));
       const qx9 = Math.max(bx0 + IN9, Math.min(bx1 - IN9, bx0 + IN9));
       const qy9 = Math.max(by0 + IN9, Math.min(by1 - IN9, by0 + IN9));
-      out9.push(...scaffold9(px9, py9, hTop9 + 0.5), ...scaffold9(qx9, qy9, hTop9 + 0.5));
+      /* ★ **뒤에 한 채 · 키는 낮게**(2026-10-14, 요청: "테란 공사장 스캐폴더 뒤에 한 개로 줄이고 높이도 줄이기(단수 줄이기)") — 앞 오른쪽 탑은 걷고
+         뒤 왼쪽(qx·qy)만 · 키는 몸 키 + 0.15(옛 + 0.5) · **단은 경사로 둘까지**(maxLv 2 · 그 위는 빈 기둥과 고리).
+         ⚠ 키를 몸 키의 0.55·0.8 로 낮춰 봤더니 짓는 후반(5단~)에 탑이 몸 속에 통째로 묻혔다(배럭 · 넓은 지붕) — 탑은 완성 상자 안 모퉁이에 서므로 꼭대기(경광등·크레인)가
+         지붕 위로 나와야 보인다. 그래서 '높이 줄이기'는 키보다 **단수**로 낸다. */
+      out9.push(...scaffold9(qx9, qy9, Math.max(1.6, hTop9 + 0.15), 2));
     }
   }
   return out9;

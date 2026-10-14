@@ -6400,8 +6400,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          좌상에서 우하로 · 두꺼운 가로띠가 흐른다" → "물결이 위로 흐르면서 점점 본색깔과 불투명") — 완공 − WARP_FADE_SEC9 에 몸이 통째로 푸른 반물질(비침)로 서고,
          완공 − WARP_SWEEP_LEAD9 부터 WARP_SWEEP_SEC9 동안 좌상 → 우하로 기운 굵은 띠가 **아래에서 위로** 흘러 지나간 자리부터 점점 본색·불투명이 된다(그리는 쪽은
          gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
-      const WARP_SWEEP_LEAD9 = 0.4;
-      const WARP_SWEEP_SEC9 = 2.0;   // 1.6 → 2.0(2026-10-14 "점점")
+      /* 물마루 두 번(2026-10-14, 요청: "빛 띠 두 번 반복한 후 원래 모습") — 한 번에 1.3초 · 둘 합 2.6초. 형체가 선 뒤 0.2초에 첫 물마루가 나온다(앞 0.6 · 옛 0.4). */
+      const WARP_SWEEP_LEAD9 = 0.6;
+      const WARP_SWEEP_SEC9 = 2.6;   // 1.6 → 2.0("점점") → 2.6(두 번)
       const warpK9 = race2 === "프로토스" && sec > 0 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
         ? Math.min(1, Math.max(0, (t - (doneAt - WARP_SWEEP_LEAD9)) / WARP_SWEEP_SEC9)) : undefined;
       /* 드러남이 있으면 **형체는 한 번에 다 보인다**(2026-10-14, 되요청: "형체는 전체가 한번에 보여 · 물결이 위로 흐르면서 점점 본색깔과 불투명") — 옛 알파 배어남(warpU9)을
@@ -8139,6 +8140,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       : (canFight && !frzSt && !burrowed && Number.isFinite(foe.bd)
         && (foe.bd <= acq9 * (engagedBefore ? 1.3 : 1)
           || (foe.bld === true && foe.bd <= ENGAGE_SIGHT_TILES * 1.6)));
+    /* ★ **겨눈 것 없는 FIGHT 는 싸움이 아니다**(2026-10-14, 지적: "질럿이 이동 후 정지 시 공격 모션을 한 번 취하는데? 질럿만 그런 건지 조사도 필요") —
+       덤퍼(bwdump.cpp)는 상태를 **명령 종류**로 가른다: AttackMove(공격 이동 · A 클릭)도 FIGHT 이고, 그 가름이 이동 깃발보다 앞이다. 그래서 공격 이동으로
+       간 유닛은 가는 내내 FIGHT 이고(걸음이 공격보다 먼저라 걸음 컷이 섰다), **멈춰 선 뒤 명령이 Guard 로 바뀌기까지** 잠깐 '멈춘 FIGHT' 가 되어 공격 컷이
+       한 번 돌았다. 질럿만이 아니라 공격 컷을 가진 지상 유닛 모두 같다(질럿은 칼이 나와 눈에 띈다). 참값이 표적을 아는 판(e.tgt)에서 지금 겨눈 것이 없으면
+       싸움으로 안 본다 — 포탑 겨눔(turretAim9)·메딕(아래 healing9 가 따로 가른다)은 그대로. */
+    if (fighting && simState === ST_FIGHT && e.tgt !== undefined && tgtTag9 === 0 && !turretAim9 && drawUnit !== "Medic") fighting = false;
     let pos = rawPos;
     /* ★ 버로우 예고(요청: 럴커 버로우 때 땅 파는 모션 — 이동을 그만큼 일찍 멈추고, 버로우할 자리에서 애니메이션 뒤 바로
        땅속 상태) ─────────────────────────────────────────────────────────────────

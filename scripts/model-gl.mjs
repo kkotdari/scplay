@@ -43,6 +43,8 @@ const POSE = Number(flag("--pose", 0));
 const AIM = flag("--aim", null);
 /** 소환 드러남 — `--warp u`(0~1) 면 프로토스 소환의 띠 진행 u 로 그린다(gl9 GlInst9.warp · 2026-10-14). */
 const WARP = flag("--warp", null);
+/** 공사 발판 경광등을 켠 칸으로 굽는다(`--blink` · bake9 bldBlinkSet9). */
+const BLINK = argv.includes("--blink");
 const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
 /* ★ `--spins 0,1,2,…` — **회전 칸**을 칸으로 늘어놓는다(2026-09 에 더했다. 요잉은 `--rots` 의 첫 값
    하나로 못 박는다). 도는 부품(코어 디스크·서플라이 팬·포지 톱니·머신샵)은 칸마다 따로 굽는 자라
@@ -91,7 +93,7 @@ const COLOR = String(flag("--color", "#4aa3ff"));   // 임자 색(변천사는 7
 const SHADOW = process.argv.includes("--shadow");
 
 const ENTRY = `
-import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
+import { SHAPE_BUILDERS, SHAPE_GALLERY, bldBlinkSet9, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
 /* --cam 납작비,높이,숙임(2026-10-12) — 입체 카메라를 손으로(옛 입체 0.606,1,0.34 · 새 60도 0.866,0.5,0 견줌). 없으면 평면 CAM_TOP9. */
@@ -101,6 +103,7 @@ const BLD = new Set(SHAPE_GALLERY.filter((g) => g.group === "건물").map((g) =>
 window.__kinds = () => Object.keys(SHAPE_BUILDERS);
 window.__spinSteps = () => SPIN_ANIM9;
 window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, fit) => {
+  bldBlinkSet9(${BLINK ? 1 : 0});
   const shadeBoost = (o, fill) => (fill && o < 1 ? Math.min(0.85, o * 1.45) : o);
   const cols = rots.length; const rows = kinds.length;
   // GL: 한 캔버스에 칸마다 개체 하나
