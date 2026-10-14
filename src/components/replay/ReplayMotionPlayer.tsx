@@ -1241,7 +1241,7 @@ const UI_STEPS9 = {
 /** ★ **좁은 창은 모바일 UI**(2026-10-13, 요청: "화면폭에 따라 모바일 UI 적용 필요 — 아무리 피시라도 화면폭 줄어들면 모바일로 변경 · sg-web 이 그렇듯이") —
  *  sg-web useIsMobile 과 같은 자(창 폭 ≤ 1159px). UI 갈래(배치·전광판·툴박스·분할 금지·--dk·자막 배율·pc9 클래스)는 이 값(uiPhone9 = ui9.phone)을 보고,
  *  **성능 갈래**(DEV9·벤치 단·간이 칸·그림자 접기·2D/3D 단추)는 여전히 기기(smallDevice9)를 본다 — 좁은 PC 창은 PC 의 힘으로 폰 배치를 그린다. */
-const UI_PHONE_W9 = 1159;
+const UI_PHONE_W9 = 960;   // 1159 → 960(2026-10-13, 되요청: "1159 너무 큰 듯 — 1080 까지는 피시로 · 960 이나 720 등")
 function uiStep9(): { name: string; k: number; w: number; h: number; phone: boolean } {
   if (typeof window === "undefined") return { name: "qhd", k: 1, w: 0, h: 0, phone: false };
   const phone9 = smallDevice9 || window.innerWidth <= UI_PHONE_W9;
