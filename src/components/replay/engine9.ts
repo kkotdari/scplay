@@ -6406,7 +6406,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const WARP_SWEEP_SEC9 = 2.25;   // 1.6 → 2.0("점점") → 2.6(두 번) → 2.25(세 번 · 빠르게)
       /** ★ 반물질 형체의 **빠른 배어남**(2026-10-14, 요청: "프로토스 완공 시 반물질 페이드인 효과도 빠르게 주기") — 형체가 서는 때(완공 − WARP_FADE_SEC9)부터 이만큼(초) 동안 0 → 1. */
       const WARP_GHOST_IN9 = 0.2;
-      const warpK9 = race2 === "프로토스" && sec > 0 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
+      /* ★ 시작 건물은 안 탄다(2026-10-14, 지적: "첫 스타팅 넥서스는 완공 효과 x") — 덤프는 첫 몇 프레임 뒤에 시작 넥서스를 싣기도 해 sec 가 0 이 아니라 0.0x 다(옛 문 `sec > 0`
+         을 지났다). 그 넥서스는 지은 시간 없이 곧 완공이라(doneAt ≈ sec) 경기 첫 순간에 물마루가 돌았다. **실제로 지은 시간**(doneAt − sec 2초 넘게)과 경기 첫 2초 뒤에 선 것만. */
+      const warpK9 = race2 === "프로토스" && sec > 2 && doneAt - sec > 2 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
         ? Math.min(1, Math.max(0, (t - (doneAt - WARP_SWEEP_LEAD9)) / WARP_SWEEP_SEC9)) : undefined;
       /* 드러남이 있으면 **형체는 한 번에 다 보인다**(2026-10-14, 되요청: "형체는 전체가 한번에 보여 · 물결이 위로 흐르면서 점점 본색깔과 불투명") — 옛 알파 배어남(warpU9)을
          곱하지 않고, 비침(반물질 → 불투명)은 셰이더가 물결을 따라 준다. 드러남이 없는 것(#gl=0 등은 붓이 warpK 를 안 읽는다 · 날아와 앉은 건물)만 옛 배어남. */
