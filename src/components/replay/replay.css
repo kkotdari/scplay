@@ -106,7 +106,7 @@
    4px 더 물러선 값이라, 그 차이가 곧 "이건 화면이 아니라 그 위에 뜬 창"이라는 표시다.
    안쪽은 8px까지 조여 내용 폭을 최대한 남긴다 — 이 창은 카드 한 장을 보여주는 자리라
    여백보다 카드가 넓은 편이 낫다. */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   /* ★ 뷰포트 폭으로 빼는 것은 **프레임**이다(지적: "scr-fs-stage와 scr-motion-map이
      어긋나 있어 · 마진레프트 −16을 조사해봐") ─────────────────────────────────────
      이 트릭(width:100vw + margin-left:calc(50% − 50vw))은 지도가 **문서에 흐르는 블록**
@@ -322,7 +322,7 @@
      내린 값을 적어 두므로, 다음에 또 조절해도 곱셈이 겹쳐 쌓이지 않는다.
    · 다시 10% 확대(요청: "모바일 버튼 크기 10프로만 다시 확대") — 28 → 31px. 아이콘
      12 → 13, 값 글자 9 → 10, 긴 값 7 → 8px. 44 대비로는 70%다(0.8 × 0.8 × 1.1 = 0.704). */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   /* 좁은 화면 — 툴박스 첫 줄에 단추 여섯 남짓 + 공유·사용법이 한 줄로 든다(390px 실측). */
   /* (걷어냄 · 2026-10) `.scr-tb { --mapbtn-h: 32px }` — 이 미디어 블록은 `.scr-tb` 기본 규칙(아래 3260줄 · 같은 무게)보다 **앞**에 있어
      한 번도 이긴 적이 없다(실측 폰 단추 30px). 폰·PC 다 30px 한 값이다 — 폭에 따른 축소는 flex-shrink 뿐이었고 그것을 걷었다. */
@@ -542,7 +542,7 @@
 }
 /* 트로피는 아바타 왼위에 붙는 딱지다 — 줄 꼴에서 제 칸을 차지하면 표가 한 칸 밀린다. */
 .scr-motion-teamcol-rows .scr-motion-trophy { top: -2px; left: 2px; transform: none; }/* 좁은 배치 — **아바타를 뺀다**(요청: "모바일은 아바타 생략"). 기둥도 좁힌다. */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   /* ★ 폭을 넓힌다(지적: "모바일 오버레이 폭 더 넓혀야할듯 닉네임이 안나와") — 224px
      기둥에서 지표 다섯(34+30+27+27+24 + 사이 10 + 여백 6 = 158)을 빼면 이름칸에
      66px밖에 안 남아, 아바타·종족 글자를 빼고 나면 닉네임이 통째로 말줄임이었다.
@@ -769,7 +769,7 @@
    선택자에 .scr-motion을 한 번 더 얹은 것은 위 :not(.scr-motion-wide) 규칙과 무게를
    맞춰(0,3,0 / 0,4,0) 뒤에 오는 이쪽이 이기게 하기 위해서다.
    폰 전체화면은 그대로 둔다(칸이 좁아 2열이면 이름이 뭉갠다) — PC 폭에서만 건다. */
-@media (min-width: 1160px) {
+@media (min-width: 961px) {
   /* ★ 기둥 폭은 **사이드바가 정한다**(지적: "미니맵은 아직 잘림") ────────────────
      여기 232px은 좌우 기둥 둘이던 시절의 값이다. 지금 이 기둥 안에는 합친 사이드바
      하나(.scr-motion-sidepanel, 316px)가 통째로 들어가는데, 기둥이 232px에 못 박혀
@@ -1051,7 +1051,7 @@
   content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
   border: 4px solid transparent; border-top: 5px solid var(--bub, #222); border-bottom: none;
 }/* 모바일은 한 단 작게(요청). */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   .scr-motion-map > .scr-motion-bubble, .scr-motion-lens > .scr-motion-bubble { font-size: 9px; }
 }
 
@@ -1094,7 +1094,7 @@
 .scr-motion-build { font-size: 7px; font-weight: 700; }/* PC는 지도가 커서 같은 픽셀이 상대적으로 작다(지적: 도형이 안 보임) — 한 단계씩 키운다. */
 /* 값들은 예전 1.2배 transform을 걷어낸 몫까지 미리 곱해 둔 것(위 --mk 주석) — 크기는
    그대로, 래스터만 또렷해진다. */
-@media (min-width: 1160px) {
+@media (min-width: 961px) {
   .scr-motion-build { font-size: 11px; }
   .scr-motion-build-shape { font-size: 16px; }
   .scr-motion-build-hall { font-size: 14px; }
@@ -1449,7 +1449,7 @@
    기존 부대 점(9px)보다 소·중형은 작다. PC 확대 화면 값은 아래 미디어. */
 .scr-motion-dot.scr-motion-unit-s { font-size: 6px; }
 .scr-motion-dot.scr-motion-unit-m { font-size: 8px; }
-.scr-motion-dot.scr-motion-unit-l { font-size: 11px; }@media (min-width: 1160px) {
+.scr-motion-dot.scr-motion-unit-l { font-size: 11px; }@media (min-width: 961px) {
   .scr-motion-dot.scr-motion-unit-s { font-size: 8px; }
   .scr-motion-dot.scr-motion-unit-m { font-size: 11px; }
   .scr-motion-dot.scr-motion-unit-l { font-size: 15px; }
@@ -1519,7 +1519,7 @@
    제 크기(-hall)가 따로 있다. */
 /* -lg 12/16 → 10/14(지적: "배럭 게이트 크기가 너무 큰듯") — 본진(15/20)과의 층은 그대로. */
 .scr-motion-build-sm.scr-motion-build-shape { font-size: 7px; }
-.scr-motion-build-lg.scr-motion-build-shape { font-size: 10px; }@media (min-width: 1160px) {
+.scr-motion-build-lg.scr-motion-build-shape { font-size: 10px; }@media (min-width: 961px) {
   .scr-motion-build-sm.scr-motion-build-shape { font-size: 10px; }
   .scr-motion-build-lg.scr-motion-build-shape { font-size: 14px; }
 }
@@ -1587,7 +1587,7 @@
   touch-action: pan-y;
 }/* 모바일 — 손가락 표적을 키운다(지적: 터치로 잡기가 안 됨). 상자 높이 16→32px에
    손잡이도 12→20px. 트랙(4px)은 가운데 정렬만 다시 맞춘다. */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   .scr-motion-range { height: calc(32px * var(--ui, 1)); }
   .scr-motion-range::-webkit-slider-runnable-track { margin-top: 0; }
   .scr-motion-range::-webkit-slider-thumb { width: calc(20px * var(--ui, 1)); height: calc(20px * var(--ui, 1)); margin-top: calc(-8px * var(--ui, 1)); }
@@ -1692,7 +1692,7 @@
    3칸 그리드 수법: 가운데 칸(범례+산 버튼)이 정중앙, 확대 토글은 오른쪽 칸 끝이다. */
 .scr-motion-terrain-row { display: flex; justify-content: center; gap: 6px; }/* (삭제·요청: 모바일 확대 제거 둘째 판) — 화면 폭 확대 버튼 규칙이 있던 자리. */
 /* 큰 화면 보기 토글(요청: PC 전용 — 대각선 화살표). */
-@media (min-width: 1160px) { .scr-motion-expand-row { grid-column: 3; display: flex; justify-content: flex-end; }
+@media (min-width: 961px) { .scr-motion-expand-row { grid-column: 3; display: flex; justify-content: flex-end; }
 }
 
 /* (삭제·요청: PC 확대창 관련 소스 완전 제거) — 큰 화면 팝업(.scr-motion-big-modal)과
@@ -1802,7 +1802,7 @@
 /* (걷음 · 2026-10-09) 머리 줄 .scr-story-map-head(시각 | 맵·길이·승패 | 올린 이)는 재생기에서 뺐다 — 앱(sg-web)이 페이지 제목 줄에
    그린다(요청: 재생기 위 타이틀 상자를 걷어 화면 확보). 승패 배지 .scr-story-win 과 가림 .scr-story-win-veil 은 앱이 그대로 쓰므로 남긴다. */
 /* 모바일 — 게임 페이지의 승패 배지(로스터 옆)는 한 단 작게 · 지도는 뷰포트 폭(아래). */
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   .scr-activity-group-page .scr-story-win,
   .scr-activity-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
   /* 게임 페이지의 모바일 맵도 뷰포트 폭(요청: 좌우 패딩 없이 최대한 넓게) — 전체화면
@@ -2919,7 +2919,7 @@
   max-width: none; margin: 0; border-radius: 0;
 }/* 넓은 배치는 바닥을 한 단 높인다 — 판(로스터 320px·도구 150px)이 PC 크기라 그만큼
    세로도 있어야 지도가 남는다. 폭 상한(1024)은 부르는 쪽이 인라인으로 준다. */
-@media (min-width: 1160px) {
+@media (min-width: 961px) {
   .scr-fs-layer, .scr-motion-frame-hold { min-height: 420px; }
 }
 
@@ -3654,7 +3654,7 @@
 .scr-motion-pc9 .scr-tb { --tbs: calc(var(--ui) / 0.75); --mapbtn-h: round(nearest, calc(24px * var(--tbs)), 2px); padding-bottom: round(nearest, calc(14px * var(--tbs)), 2px); }
 .scr-motion-pc9 .scr-tb .scr-motion-clock { font-size: round(nearest, calc(10px * var(--tbs)), 2px); }
 .scr-tb .scr-tb-speed .scr-motion-mapval-num { font-size: calc(10px * var(--ui)); }
-@media (max-width: 1159px) { .scr-tb .scr-tb-speed { --mapbtn-h: calc(26px * var(--ui)); } }
+@media (max-width: 960px) { .scr-tb .scr-tb-speed { --mapbtn-h: calc(26px * var(--ui)); } }
 /* (걷어냄 · 2026-10) ≤400px 배속 단추 24px — 좁은 화면은 26px 한 값이다. */
 .scr-tb-seek > .scr-motion-bar-controls { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; gap: calc(8px * var(--ui)); }
 .scr-tb .scr-motion-range { touch-action: none; align-self: center; }
@@ -3677,7 +3677,7 @@
 @media (hover: hover) {
   .scr-tb-tail .scr-kakao-share-btn:hover { background: rgba(255, 255, 255, 0.18); }
 }
-@media (max-width: 1159px) {
+@media (max-width: 960px) {
   .scr-tb { --tb-padt: 9px; padding: 4px 6px calc(2 * 5.1px * var(--dk)); }   /* 위 2 → 4 · 아래 ×2(2026-10-06 "위아래 여백 2배") */
   .scr-tb-tail { gap: 5px; }
 }
@@ -4895,7 +4895,7 @@
 /* 진행바 태그 — 바를 감싼 칸(.scr-motion-rangewrap) 위에 겹친 얇은 판. 손잡이 폭(--th)의 반씩 양끝을 비워 손잡이 가운데와 같은 자다(손잡이 폭은 아래 미디어가 바꾼다). */
 .scr-motion-rangewrap { --th: calc(12px * var(--ui, 1)); position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; }
 .scr-motion-rangewrap > .scr-motion-range { flex: 1 1 auto; width: 100%; position: relative; z-index: 1; }
-@media (max-width: 1159px) { .scr-motion-rangewrap { --th: calc(20px * var(--ui, 1)); } }
+@media (max-width: 960px) { .scr-motion-rangewrap { --th: calc(20px * var(--ui, 1)); } }
 @media (pointer: coarse) { .scr-motion-rangewrap { --th: calc(26px * var(--ui, 1)); } }
 .scr-motion-searchtags { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 0; }
 .scr-motion-searchtag {

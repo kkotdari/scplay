@@ -1239,9 +1239,9 @@ const UI_STEPS9 = {
   phone: [[410, "small", 1], [600, "large", 1.1], [Infinity, "fold", 1.3]],
 } as const;
 /** ★ **좁은 창은 모바일 UI**(2026-10-13, 요청: "화면폭에 따라 모바일 UI 적용 필요 — 아무리 피시라도 화면폭 줄어들면 모바일로 변경 · sg-web 이 그렇듯이") —
- *  sg-web useIsMobile 과 같은 자(창 폭 ≤ 1159px). UI 갈래(배치·전광판·툴박스·분할 금지·--dk·자막 배율·pc9 클래스)는 이 값(uiPhone9 = ui9.phone)을 보고,
+ *  sg-web useIsMobile 과 같은 자(창 폭 ≤ 960px · 처음 1159 → 같은 날 "sg-web 과 재생기에 모두 모바일 기준을 960 으로"). UI 갈래(배치·전광판·툴박스·분할 금지·--dk·자막 배율·pc9 클래스)는 이 값(uiPhone9 = ui9.phone)을 보고,
  *  **성능 갈래**(DEV9·벤치 단·간이 칸·그림자 접기·2D/3D 단추)는 여전히 기기(smallDevice9)를 본다 — 좁은 PC 창은 PC 의 힘으로 폰 배치를 그린다. */
-const UI_PHONE_W9 = 960;   // 1159 → 960(2026-10-13, 되요청: "1159 너무 큰 듯 — 1080 까지는 피시로 · 960 이나 720 등")
+const UI_PHONE_W9 = 960;   // 1159 → 960(2026-10-13, 되요청: "1159 너무 큰 듯 — 1080 까지는 피시로" → "sg-web 과 재생기에 모두 960") — CSS 의 (max-width: 960px) 와 한 값
 function uiStep9(): { name: string; k: number; w: number; h: number; phone: boolean } {
   if (typeof window === "undefined") return { name: "qhd", k: 1, w: 0, h: 0, phone: false };
   const phone9 = smallDevice9 || window.innerWidth <= UI_PHONE_W9;
@@ -14873,7 +14873,7 @@ export default function ReplayMotionPlayer({
      개체의 체력 자취가 내려간 순간을 피격으로 삼는다(hurtAt). */
   // 글자 크기 CSS(모바일/PC 미디어)와 같은 값 — 캔버스는 CSS를 못 읽으니 여기서 정한다.
   // 이제 크기는 캔버스가 정한다 — 이 값은 그리기 주기(아래 DRAW_GAP_MS)에만 쓰인다.
-  const pcView = typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 1160px)").matches;
+  const pcView = typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 961px)").matches;
   /* 모델 크기 — **크기표가 곧 원작 크기다**(요청: 모델크기 토글 제거). 모델 공간
      정규화(MODEL_NORM·BLD_NORM)가 '상자를 채우는 몫'을 종류마다 같게 맞추고, 원작
      치수표(UNIT_BW_TILES)가 그 위에 실제 크기를 준다(실측: 마린 잉크 폭 0.632타일 =
