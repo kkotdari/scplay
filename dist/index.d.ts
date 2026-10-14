@@ -393,7 +393,7 @@ export declare const playbackViewOf: Map<string, {
 }>;
 
 /** 자세 번호 — 0 기본 · 1/3 걸음(거울 한 쌍) · 2/4/5 공격 · 6~9 여섯 컷 걸음의 사잇컷(GAIT_CYCLE9). */
-declare type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+declare type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 /** ★ 이 종류가 **어떤 컷을 갖나**(요청: "이동, 액션 모션은 별도 모델링이 없으면 idle
  *  모션이 그 모션이 됨") — 도록이 칸을 세울지 idle로 갈음할지 이 값이 정한다.
