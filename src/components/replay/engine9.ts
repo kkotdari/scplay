@@ -6396,14 +6396,17 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       }
       // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
       const alphaPre9 = alpha;   // 페이드를 곱하기 전 값 — 아래 고리의 '보이는 자리인가' 문은 이것을 본다
-      if (warpIn9) alpha *= warpU9;
       /* ★ **소환 드러남**(2026-10-14, 요청: "프로토스 건물 소환 완료 시 형체가 반물질 느낌으로 푸른빛이 표면에 파도처럼 … 점점 본모습으로 변신" → "대각선
-         좌상에서 우하로 · 두꺼운 가로띠가 흐른다") — 배어 나오기 시작할 때(완공 − WARP_FADE_SEC9)부터 몸은 푸른 반물질이고, 완공 − WARP_SWEEP_LEAD9 부터
-         WARP_SWEEP_SEC9 동안 띠가 좌상 → 우하로 쓸며 본모습으로 바꾼다(그리는 쪽은 gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
+         좌상에서 우하로 · 두꺼운 가로띠가 흐른다" → "물결이 위로 흐르면서 점점 본색깔과 불투명") — 완공 − WARP_FADE_SEC9 에 몸이 통째로 푸른 반물질(비침)로 서고,
+         완공 − WARP_SWEEP_LEAD9 부터 WARP_SWEEP_SEC9 동안 좌상 → 우하로 기운 굵은 띠가 **아래에서 위로** 흘러 지나간 자리부터 점점 본색·불투명이 된다(그리는 쪽은
+         gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
       const WARP_SWEEP_LEAD9 = 0.4;
-      const WARP_SWEEP_SEC9 = 1.6;
+      const WARP_SWEEP_SEC9 = 2.0;   // 1.6 → 2.0(2026-10-14 "점점")
       const warpK9 = race2 === "프로토스" && sec > 0 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
         ? Math.min(1, Math.max(0, (t - (doneAt - WARP_SWEEP_LEAD9)) / WARP_SWEEP_SEC9)) : undefined;
+      /* 드러남이 있으면 **형체는 한 번에 다 보인다**(2026-10-14, 되요청: "형체는 전체가 한번에 보여 · 물결이 위로 흐르면서 점점 본색깔과 불투명") — 옛 알파 배어남(warpU9)을
+         곱하지 않고, 비침(반물질 → 불투명)은 셰이더가 물결을 따라 준다. 드러남이 없는 것(#gl=0 등은 붓이 warpK 를 안 읽는다 · 날아와 앉은 건물)만 옛 배어남. */
+      if (warpIn9 && warpK9 === undefined) alpha *= warpU9;
       /* ★ **소환 완료의 섬광·동심원은 걷었다**(2026-09, 요청: "프로토스 건물 완성시 동심원파동 제거") —
          완공 순간에 흰 심 + 청백 고리를 한 번 쳤다(kind "warp"). 완공을 알리는 몫은 **페이드인**(위 warpU9)이
          이미 진다 — 건물이 배어 나오는 것 자체가 그 신호다. 고리까지 얹으면 확장 타이밍마다 지도가 번쩍였다. */

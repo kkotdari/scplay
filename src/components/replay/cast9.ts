@@ -805,7 +805,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     }
     return out9;
   };
-  type Tactic9 = { at: number; caps: CapPart9[]; short?: string };
+  /** 이정표 중요도(아래 Mile9 ★) — 상대를 치는 일(러시·전진/몰래·상대 입구 막기) > 이사·재건 > 전술(제 입구 막기·센터 방어·옆탱·조이기…) > 빌드(테크·확장·선포지) >
+   *  생산 건물 수(2게이트·3배럭). "생산 건물 늘리는 중"(창 안 착공 건물)은 이정표가 아니라 그 아래다. */
+  const MILE_RANK9 = { attack: 5, move: 4, tactic: 3, build: 2, prod: 1 };
+  /** rank·x·y — 이정표 중요도와 자리(아래 Mile9 ★ · 2026-10-14). */
+  type Tactic9 = { at: number; caps: CapPart9[]; short?: string; rank: number; x?: number; y?: number };
   /** 제 입구를 막는 건물(심시티 — 테란 서플라이·배럭·엔베 · 토스 파일런·게이트·포지·코어·캐논 · 저그 에볼·스포닝풀·크립/성큰·해처리). */
   const WALL_BLD9 = new Set(["Supply Depot", "Barracks", "Engineering Bay", "Factory", "Bunker", "Academy", "Pylon", "Gateway", "Forge", "Cybernetics Core",
     "Photon Cannon", "Evolution Chamber", "Spawning Pool", "Creep Colony", "Sunken Colony", "Hatchery"]);
@@ -820,11 +824,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const foes9 = new Set(foeOwners9(raw9));
     const out9: Tactic9[] = [];
     const lastAt9 = new Map<string, number>();
-    const add9 = (key9: string, t9: number, caps9: CapPart9[], short9?: string): void => {
+    const add9 = (key9: string, t9: number, caps9: CapPart9[], short9?: string, rank9 = MILE_RANK9.tactic, x9?: number, y9?: number): void => {
       const l9 = lastAt9.get(key9);
       if (l9 !== undefined && t9 - l9 < TACTIC_DEDUP9) return;
       lastAt9.set(key9, t9);
-      out9.push({ at: t9, caps: caps9, ...(short9 ? { short: short9 } : {}) });
+      out9.push({ at: t9, caps: caps9, ...(short9 ? { short: short9 } : {}), rank: rank9, ...(x9 !== undefined && y9 !== undefined ? { x: x9, y: y9 } : {}) });
     };
     const tr9 = opts.terrain;
     const st9 = start9.get(raw9);
@@ -864,11 +868,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const tankOut9 = !fb9 || Math.hypot(fb9.x - px9, fb9.y - py9) > BASE_R9;
           if (fb9 && fb9.d <= BASE_R9 && tankOut9 && wallBetween9(px9, py9, tgt9.bornX, tgt9.bornY)) {
             const lift9 = world.lives.some((b9) => b9.bld && own9.has(b9.owner) && b9.lifts.some((l9) => l9 >= ts9 - 90 && l9 <= ts9 + 10));
-            add9(`side|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: lift9 ? " 기지에 옆탱 · 건물 띄워 시야 확보" : " 기지에 옆탱" }], "옆탱");
+            add9(`side|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: lift9 ? " 기지에 옆탱 · 건물 띄워 시야 확보" : " 기지에 옆탱" }], "옆탱", MILE_RANK9.tactic, px9, py9);
             continue;
           }
           if (levelNear9(px9, py9) > levelNear9(tgt9.bornX, tgt9.bornY)) {
-            add9(`hill|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " 언덕탱으로 " }, { raw: foe9, p: "eul" }, { text: " 공격" }], "언덕탱");
+            add9(`hill|${foe9}`, ts9, [{ raw: raw9, p: "ga" }, { text: " 언덕탱으로 " }, { raw: foe9, p: "eul" }, { text: " 공격" }], "언덕탱", MILE_RANK9.tactic, px9, py9);
           }
         }
       }
@@ -880,7 +884,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         /* ★ 맵 가장자리(EDGE9 타일 안)는 입구가 아니다(2026-10-13, 지적: "맵 끝부분인데 입구 막기라고 뜨거나") — 원 거리(14~30타일)만 보던 옛 자는 본진 뒤쪽 맵 끝도
            '입구 밖'으로 읽었다. ⚠ 기지 영역(inBaseArea9)으로 거르지 마라 — 영역은 설계상 램프와 그 앞 BASE_GATE9 걸음(입구)까지 품어 진짜 입구 막기가 지워진다. */
         if (nearEdge9(x9, y9)) return;
-        add9(`block|${fb9.raw}`, t9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: fb9.raw }, { text: e9.kind === "Lurker" ? " 입구를 럴커로 막음" : " 입구를 포토로 막음" }], "입구 막기");
+        add9(`block|${fb9.raw}`, t9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: fb9.raw }, { text: e9.kind === "Lurker" ? " 입구를 럴커로 막음" : " 입구를 포토로 막음" }], "입구 막기", MILE_RANK9.attack, x9, y9);
       };
       if (e9.bld && e9.kind === "Photon Cannon") blockAt9(e9.born, e9.bornX, e9.bornY);
       if (e9.kind === "Lurker") {
@@ -890,7 +894,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           if (tr9?.ramp && st9) {
             const d9 = Math.hypot(st9.x - x9, st9.y - y9);
             if (d9 >= 8 && d9 <= BASE_R9 + 4 && levelNear9(x9, y9) === levelNear9(st9.x, st9.y) && rampNear9(x9, y9, 5)) {
-              add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커");
+              add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커", MILE_RANK9.tactic, x9, y9);
             }
           }
         }
@@ -898,7 +902,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     }
     /* 탱크 조이기·메카닉 조이기(2026-10-10, 요청) — 제 기지 밖이고 적 기지가 더 가까운 자리에 PUSH9.win 초 안에 서로 다른 탱크가 PUSH9.tanks 대 넘게 박으면.
        그때 살아 있는 벌처·골리앗이 PUSH9.mech 넘으면 메카닉 조이기. */
-    const pushes9: [number, number][] = [];
+    const pushes9: [number, number, number, number][] = [];
     for (const e9 of world.lives) {
       if (!own9.has(e9.owner) || !e9.kind.startsWith("Siege Tank")) continue;
       for (const [ts9, on9] of e9.sieges) {
@@ -906,7 +910,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         const [px9, py9] = posAt9(e9, ts9);
         const ownD9 = Math.min(Infinity, ...[...hallsOfOwner9(own9, ts9), ...(st9 ? [[st9.x, st9.y] as [number, number]] : [])].map(([hx9, hy9]) => Math.hypot(hx9 - px9, hy9 - py9)));
         const fb9 = nearFoeBase9(px9, py9, ts9);
-        if (fb9 && ownD9 > BASE_R9 && fb9.d < ownD9) pushes9.push([ts9, e9.tag]);
+        if (fb9 && ownD9 > BASE_R9 && fb9.d < ownD9) pushes9.push([ts9, e9.tag, px9, py9]);
       }
     }
     pushes9.sort((a9, b9) => a9[0] - b9[0]);
@@ -920,7 +924,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (own9.has(e9.owner) && (e9.kind === "Vulture" || e9.kind === "Goliath") && e9.born <= t9 && (e9.died === null || e9.died > t9)) mech9 += 1;
       }
       const name9 = mech9 >= PUSH9.mech ? "메카닉 조이기" : "탱크 조이기";
-      add9("push", t9, [{ raw: raw9 }, { text: ` ${name9}` }], name9);
+      add9("push", t9, [{ raw: raw9 }, { text: ` ${name9}` }], name9, MILE_RANK9.tactic, pushes9[i9][2], pushes9[i9][3]);
     }
     /* ★ 제 입구 막기(심시티 · 2026-10-11, 요청: "자신의 입구를 건물로 막아서 적들이 못 들어오게 하는 게 중요한 포인트인데 그건 안 나오네") — 제 기지 곁(본진 건물·출발
        자리에서 BASE_R9 + WALL9.near)에 막는 건물(WALL_BLD9)이 설 때마다, 지형 위에 그 순간 제 건물 발자국(BUILDING_FOOT)을 얹고 **출발 자리에서 적 출발 자리까지 길이
@@ -1004,7 +1008,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         /* 조사 '(으)로' — 끝 글자 받침(ㄹ 받침은 '로'). */
         const last9 = names9.length > 0 ? names9[names9.length - 1].charCodeAt(names9[names9.length - 1].length - 1) - 0xac00 : -1;
         const ro9 = last9 >= 0 && last9 < 11172 && last9 % 28 !== 0 && last9 % 28 !== 8 ? "으로" : "로";
-        add9("wall", t9, [{ raw: raw9 }, { text: names9.length > 0 ? ` ${names9.join("·")}${ro9} 입구 막음` : " 건물로 입구 막음" }], "입구 막기");
+        add9("wall", t9, [{ raw: raw9 }, { text: names9.length > 0 ? ` ${names9.join("·")}${ro9} 입구 막음` : " 건물로 입구 막음" }], "입구 막기", MILE_RANK9.tactic, c9.bornX, c9.bornY);
         break;   // 막은 뒤로는 늘 막혀 있다 — 처음 한 번만
       }
     }
@@ -1557,8 +1561,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) {
       const alive9 = aliveAt9(s9);
       const blk9 = alive9.find((r9) => { const b9 = blockIn9(r9, s9, s9 + CYCLE9); return !!b9 && !blockShown9.has(b9); });
-      if (blk9) blockShown9.add(blockIn9(blk9, s9, s9 + CYCLE9)!);
-      push9(s9, blk9 ?? nextRing9(alive9), "순환 중계", true, 0);
+      /* ★ 사건 중계는 **그 칸에 가장 중요한 일을 한 사람**을 먼저 데려온다(2026-10-14, 지적: "생산 건물 늘림보다 입구 막기가 더 중요해 — 중요도 판단 필요") —
+         그 칸(앞 2초 ~ 칸 끝)의 이정표 rank(MILE_RANK9) 가 가장 큰 사람. 전술 이상(입구 막기·러시…)은 인구 막힘보다도 먼저 · 빌드 이정표는 인구 막힘 다음 · 없으면 돌림. */
+      let hot9: string | undefined; let hotR9 = 0;
+      if (opts.event) {
+        for (const r9 of alive9) {
+          const m9 = bestMile9(r9, s9 - 2, s9 + CYCLE9);
+          if (m9 && m9.rank >= MILE_RANK9.build && m9.rank > hotR9) { hot9 = r9; hotR9 = m9.rank; }
+        }
+      }
+      const who9 = hot9 && hotR9 >= MILE_RANK9.tactic ? hot9 : blk9 ?? hot9;
+      if (who9 && who9 === blk9) blockShown9.add(blockIn9(blk9, s9, s9 + CYCLE9)!);
+      push9(s9, who9 ?? nextRing9(alive9), "순환 중계", true, 0);
     }
   };
 
@@ -2082,7 +2096,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     natOf9.set(raw9, best9);
     return best9;
   };
-  type Mile9 = { at: number; caps: CapPart9[] };
+  /** ★ 이정표의 **중요도와 자리**(2026-10-14, 지적: "사건 중계에서 포토러시 사건인데 본진을 보여주네 — 어디를 보여줄지 잘 정해야 함 · 생산 건물 늘림보다
+   *  입구 막기가 더 중요해 — 이런 식으로 중요도 판단 필요") — rank 는 MILE_RANK9(클수록 먼저) · x·y 는 그 일이 난 자리(건물·캐논·탱크)다. 순환 자막(cycleCaps9)은
+   *  창 안 이정표 가운데 rank 가 가장 큰 것을 말하고, 사건 중계의 순환 토막 카메라는 그 자리를 본다(아래 capSpot9). */
+  type Mile9 = { at: number; caps: CapPart9[]; rank: number; x?: number; y?: number };
   /** 그 사람의 빌드 이정표(착공 시각 차례) — 한 번 세어 두고 자막마다 짚는다. */
   const milesOf9 = new Map<string, Mile9[]>();
   const buildMiles9 = (raw9: string): Mile9[] => {
@@ -2093,8 +2110,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       .filter((e9) => e9.bld && own9.has(e9.owner) && !e9.handoff && (!PLAIN_BLD9.has(e9.kind) || e9.kind === "Extractor" || e9.kind === "Creep Colony"))
       .sort((a9, b9) => a9.born - b9.born);
     const miles9: Mile9[] = [];
-    const mile9 = (at9: number, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9 }, { text: ` ${text9}` }] }); };
-    const mileVs9 = (at9: number, foe9: string, text9: string): void => { miles9.push({ at: at9, caps: [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: `에게 ${text9}` }] }); };
+    /** e — 그 이정표의 건물(자리) · rank — MILE_RANK9(기본 빌드). */
+    const mile9 = (at9: number, text9: string, e9?: { bornX: number; bornY: number }, rank9 = MILE_RANK9.build): void => {
+      miles9.push({ at: at9, caps: [{ raw: raw9 }, { text: ` ${text9}` }], rank: rank9, ...(e9 ? { x: e9.bornX, y: e9.bornY } : {}) });
+    };
+    const mileVs9 = (at9: number, foe9: string, text9: string, e9: { bornX: number; bornY: number }): void => {
+      miles9.push({ at: at9, caps: [{ raw: raw9, p: "ga" }, { text: " " }, { raw: foe9 }, { text: `에게 ${text9}` }], rank: MILE_RANK9.attack, x: e9.bornX, y: e9.bornY });
+    };
     /** 그때 살아 있던 드론 수(9드론 저글링러시의 자). */
     const dronesAt9 = (sec9: number): number => {
       let n9 = 0;
@@ -2168,7 +2190,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       /* 센터 방어 건물(포토·벙커·터렛·성큰·스포어) — 지도 한가운데(짧은 변 × CENTER_K9.def) · 제 본진 건물 곁이 아닌 것. */
       if (CENTER_DEF9[k9] && inCenter9(e9.bornX, e9.bornY, CENTER_K9.def)
         && !hallsOfOwner9(own9, e9.born).some(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY) <= BASE_R9)) {
-        mile9(e9.born, `센터 ${CENTER_DEF9[k9]}`);
+        mile9(e9.born, `센터 ${CENTER_DEF9[k9]}`, e9, MILE_RANK9.tactic);
         continue;
       }
       /* ★ 테란은 **지어서 띄워 옮긴다**(2026-10-10, 요청: "테란의 경우 건물을 지어서 적 기지로 옮길 수가 있어 그런 경우도 몰래/전진으로") — 옮겨 앉은 자리(sites 둘째부터)도
@@ -2176,12 +2198,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (PROXY_KO9[k9] && e9.sites.length > 1 && !proxyOf9(e9)) {
         for (const [ls9, lx9, ly9] of e9.sites.slice(1)) {
           const lp9 = proxyAt9(lx9 + 1, ly9 + 1, ls9, ls9 + 20);
-          if (lp9) { mile9(ls9, `${lp9} ${PROXY_KO9[k9]}`); break; }
+          if (lp9) { mile9(ls9, `${lp9} ${PROXY_KO9[k9]}`, { bornX: lx9 + 1, bornY: ly9 + 1 }, MILE_RANK9.attack); break; }
         }
       }
       const px9 = PROXY_KO9[k9] ? proxyOf9(e9) : "";
       if (px9) {
-        mile9(e9.born, `${px9} ${PROXY_KO9[k9]}`);
+        mile9(e9.born, `${px9} ${PROXY_KO9[k9]}`, e9, MILE_RANK9.attack);
         if (PROD9[k9] && firstProdAt9 === Infinity) firstProdAt9 = e9.born;
         if (k9 === coreTech9 && coreAt9 === Infinity) { coreAt9 = e9.born; seen9.add(k9); }
         if (ADV9.has(k9) && advAt9 === Infinity) advAt9 = e9.born;
@@ -2197,7 +2219,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const last9 = rushed9.get(key9);
           rushed9.set(key9, e9.born);
           rushList9.push([e9.born, foeRaw9, rushText9]);
-          if (last9 === undefined || e9.born - last9 > RUSH_W9) mileVs9(e9.born, foeRaw9, rushText9);
+          if (last9 === undefined || e9.born - last9 > RUSH_W9) mileVs9(e9.born, foeRaw9, rushText9, e9);
           break;
         }
         if (k9 === "Creep Colony") continue;
@@ -2209,16 +2231,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const dn9 = dronesAt9(e9.born);
           /* 아홉 드론 아래의 스포닝풀은 드론 수를 그대로 적는다 — "N드론 스포닝풀 건설"(2026-10-10, 되지적: "9드론에 스포닝풀 지었는데 바로 저글링러시라고 나오면 안 될 듯 —
              아직 모르는 건 넣지 말고 확실하게 알아낸 것만"). 러시인지는 저글링이 실제로 치는 장면(zlRush9)이 말한다. 드론을 안 세는 판(0)은 그냥 스포닝풀. */
-          mile9(e9.born, dn9 >= 4 && dn9 <= 9 ? `${dn9}드론 스포닝풀 건설` : halls9.length === 0 ? "선스포닝풀" : "해처리 후 스포닝풀");
-        } else mile9(e9.born, TECH_MILE9[k9] ?? `${BUILDING_KO[k9] ?? k9} 건설`);
+          mile9(e9.born, dn9 >= 4 && dn9 <= 9 ? `${dn9}드론 스포닝풀 건설` : halls9.length === 0 ? "선스포닝풀" : "해처리 후 스포닝풀", e9);
+        } else mile9(e9.born, TECH_MILE9[k9] ?? `${BUILDING_KO[k9] ?? k9} 건설`, e9);
         continue;
       }
       if (ADV9.has(k9) && advAt9 === Infinity) advAt9 = e9.born;
-      if (k9 === "Extractor") { if (coreAt9 === Infinity && hallKind9 === "Hatchery" && n9 === 1) mile9(e9.born, "선가스"); continue; }
-      if (k9 === "Forge" && n9 === 1 && firstProdAt9 === Infinity && hallKind9 === "Nexus") { forgeFirst9 = true; mile9(e9.born, "선포지"); continue; }
+      if (k9 === "Extractor") { if (coreAt9 === Infinity && hallKind9 === "Hatchery" && n9 === 1) mile9(e9.born, "선가스", e9); continue; }
+      if (k9 === "Forge" && n9 === 1 && firstProdAt9 === Infinity && hallKind9 === "Nexus") { forgeFirst9 = true; mile9(e9.born, "선포지", e9); continue; }
       if (PROD9[k9]) {
         if (firstProdAt9 === Infinity) firstProdAt9 = e9.born;
-        if (k9 === "Factory" ? (n9 === 2 || n9 === 3) : (n9 === 2 && coreAt9 === Infinity) || (n9 === 3 && advAt9 === Infinity)) mile9(e9.born, PROD9[k9][n9 - 2]);
+        if (k9 === "Factory" ? (n9 === 2 || n9 === 3) : (n9 === 2 && coreAt9 === Infinity) || (n9 === 3 && advAt9 === Infinity)) mile9(e9.born, PROD9[k9][n9 - 2], e9, MILE_RANK9.prod);
         continue;
       }
       if (HALL9.has(k9)) {
@@ -2241,12 +2263,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (ally9) {
           const home9 = hallsNow9.filter((h9) => !allyBaseAt9(raw9, h9.x, h9.y, t9));
           const moved9 = home9.length === 0 || lostFrac9(raw9, t9) >= RAZE9.heavy;
-          miles9.push({ at: t9, caps: [{ raw: raw9 }, { text: " " }, { raw: ally9 }, { text: moved9 ? " 기지로 이사" : ` 기지에 ${ko9} 건설` }] });
+          miles9.push({ at: t9, caps: [{ raw: raw9 }, { text: " " }, { raw: ally9 }, { text: moved9 ? " 기지로 이사" : ` 기지에 ${ko9} 건설` }], rank: moved9 ? MILE_RANK9.move : MILE_RANK9.build, x: e9.bornX, y: e9.bornY });
           continue;
         }
         if (hallsNow9.length === 0) {
           const st9 = start9.get(raw9);
-          mile9(t9, st9 && Math.hypot(st9.x - e9.bornX, st9.y - e9.bornY) <= BASE_R9 ? "본진 재건" : "새 기지로 이사");
+          mile9(t9, st9 && Math.hypot(st9.x - e9.bornX, st9.y - e9.bornY) <= BASE_R9 ? "본진 재건" : "새 기지로 이사", e9, MILE_RANK9.move);
           continue;
         }
         const mine9 = groupsNear9(e9.bornX, e9.bornY);
@@ -2263,17 +2285,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
             else if (hallKind9 === "Nexus") text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스" : coreAt9 === Infinity ? "빠른 앞마당 넥서스" : "앞마당 넥서스";
             else text9 = firstProdAt9 === Infinity ? "선커맨드" : coreAt9 === Infinity ? `빠른 앞마당 ${ko9}` : `앞마당 ${ko9}`;
           } else text9 = before9 <= 1 ? "첫 멀티" : `${before9}번째 멀티`;
-          mile9(t9, text9);
+          mile9(t9, text9, e9);
           continue;
         }
         const n9 = hallsNow9.length + 1;
-        mile9(t9, hallKind9 === "Hatchery" ? (coreAt9 === Infinity ? `선${n9}해처리` : `${n9}해처리`) : `${n9}${ko9}`);
+        mile9(t9, hallKind9 === "Hatchery" ? (coreAt9 === Infinity ? `선${n9}해처리` : `${n9}해처리`) : `${n9}${ko9}`, e9);
         continue;
       }
       const t9 = TECH_MILE9[k9];
-      if (t9 && !seen9.has(k9)) { seen9.add(k9); mile9(e9.born, t9); }
+      if (t9 && !seen9.has(k9)) { seen9.add(k9); mile9(e9.born, t9, e9); }
     }
-    for (const tc9 of tacticsOf9(raw9)) miles9.push({ at: tc9.at, caps: tc9.caps });
+    for (const tc9 of tacticsOf9(raw9)) miles9.push({ at: tc9.at, caps: tc9.caps, rank: tc9.rank, ...(tc9.x !== undefined && tc9.y !== undefined ? { x: tc9.x, y: tc9.y } : {}) });
     miles9.sort((a9, b9) => a9.at - b9.at);
     milesOf9.set(raw9, miles9);
     return miles9;
@@ -2557,6 +2579,21 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     blocksMemo9.set(raw9, res9);
     return res9;
   };
+  /** 자막 → 그 자막이 말하는 자리(사건 중계 순환 토막의 카메라 · 아래 opts.event ★) · 이미 말한 이정표 · 창 앞을 돌아보는 폭(초). */
+  const capSpot9 = new WeakMap<CapPart9[], [number, number]>();
+  const usedMile9 = new Set<Mile9>();
+  const MILE_BACK9 = 30;
+  /** 창 [lo, hi) 의 가장 중요한(rank) 이정표 — 창 앞 MILE_BACK9 초 안의 **아직 안 말한** 전술 이상(입구 막기·러시…)도 든다(앞 토막이 딴 말을 했어도 놓치지 않게).
+   *  rank 가 같으면 이른 것. */
+  const bestMile9 = (raw9: string, lo9: number, hi9: number): Mile9 | undefined => {
+    let best9: Mile9 | undefined;
+    for (const m9 of buildMiles9(raw9)) {
+      if (m9.at >= hi9) break;
+      if (m9.at < lo9 && !(m9.at >= lo9 - MILE_BACK9 && m9.rank >= MILE_RANK9.tactic && !usedMile9.has(m9))) continue;
+      if (!best9 || m9.rank > best9.rank) best9 = m9;
+    }
+    return best9;
+  };
   const blockIn9 = (raw9: string, t0: number, t1: number): Block9 | undefined => blocksOf9(raw9).find((b9) => b9.t0 < t1 && b9.t1 > t0);
   const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
     const own9 = ownersOf9(raw9);
@@ -2566,21 +2603,34 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const bk9 = blockIn9(raw9, t0, hi9);
     if (bk9) return [{ raw: raw9 }, { text: " 인구 막힘" }];   // 숫자는 뺀다(2026-10-11, 요청: "인구막힘 뒤에 숫자 안 보여주기")
     const miles9 = buildMiles9(raw9);
-    const inWin9 = miles9.find((m9) => m9.at >= lo9 && m9.at < hi9);
-    if (inWin9) return inWin9.caps;
-    let bld9: string | null = null;
+    /* 창 안(과 창 앞 MILE_BACK9 초의 아직 안 말한 전술 이상) 이정표 가운데 **가장 중요한 것**(위 Mile9 ★ · 옛: 창 안 첫 이정표) — 그 자리를 사건 중계 카메라가 본다. */
+    const inWin9 = bestMile9(raw9, lo9, hi9);
+    if (inWin9) {
+      usedMile9.add(inWin9);
+      if (inWin9.x !== undefined && inWin9.y !== undefined) capSpot9.set(inWin9.caps, [inWin9.x, inWin9.y]);
+      return inWin9.caps;
+    }
+    let bld9: (typeof world.lives)[number] | null = null;
     for (const e9 of world.lives) {
       if (!e9.bld || !own9.has(e9.owner) || e9.born < lo9 || e9.born >= hi9 || e9.end === "morph") continue;
-      if (!bld9 && !PLAIN_BLD9.has(e9.kind) && !HALL9.has(e9.kind) && !TECH_MILE9[e9.kind]) bld9 = e9.kind;
+      if (!bld9 && !PLAIN_BLD9.has(e9.kind) && !HALL9.has(e9.kind) && !TECH_MILE9[e9.kind]) bld9 = e9;
     }
-    if (bld9) return [{ raw: raw9 }, { text: PROD_BLD9.has(bld9) ? " 생산 건물 늘리는 중" : ` ${BUILDING_KO[bld9] ?? bld9} 건설` }];
+    if (bld9) {
+      const caps9: CapPart9[] = [{ raw: raw9 }, { text: PROD_BLD9.has(bld9.kind) ? " 생산 건물 늘리는 중" : ` ${BUILDING_KO[bld9.kind] ?? bld9.kind} 건설` }];
+      capSpot9.set(caps9, [bld9.bornX, bld9.bornY]);
+      return caps9;
+    }
     const scr9 = screenCap9(raw9, t0, hi9);
     if (scr9) return scr9;
     /* 화면 무리가 약하거나(대기 · 일꾼 이동) 못 읽으면 창 앞 MILE_RECENT9 초 안의 마지막 이정표(빌드 읽기 · 전술 — 그 사람의 빌드·자리를 말할 뿐 '지금 일어나는
        일'이라 하지 않는다) > 눈에 띄는 국면(센터 장악 · 병력 구성) > 약한 화면 글귀 > 국면 요약. */
     let recent9: Mile9 | undefined;
     for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
-    if (recent9) return recent9.caps;
+    if (recent9) {
+      /* 전술 이상(러시 캐논·막은 입구 …)은 그 자리가 아직 거기 있다 — 카메라도 그리로(위 capSpot9). 빌드 이정표는 옛 착공 자리라 안 옮긴다. */
+      if (recent9.rank >= MILE_RANK9.tactic && recent9.x !== undefined && recent9.y !== undefined) capSpot9.set(recent9.caps, [recent9.x, recent9.y]);
+      return recent9.caps;
+    }
     return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
   };
 
@@ -2930,7 +2980,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
       const hall9 = hallsAt9(sg9.raw, sg9.at)[0];
       const st9 = start9.get(sg9.raw);
-      const p9 = best9 ? [best9.x, best9.y] : hall9 ?? (st9 ? [st9.x, st9.y] : null);
+      /* ★ 자막이 말하는 자리가 먼저다(2026-10-14, 지적: "포토러시 사건인데 본진을 보여주네 — 어디를 보여줄지 잘 정해야 함") — 옛 '그 창에 가장 늦게 착공한 건물'은
+         러시 캐논 뒤에 제 본진에 지은 파일런을 비췄다. 이정표(캐논·막은 건물·탱크 자리)나 짓는 건물의 자리(capSpot9)를 먼저 본다. */
+      const cs9 = sg9.caps ? capSpot9.get(sg9.caps) : undefined;
+      const p9 = cs9 ?? (best9 ? [best9.x, best9.y] : hall9 ?? (st9 ? [st9.x, st9.y] : null));
       if (p9) sg9.spot = [[sg9.at, p9[0], p9[1]]];
     }
   }

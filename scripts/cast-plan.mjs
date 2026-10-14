@@ -219,6 +219,31 @@ for (const [name, pass] of [
     ["순환 토막도 자리가 있다", ep9.filter((s) => s.cyc).every((s) => s.spot && s.spot.length > 0)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+/* ⑨e 사건 중계의 자리·중요도(2026-10-14, 지적: "포토러시 사건인데 본진을 보여주네 — 어디를 보여줄지 잘 정해야 함 · 생산 건물 늘림보다 입구 막기가 더 중요해") —
+   R(10,10 프로토스) · Z(100,100 저그). 130초 R 이 Z 본진(96,97)에 캐논 · 135초 제 본진(12,14)에 파일런 → 그 순환 토막 자막은 포토러시, 카메라는 캐논 자리.
+   300초 R 이 둘째 게이트(본진)와 지도 가운데(55,55) 캐논을 같이 → 자막은 '센터 포토'(전술 > 생산 건물 수) · 카메라는 그 캐논. */
+{
+  let et = 21000;
+  const el = [];
+  const emk = (o, kind, x, y, born) => { el.push({ tag: (et += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld: true,
+    sites: [[born, x - 1, y - 1]], doneAt: born + 30, lifts: [], cloaks: [], sieges: [], orders: [] }); };
+  emk(0, "Nexus", 10, 10, 0); emk(1, "Hatchery", 100, 100, 0);
+  emk(0, "Pylon", 95, 95, 120); emk(0, "Photon Cannon", 96, 97, 130); emk(0, "Pylon", 12, 14, 135);
+  emk(0, "Gateway", 14, 10, 200); emk(0, "Gateway", 16, 12, 300); emk(0, "Pylon", 50, 52, 290); emk(0, "Photon Cannon", 55, 55, 300);
+  const ew = { players: [{ owner: 0, name: "R", race: "프로토스", color: "#ff0", team: 1 }, { owner: 1, name: "Z", race: "저그", color: "#0f0", team: 2 }],
+    lives: el, ups: [], casts: [], pings: [], resFields: [], kills: [] };
+  const ep = castPlan9(ew, { total: 400, order: ["R", "Z"], mapW: 110, mapH: 110, event: true });
+  const rush = ep.find((s) => /포토러시/.test(capTxt(s)));
+  const ctr = ep.find((s) => /센터 포토/.test(capTxt(s)));
+  const gate2 = ep.find((s) => /2게이트/.test(capTxt(s)) && s.at > 280 && s.at < 320);
+  const sp = (s) => (s?.spot?.[0] ? `(${s.spot[0][1]},${s.spot[0][2]})` : "-");
+  console.log(`\n사건 중계 자리·중요도: 포토러시 ${rush ? `${rush.at.toFixed(0)}s ${sp(rush)}` : "없음"} · 센터 포토 ${ctr ? `${ctr.at.toFixed(0)}s ${sp(ctr)}` : "없음"} · 2게이트 ${gate2 ? gate2.at.toFixed(0) : "없음"}`);
+  for (const [name, pass] of [
+    ["포토러시 토막의 카메라는 러시 캐논(96,97) — 뒤에 지은 제 본진 파일런(12,14)이 아니다", !!rush?.spot && Math.hypot(rush.spot[0][1] - 96, rush.spot[0][2] - 97) < 1],
+    ["같은 창의 '센터 포토'(전술)가 '2게이트'(생산 건물 수)를 이긴다", !!ctr && !gate2],
+    ["센터 포토 토막의 카메라는 그 캐논(55,55)", !!ctr?.spot && Math.hypot(ctr.spot[0][1] - 55, ctr.spot[0][2] - 55) < 1],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 /* ⑨c 일꾼 견제는 자원 곁에서 잡힌 일꾼만(2026-10-13, 요청: "일꾼 견제를 자원 주변의 일꾼 죽인 거만 해당되게") — ③ 리버가 (12,12)에서 프로브 셋을 잡는다.
    자원이 바로 곁(미네랄 줄 y 10)이면 견제 · 같은 기지 안이어도 자원이 멀면(미네랄 줄 y 24 · 12타일) 견제가 아니다. */
 {
