@@ -1250,6 +1250,25 @@ rmSync(tmp, { recursive: true, force: true });
     ["앞마당 입구(출발 자리 41 타일)를 막은 서플라이·배럭 → 입구 막음", caps.some((c) => /^\[A\] 서플라이·배럭으로 입구 막음$/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+/* ㊲ⓒ 붙은 기지(2026-10-14, 지적: "빨무 7시 자기 입구에 포토 짓는데 9시 입구 포토로 막았다고 나와") — 열린 땅 · P 넥서스 (40,64) · Z 해처리 (64,64) · 램프 칸 (52,64).
+   200초 P 포토 (49,64) — 제 기지(9 타일) 입구 수비 · Z 에서 15(옛 띠 14~30 + 램프 6 안) → 옛 셈은 "[P]가 [Z] 입구를 포토로 막음" · 이제 아님. */
+{
+  let t9 = 372000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; L.push(e); return e; };
+  mk(0, "Nexus", true, 40, 64, 0); mk(1, "Hatchery", true, 64, 64, 0); mk(0, "Photon Cannon", true, 49, 64, 200);
+  const terrain = { level: () => 0, walk: (x, y) => x >= 0 && y >= 0 && x < 128 && y < 128, ramp: (x, y) => x === 52 && y === 64 };
+  const w = { players: [["P", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 400, order: ["P", "Z"], teamOf: { P: 1, Z: 2 }, mapW: 128, mapH: 128, terrain, event: true });
+  const caps = (plan.search ?? []).filter((s) => s.raw === "P").map((s) => capTxt(s));
+  console.log(`입구 띠 ⓒ: ${[...new Set(caps)].join(" · ") || "-"}`);
+  for (const [name, pass] of [
+    ["제 기지 입구 수비 포토는 붙은 적 기지의 입구 막기가 아니다", !caps.some((c) => /입구를 포토로 막음/.test(c))],
+    ["… 포토러시도 아니다", !caps.some((c) => /포토러시/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 /* ── ㊱ 입구는 뚫려 있고 둘 이상(2026-10-11, 지적: "입구는 뚫려 있지 · 입구(램프)가 두 개 이상이기도 하고") — 온 땅이 같은 고도(2)인데 A 본진 언덕(x 0~40 · y 0~20)을
    벽(y 21~22 · x 41~42)이 둘렀고 **같은 고도로 뚫린 길목**(x 20~23)과 **램프**(x 36~39 · 고도 1) 두 입구가 있다. 벽·고도만 보면 길목으로 새어 열린 땅(18 원)이 됐다.
    ① 언덕 구석(38,14 · 30타일) → A 기지 · ② 벽 바깥(12,25) → 아님 · ③ 길목 앞(21,25) → A 기지(입구) · ④ 램프 아래(37,25) → A 기지(입구) · ⑤ 벌판 멀리(60,40) → 아님. */

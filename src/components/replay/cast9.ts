@@ -903,6 +903,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const blockAt9 = (t9: number, x9: number, y9: number): void => {
         const fb9 = nearFoeBase9(x9, y9, t9);
         if (!fb9) return;
+        /* ★ **제 편 기지(입구 포함)면 막기가 아니다**(2026-10-14, 지적: "예를 들어 빨무 7시 자기 입구에 포토 짓는데 9시 입구 포토로 막았다고 나와") — 기지가 붙은 맵은 제 입구가
+           옆 사람 기지와도 가깝다. 옛 셈은 가장 가까운 **적** 기지만 봐서 제 입구 수비 캐논을 그 적의 입구 막기로 읽었다. 제 편(나·같은 편)의 본진 건물·출발 자리 기지 영역
+           (입구 띠 포함 · inBaseArea9) 안이거나, 적 기지보다 제 편 기지에 더 가까우면 뺀다. */
+        if (ownSideAt9(raw9, x9, y9, t9, fb9.d)) return;
         /* ★ 닫힌 기지는 **입구 띠**로 가른다(2026-10-14 · 위 gateCache9) — 옛 셈(적 본진에서 14~30 타일 원 띠 + 램프 6 타일)은 넓은 언덕 본진의 먼 램프(30 넘게)를 놓치고,
            램프 곁 **본진 안쪽**의 캐논(포토러시)을 '입구 막기'로 읽었다. 그 적 기지(본진 건물·출발 자리 가운데 가장 가까운 것)가 닫혔으면 그 입구 띠 안(알맹이 밖)이어야 한다.
            열린 땅이면 옛 어림 그대로. */
@@ -1476,6 +1480,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
    *  (확장 포함 · HALL_ANY9)에서 BASE_R9 타일 안이면 그 사람의 기지다(몸값 무게 · 한쪽 몫이 TURF9.home 이상 → 주인공 기지면 방어 · 상대 기지면 공격). 출발 자리 선
    *  (turf9Of)은 가운데 확장에서의 싸움을 '가운데'(교전)로 읽었다 — 이 자가 먼저고, 못 가르면 그 선으로. */
   const hallsAt9 = (raw9: string, sec9: number): [number, number][] => hallsOfOwner9(ownersOf9(raw9), sec9);
+  /** ★ 그 자리가 **제 편**(나·같은 편)의 기지 쪽인가(2026-10-14, 지적: "빨무 7시 자기 입구에 포토 짓는데 9시 입구 포토로 막았다고 나와") — 제 편 본진 건물·출발 자리의 기지 영역
+   *  (입구 띠 포함 · inBaseArea9) 안이거나, 그 자리에서 제 편 기지까지가 foeD(가장 가까운 적 기지까지) 이하면 참. 붙은 기지 맵에서 제 입구 수비 건물을 적에게 한 짓
+   *  (입구 막기·포토러시·성큰러시)으로 읽지 않게 한다. */
+  const ownSideAt9 = (raw9: string, x9: number, y9: number, sec9: number, foeD9: number): boolean => {
+    const side9 = new Set<string>([raw9]);
+    for (const r9 of new Set(rawOf9.values())) if (opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9]) side9.add(r9);
+    for (const r9 of side9) {
+      const pts9: [number, number][] = [...hallsAt9(r9, sec9)];
+      const s9 = start9.get(r9); if (s9) pts9.push([s9.x, s9.y]);
+      for (const [hx9, hy9] of pts9) if (inBaseArea9(hx9, hy9, x9, y9) || Math.hypot(hx9 - x9, hy9 - y9) <= foeD9) return true;
+    }
+    return false;
+  };
   const baseRole9 = (sc9: Sc9, pick9: string, foe9: string): CastRole9 | null => {
     const hp9 = hallsAt9(pick9, sc9.t0);
     const hf9 = hallsAt9(foe9, sc9.t0);
@@ -2261,7 +2278,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A의 B 포토러시"(요청: 포토러시 · 성큰러시). 같은 러시의 건물 여럿은 RUSH_W9 안이면 한 이정표. */
         for (const [o9, foeRaw9] of rawOf9) {
           if (own9.has(o9) || (opts.teamOf?.[foeRaw9] !== undefined && opts.teamOf?.[foeRaw9] === opts.teamOf?.[raw9])) continue;
-          if (!hallsAt9(foeRaw9, e9.born).some(([hx9, hy9]) => inBaseArea9(hx9, hy9, e9.bornX, e9.bornY))) continue;
+          const fh9 = hallsAt9(foeRaw9, e9.born);
+          if (!fh9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, e9.bornX, e9.bornY))) continue;
+          /* 제 편 기지 쪽이면 러시가 아니다(위 ownSideAt9 · 빨무처럼 붙은 기지의 제 입구 캐논·성큰). */
+          if (ownSideAt9(raw9, e9.bornX, e9.bornY, e9.born, Math.min(...fh9.map(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY))))) continue;
           const key9 = `${foeRaw9}|${rushText9}`;
           const last9 = rushed9.get(key9);
           rushed9.set(key9, e9.born);
