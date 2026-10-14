@@ -1923,7 +1923,9 @@
   /* 실처럼 가늘게(재지적: 색으로 구분되니 선은 실 굵기) — 0.5~0.7px 고정 헤어라인.
      0.6 → 0.4 → 0.28px(요청: 마우스 마커·선택 링 모두 더 가늘게) — 선택 링과 늘 같은 결.
      이보다 얇으면 기기에 따라 선이 통째로 사라진다(서브픽셀 반올림). */
-  border: var(--ckline) solid currentColor; border-radius: 50%;
+  /* 테는 border 가 아니라 **안쪽 그림자**다(2026-10-14) — border 굵기는 브라우저가 정수 px 로 내려(실측: 재생 쪽이 1.52px 를 줘도 1px) 배율 따라 안 변했다.
+     box-shadow 의 퍼짐은 소수 그대로 칠한다. */
+  border: 0; box-shadow: inset 0 0 0 var(--ckline) currentColor; border-radius: 50%;
   background: transparent;
   animation: scr-clickfx 0.9s ease-out forwards;
 }
@@ -2101,7 +2103,8 @@
     linear-gradient(currentColor, currentColor);
   background-repeat: no-repeat;
   /* 굵기 20%(요청: 40% → 반으로) · 팔 길이 32% = 반지름 50% − 가운데 구멍 18%. */
-  background-size: 20% 32%, 20% 32%, 32% 20%, 32% 20%;
+  /* 팔 굵기는 재생 쪽이 배율 따라 준다(--pgt · 2026-10-14 · 4배부터는 크기의 20% 그대로) — 못 받으면 20%. */
+  background-size: var(--pgt, 20%) 32%, var(--pgt, 20%) 32%, 32% var(--pgt, 20%), 32% var(--pgt, 20%);
   background-position: 50% 0, 50% 100%, 0 50%, 100% 50%;
   animation: scr-pingfx 1s ease-out infinite;
 }

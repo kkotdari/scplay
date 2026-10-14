@@ -1275,7 +1275,9 @@ if (has("--res") && has("--diag")) {
 if (has("--marks") || has("--bldclick")) {
   const r9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-pingfx, .scr-motion-clickfx")].map((el) => {
     const b = el.getBoundingClientRect();
-    return { cls: el.className.replace("scr-motion-", ""), col: getComputedStyle(el).color, x: Math.round(b.left), y: Math.round(b.top) };
+    const bf = getComputedStyle(el, "::before");   // 굵기(2026-10-14 · 배율 따라) — 마커는 고리 테 · 핑은 팔 굵기(background-size 첫 칸)
+    return { cls: el.className.replace("scr-motion-", ""), col: getComputedStyle(el).color, x: Math.round(b.left), y: Math.round(b.top),
+      line: el.className.includes("clickfx") ? (bf.boxShadow.match(/(\S+px) inset|inset \S+ \S+ \S+ (\S+px)/) ?? [])[0] ?? bf.borderTopWidth : bf.backgroundSize.split(",")[0], w: bf.width };
   }));
   const t9 = await page.evaluate(() => { const r = document.querySelector(".scr-motion-seek, input[type=range]"); return r instanceof HTMLInputElement ? Number(r.value).toFixed(2) : null; });
   console.log(`[자국] 시계 ${t9} · ${r9.length}개 · ${JSON.stringify(r9)}`);

@@ -852,13 +852,20 @@ function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number, lw9?: number)
  *  등급(LOD · 배율에 따라 갈린다)마다 메시가 딴 물건이라 상자 폭도 달라 링이 자세·동작·배율마다 뛰었다. 이제 종류 + 카메라마다 한 번,
  *  자세 0 메시(없으면 지금 메시)로 재고 영영 그 값이다(그 뒤 등급이 바뀌어도 안 다시 잰다 — 등급 사이 상자 차는 한 뼘 아래). */
 const RING_W_KIND9 = new Map<string, number>();
-/** ★ 선택 링의 테 굵기 — **링 지름에 비례**(2026-10-14, 지적: "배율에 따라 선택링 두께도 변해야 하는데 변하고 있어? · 저중배율에서 너무 두꺼워 보여").
- *  옛 자(유닛 max(1.1, 몸 × 0.06) · 건물 max(1.1, 폭 × 0.012))는 배율 몫이 하한을 한 번도 못 넘어 **모든 배율에서 1.1px** 였다(실측: 마린 링 지름
- *  12px 든 49px 든 · 벌처 100px 든). 이제 지름 × RING_LW_K9, 위는 RING_LW_MAX9, 아래는 RING_LW_MIN9(0.6 CSS px · dpr 1 은 0.7) — 0.32px 로
- *  내렸다가 dpr 1 에서 안 보였던 일(아래 유닛 링 주석)을 다시 안 겪게. */
+/** ★ 선 굵기의 자(2026-10-14, 지적: "배율에 따라 선택링 두께도 변해야 하는데 변하고 있어? · 저중배율에서 너무 두꺼워 보여") — 옛 자(유닛 max(1.1, 몸 × 0.06) ·
+ *  건물 max(1.1, 폭 × 0.012))는 배율 몫이 하한을 한 번도 못 넘어 **모든 배율에서 1.1px** 였다(실측: 마린 링 지름 12px 든 49px 든 · 벌처 100px 든).
+ *  길이 × RING_LW_K9, 위는 RING_LW_MAX9, 아래는 RING_LW_MIN9(0.6 CSS px · dpr 1 은 0.7) — 0.32px 로 내렸다가 dpr 1 에서 안 보였던 일(아래 유닛 링
+ *  주석)을 다시 안 겪게. 첫 판은 링 지름을 넣었으나(큰 몸일수록 굵었다) 같은 날 되물려 이제 uiLineW9(타일 폭)만 부른다. */
 const RING_LW_K9 = 0.03;
 const RING_LW_MAX9 = 2.2;
 const RING_LW_MIN9 = 0.6;
+/** ★ 땅 위 UI 선(선택 링·마우스 마커·분할 칸 자국)의 굵기 — **배율(타일 폭)에만** 따른다(2026-10-14, 요청: "선택링 · 마우스 마커 · 핑 등 UI 요소들"도
+ *  배율 따라 → "링의 지름과는 무관해야 해 · 같은 배율이면 넥서스든 질럿이든 같은 두께"). 자국은 저배율에서도 보이게 **크기에 바닥**(PC 24·dks px · 폰 4배)이
+ *  있으니 크기에서 굵기를 내면 저·중배율 굵기가 멈춘다 — 그래서 크기가 아니라 **실제 타일 폭**(화면 px · 배율 그대로)에서 낸다. 값은 타일 × 0.65 × 0.03
+ *  (마린 링 지름 ≈ 0.65 타일 · 그 링이 첫 판의 지름 비례 자와 같은 굵기). */
+function uiLineW9(tilePx: number, bd: number): number {
+  return ringLineW9(tilePx * 0.65, bd);
+}
 function ringLineW9(diamPx: number, bd: number): number {
   return Math.min(RING_LW_MAX9, Math.max(RING_LW_MIN9, 0.7 / Math.max(1, bd), diamPx * RING_LW_K9));   // dpr 1 은 0.7px(테 AA 가 70% 로 칠한다 · 0.32 처럼 안 사라진다)
 }
@@ -5719,10 +5726,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
             const rx9 = wPx * 0.62 * rk9;
             /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
-            const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + ringLineW9(rx9 * 2, Bd) / 2;
+            const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + uiLineW9((tilePx ?? 8) * zoom, Bd) / 2;
             if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
               const bRingCol9 = selRingCol9(op) ?? op.color;
-              const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: ringLineW9(rx9 * 2, Bd), shear: 0 };
+              const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: uiLineW9((tilePx ?? 8) * zoom, Bd), shear: 0 };
               ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
               else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
@@ -5955,7 +5962,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         const ringGeo9 = () => {
           const ringK9 = RING_K9[op.kind] ?? 1;
           const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
-          const ringW = ringLineW9(ringWd9 * 1.1 * ringK9, Bd);   // 테 — 링 지름(가로 반지름 0.55 × 2)에 비례(위 ringLineW9)
+          const ringW = uiLineW9((tilePx ?? 8) * zoom, Bd);   // 테 — 배율(타일 폭)에만 따른다 · 몸 크기와 무관(위 uiLineW9)
           const ringY = (groundY ?? groundOy9) - lift;
           return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * pitchGroundK9(op) + ringW / 2 };
         };
@@ -15929,7 +15936,8 @@ export default function ReplayMotionPlayer({
            가르니 땅 마커는 다 초록이고 공격은 X 꼴로만 갈린다). 옛 '공격 빨강'은 되물렸다. */
         const col9 = UI_OWN9;
         ctx9.strokeStyle = col9;
-        ctx9.lineWidth = Math.max(1.2, r9 * 0.16);
+        const lw9 = uiLineW9(tile9, window.devicePixelRatio || 1);   // 굵기는 칸의 타일 폭에서(크기 바닥 10px 과 따로 · 2026-10-14)
+        ctx9.lineWidth = lw9;
         ctx9.beginPath();
         ctx9.ellipse(x9, y9, r9, r9 * 0.55, 0, 0, Math.PI * 2);
         ctx9.stroke();
@@ -15937,7 +15945,7 @@ export default function ReplayMotionPlayer({
           /* 땅 공격(A-클릭)은 X — DOM 마커(.scr-clickfx-atk)와 같은 자: 고리 지름의 0.54 × 0.27 · 선은 고리 선 굵기. 유닛을 겨눈 공격은 위에서
              걸러졌다(표적 몸의 빨간 링이 말한다). 점·X 는 더 가늘게(2026-10-09, 요청: "X자와 가운데 점 모두 너무 두꺼워 더 얇게"). */
           const hx9 = r9 * 0.54; const hy9 = r9 * 0.27;
-          ctx9.lineWidth = Math.max(1, r9 * 0.08);
+          ctx9.lineWidth = lw9;
           ctx9.beginPath();
           ctx9.moveTo(x9 - hx9, y9 - hy9); ctx9.lineTo(x9 + hx9, y9 + hy9);
           ctx9.moveTo(x9 - hx9, y9 + hy9); ctx9.lineTo(x9 + hx9, y9 - hy9);
@@ -15964,7 +15972,7 @@ export default function ReplayMotionPlayer({
         for (const off9 of [0, 0.5]) {
           const ph9 = ((tNow9 - ps) / 1 + off9) % 1;
           ctx9.globalAlpha = (1 - ph9) * (tNow9 - ps > 2.4 ? (3 - (tNow9 - ps)) / 0.6 : 1);
-          ctx9.lineWidth = Math.max(1.2, w9 * 0.07);
+          ctx9.lineWidth = uiLineW9(tile9, window.devicePixelRatio || 1);   // 마커와 같은 굵기(2026-10-14)
           const rr9 = (w9 / 2) * (0.3 + ph9 * 0.9);
           ctx9.beginPath();
           ctx9.ellipse(x9, y9, rr9, rr9 * 0.55, 0, 0, Math.PI * 2);
@@ -19921,6 +19929,7 @@ export default function ReplayMotionPlayer({
                   // 화면 주인 제 것은 원작 초록 — 땅 공격(X)도 초록(2026-10-09, 요청: "우클릭도 초록색으로" · 옛 '공격 빨강' 되물림)
                   ...posStyle(cx2, cy2), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 20,
                   "--ckw": `${(ckw * pitchK(cy2)).toFixed(1)}px`,
+                  "--ckline": `${uiLineW9(tile1 * zoom, window.devicePixelRatio || 1).toFixed(2)}px`,   // 굵기는 배율 그대로의 타일 폭에서(uiLineW9 · 크기 바닥과 따로)
                   /* 입체는 둥근 고리(1:1)를 아래 눕히기(scaleY sin 시점각)가 눌러 땅과 같은 눌림이다 — 옛 판은 평면의 2:1 납작 고리를 한 번 더 눌러
                      지도보다 훨씬 납작했다(2026-10-12, 지적: "3D 에서 선택 링·마우스 마커 등 눌림이 안 맞는 것"). */
                   "--ckk": pitched ? "1" : "0.5",
@@ -19950,6 +19959,8 @@ export default function ReplayMotionPlayer({
                 style={{
                   ...posStyle(px, py), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인 제 핑은 원작 초록 · 같은 편은 제 색
                   "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
+                  /* 팔 굵기 — 4배부터는 종전 그대로(크기의 20%) · 그 아래는 크기가 4배 바닥에 서 있어도 굵기는 배율을 따라 준다(2026-10-14 · 바닥 1.5px). */
+                  "--pgt": `${Math.max(1.5, ((mapRef.current?.clientWidth ?? 320) / grid.width) * zoom * 1.4 * 0.2 * pitchK(py)).toFixed(1)}px`,
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
               />
