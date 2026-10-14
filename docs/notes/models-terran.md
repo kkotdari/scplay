@@ -953,3 +953,9 @@ U 굽이로 만나 줄기 하나가 꽁무니로 간다. 등판 위를 앞뒤로
 - 경광등 — 등 0.15 → 0.21 · 켠 색 #ff4433 → #ff5a3c · 켠 칸에만 빛나는 반투명 껍질(반지름 0.46 · 알파 0.32 · #ff3a22 · EMIT_FILL9)을 씌워 번짐 넓이를 키운다
   (블룸 반경은 전역 BLOOM9 라 빛나는 넓이가 곧 번짐이다). 도록 `scaffold` 는 `scaffold9(0, 0, 4, 2)`.
 - 🔎 `node scripts/model-gl.mjs --kinds trapezoid,factory,academy,scaffold --rots 45 --stages 2,5,8 --blink`(`--blink` = 경광등 켠 칸 · 새 플래그).
+
+## 애드온은 발판 없이 · 컨트롤타워 아래 몸 팔각 절두체(2026-10-14)
+- 요청: "테란 애드온 건설엔 스캐폴더 없이" — `isScaffoldKind9` 가 `SCAFFOLD_SKIP9`(comsat·comsatbase·nsilo·mshop·ctower·covert·physlab)를 뺀다.
+- 요청: "컨트롤타워 아래 몸 기본 테란색으로 그리고 8각 절두체 느낌으로" — 옛 붉은(#a8322a) 네모 원뿔대(frustumFaces3 3.6 → 2.9) →
+  `spirePillar` 팔각(sides 8 · w 1.95 → tipW 1.6 · z 0.56 ~ 1.76 · hold 0 · segs 1), 칠하지 않아 raceBase 가 테란 기본색. 발치 붉은 드럼은 그대로.
+  BLD_NORM ctower 1.641 → 1.663(bld-norm 재측정). 🔎 `model-gl --kinds ctower --rots 45,135,225,315`.

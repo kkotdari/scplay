@@ -22706,9 +22706,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 받침 판과 탑 순서가 요잉 따라 어긋남).
       ...tagKey(paintBase(boxFaces3(0, 0.4, 4.6, 3.8, 0.56), "#3d3d3d"), depthNow(0, 0.4)),
-      // 붉은 치마 — 아래가 넓은 원뿔대.
-      ...tagKey(paintBase(frustumFaces3(-0.6, 0.2, 3.6, 3.6, 2.9, 2.9, 1.2, 0.56), "#a8322a"),
-        22 + depthNow(-0.6, 0.2)),
+      /* 아래 몸 — 아래가 넓은 **팔각 절두체**(2026-10-14, 요청: "컨트롤타워 아래 몸 기본 테란색으로 그리고 8각 절두체 느낌으로") — 옛 붉은(#a8322a)
+         네모 원뿔대(frustumFaces3 3.6 → 2.9)였다. 색은 안 칠해 끝의 raceBase 가 테란 기본색을 넣는다. 반지름 1.95 → 1.6(꼭짓점 · 위 몸통 1.45 를 받친다). */
+      ...tagKey(spirePillar({
+        x: -0.6, y: 0.2, z0: 0.56, h: 1.2, w: 1.95, tipW: 1.6, hold: 0, segs: 1, sides: 8,
+      }), 22 + depthNow(-0.6, 0.2)),
       // 잿빛 몸통 — 창이 줄지어 난 드럼.
       ...tagKey(paintBase(cylinderFaces3(-0.6, 0.2, 1.45, 1.52, 1.76), TERRAN_STEEL),
         24 + depthNow(-0.6, 0.2)),
@@ -31177,9 +31179,11 @@ export function scaffold9(cx: number, cy: number, h: number, maxLv = Infinity): 
 /** 공사 발판을 세우는 종류인가 — **테란 건물**만이다(저그는 굼틀거리며 돋고 토스는 워프한다).
  *  도록 표(SHAPE_GALLERY)는 이 파일 뒤에 서므로 **처음 물을 때** 한 번 짓는다. */
 let SCAFFOLD_KINDS9: Set<string> | null = null;
+/** ★ 애드온은 발판 없이 짓는다(2026-10-14, 요청: "테란 애드온 건설엔 스캐폴더 없이"). */
+const SCAFFOLD_SKIP9 = new Set(["comsat", "comsatbase", "nsilo", "mshop", "ctower", "covert", "physlab"]);
 const isScaffoldKind9 = (kind: string): boolean => {
   SCAFFOLD_KINDS9 ??= new Set(
-    SHAPE_GALLERY.filter((g) => g.group === "건물" && g.race === "테란").map((g) => g.kind));
+    SHAPE_GALLERY.filter((g) => g.group === "건물" && g.race === "테란" && !SCAFFOLD_SKIP9.has(g.kind)).map((g) => g.kind));
   return SCAFFOLD_KINDS9.has(kind);
 };
 /** 건설 단계별 **보이는 넓이** 몫 — 1~9단이고 10단(= BUILD_STAGES)은 완성이라 표에 없다
