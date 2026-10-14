@@ -1405,7 +1405,7 @@ if (has("--fogprobe")) {
           sx.clearRect(0, 0, 32, 32); sx.drawImage(cv, 0, 0, 32, 32);
           const d = sx.getImageData(0, 0, 32, 32).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; a = s / (d.length / 4) / 255;
         }
-        out.push({ ms: Math.round(performance.now() - t0), a: +a.toFixed(3), cast: window.__scrDiag?.castRaw ?? null, dt: window.__scrDiag?.drawT ?? null, tag: window.__scrDiag?.drawTag ?? null });
+        out.push({ ms: Math.round(performance.now() - t0), a: +a.toFixed(3), cast: window.__scrDiag?.castRaw ?? null, dt: window.__scrDiag?.drawT ?? null, tag: window.__scrDiag?.drawTag ?? null, cp: window.__scrDiag?.camPan ? [...window.__scrDiag.camPan] : null });
         if (performance.now() - t0 < ms9) requestAnimationFrame(step); else res();
       };
       requestAnimationFrame(step);
@@ -1425,6 +1425,10 @@ if (has("--fogprobe")) {
   for (let i = 1; i < log9.length; i += 1) { const p = log9[i - 1].dt; const c = log9[i].dt; if (p !== null && c !== null && c < p - 0.02) back9.push(`${log9[i].ms}ms −${((p - c) * 1000).toFixed(0)}ms [${log9[i - 1].tag} → ${log9[i].tag}]`); }
   let same9 = 0; let n9 = 0;
   for (let i = 1; i < log9.length; i += 1) { if (log9[i].dt === null || log9[i - 1].dt === null) continue; n9 += 1; if (log9[i].dt === log9[i - 1].dt) same9 += 1; }
+  /* 카메라 걸음(2026-10-14 · 사건 중계 끌림) — rAF 사이 카메라 자리 변화: 움직인 장 수 · 한 장 최대 px · 80px 넘게 곧장 선 횟수. */
+  { let mv9 = 0; let mx9 = 0; let jp9 = 0; let nn9 = 0;
+    for (let i = 1; i < log9.length; i += 1) { const a = log9[i - 1].cp; const b = log9[i].cp; if (!a || !b) continue; nn9 += 1; const d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d > 0.3) mv9 += 1; if (d > 80) jp9 += 1; else mx9 = Math.max(mx9, d); }
+    console.log(`[카메라] 움직인 장 ${mv9}/${nn9} · 한 장 최대 ${mx9.toFixed(1)}px · 곧장 선 ${jp9}번`); }
   console.log(`[되감김] ${back9.length}번 ${back9.slice(0, 12).join(" · ")} · 같은 장 연달아 ${same9}/${n9}`);
   const swap9 = await page.evaluate(() => window.__scrDiag?.branchSwap ?? 0);
   console.log(`[안개] 갈래 빈틈을 팀 장으로 메운 장 ${swap9}`);

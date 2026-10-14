@@ -306,10 +306,15 @@ const CAST_WARM_SEC9 = 2;
 /** 한 사람 중계가 다른 팀으로 갈아탄 뒤 그 팀 엔진을 이만큼(경기 초) 남겨 둔다 — 새 시야 갈래의 장이 올 때까지 팀 장이 빈틈을 메운다. */
 const CAST_SWAP_HOLD9 = 1.5;
 /** 미끄러짐의 그 순간 자리 — 끝났으면 null. ease-in-out(3차). */
-const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number }, now9: number): { x: number; y: number } | null => {
-  const u9 = (now9 - g9.t0) / CAM_GLIDE_MS9;
+/** ★ 사건 중계의 카메라 끌림(2026-10-14, 요청: "교전 장면 시 주요 장소를 따라 화면 자연스럽게" → 바꿔) — 사건 자리 토막은 가운데 작은 영역(SPOT_DEAD9 · 반창의 몫)을
+ *  벗어나면 SPOT_GLIDE_MS9 동안 **끝이 부드럽게 멎는**(ease-out) 미끄러짐으로 다가가고, 미끄러지는 중에 목표가 또 움직이면 그 자리에서 이어 미끄러진다 — 싸움터가
+ *  밀리는 동안 화면이 같이 흐른다. 움직일 때만 rAF 로 다시 그린다(늘 그리면 폰에서 무겁다). 창 하나 넘는 건너뜀은 종전대로 곧장 선다. */
+const SPOT_DEAD9 = 0.15;
+const SPOT_GLIDE_MS9 = 900;
+const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean }, now9: number): { x: number; y: number } | null => {
+  const u9 = (now9 - g9.t0) / (g9.ms ?? CAM_GLIDE_MS9);
   if (!(u9 < 1)) return null;
-  const e9 = u9 < 0.5 ? 4 * u9 * u9 * u9 : 1 - Math.pow(-2 * u9 + 2, 3) / 2;
+  const e9 = g9.out ? 1 - Math.pow(1 - u9, 3) : u9 < 0.5 ? 4 * u9 * u9 * u9 : 1 - Math.pow(-2 * u9 + 2, 3) / 2;
   return { x: g9.from.x + (g9.to.x - g9.from.x) * e9, y: g9.from.y + (g9.to.y - g9.from.y) * e9 };
 };
 /** 분할보기 칸 카메라의 가장자리 띠 — 그 사람이 창의 이 몫 안쪽에 있는 동안은 카메라를 안 옮긴다. */
@@ -12184,12 +12189,14 @@ export default function ReplayMotionPlayer({
   /** ★ 다시 잡을 때 **미끄러져 간다**(2026-10, 요청: "아웃오브스크린 화면 이동시 부드럽게") — 같은 사람·같은 배율에서 무리가 화면을
    *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
    *  먼저 읽혀야 한다). 그 동안은 아래 effect 가 rAF 마다 렌더를 한 번씩 불러 trackView 가 사이 자리를 낸다. */
-  const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number } | null>(null);
+  const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean } | null>(null);
   const [camGlideTick9, setCamGlideTick9] = useState(0);
   const trackView = ((): { pan: { x: number; y: number } } | null => {
     /** 카메라 임자 열쇠 — 사람이거나 교전 자리(spot)다. */
     const camKey9 = camRaw9 ?? (spotNow9 ? "#spot" : null);
     if (!camKey9) return null;
+    /** 사건 자리 토막(위 SPOT_DEAD9 ★) — 가운데 작은 영역 · 길게 끝이 부드러운 미끄러짐 · 토막이 바뀌어도 미끄러진다. */
+    const ease9 = camKey9 === "#spot";
     const cov9 = coverRef.current;
     if (cov9.w < 4 || cov9.h < 4) return null;
     /* ★ 잡을 자리가 아직 없으면 **보던 자리에 머문다**(요청: 중계) — 갈아탄 사람의 걷기가
@@ -12232,7 +12239,7 @@ export default function ReplayMotionPlayer({
          하나라도 범위에 들면 화면 옮기기 필요") — 무리가 넓게 퍼지면 가운데점은 화면 안에 있어도 몸 몇은 이미 밖이다.
          하나라도 안전 상자를 넘으면 다시 잡는다(옮기는 곳은 여전히 무게중심 — 떨어진 한 몸에 끌려가지 않게). */
       /* 선택이 막 바뀐 것은 창 그대로로 잰다(안전 띠 없이 — 새로 고른 무리가 이미 화면 안이면 안 옮긴다 · 분할 칸과 같은 자). */
-      const ek9 = selSame9 ? TRACK_EDGE : 0;
+      const ek9 = ease9 ? (1 - SPOT_DEAD9) / 2 : selSame9 ? TRACK_EDGE : 0;
       const keepW9 = (lim9.winW / 2) * (1 - 2 * ek9);
       const keepH9 = (lim9.winH / 2) * (1 - 2 * ek9);
       for (const q9 of trackAt.pts) {
@@ -12273,17 +12280,19 @@ export default function ReplayMotionPlayer({
          때만 · 나머지는 즉시 화면 이동") — 마우스로 고른 자국(view)도 이제 곧장 선다(VIEW_LEAD_SEC9 앞서 뛴다). 한 번에 창 하나 넘게
          가야 하면 같은 선택이어도 곧장 선다(걸어 나간 것이 아니다). */
       const far9 = Math.abs(mid9.x - cur9.pan.x) > lim9.winW || Math.abs(mid9.y - cur9.pan.y) > lim9.winH;
-      if (same9 && !jump9 && selSame9 && !far9) {
+      if (same9 && !jump9 && (selSame9 || ease9) && !far9) {
         const g09 = camGlideRef9.current;
         const from9 = g09 ? camGlideAt9(g09, performance.now()) ?? g09.to : cur9.pan;
-        camGlideRef9.current = { from: from9, to: mid9, t0: performance.now() };
+        camGlideRef9.current = { from: from9, to: mid9, t0: performance.now(), ...(ease9 ? { ms: SPOT_GLIDE_MS9, out: true } : {}) };
       } else camGlideRef9.current = null;
       trackCamRef.current = { raw: camKey9, z: z9, pan: mid9, sel: trackAt.sel, jump: jump9 ? trackAt.sec : cur9.jump };
     }
     const g9 = camGlideRef9.current;
     const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;
     if (g9 && !gp9) camGlideRef9.current = null;
-    return { pan: gp9 ?? trackCamRef.current.pan };
+    const out9 = gp9 ?? trackCamRef.current.pan;
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [out9.x, out9.y];   // perf-check --fogprobe 의 카메라 걸음(2026-10-14)
+    return { pan: out9 };
   })();
   /* 미끄러지는 동안 rAF 마다 렌더를 한 번씩 부른다(trackView 는 렌더가 내는 값이다). 끝나면 멎는다. */
   const camGliding9 = camGlideRef9.current !== null;
