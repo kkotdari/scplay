@@ -22703,33 +22703,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return raceBase(out, "terran");
   }),
   ctower: () => {
+    /* ★ **아래판을 걷고 본 건물을 키운다**(2026-10-14, 요청: "컨트롤타워 아래판 제거하고 계단탑과 드럼통 등 본 건물에 더 가까이 붙이기 · 본 건물 지름 키우기
+       1층 2층 다") — 받침 슬래브(boxFaces3 4.6×3.8 · z 0.56)를 걷고, 그 위에 떠 있던 부품은 **바닥(z 0)까지 내려 윗높이는 그대로** 둔다(절두체·철탑 다리·드럼).
+       본 건물(아래 절두체·몸통·꼭대기 관제층)의 지름은 1.25 배(CT_R9). 철탑·드럼은 커진 몸에 닿게 붙인다(옛 틈 0.75·0.4 → 0). */
+    const CT_R9 = 1.25;
     const out: ShapeFace[] = [
-      // 받침 슬래브는 중심 깊이만(지적: 받침 판과 탑 순서가 요잉 따라 어긋남).
-      ...tagKey(paintBase(boxFaces3(0, 0.4, 4.6, 3.8, 0.56), "#3d3d3d"), depthNow(0, 0.4)),
       /* 아래 몸 — 아래가 넓은 **팔각 절두체**(2026-10-14, 요청: "컨트롤타워 아래 몸 기본 테란색으로 그리고 8각 절두체 느낌으로") — 옛 붉은(#a8322a)
-         네모 원뿔대(frustumFaces3 3.6 → 2.9)였다. 색은 안 칠해 끝의 raceBase 가 테란 기본색을 넣는다. 반지름 1.95 → 1.6(꼭짓점 · 위 몸통 1.45 를 받친다). */
+         네모 원뿔대(frustumFaces3 3.6 → 2.9)였다. 색은 안 칠해 끝의 raceBase 가 테란 기본색을 넣는다. 반지름(꼭짓점) 1.95 → 1.6 에 CT_R9 · 바닥부터 z 1.76 까지. */
       ...tagKey(spirePillar({
-        x: -0.6, y: 0.2, z0: 0.56, h: 1.2, w: 1.95, tipW: 1.6, hold: 0, segs: 1, sides: 8,
+        x: -0.6, y: 0.2, z0: 0, h: 1.76, w: 1.95 * CT_R9, tipW: 1.6 * CT_R9, hold: 0, segs: 1, sides: 8,
       }), 22 + depthNow(-0.6, 0.2)),
       // 잿빛 몸통 — 창이 줄지어 난 드럼.
-      ...tagKey(paintBase(cylinderFaces3(-0.6, 0.2, 1.45, 1.52, 1.76), TERRAN_STEEL),
+      ...tagKey(paintBase(cylinderFaces3(-0.6, 0.2, 1.45 * CT_R9, 1.52, 1.76), TERRAN_STEEL),
         24 + depthNow(-0.6, 0.2)),
     ];
     // 몸통 창 띠 — 앞이 보일 때만.
     if (facingRatio(0, 1) > 0.12) {
       const win: ShapeFace[] = [];
-      for (const wx of [-1.4, -0.8, -0.2, 0.4]) {
+      /* 커진 몸통(반지름 1.81)에 맞춰 넷을 몸 가운데(−0.6) 둘레로 고르게 · 앞면 y 0.2 + 1.71(옛 1.55). */
+      const wy9 = 0.2 + 1.45 * CT_R9 - 0.1;
+      for (const wx of [-1.65, -1.05, -0.45, 0.15]) {
         // 연구 중에 켜진다(2026-09 · LIT_KINDS 의 ★).
         win.push([polyPath3([
-          [wx, 1.55, 2.08], [wx + 0.3, 1.55, 2.08], [wx + 0.3, 1.55, 2.8], [wx, 1.55, 2.8],
+          [wx, wy9, 2.08], [wx + 0.3, wy9, 2.08], [wx + 0.3, wy9, 2.8], [wx, wy9, 2.8],
         ]), 1, bldLitNow ? winLit("#ffe790") : "#20242a"] as ShapeFace);
       }
       out.push(...tagKey(win, 25 + depthNow(-0.6, 1.6)));
     }
     /* 꼭대기 드럼 + 빗금 띠 — 관제층. */
     out.push(...tagKey([
-      ...paintBase(cylinderFaces3(-0.6, 0.2, 1.15, 0.72, 3.28), TERRAN_STEEL),
-      ...paintBase(cylinderFaces3(-0.6, 0.2, 1.2, 0.288, 3.64), "#e8c33a"),
+      ...paintBase(cylinderFaces3(-0.6, 0.2, 1.15 * CT_R9, 0.72, 3.28), TERRAN_STEEL),
+      ...paintBase(cylinderFaces3(-0.6, 0.2, 1.2 * CT_R9, 0.288, 3.64), "#e8c33a"),
     ], 26 + depthNow(-0.6, 0.2)));
     /* 접시 안테나 — 기둥 위에 기울어 앉은 접시.
        ★ **접시 위성으로**(2026-09, 요청: "컨트롤타워 위의 원판도 접시위성으로 변경(돌진 않음)") — 여태
@@ -22755,12 +22759,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 오른쪽 격자 철탑(사진) — 네 기둥과 가로 띠, 꼭대기에 초록 등. */
     {
-      const TX = 2.5;
-      const TY = -0.6;
+      /* 커진 몸(절두체 바닥 반지름 2.44)에 다리가 닿게(옛 2.5, −0.6 · 틈 0.75) — 몸 가운데에서 같은 방향으로 2.95. */
+      const TX = 2.2;
+      const TY = -0.7;
       const TH = 4.96;
       const tw: ShapeFace[] = [];
       for (const [ox, oy] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]] as [number, number][]) {
-        tw.push(...paintBase(cylinderFaces3(TX + ox, TY + oy, 0.13, TH, 0.56), "#3d3d3d"));
+        tw.push(...paintBase(cylinderFaces3(TX + ox, TY + oy, 0.13, TH + 0.56, 0), "#3d3d3d"));   // 아래판을 걷어 바닥부터(윗끝 그대로)
       }
       for (let k = 0; k < 4; k += 1) {
         tw.push(...paintBase(
@@ -22772,11 +22777,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       tw.push(...paintBase(domeFaces3(TX, TY, 0.36, 0.256, 0.56 + TH), bldLitNow ? winLit("#9dff8a") : "#2f7a3e"));
       out.push(...tagKey(tw, 24 + depthNow(TX, TY)));
     }
-    // 발치 작은 붉은 드럼(사진).
+    // 발치 작은 붉은 드럼(사진) — 커진 몸에 살짝 파고들게(몸 가운데에서 2.85 · 옛 (1.9, 1.8) 틈 0.4) · 바닥부터(윗끝 그대로).
     out.push(...tagKey([
-      ...paintBase(cylinderFaces3(1.9, 1.8, 0.62, 0.72, 0.56), "#a8322a"),
-      ...paintBase(domeFaces3(1.9, 1.8, 0.62, 0.32, 1.28), TERRAN_STEEL),
-    ], 24 + depthNow(1.9, 1.8)));
+      ...paintBase(cylinderFaces3(1.79, 1.74, 0.62, 1.28, 0), "#a8322a"),
+      ...paintBase(domeFaces3(1.79, 1.74, 0.62, 0.32, 1.28), TERRAN_STEEL),
+    ], 24 + depthNow(1.79, 1.74)));
     /* 본체 색은 테란 기본색이다(요청: "서플라이 본체 색 테란 기본색", "리파이너리
        아카데미도", "애드온들도") — 이 건물들만 제 회색을 손으로 박아 두고 있어서,
        커맨드·배럭·팩토리 옆에 서면 혼자 어둡고 칙칙했다. 주 덩이를 raceBase가 칠하는
