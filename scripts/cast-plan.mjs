@@ -1206,6 +1206,50 @@ rmSync(tmp, { recursive: true, force: true });
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
+/* ── ㊲ 입구 띠(2026-10-14, 지적: "입구 판단이 아직 잘 안 되는 듯 · 로직 점검해봐") ─────────────────────────────────────────────────────────
+   ⓐ 닫힌 언덕 본진: Z 해처리 (100,100) · 언덕 x 84~127 · y 84~127(고도 2) · 둘레 벽(x 82·83 / y 82·83) · 램프 x 92~95 · y 82·83(고도 1).
+      200초 P 포토 (93,87) — 램프 4 타일 **안쪽**(본진 안 · 해처리 14.8) → 옛 셈(14~30 원 + 램프 6)은 "입구 막기" · 이제 아님. 300초 P 포토 (94,79) 램프 밑 → "입구를 포토로 막음".
+   ⓑ 앞마당 입구 막기: A(10,32) · 본진 미네랄 (4,30~34) · 앞마당 미네랄 (44,24~28) · 절벽 x 50·51(y 30~35 만 틈). 100초 서플라이(51,31) · 150초 배럭(52,34.5) — 출발 자리에서 41 타일
+      (옛 거리 BASE_R9 + 10 = 28 밖)이지만 앞마당(44,26)에서 10 → "[A] 서플라이·배럭으로 입구 막음". */
+{
+  let t9 = 370000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  mk(0, "Photon Cannon", true, 93, 87, 200); mk(0, "Photon Cannon", true, 94, 79, 300);
+  const ramp = (x, y) => x >= 92 && x <= 95 && (y === 82 || y === 83);
+  const wall = (x, y) => !ramp(x, y) && ((x >= 82 && x <= 83 && y >= 82) || (y >= 82 && y <= 83 && x >= 82));
+  const terrain = { level: (x, y) => (ramp(x, y) ? 1 : x >= 84 && y >= 84 ? 2 : 0), walk: (x, y) => x >= 0 && y >= 0 && x < 128 && y < 128 && !wall(x, y), ramp };
+  const w = { players: [["P", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 600, order: ["P", "Z"], teamOf: { P: 1, Z: 2 }, mapW: 128, mapH: 128, terrain, event: true });
+  const capsP = (lo, hi) => (plan.search ?? []).filter((s) => s.raw === "P" && s.at >= lo && s.at < hi).map((s) => capTxt(s));
+  console.log(`\n입구 띠 ⓐ: 200초 ${capsP(195, 210).join(" · ") || "-"} | 300초 ${capsP(295, 310).join(" · ") || "-"}`);
+  for (const [name, pass] of [
+    ["램프 안쪽(본진 안) 포토는 입구 막기가 아니다", !capsP(195, 210).some((c) => /입구를 포토로 막음/.test(c))],
+    ["램프 밑 포토 → 입구 막기", capsP(295, 310).some((c) => /\[P\]ga \[Z\] 입구를 포토로 막음/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+{
+  const W = 64;
+  const tw = { level: () => 0, walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !((x === 50 || x === 51) && !(y >= 30 && y <= 35)) };
+  let st = 371000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (st += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 32, 0); mk(1, "Hatchery", true, 58, 32, 0);
+  mk(0, "Supply Depot", true, 51, 31, 100); mk(0, "Barracks", true, 52, 34.5, 150);
+  const resources = [...[30, 32, 34].map((y) => [4, y]), ...[24, 26, 28].map((y) => [44, y]), ...[30, 32, 34].map((y) => [62, y])];
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 400, order: ["A", "B"], teamOf: { A: 1, B: 2 }, mapW: W, mapH: W, terrain: tw, resources });
+  const caps = (plan.search ?? []).filter((s) => s.raw === "A").map((s) => capTxt(s));
+  console.log(`입구 띠 ⓑ: ${[...new Set(caps)].join(" · ") || "-"}`);
+  for (const [name, pass] of [
+    ["앞마당 입구(출발 자리 41 타일)를 막은 서플라이·배럭 → 입구 막음", caps.some((c) => /^\[A\] 서플라이·배럭으로 입구 막음$/.test(c))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 /* ── ㊱ 입구는 뚫려 있고 둘 이상(2026-10-11, 지적: "입구는 뚫려 있지 · 입구(램프)가 두 개 이상이기도 하고") — 온 땅이 같은 고도(2)인데 A 본진 언덕(x 0~40 · y 0~20)을
    벽(y 21~22 · x 41~42)이 둘렀고 **같은 고도로 뚫린 길목**(x 20~23)과 **램프**(x 36~39 · 고도 1) 두 입구가 있다. 벽·고도만 보면 길목으로 새어 열린 땅(18 원)이 됐다.
    ① 언덕 구석(38,14 · 30타일) → A 기지 · ② 벽 바깥(12,25) → 아님 · ③ 길목 앞(21,25) → A 기지(입구) · ④ 램프 아래(37,25) → A 기지(입구) · ⑤ 벌판 멀리(60,40) → 아님. */

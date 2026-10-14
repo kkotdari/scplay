@@ -311,6 +311,13 @@ const CAST_SWAP_HOLD9 = 1.5;
  *  밀리는 동안 화면이 같이 흐른다. 움직일 때만 rAF 로 다시 그린다(늘 그리면 폰에서 무겁다). 창 하나 넘는 건너뜀은 종전대로 곧장 선다. */
 const SPOT_DEAD9 = 0.15;
 const SPOT_GLIDE_MS9 = 900;
+/** ★ 사건 중계 카메라는 **감쇠 스프링**으로 따라간다(2026-10-14, 지적: "사건 중계 시 카메라가 좀 더 부드러우면서 빠릿하면 좋겠고 의미 없이 조금씩 움직이는 건 없으면 좋겠어 ·
+ *  위아래로 계속 조금 왔다 갔다") — 옛 길(작은 가운데 상자 · 벗어날 때마다 0.9초 미끄러짐을 새로 시작)은 상자가 세로 ±7.5% 라 길이 조금만 흔들려도 '섰다 갔다'를 되풀이했다.
+ *  이제 목표가 창의 SPOT_START9 몫(가로·세로 각각) 넘게 벗어나면 쫓기 시작해 **임계 감쇠 스프링**(각진동수 SPOT_OMEGA9 · 넘침 없이 부드럽게 붙는다)으로 다가가고,
+ *  SPOT_STOP9 px 안에 들고 속도가 잦아들면 멎는다(그 뒤로는 다시 문턱을 넘을 때까지 꼼짝 않는다). 창 하나 넘게 떨어지면 곧장 선다. */
+const SPOT_START9 = 0.12;
+const SPOT_OMEGA9 = 6;
+const SPOT_STOP9 = 3;
 const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean }, now9: number): { x: number; y: number } | null => {
   const u9 = (now9 - g9.t0) / (g9.ms ?? CAM_GLIDE_MS9);
   if (!(u9 < 1)) return null;
@@ -12190,6 +12197,8 @@ export default function ReplayMotionPlayer({
    *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
    *  먼저 읽혀야 한다). 그 동안은 아래 effect 가 rAF 마다 렌더를 한 번씩 불러 trackView 가 사이 자리를 낸다. */
   const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean } | null>(null);
+  /** 사건 중계 스프링(위 SPOT_OMEGA9 ★) — 지금 자리·속도(px/초)·쫓는 중인가·지난 셈 시각(ms). */
+  const spotSpring9 = useRef<{ x: number; y: number; vx: number; vy: number; chase: boolean; t: number } | null>(null);
   const [camGlideTick9, setCamGlideTick9] = useState(0);
   const trackView = ((): { pan: { x: number; y: number } } | null => {
     /** 카메라 임자 열쇠 — 사람이거나 교전 자리(spot)다. */
@@ -12229,6 +12238,35 @@ export default function ReplayMotionPlayer({
       y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
     };
     const cur9 = trackCamRef.current;
+    /* ★ 사건 자리 토막은 스프링(위 SPOT_OMEGA9 ★) — 사람·배율이 바뀌었거나 창 하나 넘게 떨어지면 곧장 선다. */
+    if (ease9) {
+      camGlideRef9.current = null;
+      const now9 = performance.now();
+      const sp0 = spotSpring9.current;
+      const fresh9 = cur9.raw !== camKey9 || cur9.z !== z9 || !sp0;
+      const far9 = !!sp0 && (Math.abs(mid9.x - sp0.x) > lim9.winW || Math.abs(mid9.y - sp0.y) > lim9.winH);
+      let sp9: { x: number; y: number; vx: number; vy: number; chase: boolean; t: number };
+      if (fresh9 || far9) sp9 = { x: mid9.x, y: mid9.y, vx: 0, vy: 0, chase: false, t: now9 };
+      else {
+        sp9 = { ...sp0! };
+        const dx9 = mid9.x - sp9.x; const dy9 = mid9.y - sp9.y;
+        if (!sp9.chase && (Math.abs(dx9) > lim9.winW * SPOT_START9 || Math.abs(dy9) > lim9.winH * SPOT_START9)) { sp9.chase = true; sp9.t = now9; }
+        if (sp9.chase) {
+          const dt9 = Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
+          const w9 = SPOT_OMEGA9;
+          /* 임계 감쇠: a = ω²·(목표 − x) − 2ω·v — 반 암시적 오일러(속도 먼저)로 걸음이 커도 안 튄다. */
+          sp9.vx += (w9 * w9 * dx9 - 2 * w9 * sp9.vx) * dt9; sp9.vy += (w9 * w9 * dy9 - 2 * w9 * sp9.vy) * dt9;
+          sp9.x += sp9.vx * dt9; sp9.y += sp9.vy * dt9;
+          if (Math.hypot(mid9.x - sp9.x, mid9.y - sp9.y) < SPOT_STOP9 && Math.hypot(sp9.vx, sp9.vy) < SPOT_STOP9 * 4) { sp9.chase = false; sp9.vx = 0; sp9.vy = 0; }
+        }
+        sp9.t = now9;
+      }
+      spotSpring9.current = sp9;
+      trackCamRef.current = { raw: camKey9, z: z9, pan: { x: sp9.x, y: sp9.y }, sel: trackAt.sel, jump: cur9.jump };
+      if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [sp9.x, sp9.y];
+      return { pan: { x: sp9.x, y: sp9.y } };
+    }
+    spotSpring9.current = null;
     /* 다시 잡아야 하나 — 사람이 바뀌었거나(처음 켬 포함), 배율이 바뀌었거나(잡아 둔
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
     let keep9 = cur9.raw === camKey9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
@@ -12295,7 +12333,7 @@ export default function ReplayMotionPlayer({
     return { pan: out9 };
   })();
   /* 미끄러지는 동안 rAF 마다 렌더를 한 번씩 부른다(trackView 는 렌더가 내는 값이다). 끝나면 멎는다. */
-  const camGliding9 = camGlideRef9.current !== null;
+  const camGliding9 = camGlideRef9.current !== null || (spotSpring9.current?.chase ?? false);   // 스프링이 쫓는 동안도 rAF(위 SPOT_OMEGA9 ★)
   useEffect(() => {
     if (!camGliding9) return undefined;
     const id9 = requestAnimationFrame(() => setCamGlideTick9((n9) => n9 + 1));

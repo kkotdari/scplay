@@ -607,6 +607,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   /** 길목에서 끊는 클리어런스 — 폭 7 칸 안팎 아래의 길목이 경계가 된다. */
   const BASE_CORE9 = 4;
   const areaCache9 = new Map<number, Set<number> | null>();
+  /** ★ 기지의 **입구 띠**(2026-10-14, 지적: "입구 판단이 아직 잘 안 되는 듯 · 로직 점검") — 아래 ④ 가 붙인 칸(램프·길목과 그 앞 BASE_GATE9 걸음)과 그 기지가 **닫혔나**(알맹이가
+   *  BASE_OPEN9 원까지 안 샜다 · 언덕·벽으로 둘린 본진). 열린 땅(벌판 확장)의 입구 띠는 원 둘레 고리라 입구가 아니다 — 그때 입구 판정은 옛 어림(거리·램프)을 쓴다. */
+  const gateCache9 = new Map<number, { gate: Set<number>; closed: boolean }>();
   const areaOf9 = (hx9: number, hy9: number): Set<number> | null => {
     const tr9 = opts.terrain;
     const W9 = opts.mapW ?? 0; const H9 = opts.mapH ?? 0;
@@ -690,10 +693,30 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 닫힌 언덕이면 BASE_RMAX9 까지 · 열린 땅이면 BASE_R9 원으로 자른다(벌판 확장 · 낮은 땅 본진). */
     const cut9 = rim9 > 6 ? BASE_R9 : BASE_RMAX9;
     for (const i9 of [...area9]) if (d9(i9 % W9, Math.floor(i9 / W9)) > cut9) area9.delete(i9);
-    /* ④ 입구 — 모든 가장자리에서 걸을 수 있는 칸(어느 고도든 · 램프 포함)으로 BASE_GATE9 걸음. */
+    /* ④ 입구 — 모든 가장자리에서 걸을 수 있는 칸(어느 고도든 · 램프 포함)으로 BASE_GATE9 걸음. 붙인 칸이 곧 입구 띠(위 gateCache9). */
+    const inner9 = new Set(area9);
     grow9(BASE_GATE9, (x9, y9) => tr9.walk(x9, y9));
+    const gate9 = new Set<number>();
+    for (const i9 of area9) if (!inner9.has(i9)) gate9.add(i9);
+    gateCache9.set(key9, { gate: gate9, closed: rim9 <= 6 });
     areaCache9.set(key9, area9);
     return area9;
+  };
+  /** (hx, hy) 기지의 입구 띠와 닫힘(위 gateCache9) — 지형이 없거나 못 재면 null. */
+  const gateOf9 = (hx9: number, hy9: number): { gate: Set<number>; closed: boolean } | null => {
+    const W9 = opts.mapW ?? 0;
+    if (!areaOf9(hx9, hy9)) return null;
+    return gateCache9.get(Math.floor(hy9) * W9 + Math.floor(hx9)) ?? null;
+  };
+  /** (x, y) 에서 r 타일 안에 그 입구 띠 칸이 있나. */
+  const nearGate9 = (g9: { gate: Set<number> }, x9: number, y9: number, r9: number): boolean => {
+    const W9 = opts.mapW ?? 0;
+    const cx9 = Math.floor(x9); const cy9 = Math.floor(y9);
+    for (let dy9 = -r9; dy9 <= r9; dy9 += 1) for (let dx9 = -r9; dx9 <= r9; dx9 += 1) {
+      if (dx9 * dx9 + dy9 * dy9 > r9 * r9 + 0.5) continue;
+      if (g9.gate.has((cy9 + dy9) * W9 + cx9 + dx9)) return true;
+    }
+    return false;
   };
   /** 그 자리가 (hx, hy) 본진 건물의 기지 영역 안인가 — 지형 영역(위 ★★) · 지형이 없으면 BASE_R9 원. */
   const inBaseArea9 = (hx9: number, hy9: number, x9: number, y9: number): boolean => {
@@ -879,8 +902,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       /* 상대 입구 막기 — 포토·럴커가 적 기지 바로 바깥(BASE_R9 ~ +12)에, 지형이 있으면 램프 곁(6 타일)에 선 것. */
       const blockAt9 = (t9: number, x9: number, y9: number): void => {
         const fb9 = nearFoeBase9(x9, y9, t9);
-        if (!fb9 || fb9.d <= BASE_R9 - 4 || fb9.d > BASE_R9 + 12) return;
-        if (tr9?.ramp && !rampNear9(x9, y9, 6)) return;
+        if (!fb9) return;
+        /* ★ 닫힌 기지는 **입구 띠**로 가른다(2026-10-14 · 위 gateCache9) — 옛 셈(적 본진에서 14~30 타일 원 띠 + 램프 6 타일)은 넓은 언덕 본진의 먼 램프(30 넘게)를 놓치고,
+           램프 곁 **본진 안쪽**의 캐논(포토러시)을 '입구 막기'로 읽었다. 그 적 기지(본진 건물·출발 자리 가운데 가장 가까운 것)가 닫혔으면 그 입구 띠 안(알맹이 밖)이어야 한다.
+           열린 땅이면 옛 어림 그대로. */
+        const fg9 = gateOf9(fb9.x, fb9.y);
+        if (fg9?.closed) {
+          if (!fg9.gate.has(Math.floor(y9) * (opts.mapW ?? 0) + Math.floor(x9))) return;
+        } else {
+          if (fb9.d <= BASE_R9 - 4 || fb9.d > BASE_R9 + 12) return;
+          if (tr9?.ramp && !rampNear9(x9, y9, 6)) return;
+        }
         /* ★ 맵 가장자리(EDGE9 타일 안)는 입구가 아니다(2026-10-13, 지적: "맵 끝부분인데 입구 막기라고 뜨거나") — 원 거리(14~30타일)만 보던 옛 자는 본진 뒤쪽 맵 끝도
            '입구 밖'으로 읽었다. ⚠ 기지 영역(inBaseArea9)으로 거르지 마라 — 영역은 설계상 램프와 그 앞 BASE_GATE9 걸음(입구)까지 품어 진짜 입구 막기가 지워진다. */
         if (nearEdge9(x9, y9)) return;
@@ -891,7 +923,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         for (const [t9, x9, y9] of settles9(e9)) {
           blockAt9(t9, x9, y9);
           /* 입구럴커 — 제 본진 안쪽 가장자리(출발 자리 8 ~ BASE_R9+4 · 본진과 같은 고도 · 램프 5 타일 안). 지형이 있을 때만. */
-          if (tr9?.ramp && st9) {
+          /* ★ 닫힌 본진이면 **입구 띠 곁(3 타일) 기지 안쪽**(2026-10-14 · 위 gateCache9) — 옛 셈(출발 자리 8 ~ 22 · 같은 고도 · 램프 5 타일)은 넓은 본진의 먼 램프를 놓쳤다. */
+          const hg9 = st9 ? gateOf9(st9.x, st9.y) : null;
+          if (hg9?.closed && st9) {
+            if (inBaseArea9(st9.x, st9.y, x9, y9) && !hg9.gate.has(Math.floor(y9) * (opts.mapW ?? 0) + Math.floor(x9)) && nearGate9(hg9, x9, y9, 3)) {
+              add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커", MILE_RANK9.tactic, x9, y9);
+            }
+          } else if (tr9?.ramp && st9) {
             const d9 = Math.hypot(st9.x - x9, st9.y - y9);
             if (d9 >= 8 && d9 <= BASE_R9 + 4 && levelNear9(x9, y9) === levelNear9(st9.x, st9.y) && rampNear9(x9, y9, 5)) {
               add9("homeLurker", t9, [{ raw: raw9 }, { text: " 입구 럴커로 방어" }], "입구 럴커", MILE_RANK9.tactic, x9, y9);
@@ -968,8 +1006,17 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       for (const c9 of open9 ? ownBlds9 : []) {
         if (!WALL_BLD9.has(c9.kind)) continue;
         const t9 = c9.born;
-        const home9 = [...hallsOfOwner9(own9, t9), [st9.x, st9.y] as [number, number]];
-        if (!home9.some(([hx9, hy9]) => Math.hypot(hx9 - c9.bornX, hy9 - c9.bornY) <= BASE_R9 + WALL9.near)) continue;
+        /* ★ 막는 자리의 기준(2026-10-14, 지적: "입구 판단이 아직 잘 안 되는 듯 · 로직 점검") — ① **앞마당**도 기준에 든다(옛 셈은 본진 건물·출발 자리뿐이라, 앞마당 넥서스를
+           짓기 전에 앞마당 입구를 막는 포지 더블·심시티는 거리(BASE_R9 + 10)에서 빠졌다) ② 닫힌 기지(언덕·벽)는 그 **입구 띠 3 타일 안**이어야 한다(넓은 본진의 먼 램프도
+           들고, 본진 한가운데 건물은 빠진다) · 열린 땅은 옛 거리 그대로. */
+        const nat9 = naturalOf9(raw9);
+        const natPt9: [number, number][] = nat9 >= 0 && resGroups9[nat9]?.length
+          ? [[resGroups9[nat9].reduce((a9, p9) => a9 + p9[0], 0) / resGroups9[nat9].length, resGroups9[nat9].reduce((a9, p9) => a9 + p9[1], 0) / resGroups9[nat9].length]] : [];
+        const home9 = [...hallsOfOwner9(own9, t9), [st9.x, st9.y] as [number, number], ...natPt9];
+        if (!home9.some(([hx9, hy9]) => {
+          const hg9 = gateOf9(hx9, hy9);
+          return hg9?.closed ? nearGate9(hg9, c9.bornX, c9.bornY, 3) : Math.hypot(hx9 - c9.bornX, hy9 - c9.bornY) <= BASE_R9 + WALL9.near;
+        })) continue;
         /* 거름 — 곁(WALL9.cliff 타일)에 못 걷는 칸(절벽)이 없는 건물은 입구를 마저 막을 수 없다(넓은 땅 한가운데) · 길 찾기를 안 돌린다. */
         let cliff9 = false;
         for (let dy9 = -WALL9.cliff; dy9 <= WALL9.cliff && !cliff9; dy9 += 1) for (let dx9 = -WALL9.cliff; dx9 <= WALL9.cliff; dx9 += 1) {
@@ -2711,6 +2758,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const SPOT_STAY9 = 1.5;
   const SPOT_NEAR9 = 14;
   const SPOT_SPEED9 = 4;
+  /** ★ 길의 문턱(타일 · 2026-10-14, 지적: "의미 없이 조금씩 움직이는 건 없으면 좋겠어 · 위아래로 계속 조금 왔다 갔다") — 겨눈 무리의 가운데가 지금 자리에서 이만큼 안이면 길을
+   *  안 옮긴다. 무리 가운데는 사건이 들고 날 때마다 한두 타일씩 흔들려, 길이 매초 그만큼 출렁였고 카메라가 그것을 따라 오르내렸다. */
+  const SPOT_HOLD9 = 3;
   /* ★ **들를 자리**(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯 · 스캔 사용 시에도 스캔한 곳 보여 주기") —
      길이 그 자리에 선다(멀어도 — 재생기는 창 하나 넘게 떨어지면 곧장 선다). 차례·때는 castFocus9(볼 자리의 차례 ★★). */
   /* 들를 자리는 castFocus9(볼 자리의 차례 ★★)의 구간들 — 그 장면에 든 사람(sc9.by)의 것만 · 창이 겹치면 나중 것이 그 시작부터 잇는다 · 끝나면 교전 자리 길로 돌아간다. */
@@ -2777,7 +2827,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const here9 = clus9(win9, lx9, ly9);
           if (here9[0] * SPOT_STAY9 >= best9[0]) { tx9 = here9[1]; ty9 = here9[2]; }
           const d9 = Math.hypot(tx9 - lx9, ty9 - ly9);
-          if (d9 <= SPOT_NEAR9 && d9 > SPOT_SPEED9) { tx9 = lx9 + (tx9 - lx9) * SPOT_SPEED9 / d9; ty9 = ly9 + (ty9 - ly9) * SPOT_SPEED9 / d9; }
+          if (d9 < SPOT_HOLD9) { tx9 = lx9; ty9 = ly9; }   // 문턱 안의 흔들림은 무시(위 SPOT_HOLD9)
+          else if (d9 <= SPOT_NEAR9 && d9 > SPOT_SPEED9) { tx9 = lx9 + (tx9 - lx9) * SPOT_SPEED9 / d9; ty9 = ly9 + (ty9 - ly9) * SPOT_SPEED9 / d9; }
         }
         lx9 = tx9; ly9 = ty9;
       }
