@@ -6401,13 +6401,20 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          완공 − WARP_SWEEP_LEAD9 부터 WARP_SWEEP_SEC9 동안 굵은 사선 띠가 **좌상 → 우하로** 두 번 흘러(되요청: "좌상 우하가 흐르는 방향이야") 둘째 띠가 지나간 자리부터 점점
          본색·불투명이 된다(그리는 쪽은 gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
       /* 물마루 두 번(2026-10-14, 요청: "빛 띠 두 번 반복한 후 원래 모습") — 한 번에 1.3초 · 둘 합 2.6초. 형체가 선 뒤 0.2초에 첫 물마루가 나온다(앞 0.6 · 옛 0.4). */
+      /* 물마루 세 번 · 빠르게(2026-10-14, 요청: "물결 흐름 속도 업해서 3번") — 한 번 1.3초 → 0.75초 · 셋 합 2.25초. */
       const WARP_SWEEP_LEAD9 = 0.6;
-      const WARP_SWEEP_SEC9 = 2.6;   // 1.6 → 2.0("점점") → 2.6(두 번)
+      const WARP_SWEEP_SEC9 = 2.25;   // 1.6 → 2.0("점점") → 2.6(두 번) → 2.25(세 번 · 빠르게)
+      /** ★ 반물질 형체의 **빠른 배어남**(2026-10-14, 요청: "프로토스 완공 시 반물질 페이드인 효과도 빠르게 주기") — 형체가 서는 때(완공 − WARP_FADE_SEC9)부터 이만큼(초) 동안 0 → 1. */
+      const WARP_GHOST_IN9 = 0.2;
       const warpK9 = race2 === "프로토스" && sec > 0 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
         ? Math.min(1, Math.max(0, (t - (doneAt - WARP_SWEEP_LEAD9)) / WARP_SWEEP_SEC9)) : undefined;
       /* 드러남이 있으면 **형체는 한 번에 다 보인다**(2026-10-14, 되요청: "형체는 전체가 한번에 보여 · 물결이 위로 흐르면서 점점 본색깔과 불투명") — 옛 알파 배어남(warpU9)을
          곱하지 않고, 비침(반물질 → 불투명)은 셰이더가 물결을 따라 준다. 드러남이 없는 것(#gl=0 등은 붓이 warpK 를 안 읽는다 · 날아와 앉은 건물)만 옛 배어남. */
       if (warpIn9 && warpK9 === undefined) alpha *= warpU9;
+      else if (warpK9 !== undefined) {
+        const g9 = Math.min(1, Math.max(0, (t - (doneAt - WARP_FADE_SEC9)) / WARP_GHOST_IN9));
+        alpha *= g9 * g9 * (3 - 2 * g9);
+      }
       /* ★ **소환 완료의 섬광·동심원은 걷었다**(2026-09, 요청: "프로토스 건물 완성시 동심원파동 제거") —
          완공 순간에 흰 심 + 청백 고리를 한 번 쳤다(kind "warp"). 완공을 알리는 몫은 **페이드인**(위 warpU9)이
          이미 진다 — 건물이 배어 나오는 것 자체가 그 신호다. 고리까지 얹으면 확장 타이밍마다 지도가 번쩍였다. */
