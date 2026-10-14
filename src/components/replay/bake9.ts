@@ -19243,11 +19243,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /** 그 자리의 반폭 — 앞이 좁고 한가운데가 가장 넓으며 꽁무니는 둥글게 닫힌다. */
     // 앞뒤로 갈수록 더 좁아진다(재요청) — 앞 1.68 → 1.14, 꽁무니 1.36 → 0.95, 허리 2.15 그대로.
     const W9 = (u9: number): number => 0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9));
+    /* ★ **좌우를 좁히고 옆을 절벽으로**(2026-10-14, 요청: "리버 좌우 폭을 좀 줄여야 해 · 너무 뚱뚱 · 폭 줄일 때 좌우가 절벽처럼 좀 뚝 떨어지게") — 단면의 옆 몫(oval ·
+       spirePillar 의 sin 축이 옆이다)을 판 1.18 → 0.9 · 속막 1.12 → 0.85 로(폭 0.76 배 · 키는 그대로), 단면을 **초타원**(|c|ⁿ + |s|ⁿ = 1 · n 2.8)으로 둬
+       등이 넓고 평평하다가 옆이 뚝 떨어진다. 판·무늬·속막이 같은 단면을 탄다(무늬는 판과 같은 살이어야 한다). */
+    const OVL9 = 0.9;
+    const SQN9 = 2.8;
+    const SQ9 = (a9: number): number => (Math.abs(Math.cos(a9)) ** SQN9 + Math.abs(Math.sin(a9)) ** SQN9) ** (-1 / SQN9);
 
     /* ② 속막 — 판 사이 틈으로만 드러난다. ★ 금색(2026-10-14, 요청: "리버 안의 임자색 금색으로") — 옛 판은 색을 안 줘 임자 색이었다.
        판(밝은 금 · 금)과 갈리게 어두운 금(GOLD_D)이다. 임자 색은 이제 등판 위 무늬(아래 ①b)가 든다. */
     out.push(...tagKey(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 18, sides: 12, oval: 1.12, caps: "both",
+      x: 0, y: 0, h: 0.8, w: 1, segs: 18, sides: 12, oval: 0.85, radOf: SQ9, caps: "both",
       path: SP9, widthOf: (u9: number): number => W9(u9) * 0.93,
     }), GOLD_D), 0));
 
@@ -19265,7 +19271,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [, my9] = SP9((u0 + u1) / 2);
       const plate9 = (grow9: number, segs9: number, cut9?: (x: number, y: number, z: number) => number): ShapeFace[] => spirePillar({
         // 등진 벽은 걷는다 — 뚫린 관이라 안쪽 벽이 겉면 위로 비쳐 판이 검게 얼룩졌다.
-        x: 0, y: 0, h: 0.8, w: 1, segs: segs9, sides: 24, oval: 1.18, caps: "none", trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 1, segs: segs9, sides: 24, oval: OVL9, radOf: SQ9, caps: "none", trueNormal: true,
         path: (t9: number): [number, number, number] => SP9(u0 + (u1 - u0) * t9),
         widthOf: (t9: number): number => W9(u0 + (u1 - u0) * t9) * (1.07 - 0.07 * t9) + grow9,
         ...(cut9 ? { cutFace: cut9 } : {}),
@@ -19291,7 +19297,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const [, pyA9, pzA9] = SP9(u0); const [, pyB9, pzB9] = SP9(u1);
       const LP9 = Math.hypot(pyB9 - pyA9, pzB9 - pzA9);   // 판의 길이(모형 칸)
       const sF9 = PAT_F9 * LP9; const sR9 = PAT_R9 * LP9;
-      const b19 = PAT_B09 + PAT_BW9 * W9((u0 + u1) / 2);
+      const b19 = PAT_B09 + PAT_BW9 * W9((u0 + u1) / 2) * OVL9;
       /* 무늬는 **한 쪽씩** 벤다(m9 = ±1) — 둘을 한 함수로(b = |x|) 베면 등마루 위 낯(x ±0.27)이 경계를 양쪽에서 두 번 넘어 cutPoly9 가 통째로 남겼다
          (첫 굽기: 무늬가 등마루를 가로질러 한 장으로 붙었다). 한 쪽만 보면 그 낯은 경계를 한 번만 넘는다. */
       const pat9 = (m9: number) => (x9: number, y9: number, z9: number): number => {
@@ -19310,15 +19316,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
     }
 
-    /* ③ 발 마디 세 쌍 — 옆구리 아래에 붙은 짧은 고리. 몸을 미는 발이라 바닥 가까이
-       낮게 달리고, 제 자리 깊이로 앞뒤가 갈린다. */
+    /* ③ **발 — 반 고리 세 쌍**(2026-10-14, 요청: "발밑의 바퀴 통나무 제거하고 사진처럼 반 고리를 세 개") — 옛 판은 옆구리 아래로 가로 누운 짧은 통(tubeFaces ·
+       바퀴 통나무)이었다. 이제 옆구리 아래에 몸과 나란한 면(y-z)에 선 **아래 반원** 고리 — 두 끝이 몸 옆구리 속에 박히고 활이 바닥(z 0.05)까지 내려온다.
+       반원은 설계 자로 셈하고 z 몫에 Z8 을 곱한다(굽은 관 규약). 자리는 그 마디 옆 몫의 0.66(초타원 옆구리 안 · 아래 활은 밖으로 드러난다). */
     for (const u9 of [0.24, 0.5, 0.76]) {
       const [, ly9] = SP9(u9);
-      const lw9 = W9(u9);
+      const lx9 = W9(u9) * OVL9 * 0.66;
+      const RR9 = 0.6; const RZ9 = 0.05 + RR9 * Z8;
       for (const m9 of [-1, 1] as const) {
-        out.push(...tagKey(paintBase(
-          tubeFaces(m9 * lw9 * 0.62, ly9, m9 * lw9 * 1.02, ly9, 0.44, 0.416), GOLD_D,
-        ), depthNow(m9 * lw9 * 0.85, ly9) * 1.6 + 1.2));
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 6, caps: "none",
+          path: (t9: number): [number, number, number] => [
+            m9 * lx9, ly9 + RR9 * Math.cos(Math.PI * t9), RZ9 - RR9 * Z8 * Math.sin(Math.PI * t9),
+          ],
+          widthOf: (): number => 0.15,
+        }), GOLD_D), depthNow(m9 * lx9, ly9) * 1.6 + 1.2));
       }
     }
 
