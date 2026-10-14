@@ -179,8 +179,12 @@ const dw9 = (() => {
   const zs = vict.map((v) => dmk(2, "Zealot", false, 100, 100, 700, null, "", [], [849, v.tag, 852.5, v.tag, 853, 0]));
   /* 탑승 절(2026-10-13 · cast9 dropFollow9) — 질럿 셋이 760초에 두 셔틀에 타고 846~847초에 내린다 → 장면은 내리기 5초 앞(841초)부터 · 수송선 → 질럿을 따라간다. */
   const loads = [[760, zs[0].tag, sh1.tag], [760, zs[1].tag, sh1.tag], [760.5, zs[2].tag, sh2.tag], [846, zs[0].tag, 0], [846.4, zs[1].tag, 0], [847, zs[2].tag, 0]];
+  /* 폭탄드랍은 실은 병력도 어느 정도(수송 칸 12 · 2026-10-13) — 질럿 셋(6칸)만이면 견제다(아래 ⑨b) · 질럿 셋을 더 실어 12칸. */
+  const few = [...loads];
+  const zx = [0, 1, 2].map(() => dmk(2, "Zealot", false, 100, 100, 700, null, ""));
+  zx.forEach((z, i) => loads.push([761, z.tag, i < 1 ? sh1.tag : sh2.tag], [846.2 + i * 0.2, z.tag, 0]));
   return { players: [["P", 1], ["Q", 1], ["F", 2], ["G", 2]].map(([name, team], o) => ({ owner: o, name, race: "프로토스", color: "#fff", team })),
-    lives: dl, ups: [], casts: [], pings: [], resFields: [], kills, loads, dropTags: { ships: [sh1.tag, sh2.tag], riders: zs.map((z) => z.tag) } };
+    lives: dl, ups: [], casts: [], pings: [], resFields: [], kills, loads, few, dropTags: { ships: [sh1.tag, sh2.tag], riders: [...zs, ...zx].map((z) => z.tag) } };
 })();
 const dplan9 = castPlan9(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 } }).filter((s) => !s.cyc);
 const dAt9 = (t) => dplan9.find((s) => Math.abs(s.at - t) < 6);
@@ -198,6 +202,33 @@ for (const [name, pass] of [
     && d4.follow[0].t0 === 841 && d4.follow[0].t1 === 847 && [...d4.follow[0].tags].sort().join() === [...dw9.dropTags.ships].sort().join()
     && d4.follow[1].t0 === 847 && d4.follow[1].t1 > 852 && [...d4.follow[1].tags].sort().join() === [...dw9.dropTags.riders].sort().join()],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+/* ⑨c 일꾼 견제는 자원 곁에서 잡힌 일꾼만(2026-10-13, 요청: "일꾼 견제를 자원 주변의 일꾼 죽인 거만 해당되게") — ③ 리버가 (12,12)에서 프로브 셋을 잡는다.
+   자원이 바로 곁(미네랄 줄 y 10)이면 견제 · 같은 기지 안이어도 자원이 멀면(미네랄 줄 y 24 · 12타일) 견제가 아니다. */
+{
+  const capAt = (res) => {
+    const pl = castPlan9(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 }, resources: res }).filter((s) => !s.cyc);
+    const s = pl.find((x) => Math.abs(x.at - 698.5) < 6);
+    return s ? capTxt(s) : "(장면 없음)";
+  };
+  const line = (x, y) => [...[-4, -2, 0, 2, 4].map((dx) => [x + dx, y - 6, 0]), [x + 6, y - 3, 1]];   // ⑩ baseRes9 꼴(아래에서 선다)
+  const near = capAt(line(10, 16)); const far = capAt(line(10, 30));
+  console.log(`자원 곁 견제: 곁 ${near} · 멂 ${far}`);
+  for (const [name, pass] of [
+    ["자원 곁에서 잡힌 프로브는 '일꾼 견제'", /일꾼 견제/.test(near)],
+    ["기지 안이어도 자원에서 먼 프로브는 '일꾼 견제'가 아니다", !/일꾼 견제/.test(far)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+/* ⑨b 적은 수 드랍은 견제(2026-10-13, 요청: "폭탄드랍은 어느 정도 기수가 있는 거만 · 적은 수는 주로 견제임") — 셔틀 둘에 질럿 셋(6칸)이면 폭탄드랍이 아니다. */
+{
+  const fw9 = { ...dw9, loads: dw9.few };
+  const fplan9 = castPlan9(fw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 } }).filter((s) => !s.cyc);
+  const f4 = fplan9.find((s) => s.at > 830 && s.at < 860);
+  console.log(`적은 수 드랍: ${dshow(f4)}`);
+  for (const [name, pass] of [
+    ["셔틀 둘·질럿 셋(6칸)은 폭탄드랍이 아니다", !fplan9.some((s) => /폭탄드랍/.test(capTxt(s)))],
+    ["그 싸움 장면은 그대로 선다(공격 글귀)", !!f4 && /공격|견제/.test(capTxt(f4))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 
 /* ── ⑧ 빌드 읽기(2026-10-09, 요청: "소강 상태에서 '누구 운영'이라는 자막보다는 … 초반/중반 빌드에 대한 분석") — 사건 없는 FFA 여섯 · 착공 차례만 다르다 ──
    2026-10-10: 본진 건물은 **자리**로 가른다(cast9 ★★ 자원 무더기) — 지도 192 · 사람마다 본진 무더기(미네랄 다섯 + 가스) · 앞마당(가운데 쪽 22타일) · 셋째(44타일). */
@@ -892,7 +923,7 @@ rmSync(tmp, { recursive: true, force: true });
   const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (t9 += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
     sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
   mk(0, "Command Center", true, 10, 10, 0); mk(1, "Command Center", true, 10, 118, 0); mk(2, "Hatchery", true, 118, 10, 0);
-  mk(3, "Hatchery", true, 118, 118, 0); mk(3, "Spawning Pool", true, 114, 118, 0);
+  mk(3, "Hatchery", true, 118, 118, 60); mk(3, "Spawning Pool", true, 114, 118, 0);   // 118,118 은 멀티 — 시작 본진은 임자마다 하나(아래 hat · 2026-10-13)
   const lings = Array.from({ length: 6 }, () => mk(2, "Zergling", false, 118, 10, 50, { orders: [[95, 31, 31, false]] }));
   for (let i = 0; i < 36; i += 1) { const t = 100 + i * 3; const m = mk(0, "Marine", false, 10, 10, 50, { died: t, end: "atk", orders: [[t - 3, 30, 30, false]] }); kills.push([t, 2, lings[i % 6].tag, m.tag]); }
   const ms = Array.from({ length: 3 }, () => mk(1, "Marine", false, 10, 118, 50, { orders: [[140, 100, 100, false]] }));
@@ -902,12 +933,15 @@ rmSync(tmp, { recursive: true, force: true });
     lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
   const plan = castPlan9(w, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
   /* 멀티(60초에 지은) 해처리면 뚝배기가 아니라 "해처리 파괴" — 긴 전투가 없는 판으로 본다(멀티는 한창인 전투를 안 끊는다). */
-  const L2 = L.filter((e) => e.kind !== "Marine" || e.owner !== 0).map((e) => (e.tag === hat.tag ? { ...e, born: 60 } : e));
+  const L2 = L.filter((e) => e.kind !== "Marine" || e.owner !== 0).map((e) => (e.tag === hat.tag ? { ...e, born: 60 } : e.kind === "Hatchery" && e.owner === 3 ? { ...e, born: 0 } : e));
   const plan2 = castPlan9({ ...w, lives: L2, kills: kills.filter((k) => k[3] === hat.tag) }, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } });
   console.log(`\n뚝배기: ${plan.filter((s) => s.at >= 90 && s.at < 220).map((s) => `${s.at.toFixed(0)} ${capTxt(s)}`).join(" · ")}`);
   for (const [name, pass] of [
     ["긴 전투 중에도 시작 본진을 깨면 그리로 간다 · '[B]ga [D] 뚝배기 파괴'", plan.some((s) => s.at >= 140 && s.at <= 152 && capTxt(s) === "[B]ga [D] 뚝배기 파괴")],
     ["멀티 해처리는 뚝배기가 아니라 '[B]ga [D] 해처리 파괴'", plan2.some((s) => capTxt(s) === "[B]ga [D] 해처리 파괴") && !plan2.some((s) => /뚝배기/.test(capTxt(s)))],
+    /* 덤퍼의 첫 키가 늦게 와도(시작 본진 born 4초) 임자의 첫 본진이면 뚝배기(2026-10-13, 지적: "뚝배기 파괴가 이상해 · 뚝배기는 처음 스타팅 건물") */
+    ["시작 본진의 첫 키가 4초여도 뚝배기", castPlan9({ ...w, lives: L.map((e) => (e.tag === hat.tag ? { ...e, born: 4 } : e)) }, { total: 400, order: ["A", "C", "B", "D"], teamOf: { A: 1, B: 1, C: 2, D: 2 } })
+      .some((s) => capTxt(s) === "[B]ga [D] 뚝배기 파괴")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 

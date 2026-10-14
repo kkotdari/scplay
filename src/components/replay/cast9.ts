@@ -572,9 +572,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   }
   /** 그 임자의 **살아 있는 본진 건물** 자리(확장 포함) — 기지 싸움(baseRole9)·프록시 건물 가름·드랍의 자. */
   const HALL_ANY9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
-  /** 시작 본진의 태그(2026-10-11 뚝배기) — 경기 첫 순간(2초 안)에 선 본진 건물. 레어·하이브 변태는 같은 태그를 이어 쓰므로 그대로 시작 본진이다. */
+  /** 시작 본진의 태그(2026-10-11 뚝배기) — **임자마다 맨 처음 선 본진 건물 하나**. 레어·하이브 변태는 같은 태그를 이어 쓰므로 그대로 시작 본진이다.
+   *  ★ 옛 자 '2초 안에 선 본진 건물'은 덤퍼의 첫 키가 늦은 판에서 시작 본진을 놓쳐 "넥서스 파괴"로 읽혔다(2026-10-13, 지적: "뚝배기 파괴가 이상해 · 뚝배기는
+   *  처음 스타팅 건물") — 임자마다 가장 이른 것을 고르되 START_HALL_S9 초 안의 것만(본진 건물은 아무리 빨라도 그 안에 못 놓는다 · 첫 본진을 잃고 새로 지은 것은 아니다). */
+  const START_HALL_S9 = 30;
   const startHallTags9 = new Set<number>();
-  for (const e9 of world.lives) if (e9.bld && e9.born <= 2 && HALL_ANY9.has(e9.kind)) startHallTags9.add(e9.tag);
+  {
+    const first9 = new Map<number, { tag: number; born: number }>();
+    for (const e9 of world.lives) {
+      if (!e9.bld || e9.born > START_HALL_S9 || !HALL_ANY9.has(e9.kind)) continue;
+      const f9 = first9.get(e9.owner);
+      if (!f9 || e9.born < f9.born) first9.set(e9.owner, { tag: e9.tag, born: e9.born });
+    }
+    for (const f9 of first9.values()) startHallTags9.add(f9.tag);
+  }
   const BASE_R9 = 18;
   /* ★★ **기지 영역은 벽·언덕으로 가른다**(2026-10-11, 지적: "기지 영역 판단이 잘 안 돼서 그런 듯 — 벽이나 언덕으로 구분해야 하는데 그게 잘 안 되니 기지 공격을 그냥 공격이나
      교전으로 보고 맥이 계속 끊긴다") — 옛 자는 본진 건물에서 BASE_R9(18) 타일 원이라, 넓은 본진 언덕의 구석·입구 램프는 밖으로, 절벽 아래 남의 땅은 안으로 읽혔다.
@@ -1027,6 +1038,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     for (const [px9, py9] of g9) d9 = Math.min(d9, Math.hypot(px9 - x9, py9 - y9));
     return d9;
   };
+  /** 일꾼 견제의 자원 곁 반지름(타일) — 미네랄 줄과 본진 건물 사이(≈ 3~4) 넉넉히. */
+  const WK_RES_R9 = 6;
+  const nearRes9 = (x9: number, y9: number): boolean => resGroups9.length === 0 || resGroups9.some((g9) => groupDist9(g9, x9, y9) <= WK_RES_R9);
   /** 그 자리에서 SERVE_R9 안의 무더기 번호들. */
   const groupsNear9 = (x9: number, y9: number): number[] => {
     const out9: number[] = [];
@@ -1076,7 +1090,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        그도 없으면 견제로 안 친다. 두 사람 기지가 다 가까우면(빨무) 더 가까운 쪽 기지다. */
     const isWk9 = !e9.bld && unitOf(e9.kind).worker;
     const wat9 = isWk9 ? at9 ?? lastOrderAt9(e9, e9.died) ?? { x: e9.bornX, y: e9.bornY } : null;   // 명령을 한 번도 안 받은 일꾼(랠리로 곧장 캔다)은 난 자리
-    const wk9 = isWk9 && !!wat9 && workerAtHome9(e9.owner, killer9, wat9.x, wat9.y, e9.died);
+    /* ★ 일꾼 견제는 **자원 곁**(미네랄 줄·가스 WK_RES_R9 타일 안)에서 잡힌 일꾼만(2026-10-13, 요청: "일꾼 견제를 자원 주변의 일꾼 죽인 거만 해당되게") — 제 기지
+       안이어도 짓다·옮기다 다른 데서 잡힌 일꾼은 견제가 아니다. 자원 자료가 없으면(옛 판) 종전대로 기지 안이면 견제. */
+    const wk9 = isWk9 && !!wat9 && workerAtHome9(e9.owner, killer9, wat9.x, wat9.y, e9.died) && nearRes9(wat9.x, wat9.y);
     const wkw9 = isWk9 && !wk9 ? (wat9 ? workerOut9(e9.owner, killer9, wat9.x, wat9.y, e9.died) : "") : undefined;
     ds9.push({ sec: e9.died, owner: e9.owner, v: wk9 ? v9 * HARASS9.k : v9, bld: e9.bld, wk: wk9, kind: e9.kind, tag: e9.tag,
       killer: killer9, ktag: ktag9, by: by9, ...(at9 ?? {}), ...(wkw9 !== undefined ? { wkw: wkw9 } : {}) });
@@ -1563,33 +1579,58 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   };
   /** ★ 폭탄드랍 — att 의 수송선(드랍십·셔틀·복부 주머니 뒤의 오버로드)이 장면 앞 DROP_W9 초 안에 def 기지(본진 건물 BASE_R9 안)로 명령받았으면 그 싸움은 드랍이다. */
   const DROP_W9 = 30;
+  const loadsSorted9 = [...(world.loads ?? [])].sort((a9, b9) => a9[0] - b9[0]);
   /** 폭탄드랍의 수송선 수 하한 — 드랍십 둘이면 16 인구(마린·메딕 열여섯). */
   const BOMB_DROP_N9 = 2;
   const TRANSPORT9 = new Set(["Dropship", "Shuttle", "Overlord"]);
-  /** att 의 수송선 가운데 장면 앞 DROP_W9 초 안에 def 기지로 명령받은 수. */
-  const dropN9 = (att9: string, def9: string, sec9: number): number => {
+  /** att 의 수송선 가운데 장면 앞 DROP_W9 초 안에 def 기지로 명령받은 것들(태그). */
+  const dropShips9 = (att9: string, def9: string, sec9: number): Set<number> => {
+    const ships9 = new Set<number>();
     const own9 = ownersOf9(att9);
     const halls9 = hallsAt9(def9, sec9);
-    if (halls9.length === 0) return 0;
+    if (halls9.length === 0) return ships9;
     const sacs9 = world.ups.some(([us9, name9, uo9]) => name9 === "Ventral Sacs" && own9.has(uo9) && us9 <= sec9);
-    /* ★ **수송선이 여럿**이어야 폭탄드랍이다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제가 많음") — 한 대는 그냥 드랍이라
-       이름을 안 붙이고 일꾼 견제·공격 글귀로 간다. */
-    let n9 = 0;
     for (const e9 of world.lives) {
       if (e9.bld || !own9.has(e9.owner) || !TRANSPORT9.has(e9.kind) || e9.born > sec9 || (e9.died !== null && e9.died < sec9 - DROP_W9)) continue;
       if (e9.kind === "Overlord" && !sacs9) continue;
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5
-        && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) n9 += 1;
+        && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) ships9.add(e9.tag);
     }
-    return n9;
+    return ships9;
   };
-  const dropKind9 = (att9: string, def9: string, sec9: number): string | null => (dropN9(att9, def9, sec9) >= BOMB_DROP_N9 ? "폭탄드랍" : null);
+  /* ★ **수송선이 여럿**이어야 폭탄드랍이다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제가 많음") — 한 대는 그냥 드랍이라
+     이름을 안 붙이고 일꾼 견제·공격 글귀로 간다. */
+  const dropN9 = (att9: string, def9: string, sec9: number): number => dropShips9(att9, def9, sec9).size;
+  /** ★ **실은 병력도 어느 정도**여야 폭탄드랍이다(2026-10-13, 요청: "폭탄드랍은 어느 정도 기수가 있는 거만 · 적은 수는 주로 견제") — 그 수송선들에서 DROP_W9 초 안에
+   *  내린 몸의 **수송 칸**(마린·일꾼 1 · 질럿·하템·벌처·히드라 2 · 드라군·탱크·리버·럴커·울트라 4 · 수송선 한 대 8칸)을 합쳐 BOMB_SLOTS9 이상. 탑승 절이 없는 옛 덤프는
+   *  수송선 BOMB_SHIPS_OLD9 대 이상으로 대신한다. 모자라면 견제·공격 글귀(한 대 하템·리버 드랍은 unitDrop9). */
+  const BOMB_SLOTS9 = 12;
+  const BOMB_SHIPS_OLD9 = 3;
+  const SLOT9: Record<string, number> = { Zealot: 2, "High Templar": 2, "Dark Templar": 2, Vulture: 2, Hydralisk: 2, Goliath: 2, Defiler: 2, Firebat: 1,
+    Dragoon: 4, "Siege Tank (Tank Mode)": 4, "Siege Tank (Siege Mode)": 4, Reaver: 4, Lurker: 4, Ultralisk: 4, Archon: 4, "Dark Archon": 4 };
+  const isBomb9 = (att9: string, def9: string, sec9: number): boolean => {
+    const ships9 = dropShips9(att9, def9, sec9);
+    if (ships9.size < BOMB_DROP_N9) return false;
+    if (loadsSorted9.length === 0) return ships9.size >= BOMB_SHIPS_OLD9;
+    const rideOf9 = new Map<number, number>();
+    let slots9 = 0;
+    for (const [s9, pax9, ship9] of loadsSorted9) {
+      if (s9 > sec9 + DROP_W9) break;
+      if (ship9 !== 0) { rideOf9.set(pax9, ship9); continue; }
+      const from9 = rideOf9.get(pax9);
+      rideOf9.delete(pax9);
+      if (from9 === undefined || !ships9.has(from9) || s9 < sec9 - DROP_W9) continue;
+      const k9 = livesByTag9.get(pax9)?.find((l9) => l9.born <= s9 && (l9.died === null || l9.died >= s9))?.kind ?? "";
+      slots9 += SLOT9[k9] ?? 1;
+    }
+    return slots9 >= BOMB_SLOTS9;
+  };
+  const dropKind9 = (att9: string, def9: string, sec9: number): string | null => (isBomb9(att9, def9, sec9) ? "폭탄드랍" : null);
   /** ★ **폭탄드랍의 카메라 길**(위 CastSeg9.follow ★ · 2026-10-13) — att 의 수송선(dropN9 와 같은 자) 가운데 그 기지로 간 것들이 **처음 내린 때**(탑승 절 · 판 11)를 찾아,
    *  그 DROP_ARRIVE9 초 앞부터 내림이 끝날 때까지 수송선을, 그 뒤 장면 끝까지 내린 유닛을 따라간다. 수송선이 BOMB_DROP_N9 대 아래거나 내린 기록이 없으면(옛 덤프) null. */
   const DROP_ARRIVE9 = 5;
   /** 처음 내린 때부터 이 초 안에 내린 몸만 '이 드랍의 유닛'이다(그 뒤 내림은 딴 일) · 수송선 구간도 그때까지. */
   const DROP_UNLOAD9 = 4;
-  const loadsSorted9 = [...(world.loads ?? [])].sort((a9, b9) => a9[0] - b9[0]);
   const dropFollow9 = (att9: string, def9: string, sec9: number, end9: number): { arrive: number; follow: CastFollow9[] } | null => {
     if (loadsSorted9.length === 0) return null;
     const own9 = ownersOf9(att9);
@@ -1602,7 +1643,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (e9.kind === "Overlord" && !sacs9) continue;
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5 && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) ships9.add(e9.tag);
     }
-    if (ships9.size < BOMB_DROP_N9) return null;
+    if (ships9.size < BOMB_DROP_N9 || !isBomb9(att9, def9, sec9)) return null;   // 폭탄드랍만(위 isBomb9 — 기수가 있어야)
     const rideOf9 = new Map<number, number>();
     const riders9: number[] = [];
     let un09 = Infinity;
@@ -1627,7 +1668,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const unitDrop9 = (att9: string, def9: string, sec9: number, kind9: string): string | null => {
     if (!DROP_UNIT9.has(kind9)) return null;
     const n9 = dropN9(att9, def9, sec9);
-    return n9 >= 1 && n9 < BOMB_DROP_N9 ? `${harassName9(kind9)} 드랍` : null;
+    return n9 >= 1 && !isBomb9(att9, def9, sec9) ? `${harassName9(kind9)} 드랍` : null;
   };
   /* (걷어냄 · 2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x") 저글링러시 이름(zlRush9 — 초반 장면의 킬이 대개 저글링). */
   /** 로/으로 — 받침(ㄹ 아닌)이 있으면 "으로" · 없거나 ㄹ 이면 "로"(한글 아닌 이름은 "로"). */
