@@ -40,6 +40,9 @@ export interface GlInst9 {
    *  아니라 자국이라 낯의 제 색을 버리고 이 색 하나로 민다(2D 판 굽기의 solid 와 같은 뜻). 명암·광택도
    *  안 탄다(uSolid.a 가 1 이면 셰이더가 색을 통째로 갈아 끼우고 빛 몫을 끈다). */
   solid?: string;
+  /** ★ **소환 드러남**의 진행(0~1 · 2026-10-14) — 있으면 몸을 푸른 반물질로 그리고 굵은 빛 띠가 화면 좌상 → 우하로 쓸며 지나간 자리를 본모습으로
+   *  돌린다(엔진 op.warpK). aInC.w 에 2 + u 로 실린다(1 = 단색 판과 갈린다). */
+  warp?: number;
   /** ★ **제 깊이 칸을 타는 바닥 테**(2026-10-10, 지적: "공중유닛의 링이 왜 지상건물에 가려지지") — 바닥 도형 패스는 몸보다 먼저 깊이
    *  없이 그리므로 뒤에 칠하는 지상 건물이 공중 유닛·뜬 건물의 선택 링을 덮었다. 이 테는 몸 패스 **뒤**에 그 몸의 칸 바로 뒤 깊이
    *  (1 − 칸폭·(칸 + 0.5))로 깊이를 재며 그린다 — 몸이 이기는 것(아래 칸)보다 앞 · 제 몸과 위 칸의 몸보다 뒤. 값은 prim() 의 인자 그대로. */
@@ -117,7 +120,7 @@ uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +
 /* 실루엣 빛(silhouetteLight)의 화면 빛 방향은 카메라만의 함수라 여기서 낸다 · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫은 aInC.xy 다 */
 varying vec4 vCol;
 /** 결의 옥타브 몫 — 개체의 배율(k)만의 함수라 정점에서 내고 화소로 넘긴다(옛 uGrain·uGrainA 유니폼). 화소 주기가 2.1 아래면 0, 3.1 위면 제 몫. */
-varying vec4 vGa; varying float vG0;
+varying vec4 vGa; varying vec4 vG0;
 /** 광택 몫 — **rgb 는 약한 쪽의 색**(제 색 물듦까지 먹인 값) · **a 는 낯의 각만으로 나는 몫**(윤기 + 봉우리).
  *  둘 다 법선의 함수라 한 낯 안에서 안 변한다. 결이 곱해질 자리가 여기다. */
 varying vec4 vSpec;
@@ -150,7 +153,7 @@ void main() {
   vec2 uAnchor = aInA.xy; vec2 uYaw = aInA.zw;
   vec3 uScale = vec3(aInB.x, aInB.x, aInB.y); float uAlpha = aInB.z; float uDepth0 = aInB.w;
   vec4 uGrad = vec4(normalize(vec2(-0.9, 0.45 * uCam.x - uCam.y)), aInC.x, aInC.y);
-  vec3 uTeam = aTeamC; vec4 uSolid = vec4(aSolidC, aInC.w);
+  vec3 uTeam = aTeamC; vec4 uSolid = vec4(aSolidC, aInC.w >= 1.5 ? 0.0 : aInC.w);   // aInC.w ≥ 2 는 단색이 아니라 소환 드러남(아래 vG0.yzw)
   vec4 uShade = vec4(0.0, 0.0, 0.0, aShad.w); float uDy = aShad.z;
   vec4 uShadow = vec4(uShadowK.x, uShadowK.y, aShad.x, aShad.y);
   vec3 pc = bill > 0.5 ? aNrm : aPos;
@@ -370,10 +373,17 @@ void main() {
   else vCol = vec4(col, aAlpha * uAlpha);
   /* 결 옥타브의 몫(옛 CPU grainOct9) — 배율 k 에서 옥타브(30·42·58·80·110 rad/모형칸) 한 줄의 화소 주기 2π·k/f 가
      2.1 아래면 0, 3.1 위면 제 몫(0.34·0.27·0.19·0.13·0.07). 합을 1 로 안 맞춘다(화소 셰이더의 ⚠). */
-  vGa = vec4(0.0); vG0 = 0.0;
+  vGa = vec4(0.0); vG0 = vec4(0.0, 0.0, -1.0, 0.0);
+  /* ★ **소환 드러남**(2026-10-14 · aInC.w = 2 + 진행 u) — 몸 상자 가운데에서 잰 **화면** 자리를 상자 반지름 R 로 나눠 띠 자(vG0.y · 좌상 −
+     → 우하 +)와 그 띠를 따라가는 자(vG0.w)를 낸다. 띠의 법선은 (0.45, 0.89) — 거의 가로인 굵은 띠가 기울어 우하로 쓸린다(요청: "대각선 좌상에서
+     우하로 · 두꺼운 가로띠"). 그림자 판(uShade)은 안 탄다. */
+  if (aInC.w >= 1.5 && uShade.a <= 0.0) {
+    vec2 q9 = vec2(X - uAnchor.x, Y - uAnchor.y - uGrad.w) / max(uGrad.z, 1.0);
+    vG0.y = q9.x * 0.447 + q9.y * 0.894; vG0.w = q9.x * 0.894 - q9.y * 0.447; vG0.z = aInC.w - 2.0;
+  }
   if (aInC.z > 0.0) {
     float kk = aInB.x * 6.2831853;
-    float t0 = clamp(kk / 30.0 - 2.1, 0.0, 1.0); vG0 = 0.34 * t0 * t0 * (3.0 - 2.0 * t0);
+    float t0 = clamp(kk / 30.0 - 2.1, 0.0, 1.0); vG0.x = 0.34 * t0 * t0 * (3.0 - 2.0 * t0);
     float t1 = clamp(kk / 42.0 - 2.1, 0.0, 1.0); vGa.x = 0.27 * t1 * t1 * (3.0 - 2.0 * t1);
     float t2 = clamp(kk / 58.0 - 2.1, 0.0, 1.0); vGa.y = 0.19 * t2 * t2 * (3.0 - 2.0 * t2);
     float t3 = clamp(kk / 80.0 - 2.1, 0.0, 1.0); vGa.z = 0.13 * t3 * t3 * (3.0 - 2.0 * t3);
@@ -382,11 +392,12 @@ void main() {
 }`;
 const FS = `
 precision mediump float;
-varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec4 vGr; varying vec4 vGa; varying float vG0; varying vec4 vEm;
+varying vec4 vCol; varying vec4 vSpec; varying vec4 vGl; varying vec4 vGr; varying vec4 vGa; varying vec4 vG0; varying vec4 vEm;
 /* (걷어냄) uGrain·uGrainA — 개체마다 유니폼을 놓던 자다. 이제 인스턴스 속성에서 정점이 내어 varying 으로 온다
    (vGr.w 켬 · vG0·vGa 옥타브 몫 — 개체 안에서는 상수라 보간해도 그대로다). */
 uniform vec3 uSpecTint;   // 센 자리의 색(찬 강철빛) — 약한 자리는 vSpec.rgb(제 색 물듦)다
 void main() {
+  vec3 wEm9 = vec3(0.0);   // 소환 드러남 띠의 빛(빛 판 몫)
   /* 전구 얼룩만 화소에서 잰다(위 vGl 의 ★★) — 나눗셈 하나와 곱셈 몇이다. 낯의 각으로 나는 몫(vSpec.a)은
      한 낯 안에서 안 변하므로 정점이 그대로 든다. 물듦 가름도 여기서 해야 색이 쐐기로 안 갈린다. */
   float amt9 = vSpec.a + vGl.w / (1.0 + dot(vGl.xyz, vGl.xyz) * 0.11);
@@ -425,7 +436,7 @@ void main() {
        ⚠ **몫의 합을 1 로 맞추지 않는다** — 맞추면 저배율에서 가는 옥타브가 다 꺼진 몫까지 굵은 옥타브가
          떠안아, 나이퀴스트 아래에서 **혼자 커진다**. 안 맞추면 합이 곧 '지금 보이는 결의 총량'이라,
          멀어질수록 저절로 여위고 가까울수록 도톰해진다(0.34 → 1.00). */
-    float a0 = vG0;
+    float a0 = vG0.x;
     float n = (sin(s9 * 30.0 + 2.7) * a0
       + sin(s9 * 42.0) * vGa.x
       + sin(s9 * 58.0 + 1.3) * vGa.y
@@ -478,7 +489,29 @@ void main() {
     c = vCol.rgb * (1.0 + w * 0.010 * g) + spec9 * (1.0 + w * (0.13 * base9 + 0.55 * scr))
       + vec3(w * 2.2 * max(scr, 0.0) * lit);
   }
-  gl_FragColor = vec4(c * vCol.a, vCol.a);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
+  /* ★ **소환 드러남**(2026-10-14, 요청: "프로토스 건물 소환 완료 시 형체가 반물질 느낌으로 푸른빛이 표면에 파도처럼 … 점점 본모습으로 변신" →
+     "대각선 좌상에서 우하로 · 두꺼운 가로띠가 흐른다") — 띠가 오기 전(d > 0)은 **푸른 반물질**: 제 밝기만 남긴 짙은 파랑에 띠 쪽으로 흐르는
+     잔물결. 띠는 굵은 빛줄기(가우스 σ 0.16R)이고 앞머리가 출렁인다. 지나간 자리(d < 0)는 본모습 그대로다. 진행 u 는 띠 가운데를
+     −1.3R → +1.3R 로 옮긴다(상자 대각 끝까지 다 쓸고 나간다). */
+  float a9 = vCol.a;
+  if (vG0.z >= 0.0) {
+    float u9 = vG0.z;
+    float d9 = vG0.y - mix(-1.3, 1.3, u9) + 0.05 * sin(vG0.w * 7.0 + u9 * 14.0);
+    float lum9 = dot(c, vec3(0.299, 0.587, 0.114));
+    /* 잔물결 — 띠와 나란한 가는 빛 결이 띠 쪽으로 흘러간다(4 제곱으로 줄만 남긴다 · 띠에서 멀수록 옅다) */
+    float wv9 = 0.5 + 0.5 * sin(vG0.y * 26.0 - u9 * 46.0 + 0.6 * sin(vG0.w * 5.0));
+    float rp9 = wv9 * wv9; rp9 *= rp9;
+    /* 반물질 몸 — 제 밝기를 짙은 남빛 ↔ 밝은 하늘빛 사이에 펴서 형체(낯의 명암)만 남긴다. 한 색 곱으로는 온몸이 납작한 파랑이 됐다. */
+    vec3 gh9 = mix(vec3(0.02, 0.06, 0.26), vec3(0.36, 0.66, 1.0), smoothstep(0.12, 0.85, lum9))
+      + vec3(0.12, 0.35, 0.80) * rp9 * 0.7 * smoothstep(0.9, 0.0, d9);
+    float gk9 = smoothstep(-0.05, 0.10, d9);
+    c = mix(c, gh9, gk9);
+    a9 *= 1.0 - 0.22 * gk9;   // 반물질은 살짝 비친다
+    float g9 = exp(-d9 * d9 / 0.025);
+    wEm9 = vec3(0.22, 0.52, 1.0) * g9 * (0.55 + 0.2 * wv9) + vec3(0.30, 0.50, 0.55) * exp(-d9 * d9 / 0.0015) * 0.45;
+    c += wEm9;
+  }
+  gl_FragColor = vec4(c * a9, a9);   // 미리곱한 알파 — WebGL 캔버스(premultipliedAlpha)와 합성이 맞아야 반투명(빛무리)이 안 어두워진다
   //__EMIT__
 }`;
 
@@ -849,7 +882,7 @@ export class GlUnits9 implements VecSink9 {
       if (frag) {
         t = t.replace(/\bvarying\b/g, "in").replace(/\btexture2D\s*\(/g, "texture(").replace(/\bgl_FragColor\b/g, "fragColor");
         t = t.replace("precision mediump float;", "precision mediump float;\nlayout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor;");
-        t = t.replace("//__EMIT__", "emitColor = vec4(vEm.rgb * vCol.a * vEm.a, vCol.a);");
+        t = t.replace("//__EMIT__", "emitColor = vec4((vEm.rgb * vEm.a + wEm9) * a9, a9);");
         t = t.replace("//__EMIT0__", "emitColor = vec4(0.0);");   // 빛이 아닌 판(바닥 도형)은 빛 판에 0 을 쓴다(안 쓰면 쓰레기가 남는다)
       } else t = t.replace(/\battribute\b/g, "in").replace(/\bvarying\b/g, "out");
       return "#version 300 es\n" + t;
@@ -1614,7 +1647,7 @@ export class GlUnits9 implements VecSink9 {
          (가장 굵은 30 의 화소 주기가 k 10 에서 문턱 2.1) 튐 없이 꺼진다. 옥타브 몫은 정점 셰이더가 k 에서 낸다. */
       a[o + 8] = it.gradR; a[o + 9] = it.gradCy;
       a[o + 10] = it.k >= 11 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * GL_GRAIN9 : 0;
-      a[o + 11] = it.solid ? 1 : 0;
+      a[o + 11] = it.warp !== undefined ? 2 + Math.min(0.999, Math.max(0, it.warp)) : it.solid ? 1 : 0;   // ≥ 2 는 소환 드러남(셰이더 vG0)
       const tc = this.colOf(it.color); a[o + 12] = tc[0]; a[o + 13] = tc[1]; a[o + 14] = tc[2];
       if (it.solid) { const sc = hexRgb(it.solid); a[o + 15] = sc[0]; a[o + 16] = sc[1]; a[o + 17] = sc[2]; } else { a[o + 15] = 0; a[o + 16] = 0; a[o + 17] = 0; }
       if (shadow && it.shadow) { a[o + 18] = it.shadow.ground ? 1 : 0; a[o + 19] = it.shadow.h ?? 0; a[o + 20] = it.shadow.dy ?? 0; a[o + 21] = it.shadow.alpha; }

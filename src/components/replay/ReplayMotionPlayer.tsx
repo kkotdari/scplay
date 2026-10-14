@@ -5741,7 +5741,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
               else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
             }
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(bRing9 ? { ring: bRing9 } : {}) });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
             if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
             if (op.attach) {

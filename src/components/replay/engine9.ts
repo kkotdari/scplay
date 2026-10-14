@@ -1889,6 +1889,9 @@ export type UnitDrawOp = {
   /** 찍을 때만 곱하는 배율(고치의 두근거림) — 판은 그대로 두고 바닥 가운데를 축으로 블릿만 키우고 줄인다.
    *  drawK와 달리 굽는 크기에 안 실린다(굽는 크기가 흔들리면 판이 칸마다 새로 구워져 덜덜 떨린다). */
   pulseK?: number;
+  /** ★ 프로토스 **소환 드러남**의 진행(0~1 · 2026-10-14) — 있으면 GL 붓이 몸을 푸른 반물질로 그리고, 굵은 빛 띠가 화면 대각선 좌상 → 우하로 쓸며
+   *  지나간 자리부터 본모습으로 바꾼다(gl9 의 aInC.w ≥ 2 갈래). 0 이면 띠가 오기 전(온몸 반물질), 1 이면 다 지나감. */
+  warpK?: number;
   /** 발자국 세로/가로 비(건물) — 접지 그림자가 '바닥 발자국'만 덮게 하는 자(지적:
    *  칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은 건물을 통째로 덮는 큰 원이 됐다). */
   footRatio?: number;
@@ -6394,6 +6397,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       // 소환 마무리 — 건물이 0에서 1로 배어 나온다(위 warpIn9).
       const alphaPre9 = alpha;   // 페이드를 곱하기 전 값 — 아래 고리의 '보이는 자리인가' 문은 이것을 본다
       if (warpIn9) alpha *= warpU9;
+      /* ★ **소환 드러남**(2026-10-14, 요청: "프로토스 건물 소환 완료 시 형체가 반물질 느낌으로 푸른빛이 표면에 파도처럼 … 점점 본모습으로 변신" → "대각선
+         좌상에서 우하로 · 두꺼운 가로띠가 흐른다") — 배어 나오기 시작할 때(완공 − WARP_FADE_SEC9)부터 몸은 푸른 반물질이고, 완공 − WARP_SWEEP_LEAD9 부터
+         WARP_SWEEP_SEC9 동안 띠가 좌상 → 우하로 쓸며 본모습으로 바꾼다(그리는 쪽은 gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
+      const WARP_SWEEP_LEAD9 = 0.4;
+      const WARP_SWEEP_SEC9 = 1.6;
+      const warpK9 = race2 === "프로토스" && sec > 0 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9
+        ? Math.min(1, Math.max(0, (t - (doneAt - WARP_SWEEP_LEAD9)) / WARP_SWEEP_SEC9)) : undefined;
       /* ★ **소환 완료의 섬광·동심원은 걷었다**(2026-09, 요청: "프로토스 건물 완성시 동심원파동 제거") —
          완공 순간에 흰 심 + 청백 고리를 한 번 쳤다(kind "warp"). 완공을 알리는 몫은 **페이드인**(위 warpU9)이
          이미 진다 — 건물이 배어 나오는 것 자체가 그 신호다. 고리까지 얹으면 확장 타이밍마다 지도가 번쩍였다. */
@@ -6863,6 +6873,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              바닥이 늘 발자국 폭과 같고 높이는 모델 비율이 따라온다. */
           fitWidth: true,
           color, alpha, noShadow: true,
+          ...(warpK9 !== undefined ? { warpK: warpK9 } : {}),
         });
         /* (걷어냄) **라바·변태알 장식** — 해처리가 제 생산 기록을 규칙표
            (bwUnits.hatchState)에 먹여 "지금 라바가 몇이고 무엇을 품고 있나"를

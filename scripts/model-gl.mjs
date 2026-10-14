@@ -41,6 +41,8 @@ const ROTS = String(flag("--rots", "45,225")).split(",").map(Number);
 const POSE = Number(flag("--pose", 0));
 /** 머리 겨눔 — `--aim N` 이면 머리(포탑·혓바닥·포토 관)를 N도로 겨눈 채 굽는다(포토는 겨눌 때만 관 셋이 다 솟는다). */
 const AIM = flag("--aim", null);
+/** 소환 드러남 — `--warp u`(0~1) 면 프로토스 소환의 띠 진행 u 로 그린다(gl9 GlInst9.warp · 2026-10-14). */
+const WARP = flag("--warp", null);
 const STAGES = flag("--stages", null) ? String(flag("--stages")).split(",").map(Number) : null;
 /* ★ `--spins 0,1,2,…` — **회전 칸**을 칸으로 늘어놓는다(2026-09 에 더했다. 요잉은 `--rots` 의 첫 값
    하나로 못 박는다). 도는 부품(코어 디스크·서플라이 팬·포지 톱니·머신샵)은 칸마다 따로 굽는 자라
@@ -123,7 +125,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
       const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
       meshes[i] = { m, kk };
       const sh9 = ${SHADOW} && !fit && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
-      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });   // 발광 종류는 붓과 같이 음영·깊이 없이
+      g.push({ mesh: m, ax: i * cell + cell / 2, ay: cell / 2, k: kk, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * ${WARP === null ? 0.707 : 0.42}, gradCy: ${WARP === null ? 0 : "-k * 2"}, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9${WARP === null ? "" : `, warp: ${Number(WARP)}`} });   // 발광 종류는 붓과 같이 음영·깊이 없이
     });
     g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     if (fit) {
@@ -147,7 +149,7 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         const ax0 = i * cell + cell / 2; const ay0 = cell / 2 + k * 4;   // 첫 굽기의 원점(요잉 축)
         const ax = i * cell + cell / 2 - (bx.cx - ax0) * sc; const ay = cell / 2 - (bx.cy - ay0) * sc - k * 4;
         const sh9 = ${SHADOW} && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
-        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9 });
+        g.push({ mesh: mm.m, ax, ay, k: mm.kk * sc, yoff: k * 4, yawDeg: -rot, color, alpha: 1, cam: CAM9, gradR: cell * 0.707 * sc, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind), shadow: sh9${WARP === null ? "" : `, warp: ${Number(WARP)}`} });
       });
       g.flush(gcv.width, gcv.height, gcv.width, gcv.height);
     }
