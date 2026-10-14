@@ -23134,27 +23134,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let k = 0; k <= n; k += 1) { acc += (rnd() - 0.5) * amp; o.push(acc * Math.sin(Math.PI * (k / n))); }
       return o;
     };
+    /* ★ **촉수를 걷고 공을 휘감는다**(2026-10-14, 지적: "전기줄기가 좀 멋없게 튀어나온 것 같아 · 끝에서 쭉 뻗지 말고 전체적으로 둥글게 감싸지는 느낌으로
+       지글거리면") — 테에서 밖으로 뻗던 촉수(옛 ②: 0.75~0.95R → 1.1~1.35R)가 가시처럼 솟았다. 이제 홀수 가닥은 **기울어진 궤도 호** —
+       반지름 0.98~1.08R 의 원을 화면에서 비스듬히 눕힌 타원(세로 0.6~0.95배 · 아무 각으로 돌림)의 긴 축 끝 1.0~1.9rad 토막이라 공을 감아 도는 띠로 읽힌다.
+       짝수 테 호도 테를 걸치게(0.88~1.0R → 0.92~1.06R) 넓혔다. 흔들림(wob9)은 그대로 — 칸마다 씨앗이 갈려 지글거린다. */
     for (let b = 0; b < 30; b += 1) {
       const pts: [number, number][] = [];
       if (b % 2 === 0) {
-        // ① 테를 따라 도는 호
+        // ① 테를 걸쳐 도는 호
         const a0 = rnd() * Math.PI * 2; const da = (0.5 + rnd() * 0.6) * (rnd() < 0.5 ? 1 : -1);
-        const r0 = RN9 * (0.88 + rnd() * 0.12); const n = 8; const o = wob9(n, RN9 * 0.08);
+        const r0 = RN9 * (0.92 + rnd() * 0.14); const n = 8; const o = wob9(n, RN9 * 0.08);
         for (let k = 0; k <= n; k += 1) {
           const u = k / n; const a = a0 + da * u; const r = r0 + o[k];
           pts.push(P9(Math.cos(a) * r, Math.sin(a) * r));
         }
       } else {
-        // ② 테에서 밖으로 뻗는 촉수 — 후광 속까지 나간다
-        const a0 = rnd() * Math.PI * 2; const a1 = a0 + (rnd() - 0.5) * 0.8;
-        const r0 = RN9 * (0.75 + rnd() * 0.2); const r1 = RN9 * (1.1 + rnd() * 0.25);
-        const n = 6; const o = wob9(n, RN9 * 0.1);
-        const sx = Math.cos(a0) * r0; const sy = Math.sin(a0) * r0;
-        const ex = Math.cos(a1) * r1; const ey = Math.sin(a1) * r1;
-        const dx = ex - sx; const dy = ey - sy; const l = Math.hypot(dx, dy) || 1;
+        // ② 공을 비스듬히 휘감는 궤도 호(기운 타원의 토막)
+        /* 덜 눕히고(세로 0.6~0.95배) 타원의 **긴 축 끝**(공의 옆 가장자리)을 가운데로 한 토막만 — 흰 속을 가로지르지 않고 테를 감아 넘는다
+           (처음 판 0.15~0.85배 · 아무 토막은 속을 털실 뭉치처럼 덮었다 — 실측). */
+        const R = RN9 * (0.98 + rnd() * 0.1); const sq = 0.6 + rnd() * 0.35;
+        const tilt = rnd() * Math.PI; const ct = Math.cos(tilt); const st = Math.sin(tilt);
+        const da = (1.0 + rnd() * 0.9) * (rnd() < 0.5 ? 1 : -1);
+        const a0 = (rnd() < 0.5 ? 0 : Math.PI) + (rnd() - 0.5) * 0.5 - da / 2;
+        const n = 12; const o = wob9(n, RN9 * 0.07);
         for (let k = 0; k <= n; k += 1) {
-          const u = k / n;
-          pts.push(P9(sx + dx * u + (-dy / l) * o[k], sy + dy * u + (dx / l) * o[k]));
+          const a = a0 + da * (k / n); const r = R + o[k];
+          const ex = Math.cos(a) * r; const ey = Math.sin(a) * r * sq;
+          pts.push(P9(ex * ct - ey * st, ex * st + ey * ct));
         }
       }
       const w = RN9 * 0.04 * (0.75 + rnd() * 0.6);
