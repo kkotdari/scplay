@@ -599,6 +599,15 @@ rmSync(tmp, { recursive: true, force: true });
     for (let i = 0; i < 4; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 601 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
     casts.push([600, 60, 60, "Psionic Storm", 0]);
   })), (c) => c.some((x) => /\[P\]ga 스톰으로 4킬/.test(x))]);
+  // ④''' 이어지는 전투의 스톰 누적(2026-10-14, 요청: "스톰으로 6킬 — 이어지는 전투면 누적 통합해서 보여주기") — 600초 스톰에 히드라 넷 · 612초 스톰에 셋(같은 자리 · 같은 전투)
+  //      → 둘째 창 자막은 창 안 수가 아니라 전투 누적
+  res.push(["이어지는 전투의 스톰 킬은 누적 → 스톰으로 8킬(창 안 3킬 아님)", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    for (let i = 0; i < 4; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 601 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
+    for (let i = 0; i < 3; i += 1) mk(1, "Hydralisk", false, 100, 100, 500, { died: 613 + i * 0.3, end: "atk", orders: [[598, 60, 60, false]] });
+    for (const t of [605, 609]) mk(1, "Hydralisk", false, 100, 100, 500, { died: t, end: "atk", orders: [[598, 61, 61, false]] });   // 사이 킬 — 한 전투로 잇는다(틈 GAP9 6초 안)
+    casts.push([600, 60, 60, "Psionic Storm", 0]); casts.push([612, 60, 60, "Psionic Storm", 0]);
+  })), (c) => c.some((x) => /\[P\]ga 스톰으로 8킬/.test(x)) && !c.some((x) => /스톰으로 3킬/.test(x))]);   // 사이 킬 둘도 스톰 시간 안이라 스톰 킬(4 + 1 → 5 · + 1 + 3 → 8) · 옛 셈은 5 → 3
   // ④'' 제 기지 스톰(2026-10-12, 요청: "스톰으로 방어해냄 등으로 표현") — B 히드라 넷이 P 본진(20,20)에 들어와 P 스톰(22,22)에 죽는다 → "스톰으로 방어해냄"
   res.push(["제 기지에 들어온 히드라 넷을 스톰 → 스톰으로 방어해냄", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);

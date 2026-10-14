@@ -1234,6 +1234,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     cx?: number; cy?: number;
     /** 사람 → (죽인 유닛 종류 → (죽은 몸 종류 → 수)) — 마법 덧말의 "스톰으로 일꾼 4기 잡음"(2026-10-10). */
     killVic: Map<string, Map<string, Map<string, number>>>;
+    /** ★ 같은 전투(bid)의 **처음부터 이 창 끝까지** 모은 판(2026-10-14, 요청: "스톰으로 6킬 — 이어지는 전투면 누적 통합해서 보여주기") — 있으면 마법 킬 수(spellNote9)는 이것으로 센다. */
+    cum?: Sc9;
     /** 이 토막에 든 사건들(때 차례) — 자막을 사건 때에 맞춰 창마다 다시 짓는 재료(2026-10-11 · subSc9). */
     evs: Ev9[] };
   const scs9: Sc9[] = [];
@@ -1864,13 +1866,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       return got9 ? `마인드컨트롤로 ${UNIT_KO[got9.kind] ?? got9.kind} 빼앗음` : null;
     }
     const by9 = SPELL_KILLER9[tech9];
-    const n9 = by9 ? sc9.killN.get(pick9)?.get(by9) ?? 0 : 0;
+    const kSc9 = sc9.cum ?? sc9;   // 잡은 수는 전투 누적(Sc9.cum ★ · 2026-10-14)
+    const n9 = by9 ? kSc9.killN.get(pick9)?.get(by9) ?? 0 : 0;
     /* 잡은 것을 이름으로(2026-10-10, 요청: "스톰으로 일꾼 몇 기 잡음") — 다 일꾼이면 "일꾼 N기" · 한 종류면 그 이름 · 섞이면 "많은 것 등 N기". */
     if (by9) {
       if (n9 < SPELL_ACT9.kills) return null;
       /* ★ "스톰으로 활약함" → **"스톰으로 N킬"**(2026-10-12, 요청: "스톰으로 활약함 같은 문장을 스톰으로 7킬") — 잡는 마법은 잡은 수를 말한다. 잡지 않는 마법(스테이시스 …)은 아래 '활약함' 그대로. */
       /* (같은 날 이어서: "스톰으로 방어해냄 등으로 표현") — 장면의 몫(role9)을 탄다: 방어 "X로 방어해냄" · 공격 "X로 돌파함" · 그 밖(교전) "X로 N킬". */
-      return detail9 ? `${ko9}${koRo9(ko9)} ${vicTxt9(sc9.killVic.get(pick9)?.get(by9))} 잡음` : `${ko9}${koRo9(ko9)} ${spellHow9(role9) ?? `${n9}킬`}`;
+      return detail9 ? `${ko9}${koRo9(ko9)} ${vicTxt9(kSc9.killVic.get(pick9)?.get(by9))} 잡음` : `${ko9}${koRo9(ko9)} ${spellHow9(role9) ?? `${n9}킬`}`;
     }
     let dealt9 = 0; let got9 = 0;
     for (const [key9, w9] of sc9.pair) { const [a9, b9] = key9.split(">"); if (a9 === pick9) dealt9 += w9; if (b9 === pick9) got9 += w9; }
@@ -2862,9 +2865,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const dW9 = duel9(sc9, pick9, own9(sc9));
     let first9 = true;
     let prev9 = -Infinity;
+    /* ★ 마법 킬 수는 **전투 누적**(Sc9.cum ★) — 같은 전투(bid)의 토막 사건 가운데 창 끝 앞의 것을 다 모은 판을 창마다 단다. 옛 셈은 창(10초) 안만 세어, 한 전투에서 스톰을
+       여러 번 친 하템이 창마다 "스톰으로 4킬"·"스톰으로 3킬"로 끊겨 나왔다. 이제 "4킬" → "7킬"로 이어 오른다(글귀가 바뀌면 push9 가 새 자막으로 세운다). */
+    const bEvs9 = scs9.filter((s9) => bidOf9.get(s9) === bidOf9.get(sc9)).flatMap((s9) => s9.evs).sort((x9, y9) => x9.sec - y9.sec);
+    const cumTo9 = (b9: number): Sc9 | undefined => {
+      const es9 = bEvs9.filter((e9) => e9.sec < b9);
+      if (es9.length === 0) return undefined;
+      const c9: Sc9 = { t0: es9[0].sec, t1: es9[0].sec, by: new Map(), why: es9[0].why, tail: GAP9,
+        pair: new Map(), econ: new Map(), locs: [], bldPair: new Map(), bldLost: new Map(), byKind: new Map(), killKind: new Map(), ovl: new Map(),
+        killN: new Map(), kills: new Map(), killVic: new Map(), evs: [], cx: sc9.cx, cy: sc9.cy };
+      for (const e9 of es9) addEv9(c9, e9);
+      return c9;
+    };
     for (let a9 = Math.max(sc9.t0, from9); a9 <= sc9.t1; a9 += CAP_WIN9) {
       const sub9 = subSc9(sc9, a9, a9 + CAP_WIN9);
       if (!sub9 || !sub9.by.has(pick9)) continue;
+      sub9.cum = cumTo9(a9 + CAP_WIN9);
       const caps9 = sceneCaps9(sub9, pick9, duel9(sub9, pick9, own9(sub9)) ?? dW9);
       /* ★ 창의 자막은 **싸움이 붙은 때**(그 창 사건들의 eng 가운데 가장 이른 것 − CAP_LEAD9)에 서고 **마지막 사건 + CAP_TAIL9** 에 걷힌다(2026-10-11, 지적: "아직도 장면과
          자막 타이밍이 안 맞아 — 자막이 장면보다 너무 늦게 나오고 늦게 끝나는 듯"). 옛 셈은 창 첫 **죽음** 때라, 싸움이 붙고 몇 초 뒤(첫 몸이 쓰러질 때)에야 떴고,
