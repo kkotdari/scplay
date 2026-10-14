@@ -1493,6 +1493,9 @@ if (has("--castprobe")) {
     const r = b.getBoundingClientRect(); const cs = getComputedStyle(b);
     return `${(b.getAttribute("aria-label") ?? "").slice(0, 6)}${b.classList.contains("is-on") || b.classList.contains("scr-motion-castbtn-on") ? "*" : ""} ${r.width.toFixed(1)}×${r.height.toFixed(1)} bs=${cs.boxSizing} b=${cs.borderTopWidth}`; }));
   console.log(`[단추] ${btns9.join(" · ")}`);
+  /* 지금 중계 자막(.scr-cast-caption — 옛 .scr-tb-who 는 걷혔다) · 화면 주인 이름표가 서 있나(사건 중계면 없어야 · 2026-10-14). */
+  const capNew9 = await page.evaluate(() => ({ cap: document.querySelector(".scr-cast-caption")?.textContent ?? null, owner: window.__scrDiag?.castRaw ?? null }));
+  console.log(`[중계 자막] ${capNew9.cap === null ? "없음" : `"${capNew9.cap}"`} · 화면 주인 ${capNew9.owner ?? "없음"}`);
   const colsNow9 = await page.evaluate(() => { const el = document.querySelector(".scr-tb-who"); if (!el) return null;
     return { w: +el.getBoundingClientRect().width.toFixed(1), cells: [...el.querySelectorAll(".scr-tb-who-st > span")].map((c) => +c.getBoundingClientRect().width.toFixed(1)) }; });
   console.log(`[중계] 단추 ${on9?.btn ? "있음" : "없음"} · 켜짐 ${on9?.on ? "예" : "아니오"} · 상시 자막 ${capNow9 === null ? "없음" : `"${capNow9}"`} · 갈아탐 ${Math.max(0, seen9.length - 1)}번`

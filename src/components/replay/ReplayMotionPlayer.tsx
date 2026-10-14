@@ -10478,7 +10478,7 @@ export default function ReplayMotionPlayer({
     () => (planWant9 && entData
       ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
         resources: grid.resources,   // 자원 점 — 앞마당·멀티 가름(cast9 ★★ 자원 무더기 · 2026-10-10)
-        mapW: grid.width, mapH: grid.height, terrain: castTerrain9,   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
+        mapW: grid.width, mapH: grid.height, terrain: castTerrain9, event: true,   // 사건 중계(2026-10-14 · cast9 opts.event) — 개인 화면 없음   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
         bank: truth?.res,   // 인구 막힘은 돈이 있을 때만(2026-10-11)
         moves: castMovesV9 })   // 리콜·나이더스 도착 — 교전 자리 길이 들른다(2026-10-12)
@@ -10943,13 +10943,11 @@ export default function ReplayMotionPlayer({
    *  카메라가 그 무리를 따라 흐른다. 다 죽었으면 그 앞 자국으로 몇 걸음 물러난다:
    *  방금 집은 것이 방금 죽는 일(교전)이 잦은데, 그때마다 화면이 멎으면 안 된다. */
   const trackAt = ((): { x: number; y: number; pts: { x: number; y: number }[]; sel: string; mode?: PickMode9; sec: number } | null => {
-    if (!camRaw9 && spotNow9 && spotNow9.length > 0) {   // 교전 자리(위 spotNow9) — 그 길의 지금 자리 하나
-      const q9 = spotAt9(spotNow9, t);
-      return { x: q9.x, y: q9.y, pts: [q9], sel: `spot${castIdx9}`, sec: castSeg9?.at ?? t };
-    }
     /* ★ **따라갈 몸**(cast9 CastSeg9.follow ★ · 2026-10-13, 요청: "폭탄드랍 … 드랍하러 이동하는 수송선들 … 드랍한 후 유닛들 활약도(화면도 따라가고)") — 자동 중계의 그 사람
        토막이 그 구간이면 선택 자국 대신 그 태그들(산 것)의 지금 자리 평균이다(수송선 → 내린 유닛). 다 죽었으면 종전대로 선택 자국. 손으로 고른 개인 추적(trackRaw)은 안 탄다. */
-    const fol9 = camRaw9 && trackRaw === null && castSeg9?.raw === camRaw9 && !castSeg9.spot ? castSeg9.follow?.find((f9) => t >= f9.t0 && t < f9.t1) : undefined;
+    /* 사건 중계(spot 토막 · cast9 opts.event)에서도 따라갈 몸이 길보다 먼저다 — 그 구간엔 수송선 → 내린 유닛을 본다(2026-10-14). */
+    const fol9 = trackRaw === null && castOn && !splitUser9 && castSeg9 && (castSeg9.spot ? !camRaw9 : castSeg9.raw === camRaw9)
+      ? castSeg9.follow?.find((f9) => t >= f9.t0 && t < f9.t1) : undefined;
     if (fol9) {
       let sx9 = 0; let sy9 = 0; let n9 = 0;
       const pts9: { x: number; y: number }[] = [];
@@ -10960,6 +10958,10 @@ export default function ReplayMotionPlayer({
         pts9.push(p9);
       }
       if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: `follow${fol9.t0}`, sec: fol9.t0 };
+    }
+    if (!camRaw9 && spotNow9 && spotNow9.length > 0) {   // 교전 자리(위 spotNow9) — 그 길의 지금 자리 하나
+      const q9 = spotAt9(spotNow9, t);
+      return { x: q9.x, y: q9.y, pts: [q9], sel: `spot${castIdx9}`, sec: castSeg9?.at ?? t };
     }
     if (!camRaw9 || trackPicks.length === 0) return null;
     const { at: at9 } = pickIdx9(trackPicks, t);

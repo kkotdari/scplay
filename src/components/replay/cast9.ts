@@ -106,6 +106,10 @@ export type CastPlanOpts9 = {
   bank?: ReadonlyMap<number, readonly (readonly [number, number, number])[]>;
   /** 리콜·나이더스로 옮겨진 무리의 도착(아래 castMoves9 · 2026-10-12) — 교전 자리 길이 그 도착 자리에 잠깐 들른다. 없으면 스캔만 들른다. */
   moves?: readonly CastMove9[];
+  /** ★ **사건 중계**(2026-10-14, 요청: "자동 중계 중계 방식 사건 중계로 변경(개인 화면 x)") — 켜면 모든 토막이 사건 자리 길(spot)을 갖는다: 장면은 늘 그 장면의
+   *  사건 무리를 따라가고(spotPath9 — 주인공이 애매할 때만이던 것), 순환·채팅 토막은 그 사람이 그 창에서 착공한 건물 자리(없으면 본진 건물·시작 자리)에 선다.
+   *  재생기는 spot 토막을 누구의 화면도 아닌 채(시야 모두 · 화면 주인 줄 없음) 그린다. 끄면 옛 사람 화면 편성(cast-plan 의 옛 자들). */
+  event?: boolean;
 };
 
 /** ★ 옮겨진 무리의 도착(2026-10-12, 요청: "위치 중계 시 리콜이나 커널 사용 시 이동한 곳으로 살짝 미리 가서 이동하는 모습 보여 주면 좋을 듯") — at 첫 도착(초) · to 마지막 도착
@@ -2819,7 +2823,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        화면이 아니라 싸움터를 따라간다. 뚝배기는 깬 쪽의 화면 그대로. */
     const crowd9 = rank9.filter(([, w9]) => w9 >= rank9[0][1] * SPOT_PART9).length >= 3;   // 셋 이상이 싸움(위 SPOT_PART9 ★)
     const tieSpot9 = rank9.length > 1 && (crowd9 ? rank9[0][1] < rank9[1][1] * SPOT_STAND9 : rank9[1][1] >= rank9[0][1] * SPOT_TIE9);
-    const spot9 = !must9 && tieSpot9 && !(drop9 && pick9 === drop9.raw) ? spotPath9(sc9, at9) : undefined;
+    const spot9 = opts.event ? spotPath9(sc9, at9)   // 사건 중계는 늘 사건 자리(위 opts.event ★)
+      : !must9 && tieSpot9 && !(drop9 && pick9 === drop9.raw) ? spotPath9(sc9, at9) : undefined;
     if (must9 || pick9 === cur9raw || !held9 || heavy9 || (busy9 && at9 - lastSwitch9() >= MIN_SHOW9)) {
       trimFrom9(at9, pick9, !!spot9);
       emitScene9(at9, sc9, pick9, tot9, -Infinity, spot9);
@@ -2831,7 +2836,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const g9 = out9[i9];
           const nx9 = out9[i9 + 1]?.at ?? Infinity;
           if (nx9 <= f09) break;
-          if (g9.raw === pick9 && !g9.spot && g9.at < f19) g9.follow = drop9.follow;
+          if (g9.raw === pick9 && (opts.event || !g9.spot) && g9.at < f19) g9.follow = drop9.follow;   // 사건 중계는 spot 토막에도(재생기가 따라갈 몸을 길보다 먼저 본다)
         }
       }
     }   // 최소 시간에 걸린 딴 전투는 안 보여 준다(위 trimFrom9 ★)
@@ -2910,6 +2915,25 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     } catch { /* 한 장면의 자막 실패는 검색에서만 빠진다 */ }
   }
   for (const raw9 of new Set(rawOf9.values())) for (const m9 of buildMiles9(raw9)) search9.push({ at: m9.at, caps: m9.caps, raw: raw9 });
+  /* ★ 사건 중계의 **나머지 토막 자리**(위 opts.event ★) — 순환·채팅 등 사건 길이 없는 토막은 그 사람이 그 창(앞 20초 ~ 다음 토막)에서 착공한 건물 중 가장 늦은 것의 자리,
+     없으면 그때 살아 있는 본진 건물(첫째) · 시작 자리. 한 점 길이라 재생기는 그 자리에 선다. */
+  if (opts.event) {
+    for (let i9 = 0; i9 < out9.length; i9 += 1) {
+      const sg9 = out9[i9];
+      if (sg9.spot && sg9.spot.length > 0) continue;
+      const t19 = i9 + 1 < out9.length ? out9[i9 + 1].at : total;
+      const own9 = ownersOf9(sg9.raw);
+      let best9: { x: number; y: number; born: number } | null = null;
+      for (const e9 of world.lives) {
+        if (!e9.bld || !own9.has(e9.owner) || e9.born < sg9.at - 20 || e9.born > t19) continue;
+        if (!best9 || e9.born > best9.born) best9 = { x: e9.bornX, y: e9.bornY, born: e9.born };
+      }
+      const hall9 = hallsAt9(sg9.raw, sg9.at)[0];
+      const st9 = start9.get(sg9.raw);
+      const p9 = best9 ? [best9.x, best9.y] : hall9 ?? (st9 ? [st9.x, st9.y] : null);
+      if (p9) sg9.spot = [[sg9.at, p9[0], p9[1]]];
+    }
+  }
   const plan9 = out9 as CastPlan9;
   plan9.search = search9;
   return plan9;

@@ -117,7 +117,7 @@ export default function ReplayGuide({ onClose }: {
         <ul className="scr-guide-legend">
           <li><span className="scr-guide-colsw scr-guide-colsw-s is-personal" aria-hidden="true"/><span><b>개인색</b>(기본) — 그 경기에서 각자가 쓰던 색입니다. 기본이라 색 버튼은 <b>꺼진 꼴</b>(바탕 없음)입니다.</span></li>
           <li><span className="scr-guide-colsw scr-guide-colsw-s is-team" aria-hidden="true"/><span><b>팀색</b> — 편을 빨강·파랑 둘로 가릅니다.</span></li>
-          <li><span className="scr-guide-colsw scr-guide-colsw-s is-hero" aria-hidden="true"/><span><b>주인공색</b> — 원작의 그 모드처럼 <b>나</b>는 청록, <b>우리 편</b>은 노랑, <b>상대</b>는 빨강입니다. ‘나’는 지금 <b>화면 주인</b>이라, 자동 중계가 사람을 바꾸면 색도 그 사람 기준으로 바뀝니다.</span></li>
+          <li><span className="scr-guide-colsw scr-guide-colsw-s is-hero" aria-hidden="true"/><span><b>주인공색</b> — 원작의 그 모드처럼 <b>나</b>는 청록, <b>우리 편</b>은 노랑, <b>상대</b>는 빨강입니다. ‘나’는 지금 <b>화면 주인</b>(플레이어 화면을 고른 사람)입니다 — 자동중계는 누구의 화면도 아니라 색만 개인색으로 그립니다.</span></li>
         </ul>
 
         <h3 className="scr-guide-h3">지도 움직이기 · 확대</h3>
@@ -158,9 +158,9 @@ export default function ReplayGuide({ onClose }: {
           <ul className="scr-guide-legend">
             <li>
               <span className="scr-guide-ic"><Video size={14}/></span>
-              <span><b>자동중계</b> — 지금 가장 볼 만한 사람에게 저절로 갑니다. 큰 교전·기지 공격·견제·드랍·마법이 벌어지는 쪽을 장면이
-              시작되기 <b>조금 전에</b> 미리 잡아 두고, 장면이 이어지는 동안은 그 사람에 머뭅니다. 작은 일(몇 기 싸움·일꾼 하나)은 건너뜁니다.
-              볼 만한 일이 없으면 <b>전광판 차례로 팀을 번갈아</b> 6초씩 돌아가고, 그 칸에 <b>인구가 막힌</b> 사람이 있으면 그 사람을 먼저 보여 줍니다.
+              <span><b>자동중계</b> — 누구의 화면이 아니라 <b>사건이 벌어지는 자리</b>를 보여 줍니다(시야는 모두의 것). 큰 교전·기지 공격·견제·드랍·마법이 벌어지는 곳을 장면이
+              시작되기 <b>조금 전에</b> 미리 잡아 두고, 장면이 이어지는 동안은 싸움터를 따라갑니다(드랍은 수송선 → 내린 유닛). 작은 일(몇 기 싸움·일꾼 하나)은 건너뜁니다.
+              볼 만한 일이 없으면 <b>전광판 차례로 팀을 번갈아</b> 6초씩 그 사람이 방금 지은 건물 자리(없으면 본진)를 보여 주고, 그 칸에 <b>인구가 막힌</b> 사람이 있으면 그 사람을 먼저 보여 줍니다.
               켜진 자동중계를 다시 누르면 꺼지고, 보던 자리에서 지도를 손으로 움직입니다(시야도 전체로).</span>
             </li>
             <li>

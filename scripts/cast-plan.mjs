@@ -202,6 +202,23 @@ for (const [name, pass] of [
     && d4.follow[0].t0 === 841 && d4.follow[0].t1 === 847 && [...d4.follow[0].tags].sort().join() === [...dw9.dropTags.ships].sort().join()
     && d4.follow[1].t0 === 847 && d4.follow[1].t1 > 852 && [...d4.follow[1].tags].sort().join() === [...dw9.dropTags.riders].sort().join()],
 ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+/* ⑨d 사건 중계(2026-10-14, 요청: "자동 중계 중계 방식 사건 중계로 변경(개인 화면 x)") — opts.event 면 모든 토막이 자리 길(spot)을 갖는다:
+   ① 장면(① 앞마당 300초 · ② 가운데 500초 · ③ 리버 견제 700초)은 그 사건 자리 · ④ 폭탄드랍은 몸 따라가기(follow)가 spot 토막에도 실린다 · 순환도 한 점 자리. */
+{
+  const ep9 = castPlan9(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 }, event: true });
+  const at9 = (t) => ep9.filter((s) => s.at <= t).pop();
+  const near9 = (seg, t, x, y, r) => { if (!seg?.spot) return false; const p = seg.spot.filter((q) => q[0] <= t).pop() ?? seg.spot[0]; return Math.hypot(p[1] - x, p[2] - y) <= r; };
+  const d4e = ep9.find((s) => s.at > 830 && s.at < 860);
+  console.log(`사건 중계: 토막 ${ep9.length} · spot 없는 토막 ${ep9.filter((s) => !s.spot || s.spot.length === 0).length} · 순환 ${ep9.filter((s) => s.cyc).length}`);
+  for (const [name, pass] of [
+    ["모든 토막이 자리 길을 갖는다(개인 화면 없음)", ep9.length > 0 && ep9.every((s) => s.spot && s.spot.length > 0)],
+    ["앞마당 싸움(300초)은 그 싸움 자리(62,52) 곁", near9(at9(301), 301, 62, 52, 6)],
+    ["가운데 교전(500초)은 (55,78) 곁", near9(at9(500.5), 500.5, 55, 78, 6)],
+    ["리버 견제(704초)는 P 일꾼 자리(12,12) 곁", near9(at9(704), 704, 12, 12, 6)],
+    ["폭탄드랍 토막에 몸 따라가기(수송선 → 질럿)가 실린다", !!d4e?.follow && d4e.follow.length === 2],
+    ["순환 토막도 자리가 있다", ep9.filter((s) => s.cyc).every((s) => s.spot && s.spot.length > 0)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 /* ⑨c 일꾼 견제는 자원 곁에서 잡힌 일꾼만(2026-10-13, 요청: "일꾼 견제를 자원 주변의 일꾼 죽인 거만 해당되게") — ③ 리버가 (12,12)에서 프로브 셋을 잡는다.
    자원이 바로 곁(미네랄 줄 y 10)이면 견제 · 같은 기지 안이어도 자원이 멀면(미네랄 줄 y 24 · 12타일) 견제가 아니다. */
 {
