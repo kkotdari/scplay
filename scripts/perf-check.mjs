@@ -1405,7 +1405,7 @@ if (has("--fogprobe")) {
           sx.clearRect(0, 0, 32, 32); sx.drawImage(cv, 0, 0, 32, 32);
           const d = sx.getImageData(0, 0, 32, 32).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; a = s / (d.length / 4) / 255;
         }
-        out.push({ ms: Math.round(performance.now() - t0), a: +a.toFixed(3), cast: window.__scrDiag?.castRaw ?? null });
+        out.push({ ms: Math.round(performance.now() - t0), a: +a.toFixed(3), cast: window.__scrDiag?.castRaw ?? null, dt: window.__scrDiag?.drawT ?? null, tag: window.__scrDiag?.drawTag ?? null });
         if (performance.now() - t0 < ms9) requestAnimationFrame(step); else res();
       };
       requestAnimationFrame(step);
@@ -1420,6 +1420,12 @@ if (has("--fogprobe")) {
   }
   const big9 = log9.slice(1).map((c, i) => ({ ms: c.ms, d: +(c.a - log9[i].a).toFixed(3), cast: c.cast })).filter((x) => Math.abs(x.d) > 0.05);
   for (const x of sw9) { const ms = Number(x.split("ms")[0]); console.log(`[안개 곁] ${x} : ` + log9.filter((c) => c.ms >= ms - 600 && c.ms <= ms + 2500).map((c) => `${c.ms}:${c.a}`).join(" ")); }
+  /* 그린 시각의 되감김(2026-10-14, 지적: "자동 중계 사람 바뀔 때 장면 자체가 방금 위치를 짧게 다시 반복") — 이웃 rAF 사이에 그린 장의 시각이 20ms 넘게 뒤로 간 횟수·폭. */
+  const back9 = [];
+  for (let i = 1; i < log9.length; i += 1) { const p = log9[i - 1].dt; const c = log9[i].dt; if (p !== null && c !== null && c < p - 0.02) back9.push(`${log9[i].ms}ms −${((p - c) * 1000).toFixed(0)}ms [${log9[i - 1].tag} → ${log9[i].tag}]`); }
+  let same9 = 0; let n9 = 0;
+  for (let i = 1; i < log9.length; i += 1) { if (log9[i].dt === null || log9[i - 1].dt === null) continue; n9 += 1; if (log9[i].dt === log9[i - 1].dt) same9 += 1; }
+  console.log(`[되감김] ${back9.length}번 ${back9.slice(0, 12).join(" · ")} · 같은 장 연달아 ${same9}/${n9}`);
   const swap9 = await page.evaluate(() => window.__scrDiag?.branchSwap ?? 0);
   console.log(`[안개] 갈래 빈틈을 팀 장으로 메운 장 ${swap9}`);
   console.log(`[안개] 장 ${log9.length} · 한 장짜리 튐 ${blips9} · 갈아탐 ${sw9.join(" ")} · 큰 변화 ${big9.map((x) => `${x.ms}ms ${x.d > 0 ? "+" : ""}${x.d}`).join(" ")}`);

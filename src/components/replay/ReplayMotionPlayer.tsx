@@ -802,7 +802,9 @@ const TETHER_GL9 = new WeakSet<object>();
 /** 가스 건물 — 인포창이 그 간헐천 양을 한 줄 더 쓴다(2026-10-12). */
 const GAS_BLDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
 const pitchGroundK9 = (op: { pitch?: boolean }): number => (op.pitch ? pitchFlatNow / RING_TOP_K9 : 1);
-let ATK_FLASH9: Map<number | string, number> | null = null;   // 열쇠 = 표적 태그 · 자원은 pickKey("r…" · 2026-10-12 자원 우클릭)
+let ATK_FLASH9: Map<number | string, number> | null = null;
+/** 진단 — 붓이 장을 고른 갈래(pickWorkerFrame9 · best/old/next/none). */
+let PICK_WHY9 = "";   // 열쇠 = 표적 태그 · 자원은 pickKey("r…" · 2026-10-12 자원 우클릭)
 let ATK_T9 = 0;
 function tagOfOp9(op: UnitDrawOp): number | undefined {
   if (op.pickTag !== undefined) return op.pickTag;
@@ -9324,13 +9326,19 @@ export default function ReplayMotionPlayer({
            밀어냈지만 그 장에 실린 **안개 판**은 그대로 꽂혀, 새 갈래의 장이 시각으로 고른 판이 옛·새를 번갈았다.
            새 갈래의 첫 장이 온 뒤로는 그 시각 이후의 옛 갈래 장은 버리고 판도 안 꽂는다. */
         const fq9 = fogSeqRef9.current;
+        /* ★ **주인 시각 이하의 옛 갈래 장은 남긴다**(2026-10-14, 지적: "자동 중계 사람 바뀔 때 장면 자체가 방금 위치를 짧게 다시 반복") — 아래
+           시야 차례 걷어내기에는 이 가드가 있는데(그 ★) 안개 갈래 쪽엔 없었다. 중계가 다른 팀 사람으로 갈아타면 화면 주인 팀이 바뀌어 안개 갈래가
+           오르고, 새 갈래의 첫 장은 워커 시계(주인보다 조금 뒤)에서 시작한다 — 그 시각 이후의 옛 장을 다 지우면 붓이 이미 지나간 시각의 새 장으로
+           **되돌아가** 몇 프레임을 다시 그렸다. 이제 주인 시각까지의 옛 장(·안개 판·눈)은 두고 그 뒤만 걷는다 — 새 갈래 장이 주인 시각을 넘을 때까지
+           한두 프레임 옛 팀 안개가 남을 뿐 시계는 안 뒤로 간다. */
+        const tNowFog9 = cmdNowRef9.current.t;
         if (pf9.fseq > fq9.seen) {
           fq9.seen = pf9.fseq;
           fq9.firstT = pf9.t;
-          for (const [k9, f9] of frames9) if (f9.fseq < pf9.fseq && f9.t >= pf9.t - 1e-6) frames9.delete(k9);
-          const keepS9 = fogSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6));
+          for (const [k9, f9] of frames9) if (f9.fseq < pf9.fseq && f9.t >= pf9.t - 1e-6 && f9.t > tNowFog9) frames9.delete(k9);
+          const keepS9 = fogSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6 && sn9.t > tNowFog9));
           if (keepS9.length !== fogSnapsRef9.current.length) fogSnapsRef9.current = keepS9;
-          const keepE9 = eyeSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6));
+          const keepE9 = eyeSnapsRef9.current.filter((sn9) => !(sn9.fseq < pf9.fseq && sn9.t >= pf9.t - 1e-6 && sn9.t > tNowFog9));
           if (keepE9.length !== eyeSnapsRef9.current.length) eyeSnapsRef9.current = keepE9;
         } else if (pf9.fseq < fq9.seen && pf9.t >= fq9.firstT - 1e-6) {
           return;   // 새 갈래가 이미 시작된 시각의 옛 갈래 장 — 장도 판도 안 받는다
@@ -15254,7 +15262,24 @@ export default function ReplayMotionPlayer({
       && best && bestOld && bestOld.ox === best.ox && bestOld.oy === best.oy
       && tNow9 >= ld9 - 1e-6 && best.t < ld9 - 1e-6 && bestOld.t > best.t) best = bestOld;
     if (!best) best = bestOld;
-    if (best && tNow9 - best.t <= near9) return best;
+    /* ★★ **앞으로 가는 동안 그린 시각은 뒤로 안 간다**(2026-10-14, 지적: "자동 중계 사람 바뀔 때 장면 자체가 방금 위치를 짧게 다시 반복") — 위
+       이음쇠는 옛 세대 장이 **새 세대 장보다만** 늦으면 집었다 — 마지막으로 그린 시각(ld9)보다 이른 옛 장도 집혀 되감겼다(계측: 그린 56.197 →
+       옛 56.164). 새 세대 장도 워커 시계에서 시작해 ld9 보다 이르기 일쑤다(중계가 사람을 바꾸면 카메라·시야가 바뀌어 세대가 오른다). 이제
+       재생이 앞으로 가는 동안(손짓·뒤로 탐색 아님) ld9 보다 이른 장은 안 그린다 — ld9 이상의 장(세대 높은 것 먼저 · 같은 세대면 늦은 것)이
+       있으면 그것, 없으면 고르지 않아 붓이 마지막 장을 든 채 한 틱 기다린다(몇십 ms 멈춤은 안 보이고 되감김은 보인다). */
+    const fwd9 = cmdNowRef9.current.playing && !xfGestureRef.current && Number.isFinite(ld9) && tNow9 >= ld9 - Math.max(0.3, speed * 0.3);
+    if (fwd9 && best && best.t < ld9 - 1e-6) {
+      let alt9: PackedFrame9 | null = null;
+      const hi9 = Math.max(tNow9, ld9) + 1e-6;
+      for (const f9 of frames9.values()) {
+        if (f9.t < ld9 - 1e-6 || f9.t > hi9 || !pass9(f9)) continue;
+        if (!alt9 || f9.gen > alt9.gen || (f9.gen === alt9.gen && f9.t > alt9.t)) alt9 = f9;
+      }
+      if (alt9) { PICK_WHY9 = "fwd"; return alt9; }
+      PICK_WHY9 = "hold";
+      return null;
+    }
+    if (best && tNow9 - best.t <= near9) { PICK_WHY9 = best === bestOld ? "old" : "best"; return best; }
     /* 앞의 첫 장 — 여기도 **세대가 가장 높은 것 먼저**다(위 ★). 같은 세대 안에서 가장 이른 장. */
     let next: PackedFrame9 | null = null;
     let nextGen9 = -Infinity;
@@ -15263,7 +15288,8 @@ export default function ReplayMotionPlayer({
       if (f9.gen > nextGen9) { nextGen9 = f9.gen; next = f9; }
       else if (f9.gen === nextGen9 && (!next || f9.t < next.t)) next = f9;
     }
-    if (next && next.t - tNow9 <= near9) return next;
+    if (next && next.t - tNow9 <= near9) { PICK_WHY9 = "next"; return next; }
+    PICK_WHY9 = "none";
     return null;
   };
   /** 설계도 풀기 — 그릴 장만 푼다(한 번 푼 것은 붙여 둔다). 안개는 장에 실렸으면 그것, 아니면 그 시각 이하 가장
@@ -15684,6 +15710,7 @@ export default function ReplayMotionPlayer({
     if (wPacked9) {
       if (count9) {
         wStatRef.current.used += 1; lastDrawT9.current = wPacked9.t;
+        if (scrDiagOn()) { const d9 = SCR_DIAG as unknown as Record<string, unknown>; d9.drawT = wPacked9.t; d9.drawTag = `${PICK_WHY9} t${wPacked9.t.toFixed(3)} g${wPacked9.gen}f${wPacked9.fseq}s${wPacked9.seq} now${tNow9.toFixed(3)}`; }   // perf-check --fogprobe 가 그린 시각의 되감김을 센다(2026-10-14)
         orgNote9(wPacked9.ox, pitchGeomLiveRef9.current?.().ox ?? wPacked9.ox);
         ORG9.gen = wPacked9.gen;
         ORG9.seq = wPacked9.seq;
