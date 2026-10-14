@@ -320,6 +320,19 @@ function makeWorld() {
       tracks[tracks.length - 1].own = [[mcF, 0]];
     }
   }
+  /* 나감(--leave · 2026-10-14, 지적: "상대가 게임을 나간건데 엘리시킴으로 뜸") — 원작(OpenBW remove_player)은 나간 사람의 몸 **전부**를 그 프레임에
+     중립(11)으로 넘긴다(make_unit_neutral) — 죽지 않는다. 덤퍼는 그것을 임자 바뀜(판 8)으로 싣는다. 여기서는 --leave N 초에 Rex(owner 1)의 트랙
+     전부(아직 산 것)를 11 로 넘긴다. 보기: 지도에서 Rex 건물이 폭발 없이 남는지 · 중계 자막에 "엘리시킴"이 안 서는지. */
+  if (has("--leave")) {
+    const lvS9 = Number(flag("--leave", 40));
+    const lvF9 = F(lvS9);
+    for (const tr9 of tracks) {
+      if (tr9.owner !== 1 || tr9.own) continue;
+      const k0 = tr9.keys[0]; const kN = tr9.keys[tr9.keys.length - 1];
+      if (k0[0] >= lvF9 || kN[0] <= lvF9 || kN[4] === 3) continue;
+      tr9.own = [[lvF9, 11]];
+    }
+  }
   /* 처치(판 11) — 죽는 병력마다 적 편 병력 하나를 돌려 가며 킬러로 적는다(편 1: 정구·Rex · 편 2: 나머지). */
   {
     const force9 = (o) => (o <= 1 ? 1 : 2);
@@ -362,12 +375,17 @@ function makeWorld() {
     /* --dockship · --dockbunker 면 44초에 그 배 하나를 고른다(탄 몸 칸의 검산) · 아니면 병력 여덟(다중 격자). */
     /* 엔지니어링 베이 하나(--dockebay) — 보병 공격 1(20초) · 보병 방어 1(30초) 을 마치고 보병 공격 2 를 70초에 마친다
        (44초면 하는 중) · 아카데미의 스팀팩(테크 0x8000)도 25초에 마친다. 연구 상황판(칩)과 '연구 중 … 2단계' 바를 본다. */
+    /* 합체 중인 아콘(--dockarchon · 2026-10-14 · `--track 수달이` 와 함께) — 수달이 본진 곁에 38초에 아콘·다크 아콘이 나 50.6초까지 합체한다
+       (engine9 ARCHON_MERGE_SEC9). 44.5초에 아콘을 고르면 "합체 중" 바가 서고 몸은 고리·속 형체 없는 구다. */
+    const arcTag9 = tag;
+    track(2, 68, () => [98, 26, 0], { bornSec: 38 });
+    track(2, 63, () => [101, 26, 0], { bornSec: 38 });
     const ebTag = tag;
     track(0, 122, null, { buildingAt: [48, 36] });
     upRows.push([F(20), 7, 1, 0, ebTag], [F(25), 0x8000, 1, 0, 0], [F(30), 0, 1, 0, ebTag], [F(70), 7, 2, 0, ebTag]);
     sels.push([F(44), 0, has("--dockship") ? [dsTag] : has("--dockbunker") ? [bkTag] : has("--dockrax") ? [raxTag]
       : has("--dockebay") ? [ebTag] : army0.slice(0, 8)]);
-    sels.push([F(44.5), 2, has("--dockzealot") ? (armyTags.get(2) ?? []).slice(0, 1) : (armyTags.get(2) ?? []).slice(0, 3)]);   // --dockzealot — 수달이(프로토스)의 병력 하나(체력·실드 줄 검산 · --track 수달이)
+    sels.push([F(44.5), 2, has("--dockarchon") ? [arcTag9] : has("--dockzealot") ? (armyTags.get(2) ?? []).slice(0, 1) : (armyTags.get(2) ?? []).slice(0, 3)]);   // --dockzealot — 수달이(프로토스)의 병력 하나(체력·실드 줄 검산 · --track 수달이)
     /* 해처리류·알(--dockhatch · --dockegg · 2026-10-09 · `--track Rex` 와 함께) — Rex(저그 · owner 1)의 본진 해처리를 고르면 생산·대기 줄이
        **없어야** 하고, 알 하나(저글링 생산 시간만큼 살다 50초에 깨지고 그 자리에 저글링이 난다)를 고르면 "변태 중 저글링" 바가 서야 한다. */
     const eggTag = tag;

@@ -101,7 +101,9 @@ export type TruthLife = {
 /** 참값 한 판이 아는 사람·사건 — 화면이 자취 곁에서 읽는 것 전부. */
 export type TruthWorld = {
   players: { owner: number; name: string; race: "" | "테란" | "저그" | "프로토스";
-    color: string; team: number }[];
+    color: string; team: number;
+    /** 경기에서 나간 초(아래 truthWorld 의 ★ 나감) — 안 나갔으면 없다. */
+    left?: number }[];
   lives: TruthLife[];
   /** 연구가 실제로 올라간 [초, 이름, 임자]. */
   /** 연구가 올라간 [초, 이름, 임자, 건물태그(0 = 모름)] — 태그는 덤프 판 7부터. */
@@ -381,8 +383,40 @@ const SUICIDE_KINDS = new Set(["Scourge", "Spider Mine", "Infested Terran"]);
 let gameEnd9 = Infinity;
 export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWorld {
   gameEnd9 = truth.tracks.reduce((m9, tr9) => (tr9.kt.length ? Math.max(m9, tr9.kt[tr9.kt.length - 1]) : m9), 0);
+  /* ★ **나감은 손바뀜이 아니다**(2026-10-14, 지적: "상대가 게임을 나간건데 엘리시킴으로 뜸 … 이거 안터지게 못하는지") ─────────────────────
+     원작(OpenBW remove_player)은 나간 사람의 몸 **전부**를 그 프레임에 중립(11)으로 넘긴다(make_unit_neutral) — 아무것도 안 죽는다. 덤퍼는 그것을
+     임자 바뀜(판 8)으로 싣고, 아래 자르기는 그 순간 모든 생애를 'own' 으로 끝내 임자 없는(raw "") 새 생애로 이었다. 그래서 그 사람의 건물이 한꺼번에
+     지도에서 사라졌고(크립도) 중계는 '건물을 잃은 뒤 건물이 하나도 없다' = "엘리시킴"으로 읽었다.
+     한 임자의 몸 둘 이상이 **같은 프레임에** 중립(8 이상)으로 넘어가면 그것을 나감으로 보고 그 바뀜들을 지운다 — 몸은 나간 사람의 것으로 그대로
+     남아 서 있다(원작 화면도 그 자리에 남는다 · 터지지 않는다). 나간 초는 players[].left 에 싣는다(로스터·미니맵 이름표가 어두워진다).
+     애드온이 홀로 버려지는 것(building_abandon_addon · 한 몸)은 나감이 아니라 그대로 둔다. */
+  const leftAt9 = new Map<number, number>();
+  const leaveOwn9 = new Set<{ t: number; owner: number }>();
+  {
+    const grp9 = new Map<string, { t: number; owner: number; os: { t: number; owner: number }[] }>();
+    for (const tr of truth.tracks) {
+      let cur9 = tr.owner;
+      for (const o9 of tr.own ?? []) {
+        if (o9.owner >= 8 && cur9 < 8) {
+          const k9 = `${cur9}|${Math.round(o9.t * 100)}`;
+          const g9 = grp9.get(k9) ?? { t: o9.t, owner: cur9, os: [] };
+          g9.os.push(o9);
+          grp9.set(k9, g9);
+        }
+        cur9 = o9.owner;
+      }
+    }
+    for (const g9 of grp9.values()) {
+      if (g9.os.length < 2) continue;
+      for (const o9 of g9.os) leaveOwn9.add(o9);
+      if (!leftAt9.has(g9.owner) || g9.t < (leftAt9.get(g9.owner) ?? Infinity)) leftAt9.set(g9.owner, g9.t);
+    }
+  }
   const lives: TruthLife[] = [];
-  for (const tr of truth.tracks) lives.push(...livesOfTrack(tr, truth.orders, buildSecOf));
+  for (const tr of truth.tracks) {
+    const tr9 = leaveOwn9.size > 0 && tr.own?.some((o9) => leaveOwn9.has(o9)) ? { ...tr, own: tr.own.filter((o9) => !leaveOwn9.has(o9)) } : tr;
+    lives.push(...livesOfTrack(tr9, truth.orders, buildSecOf));
+  }
   /* ★ 드론 → 익스트랙터는 **변태**다(지적: "가끔 가스 지을 때 한 번 폭파되면서 짓기 시작하는 거 왜 그래?") ──
      원작은 저그 건물 가운데 익스트랙터 **하나만** 다르게 짓는다: 다른 건물은 드론 자신이 건물로 바뀌지만(같은
      개체·같은 자취 → 위 more/"morph"), 익스트랙터는 드론을 **없애고** 간헐천 개체를 건물로 바꾼다(익스트랙터
@@ -418,6 +452,7 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
       race: RACE_OF[pl.race] ?? "",
       color: pl.color,
       team: pl.force,
+      ...(leftAt9.has(pl.owner) ? { left: leftAt9.get(pl.owner) } : {}),
     })),
     lives,
     ups: truth.ups,

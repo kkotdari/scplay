@@ -446,7 +446,19 @@ export const sunkenCut9 = (ph: number): number =>
    판은 종류마다 세 벌이 더 구워질 뿐이고, 한 유닛이 찍는 판은 여전히 한 장이다. */
 export const POSE_ATK_L = 4;
 /** 자세 번호 — 0 기본 · 1/3 걸음(거울 한 쌍) · 2/4/5 공격 · 6~9 여섯 컷 걸음의 사잇컷(GAIT_CYCLE9). */
-export type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+/* ★ **합체 중인 아콘·다크 아콘**(2026-10-14, 요청: "아콘 다크아콘 합체 상태 필요 / 모양은 인간모양과 고리 없는 구체만 있는 상태 / 누르면
+   인포창엔 원작과 같은 상태표현") — 원작은 두 템플러가 만나는 순간 한 몸이 아콘으로 바뀌고(order_ArchonWarp) units.dat 빌드 시간
+   300프레임 동안 합체(CompletingArchonSummon)를 마친다. 그 동안은 자세 10 — 빌더가 고리(아콘 X 고리·다크 아콘 리본 호)를 뺀다.
+   창은 생애의 출생(= 바뀐 순간)에서 잰다 · 손바뀜(마인드 컨트롤)으로 시작한 생애는 합체가 아니다. 인포창 막대도 이 한 문을 쓴다. */
+export const POSE_MERGE9 = 10;
+export const ARCHON_MERGE_SEC9 = 300 / 23.81;
+/** 합체 몫(0~1) — 합체 중이 아니면 −1. kind 는 원작 이름(Archon·Dark Archon). */
+export const archonMergeK9 = (kind: string, born: number, t: number, handoff?: boolean): number => {
+  if (handoff || (kind !== "Archon" && kind !== "Dark Archon")) return -1;
+  const u9 = (t - born) / ARCHON_MERGE_SEC9;
+  return u9 >= 0 && u9 < 1 ? u9 : -1;
+};
 /* ★★ **여섯 컷 걸음**(2026-10, 요청: "골리앗, 테란 플토 보병들 이동자세 팔다리 움직임 더 자연스럽게 4-5컷으로 늘려야할듯. 앞다리 쭉
    뻗었다가 구부러지면서 앞으로 이동하자나 보통. 그다음 뒷다리가 쫙 펴지고 앞다리 살짝 구부러지면서") ────────────────────────────
    두 컷(1 ↔ 3)은 서로의 거울이라 '앞 · 뒤'만 있고 그 사이가 없다 — 걸음이 아니라 가위질로 읽혔다. `gait` 를 가진 종류는 한
@@ -471,6 +483,8 @@ export const POSE_ATK_R = 5;
 export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: number;
   /** 추진체 불꽃(요청: 비행체는 이동할 때만 불꽃) — 걸음 컷이 없는 비행체는 이동 중이면 자세 1을 고정으로 받는다. */
   thrust?: boolean;
+  /** 합체 컷(자세 10 · POSE_MERGE9) — 고리 없는 아콘. */
+  merge?: boolean;
   /** ★ **궤도 굴림**(2026-09, 요청: "이동 시 탱크 캐터필러 실제로 돌아가게 가능?") — 다리도
    *  추진체도 아닌 셋째 이동 그림이다. 걸음처럼 두 컷을 오가는 것으로는 **떨림**으로 읽히고
    *  방향이 안 읽히므로(두 컷은 서로의 거울이라 앞뒤가 없다) **세 컷**을 쓴다: 레일판을
@@ -518,7 +532,8 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   reaver: { move: true, gait: true },
   // 하템은 평소 팔을 내리고 공격에만 든다(요청). 아콘은 팔을 들어 번개를 놓는다(요청).
   htemp: { atk: true },
-  archon: { atk: true },
+  archon: { atk: true, merge: true },
+  darchon: { merge: true },   // 합체 컷(자세 10 · 위 POSE_MERGE9)만 — 다크 아콘은 공격 컷이 없다
   /* 나는 저그 둘 — 날개막이 늘 친다(요청). 뮤탈은 잰 날갯짓, 디바우러는 덩치가 커
      느릿하다. 공격 컷은 뮤탈이 글레이브를 던지고 디바우러가 산을 뱉는 그 반동이다. */
   // 걷는 것 넷을 더한다(요청) — 울트라·디파일러·골리앗·럴커.
@@ -3694,6 +3709,8 @@ export function deriveWorld9(inp: {
       raw: string; unit: string; born: number; died: number | null; tag: number;
       /** 끝난 갈래 — 'morph'는 사망 효과 없이 다음 생애로 이어진다. */
       end: string;
+      /** 손바뀜(마인드 컨트롤)으로 시작한 생애 — 합체 창(archonMergeK9)이 안 선다. */
+      handoff?: boolean;
       /** 건설에 흡수되는 시각(지적: 건설 일꾼 잔상) — 현장 도착부터 숨는다. */
       buildHideAt: number | null;
       /** 공사 중 숨김 구간들(재재지적: 도는 SCV와 원래 SCV 이중 표시) — 앵커마다
@@ -3944,7 +3961,7 @@ export function deriveWorld9(inp: {
       const buildHideAt: number | null = null;
       const buildHides: [number, number][] = [];
       out.push({
-        raw, unit: e.kind, born: e.born, died: e.died, end: e.end, tag: e.tag,
+        raw, unit: e.kind, born: e.born, died: e.died, end: e.end, tag: e.tag, ...(e.handoff ? { handoff: true } : {}),
         buildHideAt, buildHides, ups: pUps,
         // 건설 자리 — 참값에서는 **건물 생애**에만 달린다(일꾼에게는 안 달린다).
         buildSites: e.sites.map((v) => [v[0], v[1], v[2]] as [number, number, number]),
@@ -8998,6 +9015,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         /* 정착한 시즈는 다리가 **다 뻗은 컷**(5)이다 — 다리를 홑판으로 뗀 뒤(위 ★★) 그 몫을 자세가 든다.
            `tanksiegebody` 는 POSE_KINDS 에 없으므로 이 컷이 차체 그림·메시 열쇠를 안 건드린다. */
         if (kind0 === "tanksiege") return 5;
+        /* 합체 중인 아콘(위 POSE_MERGE9) — 간이 보기에서도 고리를 뺀다: 자세가 아니라 '아직 덜 된 몸'이라는 모양이다. */
+        if ((kindMain === "archon" || kindMain === "darchon") && !markerView && archonMergeK9(drawUnit, e.born, t, e.handoff) >= 0) return POSE_MERGE9;
         /* ★ 핵을 유도하는 고스트는 **총 겨눈 자세로 굳는다**(요청: "핵 조준중
            고스트 공격자세로 고정" · "고스트 자세 총 겨눈 상태로 고정") ─────────
            원작에서 핵 유도는 고스트가 표적을 조준한 채 꼼짝 않고 서 있는 일이다.

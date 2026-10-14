@@ -8,7 +8,7 @@ import { TIER_GEN9 } from "./tierTable.gen";
 import { kT } from "../../utils/openbwTracks";
 import {
   POLY2, MESH9, EMIT_FILL9, meshPut9, meshSphere9, shinePath3, annulusPath3, orbPath3, billPath3, billPoly3, meshLoft9, meshRing9, loftZFaces, modelPoint9, annulusPath, bandPath, bodyFace, shellFaces9, capFace, curvePath3, depthNow, fine, groundEllipse, LOD_FINE, LOD_TRIM, lodFilter, shape, sideFace, tagKey, topFace, trim, bake, boxSkip, type ShapeFace, boxFaces3, boxOctFaces3, cylinderFaces3, discPath3, halfSphereFaces3, plateFaces3, polyPath3, project, domeFaces3, faceLight, facingRatio, frustumFaces3, groundSquashNow, hornFaces, lightRatio, prismYFaces, prismZFaces, pyramidFaces3, screenCircle, sphereFaces3, tubeAxisLift, tubeFaces, wallDiscPath, withModelSpin, withModelPitch, withModelShift, withModelWarp, withModelWarpOut, withModelWarpTw, preTwistPoint9, withModelZOff, withModelScale, withPitchView, withTopView, withViewShear, withYaw, zsorted, setPitchSquash, yawBucket9, lightScreenDir } from "../../utils/shapeOblique";
-import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
+import { BUILD_STAGES, GAIT_CYCLE9, LINK_CY_9, LINK_CZ_9, LINK_X0_9, linkLenOf9, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, POSE_MERGE9, type Pose9, SPIN_ANIM9, SPIN_STEPS, bldNormOf, modelInkOf, modelNormOf } from "./engine9";
 import { type UnitDrawOp } from "./engine9";
 /** 주소 해시(`#pitch=`·`#nocreep` 같은 진단 스위치) — 굽기 일꾼 안에서는 location.hash가 빈 문자열(blob 주소)이라,
  *  메인이 일꾼을 만들 때 `name`에 해시를 실어 보내면(self.name) 그것을 먼저 본다. 메인·도구에서는 location.hash 그대로. */
@@ -718,6 +718,7 @@ export const poseTag = (kind: string): string => {
   if (gaitIdx9() >= 0 && !p9.move && !p9.flap && !p9.thrust) return "0";   // thrust(추진체 불꽃)도 제 열쇠를 가진다
   // 공격 컷 셋(2·4·5)은 전부 atk를 가진 종류만 갈린다.
   if ((poseNow === 2 || poseNow === POSE_ATK_L || poseNow === POSE_ATK_R) && !p9.atk) return "0";
+  if (poseNow === POSE_MERGE9 && !p9.merge) return "0";   // 합체 컷(engine9 POSE_MERGE9)은 아콘 둘만
   return String(poseNow);
 };
 /** 걸음 한 바퀴의 몇째 컷인가(engine9 GAIT_CYCLE9) — 1·3 은 0·3 이고 사잇컷 6~9 가 나머지다. 걸음이 아니면 −1. */
@@ -26228,8 +26229,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        ±45도로 눕힌다. 이 사영은 z를 화면 위로 옮기므로 두 고리가 화면에서 서로
        +45·−45도로 기운 타원이 되어 정확히 X자로 겹친다. */
     const S9 = Math.SQRT1_2;
-    ring9([S9, 0, S9], [0, 1, 0], 0.17);
-    ring9([S9, 0, -S9], [0, 1, 0], 0.17);
+    /* 합체 중(자세 10 · engine9 POSE_MERGE9)에는 고리가 없다 — 인간형과 구만(요청). */
+    if (poseNow !== POSE_MERGE9) {
+      ring9([S9, 0, S9], [0, 1, 0], 0.17);
+      ring9([S9, 0, -S9], [0, 1, 0], 0.17);
+    }
 
     /* ① 구 — 뒤쪽 판을 먼저 깔고(키 0) 속 형체를 그 위에 올린 뒤(0.5), 앞쪽 옅은
        워시로 다시 덮는다(1.0). 앞 워시가 반투명이라 형체가 그 너머로 비치면서도
@@ -26257,78 +26261,82 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [billPath3(0, 0, ORB_Z, R * 0.66), 0.82, "#f4f8ff"] as ShapeFace,
     ], 0));
 
-    /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
-    /* 머리 — 가슴에서 뒤·위로 뻗는 두건. **한 뼘 줄이고 앞으로**(지시: "머리 크기 축소
-       및 머리 앞으로 좀 이동") — 길이 2.9 → 2.45, 폭 0.46 → 0.38, 뿌리 y 0.45 → 0.8.
-       솟는 몫도 같은 비로 줄여 두건의 기울기는 그대로다. */
-    out.push(...tagKey(inky(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 6, oval: 1.9, caps: "none",
-      ref: [0, 0, 1],
-      path: (t9: number): [number, number, number] =>
-        [0, 1.5 - 2.45 * t9, ORB_Z + 0.84 + 1.248 * t9 - 0.24 * t9 * t9],   // 뿌리 y 0.8 → 1.5(재요청: 충분히 앞으로)
-      widthOf: (t9: number): number => 0.38 * Math.sin(Math.PI * (0.08 + 0.76 * t9)) + 0.03,
-    }), FLESH_L9)), 0.56));
-    // 몸통 — 가슴에서 아래로 흐르며 가늘어진다.
-    out.push(...tagKey(inky(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 6, oval: 1.5, caps: "none",
-      path: (t9: number): [number, number, number] =>
-        [0, 0.35 + 0.25 * t9, ORB_Z + 1 - 3.36 * t9],
-      widthOf: (t9: number): number => 0.72 * Math.max(0.06, (1 - t9) ** 1.2) + 0.06,
-    }), FLESH9)), 0.5));
-    /* 팔 한 쌍 — 어깨에서 밖·아래로 크게 굽는다. 사진의 팔은 곧은 막대가 아니라
-       활처럼 휘어 팔꿈치가 바깥으로 나가므로, 등뼈를 2차 베지에로 그린다. */
-    for (const m9 of [-1, 1] as const) {
-      /* 공격 컷(요청: "아콘도") — 아콘은 팔을 들어 손끝에서 번개를 놓는다. 평소엔
-         밖·아래로 늘어진 팔이 끝점 하나로 들려 앞·위를 겨눈다. */
-      const atA9 = poseNow === 2 ? 1 : 0;
-      /* ★ 공격에는 **두 팔을 앞으로 내뻗는다 — 장풍 쏘듯이**(2026-09, 요청: "아콘 공격 시 팔을 앞쪽으로
-         내뻗기 장풍 쏘듯이") — 앞선 '머리 위로 든다'를 되물렸다. 평소엔 밖·아래로 늘어진 팔이 가슴 높이에서
-         앞으로 곧게 나가고 두 손이 몸 앞 한가운데로 모인다(x 2.15 → 0.7). 굽는 몫(제어점)도 앞으로 보내
-         팔꿈치가 옆으로 벌어지지 않는다. */
-      const A9 = (t9: number): [number, number, number] => {
-        const u9 = 1 - t9;
-        const bz9 = (p0: number, c1: number, p2: number): number =>
-          u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
-        return [
-          m9 * bz9(0.5, 2.6 - atA9 * 1.3, 2.15 - atA9 * 1.45),
-          bz9(0.3, 0.2 + atA9 * 1.3, 0.45 + atA9 * 2.75),
-          bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 1.0, ORB_Z - 2.08 + atA9 * 2.55),
-        ];
-      };
-      const [ax9, ay9] = A9(0.5);
-      const ka9 = depthNow(ax9, ay9) * 1.6 + 0.6;
+    /* 합체 중(자세 10 · engine9 POSE_MERGE9)에는 속 형체도 없다 — 구만(재요청: "안에 인간형도 안보여야").
+       형체가 빠지면 구 밖은 같으므로 잉크·정규화는 안 흔들린다. */
+    if (poseNow !== POSE_MERGE9) {
+      /* ② 속 형체 ─────────────────────────────────────────────────────────────── */
+      /* 머리 — 가슴에서 뒤·위로 뻗는 두건. **한 뼘 줄이고 앞으로**(지시: "머리 크기 축소
+         및 머리 앞으로 좀 이동") — 길이 2.9 → 2.45, 폭 0.46 → 0.38, 뿌리 y 0.45 → 0.8.
+         솟는 몫도 같은 비로 줄여 두건의 기울기는 그대로다. */
       out.push(...tagKey(inky(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 1.3, caps: "none",
-        path: A9,
-        widthOf: (t9: number): number => 0.36 - 0.19 * t9,
-      }), FLESH9)), ka9));
-      /* 세 갈래 갈퀴 — 손목에서 아래·**바깥**으로 말린다.
-         ★ 안팎이 뒤집혀 있었다(지적: "아콘 손가락 방향이 안팎이 180도 뒤집혀 있음") —
-           끝점의 x 를 `wx9 − m9·0.35` 로, 굽는 쪽을 `−m9` 로 주고 있었다. 둘 다 **몸 쪽**
-           이라 손가락이 제 팔뚝 안으로 말려 들어갔다. 밖으로 벌어져야 손이다. */
-      const [wx9, wy9, wz9] = A9(1);
-      for (const k9 of [0, 1, 2] as const) {
-        const sp9 = (k9 - 1) * 0.36;
-        /* 공격 컷에서는 갈퀴도 **앞으로** 편다(장풍) — 늘어진 팔의 갈퀴는 아래·밖으로 말리지만, 내뻗은 손의
-           갈퀴는 손목에서 앞으로 벌어져 나간다. 뿌리는 손목 옆으로 늘어선 그대로다. */
-        const tip9: [number, number, number] = atA9
-          ? [wx9 + m9 * 0.12 + sp9 * m9 * 0.25, wy9 + 1.05, wz9 - 0.16]
-          : [wx9 + m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2];
-        out.push(...tagKey(inky(paintBase(spikeHorn(
-          wx9, wy9 + sp9 * (atA9 ? 0.6 : 1), wz9, tip9[0], tip9[1], tip9[2], 0.17,
-          FLESH9, 5, 0.42, atA9 ? m9 * 0.15 : m9 * 0.5, atA9 ? 0.6 : -0.4,
-        ), FLESH9)), ka9 + 0.1 + k9 * 0.01));
+        x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 6, oval: 1.9, caps: "none",
+        ref: [0, 0, 1],
+        path: (t9: number): [number, number, number] =>
+          [0, 1.5 - 2.45 * t9, ORB_Z + 0.84 + 1.248 * t9 - 0.24 * t9 * t9],   // 뿌리 y 0.8 → 1.5(재요청: 충분히 앞으로)
+        widthOf: (t9: number): number => 0.38 * Math.sin(Math.PI * (0.08 + 0.76 * t9)) + 0.03,
+      }), FLESH_L9)), 0.56));
+      // 몸통 — 가슴에서 아래로 흐르며 가늘어진다.
+      out.push(...tagKey(inky(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 7, sides: 6, oval: 1.5, caps: "none",
+        path: (t9: number): [number, number, number] =>
+          [0, 0.35 + 0.25 * t9, ORB_Z + 1 - 3.36 * t9],
+        widthOf: (t9: number): number => 0.72 * Math.max(0.06, (1 - t9) ** 1.2) + 0.06,
+      }), FLESH9)), 0.5));
+      /* 팔 한 쌍 — 어깨에서 밖·아래로 크게 굽는다. 사진의 팔은 곧은 막대가 아니라
+         활처럼 휘어 팔꿈치가 바깥으로 나가므로, 등뼈를 2차 베지에로 그린다. */
+      for (const m9 of [-1, 1] as const) {
+        /* 공격 컷(요청: "아콘도") — 아콘은 팔을 들어 손끝에서 번개를 놓는다. 평소엔
+           밖·아래로 늘어진 팔이 끝점 하나로 들려 앞·위를 겨눈다. */
+        const atA9 = poseNow === 2 ? 1 : 0;
+        /* ★ 공격에는 **두 팔을 앞으로 내뻗는다 — 장풍 쏘듯이**(2026-09, 요청: "아콘 공격 시 팔을 앞쪽으로
+           내뻗기 장풍 쏘듯이") — 앞선 '머리 위로 든다'를 되물렸다. 평소엔 밖·아래로 늘어진 팔이 가슴 높이에서
+           앞으로 곧게 나가고 두 손이 몸 앞 한가운데로 모인다(x 2.15 → 0.7). 굽는 몫(제어점)도 앞으로 보내
+           팔꿈치가 옆으로 벌어지지 않는다. */
+        const A9 = (t9: number): [number, number, number] => {
+          const u9 = 1 - t9;
+          const bz9 = (p0: number, c1: number, p2: number): number =>
+            u9 * u9 * p0 + 2 * u9 * t9 * c1 + t9 * t9 * p2;
+          return [
+            m9 * bz9(0.5, 2.6 - atA9 * 1.3, 2.15 - atA9 * 1.45),
+            bz9(0.3, 0.2 + atA9 * 1.3, 0.45 + atA9 * 2.75),
+            bz9(ORB_Z + 0.64, ORB_Z - 0.4 + atA9 * 1.0, ORB_Z - 2.08 + atA9 * 2.55),
+          ];
+        };
+        const [ax9, ay9] = A9(0.5);
+        const ka9 = depthNow(ax9, ay9) * 1.6 + 0.6;
+        out.push(...tagKey(inky(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 1.3, caps: "none",
+          path: A9,
+          widthOf: (t9: number): number => 0.36 - 0.19 * t9,
+        }), FLESH9)), ka9));
+        /* 세 갈래 갈퀴 — 손목에서 아래·**바깥**으로 말린다.
+           ★ 안팎이 뒤집혀 있었다(지적: "아콘 손가락 방향이 안팎이 180도 뒤집혀 있음") —
+             끝점의 x 를 `wx9 − m9·0.35` 로, 굽는 쪽을 `−m9` 로 주고 있었다. 둘 다 **몸 쪽**
+             이라 손가락이 제 팔뚝 안으로 말려 들어갔다. 밖으로 벌어져야 손이다. */
+        const [wx9, wy9, wz9] = A9(1);
+        for (const k9 of [0, 1, 2] as const) {
+          const sp9 = (k9 - 1) * 0.36;
+          /* 공격 컷에서는 갈퀴도 **앞으로** 편다(장풍) — 늘어진 팔의 갈퀴는 아래·밖으로 말리지만, 내뻗은 손의
+             갈퀴는 손목에서 앞으로 벌어져 나간다. 뿌리는 손목 옆으로 늘어선 그대로다. */
+          const tip9: [number, number, number] = atA9
+            ? [wx9 + m9 * 0.12 + sp9 * m9 * 0.25, wy9 + 1.05, wz9 - 0.16]
+            : [wx9 + m9 * 0.35, wy9 + sp9 * 1.7, wz9 - 1.2];
+          out.push(...tagKey(inky(paintBase(spikeHorn(
+            wx9, wy9 + sp9 * (atA9 ? 0.6 : 1), wz9, tip9[0], tip9[1], tip9[2], 0.17,
+            FLESH9, 5, 0.42, atA9 ? m9 * 0.15 : m9 * 0.5, atA9 ? 0.6 : -0.4,
+          ), FLESH9)), ka9 + 0.1 + k9 * 0.01));
+        }
       }
-    }
-    // 몸 아래 갈퀴 — 사진의 발. 셋이 아래로 벌어진다.
-    for (const k9 of [0, 1, 2] as const) {
-      const a9 = (k9 * 2 * Math.PI) / 3 + Math.PI / 2;
-      const dx9 = Math.cos(a9) * 0.5;
-      const dy9 = Math.sin(a9) * 0.5;
-      out.push(...tagKey(inky(paintBase(spikeHorn(
-        dx9 * 0.5, 0.6 + dy9 * 0.5, ORB_Z - 2.36, dx9, 0.6 + dy9, ORB_Z - 3.32, 0.16,
-        FLESH9, 5, 0.3, dx9, dy9,
-      ), FLESH9)), 0.52 + k9 * 0.01));
+      // 몸 아래 갈퀴 — 사진의 발. 셋이 아래로 벌어진다.
+      for (const k9 of [0, 1, 2] as const) {
+        const a9 = (k9 * 2 * Math.PI) / 3 + Math.PI / 2;
+        const dx9 = Math.cos(a9) * 0.5;
+        const dy9 = Math.sin(a9) * 0.5;
+        out.push(...tagKey(inky(paintBase(spikeHorn(
+          dx9 * 0.5, 0.6 + dy9 * 0.5, ORB_Z - 2.36, dx9, 0.6 + dy9, ORB_Z - 3.32, 0.16,
+          FLESH9, 5, 0.3, dx9, dy9,
+        ), FLESH9)), 0.52 + k9 * 0.01));
+      }
     }
     // 앞 워시 — 형체 위를 덮어 '구 속에 잠긴' 것으로 만든다. 아주 옅게.
     out.push(...tagKey([
@@ -26395,9 +26403,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }), depthNow(mx9, my9) * 1.6));
       }
     };
-    ribbon([1, 0, 0], [0, 0.42, 0.736], -0.5, 3.5, 0.15);
-    ribbon([0.62, 0.78, 0], [-0.35, 0.28, 0.72], 1.1, 4.9, 0.12);
-    ribbon([0.2, -0.98, 0], [0.55, 0.11, 0.664], 2.4, 6.1, 0.11);
+    /* 합체 중(자세 10 · engine9 POSE_MERGE9)에는 리본이 없다 — 갑주와 구만(요청: 아콘과 같은 자리). */
+    if (poseNow !== POSE_MERGE9) {
+      ribbon([1, 0, 0], [0, 0.42, 0.736], -0.5, 3.5, 0.15);
+      ribbon([0.62, 0.78, 0], [-0.35, 0.28, 0.72], 1.1, 4.9, 0.12);
+      ribbon([0.2, -0.98, 0], [0.55, 0.11, 0.664], 2.4, 6.1, 0.11);
+    }
 
     /* ① 구 — 뒤쪽 짙은 핏빛 판을 먼저 깔고(키 0), 갑주를 그 위에 올린 뒤(0.5),
        앞쪽 옅은 붉은 워시와 밝은 코어를 다시 덮는다(1.0). 앞 워시가 반투명이라
@@ -26414,38 +26425,42 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [billPath3(0, 0, ORB_Z, R * 0.6), 0.5, "#ff8a46"] as ShapeFace,   // 0.36 → 0.6
     ], 0));
 
-    /* ② 칼날 몸통 — 위가 넓고 아래로 길게 뾰족하다. 앞뒤로 살짝 눌린 단면(oval)이라
-       옆에서 봐도 판때기가 안 된다. */
-    out.push(...tagKey(inky(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 1.7, caps: "none",
-      path: (t9: number): [number, number, number] => [0, 0, ORB_Z + 1.68 - 4.88 * t9],
-      widthOf: (t9: number): number => 1.05 * Math.max(0.04, (1 - t9) ** 1.4) + 0.06,
-    }), INK)), 0.5));
-    // 어깨 — 칼날 위쪽을 좌우로 넓히는 낮은 마루.
-    out.push(...tagKey(inky(paintBase(spirePillar({
-      x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.8, caps: "none",
-      path: (t9: number): [number, number, number] => [0, 0, ORB_Z + 1.4 - 0.92 * t9],
-      widthOf: (t9: number): number => 0.6 + 0.95 * Math.sin(Math.PI * t9),
-    }), INK)), 0.52));
-    /* 뿔 한 쌍 — 어깨에서 위·바깥으로 벌어져 솟는다. 사진의 뿔은 안쪽 면이 한 단
-       밝아 두께가 읽힌다 — 밝은 색 한 겹을 안쪽에 겹쳐 그 결을 낸다. */
-    for (const m9 of [-1, 1] as const) {
-      out.push(...tagKey(inky(paintBase(spikeHorn(
-        m9 * 0.95, 0, ORB_Z + 1.28, m9 * 3.35, -0.2, ORB_Z + 2.8, 0.62,
-        INK, 6, 0.42, m9 * 0.5, 0.2,
-      ), INK)), 0.62));
-      out.push(...tagKey(paintBase(spikeHorn(
-        m9 * 0.88, 0.2, ORB_Z + 1.296, m9 * 2.85, 0.1, ORB_Z + 2.56, 0.26,
-        INK2, 6, 0.4, m9 * 0.5, 0.2,
-      ), INK2), 0.64));
-      /* ③ 갈퀴 — 구 좌우에서 아래·안으로 말리는 세 갈래. 사진2의 검은 손이다. */
-      for (const k9 of [0, 1, 2] as const) {
-        const sp9 = (k9 - 1) * 0.5;
+    /* 합체 중(자세 10)에는 갑주·갈퀴·눈도 없다 — 구만(아콘의 속 형체와 같은 자리). */
+    const armor9 = poseNow !== POSE_MERGE9;
+    if (armor9) {
+      /* ② 칼날 몸통 — 위가 넓고 아래로 길게 뾰족하다. 앞뒤로 살짝 눌린 단면(oval)이라
+         옆에서 봐도 판때기가 안 된다. */
+      out.push(...tagKey(inky(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, oval: 1.7, caps: "none",
+        path: (t9: number): [number, number, number] => [0, 0, ORB_Z + 1.68 - 4.88 * t9],
+        widthOf: (t9: number): number => 1.05 * Math.max(0.04, (1 - t9) ** 1.4) + 0.06,
+      }), INK)), 0.5));
+      // 어깨 — 칼날 위쪽을 좌우로 넓히는 낮은 마루.
+      out.push(...tagKey(inky(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 4, sides: 6, oval: 1.8, caps: "none",
+        path: (t9: number): [number, number, number] => [0, 0, ORB_Z + 1.4 - 0.92 * t9],
+        widthOf: (t9: number): number => 0.6 + 0.95 * Math.sin(Math.PI * t9),
+      }), INK)), 0.52));
+      /* 뿔 한 쌍 — 어깨에서 위·바깥으로 벌어져 솟는다. 사진의 뿔은 안쪽 면이 한 단
+         밝아 두께가 읽힌다 — 밝은 색 한 겹을 안쪽에 겹쳐 그 결을 낸다. */
+      for (const m9 of [-1, 1] as const) {
         out.push(...tagKey(inky(paintBase(spikeHorn(
-          m9 * (2.3 + Math.abs(sp9) * 0.2), sp9, ORB_Z - 0.16,
-          m9 * (3.0 + Math.abs(sp9) * 0.3), sp9 * 1.6, ORB_Z - 2.32, 0.3,
-          INK, 5, 0.5, m9 * 0.6, -0.4,
-        ), INK)), 0.58 + k9 * 0.01));
+          m9 * 0.95, 0, ORB_Z + 1.28, m9 * 3.35, -0.2, ORB_Z + 2.8, 0.62,
+          INK, 6, 0.42, m9 * 0.5, 0.2,
+        ), INK)), 0.62));
+        out.push(...tagKey(paintBase(spikeHorn(
+          m9 * 0.88, 0.2, ORB_Z + 1.296, m9 * 2.85, 0.1, ORB_Z + 2.56, 0.26,
+          INK2, 6, 0.4, m9 * 0.5, 0.2,
+        ), INK2), 0.64));
+        /* ③ 갈퀴 — 구 좌우에서 아래·안으로 말리는 세 갈래. 사진2의 검은 손이다. */
+        for (const k9 of [0, 1, 2] as const) {
+          const sp9 = (k9 - 1) * 0.5;
+          out.push(...tagKey(inky(paintBase(spikeHorn(
+            m9 * (2.3 + Math.abs(sp9) * 0.2), sp9, ORB_Z - 0.16,
+            m9 * (3.0 + Math.abs(sp9) * 0.3), sp9 * 1.6, ORB_Z - 2.32, 0.3,
+            INK, 5, 0.5, m9 * 0.6, -0.4,
+          ), INK)), 0.58 + k9 * 0.01));
+        }
       }
     }
     // 앞 워시 + 밝은 코어 — 갑주 위를 덮어 '구 속에 잠긴' 것으로 만든다.
@@ -26455,7 +26470,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 노란 눈 — 사진2에서 갑주 한가운데 유일하게 빛나는 점이다. **늘 시청자를 본다**:
        떠 있는 구에는 앞뒤가 없고, 원작 스프라이트도 어느 방향에서나 눈이 이쪽을
        향한다. 모델 좌표 렌즈로 두면 옆으로 돌 때 날처럼 사라진다. */
-    out.push(...tagKey([
+    if (armor9) out.push(...tagKey([
       [billPath3(0, 0.2, ORB_Z + 0.6, 0.46), 0.95, "#3a1a04"] as ShapeFace,
       [billPath3(0, 0.2, ORB_Z + 0.6, 0.34), 1, "#e8a01c"] as ShapeFace,
       // 심·광점은 **눈알 표면의 갓**으로 적는다(shinePath3) — 화면 자로만 찍으면 높이를 빌린다.

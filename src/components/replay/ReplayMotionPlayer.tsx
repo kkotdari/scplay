@@ -95,7 +95,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9,
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, archonMergeK9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   resUniq9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
@@ -809,7 +809,8 @@ const RING_TOP_K9 = 0.31 / 0.55;
  *  수송선 중심과 유닛 중심을 이어서 1초 정도 계속 실시간으로 움직이며 노출") — 밝은 사이언 실선. GL 이 서면 UnitLayer 가 배의 몸 깊이(GlInst9.lines)로 긋고
  *  여기 적어 효과 붓(paintFxList9)이 건너뛴다. */
 const TETHER_COL9 = "#b4feff";
-const tetherW9 = (zoom: number): number => Math.max(1.2, 0.42 * zoom);
+/* 굵기 — 0.42×배율(바닥 1.2px) → **0.2×배율(바닥 0.8px)**(2026-10-14, 요청: "수송선 타고내리는 선 얇게") · 실드막 테두리(0.3×)보다 가는 실. */
+const tetherW9 = (zoom: number): number => Math.max(0.8, 0.2 * zoom);
 const TETHER_GL9 = new WeakSet<object>();
 /** 가스 건물 — 인포창이 그 간헐천 양을 한 줄 더 쓴다(2026-10-12). */
 const GAS_BLDS9 = new Set(["Refinery", "Assimilator", "Extractor"]);
@@ -17750,7 +17751,10 @@ export default function ReplayMotionPlayer({
   /* 본진이 무너졌나(지적: 본진 기지 건물은 절대 안 망했다 — 시작 홀을 builds에 합성하며
      판정이 생겼다) — 집 자리(3타일)의 내 홀 계보에서 마지막 채가 무너졌고 재건이 없으면
      함락이다. 아바타 로스터의 유령화와 채굴 일꾼 걷기가 같이 쓴다. */
+  /** 경기에서 나간 초(truthLives 의 ★ 나감 · players[].left) — 이름 열쇠. 나간 사람의 몸은 지도에 남으므로 '본진이 무너졌나'로는 안 갈린다. */
+  const leftSec9 = useMemo(() => new Map((entData?.players ?? []).flatMap((pl) => (pl.left !== undefined ? [[pl.name, pl.left] as const] : []))), [entData]);
   const fallenHome = (m: MotionBase): boolean => {
+    if ((leftSec9.get(m.key) ?? Infinity) <= t) return true;   // 나감 — 몸은 남아도 어둡게(요청 1: "나가거나 엘리 … 어둡게")
     const { x: mx, y: my } = m;
     if (mx === undefined || my === undefined) return false;
     const chain = buildsSrc
@@ -18960,7 +18964,7 @@ export default function ReplayMotionPlayer({
       const all9 = blds9.get(b9.key);
       if (!all9 || all9.length === 0) continue;
       let cs9 = camps9(all9, t);
-      const dead9 = cs9.length === 0 || !cs9[0].prod;
+      const dead9 = cs9.length === 0 || !cs9[0].prod || (leftSec9.get(b9.key) ?? Infinity) <= t;   // 나간 사람은 건물이 남아도 어둡게
       if (cs9.length === 0) {
         /* 다 사라진 사람 — 마지막 건물이 죽기 직전의 가장 무거운 진영 자리에 어둡게(하나만). */
         let last9 = -1;
@@ -18980,7 +18984,7 @@ export default function ReplayMotionPlayer({
     }
     return out9;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee]);
+  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee, leftSec9]);
   const dockOps9: UnitDrawOp[] = (() => {
     if (picked) {
       const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);
@@ -19370,6 +19374,16 @@ export default function ReplayMotionPlayer({
           </div>,
         );
       }
+    }
+    /* ★ 합체 중인 아콘·다크 아콘(engine9 POSE_MERGE9 · 같은 창) — 원작은 덜 된 유닛처럼 진행 막대를 띄운다. 알의 '변태 중' 줄과 같은 꼴. */
+    const mk9 = !bld9 && life9 ? archonMergeK9(en, life9.born, t, life9.handoff) : -1;
+    if (mk9 >= 0) {
+      lines.push(
+        <div className="scr-motion-infodock-prod" key="merge">
+          <span className="scr-motion-infodock-slot is-head">{silIcon9(en, false, "#6fe36f", "scr-motion-infodock-sico")}</span>
+          {bar9("합체 중", Math.min(0.99, mk9), "mbar")}
+        </div>,
+      );
     }
     const cg9 = CARGO9[en];
     if (cg9 && tag9 !== undefined) {

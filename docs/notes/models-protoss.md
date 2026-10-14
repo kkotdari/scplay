@@ -1577,3 +1577,14 @@ bodyFace 라 경로가 달라 접히지(ob) 못하고 제각기 반투명 데칼
 - 평소 앞뒤 몫 `ZL_SWS9` 0.1 → 0.35 — 왼팔(+x) 뒤 15° · 오른팔 앞 17°(왼다리가 앞이라 엇갈림). 겨눔·잽(g9·j9)은 그대로(jointBetween).
 - ZL_SWR9·ZL_HX9 는 걷었다. 잉크 중심 옛/새 차 +0.01/0(표 [9.74, 10.51]) · MODEL_NORM 그대로 · 총구표 최신 · 덮임 100%.
 - 🔎 `model-gl --kinds zealot --rots 0,45,90 --fit 0.85` · 걸음 `--pose 1|3`.
+
+## 아콘·다크 아콘 합체 상태 — 자세 10 · 구만(2026-10-14)
+요청: "아콘 다크아콘 합체 상태 필요 / 모양은 인간모양과 고리 없는 구체만 있는 상태 / 누르면 인포창엔 원작과 같은 상태표현" → 재요청: "안에 인간형도 안보여야한당께".
+- 원작: 두 템플러가 만나면 한 몸이 아콘으로 바뀌고(order_ArchonWarp) units.dat 빌드 300프레임(12.6초) 동안 합체한다(CompletingArchonSummon).
+  자취에서는 Archon/Dark Archon 생애의 출생이 곧 합체 시작 → `engine9 archonMergeK9(이름, 출생, t, handoff)` 가 몫(0~1 · 아니면 −1). 손바뀜(마인드 컨트롤)으로 선 생애는 아니다.
+- 그리는 길: 합체 중이면 자세 `POSE_MERGE9`(10 · Pose9 에 더함) — 간이 보기에서도 선다(자세가 아니라 모양이다). `POSE_KINDS` archon `merge` · darchon `{ merge }` ·
+  `poseTag` 는 merge 없는 종류에서 10 을 "0" 으로 떨군다. 빌더: 아콘 X 고리(ring9 둘)·속 형체(②) / 다크 아콘 리본 호 셋(④)·갑주·갈퀴·눈 → 다 뺀다(구 겹만).
+  구 밖 실루엣은 같아 잉크·정규화는 안 흔들린다(자세 0 판은 그대로 · 등급표 무변).
+- 인포창: 알의 '변태 중' 줄과 같은 꼴로 "합체 중" 막대(silIcon9 · bar9 "mbar").
+- 🔎 `model-gl --kinds archon,darchon --pose 10` · `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --glblit --players 4 --fs --info --track 수달이 --dockarchon --shot x.png`
+  (38초에 아콘·다크 아콘이 나 50.6초까지 합체 · 44.5초에 아콘을 고른다).
