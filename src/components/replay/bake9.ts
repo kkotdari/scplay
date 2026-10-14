@@ -19332,15 +19332,21 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const q9 = Math.min(1, Math.abs(z9 - az9) / r9);
         return r9 * OVL9 * (1 - q9 ** SQN9) ** (1 / SQN9);
       };
-      const lx9 = sideAt9(ZG9) * 0.9;
+      /* ★ 끝은 **몸 밑동**(그 마디 바닥 높이 · 땅 위로 뜬 마디도)의 옆구리 × 0.9, 활은 **몸의 가장 넓은 옆(r·OVL9) 밖 0.12** 까지(2026-10-14, 지적: "반고리가 세 개가 다 안
+         보이고 가운데가 없네") — 옛 셈은 땅 높이(0.15)의 옆구리였는데 가운데 마디(u 0.42)는 밑이 0.19 떠 있어 폭이 0 → 고리가 몸 한가운데 밑에 숨었다. 끝 높이를
+         마디 바닥(축 − 0.97r)과 땅 높이 가운데 높은 쪽으로 재고, 활의 바깥 몫 BX9 를 따로 둬(반지름 R 은 앞뒤 몫) 넓은 몸 밖으로 늘 드러나게 한다(옆으로 긴 반 타원). */
+      const lx9 = sideAt9(Math.max(ZG9, az9 - r9 * 0.97)) * 0.9;
+      const BX9 = r9 * OVL9 - lx9 + 0.12;
       for (const m9 of [-1, 1] as const) {
+        /* 관 단면은 **안팎(고리 면 안의 법선 방향)으로만 납작**(2026-10-14, 요청: "호를 납작하게 누르는데 위아래 말고 법선 방향 안팎으로 누르기") — 누운 관의 단면 틀은
+           cos 축 = 위(REF ẑ) · sin 축 = 고리 면 안의 법선이라 oval 0.4 가 안팎만 누른다(위아래 반두께 0.15 그대로 · 땅에 닿음). */
         out.push(...tagKey(paintBase(spirePillar({
-          x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 6, caps: "none",
+          x: 0, y: 0, h: 0.8, w: 1, segs: 12, sides: 8, caps: "none", oval: 0.4,
           path: (t9: number): [number, number, number] => [
-            m9 * (lx9 + RR9 * Math.sin(Math.PI * t9)), ly9 + RR9 * Math.cos(Math.PI * t9), ZG9,
+            m9 * (lx9 + BX9 * Math.sin(Math.PI * t9)), ly9 + RR9 * Math.cos(Math.PI * t9), ZG9,
           ],
           widthOf: (): number => 0.15,
-        }), GOLD_D), depthNow(m9 * (lx9 + RR9 * 0.5), ly9) * 1.6 + 1.2));
+        }), GOLD_D), depthNow(m9 * (lx9 + BX9 * 0.5), ly9) * 1.6 + 1.2));
       }
     }
     /* ④ 집게 한 쌍 — 앞끝 아래에서 앞·아래로 뻗어 안으로 말린다. 사진2의 그 갈고리다. */
