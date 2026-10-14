@@ -5928,9 +5928,14 @@ function cocoonBuild9(stage9: number): ShapeFace[] {
           return [(ax * c9 - dZ * s9) / R9, ax * s9 + dZ * c9];
         };
         /** 가지 하나 — 끝에서 **둘로** 갈라져 제 자식을 낳는다(깊이 2까지, 마디 일곱). */
+        /* ★ 가지는 **곡선**이다(2026-10-14, 요청: "핏줄 가지가지들은 곡선으로") — 곧은 토막 + 잔물결이던 것에 굽이 cv 를 얹는다: 진행 방향에
+           수직으로 cv·L·t² 만큼(L = 그 가지의 껍질 위 길이) 휘어 끝으로 갈수록 돌아 나간다. 갈래는 휜 자리(t = 0.45)에서 그 자리의 접선
+           (기울기 atan(2·cv·0.45))만큼 돌려 낳고, 두 자식은 서로 반대로 휜다. */
         const limb = (
-          aS: number, zS: number, dA: number, dZ: number, w9: number, depth: number,
+          aS: number, zS: number, dA: number, dZ: number, w9: number, depth: number, cv9: number,
         ): void => {
+          const L9 = Math.hypot(dA * R9, dZ) || 1;
+          const pA9 = -dZ / L9 / R9; const pZ9 = (dA * R9) / L9;   // 수직 단위(각은 호 길이 자로)
           /* ★ **잔핏줄은 등급을 단다**(2026-09, 지적: "공사고치 저배율에서 자글자글해보여서 잔핏줄에 lod
              주기") — 핏줄 열둘이 갈래 둘씩 두 번 갈라져 관 84 개인데, 몸이 몇십 화소일 때는 그 가는
              관들이 껍질 위에서 화소 단위로 지글거린다. 줄기(깊이 0)는 2티어(trim — 중간 배율부터),
@@ -5940,8 +5945,9 @@ function cocoonBuild9(stage9: number): ShapeFace[] {
             segs: depth === 0 ? 9 : 6, sides: depth === 0 ? 5 : 4,
             caps: "none", taper: 1.25,
             path: (t9: number): [number, number, number] => {
-              const wb9 = Math.sin(t9 * 3.6 + aS * 7.7) * wob * t9 * 0.6;
-              return on(aS + dA * t9 + wb9, zS + dZ * t9);
+              const wb9 = Math.sin(t9 * 3.6 + aS * 7.7) * wob * t9 * 0.35;
+              const bd9 = cv9 * L9 * t9 * t9;
+              return on(aS + dA * t9 + wb9 + pA9 * bd9, zS + dZ * t9 + pZ9 * bd9);
             },
           }), col);
           out.push(...(depth === 0 ? trim(vein9) : fine(vein9)));
@@ -5949,23 +5955,25 @@ function cocoonBuild9(stage9: number): ShapeFace[] {
           /* 갈래 — 줄기의 절반 자리에서 좌우로 벌어진다. 각을 넓게(24~41도) 주고 두
              자식의 길이를 다르게 줘야 가위가 아니라 나뭇가지로 읽힌다. */
           const bx9 = 0.45;
-          const aB = aS + dA * bx9;
-          const zB = zS + dZ * bx9;
+          const bB9 = cv9 * L9 * bx9 * bx9;
+          const aB = aS + dA * bx9 + pA9 * bB9;
+          const zB = zS + dZ * bx9 + pZ9 * bB9;
           const rest = 1 - bx9;
           const wide9 = 0.42 + (h4 * 0.5 + 0.5) * 0.30;
+          const tan9 = Math.atan(2 * cv9 * bx9);   // 휜 자리의 접선 각(굽이를 따라 돌려 낳는다)
           // 잔가지를 길게(지적) — 0.78·0.55 → 1.15·0.85. 갈림도 조금 앞으로(0.5 → 0.45)
           // 당겨 남는 몫(rest)을 늘렸으니, 자식은 부모의 0.63·0.47배로 뻗는다.
           for (const [m9, len9] of [[1, 1.15], [-1, 0.85]] as [number, number][]) {
-            const ang9 = m9 * side9 * wide9;
+            const ang9 = m9 * side9 * wide9 + tan9;
             const [cA, cZ] = turn(dA * rest, dZ * rest, ang9);
-            limb(aB, zB, cA * len9, cZ * len9, w9 * 0.7, depth + 1);
+            limb(aB, zB, cA * len9, cZ * len9, w9 * 0.7, depth + 1, m9 * side9 * (0.3 + (h1 * 0.5 + 0.5) * 0.25));
           }
         };
-        limb(a0, zRoot, dA0, dZ0, w0, 0);
+        limb(a0, zRoot, dA0, dZ0, w0, 0, (h3 > 0 ? 1 : -1) * (0.22 + (h4 * 0.5 + 0.5) * 0.2));
       }
       /* ★★ **정수리 핏줄**(2026-10-14, 요청: "공사 고치 핏줄 정수리 빈 거 없이 채우고") — 위 줄기는 (각, 높이) 자라 정수리에서 각이
          모여 매듭이 되고 그 둘레가 늘 맨살이었다(실측: 정수리 둘레 반지름 0.3R 쯤 빈 판). 정수리는 **평면 자(x, y)** 로 따로 짓는다 —
-         정수리 곁(0.1~0.5R) 아무 자리에서 대체로 맞은편으로 1.0~1.6R 걸어 정수리를 가로지르고, 위 줄기와 같은 갈래(둘씩 깊이 2)·굵기 등급·색.
+         정수리 곁(0.2~0.6R) 아무 자리에서 정수리를 감아 도는 쪽으로 0.8~1.3R 걷고(아래 dir9 ★), 위 줄기와 같은 갈래(둘씩 깊이 2)·굵기 등급·색.
          높이는 그 자리의 돔 면(z = H·√(1 − r²/R²)) · 껍질 밖 1.2%. 단마다 3 · 4 · 6 가닥(번호 해시라 단이 올라도 있던 것은 그 자리 —
          첫 판 2 · 3 · 4 는 270도에서 정수리 한쪽이 아직 맨살이었다). */
       {
@@ -5981,33 +5989,38 @@ function cocoonBuild9(stage9: number): ShapeFace[] {
           const g1 = Math.sin(c9 * 12.7 + 3.1); const g2 = Math.sin(c9 * 31.3 + 0.7); const g3 = Math.sin(c9 * 53.9 + 4.4);
           const col = COLS[(c9 + 1) % COLS.length];
           const ra9 = c9 * 2.4 + g1 * 0.8;                   // 뿌리 방위(황금각 언저리로 흩는다)
-          const rr9 = R9 * (0.1 + (g2 * 0.5 + 0.5) * 0.4);   // 뿌리 반지름 0.1~0.5R
+          const rr9 = R9 * (0.2 + (g2 * 0.5 + 0.5) * 0.4);   // 뿌리 반지름 0.2~0.6R
           const x0 = Math.cos(ra9) * rr9; const y0 = Math.sin(ra9) * rr9;
-          const dir9 = ra9 + Math.PI + g3 * 1.1;               // 대체로 정수리 쪽(반대편)으로 · 비껴간다
-          const len9 = R9 * (1.0 + (g1 * 0.5 + 0.5) * 0.6);
+          /* 정수리를 **감아 돈다**(재지적: "너무 핏줄이 한 군데 모이는 느낌") — 첫 판은 대체로 맞은편(ra + π)으로 걸어 여섯 가닥이 다
+             정수리 한가운데를 지나 한 점에 모였다. 이제 뿌리 방위에 수직(ra ± π/2)으로 걷고 ±0.4rad 흔든다 — 정수리 둘레를 돌며 흩어진다. */
+          const dir9 = ra9 + (c9 % 2 === 0 ? 1 : -1) * Math.PI / 2 + g3 * 0.4;
+          const len9 = R9 * (0.8 + (g1 * 0.5 + 0.5) * 0.5);
           const w9 = (0.045 + (g2 * 0.5 + 0.5) * 0.022) * THICKC9[c9 % THICKC9.length];
           const wob9 = 0.05 + (g3 * 0.5 + 0.5) * 0.05;
-          const crown9 = (xS: number, yS: number, dx: number, dy: number, w: number, depth: number): void => {
+          const crown9 = (xS: number, yS: number, dx: number, dy: number, w: number, depth: number, cv: number): void => {
             const l9 = Math.hypot(dx, dy) || 1;
+            const qx9 = -dy / l9; const qy9 = dx / l9;   // 수직 단위 — 굽이(cv·l·t²)를 이쪽으로(위 limb 의 ★)
             const vein9 = paintBase(spirePillar({
               x: 0, y: 0, h: 0.8, w, tipW: Math.max(0.014, w * 0.3),
               segs: depth === 0 ? 9 : 6, sides: depth === 0 ? 5 : 4,
               caps: "none", taper: 1.25,
               path: (t9: number): [number, number, number] => {
-                const wb9 = Math.sin(t9 * 3.6 + xS * 7.7) * wob9 * t9 * 0.6 * R9;
-                return onTop(xS + dx * t9 + (-dy / l9) * wb9, yS + dy * t9 + (dx / l9) * wb9);
+                const wb9 = Math.sin(t9 * 3.6 + xS * 7.7) * wob9 * t9 * 0.35 * R9 + cv * l9 * t9 * t9;
+                return onTop(xS + dx * t9 + qx9 * wb9, yS + dy * t9 + qy9 * wb9);
               },
             }), col);
             out.push(...(depth === 0 ? trim(vein9) : fine(vein9)));
             if (depth >= 2) return;
-            const bx9 = 0.45; const xB = xS + dx * bx9; const yB = yS + dy * bx9; const rest = 1 - bx9;
+            const bx9 = 0.45; const bb9 = cv * l9 * bx9 * bx9;
+            const xB = xS + dx * bx9 + qx9 * bb9; const yB = yS + dy * bx9 + qy9 * bb9; const rest = 1 - bx9;
             const wide9 = 0.42 + (g3 * 0.5 + 0.5) * 0.30;
+            const tan9 = Math.atan(2 * cv * bx9);
             for (const [m9, k9] of [[1, 1.15], [-1, 0.85]] as [number, number][]) {
-              const a9 = m9 * wide9; const ca = Math.cos(a9); const sa = Math.sin(a9);
-              crown9(xB, yB, (dx * ca - dy * sa) * rest * k9, (dx * sa + dy * ca) * rest * k9, w * 0.7, depth + 1);
+              const a9 = m9 * wide9 + tan9; const ca = Math.cos(a9); const sa = Math.sin(a9);
+              crown9(xB, yB, (dx * ca - dy * sa) * rest * k9, (dx * sa + dy * ca) * rest * k9, w * 0.7, depth + 1, m9 * (0.3 + (g2 * 0.5 + 0.5) * 0.25));
             }
           };
-          crown9(x0, y0, Math.cos(dir9) * len9, Math.sin(dir9) * len9, w9, 0);
+          crown9(x0, y0, Math.cos(dir9) * len9, Math.sin(dir9) * len9, w9, 0, (c9 % 2 === 0 ? 1 : -1) * 0.3);
         }
       }
       /* ★ 밑동은 **장기 같은 굽은 파이프 뭉치**다(2026-09, 요청 + 사진: "바닥쪽은 혈관을 밖으로 내보내지 말고
