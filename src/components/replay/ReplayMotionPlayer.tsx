@@ -1238,17 +1238,22 @@ const UI_STEPS9 = {
   pc: [[1200, "fhd", 0.75], [1700, "qhd", 1], [Infinity, "uhd", 1.5]],
   phone: [[410, "small", 1], [600, "large", 1.1], [Infinity, "fold", 1.3]],
 } as const;
-function uiStep9(): { name: string; k: number; w: number; h: number } {
-  if (typeof window === "undefined") return { name: "qhd", k: 1, w: 0, h: 0 };
-  /* PC 는 창 · 폰은 기기 화면(위 주석). */
+/** ★ **좁은 창은 모바일 UI**(2026-10-13, 요청: "화면폭에 따라 모바일 UI 적용 필요 — 아무리 피시라도 화면폭 줄어들면 모바일로 변경 · sg-web 이 그렇듯이") —
+ *  sg-web useIsMobile 과 같은 자(창 폭 ≤ 1159px). UI 갈래(배치·전광판·툴박스·분할 금지·--dk·자막 배율·pc9 클래스)는 이 값(uiPhone9 = ui9.phone)을 보고,
+ *  **성능 갈래**(DEV9·벤치 단·간이 칸·그림자 접기·2D/3D 단추)는 여전히 기기(smallDevice9)를 본다 — 좁은 PC 창은 PC 의 힘으로 폰 배치를 그린다. */
+const UI_PHONE_W9 = 1159;
+function uiStep9(): { name: string; k: number; w: number; h: number; phone: boolean } {
+  if (typeof window === "undefined") return { name: "qhd", k: 1, w: 0, h: 0, phone: false };
+  const phone9 = smallDevice9 || window.innerWidth <= UI_PHONE_W9;
+  /* PC 는 창 · 폰은 기기 화면(위 주석) · 좁은 PC 창(모바일 UI)은 창의 짧은 변으로 폰 표를 고른다. */
   const w9 = smallDevice9 ? (window.screen?.width || window.innerWidth) : window.innerWidth;
   const h9 = smallDevice9 ? (window.screen?.height || window.innerHeight) : window.innerHeight;
-  const tbl9 = smallDevice9 ? UI_STEPS9.phone : UI_STEPS9.pc;
-  const side9 = smallDevice9 ? Math.min(w9, h9) : h9;   // 폰 짧은 변 · PC 창 세로
+  const tbl9 = phone9 ? UI_STEPS9.phone : UI_STEPS9.pc;
+  const side9 = phone9 ? Math.min(w9, h9) : h9;   // 폰 짧은 변 · PC 창 세로
   const row9 = tbl9.find(([lim9]) => side9 < lim9) ?? tbl9[tbl9.length - 1];
   const m9 = /(^|[#&,])ui=([0-9.]+)/.exec(window.location.hash);
   const k9 = m9 ? Number(m9[2]) : row9[2];
-  return { name: m9 && Number.isFinite(k9) ? `hash` : row9[1], k: Number.isFinite(k9) && k9 > 0 ? k9 : row9[2], w: w9, h: h9 };
+  return { name: m9 && Number.isFinite(k9) ? `hash` : row9[1], k: Number.isFinite(k9) && k9 > 0 ? k9 : row9[2], w: w9, h: h9, phone: phone9 };
 }
 /* ★ 예산은 **기기가 정한다**(같은 지적) ────────────────────────────────────────────
    여기 있던 128MB는 PC의 자다. 폰에서 그 값은 예산이 아니라 흉기다: 이 판들은 브라우저
@@ -10667,7 +10672,7 @@ export default function ReplayMotionPlayer({
    *  (칸의 붓은 평면 한 벌이다). ★ 처음엔 **아무 칸도 안 고른다**(2026-09, 요청: "처음엔 화면 미선택 · 선택 상태에서 또 누르면
    *  미선택으로") — 이미 켜진 분할에서 사람만 바뀌면 고른 칸이 남아 있을 때 그대로 둔다. */
   const startSplit9 = (sel9: string[] | null): void => {
-    if (smallDevice9) return;   // 폰은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★)
+    if (uiPhone9) return;   // 폰(폰 UI)은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★)
     if (castOn) stopCast9();
     if (trackRaw !== null) stopTrack9();
     setViewRaw(null);
@@ -10692,7 +10697,7 @@ export default function ReplayMotionPlayer({
   const pickPerson9 = (key9: string): void => {
     /* ★ 폰은 **분할이 없다**(2026-10-12, 요청: "모바일 분할 화면 완전제거 및 로스터 클릭시 그사람 화면으로 변경" · "여러명 선택 기능 아예 없고 토스터도 없음") —
        옛 '두 명까지 + 셋째에 토스트'(SPLIT_PHONE_MAX9)를 걷었다. 다른 사람을 누르면 그 사람 화면으로 **바꾸고**, 켜진 사람을 다시 누르면 놓는다. */
-    if (smallDevice9) {
+    if (uiPhone9) {
       if (trackRaw === key9) { stopTrack9(); setViewRaw(null); } else toggleTrack(key9);
       return;
     }
@@ -10726,7 +10731,7 @@ export default function ReplayMotionPlayer({
     return personKeyRef9.current(i9 + 1);
   };
   const allKeyRef9 = useRef<() => boolean>(() => false);
-  allKeyRef9.current = () => { if (smallDevice9 || bases.length === 0) return false; if (!allOn9) startSplit9(null); return true; };   // 폰은 전체(분할)가 없다
+  allKeyRef9.current = () => { if (uiPhone9 || bases.length === 0) return false; if (!allOn9) startSplit9(null); return true; };   // 폰은 전체(분할)가 없다
   const castKeyRef9 = useRef<() => void>(() => {});
   castKeyRef9.current = () => { if (!castOn) toggleCast9(); };
   /** 중계 끄기 — 자동·전체/분할·개인 추적 다 놓고 손 시점으로(각 단추를 끈 것과 같은 자리에 머문다). */
@@ -11534,17 +11539,21 @@ export default function ReplayMotionPlayer({
   /* ★ 해상도 단(위 uiStep9) — 뿌리의 `--ui`. 화면이 바뀌면(폴드 펴기 · 딴 모니터로) resize 에서 다시 잰다. */
   const [ui9, setUi9] = useState(uiStep9);
   useEffect(() => {
-    const on9 = (): void => { const n9 = uiStep9(); setUi9((p9) => (p9.k === n9.k && p9.name === n9.name ? p9 : n9)); };
+    const on9 = (): void => { const n9 = uiStep9(); setUi9((p9) => (p9.k === n9.k && p9.name === n9.name && p9.phone === n9.phone ? p9 : n9)); };
     window.addEventListener("resize", on9);
     return () => window.removeEventListener("resize", on9);
   }, []);
   /* --dk·--dk-roster 도 인라인으로(위 uiStep9 주석 — 폰 자는 배치와 무관하게 폰 값) · CSS 의 식은 서버 렌더·옛 호스트의 대타다. */
+  /** UI 가 폰 배치인가(위 UI_PHONE_W9 ★ — 폰 기기 또는 좁은 창). */
+  const uiPhone9 = ui9.phone;
+  /* 좁은 창으로 줄면(폰 UI) 분할을 닫는다 — 폰 UI 에는 분할이 없다(startSplit9 · pickPerson9 의 폰 갈래). */
+  useEffect(() => { if (uiPhone9) setSplitOn9(false); }, [uiPhone9]);
   const uiVars9 = useMemo(() => ({
     "--ui": ui9.k,
-    "--dk": smallDevice9 ? ui9.k : 1.8 * ui9.k,
-    "--dk-roster": smallDevice9 ? 1.2 * ui9.k : 2.16 * ui9.k,
-  }) as React.CSSProperties, [ui9.k]);
-  SCR_DIAG.ui = `${ui9.name} ×${ui9.k} · dk ${(smallDevice9 ? ui9.k : 1.8 * ui9.k).toFixed(2)} · ${smallDevice9 ? "화면" : "창"} ${ui9.w}×${ui9.h}`;
+    "--dk": uiPhone9 ? ui9.k : 1.8 * ui9.k,
+    "--dk-roster": uiPhone9 ? 1.2 * ui9.k : 2.16 * ui9.k,
+  }) as React.CSSProperties, [ui9.k, uiPhone9]);
+  SCR_DIAG.ui = `${ui9.name} ×${ui9.k} · dk ${(uiPhone9 ? ui9.k : 1.8 * ui9.k).toFixed(2)} · ${smallDevice9 ? "화면" : "창"} ${ui9.w}×${ui9.h}${uiPhone9 && !smallDevice9 ? " · 좁은 창(폰 UI)" : ""}`;
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그
      칸을 되돌려(back) 같은 길로 닫는다. */
   const [guideOpen9, setGuideOpen9] = useState(false);
@@ -11625,7 +11634,18 @@ export default function ReplayMotionPlayer({
      FHD·QHD·UHD 세 칸)만 따라 FHD 아래 창(노트북 768 등)에서도 자막 32·이름표 34px 그대로였다. 무대 높이 × CAP_STAGE_K9 를 자막 글자 크기의 목표로 삼아 단 값(32·dks)보다 작으면
      그 몫(--capk · 0.5~1)만큼 줄인다 — 큰 창은 그대로(상한 1). 폰은 기기 단(--dk)이 이미 맞아 1. */
   const CAP_STAGE_K9 = 0.046;
-  const capK9 = smallDevice9 || stage.h <= 0 ? 1 : Math.min(1, Math.max(0.5, (stage.h * CAP_STAGE_K9) / (32 * ((1.8 * ui9.k) / 1.35))));
+  const capK9 = uiPhone9 || stage.h <= 0 ? 1 : Math.min(1, Math.max(0.5, (stage.h * CAP_STAGE_K9) / (32 * ((1.8 * ui9.k) / 1.35))));
+  /** ★ **화면 주인 이름표는 한 요소**(2026-10-13, 요청: "PC 모바일 공통으로 분할 화면의 화면 주인과 중계 화면 주인을 디자인 통일(그냥 같은 요소 사용)") —
+   *  [깜빡이는 카메라] [임자색 칩 + 팀 귀퉁이] "개인 화면". 단독(중계·개인 추적) 화면의 위 가운데와 분할 칸의 위 가운데가 이 하나를 쓴다(옛 칸 머리는 [칩] "화면"뿐). */
+  const ownerTag9 = (raw9: string, extra9?: string): React.ReactNode => (
+    <span className={cx("scr-split-cap scr-fs-solo-cap", extra9)}>
+      <Video className="scr-solo-cam" aria-hidden />
+      <span className={cx("scr-split-chip scr-solo-chip", tcorner9(raw9) && "scr-tcorner")} style={{ ...capOf9(raw9, raw9).chip, ...tcorner9(raw9) }}>
+        <span className="scr-cast-chip-txt">{bases.find((b9) => b9.key === raw9)?.name ?? raw9}</span>
+      </span>
+      <span className="scr-split-word">개인 화면</span>
+    </span>
+  );
   (SCR_DIAG as unknown as Record<string, unknown>).capk = `${capK9.toFixed(2)} · 무대 ${Math.round(stage.h)}`;   // perf-check 가 읽는다
   /** 무대 높이 붙들기(지적: "팬·핀치 뒤 안개·모델이 떨린다") — 무대는 100dvh라 폰의 주소창이 접히고 펴질 때마다 몇 프레임에
    *  걸쳐 높이가 바뀐다. 그 값이 상태(stage)에 실리면 재중심(centerOnTile)·팬 재죔·덮는 폭·캔버스 크기가 줄줄이 돌아 판이
@@ -17824,7 +17844,7 @@ export default function ReplayMotionPlayer({
      인포창 폭 × 1.25 에 못 미치면 쪽이다(판은 그 값 이하로만 작아지므로 '남는 폭이 모자라다'와 같은 말). */
   /* ★ 쪽(is-paged)은 **독 맞춤**(아래 dockFit9 · 2026-10-09)이 정한다 — 폰은 늘 쪽, PC 는 전광판·미니맵이 제 설계 폭을 못 받아 줄었을 때(k < 1)만 쪽이다.
      옛 '판 폭 < 인포창 × 1.5' 자(ResizeObserver)는 인포창이 숨거나 줄어드는 지금 판에서는 틀린다. */
-  const [rosterPaged9, setRosterPaged9] = useState(smallDevice9);
+  const [rosterPaged9, setRosterPaged9] = useState(uiPhone9);
   useEffect(() => {
     if (!rosterPaged9) return undefined;
     const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 >= ROSTER_PAGES9.length ? 1 : p9 + 1)), ROSTER_PAGE_MS9);
@@ -17855,7 +17875,7 @@ export default function ReplayMotionPlayer({
        큰다(replay.css 폰 상한 30·dk). 머리 줄 아래 틈(ROSTER_HEAD_GAP9 · AUTO 단추 밖 아래 갭)도 줄 수에 든다. */
     /* ★ 폰 2×2 는 **한 팀이 셋 이상일 때만**(2026-10-13, 요청: "글자 수는 최대한 확보 · 적어도 4~5글자는 보여야 할 듯") — 1:1·2:2 는 한 기둥이라 칩이 판 폭을 다 쓴다
        (390 폰: 2×2 칩 54px → 한 기둥 ≈ 138px). 셋 이상이면 한 기둥은 줄 키가 너무 작아져(3:3 → 16px) 2×2 그대로. */
-    const grid2_9 = smallDevice9 && teams9.some((t9) => t9.mates.length > 2);
+    const grid2_9 = uiPhone9 && teams9.some((t9) => t9.mates.length > 2);
     const rows9 = 1 + ROSTER_HEAD_GAP9 + teams9.reduce((n9, t9) => n9 + (grid2_9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
       + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
     const pages9 = rosterPaged9 ? [...ROSTER_PAGES9, ROSTER_PAGES9[0]] : ROSTER_PAGES9;   // 끝의 복제 첫 쪽(위 ★ 되감기)은 쪽 꼴에서만
@@ -17887,7 +17907,7 @@ export default function ReplayMotionPlayer({
                 <Tv aria-hidden /><span className="scr-roster-cam-txt">자동중계</span>
               </button>
               {/* ★ 전체 알약 — PC 만(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요") · 모든 사람 화면 나누기(옛 TV 목록의 '전체'). 폰은 분할이 둘까지라 없다. */}
-              {!smallDevice9 && (
+              {!uiPhone9 && (
                 <button
                   type="button" className={cx("scr-roster-cam scr-roster-cam-all", allOn9 && "is-on")} onClick={toggleAll9} aria-pressed={allOn9}
                   aria-label={allOn9 ? "전체 화면 나누기 끄기" : "전체 화면 나누기"} title={allOn9 ? "전체 — 모든 사람 화면 나누기(누르면 끔)" : "전체 — 모든 사람 화면을 나눠 본다"}
@@ -17925,7 +17945,7 @@ export default function ReplayMotionPlayer({
                       <button
                         type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
                         aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
-                        title={on9 ? "이 사람 화면을 놓는다" : smallDevice9 ? "이 사람 화면으로 바꾼다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                        title={on9 ? "이 사람 화면을 놓는다" : uiPhone9 ? "이 사람 화면으로 바꾼다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                       >
                         <Video aria-hidden />
                       </button>
@@ -17934,7 +17954,7 @@ export default function ReplayMotionPlayer({
                       <span className="scr-dock-namewrap">
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
-                          className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, smallDevice9 ? CHIP_ROW_A9 : 1)}
+                          className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
                           role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
@@ -19360,7 +19380,7 @@ export default function ReplayMotionPlayer({
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
         && p9.trio === trio9 && Math.abs(p9.sideW - sideW9) < 0.5
         ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9, trio: trio9, sideW: sideW9 }));
-      setRosterPaged9(smallDevice9 || k9 < 0.999);
+      setRosterPaged9(uiPhone9 || k9 < 0.999);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", `${lift9.toFixed(1)}px`);
     };
     const read9 = (): void => {
@@ -19375,7 +19395,7 @@ export default function ReplayMotionPlayer({
     ro9.observe(row9);
     ro9.observe(fr9);
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -19839,7 +19859,7 @@ export default function ReplayMotionPlayer({
                강제 확대'는 저배율에서 자국이 타일 넷 폭이라 작은 무대(저해상도 창)에서 유닛을 삼켰다. 이제 자국 = 한 타일(배율 그대로) · 바닥 24·dks(1080p 24 · QHD 32 · UHD 48)만.
                폰은 종전 그대로(4배 바닥). */
             const tile1 = (mapRef.current?.clientWidth ?? 320) / grid.width;
-            const ckw = smallDevice9 ? Math.max(10, tile1 * Math.max(4, zoom)) : Math.max(24 * (ui9.k / 0.75), tile1 * zoom);
+            const ckw = uiPhone9 ? Math.max(10, tile1 * Math.max(4, zoom)) : Math.max(24 * (ui9.k / 0.75), tile1 * zoom);
             // 공격 클릭은 붉은 고리로 갈라 보인다(지적: 클릭 종류 구분).
             return (
               <span
@@ -20108,7 +20128,7 @@ export default function ReplayMotionPlayer({
                   따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
               {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
               {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
-              {guide && !fsOn && !smallDevice9 && (
+              {guide && !fsOn && !uiPhone9 && (
                 <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
                   <QMarkIcon size={18} />
                 </button>
@@ -20133,7 +20153,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !smallDevice9 && "scr-motion-pc9")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -20214,22 +20234,8 @@ export default function ReplayMotionPlayer({
               className={cx("scr-fs-solo", !introReady9 && "is-warming")}
               style={{ "--capk": capK9 } as React.CSSProperties}
             >
-              {camRaw9 !== null && (
-                <span className="scr-split-cap scr-fs-solo-cap">
-                  {/* 위 가운데의 [임자색 칩(이름)] + 흰 "화면"(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 이동 … 이름칩 + 흰 글씨 화면으로 표시") — 옛 "정구 화면"
-                      한 칩(같은 날 요청)·바닥 가운데 자리는 되물렸다. 자막(.scr-cast-caption)이 바닥을 받는다. */}
-                  {/* ★ "화면"도 칩 **안**이고 팀이 있으면 앞에 "N팀"(2026-10-11, 요청: "화면 유저칩에서 화면 글자를 유저칩 안으로 이동 · 그리고 N팀 누구 화면으로") —
-                      [1팀 정구 화면] 한 칩. 밀리(팀 없음)는 [정구 화면]. 분할 칸 머리는 요청 밖이라 그대로(칩 + 흰 "화면" · 팀은 테두리색). */}
-                  {/* ★ [깜빡이는 카메라] [이름 칩 + 팀 배지] + 칩 밖 흰 "개인 화면"(2026-10-11, 요청: "화면 유저칩에 팀배지 붙이고 개인 화면이라고 뒤에 붙이고 이 글자는 칩 밖으로
-                      다시 빼줘 · 칩 왼쪽에 깜빡이는 비디오카메라 아이콘") — 옛 [1팀 정구 화면] 한 칩은 되물렸다. 팀은 배지(자막 칩과 같은 꼴 · 팀전만)가 말한다. */}
-                  <Video className="scr-solo-cam" aria-hidden />
-                  {/* ★ 팀 배지 → 칩 왼위 **팀색 삼각 귀퉁이**(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로 칠할거야 · 글자와 겹치지 않게") — tcorner9. */}
-                  <span className={cx("scr-split-chip scr-solo-chip", tcorner9(camRaw9) && "scr-tcorner")} style={{ ...capOf9(camRaw9, camRaw9).chip, ...tcorner9(camRaw9) }}>
-                    <span className="scr-cast-chip-txt">{bases.find((b9) => b9.key === camRaw9)?.name ?? camRaw9}</span>
-                  </span>
-                  <span className="scr-split-word">개인 화면</span>
-                </span>
-              )}
+              {/* 화면 주인 이름표 — 분할 칸과 한 요소(위 ownerTag9 ★ · 옛 마크업의 이력: "화면" 칩 안 → 칩 밖 "개인 화면" · 깜빡이는 카메라 · 팀 귀퉁이). */}
+              {camRaw9 !== null && ownerTag9(camRaw9)}
               {/* ★★ 중계 자막(위 castCap9 · 2026-10-09, 요청 2) — **바닥 가운데**(옛 이름표 자리 · 같은 날 되요청: "자막을 내리기" · 정가운데가 아니다). 토막이 갈리면(key) 살짝 떠오른다. */}
               {castCap9 && (
                 <span key={searchCapNow9 ? `s${searchFocus9?.from ?? 0}` : castIdx9} className="scr-cast-caption">
@@ -20262,7 +20268,6 @@ export default function ReplayMotionPlayer({
                 /* ★ 칸은 **안 고른다** — 테두리가 팀색이다(2026-09, 요청: "화면 선택 기능 제거 대신 화면테두리를 팀색으로 해서 팀 구분되게
                    (컬러모드와 무관) 헤더에서 N팀 제거"). 팀색은 색 모드를 안 탄다(TEAM_COLOR 1 파랑 · 2 빨강) · 팀 없는 사람은 테두리 없음. */
                 const tm9 = melee ? undefined : teamOfRaw(c9.raw);
-                const nm9 = bases.find((b9) => b9.key === c9.raw)?.name ?? c9.raw;
                 /* (되물림 · 2026-10-09) 맞대결 칸 머리의 경계 쪽 자리(is-cap-r/l/b/t)와 맞대결 표 — 자동 분할이 없어졌다. 머리는 바닥 가운데 하나다. */
                 /* (걷어냄 · 2026-10-09) 바닥 줄 칸 이름표를 미니맵 받침만큼 올리던 셈(--cell-lift · dockFit9 pedL~pedR) — 이름표가 칸 **위** 가운데로 갔다(아래). */
                 return (
@@ -20281,10 +20286,8 @@ export default function ReplayMotionPlayer({
                     {/* 칸 머리 — [임자색 칩(이름)] + 흰 "화면", 칸 **위** 가운데(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단 가운데로 … 이름칩 + 흰 글씨 화면" — 단독 화면과
                         같은 꼴 · 옛 '바닥 가운데'(같은 날 요청 1)는 되물렸다). 맨 윗줄 칸(is-top)은 전체화면 폰 노치만큼 내린다(.scr-fs-layer.is-fs … is-top). 옛 맞대결 배지·표는
                         걷었다. 칸 발치의 미니맵(.scr-split-foot · 2026-09)도 걷었다(2026-10-09, 요청 3) — 독 미니맵이 누른 칸의 사람을 든다. */}
-                    <span className="scr-split-cap">
-                      <span className="scr-split-chip" style={cap9.chip}>{nm9}</span>
-                      <span className="scr-split-word">화면</span>
-                    </span>
+                    {/* 칸 머리 = 단독 화면 주인과 같은 요소(위 ownerTag9 ★ · 2026-10-13) — 옛 [칩] "화면". */}
+                    {ownerTag9(c9.raw)}
                   </div>
                 );
               })}
@@ -20385,14 +20388,14 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className={cx("scr-tb", !smallDevice9 && "is-one")}
+            className={cx("scr-tb", !uiPhone9 && "is-one")}
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
             {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 스크랩 · 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
                 "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
                 키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
-            {smallDevice9 ? (
+            {uiPhone9 ? (
               <>
                 <div className="scr-tb-btnrow">
                   {mapBtnRow}
@@ -20438,7 +20441,7 @@ export default function ReplayMotionPlayer({
   const body = (
     <div
       ref={setRoot}
-      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !smallDevice9 && "scr-motion-pc9")}
+      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9")}
       style={{ margin: "0 auto", ...uiVars9 }}
     >
       <div className="scr-motion-frame" ref={frameRef}>
@@ -20478,7 +20481,7 @@ export default function ReplayMotionPlayer({
     return (
       <div
         ref={setRoot}
-        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !smallDevice9 && "scr-motion-pc9")}
+        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9")}
         style={{ margin: "0 auto", ...uiVars9 }}
       >
         <div className="scr-motion-frame">

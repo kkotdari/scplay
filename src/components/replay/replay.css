@@ -4604,20 +4604,22 @@
 /* ★ 화면 주인 줄만 **10% 작게**(2026-10-12, 요청: "화면 유저칩 부분 10프로 축소(모바일 피시) · 화면 주인 유저칩만 · 카메라 아이콘 개인 화면 글자까지 다 통째로") —
    줄의 글자 크기 하나를 줄이면 카메라(1em)·칩·배지(0.38em)·"개인 화면"이 다 같이 준다. 자막(--cap-fs)·분할 칸 머리는 그대로. 짝수: PC 34 → 30.6 → 30 · 폰 16·dk → 14.4·dk → 2px 반올림.
    카메라는 빨강 → **초록**(같은 날 "초록색이 좋을 듯" — 로스터 켜진 카메라 #3dffa8 과 한 빛). */
-.scr-motion-pc9 .scr-fs-solo-cap { font-size: round(nearest, calc(30.6px * var(--dks, 1)), 2px); }
+.scr-motion-pc9 .scr-fs-solo-cap { font-size: round(nearest, calc(22.95px * var(--dk) / 1.35), 2px); }
+/* ★ 무대 위 이름표·자막은 **루트 --dk 로 비례**(2026-10-13, 요청: "화면 크기에 따라 화면에서 같은 비율로 보이는 거 알지?") — 옛 규칙의 `--dks` 는 독 틀(.scr-fs-dockframe)
+   안에서만 정의돼 무대 위에선 기본값 1 로 떨어졌다: FHD·QHD·UHD 어디서나 같은 px(실측 22px 고정). dk/1.35 = FHD 1 · QHD 1.33 · UHD 2(1080:1440:2160). */   /* 30.6 → **22.95**(× 0.75 · 2026-10-13, 요청: "pc 화면 주인과 자막을 25프로 축소 — 화면 크기 비례 · 짝수 px") · 분할 칸 머리도 이 요소(ownerTag9) */
 .scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { font-size: round(nearest, calc(14.4px * var(--dk)), 2px); }
 .scr-solo-cam { flex: none; width: 1em; height: 1em; margin-right: 0.3em; color: #3dffa8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); animation: scr-solo-cam 1.2s steps(1, end) infinite; }
 @keyframes scr-solo-cam { 0% { opacity: 1; } 60% { opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .scr-solo-cam { animation: none; } }   /* 자막 배지는 한 단 작게(같은 날 요청: "자막의 팀 배지는 크기를 좀 줄이기") — 미니맵 0.5em */
 /* (걷어냄 · 2026-10-12) 미니맵 배지의 오른쪽 덮어쓰기(74%) — 배지는 이제 왼위(위 공통 규칙 −52%)라 미니맵도 같은 자다. */
 .scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 round(nearest, 0.12em, 2px); font-size: 1em; line-height: round(nearest, 1.2em, 2px); padding: 0 round(nearest, 0.3em, 2px); text-shadow: none; max-width: 14em; }   /* 여백 0.08 → 0.12em — 잇닿은 칩 사이를 점 대신 여백이 가른다(2026-10-10, 지적: "유저칩 사이 점이 아래에 내려가 있음" → "점 굳이 없어도 될듯") */
-.scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(32px * var(--dks, 1) * var(--capk, 1)), 2px); }   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
-.scr-motion-pc9 .scr-cast-caption .scr-cast-chip { top: round(nearest, -0.08em, 2px); }   /* 칩 들림도 짝수(28 → −2) */
+.scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(24px * var(--dk) / 1.35 * var(--capk, 1)), 2px); }   /* 32 → **24**(× 0.75 · 2026-10-13 같은 요청) */   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
+.scr-motion-pc9 .scr-cast-caption .scr-cast-chip { top: round(nearest, -0.08em, 2px); }   /* 칩 들림도 짝수(28 → −2 · 24 면 −2) */
 /* PC 단독 화면 여백(2026-10-10, 요청: "화면의 유저칩 위쪽 여백 늘리고 자막은 아래쪽 여백 많이 늘려서 위로 올리기") — 이름표 위 3·dk(≈4) → **16** · 자막 바닥 3·dk(≈4) → **48**(받침 솟음 더함 · 1080p 짝수). */
-.scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dks, 1)), 2px); }
+.scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dk) / 1.35), 2px); }
 /* 폰 단독 화면 이름표도 살짝 내린다(2026-10-12, 요청: "재생기 모바일의 화면 주인 부분 살짝 내리기") — 위 3·dk 는 팀 배지가 화면 윗변에 닿았다 → **10·dk**(짝수). */
 .scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { top: round(nearest, calc(10px * var(--dk)), 2px); }
-.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dks, 1)), 2px) + var(--dock-lift, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
+.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translateY(0.5em); }
   to { opacity: 1; transform: none; }

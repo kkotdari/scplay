@@ -843,6 +843,16 @@ await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.bl
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
 /* --namefit(2026-10-13, 지적: "전광판 로스터 … 글자가 너무 커지면서 모바일에서 세 글자도 안 들어가") — 전광판 이름 칩마다 글자·칸 폭·잘림(scrollWidth > clientWidth)과 줄 키(--rp)·글자(--rf)·판 폭을 찍는다. */
+/* --capfit(2026-10-13, 요청: "pc 화면 주인과 자막 25프로 축소 · 짝수 픽셀") — 화면 주인 이름표·자막의 계산된 글자 크기·상자(짝수인지 ✔). */
+if (has("--capfit")) {
+  await page.waitForTimeout(600);
+  const r9 = await page.evaluate(() => {
+    const one = (sel, lab) => { const el = document.querySelector(sel); if (!el) return `${lab} 없음`; const b = el.getBoundingClientRect(); const fs = parseFloat(getComputedStyle(el).fontSize);
+      return `${lab} 글자 ${fs}px${fs % 2 === 0 ? "✔" : "✘홀수"} · 상자 ${b.width.toFixed(1)}×${b.height.toFixed(1)}`; };
+    return [one(".scr-fs-solo .scr-fs-solo-cap", "화면 주인"), one(".scr-cast-caption", "자막"), one(".scr-split-cell .scr-fs-solo-cap", "분할 칸 주인")].join(" · ");
+  });
+  console.log(`[자막 크기] ${r9}`);
+}
 if (has("--namefit")) {
   const r9 = await page.evaluate(() => {
     const ro = document.querySelector(".scr-dock-roster"); if (!ro) return "로스터 없음";
