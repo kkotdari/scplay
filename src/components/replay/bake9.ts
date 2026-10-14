@@ -766,7 +766,7 @@ export const gaitBob9 = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 1
      `headKeep9` 로 몸이 옮긴 만큼 **평행이동만** 한다(정면을 본다). 안쪽 두 칸(pUpright9·pShrinkB9)은 그대로 남는다.
    · 회전이 강체라 팔·총·연료통이 한 덩이로 돈다(높이로 비튼 전단이면 늘어뜨린 손과 어깨가 따로 돈다).
    · 부호: spun 과 같은 꼴이라 +각이 +x 를 +y(앞)로 보낸다 — 왼발이 앞(walkDir +1)이면 각은 음수다. */
-export const GAIT_TWIST9 = 9;   // 상체가 도는 가장 큰 각(도)
+export const GAIT_TWIST9 = 15;   // 상체가 도는 가장 큰 각(도) · 9 → 15(2026-10-14, 요청: "15도로 하자")
 let twistRad9 = 0; let twistPy9 = 0;
 const twRot9 = (x: number, y: number, a: number, py: number): [number, number] => {
   const c = Math.cos(a); const s9 = Math.sin(a);
