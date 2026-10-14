@@ -3260,6 +3260,8 @@ export const constOf9 = (e: { unit: string }): EntConst9 => {
    ═══════════════════════════════════════════════════════════════════════════════════════════ */
 export type FoeRow = {
   team: number; x: number; y: number; air: boolean; bld?: boolean; k?: string;
+  /** 눈이 없는 몸(나간 사람의 몸 · 위 leftOf9) — 안개 눈 목록에서 뺀다. 표적으로는 그대로다. */
+  nv?: boolean;
   /** 유닛 행일 때의 원작 유닛 이름 — 방어 건물이 공중 표적을 겨눌 때 그 표적의 제
    *  크기를 알아야 조준 높이가 맞는다. `k`는 **건물 행에만** 실리므로(방어 건물
    *  갈래) 공중 갈래에서는 언제나 undefined였다 — 그 자리를 이 필드가 채운다. */
@@ -4246,6 +4248,10 @@ export function deriveWorld9(inp: {
     }
     return m;
   })();
+  /* ★ **나간 사람의 몸은 아무에게도 시야를 안 준다**(2026-10-14, 요청: "건물이 중립이 됐을때 남은 유닛은 어떻게 되는지와 상대팀에 시야가 공유되지
+     않게 주의") — 원작은 나간 사람의 건물·유닛 **전부**를 중립(11)으로 넘긴다(truthLives 의 ★ 나감). 중립 몸은 누구의 눈도 아니다 — 같은 편에게도.
+     몸은 나간 사람의 것으로 남겨 그리므로(색·자리 그대로), 눈만 나간 초에서 끊는다(아래 frame 의 blind9 · 안개 훑기 scan). */
+  const leftOf9 = new Map<string, number>((entData?.players ?? []).flatMap((pl) => (pl.left !== undefined ? [[pl.name, pl.left] as [string, number]] : [])));
   /** 이 임자의 이 죽음이 '나감'의 한꺼번 걷힘인가. */
   const leftAt9 = (raw: string, sec: number): boolean => {
     const arr9 = leaveAt9.get(raw);
@@ -4426,7 +4432,7 @@ export function deriveWorld9(inp: {
     selRows9,
     entData, simTracks, buildsSrc, castsV2, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, prodDoneAt, prodDoneByRaw, marineBornOf, entWalks, nukeCasts, nukeLase, nukeArm9, castsSrc, recallArr9,
-    nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
+    nukeImpacts, bldGoneEff, goneEffOf, prodByRawType, bldTagAt, leftAt9, leftOf9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, resAmtSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
   };
 }
@@ -4482,7 +4488,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const {
     entData, simTracks, buildsSrc, entBldHp, bldTagSpots, droneMorph, buildsDrawOrder, bldNudge,
     entCombatStart, upsByRaw, marineBornOf, entWalks, nukeLase, nukeArm9, castsSrc, recallArr9, nukeImpacts,
-    goneEffOf, prodByRawType, bldTagAt, leftAt9, tagOrdinals, buildsByType, halls, gasBuildings,
+    goneEffOf, prodByRawType, bldTagAt, leftAt9, leftOf9, tagOrdinals, buildsByType, halls, gasBuildings,
     resStageSeries, resAmtSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
     selRows9,
   } = world;
@@ -4573,7 +4579,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const gone9 = goneEffOf(b9);
           const lift9 = b9[6];
           /* 선 자리 — 뜬 때(있으면)까지, 없으면 걷힐 때까지 그 자리에서 본다. */
-          const stop9 = lift9 !== undefined ? lift9 : (gone9 > 0 ? gone9 : Infinity);
+          const lv9 = leftOf9.get(b9[4]) ?? Infinity;   // 나간 초부터 눈이 없다(leftOf9 의 ★)
+          if (b9[0] >= lv9) continue;
+          const stop9 = Math.min(lv9, lift9 !== undefined ? lift9 : (gone9 > 0 ? gone9 : Infinity));
           /* 짓는 동안은 4타일, 완공 뒤 제 시야(위 UNBUILT_SIGHT_TILES — 원작 규칙). 아래 '지금 시야'와 같은 자. */
           const done9 = b9[7] ?? b9[0] + (BUILD_SEC[b9[3]] ?? 30);
           const rUp9 = bldSightAt9(b9[3], b9[0], done9);
@@ -4593,7 +4601,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const ftag9 = bldTagAt.get(`${b9[4]}|${b9[3]}|${Math.round(b9[1] + fp9[0] / 2)}|${Math.round(b9[2] + fp9[1] / 2)}`);
           const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
           if (ftr9) {
-            const endF9 = Math.min(gone9 > 0 ? gone9 : total, tCap);
+            const endF9 = Math.min(gone9 > 0 ? gone9 : total, tCap, lv9);
             for (let s9 = lift9; s9 <= endF9; s9 += 1) {
               const fp9b = posAtSim(ftr9, s9);
               if (fp9b) eye(fp9b.x, fp9b.y, r9, s9, s9);
@@ -4604,7 +4612,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const to9 = buildsSrc.find(([s2, x2, y2, u2, r2]) => r2 === b9[4] && u2 === b9[3]
             && s2 === gone9 && (x2 !== b9[1] || y2 !== b9[2]));
           if (!to9) continue;
-          for (let s9 = lift9; s9 <= Math.min(gone9, tCap); s9 += 1) {
+          for (let s9 = lift9; s9 <= Math.min(gone9, tCap, lv9); s9 += 1) {
             const u9 = Math.min(1, (s9 - lift9) / Math.max(0.1, gone9 - lift9));
             const k9 = u9 * u9 * (3 - 2 * u9);
             eye(b9[1] + (to9[1] - b9[1]) * k9 + fp9[0] / 2,
@@ -4624,7 +4632,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         for (const e9 of entWalks) {
           if ((!visAll && teamOfRaw(e9.raw) !== viewTeam) || e9.walk.n === 0) continue;
           const r9 = sightTiles(e9.unit || "Marine");
-          const end9 = Math.min(e9.died ?? total, tCap);
+          const end9 = Math.min(e9.died ?? total, tCap, leftOf9.get(e9.raw) ?? Infinity);   // 나간 초부터 눈이 없다
           let lastK = -1;
           for (let s9 = e9.born; s9 <= end9; s9 += 1.2) {
             const q9 = posAtW(e9.walk, s9);
@@ -4920,6 +4928,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                  상태표(STATUS_CASTS.Irradiate.dur)와 **같은 값**이어야 한다. */
               : c[3] === "Irradiate" ? STATUS_CASTS.Irradiate.dur
                 : c[3] === "Scanner Sweep" ? SCAN_DETECT_SEC : CAST_HOLD_SEC));
+    /** 나간 사람의 몸 — 나간 초부터 눈이 없다(위 leftOf9 의 ★). */
+    const blind9 = (raw: string): boolean => (leftOf9.get(raw) ?? Infinity) <= t;
     const engageFoes: FoeRow[] = [];
     /** **모든** 다 지어진 건물 — 방어 건물의 표적 고르기만 여기까지 본다(요청: "건물대
      *  건물도 되는지 확인").
@@ -5034,12 +5044,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            옮기는데(아래 렌더의 `if (simNow) pos = …`), 표적 지도는 명령 자취(q)만 보고
            있었다. 둘이 갈리는 동안(밀려 움직임·자취 없는 이동) 포자·트레이서가 몸이
            떠난 자리를 겨눴다. 참값이 있으면 참값 자리를 싣는다. */
+        const nv9 = blind9(e.raw);
         const row: FoeRow = {
           team: teamOfRaw(e.raw) ?? 0,
           x: sIn9 ? sIn9.x : q.x, y: sIn9 ? sIn9.y : q.y,
           air: kc9.air,
           uk: kc9.uk,
           eid: e.tag > 0 ? e.tag : 0,
+          ...(nv9 ? { nv: true } : {}),
         };
         engageFoes.push(row);
         foeEnts.push({ row, e, q, sim: sIn9, kc: kc9 });
@@ -5054,7 +5066,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           workerSpots.push({ raw: e.raw, x: q.x, y: q.y, mv: q.moving });
         }
         if (e.unit === "Arbiter") arbiterSpots.push({ raw: e.raw, x: q.x, y: q.y });
-        if (DETECTOR_UNITS.has(e.unit)) detectorSpots.push({ team: row.team, x: q.x, y: q.y });
+        if (DETECTOR_UNITS.has(e.unit) && !nv9) detectorSpots.push({ team: row.team, x: q.x, y: q.y });
       }
       if (PERF9) pAdd("개체고리", pNow() - pS9_개체고리);
       const pS9_건물고리A = PERF9 ? pNow() : 0;
@@ -5068,6 +5080,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             team: teamOfRaw(br) ?? 0,
             x: bx2 + footDx(bu), y: by2 + footDy(bu), air: false, bld: true, k: bu,
             eid: -(bi + 1),
+            ...(blind9(br) ? { nv: true } : {}),
           });
         }
         if (!["Sunken Colony", "Spore Colony", "Photon Cannon", "Missile Turret", "Bunker"].includes(bu)) continue;
@@ -5081,9 +5094,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           team: teamOfRaw(br) ?? 0,
           x: bx2 + footDx(bu), y: by2 + footDy(bu), air: false, bld: true, k: bu,
           eid: -(bi + 1),
+          ...(blind9(br) ? { nv: true } : {}),
         });
         // 방어 디텍터(전수조사) — 터렛·스포어·캐논은 은신을 벗긴다.
-        if (bu === "Missile Turret" || bu === "Spore Colony" || bu === "Photon Cannon") {
+        if ((bu === "Missile Turret" || bu === "Spore Colony" || bu === "Photon Cannon") && !blind9(br)) {
           detectorSpots.push({ team: teamOfRaw(br) ?? 0, x: bx2 + footDx(bu), y: by2 + footDy(bu) });
         }
       }
@@ -5122,6 +5136,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           team: teamOfRaw(br2) ?? 0,
           x: fx3 + footDx(bu2), y: fy3 + footDy(bu2),
           air: true, bld: true, k: bu2, lifted: true,
+          ...(blind9(br2) ? { nv: true } : {}),
         });
       }
       if (PERF9) pAdd("건물고리B", pNow() - pS9_건물고리B);
@@ -5294,11 +5309,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 눈은 **이 프레임에 실제로 서 있는 것들**이다 — 유닛 명단(engageFoes)과 건물
          명단(bldFoes)이 이미 그 값이라 따로 훑지 않는다(둘 다 위에서 t로 걸러졌다). */
       for (const f9 of engageFoes) {
-        if (!visAll && f9.team !== viewTeam) continue;
+        if ((!visAll && f9.team !== viewTeam) || f9.nv) continue;
         eye(f9.x, f9.y, sightTiles(f9.uk ?? f9.k ?? "Marine"), f9.eid ?? 0);
       }
       for (const f9 of bldFoes) {
-        if (!visAll && f9.team !== viewTeam) continue;
+        if ((!visAll && f9.team !== viewTeam) || f9.nv) continue;
         eye(f9.x, f9.y, sightTiles(f9.k ?? "Command Center"), f9.eid ?? 0);
       }
       /* 스캔 자리의 눈(위 fogSrcFor scan 의 ★ — 2026-10-12) · 신원은 −(1e6 + 줄 번호)라 유닛(양수)·건물(−줄 번호)과 안 겹친다. */
@@ -5320,7 +5335,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          제자리가 도로 안개에 덮이는 앞뒤 안 맞는 그림이 났다. 여기서 채운다. */
       for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
         const b9 = buildsSrc[bi9];
-        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
+        if ((!visAll && teamOfRaw(b9[4]) !== viewTeam) || blind9(b9[4])) continue;
         if (t < b9[0]) continue;                                  // 아직 착공 전
         const gone9 = goneEffOf(b9);
         if (gone9 > 0 && t >= gone9) continue;                    // 걷힌 뒤
@@ -5334,7 +5349,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          같은 곡선으로 지금 자리를 다시 셈해 하나 더 찍는다(겹쳐도 최댓값이라 무해하다). */
       for (let bi9 = 0; bi9 < buildsSrc.length; bi9 += 1) {
         const b9 = buildsSrc[bi9];
-        if (!visAll && teamOfRaw(b9[4]) !== viewTeam) continue;
+        if ((!visAll && teamOfRaw(b9[4]) !== viewTeam) || blind9(b9[4])) continue;
         const lift9 = b9[6];
         const land9 = b9[5] ?? 0;   // 이 줄의 gone은 파괴가 아니라 **착륙 시각**이다
         if (lift9 === undefined || t < lift9 || (land9 > 0 && t > land9)) continue;
@@ -6032,7 +6047,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          건물 짓는게 보임") — 밝힘 이력만 보면 "저 자리를 가 봤다"까지만 알고,
          그 뒤에 적이 거기 올린 새 건물까지 함께 보였다. 이 건물이 생긴 뒤에도
          눈이 닿은 적이 있어야(seenSince) 기억으로 남는다. */
-      const bldSeen9: 0 | 1 | 2 = fogOn && team !== viewTeam
+      /* 나간 사람의 건물은 중립이다(leftOf9 의 ★) — 같은 편에게도 '제 것'이 아니라 안개를 탄다. */
+      const bldSeen9: 0 | 1 | 2 = fogOn && (team !== viewTeam || blind9(raw))
         ? (seenAt(centerX, centerY) === 2 ? 2
           : seenSince(centerX, centerY, sec) ? 1 : 0) : 2;
       if (bldSeen9 === 0) return null;
@@ -6043,7 +6059,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          실제 건물은 안개 속으로 사라진다 — 그 스냅샷은 이 줄이 아니라 떠난
          자리 줄이 그린다).
          centerX·centerY는 위 비행 보간을 이미 먹은 **지금 나는 자리**다. */
-      if (fogOn && team !== viewTeam && afloat && bldSeen9 < 2) return null;
+      if (fogOn && (team !== viewTeam || blind9(raw)) && afloat && bldSeen9 < 2) return null;
       /** 잔상이면 한 단 어둡게 — 지금 보이는 건물과 기억만 남은 건물을 가른다. */
       const fogDim9 = bldSeen9 === 1 ? 0.55 : 1;
       /** **잔상은 멈춘 그림이다**(요청: "안개에 남은 시야에 없는 잔상에는
@@ -7837,7 +7853,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        그 보기에서는 아예 안 건다. 시점 보기(1·2팀)에서는 그대로다 — 그쪽은
        제 팀이면 문 자체를 안 지나고, 남의 팀이면 **내 눈**이 판정하므로 죽는
        개체가 제 눈을 거두는 것과 무관하다. */
-    if (fogOn && !visAll && team !== viewTeam
+    if (fogOn && !visAll && (team !== viewTeam || blind9(e.raw))   // 나간 사람의 몸은 중립 — 같은 편에게도 안개를 탄다(leftOf9 의 ★)
       && seenAt(rawPos.x, rawPos.y) < 2) return null;
     /* ★ **화면 밖이면 여기서 끝**(위 cull9) — 이 아래로 1300줄이 마커·캔버스 명령·
        효과를 만든다. 4배로 당겨 보는 동안 그 대부분은 아무도 못 보는 것이었다.
