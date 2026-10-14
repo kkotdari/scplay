@@ -9991,6 +9991,7 @@ export default function ReplayMotionPlayer({
   const entClicks = useMemo<[number, number, number, string, number, number, string][]>(() => {
     if (!entData) return [];
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const lifeOfTag9 = new Map(entData.lives.map((e9) => [e9.tag, e9]));
     const seen = new Set<string>();
     /* 다섯째 값은 클릭의 종류(지적: 클릭·우클릭이 구분이 안 된다) — 0 이동 우클릭,
        7 공격 클릭. 선택(드래그)은 자리가 아니라 잡힌 유닛들 몸에 켜지는 링이 맡는다. */
@@ -10017,14 +10018,24 @@ export default function ReplayMotionPlayer({
         const key = `${e.owner}:${o[0]}:${o[1]}:${o[2]}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        const tg9 = clickTargets9.get(key) ?? -1;
+        let tg9 = clickTargets9.get(key) ?? -1;
+        /* ★ **자원이 제 편 유닛보다 먼저**(2026-10-13, 지적: "자원 우클릭 안 나오는데?") — 표적을 누구 것이든 잡게 된 뒤로(engine9 clickTargets9 · 같은 날 "유닛도 전부 다
+           되는데?") 미네랄을 우클릭하면 그 미네랄 곁에서 캐던 **다른 제 일꾼**이 표적으로 잡혀 자원 판정까지 안 왔다. 클릭 자리가 자원 발자국 안이고 짝이 제 것·동맹
+           **유닛**(건물 아님)이면 자원이다 — 적 유닛(일꾼 견제 클릭)·건물(정제소 등)은 그대로 표적. */
+        let rk9 = resHit9(o[1], o[2]);
+        if (rk9 && tg9 >= 0) {
+          const t9 = lifeOfTag9.get(tg9);
+          const tRaw9 = t9 ? nameOfId.get(t9.owner) ?? "" : "";
+          const friend9 = !!t9 && !t9.bld && (t9.owner === e.owner || (!melee && !!tRaw9 && teamMap9[tRaw9] !== undefined && teamMap9[tRaw9] === teamMap9[raw]));
+          if (friend9) tg9 = -1; else rk9 = "";
+        }
         /* ★ 갈래와 무관하게 본다(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — 덤퍼(sg-api openbw-scr.patch action_default_order)는 **표적이 있는 우클릭을 다 7** 로
            적는다(`target ? 7 : 0`) — 미네랄 우클릭(채취)도 7 이라 옛 '이동(0)만' 문을 못 지났다. 적 표적(clickTargets9)이 없는 줄이면 자원 자리인지 본다. */
-        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, tg9 < 0 ? resHit9(o[1], o[2]) : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
+        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, tg9 < 0 ? rk9 : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
-  }, [entData, obsNames, clickTargets9, resSpots9]);
+  }, [entData, obsNames, clickTargets9, resSpots9, teamMap9, melee]);
   const entClicksRef9 = useRef(entClicks);
   entClicksRef9.current = entClicks;
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
