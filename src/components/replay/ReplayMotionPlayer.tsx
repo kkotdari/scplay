@@ -17383,6 +17383,10 @@ export default function ReplayMotionPlayer({
   const [introWarm9, setIntroWarm9] = useState(false);
   const introReady9 = tracksReady && (entData === null || introWarm9);
   const baking9 = !!warmAt;
+  /** ★ **가려진 동안·진입 굽기 동안은 시계가 안 간다**(2026-10-14, 지적: "모델 굽는 중이 끝나면 시간이 흘러가 있는 문제") — 첫 굽기까지 지도는 까맣게 가려져 있는데(introReady9),
+   *  예열 effect 의 첫 rAF 전 · 경기 자료(entData)가 자취보다 늦게 오는 틈에는 warmingRef 가 아직 안 서 재생 시계가 돌았다. 아래 재생 틱이 이 ref 도 본다. */
+  const introHoldRef9 = useRef(true);
+  introHoldRef9.current = !introReady9 || baking9;
   // (걷어냄) sceneReady — 두 뜻을 묶어 두던 이름이다. 이제 쓰는 쪽이 둘을 따로 본다.
   /** 굽는 중인가 — 재생 틱이 이 깃발을 보고 시간을 멈춘다(핀치와 같은 자리). 상태로
    *  보면 프레임마다 시계 effect가 다시 서므로 ref로 든다. */
@@ -17393,6 +17397,8 @@ export default function ReplayMotionPlayer({
      제 시각에 맞게 골라진다. 큰 굽기 뭉치(배율 변경 직후 수십 장)만 여전히 멎는다. */
   const BAKE_HOLD_MS9 = 40;
   const BAKE_HOLD_MAX9 = 1500;
+  /** 띠가 떠 있는 동안 이어서 멈출 수 있는 상한(ms · 아래 재생 틱의 ★ 2026-10-14). */
+  const BAKE_HOLD_BAND9 = 5000;
   /** 굽기 멈춤 상태 — ms는 이어 멈춘 길이, win/winDt는 띠를 켜고 끄는 최근 창. */
   const bakeHoldRef = useRef({ ms: 0, win: 0, winDt: 0, shown: false });
   const [bakeHold, setBakeHold] = useState(false);
@@ -17641,9 +17647,13 @@ export default function ReplayMotionPlayer({
            일을 줄이지 않으면서 정작 보고 있는 장면만 가린다. */
       const bakeMs9 = glBakeMsTake9();   // 이번 프레임에 **메시**를 지은 몫(판 굽기는 걷었다) — 처음 보는 종류가 몰릴 때만 선다
       const hold9 = bakeHoldRef.current;
-      const holding9 = c !== null && bakeMs9 >= BAKE_HOLD_MS9 && hold9.ms < BAKE_HOLD_MAX9;
+      /* ★ 띠("모델 굽는 중…")가 떠 있는 동안은 **늘** 멈춘다(2026-10-14, 지적: "모델 굽는 중이 끝나면 시간이 흘러가 있는 문제") — 옛 셈은 40ms 넘게 구운 프레임만 멈추고
+         1.5초 뒤엔 다시 흘려, 띠가 떠 있는 동안에도 시간이 조금씩 나갔다(띠는 '최근 반 초 가운데 40% 넘게 굽는다'라 10~39ms 굽기 프레임이 이어지면 서 있다). 띠가 선 동안은
+         상한 BAKE_HOLD_BAND9(5초)까지 멈춘다 — 시간이 안 가면 구울 것이 없어지므로 띠는 반 초 안에 내려가고 곧 다시 흐른다. */
+      const band9 = hold9.shown;
+      const holding9 = c !== null && (bakeMs9 >= BAKE_HOLD_MS9 || band9) && hold9.ms < (band9 ? BAKE_HOLD_BAND9 : BAKE_HOLD_MAX9);
       if (holding9 && c) hold9.ms += now - c.last;
-      else if (bakeMs9 < BAKE_HOLD_MS9) hold9.ms = 0;
+      else if (bakeMs9 < BAKE_HOLD_MS9 && !band9) hold9.ms = 0;
       /* ★ 띠를 켜는 자는 **따로**다 — 위 멈춤은 스스로 한 프레임 만에 풀리므로(시간이
          안 가면 구울 것이 없다) 그 길이로는 '오래 끈다'를 못 잰다. 대신 **최근 창에서
          굽기가 차지한 몫**을 본다: 반 초 가운데 40% 넘게 굽고 있으면 사람이 느끼는
@@ -17657,7 +17667,7 @@ export default function ReplayMotionPlayer({
         hold9.win = 0;
         hold9.winDt = 0;
       }
-      const acc = warmingRef.current || holding9
+      const acc = warmingRef.current || holding9 || introHoldRef9.current
         ? 0 : (c?.acc ?? 0) + dt;
       const drawnAt = c?.drawn ?? 0;
       const draw = acc > 0 && now - drawnAt >= drawGapMs();
