@@ -12616,6 +12616,10 @@ export default function ReplayMotionPlayer({
      이동(searchGo9) — 결과 때 − SEARCH_LEAD9 초로 간다(그 일이 벌어지기 직전부터 보게). 지금 결과(searchCur9)를 들고 있어 '다음'이 같은 자리에 맴돌지 않고, 손으로 딴
      데로 감았으면 그 때부터 앞뒤를 다시 찾는다. 편성표는 중계가 꺼져 있어도 검색어가 있으면 굽는다(위 planAll9). */
   const SEARCH_MERGE9 = 8;
+  /** 몸 죽음(사망·처치·파괴) 줄을 색인에 싣나 — 걷었다(2026-10-13 · 아래 searchIndex9 ★ 첫 생산만). */
+  const SEARCH_DEATHS9 = false;
+  /** 진행 중 글귀(장면 자막의 "○○ 연구 중" 따위)는 결과가 아니다 — 업그레이드·연구는 완료만(2026-10-13, 요청: "업그레이드도 완료만 나오게 · 연구 같은 거"). */
+  const SEARCH_ONGOING9 = /연구 중|진행 중|올리는 중/;
   const SEARCH_LEAD9 = 2;
   /** 결과 장면을 잡아 두는 최소 길이(결과 때부터 · 장면은 제 끝까지). */
   const SEARCH_HOLD9 = 6;
@@ -12683,7 +12687,9 @@ export default function ReplayMotionPlayer({
       }
       return best9 ? whoOf9(best9.o) : null;
     };
-    for (const e9 of entData.lives) {
+    /** 그 사람의 그 종류를 이미 실었나(첫 생산·첫 건설만 · 아래 ★). 몸은 태어난 차례로 돈다. */
+    const firstMade9 = new Set<string>();
+    for (const e9 of [...entData.lives].sort((a9, b9) => a9.born - b9.born)) {
       if (e9.kind === "Nuclear Missile") {
         if (e9.born > 1) { add9(e9.born, e9.owner, "핵 장전", "nuke 핵미사일", { x: e9.bornX, y: e9.bornY }); term9("핵", "전술"); }
         if (e9.died !== null && e9.endX !== undefined && e9.endY !== undefined && Math.hypot(e9.endX - e9.bornX, e9.endY - e9.bornY) > 1) {
@@ -12696,12 +12702,17 @@ export default function ReplayMotionPlayer({
       if (SEARCH_SKIP9.has(e9.kind)) continue;
       const ko9 = (e9.bld ? BUILDING_KO[e9.kind] : UNIT_KO[e9.kind]) ?? e9.kind;
       if (whoOf9(e9.owner)) term9(ko9, e9.bld ? "건물" : "유닛");   // 시작부터 있던 몸(본진·일꾼)도 낱말 표에
+      /* ★ **첫 생산·첫 건설만**(2026-10-13, 지적: "키워드 검색에 유닛이나 건물 생산이랑 죽는 게 나오니까 너무 결과가 많은 것 같은데") — 몸 하나하나의 생산·건설 줄을
+         걷고 그 사람의 그 종류 **첫** 것만 싣는다(본진 2·3번째 건설은 이정표라 그대로). 죽음(사망·처치·파괴) 줄은 통째로 걷었다 — 기지 피해(반파·대파·파괴)는
+         장면 자막 결과(아래 planAll9)로 그대로 나온다. 낱말 표(자동 완성)는 종전대로 다 든다. */
       if (e9.born > 1) {
         const hn9 = hallN9.get(e9.tag);
-        add9(e9.born, e9.owner, hn9 && hn9 > 1 ? `${hn9}${HALL_SHORT9[e9.kind]} 건설` : `${ko9} ${e9.bld ? "건설" : "생산"}`, e9.kind, { x: e9.bornX, y: e9.bornY });
+        const fk9 = `${e9.owner}|${e9.kind}`;
+        if (hn9 && hn9 > 1) add9(e9.born, e9.owner, `${hn9}${HALL_SHORT9[e9.kind]} 건설`, e9.kind, { x: e9.bornX, y: e9.bornY });
+        else if (!firstMade9.has(fk9)) { firstMade9.add(fk9); add9(e9.born, e9.owner, `첫 ${ko9} ${e9.bld ? "건설" : "생산"}`, `${e9.kind} ${e9.bld ? "건설" : "생산"}`, { x: e9.bornX, y: e9.bornY }); }
         term9(ko9, e9.bld ? "건물" : "유닛");
       }
-      if (e9.died !== null && e9.end !== "morph") {
+      if (SEARCH_DEATHS9 && e9.died !== null && e9.end !== "morph") {
         const kw9 = killerOf9.has(e9.tag) ? whoOf9(killerOf9.get(e9.tag)!) : null;
         const vw9 = whoOf9(e9.owner);
         if (kw9 && vw9 && kw9 !== vw9) add9(e9.died, null, `${ga9(kw9)} ${vw9} ${ko9} ${e9.bld ? "파괴" : "처치"}`, `${e9.kind} 잃음 죽음 사망 ${e9.bld ? "" : "처치"}`, { x: e9.endX ?? e9.bornX, y: e9.endY ?? e9.bornY, raw: rawOf9.get(e9.owner) });
@@ -12737,12 +12748,12 @@ export default function ReplayMotionPlayer({
     const nukeDup9 = (txt9: string): boolean => txt9.includes("핵 투하");
     for (const x9 of (planAll9 as CastPlan9).search ?? []) {
       const txt9 = capTxt9(x9.caps);
-      if (txt9 && !nukeDup9(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
     }
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
       const txt9 = capTxt9(g9.caps);
-      if (txt9 && !nukeDup9(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
     }
     out9.sort((a9, b9) => a9.sec - b9.sec);
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
