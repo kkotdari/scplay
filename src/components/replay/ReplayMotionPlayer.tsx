@@ -843,8 +843,8 @@ function selRingCol9(op: UnitDrawOp): string | null {
 }
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
 const RING_DIAG9: string[] = [];
-function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number): void {
-  if (RING_DIAG9.length < 8 && scrDiagOn()) RING_DIAG9.push(`${op.kind}${op.pickKey ? "#" + op.pickKey : ""}:${op.pickRaw ?? "?"}:${(op.selBy ?? []).join("+") || "-"}:${col9}(몸 ${op.color}${wd9 !== undefined ? ` 폭 ${wd9.toFixed(1)}` : ""})`);
+function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number, lw9?: number): void {
+  if (RING_DIAG9.length < 8 && scrDiagOn()) RING_DIAG9.push(`${op.kind}${op.pickKey ? "#" + op.pickKey : ""}:${op.pickRaw ?? "?"}:${(op.selBy ?? []).join("+") || "-"}:${col9}(몸 ${op.color}${wd9 !== undefined ? ` 폭 ${wd9.toFixed(1)}` : ""}${lw9 !== undefined ? ` 테 ${lw9.toFixed(2)}` : ""})`);
 }
 /** 선택 링의 자 — **종류마다 한 값**: 서 있는 자세(pose 0) 메시의 여덟 요잉 화면 상자 폭의 평균(모델 자 · 16 = 상자 한 변).
  *  (2026-10, 요청: "선택링이 유닛/건물의 방향이나 자세 모션에 따라 크기가 바뀌거나 위치가 바뀌지 않게" → 재지적 "아직도 자세나 동작에
@@ -852,6 +852,16 @@ function ringDiagPush9(op: UnitDrawOp, col9: string, wd9?: number): void {
  *  등급(LOD · 배율에 따라 갈린다)마다 메시가 딴 물건이라 상자 폭도 달라 링이 자세·동작·배율마다 뛰었다. 이제 종류 + 카메라마다 한 번,
  *  자세 0 메시(없으면 지금 메시)로 재고 영영 그 값이다(그 뒤 등급이 바뀌어도 안 다시 잰다 — 등급 사이 상자 차는 한 뼘 아래). */
 const RING_W_KIND9 = new Map<string, number>();
+/** ★ 선택 링의 테 굵기 — **링 지름에 비례**(2026-10-14, 지적: "배율에 따라 선택링 두께도 변해야 하는데 변하고 있어? · 저중배율에서 너무 두꺼워 보여").
+ *  옛 자(유닛 max(1.1, 몸 × 0.06) · 건물 max(1.1, 폭 × 0.012))는 배율 몫이 하한을 한 번도 못 넘어 **모든 배율에서 1.1px** 였다(실측: 마린 링 지름
+ *  12px 든 49px 든 · 벌처 100px 든). 이제 지름 × RING_LW_K9, 위는 RING_LW_MAX9, 아래는 RING_LW_MIN9(0.6 CSS px · dpr 1 은 0.7) — 0.32px 로
+ *  내렸다가 dpr 1 에서 안 보였던 일(아래 유닛 링 주석)을 다시 안 겪게. */
+const RING_LW_K9 = 0.03;
+const RING_LW_MAX9 = 2.2;
+const RING_LW_MIN9 = 0.6;
+function ringLineW9(diamPx: number, bd: number): number {
+  return Math.min(RING_LW_MAX9, Math.max(RING_LW_MIN9, 0.7 / Math.max(1, bd), diamPx * RING_LW_K9));   // dpr 1 은 0.7px(테 AA 가 70% 로 칠한다 · 0.32 처럼 안 사라진다)
+}
 function ringWidth9(gl: GlUnits9, kind: string, meshNow: Parameters<GlUnits9["footOf"]>[0], lod: number, cam: Parameters<GlUnits9["footOf"]>[2]): number {
   const key9 = `${kind}|${cam === undefined || cam === CAM_TOP9 ? "" : cam.key}`;
   const got9 = RING_W_KIND9.get(key9);
@@ -5709,11 +5719,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                납작했다. 링은 땅 위의 동그라미라는 신호이지 발자국의 꼴이 아니다 — 비를 하나로 둔다. */
             const rx9 = wPx * 0.62 * rk9;
             /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
-            const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + Math.max(1.1, wPx * 0.012) / 2;
+            const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + ringLineW9(rx9 * 2, Bd) / 2;
             if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
               const bRingCol9 = selRingCol9(op) ?? op.color;
-              ringDiagPush9(op, bRingCol9);
-              const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: Math.max(1.1, wPx * 0.012), shear: 0 };
+              const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: ringLineW9(rx9 * 2, Bd), shear: 0 };
+              ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
               else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
             }
@@ -5943,9 +5953,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         let airRing9: GlRing9 | undefined;
         /* 링의 자 — 링과 체력바(링 밑단 아래에 선다)가 함께 쓴다. ringWidth9 는 종류마다 한 번 재고 담아 둔다. */
         const ringGeo9 = () => {
-          const ringW = Math.max(1.1, op.sizePx * inkK * 0.06);
           const ringK9 = RING_K9[op.kind] ?? 1;
           const ringWd9 = glM9 && gl9 ? ringWidth9(gl9, op.kind, glM9, lod9, glCam9) * (px / 16) * modelNormOf(op.kind) : inkW;
+          const ringW = ringLineW9(ringWd9 * 1.1 * ringK9, Bd);   // 테 — 링 지름(가로 반지름 0.55 × 2)에 비례(위 ringLineW9)
           const ringY = (groundY ?? groundOy9) - lift;
           return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * pitchGroundK9(op) + ringW / 2 };
         };
@@ -5967,7 +5977,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
           const ringX = sx;
           const ringCol9 = selRingCol9(op) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
-          ringDiagPush9(op, ringCol9, ringWd9);
+          ringDiagPush9(op, ringCol9, ringWd9, ringW);
           const ringPath = (): void => {
             ctx.beginPath();
             /* 입체에서는 좌우 시점 밀림도 먹인다(요청: 선택 링·마커도 사영 밀림) — 바닥 깊이에 tan(시점각)을

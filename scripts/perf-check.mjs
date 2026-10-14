@@ -468,6 +468,8 @@ function makeWorld() {
   /* --res 의 자원 우클릭(2026-10-12, 요청: "우클릭도 x 마커 말고 자원 선택 링을 깜빡인다든지") — 정구 병력 하나가 45.8초에 미네랄(60,64 · 난전 자리 — 개인 화면에 걸린다)로 이동 명령(0).
      --track 정구 --t 46 이면 땅 마커 대신 그 미네랄의 노란 링이 켜져 있다(0.9초 창 · 0.225초 켜고 끄기). */
   if (has("--res") && armyTags.has(0)) { cmds9.push([F(45.8), armyTags.get(0)[2], 52 * 32, 76 * 32 - 20, 7]); /* 덤퍼는 표적 있는 우클릭을 7 로 적는다 · 자리는 마우스(그림 위 · 가운데보다 20px 위) */ cmds9.sort((a, b) => a[0] - b[0]); }
+  /* --selarmy(2026-10-14, 링 굵기 자 — "배율에 따라 선택링 두께도 변해야") — 정구 병력 여섯과 본진 홀을 44초에 고른다 · --diag 의 [링] 줄에 폭·테가 찍힌다. */
+  if (has("--selarmy") && armyTags.has(0)) sels.push([F(44), 0, [...armyTags.get(0).slice(0, 6)]]);
   if (bldClick9.length > 0 && armyTags.has(0)) {
     bldClick9.forEach(([, x9, y9], i9) => cmds9.push([F(45.8 + i9 * 0.2), armyTags.get(0)[3 + i9], x9 * 32, y9 * 32, 7]));   // 셋 건물 · 둘 유닛
     cmds9.push([F(47.0), bldClick9[0][0], bldClick9[2][1] * 32, bldClick9[2][2] * 32, 7]);   // 랠리 — 정구 서플라이 → 수달이 파일런
