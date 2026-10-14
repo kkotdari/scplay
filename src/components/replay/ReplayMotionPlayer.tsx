@@ -10027,7 +10027,18 @@ export default function ReplayMotionPlayer({
           const t9 = lifeOfTag9.get(tg9);
           const tRaw9 = t9 ? nameOfId.get(t9.owner) ?? "" : "";
           const friend9 = !!t9 && !t9.bld && (t9.owner === e.owner || (!melee && !!tRaw9 && teamMap9[tRaw9] !== undefined && teamMap9[tRaw9] === teamMap9[raw]));
-          if (friend9) tg9 = -1; else rk9 = "";
+          /* ★ 건물은 **제 발자국 안**을 눌렀을 때만 자원을 이긴다(2026-10-14, 재지적: "자원 우클릭이 안 나오는데 링이 · 빨무 맵") — 표적 원(engine9 clickTargets9 ·
+             건물은 발자국 반 대각 + 0.25)은 커맨드·넥서스가 2.75타일이라, 미네랄이 본진 건물에 바짝 붙은 빨무에서는 미네랄 우클릭마다 제 본진 건물이 표적으로 잡혔다.
+             발자국(BUILDING_FOOT · sites 의 좌상단 · 그 클릭 때의 자리) 밖이면 자원이다. 가스 건물은 간헐천과 발자국이 같아 그대로 건물이 표적. */
+          let inFoot9 = true;
+          if (t9?.bld) {
+            const ft9 = BUILDING_FOOT[t9.kind];
+            /* 가운데 — 그 클릭 때의 착륙 자리(sites 좌상단 + 반 발자국) · 없으면 난 자리(bornX·Y = 몸 가운데 · 메인의 entData 는 sites 가 빈 판이 있다). */
+            let cx9 = t9.bornX; let cy9 = t9.bornY;
+            for (const q9 of t9.sites) if (q9[0] <= o[0] && ft9) { cx9 = q9[1] + ft9[0] / 2; cy9 = q9[2] + ft9[1] / 2; }
+            if (ft9) inFoot9 = Math.abs(o[1] - cx9) <= ft9[0] / 2 && Math.abs(o[2] - cy9) <= ft9[1] / 2;
+          }
+          if (friend9 || !inFoot9) tg9 = -1; else rk9 = "";
         }
         /* ★ 갈래와 무관하게 본다(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — 덤퍼(sg-api openbw-scr.patch action_default_order)는 **표적이 있는 우클릭을 다 7** 로
            적는다(`target ? 7 : 0`) — 미네랄 우클릭(채취)도 7 이라 옛 '이동(0)만' 문을 못 지났다. 적 표적(clickTargets9)이 없는 줄이면 자원 자리인지 본다. */
