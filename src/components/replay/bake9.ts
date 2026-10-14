@@ -25095,7 +25095,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
    *    13° → 4.5° · 앞 23° → 16° · 뒤 48° → 26° · 반지름 2.15 → 2.3(두 마디 합의 92% — 팔꿈치가 조금만 꺾인다). 평소도 같은 진자
    *    (앞뒤 ∓ZL_SWS9 — 왼팔 뒤 · 오른팔 앞)라 걸음과 한 자다. 손 x 는 어깨(0.82)보다 안쪽 ZL_HX9(0.78)이고 팔꿈치 힌트는 바깥·뒤 —
    *    하완이 안쪽으로 살짝 꺾인다. 상체 요잉(gaitTwistB9)은 강체라 팔이 몸통과 함께 돈다. */
-  const ZL_SW09 = 0.08, ZL_SWF9 = 0.28, ZL_SWB9 = 0.45, ZL_SWR9 = 2.3, ZL_SWS9 = 0.1, ZL_HX9 = 0.78;
+  const ZL_SW09 = 0.08, ZL_SWF9 = 0.28, ZL_SWB9 = 0.45, ZL_SWS9 = 0.35;   // (걷음 2026-10-14) ZL_SWR9 2.3 · ZL_HX9 0.78 — 손 자리로 푸는 옛 팔
+  /** ★ 평소·걸음 팔 — 상완이 바깥으로 ZL_ABD9 도 벌어져 내려가고 하완은 수직으로 떨어진다(2026-10-14 · 아래 ★). 마디 길이는 jointBetween 과 같은 1.2·1.3. */
+  const ZL_ABD9 = (25 * Math.PI) / 180;
   return [
     /* 다리·몸통은 프로토스 인간형 공통 — 2관절 다리 + 앞으로 숙는 몸통. 금 갑주.
        보폭 0.55 → 0.85(지적: "질럿 걷기가 적용 안된듯?") — 컷은 돌고 있었지만
@@ -25433,6 +25435,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            미는 것이 아니라 **관절이 펴지며 찌르는** 그림이 된다. 2.5를 넘기면 두 마디가
            늘어나므로(그 함수는 닿지 않는 손을 향해 곧게 뻗는다) 한 뼘 못 미치게 둔다.
            높이는 어깨보다 조금 아래(−0.55) — 칼이 수평으로 나가는 그 자세다(요청). */
+      /* ★★ **평소·걸음 팔: 상완은 바깥으로 벌어져 내려가고 하완은 수직으로 떨어진다**(2026-10-14, 요청: "질럿 평상시와 이동시 상완은 좀 옆쪽 바깥을 향해 벌어지며
+         내려가고 하완은 다시 수직으로 떨어지는 느낌 · 평상시엔 그 상태에서 앞뒤도 적용(다리와 엇갈림)") — 옛 판은 손 자리(어깨보다 안쪽 ZL_HX9 0.78)를 정하고 팔꿈치를
+         jointBetween 으로 풀어, 팔꿈치가 바깥으로 빠지고 하완이 안쪽으로 꺾였다. 이제 어깨에서 **마디를 차례로 내린다**: 상완 1.2 를 바깥으로 ZL_ABD9(25°) 기울여
+         팔꿈치, 거기서 하완 1.3 을 곧장 아래로 손. 그 팔 전체를 어깨를 지나는 옆축(x) 둘레로 진자 각 th9 만큼 앞뒤로 돌린다(걸음 · 평소 둘 다 — 하완은
+         정면에서 늘 수직이다). 평소 앞뒤 몫 ZL_SWS9 0.1 → 0.35 — 왼팔(+x) 뒤 15° · 오른팔 앞 17°(왼다리가 앞이라 엇갈림). 설계 자로 셈하고 z 에 Z8. */
+      const relax9 = j9 || g9 ? null : ((): { el: [number, number, number]; hd: [number, number, number] } => {
+        const f9 = wd9 === 0 ? -m9 * ZL_SWS9 / ZL_SWB9 : -m9 * wd9;
+        const th9 = ZL_SW09 + (f9 > 0 ? ZL_SWF9 : ZL_SWB9) * f9;
+        const dE9 = 1.2 * Math.cos(ZL_ABD9);   // 팔꿈치까지 내려간 몫(설계 자)
+        const dH9 = dE9 + 1.3;                // 손까지
+        const ex9 = sh[0] + m9 * 1.2 * Math.sin(ZL_ABD9);
+        return {
+          el: [ex9, sh[1] + dE9 * Math.sin(th9), sh[2] - dE9 * Math.cos(th9) * Z8],
+          hd: [ex9, sh[1] + dH9 * Math.sin(th9), sh[2] - dH9 * Math.cos(th9) * Z8],
+        };
+      })();
       const hd: [number, number, number] = j9
         ? [m9 * 0.95, 2.72, 4.04]
         /* ★ 평소 손은 몸 곁이다(2026-09, 요청: "질럿 팔을 너무 벌리고 있는듯 평소에") — 손 x 2.0 은 어깨(0.82)보다 1.18 바깥이라
@@ -25451,15 +25469,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
              특히 뒤로") — 옛 판은 손을 앞뒤로 ±0.55 미는 것뿐이라(호로 치면 ±14°) 흔들림이 작고 앞뒤가 같았다. 이제 늘어뜨린
              자리에서 앞으로 ZL_SWF9 · 뒤로 ZL_SWB9 만큼 돈다(설계 자 반지름 ZL_SWR9 — 어느 각에서도 팔꿈치가 조금 굽은 채다).
              손은 다리와 반대(armY 의 부호 그대로). 평소(wd9 0)도 같은 진자다 — 왼팔(+x)은 뒤 · 오른팔은 앞으로 ZL_SWS9(위 ★). */
-          : ((): [number, number, number] => {
-            const f9 = wd9 === 0 ? -m9 * ZL_SWS9 / ZL_SWB9 : -m9 * wd9;
-            const th9 = ZL_SW09 + (f9 > 0 ? ZL_SWF9 : ZL_SWB9) * f9;
-            return [m9 * ZL_HX9, sh[1] + ZL_SWR9 * Math.sin(th9), sh[2] - ZL_SWR9 * Math.cos(th9) * Z8];
-          })();
+          : relax9!.hd;
       /* 칼 — 손에서 이어 나간다. 겨눔에서는 앞·위로 서 있고(칼끝을 든 자세),
          잽에서는 **수평으로** 앞으로 내지른다(칼끝 높이가 손과 거의 같다). */
       // 평소·걸음 팔꿈치 힌트는 바깥·뒤(2026-10) — 손이 어깨보다 안쪽이라 팔꿈치가 밖으로 빠져야 하완이 안쪽으로 꺾인다.
-      const el = jointBetween(sh, hd, 1.2, 1.3, g9 ? [m9 * 0.35, -0.6, -0.4] : [m9 * 0.6, -0.8, 0]);
+      const el = relax9 ? relax9.el : jointBetween(sh, hd, 1.2, 1.3, [m9 * 0.35, -0.6, -0.4]);
       return pRigid9(ZEALOT_LEAN9, 0, sh[2], (): ShapeFace[] => [
         ...paintBase(pLimb(sh, el, 0.44), "#3a4258"),
         ...paintBase(pLimb(el, hd, 0.6), P_GOLD),
