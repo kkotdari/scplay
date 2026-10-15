@@ -475,6 +475,11 @@ rmSync(tmp, { recursive: true, force: true });
     ["센터에 모인 병력 → 센터 장악", has(/\[P\] 센터 장악/)],
     ["커세어가 오버로드 넷 → 오버로드 사냥", has(/\[P\]ga \[Z\] 오버로드 사냥/)],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+  /* 사건 중계에서 "센터 장악" 토막의 카메라는 센터 무리 가운데(질럿 열 62~64,64)다 — 본진(20,100)이 아니다(2026-10-14, 지적: "사건은 센터장악인데 보여주는게 본진이야"). */
+  const eplan = castPlan9(tworld, { total: 900, order: ["T", "P", "Y", "Z"], teamOf: { T: 1, P: 1, Y: 2, Z: 2 }, mapW: W, mapH: W, terrain: tw, event: true });
+  const cseg = eplan.filter((sg) => /\[P\] 센터 장악/.test(capTxt(sg)));
+  console.log(`  사건 중계 센터 장악 자리: ${cseg.map((sg) => (sg.spot?.[0] ? `${sg.spot[0][1].toFixed(1)},${sg.spot[0][2].toFixed(1)}` : "없음")).join(" · ") || "(토막 없음)"}`);
+  console.log(`  ${cseg.length > 0 && cseg.every((sg) => sg.spot?.[0] && Math.hypot(sg.spot[0][1] - 63, sg.spot[0][2] - 64) <= 6) ? "✔" : "✘"} 사건 중계의 센터 장악 토막은 센터를 본다(본진 아님)`);
 }
 
 /* ── ⑭ 드랍십 한 대는 폭탄드랍이 아니다(2026-10-10, 요청: "폭탄드랍은 수가 많아야 함 · 그 외에는 주로 일꾼 견제") —

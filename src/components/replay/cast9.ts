@@ -2370,8 +2370,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     milesOf9.set(raw9, miles9);
     return miles9;
   };
+  /** 국면 요약이 자리를 말하면(센터 장악) 그 자리 — 부른 쪽이 읽고 자막에 단다(capSpot9). phaseCap9 를 부를 때마다 새로 선다. */
+  let phaseSpot9: [number, number] | undefined;
   /** 국면 요약 — 창 끝 시각의 그 사람. */
   const phaseCap9 = (raw9: string, sec9: number): string => {
+    phaseSpot9 = undefined;
     const own9 = ownersOf9(raw9);
     const halls9: Hall9[] = []; let lastTech9 = -Infinity; let army9 = 0;
     for (const e9 of world.lives) {
@@ -2386,15 +2389,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 센터 장악 — 그 순간 센터(짧은 변 × CENTER_K9.hold)에 선 제 병력·건물이 CENTER_HOLD9.n 이상이고 적의 CENTER_HOLD9.k 배 이상. */
     if (mapC9) {
       const foes9 = new Set(foeOwners9(raw9));
-      let mine9 = 0; let theirs9 = 0;
+      let mine9 = 0; let theirs9 = 0; let sx9 = 0; let sy9 = 0;
       for (const e9 of world.lives) {
         if (e9.born > sec9 || (e9.died !== null && e9.died <= sec9) || WORKER9.has(e9.kind) || NON_ARMY9.has(e9.kind)) continue;
         if (!e9.bld && castValue9(e9.kind) <= 0) continue;
         const [x9, y9] = e9.bld ? [e9.bornX, e9.bornY] : posAt9(e9, sec9);
         if (!inCenter9(x9, y9, CENTER_K9.hold)) continue;
-        if (own9.has(e9.owner)) mine9 += 1; else if (foes9.has(e9.owner)) theirs9 += 1;
+        if (own9.has(e9.owner)) { mine9 += 1; sx9 += x9; sy9 += y9; } else if (foes9.has(e9.owner)) theirs9 += 1;
       }
-      if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) return "센터 장악";
+      /* ★ 카메라도 센터로(2026-10-14, 지적: "사건은 센터장악인데 보여주는게 본진이야") — 그 사람의 센터 무리 가운데를 자막의 자리로 단다(아래 capSpot9). */
+      if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) { phaseSpot9 = [sx9 / mine9, sy9 / mine9]; return "센터 장악"; }
     }
     /* 병력 구성 — 그 순간 살아 있는 제 병력(일꾼·오버로드 등 뺌)으로 가른다. */
     {
@@ -2701,7 +2705,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (recent9.rank >= MILE_RANK9.tactic && recent9.x !== undefined && recent9.y !== undefined) capSpot9.set(recent9.caps, [recent9.x, recent9.y]);
       return recent9.caps;
     }
-    return [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
+    const ph9: CapPart9[] = [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
+    if (phaseSpot9) capSpot9.set(ph9, phaseSpot9);
+    return ph9;
   };
 
   /* ★★ **전투 단위**(2026-10-11, 요청: "장면을 좀 길게 가져가기 — 전투 전체를 처음부터 끝까지 보여 주면 좋을 듯 · 더 중요한 게 있으면 바꾸는 건 맞는데 그 순간의
