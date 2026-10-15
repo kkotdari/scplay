@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
+import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
 import { kN, kT, kX, kY, keyJump, posAtTruth, SEL_KIND9, tkN, tkT, tkV, type TruthTrack } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -1007,6 +1007,57 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const reaches9 = (g9: Uint8Array, seen9: Uint8Array): boolean => foeSt9.some((f9) => { const j9 = seed9(g9, f9.x, f9.y); return j9 >= 0 && seen9[j9] === 1; });
       const open9 = foeSt9.length > 0 && reaches9(walk9, flood9(walk9, seed9(walk9, st9.x, st9.y)));
       const ownBlds9 = world.lives.filter((e9) => e9.bld && own9.has(e9.owner) && BUILDING_FOOT[e9.kind] && !e9.kind.endsWith("Extractor") && e9.kind !== "Refinery" && e9.kind !== "Assimilator");
+      const race9 = world.players.find((pl9) => pl9.name === raw9)?.race ?? "";
+      /** 완막 재기(아래 add9 의 ★) — 4px 칸 · 지형(타일) + t 에 선 제 건물의 몸 상자 · 16px(4×4 칸) 탐침이 출발 자리에서 적 출발 자리에 못 닿으면 참. */
+      const sealedFor16px9 = (t9: number): boolean => {
+        const F9 = 8; const GW9 = W9 * F9; const GH9 = H9 * F9;
+        const bl9 = new Uint8Array(GW9 * GH9);
+        for (let y9 = 0; y9 < H9; y9 += 1) for (let x9 = 0; x9 < W9; x9 += 1) {
+          if (walk9[y9 * W9 + x9] === 1) continue;
+          for (let sy9 = 0; sy9 < F9; sy9 += 1) bl9.fill(1, (y9 * F9 + sy9) * GW9 + x9 * F9, (y9 * F9 + sy9) * GW9 + x9 * F9 + F9);
+        }
+        for (const b9 of ownBlds9) {
+          if (b9.born > t9 || (b9.died !== null && b9.died <= t9)) continue;
+          const bx9 = BUILDING_BOX[b9.kind];
+          const [bw9, bh9, bdx9, bdy9] = bx9 ?? [BUILDING_FOOT[b9.kind][0], BUILDING_FOOT[b9.kind][1], 0, 0];
+          /* 몸 상자(px) — 가운데(발자국 가운데 + 치우침)에서 반 폭씩. 칸은 상자와 조금이라도 겹치면 막힌다(4px 칸 · 틈은 4px 아래로 어림). */
+          const x0 = ((b9.bornX + bdx9) - bw9 / 2) * 32; const x1 = ((b9.bornX + bdx9) + bw9 / 2) * 32;
+          const y0 = ((b9.bornY + bdy9) - bh9 / 2) * 32; const y1 = ((b9.bornY + bdy9) + bh9 / 2) * 32;
+          const cx0 = Math.max(0, Math.floor(x0 / 4)); const cx1 = Math.min(GW9, Math.ceil(x1 / 4));
+          const cy0 = Math.max(0, Math.floor(y0 / 4)); const cy1 = Math.min(GH9, Math.ceil(y1 / 4));
+          for (let y9 = cy0; y9 < cy1; y9 += 1) bl9.fill(1, y9 * GW9 + cx0, y9 * GW9 + cx1);
+        }
+        /* 4×4 칸이 다 비었나 — 막힌 칸 누적 합(가로·세로)으로 O(1). */
+        const S9 = new Int32Array((GW9 + 1) * (GH9 + 1));
+        for (let y9 = 0; y9 < GH9; y9 += 1) {
+          let row9 = 0;
+          for (let x9 = 0; x9 < GW9; x9 += 1) { row9 += bl9[y9 * GW9 + x9]; S9[(y9 + 1) * (GW9 + 1) + x9 + 1] = S9[y9 * (GW9 + 1) + x9 + 1] + row9; }
+        }
+        const P9 = 4;
+        const fit9 = (x9: number, y9: number): boolean => x9 >= 0 && y9 >= 0 && x9 + P9 <= GW9 && y9 + P9 <= GH9
+          && S9[(y9 + P9) * (GW9 + 1) + x9 + P9] - S9[y9 * (GW9 + 1) + x9 + P9] - S9[(y9 + P9) * (GW9 + 1) + x9] + S9[y9 * (GW9 + 1) + x9] === 0;
+        const seedC9 = (px9: number, py9: number): number => {
+          const cx9 = Math.floor(px9 * F9); const cy9 = Math.floor(py9 * F9);
+          let best9 = -1; let bd9 = Infinity;
+          for (let dy9 = -32; dy9 <= 32; dy9 += 1) for (let dx9 = -32; dx9 <= 32; dx9 += 1) {
+            if (fit9(cx9 + dx9, cy9 + dy9) && dx9 * dx9 + dy9 * dy9 < bd9) { bd9 = dx9 * dx9 + dy9 * dy9; best9 = (cy9 + dy9) * GW9 + cx9 + dx9; }
+          }
+          return best9;
+        };
+        const from9 = seedC9(st9.x, st9.y);
+        if (from9 < 0) return false;
+        const seen9 = new Uint8Array(GW9 * GH9);
+        const q9 = new Int32Array(GW9 * GH9); let qh9 = 0; let qt9 = 0;
+        q9[qt9++] = from9; seen9[from9] = 1;
+        while (qh9 < qt9) {
+          const i9 = q9[qh9++]; const x9 = i9 % GW9; const y9 = (i9 - x9) / GW9;
+          if (x9 + 1 < GW9 && !seen9[i9 + 1] && fit9(x9 + 1, y9)) { seen9[i9 + 1] = 1; q9[qt9++] = i9 + 1; }
+          if (x9 > 0 && !seen9[i9 - 1] && fit9(x9 - 1, y9)) { seen9[i9 - 1] = 1; q9[qt9++] = i9 - 1; }
+          if (y9 + 1 < GH9 && !seen9[i9 + GW9] && fit9(x9, y9 + 1)) { seen9[i9 + GW9] = 1; q9[qt9++] = i9 + GW9; }
+          if (y9 > 0 && !seen9[i9 - GW9] && fit9(x9, y9 - 1)) { seen9[i9 - GW9] = 1; q9[qt9++] = i9 - GW9; }
+        }
+        return !foeSt9.some((f9) => { const j9 = seedC9(f9.x, f9.y); return j9 >= 0 && seen9[j9] === 1; });
+      };
       for (const c9 of open9 ? ownBlds9 : []) {
         if (!WALL_BLD9.has(c9.kind)) continue;
         const t9 = c9.born;
@@ -1059,7 +1110,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         /* 조사 '(으)로' — 끝 글자 받침(ㄹ 받침은 '로'). */
         const last9 = names9.length > 0 ? names9[names9.length - 1].charCodeAt(names9[names9.length - 1].length - 1) - 0xac00 : -1;
         const ro9 = last9 >= 0 && last9 < 11172 && last9 % 28 !== 0 && last9 % 28 !== 8 ? "으로" : "로";
-        add9("wall", t9, [{ raw: raw9 }, { text: names9.length > 0 ? ` ${names9.join("·")}${ro9} 입구 막음` : " 건물로 입구 막음" }], "입구 막기", MILE_RANK9.tactic, c9.bornX, c9.bornY);
+        /* ★ **완막**(2026-10-15, 요청: "테란의 경우 입구 완막이 가능함 저글링도 못 지나갈 만큼 그럴 땐 입구 막기(완막)으로 표현") — 위 막힘은 2×2 타일 길이라 한 칸 틈도
+           막힌 것으로 친다. 테란은 건물을 붙여 **저글링(16×16px)도 못 지나가게** 막을 수 있고, 그 틈은 발자국이 아니라 **몸 상자**(units.dat dimension —
+           BUILDING_BOX) 사이의 몇 화소다. 그래서 테란만 한 번 더 잰다: 4px 칸에 지형(타일 걷기)과 그 순간 제 건물의 몸 상자를 깔고, 4×4 칸(16px) 탐침이
+           출발 자리에서 적 출발 자리까지 못 가면 완막이다. ⚠ 지형은 타일 자라(원작은 8px 미니타일) 절벽 곁 틈은 어림이다. */
+        const full9 = race9 === "테란" && sealedFor16px9(t9);
+        add9("wall", t9, [{ raw: raw9 }, { text: names9.length > 0 ? ` ${names9.join("·")}${ro9} 입구 막음${full9 ? "(완막)" : ""}` : ` 건물로 입구 막음${full9 ? "(완막)" : ""}` }],
+          full9 ? "입구 막기(완막)" : "입구 막기", MILE_RANK9.tactic, c9.bornX, c9.bornY);
         break;   // 막은 뒤로는 늘 막혀 있다 — 처음 한 번만
       }
     }

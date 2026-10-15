@@ -930,6 +930,26 @@ rmSync(tmp, { recursive: true, force: true });
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
 
+/* ── ㉓b 완막(2026-10-15, 요청: "테란의 경우 입구 완막이 가능함 저글링도 못 지나갈 만큼 그럴 땐 입구 막기(완막)으로 표현") — ㉓ 와 같은 지형(x 30·31 절벽 ·
+   y 30~35 틈 여섯 칸). 서플라이 셋을 (31,31)·(31,33)·(31,35)에 세로로 붙인다 — 발자국이 틈을 다 메우고, 몸 상자(units.dat 38·22·38·26) 사이 틈은 15px · 절벽 쪽
+   9.6px·5.4px 라 저글링(16px)도 못 지난다 → "[A] 서플라이로 입구 막음(완막)". ㉓ 의 서플라이·배럭은 몸 상자 사이가 45px 라 그대로 "입구 막음"(위 ㉓ 의 끝 맞춤이 지킨다). */
+{
+  const W = 64;
+  const tw = { level: () => 0, walk: (x, y) => x >= 0 && y >= 0 && x < W && y < W && !((x === 30 || x === 31) && !(y >= 30 && y <= 35)) };
+  let st = 61500;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born) => { const e = { tag: (st += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born, lifts: [], cloaks: [], sieges: [], orders: [] }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 32, 0); mk(1, "Hatchery", true, 55, 32, 0);
+  mk(0, "Supply Depot", true, 31, 31, 100); mk(0, "Supply Depot", true, 31, 33, 120); mk(0, "Supply Depot", true, 31, 35, 140);
+  const w = { players: [["A", "테란", 1], ["B", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const plan = castPlan9(w, { total: 600, order: ["A", "B"], teamOf: { A: 1, B: 2 }, mapW: W, mapH: W, terrain: tw });
+  const caps = plan.filter((s) => s.raw === "A").map((s) => capTxt(s));
+  console.log(`\n완막: ${[...new Set(caps)].filter((c) => /입구/.test(c)).join(" · ")}`);
+  console.log(`  ${caps.some((c) => /^\[A\] 서플라이로 입구 막음\(완막\)$/.test(c)) ? "✔" : "✘"} 몸 상자 틈이 16px 아래인 서플라이 셋 → '[A] 서플라이로 입구 막음(완막)'`);
+}
+
 /* ── ㉕ 전투 단위(2026-10-11, 요청: "장면을 좀 길게 — 전투 전체를 처음부터 끝까지 · 더 중요한 게 있으면 바꾸는 건 맞는데 그 순간의 중요도가 아닌 전체 전투의 중요도") —
    2v2 A·B(1팀 테란) 대 C·D(2팀 저그). ① 100~205초 (30,30)에서 A 마린 36기가 3초마다 C 저글링에 죽는다(긴 전투 · 토막마다 가볍고 합은 무겁다)
    ② 150~164초 (100,100)에서 D 히드라 8기가 B 마린에 죽는다(순간은 무겁지만 합은 ① 보다 가볍다) → ① 을 안 끊는다 · ③ 같은 자리에 히드라 40기면(합 6975 · ① 2790 의 2 배 넘음) 끊는다. */
