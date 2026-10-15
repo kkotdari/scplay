@@ -4463,6 +4463,29 @@ export type EngineView9 = {
  *  하나가 서면 반투명 파란 수정 수십 장이 한 자리에 겹쳐 **빛 얼룩처럼 뭉친 덩어리**가 되고, 프레임마다 그 수만큼 메시를 민다.
  *  남은 단(resStageAt)은 어차피 반 타일 격자의 자리로 읽으므로 한 장이 곧 그 자리의 밭이다. 간헐천은 안 겹치니 그대로 둔다.
  *  ⚠ 배열이 같은 동안은 한 번만 거른다(WeakMap) — 프레임마다 도는 자리다. */
+/** ★ **시작 본진 자리에 깔린 자원은 경기 시작에 걷힌다**(2026-10-14, 지적: "미네랄이 없을 자리에 미네랄 두덩이가 있네 · 헌터맵인데 기지 바로 아래에 있을 수가
+ *  없는데") — 원작은 사람이 든 시작 자리에 본진 건물을 놓을 때 그 놓는 자리(4×3 타일) 안의 몸을 **전부 죽인다**(OpenBW `create_starting_units` 의
+ *  find_units(placement_rect) → kill_unit). 맵 제작자는 그것을 빌려 **빈 시작 자리만 막는** 0 짜리 미네랄을 본진 자리에 깐다(Hunters v5 [2026] 의 12시·1시
+ *  넷 — 임자 11 · 양 0). 지도 자료(screp MineralFields)는 맵에 적힌 그대로라 그 밭이 사람이 든 본진 밑에 그려졌다.
+ *  시작 본진(임자마다 START_HALL_SEC9 안에 선 가장 이른 본진 생애)의 놓는 자리와 몸 상자가 겹치는 자원을 뺀다 — 미네랄 2×1 · 간헐천 4×2(units.dat 상자).
+ *  붙어만 있는 밭(본진과 3타일 띄운 미네랄 줄)은 안 겹친다. */
+const START_HALL_SEC9 = 30;
+const START_HALL_KINDS9 = new Set(["Command Center", "Nexus", "Hatchery"]);
+export function startHallClear9<R extends [number, number, 0 | 1]>(res: readonly R[], lives: readonly { owner: number; kind: string; bld: boolean; born: number; bornX: number; bornY: number }[]): R[] {
+  const first9 = new Map<number, { born: number; x: number; y: number }>();
+  for (const l9 of lives) {
+    if (!l9.bld || l9.born > START_HALL_SEC9 || !START_HALL_KINDS9.has(l9.kind)) continue;
+    const f9 = first9.get(l9.owner);
+    if (!f9 || l9.born < f9.born) first9.set(l9.owner, { born: l9.born, x: l9.bornX, y: l9.bornY });
+  }
+  if (first9.size === 0) return res as R[];
+  const halls9 = [...first9.values()];
+  return res.filter((r9) => {
+    const hw9 = r9[2] === 1 ? 2 : 1;
+    const hh9 = r9[2] === 1 ? 1 : 0.5;
+    return !halls9.some((h9) => Math.abs(r9[0] - h9.x) < 2 + hw9 - 0.01 && Math.abs(r9[1] - h9.y) < 1.5 + hh9 - 0.01);
+  });
+}
 const RES_UNIQ9 = new WeakMap<object, [number, number, 0 | 1][]>();
 export function resUniq9(res: [number, number, 0 | 1][]): [number, number, 0 | 1][] {
   const got = RES_UNIQ9.get(res); if (got) return got;

@@ -95,7 +95,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, archonMergeK9,
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   resUniq9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
@@ -8725,7 +8725,7 @@ const nextColorMode9 = (m: ColorMode9, melee: boolean, hero: boolean): ColorMode
   return ring9[(ring9.indexOf(m) + 1) % ring9.length] ?? "personal";
 };
 export default function ReplayMotionPlayer({
-  grid, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
+  grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
   clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
@@ -8890,6 +8890,13 @@ export default function ReplayMotionPlayer({
      내려받고, 못 받으면 아래 보기 줄이 '재분석 필요'라고 말한다: 자료가 없는 것과
      "그 경기엔 아무 일도 없었다"가 화면에서 갈려야 한다. */
   const [entData, setEntData] = useState<TruthWorld | null>(null);
+  /* 시작 본진 밑의 자원은 경기 시작에 걷힌다(engine9 startHallClear9 의 ★) — 참값이 오면 그 자리 자원을 뺀 지도를 모두가 쓴다. 바뀐 게 없으면 받은 그대로다. */
+  const grid = useMemo((): ReplayMapGrid => {
+    const res9 = gridIn.resources;
+    if (!entData || !res9 || res9.length === 0) return gridIn;
+    const kept9 = startHallClear9(res9, entData.lives);
+    return kept9.length === res9.length ? gridIn : { ...gridIn, resources: kept9 };
+  }, [gridIn, entData]);
   const [entLoad, setEntLoad] = useState<"idle" | "loading" | "none">("idle");
   /** 경기 채팅(자취와 함께 온다 · 2026-10-10) — 중계 편성표의 gg 선언·노엘 외침 재료. */
   const [chats9, setChats9] = useState<{ sec: number; name: string; text: string }[] | undefined>(undefined);
