@@ -1154,6 +1154,8 @@ export const MORPH_SINK9 = 0.3;
  *  나온 유닛이 순간이동"). 원작은 부화 순간 새 몸을 알 곁의 빈 자리에 **놓는다**(place_completed_unit) — 참값의
  *  첫 키가 이미 그 자리라 화면에서는 알에서 한두 타일 떨어진 곳에 툭 나타났다. 그리는 자리만 알에서 이어 준다. */
 export const HATCH_SLIDE_SEC = 0.6;   // 0.35는 "순식간"이었다(지적)
+/** 알에서 난 나는 유닛이 땅 높이에서 제 높이로 떠오르는 시간(초 · 2026-10-15 · engine9 hatchLift9). */
+export const HATCH_RISE_SEC9 = 0.9;
 /** 부화 미끄럼을 살피는 창(초) — 태어난 지 이보다 오래된 몸은 완성 키를 안 찾는다(알 갈라지는 애니가 1~2초). */
 export const HATCH_SCAN_SEC9 = 4;
 /** 공사 고치 두근거림의 크기 폭(배율) — 꼭대기에서 이만큼 커진다. 0.07 → 0.04(2026-10-14, 요청: "바운스도 좀 적게 줄이기"). */
@@ -8478,6 +8480,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        그래서 **완성 키**(이 생애에서 done이 처음 켜지는 키)를 기준으로, 그 전까지는 알 자리에 두고 그 뒤
        HATCH_SLIDE_SEC 동안 참값 자리로 미끄러진다. 그리는 자리만이라 앞뒤 동선에는 안 실린다. 너무 멀면(6타일 —
        자취가 끊긴 것) 안 잇는다. 드론의 고치 미끄럼과는 겹치지 않는다. */
+    /** ★ 알에서 난 **나는 유닛은 알 높이에서 쭉 떠오른다**(2026-10-15, 요청: "저그 공중유닛 탄생 시 알에서 태어나서 쭉 올라오게") — 뜨는 높이(airPx)에 곱하는 몫.
+     *  완성 키(tJ9 · 아래) 전까지 0(알 위 · 땅 높이), 그 뒤 HATCH_RISE_SEC9 동안 0 → 1(끝이 느긋한 2차). 뮤탈 고치(가디언·디바우러)는 이미 떠 있으니 안 탄다. */
+    let hatchLift9 = 1;
     if (!slid9 && t - e.born < HATCH_SCAN_SEC9 && e.walk.n > 0 && e.walk.i0 > 0) {
       const tr9 = e.walk.tr;
       const i0 = e.walk.i0;
@@ -8489,6 +8494,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         while (j9 < jEnd9 && tr9.done[j9] === 0) j9 += 1;
         if (j9 >= jEnd9) j9 = i0;
         const tJ9 = kT(tr9, j9);
+        if (pv9 === EGG_ID9 && uAir && t < tJ9 + HATCH_RISE_SEC9) {
+          const r9 = t < tJ9 ? 0 : (t - tJ9) / HATCH_RISE_SEC9;
+          hatchLift9 = 1 - (1 - r9) * (1 - r9);
+        }
         if (t < tJ9 + HATCH_SLIDE_SEC) {
           const px9 = tr9.kxy[(i0 - 1) * 2] / 32;
           const py9 = tr9.kxy[(i0 - 1) * 2 + 1] / 32;
@@ -9201,7 +9210,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* 뜨는 높이는 **여기서 한 번 재서 실어 보낸다**(지적: "공중 유닛 크기에 따라
          떠 있는 높이가 다른 버그") — 그리는 쪽·집는 쪽·팝업 셋이 이 칸을 나눠
          읽는다(위 airPx 주석). 값은 제 몸이 아니라 기준 몸이 낸다. */
-      ...(uAir ? { airPx: airLiftPxOf(ay3) } : {}),
+      ...(uAir ? { airPx: airLiftPxOf(ay3) * hatchLift9 } : {}),
       /* 겹침 이완은 v2에선 안 쓴다(지적: 다시 넣되 새로) — 도착 대형(entWalks의
          해바라기 나선)이 겹침을 미리 푸는 방식이라, 프레임마다 밀치는 이완의
          떨림이 없다.
