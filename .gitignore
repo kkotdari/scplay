@@ -12,3 +12,6 @@ tools/openbw/
 # 손으로 갖다 놓는 것들 — 뭉치 표본·주고받은 파일 따위.
 gitignore/
 scratchpad/
+
+# perf-check 가 돌 때만 잠깐 서는 진입 파일
+scripts/.perf-entry.tmp.ts
