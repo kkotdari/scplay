@@ -6227,6 +6227,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         const stage = 1.5;
         /** 드론 고치의 시작 껍질 지름(타일 · 모든 건물 같음 — 드론 몸의 1.5~2배) · 단 모델(cocoon1·2·cocoon)의 제 껍질 몫(bake9 cocoonBuild9 rk9). 아래 grow9. */
         const COCOON_D0_9 = 1.5;
+        /** 다 자란 고치의 껍질 몫(발자국 폭 대비) — 1 → **0.9**(2026-10-15, 요청: "코쿤 최대 크기 10% 정도 축소") · 시작(COCOON_D0_9)은 그대로 · 선 건물 변태도 이 크기로 선다. */
+        const COCOON_MAX9 = 0.9;
         const COCOON_RK9 = [0.75, 0.82, 1] as const;
         /* ★ 두근거림은 **크기가 아니라 들썩임**이다(지적: "공사고치 바운스하는데 왜 이렇게 덜덜 떨리지") —
            여태 stage에 sin을 곱해 상자 크기를 매 프레임 ±6% 흔들었다. 판은 2px 칸으로 양자화해 굽고
@@ -6251,13 +6253,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            그려져, 해처리 고치는 처음부터 크고 크립 콜로니 고치는 처음부터 작았다. 이제 껍질 지름(타일)을 COCOON_D0_9(모두 같음)에서 발자국 폭(다 자란 껍질 —
            위 stage 1.5 의 ★)까지 공정대로 키우고, 단 모델의 제 껍질 몫(COCOON_RK9)으로 나눠 **찍을 때의 배율**(pulseK)로 건다 — 단이 바뀌어도 크기는 이어진다.
            선 건물의 변태(레어·하이브 …)는 다 자란 몸이라 그대로다. */
-        const grow9 = race2 === "저그" && !BLD_FROM_BLD.has(unit)
-          ? ((): number => {
+        const grow9 = race2 !== "저그" ? 1 : BLD_FROM_BLD.has(unit) ? COCOON_MAX9
+          : ((): number => {
             const fw9 = FOOTPRINT[unit]?.[0] ?? 3;
             const st9 = prog >= 2 / 3 ? 2 : prog >= 1 / 3 ? 1 : 0;
-            const d9 = COCOON_D0_9 + (fw9 - COCOON_D0_9) * Math.min(1, Math.max(0, prog));
+            const d9 = COCOON_D0_9 + (fw9 * COCOON_MAX9 - COCOON_D0_9) * Math.min(1, Math.max(0, prog));
             return d9 / (fw9 * COCOON_RK9[st9]);
-          })() : 1;
+          })();
         const pulse9 = race2 === "저그" ? grow9 * (1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9))
           : growU9 < 1 ? WARP_GROW_K0 + (1 - WARP_GROW_K0) * (1 - (1 - growU9) ** 3) : 1;
         /* 공사 모델은 바닥 맞춤(지적: 소환구보다 훨씬 아래쪽에 실제 건물이 생긴다)
