@@ -1904,6 +1904,8 @@ export type UnitDrawOp = {
   /** 찍을 때만 곱하는 배율(고치의 두근거림) — 판은 그대로 두고 바닥 가운데를 축으로 블릿만 키우고 줄인다.
    *  drawK와 달리 굽는 크기에 안 실린다(굽는 크기가 흔들리면 판이 칸마다 새로 구워져 덜덜 떨린다). */
   pulseK?: number;
+  /** pulseK 를 **몸 가운데** 축으로(기본은 바닥 가운데) — 뜬 소환구가 작은 공에서 부푸는 자리(2026-10-15). */
+  pulseMid?: boolean;
   /** ★ 프로토스 **소환 드러남**의 진행(0~1 · 2026-10-14) — 있으면 GL 붓이 몸을 푸른 반물질로 그리고, 굵은 빛 띠가 화면 대각선 좌상 → 우하로 쓸며
    *  지나간 자리부터 본모습으로 바꾼다(gl9 의 aInC.w ≥ 2 갈래). 0 이면 띠가 오기 전(온몸 반물질), 1 이면 다 지나감. */
   warpK?: number;
@@ -6161,6 +6163,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          마지막 0.8초를 겹치는 구간으로 둔다: 소환구는 옅어지며 물러나고(소환구 op의 alpha), 건물은 0에서 1로
          배어 나온다(아래 alpha에 곱한다). 결은 부드럽게(smoothstep) — 선형이면 시작과 끝이 툭 끊긴다. */
       const WARP_FADE_SEC9 = 0.8;
+      /** 소환구가 부풀며 나타나는 시간(초)과 시작 배수(위 pulse9 의 ★ · 2026-10-15). */
+      const WARP_GROW_SEC9 = 0.5;
+      const WARP_GROW_K0 = 0.12;
       const warpIn9 = race2 === "프로토스" && raising && doneAt - t <= WARP_FADE_SEC9;
       const warpU9 = ((): number => {
         if (!warpIn9) return 1;
@@ -6214,7 +6219,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         /* ★ 연속 배수 성장은 걷었다(2026-09, 지적: "공사고치 단계별로 면적도 늘어나야지") — 성장은 **단계 모델**(cocoon1·2·cocoon,
            bake9 cocoonBuild9)이 맡는다. 드론에서 변태하는 자리는 다 자란 고치가 발자국을 넘겨 채우는 1.2(옛 끝값) 그대로,
            선 건물이 변태하는 자리는 1 이다. */
-        const stage = BLD_FROM_BLD.has(unit) ? 1 : 1.2;
+        /* ★ 다 자란 고치는 **껍질이 발자국을 채우고 관다발은 그 밖으로** 나간다(2026-10-15, 요청: "최종크기가 본건물 발자국을 넘치게 고치부분이
+           발자국 다발은 그 밖에 나가게") — 1.2 일 때 실측(scene-sheet 저그 · 히드라 덴 3×2): 껍질 2.4타일 · 관다발까지 3.4타일. 상자가 관다발까지
+           재므로 껍질이 발자국에 못 미쳤다. 3 / 2.4 = 1.25배 → 1.5(껍질 3타일 = 발자국 폭 · 관다발 ≈ 4.25타일). 1·2단도 같은 배수라 비는 그대로다. */
+        const stage = BLD_FROM_BLD.has(unit) ? 1 : 1.5;
         /* ★ 두근거림은 **크기가 아니라 들썩임**이다(지적: "공사고치 바운스하는데 왜 이렇게 덜덜 떨리지") —
            여태 stage에 sin을 곱해 상자 크기를 매 프레임 ±6% 흔들었다. 판은 2px 칸으로 양자화해 굽고
            바닥 가운데에 맞추므로, 크기가 흔들리면 프레임마다 다른 칸의 판이 골라져 잉크 밑변이
@@ -6229,7 +6237,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            **찍을 때의 배율**(pulseK, 바닥 가운데 기준)만 흔든다. 리듬은 뛰던 그대로(0.9초 중 0.55초 포물선). */
         const hopP9 = ((t % 0.9) + 0.9) % 0.9 / 0.9;
         const hopQ9 = Math.min(1, hopP9 / 0.55);
-        const pulse9 = race2 === "저그" ? 1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9) : 1;
+        /* ★ 소환구는 **작은 구에서 부풀며 나타난다**(2026-10-15, 요청: "처음 소환시 작은 구에서 확대되며 나타남") — 착공에서 WARP_GROW_SEC9 동안
+           WARP_GROW_K0 배에서 1 로(끝이 느긋한 3차). 몸 **가운데**를 축으로 커진다(pulseMid — 뜬 공이라 바닥 축이면 땅에서 솟는다).
+           시작 건물(경기 첫 2초)은 안 탄다(아래 warpK9 와 같은 문). */
+        const growU9 = race2 === "프로토스" && sec > 2 ? Math.min(1, Math.max(0, (t - sec) / WARP_GROW_SEC9)) : 1;
+        const pulse9 = race2 === "저그" ? 1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9)
+          : growU9 < 1 ? WARP_GROW_K0 + (1 - WARP_GROW_K0) * (1 - (1 - growU9) ** 3) : 1;
         /* 공사 모델은 바닥 맞춤(지적: 소환구보다 훨씬 아래쪽에 실제 건물이 생긴다)
            — 완성 모델은 '들어올린 칸'의 바닥 = 발자국 바닥에 앉는데, 소환구·고치는
            제 작은 상자가 칸 중심(위로 들어올린 앵커)에 걸려 바닥이 발자국보다 위에
@@ -6345,7 +6358,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
               spin: !qAnim || bldFrozen9 ? 0 : Math.floor(t * spinRateOf9("warpin", true) * SPIN_ANIM9 + i * 5) % SPIN_ANIM9,
             }
             : {}),
-          ...(pulse9 !== 1 ? { pulseK: pulse9 } : {}),
+          ...(pulse9 !== 1 ? { pulseK: pulse9, ...(race2 === "프로토스" ? { pulseMid: true } : {}) } : {}),
           // 마무리 구간에서는 소환구가 옅어지며 물러난다(위 warpIn9) — 건물이 그만큼 배어 나온다.
           color, alpha: warpIn9 ? alpha * (1 - warpU9) : alpha, noShadow: true,
         });
@@ -6442,10 +6455,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          본색·불투명이 된다(그리는 쪽은 gl9 셰이더). 시작 건물·날아와 앉은 건물은 없다. */
       /* 물마루 두 번(2026-10-14, 요청: "빛 띠 두 번 반복한 후 원래 모습") — 한 번에 1.3초 · 둘 합 2.6초. 형체가 선 뒤 0.2초에 첫 물마루가 나온다(앞 0.6 · 옛 0.4). */
       /* 물마루 세 번 · 빠르게(2026-10-14, 요청: "물결 흐름 속도 업해서 3번") — 한 번 1.3초 → 0.75초 · 셋 합 2.25초. */
-      const WARP_SWEEP_LEAD9 = 0.6;
-      const WARP_SWEEP_SEC9 = 2.25;   // 1.6 → 2.0("점점") → 2.6(두 번) → 2.25(세 번 · 빠르게)
-      /** ★ 반물질 형체의 **빠른 배어남**(2026-10-14, 요청: "프로토스 완공 시 반물질 페이드인 효과도 빠르게 주기") — 형체가 서는 때(완공 − WARP_FADE_SEC9)부터 이만큼(초) 동안 0 → 1. */
-      const WARP_GHOST_IN9 = 0.2;
+      /* 더 빠르게(2026-10-15, 요청: "완공 빛 흐름 속도 더 빠르게") — 셋 합 2.25 → 1.5초(한 번 0.5초). */
+      const WARP_SWEEP_LEAD9 = 0.5;
+      const WARP_SWEEP_SEC9 = 1.5;   // 1.6 → 2.0("점점") → 2.6(두 번) → 2.25(세 번 · 빠르게) → 1.5(더 빠르게)
+      /** ★ 반물질 형체의 **빠른 배어남**(2026-10-14, 요청: "프로토스 완공 시 반물질 페이드인 효과도 빠르게 주기") — 형체가 서는 때(완공 − WARP_FADE_SEC9)부터 이만큼(초) 동안 0 → 1.
+       *  ★ 소환구와 **엇갈려 겹친다**(2026-10-15, 요청: "소환구 페이드아웃과 반물질 페이드인이 좀 겹치게") — 0.2초면 형체가 소환구가 막 옅어지기 시작할
+       *  때 툭 서서 둘이 차례로 읽혔다. 소환구가 옅어지는 0.8초의 앞 절반(0.4초)에 걸쳐 배어나게 해, 빛 공이 걷히는 동안 형체가 함께 차오른다. */
+      const WARP_GHOST_IN9 = 0.4;
       /* ★ 시작 건물은 안 탄다(2026-10-14, 지적: "첫 스타팅 넥서스는 완공 효과 x") — 덤프는 첫 몇 프레임 뒤에 시작 넥서스를 싣기도 해 sec 가 0 이 아니라 0.0x 다(옛 문 `sec > 0`
          을 지났다). 그 넥서스는 지은 시간 없이 곧 완공이라(doneAt ≈ sec) 경기 첫 순간에 물마루가 돌았다. **실제로 지은 시간**(doneAt − sec 2초 넘게)과 경기 첫 2초 뒤에 선 것만. */
       const warpK9 = race2 === "프로토스" && sec > 2 && doneAt - sec > 2 && !flownFrom && t >= doneAt - WARP_FADE_SEC9 && t < doneAt - WARP_SWEEP_LEAD9 + WARP_SWEEP_SEC9

@@ -5707,7 +5707,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
                (통로 모델의 z 0 이 곧 땅이라 원점이 지면선이다.) */
             const gk9 = op.mkFrac !== undefined ? op.mkFrac * cw * zoom : (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
-            const gay9 = op.mkFrac !== undefined ? Math.round(sy * B) / B : Math.round(((groundY ?? sy + hPx / 2) - gLift9) * B) / B;
+            /* 가운데 축 부풂(pulseMid — 소환구가 작은 공에서 부풂 · 2026-10-15) — 바닥 축 배율이 내린 가운데를 다 자란 몸의 가운데로 도로 올린다. */
+            const gMid9 = op.pulseMid && op.pulseK !== undefined && op.pulseK > 0 && glBf9
+              ? ((gk9 / op.pulseK) * (1 - op.pulseK) * Math.abs(glBf9.top - glBf9.bot)) / 2 : 0;
+            const gay9 = op.mkFrac !== undefined ? Math.round(sy * B) / B : Math.round(((groundY ?? sy + hPx / 2) - gLift9 - gMid9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
             /* ★ 발광 종류(소환구·아콘 …)는 제 몸 그림자를 안 진다(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만
                사용)") — 빛 공이 빛 방향으로 눕힌 검은 원을 옆에 드리우면 빛이 그림자를 지는 꼴이다. 접지 타원(공통)만 남긴다. */
