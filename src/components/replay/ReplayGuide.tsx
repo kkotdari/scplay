@@ -140,15 +140,15 @@ export default function ReplayGuide({ onClose }: {
         </p>
         <div className="scr-guide-mock">
           {/* 전광판 머리 줄 + 두 줄(2026-10-11, 지적: "중계고르기 부분 이미지가 다름") — 옛 TV 목록(흰 바탕 AUTO · 색 점) 그림을 지금 전광판 꼴로:
-              AUTO·전체 알약 · 줄마다 카메라 단추 + 종족 배지 이름칩 · 켜짐은 반투명 초록 · 보여 주는 사람은 칩이 빛난다. */}
+              AUTO·전체 알약 · 줄마다 카메라 단추 + 종족 배지 이름칩 · 켜짐은 반투명 초록 · 보여 주는 사람은 그 줄의 카메라가 켜진다(2026-10-15 — 칩은 안 빛난다). */}
           <div className="scr-guide-castlist" aria-hidden="true">
             <div className="scr-guide-castrow">
               <span className="scr-guide-cam is-on is-pill"><Tv size={14}/>자동중계</span>
               <span className="scr-guide-cam is-pill"><Video size={14}/>전체</span>
             </div>
             <div className="scr-guide-castrow">
-              <span className="scr-guide-cam"><Video size={14}/></span>
-              <span className="scr-guide-castchip is-shown" style={{ background: "#2b62e8", color: "#fff", ["--pcol" as string]: "#2b62e8" } as React.CSSProperties}><i className="scr-guide-castrace">T</i>정구</span>
+              <span className="scr-guide-cam is-on"><Video size={14}/></span>
+              <span className="scr-guide-castchip" style={{ background: "#2b62e8", color: "#fff" }}><i className="scr-guide-castrace">T</i>정구</span>
             </div>
             <div className="scr-guide-castrow">
               <span className="scr-guide-cam"><Video size={14}/></span>

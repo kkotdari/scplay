@@ -17925,7 +17925,8 @@ export default function ReplayMotionPlayer({
               {/* ★ 자동 중계가 지금 보여 주는 사람의 칩은 **깜빡이며 빛난다**(2026-10, 요청: "중계 자동모드에서 누군지
                   알수없으니 로스터를 깜빡임발광 주기") — 자막·정보 판을 걷은 뒤로 자동 중계는 '누구 화면인가'를 말할
                   자리가 없었다. 개인 추적·분할은 손으로 고른 것이라 안 깜빡인다. */}
-              <span className={cx("scr-motion-teamcol-name", castOn && castRaw === m.key && "scr-motion-teamcol-cast")}
+              {/* (걷어냄 · 2026-10-15, 요청: "전광판 유저칩 글로우 제거") — 위 깜빡임 빛남(scr-motion-teamcol-cast). */}
+              <span className="scr-motion-teamcol-name"
                 style={chipStyle(m.key, m.team, bare ? CHIP_BARE_A9 : CHIP_ROW_A9)}>
                 {rows ? m.name : shortName(m.name, mates.length)}
                 {/* ★ 종족 글자는 **이름과 같은 네모 안**이고 원은 없다(2026-09, 요청: "로스터 종족배지 원
@@ -18092,11 +18093,13 @@ export default function ReplayMotionPlayer({
                 {mates.map((m) => {
                   const fallen9 = m.ghost || fallenHome(m);
                   const on9 = castSel9.includes(m.key);
+                  /* 보여 주는 사람(자동중계 포함)은 **카메라 단추가 켜진다**(2026-10-15, 요청: "전광판 유저칩 글로우 제거 카메라버튼만 불들어와있게") — 칩은 안 빛난다. */
+                  const shown9 = on9 || shownRaws9.has(m.key);
                   const trophy9 = Boolean(winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9);
                   return (
                     <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
                       <button
-                        type="button" className={cx("scr-roster-cam", on9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
+                        type="button" className={cx("scr-roster-cam", shown9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
                         aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
                         title={on9 ? "이 사람 화면을 놓는다" : uiPhone9 ? "이 사람 화면으로 바꾼다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                       >
@@ -18107,7 +18110,7 @@ export default function ReplayMotionPlayer({
                       <span className="scr-dock-namewrap">
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
-                          className={cx("scr-motion-teamcol-name scr-dock-name", shownRaws9.has(m.key) && "scr-motion-teamcol-cast")} style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
+                          className="scr-motion-teamcol-name scr-dock-name" style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
                           role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
