@@ -1201,3 +1201,12 @@ flat 은 깊이 시험은 켜고 쓰기만 끈다(gl9 runs 루프 `r.flat` 갈�
 ## 승하차 줄 굵기 0.42× → 0.2×배율(2026-10-14)
 요청: "수송선 타고내리는 선 얇게" — `tetherW9` max(1.2, 0.42·배율) → **max(0.8, 0.2·배율)**(실드막 테두리 0.3× 보다 가는 실 · GL lines·2D 폴백 같은 값).
 🔎 위 '승하차 줄' 절의 perf-check 그대로.
+
+## 폰도 전 티어·전 배율 사영 그림자(2026-10-15)
+요청: "폰도 모든 티어에서 사영그림자로 해볼래?" — 폰 프로필을 PC 규약과 같게: `meshShadow: true · meshShadowMinZoom: 0 · shadowEllipse: false ·
+shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높음의 `meshShadow 8배`는 걷었다.
+- 되물린 값: 폰 0·1단 접지 타원 · 2단 8배부터 사영 · 접지 그림자 최소 배율 4(0단)/2(1단)/1(2단).
+- ⚠ 타원 대타가 없으므로 **덜어내기(CROWD 1단↑)에서도 그림자를 안 접는다**(PC 와 같은 bodyShadow 문) — 옛 폰 매우 낮음은 1단에서 땅·몸 그림자를 껐다.
+  손짓 접기(shFold9)는 타원 갈래에만 걸려 있어 사영과 무관하다. 뜨거우면 `#glshadow=0`(그림자 없음).
+- 값은 실기로 안 쟀다(헤드리스는 GPU 몫을 못 잰다) — 사용자 폰에서 발열을 보고 되돌리거나 배율 문턱을 다시 둔다.
+- 🔎 `perf-check.mjs --ios --warm 0 --glblit --castoff --zoom 4 --cx 0.15 --cy 0.15 --shot x.png` — 마린·커맨드가 빛 방향으로 눕힌 그림자를 진다.

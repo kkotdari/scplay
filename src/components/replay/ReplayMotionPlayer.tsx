@@ -1383,13 +1383,10 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
   { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 10,
-    glMeshMax: 300, glSpec: true, glBloom: true, shadowGroundMinZoom: 2, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
+    glMeshMax: 300, glSpec: true, glBloom: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
   { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 16,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
-    shadowGroundMinZoom: 1, decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1,
-    /* 사영 그림자는 **8배부터**(PC 는 4배) — 이 단은 번짐·MSAA 4·요잉 16칸이 다 켜진 단이라(지적: "폰도 엄청 뜨거워져") DPR 3 에서
-       실루엣 넓이만큼 더 채우는 몫을 몸이 열 남짓만 드는 배율로 죈다. 뜨거우면 `#glshadow=0`. */
-    meshShadow: true, meshShadowMinZoom: 8 },
+    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
 ];
 /** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
  *  사영 그림자·MSAA·앞 한도가 다 PC 값이고, 단은 N 에 못 박는다(오르기만 하는 규칙 그대로 · 벤치는 재야 단이 선다). 화면 배치(폰 UI)는 그대로다 — 그리는 예산만 PC.
@@ -1400,7 +1397,8 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   /** 데칼(크립 얼룩) 굽는 한 변 상한 · 굽는 판 한 장/빌림터 상한(MB) · 판 한 변 상한 — 남은 판은 크립과 효과 래스터뿐이다. */
   decalBakeMax: 192, bakeOneMB: 3, bakePoolMB: 6, bakeSideMax: 2304,
   /** 피격 불티 수 배수 · 죽음 파편 수 · 효과 래스터 예산(MB) · 접지 그림자 최소 배율 */
-  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 4,   // 사다리(1-2-4-8)의 셋째 칸
+  /* ★ 접지 그림자 최소 배율 4 → **0**(2026-10-15, 요청: "폰도 모든 티어에서 사영그림자로 해볼래?") — PC 와 같이 전 배율 · 옛 단 표의 2·1 도 걷었다. */
+  hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 0,
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
   cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
   /** 벤치 단 표(위 PHONE_TIERS9 — 한 줄이라 단이 없다). */
@@ -1414,10 +1412,11 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   glSpec: false,
   /** 손짓 중 실시간 원근을 **재지 않고 켤까**(live3dOn9의 ★) — 폰은 어느 단에서도 안 켠다(제 벤치·실측 자를 탄다). */
   live3d: false,
-  /** 사영 그림자(gl9 패스 ①) — 0·1단은 접지 타원 · 2단(높음)이 8배부터 켠다(위 PHONE_TIERS9). */
-  meshShadow: false, meshShadowMinZoom: 8,
-  /** 사영이 안 깔리는 프레임(문턱 아래 배율·낮은 단·덜어내기·손짓 접힘)에 **접지 타원을 대타로** 깔까 — 폰은 종전대로 깐다. */
-  shadowEllipse: true,
+  /** 사영 그림자(gl9 패스 ①) — ★ **폰도 전 티어·전 배율 사영**이다(2026-10-15, 요청: "폰도 모든 티어에서 사영그림자로 해볼래?" · PC 와 같은 규약 —
+   *  gl-renderer.md '사영 그림자는 단과 배율이 켠다'). 옛 값: 0·1단 접지 타원 · 2단(높음) 8배부터. 뜨거우면 `#glshadow=0`(그때는 그림자가 없다 — 타원 대타 없음). */
+  meshShadow: true, meshShadowMinZoom: 0,
+  /** 사영이 안 깔리는 프레임에 **접지 타원을 대타로** 깔까 — 폰도 이제 안 깐다(PC 와 같다 · 덜어내기 단에서도 사영을 안 접는다). */
+  shadowEllipse: false,
   /** MRT 판 MSAA 표본 수(폰 0·1단 2 · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★. */
   glMsaa: 2, fxQual: 0.6,
 } : {
