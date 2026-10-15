@@ -6223,6 +6223,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            발자국 다발은 그 밖에 나가게") — 1.2 일 때 실측(scene-sheet 저그 · 히드라 덴 3×2): 껍질 2.4타일 · 관다발까지 3.4타일. 상자가 관다발까지
            재므로 껍질이 발자국에 못 미쳤다. 3 / 2.4 = 1.25배 → 1.5(껍질 3타일 = 발자국 폭 · 관다발 ≈ 4.25타일). 1·2단도 같은 배수라 비는 그대로다. */
         const stage = BLD_FROM_BLD.has(unit) ? 1 : 1.5;
+        /** 드론 고치의 시작 껍질 지름(타일 · 모든 건물 같음 — 드론 몸의 1.5~2배) · 단 모델(cocoon1·2·cocoon)의 제 껍질 몫(bake9 cocoonBuild9 rk9). 아래 grow9. */
+        const COCOON_D0_9 = 1.5;
+        const COCOON_RK9 = [0.75, 0.82, 1] as const;
         /* ★ 두근거림은 **크기가 아니라 들썩임**이다(지적: "공사고치 바운스하는데 왜 이렇게 덜덜 떨리지") —
            여태 stage에 sin을 곱해 상자 크기를 매 프레임 ±6% 흔들었다. 판은 2px 칸으로 양자화해 굽고
            바닥 가운데에 맞추므로, 크기가 흔들리면 프레임마다 다른 칸의 판이 골라져 잉크 밑변이
@@ -6241,7 +6244,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            WARP_GROW_K0 배에서 1 로(끝이 느긋한 3차). 몸 **가운데**를 축으로 커진다(pulseMid — 뜬 공이라 바닥 축이면 땅에서 솟는다).
            시작 건물(경기 첫 2초)은 안 탄다(아래 warpK9 와 같은 문). */
         const growU9 = race2 === "프로토스" && sec > 2 ? Math.min(1, Math.max(0, (t - sec) / WARP_GROW_SEC9)) : 1;
-        const pulse9 = race2 === "저그" ? 1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9)
+        /* ★ 드론 고치는 **모두 같은 크기에서 시작해 제 발자국으로 자란다**(2026-10-15, 요청: "공사고치 드론이 처음에 변태할 때는 모두 같은 크기로 시작(드론의
+           1.5~2배) 큰 건물은 급격히 커지고 작은 건물은 크기에 비례해서 적게 커지는 걸로") — 옛 판은 단 모델(cocoon1·2·3 — 껍질 0.75·0.82·1)이 **발자국 자**로
+           그려져, 해처리 고치는 처음부터 크고 크립 콜로니 고치는 처음부터 작았다. 이제 껍질 지름(타일)을 COCOON_D0_9(모두 같음)에서 발자국 폭(다 자란 껍질 —
+           위 stage 1.5 의 ★)까지 공정대로 키우고, 단 모델의 제 껍질 몫(COCOON_RK9)으로 나눠 **찍을 때의 배율**(pulseK)로 건다 — 단이 바뀌어도 크기는 이어진다.
+           선 건물의 변태(레어·하이브 …)는 다 자란 몸이라 그대로다. */
+        const grow9 = race2 === "저그" && !BLD_FROM_BLD.has(unit)
+          ? ((): number => {
+            const fw9 = FOOTPRINT[unit]?.[0] ?? 3;
+            const st9 = prog >= 2 / 3 ? 2 : prog >= 1 / 3 ? 1 : 0;
+            const d9 = COCOON_D0_9 + (fw9 - COCOON_D0_9) * Math.min(1, Math.max(0, prog));
+            return d9 / (fw9 * COCOON_RK9[st9]);
+          })() : 1;
+        const pulse9 = race2 === "저그" ? grow9 * (1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9))
           : growU9 < 1 ? WARP_GROW_K0 + (1 - WARP_GROW_K0) * (1 - (1 - growU9) ** 3) : 1;
         /* 공사 모델은 바닥 맞춤(지적: 소환구보다 훨씬 아래쪽에 실제 건물이 생긴다)
            — 완성 모델은 '들어올린 칸'의 바닥 = 발자국 바닥에 앉는데, 소환구·고치는
