@@ -1585,13 +1585,16 @@ const CROWD_BENCH_MS9 = DEV9.name === "phone" ? 20 : 24;
      ② 그리기 간격 WEAK_GAP_MS9(33ms = 30fps) — 옛 12ms(60fps · 120Hz 폰이면 rAF 두 번에 한 번)의 절반.
      ③ MSAA 2 → 0 · 효과 곡선 몫 0.6 → 0.5 · 피격 불티 0.6 → 0.4 · 죽음 파편 12 → 8.
    벤치를 유휴에 다시 재어 미달이 풀리거나 단이 오르면 ①② 는 저절로 풀리고(매 장 phoneWeak9 를 읽는다) ③ 은 applyWeak9 가 되돌린다. */
-const WEAK_DPR9 = 1.5;
+/* ★ 1.5 → **2**(2026-10-15, 요청: "모바일 매우낮음 낮음에서 그리기 배율 줄인거 너무 심한거 같구") — dpr 3 폰에서 1.5 는 화소 4분의 1 이라 흐림이 눈에 띄었다.
+   2 면 4/9 · dpr 2 폰은 그대로다. */
+const WEAK_DPR9 = 2;
 const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
 const WEAK_GAP_MS9 = 33;
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
  *  60 과 30 사이에 설 자리가 없어(rAF 16.7ms 의 배수) 화소만 덜어낸다: dpr 3 폰이면 4/9 · dpr 2 폰은 그대로. 매우 낮음은 위 WEAK_DPR9(1.5). */
-const LOW_DPR9 = 2;
+/* 2 → **2.5**(2026-10-15, 같은 요청) — dpr 3 폰이면 화소 0.69배(옛 0.44배). */
+const LOW_DPR9 = 2.5;
 const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
