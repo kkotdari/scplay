@@ -4989,7 +4989,7 @@
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { padding: 0; gap: 0.35em; background: none; overflow: hidden; }
 .scr-dock-chipbox {
   flex: none; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
-  min-width: calc(var(--rp) * 0.6 + 6px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+  min-width: calc(var(--rp) * 0.6 + 6px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: calc(3px * var(--dk));   /* 네 모서리 같은 둥글기(2026-10-16, 요청: "종족칩 라운딩 주려면 네 모서리 다 줘" — 옛 2px 는 겉 칩의 둥근 자름(4·dk)과 갈려 왼쪽만 둥글었다) */
 }
 .scr-dock-chipbox > .scr-motion-teamcol-race:is(*, #scr-dock-split-hi) { margin: 0; }
 .scr-dock-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; color: var(--scr-sc-green); }
@@ -5013,8 +5013,8 @@
 .scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #10fc18); }
 /* 폰 — 사람 카메라 단추 대신 **보여 주는 사람의 칩(배지 칸 + 닉네임)을 둥근 네모 테로**(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시
    종족 칩과 닉네임을 둥근 네모로 감싸기"). 테는 안쪽 그림자(inset)라 칩 크기·줄 배치가 안 흔들린다 · 왼쪽 안 여백만 테 몫 2px. 색 = 화면 주인 초록. */
-.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(4px * var(--dk)); }
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(5px * var(--dk)); }
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name.is-picked:is(.is-split, #scr-dock-split-hi) {
-  padding: 0 calc(4px * var(--dk)) 0 2px; box-shadow: inset 0 0 0 1.5px var(--scr-sc-green); background: rgba(16, 252, 24, 0.10);
+  padding: 0 calc(4px * var(--dk)) 0 2px; box-shadow: inset 0 0 0 1px var(--scr-sc-green); background: rgba(16, 252, 24, 0.10);   /* 테 1.5 → 1px(같은 날, 요청: "선택 선 좀 얇게") */
 }
 .scr-dock-name.is-picked .scr-dock-chipbox { margin: 2px 0; align-self: center; height: calc(100% - 4px); }
