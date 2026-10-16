@@ -37692,15 +37692,14 @@ function xZ({
                 /* @__PURE__ */ xt(
                   "span",
                   {
-                    className: "scr-motion-teamcol-name scr-dock-name",
-                    style: Er(at.key, at.team, Uo ? Zp : 1),
+                    className: "scr-motion-teamcol-name scr-dock-name is-split",
                     role: "button",
                     tabIndex: -1,
                     onClick: () => Wn(at.key),
                     title: Tt ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다",
                     children: [
-                      at.race && bA(at.race) ? /* @__PURE__ */ It("span", { className: "scr-motion-teamcol-race", children: bA(at.race) }) : null,
-                      at.name
+                      /* @__PURE__ */ It("span", { className: "scr-dock-chipbox", style: { background: Er(at.key, at.team, Uo ? Zp : 1).background }, children: at.race && bA(at.race) ? /* @__PURE__ */ It("span", { className: "scr-motion-teamcol-race", children: bA(at.race) }) : null }),
+                      /* @__PURE__ */ It("span", { className: "scr-dock-nm", children: at.name })
                     ]
                   }
                 ),
@@ -37790,7 +37789,7 @@ function xZ({
       " · UI ",
       Fs.ui,
       " · 판 ",
-      "10-16 23:24",
+      "10-17 08:49",
       Fs.ss !== 1 ? ` · 초해상 ×${Fs.ss.toFixed(2)}` : "",
       Math.abs(Fs.unitScale - Fs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Fs.unitScale.toFixed(4)})` : Fs.scale > 0 && Math.abs(Fs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Fs.scale.toFixed(4)})` : "",
       Fs.allocOk ? "" : " · ⚠배킹확보 실패"
