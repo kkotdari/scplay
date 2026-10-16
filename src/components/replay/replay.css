@@ -13,7 +13,7 @@
   --font-ui: var(--scr-font);   /* 앱 규칙이 var(--font-ui) 로 잡은 요소(입력칸·선택)도 재생기 안에서는 이 글꼴 */
   /* 스타 인게임 UI 글자 녹색(2026-10-16, 요청: "전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 · 자막의 일반 텍스트, 화면 주인의 개인 화면 글자도") —
      한 값에 매달아 고칠 때 한 곳만 고친다. 흐린 녹색(머리 글·빈 안내)은 같은 색의 투명도로. */
-  --scr-sc-green: #2cf22c; --scr-sc-green-dim: rgba(44, 242, 44, 0.6);
+  --scr-sc-green: #10fc18; --scr-sc-green-dim: rgba(16, 252, 24, 0.6);   /* = 화면 주인 초록(UI_OWN9 · 선택 링·미니맵 제 몸) — 2026-10-16 되요청: "이 색 말고 우리 화면 주인색 녹색 · 선택 링 같은 거 그 색으로 통일"(첫 판 #2cf22c) */
   font-family: var(--scr-font);
 }
 /* 단추·입력칸은 브라우저 기본이 글꼴을 안 물려받는다 — 특이도 0(:where)이라 제 글꼴을 적은 규칙(고정폭 등)에는 진다. */
@@ -496,7 +496,7 @@
 /* (걷어냄 · 2026-10-15, 요청: "전광판 유저칩 글로우 제거 카메라버튼만 불들어와있게") — 칩의 임자색 테·후광 깜빡임(scr-cast-chip). 보여 주는 사람은 이제
    그 줄의 **카메라 단추가 켜짐**(.scr-roster-cam.is-on — 반투명 초록 · 깜빡임 없음)으로 말한다(ReplayMotionPlayer 전광판 줄 shown9). */
 @keyframes scr-track-blink {
-  0%, 45% { color: #2ee59d; }
+  0%, 45% { color: var(--scr-sc-green); }
   55%, 100% { color: #0b0f14; }
 }
 /* ── 중계 스위치(TV) — **지도 위 아이콘 줄**의 로스터 단추 왼쪽이다(2026-09, 요청: "중계 버튼을 버튼행으로 이동(아이콘만
@@ -514,9 +514,9 @@
      바깥 그림자가 한 속성이라 형제의 바깥 그림자를 **그대로 베껴** 둘(먹판 · 라이트 프레임)에 따로 적는다 — 그림자 값을
      형제 규칙에서 고치면 여기 둘도 함께 고쳐야 한다. */
 .scr-motion-mapbtns button.scr-motion-castbtn-on {
-  color: #2ee59d;
+  color: var(--scr-sc-green);
   /* 켜짐의 초록 테는 **표시**라 남긴다(테두리를 걷은 것은 꼴이지 신호가 아니다) — 그림자는 형제처럼 없다. */
-  box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
+  box-shadow: inset 0 0 0 1.5px rgba(16, 252, 24, 0.78);
 }
 .scr-motion-castbtn svg { display: block; }
 /* 켜진 동안 화면이 살아 있다는 신호 — 추적 단추의 깜빡임과 같은 박자다(후광 없이 색만 오간다 — 위 ★). */
@@ -3494,8 +3494,8 @@
 /* 켜짐 — **테 없이 반투명 초록 바탕**(2026-10-09, 요청: "개인 카메라 버튼 테두리 없애고 래디우스 좀 더 주고 활성 시 배경 연한 초록색에 아이콘은 좀 진하게" → 되요청:
    "카메라 버튼(AUTO 포함) 테두리 제거 및 활성 시 배경은 반투명 녹색, 지금처럼 파스텔 연한 처리 말고") — 첫 판의 파스텔(#b4f0c6 + 진한 초록 아이콘)과 옛 초록 테(inset 1.5px)는
    걷었다. AUTO 알약도 같은 바탕 · 글자·아이콘 깜빡임(scr-cast-blink-well)은 그대로. */
-.scr-roster-cam.is-on { background: rgba(46, 229, 157, 0.32); color: #3dffa8; }
-.scr-roster-cam.is-on:hover { background: rgba(46, 229, 157, 0.42); }
+.scr-roster-cam.is-on { background: rgba(16, 252, 24, 0.32); color: var(--scr-sc-green); }
+.scr-roster-cam.is-on:hover { background: rgba(16, 252, 24, 0.42); }
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
 /* AUTO 알약 — 안 여백 2 → **6**·dk · 둥글기 3 → **6**·dk(2026-10-09, 요청: "자동 중계 버튼 안 패딩 늘리고 래디우스 증가" — PC·폰 다). 아래 갭은 .scr-dock-headrow. */
 .scr-roster-cam-auto, .scr-roster-cam-all { padding: 0 calc(6px * var(--dk)); border-radius: round(nearest, calc(var(--rp) * 0.18), 1px); gap: calc(3px * var(--dk)); }   /* 둥글기 6·dk → 줄 키 × 0.18(2026-10-10, 요청: "자동 중계 버튼 래디우스 줄이기 — 알약 말고 둥근 네모" · PC 의 --dk 가 커서 알약이 됐다) */   /* 전체 알약(PC · 2026-10-09)도 같은 꼴 · 깜빡임은 AUTO 만 */
@@ -4237,7 +4237,7 @@
 
 /* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
 .scr-guide-mbtn-cast{
-  color: #2ee59d; box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78);
+  color: var(--scr-sc-green); box-shadow: inset 0 0 0 1.5px rgba(16, 252, 24, 0.78);
 }
 .scr-guide-mbtn-cast svg{ animation: scr-track-blink 2s steps(1, end) infinite; }
 @media (prefers-reduced-motion: reduce){ .scr-guide-mbtn-cast svg{ animation: none; } }
@@ -4270,7 +4270,7 @@
   border-radius: 6px; background: rgba(255, 255, 255, 0.10); color: #cfd6de; font-size: 12px; font-weight: 800; letter-spacing: 0.03em;
 }
 .scr-guide-cam.is-pill{ padding: 0 8px; }
-.scr-guide-cam.is-on{ background: rgba(46, 229, 157, 0.32); color: #3dffa8; }
+.scr-guide-cam.is-on{ background: rgba(16, 252, 24, 0.32); color: var(--scr-sc-green); }
 .scr-guide-castchip{
   display: inline-flex; align-items: center; gap: 6px; height: 26px; min-width: 104px; padding: 0 8px; box-sizing: border-box;
   border-radius: 2px; font-size: 14px; font-weight: 700;
@@ -4593,15 +4593,15 @@
    다른 버튼과 통일(활성시 초록불깜빡임 유지)") — 꼴은 형제 우물 그대로(위 .scr-tb … :not(.is-on) 규칙)이고, 켜짐만 초록 테 + 아이콘이
    밝은 초록 ↔ 어두운 초록으로 깜빡인다(검정으로 꺼지면 어두운 우물에 묻혀 '꺼진 단추'로 읽힌다). */
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn.scr-motion-castbtn-on {
-  box-shadow: inset 0 0 0 1.5px rgba(46, 229, 157, 0.78), inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 0 1.5px rgba(16, 252, 24, 0.78), inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @keyframes scr-cast-blink-well {
-  0%, 45% { color: #3dffa8; }
+  0%, 45% { color: var(--scr-sc-green); }
   55%, 100% { color: #146b45; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: #3dffa8; }
+  .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: var(--scr-sc-green); }
 }
 /* (되물림 · 2026-10-09, 요청 2) 맞대결 표(공격 화살표 + '공격' · ⚔️ + '교전' · 글로우·바운스)와 그 앞의 배지(.scr-split-badge) — 자동 분할이 없어져 설 자리가
    없다. 같은 뜻은 아래 중계 자막이 글귀로 말한다. */
@@ -4642,7 +4642,7 @@
    안에서만 정의돼 무대 위에선 기본값 1 로 떨어졌다: FHD·QHD·UHD 어디서나 같은 px(실측 22px 고정). dk/1.35 = FHD 1 · QHD 1.33 · UHD 2(1080:1440:2160). */   /* 30.6 → **22.95**(× 0.75 · 2026-10-13, 요청: "pc 화면 주인과 자막을 25프로 축소 — 화면 크기 비례 · 짝수 px") · 분할 칸 머리도 이 요소(ownerTag9) */
 .scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { font-size: round(nearest, calc(14.4px * var(--dk)), 2px); }
 /* 깜빡임은 걷었다(2026-10-15, 요청: "화면주인 카메라도 깜빡임 제거") — 늘 켜진 초록. */
-.scr-solo-cam { flex: none; width: 1em; height: 1em; margin-right: 0.3em; color: #3dffa8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); }   /* 자막 배지는 한 단 작게(같은 날 요청: "자막의 팀 배지는 크기를 좀 줄이기") — 미니맵 0.5em */
+.scr-solo-cam { flex: none; width: 1em; height: 1em; margin-right: 0.3em; color: var(--scr-sc-green); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); }   /* 자막 배지는 한 단 작게(같은 날 요청: "자막의 팀 배지는 크기를 좀 줄이기") — 미니맵 0.5em */
 /* (걷어냄 · 2026-10-12) 미니맵 배지의 오른쪽 덮어쓰기(74%) — 배지는 이제 왼위(위 공통 규칙 −52%)라 미니맵도 같은 자다. */
 .scr-cast-caption .scr-cast-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; margin: 0 round(nearest, 0.12em, 2px); font-size: 1em; line-height: round(nearest, 1.2em, 2px); padding: 0 round(nearest, 0.3em, 2px); text-shadow: none; max-width: 14em; }   /* 여백 0.08 → 0.12em — 잇닿은 칩 사이를 점 대신 여백이 가른다(2026-10-10, 지적: "유저칩 사이 점이 아래에 내려가 있음" → "점 굳이 없어도 될듯") */
 .scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(24px * var(--dk) / 1.35 * var(--capk, 1)), 2px); }   /* 32 → **24**(× 0.75 · 2026-10-13 같은 요청) */   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
@@ -4935,7 +4935,7 @@
   transform: translate(-50%, -50%); border-radius: 1px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 /* 흰색 · 지금 결과만 켜짐 녹색(카메라 단추 .scr-roster-cam.is-on 의 #3dffa8 · 2026-10-12, 요청: "검색 결과 태그는 흰색으로 하고 액티브만 녹색") — 옛 주황·빨강. */
-.scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: #3dffa8; }
+.scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: var(--scr-sc-green); }
 /* 자동 완성(2026-10-12, 요청: "자동 완성해 보자 · 게임 목록 검색처럼 · 단 그 게임에 나온 것만") — 알약 **위로** 뜬다(쇠판이 화면 아래라). 목록 판(.scr-motion-pickmenu)과 같은 결. */
 .scr-motion-searchsug {
   position: absolute; left: 0; bottom: calc(100% + 6px * var(--ui)); z-index: 7600;
@@ -5004,6 +5004,17 @@
 .scr-roster-cam { color: var(--scr-sc-green); }
 .scr-speeddial, .scr-speeddial-tick.is-on { color: var(--scr-sc-green); }
 .scr-speeddial-tick { color: var(--scr-sc-green-dim); }
-.scr-speeddial-line { background: rgba(44, 242, 44, 0.45); }
+.scr-speeddial-line { background: rgba(16, 252, 24, 0.45); }
 .scr-speeddial-fill, .scr-speeddial-knob { background: var(--scr-sc-green); }
-.scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(44, 242, 44, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
+.scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(16, 252, 24, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
+/* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도") — 로딩은 뿌리 밖 지도 상자 위라 값을 바로 적는다(변수가 안 닿는 자리 대비). */
+.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #10fc18); }
+/* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도"). */
+.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #10fc18); }
+/* 폰 — 사람 카메라 단추 대신 **보여 주는 사람의 칩(배지 칸 + 닉네임)을 둥근 네모 테로**(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시
+   종족 칩과 닉네임을 둥근 네모로 감싸기"). 테는 안쪽 그림자(inset)라 칩 크기·줄 배치가 안 흔들린다 · 왼쪽 안 여백만 테 몫 2px. 색 = 화면 주인 초록. */
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(4px * var(--dk)); }
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name.is-picked:is(.is-split, #scr-dock-split-hi) {
+  padding: 0 calc(4px * var(--dk)) 0 2px; box-shadow: inset 0 0 0 1.5px var(--scr-sc-green); background: rgba(16, 252, 24, 0.10);
+}
+.scr-dock-name.is-picked .scr-dock-chipbox { margin: 2px 0; align-self: center; height: calc(100% - 4px); }

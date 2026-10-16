@@ -18225,20 +18225,24 @@ export default function ReplayMotionPlayer({
                   const trophy9 = Boolean(winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9);
                   return (
                     <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
-                      <button
-                        type="button" className={cx("scr-roster-cam", shown9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
-                        aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
-                        title={on9 ? "이 사람 화면을 놓는다" : uiPhone9 ? "이 사람 화면으로 바꾼다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
-                      >
-                        <Video aria-hidden />
-                      </button>
+                      {/* ★ 폰은 사람 카메라 단추가 없다(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시 종족 칩과 닉네임을 둥근 네모로 감싸기") —
+                          칩·닉네임을 누르면 같은 일(pickPerson9)이고, 보여 주는 사람은 칩(.scr-dock-name.is-picked)이 둥근 네모 테를 두른다. PC 는 단추 그대로. */}
+                      {!uiPhone9 && (
+                        <button
+                          type="button" className={cx("scr-roster-cam", shown9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
+                          aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
+                          title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                        >
+                          <Video aria-hidden />
+                        </button>
+                      )}
                       {/* 칩 + 트로피 겹싸개 — 트로피는 칩의 **왼쪽 위에 얹힌 오버레이**다(2026-10-09, 요청: "승리팀 트로피는 닉네임 위에 오버레이로
                           왼쪽 위에 붙여주기"). 칩은 overflow hidden(긴 이름 자름)이라 칩 안에 못 두고, 겹싸개(position relative)에 절대 자리로. */}
                       <span className="scr-dock-namewrap">
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
-                          className="scr-motion-teamcol-name scr-dock-name is-split"
-                          role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                          className={cx("scr-motion-teamcol-name scr-dock-name is-split", uiPhone9 && shown9 && "is-picked")}
+                          role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} aria-pressed={uiPhone9 ? on9 : undefined} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
                               같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다).
