@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castFocus9, castMoves9, castPlan9, NUKE_SHOW_PRE9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { castAt9, castCapFacets9, castFocus9, castMoves9, castPlan9, NUKE_SHOW_PRE9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -12734,16 +12734,39 @@ export default function ReplayMotionPlayer({
   /** 색인 한 줄 — 글귀·비교 글 · 장면 잡기 거리(자리 · 사람 · 장면 길 · 끝 · 위 searchFocus9 ★). */
   type SearchHit9 = { sec: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number;
     /** 결과 때보다 이만큼(초) 앞에서 연다 — 없으면 SEARCH_LEAD9. 핵 투하는 조준 끝부터(cast9 NUKE_SHOW_PRE9). */
-    pre?: number };
-  const searchIndex9 = useMemo((): { list: (SearchHit9 & { hay: string })[]; terms: Map<string, string> } => {
+    pre?: number;
+    /** 세분 낱말(아래 ★ 세분 추천) — 이 줄이 맞는 "리콜 사용" · "정구 공격당함" 따위의 비교 글(searchNorm9). */
+    fx?: string[] };
+  /* ★★ **추천어 세분**(2026-10-16, 요청: "키워드 추천 목록에 세분화로 — 리콜이면 리콜 개발/리콜 사용 · 질럿이면 질럿 생산/질럿 활약 · 공격함/공격당함 · 견제함/견제당함 ·
+     스톰 개발/스톰 사용/스톰 활약 · 나이더스 건설/나이더스 사용") — 색인 줄마다 제가 무엇인지(세분 낱말 fx)를 단다: 첫 생산 "X 생산" · 첫 건설·N번째 본진 "X 건설" · 연구 "X 개발" ·
+     마법·나이더스 "X 사용" · 마법 활약 자막("스톰으로 7킬 · 방어해냄 · 돌파함 …")과 유닛의 몰아 잡기(SEARCH_ACT_KILLS9 기 · 틈 SEARCH_ACT_GAP9 초) "X 활약" ·
+     장면 자막의 주어/목적어로 "A 공격함 · B 공격당함 · A 견제함 · B 견제당함"(사람 없는 "공격함"도). 추천은 낱말을 그 세분으로 펴고(그 경기에 있는 것만), 찾을 때 세분 글귀는
+     **제 세분 낱말을 단 줄만** 맞는다(낱말을 따로따로 맞추면 "정구 공격함"이 정구가 맞은 장면까지 잡는다). */
+  const SEARCH_ROLES9 = ["공격함", "공격당함", "견제함", "견제당함"];
+  const SEARCH_ACTS9 = ["생산", "건설", "개발", "사용", "활약", ...SEARCH_ROLES9];
+  const SEARCH_ACT_KILLS9 = 5;
+  const SEARCH_ACT_GAP9 = 12;
+  /** 잡은 몸 → 활약으로 칠 몸(딸림은 제 어미). */
+  const SEARCH_KILLER_AS9: Record<string, string> = { Interceptor: "Carrier", Scarab: "Reaver" };
+  type SearchFacet9 = { disp: string; term: string; act: string };
+  const searchIndex9 = useMemo((): { list: (SearchHit9 & { hay: string })[]; terms: Map<string, string>; facets: Map<string, SearchFacet9>; people: Set<string> } => {
     const terms9 = new Map<string, string>();
-    if (!entData || !searchWarm9) return { list: [], terms: terms9 };
+    const facets9 = new Map<string, SearchFacet9>();
+    const people9 = new Set<string>();
+    if (!entData || !searchWarm9) return { list: [], terms: terms9, facets: facets9, people: people9 };
     const nameOf9 = new Map(bases.map((b9) => [b9.key, b9.name] as const));
     const rawOf9 = new Map(entData.players.map((pl9) => [pl9.owner, pl9.name] as const));
     const out9: (SearchHit9 & { hay: string })[] = [];
     const term9 = (t9: string, tag9: string): void => { if (t9 && !terms9.has(t9)) terms9.set(t9, tag9); };
     for (const b9 of bases) term9(b9.name, "사람");   // 사람은 몸 기록이 없어도(자막에만 나와도) 든다
-    const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string, at9: Partial<SearchHit9> & { lead?: string } = {}): void => {
+    /** 세분 낱말 하나를 올리고 비교 글을 돌려준다 — term 이 "" 이면 사람 없는 꼴("공격함"). */
+    const fx9 = (term9: string, act9: string): string => {
+      const disp9 = term9 ? `${term9} ${act9}` : act9;
+      const k9 = searchNorm9(disp9);
+      if (!facets9.has(k9)) facets9.set(k9, { disp: disp9, term: term9, act: act9 });
+      return k9;
+    };
+    const add9 = (sec9: number, owner9: number | null, label9: string, extra9: string, at9: Partial<SearchHit9> & { lead?: string; facet?: [string, string][] } = {}): void => {
       let who9 = "";
       let raw9: string | undefined;
       if (owner9 !== null) {
@@ -12755,8 +12778,9 @@ export default function ReplayMotionPlayer({
       /* lead — 목적어 사람(핵이 떨어진 기지의 임자): "A가 B 기지에 핵 투하". */
       const lead9 = (at9 as { lead?: string }).lead;
       const lab9 = who9 ? (lead9 ? `${who9}${koGa9(who9)} ${lead9} ${label9}` : `${who9} ${label9}`) : label9;
-      const { lead: _lead9, ...rest9 } = at9 as Partial<SearchHit9> & { lead?: string };
-      out9.push({ raw: raw9, ...rest9, sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
+      const { lead: _lead9, facet: fc9, ...rest9 } = at9 as Partial<SearchHit9> & { lead?: string; facet?: [string, string][] };
+      const fx0_9 = fc9 && fc9.length > 0 ? [...new Set(fc9.map(([t9, a9]) => fx9(t9, a9)))] : undefined;
+      out9.push({ raw: raw9, ...rest9, ...(fx0_9 ? { fx: fx0_9 } : {}), sec: sec9, label: lab9, hay: searchNorm9(`${lab9} ${extra9}`) });
     };
     const tagLife9 = new Map(entData.lives.map((e9) => [e9.tag, e9] as const));
     /* ★ 글귀는 **묘사**다(2026-10-12, 요청: "자막도 넣어 주면 좋을 듯 — 자막이라기보다 묘사 · A가 B 기지에 핵 투하 · A 3해처리 건설") — 결과로 가면 이 글귀가 화면 자막이 된다
@@ -12806,8 +12830,8 @@ export default function ReplayMotionPlayer({
       if (e9.born > 1) {
         const hn9 = hallN9.get(e9.tag);
         const fk9 = `${e9.owner}|${e9.kind}`;
-        if (hn9 && hn9 > 1) add9(e9.born, e9.owner, `${hn9}${HALL_SHORT9[e9.kind]} 건설`, e9.kind, { x: e9.bornX, y: e9.bornY });
-        else if (!firstMade9.has(fk9)) { firstMade9.add(fk9); add9(e9.born, e9.owner, `첫 ${ko9} ${e9.bld ? "건설" : "생산"}`, `${e9.kind} ${e9.bld ? "건설" : "생산"}`, { x: e9.bornX, y: e9.bornY }); }
+        if (hn9 && hn9 > 1) add9(e9.born, e9.owner, `${hn9}${HALL_SHORT9[e9.kind]} 건설`, e9.kind, { x: e9.bornX, y: e9.bornY, facet: [[ko9, "건설"]] });
+        else if (!firstMade9.has(fk9)) { firstMade9.add(fk9); add9(e9.born, e9.owner, `첫 ${ko9} ${e9.bld ? "건설" : "생산"}`, `${e9.kind} ${e9.bld ? "건설" : "생산"}`, { x: e9.bornX, y: e9.bornY, facet: [[ko9, e9.bld ? "건설" : "생산"]] }); }
         term9(ko9, e9.bld ? "건물" : "유닛");
       }
       if (SEARCH_DEATHS9 && e9.died !== null && e9.end !== "morph") {
@@ -12824,7 +12848,7 @@ export default function ReplayMotionPlayer({
       const lv9 = / (\d)$/.exec(un9)?.[1];
       const rko9 = researchKo(un9.replace(/ \d$/, ""));
       const b9 = ut9 ? tagLife9.get(ut9) : undefined;   // 연구한 건물(판 7부터 · 0 이면 모름 → 그 사람 화면)
-      add9(us9, uo9, `${rko9}${lv9 ? ` ${lv9}` : ""} 개발 완료`, `${un9} 연구 업그레이드`, b9 ? { x: b9.bornX, y: b9.bornY } : {});   // "스톰 완료" → "스톰 개발 완료"(2026-10-12 요청)
+      add9(us9, uo9, `${rko9}${lv9 ? ` ${lv9}` : ""} 개발 완료`, `${un9} 연구 업그레이드`, { ...(b9 ? { x: b9.bornX, y: b9.bornY } : {}), facet: [[rko9, "개발"]] });   // "스톰 완료" → "스톰 개발 완료"(2026-10-12 요청)
       term9(rko9, "기술");
     }
     for (const [cs9, cx9, cy9, ct9, co9] of entData.casts) {
@@ -12835,40 +12859,108 @@ export default function ReplayMotionPlayer({
       const fo9 = ct9 === "Recall" ? castFocusV9.find((f9) => f9.kind === "recall" && f9.raw === rawOf9.get(co9) && Math.abs(f9.legs[0].t0 - (cs9 - 1.5)) < 0.6) : undefined;
       const sp9 = fo9 ? fo9.legs.flatMap((l9): [number, number, number][] => [[l9.t0, l9.x, l9.y], [l9.t1 - 0.01, l9.x, l9.y]]) : undefined;
       if (w9) add9(cs9, null, `${ga9(w9)} ${k9} 사용`, `${ct9} ${w9}`, fo9 && sp9
-        ? { raw: rawOf9.get(co9), spot: sp9, to: fo9.legs[fo9.legs.length - 1].t1, pre: cs9 - fo9.legs[0].t0 }
-        : { x: cx9, y: cy9, raw: rawOf9.get(co9) });
+        ? { raw: rawOf9.get(co9), spot: sp9, to: fo9.legs[fo9.legs.length - 1].t1, pre: cs9 - fo9.legs[0].t0, facet: [[k9, "사용"]] }
+        : { x: cx9, y: cy9, raw: rawOf9.get(co9), facet: [[k9, "사용"]] });
       term9(k9, "마법");
+    }
+    /* 나이더스 사용(★ 세분 추천) — 볼 자리의 차례(castFocusV9 nydus: 입구 → 출구)를 장면 길로. 결과 때는 출구 구간의 머리(첫 몸이 나온 때). */
+    for (const f9 of castFocusV9) {
+      if (f9.kind !== "nydus" || f9.legs.length === 0) continue;
+      const w9 = nameOf9.get(f9.raw);
+      if (!w9) continue;
+      const lg9 = f9.legs[f9.legs.length - 1];
+      const at9 = lg9.t0 + 0.1;
+      add9(at9, null, `${ga9(w9)} 나이더스 사용`, `Nydus Canal ${w9}`, { raw: f9.raw, spot: f9.legs.flatMap((l9): [number, number, number][] => [[l9.t0, l9.x, l9.y], [l9.t1 - 0.01, l9.x, l9.y]]),
+        to: lg9.t1, pre: at9 - f9.legs[0].t0, facet: [["나이더스", "사용"]] });
+      term9("나이더스", "건물");
+    }
+    /* 유닛 활약(★ 세분 추천) — 한 사람의 한 종류가 몰아 잡은 것(처치 절 · 판 11부터): 앞 처치에서 SEARCH_ACT_GAP9 초 안이면 한 무더기 · SEARCH_ACT_KILLS9 기 넘으면 "A 질럿 6킬".
+       자리는 잡힌 몸들이 죽은 자리의 가운데. 건물(캐논·성큰)은 안 친다 · 딸림은 제 어미(인터셉터 → 캐리어 · 스캐럽 → 리버). */
+    {
+      const byTag9 = new Map<number, TruthLife[]>();
+      for (const e9 of entData.lives) { const a9 = byTag9.get(e9.tag); if (a9) a9.push(e9); else byTag9.set(e9.tag, [e9]); }
+      const lifeAt9 = (tg9: number, t9: number): TruthLife | undefined => byTag9.get(tg9)?.find((l9) => l9.born <= t9 + 0.5 && (l9.died === null || l9.died >= t9 - 0.5));
+      type Burst9 = { o: number; kind: string; t0: number; t1: number; n: number; sx: number; sy: number; m: number };
+      const open9 = new Map<string, Burst9>();
+      const flush9 = (b9: Burst9): void => {
+        if (b9.n < SEARCH_ACT_KILLS9) return;
+        const ko9 = UNIT_KO[b9.kind] ?? b9.kind;
+        add9(b9.t0, b9.o, `${ko9} ${b9.n}킬`, `${b9.kind} 활약 킬`, { ...(b9.m > 0 ? { x: b9.sx / b9.m, y: b9.sy / b9.m } : {}), to: b9.t1 + 2, facet: [[ko9, "활약"]] });
+      };
+      for (const [ks9, ko9, kt9, vt9] of [...(entData.kills ?? [])].sort((a9, b9) => a9[0] - b9[0])) {
+        if (!kt9) continue;
+        const kl9 = lifeAt9(kt9, ks9);
+        if (!kl9 || kl9.bld) continue;
+        const kind9 = SEARCH_KILLER_AS9[kl9.kind] ?? kl9.kind;
+        if (SEARCH_SKIP9.has(kind9)) continue;
+        const vl9 = lifeAt9(vt9, ks9);
+        const vx9 = vl9 ? vl9.endX ?? vl9.bornX : undefined;
+        const vy9 = vl9 ? vl9.endY ?? vl9.bornY : undefined;
+        const key9 = `${ko9}|${kind9}`;
+        const cur9 = open9.get(key9);
+        if (cur9 && ks9 - cur9.t1 <= SEARCH_ACT_GAP9) {
+          cur9.t1 = ks9; cur9.n += 1;
+          if (vx9 !== undefined && vy9 !== undefined) { cur9.sx += vx9; cur9.sy += vy9; cur9.m += 1; }
+          continue;
+        }
+        if (cur9) flush9(cur9);
+        open9.set(key9, { o: ko9, kind: kind9, t0: ks9, t1: ks9, n: 1, sx: vx9 ?? 0, sy: vy9 ?? 0, m: vx9 !== undefined && vy9 !== undefined ? 1 : 0 });
+      }
+      for (const b9 of open9.values()) flush9(b9);
     }
     const capTxt9 = (caps9: CapPart9[]): string => caps9.map((c9) => (c9.raw !== undefined ? capName9(c9.raw) + capParticle9(capName9(c9.raw), c9.p) : c9.text)).join("").trim();
     /* 장면 글귀 — 편성표 밖 거리(search)를 먼저 싣는다: 장면 길(spot)과 끝(to)을 들고 있어 같은 글귀가 겹치면(아래 8초 합침) 그쪽이 남는다. */
     /* ★ 핵은 탄두 색인(위 ③)이 한 발에 한 줄을 이미 낸다 — 장면 글귀("A가 핵 투하" · cast9 castNukes9 장면)까지 실으면 한 발이 결과 둘이 되어, 다음 결과로 넘어가며 시계가
        되감겨 같은 핵이 두 번 재생됐다(2026-10-12, 지적: "핵 투하가 두 번씩 재생됨"). 장면 쪽 핵 글귀는 뺀다. */
     const nukeDup9 = (txt9: string): boolean => txt9.includes("핵 투하");
+    /** 장면 자막의 세분 낱말(★ 세분 추천 · cast9 castCapFacets9) — 활약 낱말은 그 경기 낱말 표의 기술·마법·유닛만. */
+    const capFacets9 = (caps9: CapPart9[], txt9: string): [string, string][] =>
+      castCapFacets9(caps9, txt9, (r9) => nameOf9.get(r9), (w9) => ["기술", "마법", "유닛"].includes(terms9.get(w9) ?? ""));
     for (const x9 of (planAll9 as CastPlan9).search ?? []) {
       const txt9 = capTxt9(x9.caps);
-      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to, facet: capFacets9(x9.caps, txt9) });
     }
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
       const txt9 = capTxt9(g9.caps);
-      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo, facet: capFacets9(g9.caps, txt9) });
     }
     out9.sort((a9, b9) => a9.sec - b9.sec);
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
-    return { list: out9, terms: terms9 };
+    for (const [t9, tag9] of terms9) if (tag9 === "사람") people9.add(searchNorm9(t9));
+    return { list: out9, terms: terms9, facets: facets9, people: people9 };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entData, searchWarm9, bases, planAll9, castFocusV9]);
   const searchHits9 = useMemo((): SearchHit9[] => {
     const toks9 = searchQ9.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks9.length === 0) return [];
+    /* 세분 글귀(★ 세분 추천)는 낱말을 잇대어(넷까지 · 빈칸 무시) 세분 표에서 찾고 그 줄의 fx 로만 맞춘다 · "사람 + 공격함" 은 그 사람의 몫이다(표에 없으면 0건). 나머지는 종전 낱말 맞추기. */
+    const need9: string[] = [];
+    const plain9: string[] = [];
+    const roleN9 = new Set(SEARCH_ROLES9.map(searchNorm9));
+    for (let i9 = 0; i9 < toks9.length;) {
+      const n0_9 = searchNorm9(toks9[i9]);
+      if (roleN9.has(n0_9)) {
+        const pv9 = plain9.length > 0 ? searchNorm9(plain9[plain9.length - 1]) : "";
+        if (pv9 && searchIndex9.people.has(pv9)) { plain9.pop(); need9.push(pv9 + n0_9); } else need9.push(n0_9);
+        i9 += 1; continue;
+      }
+      let used9 = 0;
+      for (let l9 = Math.min(4, toks9.length - i9); l9 >= 1; l9 -= 1) {
+        const k9 = searchNorm9(toks9.slice(i9, i9 + l9).join(""));
+        if (searchIndex9.facets.has(k9)) { need9.push(k9); used9 = l9; break; }
+      }
+      if (used9 > 0) { i9 += used9; continue; }
+      plain9.push(toks9[i9]); i9 += 1;
+    }
     const out9: SearchHit9[] = [];
     const last9 = new Map<string, number>();
     for (const h9 of searchIndex9.list) {
-      if (!toks9.every((k9) => h9.hay.includes(k9))) continue;
+      if (!need9.every((k9) => h9.fx?.includes(k9)) || !plain9.every((k9) => h9.hay.includes(k9))) continue;
       const prev9 = last9.get(h9.label);
       last9.set(h9.label, h9.sec);
       if (prev9 !== undefined && h9.sec - prev9 <= SEARCH_MERGE9) continue;   // 잇단 같은 글귀는 한 결과
-      const { hay: _hay9, ...hit9 } = h9;
+      const { hay: _hay9, fx: _fx9, ...hit9 } = h9;
       out9.push(hit9);
     }
     return out9;
@@ -12878,19 +12970,50 @@ export default function ReplayMotionPlayer({
      찾아 입력칸 위로 띄운다(같은 글 > 앞이 같은 글 > 짧은 글 차례 · 여덟 개). ↑↓ 고르기 · Enter 고르고 바로 찾기 · Tab 채우기만 · 누르면 고르고 찾기 — 게임 목록 검색
      (sg-web SearchFilterBar)의 손버릇 그대로. 한글 조합 중의 Enter 는 글자를 끝낼 뿐이라 안 받는다. */
   const [sugHi9, setSugHi9] = useState(0);
+  /* ★ 추천은 **세분으로 편다**(위 ★★ 추천어 세분) — 맞은 낱말에 세분 글귀가 있으면 낱말 대신 그것들("리콜 개발 · 리콜 사용")을 · 사람은 낱말 그대로에 그 사람의
+     "공격함 · 공격당함 · 견제함 · 견제당함"을 곁들인다 · 전술 "공격 · 견제"는 함/당함으로 · 앞 낱말이 사람이면 그 사람에게 있는 함/당함만 · 세분 글귀 자체(“개발” · "활약")로 쳐도 뜬다. */
   const searchSug9 = useMemo((): { term: string; tag: string }[] => {
     if (!searchEdit9) return [];
     const toks9 = searchDraft9.split(/\s+/);
     const last9 = searchNorm9(toks9[toks9.length - 1] ?? "");
     if (!last9) return [];
+    const prev9 = searchNorm9(toks9[toks9.length - 2] ?? "");
+    const fac9 = searchIndex9.facets;
     const got9: { term: string; tag: string; rank: number; len: number }[] = [];
+    const seen9 = new Set<string>();
+    const push9 = (term9: string, tag9: string, rank9: number, len9: number): void => {
+      if (seen9.has(term9)) return;
+      seen9.add(term9); got9.push({ term: term9, tag: tag9, rank: rank9, len: len9 });
+    };
+    const rankOf9 = (n9: string): number => (n9 === last9 ? 0 : n9.startsWith(last9) ? 1 : 2);
+    /* 앞 낱말이 사람이면 그 사람의 함/당함 */
+    if (prev9 && searchIndex9.people.has(prev9)) {
+      SEARCH_ROLES9.forEach((r9) => { const n9 = searchNorm9(r9); if (n9.includes(last9) && fac9.has(prev9 + n9)) push9(r9, "전술", rankOf9(n9), 0); });
+    }
+    const byTerm9 = new Map<string, SearchFacet9[]>();
+    for (const f9 of fac9.values()) {
+      if (!f9.term) continue;
+      const k9 = searchNorm9(f9.term);
+      const a9 = byTerm9.get(k9);
+      if (a9) a9.push(f9); else byTerm9.set(k9, [f9]);
+    }
     for (const [t9, tag9] of searchIndex9.terms) {
       const n9 = searchNorm9(t9);
       if (!n9.includes(last9)) continue;
-      got9.push({ term: t9, tag: tag9, rank: n9 === last9 ? 0 : n9.startsWith(last9) ? 1 : 2, len: n9.length });
+      const r9 = rankOf9(n9);
+      if (tag9 === "전술" && (t9 === "공격" || t9 === "견제")) {
+        [`${t9}함`, `${t9}당함`].forEach((w9) => { if (fac9.has(searchNorm9(w9))) push9(w9, "전술", r9, n9.length); });
+        continue;
+      }
+      const subs9 = (byTerm9.get(n9) ?? []).sort((a9, b9) => SEARCH_ACTS9.indexOf(a9.act) - SEARCH_ACTS9.indexOf(b9.act));
+      if (subs9.length === 0 || tag9 === "사람") push9(t9, tag9, r9, n9.length);
+      subs9.forEach((f9) => push9(f9.disp, tag9, r9, n9.length));
     }
-    got9.sort((a9, b9) => a9.rank - b9.rank || a9.len - b9.len || a9.term.localeCompare(b9.term));
-    return got9.slice(0, 8).map(({ term, tag }) => ({ term, tag }));
+    /* 세분 글귀 자체로("개발" · "활약" · "공격당") — 낱말로 못 찾은 것만 맨 뒤에. */
+    for (const [k9, f9] of fac9) if (k9.includes(last9) && f9.term) push9(f9.disp, searchIndex9.terms.get(f9.term) ?? "", k9.startsWith(last9) ? 1 : 3, searchNorm9(f9.term).length);
+    got9.sort((a9, b9) => a9.rank - b9.rank || a9.len - b9.len);
+    /* 같은 낱말의 세분은 붙어 서고 세분 차례(SEARCH_ACTS9)대로 — 위 정렬은 안정 정렬이라 넣은 차례가 남는다. */
+    return got9.slice(0, 10).map(({ term, tag }) => ({ term, tag }));
   }, [searchEdit9, searchDraft9, searchIndex9]);
   useEffect(() => { setSugHi9(0); }, [searchSug9]);
   /** 입력 꼴(위 JSX ★★) · 찾은 게 없었나('0건') · Enter 뒤 첫 결과로 갈 차례인가(검색어가 바뀌면 결과가 다음 렌더에 서므로 아래 effect 가 간다). */

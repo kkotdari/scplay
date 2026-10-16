@@ -26,10 +26,10 @@ const ALL = argv.includes("--plan");
 const EBIN = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
 const tmp = mkdtempSync(join(tmpdir(), "cast-"));
 const src = join(tmp, "entry.ts");
-writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9, castFocus9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
+writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
 execFileSync(EBIN, [src, "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(tmp, "b.mjs")}`],
   { cwd: ROOT, stdio: "inherit" });
-const { castPlan9, castAt9, castValue9, castMoves9, castFocus9 } = await import(join(tmp, "b.mjs"));
+const { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9 } = await import(join(tmp, "b.mjs"));
 
 console.log("몸값:", ["Zergling", "Marine", "Dragoon", "Siege Tank", "Archon", "Battlecruiser", "Lurker", "Guardian", "Command Center"]
   .map((k) => `${k} ${castValue9(k)}`).join(" · "));
@@ -1516,4 +1516,32 @@ rmSync(tmp, { recursive: true, force: true });
     ["리콜 차례 아비터 → 시전 자리 → 도착(이어짐)", !!rf && rf.legs.length === 3 && rf.legs[0].x === 45 && rf.legs[1].x === 70 && rf.legs[2].x === 40 && rf.legs[0].t1 === rf.legs[1].t0 && rf.legs[1].t1 === rf.legs[2].t0],
     ["나이더스 차례 입구 → 출구(끝 + 2초까지)", !!yf && yf.legs.length === 2 && yf.legs[0].x === 20 && yf.legs[1].x === 40 && Math.abs(yf.legs[1].t1 - 314) < 0.01],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㊷ 검색 세분 낱말(2026-10-16, 요청: "키워드 추천 목록에 세분화로 — 공격함/공격당함 · 견제함/견제당함 · 스톰 활약") — 자막 꼴마다 castCapFacets9 이
+   주어/목적어를 함/당함으로 가르나 · 헬프 덧말의 사람은 안 드나 · 활약 낱말을 글귀에서 뽑나. */
+{
+  const nm = (r) => ({ A: "정구", B: "Rex", C: "기수" })[r];
+  const terms = new Set(["스톰", "리버", "다크스웜", "캐리어"]);
+  const F = (caps) => {
+    const txt = caps.map((c) => (c.raw !== undefined ? `${nm(c.raw)}${c.p === "ga" ? "가" : c.p === "eul" ? "를" : ""}` : c.text)).join("");
+    return castCapFacets9(caps, txt, nm, (w) => terms.has(w)).map(([a, b]) => (a ? `${a} ${b}` : b)).sort().join(",");
+  };
+  const cases = [
+    ["A가 B를 공격 · C가 헬프", [{ raw: "A", p: "ga" }, { text: " " }, { raw: "B", p: "eul" }, { text: " 공격" }, { text: " · " }, { raw: "C", p: "ga" }, { text: " 헬프" }],
+      "Rex 공격당함,공격당함,공격함,정구 공격함"],
+    ["A가 B 기지 대파시킴", [{ raw: "A", p: "ga" }, { text: " " }, { raw: "B" }, { text: " 기지 대파시킴" }], "Rex 공격당함,공격당함,공격함,정구 공격함"],
+    ["A가 B에게 포토러시", [{ raw: "A", p: "ga" }, { text: " " }, { raw: "B" }, { text: "에게 포토러시" }], "Rex 공격당함,공격당함,공격함,정구 공격함"],
+    ["A가 리버로 B 일꾼 견제", [{ raw: "A", p: "ga" }, { text: " 리버로 " }, { raw: "B" }, { text: " 일꾼 견제" }], "Rex 견제당함,견제당함,견제함,리버 활약,정구 견제함"],
+    ["B 일꾼 견제 당함", [{ raw: "B" }, { text: " 일꾼 견제 당함" }], "Rex 견제당함,견제당함"],
+    ["A가 B 정찰 일꾼 잡음(견제 아님)", [{ raw: "A", p: "ga" }, { text: " " }, { raw: "B" }, { text: " 정찰 일꾼 잡음" }], ""],
+    ["A 히드라 B 기지로 공격 이동", [{ raw: "A" }, { text: " 히드라 " }, { raw: "B" }, { text: " 기지로 공격 이동" }], "Rex 공격당함,공격당함,공격함,정구 공격함"],
+    ["B 건물 파괴됨", [{ raw: "B" }, { text: " 건물 파괴됨" }], "Rex 공격당함,공격당함"],
+    ["A가 스톰으로 7킬", [{ raw: "A", p: "ga" }, { text: " 스톰으로 7킬" }], "스톰 활약"],
+    ["A가 B 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음", [{ raw: "A", p: "ga" }, { text: " " }, { raw: "B" }, { text: " 기지에 하이템플러 드랍. 스톰으로 일꾼 4기 잡음" }],
+      "Rex 공격당함,공격당함,공격함,스톰 활약,정구 공격함"],
+    ["A가 B와 교전(공격 아님)", [{ raw: "A", p: "wa" }, { text: " vs " }, { raw: "B" }, { text: " 교전" }], ""],
+  ];
+  console.log("\n검색 세분 낱말:");
+  for (const [name, caps, want] of cases) { const got = F(caps); console.log(`  ${got === want ? "✔" : "✘"} ${name} → ${got || "(없음)"}`); }
 }

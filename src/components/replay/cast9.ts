@@ -406,6 +406,42 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
 /* 자리(장면 가운데)·주인공·**장면 길**(spot — 교전 자리 길과 같은 셈 · 오버로드 사냥처럼 움직이는 장면을 따라간다)·끝(to) — 검색이 카메라를 그리로 보낸다. */
 export type CastSearch9 = { at: number; caps: CapPart9[]; x?: number; y?: number; raw?: string; spot?: [number, number, number][]; to?: number };
 export type CastPlan9 = CastSeg9[] & { search?: CastSearch9[] };
+/** ★ **장면 자막의 세분 낱말**(2026-10-16, 요청: "키워드 추천 목록에 세분화로 — 공격함/공격당함 · 견제함/견제당함 · 스톰 활약") — 재생기 검색 색인(searchIndex9)이 자막 결과 줄에 단다.
+ *  [낱말, 몫] 쌍 — 사람 몫은 [이름, "공격함"|"공격당함"|"견제함"|"견제당함"] · 사람 없는 꼴은 ["", "공격함"] · 활약은 [낱말, "활약"].
+ *  · 첫 문장만 본다(" · 헬프" · ". 둘째 문장" 앞). 주어 = 처음부터 "가" 붙은 칩까지 · 목적어 = 그 뒤 칩 · "가" 가 없으면 첫 칩이 주어("A 히드라 B 기지로 공격 이동") ·
+ *    "…당함 · 잃음 · 파괴됨" 꼴이면 칩이 다 맞은 쪽이다. "N팀 전원이"(칩 없는 주어)는 사람 없는 꼴만.
+ *  · 견제 = 견제 · 일꾼 잡음/잃음(정찰 일꾼 빼고) · 공격 = 공격 · 러시 · 드랍 · 반파/대파/궤멸 · 마무리 · 건물 파괴 · 엘리 · 핵 투하 · 돌파 · 옆탱.
+ *  · 활약 = "X로 N킬 · 방어해냄 · 돌파함 · 활약함 · … 잡음" · "X로 B 일꾼 견제" · "다크스웜+…" · "캐리어 기동 공격" 의 X — actTerm 이 참인 낱말만(그 경기의 기술·마법·유닛). */
+export function castCapFacets9(caps: readonly CapPart9[], txt: string, nameOf: (raw: string) => string | undefined, actTerm: (w: string) => boolean): [string, string][] {
+  const cl9: CapPart9[] = [];
+  for (const c9 of caps) {
+    const br9 = c9.raw === undefined ? /\s·\s|\.\s/.exec(c9.text ?? "") : null;
+    if (br9) { cl9.push({ text: (c9.text ?? "").slice(0, br9.index) }); break; }   // 끊는 자리가 글 조각 안이면 그 앞까지("기지에 하이템플러 드랍. 스톰으로 …")
+    cl9.push(c9);
+  }
+  const said9 = cl9.map((c9) => c9.text ?? "").join("");
+  const out9: [string, string][] = [];
+  const har9 = /견제|일꾼 잡음|일꾼 잃음/.test(said9) && !/정찰 일꾼/.test(said9);
+  const atk9 = !har9 && /공격|러시|드랍|반파|대파|궤멸|마무리|건물 파괴|엘리|핵 투하|돌파|옆탱/.test(said9);
+  if (har9 || atk9) {
+    const verb9 = har9 ? "견제" : "공격";
+    const raws9 = cl9.flatMap((c9) => (c9.raw !== undefined ? [c9] : []));
+    const gi9 = raws9.findIndex((c9) => c9.p === "ga");
+    const vict9 = /당함|잃음|파괴됨/.test(said9);
+    const acts9 = vict9 ? [] : gi9 >= 0 ? raws9.slice(0, gi9 + 1) : raws9.slice(0, 1);
+    const tgts9 = vict9 ? raws9 : gi9 >= 0 ? raws9.slice(gi9 + 1) : raws9.slice(1);
+    for (const c9 of acts9) { const n9 = nameOf(c9.raw); if (n9) out9.push([n9, `${verb9}함`]); }
+    for (const c9 of tgts9) { const n9 = nameOf(c9.raw); if (n9) out9.push([n9, `${verb9}당함`]); }
+    if (acts9.length > 0 || /팀 전원[이가]/.test(said9)) out9.push(["", `${verb9}함`]);
+    if (tgts9.length > 0) out9.push(["", `${verb9}당함`]);
+  }
+  const act9 = (w9: string | undefined): void => { if (w9 && actTerm(w9)) out9.push([w9, "활약"]); };
+  act9(/(\S+?)(?:으로|로) (?:\d+킬|방어해냄|돌파함|활약함|.+ 잡음)/.exec(txt)?.[1]);
+  act9(/(\S+?)(?:으로|로) \S+ 일꾼 견제/.exec(txt)?.[1]);
+  if (/다크스웜\+/.test(txt)) act9("다크스웜");
+  if (/캐리어 기동 공격/.test(txt)) act9("캐리어");
+  return out9;
+}
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const total = Math.max(1, opts.total);
   /** 임자 번호 → 이름. 관전자·로스터 밖은 아예 안 담는다(그 사람은 중계에 안 선다). */
