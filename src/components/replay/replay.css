@@ -4993,3 +4993,17 @@
 }
 .scr-dock-chipbox > .scr-motion-teamcol-race:is(*, #scr-dock-split-hi) { margin: 0; }
 .scr-dock-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; color: var(--scr-sc-green); }
+/* ── 아이콘·배속 다이얼도 녹색(2026-10-16, 요청: "아이콘과 배속 오버레이 흰색도 마찬가지로") — 흰 잉크였던 것만 바꾼다:
+   툴박스 우물 단추 아이콘·공유·검색 알약(검색 적중 노랑은 그대로) · 켜진 단추(흰 반전 → 녹색 반전, 아이콘은 짙은 녹색) · 전광판 카메라 아이콘(켜짐 초록 바탕은 그대로) ·
+   배속 다이얼의 글자·선·채움·눈금·손잡이. 색 단추의 팀/주인공 원그래프 위 흰 아이콘, 재생 줄(쇠 위 어두운 잉크)은 그대로. */
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
+.scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
+.scr-tb .scr-tb-tail .scr-kakao-share-btn,
+.scr-tb .scr-motion-searchwrap, .scr-tb .scr-motion-searchwrap button.scr-motion-mapbtn { color: var(--scr-sc-green); }
+.scr-motion-mapbtns button.scr-motion-mapbtn.is-on { background: var(--scr-sc-green); color: #06260a; }
+.scr-roster-cam { color: var(--scr-sc-green); }
+.scr-speeddial, .scr-speeddial-tick.is-on { color: var(--scr-sc-green); }
+.scr-speeddial-tick { color: var(--scr-sc-green-dim); }
+.scr-speeddial-line { background: rgba(44, 242, 44, 0.45); }
+.scr-speeddial-fill, .scr-speeddial-knob { background: var(--scr-sc-green); }
+.scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(44, 242, 44, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
