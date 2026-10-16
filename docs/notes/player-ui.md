@@ -1893,3 +1893,13 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   부속건물 글자 캔버스(ctx.font). 앱 페이지는 안 바뀐다.
 - 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --fontprobe --shot x.png` → `[글꼴] … 실림 · 줄키(40px) 영문 44 한글 44 섞음 44 · 굵게 44/44 · 잉크(100px) H 71 0 72 가 78`
   (H:가 = 0.91 — 나눔스퀘어 네오 자체 영문 0.707 : 0.773 과 같다) · `--ios` 같은 값. 하네스는 `dist/fonts` 를 perf-check.local/fonts/ 로 준다.
+
+## 전광판 칩은 배지 칸만 · 스타 인게임 UI 녹색 글자(2026-10-16)
+요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌 · 전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 ·
+자막의 일반 텍스트, 화면 주인의 개인 화면 글자도 똑같이".
+- 칩(dockRoster9): `.scr-dock-name.is-split` = [`.scr-dock-chipbox`(임자색 바탕 · 배지 둘레 3·dk · 최소 폭 0.6줄 + 6·dk) | `.scr-dock-nm`(바탕 없음 · 녹색)] — 겉 칩은 안 여백·바탕을 버린다
+  (`:is(.is-split, #scr-dock-split-hi)` 로 PC·폰·2×2 칩 규칙(많게는 7겹) 위 · 키·글자 크기 규칙은 그대로 산다). 칩 누름·트로피 자리는 그대로.
+- 녹색 `--scr-sc-green #2cf22c` · 흐린 `--scr-sc-green-dim`(60%) — 재생기 뿌리 셋(.scr-motion-root · .scr-fs-layer · .scr-guide-overlay)에 둔다. 쓰는 자리: 전광판 글자(.scr-dock-roster) ·
+  머리 글(흐린) · 인포창 바탕 글·이름·보급·업그레이드 숫자·줄 글(생산 중 …)·빈 안내(흐린) · 중계 자막 바탕 글(.scr-cast-caption) · 화면 주인/분할 칸 주인의 "개인 화면" 글(.scr-split-word).
+  뜻을 지닌 색(광물·가스·준/받은 데미지·실드·에너지·진행 바·임자색 칩·카메라 단추)은 그대로.
+- 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --info --track 정구 --dockrax --shot x.png` · `--ios` 같은 플래그.

@@ -18237,13 +18237,17 @@ export default function ReplayMotionPlayer({
                       <span className="scr-dock-namewrap">
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
-                          className="scr-motion-teamcol-name scr-dock-name" style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
+                          className="scr-motion-teamcol-name scr-dock-name is-split"
                           role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
-                              같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다). */}
-                          {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
-                          {m.name}
+                              같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다).
+                              ★ 임자색 바탕은 **배지 칸까지만**(2026-10-16, 요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌") —
+                              배지를 감싼 칸(.scr-dock-chipbox)이 임자색을 지고 닉네임(.scr-dock-nm)은 바탕 없이 그 옆에 선다(글자는 전광판 녹색). */}
+                          <span className="scr-dock-chipbox" style={{ background: chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1).background }}>
+                            {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                          </span>
+                          <span className="scr-dock-nm">{m.name}</span>
                         </span>
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>

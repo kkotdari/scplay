@@ -11,6 +11,9 @@
 .scr-motion-root, .scr-fs-layer, .scr-guide-overlay {
   --scr-font: "SCP Rasheeq", "SCP NanumSquare Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
   --font-ui: var(--scr-font);   /* 앱 규칙이 var(--font-ui) 로 잡은 요소(입력칸·선택)도 재생기 안에서는 이 글꼴 */
+  /* 스타 인게임 UI 글자 녹색(2026-10-16, 요청: "전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 · 자막의 일반 텍스트, 화면 주인의 개인 화면 글자도") —
+     한 값에 매달아 고칠 때 한 곳만 고친다. 흐린 녹색(머리 글·빈 안내)은 같은 색의 투명도로. */
+  --scr-sc-green: #2cf22c; --scr-sc-green-dim: rgba(44, 242, 44, 0.6);
   font-family: var(--scr-font);
 }
 /* 단추·입력칸은 브라우저 기본이 글꼴을 안 물려받는다 — 특이도 0(:where)이라 제 글꼴을 적은 규칙(고정폭 등)에는 진다. */
@@ -4968,3 +4971,25 @@
 .scr-motion:not(.scr-motion-pc9) .scr-dock-names.is-grid2 .scr-roster-cam:not(.scr-roster-cam-auto) svg { width: round(nearest, calc(var(--rp) * 0.5 - 2px), 2px); height: round(nearest, calc(var(--rp) * 0.5 - 2px), 2px); }
 .scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto { padding: 0 calc(3px * var(--dk)); }
 /* (걷음 · 2026-10-12, 요청: "하얀 박스도 없애고 · 자막에서 이름의 색을 다 빼 줘") 어두운 임자색 이름의 흰 테(.is-dark · 0.5px 여덟 방향) → 흰 상자 — 이름이 흰 글자라 쓸 데가 없다. */
+
+/* ══ 스타 인게임 UI 녹색 글자 · 전광판 칩은 배지 칸만(2026-10-16) ═════════════════════════════════════════════════════════════════
+   요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌 · 전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 ·
+   자막의 일반 텍스트, 화면 주인의 개인 화면 글자도 똑같이". 색은 재생기 뿌리의 --scr-sc-green 하나(흐린 것 --scr-sc-green-dim).
+   뜻을 지닌 색(광물 파랑·가스·준/받은 데미지·실드·에너지·체력 바·임자색 칩)은 그대로 둔다 — 바탕 글자만 녹색이다. */
+.scr-dock-roster { color: var(--scr-sc-green); }
+.scr-dock-head { color: var(--scr-sc-green-dim); }
+.scr-motion-infodock, .scr-motion-infodock-name, .scr-motion-infodock-supply b, .scr-motion-infodock-upsq b { color: var(--scr-sc-green); }
+.scr-motion-infodock-supply { color: var(--scr-sc-green-dim); }
+.scr-motion-infodock .scr-motion-info-line { color: var(--scr-sc-green); }   /* "생산 중 마린" · "연구 중 …" 줄 글(옛 흰 82%) */
+.scr-motion-infodock-empty { color: var(--scr-sc-green-dim); }
+.scr-cast-caption { color: var(--scr-sc-green); }
+.scr-split-cap > .scr-split-word, .scr-fs-solo-cap > .scr-split-word { color: var(--scr-sc-green); }
+/* 칩 = 배지 칸(임자색) + 바탕 없는 닉네임. 겉 칩(.scr-dock-name.is-split)은 바탕·안 여백을 버리고 두 조각을 나란히 — 무게는 :is(#…)로 칩 크기 규칙들(PC·폰·2×2 · 많게는 7겹)
+   위에 둔다(그 규칙들의 키·글자 크기는 그대로 산다 · 여기서는 여백·틈만 고친다). */
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { padding: 0; gap: 0.35em; background: none; overflow: hidden; }
+.scr-dock-chipbox {
+  flex: none; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  min-width: calc(var(--rp) * 0.6 + 6px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: 2px;
+}
+.scr-dock-chipbox > .scr-motion-teamcol-race:is(*, #scr-dock-split-hi) { margin: 0; }
+.scr-dock-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; color: var(--scr-sc-green); }
