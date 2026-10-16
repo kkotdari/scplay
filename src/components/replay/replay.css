@@ -3248,14 +3248,8 @@
    독 맞춤(dockFit9)의 폭 셈에도 이 배수가 든다. */
 .scr-fs-dockframe { --mini-up: 1.2; --mini-h: round(nearest, calc(var(--dock-h) * var(--mini-up, 1)), 2px); }   /* 미니맵 키 짝수(2026-10-10) */
 .scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
-/* ★ 전광판·미니맵·인포창이 다 서면 **미니맵이 화면 한가운데**(2026-10-10, 요청: "셋이 다 나올 때는 미니맵이 정가운데에 오게") — 양옆 기둥을 max(전광판, 인포창) 폭(--side-w ·
-   dockFit9)으로 같게 둔 격자라 틀이 가운데 서면 미니맵도 가운데다. 전광판은 제 기둥의 오른끝, 인포창은 왼끝에 붙어 틈(--dock-sep · 구분 막대)이 그대로다 · 좁은 쪽 기둥의
-   남는 폭은 쇠판으로 빈다. 인포창 단(--info-k)은 이 격자가 독 줄에 들 때까지 낮춘다(dockFit9 trioW9). 둘만 설 때(인포창 없음 · 미니맵 N)는 종전 flex 가운데 맞춤. */
-/* ⚠ 줄 키는 **우물 키로 못 박는다**(grid-template-rows · 2026-10-10, 지적: "왜 갑자기 독 윗부분의 층이 사라진 거야? 미니맵 부분만 돌출된 형태로") — auto 줄은 키 큰 미니맵(×--mini-up)에 맞춰
-   늘어 틀 전체가 미니맵 키로 솟아 윗선이 일자가 됐다. 줄을 --dock-h 로 두면 미니맵은 끝 맞춤으로 위로 넘친다(flex 꼴과 같은 받침 층). */
-.scr-fs-dockmain.is-trio { display: grid; grid-template-columns: var(--side-w) auto var(--side-w); grid-template-rows: var(--dock-h); column-gap: var(--dock-sep); align-items: end; justify-content: center; }
-.scr-fs-dockmain.is-trio > .scr-fs-rosterpanel { justify-self: end; }
-.scr-fs-dockmain.is-trio > .scr-motion-infodock { justify-self: start; }
+/* (걷어냄 · 2026-10-16) 셋이 다 서면 미니맵을 한가운데 두던 격자(.is-trio · --side-w) — 보이는 요소를 통째로 나란히 · 묶음 가운데(위 flex justify-content center).
+   요청: "보이는 요소를 통째로 합쳐서 중앙정렬 · 미니맵이 무조건 정가운데 X" · player-ui.md. */
 /* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
 .scr-fs-dockprobe { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; width: var(--dock-w); height: var(--dock-h0); margin: 0 var(--dock-out) 0 var(--dock-sep); }
 /* 인포창이 안 서는 틀(is-noinfo · 남는 폭이 설계 폭의 INFO_MIN_K9 아래) — 미니맵 뒤 구분 막대도 걷는다. */

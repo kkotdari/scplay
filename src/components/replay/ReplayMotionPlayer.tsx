@@ -13213,8 +13213,8 @@ export default function ReplayMotionPlayer({
    *  무대 크기 effect 의 의존성에 들어야 해서다(2026-10-09, 지적: "페이지 처음 로딩시 지도 우측과 하단이 조금씩 비었다가 꽉 채워지는 현상" · "독 접었다 펼 때 재생기가
    *  잠깐 안전영역까지 내려갔다 다시 올라옴" — 독 맞춤이 쇠판 키를 바꾸면 무대 키가 같이 바뀌는데, 무대 크기 상태는 ResizeObserver(칠한 **뒤**)로만 따라와 한 프레임을
    *  옛 덮는 폭(fsCoverW)으로 칠했다 → 오른쪽·아래가 비었다가 채워졌다). */
-  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number; trio: boolean; sideW: number }>(
-    { h: null, ki: 1, k: 1, lift: 0, trio: false, sideW: 0 });
+  const [dockFit9, setDockFit9] = useState<{ h: number | null; ki: number; k: number; lift: number }>(
+    { h: null, ki: 1, k: 1, lift: 0 });
   /* 무대 크기 — 지도를 이 크기에 맞춰 **덮게**(cover) 깔아야 크롭이 나온다. 화면 회전·
      주소창 여닫힘까지 따라오도록 ResizeObserver로 지켜본다.
      ★ **레이아웃 이펙트**다(같은 지적) — 지나가는 이펙트는 브라우저가 한 번 칠한 **뒤**에
@@ -19530,22 +19530,17 @@ export default function ReplayMotionPlayer({
       const miniH9 = ev9(h9 * up9);
       const rosterW9 = ev9(h9 * rr9);
       const miniW9 = miniOn9 ? ev9(miniH9 * ar9) : 0;
-      /* ★ 셋이 다 서면 미니맵이 화면 한가운데(2026-10-10, 요청: "전광판 미니맵 인포창이 다 나올 때는 미니맵이 정가운데에 오게") — 양옆 기둥을 max(전광판, 인포창) 폭으로 같게 둔
-         격자(replay.css .is-trio · --side-w)라 그 폭이 2·max + 미니맵 + 틈 둘이다. 인포창 단은 그 격자가 독 줄에 들 때까지 낮춘다. 미니맵이 없으면(N) 둘이 나란히(종전 셈). */
-      const trioW9 = (k: number): number => 2 * Math.max(rosterW9, infoW9 * k) + miniW9 + 2 * sep9;
-      const ki9 = miniOn9
-        ? (INFO_STEPS9.find((k) => trioW9(k) <= W9) ?? 0)
-        : (INFO_STEPS9.find((k) => rosterW9 + sep9 + infoW9 * k <= W9) ?? 0);
-      const trio9 = miniOn9 && ki9 > 0;
-      const sideW9 = trio9 ? Math.max(rosterW9, infoW9 * ki9) : 0;
+      /* ★ 보이는 요소를 **통째로 나란히 · 묶음 가운데**(2026-10-16, 지적: "독에 공간이 있는데도 인포창이 숨겨져버림" → 요청: "보이는 요소를 통째로 합쳐서 중앙정렬 ·
+         미니맵이 무조건 정가운데 X") — 옛 '셋이 다 서면 미니맵이 한가운데'(2026-10-10 · 양옆 기둥을 max(전광판, 인포창) 폭으로 같게 둔 격자 .is-trio)는 걷었다: 인포창 쪽
+         기둥도 전광판 폭(4:4 전광판은 넓다)을 먹어 실제 합보다 한참 넓게 셈해, 자리가 남는데도 인포창이 숨었다. 이제 전광판 | 미니맵 | 인포창의 **실제 폭 합**이 드는 가장 큰 단이다. */
+      const ki9 = INFO_STEPS9.find((k) => rosterW9 + miniW9 + (miniOn9 ? 2 : 1) * sep9 + infoW9 * k <= W9) ?? 0;
       /* ★ 받침이 무대 위로 솟은 몫(2026-10-09, 요청: "독 윗부분은 일자가 아니라 요소에 맞춰서 층이 있게" — replay.css 쇠판 ★★) = (up − 1)·h + 틀 여백 + 테. 뿌리(.scr-fs-layer)에
          --dock-lift 로 적어 바닥 가운데의 중계 자막이 그만큼 올라선다(.scr-cast-caption). 화면 주인 이름표는 **위 가운데**라(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단
          가운데로 이동하고 자막을 내리기") 안 탄다 — 옛 '바닥 줄 칸 이름표 올리기'(--cell-lift · pedL~pedR)도 그때 걷었다. 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도
          아래 비우지 않기"). 미니맵이 없으면(N) 0. */
       const lift9 = miniOn9 && W9 > 0 ? Math.max(0, miniH9 - h9 + out9 + 1) : 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
-        && p9.trio === trio9 && Math.abs(p9.sideW - sideW9) < 0.5
-        ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9, trio: trio9, sideW: sideW9 }));
+        ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9 }));
       setRosterPaged9(uiPhone9 || k9 < 0.999);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", `${lift9.toFixed(1)}px`);
     };
@@ -20512,7 +20507,7 @@ export default function ReplayMotionPlayer({
             >
             {/* 숨은 자 — 설계 치수(인포창 폭 · 설계 키 h0 · 틈 · 여백)를 CSS 계산값 그대로 읽는 자리(위 dockFit9). */}
             <i className="scr-fs-dockprobe" aria-hidden />
-            <div className={cx("scr-fs-dockmain", dockFit9.trio && "is-trio")} style={dockFit9.trio ? { ["--side-w" as string]: `${dockFit9.sideW.toFixed(1)}px` } as React.CSSProperties : undefined}>
+            <div className="scr-fs-dockmain">
             {/* ★★ 독의 우물 셋 [전광판 | 미니맵 | 인포창](2026-10-09, 요청: "피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창을 보여줌 ·
                 너비를 배분하고 그에 맞는 높이로") — 자리와 크기는 위 dockFit9(전광판·미니맵 먼저 · 인포창은 남는 폭에 비례 축소 · 모자라면 숨김).
                 독 미니맵은 요청 5(2026-10-09)로 걷었던 것을 되살렸다(.scr-fs-minipanel) — 분할보기에서는 누른 칸의 사람(시야·네모·초록 점)을 들고 안 골랐으면
