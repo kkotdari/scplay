@@ -11,7 +11,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./fonts.css": "./dist/fonts/scplay-fonts.css"
   },
   "scripts": {
     "build": "vite build",

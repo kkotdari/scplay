@@ -1,0 +1,9 @@
+/* scplay 재생기 글꼴 — 나눔스퀘어 네오(한글 · OFL) + AGA Rasheeq(영문·숫자). 쓰는 자리는 styles.css 의 재생기 뿌리 규칙(--scr-font)뿐이다.
+   크기·높이 맞춤과 라이선스는 README.md · src/components/replay/replay.css '재생기 글꼴'. 이 파일은 빌드가 손대지 않고 그대로 dist/fonts 로 옮긴다. */
+@font-face { font-family: "SCP Rasheeq"; src: url("./AGA-Rasheeq-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap;
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2010-2027, U+2030-205E, U+2190-2199, U+2212;
+  size-adjust: 160%; ascent-override: 53.2%; descent-override: 16%; line-gap-override: 0%; }
+@font-face { font-family: "SCP NanumSquare Neo"; src: url("./NanumSquareNeo-bRg.woff2") format("woff2"); font-weight: 100 549; font-style: normal; font-display: swap; }
+@font-face { font-family: "SCP NanumSquare Neo"; src: url("./NanumSquareNeo-cBd.woff2") format("woff2"); font-weight: 550 749; font-style: normal; font-display: swap; }
+@font-face { font-family: "SCP NanumSquare Neo"; src: url("./NanumSquareNeo-dEb.woff2") format("woff2"); font-weight: 750 849; font-style: normal; font-display: swap; }
+@font-face { font-family: "SCP NanumSquare Neo"; src: url("./NanumSquareNeo-eHv.woff2") format("woff2"); font-weight: 850 1000; font-style: normal; font-display: swap; }

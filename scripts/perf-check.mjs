@@ -832,6 +832,10 @@ if (has("--quickzoom") || has("--coarse")) {
       : orig(q));
   });
 }
+await page.route("http://perf-check.local/fonts/**", (r) => {   // 재생기 글꼴(dist/fonts)
+  const f9 = join(ROOT, "dist", "fonts", decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/fonts\//, "")));
+  return existsSync(f9) ? r.fulfill({ body: readFileSync(f9), contentType: f9.endsWith(".ttf") ? "font/ttf" : "font/woff2" }) : r.fulfill({ status: 404, body: "" });
+});
 await page.route("http://perf-check.local/*", (r) => r.fulfill({
   contentType: "text/html",
   /* 실제 페이지의 감싸개(--wrap <클래스>) — 게임 상세·게임 페이지에는 맵 줄을 뷰포트
@@ -877,6 +881,12 @@ if (cssFile) {
   }, readFileSync(join(cssDir, cssFile), "utf8"));
 }
 else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치가 안 맞을 수 있다.");
+/* 재생기 글꼴(2026-10-16 · dist/fonts/scplay-fonts.css — 앱은 "scplay/fonts.css" 로 싣는다) — 글꼴 파일은 아래 길로 dist/fonts 에서 준다. */
+{
+  const fcss9 = join(ROOT, "dist", "fonts", "scplay-fonts.css");
+  if (existsSync(fcss9)) await page.evaluate((css) => { const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st); },
+    readFileSync(fcss9, "utf8").replace(/url\("\.\//g, 'url("http://perf-check.local/fonts/'));
+}
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
 await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9]) => {
@@ -906,6 +916,22 @@ await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.bl
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
 /* --namefit(2026-10-13, 지적: "전광판 로스터 … 글자가 너무 커지면서 모바일에서 세 글자도 안 들어가") — 전광판 이름 칩마다 글자·칸 폭·잘림(scrollWidth > clientWidth)과 줄 키(--rp)·글자(--rf)·판 폭을 찍는다. */
+/* --fontprobe(2026-10-16, 요청: "한글과 영어 높이와 크기 잘 어울리게 기본 필터") — 재생기 뿌리 안에서 영문만·한글만·섞은 줄의 줄 상자 키와
+   글자 잉크 높이(대문자 H · 한글 가 — 캔버스에 그 글꼴로 찍어 잰다)를 견준다. 글꼴이 실제로 실렸는지(document.fonts.check)도. */
+if (has("--fontprobe")) {
+  await page.waitForTimeout(800);
+  const r9 = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const root = document.querySelector(".scr-motion-root"); if (!root) return "뿌리 없음";
+    const fam = getComputedStyle(root).fontFamily;
+    const mk = (txt, w) => { const s = document.createElement("span"); s.textContent = txt; s.style.cssText = `font-size:40px;font-weight:${w};line-height:normal;white-space:nowrap`; root.appendChild(s); const b = s.getBoundingClientRect(); s.remove(); return Math.round(b.height * 10) / 10; };
+    const ink = (ch, w) => { const c = document.createElement("canvas"); c.width = 200; c.height = 200; const x = c.getContext("2d"); x.font = `${w} 100px ${fam}`; x.textBaseline = "alphabetic"; const m = x.measureText(ch); return Math.round(m.actualBoundingBoxAscent); };
+    const loaded = ["SCP Rasheeq", "SCP NanumSquare Neo"].map((f) => `${f}:${document.fonts.check(`40px "${f}"`, f.includes("Neo") ? "가" : "H") ? "실림" : "안 실림"}`).join(" ");
+    return `${loaded} · 줄키(40px) 영문 ${mk("HHH", 400)} 한글 ${mk("가가가", 400)} 섞음 ${mk("H가H", 400)} · 굵게 영문 ${mk("HHH", 700)} 한글 ${mk("가가가", 700)}`
+      + ` · 잉크(100px) H ${ink("H", 400)} 0 ${ink("0", 400)} 가 ${ink("가", 400)} 한 ${ink("한", 400)} · 글꼴 ${fam.slice(0, 60)}`;
+  });
+  console.log(`[글꼴] ${r9}`);
+}
 /* --capfit(2026-10-13, 요청: "pc 화면 주인과 자막 25프로 축소 · 짝수 픽셀") — 화면 주인 이름표·자막의 계산된 글자 크기·상자(짝수인지 ✔). */
 if (has("--capfit")) {
   await page.waitForTimeout(600);

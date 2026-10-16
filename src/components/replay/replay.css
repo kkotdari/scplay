@@ -1,3 +1,21 @@
+/* ══ 재생기 글꼴(2026-10-16, 요청: "스타크래프트 폰트 … 재생기 포함" → 고른 조합 "나눔스퀘어 네오"(한글) + AGA Rasheeq(영문·숫자) · "한글과 영어 높이와 크기 잘 어울리게
+   기본 필터 만들어서 조정" · "사이트는 적용하지 말고 재생기만") ══════════════════════════════════════════════════════════════════════
+   · 한글 = 나눔스퀘어 네오(OFL) 400·700·800·900 — 굵기 칸(font-weight 범위)으로 묶어 가짜 굵게가 안 생긴다.
+   · 영문·숫자·문장부호 = AGA Rasheeq(아랍어 글꼴의 라틴 · 스타크래프트 UI 숫자와 같은 둥근 네모꼴) — unicode-range 로 그 글자만 맡는다(한글은 다음 글꼴로).
+   · **기본 필터**(크기·높이 맞춤) — Rasheeq 의 대문자 높이는 0.443em 로 나눔스퀘어 네오 영문 대문자(0.707em)의 63% 다 → size-adjust 160%.
+     줄 상자 높이도 한글 글꼴과 같아야 섞인 줄이 들썩이지 않는다: 나눔스퀘어 네오 위 0.85 · 아래 0.255 · 틈 0 → 크기 맞춤을 곱하기 **전** 값으로
+     ascent 53.2% · descent 16% · line-gap 0%(브라우저가 size-adjust 를 덮어쓴 값에도 곱한다). 굵기는 Regular 하나라 600 위는 브라우저가 굵게 지어 한글 굵기에 따라간다.
+   · @font-face 와 글꼴 파일은 **따로 싣는다**(public/fonts → dist/fonts · 패키지 "scplay/fonts.css") — 라이브러리 빌드는 CSS 의 url 자산을 base64 로 박아
+     styles.css 가 2.3MB 로 불었다(첫 판). 소비자(sg-web)가 "scplay/fonts.css" 를 import 하면 그 번들러가 파일을 제 자산으로 옮긴다.
+   · 파일·라이선스는 public/fonts/README.md. 쓰는 자리는 재생기 뿌리 셋(.scr-motion-root · 포털된 판 .scr-fs-layer · 사용법 .scr-guide-overlay)뿐 — 앱 페이지는 안 건드린다. */
+.scr-motion-root, .scr-fs-layer, .scr-guide-overlay {
+  --scr-font: "SCP Rasheeq", "SCP NanumSquare Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
+  --font-ui: var(--scr-font);   /* 앱 규칙이 var(--font-ui) 로 잡은 요소(입력칸·선택)도 재생기 안에서는 이 글꼴 */
+  font-family: var(--scr-font);
+}
+/* 단추·입력칸은 브라우저 기본이 글꼴을 안 물려받는다 — 특이도 0(:where)이라 제 글꼴을 적은 규칙(고정폭 등)에는 진다. */
+:where(.scr-motion-root, .scr-fs-layer, .scr-guide-overlay) :where(button, input, select, textarea) { font-family: inherit; }
+
 /* ══ 패키지 기본값(요청: 모듈 그 자체로 완결) ═══════════════════════════════════════════════════════════════
    재생기가 쓰는 디자인 토큰의 **기본값**이다. 아무 테마 없는 페이지에 꽂아도 모양이 서고, 앱이 같은 이름을 :root나 제
    요소(테마 클래스)에 정의하면 그 값이 이긴다 — :where()는 특이도 0이라 어떤 앱 규칙에도 진다. 값은 scplayer 어두운

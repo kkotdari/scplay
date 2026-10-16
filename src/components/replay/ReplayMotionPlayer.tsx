@@ -5454,7 +5454,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           // 부속건물 + 같은 글자 하나 — 스팬 글자와 같은 굵기·가운데 앵커.
           ctx.globalAlpha = op.alpha;
           ctx.fillStyle = op.color;
-          ctx.font = `700 ${op.sizePx * zoom}px sans-serif`;
+          ctx.font = `700 ${op.sizePx * zoom}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`;   // 재생기 글꼴(replay.css @font-face · 2026-10-16)
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(op.textGlyph, sx, sy);

@@ -1879,3 +1879,17 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 지적(사진 · 아이폰 키보드 위 ✓): "저거 눌러서 닫으면 원래 위치로 안 가네" — 완료는 입력칸의 손만 떼고 입력 꼴(searchEdit9)은 그대로라, 접힘 effect 의 되돌림이 안 돌았다.
 - 입력칸 `onBlur` 가 적어 둔 자리(searchScroll9)로 되돌린다(`searchScrollBack9` — 곧장 · 한 장 뒤 · 350ms · 접힘 effect 와 같은 손). 자리는 남겨 둔다(다시 손을 얹으면 또 굴리고 접힐 때 한 번 더).
 - 🔎 `perf-check --ios --warm 0 --glblit --searchprobe 정 --shot x.png` → `[검색 완료(blur)] {"펴기전":0,"굴림":240,"뒤":0}`. ⚠ 실제 iOS 키보드는 헤드리스로 못 띄운다 — 실기 확인 몫.
+
+## 재생기 글꼴 — 나눔스퀘어 네오(한글) + AGA Rasheeq(영문·숫자) · 크기·높이 기본 필터(2026-10-16)
+요청 흐름: "스타크래프트 폰트로 모든 화면(재생기 포함)" → 코스타(윤디자인 상용 · 임베딩 금지라 안 씀) → 후보 비교 여럿 → "Eurostile 폰트래" → 사용자가 찾은 AGA Rasheeq(영문·숫자)
+→ 한글 "나눔스퀘어 네오" → "한글과 영어 높이와 크기 잘 어울리게 기본 필터 만들어서 조정" → "사이트는 적용하지 말고 재생기만".
+- 파일: `public/fonts/`(빌드가 그대로 `dist/fonts/` 로 옮김) — NanumSquareNeo bRg·cBd·dEb·eHv.woff2(OFL · 받은 그대로) · AGA-Rasheeq-Regular.ttf(© Almedia · 배포처 표기 비상업 무료 ·
+  고치지 않음) · `scplay-fonts.css`(@font-face) · README.md(라이선스). 패키지 export `scplay/fonts.css` — **앱이 import 해야 실린다**(sg-web main.tsx — 배포 때 락과 함께).
+- ⚠ @font-face 를 replay.css 에 두면 라이브러리 빌드가 url 자산을 base64 로 박아 styles.css 가 120KB → **2.3MB** 가 됐다(첫 판) — 그래서 따로 싣는다.
+- 기본 필터(`SCP Rasheeq` @font-face): unicode-range 로 영문·숫자·문장부호만 맡고 · `size-adjust 160%`(Rasheeq 대문자 0.443em → 나눔스퀘어 네오 영문 대문자 0.707em) ·
+  `ascent-override 53.2% · descent-override 16% · line-gap-override 0%`(나눔스퀘어 네오 위 0.85 · 아래 0.255 를 size-adjust 로 나눈 값 — 크롬은 덮어쓴 값에도 size-adjust 를 곱한다).
+  Rasheeq 는 굵게 파일도 라틴은 보통과 같아 Regular 하나만 싣는다(600 위는 브라우저가 굵게 지어 한글 굵기에 따라간다). 나눔스퀘어 네오는 굵기 칸 100–549·550–749·750–849·850–1000.
+- 쓰는 자리: `.scr-motion-root, .scr-fs-layer, .scr-guide-overlay`(재생기 뿌리 · 포털된 판 · 사용법)의 `--scr-font`·`--font-ui`·font-family + 그 안 단추·입력칸 inherit(:where 특이도 0) ·
+  부속건물 글자 캔버스(ctx.font). 앱 페이지는 안 바뀐다.
+- 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --fontprobe --shot x.png` → `[글꼴] … 실림 · 줄키(40px) 영문 44 한글 44 섞음 44 · 굵게 44/44 · 잉크(100px) H 71 0 72 가 78`
+  (H:가 = 0.91 — 나눔스퀘어 네오 자체 영문 0.707 : 0.773 과 같다) · `--ios` 같은 값. 하네스는 `dist/fonts` 를 perf-check.local/fonts/ 로 준다.
