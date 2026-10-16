@@ -1721,6 +1721,10 @@ if (SHOT) {
     if (flag("--shot", null)) await page.screenshot({ path: String(flag("--shot")).replace(/\.png$/, "-sug.png"), timeout: 8000 }).catch(() => console.log("[검색 자동 완성 찍기 건너뜀]"));   // 자동 완성이 뜬 꼴(헤드리스가 가끔 30초 막힌다 — 진단이라 안 멈춘다)
     /* 폰 키보드가 민 화면 흉내(2026-10-12) — 입력 중 페이지를 굴려 두고, Enter 뒤 펴기 전 자리로 돌아오는지 본다(굴릴 데가 없는 판이면 0 그대로). */
     const sc9 = await page.evaluate(() => { document.body.style.paddingBottom = "1200px"; const before = window.scrollY; window.scrollTo(0, before + 240); return [before, window.scrollY, document.documentElement.scrollHeight, innerHeight]; });
+    /* 키보드 '완료'(iOS ✓ — 입력칸 손만 뗌) 흉내(2026-10-16, 지적: "저거 눌러서 닫으면 원래 위치로 안 가네") — blur 뒤 자리가 펴기 전으로 오는지 · 다시 손을 얹고 굴려 둔다. */
+    const bl9 = await page.evaluate(async () => { const i = document.querySelector(".scr-motion-search-input"); i?.blur(); await new Promise((r) => setTimeout(r, 450)); const y = window.scrollY;
+      i?.focus({ preventScroll: true }); window.scrollTo(0, window.scrollY + 240); return y; });
+    console.log("[검색 완료(blur)]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: bl9 }));
     await page.keyboard.press("Enter"); await page.waitForTimeout(1200);   // 자동 완성이 떠 있으면 Enter 가 고르고 찾는다(입력칸이 사라져 page.press 는 걸린다)
     console.log("[검색 Enter]", JSON.stringify(await st9()));
     console.log("[검색 화면 자리]", JSON.stringify({ 펴기전: sc9[0], 굴림: sc9[1], 뒤: await page.evaluate(() => window.scrollY), 판키: sc9[2], 창키: sc9[3] }));

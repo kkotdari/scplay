@@ -13092,12 +13092,16 @@ export default function ReplayMotionPlayer({
     const at9 = searchScroll9.current;
     searchScroll9.current = null;
     if (!at9) return undefined;
+    return searchScrollBack9(at9);
+  }, [searchEdit9]);
+  /** 적어 둔 페이지 자리로 곧장 · 한 장 뒤 · 키보드가 다 내려간 뒤(350ms) 되돌린다 — 지우개를 돌려준다. */
+  const searchScrollBack9 = (at9: { x: number; y: number }): (() => void) => {
     const back9 = (): void => { if (window.scrollX !== at9.x || window.scrollY !== at9.y) window.scrollTo(at9.x, at9.y); };
     back9();
     const raf9 = requestAnimationFrame(back9);
     const tm9 = window.setTimeout(back9, 350);
     return () => { cancelAnimationFrame(raf9); window.clearTimeout(tm9); };
-  }, [searchEdit9]);
+  };
   /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
   useEffect(() => {
     if (!searchEdit9) return undefined;
@@ -18933,6 +18937,9 @@ export default function ReplayMotionPlayer({
               className="scr-motion-search-input" type="text" enterKeyHint="search" autoComplete="off"
               value={searchDraft9} placeholder="유닛·기술·전술"
               onChange={(e) => { setSearchDraft9(e.currentTarget.value); setSearchMiss9(false); }}
+              /* ★ 키보드만 내려도(iOS 키보드 위 ✓ '완료') 페이지 자리를 되돌린다(2026-10-16, 지적: "저거 눌러서 닫으면 원래 위치로 안 가네") — 완료는 입력칸의 손만 떼고
+                 입력 꼴은 그대로라 접힘 effect 가 안 돌았다. 적어 둔 자리는 남겨 둔다(다시 손을 얹으면 또 굴리고 · 접힐 때 한 번 더 되돌린다). */
+              onBlur={() => { if (searchScroll9.current) searchScrollBack9(searchScroll9.current); }}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing || e.keyCode === 229) return;   // 한글 조합 중(위 자동 완성 ★)
                 if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSearchEdit9(false); return; }
