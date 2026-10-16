@@ -28,12 +28,11 @@ const APP_TOKENS = new Set([
 const MARKERS = new Set([
   "scr-mapvec-base", "scr-mapvec-sharp",
   "scr-motion-searchbtn",   // 검색 돋보기(2026-10-12) — 꼴은 형제 규칙 · 펴진 알약 안 덮어쓰기는 .scr-motion-searchwrap.is-open 이 진다
-  /* 관문을 조이니 드러난 셋(아래 ★) — 모두 **이름표**다. 규칙이 없는 게 맞고, 쓰는 자리는
+  /* 관문을 조이니 드러난 둘(아래 ★) — 모두 **이름표**다. 규칙이 없는 게 맞고, 쓰는 자리는
      소스에도 CSS에도 선택자로 안 나온다(붙는 몸이 제 화장을 다 진다):
        scr-motion-pitched   — 지도 상자에 붙는 '입체다' 표(상태를 JS가 아니라 DOM에 남겨 둔다)
-       scr-motion-warmnote  — 굽는 중 글줄. 화장은 .scr-motion-simnote가 진다
        scr-guide-tbtn-share — 안내의 '장면 공유' 단추. 화장은 .scr-guide-tbtn이 진다 */
-  "scr-motion-pitched", "scr-motion-warmnote", "scr-guide-tbtn-share",
+  "scr-motion-pitched", "scr-guide-tbtn-share",
   /* 도록(ModelCatalog — 2026-10 scplayer 에서 옮김)의 이름표 셋 — scplayer 시절에도 규칙이 없었다:
        scr-doc-calitem  — 크기 보정 칸. 화장은 .scr-doc-item 이 진다
        scr-doc-calsvg   — 크기 보정 그림. 화장은 .scr-doc-calbox .scr-doc-svg 가 진다

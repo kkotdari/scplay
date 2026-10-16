@@ -888,6 +888,17 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9]) => {
   Number(flag("--winner", 0)), Number(flag("--speed", 1))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
+/* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
+if (flag("--loadshot", null)) {
+  const ok9 = await page.waitForSelector(".scr-motion-simnote", { timeout: 20000 }).then(() => true, () => false);
+  if (ok9) {
+    await page.waitForTimeout(350);
+    const r9 = await page.evaluate(() => { const e = document.querySelector(".scr-motion-simnote"); const b = e.getBoundingClientRect();
+      return { txt: e.textContent, aria: e.getAttribute("aria-label"), x: b.x, y: b.y, w: b.width, h: b.height, fs: getComputedStyle(e).fontSize }; });
+    console.log(`[로딩] "${r9.txt}" (${r9.aria}) · ${Math.round(r9.w)}×${Math.round(r9.h)} · 글자 ${r9.fs}`);
+    await page.screenshot({ path: String(flag("--loadshot")), clip: { x: Math.max(0, r9.x - 120), y: Math.max(0, r9.y - 60), width: r9.w + 240, height: r9.h + 120 } });
+  } else console.log("[로딩] 표시 안 섬(20초)");
+}
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
 await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });

@@ -19870,21 +19870,15 @@ export default function ReplayMotionPlayer({
               버튼 맵 밖 오른쪽 하단"). 지도 위에 얹혀 있으면 어느 자리에 두든 그 자리의
               지형·유닛을 가리고, 확대하면 상자가 잘라 낸다(overflow). 이제 오른쪽
               기둥(2팀 로스터·각도 바와 같은 칸) 맨 아래에 선다. */}
-        {/* 받는 중 — 자취는 눌러도 한 판에 1~2MB라 잠깐 걸린다. 다 온 뒤에는 안 뜬다. */}
-          {!simTracks && entLoad === "loading" && (
-            <span className="scr-motion-simnote">자취 받는 중…</span>
-          )}
-          {/* 모델 굽기 진행(요청: 들어올 때 다 굽고 시작) — 굽는 동안 시간은 멈춰 있다. */}
-          {warmAt && (
-            <span className="scr-motion-simnote scr-motion-warmnote">
-              모델 굽는 중… {Math.min(99, Math.round((warmAt.done / warmAt.total) * 100))}%
+        {/* ★ **로딩 표시는 하나 — 띄운 글자 L O A D I N G**(2026-10-16, 요청: "재생기 모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 옛 셋
+            (자취 받는 중 · 모델 굽는 중 n% · 재생 중 굽기 몰림 "모델 굽는 중…")을 한 자리·한 꼴로 묶었다. 글자마다 차례로 떠오른다(scr-load-bob · 움직임 줄이기면 멈춘 글자).
+            뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
+          {((!simTracks && entLoad === "loading") || !!warmAt || bakeHold) && (
+            <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
+              {"LOADING".split("").map((ch9, i9) => (
+                <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
+              ))}
             </span>
-          )}
-          {/* 재생 중 굽기 몰림 — 시간바를 크게 옮기거나 새 기지를 끌어 들어왔을 때다.
-              진행률이 없다(몇 장이 남았는지는 그릴 때가 되어야 안다) — 대신 '멈춰서
-              굽고 있다'는 사실만 알린다. 한두 프레임짜리 멈춤에는 안 뜬다(250ms). */}
-          {!warmAt && bakeHold && (
-            <span className="scr-motion-simnote scr-motion-warmnote">모델 굽는 중…</span>
           )}
           {/* (걷어냄·요청: "미니맵 연결해주세요는 이제 없애야해") — "미연결 상태에선
              유닛이 벽을 뚫고 다녀요"라는 한 줄이 여기 있었다. 그 말은 지형(벽)을 미니맵

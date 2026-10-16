@@ -2815,11 +2815,16 @@
      "비어 있다"와 "받는 중이다"를 구분해 주지 못했다. 한가운데면 눈이 먼저 간다. */
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   z-index: 30000;
-  padding: 6px 14px; border-radius: 999px;
-  background: rgba(20, 24, 32, 0.72); color: #cfe6ff;
-  font-size: 11px; line-height: 1.6; letter-spacing: 0.2px;
+  /* ★ 알약 바탕을 걷고 **띄운 글자 L O A D I N G** 만(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 글자 사이를 벌리고
+     글자마다 차례로(--i × 0.09s) 떠올랐다 내려앉는다. 어떤 바탕(밝은 지형·흰 바탕 색 모드)에서도 읽히게 옅은 그늘만 깐다. */
+  display: flex; gap: calc(9px * var(--ui, 1));
+  color: #e6f1ff; font-family: inherit; font-size: calc(18px * var(--ui, 1)); font-weight: 700; line-height: 1; letter-spacing: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
   pointer-events: none; white-space: nowrap;
 }
+.scr-load-ch { display: inline-block; animation: scr-load-bob 1.2s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 0.09s); }
+@keyframes scr-load-bob { 0%, 60%, 100% { transform: translateY(0); opacity: 0.55; } 30% { transform: translateY(-0.45em); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .scr-load-ch { animation: none; opacity: 0.85; } }
 
 /* 재생할 수 없는 경기(요청: 폴백 없음) — 참값 자취나 사건 표가 없는 판은 재생기 자리에
    이 한마디만 선다. 옛 경기·분석 실패·아직 안 구운 판이 여기 걸린다. 상자는 지도가
@@ -3159,22 +3164,31 @@
      위치·겹 문맥(z 0)은 솟은 받침이 무대(앞 형제 · z 0) 위에 그려지게 하는 자다(전체화면은 z 12). */
   .scr-fs-layer .scr-fs-lower {
     position: relative; z-index: 0;
-    /* ★ 헤어라인은 **세로**다(2026-10-09, 지적: "독 헤어라인 왜 가로지 아직도" — 앞서 틀(.scr-fs-dockframe)만 돌렸는데 판 안에서 틀의 바탕은 꺼져 있고
-       보이는 쇠는 이 감싸개의 것이었다). 줄은 90deg(세로 줄) · 느린 얼룩은 180deg(줄을 따라). */
-    background:
-      repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
-      repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
-      linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
-    box-shadow:
-      inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 #0b0d10, inset 0 -2px 0 rgba(0, 0, 0, 0.55);
-    background-color: #89919a; background-origin: content-box; background-repeat: no-repeat;
+    /* 쇠(바탕 · 헤어라인 · 베벨)는 뒤 켜(::before)가 진다 — 윗모서리를 깎으려고 옮겼다(아래 ★ 2026-10-16). 헤어라인은 **세로**다(2026-10-09, 지적: "독 헤어라인 왜 가로지 아직도"). */
+    --dock-cham: calc(22px * var(--dk, 1));
     pointer-events: auto;
   }
   /* 틀은 이제 **제 판이 없다** — 미니맵·정보줄·인포창 우물이 감싸개의 쇠에 바로 파인다(판을 두 겹 깔면 광택 띠가 두 높이에서
      갈려 이음매가 보인다). 구분 막대도 같은 까닭으로 걷는다 — 틈이 곧 아래 쇠다. */
   .scr-fs-layer .scr-fs-dockframe { background: none; border-color: transparent; box-shadow: none; }
+  /* ★ **쇠판 윗모서리만 대각선으로 깎는다 — 육각형의 윗부분**(2026-10-16, 요청: "독 프레임 아래 말고 윗쪽 모서리만 대각선으로 잘라서 6각형 일부가 되게") —
+     판 자체에 clip-path 를 걸면 툴박스에서 위로 펼치는 목록(배속·음악)까지 잘린다(위 ★★). 그래서 쇠(바탕·베벨)를 **뒤 켜**(::before · z −1 · 판이 겹 문맥이라 자식들
+     밑에 깔린다)로 옮겨 그 켜만 깎는다 — 자식·펼침 목록·솟은 미니맵 받침은 안 잘린다. 깎은 빗변에는 윗선과 같은 베벨(검은 1px + 흰 한 줄)을 모서리 판의 대각선 띠로 긋는다
+     (to bottom right 의 50% 선이 곧 빗변). 깎는 폭 --dock-cham 22·dk. 아래 모서리는 그대로 각지다. */
+  .scr-fs-layer .scr-fs-lower::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    clip-path: polygon(var(--dock-cham) 0, calc(100% - var(--dock-cham)) 0, 100% var(--dock-cham), 100% 100%, 0 100%, 0 var(--dock-cham));
+    background:
+      linear-gradient(to bottom right, transparent calc(50% - 1px), #0b0d10 calc(50% - 1px) calc(50% + 0.5px), rgba(255, 255, 255, 0.55) calc(50% + 0.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) left top / var(--dock-cham) var(--dock-cham) no-repeat,
+      linear-gradient(to bottom left, transparent calc(50% - 1px), #0b0d10 calc(50% - 1px) calc(50% + 0.5px), rgba(255, 255, 255, 0.55) calc(50% + 0.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) right top / var(--dock-cham) var(--dock-cham) no-repeat,
+      repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%) #89919a;
+    box-shadow:
+      inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 #0b0d10, inset 0 -2px 0 rgba(0, 0, 0, 0.55);
+  }
   .scr-fs-layer .scr-fs-dockmain > .scr-fs-rosterpanel::after, .scr-fs-layer .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
 /* 전체화면 — 뿌리가 세로 줄이다: [무대(남는 키) / 쇠판(툴박스 + 독 줄)]. 옛 판은 쇠판이 무대 아래에 겹쳐 떴다(위 ★★ — 이제 재생
    영역에서 뺀다). 안전 영역(홈 인디케이터·가로 노치)은 여기서만 문다 — 아래 몫은 쇠판의 아래 여백(바탕색 한 장)이다. */
