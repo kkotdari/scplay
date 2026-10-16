@@ -32691,7 +32691,7 @@ function _k({ ops: t, fx: s, opsSrc: n, fxSrc: o, zoom: g, pan: e, tilePx: I, pi
           }
           const qs = Ct.air || U7.has(Ct.kind);
           if (Ct.textGlyph) {
-            ht.globalAlpha = Ct.alpha, ht.fillStyle = Ct.color, ht.font = `700 ${Ct.sizePx * W}px sans-serif`, ht.textAlign = "center", ht.textBaseline = "middle", ht.fillText(Ct.textGlyph, jt, Ks);
+            ht.globalAlpha = Ct.alpha, ht.fillStyle = Ct.color, ht.font = `700 ${Ct.sizePx * W}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`, ht.textAlign = "center", ht.textBaseline = "middle", ht.fillText(Ct.textGlyph, jt, Ks);
             continue;
           }
           if (Ct.wFrac !== void 0 && Ct.hFrac !== void 0) {
@@ -37790,7 +37790,7 @@ function xZ({
       " · UI ",
       Fs.ui,
       " · 판 ",
-      "10-16 19:18",
+      "10-16 23:24",
       Fs.ss !== 1 ? ` · 초해상 ×${Fs.ss.toFixed(2)}` : "",
       Math.abs(Fs.unitScale - Fs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Fs.unitScale.toFixed(4)})` : Fs.scale > 0 && Math.abs(Fs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Fs.scale.toFixed(4)})` : "",
       Fs.allocOk ? "" : " · ⚠배킹확보 실패"

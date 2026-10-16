@@ -11,7 +11,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./fonts.css": "./dist/fonts/scplay-fonts.css"
   },
   "scripts": {
     "build": "vite build",
@@ -26,5 +27,5 @@
   "dependencies": {
     "lucide-react": "^0.454.0"
   },
-  "scplaySource": "477e7dde0bee88decf474043b18138054c2cf699"
+  "scplaySource": "b520bda5cee1dfc76e57e1668dd997fe32434672"
 }
