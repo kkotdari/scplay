@@ -3165,7 +3165,7 @@
   .scr-fs-layer .scr-fs-lower {
     position: relative; z-index: 0;
     /* 쇠(바탕 · 헤어라인 · 베벨)는 뒤 켜(::before)가 진다 — 윗모서리를 깎으려고 옮겼다(아래 ★ 2026-10-16). 헤어라인은 **세로**다(2026-10-09, 지적: "독 헤어라인 왜 가로지 아직도"). */
-    --dock-cham: calc(22px * var(--dk, 1));
+    --dock-cham: calc(4px * var(--dk, 1));   /* 22 → 4·dk(2026-10-16, 되요청: "모서리 아주 살짝만 깎아줘") — 미니맵 받침도 이 값 */
     pointer-events: auto;
   }
   /* 틀은 이제 **제 판이 없다** — 미니맵·정보줄·인포창 우물이 감싸개의 쇠에 바로 파인다(판을 두 겹 깔면 광택 띠가 두 높이에서
@@ -3174,7 +3174,7 @@
   /* ★ **쇠판 윗모서리만 대각선으로 깎는다 — 육각형의 윗부분**(2026-10-16, 요청: "독 프레임 아래 말고 윗쪽 모서리만 대각선으로 잘라서 6각형 일부가 되게") —
      판 자체에 clip-path 를 걸면 툴박스에서 위로 펼치는 목록(배속·음악)까지 잘린다(위 ★★). 그래서 쇠(바탕·베벨)를 **뒤 켜**(::before · z −1 · 판이 겹 문맥이라 자식들
      밑에 깔린다)로 옮겨 그 켜만 깎는다 — 자식·펼침 목록·솟은 미니맵 받침은 안 잘린다. 깎은 빗변에는 윗선과 같은 베벨(검은 1px + 흰 한 줄)을 모서리 판의 대각선 띠로 긋는다
-     (to bottom right 의 50% 선이 곧 빗변). 깎는 폭 --dock-cham 22·dk. 아래 모서리는 그대로 각지다. */
+     (to bottom right 의 50% 선이 곧 빗변). 깎는 폭 --dock-cham 4·dk(첫 판 22 는 되물림) · 솟은 미니맵 받침의 윗모서리도 같은 폭. 아래 모서리는 그대로 각지다. */
   .scr-fs-layer .scr-fs-lower::before {
     content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
     clip-path: polygon(var(--dock-cham) 0, calc(100% - var(--dock-cham)) 0, 100% var(--dock-cham), 100% 100%, 0 100%, 0 var(--dock-cham));
@@ -3327,12 +3327,16 @@
      z 1 — 양옆 구분 막대(::after · z auto)의 윗 4px 과 그 밝은 모서리 줄을 덮는다. 미니맵 상자(.scr-motion-minibox · z 1 · 뒤 형제)는 그 위에 선다. */
   left: calc(-1 * var(--dock-out) - 1px); right: calc(-1 * var(--dock-out) - 1px); top: calc(-1 * var(--dock-out) - 1px);
   height: calc(var(--ped-h) + 4px);
+  box-shadow: inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55);
+  /* ★ 윗모서리를 쇠판처럼 살짝 깎는다(2026-10-16, 요청: "모서리 아주 살짝만 깎아줘 그리고 미니맵 위도") — 받침은 자식이 없는 켜라 곧장 깎는다 · 빗변 베벨은 쇠판과 같은 대각선 띠. */
+  clip-path: polygon(var(--dock-cham, 0px) 0, calc(100% - var(--dock-cham, 0px)) 0, 100% var(--dock-cham, 0px), 100% 100%, 0 100%, 0 var(--dock-cham, 0px));
   background:
+    linear-gradient(to bottom right, transparent calc(50% - 1px), #0b0d10 calc(50% - 1px) calc(50% + 0.5px), rgba(255, 255, 255, 0.55) calc(50% + 0.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) left top / var(--dock-cham, 0px) var(--dock-cham, 0px) no-repeat,
+    linear-gradient(to bottom left, transparent calc(50% - 1px), #0b0d10 calc(50% - 1px) calc(50% + 0.5px), rgba(255, 255, 255, 0.55) calc(50% + 0.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) right top / var(--dock-cham, 0px) var(--dock-cham, 0px) no-repeat,
     linear-gradient(90deg, #0b0d10 0 1px, rgba(255, 255, 255, 0.18) 1px 2px, transparent 2px calc(100% - 2px), rgba(0, 0, 0, 0.35) calc(100% - 2px) calc(100% - 1px), #0b0d10 calc(100% - 1px)) 0 0 / 100% var(--ped-h) no-repeat,
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
     linear-gradient(180deg, #b2b8c0 0%, #a3abb4 55%, #afb5bd 100%);
-  box-shadow: inset 0 1px 0 #0b0d10, inset 0 2px 0 rgba(255, 255, 255, 0.55);
 }
 /* 미니맵 뒤 구분 막대(위 ::after 공통 규칙)는 우물이 솟은 몫만큼 **내려서** 쇠판 키만 선다 — 솟은 자리는 받침(::before)의 것이다. 인포창이 없으면(is-noinfo) 숨는다. */
 .scr-fs-dockmain > .scr-fs-minipanel::after { top: var(--ped-h); }
