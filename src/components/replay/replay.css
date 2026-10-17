@@ -4598,7 +4598,7 @@
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: scr-cast-blink-well 2s steps(1, end) infinite; }
 @keyframes scr-cast-blink-well {
   0%, 45% { color: var(--scr-sc-green); }
-  55%, 100% { color: #146b45; }
+  55%, 100% { color: rgba(88, 176, 88, 0.35); }   /* 꺼짐 단 = 같은 녹색 흐림(2026-10-17, 요청: "자동중계랑 개인 카메라(pc) 색도 맞춰줘 · 화면 주인 카메라 아이콘도" — 옛 #146b45 청록) */
 }
 @media (prefers-reduced-motion: reduce) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns .scr-motion-castbtn-on svg { animation: none; color: var(--scr-sc-green); }

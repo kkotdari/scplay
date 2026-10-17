@@ -136,7 +136,7 @@ const SPEEDS = [1, 2, 4, 8] as const;
  *  끌기는 눈금 곁(SPEED_SNAP9 · log2 칸)에서 그 눈금에 붙고, 휠은 안 붙는다(작은 굴림이 눈금에 갇힌다). 값은 0.05 칸으로 접는다(워커 명령이 화소마다 안 나가게). */
 const SPEED_MIN9 = SPEEDS[0];
 const SPEED_MAX9 = SPEEDS[SPEEDS.length - 1];
-const SPEED_SNAP9 = 0.08;
+const SPEED_SNAP9 = 0.2;   // 0.08 → 0.2(2026-10-17, 요청: "배속 스크롤 시에도 1,2,4,8 에 쉽게 걸리게 · 스크롤 드래그 모두 좀 더 쉽게 걸리게") — 눈금 사이 1칸의 40% 가 붙는 자리
 const spdU9 = (s9: number): number => Math.log2(s9 / SPEED_MIN9) / Math.log2(SPEED_MAX9 / SPEED_MIN9);
 const uSpd9 = (u9: number, snap9: boolean): number => {
   let l9 = Math.min(1, Math.max(0, u9)) * Math.log2(SPEED_MAX9 / SPEED_MIN9);
@@ -18677,7 +18677,7 @@ export default function ReplayMotionPlayer({
   const dialWheelAcc9 = useRef(0);
   const speedRef9 = useRef(speed);
   speedRef9.current = speed;
-  const DIAL_DETENT9 = 0.22;   // 휠 한 칸(100px) = 0.12 — 눈금에서 한 칸은 더 머문다
+  const DIAL_DETENT9 = 0.36;   // 휠 한 칸(100px) = 0.12 — 눈금에서 세 칸 굴려야 떠난다(0.22 → 0.36 · 2026-10-17 같은 요청)
   /* (되물림 · 2026-10-10, 요청: "중계 중에도 배속 조정은 돼야지 — 착각했어 다시 풀어주고") 중계 중 다이얼 잠금(dialLocked9 · 토스트)을 걷었다. */
   const dialAt9 = (y9: number): void => {
     const tr9 = dialTrackRef9.current?.getBoundingClientRect();
