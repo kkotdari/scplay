@@ -2297,11 +2297,16 @@ export const BUILD_STAGES = 10;
  *  불티·실드막을 DOM 스팬 대신 이 숫자 묶음으로 UnitLayer 캔버스가 그린다.
  *  좌표 규약은 CSS 시절 그대로다: fx/fy는 렌즈 분수 앵커, 길이·오프셋은 **렌즈 px**
  *  (그릴 때 zoom을 곱한다), deg는 CSS rotate와 같은 시계방향(0 = 화면 아래)이다. */
+/** 프로토스 **살·기운** 몸 — 죽을 때 사이오닉 연기로 풀린다. 그 밖의 프로토스(드라군·리버·셔틀·옵저버·스카웃·캐리어·인터셉터·아비터·커세어·프로브)는
+ *  기계라 건물과 같은 플라즈마 빛줄기 폭발이다(2026-10-17, 요청: "프로토스 건물과 기계 폭발 효과"). */
+const TOSS_FLESH9 = new Set(["Zealot", "High Templar", "Dark Templar", "Archon", "Dark Archon"]);
 export type FxOp = {
   kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "wound" | "dom";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
+  /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
+  tmech?: boolean;
   /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
   tier?: 1 | 2 | 3;
   fx: number; fy: number;
@@ -8595,6 +8600,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
           size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC,
           mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
+          ...(dk === "toss" && !TOSS_FLESH9.has(drawUnit) ? { tmech: true } : {}),
           // 몸집 단(요청: 파편은 크기 대신 수로) — 보이는 몸 폭을 타일로 재서 셋으로 가른다.
           tier: ((): 1 | 2 | 3 => {
             const bt9 = (diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16)) / (mapW9 / grid.width);

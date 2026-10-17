@@ -3338,22 +3338,60 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     ctx.globalAlpha = 0.35 * (1 - p * 0.7);
     ctx.fillStyle = "#b07a62";
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.1, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
-  } else if (bld) {
-    /* ★ 프로토스 **건물**은 종전대로 **플라즈마 폭발**이다(지적: "프로토스 건물이 왜 플라즈마 폭발구가 아니라
-       사이오닉 연기도 나는 거 같지") ─────────────────────────────────────────────────────────────────────
-       아래 연기는 **유닛**의 죽음을 다시 짠 것인데(원작의 프로토스 몸은 터지지 않고 기운으로 풀린다), 이 갈래가
-       결(mat)만 보고 갈려 있어 건물까지 함께 끌려갔다. 건물은 원작에서도 터진다 — 푸른 플라즈마 구가 부풀며
-       옅어지고 가운데에 흰 에너지 심이 선다. 그 그림을 되돌린다(겹 셋 + 밝은 테). 조각은 여전히 안 낸다. */
+  } else if (bld || f.tmech === true) {
+    /* ★ 프로토스 **건물·기계**의 **플라즈마 폭발**(지적: "프로토스 건물이 왜 플라즈마 폭발구가 아니라 사이오닉 연기도
+       나는 거 같지" · 2026-10-17 요청: "확대는 똑같은데 가는 빛줄기(선) 길이 편차 있음 … 중심에서 밖으로 폭발하듯
+       뻗어나가는 걸로 · 짙은 푸른색·밝은 푸른색·흰색 섞인 플라즈마 · 선 개수 빼곡히 · 중심부는 더 밝게") ─────────────
+       원작에서도 건물·기계(드라군·리버·셔틀·캐리어 …)는 터진다 — 살·기운 몸(질럿·템플러·아콘)만 아래 연기로 풀린다
+       (engine9 TOSS_FLESH9 · f.tmech). 구의 부풂(R9)은 그대로 두고 그 위에 **가는 빛줄기**를 빼곡히 얹는다:
+         · 줄기마다 각(고른 칸 + 흔들림)·길이(0.4~1.35)·굵기·색(짙은 파랑·밝은 파랑·흰빛)을 씨앗으로 고정한다.
+         · 끝은 구보다 빠르게(세제곱 이즈) 밖으로 뻗고, 꼬리는 뒤늦게 따라 나가 '쏘아 나가는' 결이 된다.
+         · 밑이 넓고 끝이 뾰족한 가는 쐐기(채운 삼각형)라 선이 붓 굵기에 안 묶이고, 색마다 한 경로로 묶어 칠한다.
+       심은 두 겹(연푸른 빛무리 + 흰 심)으로 더 밝게 둔다. 조각은 여전히 안 낸다. */
     const R9 = W * (0.22 + 0.78 * ease);
     const fade = 1 - p;
     ctx.globalAlpha = 0.32 * fade; ctx.fillStyle = "#3a8fff";
     ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 0.45 * fade; ctx.fillStyle = "#8fd0ff";
     ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.7, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = Math.min(1, 1.1 * fade) ** 0.8; ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.38 * (1 - p * 0.5), 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 0.6 * fade; ctx.strokeStyle = "#cfeaff"; ctx.lineWidth = Math.max(0.8, W * 0.03);
     ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
+    // 빛줄기 — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
+    const NR9 = bld ? 84 : 56;
+    const tipE9 = 1 - (1 - p) ** 3;
+    const tailE9 = Math.max(0, (p - 0.12) / 0.88) ** 1.6;
+    const RAY_COL9 = ["#2f6fe0", "#6fb8ff", "#eef8ff"];
+    const RAY_AL9 = [0.85, 0.9, 1];
+    const sd09 = sd;
+    for (let c9 = 0; c9 < 3; c9 += 1) {
+      sd = sd09;
+      ctx.beginPath();
+      for (let i9 = 0; i9 < NR9; i9 += 1) {
+        const a9 = ((i9 + (rnd() - 0.5) * 0.9) / NR9) * Math.PI * 2;
+        const lf9 = 0.4 + rnd() * 0.95;
+        const wf9 = 0.6 + rnd() * 0.8;
+        const cr9 = rnd();
+        const col9 = cr9 < 0.36 ? 0 : cr9 < 0.76 ? 1 : 2;
+        if (col9 !== c9) continue;
+        const reach9 = W * (0.5 + 1.05 * lf9);
+        const r19 = reach9 * tipE9;
+        const r09 = W * 0.08 + r19 * tailE9 * 0.85;
+        if (r19 - r09 < 0.6) continue;
+        const hw9 = Math.max(0.45, W * 0.016 * wf9) * (1 - 0.4 * p);
+        const ca9 = Math.cos(a9), sa9 = Math.sin(a9);
+        ctx.moveTo(ax + ca9 * r09 - sa9 * hw9, ay + sa9 * r09 + ca9 * hw9);
+        ctx.lineTo(ax + ca9 * r19, ay + sa9 * r19);
+        ctx.lineTo(ax + ca9 * r09 + sa9 * hw9, ay + sa9 * r09 - ca9 * hw9);
+        ctx.closePath();
+      }
+      ctx.globalAlpha = RAY_AL9[c9] * fade ** 0.8; ctx.fillStyle = RAY_COL9[c9];
+      ctx.fill();
+    }
+    // 심 — 연푸른 빛무리 위에 흰 심. 종전보다 크고 오래 밝다.
+    ctx.globalAlpha = Math.min(1, 0.85 * fade) ** 0.7; ctx.fillStyle = "#d6eeff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.52 * (1 - p * 0.4), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.min(1, 1.25 * fade) ** 0.6; ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.34 * (1 - p * 0.45), 0, Math.PI * 2); ctx.fill();
   } else {
     /* ★ 프로토스 **유닛** — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────
        원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
