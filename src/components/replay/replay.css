@@ -5013,7 +5013,7 @@
 .scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #10fc18); }
 /* 폰 — 사람 카메라 단추 대신 **보여 주는 사람의 칩(배지 칸 + 닉네임)을 둥근 네모 테로**(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시
    종족 칩과 닉네임을 둥근 네모로 감싸기"). 테는 안쪽 그림자(inset)라 칩 크기·줄 배치가 안 흔들린다 · 왼쪽 안 여백만 테 몫 2px. 색 = 화면 주인 초록. */
-.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(5px * var(--dk)); }
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(3px * var(--dk)); }   /* 5 → 3·dk = 배지 칸 둥글기(2026-10-17, 요청: "전광판 모바일 유저칩 감싸개 래디우스 줄여야 할 듯") */
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name.is-picked:is(.is-split, #scr-dock-split-hi) {
   /* 테는 **칩 바깥** 1px(같은 날, 요청: "감싸기 전과 감싼 후 종족 칩 크기 똑같게") — 옛 안쪽 테 + 배지 칸 2px 들임은 배지 칸을 4px 줄였다. 이제 배지 칸은 그대로고
      오른쪽만 닉네임과 테 사이 여백(4·dk)을 둔다. 테 1.5 → 1px(같은 날, 요청: "선택 선 좀 얇게"). */
