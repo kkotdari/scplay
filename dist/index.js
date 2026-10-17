@@ -30568,7 +30568,7 @@ function VL() {
     }
   }
 }
-const Lw = "#3ee06a", kw = /* @__PURE__ */ new Set(["Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon", "Interceptor", "Scarab", "Spider Mine", "Nuclear Missile"]), QL = [], Di = [1, 2, 4, 8], WI = Di[0], dr = Di[Di.length - 1], D5 = 0.08, oa = (t) => Math.log2(t / WI) / Math.log2(dr / WI), od = (t, s) => {
+const Lw = "#3ee06a", kw = /* @__PURE__ */ new Set(["Larva", "Egg", "Lurker Egg", "Mutalisk Cocoon", "Interceptor", "Scarab", "Spider Mine", "Nuclear Missile"]), QL = [], Di = [1, 2, 4, 8], WI = Di[0], dr = Di[Di.length - 1], D5 = 0.2, oa = (t) => Math.log2(t / WI) / Math.log2(dr / WI), od = (t, s) => {
   let n = Math.min(1, Math.max(0, t)) * Math.log2(dr / WI);
   if (s) {
     const o = Math.round(n);
@@ -37790,7 +37790,7 @@ function xZ({
       " · UI ",
       Fs.ui,
       " · 판 ",
-      "10-17 09:12",
+      "10-17 09:15",
       Fs.ss !== 1 ? ` · 초해상 ×${Fs.ss.toFixed(2)}` : "",
       Math.abs(Fs.unitScale - Fs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Fs.unitScale.toFixed(4)})` : Fs.scale > 0 && Math.abs(Fs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Fs.scale.toFixed(4)})` : "",
       Fs.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -38071,7 +38071,7 @@ function xZ({
     nt && /* @__PURE__ */ It("li", { className: "scr-motion-picktail", children: nt })
   ] }) : null, R4 = (m) => $r((Y) => Y === m ? null : m), Jp = Et(null), xp = Et(null), FC = Et(null), [H4, n2] = Vs(!1), lA = Et(0), o2 = Et(Eg);
   o2.current = Eg;
-  const q4 = 0.22, Np = (m) => {
+  const q4 = 0.36, Np = (m) => {
     var x;
     const Y = (x = xp.current) == null ? void 0 : x.getBoundingClientRect();
     !Y || Y.height <= 0 || Bl(od(1 - (m - Y.top) / Y.height, !0));
