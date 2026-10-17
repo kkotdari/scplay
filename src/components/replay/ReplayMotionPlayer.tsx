@@ -2497,8 +2497,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   if (race9 !== "zerg") ctx.globalCompositeOperation = "lighter";
   const sx9 = (f.mx ?? 0) * zoom;
   const sy9 = (f.my ?? 0) * zoom;
-  /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
-  const n9 = lv2 ? 5 : 2;
+  /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 저그는 엔진이 잃은 체력 수치로 센 줄기 수(f.wn). */
+  const n9 = race9 === "zerg" ? Math.max(1, f.wn ?? (lv2 ? 5 : 2)) : lv2 ? 5 : 2;
   for (let kk9 = 0; kk9 < n9; kk9 += 1) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
   /* 흩는 폭 ±0.16 · 살짝 왼쪽으로(−0.08) — 엔진이 쓰던 그 식 그대로다. */
@@ -2538,28 +2538,59 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       ctx.drawImage(woundSpr9("smoke"), x9 - ss9 / 2, top9 - ss9 * (0.5 + 2.2 * s9), ss9, ss9);
     }
   } else {
-    /* 저그 — 솟구치는 피 둘. x는 등속, y는 포물선(위로 솟았다 떨어짐)이라 중력을 탄다.
-       CSS 키프레임(11칸)의 식을 그대로 쓴다: y% = 10 − 280u + 350u². */
-    /* ★ 방울은 작고 많고 높다(2026-09, 요청: "저그 건물 손상효과 피방울 크기 많이 줄이고 갯수 늘리기 · 위치는 좀더 위로") —
-       폭 0.34·0.26W 의 둘 → 0.11~0.15W 의 다섯 · 솟는 자리 0.46W → 0.18W(상자 위쪽). 다섯은 주기·위상·옆자리·방향을 흩는다. */
-    const drop9 = woundSpr9("drop");
-    const dw9 = W9 * 0.13; const dh9 = dw9 * 1.8;
-    const oy9 = top9 + W9 * 0.18;
-    const spurt9 = (per9: number, off9: number, w9: number, sx9: number, dir9: number): void => {
-      const u9 = (((t9 + dl9 + off9) / per9) % 1 + 1) % 1;
-      const py9 = (10 - 280 * u9 + 350 * u9 * u9) / 100;
-      const px9 = dir9 * (1.5 * u9);
-      const a9 = u9 < 0.1 ? u9 / 0.1 : u9 < 0.6 ? 1 : Math.max(0, 1 - (u9 - 0.6) / 0.4);
-      const k9 = u9 < 0.4 ? 0.5 + 1.25 * u9 : 1;
-      const hh9 = dh9 * (u9 < 0.4 ? 0.62 + 1.57 * u9 : 0.9);
-      tongueW9(ctx, drop9, x9 + W9 * sx9 + px9 * w9, oy9 + py9 * hh9 + hh9,
-        w9 * k9, hh9, (dir9 * (-15 + 95 * u9) * Math.PI) / 180, a9);
-    };
-    spurt9(1.1, 0, dw9, 0, 1);
-    spurt9(1.3, 0.55, W9 * 0.11, -0.08, -1);
-    spurt9(0.95, 0.3, W9 * 0.12, 0.1, 1);
-    spurt9(1.2, 0.8, W9 * 0.15, -0.16, -1);
-    spurt9(1.05, 0.15, W9 * 0.11, 0.05, -1);
+    /* ★ 저그 — **몸을 타고 흘러내리는 피 줄기**(2026-10-17, 요청: "지금 효과 제거하고 손상정도에 따라(비율 아닌 수치) 몸에서
+       중간 길이 폭포처럼 피가 흘러내리게") ──────────────────────────────────────────────────────────────────────────
+       옛 그림(솟구쳤다 떨어지는 방울 다섯)은 걷었다. 줄기 수는 엔진이 **잃은 체력**으로 센다(f.wn · 50 넘게 잃으면 하나, 110 마다
+       하나 더, 열까지). 줄기 하나는:
+         · 몸 가운데 위(발자국 폭의 0.02~0.18 위 · 더 높이면 낮은 건물 위로 뿔처럼 솟는다)의 검붉은 상처 자국에서 시작해 중간
+           길이(폭의 0.16~0.27)를 흘러내리는 가는 띠(폭의 0.9~1.6%) — 위가 가늘고 아래가 굵으며
+           몸의 굴곡을 따라 살짝 굽는다(굽이는 줄기마다 고정 · 프레임마다 안 떤다).
+         · 띠 위를 밝은 피 두 토막이 위에서 아래로 쉬지 않고 흐른다(폭포의 결).
+         · 끝에 맺힌 방울과, 그 끝에서 0.8~1.1초마다 떨어지는 방울 하나.
+       자는 발자국 폭(sx9)이다 — 상처 상자(W9)는 테란·프로토스의 불꽃 자라 여기선 안 쓴다. */
+    const fw9 = Math.max(W9 * 2.5, sx9);
+    const sx09 = ax + (((h9 % 1000) / 1000 - 0.5) * (n9 > 3 ? 0.62 : 0.4)) * fw9;
+    const sy09 = ay - (0.02 + (((h9 >>> 10) % 1000) / 1000) * 0.16) * fw9;
+    const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
+    const w9 = Math.max(0.6, fw9 * (0.009 + (((h9 >>> 14) % 100) / 100) * 0.007));
+    const ph9 = ((h9 >>> 20) % 100) / 100;
+    const bend9 = ((((h9 >>> 7) % 100) / 100) - 0.5) * 1.4;
+    const SEG9 = 6;
+    const bx9 = (u9: number): number => sx09 + Math.sin(u9 * 2.6 + ph9 * 6.28) * w9 * 0.7 + bend9 * w9 * u9 * u9;
+    const hw9 = (u9: number): number => w9 * (0.2 + 0.8 * Math.sqrt(u9));
+    // 상처 — 줄기가 비어져 나오는 검붉은 자국(위가 뾰족한 뿔처럼 안 읽히게 머리를 묻는다).
+    ctx.globalAlpha = 0.9; ctx.fillStyle = "#4a070b";
+    ctx.beginPath(); ctx.ellipse(sx09, sy09, w9 * 1.5, w9 * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+    // 띠 — 왼 가장자리를 내려가고 오른 가장자리로 올라온다.
+    ctx.globalAlpha = 0.92; ctx.fillStyle = "#6e0b10";
+    ctx.beginPath();
+    for (let g9 = 0; g9 <= SEG9; g9 += 1) {
+      const u9 = g9 / SEG9;
+      if (g9 === 0) ctx.moveTo(bx9(u9) - hw9(u9), sy09 + u9 * L9); else ctx.lineTo(bx9(u9) - hw9(u9), sy09 + u9 * L9);
+    }
+    for (let g9 = SEG9; g9 >= 0; g9 -= 1) { const u9 = g9 / SEG9; ctx.lineTo(bx9(u9) + hw9(u9), sy09 + u9 * L9); }
+    ctx.closePath(); ctx.fill();
+    // 흐름 — 밝은 피 두 토막이 위에서 아래로.
+    ctx.fillStyle = "#c92a2e";
+    for (let k9 = 0; k9 < 2; k9 += 1) {
+      const u09 = (((t9 * 0.85 + ph9 + k9 * 0.5) % 1) + 1) % 1;
+      const u19 = Math.min(1, u09 + 0.24);
+      ctx.globalAlpha = 0.85 * Math.min(1, (1 - u09) * 4);
+      ctx.beginPath();
+      ctx.moveTo(bx9(u09), sy09 + u09 * L9 - w9 * 0.2);
+      ctx.lineTo(bx9((u09 + u19) / 2) + hw9(u09) * 0.4, sy09 + ((u09 + u19) / 2) * L9);
+      ctx.lineTo(bx9(u19), sy09 + u19 * L9);
+      ctx.lineTo(bx9((u09 + u19) / 2) - hw9(u09) * 0.4, sy09 + ((u09 + u19) / 2) * L9);
+      ctx.closePath(); ctx.fill();
+    }
+    // 끝 방울 + 떨어지는 방울.
+    const tx9 = bx9(1); const ty9 = sy09 + L9;
+    ctx.globalAlpha = 0.95; ctx.fillStyle = "#8a1016";
+    ctx.beginPath(); ctx.arc(tx9, ty9, w9 * 1.15, 0, Math.PI * 2); ctx.fill();
+    const dp9 = 0.8 + ph9 * 0.3;
+    const q9 = (((t9 + ph9 * dp9) / dp9) % 1 + 1) % 1;
+    ctx.globalAlpha = 0.9 * (1 - q9); ctx.fillStyle = "#b51f25";
+    ctx.beginPath(); ctx.arc(tx9, ty9 + w9 + q9 * q9 * L9 * 0.55, w9 * 0.75, 0, Math.PI * 2); ctx.fill();
   }
   }
   ctx.globalAlpha = op0;
@@ -3306,13 +3337,62 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
   const rnd = (): number => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
   const ease = 1 - (1 - p) * (1 - p);
   const wet = mat === "zerg" || mat === "bio";
+  /* ★ **바닥에 떨어져 고이는 피**(2026-10-17, 요청: "저그 테란 생체 지상 유닛 죽으면 피가 바닥에 떨어지고 1.5초정도 유지되게") ──
+     f.pool 은 엔진이 지상의 저그·테란 생체 죽음에만 싣는다(engine9 bloodPool9). 그 몸은 BLOOD_POOL_SEC(2.3초)까지 op 을 내고,
+     age(죽은 뒤 초)로 셈한다 — ph 는 0.5초에서 1에 멈추므로 쓰지 않는다.
+       · 덩이 열둘이 몸 가운데(ay)에서 포물선으로 솟았다 **땅(gy = 몸 가운데 + 들기)에 떨어지고**, 떨어진 자리에 납작한 덩이로 남는다.
+       · 덩이는 1.9초까지 그대로 있다가 0.4초에 걸쳐 스러진다(땅에 닿은 뒤 ≈1.5초).
+     이 겹은 늘 **맨 먼저** 씨앗을 먹는다 — 0.5초 뒤로는 살점 파편을 안 그리므로, 앞에 두어야 프레임마다 같은 자리가 나온다. */
+  const pool9 = wet && f.pool === true;
+  if (pool9) {
+    const age9 = Math.max(0, f.age ?? p * 0.5);
+    const gy9 = ay + (f.lift ?? 0) * zoom;
+    const hA9 = age9 < 1.9 ? 1 : Math.max(0, 1 - (age9 - 1.9) / 0.4);
+    const deep9 = mat === "zerg" ? "#5c0e14" : "#5a0f0c";
+    const mid9 = mat === "zerg" ? "#8f1a22" : "#8a1712";
+    const dropC9 = mat === "zerg" ? "#c8343c" : "#ef5a45";   // 날아가는 방울(아래 DROP9 와 같은 값)
+    /* 웅덩이로 번지지 않는다(2026-10-17 재요청: "풀이라기보다 덩이덩이로 떨어져 있게") — 떨어진 낱개마다 제 자리에
+       **덩이**(큰 타원 하나 + 곁에 붙은 작은 타원 하나 · 짙은 속)로 남고, 덩이끼리는 떨어져 있다. 열둘 · 반지름 몸 폭의 4~11%. */
+    for (let i9 = 0; i9 < 12; i9 += 1) {
+      const an9 = rnd() * Math.PI * 2;
+      const v9 = W * (0.25 + rnd() * 0.7);
+      const tl9 = 0.28 + rnd() * 0.22;
+      const hh9 = W * (0.25 + rnd() * 0.35);
+      const r9 = Math.max(1, W * 0.075 * (0.55 + rnd() * 0.9));
+      const ba9 = rnd() * Math.PI * 2;
+      const lx9 = ax + Math.cos(an9) * v9;
+      const ly9 = gy9 + Math.sin(an9) * v9 * 0.42;
+      if (age9 < tl9) {
+        const q9 = age9 / tl9;
+        ctx.globalAlpha = 0.95; ctx.fillStyle = dropC9;
+        ctx.beginPath();
+        ctx.arc(ax + (lx9 - ax) * q9, ay + (ly9 - ay) * q9 - hh9 * 4 * q9 * (1 - q9), r9 * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 떨어진 덩이 — 세로를 눌러 바닥에 눕히고, 곁에 작은 덩이 하나가 붙어 꼴이 고르지 않다.
+        const sp9 = Math.min(1, (age9 - tl9) / 0.08);
+        const rx9 = r9 * (0.9 + 0.35 * sp9); const ry9 = rx9 * 0.55;
+        ctx.globalAlpha = 0.9 * hA9; ctx.fillStyle = mid9;
+        ctx.beginPath();
+        ctx.ellipse(lx9, ly9, rx9, ry9, 0, 0, Math.PI * 2);
+        ctx.moveTo(lx9 + Math.cos(ba9) * rx9 * 0.9 + rx9 * 0.5, ly9 + Math.sin(ba9) * ry9 * 0.9);
+        ctx.ellipse(lx9 + Math.cos(ba9) * rx9 * 0.9, ly9 + Math.sin(ba9) * ry9 * 0.9, rx9 * 0.5, ry9 * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.8 * hA9; ctx.fillStyle = deep9;
+        ctx.beginPath(); ctx.ellipse(lx9 - rx9 * 0.12, ly9 + ry9 * 0.1, rx9 * 0.55, ry9 * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (age9 >= 0.5) { ctx.globalAlpha = 1; return; }
+  }
   // ① 바닥·뒤 겹 — 결마다 다른 한 장.
   if (wet) {
+    if (!pool9) {
     // 피떡: 바닥에 납작하게 번지는 검붉은 타원, 오래 남는다.
     const rr = W * (0.18 + 0.55 * ease);
     ctx.globalAlpha = (mat === "zerg" ? 0.6 : 0.5) * (1 - p * 0.6);
     ctx.fillStyle = mat === "zerg" ? "#5c0e14" : "#5a0f0c";   // 저그 핏자국: 자주 → 짙은 빨강(요청: "너무 보라빛")
     ctx.beginPath(); ctx.ellipse(ax, ay + W * 0.12, rr, rr * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (mat === "mech") {
     /* 불색 폭발 구(요청: "테란 건물·기계 사망 효과에 폭발(불색) 구도 있어야 해") — 여태는
        0.55 위상까지만 사는 작은 주황 원 하나라, 파편이 튀는 동안 정작 '터지는 구'가 없어
@@ -3348,16 +3428,16 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
          · 끝은 구보다 빠르게(세제곱 이즈) 밖으로 뻗고, 꼬리는 뒤늦게 따라 나가 '쏘아 나가는' 결이 된다.
          · 밑이 넓고 끝이 뾰족한 가는 쐐기(채운 삼각형)라 선이 붓 굵기에 안 묶이고, 색마다 한 경로로 묶어 칠한다.
        심은 두 겹(연푸른 빛무리 + 흰 심)으로 더 밝게 둔다. 조각은 여전히 안 낸다. */
+    /* (2026-10-17 재요청: "동심원은 제거 · 배경은 은은하게만 · 선 두 배 빼곡히") — 구 두 겹·테·심 원반이 겹겹이 동심원으로
+       읽혔다. 원반을 다 걷고 바탕은 **부드러운 빛무리 한 장**(구운 방사 판 · 가장자리 없음)을 옅게만 깐다. 부풂 자 R9 는 그대로. */
     const R9 = W * (0.22 + 0.78 * ease);
     const fade = 1 - p;
-    ctx.globalAlpha = 0.32 * fade; ctx.fillStyle = "#3a8fff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.45 * fade; ctx.fillStyle = "#8fd0ff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.7, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.6 * fade; ctx.strokeStyle = "#cfeaff"; ctx.lineWidth = Math.max(0.8, W * 0.03);
-    ctx.beginPath(); ctx.arc(ax, ay, R9, 0, Math.PI * 2); ctx.stroke();
+    const glow9 = domSpr9("plasma-glow", (c9, S9) => radLay9(c9, S9,
+      [[0, "rgba(150,205,255,0.9)"], [0.3, "rgba(90,160,255,0.45)"], [0.71, "rgba(60,130,255,0)"]]));
+    ctx.globalAlpha = 0.32 * fade;
+    ctx.drawImage(glow9, ax - R9 * 1.15, ay - R9 * 1.15, R9 * 2.3, R9 * 2.3);
     // 빛줄기 — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
-    const NR9 = bld ? 84 : 56;
+    const NR9 = bld ? 168 : 112;
     const tipE9 = 1 - (1 - p) ** 3;
     const tailE9 = Math.max(0, (p - 0.12) / 0.88) ** 1.6;
     const RAY_COL9 = ["#2f6fe0", "#6fb8ff", "#eef8ff"];
@@ -3387,11 +3467,12 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.globalAlpha = RAY_AL9[c9] * fade ** 0.8; ctx.fillStyle = RAY_COL9[c9];
       ctx.fill();
     }
-    // 심 — 연푸른 빛무리 위에 흰 심. 종전보다 크고 오래 밝다.
-    ctx.globalAlpha = Math.min(1, 0.85 * fade) ** 0.7; ctx.fillStyle = "#d6eeff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.52 * (1 - p * 0.4), 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = Math.min(1, 1.25 * fade) ** 0.6; ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(ax, ay, R9 * 0.34 * (1 - p * 0.45), 0, Math.PI * 2); ctx.fill();
+    // 심 — 테 없는 흰 빛무리(구운 판). 가운데가 가장 밝고 밖으로 무르게 스러진다(원반을 겹치면 다시 동심원이 된다).
+    const core9 = domSpr9("plasma-core", (c9, S9) => radLay9(c9, S9,
+      [[0, "rgba(255,255,255,1)"], [0.16, "rgba(255,255,255,0.95)"], [0.36, "rgba(200,232,255,0.55)"], [0.71, "rgba(140,200,255,0)"]]));
+    const cr9 = R9 * 0.62 * (1 - p * 0.35);
+    ctx.globalAlpha = Math.min(1, 1.2 * fade) ** 0.6;
+    ctx.drawImage(core9, ax - cr9, ay - cr9, cr9 * 2, cr9 * 2);
   } else {
     /* ★ 프로토스 **유닛** — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────
        원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
@@ -3547,6 +3628,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.beginPath(); ctx.arc(ax + ox, ay - W * 0.15 - W * 0.9 * q, W * (0.22 + 0.58 * q), 0, Math.PI * 2); ctx.fill();
     }
   } else if (wet) {
+    if (!pool9) {
     /* ★ **핏방울은 열여섯이다**(2026-09, 요청: "생체유닛 사망시 피방울 양 2배로 늘리기") — 여덟의 두 배다.
        낱개 자·튀는 거리는 그대로라 '더 많이 튄다'만 는다(덜어내기는 위 낱개 파편이 따로 진다). */
     ctx.fillStyle = DROP9[mat] ?? pal[0];
@@ -3555,6 +3637,7 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       const x = ax + Math.cos(an) * v * ease, y = ay + Math.sin(an) * v * ease * 0.6 - W * 0.2 * ease + W * 0.9 * p * p;
       ctx.globalAlpha = (1 - p) * 0.9;
       ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, W * 0.03), 0, Math.PI * 2); ctx.fill();
+    }
     }
   } else {
     ctx.fillStyle = "#ffffff";

@@ -2307,6 +2307,11 @@ export type FxOp = {
   seed?: number; bld?: boolean;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
+  /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
+   *  이때 `age` 는 죽은 뒤 초(ph 는 DIE_FX_SEC 에서 1로 멈춘다). */
+  pool?: boolean;
+  /** wound(저그): 흘러내리는 피 줄기 수 — 잃은 체력 **수치**로 센다(비율이 아니다 · 2026-10-17). */
+  wn?: number;
   /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
   tier?: 1 | 2 | 3;
   fx: number; fy: number;
@@ -3193,6 +3198,12 @@ export const HP_BAR_SEC = 3;
 /** 입체에서 체력바 폭 배수(요청: 3D에서 너무 큼). 깊이 배율 pitchK(y)에 더 곱한다. */
 export const HP_BAR_3D_K = 0.7;
 export const DIE_FX_SEC = 0.5;
+/** 저그·테란 생체 지상 유닛이 죽은 자리의 피가 남는 끝(초) — 떨어져 고이는 0.4초 + 1.5초 유지 + 0.4초 스러짐(요청: "피가 바닥에
+ *  떨어지고 1.5초정도 유지"). 그 몸의 생애 끝이 이만큼 늦춰지고, 그동안 burst op 은 바닥 피만 그린다. */
+export const BLOOD_POOL_SEC = 2.3;
+/** 바닥에 피가 고이는 죽음인가 — 지상이고 저그거나 테란 생체. 고치(알·럴커알·뮤탈 고치)는 고치색 파편이라 뺀다. */
+const bloodPool9 = (unit: string): boolean => unit !== "Egg" && unit !== "Lurker Egg" && unit !== "Mutalisk Cocoon"
+  && !isAirUnit(unit) && (raceOfName9(unit) === "저그" || BIONIC_UNITS.has(unit));
 export const BLD_FX_SEC = 1.0;
 export const ENGAGE_SKIP = new Set([
   "Worker", "Transport", "Overlord", "Dropship", "Shuttle", "Observer", "Science Vessel",
@@ -6524,9 +6535,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         }
         return r9;
       })();
-      const bldHp = ((): { frac: number | undefined; hurt: number } => {
+      const bldHp = ((): { frac: number | undefined; hurt: number; lost: number } => {
         const rec = rec9;
-        if (!rec) return { frac: 1, hurt: -99 }; // 기록 없는 성한 건물도 만피 바(요청).
+        if (!rec) return { frac: 1, hurt: -99, lost: 0 }; // 기록 없는 성한 건물도 만피 바(요청).
         /* 체력은 실제 수치다(지적) — 만피는 건물 표에서 가져와 나눈다. */
         const bs0 = BLD_STATS[unit];
         const full0 = bs0 ? bs0[0] + bs0[1] : 850;
@@ -6539,7 +6550,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           if (hv3 < now0) hurt = hs3;
           now0 = hv3;
         }
-        return { frac: Math.max(0.04, Math.min(1, now0 / Math.max(1, full0))), hurt };
+        return { frac: Math.max(0.04, Math.min(1, now0 / Math.max(1, full0))), hurt, lost: Math.max(0, full0 - now0) };
       })();
       /* 맞는 건물에도 불티(요청: 유닛·건물 피격 표현 재검토) — 여태 건물은 피격
          연출이 아예 없어, 해처리가 깎이는 동안 화면에서 터지는 것은 때리는 쪽
@@ -6647,7 +6658,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            둔다 — 되돌리려면 세 클래스를 하나로 합치면 된다).
          크기는 발자국에 매고, 자리는 발자국 안에 결정적으로 흩는다(프레임마다
          떨리면 안 된다 — 자리는 건물 번호의 순수 함수다). */
-      const woundLv = (bldHp.frac ?? 1) <= 1 / 3 ? 2 : (bldHp.frac ?? 1) <= 2 / 3 ? 1 : 0;
+      /* ★ 저그는 **잃은 체력 수치**로 센다(2026-10-17, 요청: "지금 효과 제거하고 손상정도에 따라(비율 아닌 수치) 몸에서 중간 길이
+         폭포처럼 피가 흘러내리게") — 50 넘게 잃으면 줄기 하나, 그 뒤 110 마다 하나씩, 열까지. 같은 300 을 잃으면 성큰이든
+         해처리든 줄기 수가 같다(비율이면 해처리는 아직 멀쩡해 보인다). 테란·프로토스는 원작 문턱(2/3·1/3) 그대로다. */
+      const zWound9 = race2 === "저그"
+        ? (bldHp.lost < 50 ? 0 : Math.min(10, 1 + Math.floor((bldHp.lost - 50) / 110))) : 0;
+      const woundLv = race2 === "저그" ? (zWound9 > 0 ? (zWound9 >= 5 ? 2 : 1) : 0)
+        : (bldHp.frac ?? 1) <= 1 / 3 ? 2 : (bldHp.frac ?? 1) <= 2 / 3 ? 1 : 0;
       /* 건물 손상 효과만 사양 '중'부터다(요청) — 불길·연기·피는 건물마다 스팬을
          여럿 물고 애니도 무겁다. 그리고 그 건물이 얼마나 상했는지는 체력바가 이미
          말하고 있어, 없어도 상황이 안 읽히지는 않는다. */
@@ -6684,6 +6701,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
           tier: woundLv === 2 ? 2 : 1, wrace: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
           seed: i, clk: t,
+          ...(zWound9 > 0 ? { wn: zWound9 } : {}),
         });
       }
       /* 성큰은 쏘는 동안 혓바닥을 내민 판으로 바꾼다(요청: "가시가 나오는 타이밍에
@@ -7866,7 +7884,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        나타나게") — 알·러커알·뮤탈고치가 다음 생애(새 유닛)로 이어지는 morph 끝은 죽음이 아니지만, 껍질이 찢어지는
        파편은 낸다. 그래서 이 셋만 morph 끝에도 DIE_FX_SEC의 여운을 둔다(새 유닛은 다음 생애가 같은 자리에 그린다). */
     const hatch9 = e.end === "morph" && (e.unit === "Egg" || e.unit === "Lurker Egg" || e.unit === "Mutalisk Cocoon");
-    if (dieAt !== null && t >= dieAt + ((e.end === "morph" && !hatch9) || e.end === "own" ? 0 : DIE_FX_SEC)) return null;   // 손바뀜(own)도 여운 없음
+    const pool9 = e.end !== "morph" && e.end !== "own" && bloodPool9(e.unit);
+    if (dieAt !== null && t >= dieAt + ((e.end === "morph" && !hatch9) || e.end === "own" ? 0 : pool9 ? BLOOD_POOL_SEC : DIE_FX_SEC)) return null;   // 손바뀜(own)도 여운 없음
     const team = teamOfRaw(e.raw);
     /* 걸음 속도 상한(요청) — 제 속도표로 죈다. 15%만 여유를 둔다: 교전 지연을
        따라잡는 몫이라, 이보다 크면 다시 '순간적으로 빨라짐'이 된다.
@@ -8601,13 +8620,14 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC,
           mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
           ...(dk === "toss" && !TOSS_FLESH9.has(drawUnit) ? { tmech: true } : {}),
+          ...(pool9 && (dk === "zerg" || dk === "bio") ? { pool: true, age: t - dieAt } : {}),
           // 몸집 단(요청: 파편은 크기 대신 수로) — 보이는 몸 폭을 타일로 재서 셋으로 가른다.
           tier: ((): 1 | 2 | 3 => {
             const bt9 = (diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16)) / (mapW9 / grid.width);
             return bt9 < 0.9 ? 1 : bt9 < 1.8 ? 2 : 3;
           })(),
         });
-        fxOps.push({
+        if (t - dieAt < DIE_FX_SEC) fxOps.push({
           kind: "dom", style: "die", fx: bfx9, fy: bfy9, lift: dieLift,
           size: diePx9 * 0.58, sub: dk, age: t - dieAt, seed: ei,
         });
