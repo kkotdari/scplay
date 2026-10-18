@@ -11978,6 +11978,9 @@ export default function ReplayMotionPlayer({
   /* ★ 16 → **18 타일**(2026-10-11, 요청: "16타일이 정사각형 화면에서 좀 답답하네 18타일로 변경") — 짧은 축 = 0.75 × (격자 폭 ÷ z) ÷ 1.2 를 128 맵 18 로 푼다:
      z = 0.75 × 128 ÷ (1.2 × 18) = 4.44(옛 5). 한 화면·분할 칸 다 이 문을 읽는다. */
   const TRACK_TILES9 = 18;
+  /** 중계·개인 추적 한 화면의 최소 타일(가로·세로) — castZoomFit9 가 푼다. 분할 칸은 종전대로 trackZoom9 를 읽는다. */
+  const CAST_MIN_TILES_W9 = 26;
+  const CAST_MIN_TILES_H9 = 14;
   const trackZoom9 = (): number => (SPLIT_SPAN_K9 * 128) / (SPLIT_ZOOM_K9 * TRACK_TILES9);
   /** ★ 중계·개인 추적이 켤 때 당기는 배율은 **분할 칸과 같은 셈**이다(2026-10, 지적: "중계 자동모드도 분할과 같은 배율계산
    *  적용 몇칸 보일지. 지금 분할보다 좁게 나오는거 같음") — 무대 하나를 칸 하나로 보고 splitPaint9 의 식을 그대로 돈다:
@@ -11993,12 +11996,13 @@ export default function ReplayMotionPlayer({
     const sh9 = st9.h > 0 ? Math.min(st9.h, vh9) : vh9;
     const gw9 = Math.max(1, grid.width);
     const gh9 = Math.max(1, grid.height);
-    const span9 = (gw9 / z9) * SPLIT_SPAN_K9;
-    const zCap9 = Math.min((sw9 * gw9) / (cov9.w * span9), (sh9 * gh9) / (cov9.h * span9));
-    /* ★ 한 화면은 **짧은 축의 타일 수를 못 박는다**(zCap9 그대로 · 분할 칸처럼 min(z9, …) 로 죄지 않는다) — 죄면 무대가 짧은 축
-       기준보다 넉넉한 배치(폰 프레임)에서만 trackZoom9 쪽이 이겨, 프레임과 전체화면의 타일 수가 갈렸다(지적: "모바일 전체화면에서
-       타일이 더 적게 나옴"). 이제 어느 배치에서나 짧은 축 = SPLIT_SPAN_K9 × (격자 폭 ÷ trackZoom9) ÷ SPLIT_ZOOM_K9 타일이다. */
-    return Math.max(1, zCap9 * SPLIT_ZOOM_K9);
+    /* ★ 한 화면은 **가로·세로 최소 타일 수**로 배율을 푼다(2026-10-18, 요청: "중계시 타일 기준 변경 · 가로는 최소 26 이 보여야 하고
+       세로는 최소 14 타일") — 옛 '짧은 축 18타일'(SPLIT_SPAN_K9 × 격자 폭 ÷ trackZoom9 ÷ SPLIT_ZOOM_K9)을 갈았다. 보이는 타일은
+       가로 = 무대 폭 × 격자 폭 ÷ (덮는 판 폭 × z) · 세로 = 무대 키 × 격자 키 ÷ (덮는 판 키 × z) 라, 두 하한을 다 지키는 가장 큰 z 는
+       둘 중 작은 쪽이다 — 넓은 무대는 세로 14 가, 좁은(세로로 긴) 무대는 가로 26 이 문다. 1배 바닥(지도 전체)은 그대로. */
+    const zW9 = (sw9 * gw9) / (cov9.w * CAST_MIN_TILES_W9);
+    const zH9 = (sh9 * gh9) / (cov9.h * CAST_MIN_TILES_H9);
+    return Math.max(1, Math.min(zW9, zH9));
   };
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
