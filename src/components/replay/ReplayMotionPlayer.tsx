@@ -2561,48 +2561,58 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          · 끝에 맺힌 방울과, 그 끝에서 0.8~1.1초마다 떨어지는 방울 하나.
        자는 발자국 폭(sx9)이다 — 상처 상자(W9)는 테란·프로토스의 불꽃 자라 여기선 안 쓴다. */
     const fw9 = Math.max(W9 * 2.5, sx9);
-    const sx09 = ax + (((h9 % 1000) / 1000 - 0.5) * (n9 > 3 ? 0.62 : 0.4)) * fw9;
+    /* ★ 흩는 폭은 **수와 무관**하다(2026-10-19, 요청: "손상효과는 갯수가 늘어나는거지 위치가 바뀌는건 아님 · 기존있던거에 추가되거나 감소되는식") —
+       옛 판은 줄기가 셋을 넘으면 폭을 0.4 → 0.62 로 넓혀, 넷째가 생기는 순간 있던 셋이 다 옆으로 옮겨 앉았다. 자리는 (건물 번호, 줄기 번호)만의 함수다. */
+    const sx09 = ax + (((h9 % 1000) / 1000 - 0.5) * 0.56) * fw9;
     const sy09 = ay - (-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
     const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
-    const w9 = Math.max(1.8, fw9 * (0.027 + (((h9 >>> 14) % 100) / 100) * 0.021));
+    /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px). */
+    const w9 = Math.max(3.6, fw9 * (0.054 + (((h9 >>> 14) % 100) / 100) * 0.042));
     const ph9 = ((h9 >>> 20) % 100) / 100;
     const SEG9 = 6;
     /* 곧게 수직으로 떨어진다(재지적: "왜 수직으로 안 떨어지고 휘지" — 몸 굴곡을 흉내 낸 굽이·기울기를 걷었다). */
     const bx9 = (_u9: number): number => sx09;
-    const hw9 = (u9: number): number => w9 * (0.2 + 0.8 * Math.sqrt(u9));
-    // 상처 — 줄기가 비어져 나오는 검붉은 자국(위가 뾰족한 뿔처럼 안 읽히게 머리를 묻는다).
-    ctx.globalAlpha = 0.9; ctx.fillStyle = "#4a070b";
-    ctx.beginPath(); ctx.ellipse(sx09, sy09, w9 * 1.5, w9 * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-    // 띠 — 왼 가장자리를 내려가고 오른 가장자리로 올라온다.
+    /* 위아래 폭이 **거의 같다**(2026-10-19, 요청: "폭포의 위 아래 폭이 대부분 균일하게") — 옛 0.2 → 1(√ 로 부풂)은 위가 바늘처럼 가늘었다.
+       맨 위만 한 치(0.85) 좁혀 몸에서 비어져 나오는 결을 남긴다. */
+    const hw9 = (u9: number): number => w9 * (0.85 + 0.15 * Math.min(1, u9 * 4));
+    /* (걷어냄 · 2026-10-19, 요청: "폭포의 구멍(상처)은 제거") 줄기 머리의 검붉은 상처 자국(타원). */
+    /* 띠 — 왼 가장자리를 내려가고, **바닥은 물결진 평평한 끝**(요청: "폭포 끝(맨 아래) 둥글지 않게 평평한느낌 물결느낌으로")을 오른쪽에서
+       왼쪽으로 긋지 않고 왼→오른으로 이어 그은 뒤 오른 가장자리로 올라온다. 물결은 줄기마다 위상이 다르고 천천히 일렁인다. */
+    const WAVE9 = 6;
+    const waveY9 = (k9: number): number => sy09 + L9 + Math.sin((k9 / WAVE9) * Math.PI * 3 + t9 * 3.2 + ph9 * 6.28) * w9 * 0.16;
     ctx.globalAlpha = 0.92; ctx.fillStyle = "#6e0b10";
     ctx.beginPath();
     for (let g9 = 0; g9 <= SEG9; g9 += 1) {
       const u9 = g9 / SEG9;
       if (g9 === 0) ctx.moveTo(bx9(u9) - hw9(u9), sy09 + u9 * L9); else ctx.lineTo(bx9(u9) - hw9(u9), sy09 + u9 * L9);
     }
+    for (let k9 = 0; k9 <= WAVE9; k9 += 1) ctx.lineTo(bx9(1) - hw9(1) + (2 * hw9(1) * k9) / WAVE9, waveY9(k9));
     for (let g9 = SEG9; g9 >= 0; g9 -= 1) { const u9 = g9 / SEG9; ctx.lineTo(bx9(u9) + hw9(u9), sy09 + u9 * L9); }
     ctx.closePath(); ctx.fill();
     // 흐름 — 밝은 피 두 토막이 위에서 아래로.
     ctx.fillStyle = "#c92a2e";
     for (let k9 = 0; k9 < 2; k9 += 1) {
       const u09 = (((t9 * 0.85 + ph9 + k9 * 0.5) % 1) + 1) % 1;
-      const u19 = Math.min(1, u09 + 0.24);
+      const u19 = Math.min(1, u09 + 0.4);
       ctx.globalAlpha = 0.85 * Math.min(1, (1 - u09) * 4);
+      /* 가는 줄무늬(폭 ×2 뒤로 마름모가 무늬처럼 읽혀 · 2026-10-19) — 위아래가 뾰족한 길쭉한 육각, 띠 폭의 7분의 1 · 길이 띠의 40%. */
+      const sw9 = hw9(u09) * 0.14;
+      const ya9 = sy09 + u09 * L9 - w9 * 0.2; const yb9 = sy09 + u19 * L9;
       ctx.beginPath();
-      ctx.moveTo(bx9(u09), sy09 + u09 * L9 - w9 * 0.2);
-      ctx.lineTo(bx9((u09 + u19) / 2) + hw9(u09) * 0.4, sy09 + ((u09 + u19) / 2) * L9);
-      ctx.lineTo(bx9(u19), sy09 + u19 * L9);
-      ctx.lineTo(bx9((u09 + u19) / 2) - hw9(u09) * 0.4, sy09 + ((u09 + u19) / 2) * L9);
+      ctx.moveTo(bx9(u09), ya9);
+      ctx.lineTo(bx9(u09) + sw9, ya9 + (yb9 - ya9) * 0.25);
+      ctx.lineTo(bx9(u19) + sw9, ya9 + (yb9 - ya9) * 0.75);
+      ctx.lineTo(bx9(u19), yb9);
+      ctx.lineTo(bx9(u19) - sw9, ya9 + (yb9 - ya9) * 0.75);
+      ctx.lineTo(bx9(u09) - sw9, ya9 + (yb9 - ya9) * 0.25);
       ctx.closePath(); ctx.fill();
     }
-    // 끝 방울 + 떨어지는 방울.
+    /* (걷어냄 · 같은 요청) 끝에 맺힌 둥근 방울 — 끝은 위 물결진 평평한 변이다. 떨어지는 방울은 그 변 가운데에서 남는다. */
     const tx9 = bx9(1); const ty9 = sy09 + L9;
-    ctx.globalAlpha = 0.95; ctx.fillStyle = "#8a1016";
-    ctx.beginPath(); ctx.arc(tx9, ty9, w9 * 1.15, 0, Math.PI * 2); ctx.fill();
     const dp9 = 0.8 + ph9 * 0.3;
     const q9 = (((t9 + ph9 * dp9) / dp9) % 1 + 1) % 1;
     ctx.globalAlpha = 0.9 * (1 - q9); ctx.fillStyle = "#b51f25";
-    ctx.beginPath(); ctx.arc(tx9, ty9 + w9 + q9 * q9 * L9 * 0.55, w9 * 0.75, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx9, ty9 + w9 * 0.4 + q9 * q9 * L9 * 0.55, w9 * 0.4, 0, Math.PI * 2); ctx.fill();   // 폭 ×2 뒤로 방울은 그대로의 크기(0.75 → 0.4)
   }
   }
   ctx.globalAlpha = op0;
