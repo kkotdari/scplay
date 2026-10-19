@@ -2416,7 +2416,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
            ① 같은 편 기지(그 편의 살아 있는 본진 건물 또는 출발 자리 BASE_R9 안) → 제 기지를 잃었거나 대파됐으면 "[P] [A] 기지로 이사" · 아니면 "[P] [A] 기지에 해처리 건설"
            ② 제 본진 건물이 하나도 없으면 → 출발 자리 곁 "본진 재건" · 딴 곳 "새 기지로 이사"
            ③ 아무도(제 것) 안 먹는 자원 무더기 곁 → 새 기지: 출발 자리에서 가장 가까운 딴 무더기면 "앞마당 …"(둘째 기지일 때 빌드 이름 — 노스포닝풀·선포지 더블넥서스·노배럭
-              더블커맨드·빠른) · 그 밖은 "첫 멀티 / N번째 멀티"
+              더블커맨드·빠른) · 그 밖은 "멀티 건설"(옛 "첫 멀티 / N번째 멀티")
            ④ 그 밖(같은 무더기 · 무더기 없음 · 자원 자료 없음) → 살아 있는 본진 건물 수 "3넥서스 · 3해처리 · 2커맨드"(스포닝풀 전이면 "노스포닝풀 2해처리"). */
         const t9 = e9.born;
         const hallsNow9 = world.lives.filter((h9) => h9 !== e9 && h9.bld && own9.has(h9.owner) && HALL_ANY9.has(h9.kind) && h9.born <= t9 && (h9.died === null || h9.died > t9))
@@ -2447,7 +2447,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
             else if (hallKind9 === "Hatchery") text9 = coreAt9 === Infinity ? "선해처리" : "앞마당 해처리";
             else if (hallKind9 === "Nexus") text9 = forgeFirst9 && firstProdAt9 === Infinity ? "선포지 더블넥서스" : coreAt9 === Infinity ? "빠른 앞마당 넥서스" : "앞마당 넥서스";
             else text9 = firstProdAt9 === Infinity ? "선커맨드" : coreAt9 === Infinity ? `빠른 앞마당 ${ko9}` : `앞마당 ${ko9}`;
-          } else text9 = before9 <= 1 ? "첫 멀티" : `${before9}번째 멀티`;
+          } else text9 = "멀티 건설";   // 옛 "첫 멀티 / N번째 멀티"(2026-10-19, 요청: "N번째가 좀 어색해 · 그냥 멀티 건설")
           mile9(t9, text9, e9);
           continue;
         }
