@@ -35393,7 +35393,7 @@ function $Z({
   }, []), Cc = (f, W) => {
     const N = Math.max(0, Math.min(1, (lh - W) / lh));
     return f.yTop - f.band * (1 - N);
-  }, NO = 18, EO = xo ? 26 : 32, FO = xo ? 14 : 18, Zy = () => Xw * 128 / (Hw * NO), Gy = () => {
+  }, NO = 18, EO = xo ? 24 : 32, FO = xo ? 12 : 18, Zy = () => Xw * 128 / (Hw * NO), Gy = () => {
     const f = Zy(), W = Ai.current, N = q0.current;
     if (!(W.w > 0) || !(W.h > 0)) return f;
     const E = N.w > 0 ? Math.min(N.w, W.w) : W.w, nt = cc.current > 0 ? cc.current : W.h, ot = N.h > 0 ? Math.min(N.h, nt) : nt, ct = Math.max(1, Y.width), it = Math.max(1, Y.height), Ct = E * ct / (W.w * EO), rt = ot * it / (W.h * FO);
@@ -37997,7 +37997,7 @@ function $Z({
       " · UI ",
       Ns.ui,
       " · 판 ",
-      "10-19 17:05",
+      "10-19 17:21",
       Ns.ss !== 1 ? ` · 초해상 ×${Ns.ss.toFixed(2)}` : "",
       Math.abs(Ns.unitScale - Ns.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ns.unitScale.toFixed(4)})` : Ns.scale > 0 && Math.abs(Ns.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ns.scale.toFixed(4)})` : "",
       Ns.allocOk ? "" : " · ⚠배킹확보 실패"
