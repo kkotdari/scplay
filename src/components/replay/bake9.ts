@@ -31291,6 +31291,12 @@ export function scaffold9(cx: number, cy: number, h: number, maxLv = Infinity): 
 let SCAFFOLD_KINDS9: Set<string> | null = null;
 /** ★ 애드온은 발판 없이 짓는다(2026-10-14, 요청: "테란 애드온 건설엔 스캐폴더 없이"). */
 const SCAFFOLD_SKIP9 = new Set(["comsat", "comsatbase", "nsilo", "mshop", "ctower", "covert", "physlab"]);
+/** 테란 건물(애드온 포함) — 공사 중에는 임자색을 안 세운다(아래 stageFaces ★ 2026-10-19). */
+let TERRAN_BLD9: Set<string> | null = null;
+const isTerranBld9 = (kind: string): boolean => {
+  TERRAN_BLD9 ??= new Set(SHAPE_GALLERY.filter((g) => g.group === "건물" && g.race === "테란").map((g) => g.kind));
+  return TERRAN_BLD9.has(kind);
+};
 const isScaffoldKind9 = (kind: string): boolean => {
   SCAFFOLD_KINDS9 ??= new Set(
     SHAPE_GALLERY.filter((g) => g.group === "건물" && g.race === "테란" && !SCAFFOLD_SKIP9.has(g.kind)).map((g) => g.kind));
@@ -31518,7 +31524,15 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
      몸 없는 반투명 유령 한 장이 남는다. 같은 경로가 이어지는 동안 한 칸씩 더 든다. */
   while (keepN9 < n && faces[order[keepN9]][0] === faces[order[keepN9 - 1]][0]) keepN9 += 1;
   const keep = new Set(order.slice(0, keepN9));
-  const out9 = faces.filter((_, i) => keep.has(i));
+  let out9 = faces.filter((_, i) => keep.has(i));
+  /* ★ **테란 건물의 임자색 데칼·부품은 완공 때 나타난다**(2026-10-19, 요청: "테란 건설 단계에서 임자색 데칼과 부품은 무조건 완공시에 나타나게") — 공사 중(1~9단)에는
+     칠하지 않은 낯(임자색 · f[2] 없음)을 빼고, 그 낯과 **경로가 같은 덧칠**(음영 topFace·sideFace · paleTeam 의 흰 켜)도 함께 뺀다 — 몸 없는 덧칠 유령이 안 남게.
+     10단(완성)은 이 함수를 안 지나므로 저절로 다 선다. 차례·칸 몫(keepN9)은 임자색까지 넣어 셈한 그대로라 단조가 안 깨진다. */
+  if (kind && isTerranBld9(kind)) {
+    const team9 = new Set<string>();
+    for (const f of out9) if (f[2] === undefined) team9.add(f[0]);
+    if (team9.size > 0) out9 = out9.filter((f) => !team9.has(f[0]));
+  }
   /* ★ **공사 발판 탑 둘**(요청: "앞 오른쪽과 뒤 왼쪽에 두 개 스캐폴드 탑 · 1단계부터 보이고
      완공 시 사라짐") — 1~9단에만 서고 10단(완성)은 이 함수를 안 지나므로 저절로 사라진다.
      자리는 **완성 모델의 평면 상자** 안쪽 모퉁이다: +x·+y 가 앞 오른쪽, −x·−y 가 뒤 왼쪽이다.

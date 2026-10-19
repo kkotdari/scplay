@@ -55,7 +55,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
-          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>전광판 · 미니맵 · 인포창</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(색 · 보기 · 음악 · 검색) ·
+          지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>미니맵 · 인포창 · 전광판</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(색 · 보기 · 음악 · 검색) ·
           오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
           <b>배속</b>은 버튼 줄이 아니라 <b>지도 오른쪽 아래의 세로 다이얼</b>입니다.
         </p>
@@ -78,7 +78,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Play size={14} fill="currentColor"/></span><span><b>재생 / 일시정지</b> — 스페이스와 같습니다. 끝까지 본 뒤 누르면 처음부터(↺).</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속 다이얼</b> — 지도 오른쪽 아래의 세로 눈금(1·2·4·8). 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고, 눈금 근처에서는 그 눈금에 붙습니다. PC에서는 그 위에서 <b>휠</b>을 굴려도 되고, 휠은 눈금마다 한 번씩 걸립니다. ↑·↓ 키로도 눈금 한 칸씩. 중계 중에도 됩니다.</span></li>
-            <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 전광판·미니맵·인포창이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
+            <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 미니맵·인포창·전광판이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
             <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
             <li><span className="scr-guide-ic"><Share2 size={14}/></span><span><b>장면 공유</b> — 카톡으로 보냅니다(안 되면 링크 복사). 시각·자리·배율·배속·각도까지 링크에 실립니다(중계 중이면 자리 대신 중계).</span></li>
           </ul>
@@ -105,7 +105,7 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic"><Music size={15}/></span><span><b>음악</b> — 누르면 곡 목록이 펼쳐집니다. 고른 곡은 처음부터 나옵니다. 맨 아래 줄은 <b>음량 슬라이더</b>(처음 50% · 떼면 닫힘)와 <b>끄기</b>입니다. 아이폰 사파리는 웹에서 음량을 못 바꿔 끄기만 섭니다(기기 음량을 따릅니다).</span></li>
             <li><span className="scr-guide-ic"><Search size={15}/></span><span><b>검색</b> — 돋보기를 누르면 옆으로 입력칸이 펴집니다. 치는 동안 <b>이 경기에 나온 말만</b> 위로 자동 완성됩니다(사람 · 유닛 · 건물 · 기술 · 마법 · 전술 — ↑↓ 고르기 · Enter 고르고 찾기 · Tab 채우기). 추천은 <b>세분</b>으로 나옵니다 — 리콜 개발 / 리콜 사용 · 질럿 생산 / 질럿 활약 · 스톰 개발 / 스톰 사용 / 스톰 활약 · 나이더스 건설 / 나이더스 사용 · 사람 뒤에 공격함 / 공격당함 · 견제함 / 견제당함(예: "정구 공격당함"). 유닛·건물은 처음 생산/건설한 때 · 시즈 · 클로킹 · 띄움까지 · 업그레이드·연구는 완료한 때, 전술은 화면에 안 나온 장면과 빌드(선스포닝풀 · 더블넥서스 …) · <b>핵</b>(장전 · 투하)까지 찾습니다(빈칸으로 나눈 말은 다 들어야 맞음 — 예: "정구 드랍"). 결과로 가면 중계 대신 <b>그 장면</b>을 보여 주고(움직이는 장면은 따라감 · 자막은 "A가 B 기지에 핵 투하" 같은 묘사) 장면이 끝나면 중계로 돌아갑니다. Enter 를 누르면 곧장 <b>첫 결과(1/N)</b>로 가고 알약이 <b>‹ 1/N › ✕</b>로 바뀝니다. 찾은 곳은 <b>진행바에 노란 태그</b>로 서고 지금 결과는 빨갛습니다. 키보드 <b>F</b>로 바로 입력칸을 열 수 있습니다. <b>‹ ›</b>나 키보드 <b>B</b>(이전)·<b>N</b>(다음)으로 넘기며, 그 일이 벌어지기 2초 전부터 봅니다. n/N 이나 돋보기를 누르면 검색어를 고치고, ✕ 는 검색 취소입니다.</span></li>
             <li><span className="scr-guide-ic"><QMarkIcon size={15}/></span><span><b>사용법</b> — 지금 보고 있는 이 안내입니다(PC · 전체화면이 아닐 때만).</span></li>
-            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서도 쇠판(전광판·미니맵·인포창)은 그대로 섭니다.</span></li>
+            <li><span className="scr-guide-ic"><Maximize size={15}/></span><span><b>전체화면</b> — 줄의 맨 오른쪽. 전체화면에서도 쇠판(미니맵·인포창·전광판)은 그대로 섭니다.</span></li>
           </ul>
         </div>
 
@@ -185,7 +185,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">미니맵 · 인포창</h3>
         <p className="scr-guide-sub">
-          지도 바로 아래에 <strong>전광판</strong>(왼쪽) · <strong>미니맵</strong>(가운데) · <strong>인포창</strong>(오른쪽)이 한 틀로 서 있습니다(좁으면 인포창부터 줄거나 빠집니다).
+          지도 바로 아래에 <strong>미니맵</strong>(왼쪽) · <strong>인포창</strong>(가운데 · 한 단 낮다) · <strong>전광판</strong>(오른쪽)이 한 틀로 서 있습니다(좁으면 인포창부터 줄거나 빠집니다).
           전광판은 PC에서 사람마다 일꾼 · 인구 · 자원 · 데미지 · APM을 보여 주고, 폰에서는 팀마다 두 줄로 이름과 카메라 단추만 섭니다.
           미니맵 위의 <strong>이름표</strong>는 각 사람의 <b>기지마다</b> 섭니다 — 본진·멀티·이사한 자리를 따라가고, 나갔거나 생산이 끊긴 사람은 어둡습니다.
         </p>

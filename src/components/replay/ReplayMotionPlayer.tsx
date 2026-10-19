@@ -19824,6 +19824,7 @@ export default function ReplayMotionPlayer({
       if (row9.clientWidth === 0) {
         setDockFit9((p9) => (p9.lift === 0 ? p9 : { ...p9, lift: 0 }));
         fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", "0px");
+        fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift-r", "0px");
         return;
       }
       const cs9 = getComputedStyle(pr9);
@@ -19851,11 +19852,17 @@ export default function ReplayMotionPlayer({
          --dock-lift 로 적어 바닥 가운데의 중계 자막이 그만큼 올라선다(.scr-cast-caption). 화면 주인 이름표는 **위 가운데**라(2026-10-09, 요청: "화면 주인 이름칩은 화면 상단
          가운데로 이동하고 자막을 내리기") 안 탄다 — 옛 '바닥 줄 칸 이름표 올리기'(--cell-lift · pedL~pedR)도 그때 걷었다. 분할 격자는 아래를 **안 비운다**(되요청: "분할보기도
          아래 비우지 않기"). 미니맵이 없으면(N) 0. */
-      const lift9 = miniOn9 && W9 > 0 ? Math.max(0, miniH9 - h9 + out9 + 1) : 0;
+      /* 판(쇠판 윗선)은 인포창이 서면 인포창 키(h × --info-down · replay.css --plate-h · 2026-10-19)다 — 미니맵이 솟는 몫은 그 판에서 잰다. */
+      const down9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--info-down")) || 1;
+      const plateH9 = ki9 > 0 && down9 < 1 ? ev9(h9 * down9) : h9;
+      const lift9 = miniOn9 && W9 > 0 ? Math.max(0, miniH9 - plateH9 + out9 + 1) : 0;
       setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h9) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && Math.abs(p9.lift - lift9) < 0.5
         ? p9 : { h: h9, ki: ki9, k: k9, lift: lift9 }));
       setRosterPaged9(uiPhone9 || k9 < 0.999);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", `${lift9.toFixed(1)}px`);
+      /* 오른끝 전광판 받침이 판 위로 솟은 몫(2026-10-19) — 배속 다이얼(무대 오른아래)이 그 위에 선다(replay.css .scr-speeddial). */
+      const liftR9 = W9 > 0 && plateH9 < h9 ? h9 - plateH9 + out9 + 1 : 0;
+      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift-r", `${liftR9.toFixed(1)}px`);
     };
     const read9 = (): void => {
       fit9();
@@ -20815,13 +20822,12 @@ export default function ReplayMotionPlayer({
             {/* 숨은 자 — 설계 치수(인포창 폭 · 설계 키 h0 · 틈 · 여백)를 CSS 계산값 그대로 읽는 자리(위 dockFit9). */}
             <i className="scr-fs-dockprobe" aria-hidden />
             <div className="scr-fs-dockmain">
-            {/* ★★ 독의 우물 셋 [전광판 | 미니맵 | 인포창](2026-10-09, 요청: "피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창을 보여줌 ·
+            {/* ★★ 독의 우물 셋 [미니맵 | 인포창 | 전광판](차례는 2026-10-19 · 처음 판 2026-10-09, 요청: "피시 모바일 모두 전광판과 미니맵을 우선 보여주고 자리가 있으면 인포창을 보여줌 ·
                 너비를 배분하고 그에 맞는 높이로") — 자리와 크기는 위 dockFit9(전광판·미니맵 먼저 · 인포창은 남는 폭에 비례 축소 · 모자라면 숨김).
                 독 미니맵은 요청 5(2026-10-09)로 걷었던 것을 되살렸다(.scr-fs-minipanel) — 분할보기에서는 누른 칸의 사람(시야·네모·초록 점)을 들고 안 골랐으면
                 전체(관전자) 그대로다(요청 3). 이름표(miniTags9 · 진영 자리)는 **그림뿐**이다(2026-10-09, 요청: "미니맵 네임칩 터치 시 화면 설정 기능 제거" — 옛 '누르면
                 그 사람 카메라(pickPerson9)'는 걷었다 · 카메라는 전광판 단추로). 잠긴 카메라에서의 손짓은 토스트(fsSeek 의 miniLockToast9).
                 전체화면의 미니맵 단추(N · fsMiniOn)는 미니맵 우물을 여닫는다. */}
-            <div className="scr-fs-rosterpanel">{dockRoster9}</div>
             {(fsOn ? fsMiniOn : true) && (
               <div className="scr-fs-minipanel">
                 <div className="scr-motion-minibox">
@@ -20855,6 +20861,9 @@ export default function ReplayMotionPlayer({
               </div>
             )}
               {dockFit9.ki > 0 && infoDock9}
+              {/* ★ 차례 [미니맵 | 인포창 | 전광판](2026-10-19, 요청: "독 내 순서 변경 미니맵 (인포창) 전광판 순으로") — 옛 [전광판 | 미니맵 | 인포창]. 인포창은 한 단 낮아
+                  가운데가 쏙 들어간다(replay.css .scr-fs-dockmain ★★ · --plate-h). */}
+              <div className="scr-fs-rosterpanel">{dockRoster9}</div>
             </div>
             </div>
           </div>

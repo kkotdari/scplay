@@ -2563,10 +2563,14 @@
   /* ★★ 280·320 은 **재생 줄까지 합친 아래 띠** 기준이다(2026-10-10 되지적: "플레이백 바 로우까지 포함해서 말한 거였어" → "숫자는 280/320") — 아래 띠(.scr-fs-lower) = 틀 + 틀 아래 12
      + 재생 줄 44(위 6 · 단추 24 · 아래 14 — 아래 .scr-motion-pc9 .scr-tb) = **280** → 틀 224 → 우물 **206** · 미니맵 칸 꼭대기가 띠 바닥에서 **320** → 미니맵 **246**(틀 위로 40).
      안 요소 짝수: 칸 54(폭 370) · 머리 34 · 실루엣 88 · 칸 38 · 접기 22 · 몸 164. */
-  --dock-cell: calc(54px * var(--dks)); --dock-gap: calc(6px * var(--dks)); --dock-padx: calc(8px * var(--dks));
-  --dock-cap: calc(34px * var(--dks)); --dock-big: calc(88px * var(--dks));
-  --dock-slot: calc(38px * var(--dks)); --dock-fold: calc(22px * var(--dks));
-  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 370 */
+  /* ★ 인포창은 **한 단 낮다**(2026-10-19, 요청: "인포창은 10프로 더 낮춤 안의 요소도 필요하면 같이 축소(fhd기준 원본값 재설정) 세 요소가 다 보일때 독 가운데가 쏙 들어간
+     모양이 됨") — 우물 키 = --dock-h × --info-down(0.9 · 1080p 214 → **192**). 안 요소 1080p 짝수 다시 셈(×0.9): 칸 54 → **48**(폭 370 → **334**) · 머리 34 → 30 ·
+     실루엣 88 → 80 · 칸 38 → 34 · 접기 22 → 20 · 아래 덮어쓰기(몸 여백 10 → 8 · 그림 기둥 100 → 90 · 기둥 틈 14 → 12 · 업그레이드 칸 36 → 32). 글자는 그대로. 폰은 안 낮춘다(1). */
+  --dock-cell: calc(48px * var(--dks)); --dock-gap: calc(6px * var(--dks)); --dock-padx: calc(8px * var(--dks));
+  --dock-cap: calc(30px * var(--dks)); --dock-big: calc(80px * var(--dks));
+  --dock-slot: calc(34px * var(--dks)); --dock-fold: calc(20px * var(--dks));
+  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 334 */
+  --info-down: 0.9; --info-h: round(nearest, calc(var(--dock-h) * var(--info-down)), 2px);
   /* ★ 틀 아래 틈 12 → **4**(2026-10-10, 요청: "독의 윗줄과 아랫줄 사이 갭 줄이기 · 독 높이는 그대로 · 윗줄 세 요소 확대(짝수)") — 줄인 8 을 우물이 받는다:
      우물 206 → **214** · 몸 164 → 172 · 미니맵 246 → **254**(틀 위로 40 그대로) · 전광판은 비(--roster-r)대로 440 → 458. 띠 280 · 미니맵 칸 320 은 그대로. */
   --dock-body: calc(172px * var(--dks));
@@ -2585,11 +2589,11 @@
 .scr-motion:not(.scr-motion-pc9) .scr-fs-dockframe {
   --dock-bez: round(nearest, calc(2.4px * var(--dk)), 2px); --dock-out: round(nearest, calc(5.1px * var(--dk)), 2px); --dock-sep: round(nearest, calc(6px * var(--dk)), 2px);
 }
-.scr-motion-pc9 .scr-motion-infodock-body { padding-top: calc(10px * var(--dks)); padding-bottom: calc(10px * var(--dks)); }   /* 8 → 12(×1.4 짝수 · 2026-10-10) */
+.scr-motion-pc9 .scr-motion-infodock-body { padding-top: calc(8px * var(--dks)); padding-bottom: calc(8px * var(--dks)); }   /* 10 → 8(2026-10-19 인포창 한 단 낮춤) */   /* 8 → 12(×1.4 짝수 · 2026-10-10) */
 /* 인포창 속 칸들(2026-10-10 ×1.4 짝수) — 그림 기둥 97 → 136 · 기둥 틈 14 → 18 · 업그레이드 칸 35 → 48(둥글기 8 · 틈 6) · 보급 틈 12 · 대기 틈 6. */
-.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(14px * var(--dks)); grid-template-columns: calc(100px * var(--dks)) minmax(0, 1fr) auto; }
+.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(12px * var(--dks)); grid-template-columns: calc(90px * var(--dks)) minmax(0, 1fr) auto; }   /* 14·100 → 12·90(2026-10-19) */
 .scr-motion-pc9 .scr-motion-infodock-upsq { gap: calc(6px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i { width: calc(36px * var(--dks)); height: calc(36px * var(--dks)); border-radius: calc(6px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i { width: calc(32px * var(--dks)); height: calc(32px * var(--dks)); border-radius: calc(6px * var(--dks)); }   /* 36 → 32(2026-10-19) */
 .scr-motion-pc9 .scr-motion-infodock-supply { gap: 0 calc(10px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock { --dock-qgap: calc(6px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-text, .scr-motion-pc9 .scr-motion-infodock-lines, .scr-motion-pc9 .scr-motion-infodock-foot { gap: calc(6px * var(--dks)); }
@@ -3282,7 +3286,12 @@
    --dock-h × --mini-up(1.2) · 전광판·인포창·틀은 --dock-h 그대로이고 미니맵 우물은 바닥 맞춤으로 틀 위로 넘쳐 솟는다(받침 .scr-fs-minipanel::before · 위 쇠판 ★★).
    독 맞춤(dockFit9)의 폭 셈에도 이 배수가 든다. */
 .scr-fs-dockframe { --mini-up: 1.2; --mini-h: round(nearest, calc(var(--dock-h) * var(--mini-up, 1)), 2px); }   /* 미니맵 키 짝수(2026-10-10) */
-.scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: var(--dock-h); min-width: 0; }
+/* ★★ 독 우물 차례 = **[미니맵 | 인포창 | 전광판]**이고 쇠판 윗선은 **인포창 키**다(2026-10-19, 요청: "독 내 순서 변경 미니맵 (인포창) 전광판 순으로 변경하고 인포창은 10프로 더 낮춤 ·
+   세 요소가 다 보일때 독 가운데가 쏙 들어간 모양이 됨") — 판(dockmain · --plate-h)은 가장 낮은 인포창(--info-h)에 맞추고, 미니맵(--mini-h)과 전광판(--dock-h)은 바닥 맞춤으로
+   그 위로 솟아 제 받침(::before)이 받친다 — 가운데 인포창 자리가 쏙 들어간다. 인포창이 안 서면(is-noinfo) 판은 전광판 키(옛 그대로). 폰은 --info-h = --dock-h 라 전광판이 안 솟는다. */
+.scr-fs-dockframe { --info-h: var(--dock-h); --plate-h: var(--info-h); }
+.scr-fs-dockframe.is-noinfo { --plate-h: var(--dock-h); }
+.scr-fs-dockmain { display: flex; align-items: flex-end; justify-content: center; gap: var(--dock-sep); height: var(--plate-h); min-width: 0; }
 /* (걷어냄 · 2026-10-16) 셋이 다 서면 미니맵을 한가운데 두던 격자(.is-trio · --side-w) — 보이는 요소를 통째로 나란히 · 묶음 가운데(위 flex justify-content center).
    요청: "보이는 요소를 통째로 합쳐서 중앙정렬 · 미니맵이 무조건 정가운데 X" · player-ui.md. */
 /* 숨은 자(ReplayMotionPlayer dockFit9) — 설계 치수의 CSS 계산값을 JS 가 읽는 자리: 폭 = 인포창 설계 폭 · 키 = 설계 키 · 왼 여백 = 구분 틈 · 오른 여백 = 틀 여백. */
@@ -3293,10 +3302,10 @@
    내용 전체 통째로 세로는 가운데 정렬") — 우물 폭 = 설계 폭 × --info-k(dockFit9) · 몸은 설계 폭·설계 키 그대로 짜고 transform 으로 k 배(가운데 기준) · 우물이
    flex 가운데 맞춤이라 축소된 몸이 세로 가운데에 선다. k = 1 이면 종전과 같다. */
 .scr-fs-dockmain > .scr-motion-infodock {
-  flex: none; align-self: flex-end; width: round(nearest, calc(var(--dock-w) * var(--info-k, 1)), 2px); max-width: none; height: var(--dock-h);
+  flex: none; align-self: flex-end; width: round(nearest, calc(var(--dock-w) * var(--info-k, 1)), 2px); max-width: none; height: var(--info-h);
   flex-direction: row; align-items: center; justify-content: center;
 }
-.scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { flex: none; width: var(--dock-w); transform: scale(var(--info-k, 1)); transform-origin: center center; }
+.scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { flex: none; width: var(--dock-w); height: var(--info-h); transform: scale(var(--info-k, 1)); transform-origin: center center; }
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
 .scr-fs-dockrow.is-fold { display: none; }
@@ -3338,8 +3347,16 @@
 .scr-fs-minipanel .scr-motion-minibox { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
 /* ★ 미니맵 받침 — 쇠판 윗선 위로 솟은 쇠 덩이(위 쇠판의 ★★ 층). 우물 둘레를 틀 여백(--dock-out)만큼 두르고 위 테·양옆 테(검은 1px + 밝은 1px)를 제가 긋는다 ·
    아래는 쇠판 윗선의 테(2px)를 몇 px 덮어 이음매를 지운다. 미니맵 상자(.scr-motion-minibox · z 1)가 그 위에 선다. */
-.scr-fs-dockmain > .scr-fs-minipanel { position: relative; --ped-h: calc(var(--mini-h) - var(--dock-h)); }   /* --ped-h = 쇠판 윗선 위로 솟은 몫 */
-.scr-fs-dockmain > .scr-fs-minipanel::before {
+.scr-fs-dockmain > .scr-fs-minipanel { position: relative; --ped-h: calc(var(--mini-h) - var(--plate-h)); }   /* --ped-h = 쇠판 윗선 위로 솟은 몫 */
+/* 전광판도 판(인포창 키) 위로 솟는 몫만큼 받침을 둔다(2026-10-19 위 ★★) — 판은 컨테이너라 제 겹 문맥이므로 받침은 z −1 로 깔고, 우물 바탕·그늘은 안의 .scr-dock-roster 가 진다(아래). */
+.scr-fs-dockmain > .scr-fs-rosterpanel { --ped-h: calc(var(--dock-h) - var(--plate-h)); overflow: visible; }
+.scr-fs-dockframe.is-noinfo .scr-fs-dockmain > .scr-fs-rosterpanel::before { display: none; }
+.scr-fs-dockmain > .scr-fs-rosterpanel { background: none; box-shadow: none; }
+.scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+  background: #0a0d12;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.scr-fs-dockmain > .scr-fs-minipanel::before, .scr-fs-dockmain > .scr-fs-rosterpanel::before {
   content: ""; position: absolute; z-index: 1; pointer-events: none;
   /* ★ 양옆은 틀 테까지(−out − 1 · 폰은 틀이 쇠판 폭 100% 라 받침의 옆 테가 쇠판의 옆 테와 **한 줄**로 겹친다). 아래는 쇠판 윗선 **아래 4px 까지** 내려가 쇠판 위 테
      (검은 1px + 흰 1px)를 받침 폭 안에서 덮는다 — 옆 테·밝은 안쪽 줄은 box-shadow 가 아니라 **솟은 몫(--ped-h) 키로 자른 그라데이션 켜**라 쇠판 안으로 안 파고든다
@@ -3361,6 +3378,7 @@
 }
 /* 미니맵 뒤 구분 막대(위 ::after 공통 규칙)는 우물이 솟은 몫만큼 **내려서** 쇠판 키만 선다 — 솟은 자리는 받침(::before)의 것이다. 인포창이 없으면(is-noinfo) 숨는다. */
 .scr-fs-dockmain > .scr-fs-minipanel::after { top: var(--ped-h); }
+.scr-fs-dockmain > .scr-fs-rosterpanel::before { z-index: -1; }   /* 전광판 받침은 우물(.scr-dock-roster) 밑(위 2026-10-19) */
 .scr-fs-minipanel .scr-fs-minimap {
   pointer-events: auto; box-sizing: border-box; flex: none;
   width: auto; height: min(100cqh, calc(100cqw / var(--scr-mini-ar, 1)));
@@ -4551,7 +4569,9 @@
 .scr-fs-stage { --sdk: var(--dk, 1); --sd-w: calc(36px * var(--sdk)); --sd-h: calc(162px * var(--sdk)); --sd-gap: calc(10px * var(--sdk)); --sd-room: calc(var(--sd-w) + var(--sd-gap) * 2); }
 .scr-motion-pc9 .scr-fs-stage { --sdk: calc(var(--dks, 1) * 1.3); --sd-w: calc(38px * var(--sdk)); --sd-h: calc(192px * var(--sdk)); }   /* 키 150/180 → 162/192(2026-10-12 · 위 라벨 "속도" 몫) */   /* 폭 44/48 → 36/38(2026-10-10, 요청: "좌우 폭 줄이자") */   /* PC 는 --dks 가 0.75 쯤이라 한 단 키운다 */
 .scr-speeddial {
-  position: absolute; left: var(--sd-gap); bottom: calc(var(--dock-lift, 0px) + var(--sd-gap)); z-index: 30001;   /* 오른아래 → **왼아래**(2026-10-12, 요청: "배속창 왼쪽으로 이동") */
+  /* 오른아래 → 왼아래(2026-10-12, 요청: "배속창 왼쪽으로 이동") → **다시 오른아래 · 더 낮게**(2026-10-19, 요청: "배속 조정창 오른쪽으로 이동하고 좀더 내림") — 독 차례가
+     [미니맵 | 인포창 | 전광판]이 되어 왼쪽은 가장 높이 솟는 미니맵 받침(--dock-lift)이고 오른쪽은 한 단 낮은 전광판 받침(--dock-lift-r · dockFit9)이다. */
+  position: absolute; right: var(--sd-gap); bottom: calc(var(--dock-lift-r, 0px) + var(--sd-gap)); z-index: 30001;
   width: var(--sd-w); height: var(--sd-h); box-sizing: border-box; padding: calc(11px * var(--sdk)) 0 calc(14px * var(--sdk));   /* 위아래 살짝 더(2026-10-10 · 옛 7/10) */
   display: flex; flex-direction: column; align-items: stretch;
   border-radius: calc(12px * var(--sdk)); background: rgba(8, 10, 14, 0.4); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);   /* 투명도 줄임(옛 흰 0.06) · 테두리 없이 그림자만(2026-10-10, 요청: "테두리 없애고 자연스런 UI") */

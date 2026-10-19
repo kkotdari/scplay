@@ -969,3 +969,10 @@ U 굽이로 만나 줄기 하나가 꽁무니로 간다. 등판 위를 앞뒤로
 - 철탑 (2.5, −0.6) → (2.2, −0.7) · 드럼 (1.9, 1.8) → (1.79, 1.74) — 커진 몸에 닿게(옛 틈 0.75 · 0.4).
 - BLD_NORM 1.663 → 1.768(bld-norm) · BLD_INK_MID9 [3.11, 2.65] → [3.19, 2.75](ink-center 옛/새 차 +0.08/+0.10) · addonWall.gen 다시 뽑음.
 - 🔎 `model-gl --kinds ctower --rots 45,135,225,315` · `scene-sheet --race 테란 --addons`.
+
+## 공사 중에는 임자색이 안 선다(2026-10-19)
+요청: "테란 건설 단계에서 임자색 데칼과 부품은 무조건 완공시에 나타나게".
+· `stageFaces`(bake9) — 테란 건물(애드온 포함 · `isTerranBld9` = SHAPE_GALLERY 건물·테란)이면 1~9단에서 칠하지 않은 낯(임자색 · f[2] 없음)과 그 낯과 **경로가 같은 덧칠**
+  (음영 topFace·sideFace · paleTeam 의 흰 켜)을 뺀다. 칸 몫(keepN9)은 임자색까지 넣어 셈한 그대로라 단조는 안 깨진다 · 10단(완성)은 이 함수를 안 지나 다 선다.
+· 임자색 부품을 받치던 칠한 테(엔베 렌즈 드럼의 어두운 뚜껑 테 따위)는 남는다 — 완공 때 그 위에 임자색 렌즈가 얹힌다.
+🔎 `node scripts/model-gl.mjs --kinds trapezoid,factory,ebay,cube --stages 3,6,9,0 --rots 45 --cell 260 --out x.png`.
