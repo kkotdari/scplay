@@ -1791,6 +1791,23 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     (kind9 === "Scarab" || kind9 === "Reaver" ? "리버" : kind9.startsWith("Siege Tank") ? "탱크" : UNIT_KO[kind9] ?? BUILDING_KO[kind9] ?? kind9);   // 캐논·성큰·벙커도 든다
   /** 그 사람의 러시 건물(상대 기지 안의 캐논·성큰) — buildMiles9 가 채운다 [착공 초, 상대, 글귀]. */
   const rushes9 = new Map<string, [number, string, string][]>();
+  /** 적 기지 안 침투 건물에서 난 유닛(아래 buildMiles9 ★★ 침투) — 사람 → (태그 → 종류). buildMiles9 가 채운다. */
+  const intrUnits9 = new Map<string, Map<number, string>>();
+  /** 침투 생산 — 건물 곁 유닛이 난 반경(타일) · 생산 이정표 간격(초). */
+  const INTR9 = { r: 4.5, gap: 40 };
+  const INTR_SKIP9 = new Set(["Larva", "Egg", "Cocoon", "Lurker Egg", "Interceptor", "Scarab", "Spider Mine", "Vulture Spider Mine", "Nuclear Missile"]);
+  /** ★ 장면에서 att 가 잡은 것(킬 수)의 절반 넘게를 침투 유닛이 냈으면 그 유닛의 이름("몰래 질럿" · 많은 종류 하나) — 아니면 null(아래 자막의 공격 이름 · 일꾼 견제). */
+  const intrName9 = (sc9: { kills: Map<string, [number, number, number, number][]> }, att9: string): string | null => {
+    buildMiles9(att9);
+    const u9 = intrUnits9.get(att9);
+    const ks9 = sc9.kills.get(att9) ?? [];
+    if (!u9 || u9.size === 0 || ks9.length === 0) return null;
+    const cnt9 = new Map<string, number>(); let n9 = 0;
+    for (const [, kt9] of ks9) { const k9 = u9.get(kt9); if (k9) { n9 += 1; cnt9.set(k9, (cnt9.get(k9) ?? 0) + 1); } }
+    if (n9 * 2 <= ks9.length) return null;
+    const top9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1])[0][0];
+    return `몰래 ${harassName9(top9)}`;
+  };
   /** att 가 def 기지에 RUSH_W9 초 안에 세운 캐논/성큰 → "포토러시"/"성큰러시". */
   const RUSH_W9 = 240;
   const rushKind9 = (att9: string, def9: string, sec9: number): string | null => {
@@ -2135,7 +2152,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       /* ★ 서술로 "A가 리버로 B 일꾼 견제" · "A가 B에게 포토러시"(2026-10-10, 요청: "~의 공격 말고 서술로 누가 누구를 공격 · 주어나 목적어가 화면주인이어도 넣기 · 제 3자 느낌") — 옛 "A의 B 리버 일꾼 견제". */
       if (k9 && v9) {
         if (named9) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: `에게 ${named9}` }];
-        return [{ raw: k9, p: "ga" }, { text: nm9 ? ` ${nm9}${koRo9(nm9)} ` : " " }, { raw: v9 }, { text: " 일꾼 견제" }];
+        const unm9 = intrName9(sc9, k9) ?? nm9;   // 적 기지 안에서 뽑은 유닛이면 "몰래 질럿"(위 intrName9 ★ · 2026-10-19)
+        return [{ raw: k9, p: "ga" }, { text: unm9 ? ` ${unm9}${koRo9(unm9)} ` : " " }, { raw: v9 }, { text: " 일꾼 견제" }];
       }
       return [{ raw: v9 ?? pick9 }, { text: nm9 ? ` ${nm9} 일꾼 견제 당함` : " 일꾼 견제 당함" }];
     }
@@ -2173,7 +2191,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const a09 = d9.atks[0];
       let ak9 = ""; let aw9 = 0;
       for (const [k9, w9] of sc9.killKind.get(a09) ?? []) if (w9 > aw9) { aw9 = w9; ak9 = k9; }
-      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
+      const in9 = intrName9(sc9, a09);   // 적 기지 안에서 뽑은 유닛의 공격(2026-10-19 · 위 intrName9 ★)
+      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? (in9 ? `${in9} 공격` : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
       const atts9 = name9 === "공격" ? d9.atks : [a09];
       return [...chips9(atts9, "ga"), { text: " " }, { raw: bo9 }, { text: name9 === "공격" ? " 기지 공격" : ` 기지에 ${name9}` },
         ...helpCap9(d9.helps ?? [])];
@@ -2182,7 +2201,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const foes9 = d9.foes.length > 0 ? d9.foes : [d9.foe];
       /* ★ 공격의 **이름**(2026-10-09, 요청: "자주 나오는 전략 — 포토러시 · 성큰러시 · 9드론 저글링러시 · 폭탄드랍") — 상대 기지의 캐논/성큰(rushKind9) > 수송선이 그 기지로
          간 뒤의 싸움(dropKind9) > 초반 저글링 킬(zlRush9) > 그냥 "공격". 방어 쪽은 "…함"(공격함과 같은 꼴). */
-      const attack9 = (att9: string, def9: string): string => rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? "공격";   // 저글링러시 이름은 걷었다(2026-10-10)
+      const attack9 = (att9: string, def9: string): string => {
+        const in9 = intrName9(sc9, att9);   // 적 기지 안에서 뽑은 유닛의 공격(2026-10-19 · 위 intrName9 ★)
+        return rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? (in9 ? `${in9} 공격` : null) ?? "공격";
+      };   // 저글링러시 이름은 걷었다(2026-10-10)
       /* ★ 공격·방어 다 **"A가 B를 공격"** 서술이다(2026-10-10, 요청: "누가 누구를 공격했는지 주어나 목적어가 화면주인이어도 넣기(자막은 제 3자 느낌으로) · ~의 공격
          말고 서술로") — 옛 공격 "A의 B 공격" · 방어 "A가 공격함 · C가 헬프옴"(화면 주인 B 를 뺐다). 이름 붙은 공격은 "A가 B에게 포토러시". 방어의 팀원은 "C가 헬프". */
       const hit9 = (atts9: string[], defs9: string[], name9: string): CapPart9[] =>
@@ -2413,6 +2435,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (inBase9 && !seenByFoe9(x9, y9, t9, tEnd9)) return "몰래";
       return "전진";
     };
+    /** 그 자리·때가 **적 기지 영역 안**이면 그 적(아래 침투 ★★ · 착륙 이정표) — 제 편 기지면 null. */
+    const foeBaseAt9 = (x9: number, y9: number, t9: number): string | null => {
+      if (allyBaseAt9(raw9, x9, y9, t9)) return null;
+      for (const r9 of new Set(rawOf9.values())) {
+        if (r9 === raw9 || (opts.teamOf?.[r9] !== undefined && opts.teamOf?.[r9] === opts.teamOf?.[raw9])) continue;
+        const pts9: [number, number][] = [...hallsAt9(r9, t9)];
+        const sf9 = start9.get(r9); if (sf9) pts9.push([sf9.x, sf9.y]);
+        const in9 = pts9.filter(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9));
+        /* 기지가 붙은 맵(빨무)에서 제 입구 심시티가 옆 사람 기지 영역에 걸친다 — 제 편 쪽(ownSideAt9 · 입구 막기와 같은 자)이면 침투가 아니다. */
+        if (in9.length > 0 && !ownSideAt9(raw9, x9, y9, t9, Math.min(...in9.map(([hx9, hy9]) => Math.hypot(hx9 - x9, hy9 - y9))))) return r9;
+      }
+      return null;
+    };
     const proxyOf9 = (e9: (typeof blds9)[number]): string =>
       proxyAt9(e9.bornX, e9.bornY, e9.born, Number.isFinite(e9.doneAt) ? Math.max(e9.doneAt, e9.born) : e9.born + 60);
     for (const e9 of blds9) {
@@ -2430,6 +2465,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (PROXY_KO9[k9] && e9.sites.length > 1 && !proxyOf9(e9)) {
         for (const [ls9, lx9, ly9] of e9.sites.slice(1)) {
           const lp9 = proxyAt9(lx9 + 1, ly9 + 1, ls9, ls9 + 20);
+          if (lp9 && foeBaseAt9(lx9 + 1, ly9 + 1, ls9)) break;   // 적 기지 안 착륙은 아래 침투가 "[B] 기지 안에 배럭 랜딩"으로 말한다(2026-10-19)
           if (lp9) { mile9(ls9, `${lp9} ${PROXY_KO9[k9]}`, { bornX: lx9 + 1, bornY: ly9 + 1 }, MILE_RANK9.attack); break; }
         }
       }
@@ -2529,6 +2565,63 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
       const t9 = TECH_MILE9[k9];
       if (t9 && !seen9.has(k9)) { seen9.add(k9); mile9(e9.born, t9, e9); }
+    }
+    /* ★★ **적 기지 안 건물·랜딩 · 몰래 생산 · 그 유닛**(2026-10-19, 요청: "상대방 기지안에 건물을 짓거나 랜딩한 경우 중요 중계 포인트 · 유닛을 몰래 생산하거나 건물을 늘리는 것도
+       중간중간 보여주고 그 유닛으로 공격하는 장면도") — 제 건물(러시 캐논·성큰 빼고 — 그건 포토/성큰러시)이 지은 자리나 내려앉은 자리(sites 둘째부터)가 적 기지 영역(본진 건물·
+       출발 자리의 inBaseArea9) 안이고 제 편 기지가 아니면 '침투 건물'이다(그 자리에 머문 [때, 다음 이륙·죽음]). 이정표(rank 공격 5 · 자리 = 그 건물):
+         · 그 적 기지의 첫 침투 건물 "[A] [B] 기지 안에 파일런 건설"/"… 배럭 랜딩" · 그 뒤 것 "… 게이트 추가 건설"/"추가 랜딩" — 생산 건물(PROXY_KO9)을 **지은** 것은
+           옛 "몰래/전진 게이트"(위)가 이미 말하므로 이정표만 빼고 침투 건물로는 센다(유닛·공격 자막의 재료).
+         · 침투 건물 곁(INTR9.r 타일)에서 그 건물이 있는 동안 난 제 유닛 — 첫 유닛 때 "[A] [B] 기지 안에서 질럿 생산" · 그 뒤 INTR9.gap 초마다(그 사이 난 것의 많은 종류 둘).
+       그 유닛 태그는 intrUnits9 에 남아 장면 자막이 "몰래 질럿"으로 부른다(아래 intrName9). */
+    {
+      const units9 = new Map<number, string>();
+      intrUnits9.set(raw9, units9);
+      const stays9: { e: (typeof world.lives)[number]; t0: number; t1: number; x: number; y: number; foe: string; land: boolean }[] = [];
+      for (const e9 of world.lives) {
+        if (!e9.bld || !own9.has(e9.owner) || e9.handoff || RUSH_BLD9[e9.kind]) continue;
+        const end9 = e9.died ?? total;
+        const spots9: [number, number, number, boolean][] = [[e9.born, e9.bornX, e9.bornY, false],
+          ...e9.sites.slice(1).map(([ls9, lx9, ly9]): [number, number, number, boolean] => [ls9, lx9 + 1, ly9 + 1, true])];
+        for (let i9 = 0; i9 < spots9.length; i9 += 1) {
+          const [t9, x9, y9, land9] = spots9[i9];
+          const foe9 = foeBaseAt9(x9, y9, t9);
+          if (!foe9) continue;
+          const lift9 = e9.lifts.find((l9) => l9 > t9 + 0.5);
+          stays9.push({ e: e9, t0: t9, t1: Math.min(end9, lift9 ?? end9), x: x9, y: y9, foe: foe9, land: land9 });
+        }
+      }
+      stays9.sort((a9, b9) => a9.t0 - b9.t0);
+      const intrN9 = new Map<string, number>();
+      for (const st9 of stays9) {
+        const n9 = (intrN9.get(st9.foe) ?? 0) + 1;
+        intrN9.set(st9.foe, n9);
+        if (PROXY_KO9[st9.e.kind] && !st9.land) continue;   // 지은 생산 건물은 옛 "몰래/전진 X" 이정표가 말한다
+        const ko9 = PROXY_KO9[st9.e.kind] ?? BUILDING_KO[st9.e.kind] ?? st9.e.kind;
+        const verb9 = st9.land ? (n9 > 1 ? "추가 랜딩" : "랜딩") : (n9 > 1 ? "추가 건설" : "건설");
+        /* 띄워 옮긴 생산 건물은 몰래/전진도 함께(옛 "몰래 배럭" 이정표의 뜻 · proxyAt9 — 적이 못 봤으면 몰래) — "[A] [B] 기지 안에 몰래 배럭 랜딩". */
+        const px9 = PROXY_KO9[st9.e.kind] && st9.land ? proxyAt9(st9.x, st9.y, st9.t0, st9.t0 + 20) : "";
+        miles9.push({ at: st9.t0, caps: [{ raw: raw9 }, { text: " " }, { raw: st9.foe }, { text: ` 기지 안에 ${px9 ? `${px9} ` : ""}${ko9} ${verb9}` }], rank: MILE_RANK9.attack, x: st9.x, y: st9.y });
+      }
+      for (const st9 of stays9) {
+        const born9 = world.lives.filter((u9) => !u9.bld && own9.has(u9.owner) && !u9.handoff && !INTR_SKIP9.has(u9.kind)
+          && u9.born >= st9.t0 && u9.born <= st9.t1 && Math.hypot(u9.bornX - st9.x, u9.bornY - st9.y) <= INTR9.r).sort((a9, b9) => a9.born - b9.born);
+        let last9 = -Infinity;
+        let win9: (typeof world.lives)[number][] = [];
+        const flush9 = (): void => {
+          if (win9.length === 0) return;
+          const cnt9 = new Map<string, number>();
+          for (const u9 of win9) { const k9 = UNIT_KO[u9.kind] ?? u9.kind; cnt9.set(k9, (cnt9.get(k9) ?? 0) + 1); }
+          const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 2).map(([k9]) => k9).join("·");
+          miles9.push({ at: win9[0].born, caps: [{ raw: raw9 }, { text: " " }, { raw: st9.foe }, { text: ` 기지 안에서 ${what9} 생산` }], rank: MILE_RANK9.attack, x: st9.x, y: st9.y });
+          win9 = [];
+        };
+        for (const u9 of born9) {
+          units9.set(u9.tag, u9.kind);
+          if (u9.born - last9 >= INTR9.gap) { flush9(); last9 = u9.born; }
+          win9.push(u9);
+        }
+        flush9();
+      }
     }
     for (const tc9 of tacticsOf9(raw9)) miles9.push({ at: tc9.at, caps: tc9.caps, rank: tc9.rank, ...(tc9.x !== undefined && tc9.y !== undefined ? { x: tc9.x, y: tc9.y } : {}) });
     miles9.sort((a9, b9) => a9.at - b9.at);

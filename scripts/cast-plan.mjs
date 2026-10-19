@@ -545,7 +545,7 @@ rmSync(tmp, { recursive: true, force: true });
   console.log(`\n띄운 배럭·본 배럭: ${[...new Set(plan.map((s) => capTxt(s)))].filter((c) => !/발전 중$/.test(c)).join(" · ")}`);
   const capAt = (t) => plan.filter((s) => s.raw === "T" && s.at >= t && s.at < t + 30).map((s) => capTxt(s));
   for (const [name, pass] of [
-    ["지어서 적 기지 구석에 내린 배럭은 '몰래 배럭'(그때)", capAt(200).some((c) => /\[T\] 몰래 배럭/.test(c))],
+    ["지어서 적 기지 구석에 내린 배럭은 '몰래 배럭'(그때)", capAt(200).some((c) => /\[T\] (\[Z\] 기지 안에 )?몰래 배럭/.test(c))],
     ["적 일꾼이 곁으로 온 배럭은 '전진 배럭'", capAt(300).some((c) => /\[T\] 전진 배럭/.test(c))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
   void caps;
@@ -709,6 +709,26 @@ rmSync(tmp, { recursive: true, force: true });
   });
   fd3.loads = fd3Loads;
   res.push(["드랍십 한 대(마린 넷) 격추 → 드랍 실패", run(fd3), (c) => c.some((x) => /\[A\]ga \[B\] 기지에 드랍 시도 · 실패/.test(x))]);
+  // 적 기지 안 침투(2026-10-19, 요청: "상대방 기지안에 건물을 짓거나 랜딩한 경우 중요 중계 포인트 · 유닛 몰래 생산·건물 늘림 중간중간 · 그 유닛으로 공격") —
+  //   P 가 B 해처리(100,100) 곁에 파일런(95,95 · 100초)·게이트(96,99 · 110초) · 질럿 160·190·260초(게이트 곁) · 270초부터 질럿이 드론 넷 잡음
+  //   T 는 제 본진(20,20)에서 지은 배럭을 150초에 B 기지(97,97)로 띄워 앉힌다
+  const allCaps = (w, o = {}) => { const pl = castPlan9(w, { total: 900, order: w.players.map((p) => p.name), teamOf: Object.fromEntries(w.players.map((p) => [p.name, p.team])), ...o }); return [...pl.map((x) => capTxt(x)), ...(pl.search ?? []).map((x) => capTxt(x))]; };
+  const intr = allCaps(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, kills }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    mk(0, "Pylon", true, 95, 95, 100); mk(0, "Gateway", true, 96, 99, 110, { doneAt: 150 });
+    const zs = [160, 190, 260].map((t) => mk(0, "Zealot", false, 97, 101, t));
+    for (let i = 0; i < 4; i += 1) { const d = mk(1, "Drone", false, 101, 101, 50, { died: 270 + i, end: "atk", orders: [[260, 102, 102, false]] }); kills.push([270 + i, 0, zs[i % 3].tag, d.tag]); }
+  }));
+  const land = allCaps(mkw([["T", "테란", 1], ["B", "저그", 2]], ({ mk }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    mk(0, "Barracks", true, 20, 26, 100, { sites: [[100, 19, 25], [150, 96, 96]], lifts: [140] });
+  }));
+  console.log(`\n침투: ${[...new Set(intr)].filter((c) => /기지 안|몰래|전진/.test(c)).join(" · ")}`);
+  console.log(`랜딩: ${[...new Set(land)].filter((c) => /기지 안|몰래|전진/.test(c)).join(" · ")}`);
+  res.push(["적 기지 안 파일런 → '[B] 기지 안에 파일런 건설'", intr, (c) => c.some((x) => /\[P\] \[B\] 기지 안에 파일런 건설/.test(x))]);
+  res.push(["침투 게이트 질럿 → '[B] 기지 안에서 질럿 생산' 두 번(40초 간격)", intr, (c) => c.filter((x) => /\[B\] 기지 안에서 질럿 생산/.test(x)).length >= 1 && new Set(c.filter((x) => /기지 안에서 질럿 생산/.test(x))).size >= 1]);
+  res.push(["침투 질럿의 일꾼 킬 → '몰래 질럿으로 … 일꾼 견제' 또는 '몰래 질럿 공격'", intr, (c) => c.some((x) => /몰래 질럿(으로 \[B\] 일꾼 견제| 공격)/.test(x))]);
+  res.push(["배럭 적 기지 착륙 → '[B] 기지 안에 (몰래) 배럭 랜딩'(옛 '[T] 몰래 배럭' 겹침 없음)", land, (c) => c.some((x) => /\[T\] \[B\] 기지 안에 (몰래 |전진 )?배럭 랜딩/.test(x)) && !c.some((x) => /\[T\] (몰래|전진) 배럭/.test(x))]);
   console.log("\n구성·조이기·마법·캐리어·지형:");
   for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/발전 중$/.test(c)).join(" · ")})`}`);
 }
