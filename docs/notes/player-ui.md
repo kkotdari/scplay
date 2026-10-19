@@ -1972,3 +1972,8 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   줄(.scr-fs-dockmain)이 가운데 맞춤이라 양끝 칸이 1px 안쪽에 섰다 → 그 칸의 받침(::before · −out−1)도 1px 안쪽 → 쇠판의 깎인 윗모서리 빗변 베벨이 받침과 쇠판 사이로 비쳤다.
 - `.scr-fs-dockmain > .scr-fs-rosterpanel { flex-grow: 1; max-width: 폭 + 4px }` — 끝 칸인 전광판이 남는 몫을 먹어 바깥 칸이 틀 끝에 붙는다. 4px 넘게 남는 넓은 틀은 종전 가운데 맞춤.
 - 🔎 `perf-check.mjs --ios --warm 0 --glblit --edgeprobe --shot x.png` → `[독 가장자리]` 의 pedMini.l = lower.l(옛 판 +1) · 하네스 PC(--wide)는 틀이 가운데라 안 드러난다.
+
+## PC 업그레이드 칸 글자 축소(2026-10-19)
+요청: "업그레이드 셀 글자 크기 축소해야함" — 인포창 한 단 낮춤(칸 36 → 32)에서 글자를 그대로 둬서 두 줄 글("보병 공격")에 단계 숫자(우하단 `b`)가 덮였다.
+· PC(`.scr-motion-pc9 .scr-motion-infodock-upsq`) 글자 10 → **9** · 긴 것 10 → **8** · 한 글자 16 → **14** · 단계 숫자 12 → **10**(1080p ·dks). 폰은 그대로(칸을 안 줄였다).
+🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --info --track 정구 --dockebay --shot x.png` → 인포창 왼아래 엔베 상황판.

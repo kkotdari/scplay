@@ -2604,10 +2604,11 @@
 .scr-motion-pc9 .scr-motion-infodock-glyph { font-size: calc(30px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-nums { font-size: calc(12px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-name { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i { font-size: calc(10px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i.is-long { font-size: calc(10px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq i.is-one { font-size: calc(16px * var(--dks)); }
-.scr-motion-pc9 .scr-motion-infodock-upsq b { font-size: calc(12px * var(--dks)); }
+/* 업그레이드 칸 글자 10·10·16·12 → 9·8·14·10(2026-10-19, 요청: "업그레이드 셀 글자 크기 축소" — 칸 36 → 32 에 글자만 남아 단계 숫자가 글자를 덮었다). */
+.scr-motion-pc9 .scr-motion-infodock-upsq i { font-size: calc(9px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i.is-long { font-size: calc(8px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq i.is-one { font-size: calc(14px * var(--dks)); }
+.scr-motion-pc9 .scr-motion-infodock-upsq b { font-size: calc(10px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-supply { font-size: calc(12px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock .scr-motion-info-line { font-size: calc(14px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock .scr-motion-info-bar { height: calc(10px * var(--dks)); }
