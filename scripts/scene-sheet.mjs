@@ -135,8 +135,18 @@ function makeWorld(race, zFix = 0) {
   /* --hurt: 건물마다 체력 줄을 싣는다(2026-09, 지적: "건물 체력바가 안 나옴" — 성한 건물은 바를 안 띄우므로 검증에 이 손이
      필요하다). 0.5초에 300 으로 깎이고 그 뒤 2.5초마다 1 씩 더 깎여 '맞은 지 3초 안'(HP_BAR_SEC)이 늘 참이다. 값은 절대 체력. */
   const hurtTicks = () => { if (!flag("--hurt", false)) return null; const t9 = [[F(0), 5000], [F(0.5), 300]]; for (let s = 3; s <= GAME_SEC; s += 2.5) t9.push([F(s), 300 - Math.round(s / 2.5)]); return t9; };
-  const bldTrack = (type, x, y) => tracks.push({ tag: tag++, owner: 0, type, keys: [
-    [F(0), x * 32, y * 32, 0, 0, type], [F(GAME_SEC), x * 32, y * 32, 0, 0, type]], hp: hurtTicks() });
+  /* --die S(2026-10-19, 지적: "프로토스 건물 폭발시 동심원과 햇살방사선이 중심이 안맞는 건물이 있음") — 건물이 S초에 무너진다(자취·체력이 거기서 끝난다).
+     찍는 순간은 46초라 `--die 45.7` 이면 폭발 0.3초 째가 찍힌다. */
+  const DIE = flag("--die", null) !== null ? Number(flag("--die")) : null;
+  /* 재생이 흐르므로 찍는 때가 몇 초 늦을 수 있다 — `--diestep s` 로 건물마다 s 초씩 늦춰 무너뜨리면 몇 채는 폭발 한가운데에 걸린다. */
+  const DIE_STEP = Number(flag("--diestep", 0));
+  let dieN = 0;
+  const bldTrack = (type, x, y) => {
+    const d9 = DIE !== null ? DIE + DIE_STEP * dieN++ : null;
+    tracks.push({ tag: tag++, owner: 0, type, keys: [
+      [F(0), x * 32, y * 32, 0, 0, type], [F(d9 ?? GAME_SEC), x * 32, y * 32, 0, d9 !== null ? 3 : 0, type]],   // 3 = TRUTH_ST_GONE(죽음)
+      hp: d9 !== null ? [[F(0), 5000], [F(d9), 0]] : hurtTicks() });
+  };
   const unitTrack = (type, x, y) => {
     const keys = [];
     // 방향은 정면(남쪽, 화면 아래 = 방향 바이트 128)(요청: "유닛들도 방향은 정면을 향하게").

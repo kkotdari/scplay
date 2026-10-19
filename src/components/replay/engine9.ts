@@ -7861,8 +7861,17 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     // 저그 공사 고치(완성 전 사라짐)는 건물 폭발이 아니라 **작은 고치 파편**(지적: 너무 크고 푸른 파동) — 크기는 발자국의
     // 절반, 건물 갈래(bld) 아님, 아래 DOM 무너짐(충격파·연기)도 안 낸다.
     const cocoonB9 = !finished9 && rk === "zerg";
+    /* ★ 폭발 셋(빛줄기 burst · 고리 clp)은 **한 자리**에서 난다(2026-10-19, 지적: "프로토스 기계(건물) 폭발시 동심원과 햇살방사선이
+       중심이 안맞는 건물이 있음" · "그런것들은 실드피격효과도 안맞음") — 둘이 갈려 있었다:
+         ① 높이 — burst 는 몸 가운데(bldMidLift9)인데 clp(고리·심)는 발자국 바닥 한가운데(들기 0)라, 키 큰 건물(포지·넥서스)일수록
+            고리가 빛줄기 아래로 처졌다(scene-sheet --die 실측: 포지 몸 반 키만큼). 이제 clp 도 같은 들기다.
+         ② 가로 — 그리는 몸은 겹침 해소(bldNudge)로 밀린 자리인데 폭발은 밀리기 전 자리였다 — 밀린 건물의 폭발은 몸 곁에서 났다.
+            실드 막(centerX = 밀린 자리)과도 그래서 어긋났다. 같은 밀림을 먹인다. */
+    const nud9 = bldNudge.get(i);
+    const dX9 = x + (nud9 ? nud9[0] : 0) + footDx(unit);
+    const dY9 = y + (nud9 ? nud9[1] : 0) + footDy(unit);
     if (t >= goneAt && t - goneAt <= BLD_FX_SEC) {
-      const [bfx9, bfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+      const [bfx9, bfy9] = posFrac(dX9, dY9);
       fxOps.push({
         kind: "burst", fx: bfx9, fy: bfy9, lift: (cocoonB9 ? 0 : bldMidLift9(unit)) + flyUp9, bld: !cocoonB9,   // 몸 가운데에서(지적)
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * (cocoonB9 ? 0.5 : 1),
@@ -7872,10 +7881,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       });
     }
     if (!cocoonB9) {
-      const cxx9 = x + footDx(unit); const cyy9 = y + footDy(unit);
-      const [cfx9, cfy9] = posFrac(cxx9, cyy9);
+      const [cfx9, cfy9] = posFrac(dX9, dY9);
       fxOps.push({
-        kind: "dom", style: "clp", fx: cfx9, fy: cfy9, lift: flyUp9 * pitchK(cyy9),
+        kind: "dom", style: "clp", fx: cfx9, fy: cfy9, lift: bldMidLift9(unit) + flyUp9,   // burst 와 같은 들기(위 ★ ①)
         size: (clpW / 100) * mapW9, sub: rk, age: t - goneAt, seed: i,
       });
     }
@@ -9995,7 +10003,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              상자의 1.5배이고 거기에 갈래표의 반지름 1.55 가 또 곱해져(tankboom) 실제로는 **몸의
              2.3배**가 깔렸다. 스플래시는 '넓게'가 뜻이지 '표적을 삼키게'가 아니다 — 1.0(몸의
              1.55배)이면 여전히 포구 불꽃(0.38)의 2.6배라 그 뜻이 산다. */
-          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, fxPx * (fxName9 === "siege" ? 1.0 : 0.8), "tankboom", sp9);
+          /* ×0.75(2026-10-19, 요청: "시즈탱크 스플래시 효과 반으로 75프로로 축소") — 시즈 1.0 → 0.75 · 탱크 모드 0.8 → 0.6(같은 판 tankboom · 비 그대로). */
+          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, fxPx * (fxName9 === "siege" ? 0.75 : 0.6), "tankboom", sp9);
         }
       } else if (beamLen > 1) {
         const [tfx9, tfy9] = posFrac(foe.bx, foe.by);

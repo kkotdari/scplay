@@ -2812,6 +2812,9 @@ const irradSpr9 = (): HTMLCanvasElement => domSpr9("irrcloud", (c9, S9) => {
   }
 }, 96);
 /** 용접 실 한 올 — 밑동(앵커 쪽)이 희고 끝으로 갈수록 스러진다. 둘레의 옅은 빛무리는 box-shadow 자리. */
+/** 스톰 벼락이 자라는 빠르기(칸/초) — 14 → 21(2026-10-19, 요청: "스톰 이펙트 속도 1.5배 상승시키기"). 한 줄기가 STORM_STAGES(16) 칸에 걸쳐 자라므로
+ *  한 줄기 1.14 → 0.76초. GL 판(위 put)과 2D 판(drawDomFx9 storm)이 같은 값을 쓴다. */
+const STORM_FPS9 = 21;
 const weldSpr9 = (): HTMLCanvasElement => domSpr9("weld", (c9, S9) => {
   const g9 = c9.createLinearGradient(0, 0, 0, S9);
   g9.addColorStop(0, "#eafcff"); g9.addColorStop(0.65, "#6fe4ff"); g9.addColorStop(1, "rgba(90,230,255,0)");
@@ -2844,7 +2847,7 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
     gl9.push({ mesh, ax: cx - k * bx.cx, ay: cy - k * (bx.top + bx.bot) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha, cam, gradR: 1e9, gradCy: 0, add: true, flat: true });
   };
   if (f.style === "storm") {
-    put("storm", Math.floor(u0 * 14) % (STORM_SEEDS * STORM_STAGES), W9, W9, ax, ay, 1);
+    put("storm", Math.floor(u0 * STORM_FPS9) % (STORM_SEEDS * STORM_STAGES), W9, W9, ax, ay, 1);
     return;
   }
   if (f.style !== "nuke" || u0 < NUKE_FALL_SEC) return;
@@ -3012,13 +3015,13 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     }
     case "storm": {
       /* ★ 사이오닉 스톰 — **모델 판을 얹는다**(요청: "둘다 옮겨"). 무늬는 회전 칸(spin)이
-         씨앗이라 칸이 바뀔 때마다 벼락이 통째로 다시 친다(초당 14칸).
+         씨앗이라 칸이 바뀔 때마다 벼락이 통째로 다시 친다(초당 STORM_FPS9 칸).
          판 크기는 **칸 전부가 캐시에 들어가도록** 예산으로 죈다 — 한 칸이 너무 크면 캐시가
          칸마다 어긋나 초당 열네 번 큰 판을 새로 굽는다(옛 지적: "고배율에서 스톰에 뮤탈이
          많이 맞을 때 느려짐"). 번짐 효과라 조금 흐려도 티가 안 난다.
          **더하기(lighter)로** 얹는다(요청: "더 글로우한 느낌") — 옛 DOM 층은 그냥 덮어
          그렸다. 어두운 땅 위에서 후광 겹이 서로 더해져 진짜 빛으로 읽힌다. */
-      const spin9 = Math.floor(u0 * 14) % (STORM_SEEDS * STORM_STAGES);
+      const spin9 = Math.floor(u0 * STORM_FPS9) % (STORM_SEEDS * STORM_STAGES);
       const bud9 = fxRasterMax9() / (STORM_SEEDS * STORM_STAGES * 1.5);
       const want9 = Math.min(W9 * Bd9, Math.sqrt(bud9 / 4), FX_RASTER_CAP);
       const q9 = Math.max(64, Math.ceil(want9 / 64) * 64);   // 64 칸으로 갈무리 — 배율이 조금 달라져도 다시 안 굽는다
@@ -3430,16 +3433,19 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
        심은 두 겹(연푸른 빛무리 + 흰 심)으로 더 밝게 둔다. 조각은 여전히 안 낸다. */
     /* (2026-10-17 재요청: "동심원은 제거 · 배경은 은은하게만 · 선 두 배 빼곡히") — 구 두 겹·테·심 원반이 겹겹이 동심원으로
        읽혔다. 원반을 다 걷고 바탕은 **부드러운 빛무리 한 장**(구운 방사 판 · 가장자리 없음)을 옅게만 깐다. 부풂 자 R9 는 그대로. */
-    const R9 = W * (0.22 + 0.78 * ease);
+    /* (2026-10-19 요청: "가운데 빈공간 없게 선을 구심점부터 채우고 선 밀도 두배로 크기(반지름) 반으로 축소") — 부풂 자를 반으로(RK9 0.5 —
+       빛무리·심·빛줄기 끝이 다 이 자를 탄다) · 줄기 수 두 배(건물 336·유닛 224) · 줄기 밑을 **구심점(0)** 에 붙였다(옛: 밑이 W·0.08 + 끝의 85% 로
+       뒤따라 나가 가운데가 비었다). */
+    const RK9 = 0.5;
+    const R9 = W * (0.22 + 0.78 * ease) * RK9;
     const fade = 1 - p;
     const glow9 = domSpr9("plasma-glow", (c9, S9) => radLay9(c9, S9,
       [[0, "rgba(150,205,255,0.9)"], [0.3, "rgba(90,160,255,0.45)"], [0.71, "rgba(60,130,255,0)"]]));
     ctx.globalAlpha = 0.32 * fade;
     ctx.drawImage(glow9, ax - R9 * 1.15, ay - R9 * 1.15, R9 * 2.3, R9 * 2.3);
     // 빛줄기 — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
-    const NR9 = bld ? 168 : 112;
+    const NR9 = bld ? 336 : 224;
     const tipE9 = 1 - (1 - p) ** 3;
-    const tailE9 = Math.max(0, (p - 0.12) / 0.88) ** 1.6;
     const RAY_COL9 = ["#2f6fe0", "#6fb8ff", "#eef8ff"];
     const RAY_AL9 = [0.85, 0.9, 1];
     const sd09 = sd;
@@ -3453,10 +3459,10 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
         const cr9 = rnd();
         const col9 = cr9 < 0.36 ? 0 : cr9 < 0.76 ? 1 : 2;
         if (col9 !== c9) continue;
-        const reach9 = W * (0.5 + 1.05 * lf9);
+        const reach9 = W * (0.5 + 1.05 * lf9) * RK9;
         const r19 = reach9 * tipE9;
-        const r09 = W * 0.08 + r19 * tailE9 * 0.85;
-        if (r19 - r09 < 0.6) continue;
+        const r09 = 0;
+        if (r19 < 0.6) continue;
         const hw9 = Math.max(0.45, W * 0.016 * wf9) * (1 - 0.4 * p);
         const ca9 = Math.cos(a9), sa9 = Math.sin(a9);
         ctx.moveTo(ax + ca9 * r09 - sa9 * hw9, ay + sa9 * r09 + ca9 * hw9);
@@ -7040,10 +7046,10 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
              방향은 안 준다: 땅에 퍼지는 폭발은 어느 쪽도 안 가리킨다. */
           const sp9 = (el9 - fly9) / 0.5;
-          /* 자는 지도의 것(engine9 의 ⚠: 1.5 → 1.0)에 **도록 몫 0.6**을 더 건다 — 시즈는 몸이
+          /* 자는 지도의 것(engine9 의 ⚠: 1.5 → 1.0 → 0.75)에 **도록 몫 0.6**을 더 건다 — 시즈는 몸이
              4타일이라 그 1.55배 폭발이 칸을 통째로 주황 안개로 덮는다(실측 트레이서 판). 무기의
              자는 안 건드리고 보여 주는 자리에서만 줄이는 그 규약이다. */
-          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 1.0 : 0.8) * 0.6, "tankboom", sp9);
+          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 0.75 : 0.6) * 0.6, "tankboom", sp9);   // 지도와 함께 ×0.75(2026-10-19)
         }
       } else {
         put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
