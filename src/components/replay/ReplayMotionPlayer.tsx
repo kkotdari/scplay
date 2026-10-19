@@ -2425,11 +2425,23 @@ function woundSpr9(name: string): HTMLCanvasElement {
       /* 통통한 혀 — 밑동에서 곧 제 폭을 채우고 위 3분의 1에서만 좁아진다(CSS의
          border-radius: 50% 50% 40% 40% / 80% 80% 25% 25% 가 만들던 덩이 꼴이다.
          바로 뾰족해지면 바늘이 되어 불꽃으로 안 읽힌다). */
+      if (name === "candle") {
+        /* ★ 프로토스 촛불은 **밑이 평평하다**(2026-10-19, 요청: "프로토스 건물 손상효과에서 뿌리부분원은 제거하고 뿌리부분은 좀 평평한 느낌으로 마무리") —
+           옛 꼴은 불꽃과 같은 덩이라 밑이 가운데 한 점으로 둥글게 모였다. 이제 밑변이 폭의 0.16~0.84 를 곧게 긋고, 두 귀만 살짝 둥글린다. */
+        c2.moveTo(cw9 * 0.16, ch9);
+        c2.quadraticCurveTo(cw9 * 0.02, ch9, cw9 * 0.03, ch9 * 0.86);
+        c2.bezierCurveTo(cw9 * 0.04, ch9 * 0.5, cw9 * 0.12, ch9 * 0.3, cw9 * 0.28, ch9 * 0.13);
+        c2.bezierCurveTo(cw9 * 0.4, ch9 * -0.02, cw9 * 0.6, ch9 * -0.02, cw9 * 0.72, ch9 * 0.13);
+        c2.bezierCurveTo(cw9 * 0.88, ch9 * 0.3, cw9 * 0.96, ch9 * 0.5, cw9 * 0.97, ch9 * 0.86);
+        c2.quadraticCurveTo(cw9 * 0.98, ch9, cw9 * 0.84, ch9);
+        c2.closePath(); c2.fill();
+      } else {
       c2.moveTo(cw9 * 0.5, ch9);
       c2.bezierCurveTo(cw9 * -0.02, ch9 * 0.94, cw9 * 0.04, ch9 * 0.46, cw9 * 0.28, ch9 * 0.13);
       c2.bezierCurveTo(cw9 * 0.4, ch9 * -0.02, cw9 * 0.6, ch9 * -0.02, cw9 * 0.72, ch9 * 0.13);
       c2.bezierCurveTo(cw9 * 0.96, ch9 * 0.46, cw9 * 1.02, ch9 * 0.94, cw9 * 0.5, ch9);
       c2.closePath(); c2.fill();
+      }
     } else if (name === "drop") {
       /* 핏방울 — 위가 밝고 아래가 검붉다(CSS의 to top 그대로). 둘레의 옅은 번짐은 box-shadow 자리. */
       const g9 = c2.createLinearGradient(0, ch9, 0, 0);
@@ -2507,13 +2519,13 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const top9 = y9 - W9 / 2;                   // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
-    /* 밑동 후광 — 테란은 잉걸(0.62초), 프로토스는 사이언 아지랑이(1.9초). */
-    const glowP9 = easeW9(triW9((t9 + dl9) / (race9 === "terran" ? 0.62 : 1.9) / 2));
-    const ga9 = race9 === "terran" ? 0.72 + 0.28 * glowP9 : 0.5 + 0.35 * glowP9;
-    const gs9 = race9 === "terran" ? 0.88 + 0.2 * glowP9 : 0.9 + 0.16 * glowP9;
-    ctx.globalAlpha = ga9;
-    ctx.drawImage(woundSpr9(race9 === "terran" ? "ember" : "haze"),
-      x9 - (W9 * gs9) / 2, y9 - (W9 * gs9) / 2, W9 * gs9, W9 * gs9);
+    /* 밑동 후광 — 테란만 잉걸(0.62초). 프로토스의 사이언 아지랑이(둥근 원 · 1.9초)는 걷었다(2026-10-19, 요청: "뿌리부분원은 제거" — 위 candle ★). */
+    if (race9 === "terran") {
+      const glowP9 = easeW9(triW9((t9 + dl9) / 0.62 / 2));
+      const gs9 = 0.88 + 0.2 * glowP9;
+      ctx.globalAlpha = 0.72 + 0.28 * glowP9;
+      ctx.drawImage(woundSpr9("ember"), x9 - (W9 * gs9) / 2, y9 - (W9 * gs9) / 2, W9 * gs9, W9 * gs9);
+    }
     /* 혀 — 테란은 하나(0.5초), 프로토스는 둘(0.55초·0.42초, 뒤엣것은 오른쪽으로 치우쳐 작다). */
     const flame9 = woundSpr9(race9 === "terran" ? "flame" : "candle");
     if (race9 === "terran") {
