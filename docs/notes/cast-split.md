@@ -1298,3 +1298,17 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
 상수 `CAST_MIN_TILES_W9`·`CAST_MIN_TILES_H9`. 중계·개인 추적(둘 다 castZoomFit9)이 탄다 · **분할 칸(맞대결 포함)은 종전대로** trackZoom9(18타일 셈).
 실측(128 맵) PC `--wide` 무대 1248×518 · 판 1248 · z 3.79 → **33.7×14.0** 타일(옛 세로 ≈ 20) · 폰 `--ios` 무대 358×592 · 판 592 · z 2.98 → **26.0×43** 타일.
 🔎 `perf-check --wide|--ios --fs --fsoff --warm 0 --glblit --diag --shot x.png` 의 `[전체화면 전]` 줄 z·지도·무대로 위 식을 센다.
+
+## 배율·자리 다시 셈은 한 곳 · 화면 전환은 곧장(2026-10-19)
+★ (요청: "접기펴기 분할화면 중계 등 모든 화면에서 쓰는 배율및 화면위치(중앙) 재계산 로직을 중앙화하고 화면전환즉시는 슬라이딩없이 바로 그화면이 나오게")
+· **`viewCut9`**(trackView 바로 위) — 화면 전환의 한 문: 미끄러짐(camGlideRef9)·스프링(spotSpring9)을 버리고 `camCutRef9`·`splitCutRef9` 를 세운다 → 다음 장의
+  trackView 는 다시 잡되 곧장 서고(keep 안 함 · 미끄러짐 안 검 · 스프링 fresh) 분할 칸(splitPaint9)은 칸 카메라·미끄러짐을 비워 그 사람 자리에 곧장 선다.
+  부르는 곳: 아래 viewGeom9(무대·전체화면·각도·접기) · `[splitOn9, castOn, trackRaw]` 레이아웃 effect(분할·중계·추적 켜고 끔).
+  사람이 바뀌면 곧장 서는 종전 규약은 그대로 · 같은 화면 안에서 무리가 걸어 나가는 미끄러짐·교전 자리 스프링(가까운 자리 끌기)은 화면 전환이 아니라 그대로다.
+· **`viewGeom9`**(옛 '보던 자리 지키기' 자리) — 옛 셋(castFitKey9 · foldGeoRef9 · viewKeyRef)을 한 레이아웃 effect 로: 무대 폭·키·덮는 판·전체화면·각도가 바뀐 커밋마다
+  viewCut9 다음 ① 링크가 쥐었으면 물러남 ② 분할이면 손 안 댐(칸이 cellZoom9 로 잡는다) ③ 중계·추적(camHeld9)이면 castZoomFit9 로 배율 + 팬·trackCamRef 를 덮는 판×배율 비로
+  ④ 손 카메라 독 접기면 타일 화면 크기·무대 위끝 지킴 ⑤ 그 밖은 바뀌기 전 한가운데 타일로(전체화면은 무대가 재질 때까지 holdRef).
+· **배율 규칙 한 곳**(castZoomFit9 곁): 한 화면 `castZoomFit9`(가로 26 · 세로 14 타일 하한) · 분할 칸 `cellZoom9`(splitPaint9 의 식을 옮김 — 값은 그대로) ·
+  켤 때 맞춤 `holdFit9`(중계 시작 castZoomRef9 · 개인 추적 toggleTrack 이 같이 쓴다).
+🔎 `perf-check --wide|--ios [--fs] [--pause] [--castoff --zoom 4 | --track 정구] --foldprobe 1 --warm 0 --diag --shot x.png` — 쥔 카메라는 접고 펼 때 배율만 바뀌고
+  재생 중엔 다음 장에 대상 자리로 곧장(옛: 하던 스프링을 이어 미끄러짐) · 손 카메라는 위끝 그대로. `--players 4 --split x.png`(칸 43×18타일 1.47배 — 종전과 같음).
