@@ -10778,7 +10778,8 @@ export default function ReplayMotionPlayer({
     const now9 = performance.now();
     if (now9 - camLockToastAt9.current < 2500) return;
     camLockToastAt9.current = now9;
-    replayToast(castOn || searchSegNow9 !== null ? "중계 모드에선 줌·화면 이동이 안 돼요" : splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : "개인 화면에선 줌·화면 이동이 안 돼요", { kind: "info" });
+    /* 단독 화면(중계·개인)은 이제 확대·축소가 열려 있다(아래 zoomCapRef9 ★ · 2026-10-19) — 막힌 것은 화면 이동뿐. 분할은 둘 다. */
+    replayToast(splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : castOn || searchSegNow9 !== null ? "중계 모드에선 화면 이동이 안 돼요" : "개인 화면에선 화면 이동이 안 돼요", { kind: "info" });
   };
   /** 잠긴 동안 누른 손가락 — 실제로 끌면(DRAG_SLOP 넘게) 토스트(위 ★). 그냥 누름(몸 집기)은 안 부른다. */
   const lockDragRef9 = useRef<{ id: number; sx: number; sy: number } | null>(null);
@@ -12160,6 +12161,12 @@ export default function ReplayMotionPlayer({
   };
   /** 중계·추적이 쥔 화면의 배율로 맞춘다(자리는 그대로 — 카메라가 다음 장에 잡는다). */
   const holdFit9 = (): void => setView9(castZoomFit9(), panRef.current);
+  /* ★ **단독 중계·개인 화면의 확대·축소**(2026-10-19, 요청: "중계 중 확대 축소" → 답(가운데 기준 · 상한 · 분할은 막음) → "응 그렇게") — 휠·핀치·↑↓ 를 연다(분할만 막는다 ·
+     끌기·미니맵 이동·한 손 줌·더블탭은 그대로 잠금). 기준점은 따로 안 고친다 — 카메라가 그 사람·자리를 잡는 동안은 trackView 가 배율이 바뀐 장에서 곧장 다시 가운데로 잡아
+     커서 기준의 팬을 덮어쓴다(눈에는 화면 가운데 기준 확대). 상한은 기본 배율(castZoomFit9) × CAST_ZOOM_MAX_K9 — 너무 당기면 교전 자리·드랍 길이 화면 밖으로 나간다. */
+  const CAST_ZOOM_MAX_K9 = 2;
+  const zoomCapRef9 = useRef<() => number>(() => ZOOM_MAX);
+  zoomCapRef9.current = (): number => (camLockRef9.current && !splitOnRef9.current ? Math.min(ZOOM_MAX, Math.max(1, castZoomFit9() * CAST_ZOOM_MAX_K9)) : ZOOM_MAX);
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세
@@ -13830,7 +13837,7 @@ export default function ReplayMotionPlayer({
       e.preventDefault();
       /* 분할보기에서는 휠 배율이 없다(요청: "분할모드에서 엣지투스크롤 휠 드래그 핀치 팬 모두 막기") — 칸마다 제 카메라가 있고
          본 지도는 숨어 있다. 기본 동작(페이지 굴림)만 끊고 돌아간다. */
-      if (splitOnRef9.current || camLockRef9.current) { camLockToastRef9.current(); return; }   // ★ 중계가 켜진 동안도(camLockRef9 · 2026-10-09) · 토스트(2026-10-11)
+      if (splitOnRef9.current) { camLockToastRef9.current(); return; }   // 분할만 막는다 — 단독 중계·개인 화면은 확대·축소가 열렸다(zoomCapRef9 ★ · 2026-10-19 · 옛 camLockRef9 도 막음)
       const lens = lensRef.current;
       if (!lens) return;
       const rect = el.getBoundingClientRect();
@@ -13852,7 +13859,7 @@ export default function ReplayMotionPlayer({
          자연수 사다리는 칸 사이가 늘 1 이라 곱으로 쌓으면 1 에서는 두 틱이 걸리고 4 에서는
          한 틱에 두 칸(5.6 → 6)을 넘는다. 보통 휠 한 틱(100px)이 정확히 **한 칸**이다. */
       const raw0 = zoomRawRef.current > 0 ? zoomRawRef.current : z0;
-      const raw1 = Math.min(ZOOM_MAX, Math.max(1, raw0 - dy9 * WHEEL_STEP_PER_PX9));
+      const raw1 = Math.min(zoomCapRef9.current(), Math.max(1, raw0 - dy9 * WHEEL_STEP_PER_PX9));
       zoomRawRef.current = raw1;
       /* (옛 기록 — 아래 ★ 의 '칸으로 끊지 않는다'는 1·2·4·8·16 사다리의 스냅을 걷은 말이고, 지금은 그
          자리에 **자연수 반올림**이 든다. 연속 렌더는 그대로다 — 굴리는 동안 정수 칸을 하나씩 지난다.)
@@ -13864,7 +13871,7 @@ export default function ReplayMotionPlayer({
          (zoomCommitRef → paint의 bakeZoom). 곧 스냅이 지키던 몫을 다른 데서 이미 지킨다.
          칸은 여전히 있다 — 마커·자세함 문턱(markerAt·detailAt)과 값 버튼의 눈금이
          그것이고, 그쪽은 연속 배율을 받아도 그대로 판정한다(snapZoom은 그 자리에 남는다). */
-      const z1 = Math.round(raw1);
+      const z1 = Math.min(zoomCapRef9.current(), Math.round(raw1));
       const ox = rect.left + rect.width / 2;
       const oy = rect.top + rect.height / 2;
       // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자).
@@ -14888,7 +14895,7 @@ export default function ReplayMotionPlayer({
          점이 없어 통째로 죽은 코드였다 — 그래서 두 손가락을 벌려도 아무 일도 안 났다. */
       if (!twoInMap(e)) return;
       // 분할보기는 핀치가 없다 — 브라우저 확대만 끊는다.
-      if (splitOnRef9.current || camLockRef9.current) { if (e.cancelable) e.preventDefault(); camLockToastRef9.current(); return; }   // 중계 중엔 핀치도 없다(camLockRef9) · 토스트
+      if (splitOnRef9.current) { if (e.cancelable) e.preventDefault(); camLockToastRef9.current(); return; }   // 분할만 핀치가 없다(단독 중계·개인 화면은 열렸다 · zoomCapRef9 ★ 2026-10-19) · 토스트
       const el2 = mapRef.current;
       if (!el2) return;
       if (e.cancelable) e.preventDefault();
@@ -14932,7 +14939,7 @@ export default function ReplayMotionPlayer({
       const oy = r.top + r.height / 2;
       // 상한 12 → 20(재요청: 더 높게) — 그 위는 선명도가 배킹 한계(4096px)에 막혀 무의미하다.
       // 핀치도 자연수다(요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") — 벌린 비를 반올림한다.
-      const z = Math.round(Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d)));
+      const z = Math.min(zoomCapRef9.current(), Math.round(Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d))));
       const mx2 = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       // 핀치 시작점 아래의 지도 지점이 손가락을 따라오도록 pan을 푼다.
@@ -17628,13 +17635,13 @@ export default function ReplayMotionPlayer({
          `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
-        if (splitOnRef9.current || camLockRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 중계 중에도(camLockRef9) · 토스트
+        if (splitOnRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 단독 중계·개인 화면은 열렸다(zoomCapRef9 ★ 2026-10-19) · 토스트
         closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
         if (!r9 || r9.width < 4) return;
-        const z9 = zoomNext(zoomRef.current, up9)
-          ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]);
+        const z9 = Math.min(zoomCapRef9.current(), zoomNext(zoomRef.current, up9)
+          ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]));
         if (z9 === zoomRef.current) return;
         const kk9 = z9 / zoomRef.current;
         const lim9 = panLimit(z9);
@@ -19086,6 +19093,23 @@ export default function ReplayMotionPlayer({
     el9.addEventListener("wheel", onWheel9, { passive: false });
     return () => el9.removeEventListener("wheel", onWheel9);
   });
+  /* ★ **배율 원**(2026-10-19, 요청: "확대축소 오버레이 · 기능은 현재 배율 보여주는 원 아이콘 · 오버레이 폭은 배속 오버레이와 같게 · 누르면 기본 배율로 돌아감") — 단독 중계·개인 화면
+     (확대·축소가 열린 때 · 위 zoomCapRef9 ★)만 무대 오른위에 선다. 값은 기본 배율(castZoomFit9) 대비 "×1.5" · 기본이면 옅게 · 누르면 holdFit9(기본 배율 · 자리는 카메라가 잡는다). */
+  const zoomFit9 = camLockRef9.current && !splitOn9 ? castZoomFit9() : 0;
+  const zoomK9 = zoomFit9 > 0 ? zoom / zoomFit9 : 1;
+  const zoomDial9 = zoomFit9 > 0 ? (
+    <button
+      type="button"
+      className={cx("scr-zoomdial", Math.abs(zoomK9 - 1) < 0.05 && "is-base")}
+      aria-label={`배율 ×${zoomK9.toFixed(1)} — 누르면 기본 배율`}
+      title="배율 — 누르면 기본 배율로"
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); viewCut9(); holdFit9(); }}
+    >
+      <span className="scr-zoomdial-val">×{zoomK9.toFixed(1)}</span>
+    </button>
+  ) : null;
   const speedDial9 = (
     <div
       ref={dialRef9}
@@ -20933,6 +20957,7 @@ export default function ReplayMotionPlayer({
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
+          {zoomDial9}
           {chatNode9}
           {!splitOn9 && (
             <div

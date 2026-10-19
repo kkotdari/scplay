@@ -984,8 +984,16 @@ if (has("--zoomlockprobe")) {
     return [zw9, await z9()];
   };
   const on9 = await page.evaluate(() => !!document.querySelector(".scr-dock-roster .scr-roster-cam.is-on"));
+  const dial9 = () => page.evaluate(() => document.querySelector(".scr-zoomdial-val")?.textContent ?? "-");
+  const d0 = await dial9();
   const z0 = await z9(); const [zw, zk] = await poke9();
   console.log(`[배율 잠금] 중계 ${on9 ? "켬" : "끔"} · 전 ${z0} · 휠 뒤 ${zw} · ↑ 뒤 ${zk}`);
+  /* 2026-10-19 — 단독 중계는 확대가 열렸다(상한 = 기본 × 2) · 배율 원(.scr-zoomdial)이 기본 대비 값을 보이고 누르면 기본으로. */
+  const d1 = await dial9();
+  if (has("--shot")) await page.screenshot({ path: String(flag("--shot", "x.png")).replace(/\.png$/, "_zoomed.png") });
+  await page.evaluate(() => { const b = document.querySelector(".scr-zoomdial"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(600);
+  console.log(`[배율 원] 전 ${d0} · 확대 뒤 ${d1} · 누른 뒤 ${await dial9()} (배율 ${await z9()})`);
   if (on9) {
     await page.evaluate(() => { for (const b of document.querySelectorAll(".scr-dock-roster .scr-roster-cam.is-on")) if (b instanceof HTMLElement) b.click(); });
     await page.waitForTimeout(600);
