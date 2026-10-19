@@ -1881,6 +1881,28 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const n9 = dropN9(att9, def9, sec9);
     return n9 >= 1 && !isBomb9(att9, def9, sec9) ? `${harassName9(kind9)} 드랍` : null;
   };
+  /** ★ **실패한 드랍**(2026-10-19, 요청: "실패한 드랍시도도 중계되게") — 그 장면에서 a 가 b 기지로 보낸 수송선(dropShips9 — 장면 앞 DROP_W9 초 안 그 기지로 명령 · 한 대라도)과
+   *  거기 탄 몸(탑승 절 · 장면 끝까지)이 잃은 몸값이 FAIL_DROP9.v 이상이고 a 가 잃은 것의 FAIL_DROP9.share 이상이며, a 가 b 에게 준 몸값이 잃은 것의 FAIL_DROP9.dealt 이하면
+   *  [a, b]. 격추(수송선째)든 내리자마자 전멸이든 같다. 주인공 편이 든 짝만 · 여럿이면 가장 많이 잃은 짝. */
+  const FAIL_DROP9 = { v: 200, share: 0.5, dealt: 0.35 };
+  const failDrop9 = (sc9: Sc9, pick9: string): [string, string] | null => {
+    let best9: [string, string] | null = null; let bw9 = 0;
+    for (const [key9, lost9] of sc9.pair) {
+      const [b9, a9] = key9.split(">");
+      if (lost9 < FAIL_DROP9.v || lost9 <= bw9 || sameSide9(a9, b9) || !(sameSide9(pick9, a9) || sameSide9(pick9, b9))) continue;
+      if ((sc9.pair.get(`${a9}>${b9}`) ?? 0) > lost9 * FAIL_DROP9.dealt) continue;
+      const ships9 = dropShips9(a9, b9, sc9.t0);
+      if (ships9.size === 0) continue;
+      const tags9 = new Set(ships9);
+      for (const [s9, pax9, ship9] of loadsSorted9) { if (s9 > sc9.t1) break; if (ships9.has(ship9)) tags9.add(pax9); }
+      const own9 = ownersOf9(a9);
+      let dl9 = 0;
+      for (const d9 of ds9) if (own9.has(d9.owner) && d9.tag !== undefined && tags9.has(d9.tag) && d9.sec >= sc9.t0 - 1 && d9.sec <= sc9.t1 + 1) dl9 += d9.v;
+      if (dl9 < FAIL_DROP9.v || dl9 < lost9 * FAIL_DROP9.share) continue;
+      best9 = [a9, b9]; bw9 = lost9;
+    }
+    return best9;
+  };
   /* (걷어냄 · 2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x") 저글링러시 이름(zlRush9 — 초반 장면의 킬이 대개 저글링). */
   /** 로/으로 — 받침(ㄹ 아닌)이 있으면 "으로" · 없거나 ㄹ 이면 "로"(한글 아닌 이름은 "로"). */
   const koRo9 = (s9: string): string => {
@@ -1937,9 +1959,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        칩을 주어로 세운다. 마법은 **그 장면에 든 사람 누구든**(주인공 먼저 · 그 장면 자리의 것만 — spellNote9) · 캐리어·지형·전술은 주인공의 것. 한 마디만(자막 폭). */
     const notes9: [string, string][] = [];
     const ppl9 = [pick9, ...[...sc9.by.keys()].filter((r9) => r9 !== pick9)];
+    /* ★ **드랍 글귀의 마법 덧말은 잡은 것**(2026-10-19, 요청: "드랍 자막에 스톰으로 돌파함 붙는 거 어색함 · 스톰으로 일꾼 몇 기 잡음만 있어도 될 듯") — 첫 문장이 드랍이면
+       몫(돌파함·방어해냄)을 안 타고 detail 꼴("스톰으로 일꾼 4기 잡음" · 잡지 않는 마법은 "활약함"). */
+    const drop9 = /드랍/.test(base9.map((c9) => c9.text ?? "").join(""));
     for (const r9 of ppl9) {
       if (sc9.why === "마법" && sc9.top?.raw === r9) continue;   // 마법이 장면 머리면 위 글귀가 이미 그것이다
-      const sp9 = spellNote9(sc9, r9, r9 === pick9 ? d9?.role : undefined);
+      const sp9 = spellNote9(sc9, r9, r9 === pick9 && !drop9 ? d9?.role : undefined, drop9);
       if (sp9) notes9.push([r9, sp9]);
     }
     if (d9) {
@@ -2066,7 +2091,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       /* 적 기지에 수송선으로 실어 와 친 마법이면 드랍이 첫 문장이다(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음"). */
       const bo9 = baseOwner9(sc9);
       const unit9 = top9.tech ? SPELL_KILLER9[top9.tech] : undefined;
-      const dn9 = bo9 && unit9 && !sameSide9(bo9, top9.raw) ? unitDrop9(top9.raw, bo9, sc9.t0, unit9) : null;
+      /* 폭탄드랍도 같은 꼴(2026-10-19, 요청: "드랍 자막에 스톰으로 돌파함 붙는 거 어색함") — 옛 셈은 한 대 드랍(unitDrop9)만 봐서 폭탄드랍의 스톰이 "스톰으로 돌파함"이 됐다. */
+      const dn9 = bo9 && !sameSide9(bo9, top9.raw) ? (unit9 ? unitDrop9(top9.raw, bo9, sc9.t0, unit9) : null) ?? dropKind9(top9.raw, bo9, sc9.t0) : null;
       const spd9 = bo9 && dn9 ? spellNote9(sc9, top9.raw, role9, true) : null;
       if (bo9 && dn9 && spd9) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: bo9 }, { text: ` 기지에 ${dn9}. ${spd9}` }];
       const sp9 = spellNote9(sc9, top9.raw, role9);
@@ -2074,6 +2100,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       // 활약이 없는 마법 장면은 마법을 말하지 않는다(2026-10-11) — 아래 맞대결·기지 글귀로.
     }
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
+    const fd9 = failDrop9(sc9, pick9);
+    if (fd9) return [{ raw: fd9[0], p: "ga" }, { text: " " }, { raw: fd9[1] }, { text: " 기지에 드랍 시도 · 실패" }];
     if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {
       const k9 = why9 === "일꾼 잡음" ? top9.raw : top9.vs;
       const v9 = why9 === "일꾼 잡음" ? top9.vs : top9.raw;

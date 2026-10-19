@@ -667,6 +667,48 @@ rmSync(tmp, { recursive: true, force: true });
     const ms = [0, 1, 2, 3].map(() => mk(0, "Marine", false, 20, 20, 400, { orders: [[740, 50, 50, false]] }));
     for (let i = 0; i < 5; i += 1) { const h = mk(1, "Hydralisk", false, 100, 100, 500, { died: 750 + i, end: "atk", orders: [[745, 58, 58, false]] }); kills.push([750 + i, 0, ms[i % 4].tag, h.tag]); }
   }), { mapW: 128, mapH: 128, terrain: hillT }), (c) => c.some((x) => /언덕 지형 활용/.test(x))]);
+  // ⑨ 실패한 드랍(2026-10-19, 요청: "실패한 드랍시도도 중계되게") — A 드랍십 둘(마린 여덟)이 B 본진(100,100)으로 가다 495초에 B 골리앗에 격추(실은 마린도 함께 죽는다)
+  const failDrop = (unload) => mkw(PL, ({ mk, kills }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Command Center", true, 100, 100, 0);
+    const gl = mk(1, "Goliath", false, 100, 100, 300);
+    const ds = [0, 1].map((i) => mk(0, "Dropship", false, 20, 20, 300, { orders: [[470, 100 + i, 100, false]], ...(unload ? {} : { died: 495 + i * 0.5, end: "atk" }) }));
+    const ms = [];
+    for (let i = 0; i < 8; i += 1) ms.push(mk(0, "Marine", false, 20, 20, 300, { died: (unload ? 500 : 495) + i * 0.3, end: "atk" }));
+    if (!unload) ds.forEach((d, i) => kills.push([495 + i * 0.5, 1, gl.tag, d.tag]));
+    ms.forEach((m, i) => kills.push([(unload ? 500 : 495) + i * 0.3, 1, gl.tag, m.tag]));
+    failDrop.loads = [...ms.map((m, i) => [465, m.tag, ds[i % 2].tag]), ...(unload ? ms.map((m) => [496, m.tag, 0]) : [])];
+  });
+  const fd1 = failDrop(false); fd1.loads = failDrop.loads;
+  const fd2 = failDrop(true); fd2.loads = failDrop.loads;
+  res.push(["드랍십 둘이 가다 격추 → 드랍 실패", run(fd1), (c) => c.some((x) => /\[A\]ga \[B\] 기지에 드랍 시도 · 실패/.test(x))]);
+  res.push(["내렸으나 바로 전멸 → 드랍 실패", run(fd2), (c) => c.some((x) => /\[A\]ga \[B\] 기지에 드랍 시도 · 실패/.test(x))]);
+  // 폭탄드랍 + 스톰(2026-10-19, 요청: "드랍 자막에 스톰으로 돌파함 붙는 거 어색함 · 스톰으로 일꾼 몇 기 잡음만") — P 셔틀 둘(하템 둘·질럿 넷)이 B 본진에 내려 스톰으로 SCV 넷
+  let bdLoads = [];
+  const bd = mkw([["P", "프로토스", 1], ["B", "테란", 2]], ({ mk, kills, casts }) => {
+    mk(0, "Nexus", true, 20, 20, 0); mk(1, "Command Center", true, 100, 100, 0);
+    const sh = [0, 1].map((i) => mk(0, "Shuttle", false, 20, 20, 300, { orders: [[580, 98 + i, 98, false]] }));
+    const ht = [0, 1].map(() => mk(0, "High Templar", false, 20, 20, 300));
+    const zl = [0, 1, 2, 3].map(() => mk(0, "Zealot", false, 20, 20, 300));
+    for (let i = 0; i < 4; i += 1) { const w = mk(1, "SCV", false, 100, 100, 300, { died: 601 + i * 0.3, end: "atk", orders: [[598, 99, 99, false]] }); kills.push([601 + i * 0.3, 0, ht[0].tag, w.tag]); }
+    for (let i = 0; i < 3; i += 1) { const m = mk(1, "Marine", false, 100, 100, 300, { died: 603 + i, end: "atk", orders: [[598, 99, 99, false]] }); kills.push([603 + i, 0, zl[i].tag, m.tag]); }
+    casts.push([600, 99, 99, "Psionic Storm", 0]);
+    bdLoads = [...[...ht, ...zl].map((u, i) => [570, u.tag, sh[i % 2].tag]), ...[...ht, ...zl].map((u) => [596, u.tag, 0])];
+  });
+  bd.loads = bdLoads;
+  res.push(["폭탄드랍 + 스톰 → '드랍. 스톰으로 일꾼 4기 잡음'(돌파함 아님)", run(bd), (c) => c.some((x) => /폭탄드랍\. 스톰으로 일꾼 4기 잡음/.test(x)) && !c.some((x) => /돌파함/.test(x))]);
+  // 드랍십 한 대(마린 넷)가 가다 격추 — 작은 실패도 장면이 서나
+  let fd3Loads = [];
+  const fd3 = mkw(PL, ({ mk, kills }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Command Center", true, 100, 100, 0);
+    const gl = mk(1, "Goliath", false, 100, 100, 300);
+    const d = mk(0, "Dropship", false, 20, 20, 300, { orders: [[470, 100, 100, false]], died: 495, end: "atk" });
+    kills.push([495, 1, gl.tag, d.tag]);
+    const ms = [0, 1, 2, 3].map((i) => mk(0, "Marine", false, 20, 20, 300, { died: 495 + i * 0.1, end: "atk" }));
+    ms.forEach((m, i) => kills.push([495 + i * 0.1, 1, gl.tag, m.tag]));
+    fd3Loads = ms.map((m) => [465, m.tag, d.tag]);
+  });
+  fd3.loads = fd3Loads;
+  res.push(["드랍십 한 대(마린 넷) 격추 → 드랍 실패", run(fd3), (c) => c.some((x) => /\[A\]ga \[B\] 기지에 드랍 시도 · 실패/.test(x))]);
   console.log("\n구성·조이기·마법·캐리어·지형:");
   for (const [name, caps, ok] of res) console.log(`  ${ok(caps) ? "✔" : "✘"} ${name}${ok(caps) ? "" : ` (실제 ${[...new Set(caps)].filter((c) => !/발전 중$/.test(c)).join(" · ")})`}`);
 }

@@ -13030,7 +13030,9 @@ export default function ReplayMotionPlayer({
     /** 결과 때보다 이만큼(초) 앞에서 연다 — 없으면 SEARCH_LEAD9. 핵 투하는 조준 끝부터(cast9 NUKE_SHOW_PRE9). */
     pre?: number;
     /** 세분 낱말(아래 ★ 세분 추천) — 이 줄이 맞는 "리콜 사용" · "정구 공격당함" 따위의 비교 글(searchNorm9). */
-    fx?: string[] };
+    fx?: string[];
+    /** 장면 자막 줄인가(편성표 search · 토막 자막) — 같은 장면 안의 딴 줄(마법 사용 · 몰아 잡기)을 한 결과로 접는 자(아래 searchHits9 ★ 중복). */
+    cap?: boolean };
   /* ★★ **추천어 세분**(2026-10-16, 요청: "키워드 추천 목록에 세분화로 — 리콜이면 리콜 개발/리콜 사용 · 질럿이면 질럿 생산/질럿 활약 · 공격함/공격당함 · 견제함/견제당함 ·
      스톰 개발/스톰 사용/스톰 활약 · 나이더스 건설/나이더스 사용") — 색인 줄마다 제가 무엇인지(세분 낱말 fx)를 단다: 첫 생산 "X 생산" · 첫 건설·N번째 본진 "X 건설" · 연구 "X 개발" ·
      마법·나이더스 "X 사용" · 마법 활약 자막("스톰으로 7킬 · 방어해냄 · 돌파함 …")과 유닛의 몰아 잡기(SEARCH_ACT_KILLS9 기 · 틈 SEARCH_ACT_GAP9 초) "X 활약" ·
@@ -13212,12 +13214,12 @@ export default function ReplayMotionPlayer({
       castCapFacets9(caps9, txt9, (r9) => nameOf9.get(r9), (w9) => ["기술", "마법", "유닛"].includes(terms9.get(w9) ?? ""));
     for (const x9 of (planAll9 as CastPlan9).search ?? []) {
       const txt9 = capTxt9(x9.caps);
-      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to, facet: capFacets9(x9.caps, txt9) });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(x9.at, null, txt9, "", { x: x9.x, y: x9.y, raw: x9.raw, spot: x9.spot, to: x9.to, facet: capFacets9(x9.caps, txt9), cap: true });
     }
     for (const g9 of planAll9) {
       if (!g9.caps || g9.caps.length === 0) continue;
       const txt9 = capTxt9(g9.caps);
-      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo, facet: capFacets9(g9.caps, txt9) });
+      if (txt9 && !nukeDup9(txt9) && !SEARCH_ONGOING9.test(txt9)) add9(g9.at, null, txt9, g9.why ?? "", { raw: g9.spot ? undefined : g9.raw, spot: g9.spot, to: g9.capTo, facet: capFacets9(g9.caps, txt9), cap: true });
     }
     out9.sort((a9, b9) => a9.sec - b9.sec);
     for (const w9 of SEARCH_TACTIC9) { const n9 = searchNorm9(w9); if (out9.some((h9) => h9.hay.includes(n9))) term9(w9, "전술"); }
@@ -13249,12 +13251,29 @@ export default function ReplayMotionPlayer({
     }
     const out9: SearchHit9[] = [];
     const last9 = new Map<string, number>();
+    /* ★ **한 장면은 한 결과**(2026-10-19, 요청: "중복으로 키워드 검색 안 되게") — "스톰"을 찾으면 드랍 장면 자막("… 드랍. 스톰으로 일꾼 4기 잡음")·그 장면의 토막 자막·
+       스톰 사용 줄·하이템플러 몰아 잡기가 다 따로 떠 같은 일을 몇 번씩 되감았다. 맞은 줄이 **앞서 남긴 자막 줄의 장면 안**(그 줄 때 ~ 끝 to 또는 + SEARCH_MERGE9)이고
+       자리를 둘 다 알면 SEARCH_SAME_R9 타일 안이면 접는다(앞의 자막 줄이 남는다 — 장면 길·끝을 든다). 거꾸로 딴 줄 뒤에 온 자막 줄도 그 줄 때 + SEARCH_MERGE9 안·같은 자리면 접는다. */
+    const SEARCH_SAME_R9 = 24;
+    const kept9: SearchHit9[] = [];
+    const sameScene9 = (k9: SearchHit9, h9: SearchHit9): boolean => {
+      if (!k9.cap && !h9.cap) return false;
+      const end9 = k9.cap ? Math.max(k9.to ?? k9.sec, k9.sec + SEARCH_MERGE9) : k9.sec + SEARCH_MERGE9;
+      if (h9.sec < k9.sec || h9.sec > end9) return false;
+      return k9.x === undefined || k9.y === undefined || h9.x === undefined || h9.y === undefined || Math.hypot(k9.x - h9.x, k9.y - h9.y) <= SEARCH_SAME_R9;
+    };
     for (const h9 of searchIndex9.list) {
       if (!need9.every((k9) => h9.fx?.includes(k9)) || !plain9.every((k9) => h9.hay.includes(k9))) continue;
       const prev9 = last9.get(h9.label);
       last9.set(h9.label, h9.sec);
       if (prev9 !== undefined && h9.sec - prev9 <= SEARCH_MERGE9) continue;   // 잇단 같은 글귀는 한 결과
       const { hay: _hay9, fx: _fx9, ...hit9 } = h9;
+      const ki9 = kept9.findIndex((k9) => sameScene9(k9, h9));
+      if (ki9 >= 0) {
+        if (h9.cap && !kept9[ki9].cap) { kept9[ki9] = h9; out9[ki9] = hit9; }   // 자막 줄이 이긴다(장면 길·끝을 든다)
+        continue;
+      }
+      kept9.push(h9);
       out9.push(hit9);
     }
     return out9;
