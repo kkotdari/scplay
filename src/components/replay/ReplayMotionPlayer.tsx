@@ -2511,6 +2511,34 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const sy9 = (f.my ?? 0) * zoom;
   /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 저그는 엔진이 잃은 체력 수치로 센 줄기 수(f.wn). */
   const n9 = race9 === "zerg" ? Math.max(1, f.wn ?? (lv2 ? 5 : 2)) : lv2 ? 5 : 2;
+  /* ★ 저그 줄기는 **서로 안 겹치게** 차례로 앉힌다(2026-10-19, 요청: "두개가 겹치지 않게하기") — 줄기 k 는 해시가 주는 후보 자리(최대 열여섯)를 차례로 보며
+     **앞 줄기들(0…k−1)** 과 가로로 겹치지 않는(사이 ≥ 제 반폭 0.3) 첫 자리에 앉는다 — 다 막히면 가장 덜 겹치는 자리. 앞 줄기만 보므로 줄기가 늘어도
+     있던 줄기 자리는 안 바뀐다(위 '수와 무관' ★ 그대로). 흩는 폭 0.56 → 0.84(발자국 폭) — 열 줄기까지 들어갈 틈. 세로가 안 겹치면 같은 줄에 서도 된다. */
+  const zX9: number[] = [];
+  if (race9 === "zerg") {
+    const fw9 = Math.max(W9 * 2.5, sx9);
+    const put9: { x: number; w: number; y0: number; y1: number }[] = [];
+    for (let kk9 = 0; kk9 < n9; kk9 += 1) {
+      const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
+      const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315));
+      const y09 = -(-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
+      const y19 = y09 + fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
+      let best9 = 0; let bestGap9 = Number.NEGATIVE_INFINITY;
+      for (let tr9 = 0; tr9 < 16; tr9 += 1) {
+        const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
+        const c9 = ((hc9 % 1000) / 1000 - 0.5) * 0.84 * fw9;
+        let gap9 = Number.POSITIVE_INFINITY;
+        for (const q9 of put9) {
+          if (y19 < q9.y0 || y09 > q9.y1) continue;   // 세로가 안 겹치면 상관없다
+          gap9 = Math.min(gap9, Math.abs(c9 - q9.x) - (w9 + q9.w));
+        }
+        if (gap9 > bestGap9) { bestGap9 = gap9; best9 = c9; }
+        if (gap9 >= w9 * 0.3) break;
+      }
+      put9.push({ x: best9, w: w9, y0: y09, y1: y19 });
+      zX9.push(ax + best9);
+    }
+  }
   for (let kk9 = 0; kk9 < n9; kk9 += 1) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
   /* 흩는 폭 ±0.16 · 살짝 왼쪽으로(−0.08) — 엔진이 쓰던 그 식 그대로다. */
@@ -2563,7 +2591,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     const fw9 = Math.max(W9 * 2.5, sx9);
     /* ★ 흩는 폭은 **수와 무관**하다(2026-10-19, 요청: "손상효과는 갯수가 늘어나는거지 위치가 바뀌는건 아님 · 기존있던거에 추가되거나 감소되는식") —
        옛 판은 줄기가 셋을 넘으면 폭을 0.4 → 0.62 로 넓혀, 넷째가 생기는 순간 있던 셋이 다 옆으로 옮겨 앉았다. 자리는 (건물 번호, 줄기 번호)만의 함수다. */
-    const sx09 = ax + (((h9 % 1000) / 1000 - 0.5) * 0.56) * fw9;
+    const sx09 = zX9[kk9];   // 위에서 서로 안 겹치게 앉힌 자리(zX9 ★)
     const sy09 = ay - (-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
     const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
     /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px) → 같은 날 "피폭포 폭 25프로 축소" ×0.75 → **4.05~7.2%**(하한 2.7px). */
@@ -2580,7 +2608,10 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
        왼쪽으로 긋지 않고 왼→오른으로 이어 그은 뒤 오른 가장자리로 올라온다. 물결은 줄기마다 위상이 다르고 천천히 일렁인다. */
     const WAVE9 = 6;
     const waveY9 = (k9: number): number => sy09 + L9 + Math.sin((k9 / WAVE9) * Math.PI * 3 + t9 * 3.2 + ph9 * 6.28) * w9 * 0.16;
-    ctx.globalAlpha = 0.92; ctx.fillStyle = "#6e0b10";
+    /* 바탕은 **옅은 세로 그러데이션**(2026-10-19, 요청: "저그 피폭포 배경도 약하게 그라데이션있게") — 위 #7c0d13 → 가운데 #6e0b10 → 아래 #560a0e. */
+    const bg9 = ctx.createLinearGradient(0, sy09, 0, sy09 + L9);
+    bg9.addColorStop(0, "#7c0d13"); bg9.addColorStop(0.55, "#6e0b10"); bg9.addColorStop(1, "#560a0e");
+    ctx.globalAlpha = 0.92; ctx.fillStyle = bg9;
     ctx.beginPath();
     for (let g9 = 0; g9 <= SEG9; g9 += 1) {
       const u9 = g9 / SEG9;
