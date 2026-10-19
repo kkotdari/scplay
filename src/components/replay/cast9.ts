@@ -99,7 +99,7 @@ export type CastPlanOpts9 = {
   /** 지도 크기(타일) — 센터 판정(2026-10-10). 없으면 센터 전술은 안 읽는다. */
   mapW?: number; mapH?: number;
   /** 참값 지형(2026-10-10) — 고도(0~3) · 걸을 수 있나 · 램프. 없으면 언덕탱·옆탱·입구 판정은 안 읽는다. */
-  terrain?: { level: (x: number, y: number) => number; walk: (x: number, y: number) => boolean; ramp?: (x: number, y: number) => boolean };
+  terrain?: CastTerrain9;
   /** 경기 채팅(2026-10-10) — [초, 말한 사람(참값 이름), 글]. "gg/ㅈㅈ" 선언 · "노엘/ㄴㅇ" 외침 자막의 재료. 없으면 안 읽는다. */
   chats?: readonly { sec: number; name: string; text: string }[];
   /** 임자별 자원 [초, 미네랄, 가스] 변곡점(openbwTracks res — 2026-10-11) — 인구 막힘은 그동안 가장 싼 유닛 값(BLOCK_MIN9)이 있을 때만 센다. 없으면 안 거른다. */
@@ -447,6 +447,102 @@ export function castCapFacets9(caps: readonly CapPart9[], txt: string, nameOf: (
   if (/캐리어 기동 공격/.test(txt)) act9("캐리어");
   return out9;
 }
+/** ★ 기지 영역(아래 castPlan9 areaOf9 ★★ — 벽·언덕·길목으로 가른 본진 땅) — 재생기 미니맵 이름표도 같은 자로 기지를 묶는다(2026-10-19). */
+export type CastTerrain9 = { level: (x: number, y: number) => number; walk: (x: number, y: number) => boolean; ramp?: (x: number, y: number) => boolean };
+/** area = 알맹이 + 입구 띠 · inner = 입구 띠 앞(알맹이를 같은 고도로 불린 것) · gate = 입구 띠 · closed = 언덕·벽으로 닫힌 땅. 칸 번호 = y × W + x. */
+export type BaseArea9 = { area: Set<number>; inner: Set<number>; gate: Set<number>; closed: boolean };
+const BASE_R9 = 18;
+const BASE_RMAX9 = 32;
+const BASE_OPEN9 = 48;
+const BASE_GATE9 = 7;   // 4 → 7(같은 날 ㊱) — 램프·길목의 길이(2~3)를 지나 그 앞 4칸까지
+const BASE_CORE9 = 4;
+export function baseArea9(tr9: CastTerrain9, W9: number, H9: number, hx9: number, hy9: number): BaseArea9 | null {
+  if (!(W9 > 0) || !(H9 > 0)) return null;
+  const cx9 = Math.floor(hx9); const cy9 = Math.floor(hy9);
+  const cnt9 = new Map<number, number>();
+  for (let dy9 = -3; dy9 <= 3; dy9 += 1) for (let dx9 = -3; dx9 <= 3; dx9 += 1) {
+    if (tr9.walk(cx9 + dx9, cy9 + dy9)) { const lv9 = tr9.level(cx9 + dx9, cy9 + dy9); cnt9.set(lv9, (cnt9.get(lv9) ?? 0) + 1); }
+  }
+  let lv9 = -1; let ln9 = 0;
+  for (const [l9, n9] of cnt9) if (n9 > ln9) { ln9 = n9; lv9 = l9; }
+  if (lv9 < 0) return null;
+  /* 상자(본진 건물 둘레 BASE_OPEN9 + 여유) 안에서만 잰다. */
+  const R9 = BASE_OPEN9 + BASE_CORE9 + 2;
+  const x09 = Math.max(0, cx9 - R9); const y09 = Math.max(0, cy9 - R9);
+  const x19 = Math.min(W9 - 1, cx9 + R9); const y19 = Math.min(H9 - 1, cy9 + R9);
+  const bw9 = x19 - x09 + 1; const bh9 = y19 - y09 + 1;
+  const li9 = (x9: number, y9: number): number => (y9 - y09) * bw9 + (x9 - x09);
+  const same9 = (x9: number, y9: number): boolean => tr9.walk(x9, y9) && tr9.level(x9, y9) === lv9 && !tr9.ramp?.(x9, y9);
+  /* ① 클리어런스 — 막힘(과 지도 밖)에서 8이웃 걸음. 상자 가장자리는 막힘이 아니다(모른다 · 열린 쪽으로 둔다). */
+  const clr9 = new Int16Array(bw9 * bh9).fill(-1);
+  const cq9: number[] = [];
+  for (let y9 = y09; y9 <= y19; y9 += 1) for (let x9 = x09; x9 <= x19; x9 += 1) {
+    if (!same9(x9, y9)) { clr9[li9(x9, y9)] = 0; cq9.push(li9(x9, y9)); continue; }
+    if (x9 === 0 || y9 === 0 || x9 === W9 - 1 || y9 === H9 - 1) { clr9[li9(x9, y9)] = 1; cq9.push(li9(x9, y9)); }
+  }
+  for (let qi9 = 0; qi9 < cq9.length; qi9 += 1) {
+    const k9 = cq9[qi9]; const x9 = (k9 % bw9) + x09; const y9 = Math.floor(k9 / bw9) + y09;
+    for (let dy9 = -1; dy9 <= 1; dy9 += 1) for (let dx9 = -1; dx9 <= 1; dx9 += 1) {
+      const nx9 = x9 + dx9; const ny9 = y9 + dy9;
+      if (nx9 < x09 || ny9 < y09 || nx9 > x19 || ny9 > y19) continue;
+      const n9 = li9(nx9, ny9);
+      if (clr9[n9] >= 0) continue;
+      clr9[n9] = clr9[k9] + 1; cq9.push(n9);
+    }
+  }
+  const cl9 = (x9: number, y9: number): number => { const v9 = clr9[li9(x9, y9)]; return v9 < 0 ? 99 : v9; };
+  const d9 = (x9: number, y9: number): number => Math.hypot(x9 + 0.5 - hx9, y9 + 0.5 - hy9);
+  /* ② 알맹이 — 곁 5 타일 안 가장 넓은 칸에서. */
+  let sx9 = -1; let sy9 = -1; let sb9 = 0;
+  for (let dy9 = -5; dy9 <= 5; dy9 += 1) for (let dx9 = -5; dx9 <= 5; dx9 += 1) {
+    const x9 = cx9 + dx9; const y9 = cy9 + dy9;
+    if (x9 < x09 || y9 < y09 || x9 > x19 || y9 > y19 || !same9(x9, y9)) continue;
+    if (cl9(x9, y9) > sb9) { sb9 = cl9(x9, y9); sx9 = x9; sy9 = y9; }
+  }
+  if (sx9 < 0) return null;
+  const core9 = Math.min(BASE_CORE9, sb9);
+  const area9 = new Set<number>([sy9 * W9 + sx9]);
+  const q9: number[] = [sy9 * W9 + sx9];
+  let rim9 = 0;
+  for (let qi9 = 0; qi9 < q9.length; qi9 += 1) {
+    const i9 = q9[qi9]; const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
+    for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
+      if (nx9 < x09 || ny9 < y09 || nx9 > x19 || ny9 > y19) continue;
+      const j9 = ny9 * W9 + nx9;
+      if (area9.has(j9) || !same9(nx9, ny9) || cl9(nx9, ny9) < core9) continue;
+      if (d9(nx9, ny9) > BASE_OPEN9) { rim9 += 1; continue; }
+      area9.add(j9); q9.push(j9);
+    }
+  }
+  /* ③ 알맹이를 같은 고도로 불린다(벽 곁 가장자리) — 길목 안으로는 core−1 걸음뿐. */
+  const grow9 = (steps9: number, ok9: (x9: number, y9: number) => boolean): void => {
+    let front9 = [...area9];
+    for (let g9 = 0; g9 < steps9; g9 += 1) {
+      const next9: number[] = [];
+      for (const i9 of front9) {
+        const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
+        for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
+          if (nx9 < 0 || ny9 < 0 || nx9 >= W9 || ny9 >= H9) continue;
+          const j9 = ny9 * W9 + nx9;
+          if (area9.has(j9) || !ok9(nx9, ny9)) continue;
+          area9.add(j9); next9.push(j9);
+        }
+      }
+      front9 = next9;
+    }
+  };
+  grow9(core9 - 1, same9);
+  /* 닫힌 언덕이면 BASE_RMAX9 까지 · 열린 땅이면 BASE_R9 원으로 자른다(벌판 확장 · 낮은 땅 본진). */
+  const cut9 = rim9 > 6 ? BASE_R9 : BASE_RMAX9;
+  for (const i9 of [...area9]) if (d9(i9 % W9, Math.floor(i9 / W9)) > cut9) area9.delete(i9);
+  /* ④ 입구 — 모든 가장자리에서 걸을 수 있는 칸(어느 고도든 · 램프 포함)으로 BASE_GATE9 걸음. 붙인 칸이 곧 입구 띠(castPlan9 gateCache9). */
+  const inner9 = new Set(area9);
+  grow9(BASE_GATE9, (x9, y9) => tr9.walk(x9, y9));
+  const gate9 = new Set<number>();
+  for (const i9 of area9) if (!inner9.has(i9)) gate9.add(i9);
+  return { area: area9, inner: inner9, gate: gate9, closed: rim9 <= 6 };
+}
+
 export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const total = Math.max(1, opts.total);
   /** 임자 번호 → 이름. 관전자·로스터 밖은 아예 안 담는다(그 사람은 중계에 안 선다). */
@@ -631,7 +727,6 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     }
     for (const f9 of first9.values()) startHallTags9.add(f9.tag);
   }
-  const BASE_R9 = 18;
   /* ★★ **기지 영역은 벽·언덕으로 가른다**(2026-10-11, 지적: "기지 영역 판단이 잘 안 돼서 그런 듯 — 벽이나 언덕으로 구분해야 하는데 그게 잘 안 되니 기지 공격을 그냥 공격이나
      교전으로 보고 맥이 계속 끊긴다") — 옛 자는 본진 건물에서 BASE_R9(18) 타일 원이라, 넓은 본진 언덕의 구석·입구 램프는 밖으로, 절벽 아래 남의 땅은 안으로 읽혔다.
      ★ **입구는 뚫려 있고 둘 이상이기도 하다**(같은 날: "입구는 뚫려 있지 · 입구(램프)가 두 개 이상이기도 하고") — 벽·고도만으로 넘쳐 채우면 같은 고도로 열린 입구(길목)로
@@ -641,12 +736,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        ③ 그 알맹이를 같은 고도 칸으로 BASE_CORE9−1 걸음 불려 벽 곁 가장자리를 되찾고(길목 안으로는 그만큼만),
        ④ 가장자리에서 BASE_GATE9 걸음(어느 고도든 · 램프 포함)을 붙인다 — 모든 램프·길목 앞이 기지 입구다.
      알맹이가 BASE_OPEN9 원까지 새어 나가면 열린 땅(벌판 확장)이라 BASE_R9 원으로, 닫혔으면 BASE_RMAX9 까지. 지형이 없으면 옛 원. */
-  const BASE_RMAX9 = 32;
   /** 열린 땅 가름 — 알맹이 넘쳐 채움이 이 원에 막히면 열린 땅이다. */
-  const BASE_OPEN9 = 48;
-  const BASE_GATE9 = 7;   // 4 → 7(같은 날 ㊱) — 램프·길목의 길이(2~3)를 지나 그 앞 4칸까지
   /** 길목에서 끊는 클리어런스 — 폭 7 칸 안팎 아래의 길목이 경계가 된다. */
-  const BASE_CORE9 = 4;
   const areaCache9 = new Map<number, Set<number> | null>();
   /** ★ 기지의 **입구 띠**(2026-10-14, 지적: "입구 판단이 아직 잘 안 되는 듯 · 로직 점검") — 아래 ④ 가 붙인 칸(램프·길목과 그 앞 BASE_GATE9 걸음)과 그 기지가 **닫혔나**(알맹이가
    *  BASE_OPEN9 원까지 안 샜다 · 언덕·벽으로 둘린 본진). 열린 땅(벌판 확장)의 입구 띠는 원 둘레 고리라 입구가 아니다 — 그때 입구 판정은 옛 어림(거리·램프)을 쓴다. */
@@ -655,93 +746,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const tr9 = opts.terrain;
     const W9 = opts.mapW ?? 0; const H9 = opts.mapH ?? 0;
     if (!tr9 || !(W9 > 0) || !(H9 > 0)) return null;
-    const cx9 = Math.floor(hx9); const cy9 = Math.floor(hy9);
-    const key9 = cy9 * W9 + cx9;
+    const key9 = Math.floor(hy9) * W9 + Math.floor(hx9);
     if (areaCache9.has(key9)) return areaCache9.get(key9)!;
-    const cnt9 = new Map<number, number>();
-    for (let dy9 = -3; dy9 <= 3; dy9 += 1) for (let dx9 = -3; dx9 <= 3; dx9 += 1) {
-      if (tr9.walk(cx9 + dx9, cy9 + dy9)) { const lv9 = tr9.level(cx9 + dx9, cy9 + dy9); cnt9.set(lv9, (cnt9.get(lv9) ?? 0) + 1); }
-    }
-    let lv9 = -1; let ln9 = 0;
-    for (const [l9, n9] of cnt9) if (n9 > ln9) { ln9 = n9; lv9 = l9; }
-    if (lv9 < 0) { areaCache9.set(key9, null); return null; }
-    /* 상자(본진 건물 둘레 BASE_OPEN9 + 여유) 안에서만 잰다. */
-    const R9 = BASE_OPEN9 + BASE_CORE9 + 2;
-    const x09 = Math.max(0, cx9 - R9); const y09 = Math.max(0, cy9 - R9);
-    const x19 = Math.min(W9 - 1, cx9 + R9); const y19 = Math.min(H9 - 1, cy9 + R9);
-    const bw9 = x19 - x09 + 1; const bh9 = y19 - y09 + 1;
-    const li9 = (x9: number, y9: number): number => (y9 - y09) * bw9 + (x9 - x09);
-    const same9 = (x9: number, y9: number): boolean => tr9.walk(x9, y9) && tr9.level(x9, y9) === lv9 && !tr9.ramp?.(x9, y9);
-    /* ① 클리어런스 — 막힘(과 지도 밖)에서 8이웃 걸음. 상자 가장자리는 막힘이 아니다(모른다 · 열린 쪽으로 둔다). */
-    const clr9 = new Int16Array(bw9 * bh9).fill(-1);
-    const cq9: number[] = [];
-    for (let y9 = y09; y9 <= y19; y9 += 1) for (let x9 = x09; x9 <= x19; x9 += 1) {
-      if (!same9(x9, y9)) { clr9[li9(x9, y9)] = 0; cq9.push(li9(x9, y9)); continue; }
-      if (x9 === 0 || y9 === 0 || x9 === W9 - 1 || y9 === H9 - 1) { clr9[li9(x9, y9)] = 1; cq9.push(li9(x9, y9)); }
-    }
-    for (let qi9 = 0; qi9 < cq9.length; qi9 += 1) {
-      const k9 = cq9[qi9]; const x9 = (k9 % bw9) + x09; const y9 = Math.floor(k9 / bw9) + y09;
-      for (let dy9 = -1; dy9 <= 1; dy9 += 1) for (let dx9 = -1; dx9 <= 1; dx9 += 1) {
-        const nx9 = x9 + dx9; const ny9 = y9 + dy9;
-        if (nx9 < x09 || ny9 < y09 || nx9 > x19 || ny9 > y19) continue;
-        const n9 = li9(nx9, ny9);
-        if (clr9[n9] >= 0) continue;
-        clr9[n9] = clr9[k9] + 1; cq9.push(n9);
-      }
-    }
-    const cl9 = (x9: number, y9: number): number => { const v9 = clr9[li9(x9, y9)]; return v9 < 0 ? 99 : v9; };
-    const d9 = (x9: number, y9: number): number => Math.hypot(x9 + 0.5 - hx9, y9 + 0.5 - hy9);
-    /* ② 알맹이 — 곁 5 타일 안 가장 넓은 칸에서. */
-    let sx9 = -1; let sy9 = -1; let sb9 = 0;
-    for (let dy9 = -5; dy9 <= 5; dy9 += 1) for (let dx9 = -5; dx9 <= 5; dx9 += 1) {
-      const x9 = cx9 + dx9; const y9 = cy9 + dy9;
-      if (x9 < x09 || y9 < y09 || x9 > x19 || y9 > y19 || !same9(x9, y9)) continue;
-      if (cl9(x9, y9) > sb9) { sb9 = cl9(x9, y9); sx9 = x9; sy9 = y9; }
-    }
-    if (sx9 < 0) { areaCache9.set(key9, null); return null; }
-    const core9 = Math.min(BASE_CORE9, sb9);
-    const area9 = new Set<number>([sy9 * W9 + sx9]);
-    const q9: number[] = [sy9 * W9 + sx9];
-    let rim9 = 0;
-    for (let qi9 = 0; qi9 < q9.length; qi9 += 1) {
-      const i9 = q9[qi9]; const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
-      for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
-        if (nx9 < x09 || ny9 < y09 || nx9 > x19 || ny9 > y19) continue;
-        const j9 = ny9 * W9 + nx9;
-        if (area9.has(j9) || !same9(nx9, ny9) || cl9(nx9, ny9) < core9) continue;
-        if (d9(nx9, ny9) > BASE_OPEN9) { rim9 += 1; continue; }
-        area9.add(j9); q9.push(j9);
-      }
-    }
-    /* ③ 알맹이를 같은 고도로 불린다(벽 곁 가장자리) — 길목 안으로는 core−1 걸음뿐. */
-    const grow9 = (steps9: number, ok9: (x9: number, y9: number) => boolean): void => {
-      let front9 = [...area9];
-      for (let g9 = 0; g9 < steps9; g9 += 1) {
-        const next9: number[] = [];
-        for (const i9 of front9) {
-          const x9 = i9 % W9; const y9 = Math.floor(i9 / W9);
-          for (const [nx9, ny9] of [[x9 + 1, y9], [x9 - 1, y9], [x9, y9 + 1], [x9, y9 - 1]]) {
-            if (nx9 < 0 || ny9 < 0 || nx9 >= W9 || ny9 >= H9) continue;
-            const j9 = ny9 * W9 + nx9;
-            if (area9.has(j9) || !ok9(nx9, ny9)) continue;
-            area9.add(j9); next9.push(j9);
-          }
-        }
-        front9 = next9;
-      }
-    };
-    grow9(core9 - 1, same9);
-    /* 닫힌 언덕이면 BASE_RMAX9 까지 · 열린 땅이면 BASE_R9 원으로 자른다(벌판 확장 · 낮은 땅 본진). */
-    const cut9 = rim9 > 6 ? BASE_R9 : BASE_RMAX9;
-    for (const i9 of [...area9]) if (d9(i9 % W9, Math.floor(i9 / W9)) > cut9) area9.delete(i9);
-    /* ④ 입구 — 모든 가장자리에서 걸을 수 있는 칸(어느 고도든 · 램프 포함)으로 BASE_GATE9 걸음. 붙인 칸이 곧 입구 띠(위 gateCache9). */
-    const inner9 = new Set(area9);
-    grow9(BASE_GATE9, (x9, y9) => tr9.walk(x9, y9));
-    const gate9 = new Set<number>();
-    for (const i9 of area9) if (!inner9.has(i9)) gate9.add(i9);
-    gateCache9.set(key9, { gate: gate9, closed: rim9 <= 6 });
-    areaCache9.set(key9, area9);
-    return area9;
+    const a9 = baseArea9(tr9, W9, H9, hx9, hy9);
+    if (a9) gateCache9.set(key9, { gate: a9.gate, closed: a9.closed });
+    areaCache9.set(key9, a9 ? a9.area : null);
+    return a9 ? a9.area : null;
   };
   /** (hx, hy) 기지의 입구 띠와 닫힘(위 gateCache9) — 지형이 없거나 못 재면 null. */
   const gateOf9 = (hx9: number, hy9: number): { gate: Set<number>; closed: boolean } | null => {

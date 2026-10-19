@@ -3850,7 +3850,7 @@
    글자는 칩의 0.6배(최소 8px) · 팀색 바탕 · 흰 글씨 · 굵게. 칩의 말줄임(overflow hidden)은 안쪽 글자 칸이 하므로 칩 겉은 자르지 않는다. */
 .scr-truby-host { position: relative; overflow: visible; }
 .scr-truby {
-  position: absolute; left: -0.1em; bottom: calc(100% - 0.12em); z-index: 2; pointer-events: none;
+  position: absolute; left: -0.1em; bottom: calc(100% - 1px); z-index: 2; pointer-events: none;   /* 걸침 0.12em → 1px(2026-10-19, 요청: "화면주인 자막 미니맵에서 팀 배지 유저칩이랑 겹침 덜하게") */
   font-size: max(0.6em, 8px); line-height: 1.25; font-weight: 700; letter-spacing: 0; white-space: nowrap;
   padding: 0 0.32em; border-radius: 2px; color: #fff; text-shadow: none;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);

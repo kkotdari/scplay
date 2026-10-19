@@ -13,7 +13,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { castAt9, castCapFacets9, castFocus9, castMoves9, castPlan9, NUKE_SHOW_PRE9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { baseArea9, castAt9, castCapFacets9, castFocus9, castMoves9, castPlan9, NUKE_SHOW_PRE9, type BaseArea9, type CapPart9, type CastPlan9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -19384,6 +19384,8 @@ export default function ReplayMotionPlayer({
      · 어두움 — 본진도 생산 건물도 하나 없으면(나감 = 다 사라짐 · 엘리 · 생산 끊김) 어둡고, 자리는 마지막 건물이 죽기 직전의 진영이다(어디 있던 사람인지는 남긴다).
      관전자(bases 밖)·건물이 한 채도 없던 사람은 이름표가 없다. 그리기는 ReplayFullscreenMinimap(tags) — 누름은 없다(2026-10-09 · 그림뿐). */
   const tTag9 = Math.floor(t);
+  /** 미니맵 이름표의 기지 땅(cast9 baseArea9 · 본진 건물 칸 → 영역) — 지형이 바뀌면 비운다. */
+  const tagAreaRef9 = useRef<{ tr: CastPlanOpts9["terrain"]; m: Map<number, BaseArea9 | null> }>({ tr: undefined, m: new Map() });
   const miniTags9 = useMemo((): MiniTag[] => {
     if (!entData || bases.length === 0) return [];
     const gw = Math.max(1, grid.width);
@@ -19408,6 +19410,20 @@ export default function ReplayMotionPlayer({
     /* ★ **기지마다 이름표**(2026-10-10, 요청: "여러 군데에 본진과 멀티 또는 이사 병행 중인 경우 미니맵 여러 곳에 유저칩을 보여줘야 함 · 단순 방어 건물이나 정찰용 건물 말고") —
        본진 건물(TAG_HALL9)끼리 TAG_R9 안이면 한 기지(빨무 본진의 넥서스 셋)로 묶고, 기지마다 둘레 TAG_R9 안 건물의 무게 중심에 하나씩 선다. 본진 건물이 없는 자리(캐논·벙커·
        정찰 파일런만 선 곳)는 이름표가 아니다. 본진 건물이 하나도 없으면 옛 셈대로 남은 건물 전부의 무게 중심 하나. 단(tier)은 그 기지의 건물 수다. */
+    /* ★ **묶음은 지형으로**(2026-10-19, 요청: "미니맵 유저칩 합치기 기준을 거리가 아닌 지형으로 나누기(입구 램프 나가야 나누기)") — 지형(castTerrain9)이 있으면 본진 건물마다
+       기지 땅(cast9 baseArea9 — 중계의 기지 영역과 한 자: 벽·언덕·길목으로 가른 알맹이를 같은 고도로 불린 것 inner · 그 앞 입구 띠 gate)을 재고, 두 본진 건물은 한쪽이 다른 쪽의
+       inner 안이면 한 기지다(언덕 본진의 넥서스 셋 = 하나 · 램프 아래 앞마당 = 따로). 건물은 그 기지의 땅(inner + 입구 띠) 안이면 그 기지 몫 · 어느 땅에도 없으면 옛 셈(TAG_R9).
+       뒤의 거리 합침(TAG_MERGE9)은 지형이 있으면 안 탄다 — 램프를 나가야 갈린다. 지형이 없거나 땅을 못 재면(열린 땅은 BASE_R9 원) 옛 거리 셈 그대로. */
+    const tr9 = castTerrain9;
+    if (tagAreaRef9.current.tr !== tr9) tagAreaRef9.current = { tr: tr9, m: new Map() };
+    const areaAt9 = (x9: number, y9: number): BaseArea9 | null => {
+      if (!tr9) return null;
+      const k9 = Math.floor(y9) * gw + Math.floor(x9);
+      const m9 = tagAreaRef9.current.m;
+      if (!m9.has(k9)) m9.set(k9, baseArea9(tr9, gw, gh, x9, y9));
+      return m9.get(k9)!;
+    };
+    const cellOf9 = (b9: { x: number; y: number }): number => Math.floor(b9.y) * gw + Math.floor(b9.x);
     const camps9 = (all9: TruthLife[], sec9: number): { x: number; y: number; n: number; prod: boolean; w: number }[] => {
       const live9: B9[] = [];
       let prod9 = false;
@@ -19420,9 +19436,25 @@ export default function ReplayMotionPlayer({
       if (live9.length === 0) return [];
       const halls9 = live9.filter((b9) => b9.hall);
       const near9 = (a9: B9, b9: B9): boolean => (a9.x - b9.x) ** 2 + (a9.y - b9.y) ** 2 <= TAG_R9 * TAG_R9;
+      /* 지형 묶음(위 ★) — 모든 본진 건물의 땅을 잴 수 있을 때만. */
+      const terr9 = !!tr9 && halls9.length > 0 && halls9.every((h9) => !!areaAt9(h9.x, h9.y));
+      /* 열린 땅(벌판 · 언덕·벽으로 안 닫힘)끼리는 넘을 램프가 없다 — 같은 고도이고 TAG_MERGE9 안이면 옛 거리 합침처럼 한 기지. 닫힌 땅(언덕 본진)이 끼면 땅으로만. */
+      const openPair9 = (a9: B9, b9: B9): boolean => !areaAt9(a9.x, a9.y)!.closed && !areaAt9(b9.x, b9.y)!.closed
+        && tr9!.level(Math.floor(a9.x), Math.floor(a9.y)) === tr9!.level(Math.floor(b9.x), Math.floor(b9.y))
+        && (a9.x - b9.x) ** 2 + (a9.y - b9.y) ** 2 <= TAG_MERGE9 * TAG_MERGE9;
+      const sameBase9 = (a9: B9, b9: B9): boolean => (terr9
+        ? areaAt9(a9.x, a9.y)!.inner.has(cellOf9(b9)) || areaAt9(b9.x, b9.y)!.inner.has(cellOf9(a9)) || openPair9(a9, b9)
+        : near9(a9, b9));
+      /** 건물이 그 본진 건물의 기지 몫인가 — 어느 본진의 inner 안이면 그 기지(들)만 · 아니면 입구 띠(area) · 어디에도 없으면 옛 TAG_R9(램프 아래 건물이 본진 입구 띠와 앞마당에 겹쳐 세지지 않게). */
+      const tier9 = (h9: B9, b9: B9): number => (areaAt9(h9.x, h9.y)!.inner.has(cellOf9(b9)) ? 2 : areaAt9(h9.x, h9.y)!.area.has(cellOf9(b9)) ? 1 : near9(h9, b9) ? 0 : -1);
+      const belongs9 = (h9: B9, b9: B9): boolean => {
+        if (!terr9) return near9(h9, b9);
+        const mine9 = tier9(h9, b9);
+        return mine9 >= 0 && halls9.every((o9) => tier9(o9, b9) <= mine9);
+      };
       const groups9: B9[][] = [];
       for (const h9 of halls9) {
-        const hit9 = groups9.filter((g9) => g9.some((x9) => near9(x9, h9)));
+        const hit9 = groups9.filter((g9) => g9.some((x9) => sameBase9(x9, h9)));
         const merged9 = [h9, ...hit9.flat()];
         for (const g9 of hit9) groups9.splice(groups9.indexOf(g9), 1);
         groups9.push(merged9);
@@ -19433,7 +19465,8 @@ export default function ReplayMotionPlayer({
         return { x: sx9 / sw9, y: sy9 / sw9, n: grp9.length, prod: prod9, w: sw9 };
       };
       if (groups9.length === 0) return [sum9(live9)];
-      const cs9 = groups9.map((g9) => sum9(live9.filter((b9) => g9.some((h9) => near9(h9, b9))))).sort((a9, b9) => b9.w - a9.w);
+      const cs9 = groups9.map((g9) => sum9(live9.filter((b9) => g9.some((h9) => belongs9(h9, b9))))).sort((a9, b9) => b9.w - a9.w);
+      if (terr9) return cs9;   // 지형 묶음이면 거리 합침(아래)을 안 탄다 — 램프를 나가야 갈린다
       /* ★ 가까운 기지는 **이름표 하나**(2026-10-11, 요청: "같은 이름표가 어느 정도 가까우면 굳이 두 개 띄우지 않기") — 무거운 기지부터 남기고, 남은 것에서 TAG_MERGE9 타일
          안의 가벼운 기지는 그 이름표에 합친다(자리는 무거운 쪽 · 건물 수는 더한다). 본진과 앞마당은 대개 한 이름표 · 멀리 떨어진 멀티·이사만 따로 선다. */
       const kept9: typeof cs9 = [];
@@ -19469,7 +19502,7 @@ export default function ReplayMotionPlayer({
     }
     return out9;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee, leftSec9]);
+  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee, leftSec9, castTerrain9]);
   const dockOps9: UnitDrawOp[] = (() => {
     if (picked) {
       const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);
