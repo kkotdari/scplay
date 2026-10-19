@@ -11910,10 +11910,10 @@ export default function ReplayMotionPlayer({
   /* 창 크기(winW·winH)도 함께 내놓는다 — 추적 카메라가 "지금 그 점이 가장자리에
      닿았나"를 재는 데 쓴다. 한계와 같은 자를 써야 판정과 이동이 안 어긋난다. */
   const panLimit = useCallback((z: number): {
-    x: number; y: number; yTop: number; winW: number; winH: number;
+    x: number; y: number; yTop: number; winW: number; winH: number; band: number;
   } => {
     const cov = coverRef.current;
-    if (cov.w <= 0 || cov.h <= 0) return { x: 0, y: 0, yTop: 0, winW: 0, winH: 0 };
+    if (cov.w <= 0 || cov.h <= 0) return { x: 0, y: 0, yTop: 0, winW: 0, winH: 0, band: 0 };
     const st = stageSizeRef.current;
     const k9 = pitchKRef.current;
     /** 가로로 보이는 몫 — 무대 폭(지도가 그보다 좁으면 지도 폭). */
@@ -11958,11 +11958,19 @@ export default function ReplayMotionPlayer({
       const vT9 = den9 - R9 * pg9.S > 1e-6 ? -(R9 * pg9.P) / (den9 - R9 * pg9.S) : -pg9.hPre;
       const up9 = z * (pg9.cy + pg9.q * pg9.C * (pg9.hPre / 2 + vT9));         // 아래로 끌 수 있는 최대(= 윗줄을 본다)
       const dn9 = z * (pg9.q * pg9.C * (pg9.hPre / 2 - vB9) - pg9.cy);         // 위로 끌 수 있는 최대(= 아랫줄을 본다)
-      return { x: x9, y: Math.max(0, dn9), yTop: Math.max(0, up9) + Math.max(0, band9), winW, winH };
+      return { x: x9, y: Math.max(0, dn9), yTop: Math.max(0, up9) + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
     }
     const y9 = Math.max(0, (cov.h * k9 * z - winH) / 2);
-    return { x: x9, y: y9, yTop: y9 + Math.max(0, band9), winW, winH };
+    return { x: x9, y: y9, yTop: y9 + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
   }, []);
+  /** ★ **가운데 잡기의 위 한계 — 맨 위 그림 여유는 빼고 잡는다**(2026-10-19, 요청: "화면 중앙 잡는거에서 맨위 여유공간은 빼고 잡기 · 거기에 유닛이 있으면
+   *  어쩔수없지만") — 여유(band)는 맨 윗줄에 선 키 큰 몸이 잘리지 않게 위로 더 끌 수 있게 둔 몫이라, 무엇을 가운데로 데려오는 셈(중계·추적 카메라 · 링크 ·
+   *  검색 · 보던 자리 지키기 · 미니맵 짚기)은 그 몫을 안 쓴다. 다만 데려오는 자리(타일 y = ty)가 지도 맨 위 BAND_TILES 줄 안이면 그만큼 연다(맨 윗줄 = 다 ·
+   *  BAND_TILES 줄 아래 = 0). 손으로 끄는 길(드래그·관성·확대)은 종전대로 여유까지 다 쓴다. */
+  const centerTop9 = (lim: { yTop: number; band: number }, ty: number): number => {
+    const need9 = Math.max(0, Math.min(1, (BAND_TILES - ty) / BAND_TILES));
+    return lim.yTop - lim.band * (1 - need9);
+  };
   /* ★ 추적을 켤 때 맞출 배율 — **4배 고정**이다(요청: "추적모드 선택 시 기본 배율을 타일 수로 계산하던 걸
      취소하고 4배로 고정할게 · 수동으로 변경은 계속 오픈") ─────────────────────────────────────────────
      한동안 '화면 가로에 드는 타일 수(24타일)'로 배율을 냈다. 상자 모양이 달라도 보이는 넓이가 같다는 점은
@@ -12404,7 +12412,7 @@ export default function ReplayMotionPlayer({
     /** 그 점을 한가운데로 데려오는 자리(지도 밖으로는 못 나가게 죈다). */
     const mid9 = {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx9) * cov9.w * z9)),
-      y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
+      y: Math.min(centerTop9(lim9, trackAt.pts.reduce((m9, q9) => Math.min(m9, q9.y), trackAt.y)), Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
     };
     const cur9 = trackCamRef.current;
     /* ★ 사건 자리 토막은 스프링(위 SPOT_OMEGA9 ★) — 사람·배율이 바뀌었거나 창 하나 넘게 떨어지면 곧장 선다. */
@@ -12792,7 +12800,7 @@ export default function ReplayMotionPlayer({
       const wx9 = (0.5 - initialView.cx) * bw * z9;
       const wy9 = (0.5 - initialView.cy) * bh * z9;
       const gx9 = Math.min(lim.x, Math.max(-lim.x, wx9));
-      const gy9 = Math.min(lim.yTop, Math.max(-lim.y, wy9));
+      const gy9 = Math.min(centerTop9(lim, initialView.cy * grid.height), Math.max(-lim.y, wy9));
       linkLog9(`앉힘 z${z9} 바람 ${wx9.toFixed(0)},${wy9.toFixed(0)} 한계 ${lim.x.toFixed(0)}/${lim.y.toFixed(0)}·${lim.yTop.toFixed(0)} → ${gx9.toFixed(0)},${gy9.toFixed(0)} 상자 ${bw}x${bh}`);
       setView9(z9, { x: gx9, y: gy9 }, true);
     };
@@ -13880,7 +13888,7 @@ export default function ReplayMotionPlayer({
     const cy9 = fr9 ? fr9[1] : y9 / Math.max(1, grid.height);
     setView9(z9, {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx9) * cov9.w * z9)),
-      y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
+      y: Math.min(centerTop9(lim9, y9), Math.max(-lim9.y, (0.5 - cy9) * cov9.h * z9)),
     });
   };
   /* (옮김 2026-10-19) 무대가 바뀔 때 중계 배율 다시 맞추기(castFitKey9) · 손 카메라 독 접기의 위끝 지키기(foldGeoRef9) — 아래 '보던 자리 지키기'와 함께
@@ -13907,7 +13915,7 @@ export default function ReplayMotionPlayer({
     const z9 = zoomRef.current;
     const lim9 = panLimit(z9);
     const nx9 = Math.min(lim9.x, Math.max(-lim9.x, (0.5 - hold9.cx) * bw9 * z9));
-    const ny9 = Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - hold9.cy) * bh9 * z9));
+    const ny9 = Math.min(centerTop9(lim9, hold9.cy * grid.height), Math.max(-lim9.y, (0.5 - hold9.cy) * bh9 * z9));
     if (Math.abs(nx9 - panRef.current.x) < 0.5 && Math.abs(ny9 - panRef.current.y) < 0.5) return;
     viewDiagPush9("link", `${nx9.toFixed(1)},${ny9.toFixed(1)}`);
     linkLog9(`다시 ${panRef.current.x.toFixed(0)},${panRef.current.y.toFixed(0)} → ${nx9.toFixed(0)},${ny9.toFixed(0)} 상자 ${bw9}x${bh9} 한계 ${lim9.x.toFixed(0)}/${lim9.y.toFixed(0)}`);
@@ -15055,7 +15063,7 @@ export default function ReplayMotionPlayer({
     viewDiagPush9("center", `${tx.toFixed(1)},${ty.toFixed(1)}`);
     setView9(z, {
       x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * r.width * z)),
-      y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * r.height * z)),
+      y: Math.min(centerTop9(lim, ty), Math.max(-lim.y, (0.5 - fy) * r.height * z)),
     });
     return true;
   };
@@ -20494,7 +20502,7 @@ export default function ReplayMotionPlayer({
     const lim = panLimit(zS9);
     setView9(zS9, {
       x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * fsCoverW * zS9)),
-      y: Math.min(lim.yTop, Math.max(-lim.y, (0.5 - fy) * fsCoverH * zS9)),
+      y: Math.min(centerTop9(lim, fy * grid.height), Math.max(-lim.y, (0.5 - fy) * fsCoverH * zS9)),
     });
   };
   /* ★ 전체화면을 껐다 켜면 미니맵을 **다시 칠한다**(지적: "전체화면 off 시 미니맵이

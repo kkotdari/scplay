@@ -1312,3 +1312,7 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
   켤 때 맞춤 `holdFit9`(중계 시작 castZoomRef9 · 개인 추적 toggleTrack 이 같이 쓴다).
 🔎 `perf-check --wide|--ios [--fs] [--pause] [--castoff --zoom 4 | --track 정구] --foldprobe 1 --warm 0 --diag --shot x.png` — 쥔 카메라는 접고 펼 때 배율만 바뀌고
   재생 중엔 다음 장에 대상 자리로 곧장(옛: 하던 스프링을 이어 미끄러짐) · 손 카메라는 위끝 그대로. `--players 4 --split x.png`(칸 43×18타일 1.47배 — 종전과 같음).
+· ★ **가운데 잡기는 맨 위 그림 여유를 빼고**(2026-10-19, 요청: "화면 중앙 잡는거에서 맨위 여유공간은 빼고 잡기 · 거기에 유닛이 있으면 어쩔수없지만") — `centerTop9(lim, ty)`
+  (panLimit 곁 · panLimit 이 band 를 함께 낸다): 데려오는 셈(trackView 의 mid9 — 무리 몸 가운데 가장 위 y · 링크 앉힘·다시 앉힘 · lookAtTile9 · centerOnTile · 미니맵 짚기 fsSeek)의
+  위 한계 = yTop − band × (1 − need) · need = (BAND_TILES − ty)/BAND_TILES 를 0~1 로(맨 윗줄 = 여유 다 · 4줄 아래 = 0). 손 길(드래그·관성·확대·죔)은 여유까지 다.
+  실측(`perf-check --ios --castoff --zoom 4 --cx 0.4 --cy 0.06 --pause --foldprobe dry`): 화면 위끝 타일 −4.0(빈 여유 4줄) → 0.0 · cy 0(맨 윗줄)은 −4.0 그대로.
