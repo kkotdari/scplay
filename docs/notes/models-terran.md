@@ -976,3 +976,6 @@ U 굽이로 만나 줄기 하나가 꽁무니로 간다. 등판 위를 앞뒤로
   (음영 topFace·sideFace · paleTeam 의 흰 켜)을 뺀다. 칸 몫(keepN9)은 임자색까지 넣어 셈한 그대로라 단조는 안 깨진다 · 10단(완성)은 이 함수를 안 지나 다 선다.
 · 임자색 부품을 받치던 칠한 테(엔베 렌즈 드럼의 어두운 뚜껑 테 따위)는 남는다 — 완공 때 그 위에 임자색 렌즈가 얹힌다.
 🔎 `node scripts/model-gl.mjs --kinds trapezoid,factory,ebay,cube --stages 3,6,9,0 --rots 45 --cell 260 --out x.png`.
+· ★ **창문류도 같은 취급**(2026-10-19, 요청: "창문류도 고유색과 같은 취급") — 공사 중(1~9단)에는 창(winLit · 꺼지면 `WIN_DARK`)·유리(`GLASS_DARK`)·불빛(`EMIT_FILL9` —
+  켜진 창·늘 켠 빛)도 그 덧칠과 함께 뺀다(창틀은 몸이라 남는다). 빛이 곧 몸인 낯은 빼면 구멍이 나므로 **불 끈 색**으로 바꾼다 — `BUILD_DIM9`(서플라이 격납구 바닥 #5cf08a ·
+  뒷벽 #39b863 → 옆벽 #24412c). 🔎 `model-gl.mjs --kinds trapezoid,cube,ebay,factory,tomb,academy,plane,scifac --stages 6,9,0 --rots 45`.

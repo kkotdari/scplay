@@ -31291,6 +31291,8 @@ export function scaffold9(cx: number, cy: number, h: number, maxLv = Infinity): 
 let SCAFFOLD_KINDS9: Set<string> | null = null;
 /** ★ 애드온은 발판 없이 짓는다(2026-10-14, 요청: "테란 애드온 건설엔 스캐폴더 없이"). */
 const SCAFFOLD_SKIP9 = new Set(["comsat", "comsatbase", "nsilo", "mshop", "ctower", "covert", "physlab"]);
+/** 공사 중 불 끄는 빛 낯 — 서플라이 격납구의 바닥(BAY_LIT)·뒷벽(BAY_BACK) → 옆벽 색(BAY_IN)(아래 stageFaces 창문류 ★). */
+const BUILD_DIM9 = new Map<string, string>([["#5cf08a", "#24412c"], ["#39b863", "#24412c"]]);
 /** 테란 건물(애드온 포함) — 공사 중에는 임자색을 안 세운다(아래 stageFaces ★ 2026-10-19). */
 let TERRAN_BLD9: Set<string> | null = null;
 const isTerranBld9 = (kind: string): boolean => {
@@ -31528,9 +31530,16 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
   /* ★ **테란 건물의 임자색 데칼·부품은 완공 때 나타난다**(2026-10-19, 요청: "테란 건설 단계에서 임자색 데칼과 부품은 무조건 완공시에 나타나게") — 공사 중(1~9단)에는
      칠하지 않은 낯(임자색 · f[2] 없음)을 빼고, 그 낯과 **경로가 같은 덧칠**(음영 topFace·sideFace · paleTeam 의 흰 켜)도 함께 뺀다 — 몸 없는 덧칠 유령이 안 남게.
      10단(완성)은 이 함수를 안 지나므로 저절로 다 선다. 차례·칸 몫(keepN9)은 임자색까지 넣어 셈한 그대로라 단조가 안 깨진다. */
+  /* ★ **창문류도 같은 취급**(2026-10-19, 요청: "창문류도 고유색과 같은 취급") — 창(winLit · 꺼지면 WIN_DARK)·유리(GLASS_DARK)·불빛(EMIT_FILL9 — 켜진 창·늘 켠 빛)도
+     공사 중에는 빼고 완공 때 선다. 창틀(칠한 테)은 몸이라 남는다. */
   if (kind && isTerranBld9(kind)) {
+    /* 격납구 속처럼 **빛이 곧 몸인 낯**(서플라이 격납구 바닥·뒷벽)은 빼면 구멍이 나므로 불 꺼진 속 색으로 바꾼다. */
+    out9 = out9.map((f) => (f[2] !== undefined && BUILD_DIM9.has(f[2]) ? [f[0], f[1], BUILD_DIM9.get(f[2]), f[3], f[4], f[5]] as ShapeFace : f));
     const team9 = new Set<string>();
-    for (const f of out9) if (f[2] === undefined) team9.add(f[0]);
+    for (const f of out9) {
+      const c9 = f[2];
+      if (c9 === undefined || c9 === WIN_DARK || c9 === GLASS_DARK || EMIT_FILL9.has(c9)) team9.add(f[0]);
+    }
     if (team9.size > 0) out9 = out9.filter((f) => !team9.has(f[0]));
   }
   /* ★ **공사 발판 탑 둘**(요청: "앞 오른쪽과 뒤 왼쪽에 두 개 스캐폴드 탑 · 1단계부터 보이고
