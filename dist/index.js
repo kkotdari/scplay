@@ -37902,7 +37902,7 @@ function VZ({
       " · UI ",
       Ns.ui,
       " · 판 ",
-      "10-19 11:52",
+      "10-19 12:47",
       Ns.ss !== 1 ? ` · 초해상 ×${Ns.ss.toFixed(2)}` : "",
       Math.abs(Ns.unitScale - Ns.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ns.unitScale.toFixed(4)})` : Ns.scale > 0 && Math.abs(Ns.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ns.scale.toFixed(4)})` : "",
       Ns.allocOk ? "" : " · ⚠배킹확보 실패"
