@@ -3394,6 +3394,13 @@
      배분하고 그에 맞는 높이로"). 옛 '인포창 폭 × 1.25 상한 · 남는 폭' 셈은 걷었다 — 전광판이 인포창보다 먼저다. 줄어든 때는 쪽(is-paged · JSX rosterPaged9). */
   width: round(nearest, calc(var(--dock-h) * var(--roster-r, 2.58)), 2px);   /* 짝수(2026-10-10) */
 }
+/* ★ 남는 1~4px 은 **전광판이 먹는다**(2026-10-19, 지적: "이상한 흠이 생기네" — 틀이 쇠판 폭 100% 인 화면(폰 · 좁은 PC)) — 칸 폭은 짝수로 반올림해 틀 폭에 1~2px 이
+   남고, 줄이 가운데 맞춤이라 그 몫이 양끝에 반씩 갈려 바깥 칸(미니맵 · 전광판)이 1px 안쪽에 섰다. 그 칸의 받침도 1px 안쪽이라 쇠판의 깎인 윗모서리(빗변 베벨)가
+   받침과 쇠판 사이로 비쳐 양끝에 흠이 났다. 전광판(늘 끝 칸)이 그 몫을 먹어 바깥 칸이 틀 끝에 붙는다 — 4px 넘게 남는 넓은 틀은 종전처럼 가운데 맞춤. */
+.scr-fs-dockmain > .scr-fs-rosterpanel {
+  flex-grow: 1;
+  max-width: calc(round(nearest, calc(var(--dock-h) * var(--roster-r, 2.58)), 2px) + 4px);
+}
 /* ★★ 독 로스터(ReplayMotionPlayer dockRoster9 · 2026-10-09) — [AUTO 줄] / 팀마다 [이름 기둥 | 자료 띠]. 줄 키 --rp 는 독 키를 줄 수(--rows · JSX)로
    나눈 값(상한 13·dk)이라 4:4 도 한 우물에 든다 — 글자는 그 줄 키에 비례한다. */
 .scr-dock-roster {

@@ -1093,6 +1093,20 @@ if (has("--dragholdprobe")) {
   await page.waitForTimeout(500);
   console.log("[멈춘 드래그]", p0, "→ 200px", p1, "→ 2초 쥠 뒤 +100px", await pan9(), "· 손짓", g9);
 }
+/* 독 가장자리 자(--edgeprobe · 2026-10-19, 지적: "이상한 흠이 생기네" — 독 양끝 받침과 쇠판 옆선이 1px 어긋나 쇠판의 깎인 윗모서리가 비쳤다) —
+   쇠판(.scr-fs-lower) · 틀 · 양끝 칸 · 받침(틀 여백 --dock-out + 1)의 가로 끝을 찍는다. 받침 바깥 끝 = 쇠판 끝이어야 흠이 없다. */
+if (has("--edgeprobe")) {
+  await page.waitForTimeout(1500);
+  console.log("[독 가장자리]", JSON.stringify(await page.evaluate(() => {
+    const r = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return [+b.left.toFixed(2), +b.right.toFixed(2), +b.top.toFixed(2)]; };
+    const fr = document.querySelector(".scr-fs-dockframe");
+    const out = fr ? parseFloat(getComputedStyle(fr).getPropertyValue("--dock-out")) : null;
+    const ped = (sel) => { const el = document.querySelector(sel); if (!el) return null; const cs = getComputedStyle(el, "::before"); const b = el.getBoundingClientRect();
+      return { l: +(b.left + parseFloat(cs.left)).toFixed(2), r: +(b.right - parseFloat(cs.right)).toFixed(2), disp: cs.display }; };
+    return { lower: r(".scr-fs-lower"), frame: r(".scr-fs-dockframe"), main: r(".scr-fs-dockmain"), mini: r(".scr-fs-minipanel"), roster: r(".scr-fs-rosterpanel"),
+      out, pedMini: ped(".scr-fs-minipanel"), pedRoster: ped(".scr-fs-rosterpanel"), vw: innerWidth };
+  })));
+}
 /* 독 자(--dockprobe): 미니맵·지도 버튼·꼬리 줄의 화면 자리를 찍는다 — 미니맵 키를 조작부에 맞추는 실측의 검산용. */
 if (has("--dockprobe")) {
   await page.waitForTimeout(1500);

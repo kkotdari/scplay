@@ -1966,3 +1966,9 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 요청: "인원 적을때 전광판 줄 위로 모으고 아래를 비우기" — PC 팀전 판 `.scr-dock-roster.is-team:not(.is-paged)` 의 `justify-content: space-between`(2026-10-12 "아래 공간
   너무 넓게 여백" 때 넣음)을 **되물려** `flex-start`. 1:1·2:2 에서 머리 줄 · 1팀 · 2팀이 판 위아래로 흩어지던 것이 위에서부터 모인다. 줄 키 상한(24·dks)은 그대로.
 - 🔎 `perf-check.mjs --wide --warm 0 --glblit --players 4 --shot x.png`(2:2 — 두 팀이 위에 모이고 바닥이 빈다).
+
+## 독 양끝 흠 — 남는 1~4px 은 전광판이 먹는다(2026-10-19)
+- 지적: "이상한 흠이 생기네"(PC 좁은 창 스크린샷 · 독 양끝 쇠판 윗선 높이) — 틀이 쇠판 폭 100% 인 화면(폰 · 좁은 PC)에서 칸 폭이 짝수 반올림이라 틀에 1~2px 이 남고,
+  줄(.scr-fs-dockmain)이 가운데 맞춤이라 양끝 칸이 1px 안쪽에 섰다 → 그 칸의 받침(::before · −out−1)도 1px 안쪽 → 쇠판의 깎인 윗모서리 빗변 베벨이 받침과 쇠판 사이로 비쳤다.
+- `.scr-fs-dockmain > .scr-fs-rosterpanel { flex-grow: 1; max-width: 폭 + 4px }` — 끝 칸인 전광판이 남는 몫을 먹어 바깥 칸이 틀 끝에 붙는다. 4px 넘게 남는 넓은 틀은 종전 가운데 맞춤.
+- 🔎 `perf-check.mjs --ios --warm 0 --glblit --edgeprobe --shot x.png` → `[독 가장자리]` 의 pedMini.l = lower.l(옛 판 +1) · 하네스 PC(--wide)는 틀이 가운데라 안 드러난다.
