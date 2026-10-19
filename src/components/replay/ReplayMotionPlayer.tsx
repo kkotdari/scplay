@@ -11935,6 +11935,28 @@ export default function ReplayMotionPlayer({
      그 몫(--capk · 0.5~1)만큼 줄인다 — 큰 창은 그대로(상한 1). 폰은 기기 단(--dk)이 이미 맞아 1. */
   const CAP_STAGE_K9 = 0.046;
   const capK9 = uiPhone9 || stage.h <= 0 ? 1 : Math.min(1, Math.max(0.5, (stage.h * CAP_STAGE_K9) / (32 * ((1.8 * ui9.k) / 1.35))));
+  /* ★ **채팅 표시**(2026-10-19, 요청: "채팅 표시 추가 · 왼쪽 자막이랑 안겹치는 아래쪽에 표시 · 표시 시간은 약 5초") — 경기 채팅(chats9 · 자취 받기의 chats)을 무대 **왼아래**에
+     [말한 사람 칩] 글 꼴로 띄운다. 한 줄은 그 말을 한 때부터 화면 시간 CHAT_SHOW9 초(게임 초 = × 배속) · 한꺼번에 CHAT_MAX9 줄(새 줄이 아래). 자막과 안 겹치게
+     **자막이 맡는 최대 키(--cap-res) 위**(--over-cap)에 선다 — 배속 다이얼도 같은 줄(같은 날 요청: "자막은 폭을 거의 다 사용 · 배속표시와 채팅은 자막 위에 놓이게" · replay.css). */
+  const CHAT_SHOW9 = 5;
+  const CHAT_MAX9 = 4;
+  const chatsSorted9 = useMemo(() => (chats9 ? [...chats9].sort((a9, b9) => a9.sec - b9.sec) : []), [chats9]);
+  const chatNow9 = chatsSorted9.filter((c9) => c9.sec <= t && t < c9.sec + CHAT_SHOW9 * Math.max(1, speed)).slice(-CHAT_MAX9);
+  const chatNode9 = chatNow9.length > 0 ? (
+    <div className="scr-fs-chat" aria-live="polite">
+      {chatNow9.map((c9) => {
+        const pl9 = bases.some((b9) => b9.key === c9.name);
+        return (
+          <div key={`${c9.sec}|${c9.name}|${c9.text}`} className="scr-fs-chat-line">
+            {pl9
+              ? <span className="scr-split-chip scr-cast-chip scr-fs-chat-chip" style={chipStyle(c9.name, teamOfRaw(c9.name))}><span className="scr-cast-chip-txt">{capName9(c9.name)}</span></span>
+              : <span className="scr-fs-chat-obs">{c9.name}</span>}
+            <span className="scr-fs-chat-sep">:</span>{c9.text}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
   /** ★ **화면 주인 이름표는 한 요소**(2026-10-13, 요청: "PC 모바일 공통으로 분할 화면의 화면 주인과 중계 화면 주인을 디자인 통일(그냥 같은 요소 사용)") —
    *  [깜빡이는 카메라] [임자색 칩 + 팀 루비] "개인 화면". 단독(중계·개인 추적) 화면의 위 가운데와 분할 칸의 위 가운데가 이 하나를 쓴다(옛 칸 머리는 [칩] "화면"뿐). */
   const ownerTag9 = (raw9: string, extra9?: string): React.ReactNode => (
@@ -20767,8 +20789,9 @@ export default function ReplayMotionPlayer({
           className={cx("scr-fs-stage", splitOn9 && "is-split", NO_STAGE_OV9 && "scr-t-nostageov")} ref={stageRef}
           style={{
             ...stageStyle,
+            ["--capk" as string]: capK9,   // 자막 키 셈(--cap-res · 채팅·다이얼이 그 위에 선다 — replay.css)
             touchAction: "none",
-          }}
+          } as React.CSSProperties}
           /* ★ 손짓은 **무대가 받는다**(요청: "나머지 부분은 그 아래 맵으로 흘려서
              더블클릭/탭 줌으로 작동하게") ────────────────────────────────────────────
              여태 이 넷은 지도 상자에 붙어 있었다. 그런데 무대에는 지도 말고도 두 가지가
@@ -20822,6 +20845,7 @@ export default function ReplayMotionPlayer({
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
+          {chatNode9}
           {!splitOn9 && (
             <div
               /* 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게") — 위 introReady9 · .scr-motion-map.is-warming 과 같은 깃발. */

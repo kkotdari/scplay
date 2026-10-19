@@ -311,7 +311,7 @@ const MECH9 = new Set(["Vulture", "Siege Tank (Tank Mode)", "Siege Tank (Siege M
 const COMP9 = { n: 10, k: 0.6, ultra: 2, ling: 8 };
 /** 탱크 조이기 — 이 초 창 안에 앞으로(적 쪽) 박은 탱크가 이 수 이상 · 메카닉은 그때 벌처·골리앗이 이 수 이상. */
 const PUSH9 = { win: 90, tanks: 3, mech: 6 };
-/** 적 기지 앞 병력 대기(2026-10-19) — 적 기지 BASE_R9 바깥 ring 타일 띠 · 무리 반경 r · 하한 n 기 · 명령 뒤 at 초에 그 자리 · 그 뒤 hold 초 더 머묾. */
+/** 적 기지 부근 병력 대기(2026-10-19) — 적 기지 영역 밖 · BASE_R9 + ring 타일 안 · 무리 반경 r · 하한 n 기 · 명령 뒤 at 초에 그 자리 · 그 뒤 hold 초 더 머묾. */
 const STAGE9 = { ring: 16, r: 10, n: 8, at: 10, hold: 10 };
 /** 대기 무리에 안 세는 몸 — 일꾼·수송·관측·알 따위. */
 const STAGE_SKIP9 = new Set(["SCV", "Probe", "Drone", "Dropship", "Shuttle", "Overlord", "Observer", "Science Vessel", "Larva", "Egg", "Cocoon", "Lurker Egg",
@@ -1009,19 +1009,21 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const name9 = mech9 >= PUSH9.mech ? "메카닉 조이기" : "탱크 조이기";
       add9("push", t9, [{ raw: raw9 }, { text: ` ${name9}` }], name9, MILE_RANK9.tactic, pushes9[i9][2], pushes9[i9][3]);
     }
-    /* ★ 적 기지 앞 병력 대기(2026-10-19, 요청: "적기지 근처로 유닛을 대기시켜놓는거도 중요한 중계 포인트") — 싸움 유닛(일꾼·수송·관측 · STAGE_SKIP9 밖)의 마지막 명령 자리가
-       적 기지(본진 건물·출발 자리) 바깥 띠(BASE_R9 ~ +STAGE9.ring)이고 제 편 쪽이 아니며 그 자리에 SETTLE9 초 넘게 머문 것(settles9) — 그런 몸이 한 자리(STAGE9.r 타일 안)에
-       같은 때(첫 명령 + STAGE9.at 초에 그 자리에 있고 STAGE9.hold 초 더 머묾) STAGE9.n 기 넘게 모이면 "[A]가 [B] 기지 앞에 병력 대기". 카메라는 그 무리 가운데(capSpot9). */
-    const stg9: { t: number; u: number; x: number; y: number; foe: string; tag: number }[] = [];
+    /* ★ 적 기지 부근 병력 대기(2026-10-19, 요청: "적기지 근처로 유닛을 대기시켜놓는거도 중요한 중계 포인트") — 싸움 유닛(일꾼·수송·관측 · STAGE_SKIP9 밖)의 마지막 명령 자리가
+       적 기지(본진 건물·출발 자리) 곁(STAGE9.ring + BASE_R9 안)이되 **그 기지 영역 밖**(inBaseArea9 — 지형이 있으면 벽·절벽 너머 숨긴 자리도 든다)이고 제 편 쪽이 아니며
+       그 자리에 SETTLE9 초 넘게 머문 것(settles9) — 그런 몸이 한 자리(STAGE9.r 타일 안)에 같은 때(첫 명령 + STAGE9.at 초에 그 자리에 있고 STAGE9.hold 초 더 머묾)
+       STAGE9.n 기 넘게 모이면 "[A] 히드라 병력 [B] 기지 부근에서 대기 중"(많은 종류 둘). 카메라는 그 무리 가운데(capSpot9).
+       ★ 앞 → **부근**(같은 날 되요청: "적기지 앞이 아니라 주변(벽 너머 숨겨놓기 등) · 누구 히드라병력 누구 기지 부근에서 대기중") — 옛 거리 띠(BASE_R9 < d)는 벽 너머 가까운 자리를 놓쳤다. */
+    const stg9: { t: number; u: number; x: number; y: number; foe: string; tag: number; kind: string }[] = [];
     for (const e9 of world.lives) {
       if (e9.bld || !own9.has(e9.owner) || STAGE_SKIP9.has(e9.kind) || castValue9(e9.kind) <= 0) continue;
       const orders9 = e9.orders;
       for (const [t9, x9, y9] of settles9(e9)) {
         const fb9 = nearFoeBase9(x9, y9, t9);
-        if (!fb9 || fb9.d <= BASE_R9 || fb9.d > BASE_R9 + STAGE9.ring || ownSideAt9(raw9, x9, y9, t9, fb9.d)) continue;
+        if (!fb9 || fb9.d > BASE_R9 + STAGE9.ring || inBaseArea9(fb9.x, fb9.y, x9, y9) || ownSideAt9(raw9, x9, y9, t9, fb9.d)) continue;
         const i9 = orders9.findIndex((o9) => o9[0] === t9);
         const u9 = i9 >= 0 && i9 + 1 < orders9.length ? orders9[i9 + 1][0] : e9.died ?? total;
-        stg9.push({ t: t9, u: u9, x: x9, y: y9, foe: fb9.raw, tag: e9.tag });
+        stg9.push({ t: t9, u: u9, x: x9, y: y9, foe: fb9.raw, tag: e9.tag, kind: e9.kind });
       }
     }
     stg9.sort((a9, b9) => a9.t - b9.t);
@@ -1031,7 +1033,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (new Set(near9.map((o9) => o9.tag)).size < STAGE9.n) continue;
       const mx9 = near9.reduce((a9, o9) => a9 + o9.x, 0) / near9.length;
       const my9 = near9.reduce((a9, o9) => a9 + o9.y, 0) / near9.length;
-      add9(`stage|${s9.foe}`, c9, [{ raw: raw9, p: "ga" }, { text: " " }, { raw: s9.foe }, { text: " 기지 앞에 병력 대기" }], "병력 대기", MILE_RANK9.tactic, mx9, my9);
+      const cnt9 = new Map<string, Set<number>>();
+      for (const o9 of near9) { const k9 = UNIT_KO[o9.kind] ?? o9.kind; const a9 = cnt9.get(k9) ?? new Set<number>(); a9.add(o9.tag); cnt9.set(k9, a9); }
+      const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1].size - a9[1].size).slice(0, 2).map(([k9]) => k9).join("·");
+      add9(`stage|${s9.foe}`, c9, [{ raw: raw9 }, { text: ` ${what9} 병력 ` }, { raw: s9.foe }, { text: " 기지 부근에서 대기 중" }], "병력 대기", MILE_RANK9.tactic, mx9, my9);
     }
     /* ★ 제 입구 막기(심시티 · 2026-10-11, 요청: "자신의 입구를 건물로 막아서 적들이 못 들어오게 하는 게 중요한 포인트인데 그건 안 나오네") — 제 기지 곁(본진 건물·출발
        자리에서 BASE_R9 + WALL9.near)에 막는 건물(WALL_BLD9)이 설 때마다, 지형 위에 그 순간 제 건물 발자국(BUILDING_FOOT)을 얹고 **출발 자리에서 적 출발 자리까지 길이

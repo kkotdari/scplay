@@ -604,9 +604,15 @@ rmSync(tmp, { recursive: true, force: true });
     mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
     for (let i = 0; i < n; i += 1) mk(0, "Marine", false, 20, 20, 300, { orders: [[500 + i * 0.5, x + (i % 3), x, false]] });
   }));
-  res.push(["적 기지 앞에 마린 열 머묾 → 기지 앞에 병력 대기", stage(10, 80), (c) => c.some((x) => /\[A\]ga \[B\] 기지 앞에 병력 대기/.test(x))]);
-  res.push(["마린 다섯 → 대기를 말하지 않는다", stage(5, 80), (c) => !c.some((x) => /병력 대기/.test(x))]);
-  res.push(["적 기지 안에 머묾 → 대기 아님", stage(10, 97), (c) => !c.some((x) => /병력 대기/.test(x))]);
+  res.push(["적 기지 부근에 마린 열 머묾 → 마린 병력 기지 부근에서 대기 중", stage(10, 80), (c) => c.some((x) => /\[A\] 마린 병력 \[B\] 기지 부근에서 대기 중/.test(x))]);
+  res.push(["마린 다섯 → 대기를 말하지 않는다", stage(5, 80), (c) => !c.some((x) => /대기 중/.test(x))]);
+  // 벽 너머 숨김 — x 90·91 세로 벽 · 해처리(100,100)에서 14 타일(86,100) 벽 서쪽에 히드라 열 → 거리는 기지 원 안이지만 기지 영역 밖이라 대기
+  const wallT = { level: () => 0, walk: (x) => x !== 90 && x !== 91 };
+  res.push(["벽 너머 가까이 숨긴 히드라 열 → 히드라 병력 기지 부근에서 대기 중", run(mkw([["A", "저그", 1], ["B", "테란", 2]], ({ mk }) => {
+    mk(0, "Hatchery", true, 20, 20, 0); mk(1, "Command Center", true, 100, 100, 0);
+    for (let i = 0; i < 10; i += 1) mk(0, "Hydralisk", false, 20, 20, 300, { orders: [[500 + i * 0.5, 86 - (i % 3), 100, false]] });
+  }), { mapW: 128, mapH: 128, terrain: wallT }), (c) => c.some((x) => /\[A\] 히드라 병력 \[B\] 기지 부근에서 대기 중/.test(x))]);
+  res.push(["적 기지 안에 머묾 → 대기 아님", stage(10, 97), (c) => !c.some((x) => /대기 중/.test(x))]);
   // ④ 스톰 — P 가 600초에 (60,60)에 스톰 · B 히드라 넷이 601~602초에 그 자리에서 죽는다
   res.push(["스톰에 히드라 넷 → 스톰으로 4킬(2026-10-12 · 옛 '활약함')", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);

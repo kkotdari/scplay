@@ -640,7 +640,11 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
       ...(window.__deg && window.__deg !== 90 ? { a: window.__deg } : {}),
       ...(window.__speed > 1 ? { s: window.__speed } : {}),   // --speed N(2026-10-12) — 배속(&s=) · 헤드리스는 느려 창 끝까지 기다리는 탐침(--searchwait)에 쓴다
     },
-    loadUnitTracks: async () => ({ motion }),
+    /* --chat(2026-10-19) — 경기 채팅 넷(사람 셋 · 관전자 하나 · 긴 글 하나) · 42~45초 · 열리는 46초에 다 5초 창 안이다(재생기 왼아래 채팅). */
+    loadUnitTracks: async () => ({ motion, ...(window.__chat ? { chats: [
+      { sec: 42, name: "정구", text: "ㅎㅇ 잘 부탁드립니다" }, { sec: 43, name: "수달이", text: "ㄱㄱ" },
+      { sec: 44, name: "관전자", text: "오 핵이다" },
+      { sec: 45, name: "Rex", text: "이번 판은 진짜 길게 가 봅시다 앞마당 먹고 하이브까지 가는 걸로 다들 화이팅" }] } : {}) }),
     /* 장면 스크랩·공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백 둘이다. 버튼은 재생기가 그린다(아이콘 원).
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
     onScrap: async () => { window.__scrapQ9 = window.__share9().qs; return "스크랩됨"; },   // --sharepick 이 '담는 순간의 링크'를 읽는다
@@ -889,13 +893,13 @@ else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치�
 }
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
-  Number(flag("--winner", 0)), Number(flag("--speed", 1))]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+  Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
