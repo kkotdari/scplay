@@ -598,6 +598,15 @@ rmSync(tmp, { recursive: true, force: true });
     mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
     [400, 415, 430].forEach((t, i) => mk(0, "Siege Tank (Tank Mode)", false, 20, 20, 300, { orders: [[t - 10, 70 + i, 70, false]], sieges: [[t, true]] }));
   })), (c) => c.some((x) => /\[A\] 탱크 조이기/.test(x))]);
+  // ③' 적 기지 앞 병력 대기(2026-10-19, 요청: "적기지 근처로 유닛을 대기시켜놓는거도 중요한 중계 포인트") — A 마린 열이 500초에 B 해처리(100,100) 앞 (80,80)으로 가 머문다
+  //     · 다섯이면 안 말한다 · 해처리 안(98,98)이면 대기가 아니다
+  const stage = (n, x) => run(mkw(PL, ({ mk }) => {
+    mk(0, "Command Center", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    for (let i = 0; i < n; i += 1) mk(0, "Marine", false, 20, 20, 300, { orders: [[500 + i * 0.5, x + (i % 3), x, false]] });
+  }));
+  res.push(["적 기지 앞에 마린 열 머묾 → 기지 앞에 병력 대기", stage(10, 80), (c) => c.some((x) => /\[A\]ga \[B\] 기지 앞에 병력 대기/.test(x))]);
+  res.push(["마린 다섯 → 대기를 말하지 않는다", stage(5, 80), (c) => !c.some((x) => /병력 대기/.test(x))]);
+  res.push(["적 기지 안에 머묾 → 대기 아님", stage(10, 97), (c) => !c.some((x) => /병력 대기/.test(x))]);
   // ④ 스톰 — P 가 600초에 (60,60)에 스톰 · B 히드라 넷이 601~602초에 그 자리에서 죽는다
   res.push(["스톰에 히드라 넷 → 스톰으로 4킬(2026-10-12 · 옛 '활약함')", run(mkw([["P", "프로토스", 1], ["B", "저그", 2]], ({ mk, casts }) => {
     mk(0, "Nexus", true, 20, 20, 0); mk(1, "Hatchery", true, 100, 100, 0);
