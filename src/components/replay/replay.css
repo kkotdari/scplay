@@ -3435,7 +3435,9 @@
 }
 /* ★ 남는 키는 바닥에 몰지 않고 덩이 사이에 고르게(2026-10-12, 요청: "피시에서 아래 공간 너무 넓게 여백이 남음 · 좀 더 활용") — 팀전 판은 [머리 줄 | 1팀 | 틈 | 2팀] 사이로 나눠 판을 채운다
    (줄 키 상한 24·dks 에 닿는 2:2·3:3 은 바닥이 50px 넘게 남았다). 밀리(덩이 하나)·쪽 꼴은 종전. */
-.scr-motion-pc9 .scr-dock-roster.is-team:not(.is-paged) { justify-content: space-between; }
+/* (되물림 · 2026-10-19, 요청: "인원 적을때 전광판 줄 위로 모으고 아래를 비우기") 위 space-between — 1:1·2:2 에서 머리 줄과 두 팀이 판 위아래로 흩어졌다.
+   이제 줄은 위에서부터 모이고 남는 키는 바닥에 남긴다(줄 키 상한 24·dks 는 그대로). */
+.scr-motion-pc9 .scr-dock-roster.is-team:not(.is-paged) { justify-content: flex-start; }
 /* PC 쪽 꼴(좁은 창)은 글자를 폭이 아니라 줄 키가 정한다 — 쪽마다 두 칸뿐이라 폭이 남는다. */
 .scr-motion-pc9 .scr-dock-roster.is-paged { font-size: round(down, min(calc(var(--rp) * 0.5), calc(18px * var(--dks))), 2px); }
 /* ★ PC 이름 기둥은 **못 박은 폭**(--name-w · 2026-10-10 "닉네임칩 폭 25프로 정도 더 축소") — 자료 기둥이 나머지를 받고 칸 사이를 고르게 벌린다(쪽 꼴은 종전). */

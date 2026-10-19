@@ -1961,3 +1961,8 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 · **배속 다이얼** — 왼아래(2026-10-12) → **오른아래** · bottom = `--dock-lift-r` + 틈(왼쪽은 가장 높이 솟는 미니맵 받침이라 더 낮게 선다). 사용법 글귀도 차례를 고쳤다.
 🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --tagprobe --shot x.png` → mini 254² · info 334×192 · roster 532×214 ·
   `--info --track 정구 --dockship|--dockebay`(인포창 안 요소) · `--ios [--vw 844 --vh 390]`(폰 차례).
+
+## 전광판 줄은 위로 모은다 — 인원 적을 때 아래를 비움(2026-10-19)
+- 요청: "인원 적을때 전광판 줄 위로 모으고 아래를 비우기" — PC 팀전 판 `.scr-dock-roster.is-team:not(.is-paged)` 의 `justify-content: space-between`(2026-10-12 "아래 공간
+  너무 넓게 여백" 때 넣음)을 **되물려** `flex-start`. 1:1·2:2 에서 머리 줄 · 1팀 · 2팀이 판 위아래로 흩어지던 것이 위에서부터 모인다. 줄 키 상한(24·dks)은 그대로.
+- 🔎 `perf-check.mjs --wide --warm 0 --glblit --players 4 --shot x.png`(2:2 — 두 팀이 위에 모이고 바닥이 빈다).
