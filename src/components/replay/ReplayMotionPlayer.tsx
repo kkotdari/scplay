@@ -12696,7 +12696,11 @@ export default function ReplayMotionPlayer({
   const pan = trackView ? trackView.pan : panBase;
   /** 추적이 카메라를 쥐고 있나 — 쥐고 있으면 그 자리다(손짓 쪽에서 ref로 읽는다). */
   const trackLockRef = useRef<{ x: number; y: number } | null>(null);
+  const trackLockZRef9 = useRef(1);
+  /** 단독 중계 휠 미끄러짐을 멈춘다(휠 effect 가 건다 · 배율 원·키 배율이 부른다). */
+  const wheelStopRef9 = useRef<() => void>(() => {});
   trackLockRef.current = trackView ? trackView.pan : null;
+  trackLockZRef9.current = zoom;   // 그 자리를 잰 배율(아래 applyGestureXf ★ 사진처럼)
   viewHRef.current = fitH9;
   pitchKRef.current = pitchSpan9;
   /* (아래로 옮김) 위쪽 여유(bandRef) — 입체의 눌림(pitchK)이 먼저 서야 한다. */
@@ -13832,6 +13836,18 @@ export default function ReplayMotionPlayer({
           손짓 동안에는 이미 그려진 캔버스를 같은 비율로 옮겨 두고(흐릿하지만 따라온다),
           굳은 뒤 아래 effect가 또렷하게 다시 그리며 그 변환을 걷는다. */
     let wheelTimer = 0;
+    /** 단독 중계 휠 미끄러짐(아래 ★) — 목표 배율 · rAF · 한 장에 다가가는 몫. */
+    let wheelGoal9 = 0;
+    let wheelRaf9 = 0;
+    let wheelAt9 = 0;
+    /** 미끄러짐 시간 상수(ms) — 한 장마다 남은 몫의 1 − e^(−dt/τ) 를 간다(기기 장 빠르기와 무관 · 0.2초 남짓에 닿는다). */
+    const WHEEL_TAU9 = 70;
+    /* 배율 원·키 배율이 손대면 미끄러짐을 그 자리에서 멈춘다(그대로 두면 남은 걸음이 새 배율을 덮어쓴다). */
+    wheelStopRef9.current = (): void => {
+      if (!wheelRaf9) return;
+      cancelAnimationFrame(wheelRaf9); wheelRaf9 = 0;
+      endGestureXf();
+    };
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && Math.abs(e.deltaY) < 0.5) return;
       e.preventDefault();
@@ -13871,6 +13887,30 @@ export default function ReplayMotionPlayer({
          (zoomCommitRef → paint의 bakeZoom). 곧 스냅이 지키던 몫을 다른 데서 이미 지킨다.
          칸은 여전히 있다 — 마커·자세함 문턱(markerAt·detailAt)과 값 버튼의 눈금이
          그것이고, 그쪽은 연속 배율을 받아도 그대로 판정한다(snapZoom은 그 자리에 남는다). */
+      /* ★ 단독 중계·개인 화면은 휠 한 칸도 **미끄러져** 간다(2026-10-19, 지적: "사진 확대축소하듯 부드럽지가 않네") — 자연수로 끊지 않고 목표(raw1)로 rAF 마다 WHEEL_EASE9 몫씩
+         다가간다. 자리는 applyGestureXf 가 잠긴 가운데로 잡는다. 손짓은 다 닿은 뒤 140ms 에 굳힌다(중간에 굳히면 남은 걸음이 버려진다). */
+      if (camLockRef9.current) {
+        wheelGoal9 = raw1;
+        window.clearTimeout(wheelTimer);
+        if (!wheelRaf9) {
+          wheelAt9 = performance.now();
+          const step9 = (): void => {
+            const now9 = performance.now();
+            const k9 = 1 - Math.exp(-Math.max(0, now9 - wheelAt9) / WHEEL_TAU9);
+            wheelAt9 = now9;
+            const zc9 = zoomRef.current;
+            let nz9 = zc9 + (wheelGoal9 - zc9) * k9;
+            if (Math.abs(wheelGoal9 - nz9) < 0.003) nz9 = wheelGoal9;
+            zoomRef.current = nz9;
+            applyGestureXf();
+            if (nz9 !== wheelGoal9) { wheelRaf9 = requestAnimationFrame(step9); return; }
+            wheelRaf9 = 0;
+            wheelTimer = window.setTimeout(() => endGestureXf(), 140);
+          };
+          wheelRaf9 = requestAnimationFrame(step9);
+        }
+        return;
+      }
       const z1 = Math.min(zoomCapRef9.current(), Math.round(raw1));
       const ox = rect.left + rect.width / 2;
       const oy = rect.top + rect.height / 2;
@@ -13914,6 +13954,7 @@ export default function ReplayMotionPlayer({
     return () => {
       host9.removeEventListener("wheel", onWheelHost);
       window.clearTimeout(wheelTimer);
+      if (wheelRaf9) { cancelAnimationFrame(wheelRaf9); wheelRaf9 = 0; endGestureXf(); }   // 미끄러지던 휠(위 ★)은 그 자리에서 굳힌다
     };
     /* ★ 전체화면을 켜고 끄면 **맵 엘리먼트가 갈린다**(지적: "pc에서 전체화면시 휠
        줌안됨") — 지도는 평소 자리와 무대 중 한쪽에만 붙으므로, 켜는 순간 옛 노드가
@@ -14319,7 +14360,14 @@ export default function ReplayMotionPlayer({
        입구에서도 한 번 더 막는다(아래 드래그 시작·wasd 키·가장자리 밀기) — 여기서만
        막으면 손짓은 계속 돌면서 아무 일도 안 하는, 헛도는 rAF가 남는다. */
     const lock9 = trackLockRef.current;
-    if (lock9) panRef.current = lock9;
+    /* ★ **잠긴 화면의 확대는 그 가운데를 붙든다**(2026-10-19, 지적: "확대축소시 사진 확대축소하듯 부드럽지가 않네") — 잠긴 자리(trackView.pan)는 렌더 때 배율에서 잰 값이라
+       손짓 중 배율이 바뀌면 그 자리가 어긋나 화면이 밀리다가 손을 떼는 순간 trackView 가 다시 가운데로 잡아 툭 움직였다. 가운데로 잡은 팬은 배율에 비례하므로
+       (0.5 − 분수) × 판 폭 × z) 그 비만큼 늘려 쓰고 새 배율의 한계로 죈다 — 손짓 내내 대상이 화면 가운데에 남고 놓을 때도 같은 자리다. */
+    if (lock9) {
+      const k9 = zoomRef.current / Math.max(0.01, trackLockZRef9.current);
+      const lm9 = panLimit(zoomRef.current);
+      panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x * k9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y * k9)) };
+    }
     const lens = lensRef.current;
     const z1 = zoomRef.current;
     const px = panRef.current.x;
@@ -14939,7 +14987,9 @@ export default function ReplayMotionPlayer({
       const oy = r.top + r.height / 2;
       // 상한 12 → 20(재요청: 더 높게) — 그 위는 선명도가 배킹 한계(4096px)에 막혀 무의미하다.
       // 핀치도 자연수다(요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") — 벌린 비를 반올림한다.
-      const z = Math.min(zoomCapRef9.current(), Math.round(Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d))));
+      /* 단독 중계·개인 화면은 자연수로 끊지 않는다(2026-10-19 · 사진처럼 — 기본 배율이 4.84 같은 소수라 반올림하면 칸마다 15~20% 씩 튄다). */
+      const zc9 = Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d));
+      const z = Math.min(zoomCapRef9.current(), camLockRef9.current ? zc9 : Math.round(zc9));
       const mx2 = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       // 핀치 시작점 아래의 지도 지점이 손가락을 따라오도록 pan을 푼다.
@@ -17636,6 +17686,7 @@ export default function ReplayMotionPlayer({
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
       const zoomStep9 = (up9: boolean): void => {
         if (splitOnRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 단독 중계·개인 화면은 열렸다(zoomCapRef9 ★ 2026-10-19) · 토스트
+        wheelStopRef9.current();   // 미끄러지던 휠은 멈춘다(위 ★)
         closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
@@ -19105,7 +19156,7 @@ export default function ReplayMotionPlayer({
       title="배율 — 누르면 기본 배율로"
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onClick={(e) => { e.stopPropagation(); viewCut9(); holdFit9(); }}
+      onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); viewCut9(); holdFit9(); }}
     >
       <span className="scr-zoomdial-val">×{zoomK9.toFixed(1)}</span>
     </button>
