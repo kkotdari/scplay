@@ -2593,32 +2593,36 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     /* (걷어냄 · 같은 요청) 끝에 맺힌 둥근 방울 — 끝은 위 물결진 평평한 변이다.
        (걷어냄 · 같은 날, 요청: "동그라미 떨어지는거를 가로 물결띠가 줄줄 흐르는 느낌으로 변경") 끝에서 떨어지던 방울 — 대신 **가로 물결띠** 셋이
        띠를 위에서 아래로 줄줄 흘러내린다(띠 폭을 가로지르는 물결선 · 줄기마다 위상 · 위아래 끝에서 옅어진다). */
-    /* 띠마다 **두께·밝기가 다르다** · 더 밝게 빛난다(2026-10-19, 요청: "가로 밴드를 두께와 밝기를 좀 다양하게 하고 더 밝게 빛나도 될듯") —
-       넷 · 두께 반폭의 0.14~0.42 · 색 셋(진홍 #d8303a · 밝은 붉음 #ff5a5f · 빛 #ff9a8f) · 밝은 띠는 넓고 옅은 빛무리 한 겹을 밑에 깐다. */
+    /* ★ 물결띠는 **가끔 한 줄씩**(2026-10-19, 요청: "가로 밴드를 두께와 밝기를 좀 다양하게 · 더 밝게 빛나도" → "밴드가 너무 많은거 아니야?" →
+       "가끔 한줄씩 보이는게 낫지 · 두껍게 그리고 래디우스 없이 꽉 채우기") — 줄기마다 제 주기(1.6~2.4초)의 앞 60% 동안 띠 하나가 위에서 아래로 흐르고 나머지는 쉰다.
+       두께 반폭의 0.5~0.8 · 끝은 둥글리지 않고(butt) 폭포 폭을 가장자리까지 꽉 채운다. 밝기는 주기마다 해시로 셋 중 하나(진홍 · 밝은 붉음 · 빛) · 밝은 둘은 옅은 빛무리. */
     const BAND_COL9 = ["#d8303a", "#ff5a5f", "#ff9a8f"];
-    ctx.lineCap = "round";
-    for (let k9 = 0; k9 < 4; k9 += 1) {
-      const hb9 = ((h9 >>> (k9 * 5)) ^ (k9 * 2654435761)) >>> 0;
-      const u9 = (((t9 * 0.85 + ph9 + k9 / 4) % 1) + 1) % 1;
+    const per9 = 1.6 + ph9 * 0.8;
+    const cyc9 = (t9 + ph9 * per9) / per9;
+    const loc9 = cyc9 - Math.floor(cyc9);
+    if (loc9 < 0.6) {
+      const hb9 = ((h9 ^ (Math.floor(cyc9) * 40503)) * 2654435761) >>> 0;
+      const u9 = loc9 / 0.6;
       const yr9 = sy09 + u9 * L9;
-      const lw9 = Math.max(1, w9 * (0.14 + ((hb9 % 100) / 100) * 0.28));
+      const lw9 = Math.max(1.5, w9 * (0.5 + ((hb9 % 100) / 100) * 0.3));
       const ci9 = (hb9 >>> 8) % 3;
       const fade9 = Math.min(1, u9 * 6, (1 - u9) * 6);
       const path9 = (): void => {
         ctx.beginPath();
         for (let p9 = 0; p9 <= 4; p9 += 1) {
-          const xr9 = bx9(u9) - hw9(u9) * 0.82 + (hw9(u9) * 1.64 * p9) / 4;
-          const yy9 = yr9 + Math.sin(p9 * Math.PI * 0.75 + t9 * 4 + ph9 * 6.28 + k9) * w9 * 0.14;
+          const xr9 = bx9(u9) - hw9(u9) + (hw9(u9) * 2 * p9) / 4;
+          const yy9 = yr9 + Math.sin(p9 * Math.PI * 0.75 + t9 * 4 + ph9 * 6.28) * w9 * 0.14;
           if (p9 === 0) ctx.moveTo(xr9, yy9); else ctx.lineTo(xr9, yy9);
         }
       };
+      ctx.lineCap = "butt"; ctx.lineJoin = "miter";
       if (ci9 > 0) {   // 빛무리 — 밝은 두 색만
-        ctx.strokeStyle = BAND_COL9[ci9]; ctx.lineWidth = lw9 * 2.4;
-        ctx.globalAlpha = 0.28 * fade9;
+        ctx.strokeStyle = BAND_COL9[ci9]; ctx.lineWidth = lw9 * 1.8;
+        ctx.globalAlpha = 0.3 * fade9;
         path9(); ctx.stroke();
       }
       ctx.strokeStyle = BAND_COL9[ci9]; ctx.lineWidth = lw9;
-      ctx.globalAlpha = (ci9 === 0 ? 0.85 : 1) * fade9;
+      ctx.globalAlpha = (ci9 === 0 ? 0.9 : 1) * fade9;
       path9(); ctx.stroke();
     }
   }
