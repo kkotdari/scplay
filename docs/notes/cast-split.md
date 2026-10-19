@@ -1325,3 +1325,12 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
   바깥 누름·취소·Esc 로 닫힘 · 분할을 끄면 닫힘.
 - 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --players 4 --split a.png --sharepick b.png` → `[공유 고르기]` 줄
   (담은 링크 `t=48&tr=Rex` · 뒤 표 tr null). 하네스는 soleView 가 아니라 Z 키 줄은 '안 뜸'이 맞다(키는 홀로 선 재생기에서만 듣는다).
+
+## 팀 삼각 귀퉁이 걷음 → 칩 밖 왼위 팀 루비 "N팀"(2026-10-19)
+- 요청: "팀코너색을 없애고 대신 유저칩(미니맵, 자막, 화면 주인)의 위에 루비문자로 1팀 2팀 써주기 · 잘 안보일 수 있어서 배경있는 루비문자(빨강/파랑에 하얀글씨) ·
+  위치는 유저칩 외부 좌상단".
+- 걷음: `.scr-tcorner`(::before 삼각 · 무게 ×3 overflow hidden 규칙) · 재생기 `tcorner9`. 새 꼴 `.scr-truby`(replay.css · 칩 왼 변 −0.1em · 칩 윗변에 0.12em 걸침 ·
+  글자 칩의 0.6배 최소 8px · 바탕 TEAM_COLOR(1팀 #2050d0 · 2팀 #d81f28) · 흰 굵은 글씨) + 자리 기준 `.scr-truby-host`.
+  재생기 `truby9(raw)` 가 자막 칩·화면 주인 칩 안 첫 아이로 단다(팀전만). 미니맵은 **겉 상자** `.scr-fs-minitag` 에 단다(안쪽 글자 칸은 말줄임 overflow hidden).
+- 미니맵 죄기(겹침·판 안): 루비가 칩 밖으로 내민 몫을 `ex`(왼)·`ey`(위)로 잰다(getBoundingClientRect) — 판 위 귀퉁이에서 루비가 안 잘린다.
+- 🔎 `perf-check.mjs --wide --capprobe war --track 정구 --shot x.png`(가짜 자막 칩도 루비).

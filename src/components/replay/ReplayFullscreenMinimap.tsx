@@ -163,8 +163,9 @@ export default function ReplayFullscreenMinimap({
     const H = host.clientHeight || 1;
     const items = els.map((el) => {
       const r = el.getBoundingClientRect();
-      /* 칩 밖으로 걸친 몫(옛 팀 배지 · 2026-10-11) — 배지를 걷어(2026-10-12 · 팀은 칩 안 삼각 귀퉁이) 이제 0 이다. */
-      const ex = 0; const ey = 0; const exr = 0;
+      /* 칩 밖으로 걸친 몫 — 팀 루비(2026-10-19 · 칩 밖 왼위 .scr-truby)가 왼쪽·위로 내민 만큼. 이웃 칩이 루비를 덮지 않고, 판 귀퉁이에서 루비가 안 잘리게 센다. */
+      const rb = el.querySelector(".scr-truby")?.getBoundingClientRect();
+      const ex = rb ? Math.max(0, r.left - rb.left) : 0; const ey = rb ? Math.max(0, r.top - rb.top) : 0; const exr = 0;
       return { el, x: (parseFloat(el.style.left) / 100) * W, y: (parseFloat(el.style.top) / 100) * H, w: r.width, h: r.height, dy: 0, ex, ey, exr };
     });
     for (let pass = 0; pass < 3; pass += 1) {
@@ -594,11 +595,12 @@ export default function ReplayFullscreenMinimap({
               title={tg.dim ? `${tg.name} — 나감·탈락` : tg.name}
             >
               {/* 칩의 바탕·여백은 안쪽 글자 칸이 든다(말줄임도) — 팀 배지가 그 **뒤**로 오른위에 걸친다(2026-10-11, 요청: "닉네임칩 뒤에 걸쳐서 · 우상단으로"). */}
-              {/* ★ 팀 배지 → 왼위 팀색 삼각 귀퉁이(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로" · replay.css .scr-tcorner). */}
-              <span
-                className={`scr-fs-minitag-txt${tg.team !== undefined ? " scr-tcorner" : ""}`}
-                style={{ background: tg.bg, ...(tg.team !== undefined ? { ["--tcol" as string]: TEAM_COLOR[tg.team] ?? "#666" } : {}) } as React.CSSProperties}
-              >{tg.name}</span>
+              {/* ★ 팀 루비(2026-10-19, 요청: "팀코너색을 없애고 대신 유저칩 … 위에 루비문자로 1팀 2팀 · 빨강/파랑에 하얀글씨 · 유저칩 외부 좌상단") — 옛 삼각 귀퉁이를 걷고
+                  겉 상자(자르지 않는다)에 팀색 바탕 흰 글씨 꼬리표를 단다(replay.css .scr-truby). 안쪽 글자 칸은 말줄임 때문에 overflow hidden 이라 거기 달면 잘린다. */}
+              {tg.team !== undefined && (
+                <span className="scr-truby" style={{ background: TEAM_COLOR[tg.team] ?? "#666" }}>{tg.team}팀</span>
+              )}
+              <span className="scr-fs-minitag-txt" style={{ background: tg.bg }}>{tg.name}</span>
             </span>
           ))}
         </div>

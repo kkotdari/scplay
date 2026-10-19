@@ -10809,11 +10809,13 @@ export default function ReplayMotionPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [bases, melee, teamMap9]);
   /** 한 사람의 정보줄(자막) — 중계 자막과 인포창의 '고른 몸의 임자' 줄이 같은 셈을 나눠 쓴다. */
-  /** ★ 칩 왼위 **팀색 삼각 귀퉁이**(2026-10-12, 요청: "모든 팀배지를 제거하고 대신 칩의 왼쪽 상단 모서리를 삼각형으로 팀색으로 칠할거야 · 글자와 겹치지 않게 주의") —
-   *  팀전만 · 팀색은 색 모드를 안 탄다(markers TEAM_COLOR · 옛 배지와 같은 색). 칩에 `scr-tcorner` 와 함께 싣는다(replay.css — 귀퉁이 몫만큼 왼 여백을 늘린다). */
-  const tcorner9 = (raw9: string): React.CSSProperties | null => {
+  /** ★ **팀 루비**(2026-10-19, 요청: "팀코너색을 없애고 대신 유저칩(미니맵, 자막, 화면 주인)의 위에 루비문자로 1팀 2팀 써주기 · 잘 안보일 수 있어서 배경있는
+   *  루비문자(빨강/파랑에 하얀글씨) · 위치는 유저칩 외부 좌상단") — 옛 왼위 팀색 삼각 귀퉁이(.scr-tcorner · 2026-10-12)를 걷고 칩 **밖 왼위**에 팀색 바탕 흰 글씨
+   *  "N팀" 꼬리표를 단다(replay.css .scr-truby). 팀전만 · 팀색은 색 모드를 안 탄다(markers TEAM_COLOR). 칩은 `scr-truby-host`(자리 기준)를 함께 든다. */
+  const truby9 = (raw9: string): React.ReactNode => {
     const tm9 = melee ? undefined : teamOfRaw(raw9);
-    return tm9 === undefined ? null : ({ ["--tcol" as string]: TEAM_COLOR[tm9] ?? "#666" } as React.CSSProperties);
+    return tm9 === undefined ? null
+      : <span className="scr-truby" style={{ background: TEAM_COLOR[tm9] ?? "#666" }} aria-hidden>{tm9}팀</span>;
   };
   const capOf9 = (raw9: string, key9: string) => ({
     key: key9, text: castLabel9(raw9), col: modeColor(raw9, teamOfRaw(raw9)),
@@ -11869,11 +11871,12 @@ export default function ReplayMotionPlayer({
   const CAP_STAGE_K9 = 0.046;
   const capK9 = uiPhone9 || stage.h <= 0 ? 1 : Math.min(1, Math.max(0.5, (stage.h * CAP_STAGE_K9) / (32 * ((1.8 * ui9.k) / 1.35))));
   /** ★ **화면 주인 이름표는 한 요소**(2026-10-13, 요청: "PC 모바일 공통으로 분할 화면의 화면 주인과 중계 화면 주인을 디자인 통일(그냥 같은 요소 사용)") —
-   *  [깜빡이는 카메라] [임자색 칩 + 팀 귀퉁이] "개인 화면". 단독(중계·개인 추적) 화면의 위 가운데와 분할 칸의 위 가운데가 이 하나를 쓴다(옛 칸 머리는 [칩] "화면"뿐). */
+   *  [깜빡이는 카메라] [임자색 칩 + 팀 루비] "개인 화면". 단독(중계·개인 추적) 화면의 위 가운데와 분할 칸의 위 가운데가 이 하나를 쓴다(옛 칸 머리는 [칩] "화면"뿐). */
   const ownerTag9 = (raw9: string, extra9?: string): React.ReactNode => (
     <span className={cx("scr-split-cap scr-fs-solo-cap", extra9)}>
       <Video className="scr-solo-cam" aria-hidden />
-      <span className={cx("scr-split-chip scr-solo-chip", tcorner9(raw9) && "scr-tcorner")} style={{ ...capOf9(raw9, raw9).chip, ...tcorner9(raw9) }}>
+      <span className="scr-split-chip scr-solo-chip scr-truby-host" style={capOf9(raw9, raw9).chip}>
+        {truby9(raw9)}
         <span className="scr-cast-chip-txt">{bases.find((b9) => b9.key === raw9)?.name ?? raw9}</span>
       </span>
       <span className="scr-split-word">개인 화면</span>
@@ -20769,7 +20772,7 @@ export default function ReplayMotionPlayer({
                        닉네임 왼쪽 위에 뒷면에 붙이는 걸로") — 색은 칩과 같은 셈(capOf9.col · 색 모드를 탄다) · 팀 배지는 이름 왼위 귀퉁이 **뒤**(팀전만). 옛 이름표 칩은 되물렸다. */
                     /* ★ 다시 **임자색 칩**(2026-10-12, 요청: "자막의 색깔 다시 칩 형태로 복구 · 단 칩의 패딩을 작게 하고 래디우스도 작게") — 옛 칩 마크업(.scr-split-chip.scr-cast-chip ·
                        capOf9.chip · 색 모드를 탄다) 그대로 · 여백·모서리만 작게(replay.css). 팀 배지는 칩 **뒤**(남의 글자보다도 뒤 규칙 그대로 — 칩 밖으로 나온 몫만 보인다). */
-                    ? <React.Fragment key={i9}><span className={cx("scr-split-chip scr-cast-chip", tcorner9(p9.raw) && "scr-tcorner")} style={{ ...capOf9(p9.raw, p9.raw).chip, ...tcorner9(p9.raw) }}><span className="scr-cast-chip-txt">{capName9(p9.raw)}</span></span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
+                    ? <React.Fragment key={i9}><span className="scr-split-chip scr-cast-chip scr-truby-host" style={capOf9(p9.raw, p9.raw).chip}>{truby9(p9.raw)}<span className="scr-cast-chip-txt">{capName9(p9.raw)}</span></span>{capParticle9(capName9(p9.raw), p9.p)}</React.Fragment>
                     : <React.Fragment key={i9}>{p9.text}</React.Fragment>))}
                 </span>
               )}
