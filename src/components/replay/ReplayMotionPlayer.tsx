@@ -11765,16 +11765,48 @@ export default function ReplayMotionPlayer({
   onScrapRef9.current = onScrap;
   const onShareRef9 = useRef(onShare);
   onShareRef9.current = onShare;
-  const runTail9 = useCallback(async (k9: "scrap" | "share"): Promise<void> => {
+  /* ★ **분할보기에서는 한 사람을 고르고 담는다**(2026-10-19, 요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게" · 글귀
+     "누구의 화면으로 공유할까요?") — 분할은 링크로 못 옮긴다(받는 쪽은 한 화면이다). 여태 분할에서 담으면 카메라 임자가 없어
+     &tr= 없이 분할 전 자리(z·cx·cy)만 실려, 받는 쪽은 엉뚱한 자리의 빈 화면을 봤다. 이제 버튼·Z·X 가 먼저 사람 고르는 창을
+     띄우고, 고른 사람을 **그 한 번만** 카메라 임자로 실어(&tr=그 아이디 · 자리는 비움 — 추적 장면의 규약) 앱의 함수를 부른다.
+     함수가 끝나면(앱이 제목 창을 닫을 때까지 기다린다) 표를 원래대로 돌린다. */
+  const [tailPick9, setTailPick9] = useState<"scrap" | "share" | null>(null);
+  const runTail9 = useCallback(async (k9: "scrap" | "share", who9?: string): Promise<void> => {
     const f9 = k9 === "scrap" ? onScrapRef9.current : onShareRef9.current;
     if (!f9) return;
+    if (splitOnRef9.current && who9 === undefined) { setTailPick9(k9); return; }
+    setTailPick9(null);
+    const ck9 = who9 !== undefined ? clockKey : undefined;
+    const tr09 = ck9 ? playbackTrackOf.get(ck9) : undefined;
+    const v09 = ck9 ? playbackViewOf.get(ck9) : undefined;
+    if (ck9 && who9) {
+      playbackTrackOf.set(ck9, who9);
+      playbackViewOf.set(ck9, { deg: v09?.deg ?? 90 });
+    }
     let r9: string | boolean | void;
     try { r9 = await f9(); } catch { r9 = undefined; }
+    if (ck9) {
+      if (tr09 !== undefined) playbackTrackOf.set(ck9, tr09); else playbackTrackOf.delete(ck9);
+      if (v09) playbackViewOf.set(ck9, v09); else playbackViewOf.delete(ck9);
+    }
     if (r9 !== true && typeof r9 !== "string") return;
     setTailDone9({ k: k9, s: typeof r9 === "string" ? r9 : k9 === "scrap" ? "담았어요" : "링크 복사됨" });
     if (tailTimer9.current) window.clearTimeout(tailTimer9.current);
     tailTimer9.current = window.setTimeout(() => { tailTimer9.current = 0; setTailDone9(null); }, 1800);
-  }, []);
+  }, [clockKey]);
+  /* 분할을 끄면 고르던 창도 닫는다 · Esc 로도 닫는다. */
+  useEffect(() => { if (!splitOn9) setTailPick9(null); }, [splitOn9]);
+  useEffect(() => {
+    if (!tailPick9) return undefined;
+    const onKey9 = (e: KeyboardEvent): void => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setTailPick9(null);
+    };
+    window.addEventListener("keydown", onKey9, true);
+    return () => window.removeEventListener("keydown", onKey9, true);
+  }, [tailPick9]);
   useEffect(() => () => { if (tailTimer9.current) window.clearTimeout(tailTimer9.current); }, []);
   /* 단축키 Z·X — 안내(ReplayGuide)가 적어 둔 그 둘이다. 버튼을 안 그리는 화면에서는 듣지 않는다(함수가
      없으면 그 키도 없다). 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다.
@@ -20913,6 +20945,24 @@ export default function ReplayMotionPlayer({
   const fsInner = fsOn ? createPortal(stageNode, document.body) : null;
   const guideNode9 = guideOpen9
     ? createPortal(<div className="scr-guide-overlay"><ReplayGuide onClose={closeGuide9} /></div>, document.body) : null;
+  /* 분할보기의 공유·스크랩 — 사람 하나 고르는 창(위 runTail9 ★). 판이 body 로 가 있어도(전체화면) 보이게 body 로 띄운다. */
+  const tailPickNode9 = tailPick9 && splitOn9 ? createPortal(
+    <div className="scr-sharepick-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setTailPick9(null); }}>
+      <div className="scr-sharepick" role="dialog" aria-modal="true" aria-label="누구의 화면으로 공유할까요?">
+        <p className="scr-sharepick-title">누구의 화면으로 공유할까요?</p>
+        <ul className="scr-sharepick-list">
+          {splitBases9.map((b9) => (
+            <li key={b9.key}>
+              <button type="button" className="scr-sharepick-item" onClick={() => { void runTail9(tailPick9, b9.key); }}>
+                <i className="scr-motion-castdot" style={{ background: modeColor(b9.key, teamOfRaw(b9.key)) }} aria-hidden />
+                <span>{b9.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" className="scr-sharepick-cancel" onClick={() => setTailPick9(null)}>취소</button>
+      </div>
+    </div>, document.body) : null;
 
   /* ══ 몸통 — **프레임 하나와 댓글 기둥**뿐이다(요청: 일반/전체화면 통합) ═════════
      여기 있던 것들을 전부 걷었다: 맵줄(.scr-motion-maprow)·좁은 화면 로스터 줄
@@ -20945,6 +20995,7 @@ export default function ReplayMotionPlayer({
       {wide && side ? <div className="scr-motion-sidewrap">{side}</div> : null}
       {fsInner}
       {guideNode9}
+      {tailPickNode9}
     </div>
   );
 

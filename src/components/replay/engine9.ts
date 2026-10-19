@@ -9,7 +9,7 @@ import { type ReplayMapGrid } from "./mapGrid";
 import { AIR_UNITS } from "../../utils/statsMix";
 import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 import { acquireTilesOf, bodyRadiusOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles, weaponVs } from "../../utils/bwCombat";
-import { BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, buildingBox, sightTiles } from "../../utils/bwUnits";
+import { BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, buildingBox, sightTiles, unitOf } from "../../utils/bwUnits";
 import { type TruthWorld } from "../../utils/truthLives";
 import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
@@ -2917,11 +2917,19 @@ export const scrDiagOn = (): boolean =>
      같은 답이 나온다. 그것까지 맞추려면 정사각형으로 재야 한다.
    ⚠ 건물은 원작에서 **면역**이다(stasis_field의 ut_building 건너뜀) — 이 표를 읽는 쪽이
      건물을 안 훑으므로(entWalks가 건물을 뺀다) 저절로 맞는다. */
-export const STATUS_CASTS: Record<string, { dur: number; r: number; kind: string; any?: boolean }> = {
+export const STATUS_CASTS: Record<string, {
+  dur: number; r: number; kind: string; any?: boolean;
+  /** 원작처럼 square_at(반폭 r)으로 잰다(원은 모서리 2.12타일을 놓친다). */
+  sq?: boolean;
+  /** 생체(ut_organic)만 걸린다 — 기계·로봇은 그대로 움직인다. */
+  bio?: boolean;
+}> = {
   Ensnare: { dur: 25.2, r: 2, kind: "ensnare" },
   Plague: { dur: 25.2, r: 2, kind: "plague" },
   "Stasis Field": { dur: 44, r: 1.5, kind: "stasis", any: true },
-  Maelstrom: { dur: 7.4, r: 1.5, kind: "mael" },
+  /* ★ 마엘스트롬은 **제 편도 걸린다**(원작 maelstrom(): 주인을 안 묻고 시전자 하나만 건너뛴다) · 생체만 · 정사각형(sq) —
+     2026-10-19, 지적: "마엘스트롬에 잡히는 범위가 잘못됐나 분명 걸렸는데 이펙트가 안나와". 읽는 쪽 주석 ★ 참고. */
+  Maelstrom: { dur: 7.4, r: 1.5, kind: "mael", any: true, sq: true, bio: true },
   Lockdown: { dur: 44, r: 1.2, kind: "lock" },
   Irradiate: { dur: 25.2, r: 1, kind: "irr" },
 };
@@ -3954,7 +3962,19 @@ export function deriveWorld9(inp: {
            몸 반지름은 진형 간격을 정하는 그 값(UNIT_BODY_TILES)의 절반이다. */
         const half5 = (UNIT_BODY_TILES[UNIT_3D[e.kind] ?? e.kind]
           ?? CLASS_TILES[1]) / 2;
-        if (Math.hypot(cx9 - pp5.x, cy9 - pp5.y) > cfg.r + half5) continue;
+        /* ★ **마엘스트롬은 원작의 정사각형으로 잰다**(지적: "분명 걸렸는데 이펙트가 안나와") — 원작은
+           find_units_noexpand(square_at(pos, 48))이라 대각선 모서리까지 1.5√2 = 2.12타일을 훑는데, 원(1.5)은
+           그 넉 귀를 통째로 놓쳤다. 무리의 귀퉁이 몸이 참값에서는 얼어 서 있는데 소용돌이가 없던 것이 그것이다.
+           또 원작은 **주인을 안 묻는다**(시전자만 건너뛴다) — 제 편 무리에 던진 마엘도 제 몸을 묶는데 우리는
+           적만 셌다. 대신 생체만 걸린다(ut_organic — 기계·로봇·건물은 그대로) — 기계에 소용돌이가 서지 않게. */
+        if (cfg.bio && !(isKnownKind(e.kind) && profileOf(e.kind).organic)) continue;
+        if (cfg.sq) {
+          /* 원작 그대로 — 판(반폭 r)과 몸의 스프라이트 상자 [왼·위·오른·아래 px]가 겹치면 든다. */
+          const bx5 = isKnownKind(e.kind) ? unitOf(e.kind).box : null;
+          const [l5, u5, r5, d5] = bx5 ? bx5.map((v) => v / 32) : [half5, half5, half5, half5];
+          if (pp5.x + r5 < cx9 - cfg.r || pp5.x - l5 > cx9 + cfg.r
+            || pp5.y + d5 < cy9 - cfg.r || pp5.y - u5 > cy9 + cfg.r) continue;
+        } else if (Math.hypot(cx9 - pp5.x, cy9 - pp5.y) > cfg.r + half5) continue;
         statuses.push([cs5, cs5 + cfg.dur, cfg.kind]);
       }
       /* ★ 은신 구간은 이제 **참값이 낸다**(요청: "참값에 은신 칸 추가하는 쪽으로 가자.

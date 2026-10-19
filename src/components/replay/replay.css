@@ -8,7 +8,7 @@
    · @font-face 와 글꼴 파일은 **따로 싣는다**(public/fonts → dist/fonts · 패키지 "scplay/fonts.css") — 라이브러리 빌드는 CSS 의 url 자산을 base64 로 박아
      styles.css 가 2.3MB 로 불었다(첫 판). 소비자(sg-web)가 "scplay/fonts.css" 를 import 하면 그 번들러가 파일을 제 자산으로 옮긴다.
    · 파일·라이선스는 public/fonts/README.md. 쓰는 자리는 재생기 뿌리 셋(.scr-motion-root · 포털된 판 .scr-fs-layer · 사용법 .scr-guide-overlay)뿐 — 앱 페이지는 안 건드린다. */
-.scr-motion-root, .scr-fs-layer, .scr-guide-overlay {
+.scr-motion-root, .scr-fs-layer, .scr-guide-overlay, .scr-sharepick-overlay {
   --scr-font: "SCP Rasheeq", "SCP NanumSquare Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
   --font-ui: var(--scr-font);   /* 앱 규칙이 var(--font-ui) 로 잡은 요소(입력칸·선택)도 재생기 안에서는 이 글꼴 */
   /* 스타 인게임 UI 글자 녹색(2026-10-16, 요청: "전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 · 자막의 일반 텍스트, 화면 주인의 개인 화면 글자도") —
@@ -17,7 +17,7 @@
   font-family: var(--scr-font);
 }
 /* 단추·입력칸은 브라우저 기본이 글꼴을 안 물려받는다 — 특이도 0(:where)이라 제 글꼴을 적은 규칙(고정폭 등)에는 진다. */
-:where(.scr-motion-root, .scr-fs-layer, .scr-guide-overlay) :where(button, input, select, textarea) { font-family: inherit; }
+:where(.scr-motion-root, .scr-fs-layer, .scr-guide-overlay, .scr-sharepick-overlay) :where(button, input, select, textarea) { font-family: inherit; }
 
 /* ══ 패키지 기본값(요청: 모듈 그 자체로 완결) ═══════════════════════════════════════════════════════════════
    재생기가 쓰는 디자인 토큰의 **기본값**이다. 아무 테마 없는 페이지에 꽂아도 모양이 서고, 앱이 같은 이름을 :root나 제
@@ -5039,3 +5039,30 @@
      오른쪽만 닉네임과 테 사이 여백(4·dk)을 둔다. 테 1.5 → 1px(같은 날, 요청: "선택 선 좀 얇게"). */
   padding: 0 calc(4px * var(--dk)) 0 0; box-shadow: 0 0 0 1px var(--scr-sc-green); background: rgba(100, 220, 90, 0.10);
 }
+
+/* ★ 분할보기의 공유·스크랩 — 사람 하나 고르는 창(2026-10-19, 요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게" ·
+   ReplayMotionPlayer runTail9 ★). body 로 띄우므로 전체화면 판(.scr-fs-layer 90000) 위에 선다. 꼴은 위로 펴는 목록(.scr-motion-pickmenu)과 한 벌. */
+.scr-sharepick-overlay {
+  position: fixed; inset: 0; z-index: 90100;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+
+}
+.scr-sharepick {
+  min-width: 240px; max-width: min(360px, 100%); max-height: calc(100% - 32px); overflow: auto; overscroll-behavior: contain;
+  padding: 14px 12px 10px; display: flex; flex-direction: column; gap: 10px;
+  background: rgba(14, 18, 26, 0.96); color: #eef2f7;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.scr-sharepick-title { margin: 0 4px; font-size: 15px; font-weight: 700; }
+.scr-sharepick-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.scr-sharepick-item, .scr-sharepick-cancel {
+  width: 100%; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 4px;
+  background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.scr-sharepick-item { display: flex; align-items: center; gap: 8px; }
+.scr-sharepick-item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr-sharepick-item:hover, .scr-sharepick-item:focus-visible { background: rgba(255, 255, 255, 0.1); outline: none; }
+.scr-sharepick-cancel { text-align: center; color: rgba(238, 242, 247, 0.7); }
+.scr-sharepick-cancel:hover, .scr-sharepick-cancel:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }

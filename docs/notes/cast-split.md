@@ -1316,3 +1316,12 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
   (panLimit 곁 · panLimit 이 band 를 함께 낸다): 데려오는 셈(trackView 의 mid9 — 무리 몸 가운데 가장 위 y · 링크 앉힘·다시 앉힘 · lookAtTile9 · centerOnTile · 미니맵 짚기 fsSeek)의
   위 한계 = yTop − band × (1 − need) · need = (BAND_TILES − ty)/BAND_TILES 를 0~1 로(맨 윗줄 = 여유 다 · 4줄 아래 = 0). 손 길(드래그·관성·확대·죔)은 여유까지 다.
   실측(`perf-check --ios --castoff --zoom 4 --cx 0.4 --cy 0.06 --pause --foldprobe dry`): 화면 위끝 타일 −4.0(빈 여유 4줄) → 0.0 · cy 0(맨 윗줄)은 −4.0 그대로.
+
+## 분할보기의 공유·스크랩 — 사람 하나 고르기(2026-10-19)
+요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게" · 글귀 "누구의 화면으로 공유할까요?"
+- 분할은 링크로 못 옮긴다(받는 쪽은 한 화면). 여태 분할에서 담으면 `&tr=` 없이 분할 전 자리(z·cx·cy)만 실렸다.
+- `runTail9(k, who?)` — 분할 중이면 먼저 `.scr-sharepick` 창(body 포털 · z 90100 · 칸에 선 사람 `splitBases9` · 색점 `modeColor`)을 띄운다.
+  고르면 **그 한 번만** `playbackTrackOf`=그 아이디 · `playbackViewOf`={deg}(자리 비움 — 추적 장면 규약)로 앱 함수를 부르고, 끝나면 두 표를 되돌린다.
+  바깥 누름·취소·Esc 로 닫힘 · 분할을 끄면 닫힘.
+- 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --players 4 --split a.png --sharepick b.png` → `[공유 고르기]` 줄
+  (담은 링크 `t=48&tr=Rex` · 뒤 표 tr null). 하네스는 soleView 가 아니라 Z 키 줄은 '안 뜸'이 맞다(키는 홀로 선 재생기에서만 듣는다).
