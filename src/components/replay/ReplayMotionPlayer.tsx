@@ -2566,8 +2566,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     const sx09 = ax + (((h9 % 1000) / 1000 - 0.5) * 0.56) * fw9;
     const sy09 = ay - (-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
     const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
-    /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px). */
-    const w9 = Math.max(3.6, fw9 * (0.054 + (((h9 >>> 14) % 100) / 100) * 0.042));
+    /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px) → 같은 날 "피폭포 폭 25프로 축소" ×0.75 → **4.05~7.2%**(하한 2.7px). */
+    const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315));
     const ph9 = ((h9 >>> 20) % 100) / 100;
     const SEG9 = 6;
     /* 곧게 수직으로 떨어진다(재지적: "왜 수직으로 안 떨어지고 휘지" — 몸 굴곡을 흉내 낸 굽이·기울기를 걷었다). */
@@ -2589,30 +2589,38 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     for (let k9 = 0; k9 <= WAVE9; k9 += 1) ctx.lineTo(bx9(1) - hw9(1) + (2 * hw9(1) * k9) / WAVE9, waveY9(k9));
     for (let g9 = SEG9; g9 >= 0; g9 -= 1) { const u9 = g9 / SEG9; ctx.lineTo(bx9(u9) + hw9(u9), sy09 + u9 * L9); }
     ctx.closePath(); ctx.fill();
-    // 흐름 — 밝은 피 두 토막이 위에서 아래로.
-    ctx.fillStyle = "#c92a2e";
-    for (let k9 = 0; k9 < 2; k9 += 1) {
-      const u09 = (((t9 * 0.85 + ph9 + k9 * 0.5) % 1) + 1) % 1;
-      const u19 = Math.min(1, u09 + 0.4);
-      ctx.globalAlpha = 0.85 * Math.min(1, (1 - u09) * 4);
-      /* 가는 줄무늬(폭 ×2 뒤로 마름모가 무늬처럼 읽혀 · 2026-10-19) — 위아래가 뾰족한 길쭉한 육각, 띠 폭의 7분의 1 · 길이 띠의 40%. */
-      const sw9 = hw9(u09) * 0.14;
-      const ya9 = sy09 + u09 * L9 - w9 * 0.2; const yb9 = sy09 + u19 * L9;
-      ctx.beginPath();
-      ctx.moveTo(bx9(u09), ya9);
-      ctx.lineTo(bx9(u09) + sw9, ya9 + (yb9 - ya9) * 0.25);
-      ctx.lineTo(bx9(u19) + sw9, ya9 + (yb9 - ya9) * 0.75);
-      ctx.lineTo(bx9(u19), yb9);
-      ctx.lineTo(bx9(u19) - sw9, ya9 + (yb9 - ya9) * 0.75);
-      ctx.lineTo(bx9(u09) - sw9, ya9 + (yb9 - ya9) * 0.25);
-      ctx.closePath(); ctx.fill();
+    /* (걷어냄 · 2026-10-19) 흐르는 밝은 세로 토막 — 아래 가로 물결띠와 겹쳐 생선뼈 무늬로 읽혔다. 흐름은 물결띠가 맡는다. */
+    /* (걷어냄 · 같은 요청) 끝에 맺힌 둥근 방울 — 끝은 위 물결진 평평한 변이다.
+       (걷어냄 · 같은 날, 요청: "동그라미 떨어지는거를 가로 물결띠가 줄줄 흐르는 느낌으로 변경") 끝에서 떨어지던 방울 — 대신 **가로 물결띠** 셋이
+       띠를 위에서 아래로 줄줄 흘러내린다(띠 폭을 가로지르는 물결선 · 줄기마다 위상 · 위아래 끝에서 옅어진다). */
+    /* 띠마다 **두께·밝기가 다르다** · 더 밝게 빛난다(2026-10-19, 요청: "가로 밴드를 두께와 밝기를 좀 다양하게 하고 더 밝게 빛나도 될듯") —
+       넷 · 두께 반폭의 0.14~0.42 · 색 셋(진홍 #d8303a · 밝은 붉음 #ff5a5f · 빛 #ff9a8f) · 밝은 띠는 넓고 옅은 빛무리 한 겹을 밑에 깐다. */
+    const BAND_COL9 = ["#d8303a", "#ff5a5f", "#ff9a8f"];
+    ctx.lineCap = "round";
+    for (let k9 = 0; k9 < 4; k9 += 1) {
+      const hb9 = ((h9 >>> (k9 * 5)) ^ (k9 * 2654435761)) >>> 0;
+      const u9 = (((t9 * 0.85 + ph9 + k9 / 4) % 1) + 1) % 1;
+      const yr9 = sy09 + u9 * L9;
+      const lw9 = Math.max(1, w9 * (0.14 + ((hb9 % 100) / 100) * 0.28));
+      const ci9 = (hb9 >>> 8) % 3;
+      const fade9 = Math.min(1, u9 * 6, (1 - u9) * 6);
+      const path9 = (): void => {
+        ctx.beginPath();
+        for (let p9 = 0; p9 <= 4; p9 += 1) {
+          const xr9 = bx9(u9) - hw9(u9) * 0.82 + (hw9(u9) * 1.64 * p9) / 4;
+          const yy9 = yr9 + Math.sin(p9 * Math.PI * 0.75 + t9 * 4 + ph9 * 6.28 + k9) * w9 * 0.14;
+          if (p9 === 0) ctx.moveTo(xr9, yy9); else ctx.lineTo(xr9, yy9);
+        }
+      };
+      if (ci9 > 0) {   // 빛무리 — 밝은 두 색만
+        ctx.strokeStyle = BAND_COL9[ci9]; ctx.lineWidth = lw9 * 2.4;
+        ctx.globalAlpha = 0.28 * fade9;
+        path9(); ctx.stroke();
+      }
+      ctx.strokeStyle = BAND_COL9[ci9]; ctx.lineWidth = lw9;
+      ctx.globalAlpha = (ci9 === 0 ? 0.85 : 1) * fade9;
+      path9(); ctx.stroke();
     }
-    /* (걷어냄 · 같은 요청) 끝에 맺힌 둥근 방울 — 끝은 위 물결진 평평한 변이다. 떨어지는 방울은 그 변 가운데에서 남는다. */
-    const tx9 = bx9(1); const ty9 = sy09 + L9;
-    const dp9 = 0.8 + ph9 * 0.3;
-    const q9 = (((t9 + ph9 * dp9) / dp9) % 1 + 1) % 1;
-    ctx.globalAlpha = 0.9 * (1 - q9); ctx.fillStyle = "#b51f25";
-    ctx.beginPath(); ctx.arc(tx9, ty9 + w9 * 0.4 + q9 * q9 * L9 * 0.55, w9 * 0.4, 0, Math.PI * 2); ctx.fill();   // 폭 ×2 뒤로 방울은 그대로의 크기(0.75 → 0.4)
   }
   }
   ctx.globalAlpha = op0;
