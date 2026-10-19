@@ -14723,8 +14723,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 포지(전면 재작도·사진) — 황금 덩치다: 오른뒤에 청록 눈이 박힌 큰 황금 돔,
        앞오른쪽에 같은 눈을 인 작은 돔, 왼쪽에 뾰족한 황금 뿔탑 셋, 그 사이를 잇는
        관 팔 넷, 앞왼쪽에 골이 진 황금 단, 붉은 띠와 은빛 발이 곳곳에 박힌다. */
-    const GOLD = "#d4af37";
-    const GOLD_D = "#a8862a";
+    /* 금·황토 두 벌(#d4af37 · #a8862a) → **종족 금 하나**(2026-10-19, 요청: "포지의 금색/황토계열 부품 프로토스 종족 금색으로 통일") — 프로토스 건물 살빛(RACE_BASE_TONE.toss). */
+    const GOLD = RACE_BASE_TONE.toss;
+    const GOLD_D = RACE_BASE_TONE.toss;
     const CYAN = "#83f9e9";
     const out: ShapeFace[] = [];
     const pc: ShapeFace[] = [];
