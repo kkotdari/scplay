@@ -1842,6 +1842,37 @@ if (SHOT) {
       console.log(`[전체화면 끔] ${z0} → ${z1} → ${z2}`);
     }
   }
+  /* --foldprobe [dry] (--shot 과 함께): 독 접기·펴기 때 배율·팬·보이는 타일·카메라 가운데 타일을 시간에 따라 찍는다(2026-10-19, 지적: "독 접기시 배율 재계산
+     로직이 이상한듯 타일수가 안맞아 그리고 접고펼때 너무 불필요한 화면 이동이 많음"). 타일 = 무대 × 격자 ÷ (덮는 판 × z) · 세로는 가려지는 몫(tb)을 뺀 것도. */
+  if (has("--foldprobe")) {
+    const vp = () => page.evaluate(() => {
+      const v = window.__scrDiag?.viewProbe;
+      if (!v) return "없음";
+      const [gw, gh] = v.grid; const [cw, ch] = v.cov; const [sw, sh] = v.stage; const z = v.z;
+      const tw = (sw * gw) / (cw * z); const th = (sh * gh) / (ch * z); const thv = ((sh - v.tb) * gh) / (ch * z);
+      const cx = gw * (0.5 - v.pan[0] / (cw * z)); const cy = gh * (0.5 - v.pan[1] / (ch * z));
+      const cyv = cy - (v.tb / 2) * gh / (ch * z);
+      const top = cy - (sh / 2) * gh / (ch * z);   // 무대 위끝의 타일 — 손 카메라로 접고 펴면 그대로여야 한다
+      return `[${v.cam ?? "-"}·${v.fit || "-"}] ${v.fold ? "접힘" : "펼침"} z ${z.toFixed(3)} 무대 ${sw}×${sh} 가림 ${v.tb} 판 ${cw}×${ch} 타일 ${tw.toFixed(1)}×${th.toFixed(1)}(보이는 세로 ${thv.toFixed(1)}) 가운데 ${cx.toFixed(1)},${cy.toFixed(1)}(보이는 ${cyv.toFixed(1)}) 위끝 ${top.toFixed(1)} 팬 ${v.pan[0].toFixed(0)},${v.pan[1].toFixed(0)} · 사건 ${window.__scrDiag?.evTail ?? "-"}`;
+    });
+    const series = async (tag) => {
+      let last = "";
+      for (const ms of [0, 50, 100, 200, 400, 700, 1100, 1600]) {
+        await page.waitForTimeout(ms === 0 ? 0 : ms - (series.prev ?? 0));
+        series.prev = ms;
+        const v = await vp();
+        if (v !== last) console.log(`[독 ${tag} +${ms}ms] ${v}`);
+        last = v;
+      }
+      series.prev = 0;
+    };
+    const dry = flag("--foldprobe") === "dry";   // 대조 — 안 누르고 같은 때에 찍는다(그새 카메라가 저절로 얼마나 가나)
+    console.log(`[독 전] ${await vp()}`);
+    if (!dry && !await clickByLabel(/인포창 접기$/)) console.warn("⚠ 접기 단추를 못 찾음");
+    await series(dry ? "대조1" : "접음");
+    if (!dry && !await clickByLabel(/인포창 펼치기$/)) console.warn("⚠ 펼치기 단추를 못 찾음");
+    await series(dry ? "대조2" : "폄");
+  }
   /* --tvprobe: 정보줄 TV 단추·아이콘·감싸개 상자(지적: "중계버튼 티비아이콘 가운데 안맞고 너무 큼"). */
   if (has("--tvprobe")) {
     const r9 = await page.evaluate(() => {

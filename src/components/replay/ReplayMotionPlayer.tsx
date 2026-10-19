@@ -11855,7 +11855,8 @@ export default function ReplayMotionPlayer({
     const d9 = viewDiag9.current;
     d9.ev.push({ t: performance.now(), k, v });
     if (d9.ev.length > 200) d9.ev.splice(0, d9.ev.length - 200);
-    SCR_DIAG.lastEv = `${d9.ev.length}:${k}:${v}`;   // perf-check --shakeprobe 가 프레임마다 읽는다(사건 번호로 새 사건을 안다)
+    SCR_DIAG.lastEv = `${d9.ev.length}:${k}:${v}`;
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).evTail = d9.ev.slice(-6).map((e) => `${e.k}:${e.v}`).join(" | ");   // perf-check --foldprobe   // perf-check --shakeprobe 가 프레임마다 읽는다(사건 번호로 새 사건을 안다)
   };
   /** 무대 크기를 ref로도 들고 있는다 — 팬 한계를 재는 곳 중에는 **한 번만 걸리는
    *  effect 안**(휠 줌)이 있어서, 상태를 읽으면 그 effect가 만들어질 때의 옛 값(0)에
@@ -13856,16 +13857,60 @@ export default function ReplayMotionPlayer({
      비슷한데") — 배율은 '덮는 판(fsCoverW) 폭의 몇 배'라 무대가 커지면(전체화면 · 회전 · 창 크기) 같은 배율이 더 적은 타일을
      보인다. castZoomFit9 는 켤 때 한 번만 돌았으므로 그 차가 그대로 남았다. 중계·개인 추적이 카메라를 쥔 동안(분할 아님)
      덮는 판·무대 크기가 바뀌면 그 식을 다시 돈다 — 곧 어느 크기에서나 보이는 타일 수가 같다. 처음 켤 때는 위 당김이 맡는다. */
-  const castFitKey9 = camRaw9 && !splitOn9 && fsCoverW > 0 ? `${Math.round(fsCoverW)}x${Math.round(stage.h)}` : "";
+  /* ★ **교전 자리(스팟) 중계도 카메라를 쥔 것이다**(2026-10-19, 지적: "독 접기시 배율 재계산 로직이 이상한듯 타일수가 안맞아") — 열쇠가
+     camRaw9(사람)만 보아, 자동 중계가 교전 자리 토막(castRaw 없음 · spotNow9)일 때는 접고 펴도 배율을 안 다시 맞췄다(PC 프레임 14 → 22타일 ·
+     폰 프레임 가로 26 → 20.8타일). 이제 켤 때 당기는 문(castZoomRef9)과 같은 조건이다. 칠하기 전에(레이아웃 effect) 다시 맞추고, 팬은 덮는 판 × 배율의
+     비로 늘려 보던 자리(지도 분수)를 지킨다 — 옛 길은 옛 팬(px)을 그대로 넘겨 한 장 동안 엉뚱한 자리가 보였다. */
+  const camHeld9 = !!camRaw9 || spotNow9 !== null;
+  const castFitKey9 = camHeld9 && !splitOn9 && fsCoverW > 0 ? `${Math.round(fsCoverW)}x${Math.round(stage.h)}` : "";
   const castFitKeyRef9 = useRef("");
-  useEffect(() => {
+  const castFitCovRef9 = useRef(0);
+  useLayoutEffect(() => {
     const prev9 = castFitKeyRef9.current;
+    const cov09 = castFitCovRef9.current;
     castFitKeyRef9.current = castFitKey9;
+    castFitCovRef9.current = fsCoverW;
     if (!castFitKey9 || !prev9 || prev9 === castFitKey9) return;
-    setView9(castZoomFit9(), panRef.current);
+    const z09 = zoomRef.current;
+    const z19 = castZoomFit9();
+    const k9 = cov09 > 0 && z09 > 0 ? (fsCoverW * z19) / (cov09 * z09) : 1;
+    const p09 = panRef.current;
+    /* 카메라가 들고 있는 자리(잡아 둔 팬 · 스프링 · 미끄러짐)도 같은 비로 늘린다 — 배율이 바뀐 줄 알면 trackView 가 '배율'로 곧장 다시 잡아,
+       미끄러지던 카메라가 접고 펼 때 한 장에 목표로 뛰었다(PC 77,65 → 85,60타일). 늘려 두면 같은 자리에서 하던 대로 이어 간다. */
+    const sc9 = (q9: { x: number; y: number }): { x: number; y: number } => ({ x: q9.x * k9, y: q9.y * k9 });
+    const tc9 = trackCamRef.current;
+    if (tc9.raw) trackCamRef.current = { ...tc9, z: z19, pan: sc9(tc9.pan) };
+    const sp9 = spotSpring9.current;
+    if (sp9) spotSpring9.current = { ...sp9, ...sc9(sp9), vx: sp9.vx * k9, vy: sp9.vy * k9 };
+    const gl9 = camGlideRef9.current;
+    if (gl9) camGlideRef9.current = { ...gl9, from: sc9(gl9.from), to: sc9(gl9.to) };
+    setView9(z19, sc9(p09));
     // castZoomFit9 는 ref 만 읽는 클로저다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castFitKey9, setView9]);
+  /* ★ **손 카메라에서 독을 접고 펴면 화면이 안 움직인다**(2026-10-19, 지적: "접고펼때 너무 불필요한 화면 이동이 많음") — 접기는 무대 아래를
+     드러내거나 덮을 뿐이다. 옛 길은 배율(덮는 판의 배수)·팬(px)을 그대로 두어, 덮는 판이 무대 키를 따라 커지는 배치(폰 프레임)에서는 지도가
+     통째로 커졌고(가로 26 → 20.8타일), 어느 배치든 무대 가운데가 키의 반만큼 내려가 화면이 위아래로 밀렸다. 이제 타일 한 칸의 화면 크기
+     (덮는 판 × 배율)와 무대 **위끝**에 대한 자리를 지킨다 — 1배 바닥에 걸리면 그만큼만 커진다. 중계·추적이 쥐었으면 위 문(castFitKey9)이 맡는다. */
+  const foldGeoRef9 = useRef({ fold: dockFoldOn9, h: 0, cw: 0, at: 0 });
+  /** 이 커밋의 무대 바뀜은 접기가 맡았다 — 아래 '보던 자리 지키기'(viewKeyRef)가 가운데로 되끌지 않는다. */
+  const foldAnchoredRef9 = useRef(false);
+  useLayoutEffect(() => {
+    const g9 = foldGeoRef9.current;
+    if (g9.fold !== dockFoldOn9) { g9.fold = dockFoldOn9; g9.at = performance.now(); }   // 무대는 다음 잼에 바뀐다 — 그때 옛 자를 쓴다
+    const changed9 = g9.h !== stage.h || g9.cw !== fsCoverW;
+    if (changed9 && g9.at > 0 && performance.now() - g9.at < 1500 && g9.h > 0 && g9.cw > 0 && fsCoverW > 0 && !camHeld9 && !splitOn9) {
+      g9.at = 0;
+      const z09 = zoomRef.current;
+      const z19 = Math.max(1, (z09 * g9.cw) / fsCoverW);
+      const k9 = (fsCoverW * z19) / (g9.cw * z09);
+      const p09 = panRef.current;
+      setView9(z19, { x: p09.x * k9, y: p09.y * k9 - (stage.h - g9.h) / 2 });   // 접기는 사람이 한 일이다 — 링크가 쥔 자리(linkHoldRef9)를 놓는다
+      foldAnchoredRef9.current = true;
+    }
+    if (changed9) { g9.h = stage.h; g9.cw = fsCoverW; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dockFoldOn9, stage.h, fsCoverW]);
   /* 배치가 다시 설 때마다 링크의 자리를 **다시 앉힌다**(위 linkHoldRef9) — 죔(clamp)
      레이아웃 이펙트보다 **뒤에** 서야 한다(선언 차례가 곧 도는 차례다): 죔이 먼저 옛 팬을
      새 한계로 자르고, 그다음 여기서 분수로 새로 낸다. */
@@ -15062,6 +15107,7 @@ export default function ReplayMotionPlayer({
     if (viewKeyRef.current === null) { viewKeyRef.current = key; return; }
     if (viewKeyRef.current === key) return;
     viewKeyRef.current = key;
+    if (foldAnchoredRef9.current) { foldAnchoredRef9.current = false; holdRef.current = null; return; }   // 독 접기가 위끝을 지켰다(foldGeoRef9 ★)
     /* ★ 링크가 준 자리를 아직 쥐고 있으면 **재중심은 물러난다**(지적: PC에서 공유 링크가 늘 정가운데) ─────────
        실기기 진단이 그대로 적어 놨다: `stage×7 center×7 clamp×8 link×1`. PC는 첫 몇 초에 무대가 일곱 번
        다시 서고, 그때마다 이 '보던 자리 지키기'가 돈다. 그런데 그것이 기억한 자리(centerRef)는 링크가 앉기
@@ -16195,6 +16241,10 @@ export default function ReplayMotionPlayer({
     if (ro9 && low9) ro9.observe(low9);
     return () => { cancelAnimationFrame(raf9); window.removeEventListener("resize", read9); ro9?.disconnect(); };
   }, [fsOn, dockFoldOn9]);
+  /* perf-check --foldprobe 의 자(2026-10-19) — 배율·팬·덮는 판·무대·가려지는 몫(툴박스·독)을 렌더마다 적는다. */
+  if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).viewProbe = {
+    z: zoom, pan: [pan.x, pan.y], cov: [fsCoverW, fsCoverH], stage: [stage.w, stage.h], tb: splitTbH9, grid: [grid.width, grid.height], fold: dockFoldOn9, fit: castFitKey9, cam: camRaw9,
+  };
   const splitLayRef9 = useRef(splitLay9);
   splitLayRef9.current = splitLay9;
   const splitCvRef9 = useRef(new Map<string, HTMLCanvasElement>());
