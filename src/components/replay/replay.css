@@ -4705,7 +4705,7 @@
   position: absolute; left: var(--cap-side); bottom: var(--over-cap); z-index: 40001; pointer-events: none; box-sizing: border-box;
   max-width: calc(100% - var(--cap-side) - var(--sd-room, 0px) - var(--sd-gap, 0px));
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk));
-  font-size: round(nearest, calc(6px * var(--dk)), 2px); line-height: 1.5; font-weight: 600; color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.85);
+  font-size: round(nearest, calc(12px * var(--dk)), 2px); line-height: 1.5; font-weight: 600; color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.85);   /* 폰 6 → 12·dk(× 2 · 2026-10-19 요청: "폰 채팅 글씨 2.5배" → "2배로 수정") · PC 는 아래 */
 }
 .scr-motion-pc9 .scr-fs-chat { max-width: min(40%, calc(100% - var(--cap-side) - var(--sd-room, 0px) - var(--sd-gap, 0px))); gap: round(nearest, calc(4px * var(--dk) / 1.35), 2px);
   font-size: round(nearest, calc(18px * var(--dk) / 1.35 * var(--capk, 1)), 2px); }

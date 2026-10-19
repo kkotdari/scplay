@@ -12118,8 +12118,8 @@ export default function ReplayMotionPlayer({
   /** 중계·개인 추적 한 화면의 최소 타일(가로·세로) — castZoomFit9 가 푼다. 분할 칸은 종전대로 trackZoom9 를 읽는다. */
   /* ★ PC 는 가로 +6 · 세로 +4(2026-10-19, 요청: "PC에서 타일수를 현재보다 세로는 4칸 가로는 6칸 더 보여줘") — 26×14 → **32×18**. 폰은 종전 26×14.
      (무대 비가 정해져 있어 두 하한 중 무는 쪽 하나가 늘고 다른 축은 비례로 따라 는다 — 넓은 PC 무대는 세로 18 이 문다.) */
-  const CAST_MIN_TILES_W9 = uiPhone9 ? 26 : 32;
-  const CAST_MIN_TILES_H9 = uiPhone9 ? 14 : 18;
+  const CAST_MIN_TILES_W9 = uiPhone9 ? 24 : 32;   // 폰 26 → 24(2026-10-19, 요청: "24 12로 변경")
+  const CAST_MIN_TILES_H9 = uiPhone9 ? 12 : 18;   // 폰 14 → 12(같은 요청)
   const trackZoom9 = (): number => (SPLIT_SPAN_K9 * 128) / (SPLIT_ZOOM_K9 * TRACK_TILES9);
   /** ★ 중계·개인 추적이 켤 때 당기는 배율은 **분할 칸과 같은 셈**이다(2026-10, 지적: "중계 자동모드도 분할과 같은 배율계산
    *  적용 몇칸 보일지. 지금 분할보다 좁게 나오는거 같음") — 무대 하나를 칸 하나로 보고 splitPaint9 의 식을 그대로 돈다:
