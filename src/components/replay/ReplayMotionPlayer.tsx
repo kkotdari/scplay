@@ -318,6 +318,8 @@ const SPOT_GLIDE_MS9 = 900;
 const SPOT_START9 = 0.12;
 const SPOT_OMEGA9 = 6;
 const SPOT_STOP9 = 3;
+/** 사람 화면 행군 끌림의 가속 상한(창 폭의 배 / 초² · 아래 trackView ★ 행군) — 모의(scratchpad camsim/march.mjs · 창 1000px)에서 9 면 ×1 2.5 · ×8 7.1 px/장²로 옛 길(6.5 · 10.9)보다 낮고 넘침 0. */
+const TRACK_AMAX9 = 9;
 const camGlideAt9 = (g9: { from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean }, now9: number): { x: number; y: number } | null => {
   const u9 = (now9 - g9.t0) / (g9.ms ?? CAM_GLIDE_MS9);
   if (!(u9 < 1)) return null;
@@ -12491,6 +12493,8 @@ export default function ReplayMotionPlayer({
   const camGlideRef9 = useRef<{ from: { x: number; y: number }; to: { x: number; y: number }; t0: number; ms?: number; out?: boolean } | null>(null);
   /** 사건 중계 스프링(위 SPOT_OMEGA9 ★) — 지금 자리·속도(px/초)·쫓는 중인가·지난 셈 시각(ms). */
   const spotSpring9 = useRef<{ x: number; y: number; vx: number; vy: number; chase: boolean; t: number } | null>(null);
+  /** 사람 화면의 끌림(아래 trackView ★ 행군) — 사건 자리 스프링과 같은 꼴. */
+  const trackSpring9 = useRef<{ x: number; y: number; vx: number; vy: number; chase: boolean; t: number } | null>(null);
   const [camGlideTick9, setCamGlideTick9] = useState(0);
   /* ★★ **화면 전환은 곧장 선다 — 미끄러짐 없이**(2026-10-19, 요청: "접기펴기 분할화면 중계 등 모든 화면에서 쓰는 배율및 화면위치(중앙) 재계산 로직을 중앙화하고
      화면전환즉시는 슬라이딩없이 바로 그화면이 나오게") — 전환(접기·펴기 · 전체화면 · 2D/3D · 무대 크기 · 분할 켜고 끔 · 중계·추적 켜고 끔)마다 `viewCut9` 한 문을 지난다:
@@ -12502,6 +12506,7 @@ export default function ReplayMotionPlayer({
     splitCutRef9.current = true;
     camGlideRef9.current = null;
     spotSpring9.current = null;
+    trackSpring9.current = null;
     setCamGlideTick9((n9) => n9 + 1);   // 곧장 선 자리로 다시 그린다(칠하기 전 · 레이아웃 effect 에서 부른다)
   }, []);
   const trackView = ((): { pan: { x: number; y: number } } | null => {
@@ -12615,6 +12620,37 @@ export default function ReplayMotionPlayer({
     /* #diag=view — 선택이 바뀐 때와 카메라를 다시 잡은 때를 적는다(2026-10, 지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도
        미묘하게 화면이 흔들려") — 왜 잡았나(사람·배율·두번누름·밖·새선택밖)와 옮긴 px · 미끄러짐/곧장이 그 줄에 선다. */
     if (!selSame9 && scrDiagOn()) viewDiagPush9("sel", `${inView9 ? "안" : "밖"} ${trackAt.mode ?? "-"} ${trackAt.pts.length}기${keep9 ? "" : " →잡음"}`);
+    /* ★ **행군은 끌듯 따라간다**(2026-10-19, 지적: "대규모 부대가 길게 이동할 때 가장자리 이동이 부드럽지 않은 경우들 있어 멀미 유발") — 옛 길은 무리가 화면을 벗어날
+       때마다 CAM_GLIDE_MS9(0.45초) ease-in-out 으로 한가운데로 옮기고 **멈췄다** — 길게 걷는 무리는 '섰다 → 휙 → 섰다'를 되풀이했다. 이제 같은 사람·같은 선택의 무리가
+       화면을 벗어나면 사건 자리와 같은 **임계 감쇠 스프링**으로 쫓기 시작해, 무리가 계속 걸으면 계속 흐르고(멈춤 없음) 멈추면 한가운데에 부드럽게 붙어 멎는다(SPOT_STOP9).
+       쫓는 동안은 벗어남을 다시 재지 않는다. 각진동수는 배속의 제곱근만큼 올린다(빠른 배속에서 늦음 = 2v/ω 가 화면을 넘지 않게). 창 하나 넘게 벌어지거나 사람·배율·선택이
+       바뀌거나 화면 전환·두 번 누름·hold 면 종전대로 곧장 선다. 사건 자리 토막(ease9)은 위 스프링 그대로. */
+    const tsp0 = trackSpring9.current;
+    const chaseOk9 = same9 && !jump9 && !cut9 && selSame9 && trackAt.mode !== "hold";
+    const tfar9 = Math.abs(mid9.x - (tsp0?.chase ? tsp0.x : cur9.pan.x)) > lim9.winW || Math.abs(mid9.y - (tsp0?.chase ? tsp0.y : cur9.pan.y)) > lim9.winH;
+    if (chaseOk9 && !tfar9 && (tsp0?.chase || !keep9)) {
+      const now9 = performance.now();
+      const sp9 = tsp0?.chase ? { ...tsp0 } : { x: cur9.pan.x, y: cur9.pan.y, vx: 0, vy: 0, chase: true, t: now9 };
+      if (!tsp0?.chase && scrDiagOn()) viewDiagPush9("cam", `행군 Δ${(mid9.x - cur9.pan.x).toFixed(0)},${(mid9.y - cur9.pan.y).toFixed(0)}px`);
+      const dt9 = Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
+      const w9 = SPOT_OMEGA9 * Math.sqrt(Math.max(1, speed));
+      const dx9 = mid9.x - sp9.x; const dy9 = mid9.y - sp9.y;
+      /* 가속 상한(TRACK_AMAX9 × 창 폭 × √배속 px/초²) — 처음 붙을 때 화면 밖까지 벌어진 거리를 한 번에 당기면 덜컥거린다(모의: 상한 없이 ×8 출발 가속이 옛 길의 3배). */
+      let ax9 = w9 * w9 * dx9 - 2 * w9 * sp9.vx; let ay9 = w9 * w9 * dy9 - 2 * w9 * sp9.vy;
+      const am9 = TRACK_AMAX9 * lim9.winW * Math.sqrt(Math.max(1, speed));
+      const an9 = Math.hypot(ax9, ay9);
+      if (an9 > am9) { ax9 *= am9 / an9; ay9 *= am9 / an9; }
+      sp9.vx += ax9 * dt9; sp9.vy += ay9 * dt9;
+      sp9.x += sp9.vx * dt9; sp9.y += sp9.vy * dt9;
+      sp9.t = now9;
+      if (Math.hypot(mid9.x - sp9.x, mid9.y - sp9.y) < SPOT_STOP9 && Math.hypot(sp9.vx, sp9.vy) < SPOT_STOP9 * 4) { sp9.chase = false; sp9.vx = 0; sp9.vy = 0; }
+      trackSpring9.current = sp9;
+      camGlideRef9.current = null;
+      trackCamRef.current = { raw: camKey9, z: z9, pan: { x: sp9.x, y: sp9.y }, sel: trackAt.sel, jump: cur9.jump };
+      if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [sp9.x, sp9.y];
+      return { pan: { x: sp9.x, y: sp9.y } };
+    }
+    trackSpring9.current = null;
     if (!keep9) {
       if (scrDiagOn()) {
         const why9 = cur9.raw !== camKey9 ? "사람" : cur9.z !== z9 ? "배율" : jump9 ? "두번누름" : !inView9 ? (selSame9 ? "밖" : "새선택밖") : "?";
@@ -12640,7 +12676,7 @@ export default function ReplayMotionPlayer({
     return { pan: out9 };
   })();
   /* 미끄러지는 동안 rAF 마다 렌더를 한 번씩 부른다(trackView 는 렌더가 내는 값이다). 끝나면 멎는다. */
-  const camGliding9 = camGlideRef9.current !== null || (spotSpring9.current?.chase ?? false);   // 스프링이 쫓는 동안도 rAF(위 SPOT_OMEGA9 ★)
+  const camGliding9 = camGlideRef9.current !== null || (spotSpring9.current?.chase ?? false) || (trackSpring9.current?.chase ?? false);   // 스프링이 쫓는 동안도 rAF(위 SPOT_OMEGA9 ★ · 행군 ★)
   useEffect(() => {
     if (!camGliding9) return undefined;
     const id9 = requestAnimationFrame(() => setCamGlideTick9((n9) => n9 + 1));
