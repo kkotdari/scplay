@@ -799,6 +799,34 @@ export declare function ShapeIcon({ kind, className, faces: facesOverride, rotDe
 
 export declare const shapeMapTiles: (kind0: string) => number;
 
+/** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 tacticWordsOf9 가 돌려준다). */
+export declare const TACTIC_TERMS9: readonly string[];
+
+export declare type TacticOpts9 = {
+    /** 그 판의 맵 — 자원 점(앞마당 가름) · 크기(센터) · 참값 지형(언덕탱·입구). 없으면 그 판정만 빠진다. */
+    grid?: Pick<ReplayMapGrid, "width" | "height" | "resources" | "terrain"> | null;
+    /** 경기 길이(초). */
+    endSec: number;
+    /** 경기 채팅 — 재생기가 받는 꼴 그대로. */
+    chats?: readonly {
+        sec: number;
+        name: string;
+        text: string;
+    }[];
+    /** 로스터(참값 이름) — 안 주면 참값의 사람 전부. */
+    only?: readonly string[];
+    /** 관전자 등 뺄 이름. */
+    skip?: readonly string[];
+    /** 이름 → 팀(팀전) — 밀리면 안 준다. */
+    teamOf?: Readonly<Record<string, number | undefined>>;
+};
+
+/** 참값 자취(OBWT · base64 — 재생기가 받는 motion 그대로) → 그 판의 전술 낱말. 자취를 못 풀면 null(낱말 없음과 가른다). */
+export declare function tacticWordsOf9(motion: string, opts: TacticOpts9): Promise<string[] | null>;
+
+/** 글 여럿에서 낱말을 뽑는다(차례 = TACTIC_RULES9 · 겹침 없음). */
+export declare function tacticWordsOfText9(texts: readonly string[]): string[];
+
 export declare const TEAM_COLOR: Record<number, string>;
 
 export declare interface TerrainGrid {
