@@ -81,3 +81,7 @@ export type { DocAnim9, DocCell9 } from "./ReplayMotionPlayer";
    그리고 값만 넘긴다(2026-10) — 표 둘(MODEL_CATALOG_GROUPS·MODEL_CATALOG_RACES)은 앱이 알약 이름표를 쓰는 데 쓴다. */
 export { default as ModelCatalog, MODEL_CATALOG_GROUPS, MODEL_CATALOG_RACES } from "./ModelCatalog";
 export type { ModelCatalogGroup, ModelCatalogRace } from "./ModelCatalog";
+/* ── 판의 전술 낱말(2026-10-20, 요청: "유닛건물스킬에 전술도 · 운영자 재분석에 포함") ── 참값 자취 + 맵으로 재생기와 같은 편성표를 돌려 자막 속 전술
+   낱말("몰래 배럭"·"입구 막기"·"오버로드 사냥"…)을 뽑는다. 앱이 운영자 재분석 때 한 번 굽어 서버에 담는다 — 판을 열 때 굽지 않는다(tactics9.ts 머리말). */
+export { tacticWordsOf9, tacticWordsOfText9, TACTIC_TERMS9 } from "./tactics9";
+export type { TacticOpts9 } from "./tactics9";
