@@ -2579,7 +2579,7 @@
   /* 전광판 설계 폭 **576**(비 576/280 · 2026-10-10 재요청 "닉네임칩 폭 25프로 정도 더 축소") — 이름 기둥은 이제 **남는 폭이 아니라 못 박은 폭**(--name-w 168 = 카메라 단추 + 칩 ·
      옛 남는 폭 127 × 1.4 × 0.75 ≈ 134 칩) · 자료 기둥이 나머지를 받고 칸 사이를 고르게 벌린다(아래 .scr-dock-data). 576 은 2:2 글자 18 에서 자료 기둥(35.1ch ≈ 글자 × 20.7)이 꼭 드는 폭. */
   --roster-r: 2.4859813;   /* 532/214(2026-10-11 · 옛 440/206) — 데미지 칸에 양이 다시 들어 10 → 22ch(글자는 한 단 작게) · 자원 칸 9.5 → 11.5ch 만큼 넓혔다 */
-  --name-w: calc(122px * var(--dks));
+  --name-w: calc(138px * var(--dks));   /* 122 → 138(2026-10-20 · 자동중계 라벨 + 온오프 스위치 · 머리 줄 [자동중계 ⏻ | 전체] 가 첫 칸 라벨(일꾼)에 닿지 않게 옛 틈만큼) */
   --mini-up: 1.1869159;   /* 254/214 — 미니맵이 틀 위로 40 · 폰·기본은 1.2(아래 .scr-fs-dockframe) */
   --dock-bez: calc(6px * var(--dks)); --dock-out: calc(8px * var(--dks)); --dock-sep: calc(12px * var(--dks));
   margin-bottom: calc(4px * var(--dks));
@@ -5079,6 +5079,29 @@
 .scr-speeddial-line { background: rgba(100, 220, 90, 0.45); }
 .scr-speeddial-fill, .scr-speeddial-knob { background: var(--scr-sc-green); }
 .scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(100, 220, 90, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
+/* ★ 배율 원도 녹색 + 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 원 안에 라벨·값 두 줄(배속 다이얼의 "속도"·값과 같은 크기). */
+.scr-zoomdial { flex-direction: column; color: var(--scr-sc-green); }
+.scr-zoomdial-lab { font-size: calc(8px * var(--sdk)); line-height: 1.2; font-weight: 700; opacity: 0.75; white-space: nowrap; margin-bottom: calc(1px * var(--sdk)); }
+.scr-zoomdial.is-base .scr-zoomdial-lab { opacity: 0.6; }
+/* ★ 자동중계 = **라벨 + 온오프 스위치**(2026-10-20, 요청: "자동중계 버튼을 라벨로 바꾸고 옆에 온오프 토글 스위치 넣기 · 색은 녹색 테마 유지") — 단추 바탕·켜짐 바탕·깜빡임을 걷고
+   [TV · 자동중계 | 스위치]. 꺼지면 라벨·스위치 흐린 녹색, 켜지면 녹색(스위치 바탕 반투명 녹색 · 손잡이 오른쪽). 스위치 키 = 줄 키 × 0.42(짝수) · 폭 = 키 × 1.8(짝수). */
+.scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto,
+.scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto:hover { background: none; padding: 0; gap: calc(3px * var(--dk)); color: var(--scr-sc-green-dim); }
+.scr-motion .scr-dock-head .scr-roster-cam.scr-roster-cam-auto.is-on { color: var(--scr-sc-green); }
+.scr-motion .scr-dock-head .scr-roster-cam-auto.is-on svg, .scr-motion .scr-dock-head .scr-roster-cam-auto.is-on .scr-roster-cam-txt { animation: none; }
+.scr-motion .scr-dock-head .scr-roster-cam-auto:focus-visible { outline: 1px solid var(--scr-sc-green); outline-offset: 2px; }
+.scr-cast-switch {
+  --sw-h: round(nearest, calc(var(--rp) * 0.42), 2px); --sw-w: round(nearest, calc(var(--sw-h) * 1.8), 2px);   /* PC 전광판 이름 기둥(--name-w)이 못 박은 폭이라 [자동중계 | 전체] 가 칸 라벨에 안 닿게 작게 */
+  position: relative; flex: none; width: var(--sw-w); height: var(--sw-h); border-radius: 999px; box-sizing: border-box;
+  background: rgba(100, 220, 90, 0.12); box-shadow: inset 0 0 0 1px rgba(100, 220, 90, 0.45); transition: background 0.15s ease-out;
+}
+.scr-cast-switch > i {
+  position: absolute; top: 2px; left: 2px; width: calc(var(--sw-h) - 4px); height: calc(var(--sw-h) - 4px); border-radius: 50%;
+  background: var(--scr-sc-green-dim); transition: transform 0.15s ease-out, background 0.15s ease-out;
+}
+.scr-roster-cam-auto.is-on > .scr-cast-switch { background: rgba(100, 220, 90, 0.42); box-shadow: inset 0 0 0 1px rgba(100, 220, 90, 0.7); }
+.scr-roster-cam-auto.is-on > .scr-cast-switch > i { transform: translateX(calc(var(--sw-w) - var(--sw-h))); background: var(--scr-sc-green); }
+@media (prefers-reduced-motion: reduce) { .scr-cast-switch, .scr-cast-switch > i { transition: none; } }
 /* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도") — 로딩은 뿌리 밖 지도 상자 위라 값을 바로 적는다(변수가 안 닿는 자리 대비). */
 .scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #64dc5a); }
 /* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도"). */

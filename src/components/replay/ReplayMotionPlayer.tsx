@@ -18607,11 +18607,14 @@ export default function ReplayMotionPlayer({
           <div className="scr-dock-names">
             <div className="scr-dock-row scr-dock-head">
               <button
-                type="button" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-pressed={castOn}
-                aria-label={castOn ? "자동 중계 끄기" : "자동 중계 켜기"} title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
+                type="button" role="switch" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-checked={castOn}
+                aria-label="자동 중계" title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
               >
-                {/* TV + "자동중계"(2026-10-12, 요청: "자동 중계 아이콘을 TV로 바꿔 줘 · 라벨은 한글로 자동중계") — 옛 비디오카메라 + AUTO. 사람 줄의 카메라 단추는 그대로. */}
+                {/* TV + "자동중계"(2026-10-12, 요청: "자동 중계 아이콘을 TV로 바꿔 줘 · 라벨은 한글로 자동중계") — 옛 비디오카메라 + AUTO. 사람 줄의 카메라 단추는 그대로.
+                    ★ 단추 → **라벨 + 온오프 스위치**(2026-10-20, 요청: "자동중계 버튼을 라벨로 바꾸고 옆에 온오프 토글 스위치 · 색은 녹색 테마 유지") — 누르는 자리는
+                    라벨·스위치 한 덩이(role=switch) · 클래스는 그대로(perf-check 가 .scr-roster-cam-auto 로 찾는다). 꼴은 replay.css .scr-cast-switch. */}
                 <Tv aria-hidden /><span className="scr-roster-cam-txt">자동중계</span>
+                <span className="scr-cast-switch" aria-hidden><i /></span>
               </button>
               {/* ★ 전체 알약 — PC 만(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요") · 모든 사람 화면 나누기(옛 TV 목록의 '전체'). 폰은 분할이 둘까지라 없다. */}
               {!uiPhone9 && (
@@ -19158,6 +19161,8 @@ export default function ReplayMotionPlayer({
       onDoubleClick={(e) => e.stopPropagation()}
       onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); viewCut9(); holdFit9(); }}
     >
+      {/* 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 배속 다이얼의 "속도"(.scr-speeddial-lab)와 같은 꼴. */}
+      <span className="scr-zoomdial-lab" aria-hidden>배율</span>
       <span className="scr-zoomdial-val">×{zoomK9.toFixed(1)}</span>
     </button>
   ) : null;
