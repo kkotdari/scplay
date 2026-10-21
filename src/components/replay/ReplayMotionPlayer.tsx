@@ -2390,7 +2390,7 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /** 다친 건물의 상처 — **캔버스 판**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ──────────────
- *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireTongue9 · plasmaRays9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
+ *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireTongue9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
  *  한 번만 굽고 그릴 때는 blit 한 번이다. */
 const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
 function woundSpr9(name: "smoke"): HTMLCanvasElement {
@@ -2448,36 +2448,31 @@ function fireTongue9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9
   ctx.closePath();
   ctx.fill();
 }
-/** 플라즈마 누출 한 다발(2026-10-21 · drawWound9 ★★ · 되요청: "토스는 그냥 여러 줄기 직선으로 에너지가 누출되는 느낌 뭉쳐서") — 밑(bx, by) 곁(±0.05W)에서 곧은 빛줄기 여덟이
- *  위로 좁은 부채(±17°)로 뿜어진다 · 줄기마다 길이가 빠르게 깜빡이고(길이 L 의 0.5~1) 각도가 살짝 떨린다 · 넓고 옅은 빛무리 + 가는 흰 심, 위로 갈수록 옅다(한 길에 모아 두 번 긋는다).
+/** 플라즈마 빛줄기 하나(2026-10-21 · drawWound9 ★★) — 밑(bx, by)에서 길이 L 을 휘감기며 오르는 띠(밑 폭 w → 끝 0). 넓고 옅은 빛무리 위에 가는 흰 심 · 위로 갈수록 옅다.
  *  더하기(lighter)로 겹치는 것을 전제한다(프로토스). */
-function plasmaRays9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, L9: number, W9: number, t9: number, ph9: number): void {
+function plasmaWisp9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, L9: number, w9: number, t9: number, ph9: number, a9 = 1): void {
   if (L9 < 1) return;
-  const N9 = 8;
-  const path9 = (): void => {
+  const N9 = 10;
+  const pts9: [number, number][] = [];
+  for (let i9 = 0; i9 <= N9; i9 += 1) {
+    const u9 = i9 / N9;
+    pts9.push([bx9 + (Math.sin(u9 * 5 - t9 * 3.4 + ph9) * 0.55 + Math.sin(u9 * 12 - t9 * 6.1 + ph9 * 1.3) * 0.2) * w9 * u9 * 1.6, by9 - L9 * u9]);
+  }
+  /* 밑동은 가늘고 옅게 시작한다(u 0.25 까지 부풂) — 굵게 시작하면 셋이 밝은 건물 위에서 더해져 흰 막대로 뭉쳤다. */
+  const hwOf9 = (u9: number, wk9: number): number => w9 * wk9 * 0.5 * Math.min(1, 0.25 + u9 * 3) * Math.pow(1 - u9, 0.9);
+  const band9 = (wk9: number): void => {
     ctx.beginPath();
-    for (let i9 = 0; i9 < N9; i9 += 1) {
-      const hs9 = Math.abs(Math.sin((i9 + 1) * 12.9898 + ph9 * 3.1));
-      const ang9 = -Math.PI / 2 + (i9 / (N9 - 1) - 0.5) * 0.6 + Math.sin(t9 * 7 + i9 * 1.7 + ph9) * 0.04;
-      const len9 = L9 * (0.5 + 0.5 * hs9) * (0.75 + 0.25 * Math.sin(t9 * (9 + i9 * 1.3) + ph9 + i9));
-      const x09 = bx9 + (i9 / (N9 - 1) - 0.5) * W9 * 0.1;
-      ctx.moveTo(x09, by9);
-      ctx.lineTo(x09 + Math.cos(ang9) * len9, by9 + Math.sin(ang9) * len9);
-    }
+    for (let i9 = 0; i9 <= N9; i9 += 1) { const hw9 = hwOf9(i9 / N9, wk9); if (i9 === 0) ctx.moveTo(pts9[i9][0] - hw9, pts9[i9][1]); else ctx.lineTo(pts9[i9][0] - hw9, pts9[i9][1]); }
+    for (let i9 = N9; i9 >= 0; i9 -= 1) ctx.lineTo(pts9[i9][0] + hwOf9(i9 / N9, wk9), pts9[i9][1]);
+    ctx.closePath();
+    ctx.fill();
   };
-  const fade9 = (c09: string, c19: string): CanvasGradient => {
-    const g9 = ctx.createLinearGradient(0, by9, 0, by9 - L9);
-    g9.addColorStop(0, c09); g9.addColorStop(1, c19);
-    return g9;
-  };
-  ctx.globalAlpha = 1;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = fade9("rgba(90,190,255,0.4)", "rgba(70,150,255,0)");
-  ctx.lineWidth = Math.max(1.6, W9 * 0.07);
-  path9(); ctx.stroke();
-  ctx.strokeStyle = fade9("rgba(230,250,255,0.9)", "rgba(170,225,255,0)");
-  ctx.lineWidth = Math.max(0.7, W9 * 0.022);
-  path9(); ctx.stroke();
+  const glow9 = ctx.createLinearGradient(0, by9, 0, by9 - L9);
+  glow9.addColorStop(0, "rgba(90,190,255,0.08)"); glow9.addColorStop(0.2, "rgba(90,190,255,0.4)"); glow9.addColorStop(0.65, "rgba(70,150,255,0.22)"); glow9.addColorStop(1, "rgba(60,120,255,0)");
+  ctx.globalAlpha = a9; ctx.fillStyle = glow9; band9(1.9);
+  const core9 = ctx.createLinearGradient(0, by9, 0, by9 - L9);
+  core9.addColorStop(0, "rgba(200,240,255,0.15)"); core9.addColorStop(0.2, "rgba(220,246,255,0.6)"); core9.addColorStop(0.55, "rgba(160,225,255,0.42)"); core9.addColorStop(1, "rgba(140,210,255,0)");
+  ctx.fillStyle = core9; band9(0.6);
 }
 /** 다친 건물 **하나**의 상처 — 불꽃 여럿을 여기서 흩는다(op은 건물마다 한 장이다).
  *  흩는 자리는 건물 번호와 불꽃 번호의 **순수 함수**라, 엔진이 쓰던 해시를 그대로 다시 돌린다
@@ -2503,24 +2498,32 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const g9 = Math.max(1, f.wg ?? 1);
   /* ★ 테란·프로토스 불꽃도 **서로 안 겹치게** 차례로 앉힌다(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고") — 아래 저그 zX9 와 같은 꼴:
      불꽃 k 는 해시 후보 자리(열여섯)를 차례로 보며 앞 불꽃(0…k−1)과 가로로 안 겹치는(사이 ≥ 반폭 0.3) 첫 자리 — 다 막히면 가장 덜 겹치는 자리. 불꽃은 키가 커서
-     세로로는 늘 겹치므로 가로만 본다. 폭은 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다. 흩는 폭은 발자국 폭의 ±0.36(옛 ±0.16 · 겹쳐 앉던 까닭). */
-  const tX9: number[] = [];
+     세로로는 늘 겹치므로 가로만 본다. 폭은 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다.
+     ★★ 후보 자리는 **건물 발자국 위**다(2026-10-21, 요청: "건물 모델은 3D 에 요잉도 들어가 있어서 평면처럼 손상 효과를 만들면 이상해 — 입체 느낌 나게(특히 밑동) · 잘 어우러지게
+     위치 조정") — 발자국 안쪽(가로·세로 ±0.3)의 점을 건물 요잉(BLD_YAW9 45°)으로 돌리고 땅 눕힘(mq)으로 눌러 화면에 옮긴다(옛: 화면 가로 ±0.36 · 세로 ±0.16 네모).
+     그리기는 **뒤(화면 위)부터 앞으로**(아래 order9) — 앞 불꽃이 뒤 불꽃을 덮는다. */
+  const tXY9: [number, number][] = [];
+  const mq9 = Math.max(0.2, f.mq ?? 1);
   if (race9 !== "zerg") {
-    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.28 : 0.26);   // 반폭 — 불 혀 넷(±0.27W) · 플라즈마 다발(±17° × 1.5W ≈ ±0.25W 끝 · 2026-10-21 fireTongue9 · plasmaRays9)
+    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.3 : 0.24);   // 반폭 — 불 고리(±0.29W) · 플라즈마 고리(±0.24W · 2026-10-21 fireTongue9 · plasmaWisp9)
+    const fW9 = sx9; const fD9 = sy9 / mq9;   // 발자국 가로·세로(눕히기 전 화면 px)
+    const C45 = Math.SQRT1_2;
     const put9: number[] = [];
     for (let kk9 = 0; kk9 < n9; kk9 += 1) {
       const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-      let best9 = 0; let bestGap9 = Number.NEGATIVE_INFINITY;
+      let best9: [number, number] = [0, 0]; let bestGap9 = Number.NEGATIVE_INFINITY;
       for (let tr9 = 0; tr9 < 16; tr9 += 1) {
         const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
-        const c9 = ((hc9 % 1000) / 1000 - 0.5) * 0.72 * sx9;
+        const u9 = ((hc9 % 1000) / 1000 - 0.5) * 0.6 * fW9;
+        const v9 = (((hc9 >>> 10) % 1000) / 1000 - 0.5) * 0.6 * fD9;
+        const c9: [number, number] = [(u9 - v9) * C45, (u9 + v9) * C45 * mq9];
         let gap9 = Number.POSITIVE_INFINITY;
-        for (const q9 of put9) gap9 = Math.min(gap9, Math.abs(c9 - q9) - 2 * hw09);
+        for (const q9 of put9) gap9 = Math.min(gap9, Math.abs(c9[0] - q9) - 2 * hw09);
         if (gap9 > bestGap9) { bestGap9 = gap9; best9 = c9; }
         if (gap9 >= hw09 * 0.3) break;
       }
-      put9.push(best9);
-      tX9.push(ax + best9);
+      put9.push(best9[0]);
+      tXY9.push([ax + best9[0], ay + best9[1]]);
     }
   }
   /* ★ 저그 줄기는 **서로 안 겹치게** 차례로 앉힌다(2026-10-19, 요청: "두개가 겹치지 않게하기") — 줄기 k 는 해시가 주는 후보 자리(최대 열여섯)를 차례로 보며
@@ -2551,45 +2554,58 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       zX9.push(ax + best9);
     }
   }
-  for (let kk9 = 0; kk9 < n9; kk9 += 1) {
+  /* 뒤(화면 위)부터 앞으로(위 ★★) — 저그 줄기는 제 차례. */
+  const order9 = Array.from({ length: n9 }, (_, i9) => i9);
+  if (race9 !== "zerg") order9.sort((a9, b9) => tXY9[a9][1] - tXY9[b9][1]);
+  for (const kk9 of order9) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-  /* 가로는 위에서 안 겹치게 앉힌 자리(tX9 ★) · 세로 흩음은 그대로. */
-  const x9 = race9 === "zerg" ? ax : tX9[kk9];
-  const y9 = ay + ((((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32) * sy9;
+  /* 자리 — 테란·프로토스는 발자국 마름모 위(tXY9 ★★) · 저그는 줄기가 제 자리를 따로 잰다(zX9). */
+  const x9 = race9 === "zerg" ? ax : tXY9[kk9][0];
+  const y9 = race9 === "zerg" ? ay + ((((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32) * sy9 : tXY9[kk9][1];
   const Wd9 = W9 * g9;                        // 상한 뒤로 커지는 불꽃 상자
   const top9 = y9 - Wd9 / 2;                  // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
     /* (걷어냄 · 2026-10-21, 요청: "테란 … 아래 동그란 부분은 제거") 밑동 후광 — 테란 잉걸(0.62초). 프로토스의 사이언 아지랑이도 걷었다(2026-10-19 · 위 candle ★). */
     /* ★★ **불은 그려서 태운다**(2026-10-21, 지적: "불꽃(화재) 모양이 너무 허접한 듯 · 토스 플라즈마 연기도 그렇고") — 옛 판은 물방울 꼴 그림 한 장(flame · candle)을 늘였다
-       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireTongue9 · plasmaRays9):
+       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireTongue9 · plasmaWisp9):
          · 테란 화재 — 혀 넷(가운데 높고 가장자리 낮게 · 제각기 빠르게 깜빡이고 끝이 흔들린다)을 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고,
            가장자리는 위로 갈수록 크게 일렁인다 · 불티 셋이 튀어 오르며 식는다.
-         · 프로토스 플라즈마 — 한 곳에서 곧은 빛줄기 여덟이 다발로 새어 뿜어진다(plasmaRays9 · 되요청: "그냥 여러 줄기 직선으로 에너지가 누출되는 느낌 뭉쳐서" —
-           한때 휘감기는 띠 셋 + 전기 불꽃 + 알갱이였다). */
+         · 프로토스 플라즈마 — 휘감기며 오르는 빛줄기 셋(넓고 옅은 빛무리 + 가는 흰 심 · plasmaWisp9 · 되요청 "방금 전이 맞았어" — 한때 곧은 빛줄기 다발이었다). */
     const bx9 = x9;
     const by9 = top9 + Wd9 * 0.58;
     if (race9 === "terran") {
       const ph09 = dl9 * 6.28;
       const H9 = Wd9 * 1.45 * (0.9 + 0.1 * Math.sin(t9 * 9 + ph09) + 0.06 * Math.sin(t9 * 17.3 + ph09 * 1.7));
       const Wf9 = Wd9 * 0.46;
-      /* 혀 넷 [가로 자리(폭 몫) · 키 몫 · 폭 몫 · 깜빡임 위상] — 가운데 둘이 높다. */
-      const TONGUES9: [number, number, number, number][] = [[-0.3, 0.62, 0.5, 0.0], [-0.08, 1, 0.62, 1.7], [0.14, 0.86, 0.58, 3.1], [0.33, 0.55, 0.46, 4.4]];
+      /* ★★ 밑동은 **눕힌 고리**(2026-10-21, 요청: "입체 느낌 나게(특히 밑동)") — 혀 다섯이 표면 위 작은 고리(반지름 0.32·Wf · 세로는 땅 눕힘 mq)에 둘러서 솟는다.
+         뒤쪽(고리 위쪽) 혀는 낮고 옅게 먼저 · 앞쪽은 크고 진하게 나중에 — 밑이 일자가 아니라 표면을 따라 둥글게 앉고 앞뒤가 읽힌다. 심(흰 노랑)은 앞쪽 혀에만. */
       const LAYERS9: [number, number, [number, string][]][] = [
         [1, 1, [[0, "rgba(255,84,14,0.92)"], [0.45, "rgba(236,52,10,0.75)"], [0.8, "rgba(170,26,6,0.35)"], [1, "rgba(120,14,4,0)"]]],
         [0.68, 0.74, [[0, "rgba(255,176,44,0.95)"], [0.5, "rgba(255,124,22,0.8)"], [1, "rgba(255,90,14,0)"]]],
         [0.36, 0.46, [[0, "rgba(255,248,200,0.95)"], [0.55, "rgba(255,214,96,0.75)"], [1, "rgba(255,170,50,0)"]]],
       ];
-      for (const [kw9, kh9, stops9] of LAYERS9) {
+      const grads9 = LAYERS9.map(([, kh9, stops9]) => {
         const g9 = ctx.createLinearGradient(0, by9, 0, by9 - H9 * kh9);
         for (const [o9, c9] of stops9) g9.addColorStop(o9, c9);
-        ctx.fillStyle = g9;
-        ctx.globalAlpha = 1;
-        TONGUES9.forEach(([ox9, hk9, wk9, tp9], ti9) => {
-          if (kw9 < 0.5 && (ti9 === 0 || ti9 === 3)) return;   // 심은 가운데 둘에만
-          const fl9 = 0.82 + 0.18 * Math.sin(t9 * (10 + ti9 * 2.3) + ph09 + tp9);
-          fireTongue9(ctx, bx9 + ox9 * Wf9, by9, Wf9 * wk9 * kw9, H9 * hk9 * kh9 * fl9,
-            Math.sin(t9 * 3.1 + tp9 + ph09) * Wf9 * 0.35, t9, tp9 + ph09);
+        return g9;
+      });
+      const rx9 = Wf9 * 0.32; const ry9 = rx9 * mq9;
+      const ring9 = Array.from({ length: 5 }, (_, j9) => {
+        const th9 = (j9 / 5) * Math.PI * 2 + ph09;
+        const hs9 = Math.abs(Math.sin((j9 + 1) * 78.233 + ph09));
+        return { j: j9, x: bx9 + Math.cos(th9) * rx9, y: by9 + Math.sin(th9) * ry9, d: Math.sin(th9), hk: 0.6 + 0.4 * hs9, wk: 0.42 + 0.16 * hs9 };
+      }).sort((a9, b9) => a9.d - b9.d);
+      for (const tg9 of ring9) {
+        const back9 = tg9.d < 0;
+        const fl9 = 0.82 + 0.18 * Math.sin(t9 * (10 + tg9.j * 2.3) + ph09 + tg9.j * 1.7);
+        const hk9 = tg9.hk * (back9 ? 0.75 + 0.25 * (1 + tg9.d) : 1) * fl9;
+        LAYERS9.forEach(([kw9, kh9], li9) => {
+          if (li9 === 2 && tg9.d < -0.2) return;   // 심은 앞쪽 혀에만
+          ctx.fillStyle = grads9[li9];
+          ctx.globalAlpha = back9 ? 0.85 : 1;
+          fireTongue9(ctx, tg9.x, tg9.y, Wf9 * tg9.wk * kw9, H9 * hk9 * kh9,
+            Math.sin(t9 * 3.1 + tg9.j * 1.7 + ph09) * Wf9 * 0.35, t9, tg9.j * 1.7 + ph09);
         });
       }
       /* 불티 — 셋이 엇갈려 튀어 오르며 작아지고 식는다(0.9초). */
@@ -2604,7 +2620,45 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         ctx.fillRect(sx9 - sz9 / 2, sy9 - sz9 / 2, sz9, sz9);
       }
     } else {
-      plasmaRays9(ctx, bx9, by9, Wd9 * 1.5, Wd9, t9, dl9 * 6.28);
+      /* 플라즈마 — 줄기 셋이 표면 위 눕힌 고리(반지름 0.13·W · 세로 mq)에서 솟는다 · 뒤쪽은 짧고 옅게 먼저(위 테란 고리와 같은 꼴 · 2026-10-21 입체). */
+      const ph09 = dl9 * 6.28;
+      const rx9 = Wd9 * 0.13; const ry9 = rx9 * mq9;
+      const ring9 = [0, 1, 2].map((k9) => {
+        const th9 = (k9 / 3) * Math.PI * 2 + ph09;
+        return { k: k9, x: bx9 + Math.cos(th9) * rx9, y: by9 + Math.sin(th9) * ry9, d: Math.sin(th9) };
+      }).sort((a9, b9) => a9.d - b9.d);
+      for (const w9 of ring9) {
+        const L9 = Wd9 * [1.3, 1.6, 1.15][w9.k] * (0.85 + 0.15 * Math.sin(t9 * 2.3 + w9.k * 2.1 + ph09)) * (w9.d < 0 ? 0.8 : 1);
+        plasmaWisp9(ctx, w9.x, w9.y, L9, Wd9 * 0.22, t9 * (1 + 0.15 * w9.k), w9.k * 2.4 + ph09, w9.d < 0 ? 0.7 : 1);
+      }
+      /* 전기 불꽃 — 0.7초마다 첫 0.12초 동안 밑동에서 위로 튀는 꺾은 선(해시로 꺾임). */
+      const ep9 = t9 / 0.7 + dl9;
+      const en9 = Math.floor(ep9);
+      if (ep9 - en9 < 0.17) {
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = "#eaffff";
+        ctx.lineWidth = Math.max(0.8, Wd9 * 0.025);
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath();
+        let ax9 = bx9 + Math.sin(en9 * 3.7) * Wd9 * 0.15; let ay9 = by9;
+        ctx.moveTo(ax9, ay9);
+        for (let z9 = 1; z9 <= 4; z9 += 1) {
+          ax9 += Math.sin(en9 * 9.1 + z9 * 4.3) * Wd9 * 0.12;
+          ay9 -= Wd9 * 0.16;
+          ctx.lineTo(ax9, ay9);
+        }
+        ctx.stroke();
+      }
+      /* 빛 알갱이 둘 — 오르며 사라진다(1.3초). */
+      for (let k9 = 0; k9 < 2; k9 += 1) {
+        const c9 = (t9 / 1.3 + k9 / 2 + dl9) % 1;
+        const sx9 = bx9 + Math.sin(c9 * 5 + k9 * 3 + ph09) * Wd9 * 0.18;
+        const sy9 = by9 - Wd9 * (0.2 + c9 * 1.4);
+        const sz9 = Math.max(0.9, Wd9 * 0.04) * (1 - c9 * 0.6);
+        ctx.globalAlpha = Math.max(0, 1 - c9) * 0.9;
+        ctx.fillStyle = "#c8f4ff";
+        ctx.fillRect(sx9 - sz9 / 2, sy9 - sz9 / 2, sz9, sz9);
+      }
     }
     /* 연기 — 불꽃마다 **늘** 피어오른다(2026-10-21, 요청: "연기 색과 수 강화" · 옛: 2단에서만 한 덩이) — 1단 둘 · 2단(상한) 셋이 2.1초 주기를 나눠 잇달아 오르며
        퍼지고 사라진다. */

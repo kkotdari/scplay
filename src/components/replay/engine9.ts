@@ -2316,6 +2316,8 @@ export type FxOp = {
   wn?: number;
   /** wound: 상한에 닿은 뒤의 크기 배수(1 → WOUND_GROW9 · 2026-10-21). */
   wg?: number;
+  /** wound: 땅의 눕힘 몫(입체면 pitchFlat · 아니면 1) — my 는 이미 이것을 곱한 값이다(2026-10-21). */
+  mq?: number;
   /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
   tier?: 1 | 2 | 3;
   fx: number; fy: number;
@@ -6730,6 +6732,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              갯수 늘릴 때도 중심부 주변으로"). 세로는 입체의 눕힘까지 먹는다. */
           mx: fp2[0] * wk9,
           my: fp2[1] * wk9 * (pitched ? pitchFlat : 1),
+          /* 눕힘 몫(2026-10-21) — 붓이 상처 자리를 **요잉 45° 발자국 마름모** 위에 앉히고 밑동 고리를 눕힌다(입체 · drawWound9 ★★). */
+          mq: pitched ? pitchFlat : 1,
           /* 수는 wn(위 ★★) · tier 2 = 상한에 닿음. */
           tier: woundLv === 2 ? 2 : 1, wrace: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
           seed: i, clk: t,
