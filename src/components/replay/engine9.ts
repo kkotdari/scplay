@@ -6693,7 +6693,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          세 종족 다 · 처음엔 피해에 따라 숫자를 늘리다가, 숫자가 건물 피에 따라 2~4개로 정해 놓고 거기에 차면 크기를 키워 그때부터") —
          수 = 잃은 체력 50 넘으면 하나, 그 뒤 110 마다 하나(저그 셈 그대로) · 상한 = 만피(체력+실드) 600 밑 2 · 1200 밑 3 · 그 위 4(옛 저그 상한 10 · 테란·프로토스
          2/3·1/3 비율 문턱 2·5개는 걷었다). 상한에 닿은 뒤로는 남은 체력을 다 잃을 때까지 크기가 1 → WOUND_GROW9 배(wg). 2단(tier 2 · 테란 연기)은 상한에 닿은 때. */
-      const wCap9 = bldHp.full < 600 ? 2 : bldHp.full < 1200 ? 3 : 4;
+      /* 저그는 셋에서 멈춘다(2026-10-21, 요청: "저그는 최대 3개로 제한"). */
+      const wCap9 = bldHp.full < 600 ? 2 : bldHp.full < 1200 || race2 === "저그" ? 3 : 4;
       const wLostCap9 = 50 + 110 * (wCap9 - 1);
       const wN9 = bldHp.lost < 50 ? 0 : Math.min(wCap9, 1 + Math.floor((bldHp.lost - 50) / 110));
       const wGrow9 = bldHp.lost <= wLostCap9 ? 1
