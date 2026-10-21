@@ -2581,10 +2581,11 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       /* ★★ 밑동은 **눕힌 고리**(2026-10-21, 요청: "입체 느낌 나게(특히 밑동)") — 혀 다섯이 표면 위 작은 고리(반지름 0.32·Wf · 세로는 땅 눕힘 mq)에 둘러서 솟는다.
          뒤쪽(고리 위쪽) 혀는 낮고 옅게 먼저 · 앞쪽은 크고 진하게 나중에 — 밑이 일자가 아니라 표면을 따라 둥글게 앉고 앞뒤가 읽힌다. 심(흰 노랑)은 앞쪽 혀에만. */
       const LAYERS9: [number, number, [number, string][]][] = [
-        [1, 1, [[0, "rgba(255,84,14,0.92)"], [0.45, "rgba(236,52,10,0.75)"], [0.8, "rgba(170,26,6,0.35)"], [1, "rgba(120,14,4,0)"]]],
-        [0.68, 0.74, [[0, "rgba(255,176,44,0.95)"], [0.5, "rgba(255,124,22,0.8)"], [1, "rgba(255,90,14,0)"]]],
-        [0.36, 0.46, [[0, "rgba(255,248,200,0.95)"], [0.55, "rgba(255,214,96,0.75)"], [1, "rgba(255,170,50,0)"]]],
+        [1, 1, [[0, "rgba(255,84,14,0.75)"], [0.45, "rgba(236,52,10,0.55)"], [0.8, "rgba(170,26,6,0.22)"], [1, "rgba(120,14,4,0)"]]],
+        [0.68, 0.74, [[0, "rgba(255,176,44,0.8)"], [0.5, "rgba(255,124,22,0.6)"], [1, "rgba(255,90,14,0)"]]],
+        [0.36, 0.46, [[0, "rgba(255,248,200,0.85)"], [0.55, "rgba(255,214,96,0.6)"], [1, "rgba(255,170,50,0)"]]],
       ];
+      /* 반투명(2026-10-21, 요청: "테란도 반투명 느낌 필요") — 겹 색의 알파를 낮추고(겉 0.92 → 0.75 …) 혀 전체도 앞 0.8 · 뒤 0.6 으로 비친다 — 뒤 건물 결이 불 너머로 보인다. */
       const grads9 = LAYERS9.map(([, kh9, stops9]) => {
         const g9 = ctx.createLinearGradient(0, by9, 0, by9 - H9 * kh9);
         for (const [o9, c9] of stops9) g9.addColorStop(o9, c9);
@@ -2603,7 +2604,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         LAYERS9.forEach(([kw9, kh9], li9) => {
           if (li9 === 2 && tg9.d < -0.2) return;   // 심은 앞쪽 혀에만
           ctx.fillStyle = grads9[li9];
-          ctx.globalAlpha = back9 ? 0.85 : 1;
+          ctx.globalAlpha = back9 ? 0.6 : 0.8;
           fireTongue9(ctx, tg9.x, tg9.y, Wf9 * tg9.wk * kw9, H9 * hk9 * kh9,
             Math.sin(t9 * 3.1 + tg9.j * 1.7 + ph09) * Wf9 * 0.35, t9, tg9.j * 1.7 + ph09);
         });
