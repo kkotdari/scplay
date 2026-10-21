@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
+import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, speedOfUnit, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
 import { kN, kT, kX, kY, keyJump, posAtTruth, SEL_KIND9, tkN, tkT, tkV, type TruthTrack } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -386,6 +386,14 @@ const CAST_W9: Record<string, number> = {
   "Scanner Sweep": 24,
 };
 
+/** 러시 건물 — 상대 기지(본진 건물 BASE_R9 안)에 세운 것의 글귀(요청: "포토러시 · 성큰러시"). */
+const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
+/** ★★ 러시 한 판의 자(2026-10-21 · 아래 rushSess9 ★★) — 한 판에 드는 건물의 착공 틈(초) · 앞 건물과의 거리(타일) · 앞서 지은 파일런을 보는 폭(초) ·
+ *  싸움 장면에 러시 이름을 붙이는 거리(타일 · 장면 가운데 ~ 그 판 건물) · 첫 착공 사건의 무게(MIN_SCENE9 — 홀로 장면이 선다) · 마지막 건물 뒤 머묾(초). */
+const RUSH9 = { gap: 90, join: 16, pylonLead: 90, near: 16, w: 450, tail: 10 };
+/** ★★ 정찰의 자(2026-10-21 · 아래 scouts9 ★★) — 일꾼 정찰은 이 초 앞만 · 같은 사람·상대·수단은 이 초에 한 번 · 사건 무게(MIN_SCENE9) · 머묾(초). */
+const SCOUT9 = { early: 300, dedup: 180, w: 450, tail: 8 };
+const SCOUT_UNIT9: Record<string, string> = { SCV: "일꾼", Probe: "일꾼", Drone: "일꾼", Overlord: "오버로드", Observer: "옵저버" };
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 싸움이 **시작된 때**(2026-10-11) — 죽은 몸을 적이 처음 겨눈 때(ENG_MAX9 초 안 · 겨눔 자국) · 모르면 없다(= sec). 자막은 죽은 때가 아니라 이때 선다. */
@@ -403,7 +411,11 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 죽인 쪽 사건만 — 죽인 몸의 태그(처치 절에서만 안다 · 모르면 없다)와 죽은 몸의 자리(지형 활용 판정 · 2026-10-10). */
   ktag?: number; vx?: number; vy?: number;
   /** 사건이 난 자리(타일 · 죽은 자리 · 마법을 친 자리) — 장면을 **자리로도** 가른다(2026-10-10 · SCENE_R9). 모르면 없다. */
-  px?: number; py?: number };
+  px?: number; py?: number;
+  /** 러시 판의 둘째 건물부터(2026-10-21 · rushSess9 ★★) — 그것뿐인 토막은 그 러시를 보던 중일 때만 잇는다(새 장면으로 카메라를 끌어오지 않는다). */
+  more?: boolean;
+  /** 러시 판 번호(rushSess9 의 자리 · 2026-10-21) — 같은 판의 토막은 때가 떨어져도 한 전투(bid)다. */
+  rid?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 /** ★ 검색 거리(2026-10-12, 요청: "자막에 나온 내용이 아니더라도 검색되면 좋겠는데") — 편성표 밖의 글귀: **모든 장면**(잔 장면·밀린 장면 포함 · 그 장면 1등을 주인공으로 지은
@@ -1354,6 +1366,148 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (n9.hit > total - 3) continue;
     evs9.push({ sec: n9.hit, eng: n9.hit - NUKE_DROP9 - (NUKE_AIM_SHOW9 - CAST_LEAD9), raw: n9.raw, w: CAST_W9["Nuclear Strike"] ?? 1400, why: "핵", tech: "Nuclear Strike", px: n9.x, py: n9.y, tail: NUKE_BOOM9 + GAP9 });
   }
+  /* ★★ **러시는 한 판이다**(2026-10-21, 요청: "포토러시/성큰러시는 짓기 시작할 때부터 러시로 판단하고 주변에 짓는 건 한 사건으로 봐야 함 — 조금 후에 늘린다고 다른 포토러시가
+     아니라" · "포토러시인데 이상한 곳 보여주는 경우가 있고") ───────────────────────────────────────────────────────────────────────────
+     옛 판은 러시를 이정표(첫 캐논 착공)와 **싸움 장면의 이름**(rushKind9 — 그 두 사람의 싸움이 캐논 착공 240초 안이면 어디서 싸우든 "포토러시")으로만 말했다:
+     ① 캐논만 짓고 아무것도 안 죽으면 장면이 아예 없었고 ② 러시와 무관한 자리(제 앞마당 · 센터)의 싸움도 "포토러시"로 불려 엉뚱한 곳을 비췄고 ③ 러시 자리의 싸움이 끊겼다
+     이어질 때마다 새 "포토러시" 장면이 섰다. 이제:
+       · 판 — 상대 기지(본진 건물의 기지 영역 · 제 편 기지 쪽은 뺀다)에 세운 캐논·크립·성큰을 사람·상대마다 착공 차례로 묶는다: 앞 건물 RUSH9.gap 초 안 · 앞 건물들 RUSH9.join 타일 안이면
+         같은 판. 그 판 둘레에 RUSH9.pylonLead 초 앞부터 세운 제 파일런도 판에 든다(포토러시는 파일런 착공이 시작이다).
+       · 사건 — 판의 건물마다 착공 때 "러시" 사건(첫 건물은 RUSH9.w · 그 뒤는 제 몸값 · more · rid)을 그 자리에 낸다(꼬리 RUSH9.tail — 아무 일 없는 러시 자리에 오래 머물지 않는다).
+         같은 판의 토막(rid · 그 판 자리 곁에서 그 판 동안 그 두 사람이 싸운 토막도)은 때가 떨어져도 한 전투(bid)라 주인공·무게가 이어진다(아래 전투 단위 ★★).
+         늘려 지은 건물뿐인 토막은 그 러시를 보던 중일 때만 잇는다 — 딴 데를 보던 중이면 카메라를 끌어와 "포토러시"를 또 말하지 않는다.
+       · 이름 — 싸움 장면의 러시 이름은 그 판 **건물 RUSH9.near 타일 안**의 장면에만(rushKind9). */
+  type Rush9 = { att: string; foe: string; text: string; t0: number; t1: number; blds: { t: number; x: number; y: number; kind: string }[] };
+  const rushSess9: Rush9[] = (() => {
+    const ownersOfRaw0_9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
+    const team0_9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
+    const names0_9 = [...new Set(rawOf9.values())];
+    /* 제 편 기지 쪽(아래 ownSideAt9 와 같은 자 — 그것은 이 뒤에 선다) — 빨무처럼 붙은 기지의 제 입구 캐논·성큰은 러시가 아니다. */
+    const ownSide0_9 = (raw9: string, x9: number, y9: number, sec9: number, foeD9: number): boolean => {
+      for (const r9 of names0_9) {
+        if (!team0_9(r9, raw9)) continue;
+        const pts9: [number, number][] = [...hallsOfOwner9(ownersOfRaw0_9(r9), sec9)];
+        const st9 = start9.get(r9); if (st9) pts9.push([st9.x, st9.y]);
+        for (const [hx9, hy9] of pts9) if (inBaseArea9(hx9, hy9, x9, y9) || Math.hypot(hx9 - x9, hy9 - y9) <= foeD9) return true;
+      }
+      return false;
+    };
+    /** 그 건물이 선 상대 기지(없으면 null). */
+    const foeBaseOf9 = (att9: string, e9: (typeof world.lives)[number]): string | null => {
+      for (const foe9 of names0_9) {
+        if (team0_9(foe9, att9)) continue;
+        const fh9 = hallsOfOwner9(ownersOfRaw0_9(foe9), e9.born);
+        if (!fh9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, e9.bornX, e9.bornY))) continue;
+        if (ownSide0_9(att9, e9.bornX, e9.bornY, e9.born, Math.min(...fh9.map(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY))))) continue;
+        return foe9;
+      }
+      return null;
+    };
+    const out9: Rush9[] = [];
+    const cands9 = world.lives.filter((e9) => e9.bld && !e9.handoff && RUSH_BLD9[e9.kind] && e9.born > 1).sort((a9, b9) => a9.born - b9.born);
+    for (const e9 of cands9) {
+      const att9 = rawOf9.get(e9.owner);
+      if (!att9) continue;
+      const foe9 = foeBaseOf9(att9, e9);
+      if (!foe9) continue;
+      const b9 = { t: e9.born, x: e9.bornX, y: e9.bornY, kind: e9.kind };
+      const s9 = out9.find((r9) => r9.att === att9 && r9.foe === foe9 && e9.born - r9.t1 <= RUSH9.gap
+        && r9.blds.some((q9) => Math.hypot(q9.x - b9.x, q9.y - b9.y) <= RUSH9.join));
+      /* 성큰은 크립이 변태한 몸이다 — 같은 자리의 크립이 이미 들었으면 건물을 더하지 않는다(사건이 두 번 안 서게). */
+      if (s9) { if (!s9.blds.some((q9) => q9.x === b9.x && q9.y === b9.y)) s9.blds.push(b9); s9.t1 = Math.max(s9.t1, e9.born); }
+      else out9.push({ att: att9, foe: foe9, text: RUSH_BLD9[e9.kind], t0: e9.born, t1: e9.born, blds: [b9] });
+    }
+    /* 앞서 지은 파일런 — 포토러시 판 둘레(RUSH9.join)에 판 첫 건물 RUSH9.pylonLead 초 앞부터 세운 제 파일런. */
+    for (const r9 of out9) {
+      if (r9.text !== "포토러시") continue;
+      const own9 = ownersOfRaw0_9(r9.att);
+      for (const e9 of world.lives) {
+        if (!e9.bld || e9.kind !== "Pylon" || !own9.has(e9.owner) || e9.born < r9.t0 - RUSH9.pylonLead || e9.born > r9.t1) continue;
+        if (!r9.blds.some((q9) => Math.hypot(q9.x - e9.bornX, q9.y - e9.bornY) <= RUSH9.join)) continue;
+        if (foeBaseOf9(r9.att, e9) !== r9.foe) continue;
+        r9.blds.push({ t: e9.born, x: e9.bornX, y: e9.bornY, kind: e9.kind });
+      }
+      r9.blds.sort((a9, b9) => a9.t - b9.t);
+      r9.t0 = r9.blds[0].t;
+    }
+    return out9;
+  })();
+  rushSess9.forEach((r9, ri9) => {
+    r9.blds.forEach((b9, i9) => {
+      if (b9.t > total - 3) return;
+      evs9.push({ sec: b9.t, raw: r9.att, vs: r9.foe, w: i9 === 0 ? RUSH9.w : castValue9(b9.kind), why: "러시", tech: r9.text, kind: b9.kind,
+        px: b9.x, py: b9.y, tail: RUSH9.tail, rid: ri9, ...(i9 > 0 ? { more: true } : {}) });
+    });
+  });
+  /* ★★ **정찰도 중계 거리다**(2026-10-21, 요청: "초반 일꾼, 중후반 스캔이나 오버로드 옵저버, 건물 띄우기 등등으로 상대 기지 정찰 이벤트도 중계 포인트") ──────────────
+     상대 기지 영역(본진 건물 · 출발 자리)으로 들어간 정찰을 사건("정찰" · 무게 SCOUT9.w)으로 낸다:
+       · 일꾼 — SCOUT9.early 초 앞, 상대 기지 안을 찍은 이동 명령(도착 = 명령 + 앞 자리에서의 거리 ÷ 걸음). 그 일꾼이 그 기지 안에 짓는 명령을 냈으면(러시·전진 건설) 정찰이 아니다.
+       · 스캔 — 상대 기지 안을 비춘 스캐너 스윕(그 때 · 그 자리).
+       · 오버로드 · 옵저버 — 상대 기지 안을 찍은 명령(도착 어림 같은 셈).
+       · 건물 띄우기 — 뜬 테란 건물(lifts)이 상대 기지 안을 찍은 명령.
+     같은 사람·상대·수단은 SCOUT9.dedup 초에 한 번. 그 사람의 러시 판(rushSess9)이 그 기지에 그 무렵(±60초)이면 일꾼 정찰은 안 낸다(러시가 말한다). */
+  {
+    const team0_9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
+    const names0_9 = [...new Set(rawOf9.values())];
+    const ownersOfRaw0_9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
+    /** (x, y) 가 att 의 적 누구의 기지 안인가(sec 때) — 본진 건물 · 출발 자리. */
+    const foeAt9 = (att9: string, x9: number, y9: number, sec9: number): string | null => {
+      for (const foe9 of names0_9) {
+        if (team0_9(foe9, att9)) continue;
+        const pts9: [number, number][] = [...hallsOfOwner9(ownersOfRaw0_9(foe9), sec9)];
+        const st9 = start9.get(foe9); if (st9) pts9.push([st9.x, st9.y]);
+        if (pts9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9))) return foe9;
+      }
+      return null;
+    };
+    const last9 = new Map<string, number>();
+    const put9 = (sec9: number, att9: string, foe9: string, how9: string, x9: number, y9: number): void => {
+      if (sec9 > total - 3) return;
+      const key9 = `${att9}|${foe9}|${how9}`;
+      if ((last9.get(key9) ?? -Infinity) > sec9 - SCOUT9.dedup) return;
+      last9.set(key9, sec9);
+      evs9.push({ sec: sec9, raw: att9, vs: foe9, w: SCOUT9.w, why: "정찰", tech: how9, px: x9, py: y9, tail: SCOUT9.tail });
+    };
+    type Sc0_9 = { sec: number; att: string; foe: string; how: string; x: number; y: number };
+    const found9: Sc0_9[] = [];
+    for (const [sec9, cx9, cy9, tech9, own9] of world.casts) {
+      if (tech9 !== "Scanner Sweep") continue;
+      const att9 = rawOf9.get(own9);
+      const foe9 = att9 ? foeAt9(att9, cx9, cy9, sec9) : null;
+      if (att9 && foe9) found9.push({ sec: sec9, att: att9, foe: foe9, how: "스캔", x: cx9, y: cy9 });
+    }
+    for (const e9 of world.lives) {
+      const att9 = rawOf9.get(e9.owner);
+      if (!att9 || e9.handoff || e9.orders.length === 0) continue;
+      const lifted9 = e9.bld && e9.lifts.length > 0;
+      const how9 = lifted9 ? `${BUILDING_KO[e9.kind] ?? e9.kind} 띄워` : SCOUT_UNIT9[e9.kind];
+      if (!how9) continue;
+      const wk9 = how9 === "일꾼";
+      const spd9 = lifted9 ? 1.5 : Math.max(0.5, speedOfUnit(e9.kind));
+      let px9 = e9.bornX; let py9 = e9.bornY;
+      for (const o9 of e9.orders) {
+        const [ot9, ox9, oy9] = o9;
+        if (e9.died !== null && ot9 > e9.died) break;
+        if (wk9 && ot9 > SCOUT9.early) break;
+        if (lifted9 && !e9.lifts.some((l9) => l9 <= ot9)) { px9 = ox9; py9 = oy9; continue; }   // 뜨기 전 명령(생산 랠리)은 정찰이 아니다
+        const foe9 = foeAt9(att9, ox9, oy9, ot9);
+        if (foe9) {
+          const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
+          if (!(e9.died !== null && arr9 > e9.died)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9 });
+        }
+        px9 = ox9; py9 = oy9;
+      }
+    }
+    /* 짓는 일꾼(러시·전진 건설)은 정찰이 아니다 — 그 사람이 그 기지에 그 무렵 지은 러시 판이 있거나, 그 기지 안을 찍은 건설 명령이 있으면 일꾼 정찰을 뺀다. */
+    const builtIn9 = (att9: string, foe9: string, sec9: number): boolean =>
+      rushSess9.some((r9) => r9.att === att9 && r9.foe === foe9 && Math.abs(r9.t0 - sec9) <= 60)
+      || (world.builds ?? []).some(([bs9, bo9, , bx9, by9]) => rawOf9.get(bo9) === att9 && Math.abs(bs9 - sec9) <= 60 && foeAt9(att9, bx9, by9, bs9) === foe9);
+    found9.sort((a9, b9) => a9.sec - b9.sec);
+    for (const f9 of found9) {
+      if (f9.how === "일꾼" && builtIn9(f9.att, f9.foe, f9.sec)) continue;
+      put9(f9.sec, f9.att, f9.foe, f9.how, f9.x, f9.y);
+    }
+  }
   evs9.sort((a9, b9) => a9.sec - b9.sec);
 
   /* ── 장면으로 묶기 ────────────────────────────────────────────────────────── */
@@ -1796,8 +1950,6 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   /** 일꾼을 잡은 유닛의 자막 이름 — 스캐럽은 리버 · 탱크는 모드 없이 · 그 밖은 UNIT_KO(없으면 영문 그대로). */
   const harassName9 = (kind9: string): string =>
     (kind9 === "Scarab" || kind9 === "Reaver" ? "리버" : kind9.startsWith("Siege Tank") ? "탱크" : UNIT_KO[kind9] ?? BUILDING_KO[kind9] ?? kind9);   // 캐논·성큰·벙커도 든다
-  /** 그 사람의 러시 건물(상대 기지 안의 캐논·성큰) — buildMiles9 가 채운다 [착공 초, 상대, 글귀]. */
-  const rushes9 = new Map<string, [number, string, string][]>();
   /** 적 기지 안 침투 건물에서 난 유닛(아래 buildMiles9 ★★ 침투) — 사람 → (태그 → 종류). buildMiles9 가 채운다. */
   const intrUnits9 = new Map<string, Map<number, string>>();
   /** 침투 생산 — 건물 곁 유닛이 난 반경(타일) · 생산 이정표 간격(초). */
@@ -1815,11 +1967,15 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const top9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1])[0][0];
     return `몰래 ${harassName9(top9)}`;
   };
-  /** att 가 def 기지에 RUSH_W9 초 안에 세운 캐논/성큰 → "포토러시"/"성큰러시". */
+  /** att 가 def 기지에 세운 러시 판(rushSess9) — 그 판 동안(첫 착공 − 10초 ~ 마지막 착공 + RUSH_W9 초)이고, 장면 가운데(cx, cy)를 알면 그 판 건물 RUSH9.near 타일 안일 때만
+   *  "포토러시"/"성큰러시"(2026-10-21, 지적: "포토러시인데 이상한 곳 보여주는 경우" — 옛 셈은 자리를 안 봐서 그 두 사람의 딴 곳 싸움도 포토러시로 불렀다). */
   const RUSH_W9 = 240;
-  const rushKind9 = (att9: string, def9: string, sec9: number): string | null => {
-    buildMiles9(att9);
-    for (const [at9, foe9, text9] of rushes9.get(att9) ?? []) if (foe9 === def9 && at9 >= sec9 - RUSH_W9 && at9 <= sec9 + 10) return text9;
+  const rushKind9 = (att9: string, def9: string, sec9: number, cx9?: number, cy9?: number): string | null => {
+    for (const r9 of rushSess9) {
+      if (r9.att !== att9 || r9.foe !== def9 || sec9 < r9.t0 - 10 || sec9 > r9.t1 + RUSH_W9) continue;
+      if (cx9 !== undefined && cy9 !== undefined && !r9.blds.some((b9) => Math.hypot(b9.x - cx9, b9.y - cy9) <= RUSH9.near)) continue;
+      return r9.text;
+    }
     return null;
   };
   /** ★ 폭탄드랍 — att 의 수송선(드랍십·셔틀·복부 주머니 뒤의 오버로드)이 장면 앞 DROP_W9 초 안에 def 기지(본진 건물 BASE_R9 안)로 명령받았으면 그 싸움은 드랍이다. */
@@ -2134,6 +2290,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       // 활약이 없는 마법 장면은 마법을 말하지 않는다(2026-10-11) — 아래 맞대결·기지 글귀로.
     }
     if (top9 && why9 === "자폭") return [{ raw: top9.raw }, { text: " 자폭" }];
+    /* 러시 판의 착공(위 rushSess9 ★★) — "A가 B에게 포토러시" · 정찰(위 scouts ★★) — "A가 B 기지 일꾼/스캔/오버로드/옵저버/배럭 띄워 정찰"(2026-10-21). */
+    if (top9 && why9 === "러시" && top9.vs) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: top9.vs }, { text: `에게 ${top9.tech}` }];
+    if (top9 && why9 === "정찰" && top9.vs) return [{ raw: top9.raw, p: "ga" }, { text: " " }, { raw: top9.vs }, { text: ` 기지 ${top9.tech} 정찰` }];
     const fd9 = failDrop9(sc9, pick9);
     if (fd9) return [{ raw: fd9[0], p: "ga" }, { text: " " }, { raw: fd9[1] }, { text: " 기지에 드랍 시도 · 실패" }];
     if (top9 && (why9 === "일꾼 잡음" || why9 === "일꾼 잃음")) {
@@ -2153,7 +2312,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const nm9 = best9 ? harassName9(best9) : "";
       /* 상대 기지의 캐논·성큰이 잡은 일꾼은 **포토러시/성큰러시**, 수송선이 그 기지로 간 뒤의 일꾼 킬은 **폭탄드랍**(요청) — 리버·하이템플러는 제 이름(리버 드랍 = "리버 일꾼 견제")이
          더 말한다. */
-      const named9 = k9 && v9 ? rushKind9(k9, v9, sc9.t0) ?? (nm9 !== "리버" && nm9 !== "하이템플러" ? dropKind9(k9, v9, sc9.t0) : null) : null;
+      const named9 = k9 && v9 ? rushKind9(k9, v9, sc9.t0, sc9.cx, sc9.cy) ?? (nm9 !== "리버" && nm9 !== "하이템플러" ? dropKind9(k9, v9, sc9.t0) : null) : null;
       const udrop9 = k9 && v9 && !named9 && best9 ? unitDrop9(k9, v9, sc9.t0, best9) : null;
       if (k9 && v9 && (udrop9 || named9 === "폭탄드랍")) return [{ raw: k9, p: "ga" }, { text: " " }, { raw: v9 }, { text: ` 기지에 ${udrop9 ?? named9}` }];
       /* ★ 서술로 "A가 리버로 B 일꾼 견제" · "A가 B에게 포토러시"(2026-10-10, 요청: "~의 공격 말고 서술로 누가 누구를 공격 · 주어나 목적어가 화면주인이어도 넣기 · 제 3자 느낌") — 옛 "A의 B 리버 일꾼 견제". */
@@ -2199,7 +2358,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       let ak9 = ""; let aw9 = 0;
       for (const [k9, w9] of sc9.killKind.get(a09) ?? []) if (w9 > aw9) { aw9 = w9; ak9 = k9; }
       const in9 = intrName9(sc9, a09);   // 적 기지 안에서 뽑은 유닛의 공격(2026-10-19 · 위 intrName9 ★)
-      const name9 = rushKind9(a09, bo9, sc9.t0) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? (in9 ? `${in9} 공격` : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
+      const name9 = rushKind9(a09, bo9, sc9.t0, sc9.cx, sc9.cy) ?? dropKind9(a09, bo9, sc9.t0) ?? (ak9 ? unitDrop9(a09, bo9, sc9.t0, ak9) : null) ?? (in9 ? `${in9} 공격` : null) ?? "공격";   // 저글링러시는 이름 안 붙인다(2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x")
       const atts9 = name9 === "공격" ? d9.atks : [a09];
       return [...chips9(atts9, "ga"), { text: " " }, { raw: bo9 }, { text: name9 === "공격" ? " 기지 공격" : ` 기지에 ${name9}` },
         ...helpCap9(d9.helps ?? [])];
@@ -2210,7 +2369,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
          간 뒤의 싸움(dropKind9) > 초반 저글링 킬(zlRush9) > 그냥 "공격". 방어 쪽은 "…함"(공격함과 같은 꼴). */
       const attack9 = (att9: string, def9: string): string => {
         const in9 = intrName9(sc9, att9);   // 적 기지 안에서 뽑은 유닛의 공격(2026-10-19 · 위 intrName9 ★)
-        return rushKind9(att9, def9, sc9.t0) ?? dropKind9(att9, def9, sc9.t0) ?? (in9 ? `${in9} 공격` : null) ?? "공격";
+        return rushKind9(att9, def9, sc9.t0, sc9.cx, sc9.cy) ?? dropKind9(att9, def9, sc9.t0) ?? (in9 ? `${in9} 공격` : null) ?? "공격";
       };   // 저글링러시 이름은 걷었다(2026-10-10)
       /* ★ 공격·방어 다 **"A가 B를 공격"** 서술이다(2026-10-10, 요청: "누가 누구를 공격했는지 주어나 목적어가 화면주인이어도 넣기(자막은 제 3자 느낌으로) · ~의 공격
          말고 서술로") — 옛 공격 "A의 B 공격" · 방어 "A가 공격함 · C가 헬프옴"(화면 주인 B 를 뺐다). 이름 붙은 공격은 "A가 B에게 포토러시". 방어의 팀원은 "C가 헬프". */
@@ -2283,7 +2442,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        · 둘째·셋째 생산 건물 → "2게이트/3게이트" · "2배럭/3배럭" · "2팩/3팩" · 테크 건물은 TECH_MILE9 의 이름("로보틱스 건설" … · 2026-10-11 옛 "… 테크") · 아홉 드론 아래 스포닝풀 "N드론 스포닝풀 건설"(러시라
          단정하지 않는다 · 2026-10-10) ·
          상대 기지 안의 캐논·성큰 "A의 B 포토러시/성큰러시"(rushes9 — 장면 자막의 공격 이름도 이것)
-     자막은 창 안의 이정표 > 창 앞 MILE_RECENT9 초 안의 마지막 이정표 > 그 밖의 건물 건설(옛 "X 건설") > 국면 요약(phaseCap9: 최근 테크 → "순조로운 테크/발전 중" ·
+     자막은 창 안의 이정표 > 창 앞 MILE_RECENT9 초 안의 마지막 이정표 > 그 밖의 건물 건설(옛 "X 건설") > 국면 요약(phaseCaps9: 최근 테크 → "순조로운 테크/발전 중" ·
      본진 셋 이상 → "N기지 운영 중" · 병력이 한창 나오면 "병력 모으는 중" · 그 밖 "순조로운 발전 중"). 옛 "확장"·"운영" 글귀는 걷었다.
      🔎 cast-plan.mjs ⑧ 빌드 읽기. */
   /* ★ 이정표 글귀는 **"X 건설"**(2026-10-11, 요청: "~ 테크를 ~ 건설로 변경 — 테크는 메카닉 테크 · 핵 테크 이렇게 전술적인 느낌에 쓰는 경우가 많아") — 옛 "로보틱스 테크"
@@ -2303,7 +2462,6 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const PROD9: Record<string, [string, string]> = { Gateway: ["2게이트", "3게이트"], Barracks: ["2배럭", "3배럭"], Factory: ["2팩", "3팩"] };
   const ADV9 = new Set(["Robotics Facility", "Stargate", "Citadel of Adun", "Templar Archives", "Starport", "Armory", "Science Facility"]);
   /** 러시 건물 — 상대 기지(본진 건물 BASE_R9 안)에 세운 것의 글귀(요청: "포토러시 · 성큰러시"). */
-  const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
   const PROXY_KO9: Record<string, string> = { Gateway: "게이트", Barracks: "배럭", Factory: "팩토리", Starport: "스타포트", Stargate: "스타게이트" };
   const HALL_KO9: Record<string, string> = { Nexus: "넥서스", "Command Center": "커맨드", Hatchery: "해처리" };
   /** 이정표를 창 앞 이만큼(초)까지 되짚는다 — 그보다 오래면 국면 요약으로. */
@@ -2384,9 +2542,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       for (const e9 of world.lives) if (!e9.bld && e9.kind === "Drone" && own9.has(e9.owner) && e9.born <= sec9 && (e9.died === null || e9.died > sec9)) n9 += 1;
       return n9;
     };
-    const rushList9: [number, string, string][] = [];
-    rushes9.set(raw9, rushList9);
-    const rushed9 = new Map<string, number>();   // "상대|글귀" → 마지막 착공(같은 러시의 캐논 여럿은 한 이정표)
+    /** 이 사람의 러시 판 — 판마다 이정표 하나(첫 착공 때 · 파일런이면 그 자리 · 위 rushSess9 ★★). */
+    const myRush9 = rushSess9.filter((r9) => r9.att === raw9);
+    const rushSaid9 = new Set<Rush9>();
     const halls9: string[] = [];        // 착공한 본진 종류(처음 것은 born 0 이라 안 든다 — 둘째부터)
     let hallKind9 = "";
     for (const p9 of world.players) if (own9.has(p9.owner)) hallKind9 = p9.race === "저그" ? "Hatchery" : p9.race === "프로토스" ? "Nexus" : p9.race === "테란" ? "Command Center" : "";
@@ -2484,22 +2642,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (ADV9.has(k9) && advAt9 === Infinity) advAt9 = e9.born;
         continue;
       }
-      const rushText9 = RUSH_BLD9[k9];
-      if (rushText9) {
-        /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A의 B 포토러시"(요청: 포토러시 · 성큰러시). 같은 러시의 건물 여럿은 RUSH_W9 안이면 한 이정표. */
-        for (const [o9, foeRaw9] of rawOf9) {
-          if (own9.has(o9) || (opts.teamOf?.[foeRaw9] !== undefined && opts.teamOf?.[foeRaw9] === opts.teamOf?.[raw9])) continue;
-          const fh9 = hallsAt9(foeRaw9, e9.born);
-          if (!fh9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, e9.bornX, e9.bornY))) continue;
-          /* 제 편 기지 쪽이면 러시가 아니다(위 ownSideAt9 · 빨무처럼 붙은 기지의 제 입구 캐논·성큰). */
-          if (ownSideAt9(raw9, e9.bornX, e9.bornY, e9.born, Math.min(...fh9.map(([hx9, hy9]) => Math.hypot(hx9 - e9.bornX, hy9 - e9.bornY))))) continue;
-          const key9 = `${foeRaw9}|${rushText9}`;
-          const last9 = rushed9.get(key9);
-          rushed9.set(key9, e9.born);
-          rushList9.push([e9.born, foeRaw9, rushText9]);
-          if (last9 === undefined || e9.born - last9 > RUSH_W9) mileVs9(e9.born, foeRaw9, rushText9, e9);
-          break;
-        }
+      if (RUSH_BLD9[k9]) {
+        /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A가 B에게 포토러시"(요청: 포토러시 · 성큰러시) — **판마다 한 이정표**(2026-10-21, 요청: "주변에 짓는 건 한 사건") ·
+           때와 자리는 판의 첫 착공(앞서 지은 파일런이면 그것 · "짓기 시작할 때부터 러시"). */
+        const r9 = myRush9.find((q9) => q9.blds.some((b9) => b9.t === e9.born && b9.x === e9.bornX && b9.y === e9.bornY));
+        if (r9 && !rushSaid9.has(r9)) { rushSaid9.add(r9); mileVs9(r9.t0, r9.foe, r9.text, { bornX: r9.blds[0].x, bornY: r9.blds[0].y }); }
         if (k9 === "Creep Colony") continue;
       }
       if (k9 === coreTech9 && coreAt9 === Infinity) {
@@ -2584,8 +2731,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const units9 = new Map<number, string>();
       intrUnits9.set(raw9, units9);
       const stays9: { e: (typeof world.lives)[number]; t0: number; t1: number; x: number; y: number; foe: string; land: boolean }[] = [];
+      /* 포토러시 판에 든 파일런도 러시가 말한다(2026-10-21 · rushSess9 ★★ — "기지 안에 파일런 건설"을 따로 안 세운다). */
+      const rushPylon9 = new Set(myRush9.flatMap((r9) => r9.blds.filter((b9) => b9.kind === "Pylon").map((b9) => `${b9.t}|${b9.x}|${b9.y}`)));
       for (const e9 of world.lives) {
-        if (!e9.bld || !own9.has(e9.owner) || e9.handoff || RUSH_BLD9[e9.kind]) continue;
+        if (!e9.bld || !own9.has(e9.owner) || e9.handoff || RUSH_BLD9[e9.kind] || rushPylon9.has(`${e9.born}|${e9.bornX}|${e9.bornY}`)) continue;
         const end9 = e9.died ?? total;
         const spots9: [number, number, number, boolean][] = [[e9.born, e9.bornX, e9.bornY, false],
           ...e9.sites.slice(1).map(([ls9, lx9, ly9]): [number, number, number, boolean] => [ls9, lx9 + 1, ly9 + 1, true])];
@@ -2635,11 +2784,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     milesOf9.set(raw9, miles9);
     return miles9;
   };
-  /** 국면 요약이 자리를 말하면(센터 장악) 그 자리 — 부른 쪽이 읽고 자막에 단다(capSpot9). phaseCap9 를 부를 때마다 새로 선다. */
-  let phaseSpot9: [number, number] | undefined;
   /** 국면 요약 — 창 끝 시각의 그 사람. */
-  const phaseCap9 = (raw9: string, sec9: number): string => {
-    phaseSpot9 = undefined;
+  /* ★ 맞는 국면 말을 **다** 낸다(중요한 차례 · 2026-10-21) — 순환 자막이 되풀이를 피해 다음 것을 고른다(cycleCaps9 ★). [글귀, 그 자리(센터 장악)]. */
+  const phaseCaps9 = (raw9: string, sec9: number): [string, [number, number] | undefined][] => {
+    const out9: [string, [number, number] | undefined][] = [];
     const own9 = ownersOf9(raw9);
     const halls9: Hall9[] = []; let lastTech9 = -Infinity; let army9 = 0;
     for (const e9 of world.lives) {
@@ -2663,7 +2811,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (own9.has(e9.owner)) { mine9 += 1; sx9 += x9; sy9 += y9; } else if (foes9.has(e9.owner)) theirs9 += 1;
       }
       /* ★ 카메라도 센터로(2026-10-14, 지적: "사건은 센터장악인데 보여주는게 본진이야") — 그 사람의 센터 무리 가운데를 자막의 자리로 단다(아래 capSpot9). */
-      if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) { phaseSpot9 = [sx9 / mine9, sy9 / mine9]; return "센터 장악"; }
+      if (mine9 >= CENTER_HOLD9.n && mine9 >= theirs9 * CENTER_HOLD9.k) out9.push(["센터 장악", [sx9 / mine9, sy9 / mine9]]);
     }
     /* 병력 구성 — 그 순간 살아 있는 제 병력(일꾼·오버로드 등 뺌)으로 가른다. */
     {
@@ -2679,18 +2827,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (e9.kind === "Zergling") ling9 += 1;
       }
       const adrenal9 = world.ups.some(([us9, n9, uo9]) => own9.has(uo9) && us9 <= sec9 && /^Adrenal Glands/.test(n9));
-      if (adrenal9 && ultra9 >= COMP9.ultra && ling9 >= COMP9.ling) return "목동저그(아드레날린 저글링 + 울트라)";
+      if (adrenal9 && ultra9 >= COMP9.ultra && ling9 >= COMP9.ling) out9.push(["목동저그(아드레날린 저글링 + 울트라)", undefined]);
       if (all9 >= COMP9.n) {
-        if (goon9 >= COMP9.n && goon9 >= all9 * COMP9.k) return "파워 드라군";
-        if (bio9 >= all9 * COMP9.k) return "바이오닉 운영";
-        if (mech9 >= all9 * COMP9.k) return "메카닉 운영";
+        if (goon9 >= COMP9.n && goon9 >= all9 * COMP9.k) out9.push(["파워 드라군", undefined]);
+        if (bio9 >= all9 * COMP9.k) out9.push(["바이오닉 운영", undefined]);
+        if (mech9 >= all9 * COMP9.k) out9.push(["메카닉 운영", undefined]);
       }
     }
     /* ★ 소강의 말(2026-10-10, 요청: "파일런 건설은 굳이 안 나와도 되는 자막 — 순조롭게 발전 중 · 생산건물 늘리는 중 · 업그레이드 진행 중 등등을 표현하는 게 나음") —
        생산 건물이 PHASE9.prodWin 초 안에 둘 넘게 섰으면 "생산 건물 늘리는 중" · 연구가 PHASE9.upAhead 초 안에 끝나면(곧 지금 돌고 있으면) "업그레이드 진행 중". */
     let prod9 = 0;
     for (const e9 of world.lives) if (e9.bld && own9.has(e9.owner) && PROD_BLD9.has(e9.kind) && e9.born <= sec9 && e9.born >= sec9 - PHASE9.prodWin && e9.end !== "morph") prod9 += 1;
-    if (prod9 >= 2) return "생산 건물 늘리는 중";
+    if (prod9 >= 2) out9.push(["생산 건물 늘리는 중", undefined]);
     /* 실제로 도는 연구를 **이름으로 나열**(2026-10-11, 요청: "그냥 업그레이드 진행 중 → 무슨 업그레이드인지 · 여러 개면 여러 개 나열") — 셋까지 "A·B 연구 중". */
     {
       const ups9: string[] = [];
@@ -2700,15 +2848,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         const ko9 = `${researchKo(m9?.[1] ?? un9)}${m9?.[2] ? ` ${m9[2]}단계` : ""}`;
         if (!ups9.includes(ko9)) ups9.push(ko9);
       }
-      if (ups9.length > 0) return `${ups9.slice(0, 3).join("·")}${ups9.length > 3 ? " 등" : ""} 연구 중`;
+      if (ups9.length > 0) out9.push([`${ups9.slice(0, 3).join("·")}${ups9.length > 3 ? " 등" : ""} 연구 중`, undefined]);
     }
-    if (sec9 - lastTech9 <= PHASE9.tech) return "테크 올리는 중";
-    if (bases9 >= 3) return `${bases9}기지 운영 중`;
-    if (army9 >= PHASE9.armyN) return "병력 모으는 중";
+    if (sec9 - lastTech9 <= PHASE9.tech) out9.push(["테크 올리는 중", undefined]);
+    if (bases9 >= 3) out9.push([`${bases9}기지 운영 중`, undefined]);
+    if (army9 >= PHASE9.armyN) out9.push(["병력 모으는 중", undefined]);
     /* 끝말(2026-10-11, 요청: "그냥 순조롭게 진행 중 · 평화롭게 발전 중 이런 거가 나을 듯" → 같은 날 "평화롭게 발전 중 → 순조롭게 발전 중이거나 그냥 발전 중으로") —
        PHASE9.calm 초 안에 제 것을 하나도 안 잃었으면 "순조롭게 발전 중", 잃었으면 "발전 중". */
     const lost9 = world.lives.some((e9) => own9.has(e9.owner) && e9.died !== null && e9.died <= sec9 && e9.died > sec9 - PHASE9.calm && e9.end !== "morph");
-    return lost9 ? "발전 중" : "순조롭게 발전 중";
+    out9.push([lost9 ? "발전 중" : "순조롭게 발전 중", undefined]);
+    return out9;
   };
   /* ★★ **화면에 나오는 것을 말한다**(2026-10-10, 지적: "화면에서 보여주는 내용이 자막으로 나와야 함 · 업그레이드 보이지 않는데 업그레이드 내용이 나온다거나") ─────
      순환 토막의 카메라는 그 사람이 **고르거나 명령한 무리**를 따른다(재생기 picksOf9 · trackAt). 옛 순환 자막은 그 창에 끝난 연구("메타볼릭 부스트 개발")나 창 밖의
@@ -2934,17 +3083,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     return best9;
   };
   const blockIn9 = (raw9: string, t0: number, t1: number): Block9 | undefined => blocksOf9(raw9).find((b9) => b9.t0 < t1 && b9.t1 > t0);
-  const cycleCaps9 = (raw9: string, t0: number, t1: number): CapPart9[] => {
+  /* ★ **같은 자막을 되풀이하지 않는다**(2026-10-21, 요청: "같은 자막이 계속 사용되는 거 방지 — 특히 인원이 적을 때 순환 중계 시 많이 발생해서 헷갈림") — 사람이 적으면 순환이
+     같은 사람에게 몇 초마다 돌아와, 창 앞 MILE_RECENT9(120초) 안의 같은 이정표 · 같은 국면 말("순조롭게 발전 중")이 잇달아 섰다. seen 이 참인 글귀(그 사람에게 CAP_REPEAT9 초 안에
+     이미 선 것 — 장면 자막 포함 · 아래 순환 자막 ★)는 건너뛰고 다음 차례로 간다 · 끝(국면 요약)까지 되풀이면 **비운다**(2026-10-11 요청: 맞는 자막이 없으면 비워도 됨). */
+  /* 이정표(빌드 읽기 · 러시 · 전술)는 **한 번 말했으면 다시 안 말한다**(ever) — 창 앞 MILE_RECENT9 초 안의 최근 이정표가 90초 뒤 또 "포토러시"로 섰다. 국면 말·화면 말은 CAP_REPEAT9 안만. */
+  const cycleCaps9 = (raw9: string, t0: number, t1: number, seen9: (c9: CapPart9[], ever?: boolean) => boolean = () => false): CapPart9[] => {
     const own9 = ownersOf9(raw9);
     const lo9 = t0 - 2;
     const hi9 = Math.max(t0 + 1, t1);
     /* 인구 막힘이 그 창에 걸치면 그것이 먼저다(위 ★★). */
     const bk9 = blockIn9(raw9, t0, hi9);
-    if (bk9) return [{ raw: raw9 }, { text: " 인구 막힘" }];   // 숫자는 뺀다(2026-10-11, 요청: "인구막힘 뒤에 숫자 안 보여주기")
+    const block9: CapPart9[] = [{ raw: raw9 }, { text: " 인구 막힘" }];   // 숫자는 뺀다(2026-10-11, 요청: "인구막힘 뒤에 숫자 안 보여주기")
+    if (bk9 && !seen9(block9)) return block9;
     const miles9 = buildMiles9(raw9);
     /* 창 안(과 창 앞 MILE_BACK9 초의 아직 안 말한 전술 이상) 이정표 가운데 **가장 중요한 것**(위 Mile9 ★ · 옛: 창 안 첫 이정표) — 그 자리를 사건 중계 카메라가 본다. */
     const inWin9 = bestMile9(raw9, lo9, hi9);
-    if (inWin9) {
+    if (inWin9 && !seen9(inWin9.caps, true)) {
       usedMile9.add(inWin9);
       if (inWin9.x !== undefined && inWin9.y !== undefined) capSpot9.set(inWin9.caps, [inWin9.x, inWin9.y]);
       return inWin9.caps;
@@ -2956,23 +3110,29 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     }
     if (bld9) {
       const caps9: CapPart9[] = [{ raw: raw9 }, { text: PROD_BLD9.has(bld9.kind) ? " 생산 건물 늘리는 중" : ` ${BUILDING_KO[bld9.kind] ?? bld9.kind} 건설` }];
-      capSpot9.set(caps9, [bld9.bornX, bld9.bornY]);
-      return caps9;
+      if (!seen9(caps9)) {
+        capSpot9.set(caps9, [bld9.bornX, bld9.bornY]);
+        return caps9;
+      }
     }
     const scr9 = screenCap9(raw9, t0, hi9);
-    if (scr9) return scr9;
+    if (scr9 && !seen9(scr9)) return scr9;
     /* 화면 무리가 약하거나(대기 · 일꾼 이동) 못 읽으면 창 앞 MILE_RECENT9 초 안의 마지막 이정표(빌드 읽기 · 전술 — 그 사람의 빌드·자리를 말할 뿐 '지금 일어나는
        일'이라 하지 않는다) > 눈에 띄는 국면(센터 장악 · 병력 구성) > 약한 화면 글귀 > 국면 요약. */
     let recent9: Mile9 | undefined;
     for (const m9 of miles9) if (m9.at < lo9 && m9.at >= lo9 - MILE_RECENT9) recent9 = m9;
-    if (recent9) {
+    if (recent9 && !seen9(recent9.caps, true)) {
       /* 전술 이상(러시 캐논·막은 입구 …)은 그 자리가 아직 거기 있다 — 카메라도 그리로(위 capSpot9). 빌드 이정표는 옛 착공 자리라 안 옮긴다. */
       if (recent9.rank >= MILE_RANK9.tactic && recent9.x !== undefined && recent9.y !== undefined) capSpot9.set(recent9.caps, [recent9.x, recent9.y]);
       return recent9.caps;
     }
-    const ph9: CapPart9[] = [{ raw: raw9 }, { text: ` ${phaseCap9(raw9, hi9)}` }];
-    if (phaseSpot9) capSpot9.set(ph9, phaseSpot9);
-    return ph9;
+    for (const [txt9, spot9] of phaseCaps9(raw9, hi9)) {
+      const ph9: CapPart9[] = [{ raw: raw9 }, { text: ` ${txt9}` }];
+      if (seen9(ph9)) continue;
+      if (spot9) capSpot9.set(ph9, spot9);
+      return ph9;
+    }
+    return [];
   };
 
   /* ★★ **전투 단위**(2026-10-11, 요청: "장면을 좀 길게 가져가기 — 전투 전체를 처음부터 끝까지 보여 주면 좋을 듯 · 더 중요한 게 있으면 바꾸는 건 맞는데 그 순간의
@@ -2989,11 +3149,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   const bTot9 = new Map<number, number>();
   const bEnd9 = new Map<number, number>();
   const totOf9 = (sc9: Sc9): number => { let t9 = 0; for (const w9 of sc9.by.values()) t9 += w9; return t9; };
+  /** 그 토막이 든 러시 판(rushSess9 번호 · 없으면 −1) — 판의 사건(rid)이 들었거나, 그 판 동안 그 판 자리 곁(RUSH9.near)에서 그 두 사람이 든 토막. */
+  const ridOf9 = (sc9: Sc9): number => {
+    for (const e9 of sc9.evs) if (e9.rid !== undefined) return e9.rid;
+    if (sc9.cx === undefined || sc9.cy === undefined) return -1;
+    return rushSess9.findIndex((r9) => sc9.t0 >= r9.t0 - 10 && sc9.t0 <= r9.t1 + RUSH_W9 && (sc9.by.has(r9.att) || sc9.by.has(r9.foe))
+      && r9.blds.some((b9) => Math.hypot(b9.x - sc9.cx!, b9.y - sc9.cy!) <= RUSH9.near));
+  };
   for (let i9 = 0; i9 < scs9.length; i9 += 1) {
     const s9 = scs9[i9];
     let bid9 = -1;
+    const rid9 = ridOf9(s9);
     for (let j9 = i9 - 1; j9 >= 0 && bid9 < 0; j9 -= 1) {
       const p9 = scs9[j9];
+      if (rid9 >= 0 && ridOf9(p9) === rid9) { bid9 = bidOf9.get(p9)!; break; }   // 같은 러시 판(위 ridOf9)
       if (s9.t0 < p9.t1 - 0.01 || s9.t0 - p9.t1 > p9.tail + 2) continue;
       const near9 = s9.cx !== undefined && p9.cx !== undefined && s9.cy !== undefined && p9.cy !== undefined
         ? Math.hypot(s9.cx - p9.cx, s9.cy - p9.cy) <= SCENE_R9
@@ -3200,6 +3369,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const btot9 = bTot9.get(bid9)!;
     if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
     const cont9 = bid9 === curBid9;
+    /* 러시 판에 **늘려 지은 건물뿐**인 토막은 새 사건이 아니다(2026-10-21, 요청: "조금 후에 늘린다고 다른 포토러시가 아니라") — 그 러시를 **지금** 보던 중이면(같은 전투 · 앞 장면이
+       아직 안 끝남) 잇고, 아니면 안 끌어온다. */
+    if (sc9.evs.every((e9) => e9.more) && !(cont9 && at9 <= cur9)) continue;
     const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
     const must9 = !!sc9.hall?.[3];   // 뚝배기(시작 본진) 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다 · 멀티 본진은 덧무게만
     if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) continue;   // 한창인 전투를 안 끊는다(밀린 전투로 돌아가기는 걷었다 · 위 trimFrom9 ★)
@@ -3301,16 +3473,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     return `${h9 === 0 ? 12 : h9}시`;
   };
   /* ★ 순환 토막의 자막(2026-10-09) — 그 사람이 그 창(다음 토막까지)에서 한 일: 연구 완료 > 빌드 이정표(창 안 > 최근) > 그 밖의 건설 > 국면 요약(위 ★★ 빌드 읽기). */
+  /* 되풀이 막기(위 cycleCaps9 ★) — 사람마다 선 글귀와 그 때. 장면 자막도 적는다(장면에서 말한 러시를 뒤 순환이 또 말하지 않게). */
+  const CAP_REPEAT9 = 90;
+  const saidAt9 = new Map<string, number>();
+  const sayKey9 = (raw9: string, c9: CapPart9[]): string => `${raw9}|${capKey9(c9)}`;
   for (let i9 = 0; i9 < out9.length; i9 += 1) {
     const sg9 = out9[i9];
-    if (sg9.caps && sg9.caps.length > 0) { introDone9.add(sg9.raw); continue; }
+    if (sg9.caps && sg9.caps.length > 0) { introDone9.add(sg9.raw); saidAt9.set(sayKey9(sg9.raw, sg9.caps), sg9.at); continue; }
     if (sg9.cyc && !introDone9.has(sg9.raw)) {
       introDone9.add(sg9.raw);
       const race9 = world.players.find((pl9) => pl9.name === sg9.raw)?.race ?? "";
       const where9 = [clockOf9(sg9.raw), race9].filter(Boolean).join(" ");
       if (where9) { sg9.caps = [{ raw: sg9.raw }, { text: ` ${where9}` }]; continue; }
     }
-    sg9.caps = cycleCaps9(sg9.raw, sg9.at, i9 + 1 < out9.length ? out9[i9 + 1].at : total);
+    sg9.caps = cycleCaps9(sg9.raw, sg9.at, i9 + 1 < out9.length ? out9[i9 + 1].at : total,
+      (c9, ever9) => sg9.at - (saidAt9.get(sayKey9(sg9.raw, c9)) ?? -Infinity) < (ever9 ? Infinity : CAP_REPEAT9));
+    if (sg9.caps.length > 0) saidAt9.set(sayKey9(sg9.raw, sg9.caps), sg9.at);
   }
   /* 검색 거리(위 CastSearch9 ★) — 장면마다 1등의 자막 · 사람마다 빌드 이정표. 자막 짓기가 한 장면에서 넘어져도 나머지는 싣는다. */
   const search9: CastSearch9[] = [];

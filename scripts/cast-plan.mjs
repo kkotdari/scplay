@@ -240,7 +240,8 @@ for (const [name, pass] of [
   const sp = (s) => (s?.spot?.[0] ? `(${s.spot[0][1]},${s.spot[0][2]})` : "-");
   console.log(`\n사건 중계 자리·중요도: 포토러시 ${rush ? `${rush.at.toFixed(0)}s ${sp(rush)}` : "없음"} · 센터 포토 ${ctr ? `${ctr.at.toFixed(0)}s ${sp(ctr)}` : "없음"} · 2게이트 ${gate2 ? gate2.at.toFixed(0) : "없음"}`);
   for (const [name, pass] of [
-    ["포토러시 토막의 카메라는 러시 캐논(96,97) — 뒤에 지은 제 본진 파일런(12,14)이 아니다", !!rush?.spot && Math.hypot(rush.spot[0][1] - 96, rush.spot[0][2] - 97) < 1],
+    /* 2026-10-21: 러시 판은 앞서 지은 파일런(95,95) 착공부터다(rushSess9 ★★) — 카메라는 그 판 자리(캐논 곁 3타일 안). */
+    ["포토러시 토막의 카메라는 러시 자리(파일런 95,95 · 캐논 96,97) — 뒤에 지은 제 본진 파일런(12,14)이 아니다", !!rush?.spot && Math.hypot(rush.spot[0][1] - 96, rush.spot[0][2] - 97) < 3],
     ["같은 창의 '센터 포토'(전술)가 '2게이트'(생산 건물 수)를 이긴다", !!ctr && !gate2],
     ["센터 포토 토막의 카메라는 그 캐논(55,55)", !!ctr?.spot && Math.hypot(ctr.spot[0][1] - 55, ctr.spot[0][2] - 55) < 1],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
@@ -304,21 +305,33 @@ const bw9 = (() => {
 const bord9 = ["Z1", "Z2", "P1", "T1", "Z3", "P2"];
 const bplan9 = castPlan9(bw9, { total: 900, order: bord9, resources: bres9 });
 const bplanNo9 = castPlan9(bw9, { total: 900, order: bord9 });   // 자원 자료 없음(옛 판) — 앞마당·멀티라 단정하지 않는다
-/** plan 에서 raw 의 토막 중 at ∈ [t, t + 60) 첫 것의 자막(여섯이 돌아가니 48초마다 제 차례). */
-const capIn9 = (plan, raw, t) => { const sg = plan.find((s) => s.raw === raw && s.at >= t && s.at < t + 60); return sg ? capTxt(sg) : "(토막 없음)"; };
-const capAt9 = (raw, t) => capIn9(bplan9, raw, t);
+/** plan 에서 raw 의 토막 at ∈ (t − 15, t + 60) 가운데 want 글귀인 것(없으면 t 뒤 첫 것)의 자막(여섯이 돌아가니 36초마다 제 차례).
+ *  ★ 자막 되풀이 막기(2026-10-21) 뒤로는 이정표가 **선 토막에만** 선다(다음 토막에 또 안 선다) — 옛 셈(t 뒤 첫 토막 하나)은 그 되풀이에 기대고 있었다. */
+const capIn9 = (plan, raw, t, want) => {
+  const mine = plan.filter((s) => s.raw === raw && s.at > t - 15 && s.at < t + 60);
+  const sg = (want !== undefined ? mine.find((s) => capTxt(s) === want) : undefined) ?? mine.find((s) => s.at >= t) ?? mine[0];
+  return sg ? capTxt(sg) : "(토막 없음)";
+};
+/** 국면 말은 이제 돌아가며 선다(되풀이 막기) — t ~ t + 150 사이 그 사람 토막 어딘가에 그 글귀가 서면 참. */
+const capWithin9 = (plan, raw, t, want) => plan.some((s) => s.raw === raw && s.at >= t && s.at < t + 150 && capTxt(s) === want);
+const capAt9 = (raw, t, want) => capIn9(bplan9, raw, t, want);
+/** 어긋났을 때 곁 토막(그 사람 · t − 40 ~ t + 60) — 자막 되풀이 막기(2026-10-21) 뒤로는 같은 글귀가 다음 토막에 다시 안 서므로 어디에 섰는지 보려고. */
+const near9 = (plan, raw, t) => plan.filter((s) => s.raw === raw && s.at >= t - 40 && s.at < t + 60).map((s) => `${s.at.toFixed(0)}:${capTxt(s) || "∅"}`).join(" ");
 const bcases9 = [
   ["Z1", 64, "[Z1] 선스포닝풀"], ["Z1", 155, "[Z1] 앞마당 해처리"], ["Z1", 505, "[Z1] 레어 변태"],
-  ["Z2", 95, "[Z2] 선해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 멀티 건설"], ["Z2", 800, "[Z2] 3기지 운영 중"],
-  ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 건설"], ["P1", 405, "[P1] 로보틱스 건설"], ["P1", 730, "[P1] 병력 모으는 중"],
-  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 건설"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 800, "[T1] 순조롭게 발전 중"],
+  ["Z2", 95, "[Z2] 선해처리"], ["Z2", 155, "[Z2] 해처리 후 스포닝풀"], ["Z2", 405, "[Z2] 멀티 건설"], ["Z2", 700, "[Z2] 3기지 운영 중", true],
+  ["P1", 155, "[P1] 빠른 앞마당 넥서스"], ["P1", 205, "[P1] 코어 건설"], ["P1", 405, "[P1] 로보틱스 건설"], ["P1", 700, "[P1] 병력 모으는 중", true],
+  ["T1", 125, "[T1] 2배럭"], ["T1", 205, "[T1] 팩토리 건설"], ["T1", 305, "[T1] 앞마당 커맨드"], ["T1", 700, "[T1] 순조롭게 발전 중", true],
   ["Z3", 75, "[Z3] 8드론 스포닝풀 건설"], ["P2", 245, "[P2] 3게이트"],
 ];
 console.log(`\n빌드 읽기: ${bcases9.slice(0, 4).map(([r, t]) => `${r}@${t}s ${capAt9(r, t)}`).join(" · ")} …`);
-for (const [raw, t, want] of bcases9) { const got = capAt9(raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`); }
+for (const [raw, t, want, win] of bcases9) {
+  const ok = win ? capWithin9(bplan9, raw, t, want) : capAt9(raw, t, want) === want;
+  console.log(`  ${ok ? "✔" : "✘"} ${raw} ${t}s${win ? "~" : ""} → ${want}${ok ? "" : ` (실제 ${capAt9(raw, t)} · 곁 ${near9(bplan9, raw, t)})`}`);
+}
 /* 자원 자료가 없으면 본진 건물은 수로만(2026-10-10 — "확실하게 알아낸 것만"). */
 for (const [raw, t, want] of [["Z1", 155, "[Z1] 2해처리"], ["Z2", 95, "[Z2] 선2해처리"], ["Z2", 405, "[Z2] 3해처리"], ["P1", 155, "[P1] 2넥서스"], ["T1", 305, "[T1] 2커맨드"]]) {
-  const got = capIn9(bplanNo9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} 자원 자료 없음 ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+  const got = capIn9(bplanNo9, raw, t, want); console.log(`  ${got === want ? "✔" : "✘"} 자원 자료 없음 ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got} · 곁 ${near9(bplanNo9, raw, t)})`}`);
 }
 
 /* ── ⑩ 빨무(본진 무더기뿐인 맵 · 2026-10-10, 지적: "빨무같이 앞마당 없는 맵인데 앞마당 넥서스 건설이라고 나오네 — 3넥서스") — 본진 안의 넥서스·해처리는 수로 센다 ──
@@ -334,9 +347,10 @@ const fw9 = (() => {
 })();
 const fplan9 = castPlan9(fw9, { total: 900, order: ["F1", "F2"], resources: [...baseRes9(30, 30), ...baseRes9(150, 30)] });
 console.log(`\n빨무: ${[["F1", 205], ["F1", 305], ["F1", 405], ["F2", 85], ["F2", 305]].map(([r, t]) => `${r}@${t}s ${capIn9(fplan9, r, t)}`).join(" · ")}`);
-for (const [raw, t, want] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 800, "[F1] 순조롭게 발전 중"],
+for (const [raw, t, want, win] of [["F1", 205, "[F1] 2넥서스"], ["F1", 305, "[F1] 3넥서스"], ["F1", 405, "[F1] 4넥서스"], ["F1", 700, "[F1] 순조롭게 발전 중", true],
   ["F2", 85, "[F2] 선2해처리"], ["F2", 305, "[F2] 3해처리"]]) {
-  const got = capIn9(fplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+  const ok = win ? capWithin9(fplan9, raw, t, want) : capIn9(fplan9, raw, t, want) === want;
+  console.log(`  ${ok ? "✔" : "✘"} ${raw} ${t}s${win ? "~" : ""} → ${want}${ok ? "" : ` (실제 ${capIn9(fplan9, raw, t)} · 곁 ${near9(fplan9, raw, t)})`}`);
 }
 
 /* ── ⑪ 이사(2026-10-10, 지적: "기지가 대파돼서 아군 기지로 이사 가서 새로 해처리를 짓는데 7해처리라고 나와 — 누구 기지로 이사") ──
@@ -358,7 +372,7 @@ const mplan9 = castPlan9(mw9, { total: 900, order: ["Z", "A", "W", "E"], teamOf:
   resources: [...baseRes9(20, 20), ...baseRes9(20, 170), ...baseRes9(170, 170), ...baseRes9(170, 20)] });
 console.log(`\n이사: ${[["Z", 521], ["W", 301], ["E", 451]].map(([r, t]) => `${r}@${t}s ${capIn9(mplan9, r, t)}`).join(" · ")}`);
 for (const [raw, t, want] of [["Z", 521, "[Z] [A] 기지로 이사"], ["W", 301, "[W] [A] 기지에 해처리 건설"], ["E", 451, "[E] 본진 재건"]]) {
-  const got = capIn9(mplan9, raw, t); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got})`}`);
+  const got = capIn9(mplan9, raw, t, want); console.log(`  ${got === want ? "✔" : "✘"} ${raw} ${t}s → ${want}${got === want ? "" : ` (실제 ${got} · 곁 ${near9(mplan9, raw, t)})`}`);
 }
 
 /* ── ⑥ 순환 차례 — 2v2 · 사건 없는 60초(2026-09, 요청: "순환할때 순서를 로스터 순으로 팀 번갈아가며") ── */
@@ -919,7 +933,7 @@ rmSync(tmp, { recursive: true, force: true });
   /* 돈(2026-10-11, 요청: "돈이 최소 유닛 뽑을 돈이 있는 경우만 막힘") — 막힌 동안 미네랄 40(일꾼 값 50 아래)이면 막힘이 아니고 · 120 이면 막힘이다. */
   const poor = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 40, 0]]]]) });
   const rich = castPlan9(w, { total: 700, order: ["A", "B"], teamOf: { A: 1, B: 2 }, bank: new Map([[0, [[0, 50, 0], [200, 120, 0]]]]) });
-  const blk = (pl) => pl.some((s) => s.raw === "A" && s.at >= 205 && s.at < 262 && capTxt(s) === "[A] 인구 막힘");
+  const blk = (pl) => pl.some((s) => s.raw === "A" && s.at >= 200 && s.at < 262 && capTxt(s) === "[A] 인구 막힘");   // 200: 막힘(215~)에 걸친 첫 순환 창이 204 에 선다(되풀이 막기 뒤로는 그 한 번)
   /* 9드론 유지(2026-10-12, 요청: "저그는 일부러 9드론 유지하는 경우도 있어") — B 저그가 드론 여덟을 더해 30~90초 9/9(시작 상한 18) · 돈 넉넉 → 막힘 아님. */
   const L2 = L.slice(); const z9 = [];
   for (let i = 0; i < 9; i += 1) { const e = { tag: (vt += 1), owner: 1, kind: "Drone", born: i < 4 ? 0 : 20 + i * 2, bornX: 100, bornY: 100, died: null, end: "", bld: false,
@@ -1647,5 +1661,69 @@ rmSync(tmp, { recursive: true, force: true });
     ["일꾼 견제 — 주인 F · 타겟 P", has(dr9, (r) => r.term === "일꾼 견제" && r.owner === "F" && r.target === "P")],
     ["리버 활약 — 주인 F", has(dr9, (r) => r.term === "리버" && r.act === "활약" && r.owner === "F")],
     ["같은 시각·꼴의 겹친 줄 없음", dup(pr9) === 0 && dup(dr9) === 0],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+
+/* ── ㉛ 러시 한 판 · 러시 이름은 그 자리에만 · 정찰 사건 · 자막 되풀이 막기(2026-10-21, 요청: "포토러시인데 이상한 곳 보여주는 경우" · "포토러시/성큰러시는 짓기 시작할 때부터
+   러시로 판단하고 주변에 짓는 건 한 사건" · "초반 일꾼, 중후반 스캔이나 오버로드 옵저버, 건물 띄우기 등으로 상대 기지 정찰 이벤트도 중계 포인트" · "같은 자막이 계속 사용되는 거 방지") ──
+   R(프로토스 10,10) · Z(저그 100,100) · 지도 110. R 은 90초에 Z 본진(95,95) 파일런 → 110초 캐논(96,97) → 170초 캐논(98,95)(조금 뒤 늘림) · 아무것도 안 죽는다.
+   300초 지도 가운데(55,55)에서 R 질럿 넷과 Z 저글링 여덟이 싸운다(러시 240초 창 안 — 옛 셈은 이것도 "포토러시"였다).
+   정찰: Z 드론이 40초에 R 본진(12,12)으로(일꾼 정찰) · R 이 400초에 옵저버를 Z 본진으로 · (테란이 아니라 스캔·띄우기는 다음 판). */
+{
+  let rt = 90000;
+  const L = []; const kills = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (rt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Nexus", true, 10, 10, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  mk(0, "Pylon", true, 95, 95, 90); mk(0, "Photon Cannon", true, 96, 97, 110); mk(0, "Photon Cannon", true, 98, 95, 170);
+  mk(1, "Drone", false, 100, 100, 0, { orders: [[40, 12, 12, false]] });
+  mk(0, "Observer", false, 10, 10, 380, { orders: [[400, 98, 98, false]] });
+  const zs = []; for (let i = 0; i < 8; i += 1) zs.push(mk(1, "Zergling", false, 55, 55, 250, { died: 300 + i * 0.5, end: "atk" }));
+  const ks = []; for (let i = 0; i < 4; i += 1) ks.push(mk(0, "Zealot", false, 55, 55, 250, { died: 301 + i, end: "atk" }));
+  for (const z of zs) kills.push([z.died, 0, ks[0].tag, z.tag]);
+  for (const k of ks) kills.push([k.died, 1, zs[0].tag, k.tag]);
+  const w = { players: [["R", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills, sels: [], builds: [] };
+  const ev = castPlan9(w, { total: 600, order: ["R", "Z"], teamOf: { R: 1, Z: 2 }, mapW: 110, mapH: 110, event: true });
+  const pl = castPlan9(w, { total: 600, order: ["R", "Z"], teamOf: { R: 1, Z: 2 }, mapW: 110, mapH: 110 });
+  const rushSegs = ev.filter((g) => /포토러시/.test(capTxt(g)));
+  const midFight = pl.filter((g) => !g.cyc && g.at > 290 && g.at < 320);
+  const show = (g) => `${g.at.toFixed(0)}s ${capTxt(g) || "∅"}${g.spot?.[0] ? ` (${g.spot[0][1].toFixed(0)},${g.spot[0][2].toFixed(0)})` : ""}`;
+  console.log(`\n러시 한 판·정찰: 포토러시 ${rushSegs.map(show).join(" · ")} · 가운데 싸움 ${midFight.map(show).join(" · ")}`);
+  console.log(`  정찰: ${ev.filter((g) => /정찰/.test(capTxt(g))).map(show).join(" · ") || "없음"}`);
+  const sameCap = (plan) => {
+    const by = new Map();
+    for (const g of plan) {
+      const c = capTxt(g); if (!c) continue;
+      const k = `${g.raw}|${c}`;
+      if (by.has(k) && g.at - by.get(k) < 90 && g.cyc) return `${g.at.toFixed(0)}s ${c}`;
+      by.set(k, g.at);
+    }
+    return null;
+  };
+  for (const [name, pass] of [
+    ["러시는 파일런 착공(90초)부터 — 사건 중계가 그 무렵(≤ 90초 + 4) 러시 자리에 선다", rushSegs.length > 0 && rushSegs[0].at <= 94 && !!rushSegs[0].spot && Math.hypot(rushSegs[0].spot[0][1] - 96, rushSegs[0].spot[0][2] - 96) < 4],
+    ["조금 뒤 늘린 캐논(170초)은 같은 러시 — 이정표 '포토러시'는 한 번", pl.search.filter((x) => /포토러시/.test(x.caps.map((c) => c.text ?? "").join("")) && x.raw === "R" && x.x === undefined).length === 1],
+    ["가운데 싸움(러시 자리에서 먼 곳)은 '포토러시'가 아니다", midFight.length > 0 && midFight.every((g) => !/포토러시/.test(capTxt(g)))],
+    ["드론 정찰(40초) → '[Z]ga [R] 기지 일꾼 정찰'", ev.some((g) => capTxt(g) === "[Z]ga [R] 기지 일꾼 정찰")],
+    ["옵저버 정찰(400초) → '[R]ga [Z] 기지 옵저버 정찰'", ev.some((g) => capTxt(g) === "[R]ga [Z] 기지 옵저버 정찰")],
+    ["순환 자막은 같은 사람에게 90초 안에 같은 글귀를 되풀이하지 않는다", sameCap(pl) === null && sameCap(ev) === null],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
+/* ㉛b 테란 정찰 — 스캔 · 건물 띄우기(배럭이 떠서 상대 본진으로). T(테란 10,10) · P(프로토스 100,100). */
+{
+  let tt = 91000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  mk(0, "Command Center", true, 10, 10, 0); mk(1, "Nexus", true, 100, 100, 0);
+  mk(0, "Barracks", true, 16, 10, 60, { lifts: [250], orders: [[255, 96, 96, false]] });
+  const w = { players: [["T", "테란", 1], ["P", "프로토스", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [[500, 99, 99, "Scanner Sweep", 0]], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const ev = castPlan9(w, { total: 700, order: ["T", "P"], teamOf: { T: 1, P: 2 }, mapW: 110, mapH: 110, event: true });
+  console.log(`테란 정찰: ${ev.filter((g) => /정찰/.test(capTxt(g))).map((g) => `${g.at.toFixed(0)}s ${capTxt(g)}`).join(" · ") || "없음"}`);
+  for (const [name, pass] of [
+    ["스캔(500초) → '[T]ga [P] 기지 스캔 정찰'", ev.some((g) => capTxt(g) === "[T]ga [P] 기지 스캔 정찰")],
+    ["배럭 띄워 상대 본진으로 → '[T]ga [P] 기지 배럭 띄워 정찰'", ev.some((g) => capTxt(g) === "[T]ga [P] 기지 배럭 띄워 정찰")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
