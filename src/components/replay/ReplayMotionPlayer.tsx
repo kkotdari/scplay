@@ -2390,7 +2390,7 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /** 다친 건물의 상처 — **캔버스 판**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ──────────────
- *  스팬 시절의 그림(.scr-wound-*)을 그대로 옮긴 작은 그림 여섯 장이다. 한 번만 굽고 그릴 때는
+ *  스팬 시절의 그림(.scr-wound-*)을 옮긴 작은 그림들이다. 한 번만 굽고 그릴 때는
  *  blit 한 번이라, 불꽃이 백 개여도 층은 늘지 않는다(옛 판은 불꽃 하나가 가짜 요소 둘에 흐리기와
  *  섞임을 지고 **끝없이** 돌았다 — 브라우저가 층마다 따로 그리고 배경까지 읽어 왔다).
  *  기준 상자는 64(둥근 것)·48×128(혀)이고, 그릴 때 제 크기로 늘린다. */
@@ -2398,7 +2398,7 @@ const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
 function woundSpr9(name: string): HTMLCanvasElement {
   const hit9 = WOUND_SPR9.get(name);
   if (hit9) return hit9;
-  const tongue9 = name === "flame" || name === "candle";
+  const tongue9 = name === "flame" || name === "flameCore" || name === "candle";
   const cw9 = tongue9 ? 48 : 64;
   const ch9 = tongue9 ? 128 : 64;
   const cv9 = newCanvas9("상처");
@@ -2409,9 +2409,14 @@ function woundSpr9(name: string): HTMLCanvasElement {
       /* 혀 — 밑동이 넓고 끝이 뾰족하다. 그러데이션은 밑에서 위로(CSS의 to top 그대로). */
       const g9 = c2.createLinearGradient(0, ch9, 0, 0);
       if (name === "flame") {
-        g9.addColorStop(0, "rgba(255,120,30,0.95)"); g9.addColorStop(0.3, "rgba(255,200,70,0.95)");
-        g9.addColorStop(0.48, "rgba(255,240,160,0.85)"); g9.addColorStop(0.7, "rgba(255,140,40,0.5)");
-        g9.addColorStop(1, "rgba(255,140,40,0)");
+        /* ★ 불꽃답게(2026-10-21, 요청: "테란 손상효과 불꽃 색을 더 불꽃처럼") — 밑 진한 주황 → 노랑 → 위로 갈수록 붉게 식어 사라진다(옛: 주황 → 연노랑 → 주황 · 붉은 끝이 없었다). */
+        g9.addColorStop(0, "rgba(255,96,18,0.96)"); g9.addColorStop(0.18, "rgba(255,160,36,0.98)");
+        g9.addColorStop(0.38, "rgba(255,214,90,0.95)"); g9.addColorStop(0.6, "rgba(255,122,28,0.82)");
+        g9.addColorStop(0.8, "rgba(214,48,16,0.5)"); g9.addColorStop(1, "rgba(150,24,8,0)");
+      } else if (name === "flameCore") {
+        /* 불꽃 속 — 밑동의 희고 노란 심(겉 불꽃 안에 작게 · 아래 drawWound9). */
+        g9.addColorStop(0, "rgba(255,236,150,0.92)"); g9.addColorStop(0.4, "rgba(255,206,80,0.75)");
+        g9.addColorStop(0.75, "rgba(255,150,40,0.3)"); g9.addColorStop(1, "rgba(255,130,30,0)");
       } else {
         g9.addColorStop(0, "rgba(120,220,255,0.95)"); g9.addColorStop(0.35, "rgba(210,245,255,0.95)");
         g9.addColorStop(0.6, "rgba(255,255,255,0.7)"); g9.addColorStop(1, "rgba(255,255,255,0)");
@@ -2445,19 +2450,10 @@ function woundSpr9(name: string): HTMLCanvasElement {
       c2.fillStyle = g9;
       c2.beginPath(); c2.ellipse(cw9 / 2, ch9 / 2, cw9 * 0.42, ch9 * 0.47, 0, 0, Math.PI * 2); c2.fill();
     } else {
-      /* 둥근 후광 셋(잉걸·연기·사이언 아지랑이) — CSS의 radial-gradient 칸을 그대로 옮긴다. */
-      const cy9 = name === "ember" || name === "haze" ? ch9 * 0.7 : ch9 * 0.5;
-      const g9 = c2.createRadialGradient(cw9 / 2, cy9, 0, cw9 / 2, cy9, cw9 / 2);
-      if (name === "ember") {
-        g9.addColorStop(0, "rgba(255,170,60,0.5)"); g9.addColorStop(0.16, "rgba(255,170,60,0.5)");
-        g9.addColorStop(0.4, "rgba(200,70,20,0.28)"); g9.addColorStop(0.62, "rgba(200,70,20,0)");
-      } else if (name === "haze") {
-        g9.addColorStop(0, "rgba(150,230,255,0.45)"); g9.addColorStop(0.18, "rgba(150,230,255,0.45)");
-        g9.addColorStop(0.4, "rgba(90,170,220,0.2)"); g9.addColorStop(0.62, "rgba(90,170,220,0)");
-      } else {
-        g9.addColorStop(0, "rgba(120,120,118,0.42)"); g9.addColorStop(0.45, "rgba(120,120,118,0.42)");
-        g9.addColorStop(0.72, "rgba(120,120,118,0)");
-      }
+      /* 둥근 연기 — CSS의 radial-gradient 칸을 그대로 옮긴다(잉걸·사이언 아지랑이 후광은 걷었다 · 2026-10-19/21). 짙게(2026-10-21, 요청: "연기 색 강화" · 옛 rgba(120,120,118,0.42)). */
+      const g9 = c2.createRadialGradient(cw9 / 2, ch9 / 2, 0, cw9 / 2, ch9 / 2, cw9 / 2);
+      g9.addColorStop(0, "rgba(64,62,60,0.62)"); g9.addColorStop(0.45, "rgba(58,56,54,0.5)");
+      g9.addColorStop(0.72, "rgba(58,56,54,0)");
       c2.fillStyle = g9;
       c2.fillRect(0, 0, cw9, ch9);
     }
@@ -2502,7 +2498,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const gco0 = ctx.globalCompositeOperation;
   /* 불빛은 **더하기**로 겹친다 — CSS의 `mix-blend-mode: screen` 자리다. 다만 여기서는 우리가 이미
      칠하고 있는 한 장 안에서 일어나므로, 합성 층도 배경 읽기도 생기지 않는다(그것이 옮긴 까닭이다). */
-  if (race9 !== "zerg") ctx.globalCompositeOperation = "lighter";
+  /* 테란 불꽃은 **보통 겹침**(2026-10-21, 요청: "불꽃 색을 더 불꽃처럼") — 더하기로 겹치면 밝은 회색 건물 위에서 주황이 하얗게 바랬다. 프로토스 촛불만 더하기. */
+  if (race9 === "toss") ctx.globalCompositeOperation = "lighter";
   const sx9 = (f.mx ?? 0) * zoom;
   const sy9 = (f.my ?? 0) * zoom;
   /* 수는 엔진이 잃은 체력 수치로 센 f.wn(세 종족 · 건물 만피에 따라 2~4 에서 멈춘다) · 그 뒤로는 크기 g9(1 → WOUND_GROW9)가 는다(2026-10-21 · engine9 ★★). */
@@ -2567,20 +2564,17 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const top9 = y9 - Wd9 / 2;                  // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
-    /* 밑동 후광 — 테란만 잉걸(0.62초). 프로토스의 사이언 아지랑이(둥근 원 · 1.9초)는 걷었다(2026-10-19, 요청: "뿌리부분원은 제거" — 위 candle ★). */
-    if (race9 === "terran") {
-      const glowP9 = easeW9(triW9((t9 + dl9) / 0.62 / 2));
-      const gs9 = 0.88 + 0.2 * glowP9;
-      ctx.globalAlpha = 0.72 + 0.28 * glowP9;
-      ctx.drawImage(woundSpr9("ember"), x9 - (Wd9 * gs9) / 2, y9 - (Wd9 * gs9) / 2, Wd9 * gs9, Wd9 * gs9);
-    }
+    /* (걷어냄 · 2026-10-21, 요청: "테란 … 아래 동그란 부분은 제거") 밑동 후광 — 테란 잉걸(0.62초). 프로토스의 사이언 아지랑이도 걷었다(2026-10-19 · 위 candle ★). */
     /* 혀 — 테란은 하나(0.5초), 프로토스는 둘(0.55초·0.42초, 뒤엣것은 오른쪽으로 치우쳐 작다). */
     const flame9 = woundSpr9(race9 === "terran" ? "flame" : "candle");
     if (race9 === "terran") {
       const u9 = easeW9(triW9((t9 + dl9) / 0.5 / 2));
+      const rot9 = ((-4 + 7 * u9) * Math.PI) / 180;
       tongueW9(ctx, flame9, x9, top9 + Wd9 * 0.58,
-        Wd9 * 0.34 * (0.92 + 0.12 * u9), Wd9 * 1.5 * (0.8 + 0.35 * u9),
-        ((-4 + 7 * u9) * Math.PI) / 180, 0.8 + 0.2 * u9);
+        Wd9 * 0.34 * (0.92 + 0.12 * u9), Wd9 * 1.5 * (0.8 + 0.35 * u9), rot9, 0.8 + 0.2 * u9);
+      /* 불꽃 속 흰노랑 심(2026-10-21 · "더 불꽃처럼") — 겉 불꽃의 아래 반만 한 키 · 반 폭. */
+      tongueW9(ctx, woundSpr9("flameCore"), x9, top9 + Wd9 * 0.58,
+        Wd9 * 0.15 * (0.92 + 0.12 * u9), Wd9 * 0.55 * (0.8 + 0.35 * u9), rot9, 0.8);
     } else {
       const u9 = easeW9(triW9((t9 + dl9) / 0.55 / 2));
       tongueW9(ctx, flame9, x9, top9 + Wd9 * 0.6,
@@ -2589,13 +2583,18 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       tongueW9(ctx, flame9, x9 + Wd9 * 0.12, top9 + Wd9 * 0.6,
         Wd9 * 0.14 * (1 + 0.08 * v9), Wd9 * 1.2 * (0.82 + 0.3 * v9), 0, 0.75 + 0.25 * v9);
     }
-    /* 연기는 **2단(체력 빨강)에서만**(요청) — 상자 위로 피어올라 퍼지며 사라진다(2.1초). */
-    if (race9 === "terran" && lv2) {
-      const s9 = ((t9 + dl9) / 2.1) % 1;
-      const sa9 = s9 < 0.25 ? (s9 / 0.25) * 0.55 : 0.55 * (1 - (s9 - 0.25) / 0.75);
-      const ss9 = Wd9 * 0.62 * (0.5 + s9);
-      ctx.globalAlpha = Math.max(0, sa9);
-      ctx.drawImage(woundSpr9("smoke"), x9 - ss9 / 2, top9 - ss9 * (0.5 + 2.2 * s9), ss9, ss9);
+    /* 연기 — 불꽃마다 **늘** 피어오른다(2026-10-21, 요청: "연기 색과 수 강화" · 옛: 2단에서만 한 덩이) — 1단 둘 · 2단(상한) 셋이 2.1초 주기를 나눠 잇달아 오르며
+       퍼지고 사라진다. */
+    if (race9 === "terran") {
+      const puffs9 = lv2 ? 3 : 2;
+      for (let pf9 = 0; pf9 < puffs9; pf9 += 1) {
+        const s9 = ((t9 + dl9) / 2.1 + pf9 / puffs9) % 1;
+        const sa9 = s9 < 0.2 ? (s9 / 0.2) * 0.75 : 0.75 * (1 - (s9 - 0.2) / 0.8);
+        const ss9 = Wd9 * 0.66 * (0.5 + s9);
+        const dx9 = Math.sin((pf9 + 1) * 2.1 + s9 * 2.4) * Wd9 * 0.12;
+        ctx.globalAlpha = Math.max(0, sa9);
+        ctx.drawImage(woundSpr9("smoke"), x9 + dx9 - ss9 / 2, top9 - Wd9 * 0.8 - ss9 * (0.3 + 1.8 * s9), ss9, ss9);   // 불꽃 끝(≈ top − 0.9W) 위에서 피어오른다 — 불꽃 몸을 덮지 않게
+      }
     }
   } else {
     /* ★ 저그 — **몸을 타고 흘러내리는 피 줄기**(2026-10-17, 요청: "지금 효과 제거하고 손상정도에 따라(비율 아닌 수치) 몸에서
