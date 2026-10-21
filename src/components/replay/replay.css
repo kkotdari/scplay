@@ -2569,7 +2569,8 @@
   --dock-cell: calc(48px * var(--dks)); --dock-gap: calc(6px * var(--dks)); --dock-padx: calc(8px * var(--dks));
   --dock-cap: calc(30px * var(--dks)); --dock-big: calc(80px * var(--dks));
   --dock-slot: calc(34px * var(--dks)); --dock-fold: calc(20px * var(--dks));
-  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2);   /* 334 */
+  /* + 그림 기둥이 넓어진 몫 26(2026-10-21, 요청: "인포창 자리가 좀 부족해 보여 좌우" — 사진: 포토 "100/100 100/100" 이 그림 기둥 90 을 넘쳤다) */
+  --dock-w: calc(var(--dock-cell) * 6 + var(--dock-gap) * 5 + var(--dock-padx) * 2 + 26px * var(--dks));   /* 334 → 360 */
   --info-down: 0.9; --info-h: round(nearest, calc(var(--dock-h) * var(--info-down)), 2px);
   /* ★ 틀 아래 틈 12 → **4**(2026-10-10, 요청: "독의 윗줄과 아랫줄 사이 갭 줄이기 · 독 높이는 그대로 · 윗줄 세 요소 확대(짝수)") — 줄인 8 을 우물이 받는다:
      우물 206 → **214** · 몸 164 → 172 · 미니맵 246 → **254**(틀 위로 40 그대로) · 전광판은 비(--roster-r)대로 440 → 458. 띠 280 · 미니맵 칸 320 은 그대로. */
@@ -2591,7 +2592,7 @@
 }
 .scr-motion-pc9 .scr-motion-infodock-body { padding-top: calc(8px * var(--dks)); padding-bottom: calc(8px * var(--dks)); }   /* 10 → 8(2026-10-19 인포창 한 단 낮춤) */   /* 8 → 12(×1.4 짝수 · 2026-10-10) */
 /* 인포창 속 칸들(2026-10-10 ×1.4 짝수) — 그림 기둥 97 → 136 · 기둥 틈 14 → 18 · 업그레이드 칸 35 → 48(둥글기 8 · 틈 6) · 보급 틈 12 · 대기 틈 6. */
-.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(12px * var(--dks)); grid-template-columns: calc(90px * var(--dks)) minmax(0, 1fr) auto; }   /* 14·100 → 12·90(2026-10-19) */
+.scr-motion-pc9 .scr-motion-infodock-one { column-gap: calc(12px * var(--dks)); grid-template-columns: calc(116px * var(--dks)) minmax(0, 1fr) auto; }   /* 14·100 → 12·90(2026-10-19) → 116(2026-10-21 · 가장 긴 숫자 줄 "750/750 750/750" ≈ 108 이 들게 · 인포창 폭도 +26) */
 .scr-motion-pc9 .scr-motion-infodock-upsq { gap: calc(6px * var(--dks)); }
 .scr-motion-pc9 .scr-motion-infodock-upsq i { width: calc(32px * var(--dks)); height: calc(32px * var(--dks)); border-radius: calc(6px * var(--dks)); }   /* 36 → 32(2026-10-19) */
 .scr-motion-pc9 .scr-motion-infodock-supply { gap: 0 calc(10px * var(--dks)); }

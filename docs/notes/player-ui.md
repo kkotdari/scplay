@@ -2011,3 +2011,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - PC 이름 기둥 `--name-w` 122 → **138**·dks — 스위치 몫만큼 [자동중계 ⏻ | 전체] 가 첫 칸 라벨(일꾼)에 붙었다(옛 틈 ≈ 17px 로 되돌림). 자료 칸은 그만큼 오른쪽으로.
 - 배율 원(.scr-zoomdial): 라벨 "배율"(.scr-zoomdial-lab = 배속 다이얼 "속도" 꼴) + 값 두 줄 · 글자 `--scr-sc-green`.
 - 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --shot x.png` · `--ios` 같은 플래그 → `$S/crop.mjs` 로 전광판 머리 줄 확대.
+
+## PC 인포창 그림 기둥 90 → 116 · 인포창 폭 334 → 360(2026-10-21)
+요청: "인포창 자리가 좀 부족해 보여 좌우"(사진: 포토 "100/100 100/100" 이 그림 기둥을 넘쳐 글 칸까지 밀렸다).
+- `.scr-motion-pc9 .scr-motion-infodock-one` 그림 기둥 90 → **116**·dks(가장 긴 숫자 줄 "750/750 750/750" ≈ 108 · 글자 12) · `--dock-w` 에 +26·dks(글 칸 폭은 그대로).
+  여럿 격자는 가운데라 양옆이 13 씩 넓다. 폰은 안 건드렸다(실드가 있으면 이미 체력·실드를 제 줄로 쌓는다).
+- 실측(perf-check `[UI단]` 인포창 폭): 1920·1366 둘 다 360 · 1366 도 세 판이 다 선다.
+- 🔎 `npx vite build` 먼저(perf-check 는 dist CSS 를 읽는다) → `perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --info --players 3 --track 수달이 --dockzealot --castoff --shot x.png`.
