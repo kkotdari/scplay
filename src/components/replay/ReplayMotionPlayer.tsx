@@ -2390,7 +2390,7 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /** 다친 건물의 상처 — **캔버스 판**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ──────────────
- *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireTongue9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
+ *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireBlob9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
  *  한 번만 굽고 그릴 때는 blit 한 번이다. */
 const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
 function woundSpr9(name: "smoke"): HTMLCanvasElement {
@@ -2432,19 +2432,33 @@ function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement,
   ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
   ctx.restore();
 }
-/** 불 혀 하나(2026-10-21 · drawWound9 ★★) — 밑(bx, by) · 밑 폭 w · 키 h · 끝 흔들림 sway(px) · 시계 t · 위상 ph. 밑은 넓고 둥글게 시작해 끝으로 좁아지며, 양 가장자리는
- *  위로 갈수록 크게(제각기 다른 박자로) 일렁인다 — 매끈한 물방울이 아니라 불길로 읽히게. 칠(fillStyle·globalAlpha)은 부르는 쪽이 정한다. */
-function fireTongue9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: number, h9: number, sway9: number, t9: number, ph9: number): void {
+/** 불 한 덩이(2026-10-21 · drawWound9 ★★ · 되지적: "불꽃 너무 여러 덩이인 게 오히려 이상한 것 같기도 · 아래가 너무 직선이라 그런가") — 밑(bx, by) · 폭 w · 키 h ·
+ *  끝 peaks 개(가운데가 높다 · 끝마다 제 박자로 깜빡이고 흔들린다) · 옆선은 오목하게 휘어 끝이 뾰족한 불 혀 꼴 · **밑은 눕힌 타원 호**(세로 w·0.45·q 만큼 아래로 둥글다)라
+ *  직선으로 잘리지 않는다. 칠(fillStyle·globalAlpha)은 부르는 쪽이 정한다(밑을 옅게 푸는 그러데이션 — fireGrad9). */
+function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: number, h9: number, q9: number, peaks9: number, t9: number, ph9: number): void {
   if (h9 < 1 || w9 < 0.5) return;
-  const N9 = 8;
-  const cx9 = (u9: number): number => bx9 + sway9 * u9 * u9 + Math.sin(u9 * 7 - t9 * 8 + ph9) * w9 * 0.14 * u9;
-  const hw9 = (u9: number, side9: number): number => w9 * 0.5 * Math.pow(1 - u9, 0.8) * (1 + 0.22 * u9 * Math.sin(u9 * 11 + t9 * (13 + side9 * 3) + ph9 * (1 + side9)));
+  const L9 = bx9 - w9 / 2; const R9 = bx9 + w9 / 2;
+  const pts9: [number, number][] = [];
+  for (let i9 = 0; i9 < peaks9; i9 += 1) {
+    const c9 = peaks9 === 1 ? 0 : i9 / (peaks9 - 1) - 0.5;   // −0.5 … 0.5
+    const hk9 = (1 - Math.abs(c9) * 0.75) * (0.85 + 0.15 * Math.sin(t9 * (9 + i9 * 2.6) + ph9 + i9 * 1.9));
+    const tx9 = bx9 + c9 * w9 * 0.62 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.08;
+    pts9.push([tx9, by9 - h9 * hk9]);
+    if (i9 < peaks9 - 1) {
+      const vc9 = (i9 + 0.5) / (peaks9 - 1) - 0.5;
+      pts9.push([bx9 + vc9 * w9 * 0.62, by9 - h9 * (0.38 + 0.08 * Math.sin(t9 * 7 + i9 + ph9))]);
+    }
+  }
   ctx.beginPath();
-  ctx.moveTo(bx9 - w9 * 0.42, by9);
-  for (let i9 = 1; i9 <= N9; i9 += 1) { const u9 = i9 / N9; ctx.lineTo(cx9(u9) - hw9(u9, 0), by9 - h9 * u9); }
-  for (let i9 = N9 - 1; i9 >= 1; i9 -= 1) { const u9 = i9 / N9; ctx.lineTo(cx9(u9) + hw9(u9, 1), by9 - h9 * u9); }
-  ctx.lineTo(bx9 + w9 * 0.42, by9);
-  ctx.quadraticCurveTo(bx9, by9 + w9 * 0.12, bx9 - w9 * 0.42, by9);
+  ctx.moveTo(L9, by9);
+  let px9 = L9; let py9 = by9;
+  /* 오르는 옆선은 앞 점의 가로에서 휘어 오르고(오목) · 내리는 옆선은 다음 점의 가로에서 휘어 내린다 — 끝이 뾰족한 불 혀. */
+  for (const [x9, y9] of [...pts9, [R9, by9] as [number, number]]) {
+    if (y9 < py9) ctx.quadraticCurveTo(px9, (py9 + y9) / 2, x9, y9);
+    else ctx.quadraticCurveTo(x9, (py9 + y9) / 2, x9, y9);
+    px9 = x9; py9 = y9;
+  }
+  ctx.quadraticCurveTo(bx9, by9 + w9 * 0.45 * q9, L9, by9);
   ctx.closePath();
   ctx.fill();
 }
@@ -2505,7 +2519,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const tXY9: [number, number][] = [];
   const mq9 = Math.max(0.2, f.mq ?? 1);
   if (race9 !== "zerg") {
-    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.3 : 0.24);   // 반폭 — 불 고리(±0.29W) · 플라즈마 고리(±0.24W · 2026-10-21 fireTongue9 · plasmaWisp9)
+    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.36 : 0.24);   // 반폭 — 불 한 덩이(폭 0.69W → ±0.35W) · 플라즈마 고리(±0.24W · 2026-10-21 fireBlob9 · plasmaWisp9)
     const fW9 = sx9; const fD9 = sy9 / mq9;   // 발자국 가로·세로(눕히기 전 화면 px)
     const C45 = Math.SQRT1_2;
     const put9: number[] = [];
@@ -2568,9 +2582,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   if (race9 === "terran" || race9 === "toss") {
     /* (걷어냄 · 2026-10-21, 요청: "테란 … 아래 동그란 부분은 제거") 밑동 후광 — 테란 잉걸(0.62초). 프로토스의 사이언 아지랑이도 걷었다(2026-10-19 · 위 candle ★). */
     /* ★★ **불은 그려서 태운다**(2026-10-21, 지적: "불꽃(화재) 모양이 너무 허접한 듯 · 토스 플라즈마 연기도 그렇고") — 옛 판은 물방울 꼴 그림 한 장(flame · candle)을 늘였다
-       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireTongue9 · plasmaWisp9):
-         · 테란 화재 — 혀 넷(가운데 높고 가장자리 낮게 · 제각기 빠르게 깜빡이고 끝이 흔들린다)을 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고,
-           가장자리는 위로 갈수록 크게 일렁인다 · 불티 셋이 튀어 오르며 식는다.
+       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireBlob9 · plasmaWisp9):
+         · 테란 화재 — 끝이 갈라진 한 덩이(fireBlob9)를 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고 · 불티 셋이 튀어 오르며 식는다(아래 ★★).
          · 프로토스 플라즈마 — 휘감기며 오르는 빛줄기 셋(넓고 옅은 빛무리 + 가는 흰 심 · plasmaWisp9 · 되요청 "방금 전이 맞았어" — 한때 곧은 빛줄기 다발이었다). */
     const bx9 = x9;
     const by9 = top9 + Wd9 * 0.58;
@@ -2578,36 +2591,23 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const ph09 = dl9 * 6.28;
       const H9 = Wd9 * 1.45 * (0.9 + 0.1 * Math.sin(t9 * 9 + ph09) + 0.06 * Math.sin(t9 * 17.3 + ph09 * 1.7));
       const Wf9 = Wd9 * 0.46;
-      /* ★★ 밑동은 **눕힌 고리**(2026-10-21, 요청: "입체 느낌 나게(특히 밑동)") — 혀 다섯이 표면 위 작은 고리(반지름 0.32·Wf · 세로는 땅 눕힘 mq)에 둘러서 솟는다.
-         뒤쪽(고리 위쪽) 혀는 낮고 옅게 먼저 · 앞쪽은 크고 진하게 나중에 — 밑이 일자가 아니라 표면을 따라 둥글게 앉고 앞뒤가 읽힌다. 심(흰 노랑)은 앞쪽 혀에만. */
-      const LAYERS9: [number, number, [number, string][]][] = [
-        [1, 1, [[0, "rgba(255,84,14,0.75)"], [0.45, "rgba(236,52,10,0.55)"], [0.8, "rgba(170,26,6,0.22)"], [1, "rgba(120,14,4,0)"]]],
-        [0.68, 0.74, [[0, "rgba(255,176,44,0.8)"], [0.5, "rgba(255,124,22,0.6)"], [1, "rgba(255,90,14,0)"]]],
-        [0.36, 0.46, [[0, "rgba(255,248,200,0.85)"], [0.55, "rgba(255,214,96,0.6)"], [1, "rgba(255,170,50,0)"]]],
-      ];
-      /* 반투명(2026-10-21, 요청: "테란도 반투명 느낌 필요") — 겹 색의 알파를 낮추고(겉 0.92 → 0.75 …) 혀 전체도 앞 0.8 · 뒤 0.6 으로 비친다 — 뒤 건물 결이 불 너머로 보인다. */
-      const grads9 = LAYERS9.map(([, kh9, stops9]) => {
-        const g9 = ctx.createLinearGradient(0, by9, 0, by9 - H9 * kh9);
+      /* ★★ 자리마다 **한 덩이**(2026-10-21, 되지적: "불꽃 너무 여러 덩이인 게 오히려 이상한 것 같기도 · 아래가 너무 직선이라 그런가" — 한때 눕힌 고리에 혀 다섯) —
+         겉(붉은 주황 · 끝 셋) · 가운데(주황 노랑 0.66×0.72 · 끝 둘) · 심(흰 노랑 0.36×0.42 · 끝 하나)을 fireBlob9 로 겹친다. 밑은 눕힌 타원 호(mq)라 표면에 둥글게 앉고,
+         칠은 밑에서 위로 옅게 시작해(fireGrad9 — 밑 끝 알파 0.15) 직선 가장자리가 안 보인다. 반투명(앞 0.8 — 2026-10-21 "테란도 반투명 느낌"). */
+      const fireGrad9 = (kh9: number, stops9: [number, string][]): CanvasGradient => {
+        const g9 = ctx.createLinearGradient(0, by9 + Wf9 * 0.45 * mq9, 0, by9 - H9 * kh9);
         for (const [o9, c9] of stops9) g9.addColorStop(o9, c9);
         return g9;
-      });
-      const rx9 = Wf9 * 0.32; const ry9 = rx9 * mq9;
-      const ring9 = Array.from({ length: 5 }, (_, j9) => {
-        const th9 = (j9 / 5) * Math.PI * 2 + ph09;
-        const hs9 = Math.abs(Math.sin((j9 + 1) * 78.233 + ph09));
-        return { j: j9, x: bx9 + Math.cos(th9) * rx9, y: by9 + Math.sin(th9) * ry9, d: Math.sin(th9), hk: 0.6 + 0.4 * hs9, wk: 0.42 + 0.16 * hs9 };
-      }).sort((a9, b9) => a9.d - b9.d);
-      for (const tg9 of ring9) {
-        const back9 = tg9.d < 0;
-        const fl9 = 0.82 + 0.18 * Math.sin(t9 * (10 + tg9.j * 2.3) + ph09 + tg9.j * 1.7);
-        const hk9 = tg9.hk * (back9 ? 0.75 + 0.25 * (1 + tg9.d) : 1) * fl9;
-        LAYERS9.forEach(([kw9, kh9], li9) => {
-          if (li9 === 2 && tg9.d < -0.2) return;   // 심은 앞쪽 혀에만
-          ctx.fillStyle = grads9[li9];
-          ctx.globalAlpha = back9 ? 0.6 : 0.8;
-          fireTongue9(ctx, tg9.x, tg9.y, Wf9 * tg9.wk * kw9, H9 * hk9 * kh9,
-            Math.sin(t9 * 3.1 + tg9.j * 1.7 + ph09) * Wf9 * 0.35, t9, tg9.j * 1.7 + ph09);
-        });
+      };
+      const LAYERS9: [number, number, number, [number, string][]][] = [
+        [1, 1, 3, [[0, "rgba(255,84,14,0.1)"], [0.14, "rgba(255,84,14,0.75)"], [0.5, "rgba(236,52,10,0.55)"], [0.82, "rgba(170,26,6,0.22)"], [1, "rgba(120,14,4,0)"]]],
+        [0.66, 0.72, 2, [[0, "rgba(255,176,44,0.1)"], [0.16, "rgba(255,176,44,0.8)"], [0.55, "rgba(255,124,22,0.6)"], [1, "rgba(255,90,14,0)"]]],
+        [0.36, 0.42, 1, [[0, "rgba(255,248,200,0.1)"], [0.2, "rgba(255,248,200,0.85)"], [0.6, "rgba(255,214,96,0.6)"], [1, "rgba(255,170,50,0)"]]],
+      ];
+      ctx.globalAlpha = 0.8;
+      for (const [kw9, kh9, pk9, stops9] of LAYERS9) {
+        ctx.fillStyle = fireGrad9(kh9, stops9);
+        fireBlob9(ctx, bx9, by9, Wf9 * 1.5 * kw9, H9 * kh9, mq9, pk9, t9, ph09 + kw9 * 2.3);
       }
       /* 불티 — 셋이 엇갈려 튀어 오르며 작아지고 식는다(0.9초). */
       for (let k9 = 0; k9 < 3; k9 += 1) {
