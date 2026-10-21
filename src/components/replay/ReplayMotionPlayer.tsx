@@ -2435,38 +2435,56 @@ function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement,
   ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
   ctx.restore();
 }
-/** 불 한 덩이(2026-10-21 · drawWound9 ★★ · 되지적: "불꽃 너무 여러 덩이인 게 오히려 이상한 것 같기도 · 아래가 너무 직선이라 그런가") — 밑(bx, by) · 폭 w · 키 h ·
- *  끝 peaks 개(가운데가 높다 · 끝마다 제 박자로 깜빡이고 흔들린다) · 옆선은 오목하게 휘어 끝이 뾰족한 불 혀 꼴 · **밑은 눕힌 타원 호**(세로 w·0.45·q 만큼 아래로 둥글다)라
- *  직선으로 잘리지 않는다. 칠(fillStyle·globalAlpha)은 부르는 쪽이 정한다(밑을 옅게 푸는 그러데이션 — fireGrad9). */
+/** 불 한 덩이(2026-10-21 · drawWound9 ★★) — 밑(bx, by) · 폭 w · 키 h · 끝 peaks 개. **너덜너덜한 한 덩이**(되요청: 원작 그림 참고 · "불꽃 모양도 참고 그림처럼 너덜너덜하게"):
+ *  · 끝마다 키가 크게 엇갈리고(0.45~1 · 가운데가 높다) 골이 깊어(키의 0.3~0.5) 혀가 갈라진다 · 끝은 오목한 옆선이 모이는 뾰족 끝.
+ *  · 두 옆선 중턱에 바깥으로 뻗은 곁혀 하나씩(높이·길이 해시) — 매끈한 물방울 옆선이 아니라 찢긴 가장자리.
+ *  · 키·곁혀는 **0.1초 칸마다 새 해시로 깜빡**이며 칸 사이는 이어 섞는다(원작 불 애니의 들썩임 · 떨리지 않게).
+ *  · 밑은 눕힌 타원 호(세로 w·0.45·q)라 직선으로 잘리지 않는다(되지적: "아래가 너무 직선").
+ *  칠(fillStyle·globalAlpha)은 부르는 쪽이 정한다(밑을 옅게 푸는 그러데이션 — fireGrad9). */
 function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: number, h9: number, q9: number, peaks9: number, t9: number, ph9: number): void {
   if (h9 < 1 || w9 < 0.5) return;
   const L9 = bx9 - w9 / 2; const R9 = bx9 + w9 / 2;
+  const fi9 = Math.floor(t9 * 10); const fr9 = easeW9(t9 * 10 - fi9);
+  /** 0~1 해시 — 칸(fi)마다 새 값 · 칸 사이는 섞는다. */
+  const fl9 = (k9: number): number => {
+    const a9 = Math.abs(Math.sin((fi9 + k9 * 17.13 + ph9 * 5.1) * 12.9898) * 43758.5453) % 1;
+    const b9 = Math.abs(Math.sin((fi9 + 1 + k9 * 17.13 + ph9 * 5.1) * 12.9898) * 43758.5453) % 1;
+    return a9 + (b9 - a9) * fr9;
+  };
+  /** 키 u(0 밑 ~ 1 끝)에서의 반폭 — 밑 위 0.15 에서 가장 부풀고 위로 갈수록 좁아지는 깃털 꼴(통처럼 곧은 옆선이 아니게). */
+  const hp9 = (u9: number): number => w9 * 0.5 * Math.min(1, 0.85 + u9) * Math.pow(Math.max(0, 1 - u9), 0.75);
   const pts9: [number, number][] = [];
   for (let i9 = 0; i9 < peaks9; i9 += 1) {
     const c9 = peaks9 === 1 ? 0 : i9 / (peaks9 - 1) - 0.5;   // −0.5 … 0.5
-    /* 끝 키는 해시로 엇갈린다(좌우 대칭이면 그림처럼 읽힌다 · 2026-10-21 "더 자연스러워야"). */
     const hs9 = Math.abs(Math.sin((i9 + 1) * 43.17 + ph9 * 2.3));
-    const hk9 = (1 - Math.abs(c9) * 0.5) * (0.7 + 0.3 * hs9) * (0.86 + 0.14 * Math.sin(t9 * (9 + i9 * 2.6) + ph9 + i9 * 1.9));
-    const tx9 = bx9 + c9 * w9 * 0.5 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.14;
+    const hk9 = (1 - Math.abs(c9) * 0.8) * (0.6 + 0.25 * hs9 + 0.15 * fl9(i9));
+    /* 끝은 그 키의 반폭 안쪽에 선다 — 바깥 끝일수록 낮고 옆에 · 가운데 끝이 높고 가늘다. */
+    const tx9 = bx9 + c9 * 2 * hp9(hk9) * 0.85 + (fl9(i9 + 7) - 0.5) * w9 * 0.1 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.05;
     pts9.push([tx9, by9 - h9 * hk9]);
     if (i9 < peaks9 - 1) {
       const vc9 = (i9 + 0.5) / (peaks9 - 1) - 0.5;
-      pts9.push([bx9 + vc9 * w9 * 0.62, by9 - h9 * (0.38 + 0.08 * Math.sin(t9 * 7 + i9 + ph9))]);
+      const vk9 = 0.26 + 0.16 * fl9(i9 + 31);
+      pts9.push([bx9 + vc9 * 2 * hp9(vk9) * 0.7, by9 - h9 * vk9]);
     }
   }
+  /* 곁혀 — 옆선 중턱(키 0.3~0.45)에서 바깥 위로 짧게 뻗는다(그 키 반폭 + 0.05W) · 그 안쪽 홈을 지나 끝 혀로 오른다. 밑은 반폭 꼴(hp9)을 따라 부푼다. */
+  const sl9 = 0.3 + 0.15 * fl9(51); const sr9 = 0.3 + 0.15 * fl9(53);
+  const lx9 = bx9 - hp9(sl9) - w9 * (0.03 + 0.05 * fl9(55)); const rx9 = bx9 + hp9(sr9) + w9 * (0.03 + 0.05 * fl9(57));
+  const nl9: [number, number] = [bx9 - hp9(sl9 - 0.04) * 0.75, by9 - h9 * (sl9 - 0.04)];
+  const nr9: [number, number] = [bx9 + hp9(sr9 - 0.04) * 0.75, by9 - h9 * (sr9 - 0.04)];
   ctx.beginPath();
   ctx.moveTo(L9, by9);
-  /* 바깥 두 옆선은 **밑이 둥글게 부풀었다가 끝으로 좁아지는** 물방울 꼴(삼차 곡선 — 배는 밑 0.35 키에서 바깥으로) · 끝 사이 골은 앞/다음 점 가로에서 휜 오목 곡선이라
-     끝이 뾰족한 불 혀(2026-10-21, 되요청: "폭은 좁고 더 자연스러워야 — 그라데이션이나 형태가"). */
-  const [fx9, fy9] = pts9[0];
-  ctx.bezierCurveTo(L9 - w9 * 0.06, by9 - h9 * 0.32, fx9 - w9 * 0.12, fy9 + h9 * 0.4, fx9, fy9);
-  let px9 = fx9; let py9 = fy9;
-  for (const [x9, y9] of pts9.slice(1)) {
+  ctx.quadraticCurveTo(bx9 - hp9(0.15) * 1.08, by9 - h9 * 0.15, lx9, by9 - h9 * (sl9 + 0.08));
+  ctx.quadraticCurveTo(lx9 + w9 * 0.04, by9 - h9 * (sl9 - 0.02), nl9[0], nl9[1]);
+  let px9 = nl9[0]; let py9 = nl9[1];
+  for (const [x9, y9] of pts9) {
     if (y9 < py9) ctx.quadraticCurveTo(px9, (py9 + y9) / 2, x9, y9);
     else ctx.quadraticCurveTo(x9, (py9 + y9) / 2, x9, y9);
     px9 = x9; py9 = y9;
   }
-  ctx.bezierCurveTo(px9 + w9 * 0.12, py9 + h9 * 0.4, R9 + w9 * 0.06, by9 - h9 * 0.32, R9, by9);
+  ctx.quadraticCurveTo(nr9[0], (py9 + nr9[1]) / 2, nr9[0], nr9[1]);
+  ctx.quadraticCurveTo(rx9 - w9 * 0.04, by9 - h9 * (sr9 - 0.02), rx9, by9 - h9 * (sr9 + 0.08));
+  ctx.quadraticCurveTo(bx9 + hp9(0.15) * 1.08, by9 - h9 * 0.15, R9, by9);
   ctx.quadraticCurveTo(bx9, by9 + w9 * 0.45 * q9, L9, by9);
   ctx.closePath();
   ctx.fill();
@@ -2603,7 +2621,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const H9 = Wd9 * 1.45 * (0.9 + 0.1 * Math.sin(t9 * 9 + ph09) + 0.06 * Math.sin(t9 * 17.3 + ph09 * 1.7));
       const Wf9 = Wd9 * 0.46;
       /* ★★ 자리마다 **한 덩이**(2026-10-21, 되지적: "불꽃 너무 여러 덩이인 게 오히려 이상한 것 같기도 · 아래가 너무 직선이라 그런가" — 한때 눕힌 고리에 혀 다섯) —
-         겉(붉은 주황 · 끝 셋) · 가운데(주황 노랑 0.66×0.72 · 끝 둘) · 심(흰 노랑 0.36×0.42 · 끝 하나)을 fireBlob9 로 겹친다. 밑은 눕힌 타원 호(mq)라 표면에 둥글게 앉고,
+         겉(붉은 주황 · 끝 넷) · 가운데(주황 노랑 0.66×0.74 · 끝 셋) · 심(흰 노랑 0.38×0.46 · 끝 하나)을 fireBlob9(너덜너덜 · 2026-10-21)로 겹친다. 겉 끝은 붉게 남는다(알파 0.12 · 옛 0). 밑은 눕힌 타원 호(mq)라 표면에 둥글게 앉고,
          칠은 밑에서 위로 옅게 시작해(fireGrad9 — 밑 끝 알파 0.15) 직선 가장자리가 안 보인다. 반투명(앞 0.8 — 2026-10-21 "테란도 반투명 느낌"). */
       const fireGrad9 = (kh9: number, stops9: [number, string][]): CanvasGradient => {
         const g9 = ctx.createLinearGradient(0, by9 + Wf9 * 0.45 * mq9, 0, by9 - H9 * kh9);
@@ -2612,8 +2630,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       };
       /* 노란 톤(2026-10-21, 되요청: "불꽃 색이 좀 더 노란 톤") — 겉은 주황 노랑 → 위로 주황 → 끝만 붉게 식는다 · 가운데는 노랑 · 심은 흰 노랑. 칸을 잘게(다섯) 나눠 부드럽게. */
       const LAYERS9: [number, number, number, [number, string][]][] = [
-        [1, 1, 2, [[0, "rgba(255,160,30,0.1)"], [0.12, "rgba(255,168,34,0.72)"], [0.42, "rgba(255,132,24,0.6)"], [0.72, "rgba(240,84,16,0.32)"], [1, "rgba(200,44,10,0)"]]],
-        [0.66, 0.74, 2, [[0, "rgba(255,214,80,0.1)"], [0.14, "rgba(255,212,76,0.82)"], [0.5, "rgba(255,180,48,0.62)"], [0.8, "rgba(255,146,30,0.25)"], [1, "rgba(255,130,24,0)"]]],
+        [1, 1, 4, [[0, "rgba(255,160,30,0.1)"], [0.12, "rgba(255,168,34,0.72)"], [0.42, "rgba(255,138,26,0.66)"], [0.75, "rgba(242,88,18,0.5)"], [1, "rgba(210,52,14,0.12)"]]],
+        [0.66, 0.74, 3, [[0, "rgba(255,214,80,0.1)"], [0.14, "rgba(255,212,76,0.82)"], [0.5, "rgba(255,180,48,0.62)"], [0.8, "rgba(255,146,30,0.25)"], [1, "rgba(255,130,24,0)"]]],
         [0.38, 0.46, 1, [[0, "rgba(255,252,220,0.1)"], [0.18, "rgba(255,252,222,0.88)"], [0.55, "rgba(255,238,150,0.65)"], [1, "rgba(255,214,90,0)"]]],
       ];
       ctx.globalAlpha = 0.8;
