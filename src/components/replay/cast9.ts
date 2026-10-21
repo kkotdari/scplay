@@ -390,7 +390,7 @@ const CAST_W9: Record<string, number> = {
 const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Sunken Colony": "성큰러시", "Creep Colony": "성큰러시" };
 /** ★★ 러시 한 판의 자(2026-10-21 · 아래 rushSess9 ★★) — 한 판에 드는 건물의 착공 틈(초) · 앞 건물과의 거리(타일) · 앞서 지은 파일런을 보는 폭(초) ·
  *  싸움 장면에 러시 이름을 붙이는 거리(타일 · 장면 가운데 ~ 그 판 건물) · 첫 착공 사건의 무게(MIN_SCENE9 — 홀로 장면이 선다) · 마지막 건물 뒤 머묾(초). */
-const RUSH9 = { gap: 90, join: 16, pylonLead: 90, near: 16, w: 450, tail: 10 };
+const RUSH9 = { gap: 90, join: 16, pylonLead: 90, near: 16, w: 450, tail: 10, fightStep: 3, fightW: 60 };
 /** ★★ 정찰의 자(2026-10-21 · 아래 scouts9 ★★) — 일꾼 정찰은 이 초 앞만 · 같은 사람·상대·수단은 이 초에 한 번 · 사건 무게(MIN_SCENE9) · 머묾(초). */
 const SCOUT9 = { early: 300, dedup: 180, w: 450, tail: 8 };
 const SCOUT_UNIT9: Record<string, string> = { SCV: "일꾼", Probe: "일꾼", Drone: "일꾼", Overlord: "오버로드", Observer: "옵저버" };
@@ -1379,7 +1379,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
          늘려 지은 건물뿐인 토막은 그 러시를 보던 중일 때만 잇는다 — 딴 데를 보던 중이면 카메라를 끌어와 "포토러시"를 또 말하지 않는다.
        · 이름 — 싸움 장면의 러시 이름은 그 판 **건물 RUSH9.near 타일 안**의 장면에만(rushKind9). */
   type Rush9 = { att: string; foe: string; text: string; t0: number; t1: number; blds: { t: number; x: number; y: number; kind: string }[];
-    pylons: { t: number; x: number; y: number }[] };
+    pylons: { t: number; x: number; y: number }[];
+    /** 판의 건물 생애 전부(크립 → 성큰 변태 둘 다) — 싸움(쏨 · 맞음)을 읽는다(아래 러시 싸움 ★). */
+    lives: (typeof world.lives)[number][] };
   const rushSess9: Rush9[] = (() => {
     const ownersOfRaw0_9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
     const team0_9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
@@ -1416,8 +1418,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const s9 = out9.find((r9) => r9.att === att9 && r9.foe === foe9 && e9.born - r9.t1 <= RUSH9.gap
         && r9.blds.some((q9) => Math.hypot(q9.x - b9.x, q9.y - b9.y) <= RUSH9.join));
       /* 성큰은 크립이 변태한 몸이다 — 같은 자리의 크립이 이미 들었으면 건물을 더하지 않는다(사건이 두 번 안 서게). */
-      if (s9) { if (!s9.blds.some((q9) => q9.x === b9.x && q9.y === b9.y)) s9.blds.push(b9); s9.t1 = Math.max(s9.t1, e9.born); }
-      else out9.push({ att: att9, foe: foe9, text: RUSH_BLD9[e9.kind], t0: e9.born, t1: e9.born, blds: [b9], pylons: [] });
+      if (s9) { if (!s9.blds.some((q9) => q9.x === b9.x && q9.y === b9.y)) s9.blds.push(b9); s9.t1 = Math.max(s9.t1, e9.born); s9.lives.push(e9); }
+      else out9.push({ att: att9, foe: foe9, text: RUSH_BLD9[e9.kind], t0: e9.born, t1: e9.born, blds: [b9], pylons: [], lives: [e9] });
     }
     /* 앞서 지은 파일런 — 포토러시 판 둘레(RUSH9.join)에 판 첫 건물 RUSH9.pylonLead 초 앞부터 세운 제 파일런(판의 곁 · 사건·카메라는 안 탄다). */
     for (const r9 of out9) {
@@ -1438,6 +1440,37 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       evs9.push({ sec: b9.t, raw: r9.att, vs: r9.foe, w: i9 === 0 ? RUSH9.w : castValue9(b9.kind), why: "러시", tech: r9.text, kind: b9.kind,
         px: b9.x, py: b9.y, tail: RUSH9.tail, rid: ri9, ...(i9 > 0 ? { more: true } : {}) });
     });
+    /* ★ **러시 건물의 싸움도 그 러시다**(2026-10-21, 요청: "포토·성큰러시가 계속되거나 지은 거랑 싸울 때 그 전투는 다시 보여 줘야 해(더 중요한 게 없다면)") — 판의 건물이
+       쏘는 동안(겨눈 표적 tgt ≠ 0) · 맞는 때(체력 hp 가 깎인 키)를 RUSH9.fightStep 초 간격 "러시" 사건(무게 RUSH9.fightW · 그 건물 자리 · rid)으로 낸다. 아무것도 안 죽어도
+       장면이 서고(전투 무게는 판 전체 합이라 문턱을 넘는다), 딴 데 더 큰 싸움이 없으면 카메라가 돌아온다. more 가 아니다(늘린 건물만인 토막과 다르다). */
+    const fights9: [number, number, number][] = [];
+    for (const l9 of r9.lives) {
+      const end9 = Math.min(total - 3, l9.died ?? total);
+      if (l9.tgt) {
+        const n9 = tkN(l9.tgt);
+        for (let i9 = 0; i9 < n9; i9 += 1) {
+          if (tkV(l9.tgt, i9) === 0) continue;
+          const a9 = Math.max(l9.born, tkT(l9.tgt, i9));
+          const b9 = Math.min(end9, i9 + 1 < n9 ? tkT(l9.tgt, i9 + 1) : end9);
+          for (let t9 = a9; t9 < b9; t9 += RUSH9.fightStep) fights9.push([t9, l9.bornX, l9.bornY]);
+        }
+      }
+      if (l9.hp) {
+        const n9 = tkN(l9.hp);
+        for (let i9 = 1; i9 < n9; i9 += 1) {
+          const t9 = tkT(l9.hp, i9);
+          if (t9 > end9) break;
+          if (tkV(l9.hp, i9) < tkV(l9.hp, i9 - 1)) fights9.push([t9, l9.bornX, l9.bornY]);
+        }
+      }
+    }
+    fights9.sort((a9, b9) => a9[0] - b9[0]);
+    let lastF9 = -Infinity;
+    for (const [t9, x9, y9] of fights9) {
+      if (t9 - lastF9 < RUSH9.fightStep) continue;
+      lastF9 = t9;
+      evs9.push({ sec: t9, raw: r9.att, vs: r9.foe, w: RUSH9.fightW, why: "러시", tech: r9.text, px: x9, py: y9, rid: ri9 });
+    }
   });
   /* ★★ **정찰도 중계 거리다**(2026-10-21, 요청: "초반 일꾼, 중후반 스캔이나 오버로드 옵저버, 건물 띄우기 등등으로 상대 기지 정찰 이벤트도 중계 포인트") ──────────────
      상대 기지 영역(본진 건물 · 출발 자리)으로 들어간 정찰을 사건("정찰" · 무게 SCOUT9.w)으로 낸다:
@@ -3335,6 +3368,22 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (first9) push9(at9, pick9, sc9.why, false, score9, dW9, sceneCaps9(sc9, pick9, dW9), sc9.t1 + CAP_TAIL9, spot9);   // 창마다 주인공이 안 들면 옛 길
   };
   let curBid9 = -1;
+  /** 마지막으로 보여 준 토막 — 지금 전투가 **이어지는** 끝(runEnd9)의 출발점. */
+  let curSc9: Sc9 | null = null;
+  /** ★ 지금 전투가 이어지는 끝(2026-10-21) — 마지막으로 보여 준 토막부터 같은 전투의 토막을 **잇닿는 동안**(앞 토막 끝 + 꼬리 + 2초 안에 시작) 따라간 끝. 옛 자 bEnd9 는 전투 전체의
+   *  끝이라, 러시 판처럼 때가 떨어진 토막을 한 전투로 묶으면(ridOf9) 그 빈 사이 내내 '한창'으로 쳐서 딴 장면(정찰 …)을 막았다. */
+  const runEnd9 = (bid9: number): number => {
+    if (!curSc9) return bEnd9.get(bid9) ?? -Infinity;
+    let prev9 = curSc9;
+    let end9 = prev9.t1 + (prev9.tail - GAP9) + END_PAD9;
+    for (const s9 of scs9) {
+      if (bidOf9.get(s9) !== bid9 || s9.t0 <= prev9.t0) continue;
+      if (s9.t0 - prev9.t1 > prev9.tail + 2) break;
+      prev9 = s9;
+      end9 = Math.max(end9, s9.t1 + (s9.tail - GAP9) + END_PAD9);
+    }
+    return end9;
+  };
   /* ★ **밀린 전투로 돌아가기(resume9)는 걷었다**(2026-10-12, 지적: "아직도 이벤트 시작 부분이 잘린 채 나오는 게 있어 — 그럴 거면 안 나오든가") — 지금 전투가
      끝난 때 그 한가운데로 들어가 늘 시작이 잘렸다. 끊지 못한 딴 전투는 이제 안 보여 주고, 그 전투의 뒷장면(제 시작이 있는 것)만 차례대로 온다.
      그리고 끼어든 장면은 앞 장면이 미리 세워 둔 **뒤 자막 창 토막(at ≥ 끼어든 때)을 걷고** 선다(trimFrom9) — 옛 길은 push9 가 '뒤로 가는 토막'으로 첫 창을 버려
@@ -3372,7 +3421,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 러시 판에 **늘려 지은 건물뿐**인 토막은 새 사건이 아니다(2026-10-21, 요청: "조금 후에 늘린다고 다른 포토러시가 아니라") — 그 러시를 **지금** 보던 중이면(같은 전투 · 앞 장면이
        아직 안 끝남) 잇고, 아니면 안 끌어온다. */
     if (sc9.evs.every((e9) => e9.more) && !(cont9 && at9 <= cur9)) continue;
-    const busy9 = !cont9 && curBid9 >= 0 && at9 < bEnd9.get(curBid9)!;
+    const busy9 = !cont9 && curBid9 >= 0 && at9 < runEnd9(curBid9);
     const must9 = !!sc9.hall?.[3];   // 뚝배기(시작 본진) 깨기는 꼭 보여 준다(HALL_KILL_W9 ★) — 한창인 딴 전투도 끊는다 · 멀티 본진은 덧무게만
     if (busy9 && !must9 && btot9 < bTot9.get(curBid9)! * BATTLE_JUMP9) continue;   // 한창인 전투를 안 끊는다(밀린 전투로 돌아가기는 걷었다 · 위 trimFrom9 ★)
     const tot9 = btot9;
@@ -3409,6 +3458,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       trimFrom9(at9, pick9, !!spot9);
       emitScene9(at9, sc9, pick9, tot9, -Infinity, spot9);
       curBid9 = bid9;
+      curSc9 = sc9;
       /* 따라갈 몸은 그 사람의 토막 가운데 그 구간에 걸친 것에 싣는다(앞 토막에 이어 붙었어도 — 시각이 절대 초라 그 구간에서만 먹는다). */
       if (drop9 && pick9 === drop9.raw) {
         const f09 = drop9.follow[0].t0; const f19 = drop9.follow[drop9.follow.length - 1].t1;

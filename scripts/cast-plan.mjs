@@ -1675,7 +1675,10 @@ rmSync(tmp, { recursive: true, force: true });
   const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (rt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
     sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
   mk(0, "Nexus", true, 10, 10, 0); mk(1, "Hatchery", true, 100, 100, 0);
-  mk(0, "Pylon", true, 95, 95, 90); mk(0, "Photon Cannon", true, 96, 97, 110); mk(0, "Photon Cannon", true, 98, 95, 170);
+  /* 첫 캐논은 240~252초에 쏘고(겨눔) 245·248초에 맞는다(체력) — 아무것도 안 죽는 러시 싸움(되요청: "지은 거랑 싸울 때 그 전투는 다시 보여 줘야 해"). */
+  mk(0, "Pylon", true, 95, 95, 90);
+  mk(0, "Photon Cannon", true, 96, 97, 110, { tgt: Float64Array.from([240, 777, 252, 0]), hp: Float64Array.from([110, 200, 245, 180, 248, 160]) });
+  mk(0, "Photon Cannon", true, 98, 95, 170);
   mk(1, "Drone", false, 100, 100, 0, { orders: [[40, 12, 12, false]] });
   mk(0, "Observer", false, 10, 10, 380, { orders: [[400, 98, 98, false]] });
   mk(1, "Overlord", false, 100, 100, 0, { orders: [[5, 14, 14, false]] });
@@ -1705,6 +1708,7 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["러시는 첫 캐논 착공(110초)부터 · 카메라는 그 캐논(96,97)(되요청: '러시는 포토를 봐야 함')", rushSegs.length > 0 && rushSegs[0].at <= 110 && rushSegs[0].at >= 100 && !!rushSegs[0].spot && Math.hypot(rushSegs[0].spot[0][1] - 96, rushSegs[0].spot[0][2] - 97) < 1.5],
     ["앞서 지은 러시 파일런은 '기지 안에 파일런 건설'로 따로 안 선다", !pl.some((g) => /기지 안에 파일런/.test(capTxt(g)))],
+    ["러시 캐논의 싸움(240~252초 · 아무것도 안 죽음)도 그 러시로 다시 보여 준다", ev.some((g) => !g.cyc && g.at >= 230 && g.at < 256 && /포토러시/.test(capTxt(g)))],
     ["초반 오버로드 정찰 → '[Z]ga [R] 기지 오버로드 정찰'", ev.some((g) => capTxt(g) === "[Z]ga [R] 기지 오버로드 정찰")],
     ["조금 뒤 늘린 캐논(170초)은 같은 러시 — 이정표 '포토러시'는 한 번", pl.search.filter((x) => /포토러시/.test(x.caps.map((c) => c.text ?? "").join("")) && x.raw === "R" && x.x === undefined).length === 1],
     ["가운데 싸움(러시 자리에서 먼 곳)은 '포토러시'가 아니다", midFight.length > 0 && midFight.every((g) => !/포토러시/.test(capTxt(g)))],
