@@ -2300,8 +2300,8 @@ export const BUILD_STAGES = 10;
 /** 프로토스 **살·기운** 몸 — 죽을 때 사이오닉 연기로 풀린다. 그 밖의 프로토스(드라군·리버·셔틀·옵저버·스카웃·캐리어·인터셉터·아비터·커세어·프로브)는
  *  기계라 건물과 같은 플라즈마 빛줄기 폭발이다(2026-10-17, 요청: "프로토스 건물과 기계 폭발 효과"). */
 const TOSS_FLESH9 = new Set(["Zealot", "High Templar", "Dark Templar", "Archon", "Dark Archon"]);
-/** 상처가 상한 수에 닿은 뒤 커지는 끝 배수(2026-10-21) — 붓은 자리를 이 배수로 미리 띄워 커져도 안 겹친다. */
-export const WOUND_GROW9 = 1.6;
+/** 상처가 상한 수에 닿은 뒤 커지는 끝 배수(2026-10-21 · 1.6 → 1.4 되요청: "자프테 모두 손상 효과 크기 1.6배는 너무 과한 듯 · 1.4 정도로") — 붓은 자리를 이 배수로 미리 띄워 커져도 안 겹친다. */
+export const WOUND_GROW9 = 1.4;
 export type FxOp = {
   kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "wound" | "dom";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
