@@ -2740,6 +2740,9 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     }
     for (let k9 = 0; k9 <= WAVE9; k9 += 1) ctx.lineTo(bx9(1) - hw9(1) + (2 * hw9(1) * k9) / WAVE9, waveY9(k9));
     for (let g9 = SEG9; g9 >= 0; g9 -= 1) { const u9 = g9 / SEG9; ctx.lineTo(bx9(u9) + hw9(u9), sy09 + u9 * L9); }
+    /* 윗변은 **손톱 모양으로 판다**(2026-10-21, 요청: "저그 폭포 윗부분을 손톱 모양으로 파기 — 직선이라 표면과 안 어우러짐") — 두 윗모서리에서 가운데로 둥글게
+       내려앉는 호(가운데 깊이 반폭의 0.7)라, 둥근 몸 앞면을 감싸는 위도선처럼 읽힌다. 옛: 곧은 가로 변. */
+    ctx.quadraticCurveTo(bx9(0), sy09 + hw9(0) * 1.4, bx9(0) - hw9(0), sy09);
     ctx.closePath(); ctx.fill();
     /* (걷어냄 · 2026-10-19) 흐르는 밝은 세로 토막 — 아래 가로 물결띠와 겹쳐 생선뼈 무늬로 읽혔다. 흐름은 물결띠가 맡는다. */
     /* (걷어냄 · 같은 요청) 끝에 맺힌 둥근 방울 — 끝은 위 물결진 평평한 변이다.
@@ -2763,7 +2766,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         ctx.beginPath();
         for (let p9 = 0; p9 <= 4; p9 += 1) {
           const xr9 = bx9(u9) - hw9(u9) + (hw9(u9) * 2 * p9) / 4;
-          const yy9 = yr9 + Math.sin(p9 * Math.PI * 0.75 + t9 * 4 + ph9 * 6.28) * w9 * 0.14;
+          const cu9 = (p9 - 2) / 2;   // −1 … 1 — 띠도 윗변의 손톱 호(위 ★)를 따라 가운데가 내려앉는다(위로 삐져나오지 않게)
+          const yy9 = yr9 + hw9(0) * 0.7 * (1 - cu9 * cu9) + Math.sin(p9 * Math.PI * 0.75 + t9 * 4 + ph9 * 6.28) * w9 * 0.14;
           if (p9 === 0) ctx.moveTo(xr9, yy9); else ctx.lineTo(xr9, yy9);
         }
       };
