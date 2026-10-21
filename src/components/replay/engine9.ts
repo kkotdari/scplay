@@ -2300,6 +2300,8 @@ export const BUILD_STAGES = 10;
 /** 프로토스 **살·기운** 몸 — 죽을 때 사이오닉 연기로 풀린다. 그 밖의 프로토스(드라군·리버·셔틀·옵저버·스카웃·캐리어·인터셉터·아비터·커세어·프로브)는
  *  기계라 건물과 같은 플라즈마 빛줄기 폭발이다(2026-10-17, 요청: "프로토스 건물과 기계 폭발 효과"). */
 const TOSS_FLESH9 = new Set(["Zealot", "High Templar", "Dark Templar", "Archon", "Dark Archon"]);
+/** 상처가 상한 수에 닿은 뒤 커지는 끝 배수(2026-10-21) — 붓은 자리를 이 배수로 미리 띄워 커져도 안 겹친다. */
+export const WOUND_GROW9 = 1.6;
 export type FxOp = {
   kind: "beam" | "shot" | "spike" | "erupt" | "hit" | "shield" | "cage" | "tether" | "burst" | "wound" | "dom";
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
@@ -2310,8 +2312,10 @@ export type FxOp = {
   /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
    *  이때 `age` 는 죽은 뒤 초(ph 는 DIE_FX_SEC 에서 1로 멈춘다). */
   pool?: boolean;
-  /** wound(저그): 흘러내리는 피 줄기 수 — 잃은 체력 **수치**로 센다(비율이 아니다 · 2026-10-17). */
+  /** wound: 상처 수(불꽃 · 촛불 · 피 줄기) — 잃은 체력 **수치**로 세고 건물 만피에 따라 2~4 에서 멈춘다(2026-10-17 저그 · 2026-10-21 세 종족). */
   wn?: number;
+  /** wound: 상한에 닿은 뒤의 크기 배수(1 → WOUND_GROW9 · 2026-10-21). */
+  wg?: number;
   /** burst: 몸집 단(1 작음·2 보통·3 큼) — 파편의 **수**가 이 단으로 갈리고 크기는 조금만 커진다(요청). */
   tier?: 1 | 2 | 3;
   fx: number; fy: number;
@@ -6555,9 +6559,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         }
         return r9;
       })();
-      const bldHp = ((): { frac: number | undefined; hurt: number; lost: number } => {
+      const bldHp = ((): { frac: number | undefined; hurt: number; lost: number; full: number } => {
         const rec = rec9;
-        if (!rec) return { frac: 1, hurt: -99, lost: 0 }; // 기록 없는 성한 건물도 만피 바(요청).
+        if (!rec) return { frac: 1, hurt: -99, lost: 0, full: 0 }; // 기록 없는 성한 건물도 만피 바(요청).
         /* 체력은 실제 수치다(지적) — 만피는 건물 표에서 가져와 나눈다. */
         const bs0 = BLD_STATS[unit];
         const full0 = bs0 ? bs0[0] + bs0[1] : 850;
@@ -6570,7 +6574,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           if (hv3 < now0) hurt = hs3;
           now0 = hv3;
         }
-        return { frac: Math.max(0.04, Math.min(1, now0 / Math.max(1, full0))), hurt, lost: Math.max(0, full0 - now0) };
+        return { frac: Math.max(0.04, Math.min(1, now0 / Math.max(1, full0))), hurt, lost: Math.max(0, full0 - now0), full: full0 };
       })();
       /* 맞는 건물에도 불티(요청: 유닛·건물 피격 표현 재검토) — 여태 건물은 피격
          연출이 아예 없어, 해처리가 깎이는 동안 화면에서 터지는 것은 때리는 쪽
@@ -6681,10 +6685,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* ★ 저그는 **잃은 체력 수치**로 센다(2026-10-17, 요청: "지금 효과 제거하고 손상정도에 따라(비율 아닌 수치) 몸에서 중간 길이
          폭포처럼 피가 흘러내리게") — 50 넘게 잃으면 줄기 하나, 그 뒤 110 마다 하나씩, 열까지. 같은 300 을 잃으면 성큰이든
          해처리든 줄기 수가 같다(비율이면 해처리는 아직 멀쩡해 보인다). 테란·프로토스는 원작 문턱(2/3·1/3) 그대로다. */
-      const zWound9 = race2 === "저그"
-        ? (bldHp.lost < 50 ? 0 : Math.min(10, 1 + Math.floor((bldHp.lost - 50) / 110))) : 0;
-      const woundLv = race2 === "저그" ? (zWound9 > 0 ? (zWound9 >= 5 ? 2 : 1) : 0)
-        : (bldHp.frac ?? 1) <= 1 / 3 ? 2 : (bldHp.frac ?? 1) <= 2 / 3 ? 1 : 0;
+      /* ★★ **세 종족 같은 셈 — 수가 늘다가 상한에서 크기**(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고 숫자 늘게 ·
+         세 종족 다 · 처음엔 피해에 따라 숫자를 늘리다가, 숫자가 건물 피에 따라 2~4개로 정해 놓고 거기에 차면 크기를 키워 그때부터") —
+         수 = 잃은 체력 50 넘으면 하나, 그 뒤 110 마다 하나(저그 셈 그대로) · 상한 = 만피(체력+실드) 600 밑 2 · 1200 밑 3 · 그 위 4(옛 저그 상한 10 · 테란·프로토스
+         2/3·1/3 비율 문턱 2·5개는 걷었다). 상한에 닿은 뒤로는 남은 체력을 다 잃을 때까지 크기가 1 → WOUND_GROW9 배(wg). 2단(tier 2 · 테란 연기)은 상한에 닿은 때. */
+      const wCap9 = bldHp.full < 600 ? 2 : bldHp.full < 1200 ? 3 : 4;
+      const wLostCap9 = 50 + 110 * (wCap9 - 1);
+      const wN9 = bldHp.lost < 50 ? 0 : Math.min(wCap9, 1 + Math.floor((bldHp.lost - 50) / 110));
+      const wGrow9 = bldHp.lost <= wLostCap9 ? 1
+        : 1 + (WOUND_GROW9 - 1) * Math.min(1, (bldHp.lost - wLostCap9) / Math.max(1, bldHp.full - wLostCap9));
+      const woundLv = wN9 > 0 ? (wN9 >= wCap9 ? 2 : 1) : 0;
       /* 건물 손상 효과만 사양 '중'부터다(요청) — 불길·연기·피는 건물마다 스팬을
          여럿 물고 애니도 무겁다. 그리고 그 건물이 얼마나 상했는지는 체력바가 이미
          말하고 있어, 없어도 상황이 안 읽히지는 않는다. */
@@ -6720,10 +6730,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              갯수 늘릴 때도 중심부 주변으로"). 세로는 입체의 눕힘까지 먹는다. */
           mx: fp2[0] * wk9,
           my: fp2[1] * wk9 * (pitched ? pitchFlat : 1),
-          /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. */
+          /* 수는 wn(위 ★★) · tier 2 = 상한에 닿음. */
           tier: woundLv === 2 ? 2 : 1, wrace: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
           seed: i, clk: t,
-          ...(zWound9 > 0 ? { wn: zWound9 } : {}),
+          wn: wN9, ...(wGrow9 > 1 ? { wg: wGrow9 } : {}),
         });
       }
       /* 성큰은 쏘는 동안 혓바닥을 내민 판으로 바꾼다(요청: "가시가 나오는 타이밍에

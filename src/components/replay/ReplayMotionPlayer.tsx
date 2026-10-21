@@ -97,7 +97,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  resUniq9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -2505,8 +2505,31 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   if (race9 !== "zerg") ctx.globalCompositeOperation = "lighter";
   const sx9 = (f.mx ?? 0) * zoom;
   const sy9 = (f.my ?? 0) * zoom;
-  /* 수는 상처가 심할수록 많다(요청): 1단 2개 · 2단 5개. 저그는 엔진이 잃은 체력 수치로 센 줄기 수(f.wn). */
-  const n9 = race9 === "zerg" ? Math.max(1, f.wn ?? (lv2 ? 5 : 2)) : lv2 ? 5 : 2;
+  /* 수는 엔진이 잃은 체력 수치로 센 f.wn(세 종족 · 건물 만피에 따라 2~4 에서 멈춘다) · 그 뒤로는 크기 g9(1 → WOUND_GROW9)가 는다(2026-10-21 · engine9 ★★). */
+  const n9 = Math.max(1, f.wn ?? 1);
+  const g9 = Math.max(1, f.wg ?? 1);
+  /* ★ 테란·프로토스 불꽃도 **서로 안 겹치게** 차례로 앉힌다(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고") — 아래 저그 zX9 와 같은 꼴:
+     불꽃 k 는 해시 후보 자리(열여섯)를 차례로 보며 앞 불꽃(0…k−1)과 가로로 안 겹치는(사이 ≥ 반폭 0.3) 첫 자리 — 다 막히면 가장 덜 겹치는 자리. 불꽃은 키가 커서
+     세로로는 늘 겹치므로 가로만 본다. 폭은 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다. 흩는 폭은 발자국 폭의 ±0.36(옛 ±0.16 · 겹쳐 앉던 까닭). */
+  const tX9: number[] = [];
+  if (race9 !== "zerg") {
+    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.19 : 0.16);
+    const put9: number[] = [];
+    for (let kk9 = 0; kk9 < n9; kk9 += 1) {
+      const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
+      let best9 = 0; let bestGap9 = Number.NEGATIVE_INFINITY;
+      for (let tr9 = 0; tr9 < 16; tr9 += 1) {
+        const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
+        const c9 = ((hc9 % 1000) / 1000 - 0.5) * 0.72 * sx9;
+        let gap9 = Number.POSITIVE_INFINITY;
+        for (const q9 of put9) gap9 = Math.min(gap9, Math.abs(c9 - q9) - 2 * hw09);
+        if (gap9 > bestGap9) { bestGap9 = gap9; best9 = c9; }
+        if (gap9 >= hw09 * 0.3) break;
+      }
+      put9.push(best9);
+      tX9.push(ax + best9);
+    }
+  }
   /* ★ 저그 줄기는 **서로 안 겹치게** 차례로 앉힌다(2026-10-19, 요청: "두개가 겹치지 않게하기") — 줄기 k 는 해시가 주는 후보 자리(최대 열여섯)를 차례로 보며
      **앞 줄기들(0…k−1)** 과 가로로 겹치지 않는(사이 ≥ 제 반폭 0.3) 첫 자리에 앉는다 — 다 막히면 가장 덜 겹치는 자리. 앞 줄기만 보므로 줄기가 늘어도
      있던 줄기 자리는 안 바뀐다(위 '수와 무관' ★ 그대로). 흩는 폭 0.56 → 0.84(발자국 폭) — 열 줄기까지 들어갈 틈. 세로가 안 겹치면 같은 줄에 서도 된다. */
@@ -2516,9 +2539,9 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     const put9: { x: number; w: number; y0: number; y1: number }[] = [];
     for (let kk9 = 0; kk9 < n9; kk9 += 1) {
       const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-      const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315));
+      const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315)) * WOUND_GROW9;   // 다 커졌을 때 몫(위 ★)
       const y09 = -(-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
-      const y19 = y09 + fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
+      const y19 = y09 + fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11) * WOUND_GROW9;
       let best9 = 0; let bestGap9 = Number.NEGATIVE_INFINITY;
       for (let tr9 = 0; tr9 < 16; tr9 += 1) {
         const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
@@ -2537,10 +2560,11 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   }
   for (let kk9 = 0; kk9 < n9; kk9 += 1) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-  /* 흩는 폭 ±0.16 · 살짝 왼쪽으로(−0.08) — 엔진이 쓰던 그 식 그대로다. */
-  const x9 = ax + (((h9 % 1000) / 1000 - 0.5) * 0.32 - 0.08) * sx9;
+  /* 가로는 위에서 안 겹치게 앉힌 자리(tX9 ★) · 세로 흩음은 그대로. */
+  const x9 = race9 === "zerg" ? ax : tX9[kk9];
   const y9 = ay + ((((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32) * sy9;
-  const top9 = y9 - W9 / 2;                   // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
+  const Wd9 = W9 * g9;                        // 상한 뒤로 커지는 불꽃 상자
+  const top9 = y9 - Wd9 / 2;                  // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
     /* 밑동 후광 — 테란만 잉걸(0.62초). 프로토스의 사이언 아지랑이(둥근 원 · 1.9초)는 걷었다(2026-10-19, 요청: "뿌리부분원은 제거" — 위 candle ★). */
@@ -2548,28 +2572,28 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const glowP9 = easeW9(triW9((t9 + dl9) / 0.62 / 2));
       const gs9 = 0.88 + 0.2 * glowP9;
       ctx.globalAlpha = 0.72 + 0.28 * glowP9;
-      ctx.drawImage(woundSpr9("ember"), x9 - (W9 * gs9) / 2, y9 - (W9 * gs9) / 2, W9 * gs9, W9 * gs9);
+      ctx.drawImage(woundSpr9("ember"), x9 - (Wd9 * gs9) / 2, y9 - (Wd9 * gs9) / 2, Wd9 * gs9, Wd9 * gs9);
     }
     /* 혀 — 테란은 하나(0.5초), 프로토스는 둘(0.55초·0.42초, 뒤엣것은 오른쪽으로 치우쳐 작다). */
     const flame9 = woundSpr9(race9 === "terran" ? "flame" : "candle");
     if (race9 === "terran") {
       const u9 = easeW9(triW9((t9 + dl9) / 0.5 / 2));
-      tongueW9(ctx, flame9, x9, top9 + W9 * 0.58,
-        W9 * 0.34 * (0.92 + 0.12 * u9), W9 * 1.5 * (0.8 + 0.35 * u9),
+      tongueW9(ctx, flame9, x9, top9 + Wd9 * 0.58,
+        Wd9 * 0.34 * (0.92 + 0.12 * u9), Wd9 * 1.5 * (0.8 + 0.35 * u9),
         ((-4 + 7 * u9) * Math.PI) / 180, 0.8 + 0.2 * u9);
     } else {
       const u9 = easeW9(triW9((t9 + dl9) / 0.55 / 2));
-      tongueW9(ctx, flame9, x9, top9 + W9 * 0.6,
-        W9 * 0.22 * (1 + 0.08 * u9), W9 * 1.7 * (0.82 + 0.3 * u9), 0, 0.75 + 0.25 * u9);
+      tongueW9(ctx, flame9, x9, top9 + Wd9 * 0.6,
+        Wd9 * 0.22 * (1 + 0.08 * u9), Wd9 * 1.7 * (0.82 + 0.3 * u9), 0, 0.75 + 0.25 * u9);
       const v9 = easeW9(triW9((t9 + dl9 + 0.2) / 0.42 / 2));
-      tongueW9(ctx, flame9, x9 + W9 * 0.12, top9 + W9 * 0.6,
-        W9 * 0.14 * (1 + 0.08 * v9), W9 * 1.2 * (0.82 + 0.3 * v9), 0, 0.75 + 0.25 * v9);
+      tongueW9(ctx, flame9, x9 + Wd9 * 0.12, top9 + Wd9 * 0.6,
+        Wd9 * 0.14 * (1 + 0.08 * v9), Wd9 * 1.2 * (0.82 + 0.3 * v9), 0, 0.75 + 0.25 * v9);
     }
     /* 연기는 **2단(체력 빨강)에서만**(요청) — 상자 위로 피어올라 퍼지며 사라진다(2.1초). */
     if (race9 === "terran" && lv2) {
       const s9 = ((t9 + dl9) / 2.1) % 1;
       const sa9 = s9 < 0.25 ? (s9 / 0.25) * 0.55 : 0.55 * (1 - (s9 - 0.25) / 0.75);
-      const ss9 = W9 * 0.62 * (0.5 + s9);
+      const ss9 = Wd9 * 0.62 * (0.5 + s9);
       ctx.globalAlpha = Math.max(0, sa9);
       ctx.drawImage(woundSpr9("smoke"), x9 - ss9 / 2, top9 - ss9 * (0.5 + 2.2 * s9), ss9, ss9);
     }
@@ -2577,7 +2601,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     /* ★ 저그 — **몸을 타고 흘러내리는 피 줄기**(2026-10-17, 요청: "지금 효과 제거하고 손상정도에 따라(비율 아닌 수치) 몸에서
        중간 길이 폭포처럼 피가 흘러내리게") ──────────────────────────────────────────────────────────────────────────
        옛 그림(솟구쳤다 떨어지는 방울 다섯)은 걷었다. 줄기 수는 엔진이 **잃은 체력**으로 센다(f.wn · 50 넘게 잃으면 하나, 110 마다
-       하나 더, 열까지). 줄기 하나는:
+       하나 더 · 2026-10-21 부터 건물 만피에 따라 2~4 에서 멈추고 그 뒤로는 g9 배로 길고 넓어진다). 줄기 하나는:
          · 몸 가운데 언저리(발자국 폭의 0.06 아래 ~ 0.08 위 · 0.12~0.4 위로 두었더니 낮은 건물 위로 뿔처럼 솟았다 · 재요청 "좀 아래쪽에서")의
            검붉은 상처 자국에서 시작해 중간 길이(폭의 0.16~0.27)를 흘러내리는 띠(폭의 2.7~4.8% · 재요청 "너비 2배" → "1.5배 더") — 위가 가늘고 아래가 굵으며
            곧게 수직으로 떨어진다.
@@ -2589,9 +2613,9 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
        옛 판은 줄기가 셋을 넘으면 폭을 0.4 → 0.62 로 넓혀, 넷째가 생기는 순간 있던 셋이 다 옆으로 옮겨 앉았다. 자리는 (건물 번호, 줄기 번호)만의 함수다. */
     const sx09 = zX9[kk9];   // 위에서 서로 안 겹치게 앉힌 자리(zX9 ★)
     const sy09 = ay - (-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
-    const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11);
+    const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11) * g9;   // 상한 뒤로 길이·폭이 g9 배(2026-10-21)
     /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px) → 같은 날 "피폭포 폭 25프로 축소" ×0.75 → **4.05~7.2%**(하한 2.7px). */
-    const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315));
+    const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315)) * g9;
     const ph9 = ((h9 >>> 20) % 100) / 100;
     const SEG9 = 6;
     /* 곧게 수직으로 떨어진다(재지적: "왜 수직으로 안 떨어지고 휘지" — 몸 굴곡을 흉내 낸 굽이·기울기를 걷었다). */

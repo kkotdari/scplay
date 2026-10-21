@@ -134,7 +134,9 @@ function makeWorld(race, zFix = 0) {
   let tag = 100;
   /* --hurt: 건물마다 체력 줄을 싣는다(2026-09, 지적: "건물 체력바가 안 나옴" — 성한 건물은 바를 안 띄우므로 검증에 이 손이
      필요하다). 0.5초에 300 으로 깎이고 그 뒤 2.5초마다 1 씩 더 깎여 '맞은 지 3초 안'(HP_BAR_SEC)이 늘 참이다. 값은 절대 체력. */
-  const hurtTicks = () => { if (!flag("--hurt", false)) return null; const t9 = [[F(0), 5000], [F(0.5), 300]]; for (let s = 3; s <= GAME_SEC; s += 2.5) t9.push([F(s), 300 - Math.round(s / 2.5)]); return t9; };
+  /* --hurthp N(2026-10-21) — 0.5초에 체력(+실드) N 으로(300 대신 · 상처 수·크기 단계를 건물마다 견준다 · 만피보다 크면 성하다). */
+  const HURT_HP = Number(flag("--hurthp", 300));
+  const hurtTicks = () => { if (!flag("--hurt", false)) return null; const t9 = [[F(0), 5000], [F(0.5), HURT_HP]]; for (let s = 3; s <= GAME_SEC; s += 2.5) t9.push([F(s), HURT_HP - Math.round(s / 2.5)]); return t9; };
   /* --die S(2026-10-19, 지적: "프로토스 건물 폭발시 동심원과 햇살방사선이 중심이 안맞는 건물이 있음") — 건물이 S초에 무너진다(자취·체력이 거기서 끝난다).
      찍는 순간은 46초라 `--die 45.7` 이면 폭발 0.3초 째가 찍힌다. */
   const DIE = flag("--die", null) !== null ? Number(flag("--die")) : null;
