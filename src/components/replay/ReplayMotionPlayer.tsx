@@ -2393,6 +2393,9 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
  *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireBlob9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
  *  한 번만 굽고 그릴 때는 blit 한 번이다. */
 const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
+/** 다친 건물을 그린 **화면 상자**(x0, 잉크 위, x1, 잉크 아래 · 캔버스 px) — 건물 붓(GL)이 그릴 때 집기 열쇠로 적고, drawWound9 가 불꽃을 몸 위에 흩을 때 읽는다.
+ *  몸이 효과보다 먼저 그려지므로 같은 프레임 값이다 · 효과를 다 칠하면 비운다(paintFxList9 끝 · 2026-10-21). */
+const WOUND_BOX9 = new Map<string, readonly [number, number, number, number]>();
 function woundSpr9(name: "smoke"): HTMLCanvasElement {
   const hit9 = WOUND_SPR9.get(name);
   if (hit9) return hit9;
@@ -2517,33 +2520,37 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const n9 = Math.max(1, f.wn ?? 1);
   const g9 = Math.max(1, f.wg ?? 1);
   /* ★ 테란·프로토스 불꽃도 **서로 안 겹치게** 차례로 앉힌다(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고") — 아래 저그 zX9 와 같은 꼴:
-     불꽃 k 는 해시 후보 자리(열여섯)를 차례로 보며 앞 불꽃(0…k−1)과 가로로 안 겹치는(사이 ≥ 반폭 0.3) 첫 자리 — 다 막히면 가장 덜 겹치는 자리. 불꽃은 키가 커서
-     세로로는 늘 겹치므로 가로만 본다. 폭은 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다.
-     ★★ 후보 자리는 **건물 발자국 위**다(2026-10-21, 요청: "건물 모델은 3D 에 요잉도 들어가 있어서 평면처럼 손상 효과를 만들면 이상해 — 입체 느낌 나게(특히 밑동) · 잘 어우러지게
-     위치 조정") — 발자국 안쪽(가로·세로 ±0.3)의 점을 건물 요잉(BLD_YAW9 45°)으로 돌리고 땅 눕힘(mq)으로 눌러 화면에 옮긴다(옛: 화면 가로 ±0.36 · 세로 ±0.16 네모).
-     그리기는 **뒤(화면 위)부터 앞으로**(아래 order9) — 앞 불꽃이 뒤 불꽃을 덮는다. */
+     불꽃 k 는 해시 후보 자리(열여섯)를 차례로 보며 앞 불꽃(0…k−1)과 안 겹치는(가로 사이 ≥ 반폭 0.3 · 또는 세로가 불 키만큼 떨어진) 첫 자리 — 다 막히면 가장 덜 겹치는 자리.
+     폭·키는 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다.
+     ★★ 후보 자리는 **그린 몸 위**다(2026-10-21, 원작 화면을 참고로 받음 — 불이 지붕·윗모서리에 붙고 · 되요청: "프로토스도 위치는 비슷 · 꼭 윗모서리만은 아니야 아래쪽도 붙어") —
+     붓이 그 건물을 그리며 적어 둔 화면 상자(WOUND_BOX9 · 잉크 위·아래·가로)에서, 요잉 45° 상자의 실루엣(위·아래 꼭짓점이 가운데 · 옆으로 갈수록 위는 내려오고
+     아래는 올라온다)을 따라 깎은 육각 안쪽에 흩는다 — 지붕부터 아래 벽까지(위로 조금 몰린다). 상자가 없으면(그 프레임에 몸을 안 그림 · 2D 폴백) 발자국 자로 어림한다.
+     (옛: 발자국 마름모 위 · 들기 0.12 — 몸 가운데 낮게만 붙었다.) 그리기는 **뒤(화면 위)부터 앞으로**(아래 order9) — 앞 불꽃이 뒤 불꽃을 덮는다. */
   const tXY9: [number, number][] = [];
   const mq9 = Math.max(0.2, f.mq ?? 1);
   if (race9 !== "zerg") {
     const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.27 : 0.24);   // 반폭 — 불 한 덩이(폭 0.48W + 배 · 끝 흔들림 → ±0.26W) · 플라즈마 고리(±0.24W · 2026-10-21 fireBlob9 · plasmaWisp9)
-    const fW9 = sx9; const fD9 = sy9 / mq9;   // 발자국 가로·세로(눕히기 전 화면 px)
-    const C45 = Math.SQRT1_2;
-    const put9: number[] = [];
+    const vh09 = W9 * WOUND_GROW9 * 0.9;   // 세로로 이만큼 떨어지면 위 불의 밑이 아래 불 끝 위에 선다
+    const bx09 = (f.wkey ? WOUND_BOX9.get(f.wkey) : undefined)
+      ?? [ax - sx9 * 0.5, ay - sx9 * 0.55, ax + sx9 * 0.5, ay + sy9 * 0.5] as const;
+    const cx09 = (bx09[0] + bx09[2]) / 2; const hw9b = (bx09[2] - bx09[0]) / 2; const bh09 = bx09[3] - bx09[1];
+    const put9: [number, number][] = [];
     for (let kk9 = 0; kk9 < n9; kk9 += 1) {
       const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-      let best9: [number, number] = [0, 0]; let bestGap9 = Number.NEGATIVE_INFINITY;
+      let best9: [number, number] = [cx09, bx09[1] + bh09 * 0.4]; let bestGap9 = Number.NEGATIVE_INFINITY;
       for (let tr9 = 0; tr9 < 16; tr9 += 1) {
         const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
-        const u9 = ((hc9 % 1000) / 1000 - 0.5) * 0.6 * fW9;
-        const v9 = (((hc9 >>> 10) % 1000) / 1000 - 0.5) * 0.6 * fD9;
-        const c9: [number, number] = [(u9 - v9) * C45, (u9 + v9) * C45 * mq9];
+        const u9 = ((hc9 % 1000) / 1000 - 0.5) * 1.3;   // −0.65 … 0.65(반폭 몫)
+        const v0 = 0.14 + 0.22 * Math.abs(u9); const v1 = 0.88 - 0.22 * Math.abs(u9);   // 육각 실루엣 — 옆으로 갈수록 위·아래가 안으로
+        const v9 = v0 + (v1 - v0) * Math.pow(((hc9 >>> 10) % 1000) / 1000, 1.3);
+        const c9: [number, number] = [cx09 + u9 * hw9b, bx09[1] + v9 * bh09];
         let gap9 = Number.POSITIVE_INFINITY;
-        for (const q9 of put9) gap9 = Math.min(gap9, Math.abs(c9[0] - q9) - 2 * hw09);
+        for (const q9 of put9) gap9 = Math.min(gap9, Math.max(Math.abs(c9[0] - q9[0]) - 2 * hw09, Math.abs(c9[1] - q9[1]) - vh09));
         if (gap9 > bestGap9) { bestGap9 = gap9; best9 = c9; }
         if (gap9 >= hw09 * 0.3) break;
       }
-      put9.push(best9[0]);
-      tXY9.push([ax + best9[0], ay + best9[1]]);
+      put9.push(best9);
+      tXY9.push(best9);
     }
   }
   /* ★ 저그 줄기는 **서로 안 겹치게** 차례로 앉힌다(2026-10-19, 요청: "두개가 겹치지 않게하기") — 줄기 k 는 해시가 주는 후보 자리(최대 열여섯)를 차례로 보며
@@ -2579,11 +2586,9 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   if (race9 !== "zerg") order9.sort((a9, b9) => tXY9[a9][1] - tXY9[b9][1]);
   for (const kk9 of order9) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-  /* 자리 — 테란·프로토스는 발자국 마름모 위(tXY9 ★★) · 저그는 줄기가 제 자리를 따로 잰다(zX9). */
+  /* 자리 — 테란·프로토스는 몸 위의 불 밑동(tXY9 ★★) · 저그는 줄기가 제 자리를 따로 잰다(zX9). */
   const x9 = race9 === "zerg" ? ax : tXY9[kk9][0];
-  const y9 = race9 === "zerg" ? ay + ((((h9 >>> 10) % 1000) / 1000 - 0.5) * 0.32) * sy9 : tXY9[kk9][1];
   const Wd9 = W9 * g9;                        // 상한 뒤로 커지는 불꽃 상자
-  const top9 = y9 - Wd9 / 2;                  // 스팬 상자(W×W)의 위 모서리 — CSS의 translate(-50%,-50%)
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
     /* (걷어냄 · 2026-10-21, 요청: "테란 … 아래 동그란 부분은 제거") 밑동 후광 — 테란 잉걸(0.62초). 프로토스의 사이언 아지랑이도 걷었다(2026-10-19 · 위 candle ★). */
@@ -2592,7 +2597,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          · 테란 화재 — 끝이 갈라진 한 덩이(fireBlob9)를 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고 · 불티 셋이 튀어 오르며 식는다(아래 ★★).
          · 프로토스 플라즈마 — 휘감기며 오르는 빛줄기 셋(넓고 옅은 빛무리 + 가는 흰 심 · plasmaWisp9 · 되요청 "방금 전이 맞았어" — 한때 곧은 빛줄기 다발이었다). */
     const bx9 = x9;
-    const by9 = top9 + Wd9 * 0.58;
+    const by9 = tXY9[kk9][1];
     if (race9 === "terran") {
       const ph09 = dl9 * 6.28;
       const H9 = Wd9 * 1.45 * (0.9 + 0.1 * Math.sin(t9 * 9 + ph09) + 0.06 * Math.sin(t9 * 17.3 + ph09 * 1.7));
@@ -2678,7 +2683,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const ss9 = Wd9 * 0.66 * (0.5 + s9);
         const dx9 = Math.sin((pf9 + 1) * 2.1 + s9 * 2.4) * Wd9 * 0.12;
         ctx.globalAlpha = Math.max(0, sa9);
-        ctx.drawImage(woundSpr9("smoke"), x9 + dx9 - ss9 / 2, top9 - Wd9 * 0.8 - ss9 * (0.3 + 1.8 * s9), ss9, ss9);   // 불꽃 끝(≈ top − 0.9W) 위에서 피어오른다 — 불꽃 몸을 덮지 않게
+        ctx.drawImage(woundSpr9("smoke"), x9 + dx9 - ss9 / 2, by9 - Wd9 * 1.38 - ss9 * (0.3 + 1.8 * s9), ss9, ss9);   // 불꽃 끝(≈ 밑 − 1.45W) 위에서 피어오른다 — 불꽃 몸을 덮지 않게
       }
     }
   } else {
@@ -5155,6 +5160,7 @@ export function paintFxList9(
     }
   }
   ctx.restore();
+  WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
 function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted }: {
@@ -6010,6 +6016,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ? ((gk9 / op.pulseK) * (1 - op.pulseK) * Math.abs(glBf9.top - glBf9.bot)) / 2 : 0;
             const gay9 = op.mkFrac !== undefined ? Math.round(sy * B) / B : Math.round(((groundY ?? sy + hPx / 2) - gLift9 - gMid9) * B) / B;
             const gax9 = Math.round(sx * B) / B;
+            /* 그린 몸의 화면 상자를 적는다 — 상처 불꽃이 몸 위(지붕 ~ 아래 벽)에 앉는다(drawWound9 ★★ · 2026-10-21). */
+            if (op.pickKey && op.mkFrac === undefined) {
+              WOUND_BOX9.set(op.pickKey, [gax9 + gk9 * (glBf9.cx - glBf9.w / 2), gay9 + gk9 * (glBf9.top - glBf9.bot), gax9 + gk9 * (glBf9.cx + glBf9.w / 2), gay9]);
+            }
             /* ★ 발광 종류(소환구·아콘 …)는 제 몸 그림자를 안 진다(2026-09, 요청: "소환구 자체 그림자는 제거(공통 그림자만
                사용)") — 빛 공이 빛 방향으로 눕힌 검은 원을 옆에 드리우면 빛이 그림자를 지는 꼴이다. 접지 타원(공통)만 남긴다. */
             /* ★ 뜬 건물도 **바닥에 눕힌 사영**이다(2026-09, 요청: "뜬 건물 그림자 정리") — 옛 판은 몸을 검게 아래로 밀어 한 번

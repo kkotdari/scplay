@@ -2371,6 +2371,8 @@ export type FxOp = {
    *  낱개(불꽃 하나)마다 op 하나다: 자리는 fx·fy + mx·my(렌즈 px), 크기는 size,
    *  심함은 tier(1·2), 흩는 씨앗은 seed(0~99), 흔들리는 시계는 clk(초)다. */
   wrace?: "terran" | "zerg" | "toss";
+  /** wound: 다친 건물의 집기 열쇠(pickKey) — 붓이 그 건물을 그린 화면 상자(잉크 위·아래·폭)를 찾아 불꽃을 **몸 위**(지붕 ~ 아래 벽)에 흩는다(2026-10-21). */
+  wkey?: string;
   /** dom: 입체 보기인가 — 모델을 굽는 갈래(스톰·핵)가 시점을 함께 받아야 기둥이 눕는다. */
   pv?: boolean;
   /** dom: 이 자리의 **깊이 배율**(pitchK) — 붓이 px 상수(탄두 크기·낙하 높이)에 곱한다. */
@@ -6736,7 +6738,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           mq: pitched ? pitchFlat : 1,
           /* 수는 wn(위 ★★) · tier 2 = 상한에 닿음. */
           tier: woundLv === 2 ? 2 : 1, wrace: race2 === "저그" ? "zerg" : race2 === "프로토스" ? "toss" : "terran",
-          seed: i, clk: t,
+          seed: i, clk: t, wkey: `b${raw}|${unit}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
           wn: wN9, ...(wGrow9 > 1 ? { wg: wGrow9 } : {}),
         });
       }
