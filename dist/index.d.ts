@@ -229,6 +229,46 @@ export declare function flapCutOf(hz: number, t: number): 1 | 3 | 4;
  *  자유로우니 45 눈금 그대로다. 옮긴 각은 yawBucket9가 죄지 않고 지난다(그 함수의 ★). */
 export declare const galleryYawOf: (deg: number, group?: string) => number;
 
+/** ★ **게임 색인 한 줄**(사건 한 건 · 합치지 않는다) — 사이트 게임 검색이 담는 꼴. 사람은 참값 이름(raw — 앱의 슬롯 rawName).
+ *  kind: unit 유닛 · building 건물 · upgrade 연구·업그레이드 · skill 마법·핵 · tactic 전술(공격 · 견제 · 포토러시 · 몰래 배럭 …).
+ *  term = 대상의 한글 이름(전술은 낱말 그대로) · key = 영문 원 이름(BW 종류·기술 이름 · 전술은 "") · act = 행위(생산 · 건설 · 개발 · 사용 · 활약 · 장전 · 투하 · 시즈 모드 ·
+ *  시즈 해제 · 클로킹 · 띄움 · 전술은 "") · attr = 덧붙임(본진 몇 번째 · 업그레이드 단계 · 활약 킬 수 · 없으면 "").
+ *  공격·견제는 term "공격"/"견제"에 주인(owner)·타겟(target)을 단다 — "A 공격함" = owner A · "B 공격당함" = target B. */
+export declare type GameIndexKind9 = "unit" | "building" | "upgrade" | "skill" | "tactic";
+
+/** 참값 자취(OBWT · base64 — 재생기가 받는 motion 그대로) → 그 판의 색인 줄. 자취를 못 풀면 null(줄 없음과 가른다). */
+export declare function gameIndexOf9(motion: string, opts: GameIndexOpts9): Promise<GameIndexRow9[] | null>;
+
+export declare type GameIndexOpts9 = {
+    /** 그 판의 맵 — 자원 점(앞마당 가름) · 크기(센터) · 참값 지형(언덕탱·입구). 없으면 그 판정만 빠진다. */
+    grid?: Pick<ReplayMapGrid, "width" | "height" | "resources" | "terrain"> | null;
+    /** 경기 길이(초). */
+    endSec: number;
+    /** 경기 채팅 — 재생기가 받는 꼴 그대로. */
+    chats?: readonly {
+        sec: number;
+        name: string;
+        text: string;
+    }[];
+    /** 로스터(참값 이름) — 이 사람들만 색인에 든다. */
+    only: readonly string[];
+    /** 관전자 등 뺄 이름. */
+    skip?: readonly string[];
+    /** 이름 → 팀(팀전) — 밀리면 안 준다. */
+    teamOf?: Readonly<Record<string, number | undefined>>;
+};
+
+export declare type GameIndexRow9 = {
+    sec: number;
+    owner: string | null;
+    target: string | null;
+    kind: GameIndexKind9;
+    term: string;
+    key: string;
+    act: string;
+    attr: string;
+};
+
 declare type Group = ModelCatalogGroup;
 
 export declare interface MinimapMarker {
@@ -670,6 +710,8 @@ export declare const sceneLinkOf9: (src: string | URLSearchParams) => SceneLink9
  *  추적)은 playbackViewOf 가 자리를 비워 두므로 저절로 각도와 `&tr=` 만 실린다(위 ★). */
 export declare const sceneLinkQueryOf9: (clockKey: string) => URLSearchParams;
 
+export declare const SEARCH_ROLES9: string[];
+
 /** 앱이 부팅에서 한 번 부른다 — 곡 목록을 통째로 갈아 끼운다(준 차례가 곧 목록의 차례). 빈 목록이면 음악을 끈 앱이다. */
 export declare function setReplayBgm(tracks: readonly ReplayBgmTrack[]): void;
 
@@ -799,33 +841,8 @@ export declare function ShapeIcon({ kind, className, faces: facesOverride, rotDe
 
 export declare const shapeMapTiles: (kind0: string) => number;
 
-/** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 tacticWordsOf9 가 돌려준다). */
+/** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 색인 줄 gameIndexOf9 가 돌려준다). */
 export declare const TACTIC_TERMS9: readonly string[];
-
-export declare type TacticOpts9 = {
-    /** 그 판의 맵 — 자원 점(앞마당 가름) · 크기(센터) · 참값 지형(언덕탱·입구). 없으면 그 판정만 빠진다. */
-    grid?: Pick<ReplayMapGrid, "width" | "height" | "resources" | "terrain"> | null;
-    /** 경기 길이(초). */
-    endSec: number;
-    /** 경기 채팅 — 재생기가 받는 꼴 그대로. */
-    chats?: readonly {
-        sec: number;
-        name: string;
-        text: string;
-    }[];
-    /** 로스터(참값 이름) — 안 주면 참값의 사람 전부. */
-    only?: readonly string[];
-    /** 관전자 등 뺄 이름. */
-    skip?: readonly string[];
-    /** 이름 → 팀(팀전) — 밀리면 안 준다. */
-    teamOf?: Readonly<Record<string, number | undefined>>;
-};
-
-/** 참값 자취(OBWT · base64 — 재생기가 받는 motion 그대로) → 그 판의 전술 낱말. 자취를 못 풀면 null(낱말 없음과 가른다). */
-export declare function tacticWordsOf9(motion: string, opts: TacticOpts9): Promise<string[] | null>;
-
-/** 글 여럿에서 낱말을 뽑는다(차례 = TACTIC_RULES9 · 겹침 없음). */
-export declare function tacticWordsOfText9(texts: readonly string[]): string[];
 
 export declare const TEAM_COLOR: Record<number, string>;
 
