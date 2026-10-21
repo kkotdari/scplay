@@ -2390,7 +2390,7 @@ const FX_MAT: Record<string, { core: string; drop: string; deep: string; flash: 
   mech: { core: "rgba(255,138,61,0.95)", drop: "rgba(255,209,102,0.95)", deep: "rgba(255,90,31,0.95)", flash: "#fff4d0", n: 5, r: 0.62 },
 };
 /** 다친 건물의 상처 — **캔버스 판**(요청: "어쨌든 돔효과 캔버스로 옮기긴 해야하지") ──────────────
- *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireBlob9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
+ *  남은 그림은 연기 한 장(64)뿐이다 — 테란 불·프로토스 플라즈마는 프레임마다 길로 그린다(fireStrands9 · plasmaWisp9 · 2026-10-21 · 옛 flame·flameCore·candle·ember·haze·drop 판은 걷었다).
  *  한 번만 굽고 그릴 때는 blit 한 번이다. */
 const WOUND_SPR9 = new Map<string, HTMLCanvasElement>();
 /** 다친 건물을 그린 **화면 상자**(x0, 잉크 위, x1, 잉크 아래 · 캔버스 px) — 건물 붓(GL)이 그릴 때 집기 열쇠로 적고, drawWound9 가 불꽃을 몸 위에 흩을 때 읽는다.
@@ -2435,15 +2435,14 @@ function tongueW9(ctx: CanvasRenderingContext2D, spr9: HTMLCanvasElement,
   ctx.drawImage(spr9, -w9 / 2, -h9, w9, h9);
   ctx.restore();
 }
-/** 불 한 덩이(2026-10-21 · drawWound9 ★★) — 밑(bx, by) · 폭 w · 키 h · 끝 peaks 개. **너덜너덜한 한 덩이**(되요청: 원작 그림 참고 · "불꽃 모양도 참고 그림처럼 너덜너덜하게"):
- *  · 끝마다 키가 크게 엇갈리고(0.45~1 · 가운데가 높다) 골이 깊어(키의 0.3~0.5) 혀가 갈라진다 · 끝은 오목한 옆선이 모이는 뾰족 끝.
- *  · 두 옆선 중턱에 바깥으로 뻗은 곁혀 하나씩(높이·길이 해시) — 매끈한 물방울 옆선이 아니라 찢긴 가장자리.
- *  · 키·곁혀는 **0.1초 칸마다 새 해시로 깜빡**이며 칸 사이는 이어 섞는다(원작 불 애니의 들썩임 · 떨리지 않게).
- *  · 밑은 눕힌 타원 호(세로 w·0.45·q)라 직선으로 잘리지 않는다(되지적: "아래가 너무 직선").
+/** 불 한 덩이 = **가는 줄기 여럿이 모인 다발**(2026-10-21 · drawWound9 ★★ · 되지적: "뭔가 이상해 · 가는 줄기줄기 여러 개가 모이는 게 맞을 듯" — 한때 너덜너덜한 외곽선 한 장) —
+ *  밑(bx, by) · 폭 w · 키 h · 줄기 n 개. 줄기 하나는 밑이 조금 부풀었다가 끝으로 뾰족해지는 가는 혀(폭 ≈ 1.7w/n)이고 휘청이며 오른다.
+ *  · 밑동은 한 뿌리로 **모인다** — 눕힌 앞 호(가로 ±0.18w · 가운데가 앞으로 w·0.08·q) 위에서 겹쳐 솟고, 끝은 조금 벌어진다(±0.25w) · 가운데 줄기가 높고 바깥이 낮다
+ *    (되물림: 밑을 ±0.35w 로 벌리고 끝을 모았더니 밑이 일자로 잘리거나 · 밑을 뾰족하게 하니 아래로 톱니가 났다) · 키는 0.1초 칸마다 새 해시(칸 사이 섞음 — 들썩이되 안 떤다).
+ *  · 한 길에 다 담아 한 번 칠한다(겹친 데가 더 짙어지지 않는다 — 겹 알파는 부르는 쪽 몫).
  *  칠(fillStyle·globalAlpha)은 부르는 쪽이 정한다(밑을 옅게 푸는 그러데이션 — fireGrad9). */
-function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: number, h9: number, q9: number, peaks9: number, t9: number, ph9: number): void {
+function fireStrands9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: number, h9: number, q9: number, n9: number, t9: number, ph9: number): void {
   if (h9 < 1 || w9 < 0.5) return;
-  const L9 = bx9 - w9 / 2; const R9 = bx9 + w9 / 2;
   const fi9 = Math.floor(t9 * 10); const fr9 = easeW9(t9 * 10 - fi9);
   /** 0~1 해시 — 칸(fi)마다 새 값 · 칸 사이는 섞는다. */
   const fl9 = (k9: number): number => {
@@ -2451,42 +2450,31 @@ function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: 
     const b9 = Math.abs(Math.sin((fi9 + 1 + k9 * 17.13 + ph9 * 5.1) * 12.9898) * 43758.5453) % 1;
     return a9 + (b9 - a9) * fr9;
   };
-  /** 키 u(0 밑 ~ 1 끝)에서의 반폭 — 밑 위 0.15 에서 가장 부풀고 위로 갈수록 좁아지는 깃털 꼴(통처럼 곧은 옆선이 아니게). */
-  const hp9 = (u9: number): number => w9 * 0.5 * Math.min(1, 0.85 + u9) * Math.pow(Math.max(0, 1 - u9), 0.75);
-  const pts9: [number, number][] = [];
-  for (let i9 = 0; i9 < peaks9; i9 += 1) {
-    const c9 = peaks9 === 1 ? 0 : i9 / (peaks9 - 1) - 0.5;   // −0.5 … 0.5
-    const hs9 = Math.abs(Math.sin((i9 + 1) * 43.17 + ph9 * 2.3));
-    const hk9 = (1 - Math.abs(c9) * 0.8) * (0.6 + 0.25 * hs9 + 0.15 * fl9(i9));
-    /* 끝은 그 키의 반폭 안쪽에 선다 — 바깥 끝일수록 낮고 옆에 · 가운데 끝이 높고 가늘다. */
-    const tx9 = bx9 + c9 * 2 * hp9(hk9) * 0.85 + (fl9(i9 + 7) - 0.5) * w9 * 0.1 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.05;
-    pts9.push([tx9, by9 - h9 * hk9]);
-    if (i9 < peaks9 - 1) {
-      const vc9 = (i9 + 0.5) / (peaks9 - 1) - 0.5;
-      const vk9 = 0.26 + 0.16 * fl9(i9 + 31);
-      pts9.push([bx9 + vc9 * 2 * hp9(vk9) * 0.7, by9 - h9 * vk9]);
-    }
-  }
-  /* 곁혀 — 옆선 중턱(키 0.3~0.45)에서 바깥 위로 짧게 뻗는다(그 키 반폭 + 0.05W) · 그 안쪽 홈을 지나 끝 혀로 오른다. 밑은 반폭 꼴(hp9)을 따라 부푼다. */
-  const sl9 = 0.3 + 0.15 * fl9(51); const sr9 = 0.3 + 0.15 * fl9(53);
-  const lx9 = bx9 - hp9(sl9) - w9 * (0.03 + 0.05 * fl9(55)); const rx9 = bx9 + hp9(sr9) + w9 * (0.03 + 0.05 * fl9(57));
-  const nl9: [number, number] = [bx9 - hp9(sl9 - 0.04) * 0.75, by9 - h9 * (sl9 - 0.04)];
-  const nr9: [number, number] = [bx9 + hp9(sr9 - 0.04) * 0.75, by9 - h9 * (sr9 - 0.04)];
+  const N9 = 7;
+  const sw9 = (w9 * 1.7) / Math.max(1, n9);
+  const L9: [number, number][] = []; const R9: [number, number][] = [];
   ctx.beginPath();
-  ctx.moveTo(L9, by9);
-  ctx.quadraticCurveTo(bx9 - hp9(0.15) * 1.08, by9 - h9 * 0.15, lx9, by9 - h9 * (sl9 + 0.08));
-  ctx.quadraticCurveTo(lx9 + w9 * 0.04, by9 - h9 * (sl9 - 0.02), nl9[0], nl9[1]);
-  let px9 = nl9[0]; let py9 = nl9[1];
-  for (const [x9, y9] of pts9) {
-    if (y9 < py9) ctx.quadraticCurveTo(px9, (py9 + y9) / 2, x9, y9);
-    else ctx.quadraticCurveTo(x9, (py9 + y9) / 2, x9, y9);
-    px9 = x9; py9 = y9;
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const c9 = n9 === 1 ? 0 : i9 / (n9 - 1) - 0.5;   // −0.5 … 0.5
+    const hs9 = Math.abs(Math.sin((i9 + 1) * 43.17 + ph9 * 2.3));
+    const hk9 = (1 - Math.abs(c9) * 0.75) * (0.62 + 0.2 * hs9 + 0.18 * fl9(i9));
+    const x09 = bx9 + c9 * w9 * 0.36;
+    const y09 = by9 + Math.sqrt(Math.max(0, 1 - 4 * c9 * c9)) * w9 * 0.08 * q9;
+    const xt9 = bx9 + c9 * w9 * 0.5 + (fl9(i9 + 7) - 0.5) * w9 * 0.12;
+    const yt9 = by9 - h9 * hk9;
+    L9.length = 0; R9.length = 0;
+    for (let k9 = 0; k9 <= N9; k9 += 1) {
+      const u9 = k9 / N9;
+      const cx9 = x09 + (xt9 - x09) * u9 + Math.sin(u9 * 4 - t9 * (5 + i9 * 0.7) + ph9 + i9 * 1.7) * w9 * 0.05 * u9;
+      const cy9 = y09 + (yt9 - y09) * u9;
+      const hw9 = sw9 * 0.5 * Math.min(1, 0.4 + u9 * 4) * Math.pow(1 - u9, 0.85);   // 밑은 조금 좁게 — 뿌리에서 모여 굵어진다
+      L9.push([cx9 - hw9, cy9]); R9.push([cx9 + hw9, cy9]);
+    }
+    ctx.moveTo(L9[0][0], L9[0][1]);
+    for (let k9 = 1; k9 <= N9; k9 += 1) ctx.lineTo(L9[k9][0], L9[k9][1]);
+    for (let k9 = N9 - 1; k9 >= 0; k9 -= 1) ctx.lineTo(R9[k9][0], R9[k9][1]);
+    ctx.closePath();
   }
-  ctx.quadraticCurveTo(nr9[0], (py9 + nr9[1]) / 2, nr9[0], nr9[1]);
-  ctx.quadraticCurveTo(rx9 - w9 * 0.04, by9 - h9 * (sr9 - 0.02), rx9, by9 - h9 * (sr9 + 0.08));
-  ctx.quadraticCurveTo(bx9 + hp9(0.15) * 1.08, by9 - h9 * 0.15, R9, by9);
-  ctx.quadraticCurveTo(bx9, by9 + w9 * 0.45 * q9, L9, by9);
-  ctx.closePath();
   ctx.fill();
 }
 /** 플라즈마 빛줄기 하나(2026-10-21 · drawWound9 ★★) — 밑(bx, by)에서 길이 L 을 휘감기며 오르는 띠(밑 폭 w → 끝 0). 넓고 옅은 빛무리 위에 가는 흰 심 · 위로 갈수록 옅다.
@@ -2547,7 +2535,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const tXY9: [number, number][] = [];
   const mq9 = Math.max(0.2, f.mq ?? 1);
   if (race9 !== "zerg") {
-    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.27 : 0.24);   // 반폭 — 불 한 덩이(폭 0.48W + 배 · 끝 흔들림 → ±0.26W) · 플라즈마 고리(±0.24W · 2026-10-21 fireBlob9 · plasmaWisp9)
+    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.27 : 0.24);   // 반폭 — 불 한 덩이(폭 0.48W + 배 · 끝 흔들림 → ±0.26W) · 플라즈마 고리(±0.24W · 2026-10-21 fireStrands9 · plasmaWisp9)
     const vh09 = W9 * WOUND_GROW9 * 0.9;   // 세로로 이만큼 떨어지면 위 불의 밑이 아래 불 끝 위에 선다
     const bx09 = (f.wkey ? WOUND_BOX9.get(f.wkey) : undefined)
       ?? [ax - sx9 * 0.5, ay - sx9 * 0.55, ax + sx9 * 0.5, ay + sy9 * 0.5] as const;
@@ -2611,8 +2599,8 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   if (race9 === "terran" || race9 === "toss") {
     /* (걷어냄 · 2026-10-21, 요청: "테란 … 아래 동그란 부분은 제거") 밑동 후광 — 테란 잉걸(0.62초). 프로토스의 사이언 아지랑이도 걷었다(2026-10-19 · 위 candle ★). */
     /* ★★ **불은 그려서 태운다**(2026-10-21, 지적: "불꽃(화재) 모양이 너무 허접한 듯 · 토스 플라즈마 연기도 그렇고") — 옛 판은 물방울 꼴 그림 한 장(flame · candle)을 늘였다
-       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireBlob9 · plasmaWisp9):
-         · 테란 화재 — 끝이 갈라진 한 덩이(fireBlob9)를 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고 · 불티 셋이 튀어 오르며 식는다(아래 ★★).
+       줄였다만 해 매끈한 촛불로 읽혔다. 이제 프레임마다 길을 그린다(아래 fireStrands9 · plasmaWisp9):
+         · 테란 화재 — 가는 줄기가 모인 다발(fireStrands9)을 겉(붉은 주황) · 가운데(주황 노랑) · 심(흰 노랑) 세 겹으로 겹치고 · 불티 셋이 튀어 오르며 식는다(아래 ★★).
          · 프로토스 플라즈마 — 휘감기며 오르는 빛줄기 셋(넓고 옅은 빛무리 + 가는 흰 심 · plasmaWisp9 · 되요청 "방금 전이 맞았어" — 한때 곧은 빛줄기 다발이었다). */
     const bx9 = x9;
     const by9 = tXY9[kk9][1];
@@ -2621,7 +2609,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const H9 = Wd9 * 1.45 * (0.9 + 0.1 * Math.sin(t9 * 9 + ph09) + 0.06 * Math.sin(t9 * 17.3 + ph09 * 1.7));
       const Wf9 = Wd9 * 0.46;
       /* ★★ 자리마다 **한 덩이**(2026-10-21, 되지적: "불꽃 너무 여러 덩이인 게 오히려 이상한 것 같기도 · 아래가 너무 직선이라 그런가" — 한때 눕힌 고리에 혀 다섯) —
-         겉(붉은 주황 · 끝 넷) · 가운데(주황 노랑 0.66×0.74 · 끝 셋) · 심(흰 노랑 0.38×0.46 · 끝 하나)을 fireBlob9(너덜너덜 · 2026-10-21)로 겹친다. 겉 끝은 붉게 남는다(알파 0.12 · 옛 0). 밑은 눕힌 타원 호(mq)라 표면에 둥글게 앉고,
+         겉(붉은 주황 · 줄기 일곱) · 가운데(주황 노랑 0.66×0.74 · 줄기 다섯) · 심(흰 노랑 0.38×0.46 · 줄기 셋)을 fireStrands9(가는 줄기 다발 · 2026-10-21)로 겹친다. 겉 끝은 붉게 남는다(알파 0.12 · 옛 0). 밑동은 눕힌 앞 호(mq) 위에 벌려 서 표면에 둥글게 앉고,
          칠은 밑에서 위로 옅게 시작해(fireGrad9 — 밑 끝 알파 0.15) 직선 가장자리가 안 보인다. 반투명(앞 0.8 — 2026-10-21 "테란도 반투명 느낌"). */
       const fireGrad9 = (kh9: number, stops9: [number, string][]): CanvasGradient => {
         const g9 = ctx.createLinearGradient(0, by9 + Wf9 * 0.45 * mq9, 0, by9 - H9 * kh9);
@@ -2630,14 +2618,14 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       };
       /* 노란 톤(2026-10-21, 되요청: "불꽃 색이 좀 더 노란 톤") — 겉은 주황 노랑 → 위로 주황 → 끝만 붉게 식는다 · 가운데는 노랑 · 심은 흰 노랑. 칸을 잘게(다섯) 나눠 부드럽게. */
       const LAYERS9: [number, number, number, [number, string][]][] = [
-        [1, 1, 4, [[0, "rgba(255,160,30,0.1)"], [0.12, "rgba(255,168,34,0.72)"], [0.42, "rgba(255,138,26,0.66)"], [0.75, "rgba(242,88,18,0.5)"], [1, "rgba(210,52,14,0.12)"]]],
-        [0.66, 0.74, 3, [[0, "rgba(255,214,80,0.1)"], [0.14, "rgba(255,212,76,0.82)"], [0.5, "rgba(255,180,48,0.62)"], [0.8, "rgba(255,146,30,0.25)"], [1, "rgba(255,130,24,0)"]]],
-        [0.38, 0.46, 1, [[0, "rgba(255,252,220,0.1)"], [0.18, "rgba(255,252,222,0.88)"], [0.55, "rgba(255,238,150,0.65)"], [1, "rgba(255,214,90,0)"]]],
+        [1, 1, 7, [[0, "rgba(255,160,30,0.1)"], [0.2, "rgba(255,168,34,0.72)"], [0.42, "rgba(255,138,26,0.66)"], [0.75, "rgba(242,88,18,0.5)"], [1, "rgba(210,52,14,0.12)"]]],
+        [0.66, 0.74, 5, [[0, "rgba(255,214,80,0.1)"], [0.22, "rgba(255,212,76,0.82)"], [0.5, "rgba(255,180,48,0.62)"], [0.8, "rgba(255,146,30,0.25)"], [1, "rgba(255,130,24,0)"]]],
+        [0.38, 0.46, 3, [[0, "rgba(255,252,220,0.1)"], [0.26, "rgba(255,252,222,0.88)"], [0.55, "rgba(255,238,150,0.65)"], [1, "rgba(255,214,90,0)"]]],
       ];
       ctx.globalAlpha = 0.8;
       for (const [kw9, kh9, pk9, stops9] of LAYERS9) {
         ctx.fillStyle = fireGrad9(kh9, stops9);
-        fireBlob9(ctx, bx9, by9, Wf9 * 1.05 * kw9, H9 * kh9, mq9, pk9, t9, ph09 + kw9 * 2.3);   // 폭 0.69W → 0.48W(되요청: "폭은 좁고")
+        fireStrands9(ctx, bx9, by9, Wf9 * 1.05 * kw9, H9 * kh9, mq9, pk9, t9, ph09 + kw9 * 2.3);   // 폭 0.69W → 0.48W(되요청: "폭은 좁고")
       }
       /* 불티 — 셋이 엇갈려 튀어 오르며 작아지고 식는다(0.9초). */
       for (let k9 = 0; k9 < 3; k9 += 1) {
