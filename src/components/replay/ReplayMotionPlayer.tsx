@@ -10817,7 +10817,8 @@ export default function ReplayMotionPlayer({
         mapW: grid.width, mapH: grid.height, terrain: castTerrain9, event: true,   // 사건 중계(2026-10-14 · cast9 opts.event) — 개인 화면 없음   // 센터·언덕·벽·램프(cast9 전술 읽기 · 2026-10-10)
         chats: chats9,   // gg 선언·노엘 외침(2026-10-10)
         bank: truth?.res,   // 인구 막힘은 돈이 있을 때만(2026-10-11)
-        moves: castMovesV9 })   // 리콜·나이더스 도착 — 교전 자리 길이 들른다(2026-10-12)
+        moves: castMovesV9,   // 리콜·나이더스 도착 — 교전 자리 길이 들른다(2026-10-12)
+        tracks: truth?.tracks })   // 정찰은 몸이 상대 기지에 실제로 들어선 때(2026-10-21)
       : NO_PLAN9),
     [planWant9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth, castMovesV9]);
   const castPlan = castOn ? planAll9 : NO_PLAN9;

@@ -1734,3 +1734,31 @@ rmSync(tmp, { recursive: true, force: true });
     ["배럭 띄워 상대 본진으로 → '[T]ga [P] 기지 배럭 띄워 정찰'", ev.some((g) => capTxt(g) === "[T]ga [P] 기지 배럭 띄워 정찰")],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+/* ㉛c 정찰은 **도착하면** 사건(2026-10-21, 지적: "정찰은 도착하면 사건이 됨") — 자취(opts.tracks)가 있으면 몸이 상대 기지 안에 실제로 들어선 때·자리다.
+   R(프로토스 10,10) · Z(저그 100,100). Z 드론은 40초에 R 본진(12,12)으로 명령 — 자취는 (60,40)을 돌아 110초에 (14,14)에 닿는다(곧은 거리 어림은 ~70초).
+   Z 오버로드는 10초에 R 본진으로 명령 — 자취는 60초에 (50,50)에서 돌아선다(끝내 못 닿음 → 정찰 아님). */
+{
+  let tt = 92000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  const trk = (tag, owner, kind, keys) => ({ tag, owner, kind, born: keys[0][0], died: null, own: [],
+    kt: Float32Array.from(keys.map((k) => k[0])), kxy: Int16Array.from(keys.flatMap((k) => [k[1] * 32, k[2] * 32])), kh: new Uint8Array(keys.length),
+    kst: new Uint8Array(keys.length).fill(1), done: new Uint8Array(keys.length).fill(1), types: new Uint16Array(keys.length).fill(41) });
+  mk(0, "Nexus", true, 10, 10, 0); mk(1, "Hatchery", true, 100, 100, 0);
+  const dr = mk(1, "Drone", false, 100, 100, 0, { orders: [[40, 12, 12, false]] });
+  const ov = mk(1, "Overlord", false, 100, 100, 0, { orders: [[10, 14, 14, false], [60, 100, 100, false]] });
+  const tracks = [trk(dr.tag, 1, "Drone", [[0, 100, 100], [40, 100, 100], [60, 60, 40], [110, 14, 14]]),
+    trk(ov.tag, 1, "Overlord", [[0, 100, 100], [10, 100, 100], [60, 50, 50], [120, 100, 100]])];
+  const w = { players: [["R", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const ev = castPlan9(w, { total: 400, order: ["R", "Z"], teamOf: { R: 1, Z: 2 }, mapW: 110, mapH: 110, event: true, tracks });
+  const sc = ev.filter((g) => /정찰/.test(capTxt(g)));
+  console.log(`도착 정찰: ${sc.map((g) => `${g.at.toFixed(0)}s ${capTxt(g)}${g.spot?.[0] ? ` (${g.spot[0][1].toFixed(0)},${g.spot[0][2].toFixed(0)})` : ""}`).join(" · ") || "없음"}`);
+  const wk = sc.find((g) => capTxt(g) === "[Z]ga [R] 기지 일꾼 정찰");
+  for (const [name, pass] of [
+    ["드론 정찰은 몸이 R 기지에 들어선 때(90초 넘어) — 명령(40초)·곧은 거리 어림(~70초)이 아니다", !!wk && wk.at >= 88],
+    ["카메라는 들어선 자리(R 본진 쪽)", !!wk?.spot && Math.hypot(wk.spot[0][1] - 10, wk.spot[0][2] - 10) < 20],
+    ["돌아선 오버로드(끝내 못 닿음)는 정찰이 아니다", !sc.some((g) => /오버로드 정찰/.test(capTxt(g)))],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}

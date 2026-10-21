@@ -106,6 +106,8 @@ export type CastPlanOpts9 = {
   bank?: ReadonlyMap<number, readonly (readonly [number, number, number])[]>;
   /** 리콜·나이더스로 옮겨진 무리의 도착(아래 castMoves9 · 2026-10-12) — 교전 자리 길이 그 도착 자리에 잠깐 들른다. 없으면 스캔만 들른다. */
   moves?: readonly CastMove9[];
+  /** 참값 자취(2026-10-21) — 정찰은 몸이 **상대 기지 안에 실제로 들어선 때**가 사건이다(아래 scouts ★★). 없으면 명령 + 곧은 거리 ÷ 걸음으로 어림한다. */
+  tracks?: readonly TruthTrack[];
   /** ★ **사건 중계**(2026-10-14, 요청: "자동 중계 중계 방식 사건 중계로 변경(개인 화면 x)") — 켜면 모든 토막이 사건 자리 길(spot)을 갖는다: 장면은 늘 그 장면의
    *  사건 무리를 따라가고(spotPath9 — 주인공이 애매할 때만이던 것), 순환·채팅 토막은 그 사람이 그 창에서 착공한 건물 자리(없으면 본진 건물·시작 자리)에 선다.
    *  재생기는 spot 토막을 누구의 화면도 아닌 채(시야 모두 · 화면 주인 줄 없음) 그린다. 끄면 옛 사람 화면 편성(cast-plan 의 옛 자들). */
@@ -1474,7 +1476,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   });
   /* ★★ **정찰도 중계 거리다**(2026-10-21, 요청: "초반 일꾼, 중후반 스캔이나 오버로드 옵저버, 건물 띄우기 등등으로 상대 기지 정찰 이벤트도 중계 포인트") ──────────────
      상대 기지 영역(본진 건물 · 출발 자리)으로 들어간 정찰을 사건("정찰" · 무게 SCOUT9.w)으로 낸다:
-       · 일꾼 — SCOUT9.early 초 앞, 상대 기지 안을 찍은 이동 명령(도착 = 명령 + 앞 자리에서의 거리 ÷ 걸음). 그 일꾼이 그 기지 안에 짓는 명령을 냈으면(러시·전진 건설) 정찰이 아니다.
+       · 일꾼 — SCOUT9.early 초 앞, 상대 기지 안을 찍은 이동 명령 — 사건 때·자리는 **몸이 그 기지 안에 실제로 들어선 순간**(참값 자취 opts.tracks · 없으면 명령 + 거리 ÷ 걸음 어림). 그 일꾼이 그 기지 안에 짓는 명령을 냈으면(러시·전진 건설) 정찰이 아니다.
        · 스캔 — 상대 기지 안을 비춘 스캐너 스윕(그 때 · 그 자리).
        · 오버로드 · 옵저버 — 상대 기지 안을 찍은 명령(도착 어림 같은 셈).
        · 건물 띄우기 — 뜬 테란 건물(lifts)이 상대 기지 안을 찍은 명령.
@@ -1484,15 +1486,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const names0_9 = [...new Set(rawOf9.values())];
     const ownersOfRaw0_9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
     /** (x, y) 가 att 의 적 누구의 기지 안인가(sec 때) — 본진 건물 · 출발 자리. */
+    /** (x, y) 가 foe 의 기지 안인가(sec 때) — 본진 건물 · 출발 자리. */
+    const inFoe9 = (foe9: string, x9: number, y9: number, sec9: number): boolean => {
+      const pts9: [number, number][] = [...hallsOfOwner9(ownersOfRaw0_9(foe9), sec9)];
+      const st9 = start9.get(foe9); if (st9) pts9.push([st9.x, st9.y]);
+      return pts9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9));
+    };
     const foeAt9 = (att9: string, x9: number, y9: number, sec9: number): string | null => {
       for (const foe9 of names0_9) {
-        if (team0_9(foe9, att9)) continue;
-        const pts9: [number, number][] = [...hallsOfOwner9(ownersOfRaw0_9(foe9), sec9)];
-        const st9 = start9.get(foe9); if (st9) pts9.push([st9.x, st9.y]);
-        if (pts9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, x9, y9))) return foe9;
+        if (!team0_9(foe9, att9) && inFoe9(foe9, x9, y9, sec9)) return foe9;
       }
       return null;
     };
+    const trOf9 = new Map((opts.tracks ?? []).map((tr9) => [tr9.tag, tr9]));
     const last9 = new Map<string, number>();
     const put9 = (sec9: number, att9: string, foe9: string, how9: string, x9: number, y9: number): void => {
       if (sec9 > total - 3) return;
@@ -1518,13 +1524,23 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       const wk9 = how9 === "일꾼";
       const spd9 = lifted9 ? 1.5 : Math.max(0.5, speedOfUnit(e9.kind));
       let px9 = e9.bornX; let py9 = e9.bornY;
-      for (const o9 of e9.orders) {
-        const [ot9, ox9, oy9] = o9;
+      const tr9 = trOf9.get(e9.tag);
+      for (let k9 = 0; k9 < e9.orders.length; k9 += 1) {
+        const [ot9, ox9, oy9] = e9.orders[k9];
         if (e9.died !== null && ot9 > e9.died) break;
         if (wk9 && ot9 > SCOUT9.early) break;
         if (lifted9 && !e9.lifts.some((l9) => l9 <= ot9)) { px9 = ox9; py9 = oy9; continue; }   // 뜨기 전 명령(생산 랠리)은 정찰이 아니다
         const foe9 = foeAt9(att9, ox9, oy9, ot9);
-        if (foe9) {
+        if (foe9 && tr9) {
+          /* ★ **도착하면 사건**(2026-10-21, 지적: "정찰은 도착하면 사건이 됨") — 자취로 그 명령부터 다음 명령(없으면 죽음 · 길어야 150초)까지 0.5초 걸음으로 몸 자리를 보고,
+             그 상대의 기지 안에 처음 들어선 때·자리를 사건으로 낸다. 끝내 못 들어갔으면(돌려세움·죽음) 정찰이 아니다. 옛: 명령 + 곧은 거리 ÷ 걸음 — 길을 돌아가는 땅 유닛은 그보다 늦게 닿아
+             카메라가 아직 가는 중인 몸을 비췄다. */
+          const end9 = Math.min(e9.orders[k9 + 1]?.[0] ?? Infinity, e9.died ?? Infinity, ot9 + 150);
+          for (let s9 = ot9; s9 <= end9; s9 += 0.5) {
+            const q9 = posAtTruth(tr9, s9);
+            if (q9 && inFoe9(foe9, q9.x, q9.y, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y }); break; }
+          }
+        } else if (foe9) {
           const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
           if (!(e9.died !== null && arr9 > e9.died)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9 });
         }
