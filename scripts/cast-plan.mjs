@@ -240,8 +240,7 @@ for (const [name, pass] of [
   const sp = (s) => (s?.spot?.[0] ? `(${s.spot[0][1]},${s.spot[0][2]})` : "-");
   console.log(`\n사건 중계 자리·중요도: 포토러시 ${rush ? `${rush.at.toFixed(0)}s ${sp(rush)}` : "없음"} · 센터 포토 ${ctr ? `${ctr.at.toFixed(0)}s ${sp(ctr)}` : "없음"} · 2게이트 ${gate2 ? gate2.at.toFixed(0) : "없음"}`);
   for (const [name, pass] of [
-    /* 2026-10-21: 러시 판은 앞서 지은 파일런(95,95) 착공부터다(rushSess9 ★★) — 카메라는 그 판 자리(캐논 곁 3타일 안). */
-    ["포토러시 토막의 카메라는 러시 자리(파일런 95,95 · 캐논 96,97) — 뒤에 지은 제 본진 파일런(12,14)이 아니다", !!rush?.spot && Math.hypot(rush.spot[0][1] - 96, rush.spot[0][2] - 97) < 3],
+    ["포토러시 토막의 카메라는 러시 캐논(96,97) — 앞서 지은 파일런도 뒤에 지은 제 본진 파일런(12,14)도 아니다", !!rush?.spot && Math.hypot(rush.spot[0][1] - 96, rush.spot[0][2] - 97) < 1],
     ["같은 창의 '센터 포토'(전술)가 '2게이트'(생산 건물 수)를 이긴다", !!ctr && !gate2],
     ["센터 포토 토막의 카메라는 그 캐논(55,55)", !!ctr?.spot && Math.hypot(ctr.spot[0][1] - 55, ctr.spot[0][2] - 55) < 1],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
@@ -1667,6 +1666,7 @@ rmSync(tmp, { recursive: true, force: true });
 /* ── ㉛ 러시 한 판 · 러시 이름은 그 자리에만 · 정찰 사건 · 자막 되풀이 막기(2026-10-21, 요청: "포토러시인데 이상한 곳 보여주는 경우" · "포토러시/성큰러시는 짓기 시작할 때부터
    러시로 판단하고 주변에 짓는 건 한 사건" · "초반 일꾼, 중후반 스캔이나 오버로드 옵저버, 건물 띄우기 등으로 상대 기지 정찰 이벤트도 중계 포인트" · "같은 자막이 계속 사용되는 거 방지") ──
    R(프로토스 10,10) · Z(저그 100,100) · 지도 110. R 은 90초에 Z 본진(95,95) 파일런 → 110초 캐논(96,97) → 170초 캐논(98,95)(조금 뒤 늘림) · 아무것도 안 죽는다.
+   Z 는 첫 오버로드를 5초에 R 본진(14,14)으로(초반 오버로드 정찰 · 되요청 "초반 오버로드 정찰도").
    300초 지도 가운데(55,55)에서 R 질럿 넷과 Z 저글링 여덟이 싸운다(러시 240초 창 안 — 옛 셈은 이것도 "포토러시"였다).
    정찰: Z 드론이 40초에 R 본진(12,12)으로(일꾼 정찰) · R 이 400초에 옵저버를 Z 본진으로 · (테란이 아니라 스캔·띄우기는 다음 판). */
 {
@@ -1678,6 +1678,7 @@ rmSync(tmp, { recursive: true, force: true });
   mk(0, "Pylon", true, 95, 95, 90); mk(0, "Photon Cannon", true, 96, 97, 110); mk(0, "Photon Cannon", true, 98, 95, 170);
   mk(1, "Drone", false, 100, 100, 0, { orders: [[40, 12, 12, false]] });
   mk(0, "Observer", false, 10, 10, 380, { orders: [[400, 98, 98, false]] });
+  mk(1, "Overlord", false, 100, 100, 0, { orders: [[5, 14, 14, false]] });
   const zs = []; for (let i = 0; i < 8; i += 1) zs.push(mk(1, "Zergling", false, 55, 55, 250, { died: 300 + i * 0.5, end: "atk" }));
   const ks = []; for (let i = 0; i < 4; i += 1) ks.push(mk(0, "Zealot", false, 55, 55, 250, { died: 301 + i, end: "atk" }));
   for (const z of zs) kills.push([z.died, 0, ks[0].tag, z.tag]);
@@ -1702,7 +1703,9 @@ rmSync(tmp, { recursive: true, force: true });
     return null;
   };
   for (const [name, pass] of [
-    ["러시는 파일런 착공(90초)부터 — 사건 중계가 그 무렵(≤ 90초 + 4) 러시 자리에 선다", rushSegs.length > 0 && rushSegs[0].at <= 94 && !!rushSegs[0].spot && Math.hypot(rushSegs[0].spot[0][1] - 96, rushSegs[0].spot[0][2] - 96) < 4],
+    ["러시는 첫 캐논 착공(110초)부터 · 카메라는 그 캐논(96,97)(되요청: '러시는 포토를 봐야 함')", rushSegs.length > 0 && rushSegs[0].at <= 110 && rushSegs[0].at >= 100 && !!rushSegs[0].spot && Math.hypot(rushSegs[0].spot[0][1] - 96, rushSegs[0].spot[0][2] - 97) < 1.5],
+    ["앞서 지은 러시 파일런은 '기지 안에 파일런 건설'로 따로 안 선다", !pl.some((g) => /기지 안에 파일런/.test(capTxt(g)))],
+    ["초반 오버로드 정찰 → '[Z]ga [R] 기지 오버로드 정찰'", ev.some((g) => capTxt(g) === "[Z]ga [R] 기지 오버로드 정찰")],
     ["조금 뒤 늘린 캐논(170초)은 같은 러시 — 이정표 '포토러시'는 한 번", pl.search.filter((x) => /포토러시/.test(x.caps.map((c) => c.text ?? "").join("")) && x.raw === "R" && x.x === undefined).length === 1],
     ["가운데 싸움(러시 자리에서 먼 곳)은 '포토러시'가 아니다", midFight.length > 0 && midFight.every((g) => !/포토러시/.test(capTxt(g)))],
     ["드론 정찰(40초) → '[Z]ga [R] 기지 일꾼 정찰'", ev.some((g) => capTxt(g) === "[Z]ga [R] 기지 일꾼 정찰")],

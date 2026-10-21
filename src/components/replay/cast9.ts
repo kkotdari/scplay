@@ -1372,12 +1372,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
      ① 캐논만 짓고 아무것도 안 죽으면 장면이 아예 없었고 ② 러시와 무관한 자리(제 앞마당 · 센터)의 싸움도 "포토러시"로 불려 엉뚱한 곳을 비췄고 ③ 러시 자리의 싸움이 끊겼다
      이어질 때마다 새 "포토러시" 장면이 섰다. 이제:
        · 판 — 상대 기지(본진 건물의 기지 영역 · 제 편 기지 쪽은 뺀다)에 세운 캐논·크립·성큰을 사람·상대마다 착공 차례로 묶는다: 앞 건물 RUSH9.gap 초 안 · 앞 건물들 RUSH9.join 타일 안이면
-         같은 판. 그 판 둘레에 RUSH9.pylonLead 초 앞부터 세운 제 파일런도 판에 든다(포토러시는 파일런 착공이 시작이다).
+         같은 판. 그 판 둘레에 RUSH9.pylonLead 초 앞부터 세운 제 파일런은 판의 곁(pylons)으로만 적는다 — 러시의 시작·카메라는 **캐논**이다(2026-10-21 되요청:
+         "러시는 포토를 봐야 함" · 한때 파일런 착공을 시작으로 잡았다). 그 파일런을 '침투 건물'로 따로 말하지 않는 데만 쓴다.
        · 사건 — 판의 건물마다 착공 때 "러시" 사건(첫 건물은 RUSH9.w · 그 뒤는 제 몸값 · more · rid)을 그 자리에 낸다(꼬리 RUSH9.tail — 아무 일 없는 러시 자리에 오래 머물지 않는다).
          같은 판의 토막(rid · 그 판 자리 곁에서 그 판 동안 그 두 사람이 싸운 토막도)은 때가 떨어져도 한 전투(bid)라 주인공·무게가 이어진다(아래 전투 단위 ★★).
          늘려 지은 건물뿐인 토막은 그 러시를 보던 중일 때만 잇는다 — 딴 데를 보던 중이면 카메라를 끌어와 "포토러시"를 또 말하지 않는다.
        · 이름 — 싸움 장면의 러시 이름은 그 판 **건물 RUSH9.near 타일 안**의 장면에만(rushKind9). */
-  type Rush9 = { att: string; foe: string; text: string; t0: number; t1: number; blds: { t: number; x: number; y: number; kind: string }[] };
+  type Rush9 = { att: string; foe: string; text: string; t0: number; t1: number; blds: { t: number; x: number; y: number; kind: string }[];
+    pylons: { t: number; x: number; y: number }[] };
   const rushSess9: Rush9[] = (() => {
     const ownersOfRaw0_9 = (raw9: string): Set<number> => new Set([...rawOf9.entries()].filter(([, n9]) => n9 === raw9).map(([o9]) => o9));
     const team0_9 = (a9: string, b9: string): boolean => a9 === b9 || (opts.teamOf?.[a9] !== undefined && opts.teamOf?.[a9] === opts.teamOf?.[b9]);
@@ -1415,9 +1417,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         && r9.blds.some((q9) => Math.hypot(q9.x - b9.x, q9.y - b9.y) <= RUSH9.join));
       /* 성큰은 크립이 변태한 몸이다 — 같은 자리의 크립이 이미 들었으면 건물을 더하지 않는다(사건이 두 번 안 서게). */
       if (s9) { if (!s9.blds.some((q9) => q9.x === b9.x && q9.y === b9.y)) s9.blds.push(b9); s9.t1 = Math.max(s9.t1, e9.born); }
-      else out9.push({ att: att9, foe: foe9, text: RUSH_BLD9[e9.kind], t0: e9.born, t1: e9.born, blds: [b9] });
+      else out9.push({ att: att9, foe: foe9, text: RUSH_BLD9[e9.kind], t0: e9.born, t1: e9.born, blds: [b9], pylons: [] });
     }
-    /* 앞서 지은 파일런 — 포토러시 판 둘레(RUSH9.join)에 판 첫 건물 RUSH9.pylonLead 초 앞부터 세운 제 파일런. */
+    /* 앞서 지은 파일런 — 포토러시 판 둘레(RUSH9.join)에 판 첫 건물 RUSH9.pylonLead 초 앞부터 세운 제 파일런(판의 곁 · 사건·카메라는 안 탄다). */
     for (const r9 of out9) {
       if (r9.text !== "포토러시") continue;
       const own9 = ownersOfRaw0_9(r9.att);
@@ -1425,10 +1427,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
         if (!e9.bld || e9.kind !== "Pylon" || !own9.has(e9.owner) || e9.born < r9.t0 - RUSH9.pylonLead || e9.born > r9.t1) continue;
         if (!r9.blds.some((q9) => Math.hypot(q9.x - e9.bornX, q9.y - e9.bornY) <= RUSH9.join)) continue;
         if (foeBaseOf9(r9.att, e9) !== r9.foe) continue;
-        r9.blds.push({ t: e9.born, x: e9.bornX, y: e9.bornY, kind: e9.kind });
+        r9.pylons.push({ t: e9.born, x: e9.bornX, y: e9.bornY });
       }
-      r9.blds.sort((a9, b9) => a9.t - b9.t);
-      r9.t0 = r9.blds[0].t;
     }
     return out9;
   })();
@@ -2644,7 +2644,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
       if (RUSH_BLD9[k9]) {
         /* 상대 기지 안의 캐논·성큰(크립 콜로니 포함) → "A가 B에게 포토러시"(요청: 포토러시 · 성큰러시) — **판마다 한 이정표**(2026-10-21, 요청: "주변에 짓는 건 한 사건") ·
-           때와 자리는 판의 첫 착공(앞서 지은 파일런이면 그것 · "짓기 시작할 때부터 러시"). */
+           때와 자리는 판의 첫 캐논·크립 착공("짓기 시작할 때부터 러시" · "러시는 포토를 봐야 함"). */
         const r9 = myRush9.find((q9) => q9.blds.some((b9) => b9.t === e9.born && b9.x === e9.bornX && b9.y === e9.bornY));
         if (r9 && !rushSaid9.has(r9)) { rushSaid9.add(r9); mileVs9(r9.t0, r9.foe, r9.text, { bornX: r9.blds[0].x, bornY: r9.blds[0].y }); }
         if (k9 === "Creep Colony") continue;
@@ -2732,7 +2732,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       intrUnits9.set(raw9, units9);
       const stays9: { e: (typeof world.lives)[number]; t0: number; t1: number; x: number; y: number; foe: string; land: boolean }[] = [];
       /* 포토러시 판에 든 파일런도 러시가 말한다(2026-10-21 · rushSess9 ★★ — "기지 안에 파일런 건설"을 따로 안 세운다). */
-      const rushPylon9 = new Set(myRush9.flatMap((r9) => r9.blds.filter((b9) => b9.kind === "Pylon").map((b9) => `${b9.t}|${b9.x}|${b9.y}`)));
+      const rushPylon9 = new Set(myRush9.flatMap((r9) => r9.pylons.map((b9) => `${b9.t}|${b9.x}|${b9.y}`)));
       for (const e9 of world.lives) {
         if (!e9.bld || !own9.has(e9.owner) || e9.handoff || RUSH_BLD9[e9.kind] || rushPylon9.has(`${e9.born}|${e9.bornX}|${e9.bornY}`)) continue;
         const end9 = e9.died ?? total;
