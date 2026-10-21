@@ -26,10 +26,11 @@ const ALL = argv.includes("--plan");
 const EBIN = join(ROOT, "node_modules", "esbuild", "bin", "esbuild");
 const tmp = mkdtempSync(join(tmpdir(), "cast-"));
 const src = join(tmp, "entry.ts");
-writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`);
+writeFileSync(src, `export { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9 } from "${join(ROOT, "src/components/replay/cast9")}";\n`
+  + `export { buildSearchIndex9 } from "${join(ROOT, "src/components/replay/searchIndex9")}";\n`);
 execFileSync(EBIN, [src, "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(tmp, "b.mjs")}`],
   { cwd: ROOT, stdio: "inherit" });
-const { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9 } = await import(join(tmp, "b.mjs"));
+const { castPlan9, castAt9, castValue9, castMoves9, castFocus9, castCapFacets9, buildSearchIndex9 } = await import(join(tmp, "b.mjs"));
 
 console.log("몸값:", ["Zergling", "Marine", "Dragoon", "Siege Tank", "Archon", "Battlecruiser", "Lurker", "Guardian", "Command Center"]
   .map((k) => `${k} ${castValue9(k)}`).join(" · "));
@@ -1621,4 +1622,30 @@ rmSync(tmp, { recursive: true, force: true });
   ];
   console.log("\n검색 세분 낱말:");
   for (const [name, caps, want] of cases) { const got = F(caps); console.log(`  ${got === want ? "✔" : "✘"} ${name} → ${got || "(없음)"}`); }
+}
+
+/* ── ㊸ 게임 색인 줄(2026-10-20, 요청: "모든 색인은 주인, 타겟, 대상, 행위, 추가속성 · 같은 사람의 같은 사건도 시간별로") — searchIndex9 buildSearchIndex9 의 rows:
+   포토러시 판(⑦)·기지 싸움 판(⑨)에서 자막 사건 줄이 주인·타겟을 바로 다나 · 첫 생산/건설 줄이 그 사람 것인가 · 같은 장면의 두 실림(search·토막)이 한 줄인가. */
+{
+  const rowsOf = (w, opts) => {
+    const plan = castPlan9(w, opts);
+    return buildSearchIndex9({ world: w, plan, focus: castFocus9(w, []), bases: w.players.map((p) => ({ key: p.name, name: p.name })) }).rows;
+  };
+  const show = (r) => `${r.sec}s ${r.owner ?? "-"}→${r.target ?? "-"} ${r.kind}:${r.term}${r.act ? ` ${r.act}` : ""}${r.attr ? ` [${r.attr}]` : ""}`;
+  const pr9 = rowsOf(pw, { total: 400 });
+  if (argv.includes("--rows")) { const pp = castPlan9(pw, { total: 400 }); console.log("  토막:", pp.map((g) => `${g.at.toFixed(1)}~${g.capTo ?? "-"} ${g.cyc ? "순환" : g.why ?? ""} ${capTxt(g)}`).join(" | ")); console.log("  search:", (pp.search ?? []).map((x) => `${x.at}~${x.to} ${capTxt(x)}`).join(" | ")); }
+  const dr9 = rowsOf(dw9, { total: 1000, order: ["P", "Q", "F", "G"], teamOf: { P: 1, Q: 1, F: 2, G: 2 } });
+  const has = (rows, f) => rows.some(f);
+  const dup = (rows) => { const k = rows.map((r) => `${r.sec}|${r.owner}|${r.target}|${r.kind}|${r.term}|${r.act}`); return k.length - new Set(k).size; };
+  console.log("\n게임 색인 줄(포토러시 판):", pr9.map(show).join(" · "));
+  console.log("게임 색인 줄(기지 싸움 판 · 전술만):", dr9.filter((r) => r.kind === "tactic").map(show).join(" · "));
+  for (const [name, pass] of [
+    ["포토러시 — 주인 R · 타겟 Z", has(pr9, (r) => r.kind === "tactic" && r.term === "포토러시" && r.owner === "R" && r.target === "Z")],
+    ["공격 — 주인 R · 타겟 Z(“R 공격함 · Z 공격당함”)", has(pr9, (r) => r.kind === "tactic" && r.term === "공격" && r.owner === "R" && r.target === "Z")],
+    ["첫 건설 — 그 사람의 건물(포토 캐논 건설 · 주인 R)", has(pr9, (r) => r.kind === "building" && r.act === "건설" && r.owner === "R" && r.key === "Photon Cannon")],
+    ["폭탄드랍 — 주인 F · 타겟 P", has(dr9, (r) => r.term === "폭탄드랍" && r.owner === "F" && r.target === "P")],
+    ["일꾼 견제 — 주인 F · 타겟 P", has(dr9, (r) => r.term === "일꾼 견제" && r.owner === "F" && r.target === "P")],
+    ["리버 활약 — 주인 F", has(dr9, (r) => r.term === "리버" && r.act === "활약" && r.owner === "F")],
+    ["같은 시각·꼴의 겹친 줄 없음", dup(pr9) === 0 && dup(dr9) === 0],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }

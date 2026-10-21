@@ -81,7 +81,11 @@ export type { DocAnim9, DocCell9 } from "./ReplayMotionPlayer";
    그리고 값만 넘긴다(2026-10) — 표 둘(MODEL_CATALOG_GROUPS·MODEL_CATALOG_RACES)은 앱이 알약 이름표를 쓰는 데 쓴다. */
 export { default as ModelCatalog, MODEL_CATALOG_GROUPS, MODEL_CATALOG_RACES } from "./ModelCatalog";
 export type { ModelCatalogGroup, ModelCatalogRace } from "./ModelCatalog";
-/* ── 판의 전술 낱말(2026-10-20, 요청: "유닛건물스킬에 전술도 · 운영자 재분석에 포함") ── 참값 자취 + 맵으로 재생기와 같은 편성표를 돌려 자막 속 전술
-   낱말("몰래 배럭"·"입구 막기"·"오버로드 사냥"…)을 뽑는다. 앱이 운영자 재분석 때 한 번 굽어 서버에 담는다 — 판을 열 때 굽지 않는다(tactics9.ts 머리말). */
-export { tacticWordsOf9, tacticWordsOfText9, TACTIC_TERMS9 } from "./tactics9";
-export type { TacticOpts9 } from "./tactics9";
+/* ── 게임 색인(2026-10-20, 요청: "모든 색인은 주인, 타겟, 대상, 행위, 추가속성 · 전부 재생기 함수(api 제공) · 같은 사람의 같은 사건도 시간별로") ──
+   참값 자취 + 맵으로 재생기 검색과 같은 빌더를 돌려 사건마다 한 줄(시각 · 주인 · 타겟 · 대상 종류 · 대상 · 영문 이름 · 행위 · 속성)을 낸다. 앱이 운영자 재분석 때 한 번 굽어
+   서버에 담는다 — 판을 열 때 굽지 않는다(gameIndex9.ts 머리말). TACTIC_TERMS9 = 검색 자동 완성의 전술 낱말 · SEARCH_ROLES9 = 공격함/공격당함/견제함/견제당함. */
+export { gameIndexOf9 } from "./gameIndex9";
+export type { GameIndexOpts9 } from "./gameIndex9";
+export { TACTIC_TERMS9 } from "./tactics9";
+export { SEARCH_ROLES9 } from "./searchIndex9";
+export type { GameIndexRow9, GameIndexKind9 } from "./searchIndex9";

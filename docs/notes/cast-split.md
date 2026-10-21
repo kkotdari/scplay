@@ -1427,3 +1427,17 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
 - 자막 글귀를 고치면 이 표도 본다 — `TACTIC_TERMS9` 는 앱(sg-web) 검색 자동 완성의 전술 낱말이다.
 - 앱은 운영자 재분석 때만 부르고(sg-web utils/gameTactics) 서버의 따로 된 표(sg-api game_result_tactics)에 적는다 — 판을 열 때는 안 굽는다.
 - 🔎 자취 없이 규칙만: esbuild 로 tactics9 를 묶어 `tacticWordsOfText9([...])` · 합성 OBWT(openbw-tracks-check 의 build)로 관을 한 번 돌리면 [] · 깨진 글은 null.
+
+## 게임 색인 — 한 줄 = 사건 하나(주인 · 타겟 · 대상 · 행위 · 속성 · 시각)(2026-10-20)
+요청: "모든 색인은 주인, 타겟(-에게 · 있으면), 대상(전술/유닛/스킬/건물 등), 행위, 추가속성(활약 등) · 전술과 유저 색인으로 나눈 게 이상해" → "전부 재생기 함수(api 제공)" ·
+"같은 사람의 같은 사건도 합치지 말고 시간별로 저장 · 시간 색인 나중에 제공 예정". 위 절의 tacticWordsOf9(판 단위 낱말)는 이것으로 되물렸다.
+- 재생기 안 검색의 빌더(옛 ReplayMotionPlayer searchIndex9 useMemo 본문)를 **그대로** `searchIndex9.ts buildSearchIndex9` 로 옮겼다 — 재생기는 list·terms·facets·people,
+  앱은 같은 호출의 `rows`(GameIndexRow9)를 쓴다. 앱 문은 `gameIndexOf9(motion, { grid, endSec, chats, only, skip, teamOf })`(gameIndex9.ts — 재생기 planAll9 와 같은 편성표 자).
+- 줄 꼴: sec · owner/target(참값 이름) · kind(unit · building · upgrade · skill · tactic) · term(한글) · key(영문 원 이름 · 전술 "") · act(생산 · 건설 · 개발 · 사용 · 활약 · 장전 ·
+  투하 · 시즈 모드/해제 · 클로킹 · 띄움 · 전술 "") · attr(본진 몇 번째 · 업그레이드 단계 · 활약 킬 수). 공격·견제는 term "공격"/"견제" + 주인·타겟("A 공격함" = owner · "B 공격당함" = target).
+- 자막 줄의 주인·타겟은 `cast9 castCapRoles9`(castCapFacets9 가 쓰는 주어/목적어 가름을 떼어 낸 것 — 둘이 늘 같다). 대상은 전술 낱말(tactics9 TACTIC_RULES9) · 공격/견제 · 활약 낱말.
+- ⚠ 한 사건 = 한 줄: 같은 장면이 plan.search 와 토막 자막(긴 장면은 잇단 토막마다)에 거듭 실리고, **순환 토막은 이정표를 되읽어 준다**(실측: 포토러시 이정표 하나가 순환마다 6줄) —
+  순환 토막은 줄을 안 내고, 남은 자막은 시각 차례로 훑어 같은 꼴이 앞 줄의 덮는 끝(장면 to · 토막 끝) 안이면 건너뛴다. 끝 뒤에 다시 나오면 다른 사건이다.
+- 조사 고르기(koGa9 · koEul9 · koWa9)는 `src/utils/koJosa.ts` 로 옮겼다(재생기·빌더가 같이 쓴다).
+- 🔎 `node scripts/cast-plan.mjs` 의 ㊸(포토러시 · 기지 싸움 판의 줄 · 겹침 없음) · `--rows` 면 포토러시 판의 토막·search 를 찍는다 ·
+  재생기 검색은 `perf-check --wide --warm 0 --glblit --searchprobe 핵 --shot x.png`(--shot 이 있어야 탐침이 돈다).

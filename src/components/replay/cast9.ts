@@ -417,7 +417,10 @@ export type CastPlan9 = CastSeg9[] & { search?: CastSearch9[] };
  *    "…당함 · 잃음 · 파괴됨" 꼴이면 칩이 다 맞은 쪽이다. "N팀 전원이"(칩 없는 주어)는 사람 없는 꼴만.
  *  · 견제 = 견제 · 일꾼 잡음/잃음(정찰 일꾼 빼고) · 공격 = 공격 · 러시 · 드랍 · 반파/대파/궤멸 · 마무리 · 건물 파괴 · 엘리 · 핵 투하 · 돌파 · 옆탱.
  *  · 활약 = "X로 N킬 · 방어해냄 · 돌파함 · 활약함 · … 잡음" · "X로 B 일꾼 견제" · "다크스웜+…" · "캐리어 기동 공격" 의 X — actTerm 이 참인 낱말만(그 경기의 기술·마법·유닛). */
-export function castCapFacets9(caps: readonly CapPart9[], txt: string, nameOf: (raw: string) => string | undefined, actTerm: (w: string) => boolean): [string, string][] {
+/** ★ 장면 자막의 **주인·타겟**(2026-10-20, 요청: "모든 색인은 주인, 타겟, 대상, 행위, 추가속성 — 유저별로") — 아래 castCapFacets9 의 주어/목적어 가름을 그대로 낸다(둘이 늘 같다).
+ *  첫 문장만(" · " · ". " 앞) · 주인 = 처음부터 "가" 붙은 칩까지(없으면 첫 칩) · 타겟 = 그 뒤 칩 · "…당함 · 잃음 · 파괴됨" 꼴이면 칩이 다 타겟이다.
+ *  verb = 견제(견제 · 일꾼 잡음/잃음, 정찰 일꾼 빼고) | 공격(공격 · 러시 · 드랍 · 반파 …) | null. teamAll = "N팀 전원이"(칩 없는 주어). */
+export function castCapRoles9(caps: readonly CapPart9[]): { said: string; verb: "공격" | "견제" | null; owners: string[]; targets: string[]; teamAll: boolean } {
   const cl9: CapPart9[] = [];
   for (const c9 of caps) {
     const br9 = c9.raw === undefined ? /\s·\s|\.\s/.exec(c9.text ?? "") : null;
@@ -425,20 +428,24 @@ export function castCapFacets9(caps: readonly CapPart9[], txt: string, nameOf: (
     cl9.push(c9);
   }
   const said9 = cl9.map((c9) => c9.text ?? "").join("");
-  const out9: [string, string][] = [];
   const har9 = /견제|일꾼 잡음|일꾼 잃음/.test(said9) && !/정찰 일꾼/.test(said9);
   const atk9 = !har9 && /공격|러시|드랍|반파|대파|궤멸|마무리|건물 파괴|엘리|핵 투하|돌파|옆탱/.test(said9);
-  if (har9 || atk9) {
-    const verb9 = har9 ? "견제" : "공격";
-    const raws9 = cl9.flatMap((c9) => (c9.raw !== undefined ? [c9] : []));
-    const gi9 = raws9.findIndex((c9) => c9.p === "ga");
-    const vict9 = /당함|잃음|파괴됨/.test(said9);
-    const acts9 = vict9 ? [] : gi9 >= 0 ? raws9.slice(0, gi9 + 1) : raws9.slice(0, 1);
-    const tgts9 = vict9 ? raws9 : gi9 >= 0 ? raws9.slice(gi9 + 1) : raws9.slice(1);
-    for (const c9 of acts9) { const n9 = nameOf(c9.raw); if (n9) out9.push([n9, `${verb9}함`]); }
-    for (const c9 of tgts9) { const n9 = nameOf(c9.raw); if (n9) out9.push([n9, `${verb9}당함`]); }
-    if (acts9.length > 0 || /팀 전원[이가]/.test(said9)) out9.push(["", `${verb9}함`]);
-    if (tgts9.length > 0) out9.push(["", `${verb9}당함`]);
+  const raws9 = cl9.flatMap((c9) => (c9.raw !== undefined ? [c9.raw] : []));
+  const gi9 = cl9.flatMap((c9) => (c9.raw !== undefined ? [c9] : [])).findIndex((c9) => c9.p === "ga");
+  const vict9 = /당함|잃음|파괴됨/.test(said9);
+  const owners9 = vict9 ? [] : gi9 >= 0 ? raws9.slice(0, gi9 + 1) : raws9.slice(0, 1);
+  const targets9 = vict9 ? raws9 : gi9 >= 0 ? raws9.slice(gi9 + 1) : raws9.slice(1);
+  return { said: said9, verb: har9 ? "견제" : atk9 ? "공격" : null, owners: owners9, targets: targets9, teamAll: /팀 전원[이가]/.test(said9) };
+}
+export function castCapFacets9(caps: readonly CapPart9[], txt: string, nameOf: (raw: string) => string | undefined, actTerm: (w: string) => boolean): [string, string][] {
+  const out9: [string, string][] = [];
+  const rl9 = castCapRoles9(caps);
+  if (rl9.verb) {
+    const verb9 = rl9.verb;
+    for (const r9 of rl9.owners) { const n9 = nameOf(r9); if (n9) out9.push([n9, `${verb9}함`]); }
+    for (const r9 of rl9.targets) { const n9 = nameOf(r9); if (n9) out9.push([n9, `${verb9}당함`]); }
+    if (rl9.owners.length > 0 || rl9.teamAll) out9.push(["", `${verb9}함`]);
+    if (rl9.targets.length > 0) out9.push(["", `${verb9}당함`]);
   }
   const act9 = (w9: string | undefined): void => { if (w9 && actTerm(w9)) out9.push([w9, "활약"]); };
   act9(/(\S+?)(?:으로|로) (?:\d+킬|방어해냄|돌파함|활약함|.+ 잡음)/.exec(txt)?.[1]);
