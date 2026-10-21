@@ -2525,7 +2525,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   /* 수는 엔진이 잃은 체력 수치로 센 f.wn(세 종족 · 건물 만피에 따라 2~4 에서 멈춘다) · 그 뒤로는 크기 g9(1 → WOUND_GROW9)가 는다(2026-10-21 · engine9 ★★). */
   const n9 = Math.max(1, f.wn ?? 1);
   const g9 = Math.max(1, f.wg ?? 1);
-  /* ★ 테란·프로토스 불꽃도 **서로 안 겹치게** 차례로 앉힌다(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고") — 아래 저그 zX9 와 같은 꼴:
+  /* ★ 테란·프로토스 불꽃도 **서로 안 겹치게** 차례로 앉힌다(2026-10-21, 요청: "테란 프로토스 건물 손상 효과가 겹치나 — 저그처럼 안 겹치고") — 아래 저그 zXY9 와 같은 꼴:
      불꽃 k 는 해시 후보 자리(열여섯)를 차례로 보며 앞 불꽃(0…k−1)과 안 겹치는(가로 사이 ≥ 반폭 0.3 · 또는 세로가 불 키만큼 떨어진) 첫 자리 — 다 막히면 가장 덜 겹치는 자리.
      폭·키는 **다 커졌을 때**(WOUND_GROW9) 몫으로 재 커져도 안 겹친다.
      ★★ 후보 자리는 **그린 몸 위**다(2026-10-21, 원작 화면을 참고로 받음 — 불이 지붕·윗모서리에 붙고 · 되요청: "프로토스도 위치는 비슷 · 꼭 윗모서리만은 아니야 아래쪽도 붙어") —
@@ -2534,12 +2534,12 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
      (옛: 발자국 마름모 위 · 들기 0.12 — 몸 가운데 낮게만 붙었다.) 그리기는 **뒤(화면 위)부터 앞으로**(아래 order9) — 앞 불꽃이 뒤 불꽃을 덮는다. */
   const tXY9: [number, number][] = [];
   const mq9 = Math.max(0.2, f.mq ?? 1);
+  const bx09 = (f.wkey ? WOUND_BOX9.get(f.wkey) : undefined)
+    ?? [ax - sx9 * 0.5, ay - sx9 * 0.55, ax + sx9 * 0.5, ay + sy9 * 0.5] as const;   // 그린 몸 상자(WOUND_BOX9) — 없으면 발자국 어림
+  const cx09 = (bx09[0] + bx09[2]) / 2; const hw9b = (bx09[2] - bx09[0]) / 2; const bh09 = bx09[3] - bx09[1];
   if (race9 !== "zerg") {
     const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.27 : 0.24);   // 반폭 — 불 한 덩이(폭 0.48W + 배 · 끝 흔들림 → ±0.26W) · 플라즈마 고리(±0.24W · 2026-10-21 fireStrands9 · plasmaWisp9)
     const vh09 = W9 * WOUND_GROW9 * 0.9;   // 세로로 이만큼 떨어지면 위 불의 밑이 아래 불 끝 위에 선다
-    const bx09 = (f.wkey ? WOUND_BOX9.get(f.wkey) : undefined)
-      ?? [ax - sx9 * 0.5, ay - sx9 * 0.55, ax + sx9 * 0.5, ay + sy9 * 0.5] as const;
-    const cx09 = (bx09[0] + bx09[2]) / 2; const hw9b = (bx09[2] - bx09[0]) / 2; const bh09 = bx09[3] - bx09[1];
     const put9: [number, number][] = [];
     for (let kk9 = 0; kk9 < n9; kk9 += 1) {
       const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
@@ -2560,40 +2560,44 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     }
   }
   /* ★ 저그 줄기는 **서로 안 겹치게** 차례로 앉힌다(2026-10-19, 요청: "두개가 겹치지 않게하기") — 줄기 k 는 해시가 주는 후보 자리(최대 열여섯)를 차례로 보며
-     **앞 줄기들(0…k−1)** 과 가로로 겹치지 않는(사이 ≥ 제 반폭 0.3) 첫 자리에 앉는다 — 다 막히면 가장 덜 겹치는 자리. 앞 줄기만 보므로 줄기가 늘어도
-     있던 줄기 자리는 안 바뀐다(위 '수와 무관' ★ 그대로). 흩는 폭 0.56 → 0.84(발자국 폭) — 열 줄기까지 들어갈 틈. 세로가 안 겹치면 같은 줄에 서도 된다. */
-  const zX9: number[] = [];
+     **앞 줄기들(0…k−1)** 과 겹치지 않는(가로 사이 ≥ 제 반폭 0.3 · 또는 세로 줄기 길이가 안 겹침) 첫 자리에 앉는다 — 다 막히면 가장 덜 겹치는 자리. 앞 줄기만 보므로 줄기가 늘어도
+     있던 줄기 자리는 안 바뀐다(위 '수와 무관' ★ 그대로).
+     ★★ 줄기 머리는 **그린 몸 위 둥근 자리**다(2026-10-21, 요청: "저그 손상 피폭포도 위치 둥글게 배치 · 너무 바깥은 말고") — 몸 상자(bx09 · 위 테란 ★★와 같은 WOUND_BOX9)의 가운데
+     조금 위(키 0.42)를 중심으로 한 타원(가로 반폭의 0.5 · 세로 키의 0.22) 안에 고르게(반지름 √) 흩는다. 옛: 발자국 폭 ±0.42 가로줄 · 세로 몸 가운데 언저리 — 몸 가장자리까지 퍼졌다. */
+  const zXY9: [number, number][] = [];
   if (race9 === "zerg") {
     const fw9 = Math.max(W9 * 2.5, sx9);
     const put9: { x: number; w: number; y0: number; y1: number }[] = [];
     for (let kk9 = 0; kk9 < n9; kk9 += 1) {
       const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
       const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315)) * WOUND_GROW9;   // 다 커졌을 때 몫(위 ★)
-      const y09 = -(-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
-      const y19 = y09 + fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11) * WOUND_GROW9;
-      let best9 = 0; let bestGap9 = Number.NEGATIVE_INFINITY;
+      const l9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11) * WOUND_GROW9;
+      let best9: [number, number] = [cx09, bx09[1] + bh09 * 0.42]; let bestGap9 = Number.NEGATIVE_INFINITY;
       for (let tr9 = 0; tr9 < 16; tr9 += 1) {
         const hc9 = tr9 === 0 ? h9 : (Math.imul(h9 ^ Math.imul(tr9, 0x9e3779b1), 2654435761) >>> 0);
-        const c9 = ((hc9 % 1000) / 1000 - 0.5) * 0.84 * fw9;
+        const an9 = ((hc9 % 1000) / 1000) * Math.PI * 2;
+        const rr9 = Math.sqrt(((hc9 >>> 10) % 1000) / 1000);
+        const c9: [number, number] = [cx09 + Math.cos(an9) * rr9 * hw9b * 0.5, bx09[1] + bh09 * 0.42 + Math.sin(an9) * rr9 * bh09 * 0.22];
         let gap9 = Number.POSITIVE_INFINITY;
         for (const q9 of put9) {
-          if (y19 < q9.y0 || y09 > q9.y1) continue;   // 세로가 안 겹치면 상관없다
-          gap9 = Math.min(gap9, Math.abs(c9 - q9.x) - (w9 + q9.w));
+          if (c9[1] + l9 < q9.y0 || c9[1] > q9.y1) continue;   // 세로가 안 겹치면 상관없다
+          gap9 = Math.min(gap9, Math.abs(c9[0] - q9.x) - (w9 + q9.w));
         }
         if (gap9 > bestGap9) { bestGap9 = gap9; best9 = c9; }
         if (gap9 >= w9 * 0.3) break;
       }
-      put9.push({ x: best9, w: w9, y0: y09, y1: y19 });
-      zX9.push(ax + best9);
+      put9.push({ x: best9[0], w: w9, y0: best9[1], y1: best9[1] + l9 });
+      zXY9.push(best9);
     }
   }
-  /* 뒤(화면 위)부터 앞으로(위 ★★) — 저그 줄기는 제 차례. */
+  /* 뒤(화면 위)부터 앞으로(위 ★★) — 저그 줄기도(2026-10-21 · 둥근 자리라 앞뒤가 생겼다). */
   const order9 = Array.from({ length: n9 }, (_, i9) => i9);
-  if (race9 !== "zerg") order9.sort((a9, b9) => tXY9[a9][1] - tXY9[b9][1]);
+  const xy9 = race9 === "zerg" ? zXY9 : tXY9;
+  order9.sort((a9, b9) => xy9[a9][1] - xy9[b9][1]);
   for (const kk9 of order9) {
   const h9 = (((f.seed ?? 0) * 2654435761 + kk9 * 40503) >>> 0);
-  /* 자리 — 테란·프로토스는 몸 위의 불 밑동(tXY9 ★★) · 저그는 줄기가 제 자리를 따로 잰다(zX9). */
-  const x9 = race9 === "zerg" ? ax : tXY9[kk9][0];
+  /* 자리 — 테란·프로토스는 몸 위의 불 밑동(tXY9 ★★) · 저그는 줄기 머리(zXY9 ★★). */
+  const x9 = xy9[kk9][0];
   const Wd9 = W9 * g9;                        // 상한 뒤로 커지는 불꽃 상자
   const dl9 = ((h9 >>> 20) % 100) / 100;      // animation-delay(0~1초)
   if (race9 === "terran" || race9 === "toss") {
@@ -2709,8 +2713,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     const fw9 = Math.max(W9 * 2.5, sx9);
     /* ★ 흩는 폭은 **수와 무관**하다(2026-10-19, 요청: "손상효과는 갯수가 늘어나는거지 위치가 바뀌는건 아님 · 기존있던거에 추가되거나 감소되는식") —
        옛 판은 줄기가 셋을 넘으면 폭을 0.4 → 0.62 로 넓혀, 넷째가 생기는 순간 있던 셋이 다 옆으로 옮겨 앉았다. 자리는 (건물 번호, 줄기 번호)만의 함수다. */
-    const sx09 = zX9[kk9];   // 위에서 서로 안 겹치게 앉힌 자리(zX9 ★)
-    const sy09 = ay - (-0.06 + (((h9 >>> 10) % 1000) / 1000) * 0.14) * fw9;
+    const [sx09, sy09] = zXY9[kk9];   // 위에서 몸 위 둥근 자리에 서로 안 겹치게 앉힌 줄기 머리(zXY9 ★★)
     const L9 = fw9 * (0.16 + (((h9 >>> 4) % 100) / 100) * 0.11) * g9;   // 상한 뒤로 길이·폭이 g9 배(2026-10-21)
     /* 폭 ×2(2026-10-19, 요청: "폭포 폭 2배로") — 2.7~4.8% → 5.4~9.6%(하한 1.8 → 3.6px) → 같은 날 "피폭포 폭 25프로 축소" ×0.75 → **4.05~7.2%**(하한 2.7px). */
     const w9 = Math.max(2.7, fw9 * (0.0405 + (((h9 >>> 14) % 100) / 100) * 0.0315)) * g9;
