@@ -2441,8 +2441,10 @@ function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: 
   const pts9: [number, number][] = [];
   for (let i9 = 0; i9 < peaks9; i9 += 1) {
     const c9 = peaks9 === 1 ? 0 : i9 / (peaks9 - 1) - 0.5;   // −0.5 … 0.5
-    const hk9 = (1 - Math.abs(c9) * 0.75) * (0.85 + 0.15 * Math.sin(t9 * (9 + i9 * 2.6) + ph9 + i9 * 1.9));
-    const tx9 = bx9 + c9 * w9 * 0.62 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.08;
+    /* 끝 키는 해시로 엇갈린다(좌우 대칭이면 그림처럼 읽힌다 · 2026-10-21 "더 자연스러워야"). */
+    const hs9 = Math.abs(Math.sin((i9 + 1) * 43.17 + ph9 * 2.3));
+    const hk9 = (1 - Math.abs(c9) * 0.5) * (0.7 + 0.3 * hs9) * (0.86 + 0.14 * Math.sin(t9 * (9 + i9 * 2.6) + ph9 + i9 * 1.9));
+    const tx9 = bx9 + c9 * w9 * 0.5 + Math.sin(t9 * 3.2 + i9 * 2.1 + ph9) * w9 * 0.14;
     pts9.push([tx9, by9 - h9 * hk9]);
     if (i9 < peaks9 - 1) {
       const vc9 = (i9 + 0.5) / (peaks9 - 1) - 0.5;
@@ -2451,13 +2453,17 @@ function fireBlob9(ctx: CanvasRenderingContext2D, bx9: number, by9: number, w9: 
   }
   ctx.beginPath();
   ctx.moveTo(L9, by9);
-  let px9 = L9; let py9 = by9;
-  /* 오르는 옆선은 앞 점의 가로에서 휘어 오르고(오목) · 내리는 옆선은 다음 점의 가로에서 휘어 내린다 — 끝이 뾰족한 불 혀. */
-  for (const [x9, y9] of [...pts9, [R9, by9] as [number, number]]) {
+  /* 바깥 두 옆선은 **밑이 둥글게 부풀었다가 끝으로 좁아지는** 물방울 꼴(삼차 곡선 — 배는 밑 0.35 키에서 바깥으로) · 끝 사이 골은 앞/다음 점 가로에서 휜 오목 곡선이라
+     끝이 뾰족한 불 혀(2026-10-21, 되요청: "폭은 좁고 더 자연스러워야 — 그라데이션이나 형태가"). */
+  const [fx9, fy9] = pts9[0];
+  ctx.bezierCurveTo(L9 - w9 * 0.06, by9 - h9 * 0.32, fx9 - w9 * 0.12, fy9 + h9 * 0.4, fx9, fy9);
+  let px9 = fx9; let py9 = fy9;
+  for (const [x9, y9] of pts9.slice(1)) {
     if (y9 < py9) ctx.quadraticCurveTo(px9, (py9 + y9) / 2, x9, y9);
     else ctx.quadraticCurveTo(x9, (py9 + y9) / 2, x9, y9);
     px9 = x9; py9 = y9;
   }
+  ctx.bezierCurveTo(px9 + w9 * 0.12, py9 + h9 * 0.4, R9 + w9 * 0.06, by9 - h9 * 0.32, R9, by9);
   ctx.quadraticCurveTo(bx9, by9 + w9 * 0.45 * q9, L9, by9);
   ctx.closePath();
   ctx.fill();
@@ -2519,7 +2525,7 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   const tXY9: [number, number][] = [];
   const mq9 = Math.max(0.2, f.mq ?? 1);
   if (race9 !== "zerg") {
-    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.36 : 0.24);   // 반폭 — 불 한 덩이(폭 0.69W → ±0.35W) · 플라즈마 고리(±0.24W · 2026-10-21 fireBlob9 · plasmaWisp9)
+    const hw09 = W9 * WOUND_GROW9 * (race9 === "terran" ? 0.27 : 0.24);   // 반폭 — 불 한 덩이(폭 0.48W + 배 · 끝 흔들림 → ±0.26W) · 플라즈마 고리(±0.24W · 2026-10-21 fireBlob9 · plasmaWisp9)
     const fW9 = sx9; const fD9 = sy9 / mq9;   // 발자국 가로·세로(눕히기 전 화면 px)
     const C45 = Math.SQRT1_2;
     const put9: number[] = [];
@@ -2599,15 +2605,16 @@ export function drawWound9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         for (const [o9, c9] of stops9) g9.addColorStop(o9, c9);
         return g9;
       };
+      /* 노란 톤(2026-10-21, 되요청: "불꽃 색이 좀 더 노란 톤") — 겉은 주황 노랑 → 위로 주황 → 끝만 붉게 식는다 · 가운데는 노랑 · 심은 흰 노랑. 칸을 잘게(다섯) 나눠 부드럽게. */
       const LAYERS9: [number, number, number, [number, string][]][] = [
-        [1, 1, 3, [[0, "rgba(255,84,14,0.1)"], [0.14, "rgba(255,84,14,0.75)"], [0.5, "rgba(236,52,10,0.55)"], [0.82, "rgba(170,26,6,0.22)"], [1, "rgba(120,14,4,0)"]]],
-        [0.66, 0.72, 2, [[0, "rgba(255,176,44,0.1)"], [0.16, "rgba(255,176,44,0.8)"], [0.55, "rgba(255,124,22,0.6)"], [1, "rgba(255,90,14,0)"]]],
-        [0.36, 0.42, 1, [[0, "rgba(255,248,200,0.1)"], [0.2, "rgba(255,248,200,0.85)"], [0.6, "rgba(255,214,96,0.6)"], [1, "rgba(255,170,50,0)"]]],
+        [1, 1, 2, [[0, "rgba(255,160,30,0.1)"], [0.12, "rgba(255,168,34,0.72)"], [0.42, "rgba(255,132,24,0.6)"], [0.72, "rgba(240,84,16,0.32)"], [1, "rgba(200,44,10,0)"]]],
+        [0.66, 0.74, 2, [[0, "rgba(255,214,80,0.1)"], [0.14, "rgba(255,212,76,0.82)"], [0.5, "rgba(255,180,48,0.62)"], [0.8, "rgba(255,146,30,0.25)"], [1, "rgba(255,130,24,0)"]]],
+        [0.38, 0.46, 1, [[0, "rgba(255,252,220,0.1)"], [0.18, "rgba(255,252,222,0.88)"], [0.55, "rgba(255,238,150,0.65)"], [1, "rgba(255,214,90,0)"]]],
       ];
       ctx.globalAlpha = 0.8;
       for (const [kw9, kh9, pk9, stops9] of LAYERS9) {
         ctx.fillStyle = fireGrad9(kh9, stops9);
-        fireBlob9(ctx, bx9, by9, Wf9 * 1.5 * kw9, H9 * kh9, mq9, pk9, t9, ph09 + kw9 * 2.3);
+        fireBlob9(ctx, bx9, by9, Wf9 * 1.05 * kw9, H9 * kh9, mq9, pk9, t9, ph09 + kw9 * 2.3);   // 폭 0.69W → 0.48W(되요청: "폭은 좁고")
       }
       /* 불티 — 셋이 엇갈려 튀어 오르며 작아지고 식는다(0.9초). */
       for (let k9 = 0; k9 < 3; k9 += 1) {
