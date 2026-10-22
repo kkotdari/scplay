@@ -359,8 +359,12 @@ export function useBgm(playing = true, seedKey?: string): Bgm {
     audio().pause();
   }, [audio]);
 
-  /* 이 기기가 음량을 받나 — 0.5 를 써 보고 되읽는다(iOS 는 늘 1). 판에 한 번. */
+  /* 이 기기가 음량을 받나 — 0.5 를 써 보고 되읽는다. 판에 한 번.
+     ★ iOS 는 기기로 가른다(2026-10-22, 지적: "아이폰에 슬라이더 나오는데") — 요즘 iOS 사파리는 써 넣은 0.5 를 그대로 되읽어 주면서 소리에는 안 먹인다(되읽기로는 못 가른다).
+     iPhone·iPad·iPod, 그리고 터치 되는 'Macintosh'(데스크톱 사이트로 연 iPad)는 음량을 못 받는 것으로 친다(ReplayMapVector 의 iOS 가름과 같은 자). */
   useEffect(() => {
+    const ios9 = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1);
+    if (ios9) { setVolumeOk(false); return; }
     const t9 = new Audio();
     t9.volume = 0.5;
     if (Math.abs(t9.volume - 0.5) > 0.01) setVolumeOk(false);
