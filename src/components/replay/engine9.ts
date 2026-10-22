@@ -5725,7 +5725,17 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           sd9 = d9; ship9 = c9;
         }
         // 곁에 배가 없으면 안 긋는다(벙커처럼 자취가 없는 것·자료가 없는 옛 판).
-        if (!ship9) continue;
+        if (!ship9) {
+          /* ★ 벙커 들고 남은 **소리 신호만**(2026-10-22, 요청: "벙커 들어갈 때 나올 때 수송선과 같은 소리") — 줄은 안 긋고(벙커는 자취가 없다) 붓이 안 그리는 dom "bunk"
+             (sfx9Cues 가 탑승/내림 소리로). 곁(4타일)에 그때 선 같은 임자의 벙커가 있을 때만. */
+          const bk9 = buildsSrc.some(([bs9, bx9, by9, bu9, br9, bg9]) => bu9 === "Bunker" && br9 === e9.raw && bs9 <= at9 && (!bg9 || bg9 > at9)
+            && Math.hypot(bx9 - ux9, by9 - uy9) <= 4);
+          if (bk9) {
+            const [kfx9, kfy9] = posFrac(ux9, uy9);
+            fxOps.push({ kind: "dom", style: "bunk", fx: kfx9, fy: kfy9, lift: 0, sub: inW9 ? "in" : "out", seed: e9.tag });
+          }
+          continue;
+        }
         /* ★ 두 끝은 **지금 시각으로 다시 묻는다**(지적: "승하차 점선은 고정이 아니라 유닛과
            수송선을 따라 실시간으로 움직여야 해 — 보이는 동안") ────────────────────────────
            여태 두 끝을 다 **승하차가 일어난 그 순간(at9)의 자리**로 얼려 두고 1.1초 동안
@@ -7796,6 +7806,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   });
       void r9;
     }
+    /* ★ 건물 이륙·착륙의 **소리 신호**(2026-10-22, 요청: "건물 리프트 랜딩 소리 추가") — 그림은 없다(붓이 안 그리는 dom "lift" sub up/down · sfx9Cues). 착륙 먼지(아래 dom land)는
+       품질(qBuildFx)에 매여 있어 소리 신호로 안 쓴다. 착륙 = 다른 자리에서 떠 와서 선 기록(아래 cameFrom 과 같은 셈). */
+    buildsSrc.forEach(([sec, x, y, unit, raw, , liftAt], i) => {
+      const up9 = liftAt !== undefined && t >= liftAt && t - liftAt <= 0.6;
+      const down9 = !up9 && sec > 0 && t >= sec && t - sec <= 0.6 && buildsSrc.some(([, x2, y2, u2, r2, g2, l2]) =>
+        r2 === raw && u2 === unit && l2 !== undefined && (g2 ?? 0) === sec && (x2 !== x || y2 !== y));
+      if (!up9 && !down9) return;
+      const [lfx9, lfy9] = posFrac(x + footDx(unit), y + footDy(unit));
+      fxOps.push({ kind: "dom", style: "lift", fx: lfx9, fy: lfy9, lift: 0, sub: up9 ? "up" : "down", seed: i });
+    });
     if (qBuildFx) buildsSrc.forEach(([sec, x, y, unit, raw], i) => {
       // 창은 CSS 애니 길이와 같아야 한다(아래 scr-touchdown 1.2초) — 짧으면 파문이
       // 다 퍼지기 전에 스팬이 걷혀 뚝 끊긴다.

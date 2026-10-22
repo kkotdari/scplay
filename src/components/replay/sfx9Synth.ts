@@ -205,17 +205,32 @@ function missile9(v: number): Float32Array {
   }, (t) => bp.set(500 + t * 3200)), 0.7);
 }
 
-/** 추진체 가동(이륙·착륙·공중 수송) — 낮은 우르릉이 차오르고 웅웅 떤다. */
-function thruster9(v: number): Float32Array {
+/** 건물 이륙(테란 건물 리프트 · 2026-10-22, 요청: "건물 리프트 랜딩 소리 추가") — 낮은 엔진 우르릉이 차오르며 분사음이 위로 올라간다. */
+function liftOff9(v: number): Float32Array {
   const r = rng9(801 + v); const br = brown9(r);
-  const lp = new Biquad9("lp", 500, 0.9);
-  const bp = new Biquad9("bp", 1400, 2);
+  const lp = new Biquad9("lp", 420, 0.9);
+  const bp = new Biquad9("bp", 700, 1.6);
+  return finish9(render9(1.1, (t) => {
+    const env = t < 0.45 ? t / 0.45 : Math.exp(-(t - 0.45) * 3.6);
+    const rumble = lp.run(br()) * 1.3;
+    const jet = bp.run(r() * 2 - 1) * 0.55 * (1 + 0.25 * Math.sin(2 * Math.PI * (17 + v * 3) * t));
+    const motor = Math.sin(2 * Math.PI * (70 + 60 * Math.min(1, t / 0.8)) * t) * 0.25;
+    return sat9((rumble + jet + motor) * env, 1.3);
+  }, (t) => bp.set(600 + Math.min(1, t / 0.8) * 900)), 0.4);
+}
+
+/** 건물 착륙 — 분사음이 아래로 잦아들다 마지막에 묵직한 쿵(받침이 땅에 닿음). */
+function landing9(v: number): Float32Array {
+  const r = rng9(851 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 420, 0.9);
+  const bp = new Biquad9("bp", 1300, 1.6);
   return finish9(render9(1.0, (t) => {
-    const env = t < 0.35 ? t / 0.35 : Math.exp(-(t - 0.35) * 3.2);
-    const rumble = lp.run(br()) * 1.4;
-    const jet = bp.run(r() * 2 - 1) * 0.5 * (1 + 0.3 * Math.sin(2 * Math.PI * (19 + v * 3) * t));
-    return sat9((rumble + jet) * env, 1.4);
-  }, (t) => bp.set(900 + t * 900)), 0.4);
+    const jetEnv = t < 0.1 ? t / 0.1 : t < 0.55 ? 1 : Math.exp(-(t - 0.55) * 9);
+    const jet = (bp.run(r() * 2 - 1) * 0.5 + lp.run(br()) * 0.9) * jetEnv;
+    const thudT = t - 0.55;
+    const thud = thudT < 0 ? 0 : Math.sin(2 * Math.PI * (62 - thudT * 40) * thudT) * Math.exp(-thudT * 9) * 1.3;
+    return sat9(jet + thud, 1.3);
+  }, (t) => bp.set(1300 - Math.min(1, t / 0.55) * 800)), 0.42);
 }
 
 /** 광자포 — 뿅 하고 아래로 꺾이는 빛 + 반짝 잔향. */
@@ -249,21 +264,21 @@ function mine9(v: number): Float32Array {
   }, (t) => bp.set(420 + 80 * Math.sin(2 * Math.PI * 2.5 * t) + v * 40)), 0.2);
 }
 
-/** SCV 채집 — 낮은 기계 절단음(지이잉 두 번 · 2026-10-22, 요청: "자원 채집이 프로브랑 SCV 는 소리가 달라야"). 38Hz 펄스열(절단기의 떨림)을 600Hz 아래로 깎고
- *  바닥에 낮은 모터 사인 · 획마다 끝에 작은 딸깍. 채집(드론)처럼 낮고 부드럽게. */
+/** SCV 채집 — 드릴(2026-10-22, 요청: "SCV 채집 소리는 드릴 소리(높지 않게)") — 모터가 도는 낮은 톱니파(170Hz 언저리 · 돌 때 살짝 떨림)를 700Hz 아래로 깎고,
+ *  날이 돌을 갈 때의 거친 떨림(45Hz 로 여닫는 잡음)을 얹어 두 번 드르륵. */
 function mineScv9(v: number): Float32Array {
   const r = rng9(2501 + v);
-  const lp = new Biquad9("lp", 600, 0.8);
-  const f = 38 + v * 4;
+  const lp = new Biquad9("lp", 700, 0.8);
+  const bp = new Biquad9("bp", 520, 1.2);
+  const f = 165 + v * 12;
   let ph = 0;
-  return finish9(render9(0.42, (t) => {
-    const q = t % 0.21;
-    const stroke = Math.sin(Math.PI * Math.min(1, q / 0.18)) ** 1.5 * (q < 0.18 ? 1 : 0);
-    ph += f / SFX_RATE9;
-    const buzz = lp.run(((ph % 1) < 0.18 ? 1 : -0.2) + (r() * 2 - 1) * 0.35) * stroke;
-    const motor = Math.sin(2 * Math.PI * (92 + v * 6) * t) * stroke * 0.5;
-    const tick = q > 0.18 ? Math.sin(2 * Math.PI * 320 * (q - 0.18)) * exp9(q - 0.18, 90) * 0.4 : 0;
-    return (buzz * 0.8 + motor + tick) * ad9(t, 0.02, 2.5);
+  return finish9(render9(0.46, (t) => {
+    const q = t % 0.23;
+    const on = q < 0.19 ? Math.sin(Math.PI * q / 0.19) ** 0.6 : 0;
+    ph += (f * (1 + 0.03 * Math.sin(2 * Math.PI * 11 * t))) / SFX_RATE9;
+    const saw = lp.run((ph % 1) * 2 - 1) * 0.7;
+    const grind = bp.run(r() * 2 - 1) * (0.55 + 0.45 * Math.sin(2 * Math.PI * 45 * t)) * 0.9;
+    return (saw + grind) * on * ad9(t, 0.02, 2.2);
   }), 0.2);
 }
 
@@ -304,17 +319,23 @@ function puff9(v: number): Float32Array {
   }, (t) => lp.set(2800 * exp9(t, 7) + 300)), 0.5);
 }
 
-/** 글레이브(뮤탈리스크) — 휘이잉 도는 쇠 고리 · 위아래로 떠는 음. */
+/** 글레이브(뮤탈) — 타닥타닥 튀는 칼날 소리(2026-10-22, 요청: "글레이브 소리 타닥타닥 · 칼 소리 같은"). 옛 판은 웅웅 떠는 쇳소리 한 줄기였다.
+ *  날이 몸에 차례로 튀듯 짧은 쇠 '탁'이 넷(0 · 60 · 115 · 165ms, 뒤로 갈수록 작게) — 탁마다 짧은 잡음 딸깍 + 쇠 울림 둘(낮게 · 빨리 사그라짐). */
 function glaive9(v: number): Float32Array {
   const r = rng9(1301 + v);
-  let ph = 0;
-  const bp = new Biquad9("bp", 2000, 4);
-  return finish9(render9(0.42, (t) => {
-    const f = (900 + v * 80) * (1 + 0.18 * Math.sin(2 * Math.PI * 16 * t)) * (1 - t * 0.5);
-    ph += f / SFX_RATE9;
-    const ringT = Math.sin(2 * Math.PI * ph) * 0.6 + Math.sin(2 * Math.PI * ph * 2.76) * 0.25;
-    const air = bp.run(r() * 2 - 1) * 0.6 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 16 * t));
-    return (ringT + air) * ad9(t, 0.02, 7);
+  const bp = new Biquad9("bp", 2200 + v * 150, 3);
+  const hits = [0, 0.06, 0.115, 0.165];
+  const f1 = 1350 + v * 90; const f2 = f1 * 1.47;
+  return finish9(render9(0.32, (t) => {
+    let s = 0; let n = 0;
+    hits.forEach((h, k) => {
+      const u = t - h;
+      if (u < 0) return;
+      const g = 1 - k * 0.18;
+      n += Math.exp(-u * 90) * g;
+      s += (Math.sin(2 * Math.PI * f1 * u) * 0.5 + Math.sin(2 * Math.PI * f2 * u) * 0.25) * Math.exp(-u * 45) * g;
+    });
+    return bp.run(r() * 2 - 1) * n * 1.2 + s;
   }), 0.45);
 }
 
@@ -361,27 +382,32 @@ function burrow9(v: number, down: boolean): Float32Array {
   }, (t) => lp.set(down ? 1800 - t * 2600 : 500 + t * 2600)), 0.5);
 }
 
-/** 신비한 소리(플토 소환·차원 관문) — 어긋난 사인 화음이 올라가며 반짝이고 잔향이 남는다. */
+/** 소환 시작(소환구가 나타남) — 환상적인 겹화음(2026-10-22, 요청: "소환구 소리 좀 더 환상적으로 아름답게") — 레·라·레·미·라(add9) 다섯 음을 아래부터 차례로 부드럽게 열고,
+ *  음마다 세 겹(±0.35% 어긋남 · 합창)으로 반짝이게 하고, 높은 별빛 방울을 흩뿌린 뒤 긴 메아리 둘로 공간을 연다. */
 function warp9(v: number): Float32Array {
   const r = rng9(1701 + v);
-  const notes = [[392, 587, 784, 1175], [440, 659, 880, 1319], [349, 523, 698, 1047]][v % 3];
-  const ph = notes.map(() => 0);
-  const raw = render9(1.3, (t) => {
+  const base = [293.66, 440, 587.33, 659.25, 880].map((f) => f * [1, 1.122, 0.891][v % 3]);
+  const det = [1, 1.0035, 0.9965];
+  const ph = base.map(() => det.map(() => 0));
+  const twinkles = Array.from({ length: 9 }, (_, k) => ({ at: 0.15 + k * 0.11 + r() * 0.05, f: 1760 * (1 + Math.floor(r() * 4) * 0.25) }));
+  const raw = render9(1.5, (t) => {
     let s = 0;
-    notes.forEach((f, k) => {
-      const fk = f * (1 + t * 0.12) * (1 + 0.004 * Math.sin(2 * Math.PI * (5 + k) * t));
-      ph[k] += fk / SFX_RATE9;
-      const on = Math.max(0, Math.min(1, (t - k * 0.09) / 0.12));
-      s += Math.sin(2 * Math.PI * ph[k]) * on * (0.6 - k * 0.1);
+    base.forEach((f, k) => {
+      const on = Math.max(0, Math.min(1, (t - k * 0.08) / 0.35));
+      det.forEach((d, j) => {
+        ph[k][j] += (f * d * (1 + 0.002 * Math.sin(2 * Math.PI * 5.5 * t))) / SFX_RATE9;
+        s += Math.sin(2 * Math.PI * ph[k][j]) * on * (0.32 - k * 0.04);
+      });
     });
-    const shimmer = (r() * 2 - 1) * 0.05 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 9 * t));
-    return (s + shimmer) * ad9(t, 0.25, 2.2);
+    let tw = 0;
+    for (const w of twinkles) { const u = t - w.at; if (u >= 0) tw += Math.sin(2 * Math.PI * w.f * u) * Math.exp(-u * 14) * 0.18; }
+    return s * ad9(t, 0.3, 1.6) + tw;
   });
-  return finish9(echo9(raw, 0.11, 0.45), 0.45);
+  return finish9(echo9(echo9(raw, 0.13, 0.42), 0.31, 0.3), 0.42);
 }
 
 /* ★ 소환구 소리 셋으로 가름(2026-10-22, 요청: "소환구 소환 처음·끝에 나는 소리와 중간에 웅웅 나는 소리 구분") — 처음 = warp(위 · 구가 나타남) ·
-   가운데 = warpHum(구가 떠 있는 동안 되풀이 · 낮은 웅웅) · 끝 = warpEnd(물마루가 흐르며 건물이 드러남 · 맑게 내려앉는 종소리). */
+   가운데 = warpHum(구가 떠 있는 동안 되풀이 · 낮은 웅웅) · 끝 = warpEnd(물마루가 흐르며 건물이 드러남 · 같은 날 "더 환상적으로 · 특히 완성" → 위로 굴러 오르는 종 칠화음 · 아래 warpEnd9). */
 /** 소환구 웅웅 — 낮은 두 사인이 살짝 어긋나 맥놀이(웅–웅) + 한 옥타브 위 옅게. 1.6초 · 앞뒤를 부드럽게 접어 되풀이가 이어진다. */
 function warpHum9(v: number): Float32Array {
   const f = 98 + v * 7;
@@ -393,21 +419,28 @@ function warpHum9(v: number): Float32Array {
   }), 0.4);
 }
 
-/** 소환 끝 — 위에서 내려앉는 맑은 종 셋 + 짧게 차오르는 쉬익. */
+/** 소환 끝(물마루가 흐르며 건물이 드러남) — 가장 아름답게(2026-10-22, 요청: "특히 완성") — 맑은 종이 라장조 칠화음으로 위로 굴러 오르고(라·도#·미·솔#·라·도#),
+ *  그 아래 같은 화음이 부풀었다 사라지며, 맨 끝에 높은 별빛 하나. 종 = 사인 셋(1 · 2.01 · 3.98배 · 위로 갈수록 빨리 사그라짐). 메아리 둘(짧게 · 길게)로 여운. */
 function warpEnd9(v: number): Float32Array {
-  const r = rng9(2301 + v);
-  const hp = new Biquad9("hp", 3000, 0.7);
-  const notes = [[1568, 1175, 784], [1760, 1319, 880], [1397, 1047, 698]][v % 3];
-  const raw = render9(0.9, (t) => {
+  const shift = [1, 1.0595, 0.9439][v % 3];
+  const arp = [880, 1108.73, 1318.51, 1661.22, 1760, 2217.46].map((f) => f * shift);
+  const pad = [220, 277.18, 329.63, 415.3].map((f) => f * shift);
+  const raw = render9(1.6, (t) => {
     let s = 0;
-    notes.forEach((f, k) => {
-      const t0 = k * 0.08;
-      if (t >= t0) s += Math.sin(2 * Math.PI * f * (t - t0)) * exp9(t - t0, 7 + k) * (0.55 - k * 0.1);
+    arp.forEach((f, k) => {
+      const u = t - k * 0.075;
+      if (u < 0) return;
+      const g = 0.42 - k * 0.03;
+      s += (Math.sin(2 * Math.PI * f * u) + Math.sin(2 * Math.PI * f * 2.01 * u) * 0.3 * Math.exp(-u * 6) + Math.sin(2 * Math.PI * f * 3.98 * u) * 0.12 * Math.exp(-u * 12))
+        * Math.exp(-u * 3.2) * g;
     });
-    const swoosh = hp.run(r() * 2 - 1) * (t < 0.12 ? t / 0.12 : exp9(t - 0.12, 30)) * 0.25;
-    return s + swoosh;
+    const swell = t < 0.5 ? t / 0.5 : Math.exp(-(t - 0.5) * 2.6);
+    for (const f of pad) s += Math.sin(2 * Math.PI * f * t) * 0.09 * swell;
+    const star = t - 0.5;
+    if (star >= 0) s += Math.sin(2 * Math.PI * 3520 * shift * star) * Math.exp(-star * 7) * 0.12;
+    return s;
   });
-  return finish9(echo9(raw, 0.09, 0.35), 0.42);
+  return finish9(echo9(echo9(raw, 0.11, 0.38), 0.27, 0.32), 0.44);
 }
 
 /** 저그 공사 고치 — 심장 소리(쿵–쿵 · 2026-10-22, 요청: "공사고치 소리는 약간 심장 소리 비슷하게"). 낮은 사인 두 번(둘째가 작고 조금 높다)에 살 같은 둔탁함. */
@@ -488,14 +521,14 @@ function spine9(v: number): Float32Array {
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
-  | "thruster" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
+  | "liftOff" | "landing" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
   gun: [3, gun9], cannon: [2, cannon9], boom: [3, (v) => boom9(v, false)], boomBig: [2, (v) => boom9(v, true)],
   bioBoom: [2, bioBoom9], squeal: [3, squeal9], screamM: [3, (v) => scream9(v, false)], screamF: [2, (v) => scream9(v, true)],
-  zap: [3, zap9], missile: [2, missile9], thruster: [2, thruster9], photon: [2, photon9], mine: [3, mine9],
+  zap: [3, zap9], missile: [2, missile9], liftOff: [2, liftOff9], landing: [2, landing9], photon: [2, photon9], mine: [3, mine9],
   thunder: [2, thunder9], puff: [2, puff9], glaive: [2, glaive9], weld: [2, weld9],
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],

@@ -5,7 +5,7 @@ import type { FxOp, UnitDrawOp } from "./engine9";
 /* ★ 효과음 신호(2026-10-22, 요청: "재생기에 소리 효과") — 엔진은 '이 장에 막 일어난 일'을 따로 내지 않는다(시각 t 의 순수 함수 · 효과는 나이
    창으로 산다). 그래서 붓이 칠하는 장마다 **효과 op 의 열쇠를 앞 장과 견주어 새로 나타난 것**에 소리를 붙인다:
      · 죽음(burst · seed = 개체 태그 / 건물 줄) · 피격(hit·shield · seed = 맞은 몸 — 때린 무기 style 로 소리를 고른다)
-     · 마법(dom storm·nuke·cast·swarm) · 착륙(dom land) · 거미 지뢰(dom mine) · 럴커 땅 파기(dom dig) · 탑승/내림(tether sub in/out)
+     · 마법(dom storm·nuke·cast·swarm) · 건물 이륙·착륙(dom lift up/down) · 벙커 들고 남(dom bunk in/out) · 거미 지뢰(dom mine) · 럴커 땅 파기(dom dig) · 탑승/내림(tether sub in/out)
      · 발사체 쏨(shot · u 가 막 시작) · 소환(소환구 op 가 생김) · 버로우(pickState '땅속' 이 바뀜)
      · 이어지는 소리 — 용접(dom weld)·채집(유닛 op gath)·소환구 웅웅(warpin)·저그 공사 고치 심장(cocoon*)은 보이는 동안 간격을 두고 되풀이한다.
      · 소환구 끝(warpK 가 생김 — 물마루가 흐르며 건물이 드러남) → warpEnd.
@@ -119,7 +119,8 @@ export class SfxCues9 {
           else if (st === "nuke") play("boomBig", op.fx, op.fy);
           else if (st === "swarm") play("puff", op.fx, op.fy);
           else if (st === "cast") play(CAST9[op.sub ?? ""], op.fx, op.fy);
-          else if (st === "land") play("thruster", op.fx, op.fy);
+          else if (st === "lift") play(op.sub === "up" ? "liftOff" : "landing", op.fx, op.fy);   // 건물 이륙·착륙(엔진의 소리 신호 · 2026-10-22)
+          else if (st === "bunk") play(op.sub === "out" ? "unload" : "load", op.fx, op.fy);   // 벙커 들고 남 = 수송선과 같은 소리(2026-10-22)
           else if (st === "mine") play("boom", op.fx, op.fy);
           else if (st === "dig") play("burrow", op.fx, op.fy);
           break;
