@@ -38661,7 +38661,7 @@ function YG({
       " · UI ",
       Ys.ui,
       " · 판 ",
-      "10-22 09:07",
+      "10-22 10:22",
       Ys.ss !== 1 ? ` · 초해상 ×${Ys.ss.toFixed(2)}` : "",
       Math.abs(Ys.unitScale - Ys.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ys.unitScale.toFixed(4)})` : Ys.scale > 0 && Math.abs(Ys.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ys.scale.toFixed(4)})` : "",
       Ys.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -40822,7 +40822,9 @@ async function p8(t, s) {
     event: !0,
     ...s.chats ? { chats: s.chats } : {},
     bank: n.res,
-    moves: i
+    moves: i,
+    tracks: n.tracks
+    // 정찰은 몸이 상대 기지에 들어선 때(재생기와 같은 자 · 2026-10-22)
   }), r = new Set(s.skip ?? []), c = s.only.filter((A) => !r.has(A)).map((A) => ({ key: A, name: A }));
   return oO({ world: o, plan: C, focus: V9(o, i), bases: c }).rows;
 }
