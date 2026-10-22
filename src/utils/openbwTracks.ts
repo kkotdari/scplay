@@ -50,6 +50,9 @@
  *   처치       u32 개수, 개마다 varint(프레임차) · u8 킬러임자 · u32 킬러태그(0 = 몸 없음) · u32 죽은태그 ← 판 11부터
  *              원작이 처치를 올려 주는 그 순간(kill_count·점수) — 어림이 아니다.
  *              단 4=750↑ · 3=500~749 · 2=250~499 · 1=1~249 · 0=바닥남(원작 경계 그대로)
+ *   데미지     u32 수 · u16 통프레임, 줄마다 varint(통차) · u8 임자 · varint 넷   ← 판 13부터
+ *   채집       u32 개수, 개마다 u8 사람 · varint(그 사람 앞 줄과의 프레임차) · varint(캔 미네랄차) · varint(캔 가스차)   ← 판 14부터
+ *              원작 누적(total_minerals_gathered · total_gas_gathered) — 바뀔 때만 한 줄(자원 절과 같은 꼴).
  *
  * 왜 이렇게까지 접나 — 글자(TSV)로 내면 26분짜리 8인전이 39MB다. 폰으로 보내는 짐이라
  * 이 꼴로 접어 0.8~3.8MB로 만든다.
@@ -244,6 +247,9 @@ export type TruthTracks = {
   dmg: [number, number, number, number, number, number][];
   /** 데미지 통의 길이(초) — 판 13 아래는 0. */
   dmgBucketSec: number;
+  /** 캔 자원 누적 [초, 임자, 캔 미네랄, 캔 가스] — 원작 total_minerals_gathered · total_gas_gathered 가 바뀐 순간 · **판 14부터**
+   *  (2026-10-22, 데이터 창 "자원 누적" — 서버 곡선이 쓴다 · 재생기 화면은 아직 안 쓴다). 옛 판은 빈 배열. */
+  gath: [number, number, number, number][];
 };
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
@@ -428,7 +434,8 @@ class Cursor {
 export const TRUTH_VER_MIN9 = 11;
 /* 판 12 = 판 11 + 선택 줄마다 u8 갈래(아래 SEL_KIND9) — 덤퍼가 갈리고 재분석이 돌기까지 판 11 도 그대로 읽는다(갈래 −1). */
 /* 판 13 = 판 12 + 맨 뒤 **데미지 절**(통마다 임자별 준·입은 데미지 · 아래 dmg) — 옛 판은 빈 표다(2026-10). */
-export const TRUTH_VER_MAX9 = 13;
+/* 판 14 = 판 13 + 맨 뒤 **채집 절**(사람마다 캔 자원 누적 · 아래 gath) — 옛 판은 빈 표다(2026-10-22). */
+export const TRUTH_VER_MAX9 = 14;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
   /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
@@ -483,6 +490,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasInfo = version >= 11;
     /** 데미지 절(판 13) — 네 절 뒤, 맨 뒤다. */
     const hasDmg = version >= 13;
+    /** 채집 절(판 14) — 데미지 절 뒤, 맨 뒤다. */
+    const hasGath = version >= 14;
     /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
        늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
        옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
@@ -813,7 +822,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
-    /* 판 13 — 데미지 절(맨 뒤): 수 · 통 프레임 · 줄마다 통 차 · 임자 · 네 몫. */
+    /* 판 13 — 데미지 절: 수 · 통 프레임 · 줄마다 통 차 · 임자 · 네 몫. */
     const dmg: [number, number, number, number, number, number][] = [];
     let dmgBucketSec = 0;
     if (hasDmg) {
@@ -832,10 +841,24 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 판 14 — 채집 절(맨 뒤): 자원 절과 같은 꼴(사람마다 앞 줄과의 차) · 값은 누적. */
+    const gath: [number, number, number, number][] = [];
+    if (hasGath) {
+      const prev = new Map<number, [number, number, number]>();
+      const cnt = c.u32();
+      for (let i = 0; i < cnt; i += 1) {
+        const who = c.u8();
+        const p = prev.get(who) ?? [0, 0, 0];
+        const row: [number, number, number] = [p[0] + c.varint(), p[1] + c.varint(), p[2] + c.varint()];
+        prev.set(who, row);
+        gath.push([row[0] / fps, who, row[1], row[2]]);
+      }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
-      energy, loads, amounts, kills, dmg, dmgBucketSec };
+      energy, loads, amounts, kills, dmg, dmgBucketSec, gath };
   } catch {
     return null;
   }

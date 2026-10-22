@@ -350,3 +350,11 @@ landed9) ㉡ 내려앉는 이음 빠짐(landsAt9). 둘 다 `(!g2 || g2 − s2 >=
 - `leaveAt9` 에 `entData.players[].left`(새 덤프의 나간 초)를 더했다 — 그 사람의 [left − 0.1, left + 0.6] 죽음은 유닛·건물 모두 폭발 없이 걷힌다.
 🔎 참값 뭉치(브라우저 콘솔로 받은 unit-tracks JSON)를 esbuild 로 묶은 분석 스크립트에 먹여 `truthWorld(...).players[].left` 와 그 초의 죽음 목록을 맞댄다
   (이 판: left 834.10 · 죽음 아홉 834.1). 하네스 `perf-check ... --players 4 --castoff --leave 40 --t 41`.
+
+## 판 14 — 채집 절(2026-10-22)
+★ (요청: 데이터 창 "자원 누적 · 순간" → "2번으로 진행" — 쥔 양 계단에서 어림하지 말고 덤퍼가 원작 값을 적게) — **판 14 = 판 13 + 맨 뒤 채집 절**:
+u32 개수 · 줄마다 u8 사람 · varint(그 사람 앞 줄과의 프레임차) · varint(캔 미네랄차) · varint(캔 가스차) — 자원 절과 같은 꼴이고 값은 원작 누적
+(`total_minerals_gathered` · `total_gas_gathered` · 일꾼이 내려놓을 때 오른다). 바뀔 때만 한 줄 · 글자 갈래 `#gath\t프레임\t사람\t미네랄\t가스`.
+- 해독기 `gath: [초, 임자, 캔 미네랄, 캔 가스][]`(옛 판은 빈 배열) · `TRUTH_VER_MAX9` 14. 재생기 화면은 아직 안 쓴다 — 서버 곡선(sg-api series.py rs.cm·cg)이 쓴다.
+- ⚠ 배포 차례: **scplay(판 14 를 읽는 해독기) → sg-api(판 14 를 굽는 덤퍼)**. 거꾸로면 그 사이 재분석한 판이 옛 재생기에서 "판 14 를 물리쳤다"가 된다.
+- 🔎 `node scripts/openbw-tracks-check.mjs`(지은 판 11~14 · 판 15 물리침) · 덤퍼 대조는 `--rep <x.rep>`.
