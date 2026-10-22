@@ -580,7 +580,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onScrap, scrapLabel, onShare, shareLabel, onGuide, guide, side, menu, avatars, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, onGuide, guide, side, menu, avatars, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -618,16 +618,8 @@ export declare interface ReplayModuleProps {
     onDetailClose?: () => void;
     /** 진행바 아래 슬롯 — 공유처럼 **앱의 것**을 여기 꽂는다. */
     shareNode?: ReactNode;
-    /** ★ 장면 스크랩 — 함수를 주면 재생기가 **버튼째** 그린다(요청: "버튼은 css까지 먹여서
-     *  네가 만들어서 기본값 제공해 줘야지, 갖다 쓰는 쪽은 사용 여부 판단하고 기능만 붙이는
-     *  거고"). 앱은 담는 일만 하면 된다 — 꼴·자리·단축키(Z)·완료 표시는 모듈의 몫이다.
-     *  안 주면 버튼을 안 그린다(그것이 곧 '사용 여부 판단'이다).
-     *  참을 돌려주면(또는 참으로 풀리는 약속이면) 잠깐 "담았어요"로 바뀐다. */
-    onScrap?: () => string | boolean | void | Promise<string | boolean | void>;
-    /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
-    scrapLabel?: string;
-    /** ★ 장면 공유 — 스크랩과 **같은 규약**이다(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서
-     *  쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 주면 버튼이 서고(단축키 X),
+    /** ★ 장면 공유(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해" ·
+     *  스크랩은 2026-10-22 걷었다). 주면 버튼이 서고(단축키 X),
      *  안 주면 안 선다. 공유하는 일(카카오·공유 시트·링크 복사)만 앱이 붙인다.
      *  글을 돌려주면 그 글이, 참이면 "링크 복사됨"이 잠깐 뜬다. */
     onShare?: () => string | boolean | void | Promise<string | boolean | void>;
