@@ -43,37 +43,46 @@ if (!Number.isFinite(volume9)) volume9 = 0.6;
 const subs9 = new Set<() => void>();
 const emit9 = (): void => subs9.forEach((f) => f());
 
-/** 종류 하나의 갈래를 굽는다(처음 부를 때 · 한 종류 10~30ms). */
-function bankOf9(kind: SfxKind9): { urls: string[]; dur: number } {
-  const hit = bank9.get(kind);
-  if (hit) return hit;
+const urlOf9 = (bytes: BlobPart): string => URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+
+/** 종류 하나의 갈래를 메인에서 굽는다 — 일꾼을 못 띄울 때(도구 번들)만. */
+function bakeHere9(kind: SfxKind9): void {
   const [n, make] = SFX_RECIPES9[kind];
   let dur = 0;
   const urls: string[] = [];
   for (let v = 0; v < n; v += 1) {
     const pcm = make(v);
     dur = Math.max(dur, pcm.length / SFX_RATE9);
-    urls.push(URL.createObjectURL(new Blob([wavBytes9(pcm)], { type: "audio/wav" })));
+    urls.push(urlOf9(wavBytes9(pcm) as BlobPart));
   }
-  const b = { urls, dur };
-  bank9.set(kind, b);
-  return b;
+  bank9.set(kind, { urls, dur });
 }
 
-/** 쉴 때 미리 굽는다 — 첫 폭발에서 굽느라 한 장이 늦지 않게. */
+/** 미리 굽는다 — **굽기 일꾼**(sfx9Worker)에서(2026-10-22, 지적: "소리 추가 후 좀 버벅임"). 옛 판은 메인이 쉴 틈마다 한 종류씩(폰에선 한 번에 100ms 넘게)
+ *  구웠고, 아직 안 구운 종류가 울리면 그 장에서 바로 구웠다 — 둘 다 재생 중 멈칫이었다. 이제 구워지기 전의 종류는 **안 난다**(playSfx9).
+ *  일꾼 모듈이 없는 도구 번들(esbuild — `?worker&inline` 을 모른다)만 옛 길(쉴 틈마다 메인에서). */
+let baking9 = false;
 export function prebakeSfx9(): void {
-  const kinds = Object.keys(SFX_RECIPES9) as SfxKind9[];
-  const idle = (cb: () => void): void => {
+  if (baking9 || typeof window === "undefined") return;
+  baking9 = true;
+  const idleHere9 = (): void => {
+    const kinds = (Object.keys(SFX_RECIPES9) as SfxKind9[]).filter((k) => !bank9.has(k));
     const w = window as Window & { requestIdleCallback?: (f: () => void) => void };
-    if (w.requestIdleCallback) w.requestIdleCallback(cb); else window.setTimeout(cb, 30);
-  };
-  const step = (): void => {
-    const k = kinds.shift();
-    if (!k) return;
-    bankOf9(k);
+    const idle = (cb: () => void): void => { if (w.requestIdleCallback) w.requestIdleCallback(cb); else window.setTimeout(cb, 30); };
+    const step = (): void => { const k = kinds.shift(); if (!k) return; bakeHere9(k); idle(step); };
     idle(step);
   };
-  idle(step);
+  void import("./sfx9Worker?worker&inline").then((mod) => {
+    const Ctor = (mod as { default?: unknown }).default;
+    if (typeof Ctor !== "function") { idleHere9(); return; }
+    const wk = new (Ctor as new () => Worker)();
+    wk.onmessage = (e: MessageEvent): void => {
+      const m = e.data as { kind?: SfxKind9; wavs?: ArrayBuffer[]; dur?: number; done?: boolean };
+      if (m.done) { wk.terminate(); return; }
+      if (m.kind && m.wavs) bank9.set(m.kind, { urls: m.wavs.map((b) => urlOf9(b)), dur: m.dur ?? 0 });
+    };
+    wk.onerror = (): void => { wk.terminate(); idleHere9(); };
+  }).catch(idleHere9);
 }
 
 function pool9(): Voice9[] {
@@ -92,7 +101,7 @@ let unlocked9 = false;
 export function unlockSfx9(): void {
   if (unlocked9 || !enabled9) return;
   unlocked9 = true;
-  const silent = URL.createObjectURL(new Blob([wavBytes9(new Float32Array(220))], { type: "audio/wav" }));
+  const silent = urlOf9(wavBytes9(new Float32Array(220)) as BlobPart);
   for (const v of pool9()) {
     v.el.src = silent;
     v.el.muted = true;
@@ -114,6 +123,8 @@ if (typeof window !== "undefined") (window as unknown as { __sfx9?: typeof SFX_S
 /** 한 소리를 낸다 — 조건(켜짐·동시 수·간격·자리)을 못 넘으면 조용히 버린다. */
 export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
   if (!enabled9 || typeof window === "undefined") return;
+  const b = bank9.get(kind);
+  if (!b) return;   // 아직 안 구워졌다(굽기 일꾼) — 이 장에서 굽지 않는다
   const speed = Math.max(1, opt.speed ?? 1);
   const prio = PRIO9[kind];
   if (speed >= 4 && prio < 5) return;
@@ -132,7 +143,6 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
     slot = weakest;
   }
   SFX_STAT9.played[kind] = (SFX_STAT9.played[kind] ?? 0) + 1;
-  const b = bankOf9(kind);
   let vi = Math.floor(Math.random() * b.urls.length);
   if (b.urls.length > 1 && prev && vi === prev.v) vi = (vi + 1) % b.urls.length;
   last9.set(kind, { at: now, v: vi });

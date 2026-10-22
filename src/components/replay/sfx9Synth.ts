@@ -228,20 +228,22 @@ function photon9(v: number): Float32Array {
   return finish9(echo9(raw, 0.06, 0.35), 0.5);
 }
 
-/** 채집(칼 가는 소리) — 쇠에 긁히는 띠 잡음이 앞뒤로 두 번 · 쇠 울림(빗살 거르개). */
+/** 채집 — 부드러운 사각임 두 번 + 아주 옅은 수정 울림.
+ *  ★ 부드럽게(2026-10-22, 요청: "자원캐는 소리 좀더 부드러운 소리로") — 옛 판은 3.2kHz 좁은 띠(Q 6) 잡음에 쇠 울림(빗살 되먹임 0.55)을 얹은
+ *  '칼 가는' 소리라 귀에 날카롭게 긁혔다. 띠를 낮추고(1.1~1.5kHz) 넓히고(Q 1.2) 위를 2.4kHz 로 깎고, 빗살 울림을 걷고, 획마다 천천히 차오르게(사인² 그대로)
+ *  하고, 수정 울림은 낮은 사인 둘(옅게 · 빨리 사그라짐)로만 남긴다. 봉우리 0.32 → 0.22. */
 function mine9(v: number): Float32Array {
   const r = rng9(1001 + v);
-  const bp = new Biquad9("bp", 3200 + v * 300, 6);
-  const d = Math.round(SFX_RATE9 / (1900 + v * 170));
-  const ring = new Float32Array(d);
-  let k = 0;
-  return finish9(render9(0.36, (t) => {
-    const stroke = Math.sin(Math.PI * Math.min(1, (t % 0.18) / 0.18)) ** 2;
-    const x = bp.run(r() * 2 - 1) * stroke;
-    const y = x + ring[k] * 0.55;
-    ring[k] = y; k = (k + 1) % d;
-    return y * ad9(t, 0.01, 4);
-  }, (t) => bp.set(3000 + 900 * Math.sin(2 * Math.PI * 2.8 * t) + v * 300)), 0.32);
+  const bp = new Biquad9("bp", 1300 + v * 120, 1.2);
+  const lp = new Biquad9("lp", 2400, 0.7);
+  const f1 = 1180 + v * 90; const f2 = f1 * 1.5;
+  return finish9(render9(0.38, (t) => {
+    const ph = t % 0.19;
+    const stroke = Math.sin(Math.PI * Math.min(1, ph / 0.19)) ** 2;
+    const hush = lp.run(bp.run(r() * 2 - 1)) * stroke;
+    const chime = (Math.sin(2 * Math.PI * f1 * t) * 0.6 + Math.sin(2 * Math.PI * f2 * t) * 0.25) * exp9(ph, 22) * 0.18;
+    return (hush + chime) * ad9(t, 0.02, 3.5);
+  }, (t) => bp.set(1300 + 200 * Math.sin(2 * Math.PI * 2.6 * t) + v * 120)), 0.22);
 }
 
 /** 천둥(사이오닉 스톰) — 찢어지는 딱 + 긴 우르릉 + 지직. */

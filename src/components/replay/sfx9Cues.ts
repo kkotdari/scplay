@@ -6,7 +6,7 @@ import type { FxOp, UnitDrawOp } from "./engine9";
    창으로 산다). 그래서 붓이 칠하는 장마다 **효과 op 의 열쇠를 앞 장과 견주어 새로 나타난 것**에 소리를 붙인다:
      · 죽음(burst · seed = 개체 태그 / 건물 줄) · 피격(hit·shield · seed = 맞은 몸 — 때린 무기 style 로 소리를 고른다)
      · 마법(dom storm·nuke·cast·swarm) · 착륙(dom land) · 거미 지뢰(dom mine) · 럴커 땅 파기(dom dig) · 탑승/내림(tether sub in/out)
-     · 발사체 쏨(shot · u 가 막 시작) · 소환(유닛 op 의 warpK 가 생김) · 버로우(pickState '땅속' 이 바뀜)
+     · 발사체 쏨(shot · u 가 막 시작) · 소환(소환구 op 가 생김) · 버로우(pickState '땅속' 이 바뀜)
      · 이어지는 소리 — 용접(dom weld)·채집(유닛 op gath)은 보이는 동안 간격을 두고 되풀이한다.
    **보이는 것만** 낸다(화면 창 visRect9 안 · 지도가 다 보이면 다). 재생 중이 아니거나(멈춤·끌기) 시각이 크게 뛰면(되감기·탐색) 소리 없이 열쇠만
    새로 적는다 — 탐색한 자리의 효과가 한꺼번에 울리지 않게. 몇 개를 낼지는 sfx9 의 묶음이 거른다(동시 수·간격·급한 차례). */
@@ -112,9 +112,12 @@ export class SfxCues9 {
     }
 
     for (const u of fr.unitOps) {
+      /* 신비한 소리는 **소환구가 나타날 때**(2026-10-22, 요청: "신비로운 소리 소환구에서 나야") — 옛 판은 완공 물마루(warpK)에 냈다. 열쇠는 보이든 말든
+         적는다 — 짓는 동안 내내 서 있는 구라, 화면을 옮겨 들어올 때마다 울리면 안 된다. */
+      const orb = u.kind === "warpin" && u.pickKey ? fresh(`w${u.pickKey}`) : false;
       if (!inView(u.fx, u.fy)) continue;
       if (u.gath) { mine = true; mx = u.fx; my = u.fy; }
-      if (u.warpK !== undefined && u.pickKey && fresh(`w${u.pickKey}`)) play("warp", u.fx, u.fy);
+      if (orb) play("warp", u.fx, u.fy);
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");
         const was = this.buried.get(u.pickKey);
