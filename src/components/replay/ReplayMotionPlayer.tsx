@@ -19940,7 +19940,12 @@ export default function ReplayMotionPlayer({
          빈 칸(1)으로 메운다. 아이콘은 늘 한 칸 크기다. */
       const pax9 = cargoAt9(tag9, t).map((p) => lifeAt9(p, t)).filter((l) => !!l) as NonNullable<ReturnType<typeof lifeAt9>>[];
       const used9 = pax9.reduce((a9, l9) => a9 + Math.min(cg9[1], CARGO_SPACE9[l9.kind] ?? 1), 0);
+      /* 보급 줄은 짐칸 아래로 옮긴다(2026-10-22, 지적: "잘림 발생 왜 그러지" — 오버로드) — 짐칸이 셋째 기둥을 먹으면 글 기둥이 칸 하나 폭이라
+         한 줄(nowrap) 보급이 옆으로 잘렸다. 짐칸 아래는 비어 있고 폭도 짐칸만큼이다. */
+      const supAt9 = foot9.findIndex((n9) => (n9 as React.ReactElement | null)?.key === "sup");
+      const sup9 = supAt9 >= 0 ? foot9.splice(supAt9, 1)[0] : null;
       side9 = (
+        <div className="scr-motion-infodock-cargowrap">
         <div className="scr-motion-infodock-cargo" style={{ gridTemplateColumns: `repeat(${cg9[1]}, var(--dock-slot))` }}>
           {pax9.map((l9, k) => {
             /* 원작처럼 칸의 꼴로 공간을 말한다(요청: "4칸짜리는 가로세로 2*2 · 2칸짜리는 1*2") — 4 = 2×2 · 2 = 가로 1 × 세로 2. */
@@ -19955,6 +19960,8 @@ export default function ReplayMotionPlayer({
             );
           })}
           {Array.from({ length: Math.max(0, cg9[0] - used9) }, (_, k) => <span key={`e${k}`} className="scr-motion-infodock-slot" />)}
+        </div>
+        {sup9}
         </div>
       );
     }

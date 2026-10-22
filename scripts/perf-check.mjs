@@ -418,6 +418,14 @@ function makeWorld() {
     track(1, Z.Egg, () => [20, 100, 0], { bornSec: 50 - 28, dieSec: 50 });   // 28 = UNIT_BUILD_SEC.Zergling(unitStats)
     track(1, Z.Zergling, () => [20.5, 100.5, 0], { bornSec: 50 });
     if (has("--dockegg")) sels.push([F(44), 1, [eggTag]]);
+    /* 오버로드(--dockovl · 2026-10-22 · `--track Rex` 와 함께) — 공중 방어 1 · 속업 · 수송업 · 시야업을 마친 오버로드 하나를 고른다
+       (지적: "오버로드 인포창 업그레이드 칸 잘림" — 수송업이면 짐칸 격자가 서서 업그레이드 기둥이 좁아진다). */
+    if (has("--dockovl")) {
+      const ovlTag = tag;
+      track(1, Z.Ovie, () => [22, 98, 0]);
+      upRows.push([F(12), 4, 1, 1, 0], [F(14), 26, 1, 1, 0], [F(16), 24, 1, 1, 0], [F(18), 25, 1, 1, 0]);
+      sels.push([F(44), 1, [ovlTag]]);
+    }
     if (has("--dockhatch") && hallTag1_9 >= 0) sels.push([F(44), 1, [hallTag1_9]]);
   }
 
@@ -2648,6 +2656,13 @@ if (SHOT) {
         row: r(".scr-fs-dockrow"), mini: r(".scr-fs-minipanel .scr-fs-minimap"), dock: r(".scr-motion-infodock"), stage: r(".scr-fs-stage"), map: r(".scr-motion-map"), lower: r(".scr-fs-lower") };
     })));
   }
+  /* --colprobe(2026-10-22, 지적: "오버로드 인포창 업그레이드 칸 잘림") — 하나 고른 인포창의 세 기둥 폭 · 업그레이드 칸 자리 · 몸 바닥. */
+  if (has("--colprobe")) console.log("[인포창 기둥]", await page.evaluate(() => {
+    const r = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; };
+    const one = document.querySelector(".scr-motion-infodock-one");
+    return JSON.stringify({ body: r(document.querySelector(".scr-motion-infodock-body")), cols: one ? [...one.children].map((c) => [c.className.split(" ")[0], r(c)]) : null,
+      ups: [...document.querySelectorAll(".scr-motion-infodock-upsq i")].map(r), sup: [...document.querySelectorAll(".scr-motion-infodock-supply > span")].map(r) });
+  }));
   if (has("--rosterprobe")) console.log("[로스터 끝]", await page.evaluate(() => {
     const w = (q) => { const e = document.querySelector(q); return e ? +e.getBoundingClientRect().width.toFixed(1) : null; };
     /* 인포창 넘침 자(2026-10-09, 물음: "어떤 경우에도 인포창 내용 잘림 없지?") — 몸(.scr-motion-infodock-body)의 scrollHeight − clientHeight 와,

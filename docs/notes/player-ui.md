@@ -2018,3 +2018,12 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   여럿 격자는 가운데라 양옆이 13 씩 넓다. 폰은 안 건드렸다(실드가 있으면 이미 체력·실드를 제 줄로 쌓는다).
 - 실측(perf-check `[UI단]` 인포창 폭): 1920·1366 둘 다 360 · 1366 도 세 판이 다 선다.
 - 🔎 `npx vite build` 먼저(perf-check 는 dist CSS 를 읽는다) → `perf-check.mjs --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --info --players 3 --track 수달이 --dockzealot --castoff --shot x.png`.
+
+## 짐칸이 선 인포창 — 업그레이드 두 칸씩 · 보급 줄은 짐칸 아래(2026-10-22)
+지적: "잘림 발생 왜 그러지"(오버로드 사진 — 방·속·수송업 아래 넷째 칸이 잘리고 보급 줄은 안 보임). 원인: 짐칸(CARGO9 오버로드 [8, 4] · 4×2)이 셋째 기둥(auto)을 먹어
+글 기둥이 칸 하나 폭(PC 1080p **59**)으로 좁아졌다 → 업그레이드 칸(32)이 한 줄에 하나씩 쌓여 처치 줄 + 32×4 + 틈이 몸 바닥 밖 17px · 한 줄(nowrap) 보급은 옆으로 잘렸다.
+· `.scr-motion-infodock-one:has(.scr-motion-infodock-cargo) .scr-motion-infodock-upsq` = 두 칸 격자 `repeat(2, minmax(0, --upq))` · 틈 3 · 칸 aspect-ratio 1 —
+  칸은 제 크기(PC 32·dks · 폰 26·dk)까지, 좁으면 (기둥 − 틈)/2(1080p 28). 벙커(2×2)처럼 기둥이 넉넉하면 제 크기.
+· 보급 줄은 짐칸이 서면 **짐칸 아래**(`.scr-motion-infodock-cargowrap` — 셋째 기둥 안 [짐칸 / 보급]) · foot9 의 key "sup" 를 빼서 옮긴다. 폭은 짐칸이 정한다(보급 width 0 · min-width 100% · 줄바꿈).
+🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --info --track Rex --dockovl --colprobe --rosterprobe --shot x.png` → `[인포창 기둥]`(세 기둥 · 업그레이드 칸 · 보급 자리) ·
+  `[로스터 끝]` 바닥 밖 0 · 옆 넘침 0. 폰 가로 `--ios --vw 844 --vh 390` 도 같다. `--dockovl` = Rex 의 오버로드(공중 방어 1 · 속업 · 수송업 · 시야업).
