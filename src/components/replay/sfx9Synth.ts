@@ -73,10 +73,13 @@ function echo9(buf: Float32Array, sec: number, fb: number): Float32Array {
 }
 
 /** 봉우리를 peak 로 맞추고 끝 4ms 를 접는다(딸깍 소리 막기). */
+/** 효과음 전체 크기 — 갈래마다의 봉우리(peak)에 곱한다. 0.5(2026-10-22, 요청: "효과음 볼륨 반으로" · 옛 1). 구울 때 곱해야 iOS 도 먹는다(<audio>.volume 을 안 받는다). */
+const SFX_LEVEL9 = 0.5;
+
 function finish9(buf: Float32Array, peak: number): Float32Array {
   let m = 0;
   for (let i = 0; i < buf.length; i += 1) m = Math.max(m, Math.abs(buf[i]));
-  const k = m > 0 ? peak / m : 0;
+  const k = m > 0 ? (peak * SFX_LEVEL9) / m : 0;
   const tail = Math.min(buf.length, Math.round(0.004 * SFX_RATE9));
   for (let i = 0; i < buf.length; i += 1) {
     const f = i >= buf.length - tail ? (buf.length - i) / tail : 1;

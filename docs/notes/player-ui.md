@@ -2084,3 +2084,6 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - **무음 스위치**: iOS 사파리의 <audio> 는 기본 'playback' 세션이라 무음 스위치를 뚫는다(useBgm 머리의 옛 주장 정정). `ambientAudio9()`(sfx9) —
   `navigator.audioSession.type = "ambient"`(사파리 16.4+) · 배경 음악 audio() · 효과음 unlock/play 마다. 남의 음악도 안 끊는다. API 없는 기기는 그대로.
 - 🔎 `$S/sfxrun/run.ts`(r823 · 835~880초: blade 25 · spine 56 · 170~260초: warp 3 · warpHum 4 · warpEnd 3 · heart 7).
+
+## 효과음 전체 크기 반(2026-10-22)
+- 요청: "효과음 볼륨 반으로". sfx9Synth `SFX_LEVEL9` 0.5 를 finish9 의 봉우리에 곱한다(옛 1) — 구울 때 줄여야 iOS(<audio>.volume 무시)도 반이 된다. 음량 손잡이(scr.sfx.vol)는 그대로.
