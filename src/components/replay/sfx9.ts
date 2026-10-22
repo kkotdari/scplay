@@ -12,21 +12,21 @@ const VOICES9 = 6;
 const PRIO9: Record<SfxKind9, number> = {
   boomBig: 9, boom: 7, bioBoom: 8, screamM: 7, screamF: 7, squeal: 7, thunder: 8, warp: 6,
   missile: 5, photon: 5, cannon: 6, glaive: 4, zap: 4, flame: 4, puff: 4, slash: 3, gun: 3, blade: 3, claw: 3, spine: 3,
-  thruster: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2, warpHum: 1, heart: 1, warpEnd: 6,
+  thruster: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2, warpHum: 1, heart: 1, warpEnd: 6, mineScv: 1, mineProbe: 1,
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
-  warpHum: 1, warpEnd: 1, heart: 1, gun: 2, slash: 2, blade: 3, claw: 3, spine: 3, zap: 2, glaive: 2, mine: 1, weld: 1, thruster: 1, thunder: 1, warp: 1,
+  warpHum: 1, warpEnd: 1, heart: 1, mineScv: 1, mineProbe: 1, gun: 2, slash: 2, blade: 3, claw: 3, spine: 3, zap: 2, glaive: 2, mine: 1, weld: 1, thruster: 1, thunder: 1, warp: 1,
   screamM: 1, screamF: 1, squeal: 2, boom: 3, boomBig: 2, bioBoom: 2, load: 1, unload: 1, burrow: 1, unburrow: 1,
 };
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
-  warpHum: 1450, warpEnd: 400, heart: 880, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
+  warpHum: 1450, warpEnd: 400, heart: 880, mineScv: 900, mineProbe: 900, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
   mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, thruster: 700, load: 250, unload: 250, burrow: 300, unburrow: 300,
 };
 /** 종류마다 크기(데스크톱만 먹는다). */
-const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, weld: 0.6, gun: 0.75, slash: 0.8 };
+const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.6, gun: 0.75, slash: 0.8 };
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";

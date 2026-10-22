@@ -25,6 +25,8 @@ const HIT9: Record<string, SfxKind9 | null> = {
 const MELEE9: Record<string, SfxKind9> = {
   Zealot: "blade", "Dark Templar": "blade", Zergling: "claw", Ultralisk: "claw", Broodling: "claw",
 };
+/** 캐는 일꾼 → 채집 소리. */
+const GATH9: Record<"SCV" | "Probe" | "Drone", SfxKind9> = { SCV: "mineScv", Probe: "mineProbe", Drone: "mine" };
 /** 발사체 → 쏠 때 나는 소리(shot op 이 막 나갈 때). */
 const LAUNCH9: Record<string, SfxKind9> = {
   missile: "missile", missileG: "missile", plasma: "photon", photon: "photon", venom: "puff", acid: "puff", spit: "puff",
@@ -68,8 +70,9 @@ export class SfxCues9 {
       playSfx9(k, opt);
     };
     const fresh = (key: string): boolean => { now.add(key); return !this.prev.has(key); };
-    let weld = false; let mine = false; let hum = false; let beat = false;
-    let wx = 0; let wy = 0; let mx = 0; let my = 0; let hx = 0; let hy = 0; let bx = 0; let by = 0;
+    let weld = false; let hum = false; let beat = false;
+    let wx = 0; let wy = 0; let hx = 0; let hy = 0; let bx = 0; let by = 0;
+    const mine = new Map<SfxKind9, [number, number]>();
 
     for (const op of fr.fxOps) {
       if (!inView(op.fx, op.fy)) continue;
@@ -132,7 +135,8 @@ export class SfxCues9 {
       /* 끝 소리는 물마루가 흐르기 시작할 때(warpK 가 생김 · 건물이 드러남) — 처음(warp)·가운데(웅웅)와 갈린다(같은 날 "처음·끝 소리와 중간 웅웅 구분"). */
       const done = u.warpK !== undefined && u.pickKey ? fresh(`e${u.pickKey}`) : false;
       if (!inView(u.fx, u.fy)) continue;
-      if (u.gath) { mine = true; mx = u.fx; my = u.fy; }
+      /* 채집은 일꾼 종류마다 따로(드론 mine · SCV mineScv · 프로브 mineProbe — 2026-10-22, 요청: "프로브랑 SCV 는 소리가 달라야"). */
+      if (u.gath) mine.set(GATH9[u.gath], [u.fx, u.fy]);
       if (orb) play("warp", u.fx, u.fy);
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
@@ -146,7 +150,7 @@ export class SfxCues9 {
     }
     /* 이어지는 소리(용접·채집·소환구 웅웅·공사 고치 심장)는 **당겨 들어가 볼 때만**(r 있음 = 지도 일부만 보임) — 지도 전체를 보면 어딘가에서 늘 캐고 지으므로 쉼 없이 갈린다. */
     if (r && weld) play("weld", wx, wy);
-    if (r && mine) play("mine", mx, my);
+    if (r) for (const [k, [x, y]] of mine) play(k, x, y);
     if (r && hum) play("warpHum", hx, hy);
     if (r && beat) play("heart", bx, by);   // 고치는 0.9초마다 부푼다(engine9 hopP9) — 간격 880ms
     this.prev = now;

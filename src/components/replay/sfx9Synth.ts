@@ -249,6 +249,38 @@ function mine9(v: number): Float32Array {
   }, (t) => bp.set(420 + 80 * Math.sin(2 * Math.PI * 2.5 * t) + v * 40)), 0.2);
 }
 
+/** SCV 채집 — 낮은 기계 절단음(지이잉 두 번 · 2026-10-22, 요청: "자원 채집이 프로브랑 SCV 는 소리가 달라야"). 38Hz 펄스열(절단기의 떨림)을 600Hz 아래로 깎고
+ *  바닥에 낮은 모터 사인 · 획마다 끝에 작은 딸깍. 채집(드론)처럼 낮고 부드럽게. */
+function mineScv9(v: number): Float32Array {
+  const r = rng9(2501 + v);
+  const lp = new Biquad9("lp", 600, 0.8);
+  const f = 38 + v * 4;
+  let ph = 0;
+  return finish9(render9(0.42, (t) => {
+    const q = t % 0.21;
+    const stroke = Math.sin(Math.PI * Math.min(1, q / 0.18)) ** 1.5 * (q < 0.18 ? 1 : 0);
+    ph += f / SFX_RATE9;
+    const buzz = lp.run(((ph % 1) < 0.18 ? 1 : -0.2) + (r() * 2 - 1) * 0.35) * stroke;
+    const motor = Math.sin(2 * Math.PI * (92 + v * 6) * t) * stroke * 0.5;
+    const tick = q > 0.18 ? Math.sin(2 * Math.PI * 320 * (q - 0.18)) * exp9(q - 0.18, 90) * 0.4 : 0;
+    return (buzz * 0.8 + motor + tick) * ad9(t, 0.02, 2.5);
+  }), 0.2);
+}
+
+/** 프로브 채집 — 부드러운 입자 빔 웅웅(2026-10-22) — 낮은 두 사인(어긋난 5도)에 18Hz 떨림 · 옅은 쉬익이 빔을 감싼다. */
+function mineProbe9(v: number): Float32Array {
+  const r = rng9(2601 + v);
+  const bp = new Biquad9("bp", 700, 1.0);
+  const f = 175 + v * 12;
+  return finish9(render9(0.45, (t) => {
+    const env = Math.sin(Math.PI * Math.min(1, t / 0.45)) ** 0.8;
+    const trem = 0.65 + 0.35 * Math.sin(2 * Math.PI * 18 * t);
+    const tone = Math.sin(2 * Math.PI * f * t) + Math.sin(2 * Math.PI * f * 1.5 * t) * 0.35;
+    const air = bp.run(r() * 2 - 1) * 0.25;
+    return (tone * trem + air) * env;
+  }), 0.2);
+}
+
 /** 천둥(사이오닉 스톰) — 찢어지는 딱 + 긴 우르릉 + 지직. */
 function thunder9(v: number): Float32Array {
   const r = rng9(1101 + v); const br = brown9(r);
@@ -457,7 +489,7 @@ function spine9(v: number): Float32Array {
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "thruster" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
-  | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart";
+  | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -468,7 +500,7 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
   flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
-  warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9],
+  warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
 };
 
 /** PCM(−1~1) → 16비트 모노 WAV 바이트. */

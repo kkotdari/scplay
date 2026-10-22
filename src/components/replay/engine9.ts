@@ -2069,8 +2069,8 @@ export type UnitDrawOp = {
   pickTag?: number;
   /** 지금 무슨 상태인가(요청: 건설·변태 등 모든 상태 노출) — 툴팁 첫 줄에 그대로 뜬다. */
   pickState?: string;
-  /** 광물을 캐는 일꾼(ST_GATHER) — 효과음 '채집'(sfx9Cues · 2026-10-22). */
-  gath?: boolean;
+  /** 광물을 캐는 일꾼(ST_GATHER)의 종류 — 효과음 '채집'(sfx9Cues · 2026-10-22 · 같은 날 "프로브랑 SCV 는 소리가 달라야" → 참/거짓에서 종류로). */
+  gath?: "SCV" | "Probe" | "Drone";
   /** 걸려 있는 마법(키) — 팝업이 그 효과와 색까지 적는다. */
   pickStatus?: string;
   /** 건물의 발자국 원점(타일) — 팝업이 '이 건물에서 나온 것'만 고르는 자다. */
@@ -9110,7 +9110,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       // 정보 팝업 신원(요청) — 개체 태그가 프레임을 건너 같은 몸을 가리킨다.
       pickKey: `u${e.tag}`, pickName: e.unit, pickRaw: e.raw,
       // 광물 캐는 일꾼(효과음 '채집' · 2026-10-22).
-      ...(simState === ST_GATHER && (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") ? { gath: true } : {}),
+      ...(simState === ST_GATHER && (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") ? { gath: e.unit } : {}),
       /* 지금 무슨 상태인가(요청: 모든 상태 노출) — 땅속·은신·얼음·전투까지, 몸이
          이미 아는 것을 글로 옮긴다. 없으면 상태 줄을 안 적는다. */
       pickStatus: (() => {
