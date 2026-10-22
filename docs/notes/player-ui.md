@@ -2086,7 +2086,7 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 🔎 `$S/sfxrun/run.ts`(r823 · 835~880초: blade 25 · spine 56 · 170~260초: warp 3 · warpHum 4 · warpEnd 3 · heart 7).
 
 ## 효과음 전체 크기 반(2026-10-22)
-- 요청: "효과음 볼륨 반으로" → (같은 날) "더 반으로". sfx9Synth `SFX_LEVEL9` 0.5 → 0.25 를 finish9 의 봉우리에 곱한다(옛 1) — 구울 때 줄여야 iOS(<audio>.volume 무시)도 반이 된다. 음량 손잡이(scr.sfx.vol)는 그대로.
+- 요청: "효과음 볼륨 반으로" → (같은 날) "더 반으로" → "다시 0.4 정도로 복귀". sfx9Synth `SFX_LEVEL9` 0.5 → 0.25 → 0.4 를 finish9 의 봉우리에 곱한다(옛 1) — 구울 때 줄여야 iOS(<audio>.volume 무시)도 반이 된다. 음량 손잡이(scr.sfx.vol)는 그대로.
 
 ## 채집 소리 일꾼마다(2026-10-22)
 - 요청: "자원채집이 프로브랑 SCV 는 소리가 달라야". 유닛 op `gath` 참/거짓 → 일꾼 종류("SCV"|"Probe"|"Drone") · sfx9Cues `GATH9`:

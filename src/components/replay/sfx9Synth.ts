@@ -73,8 +73,9 @@ function echo9(buf: Float32Array, sec: number, fb: number): Float32Array {
 }
 
 /** 봉우리를 peak 로 맞추고 끝 4ms 를 접는다(딸깍 소리 막기). */
-/** 효과음 전체 크기 — 갈래마다의 봉우리(peak)에 곱한다. 0.25(2026-10-22, 요청: "효과음 볼륨 반으로" → "더 반으로" · 1 → 0.5 → 0.25). 구울 때 곱해야 iOS 도 먹는다(<audio>.volume 을 안 받는다). */
-const SFX_LEVEL9 = 0.25;
+/** 효과음 전체 크기 — 갈래마다의 봉우리(peak)에 곱한다. 0.4(2026-10-22, 요청: "효과음 볼륨 반으로" → "더 반으로" → "다시 0.4 정도로 복귀" · 1 → 0.5 → 0.25 → 0.4).
+ *  이제 Web Audio 라 음량 손잡이(주 GainNode)도 곱해진다(sfx9 ★). */
+const SFX_LEVEL9 = 0.4;
 
 function finish9(buf: Float32Array, peak: number): Float32Array {
   let m = 0;
