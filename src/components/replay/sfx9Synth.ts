@@ -228,22 +228,22 @@ function photon9(v: number): Float32Array {
   return finish9(echo9(raw, 0.06, 0.35), 0.5);
 }
 
-/** 채집 — 부드러운 사각임 두 번 + 아주 옅은 수정 울림.
- *  ★ 부드럽게(2026-10-22, 요청: "자원캐는 소리 좀더 부드러운 소리로") — 옛 판은 3.2kHz 좁은 띠(Q 6) 잡음에 쇠 울림(빗살 되먹임 0.55)을 얹은
- *  '칼 가는' 소리라 귀에 날카롭게 긁혔다. 띠를 낮추고(1.1~1.5kHz) 넓히고(Q 1.2) 위를 2.4kHz 로 깎고, 빗살 울림을 걷고, 획마다 천천히 차오르게(사인² 그대로)
- *  하고, 수정 울림은 낮은 사인 둘(옅게 · 빨리 사그라짐)로만 남긴다. 봉우리 0.32 → 0.22. */
+/** 채집 — 낮고 부드러운 사각임 두 번 + 아주 옅은 낮은 툭.
+ *  ★ 부드럽게(2026-10-22, 요청: "자원캐는 소리 좀더 부드러운 소리로") — 옛 판은 3.2kHz 좁은 띠(Q 6) 잡음에 쇠 울림(빗살 되먹임 0.55)을 얹은 '칼 가는' 소리였다.
+ *  ★ 많이 낮게(같은 날, 되요청: "너무 높아 많이 낮춰야 해 부드럽게") — 1.1~1.5kHz 띠 + 2.4kHz 저역 + 1.2kHz 수정 울림도 높게 들렸다. 갈색 잡음을
+ *  350~500Hz 넓은 띠(Q 0.8)로 · 위를 800Hz 로 깎고 · 울림을 걷고 · 140Hz 언저리의 부드러운 툭만 남긴다. 봉우리 0.22 → 0.2. */
 function mine9(v: number): Float32Array {
-  const r = rng9(1001 + v);
-  const bp = new Biquad9("bp", 1300 + v * 120, 1.2);
-  const lp = new Biquad9("lp", 2400, 0.7);
-  const f1 = 1180 + v * 90; const f2 = f1 * 1.5;
-  return finish9(render9(0.38, (t) => {
-    const ph = t % 0.19;
-    const stroke = Math.sin(Math.PI * Math.min(1, ph / 0.19)) ** 2;
-    const hush = lp.run(bp.run(r() * 2 - 1)) * stroke;
-    const chime = (Math.sin(2 * Math.PI * f1 * t) * 0.6 + Math.sin(2 * Math.PI * f2 * t) * 0.25) * exp9(ph, 22) * 0.18;
-    return (hush + chime) * ad9(t, 0.02, 3.5);
-  }, (t) => bp.set(1300 + 200 * Math.sin(2 * Math.PI * 2.6 * t) + v * 120)), 0.22);
+  const r = rng9(1001 + v); const br = brown9(r);
+  const bp = new Biquad9("bp", 420 + v * 40, 0.8);
+  const lp = new Biquad9("lp", 800, 0.7);
+  const fk = 130 + v * 12;
+  return finish9(render9(0.4, (t) => {
+    const ph = t % 0.2;
+    const stroke = Math.sin(Math.PI * Math.min(1, ph / 0.2)) ** 2;
+    const hush = lp.run(bp.run(br())) * stroke;
+    const knock = Math.sin(2 * Math.PI * fk * t) * exp9(ph, 30) * 0.35;
+    return (hush + knock) * ad9(t, 0.03, 3);
+  }, (t) => bp.set(420 + 80 * Math.sin(2 * Math.PI * 2.5 * t) + v * 40)), 0.2);
 }
 
 /** 천둥(사이오닉 스톰) — 찢어지는 딱 + 긴 우르릉 + 지직. */
@@ -345,6 +345,45 @@ function warp9(v: number): Float32Array {
   return finish9(echo9(raw, 0.11, 0.45), 0.45);
 }
 
+/* ★ 소환구 소리 셋으로 가름(2026-10-22, 요청: "소환구 소환 처음·끝에 나는 소리와 중간에 웅웅 나는 소리 구분") — 처음 = warp(위 · 구가 나타남) ·
+   가운데 = warpHum(구가 떠 있는 동안 되풀이 · 낮은 웅웅) · 끝 = warpEnd(물마루가 흐르며 건물이 드러남 · 맑게 내려앉는 종소리). */
+/** 소환구 웅웅 — 낮은 두 사인이 살짝 어긋나 맥놀이(웅–웅) + 한 옥타브 위 옅게. 1.6초 · 앞뒤를 부드럽게 접어 되풀이가 이어진다. */
+function warpHum9(v: number): Float32Array {
+  const f = 98 + v * 7;
+  return finish9(render9(1.6, (t) => {
+    const env = Math.sin(Math.PI * Math.min(1, t / 1.6)) ** 0.6;
+    const beat = 0.6 + 0.4 * Math.sin(2 * Math.PI * 2.4 * t);
+    const s = Math.sin(2 * Math.PI * f * t) + Math.sin(2 * Math.PI * (f + 1.7) * t) * 0.8 + Math.sin(2 * Math.PI * f * 2 * t) * 0.25;
+    return s * beat * env;
+  }), 0.4);
+}
+
+/** 소환 끝 — 위에서 내려앉는 맑은 종 셋 + 짧게 차오르는 쉬익. */
+function warpEnd9(v: number): Float32Array {
+  const r = rng9(2301 + v);
+  const hp = new Biquad9("hp", 3000, 0.7);
+  const notes = [[1568, 1175, 784], [1760, 1319, 880], [1397, 1047, 698]][v % 3];
+  const raw = render9(0.9, (t) => {
+    let s = 0;
+    notes.forEach((f, k) => {
+      const t0 = k * 0.08;
+      if (t >= t0) s += Math.sin(2 * Math.PI * f * (t - t0)) * exp9(t - t0, 7 + k) * (0.55 - k * 0.1);
+    });
+    const swoosh = hp.run(r() * 2 - 1) * (t < 0.12 ? t / 0.12 : exp9(t - 0.12, 30)) * 0.25;
+    return s + swoosh;
+  });
+  return finish9(echo9(raw, 0.09, 0.35), 0.42);
+}
+
+/** 저그 공사 고치 — 심장 소리(쿵–쿵 · 2026-10-22, 요청: "공사고치 소리는 약간 심장 소리 비슷하게"). 낮은 사인 두 번(둘째가 작고 조금 높다)에 살 같은 둔탁함. */
+function heart9(v: number): Float32Array {
+  const r = rng9(2401 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 160, 0.8);
+  const f = 52 + v * 5;
+  const beat = (t: number, k: number): number => (t < 0 ? 0 : (Math.sin(2 * Math.PI * (f + k * 8) * t) + lp.run(br()) * 0.5) * ad9(t, 0.012, 18));
+  return finish9(render9(0.6, (t) => sat9(beat(t, 0) + beat(t - 0.24, 1) * 0.65, 1.3)), 0.5);
+}
+
 /** 불꽃(파이어뱃) — 굵은 쉬이익 불길. */
 function flame9(v: number): Float32Array {
   const r = rng9(1801 + v); const br = brown9(r);
@@ -366,12 +405,56 @@ function slash9(v: number): Float32Array {
   }, (t) => bp.set(1800 + t * 6000)), 0.45);
 }
 
+/* ★ 근접 타격 셋(2026-10-22, 요청: "타격소리도 필요해 — 질럿이나 히드라 저글링 등등") — 옛 판은 근접·가시가 다 칼질(slash) 하나라 누가 때리는지 안 갈렸다. */
+/** 사이오닉 칼날(질럿·다크) — 휙 + 사이오닉 지잉(톱니파) + 둔탁한 맞음. */
+function blade9(v: number): Float32Array {
+  const r = rng9(2001 + v);
+  const bp = new Biquad9("bp", 2000, 1.5);
+  const f = 220 + v * 25;
+  let ph = 0;
+  return finish9(render9(0.22, (t) => {
+    const swish = bp.run(r() * 2 - 1) * ad9(t, 0.015, 18) * 0.9;
+    ph += (f * (1 + 0.5 * exp9(t, 20))) / SFX_RATE9;
+    const buzz = sat9(((ph % 1) * 2 - 1) * 1.4, 1.2) * ad9(t, 0.01, 14) * 0.45;
+    const thud = Math.sin(2 * Math.PI * 130 * t) * (t > 0.03 ? exp9(t - 0.03, 30) : 0) * 0.7;
+    return swish + buzz + thud;
+  }, (t) => bp.set(1400 + t * 9000)), 0.5);
+}
+
+/** 발톱(저글링·울트라·브루들링) — 젖은 할큄 두 번 + 낮은 퍽. */
+function claw9(v: number): Float32Array {
+  const r = rng9(2101 + v);
+  const lp = new Biquad9("lp", 1600, 0.9);
+  const bp = new Biquad9("bp", 900, 3);
+  return finish9(render9(0.2, (t) => {
+    const k = t < 0.07 ? ad9(t, 0.004, 40) : ad9(t - 0.07, 0.004, 35) * 0.8;
+    const rip = lp.run(r() * 2 - 1) * k * 1.4;
+    const wet = bp.run(r() * 2 - 1) * k * 0.8;
+    const thump = Math.sin(2 * Math.PI * (95 - t * 120) * t) * exp9(t, 22) * 0.6;
+    return sat9(rip + wet + thump, 1.4);
+  }, (t) => bp.set(700 + 500 * Math.sin(2 * Math.PI * 30 * t) + v * 120)), 0.5);
+}
+
+/** 가시(히드라·럴커) — 내리꽂는 휙(높은 음이 떨어짐) + 쉭 + 딱. */
+function spine9(v: number): Float32Array {
+  const r = rng9(2201 + v);
+  const hp = new Biquad9("hp", 2500, 0.8);
+  let ph = 0;
+  return finish9(render9(0.15, (t) => {
+    ph += Math.max(0, 1800 + v * 120 - t * 9000) / SFX_RATE9;
+    const whip = Math.sin(2 * Math.PI * ph) * (t < 0.05 ? ad9(t, 0.003, 50) : 0) * 0.5;
+    const hiss = hp.run(r() * 2 - 1) * exp9(t, 55) * 0.6;
+    const tick = Math.sin(2 * Math.PI * 180 * t) * (t > 0.04 ? exp9(t - 0.04, 45) : 0) * 0.7;
+    return whip + hiss + tick;
+  }), 0.45);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "thruster" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
-  | "burrow" | "unburrow" | "warp" | "flame" | "slash";
+  | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -381,7 +464,8 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   thunder: [2, thunder9], puff: [2, puff9], glaive: [2, glaive9], weld: [2, weld9],
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
-  flame: [2, flame9], slash: [3, slash9],
+  flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
+  warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9],
 };
 
 /** PCM(−1~1) → 16비트 모노 WAV 바이트. */

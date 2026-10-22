@@ -2309,6 +2309,8 @@ export type FxOp = {
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
+  /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22). */
+  by?: string;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
   /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
@@ -9562,7 +9564,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : {}) }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
@@ -9575,7 +9577,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
         ph: (t - hurtAt) / 0.14, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
-        ...(hitWpn9 ? { style: hitWpn9 } : {}),
+        ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {
       fxOps.push(hitFx9);

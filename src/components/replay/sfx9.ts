@@ -11,22 +11,22 @@ const VOICES9 = 6;
 /** 급한 차례 — 죽음·폭발 > 주문 > 공격 > 일상(채집·용접). */
 const PRIO9: Record<SfxKind9, number> = {
   boomBig: 9, boom: 7, bioBoom: 8, screamM: 7, screamF: 7, squeal: 7, thunder: 8, warp: 6,
-  missile: 5, photon: 5, cannon: 6, glaive: 4, zap: 4, flame: 4, puff: 4, slash: 3, gun: 3,
-  thruster: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2,
+  missile: 5, photon: 5, cannon: 6, glaive: 4, zap: 4, flame: 4, puff: 4, slash: 3, gun: 3, blade: 3, claw: 3, spine: 3,
+  thruster: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2, warpHum: 1, heart: 1, warpEnd: 6,
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
-  gun: 2, slash: 2, zap: 2, glaive: 2, mine: 1, weld: 1, thruster: 1, thunder: 1, warp: 1,
+  warpHum: 1, warpEnd: 1, heart: 1, gun: 2, slash: 2, blade: 3, claw: 3, spine: 3, zap: 2, glaive: 2, mine: 1, weld: 1, thruster: 1, thunder: 1, warp: 1,
   screamM: 1, screamF: 1, squeal: 2, boom: 3, boomBig: 2, bioBoom: 2, load: 1, unload: 1, burrow: 1, unburrow: 1,
 };
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
-  gun: 70, slash: 90, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
+  warpHum: 1450, warpEnd: 400, heart: 880, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
   mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, thruster: 700, load: 250, unload: 250, burrow: 300, unburrow: 300,
 };
 /** 종류마다 크기(데스크톱만 먹는다). */
-const GAIN9: Partial<Record<SfxKind9, number>> = { mine: 0.55, weld: 0.6, gun: 0.75, slash: 0.8 };
+const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, weld: 0.6, gun: 0.75, slash: 0.8 };
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";
@@ -96,11 +96,21 @@ function pool9(): Voice9[] {
   return voices9;
 }
 
+/** ★ **무음 스위치를 따른다**(2026-10-22, 요청: "배경음악도 사일런트 모드 대응") — iOS 사파리의 <audio> 는 기본 'playback' 오디오 세션이라 벨소리/무음 스위치를
+ *  뚫고 난다. 사파리 16.4+ 의 `navigator.audioSession` 을 'ambient' 로 두면 무음 스위치를 따르고, 남이 틀던 음악도 끊지 않고 섞인다. 배경 음악(useBgm)과
+ *  효과음이 소리를 내기 전에 부른다 — 값이 이미 같으면 아무 일도 안 한다. API 가 없는 기기(안드로이드·옛 iOS)는 그대로. */
+export function ambientAudio9(): void {
+  if (typeof navigator === "undefined") return;
+  const s = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+  if (s && s.type !== "ambient") { try { s.type = "ambient"; } catch { /* 못 바꾸는 판 */ } }
+}
+
 /** iOS: 사람의 누름 안에서 묶음 전부를 한 번 틀어 깨운다(그 뒤로는 누름 없이도 난다). 소리 없는 아주 짧은 WAV. */
 let unlocked9 = false;
 export function unlockSfx9(): void {
   if (unlocked9 || !enabled9) return;
   unlocked9 = true;
+  ambientAudio9();
   const silent = urlOf9(wavBytes9(new Float32Array(220)) as BlobPart);
   for (const v of pool9()) {
     v.el.src = silent;
@@ -148,6 +158,7 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
   last9.set(kind, { at: now, v: vi });
   slot.kind = kind; slot.prio = prio; slot.at = now; slot.until = now + b.dur * 1000;
   const el = slot.el;
+  ambientAudio9();
   try {
     el.pause();
     el.src = b.urls[vi];

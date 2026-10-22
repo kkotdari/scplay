@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ambientAudio9 } from "./sfx9";
 
 /** ── 배경 음악(요청: "public/audio에 mp3 파일 10개 있어 그거 랜덤하게 재생해 주고,
  *  대신 음악 on/off 아이콘 추가 · 기기 음량 따라가야 하고 음소거(진동·무음 포함)
@@ -14,6 +15,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
  *        무시하고** 소리를 내는 길로 들어선다. 그래서 웹에서 무음 스위치를 뚫는 꼼수가
  *        늘 WebAudio다 — 우리는 그 반대를 원하므로 평범한 <audio> 하나만 쓴다.
  *    그러면 iOS는 벨소리/무음 스위치와 음량을, 안드로이드는 미디어 음량을 그대로 태운다.
+ *  ⚠ (2026-10-22 정정, 지적: "배경음악도 사일런트 모드 대응") — 위 '<audio> 는 무음 스위치를 따른다'는 틀렸다: iOS 사파리의 미디어 엘리먼트는 기본이
+ *    'playback' 세션이라 무음 스위치를 **뚫고** 난다. 사파리 16.4+ 의 `navigator.audioSession.type = "ambient"` 로 세션을 바꾸면 무음 스위치를 따르고
+ *    남의 음악도 안 끊는다 — sfx9 ambientAudio9 가 하고, 아래 audio() 가 소리를 낼 때마다 부른다(그 API 가 없는 옛 기기는 그대로).
  *
  *  ⚠ 안드로이드의 한계 — 웹에는 '지금 진동·무음 모드인가'를 묻는 길이 없다(그런 API가
  *    없다). 안드로이드에서 미디어 소리는 벨소리와 **다른 줄기**라, 벨을 진동으로 두어도
@@ -158,6 +162,7 @@ export function useBgm(playing = true, seedKey?: string): Bgm {
   /** 오디오 한 대만 쓴다 — 곡이 바뀌어도 같은 대의 src만 갈아 끼운다. 새로 만들면
    *  기기마다 '사람 누름으로 열린 대'라는 허락이 안 따라와 두 곡째부터 막힌다. */
   const audio = useCallback((): HTMLAudioElement => {
+    ambientAudio9();   // 무음 스위치를 따르게(sfx9 ambientAudio9 ★) — 소리를 내는 길은 다 여기서 엘리먼트를 받는다
     if (!elRef.current) {
       const a = new Audio();
       // 켜기 전에는 한 바이트도 안 받는다 — 한 곡이 6~13MB다.
