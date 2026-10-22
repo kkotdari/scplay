@@ -3688,13 +3688,16 @@
    위 '버튼 줄 정가운데'는 되물렸다. 한 변 = --mapbtn-h · 꼬리의 맨 끝(order 3). */
 .scr-tb-tail > .scr-motion-infodock-fold {
   order: 3; margin: 0 0 0 2px; width: var(--mapbtn-h); height: var(--mapbtn-h);
-  /* 입체감·둥글기를 한 단 낮춘다(2026-10, 요청: "접기펴기 버튼 입체감 줄이고 래디우스도 줄이기") — 세로 광택 폭을 좁히고(위 #c3c9d0 →
-     아래 #747c85 의 큰 꺾임 → 거의 고른 쇠) 바깥 그림자를 걷는다 · 둥글기 3·dk → 1.5px. */
-  border-radius: 1.5px; box-shadow: none;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 2px),
-    linear-gradient(180deg, #b0b7bf 0%, #a3abb4 50%, #98a0a9 100%);
+  /* ★ **독 쇠판에 새긴 단추**다(2026-10-22, 요청: "재생기 접기 버튼 못생겨서 안 되겠어 독 프레임에 새겨진 버튼으로 변경") — 얹은 쇠 정사각
+     (옛 2026-10 '입체감·둥글기 한 단 낮춤' 꼴)을 걷고, 판을 파낸 홈이다: 바탕은 쇠 결이 비치는 옅은 그늘 · 위 입술 어두운 한 줄과 안 그늘 ·
+     아래 입술 밝은 한 줄. 삼각형은 시계·음각 글귀(.scr-fs-dockmark)와 같은 판 글자(어두운 잉크 + 아래 흰 한 줄)다. */
+  border: none; border-radius: calc(3px * var(--ui));
+  color: rgba(22, 26, 32, 0.78);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.08) 100%);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.38);
 }
+.scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.4)); }
+.scr-tb-tail > .scr-motion-infodock-fold:hover { filter: none; background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.14) 100%); }
 .scr-tb-tail { display: flex; align-items: center; gap: calc(6px * var(--ui)); flex: none; margin-left: auto; }
 /* (걷어냄 · 2026-10-09, 요청 3: "스탯바는 중계화면에서 모두 제거") 현황 칸 꼴(.scr-who-stats · .scr-who-i · .scr-who-v · 폭 ch) — 분할 칸 머리·폰 발치·폰 단독 상자가 쓰던 것. */
 /* ★ 인구 칸의 **종족 풀 덧줄**(2026-10, 요청: "마인드컨트롤한 경우는 인구를 두 줄로 보여주고 크기를 반 이하로 줄여서 레이아웃에 전혀

@@ -2034,3 +2034,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 `runTail9` 는 공유 하나만 돌린다(분할에서는 사람 고르는 창 → `&tr=` 규약 그대로) · 완료 표시 `tailDone9` 는 글 하나(string | null).
 앱 연동 안내는 `docs/scene-share-request.md`(옛 `scrap-share-request.md`). 🔎 `node scripts/perf-check.mjs … --split x.png --players 4 --sharepick` —
 공유 단추·X 키가 사람 고르는 창을 띄우는지(옛 Z·스크랩 단추 자리).
+
+## 접기 단추 = 독 쇠판에 새긴 홈(2026-10-22)
+요청: "재생기 접기 버튼 못생겨서 안 되겠어 독 프레임에 새겨진 버튼으로 변경". 자리(꼬리 맨 끝 · 한 변 `--mapbtn-h`)는 그대로, 얹은 쇠 정사각
+(위 '독 테두리 ×1.5' · '입체감·둥글기 한 단 낮춤')을 걷고 **판을 파낸 홈**으로 바꿨다(`.scr-tb-tail > .scr-motion-infodock-fold`): 테두리 없음 · 둥글기
+3·ui · 바탕 옅은 그늘(쇠 결이 비친다) · 안 그늘(위 입술 어두운 한 줄 + 2px 번짐) · 아래 입술 밝은 한 줄. 삼각형은 시계·음각 글귀와 같은 판 글자
+(어두운 잉크 + 아래 흰 한 줄 drop-shadow). 호버는 홈이 한 단 더 짙어진다.
+🔎 `perf-check --wide|--ios [--fs] --warm 0 --glblit --shot x.png` 의 오른아래 끝.
