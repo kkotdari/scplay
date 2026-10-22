@@ -38,7 +38,7 @@ export async function gameIndexOf9(motion: string, opts: GameIndexOpts9): Promis
     ...(mt9.ver >= 2 ? { ramp: (x9: number, y9: number) => x9 >= 0 && y9 >= 0 && x9 < mt9.w && y9 < mt9.h && (mt9.tile[y9 * mt9.w + x9] & TILE.ramp) !== 0 } : {}),
   } : undefined;
   const moves9 = castMoves9(truth9.tracks, world9);
-  /* 재생기 planAll9 와 같은 자(로스터 · 차례 · 팀 · 자원 · 지형 · 채팅 · 돈 · 리콜/나이더스 · 사건 중계). */
+  /* 재생기 planAll9 와 같은 자(로스터 · 차례 · 팀 · 자원 · 지형 · 채팅 · 돈 · 리콜/나이더스 · 자취 · 사건 중계). */
   const plan9 = castPlan9(world9, {
     total: opts.endSec > 0 ? opts.endSec : 60,
     ...(opts.skip ? { skip: new Set(opts.skip) } : {}),
@@ -49,6 +49,7 @@ export async function gameIndexOf9(motion: string, opts: GameIndexOpts9): Promis
     ...(opts.chats ? { chats: opts.chats } : {}),
     bank: truth9.res,
     moves: moves9,
+    tracks: truth9.tracks,   // 정찰은 몸이 상대 기지에 들어선 때(재생기와 같은 자 · 2026-10-22)
   });
   const skip9 = new Set(opts.skip ?? []);
   const bases9 = opts.only.filter((k9) => !skip9.has(k9)).map((k9) => ({ key: k9, name: k9 }));
