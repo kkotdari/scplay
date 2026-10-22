@@ -10959,13 +10959,13 @@ export default function ReplayMotionPlayer({
      것인지를 말하는 자막이라 스러질 까닭이 없다(스러지면 그 사이에 들어온 사람은 누구 화면인지 모른다).
      토막이 갈릴 때 글귀만 갈아 끼우고 그 순간만 살짝 떠오른다(CSS · key 가 토막 번호다). 옛 토스트의
      시계·쌓임(셋까지)·스러짐은 다 걷었다 — 상태도 없다. 렌더마다 지금 토막에서 곧장 읽는다. */
-  /** 자막 글귀 — 팀전만 팀을 붙인다(요청: "일대일이나 프리포올은 팀 생략"). 밀리(1:1·프리포올)는
-   *  편이 없으므로 melee 한 문이 그 둘을 다 가른다. */
+  /** 자막 글귀 — 팀전만 팀을 붙인다(요청: "일대일이나 프리포올은 팀 생략"). 팀 배지와 같은 문(teamBadge9)이다 —
+   *  melee 한 문은 일대일(0101 둘)을 못 갈라 "1팀 이름"이 남았다(2026-10-22, 요청: "프리포올도"). */
   /* ★ '화면' 글자는 걷었다(2026-09, 요청: "화면이라는 글자 제거") — 자막이 로스터 2단계의 지표를 함께 싣게 되어
      (아래 castCap9) 이름 뒤의 그 낱말이 표의 첫 칸을 어지럽혔다. 색점·이름·팀만으로 누구 화면인지 읽힌다. */
   const castLabel9 = (raw9: string): string => {
     const nm9 = bases.find((b9) => b9.key === raw9)?.name ?? raw9;
-    const tm9 = melee ? 0 : (teamOfRaw(raw9) ?? 0);
+    const tm9 = teamBadge9 ? (teamOfRaw(raw9) ?? 0) : 0;
     return tm9 ? `${tm9}팀 ${nm9}` : nm9;
   };
   /** 지금 자막 — 중계가 켜져 있고 편성표가 사람을 가리킬 때만 선다.
@@ -10999,7 +10999,7 @@ export default function ReplayMotionPlayer({
    *    좁다(실측 51.8 vs 55.3px). 폭은 글꼴이 정하므로 다 넣고 브라우저가 재게 둔다(여덟 줄 남짓이라 값이 없다). */
   const capGhosts9 = useMemo(() => bases.map((b9) => castLabel9(b9.key)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [bases, melee, teamMap9]);
+  [bases, teamBadge9, teamMap9]);
   /** 한 사람의 정보줄(자막) — 중계 자막과 인포창의 '고른 몸의 임자' 줄이 같은 셈을 나눠 쓴다. */
   /** ★ **팀 루비**(2026-10-19, 요청: "팀코너색을 없애고 대신 유저칩(미니맵, 자막, 화면 주인)의 위에 루비문자로 1팀 2팀 써주기 · 잘 안보일 수 있어서 배경있는
    *  루비문자(빨강/파랑에 하얀글씨) · 위치는 유저칩 외부 좌상단") — 옛 왼위 팀색 삼각 귀퉁이(.scr-tcorner · 2026-10-12)를 걷고 칩 **밖 왼위**에 팀색 바탕 흰 글씨
