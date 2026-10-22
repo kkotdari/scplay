@@ -4292,6 +4292,16 @@ export function deriveWorld9(inp: {
         i9 = j9 + 1;
       }
     }
+    /* ★ 새 덤프의 나감(players[].left · truthWorld 가 중립 넘김을 지운 초)도 같은 창이다(2026-10-22, 지적: "테란이 자기 기지에 스캔 후 갑자기
+       스캔 범위의 모든 건물에서 작은 폭발" — 260823204027 13:54.1). 원작은 나간 사람의 **짓던 유닛**(팩토리 안 골리앗 일곱 · 커맨드 안 SCV 둘 —
+       done 0 · 안에 든 채)을 그 프레임에 걷어 참값엔 낱낱의 죽음으로 실리고, 화면은 팩토리마다 사망 폭발을 냈다. 몸은 중립으로 남으므로
+       그 초의 죽음만 조용히 걷는다. */
+    for (const pl9 of entData.players) {
+      if (pl9.left == null) continue;
+      const arr9 = m.get(pl9.name) ?? [];
+      arr9.push(pl9.left);
+      m.set(pl9.name, arr9);
+    }
     return m;
   })();
   /** 이 임자의 이 죽음이 '나감'의 한꺼번 걷힘인가. */
