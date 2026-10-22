@@ -9393,6 +9393,13 @@ export default function ReplayMotionPlayer({
     return m9;
   }, [bases, entData, teamOfRaw]);
   const teamKey9 = JSON.stringify(teamMap9);
+  /** ★ 팀 배지("N팀" 루비)는 **팀전만**(2026-10-22, 요청: "개인전에서는 재생기에서 팀 배지 제거") — 난투(melee)뿐 아니라 일대일(편이 하나씩)도 뺀다: 두 사람 이상인 편이 있어야 단다. */
+  const teamBadge9 = useMemo(() => {
+    if (melee) return false;
+    const n9: Record<number, number> = {};
+    for (const tm9 of Object.values(teamMap9)) n9[tm9] = (n9[tm9] ?? 0) + 1;
+    return Object.values(n9).some((c9) => c9 >= 2);
+  }, [melee, teamMap9]);
   const teamMapRef9 = useRef(teamMap9);
   teamMapRef9.current = teamMap9;
   /* ★ 파생 자료는 **워커**가 센다(요청: 메인의 중복 파생 자료 제거). 화면(UI)이 읽는 몇 가지는 워커가 세계를
@@ -10998,7 +11005,7 @@ export default function ReplayMotionPlayer({
    *  루비문자(빨강/파랑에 하얀글씨) · 위치는 유저칩 외부 좌상단") — 옛 왼위 팀색 삼각 귀퉁이(.scr-tcorner · 2026-10-12)를 걷고 칩 **밖 왼위**에 팀색 바탕 흰 글씨
    *  "N팀" 꼬리표를 단다(replay.css .scr-truby). 팀전만 · 팀색은 색 모드를 안 탄다(markers TEAM_COLOR). 칩은 `scr-truby-host`(자리 기준)를 함께 든다. */
   const truby9 = (raw9: string): React.ReactNode => {
-    const tm9 = melee ? undefined : teamOfRaw(raw9);
+    const tm9 = teamBadge9 ? teamOfRaw(raw9) : undefined;
     return tm9 === undefined ? null
       : <span className="scr-truby" style={{ background: TEAM_COLOR[tm9] ?? "#666" }} aria-hidden>{tm9}팀</span>;
   };
@@ -19520,13 +19527,13 @@ export default function ReplayMotionPlayer({
           key: i9 === 0 ? b9.key : `${b9.key}#${i9}`, name: b9.name, fx: Math.max(0.02, Math.min(0.98, c9.x / gw)), fy: Math.max(0.02, Math.min(0.98, c9.y / gh)),
           bg: String(chip9.background ?? chip9.backgroundColor ?? "#888"), fg: String(chip9.color ?? "#fff"),
           tier: c9.n <= TAG_TIER9.s ? "s" : c9.n <= TAG_TIER9.m ? "m" : "l", dim: dead9,
-          ...(!melee && teamOfRaw(b9.key) !== undefined ? { team: teamOfRaw(b9.key) } : {}),   // 팀 배지(2026-10-11 · 팀전만)
+          ...(teamBadge9 && teamOfRaw(b9.key) !== undefined ? { team: teamOfRaw(b9.key) } : {}),   // 팀 배지(2026-10-11 · 팀전만 · 일대일도 뺀다 — 위 teamBadge9)
         });
       });
     }
     return out9;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee, leftSec9, castTerrain9]);
+  }, [entData, bases, tTag9, grid.width, grid.height, colorNow, heroRaw9, melee, teamBadge9, leftSec9, castTerrain9]);
   const dockOps9: UnitDrawOp[] = (() => {
     if (picked) {
       const o9 = unitOps.find((o) => o.pickKey === picked && !o.ghost);
