@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** ── 배경 음악(요청: "public/audio에 mp3 파일 10개 있어 그거 랜덤하게 재생해 주고,
  *  대신 음악 on/off 아이콘 추가 · 기기 음량 따라가야 하고 음소거(진동·무음 포함)
@@ -83,19 +83,20 @@ const wantOn = (): boolean => {
   try { return localStorage.getItem(KEY) !== "0"; } catch { return true; }
 };
 
-/** 차례를 **섞어 돌린다** — 매번 제비를 뽑으면 같은 곡이 연달아 나오는 일이 흔하다
- *  (열 곡이면 한 번 넘어갈 때마다 10%). 한 바퀴를 섞어 두고 끝나면 다시 섞되, 새 바퀴의
- *  첫 곡이 방금 들은 곡이면 한 칸 밀어 그 이음매까지 막는다. */
-const shuffled = (n: number, avoidFirst?: number): number[] => {
-  const a = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+/** ★ 첫 곡은 **게임 번호로** 고르고 그 뒤로는 목록 차례대로 돈다(2026-10-22, 요청: "음악 고르기 기능 제거 · 음악은 게임번호로 골라지는 로직 넣어서
+ *  골고루 선택되게(처음 곡 골라지면 그 다음 곡이 순차 재생)") — 옛 길은 판마다 섞은 바퀴(shuffled)였다. 게임 번호(숫자)를 곡 수로 나눈 나머지라
+ *  번호가 이어지는 경기들은 곡을 한 칸씩 돌아가며 고르게 쓴다. 숫자가 아닌 열쇠는 글자 해시(FNV-1a) · 열쇠가 없으면 제비. */
+const startOf = (key: string | undefined, n: number): number => {
+  if (n <= 1) return 0;
+  if (!key) return Math.floor(Math.random() * n);
+  if (/^\d+$/.test(key)) {
+    let r = 0;
+    for (const ch of key) r = (r * 10 + Number(ch)) % n;
+    return r;
   }
-  if (n > 1 && avoidFirst !== undefined && a[0] === avoidFirst) {
-    [a[0], a[1]] = [a[1], a[0]];
-  }
-  return a;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i += 1) { h ^= key.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h % n;
 };
 
 export type Bgm = {
@@ -107,13 +108,9 @@ export type Bgm = {
   /** 지금 걸린 곡 이름 — 버튼 툴팁에 적는다(켜져 있을 때만 읽힌다). 한 곡도 안 건
    *  동안만 null이고, 꺼도 그 곡 이름은 남는다. */
   now: string | null;
-  /** 곡 목록(제목) — 버튼의 목록이 이것을 편다(요청: "노래도 목록으로"). 비어 있으면 앱이 곡을 안 꽂은 것이라
-   *  음악 단추를 안 세운다(setReplayBgm). */
-  tracks: readonly string[];
-  /** 지금 걸린 곡의 목록 번호(없으면 null). */
-  index: number | null;
-  /** 목록에서 한 곡을 골라 **처음부터** 튼다 — 켜 둔 뜻도 함께 켠다. */
-  pick: (i: number) => void;
+  /** 곡 수 — 0 이면 앱이 곡을 안 꽂은 것이라(setReplayBgm) 소리 목록에 배경 음악 줄을 안 세운다.
+   *  (곡을 골라 트는 목록은 2026-10-22 걷었다 — 첫 곡은 게임 번호가 고른다 · 위 startOf.) */
+  count: number;
   /** 끈다(이미 꺼져 있어도 '끈 뜻'을 적는다 — 첫 누름을 기다리던 기본 켜짐도 걷힌다). */
   off: () => void;
   /** 음량 0~1(2026-10-10 · 기본 0.5 · 브라우저에 남는다) · 바꾸기 · 이 기기가 음량을 받나(iOS 사파리는 <audio>.volume 을 무시한다 — 그때는 슬라이더를 안 세운다). */
@@ -123,23 +120,24 @@ export type Bgm = {
 };
 
 /**
+ * @param seedKey 첫 곡을 고르는 열쇠(게임 번호 — 재생기의 clockKey · 위 startOf).
  * @param playing 재생기가 **지금 돌고 있나**(요청: "재생 멈추면 음악도 멈추기") —
  *   음악은 판의 분위기지 라디오가 아니다. 일시정지는 '이 장면을 들여다보는' 순간이라
  *   거기서 음악만 계속 흐르면, 멈춘 화면과 흐르는 소리가 서로 다른 말을 한다.
  *   끄는 것이 아니라 **재우는** 것이라 켜 둔 뜻(on)도 아이콘도 그대로고, 다시 재생을
  *   누르면 끊긴 자리에서 이어진다. (판을 떠날 때 재우던 것은 걷었다 — 아래 '걷어냄' 자리.)
  */
-export function useBgm(playing = true): Bgm {
+export function useBgm(playing = true, seedKey?: string): Bgm {
   const [on, setOn] = useState(false);
   const [now, setNow] = useState<string | null>(null);
-  const [index, setIndex] = useState<number | null>(null);
+  const seedRef = useRef(seedKey);
+  seedRef.current = seedKey;
   const elRef = useRef<HTMLAudioElement | null>(null);
   const [volume, setVol] = useState<number>(readVol);
   const volRef = useRef(volume);
   const [volumeOk, setVolumeOk] = useState(true);
-  /** 이번 바퀴의 차례와 지금 몇 번째인가. */
-  const orderRef = useRef<number[]>([]);
-  const atRef = useRef(0);
+  /** 다음에 걸 곡의 번호 — null 이면 아직 첫 곡 전(startOf 로 고른다). */
+  const atRef = useRef<number | null>(null);
   /** 연달아 실패한 곡 수 — 아래 onErr의 바닥. */
   const failRef = useRef(0);
   /** 지금 켜 둔 뜻인가 — 귀(이벤트)들이 리렌더 없이 읽어야 해서 ref로도 든다. */
@@ -153,10 +151,9 @@ export function useBgm(playing = true): Bgm {
   const tracks = useSyncExternalStore(subscribeBgm, bgmSnapshot, bgmSnapshot);
   const tracksRef = useRef(tracks);
   tracksRef.current = tracks;
-  const titles = useMemo(() => tracks.map((t9) => t9.title), [tracks]);
   const hasTracks = tracks.length > 0;
-  /* 목록이 갈리면 섞어 둔 차례를 버린다 — 옛 목록의 번호로 새 목록을 집으면 엉뚱한 곡이 걸린다. */
-  useEffect(() => { orderRef.current = []; atRef.current = 0; }, [tracks]);
+  /* 목록이 갈리면 차례를 처음으로 — 옛 목록의 번호로 새 목록을 집으면 엉뚱한 곡이 걸린다. */
+  useEffect(() => { atRef.current = null; }, [tracks]);
 
   /** 오디오 한 대만 쓴다 — 곡이 바뀌어도 같은 대의 src만 갈아 끼운다. 새로 만들면
    *  기기마다 '사람 누름으로 열린 대'라는 허락이 안 따라와 두 곡째부터 막힌다. */
@@ -171,28 +168,22 @@ export function useBgm(playing = true): Bgm {
     return elRef.current;
   }, []);
 
-  /** 다음 곡을 걸고 튼다 — 바퀴가 끝나면 다시 섞는다.
+  /** 다음 곡을 걸고 튼다 — 첫 곡은 게임 번호가 고르고(startOf) 그 뒤는 목록 차례대로 돈다.
    *
    *  ★ 이 함수는 **누름의 그 자리에서** 불려야 한다(리액트 상태 갱신 함수 안이 아니라).
    *    한때 setOn의 갱신 함수 안에서 불렀는데, 그 함수는 렌더 때 — 곧 누름 처리가 끝난
    *    **뒤에** 돈다. 사파리는 첫 재생을 누름의 호출 스택 안에서만 허락하므로 그 자리에
    *    두면 조용히 막힌다(게다가 StrictMode는 갱신 함수를 두 번 불러 곡이 두 칸 뛴다). */
-  const next = useCallback((first: boolean) => {
+  const next = useCallback(() => {
     const a = audio();
     const list = tracksRef.current;
     // 곡이 없으면 걸 것이 없다 — 부르는 자리들은 막힌 재생과 같은 길(catch)로 받는다.
     if (list.length === 0) return Promise.reject(new Error("배경 음악 목록이 비었다"));
-    if (orderRef.current.length === 0 || atRef.current >= orderRef.current.length) {
-      const last = orderRef.current[orderRef.current.length - 1];
-      orderRef.current = shuffled(list.length, first ? undefined : last);
-      atRef.current = 0;
-    }
-    const fi9 = orderRef.current[atRef.current];
+    const fi9 = (atRef.current ?? startOf(seedRef.current, list.length)) % list.length;
     const t9 = list[fi9];
-    atRef.current += 1;
+    atRef.current = fi9 + 1;
     a.src = t9.src;
     setNow(t9.title);
-    setIndex(fi9);
     /* (걷어냄) 첫 곡의 시작 지점을 섞던 것 — 요청: "항상 처음부터 재생". 어느 길로 걸리든 곡은 머리부터다. */
     return a.play();
   }, [audio]);
@@ -202,7 +193,7 @@ export function useBgm(playing = true): Bgm {
    *  '다시 틀기'는 어느 길로 오든 듣던 자리를 지킨다. resume도 같은 규약이다. */
   const playOrNext = useCallback((): Promise<void> => {
     const a = audio();
-    return a.src ? a.play() : next(true);
+    return a.src ? a.play() : next();
   }, [audio, next]);
 
   /* (armFirstGesture 다음에 resume이 온다 — resume이 그것을 부른다.) */
@@ -230,7 +221,7 @@ export function useBgm(playing = true): Bgm {
   const resume = useCallback(() => {
     if (!onRef.current || !playingRef.current || tracksRef.current.length === 0) return;
     const a = audio();
-    if (!a.src) { next(true).catch(() => armFirstGesture()); return; }
+    if (!a.src) { next().catch(() => armFirstGesture()); return; }
     void a.play().catch(() => armFirstGesture());
   }, [audio, next, armFirstGesture]);
 
@@ -251,13 +242,13 @@ export function useBgm(playing = true): Bgm {
   useEffect(() => {
     const a = audio();
     const stop = (): void => { onRef.current = false; setOn(false); setNow(null); };
-    const onEnd = (): void => { failRef.current = 0; next(false).catch(stop); };
+    const onEnd = (): void => { failRef.current = 0; next().catch(stop); };
     const onPlaying = (): void => { failRef.current = 0; };
     const onErr = (): void => {
       if (!a.src) return;
       failRef.current += 1;
       if (failRef.current > tracksRef.current.length) { stop(); return; }
-      next(false).catch(stop);
+      next().catch(stop);
     };
     a.addEventListener("ended", onEnd);
     a.addEventListener("error", onErr);
@@ -335,7 +326,7 @@ export function useBgm(playing = true): Bgm {
     // 멈춘 채로 들어왔으면 아직 안 튼다 — 재생이 시작될 때 resume이 첫 곡을 건다.
     // 그때는 켜진 얼굴이 참이다: 소리가 없는 까닭이 화면에 이미 있다(멈춘 재생).
     if (!playingRef.current) { setOn(true); return; }
-    next(true).then(() => setOn(true)).catch(() => {
+    next().then(() => setOn(true)).catch(() => {
       onRef.current = false;
       setOn(false);
       // 막힌 채로 받아 오지는 않는다 — 한 곡이 6~13MB다. 켤 때 이어서 받는다.
@@ -355,22 +346,6 @@ export function useBgm(playing = true): Bgm {
       window.addEventListener("keydown", go, true);
     });
   }, [next, audio, playOrNext, hasTracks]);
-
-  /** 목록에서 고른 곡을 **처음부터** 튼다(요청) — 켜 둔 뜻도 켠다. 섞인 차례는 이 곡을 뺀 새 바퀴로 이어 간다. */
-  const pick = useCallback((i: number) => {
-    const t9 = tracksRef.current[i];
-    if (!t9) return;
-    onRef.current = true;
-    setOn(true);
-    try { localStorage.setItem(KEY, "1"); } catch { /* 사파리 사생활 모드 */ }
-    const a = audio();
-    a.src = t9.src;   // src를 갈면 자리는 0이다 — 처음부터.
-    setNow(t9.title);
-    setIndex(i);
-    orderRef.current = shuffled(tracksRef.current.length).filter((x9) => x9 !== i);
-    atRef.current = 0;
-    a.play().catch(() => armFirstGesture());
-  }, [audio, armFirstGesture]);
 
   const off = useCallback(() => {
     onRef.current = false;
@@ -392,5 +367,5 @@ export function useBgm(playing = true): Bgm {
     if (elRef.current) elRef.current.volume = v9;
     try { localStorage.setItem(VOL_KEY, String(v9)); } catch { /* 저장 못 하면 이 판에서만 */ }
   }, []);
-  return { on, toggle, now, tracks: titles, index, pick, off, volume, setVolume, volumeOk };
+  return { on, toggle, now, count: tracks.length, off, volume, setVolume, volumeOk };
 }

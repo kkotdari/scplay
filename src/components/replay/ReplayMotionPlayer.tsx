@@ -1,12 +1,14 @@
 import { PathRec9, fillPath9 } from "./glctx9";
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   PERF9, NOSHADOW9, DPRCAP9, NODOM9, HIDECLS9, GAP9, perfHit, pNow, pAdd, pWrap,
   pFrame, perfState9, perfLine9,
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, X } from "lucide-react";
+import { hushSfx9, prebakeSfx9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
+import { SfxCues9 } from "./sfx9Cues";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -13141,7 +13143,18 @@ export default function ReplayMotionPlayer({
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
      있는 동안은 음악도 함께 잠든다. */
-  const bgm = useBgm(playing);
+  const bgm = useBgm(playing, clockKey);
+  /* ★ 효과음(2026-10-22 · sfx9 · sfx9Cues) — 켜 둔 뜻은 브라우저에 남는다(기본 켜짐). 붓이 장마다 SfxCues9 로 새로 일어난 일에 소리를 붙인다(아래 paintFnRef9).
+     iOS 는 누름 안에서 <audio> 묶음을 한 번 깨워야 그 뒤로 난다 — 첫 누름에 깨우고 소리를 미리 굽는다. 멈추면 나던 소리도 끊는다. */
+  const sfxOnNow9 = useSyncExternalStore(subscribeSfx9, sfxOn9, sfxOn9);
+  const sfxCuesRef9 = useRef(new SfxCues9());
+  useEffect(() => {
+    const go9 = (): void => { unlockSfx9(); prebakeSfx9(); window.removeEventListener("pointerdown", go9, true); window.removeEventListener("keydown", go9, true); };
+    window.addEventListener("pointerdown", go9, true);
+    window.addEventListener("keydown", go9, true);
+    return () => { window.removeEventListener("pointerdown", go9, true); window.removeEventListener("keydown", go9, true); };
+  }, []);
+  useEffect(() => { if (!playing) hushSfx9(); }, [playing]);
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
@@ -16840,6 +16853,8 @@ export default function ReplayMotionPlayer({
     const fr9 = frameAt9(tNow9, true);
     frameOpsRef9.current = fr9.unitOps;
     frameFxRef9.current = fr9.fxOps;
+    // 효과음(위 sfxCuesRef9) — 새로 나타난 효과에 소리를 붙인다. 안개만 칠하는 장은 안 본다.
+    if (!fogOnly9) sfxCuesRef9.current.run(fr9, { playing: cmdNowRef9.current.playing, scrubbing: scrubbing.current, speed: cmdNowRef9.current.speed, rect: visRect9 });
     opsRef.current = fr9.unitOps;
     crowdTick9(fr9.unitOps.length, pitched);   // 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정)
     /* ★ 손짓 중엔 **기준(xfBase) 자리에** 칠한다(지적: "팬 드래그 뒤 조금 이전 위치의 그림이 그려진다") ─────────
@@ -19224,49 +19239,39 @@ export default function ReplayMotionPlayer({
           아이콘은 하나고 **켜지면 밝아진다**(로스터·색 전환과 같은 결). 끈 꼴이 기본
           상태라 따로 표시하지 않는다 — 이 줄에서 밝은 것이 곧 '지금 켜 둔 것'이다.
           누르는 그 순간에 재생을 시작해야 브라우저가 허락한다(자동재생 규칙).
-          ★ 곡 목록은 앱이 꽂는다(setReplayBgm) — 비어 있으면 음악이 없는 앱이라 단추를 아예 안 세운다. */}
-      {bgm.tracks.length > 0 && (
+          ★ 곡 목록은 앱이 꽂는다(setReplayBgm) — 비어 있으면 음악이 없는 앱이라 목록에 배경 음악 줄을 안 세운다.
+          ★★ **소리 목록**(2026-10-22, 요청: "음악 고르기 기능 제거하고 효과음과 배경음악 중 뭐뭐 켤지 고르는 목록으로 변경") — 곡 고르기 목록을 걷고
+          [배경 음악 · 효과음] 두 줄의 켜고 끄기(누르면 그 줄만 뒤집고 목록은 열린 채)와 맨 아래 음량 슬라이더(둘에 같이 먹는다)다. 첫 곡은 게임 번호가
+          고른다(useBgm startOf). 효과음은 sfx9(합성 WAV · <audio> 묶음 · 동시 수 제한). */}
       <span className="scr-motion-pick">
         <button
           type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", bgm.on && "is-on")}
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", (bgm.on || sfxOnNow9) && "is-on")}
           onClick={() => pickToggle9("bgm")}
           aria-haspopup="menu" aria-expanded={pick9 === "bgm"}
-          aria-label="배경 음악 — 누르면 곡 목록"
-          title={bgm.on ? `음악 — ${bgm.now ?? "재생 중"}` : "음악"}
+          aria-label="소리 — 누르면 배경 음악·효과음 켜고 끄기"
+          title={bgm.on ? `소리 — 음악: ${bgm.now ?? "재생 중"}` : "소리"}
         >
-          <Music size={18} />
+          {bgm.on || sfxOnNow9 ? <Volume2 size={18} /> : <VolumeX size={18} />}
         </button>
-        {/* 곡 목록(요청: "노래도 목록으로 · 항상 처음부터") — 열 곡, 맨 아래 '끄기'(요청: 끄기는 맨 아래). 고른 곡은 처음부터(useBgm.pick). */}
-        {/* ★ 맨 아래 줄 = [음량 슬라이더 | 끄기](2026-10-10, 요청: "재생기 음악 볼륨 조절 버튼 필요하고 처음에 50프로로 시작 · 끄기 자리에 슬라이더와 끄기") —
-            음량은 useBgm(기본 0.5 · 브라우저에 남음). iOS 사파리처럼 음량을 안 받는 기기(volumeOk 거짓)에선 끄기만 선다. 슬라이더는 떼면 · 끄기는 누르면 목록이 닫힌다. */}
         {pickMenu9("bgm", [
-          ...bgm.tracks.map((t9, i9) => ({ label: t9, on: bgm.on && bgm.index === i9, act: () => bgm.pick(i9) })),
+          ...(bgm.count > 0 ? [{ label: "배경 음악", on: bgm.on, keep: true, act: () => { if (bgm.on) bgm.off(); else bgm.toggle(); } }] : []),
+          { label: "효과음", on: sfxOnNow9, keep: true, act: () => { const nv9 = !sfxOnNow9; setSfxOn9(nv9); if (nv9) { unlockSfx9(); prebakeSfx9(); } } },
           /* 왼쪽 무리(인물·색 다음)의 단추라 목록은 **오른쪽으로** 자란다(지적: "음악 선택 목록 화면 밖으로 나감"). */
-        ], true, true, (
+        ], true, true, bgm.volumeOk ? (
           <div className="scr-motion-pickvol">
-            {bgm.volumeOk && (
-              <input
-                type="range" min={0} max={100} step={1} value={Math.round(bgm.volume * 100)}
-                onChange={(e) => bgm.setVolume(Number(e.currentTarget.value) / 100)}
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={() => setPick9(null)}   /* 떼면 닫힌다(2026-10-10, 요청: "슬라이더는 떼면 팝오버가 닫히고") */
-                aria-label={`음악 음량 ${Math.round(bgm.volume * 100)}%`}
-                title={`음량 ${Math.round(bgm.volume * 100)}%`}
-                style={{ ["--vol" as string]: `${Math.round(bgm.volume * 100)}%` } as React.CSSProperties}
-              />
-            )}
-            <button
-              type="button" role="menuitemradio" aria-checked={!bgm.on}
-              className={cx("scr-motion-pickitem", !bgm.on && "is-on")}
-              onClick={() => { bgm.off(); setPick9(null); }}
-            >
-              끄기
-            </button>
+            <input
+              type="range" min={0} max={100} step={1} value={Math.round(bgm.volume * 100)}
+              onChange={(e) => { const v9 = Number(e.currentTarget.value) / 100; bgm.setVolume(v9); setSfxVolume9(v9); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={() => setPick9(null)}   /* 떼면 닫힌다(2026-10-10, 요청: "슬라이더는 떼면 팝오버가 닫히고") */
+              aria-label={`음량 ${Math.round(bgm.volume * 100)}%`}
+              title={`음량 ${Math.round(bgm.volume * 100)}%`}
+              style={{ ["--vol" as string]: `${Math.round(bgm.volume * 100)}%` } as React.CSSProperties}
+            />
           </div>
-        ))}
+        ) : undefined)}
       </span>
-      )}
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
           1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].

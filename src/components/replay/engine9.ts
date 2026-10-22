@@ -2069,6 +2069,8 @@ export type UnitDrawOp = {
   pickTag?: number;
   /** 지금 무슨 상태인가(요청: 건설·변태 등 모든 상태 노출) — 툴팁 첫 줄에 그대로 뜬다. */
   pickState?: string;
+  /** 광물을 캐는 일꾼(ST_GATHER) — 효과음 '채집'(sfx9Cues · 2026-10-22). */
+  gath?: boolean;
   /** 걸려 있는 마법(키) — 팝업이 그 효과와 색까지 적는다. */
   pickStatus?: string;
   /** 건물의 발자국 원점(타일) — 팝업이 '이 건물에서 나온 것'만 고르는 자다. */
@@ -5770,6 +5772,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           kind: "tether", fx: ufx9, fy: ufy9, tx: sfx9, ty: sfy9,
           lift: ubody9, tlift: slift9, stag: ship9.tag,
           ph: ((inW9 ? t - r9.a : t - r9.b) / RIDE_TETHER_SEC),
+          sub: inW9 ? "in" : "out",   // 탑승·내림 — 효과음(sfx9Cues)이 가른다(2026-10-22)
         });
       }
     }
@@ -9104,6 +9107,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       })(),
       // 정보 팝업 신원(요청) — 개체 태그가 프레임을 건너 같은 몸을 가리킨다.
       pickKey: `u${e.tag}`, pickName: e.unit, pickRaw: e.raw,
+      // 광물 캐는 일꾼(효과음 '채집' · 2026-10-22).
+      ...(simState === ST_GATHER && (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") ? { gath: true } : {}),
       /* 지금 무슨 상태인가(요청: 모든 상태 노출) — 땅속·은신·얼음·전투까지, 몸이
          이미 아는 것을 글로 옮긴다. 없으면 상태 줄을 안 적는다. */
       pickStatus: (() => {
@@ -9557,7 +9562,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4 }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : {}) }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
@@ -9569,7 +9574,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            프로토스·테란이 남의 결로 터졌다. 그 갈래를 낸 옛 지적("스커지가 죽을 때 프로토스 효과")의
            정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
-        ph: (t - hurtAt) / 0.14, mat: hitMat9,
+        ph: (t - hurtAt) / 0.14, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
         ...(hitWpn9 ? { style: hitWpn9 } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {

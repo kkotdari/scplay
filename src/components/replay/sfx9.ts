@@ -22,7 +22,7 @@ const MAX9: Partial<Record<SfxKind9, number>> = {
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
   gun: 70, slash: 90, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
-  mine: 420, weld: 500, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
+  mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, thruster: 700, load: 250, unload: 250, burrow: 300, unburrow: 300,
 };
 /** 종류마다 크기(데스크톱만 먹는다). */
@@ -107,6 +107,10 @@ export type SfxPlay9 = {
   speed?: number;
 };
 
+/** 진단 — 종류마다 낸 수(perf-check --sfxprobe 가 window.__sfx9 로 읽는다). */
+export const SFX_STAT9: { played: Record<string, number> } = { played: {} };
+if (typeof window !== "undefined") (window as unknown as { __sfx9?: typeof SFX_STAT9 }).__sfx9 = SFX_STAT9;
+
 /** 한 소리를 낸다 — 조건(켜짐·동시 수·간격·자리)을 못 넘으면 조용히 버린다. */
 export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
   if (!enabled9 || typeof window === "undefined") return;
@@ -127,6 +131,7 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
     if (weakest.prio >= prio) return;
     slot = weakest;
   }
+  SFX_STAT9.played[kind] = (SFX_STAT9.played[kind] ?? 0) + 1;
   const b = bankOf9(kind);
   let vi = Math.floor(Math.random() * b.urls.length);
   if (b.urls.length > 1 && prev && vi === prev.v) vi = (vi + 1) % b.urls.length;

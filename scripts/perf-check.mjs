@@ -1373,6 +1373,11 @@ const supProbe9 = async (label9) => {
       vw: window.innerWidth, vh: window.innerHeight, sw: window.screen.width, sh: window.screen.height };
   });
   console.log(`[UI단] ${u9.ui} · --ui ${u9.cssUi} · 창 ${u9.vw}×${u9.vh} 화면 ${u9.sw}×${u9.sh} · 툴박스 키 ${u9.tb} · 로스터줄 키 ${u9.roster} · 독 줄 키 ${u9.dock} · 단추 ${u9.btn} · 인포창 폭 ${u9.infow} · 로스터 판 폭 ${u9.rosterw} · 로스터 ${u9.rosterCls}`);
+  /* --sfxprobe [초](2026-10-22) — 효과음 신호가 도는지: 재생을 N초(기본 8) 두고 종류마다 낸 수(window.__sfx9 · 소리는 헤드리스라 안 들린다). */
+  if (has("--sfxprobe")) {
+    await page.waitForTimeout(Number(flag("--sfxprobe", 8)) * 1000 || 8000);
+    console.log("[효과음]", JSON.stringify(await page.evaluate(() => window.__sfx9 ?? null)));
+  }
   if (has("--rosterprobe")) {
     for (const l of u9.rprobe) console.log("[로스터 자]", l);
     console.log("[로스터 글]", await page.evaluate(() => [...document.querySelectorAll(".scr-dock-headrow .scr-dock-cell")].map((e) => {
