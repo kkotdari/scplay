@@ -6,7 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { hushSfx9, prebakeSfx9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
+import { hushSfx9, prebakeSfx9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -13155,6 +13155,8 @@ export default function ReplayMotionPlayer({
     return () => { window.removeEventListener("pointerdown", go9, true); window.removeEventListener("keydown", go9, true); };
   }, []);
   useEffect(() => { if (!playing) hushSfx9(); }, [playing]);
+  /* 음량 슬라이더를 안 세우는 기기(iOS — bgm.volumeOk 거짓)는 효과음도 최대로(sfx9 setSfxFullVolume9 ★). */
+  useEffect(() => { setSfxFullVolume9(!bgm.volumeOk); }, [bgm.volumeOk]);
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */

@@ -46,6 +46,8 @@ const last9 = new Map<SfxKind9, { at: number; v: number }>();
 let enabled9 = read9(KEY9) !== "0";
 let volume9 = Number(read9(VOL_KEY9) ?? "0.6");
 if (!Number.isFinite(volume9)) volume9 = 0.6;
+/** 음량 손잡이를 안 세운 기기(iOS — 배경 음악 <audio>.volume 을 못 바꿔 슬라이더를 숨긴다)는 효과음도 최대(1)로(아래 setSfxFullVolume9). */
+let full9 = false;
 let ctx9: AudioContext | null = null;
 let master9: GainNode | null = null;
 const subs9 = new Set<() => void>();
@@ -102,7 +104,7 @@ function ctxOf9(): AudioContext | null {
     ambientAudio9();   // 세션을 먼저 ambient 로 — 무음 스위치를 따른다(위 ★)
     try { ctx9 = new C9({ latencyHint: "interactive" }); } catch { return null; }
     master9 = ctx9.createGain();
-    master9.gain.value = volume9;
+    master9.gain.value = full9 ? 1 : volume9;
     master9.connect(ctx9.destination);
   }
   if (ctx9.state === "suspended") void ctx9.resume().catch(() => {});
@@ -205,8 +207,15 @@ export function setSfxOn9(on: boolean): void {
 }
 export function setSfxVolume9(v: number): void {
   volume9 = Math.max(0, Math.min(1, v));
-  if (master9) master9.gain.value = volume9;
+  if (master9) master9.gain.value = full9 ? 1 : volume9;
   write9(VOL_KEY9, String(volume9));
   emit9();
+}
+/** ★ 음량 손잡이가 없는 기기는 효과음을 최대로(2026-10-22, 지적: "효과음 볼륨이 아이폰에서만 더 작아?" → "그럼 슬라이더를 안 보여야 하지 않나") — iOS 는 배경 음악
+ *  (<audio>)의 음량을 못 바꿔 슬라이더를 숨기는데(useBgm volumeOk), Web Audio 효과음에는 저장된 음량(기본 0.6)이 그대로 곱해져 음악(늘 100%)에 묻혔다.
+ *  재생기가 volumeOk 가 거짓이면 켠다 — 그때 주 GainNode 는 1(옛 <audio> 효과음의 iOS 크기와 같다). */
+export function setSfxFullVolume9(on: boolean): void {
+  full9 = on;
+  if (master9) master9.gain.value = full9 ? 1 : volume9;
 }
 export const subscribeSfx9 = (f: () => void): (() => void) => { subs9.add(f); return () => { subs9.delete(f); }; };

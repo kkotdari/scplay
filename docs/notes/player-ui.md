@@ -2115,3 +2115,5 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - iOS 깨우기: 첫 누름에서 AudioContext 를 만들고 빈 버퍼를 한 번 튼다(unlockSfx9). 막힌 판(suspended)은 낼 때마다 resume() 을 청하고 running 이 아니면 안 낸다.
 - 크기: iOS 도 이제 음량 손잡이(기본 0.6)를 탄다(옛 <audio>.volume 은 iOS 가 무시했다).
 - 🔎 시험 페이지(vite dev · 15ms 마다 play 200번): 소리 남 · play 한 번 최악 0.8ms.
+- (같은 날) "효과음 볼륨이 아이폰에서만 더 작아?" → "그럼 슬라이더를 안 보여야 하지 않나" — iOS 는 배경 음악 음량을 못 바꿔 슬라이더를 이미 숨기는데(useBgm volumeOk), Web Audio 효과음에는
+  저장된 음량(기본 0.6)이 곱해져 음악(늘 100%)에 묻혔다. `setSfxFullVolume9(!bgm.volumeOk)` — 슬라이더가 없는 기기는 주 GainNode 1(옛 <audio> 효과음의 iOS 크기).
