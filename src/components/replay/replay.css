@@ -4154,191 +4154,15 @@
 
 .scr-guide-deck b{ color: var(--text); font-weight: 600; }
 
-.scr-guide-jump{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 
-.scr-guide-jump a{
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 13px; border: 1px solid var(--line-soft); border-radius: 999px;
-  background: var(--panel-raised); color: var(--text); text-decoration: none; font-size: 13px;
-}
+.scr-guide-sec{ padding-top: 4px; }   /* 한 절이 된 뒤(2026-10-22 사용법 간소화) 머리와 첫 소제목 사이는 소제목 위 여백만 · 옛 44px */
 
-.scr-guide-jump a:hover{ border-color: var(--accent); }
-
-.scr-guide-jump b{ font-family: var(--font-mono, monospace); color: var(--accent); font-weight: 500; }
-
-
-.scr-guide-sec{ padding-top: 44px; }
-
-.scr-guide-h2{ margin: 6px 0 0; font-size: 22px; letter-spacing: -.01em; }
 
 .scr-guide-h3{ margin: 30px 0 0; font-size: 15px; }
 
-.scr-guide-lede{ margin: 10px 0 0; color: var(--text-dim); font-size: 15px; line-height: 1.7; }
-
-.scr-guide-sub{ margin: 6px 0 0; color: var(--text-dim); font-size: 13.5px; }
-
-
-
-.scr-guide-q{ margin-top: 18px; border-top: 1px solid var(--line-soft); }
-
-.scr-guide-qrow{
-  display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); gap: 14px;
-  padding: 11px 0; border-bottom: 1px solid var(--line-faint, var(--line-soft));
-  align-items: center;
-}
-
-.scr-guide-qin{
-  font-family: var(--font-mono, monospace); font-size: 13px; color: var(--text);
-  background: var(--panel-raised); border: 1px solid var(--line-soft); border-radius: 6px;
-  padding: 8px 11px; min-width: 0; overflow-x: auto; white-space: nowrap;
-}
-
-.scr-guide-qin::before{ content: "⌕ "; opacity: .5; }
-
-.scr-guide-qout{ font-size: 13.5px; color: var(--text-dim); min-width: 0; }
-
-.scr-guide-qout b{ color: var(--text); font-weight: 600; }
-
-
-.scr-guide-note{
-  margin-top: 12px; padding: 14px 16px; border-radius: 8px;
-  background: var(--panel-raised); border: 1px solid var(--line-soft);
-  font-size: 13.5px; line-height: 1.66;
-}
-
-.scr-guide-note b{ color: var(--text); }
-
-.scr-guide-note code{ font-family: var(--font-mono, monospace); font-size: .92em; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.scr-guide-time{
-  font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--text);
-  font-variant-numeric: tabular-nums; flex: none;
-}
-
-/* 단추 줄 견본은 재생기의 툴박스 판(.scr-tb — 어두운 반투명)을 흉내 낸다 — 단추가 그 위의 옅은 흰 막이라 밝은 바탕에서는 안 보인다. */
-.scr-guide-toolrow{
-  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-  padding: 10px 12px; background: rgba(8, 11, 17, 0.88); border-bottom: 1px solid var(--line-soft);
-}
-
-.scr-guide-toolrow{ gap: 8px; }
-
-.scr-guide-toolrow .scr-guide-mbtn{ font-size: 13px; font-weight: 800; }
 
 .scr-guide-legend kbd{ margin: 0 1px; }
 
-
-
-.scr-guide-mock{
-  margin-top: 18px; border: 1px solid var(--line-soft); border-radius: var(--radius);
-  background: var(--panel-solid); overflow: hidden;
-}
-
-/* 재생 줄 견본도 툴박스 판(어두운 반투명) 위다 — 글자·트랙을 그 판의 흰 잉크로 다시 둔다. */
-.scr-guide-bar{
-  --text: #f5f6f7; --line-soft: rgba(255, 255, 255, 0.24);
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; color: var(--text);
-  padding: 10px 12px; background: rgba(8, 11, 17, 0.88); border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-}
-
-
-/* 재생기 단추와 같은 꼴(2026-09 — 테두리·그림자 없는 반투명 · .scr-motion-mapbtn). */
-.scr-guide-mbtn{
-  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
-  border: none; border-radius: 999px;
-  color: #f5f6f7; background: rgba(255, 255, 255, 0.10); box-shadow: none;
-}
-/* 툴박스 꼬리의 아이콘 원(장면 공유 · 사용법 — 2026-09 알약을 걷었다)과 접힌 아이콘 견본. */
-.scr-guide-tpill{
-  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: 999px;
-  flex: none; color: #f5f6f7; background: rgba(255, 255, 255, 0.10);
-}
-.scr-guide-tpill:first-of-type{ margin-left: auto; }
-
-
-.scr-guide-mbtn.is-on{
-  background: rgba(255, 255, 255, 0.92); box-shadow: none; color: #10151a;
-}
-
-/* 사용법의 중계·색 단추 — 재생기의 켜진 TV(초록 테 + 깜빡임)와 색 단추 바탕(지금 모드)을 그대로 흉내 낸다. */
-.scr-guide-mbtn-cast{
-  color: var(--scr-sc-green); box-shadow: inset 0 0 0 1.5px rgba(100, 220, 90, 0.78);
-}
-.scr-guide-mbtn-cast svg{ animation: scr-track-blink 2s steps(1, end) infinite; }
-@media (prefers-reduced-motion: reduce){ .scr-guide-mbtn-cast svg{ animation: none; } }
-.scr-guide-colsw{ color: #fff; }
-.scr-guide-colsw svg{ filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
-/* 색 단추와 같은 원그래프(재생기 .scr-motion-colbtn 의 ★ — 값을 바꾸면 둘을 함께). */
-.scr-guide-colsw.is-personal{ background: rgba(255, 255, 255, 0.10); }
-.scr-guide-colsw.is-personal svg{ filter: none; }
-/* 범례 칸의 개인색 견본은 흰 종이 위라 꺼진 막(흰 0.10)이 안 보인다 — 테두리 한 줄로 '빈 단추'를 말한다. */
-.scr-guide-colsw-s.is-personal{ background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-soft, rgba(0, 0, 0, 0.25)); }
-.scr-guide-colsw.is-team{
-  background: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06)),
-    conic-gradient(from 180deg, #d81f28 0 180deg, #2050d0 180deg 360deg);
-}
-.scr-guide-colsw.is-hero{
-  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)),
-    conic-gradient(from -60deg, #2cb494 0 120deg, #f40404 120deg 240deg, #fcfc38 240deg 360deg);
-}
-/* 범례 칸의 작은 견본(20px) */
-.scr-guide-colsw-s{ display: inline-block; width: 18px; height: 18px; border-radius: 999px; margin-top: 1px; }
-
-/* 중계 고르기 그림 — 지금 전광판 꼴(2026-10-11): AUTO·전체 알약 · 카메라 단추(테 없음 · 켜짐 반투명 초록) · 종족 배지 이름칩(보여 주는 사람은 빛남). */
-.scr-guide-castlist{
-  display: inline-flex; flex-direction: column; gap: 6px; margin: 10px 12px;
-  padding: 10px 12px; border-radius: 4px; background: #0a0d12;
-}
-.scr-guide-castrow{ display: flex; align-items: center; gap: 6px; }
-.scr-guide-cam{
-  display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; box-sizing: border-box;
-  border-radius: 6px; background: rgba(255, 255, 255, 0.10); color: #cfd6de; font-size: 12px; font-weight: 800; letter-spacing: 0.03em;
-}
-.scr-guide-cam.is-pill{ padding: 0 8px; }
-.scr-guide-cam.is-on{ background: rgba(100, 220, 90, 0.32); color: var(--scr-sc-green); }
-.scr-guide-castchip{
-  display: inline-flex; align-items: center; gap: 6px; height: 26px; min-width: 104px; padding: 0 8px; box-sizing: border-box;
-  border-radius: 2px; font-size: 14px; font-weight: 700;
-}
-.scr-guide-castrace{
-  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; flex: none;
-  background: #fff; color: #10151a; font-size: 10px; font-weight: 800; font-style: normal;
-}
-
-
-.scr-guide-play{
-  width: 30px; height: 30px; flex: none; display: grid; place-items: center;
-  border-radius: 50%; background: transparent; color: var(--text);
-}
-
-
-/* 재생 줄 견본의 스크랩·공유 — 툴박스 꼬리 아이콘 원(.scr-tb-tail .scr-kakao-share-btn)과 같은 반투명(2026-09 · 흰 알약을 걷었다). */
-.scr-guide-tbtn{
-  display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 30px; height: 30px; padding: 0; border-radius: 999px; border: none; box-shadow: none;
-  background: rgba(255, 255, 255, 0.10); color: #f5f6f7;
-}
-.scr-guide-tbtn svg{ width: 15px; height: 15px; color: currentColor; }
-
-
-.scr-guide-seek{ flex: 1 1 130px; min-width: 110px; height: 5px; border-radius: 3px; background: var(--line-soft); position: relative; }
-
-.scr-guide-seek::after{ content: ""; position: absolute; inset: 0 62% 0 0; background: var(--accent); border-radius: 3px; }
 
 .scr-guide-legend{ list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 8px; }
 
@@ -4349,13 +4173,10 @@
 
 .scr-guide-ic-txt{ font-size: 10px; font-family: var(--font-mono, monospace); letter-spacing: -.02em; }
 
-.scr-guide-mbtn-txt{ font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
-
 
 .scr-guide-legend li{ display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; font-size: 13.5px; color: var(--text-dim); }
 
 .scr-guide-legend b{ color: var(--text); font-weight: 600; }
-
 
 
 .scr-guide kbd{
@@ -4365,31 +4186,14 @@
   border-bottom-width: 2.5px; border-radius: 6px; line-height: 1;
 }
 
-.scr-guide-kbd-wide{ min-width: 66px; }
 
-.scr-guide-keys{ margin-top: 16px; border-top: 1px solid var(--line-soft); }
-
-.scr-guide-keyrow{
-  display: grid; grid-template-columns: minmax(116px, auto) 1fr; gap: 14px;
-  padding: 10px 0; border-bottom: 1px solid var(--line-faint, var(--line-soft)); align-items: baseline;
-}
-
-.scr-guide-combo{ display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
-
+/* 기능 이름 옆 PC 단축키(2026-10-22, 요청: "단축키를 각 기능 설명부에 통합 — 기능 옆에 단축키") — 줄 글자에 맞춘 작은 키캡. */
+.scr-guide-k{ display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-left: 8px; vertical-align: 1px; }
+.scr-guide-k kbd, .scr-guide-deck kbd{ min-width: 20px; height: 19px; padding: 0 5px; font-size: 11px; border-bottom-width: 2px; border-radius: 4px; }
 .scr-guide-plus{ color: var(--text-dim); font-size: 11px; margin-right: 3px; }
 
-.scr-guide-what{ font-size: 14px; }
-
-.scr-guide-what small{ display: block; color: var(--text-dim); font-size: 12.5px; line-height: 1.55; margin-top: 2px; }
-
-.scr-guide-group{
-  display: block; font-family: var(--font-mono, monospace); font-size: 10.5px;
-  letter-spacing: .14em; color: var(--text-dim);
-  padding: 18px 0 5px; border-bottom: 1px solid var(--line-faint, var(--line-soft));
-}
 
 .scr-guide-back{ margin-top: 36px; display: flex; justify-content: center; }
-
 
 
 .scr-guide-close{
@@ -4404,15 +4208,7 @@
 }
 
 .scr-guide-close:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 560px) {
 
-  .scr-guide-qrow{ grid-template-columns: 1fr; gap: 7px; }
-
-  .scr-guide-keyrow{ grid-template-columns: 1fr; gap: 7px; }
-
-  
-  .scr-guide-bar{ gap: 7px; }
-}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    앱에 남아 있던 재생기 화장 — 여기가 임자다(지시: "리플레이 재생에 사용되는 css는 scplay에 있고 개별 프로젝트에 있어선
