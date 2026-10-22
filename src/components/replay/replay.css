@@ -3743,8 +3743,8 @@
 }
 .scr-tb-tail .scr-kakao-share-btn svg { width: calc(15px * var(--ui)); height: calc(15px * var(--ui)); flex: 0 0 auto; color: currentColor; }
 .scr-tb-tail .scr-kakao-share-btn.is-done { color: #6fe39a; }
-/* 셋의 차례는 스크랩 → 공유 → 사용법(안내 ReplayGuide 와 같다) — 사용법만 한 뼘 띄운다(보는 일과 내보내는 일을 가른다). */
-.scr-tb-tail .scr-scrapbtn, .scr-tb-tail .scr-sharebtn { order: 0; }
+/* 차례는 공유 → 사용법(안내 ReplayGuide 와 같다) — 사용법만 한 뼘 띄운다(보는 일과 내보내는 일을 가른다). */
+.scr-tb-tail .scr-sharebtn { order: 0; }
 .scr-tb-tail .scr-guide-btn { order: 1; margin-left: 2px; }
 /* 전체화면 켜고 끄기는 맨 오른쪽(2026-09, 요청) — 사용법처럼 한 뼘 띄운다(보기 바꾸기는 내보내기와 딴 일이다). */
 .scr-tb-tail .scr-fsbtn { order: 2; margin-left: 2px; }

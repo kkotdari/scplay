@@ -653,10 +653,9 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
       { sec: 42, name: "정구", text: "ㅎㅇ 잘 부탁드립니다" }, { sec: 43, name: "수달이", text: "ㄱㄱ" },
       { sec: 44, name: "관전자", text: "오 핵이다" },
       { sec: 45, name: "Rex", text: "이번 판은 진짜 길게 가 봅시다 앞마당 먹고 하이브까지 가는 걸로 다들 화이팅" }] } : {}) }),
-    /* 장면 스크랩·공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백 둘이다. 버튼은 재생기가 그린다(아이콘 원).
+    /* 장면 공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백이다. 버튼은 재생기가 그린다(아이콘 원). 스크랩은 2026-10-22 걷었다.
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
-    onScrap: async () => { window.__scrapQ9 = window.__share9().qs; return "스크랩됨"; },   // --sharepick 이 '담는 순간의 링크'를 읽는다
-    onShare: async () => "링크 복사됨",
+    onShare: async () => { window.__shareQ9 = window.__share9().qs; return "링크 복사됨"; },   // --sharepick 이 '보내는 순간의 링크'를 읽는다
   }));
 };
 `;
@@ -1284,10 +1283,10 @@ if (has("--split")) {
   await page.waitForTimeout(500);
   const b9 = await sp9();
   console.log(`[분할] 둘째 칸 누른 뒤 독 "${b9.cap}" · 켜진 칸 ${b9.cells.findIndex((c) => c.pick)}`);
-  /* --sharepick [png](2026-10-19, 요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게") — 분할에서 스크랩을 누르면 사람 고르는 창이 뜨나 ·
-     둘째 사람을 고르면 담는 순간의 링크에 &tr=그 사람이 실리고 자리(z·cx)는 비나 · 담은 뒤 표가 원래대로(분할 = tr 없음) 돌아오나. */
+  /* --sharepick [png](2026-10-19, 요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게") — 분할에서 공유를 누르면 사람 고르는 창이 뜨나 ·
+     둘째 사람을 고르면 보내는 순간의 링크에 &tr=그 사람이 실리고 자리(z·cx)는 비나 · 보낸 뒤 표가 원래대로(분할 = tr 없음) 돌아오나. */
   if (has("--sharepick")) {
-    await page.evaluate(() => { const b = document.querySelector(".scr-scrapbtn"); if (b instanceof HTMLElement) b.click(); });
+    await page.evaluate(() => { const b = document.querySelector(".scr-sharebtn"); if (b instanceof HTMLElement) b.click(); });
     await page.waitForTimeout(300);
     const sp = await page.evaluate(() => ({
       title: document.querySelector(".scr-sharepick-title")?.textContent ?? null,
@@ -1298,13 +1297,13 @@ if (has("--split")) {
     if (shotSp && shotSp !== true && String(shotSp).endsWith(".png")) await page.screenshot({ path: String(shotSp), timeout: 120000 });
     await page.evaluate(() => { const b = document.querySelectorAll(".scr-sharepick-item")[1]; if (b instanceof HTMLElement) b.click(); });
     await page.waitForTimeout(400);
-    console.log(`[공유 고르기] 담은 링크 "${await page.evaluate(() => window.__scrapQ9 ?? "")}" · 창 ${await page.evaluate(() => (document.querySelector(".scr-sharepick") ? "남음" : "닫힘"))} · 뒤 표 ${JSON.stringify(await page.evaluate(() => window.__share9()))}`);
-    await page.keyboard.press("KeyZ");
+    console.log(`[공유 고르기] 보낸 링크 "${await page.evaluate(() => window.__shareQ9 ?? "")}" · 창 ${await page.evaluate(() => (document.querySelector(".scr-sharepick") ? "남음" : "닫힘"))} · 뒤 표 ${JSON.stringify(await page.evaluate(() => window.__share9()))}`);
+    await page.keyboard.press("KeyX");
     await page.waitForTimeout(300);
     const z9 = await page.evaluate(() => !!document.querySelector(".scr-sharepick"));
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
-    console.log(`[공유 고르기] Z 키 → 창 ${z9 ? "뜸" : "안 뜸"} · Esc → ${await page.evaluate(() => (document.querySelector(".scr-sharepick") ? "남음" : "닫힘"))}`);
+    console.log(`[공유 고르기] X 키 → 창 ${z9 ? "뜸" : "안 뜸"} · Esc → ${await page.evaluate(() => (document.querySelector(".scr-sharepick") ? "남음" : "닫힘"))}`);
   }
   const pk9 = flag("--splitpick", "");
   if (pk9 && pk9 !== true && String(pk9).endsWith(".png")) { await page.waitForTimeout(1500); await page.screenshot({ path: String(pk9), timeout: 120000 }); console.log(`[분할] 누른 뒤 1.5초 독 "${(await sp9()).cap}"`); }

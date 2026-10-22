@@ -2027,3 +2027,10 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 · 보급 줄은 짐칸이 서면 **짐칸 아래**(`.scr-motion-infodock-cargowrap` — 셋째 기둥 안 [짐칸 / 보급]) · foot9 의 key "sup" 를 빼서 옮긴다. 폭은 짐칸이 정한다(보급 width 0 · min-width 100% · 줄바꿈).
 🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --info --track Rex --dockovl --colprobe --rosterprobe --shot x.png` → `[인포창 기둥]`(세 기둥 · 업그레이드 칸 · 보급 자리) ·
   `[로스터 끝]` 바닥 밖 0 · 옆 넘침 0. 폰 가로 `--ios --vw 844 --vh 390` 도 같다. `--dockovl` = Rex 의 오버로드(공중 방어 1 · 속업 · 수송업 · 시야업).
+
+## 장면 스크랩 걷기(2026-10-22)
+요청: "스크랩 기능 완전 제거 · 화면부터 디비까지". 재생기 쪽은 `onScrap`·`scrapLabel` prop(ReplayMotionPlayer · ReplayModule)·꼬리 줄의
+스크랩 버튼(`.scr-scrapbtn`)·단축키 Z·안내(ReplayGuide)의 스크랩 글·견본 아이콘을 걷었다. 꼬리 줄은 **공유 · 사용법 · 전체화면**이다.
+`runTail9` 는 공유 하나만 돌린다(분할에서는 사람 고르는 창 → `&tr=` 규약 그대로) · 완료 표시 `tailDone9` 는 글 하나(string | null).
+앱 연동 안내는 `docs/scene-share-request.md`(옛 `scrap-share-request.md`). 🔎 `node scripts/perf-check.mjs … --split x.png --players 4 --sharepick` —
+공유 단추·X 키가 사람 고르는 창을 띄우는지(옛 Z·스크랩 단추 자리).

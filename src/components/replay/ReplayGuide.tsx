@@ -1,4 +1,4 @@
-import { Bookmark, Map as MapIcon, Maximize, Music, Palette, Play, Search, Share2, Tv, Video, X } from "lucide-react";
+import { Map as MapIcon, Maximize, Music, Palette, Play, Search, Share2, Tv, Video, X } from "lucide-react";
 import QMarkIcon from "./QMarkIcon";
 function K({ keys, plus = false, title, desc }: {
     keys: string[];
@@ -56,14 +56,12 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">도구 상자</h3>
         <p className="scr-guide-sub">
           지도 아래 <strong>쇠판</strong>입니다 — 맨 위에 <strong>미니맵 · 인포창 · 전광판</strong>이 서고, 그 아래 버튼 줄은 왼쪽의 동그란 <strong>버튼들</strong>(색 · 보기 · 음악 · 검색) ·
-          오른쪽의 <strong>스크랩 · 공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
+          오른쪽의 <strong>공유 · 사용법(?) · 전체화면</strong>, 맨 아래 줄은 <strong>재생 · 진행바 · 시간</strong>입니다. 버튼 줄 정가운데의 작은 단추가 <strong>접기(▼)</strong>입니다.
           <b>배속</b>은 버튼 줄이 아니라 <b>지도 오른쪽 아래의 세로 다이얼</b>입니다.
         </p>
         <p className="scr-guide-sub">
-          진행바를 끌면 그 시각으로 갑니다. <strong>스크랩·공유</strong> 두 버튼은 <strong>지금 이 장면</strong>을
-          다루는 것들입니다 — <strong>스크랩</strong>은 나만 보게 담고,{" "}
-          <strong>공유</strong>는 링크로 만들어 남에게 보냅니다. 둘 다 <b>같은 장면</b>을
-          가리킵니다: 받은 사람이 열면 <b>같은 시각·같은 자리·같은 배율·같은 배속</b>에서 시작합니다.
+          진행바를 끌면 그 시각으로 갑니다. <strong>공유</strong> 버튼은 <strong>지금 이 장면</strong>을
+          링크로 만들어 남에게 보냅니다: 받은 사람이 열면 <b>같은 시각·같은 자리·같은 배율·같은 배속</b>에서 시작합니다.
           단, <b>중계를 켠 채</b> 보내면 자리 대신 <b>중계</b>(자동 또는 그 사람)가 실려, 받은 쪽도 같은 중계로 열립니다.
         </p>
         <div className="scr-guide-mock">
@@ -71,7 +69,6 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-play" aria-hidden="true"><Play size={18} fill="currentColor"/></span>
             <span className="scr-guide-seek"/>
             <span className="scr-guide-time">12:04 / 31:12</span>
-            <span className="scr-guide-tbtn" aria-hidden="true"><Bookmark size={15}/></span>
             <span className="scr-guide-tbtn scr-guide-tbtn-share" aria-hidden="true"><Share2 size={15}/></span>
           </div>
           <ul className="scr-guide-legend">
@@ -79,7 +76,6 @@ export default function ReplayGuide({ onClose }: {
             <li><span className="scr-guide-ic scr-guide-ic-txt">↔</span><span><b>진행바</b> — 끌어서 원하는 시각으로. 좌우 화살표는 누르는 동안 계속 감깁니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">×2</span><span><b>배속 다이얼</b> — 지도 오른쪽 아래의 세로 눈금(1·2·4·8). 누르거나 위아래로 끌면 ×1~×8 사이에서 부드럽게 바뀌고, 눈금 근처에서는 그 눈금에 붙습니다. PC에서는 그 위에서 <b>휠</b>을 굴려도 되고, 휠은 눈금마다 한 번씩 걸립니다. ↑·↓ 키로도 눈금 한 칸씩. 중계 중에도 됩니다.</span></li>
             <li><span className="scr-guide-ic scr-guide-ic-txt">▼</span><span><b>접기</b> — 버튼 줄 정가운데의 작은 단추. 누르면 그 위의 미니맵·인포창·전광판이 통째로 접혀 지도가 그만큼 넓어지고, 한 번 더 누르면(▲) 다시 펼쳐집니다.</span></li>
-            <li><span className="scr-guide-ic"><Bookmark size={14}/></span><span><b>장면 스크랩</b> — 제목을 붙여 담아 둡니다. 담아 둔 장면은 <b>스크랩</b> 화면에서 다시 엽니다.</span></li>
             <li><span className="scr-guide-ic"><Share2 size={14}/></span><span><b>장면 공유</b> — 카톡으로 보냅니다(안 되면 링크 복사). 시각·자리·배율·배속·각도까지 링크에 실립니다(중계 중이면 자리 대신 중계).</span></li>
           </ul>
         </div>
@@ -94,7 +90,6 @@ export default function ReplayGuide({ onClose }: {
             <span className="scr-guide-mbtn scr-guide-mbtn-txt">2D</span>
             <span className="scr-guide-mbtn"><Music size={18}/></span>
             <span className="scr-guide-mbtn"><Search size={18}/></span>
-            <span className="scr-guide-tpill"><Bookmark size={15}/></span>
             <span className="scr-guide-tpill"><Share2 size={15}/></span>
             <span className="scr-guide-tpill"><QMarkIcon size={15}/></span>
             <span className="scr-guide-tpill"><Maximize size={15}/></span>
@@ -221,7 +216,6 @@ export default function ReplayGuide({ onClose }: {
           <K keys={["Q", "E"]} title="축소 / 확대" desc="한 번에 한 칸씩, 마우스 휠로도 됩니다."/>
 
           <span className="scr-guide-group">장면</span>
-          <K keys={["Z"]} title="장면 스크랩" desc="지금 장면을 제목 붙여 담습니다."/>
           <K keys={["X"]} title="장면 공유" desc="지금 장면의 링크를 공유 시트로 보냅니다(안 되면 링크 복사)."/>
 
           <span className="scr-guide-group">보기</span>

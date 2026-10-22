@@ -22,7 +22,7 @@
 | `docs/notes/cast-split.md` | 중계 편성표·개인 추적·맞대결·분할보기(칸 카메라·팀 시야·컬링·미니맵) |
 
 코드 주석의 "CLAUDE.md '<제목>'" 은 옛 자리다 — 이제 `docs/notes/` 에서 그 제목으로 찾는다.
-덤퍼(stargayte-api)에 건넨 부탁은 `docs/request-dumper-*.md` · 앱 연동 안내는 `docs/scrap-share-request.md`·`docs/scene-link-migration.md`.
+덤퍼(stargayte-api)에 건넨 부탁은 `docs/request-dumper-*.md` · 앱 연동 안내는 `docs/scene-share-request.md`·`docs/scene-link-migration.md`.
 
 ## 코드 지도
 - 모델 빌더·표·헬퍼: `src/components/replay/bake9.ts`(SHAPE_BUILDERS · SHAPE_GALLERY — 문 차례를 바꾸지 마라)

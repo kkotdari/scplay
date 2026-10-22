@@ -6,7 +6,7 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Music, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -9050,7 +9050,7 @@ const nextColorMode9 = (m: ColorMode9, melee: boolean, hero: boolean): ColorMode
 export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
-  clockKey, shareNode, onScrap, scrapLabel = "장면 스크랩", onShare, shareLabel = "장면 공유",
+  clockKey, shareNode, onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
   onFinish,
@@ -9113,18 +9113,8 @@ export default function ReplayMotionPlayer({
   soleView?: boolean;
   /** 진행바 아래 공유 버튼(요청: 케밥은 그대로, 별도 버튼) — 시계 옆에 앉는다. */
   shareNode?: React.ReactNode;
-  /** ★ 장면 스크랩 — 함수를 주면 **버튼째** 여기서 그린다(지적: "버튼은 css까지 먹여서 네가 만들어서 기본값 제공해
-   *  줘야지, 갖다 쓰는 쪽은 사용 여부 판단하고 기능만 붙이는 거고") ──────────────────────────────────────────────
-   *  여태 스크랩은 앱이 제 버튼을 지어 공유 슬롯(shareNode)에 함께 꽂는 물건이었다. 그러다 보니 같은 줄에 선 셋
-   *  (스크랩·공유·사용법) 가운데 스크랩만 앱의 기본 버튼 꼴로 남아, 이 파일의 CSS가 뒤늦게 그 꼴을 따라잡는
-   *  술래잡기가 됐다(.scr-scrapbtn 규칙이 그 자취다). 꼴을 가진 쪽이 버튼도 가져야 한다.
-   *  앱이 지는 것은 **담는 일**뿐이다 — 자리·꼴·단축키(Z)·완료 표시는 여기 몫이다. 안 주면 안 그린다.
-   *  참(또는 참으로 풀리는 약속)을 돌려주면 잠깐 "담았어요"로 바뀐다. */
-  onScrap?: () => string | boolean | void | Promise<string | boolean | void>;
-  /** 스크랩 버튼의 글씨 — 기본 "장면 스크랩". */
-  scrapLabel?: string;
-  /** ★ 장면 공유 — 스크랩과 **같은 규약**이다(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는
-   *  거고 함수도 알아서 연결해야 해") — 함수를 주면 버튼째 여기서 그리고, 안 주면 안 그린다. 단축키는 X다
+  /** ★ 장면 공유(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해" ·
+   *  스크랩은 2026-10-22 기능째 걷었다 — 요청: "스크랩 기능 완전 제거") — 함수를 주면 버튼째 여기서 그리고, 안 주면 안 그린다. 단축키는 X다
    *  (안내에 적힌 그 키). 앱이 지는 것은 **공유하는 일**뿐이다: 카카오든 navigator.share든 링크 복사든
    *  앱마다 다른 물건이라 그 속은 안 건드린다.
    *  글(문자열)을 돌려주면 그 글이, 참을 돌려주면 기본 글("링크 복사됨")이 1.8초 동안 뜬다.
@@ -11956,14 +11946,12 @@ export default function ReplayMotionPlayer({
   /* (걷어냄) fsHide9 — 전체화면의 '도구 숨기기'(is-uihide) · tbMin9 — 툴박스가 몇 초 뒤 아이콘 하나로 접히던 것(TB_IDLE_MS9 ·
      F 키 · 접힌 아이콘 .scr-tb-open). 툴박스는 **늘 보인다**(2026-09, 요청: "툴박스 접기 기능 제거하고 항상 보이게"). */
   const guidePushed9 = useRef(false);
-  /* ★ 꼬리 줄의 두 버튼(스크랩·공유) — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
-     쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다.
+  /* ★ 꼬리 줄의 공유 버튼 — **하는 일만 앱이 붙이고** 나머지는 여기 몫이다(지적: "쓰는 쪽에서
+     쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해"). 누름·완료 표시·단축키가 그 나머지다(스크랩 버튼은 2026-10-22 걷었다).
      완료 표시 규약은 하나다 — 글(문자열)을 돌려주면 그 글이, 참을 돌려주면 기본 글이 1.8초 뜬다. 약속이면
-     풀릴 때까지 기다린다: 앱이 제목 창을 띄우고 저장하거나 공유 시트를 여는 동안은 아직 끝난 것이 아니다. */
-  const [tailDone9, setTailDone9] = useState<{ k: "scrap" | "share"; s: string } | null>(null);
+     풀릴 때까지 기다린다: 앱이 공유 시트를 여는 동안은 아직 끝난 것이 아니다. */
+  const [tailDone9, setTailDone9] = useState<string | null>(null);
   const tailTimer9 = useRef(0);
-  const onScrapRef9 = useRef(onScrap);
-  onScrapRef9.current = onScrap;
   const onShareRef9 = useRef(onShare);
   onShareRef9.current = onShare;
   /* ★ **분할보기에서는 한 사람을 고르고 담는다**(2026-10-19, 요청: "분할화면에서 공유 스크랩시 한명만 선택하는 팝업 뜨게" · 글귀
@@ -11971,12 +11959,12 @@ export default function ReplayMotionPlayer({
      &tr= 없이 분할 전 자리(z·cx·cy)만 실려, 받는 쪽은 엉뚱한 자리의 빈 화면을 봤다. 이제 버튼·Z·X 가 먼저 사람 고르는 창을
      띄우고, 고른 사람을 **그 한 번만** 카메라 임자로 실어(&tr=그 아이디 · 자리는 비움 — 추적 장면의 규약) 앱의 함수를 부른다.
      함수가 끝나면(앱이 제목 창을 닫을 때까지 기다린다) 표를 원래대로 돌린다. */
-  const [tailPick9, setTailPick9] = useState<"scrap" | "share" | null>(null);
-  const runTail9 = useCallback(async (k9: "scrap" | "share", who9?: string): Promise<void> => {
-    const f9 = k9 === "scrap" ? onScrapRef9.current : onShareRef9.current;
+  const [tailPick9, setTailPick9] = useState(false);
+  const runTail9 = useCallback(async (who9?: string): Promise<void> => {
+    const f9 = onShareRef9.current;
     if (!f9) return;
-    if (splitOnRef9.current && who9 === undefined) { setTailPick9(k9); return; }
-    setTailPick9(null);
+    if (splitOnRef9.current && who9 === undefined) { setTailPick9(true); return; }
+    setTailPick9(false);
     const ck9 = who9 !== undefined ? clockKey : undefined;
     const tr09 = ck9 ? playbackTrackOf.get(ck9) : undefined;
     const v09 = ck9 ? playbackViewOf.get(ck9) : undefined;
@@ -11991,25 +11979,25 @@ export default function ReplayMotionPlayer({
       if (v09) playbackViewOf.set(ck9, v09); else playbackViewOf.delete(ck9);
     }
     if (r9 !== true && typeof r9 !== "string") return;
-    setTailDone9({ k: k9, s: typeof r9 === "string" ? r9 : k9 === "scrap" ? "담았어요" : "링크 복사됨" });
+    setTailDone9(typeof r9 === "string" ? r9 : "링크 복사됨");
     if (tailTimer9.current) window.clearTimeout(tailTimer9.current);
     tailTimer9.current = window.setTimeout(() => { tailTimer9.current = 0; setTailDone9(null); }, 1800);
   }, [clockKey]);
   /* 분할을 끄면 고르던 창도 닫는다 · Esc 로도 닫는다. */
-  useEffect(() => { if (!splitOn9) setTailPick9(null); }, [splitOn9]);
+  useEffect(() => { if (!splitOn9) setTailPick9(false); }, [splitOn9]);
   useEffect(() => {
     if (!tailPick9) return undefined;
     const onKey9 = (e: KeyboardEvent): void => {
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopPropagation();
-      setTailPick9(null);
+      setTailPick9(false);
     };
     window.addEventListener("keydown", onKey9, true);
     return () => window.removeEventListener("keydown", onKey9, true);
   }, [tailPick9]);
   useEffect(() => () => { if (tailTimer9.current) window.clearTimeout(tailTimer9.current); }, []);
-  /* 단축키 Z·X — 안내(ReplayGuide)가 적어 둔 그 둘이다. 버튼을 안 그리는 화면에서는 듣지 않는다(함수가
+  /* 단축키 X — 안내(ReplayGuide)가 적어 둔 그 키다(Z 스크랩은 2026-10-22 걷었다). 버튼을 안 그리는 화면에서는 듣지 않는다(함수가
      없으면 그 키도 없다). 글 치는 칸·수식키에서는 안 듣고, 한글 자판에서도 듣도록 키 자리(e.code)로 본다.
      ★ 자격은 **홀로 있는가**다(지적: "목록 페이지는 카드마다 재생기가 서니까 Z 한 번에 N개가 같이 반응해 —
        예전엔 앱이 soleView로 가려 줬는데 그 가림막이 모듈 안으로 들어오면서 없어졌어") ────────────────────
@@ -12020,20 +12008,18 @@ export default function ReplayMotionPlayer({
        `wide`는 안 본다 — 주 키보드 판이 옛 대역으로 남겨 둔 값인데, 넓은 카드가 여럿인 목록에서는
        이 병을 그대로 되살린다(그 자리 주석의 그 사고다). */
   useEffect(() => {
-    if (!onScrap && !onShare) return undefined;
+    if (!onShare) return undefined;
     if (!soleView && !fsOn) return undefined;
     const onKey9 = (e: KeyboardEvent): void => {
-      const k9 = e.code === "KeyZ" ? "scrap" : e.code === "KeyX" ? "share" : null;
-      if (!k9 || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-      if (k9 === "scrap" ? !onScrap : !onShare) return;
+      if (e.code !== "KeyX" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const t9 = e.target as HTMLElement | null;
       if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.isContentEditable)) return;
       e.preventDefault();
-      void runTail9(k9);
+      void runTail9();
     };
     window.addEventListener("keydown", onKey9);
     return () => window.removeEventListener("keydown", onKey9);
-  }, [onScrap, onShare, runTail9, soleView, fsOn]);
+  }, [onShare, runTail9, soleView, fsOn]);
   const openGuide9 = (): void => {
     if (onGuide) { onGuide(); return; }
     try { window.history.pushState({ scrGuide: 1 }, ""); guidePushed9.current = true; } catch { guidePushed9.current = false; }
@@ -20800,33 +20786,20 @@ export default function ReplayMotionPlayer({
      심는** 일일 뿐이다(fixed·inset:0). 평소에는 제자리에서 프레임 크기로 선다.
      크롭도 저절로 하나가 된다: 지도는 늘 무대를 덮게(cover) 깔리는데, 프레임의
      가로세로비를 지도와 같게 주므로 평소에는 덮는 몫이 0이다(=꼭 맞는다). */
-  /** 툴박스 꼬리 — 스크랩 · 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
+  /** 툴박스 꼬리 — 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
   const tailNode9 = (
             <div className="scr-tb-tail">
-              {/* ★ 장면 스크랩 — 앱이 onScrap을 주면 여기서 그린다(위 프롭 주석). 차례는 안내(ReplayGuide)와 같다:
-                  스크랩(Z) → 공유(X) → 사용법. 꼴은 같은 줄의 공유·사용법과 한 벌이다(.scr-scrapbtn). */}
-              {onScrap && (
-                <button
-                  type="button"
-                  className={cx("scr-kakao-share-btn scr-scrapbtn", tailDone9?.k === "scrap" && "is-done")}
-                  onClick={() => { void runTail9("scrap"); }}
-                  aria-label={tailDone9?.k === "scrap" ? tailDone9.s : scrapLabel}
-                  title={tailDone9?.k === "scrap" ? tailDone9.s : `${scrapLabel} (Z)`}
-                >
-                  {/* 아이콘만이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 글귀는
-                      title·aria 로 가고, 마친 표시는 초록 체크 한 번이다. */}
-                  {tailDone9?.k === "scrap" ? <Check size={18} aria-hidden /> : <Bookmark size={18} aria-hidden />}
-                </button>
-              )}
               {onShare && (
                 <button
                   type="button"
-                  className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9?.k === "share" && "is-done")}
-                  onClick={() => { void runTail9("share"); }}
-                  aria-label={tailDone9?.k === "share" ? tailDone9.s : shareLabel}
-                  title={tailDone9?.k === "share" ? tailDone9.s : `${shareLabel} (X)`}
+                  className={cx("scr-kakao-share-btn scr-sharebtn", tailDone9 && "is-done")}
+                  onClick={() => { void runTail9(); }}
+                  aria-label={tailDone9 ?? shareLabel}
+                  title={tailDone9 ?? `${shareLabel} (X)`}
                 >
-                  {tailDone9?.k === "share" ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
+                  {/* 아이콘만이다(2026-09, 요청: "장면공유 스크랩 사용법도 피시에서도 모두 아이콘 버튼으로") — 글귀는
+                      title·aria 로 가고, 마친 표시는 초록 체크 한 번이다. */}
+                  {tailDone9 ? <Check size={18} aria-hidden /> : <Share2 size={18} aria-hidden />}
                 </button>
               )}
               {shareNode}
@@ -21103,7 +21076,7 @@ export default function ReplayMotionPlayer({
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 스크랩 · 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
+            {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
                 "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
                 키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
             {uiPhone9 ? (
@@ -21136,22 +21109,22 @@ export default function ReplayMotionPlayer({
   const fsInner = fsOn ? createPortal(stageNode, document.body) : null;
   const guideNode9 = guideOpen9
     ? createPortal(<div className="scr-guide-overlay"><ReplayGuide onClose={closeGuide9} /></div>, document.body) : null;
-  /* 분할보기의 공유·스크랩 — 사람 하나 고르는 창(위 runTail9 ★). 판이 body 로 가 있어도(전체화면) 보이게 body 로 띄운다. */
+  /* 분할보기의 공유 — 사람 하나 고르는 창(위 runTail9 ★). 판이 body 로 가 있어도(전체화면) 보이게 body 로 띄운다. */
   const tailPickNode9 = tailPick9 && splitOn9 ? createPortal(
-    <div className="scr-sharepick-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setTailPick9(null); }}>
+    <div className="scr-sharepick-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setTailPick9(false); }}>
       <div className="scr-sharepick" role="dialog" aria-modal="true" aria-label="누구의 화면으로 공유할까요?">
         <p className="scr-sharepick-title">누구의 화면으로 공유할까요?</p>
         <ul className="scr-sharepick-list">
           {splitBases9.map((b9) => (
             <li key={b9.key}>
-              <button type="button" className="scr-sharepick-item" onClick={() => { void runTail9(tailPick9, b9.key); }}>
+              <button type="button" className="scr-sharepick-item" onClick={() => { void runTail9(b9.key); }}>
                 <i className="scr-motion-castdot" style={{ background: modeColor(b9.key, teamOfRaw(b9.key)) }} aria-hidden />
                 <span>{b9.name}</span>
               </button>
             </li>
           ))}
         </ul>
-        <button type="button" className="scr-sharepick-cancel" onClick={() => setTailPick9(null)}>취소</button>
+        <button type="button" className="scr-sharepick-cancel" onClick={() => setTailPick9(false)}>취소</button>
       </div>
     </div>, document.body) : null;
 
