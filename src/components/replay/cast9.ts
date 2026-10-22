@@ -2107,23 +2107,45 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5 && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) ships9.add(e9.tag);
     }
     if (ships9.size < BOMB_DROP_N9 || !isBomb9(att9, def9, sec9)) return null;   // 폭탄드랍만(위 isBomb9 — 기수가 있어야)
+    /* ★ **내림은 물결마다**(2026-10-22, 지적: "자막은 드랍인데 엉뚱한 데 보여 줌" — 261019005801 13:50) — 옛 판은 처음 내린 때부터 DROP_UNLOAD9 초 안의 몸만 '이 드랍의 유닛'으로
+       장면 끝까지 따라갔다. 그 판은 셔틀 한 대가 먼저 둘을 내려(818초) 곧 다 죽고(825초), 셔틀 셋이 본진에서 다시 태워 846초에 폭탄드랍을 했다 — 첫 둘이 죽은 뒤 카메라는
+       장면 가운데(아직 아무도 없는 빈 땅)로 물러나 20초를 섰다. 이제 내림을 물결(앞 내림과 DROP_UNLOAD9 초 넘게 떨어지면 새 물결)로 나눠 물결마다 [그 물결 수송선 → 내린 몸]을
+       잇는다: 내린 몸은 다 죽거나(+ 2초) 다음 물결 수송선이 올 때까지 · 다음 물결 수송선은 거기서부터 그 물결이 다 내릴 때까지(태우러 돌아간 본진도 비춘다). */
+    type Wave9 = { s0: number; s1: number; ships: Set<number>; riders: number[] };
+    const waves9: Wave9[] = [];
     const rideOf9 = new Map<number, number>();
-    const riders9: number[] = [];
-    let un09 = Infinity;
     for (const [s9, pax9, ship9] of loadsSorted9) {
-      if (s9 > sec9 + DROP_W9) break;
+      if (s9 > end9) break;
       if (ship9 !== 0) { rideOf9.set(pax9, ship9); continue; }
       const from9 = rideOf9.get(pax9);
       rideOf9.delete(pax9);
-      if (from9 === undefined || !ships9.has(from9) || s9 < sec9 - DROP_W9 || s9 > un09 + DROP_UNLOAD9) continue;
-      if (un09 === Infinity) un09 = s9;
-      riders9.push(pax9);
+      if (from9 === undefined || !ships9.has(from9) || s9 < sec9 - DROP_W9) continue;
+      let w9 = waves9[waves9.length - 1];
+      if (!w9 || s9 > w9.s1 + DROP_UNLOAD9) { w9 = { s0: s9, s1: s9, ships: new Set(), riders: [] }; waves9.push(w9); }
+      w9.s1 = s9; w9.ships.add(from9); w9.riders.push(pax9);
     }
-    if (riders9.length === 0) return null;
-    let unEnd9 = un09;
-    for (const [s9, , ship9] of loadsSorted9) if (ship9 === 0 && s9 >= un09 && s9 <= un09 + DROP_UNLOAD9) unEnd9 = Math.max(unEnd9, s9);
-    const arrive9 = Math.max(0, un09 - DROP_ARRIVE9);
-    return { arrive: arrive9, follow: [{ t0: arrive9, t1: unEnd9, tags: [...ships9] }, { t0: unEnd9, t1: Math.max(unEnd9 + 1, end9), tags: riders9 }] };
+    if (waves9.length === 0) return null;
+    /** 그 몸들이 다 죽은 때(하나라도 살아 있으면 Infinity). */
+    const allDead9 = (tags9: number[]): number => {
+      let at9 = -Infinity;
+      for (const tg9 of tags9) {
+        const d9 = livesByTag9.get(tg9)?.reduce((m9, e9) => Math.max(m9, e9.died ?? Infinity), -Infinity) ?? Infinity;
+        at9 = Math.max(at9, d9);
+      }
+      return at9;
+    };
+    const arrive9 = Math.max(0, waves9[0].s0 - DROP_ARRIVE9);
+    const follow9: CastFollow9[] = [];
+    let t9 = arrive9;
+    waves9.forEach((w9, i9) => {
+      if (w9.s1 > t9) { follow9.push({ t0: t9, t1: w9.s1, tags: [...w9.ships] }); t9 = w9.s1; }
+      const nx9 = waves9[i9 + 1];
+      const stop9 = Math.min(nx9 ? nx9.s0 - DROP_ARRIVE9 : Infinity, allDead9(w9.riders) + 2, Math.max(t9 + 1, end9));
+      const z9 = Math.max(t9 + 1, nx9 ? Math.min(stop9, nx9.s1) : Math.max(stop9, end9));
+      follow9.push({ t0: t9, t1: z9, tags: w9.riders });
+      t9 = z9;
+    });
+    return { arrive: arrive9, follow: follow9 };
   };
   /** ★ **한 대 드랍도 실은 것이 무거우면 이름이다**(2026-10-10, 요청: "A가 B 기지에 하템 드랍. 스톰으로 일꾼 몇 기 잡음") — 수송선이 그 기지로 갔고(한 대라도) 잡은 것의
    *  대개를 DROP_UNIT9 의 유닛이 냈으면 "하이템플러 드랍"·"리버 드랍". 여럿이면 폭탄드랍(위) · 마린 한 대 드랍은 종전대로 일꾼 견제다. */
