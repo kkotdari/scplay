@@ -64,7 +64,11 @@ export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: nu
   /** **빛나는 낯이 있나** — 있으면 붓이 번짐 켜에서 이 메시를 한 번 더 그린다(없으면 건너뛴다 — 대부분의 유닛이 그렇다). */
   emit: boolean;
   /** 가스 굴뚝(bake9 GasEmit9 · 모형 자) — 있으면 붓이 프레임마다 `gasPush9` 로 덩이를 인스턴스로 놓는다(메시에는 안 굽는다). */
-  gas?: GasEmit9[] }
+  gas?: GasEmit9[];
+  /** 메시 열쇠(meshFor 의 key) — 2D 스프라이트 판의 열쇠가 쓴다. */
+  key: string;
+  /** 임자색 낯이 있나 — 없으면 스프라이트 열쇠가 색을 안 가른다(자원·중립·간헐천이 한 벌). */
+  team: boolean }
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
@@ -117,6 +121,8 @@ uniform float uShZ;
 uniform float uEmit;
 uniform float uFlat;  // 효과(발광): 1 이면 음영·실루엣 빛·방향광 없이 제 색
 uniform float uDbg;   // 진단 #glshade=0..2(0 덧칠 없음 · 1 덧칠 · 2 +실루엣 빛)
+/** 결 옥타브를 고르는 배율의 몫(2026-10-23) — 지도 패스는 1 · 2D 스프라이트 굽기는 1/DPR(굽는 판은 기기 px 자라 aInB.x 가 DPR 배다 — 결은 지도와 같은 CSS 배율로 고른다). */
+uniform float uKg;
 /* 실루엣 빛(silhouetteLight)의 화면 빛 방향은 카메라만의 함수라 여기서 낸다 · 모델 상자 반지름 R · 상자 가운데의 앵커 기준 세로 몫은 aInC.xy 다 */
 varying vec4 vCol;
 /** 결의 옥타브 몫 — 개체의 배율(k)만의 함수라 정점에서 내고 화소로 넘긴다(옛 uGrain·uGrainA 유니폼). 화소 주기가 2.1 아래면 0, 3.1 위면 제 몫. */
@@ -383,7 +389,7 @@ void main() {
     vG0.y = (q9.x + q9.y) * 0.7071; vG0.w = (q9.x - q9.y) * 0.7071; vG0.z = aInC.w - 2.0;
   }
   if (aInC.z > 0.0) {
-    float kk = aInB.x * 6.2831853;
+    float kk = aInB.x * uKg * 6.2831853;
     float t0 = clamp(kk / 30.0 - 2.1, 0.0, 1.0); vG0.x = 0.34 * t0 * t0 * (3.0 - 2.0 * t0);
     float t1 = clamp(kk / 42.0 - 2.1, 0.0, 1.0); vGa.x = 0.27 * t1 * t1 * (3.0 - 2.0 * t1);
     float t2 = clamp(kk / 58.0 - 2.1, 0.0, 1.0); vGa.y = 0.19 * t2 * t2 * (3.0 - 2.0 * t2);
@@ -812,6 +818,59 @@ void main() {
   gl_FragColor = uHasTex > 0.5 ? texture2D(uTex, vUv) * vC : vC;
   //__EMIT0__
 }`;
+/* ══ 2D 스프라이트 판(2026-10-23, 요청: "완전 2D화(3D 버전 제외) — 모델을 2D 로 미리 찍어서 한 번에 로드하고 그걸로 재생기에 노출해서 최대한
+   부하를 줄이고 드래그 확대축소가 아주 빠르게" · "3D 2D 병행") ═══════════════════════════════════════════════════════════════════════
+   평면 카메라(열쇠 't…')의 몸은 메시를 장마다 다시 그리지 않고, **메시를 한 번 찍은 판**(아틀라스 칸)을 사각 하나로 붙인다.
+   · 칸 열쇠 = 메시 열쇠(종류·자세·건설 단계·포탑 각·불빛·회전 칸) · 카메라 · 요잉 64칸 · 배율(기기 px · 2^(1/32) 눈금) · 임자색(임자색 낯이 있을 때만) ·
+     실루엣 빛 상자(gradR/k) · 그림자 여부. 같은 셰이더·같은 빛으로 찍으므로 그림은 메시 길과 같다(요잉만 5.6° 눈금으로 선다).
+   · 그림자: 땅에 눕는 그림자는 제 칸(빛 방향으로 눕힌 실루엣) · 떠서 밀리는 그림자는 몸 칸의 알파를 검게 쓴다. 나는 높이·dy 는 붙일 때 민다.
+   · 앞뒤는 메시 길과 같은 **깊이 칸**(개체 차례) — 칸을 깊이로 쓰고 큐 차례로 그린다(링·승하차 줄·발광 몸이 그 깊이를 그대로 탄다).
+   · 칸이 없으면 그 장만 메시 길로 그린다(빈 장 없음) · 손짓 중(glSprHold9)에는 새 배율을 안 굽고 가까운 배율 칸을 늘여 쓴다.
+   · 3D(입체 카메라 'p…')·발광(flat)·더하기(add)·소환 드러남(warp)·가스 덩이는 메시 길 그대로다. `#glspr=0` 으로 끈다. */
+const SPR_PAGE9 = 2048;
+const SPR_YAW9 = 64;
+const SPR_KQ9 = 32;
+/** 굽는 판(스크래치) 한 변 — MSAA 표본만큼 커지므로 1024(4 표본 색·깊이 32MB). 이보다 큰 칸(아주 높은 배율의 큰 건물)은 메시 길이다. */
+const SPR_SCR9 = 1024;
+/** 스프라이트 기록 16 float — aSA(기기 px 왼위 x·y · 폭·키) · aSB(uv 왼위 · 오른아래) · aSC(알파 · 깊이 · 꼴 0 몸/1 단색/2 그림자 · 연기 위) · aSD(단색 rgb · 빈 칸). */
+const SPR_F9 = 16; const SPR_B9 = SPR_F9 * 4;
+const SPR_VS9 = `#version 300 es
+in vec2 aQ; in vec4 aSA; in vec4 aSB; in vec4 aSC; in vec4 aSD;
+uniform vec2 uCanvasD;
+out vec2 vUv; out vec4 vC; out vec3 vS;
+void main() {
+  vec2 p = aSA.xy + aQ * aSA.zw;
+  gl_Position = vec4(p.x / uCanvasD.x * 2.0 - 1.0, 1.0 - p.y / uCanvasD.y * 2.0, aSC.y, 1.0);
+  vUv = mix(aSB.xy, aSB.zw, aQ); vC = aSC; vS = aSD.rgb;
+}`;
+const SPR_FS9 = `#version 300 es
+precision mediump float;
+layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor;
+uniform sampler2D uTex; uniform sampler2D uEm; uniform float uHasEm; uniform float uMark;
+in vec2 vUv; in vec4 vC; in vec3 vS;
+void main() {
+  vec4 c = texture(uTex, vUv);
+  if (uMark > 0.5 && (c.a < 0.5 || vC.w < 0.5)) discard;
+  if (vC.z > 1.5) {
+    if (c.a < 0.35) discard;
+    fragColor = vec4(0.0, 0.0, 0.0, vC.x * c.a); emitColor = vec4(0.0, 0.0, 0.0, fragColor.a); return;
+  }
+  if (c.a < 0.004) discard;
+  vec4 o = vC.z > 0.5 ? vec4(vS * c.a, c.a) * vC.x : c * vC.x;
+  fragColor = o;
+  emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? texture(uEm, vUv) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
+}`;
+interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; shelves: { y: number; h: number; x: number }[]; yTop: number; keys: string[]; last: number }
+/** 칸 — 판 자리(위가 0 인 px) · 크기 · 앵커에서 칸 왼위까지(x0·y0 · 기기 px · 음수) · 찍은 배율(kd = CSS 배율 × DPR). */
+interface SprCell9 { page: SprPage9; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }
+interface SprJob9 { key: string; mesh: GlMesh9; yaw: number; cam: GlCam9; kd: number; kc: number; color: string; gR: number; gCy: number; sh: boolean; x0: number; y0: number; w: number; h: number; cell: SprCell9 | null }
+/** 미리 찍기(돌기) — 한 번 본 몸(메시·배율·색)의 **다른 요잉 칸**을 남는 예산으로 차례로 찍어 둔다. 둘 이상의 요잉을 본 것만(도는 몸) 연다. */
+interface SprWarm9 { job: Omit<SprJob9, "key" | "yaw" | "x0" | "y0" | "w" | "h" | "cell">; yb0: number; ys: Set<number>; step: number; qk: number; gRq: number; gCyq: number }
+let SPR_HOLD9 = false;
+/** 손짓 중 — 새 배율 칸을 안 굽고 가까운 배율 칸을 늘여 쓴다(놓으면 제 배율로 다시 찍는다). */
+export const glSprHold9 = (on: boolean): void => { SPR_HOLD9 = on; };
+/** `#glspr=0` — 2D 스프라이트 판을 끈다(평면도 메시 길 · 견줌용). */
+export const GL_SPR9 = !(typeof location !== "undefined" && /glspr=0/.test(location.hash));
 /** 번짐 세기·크기 — [더할 세기, 흐리기 걸음(1/4 판의 텍셀 배수)]. 눈으로 고른 값이다. */
 /* ★ **번짐을 내린다**(2026-09, 지적: "아콘·소환구 등 글로우가 너무 강해 눈부셔") — 0.75 는
    흰 심을 가진 발광 종류에서 심 둘레를 한 번 더 희게 채워, 아콘은 속 형체가 통째로 지워지고
@@ -918,7 +977,7 @@ export class GlUnits9 implements VecSink9 {
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg"]) this.loc[u] = gl.getUniformLocation(p, u);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -961,6 +1020,409 @@ export class GlUnits9 implements VecSink9 {
     // 더하기 대신 **최댓값** 합성(번짐 후광끼리 안 쌓이게) — WebGL2 는 기본, 1 은 확장이 있을 때만.
     if (this.gl2) this.maxEq = (gl as WebGL2RenderingContext).MAX;
     else { const ext = gl.getExtension("EXT_blend_minmax"); this.maxEq = ext ? ext.MAX_EXT : null; }
+    /* 2D 스프라이트 프로그램(위 ══ 2D 스프라이트 판) — WebGL2 · 인스턴싱이 있어야 선다(없으면 평면도 메시 길). 원본이 ES 3.00 이라 es3() 를 안 지난다. */
+    if (this.gl2 && this.instOn) {
+      try {
+        const raw = (type: number, src: string): WebGLShader => {
+          const sh9 = gl.createShader(type)!; gl.shaderSource(sh9, src); gl.compileShader(sh9);
+          if (!gl.getShaderParameter(sh9, gl.COMPILE_STATUS)) throw new Error("스프라이트 셰이더: " + gl.getShaderInfoLog(sh9));
+          return sh9;
+        };
+        const q = gl.createProgram()!;
+        gl.attachShader(q, raw(gl.VERTEX_SHADER, SPR_VS9)); gl.attachShader(q, raw(gl.FRAGMENT_SHADER, SPR_FS9)); gl.linkProgram(q);
+        if (!gl.getProgramParameter(q, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(q));
+        const qv = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, qv);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]), gl.STATIC_DRAW);
+        this.spr = {
+          prog: q, qvbo: qv, ivbo: gl.createBuffer()!,
+          aQ: gl.getAttribLocation(q, "aQ"), aSA: gl.getAttribLocation(q, "aSA"), aSB: gl.getAttribLocation(q, "aSB"), aSC: gl.getAttribLocation(q, "aSC"), aSD: gl.getAttribLocation(q, "aSD"),
+          uCanvasD: gl.getUniformLocation(q, "uCanvasD"), uTex: gl.getUniformLocation(q, "uTex"), uEm: gl.getUniformLocation(q, "uEm"),
+          uHasEm: gl.getUniformLocation(q, "uHasEm"), uMark: gl.getUniformLocation(q, "uMark"),
+        };
+      } catch (e) { console.warn("[gl9] 스프라이트", e); this.spr = null; }
+    }
+  }
+  /* ── 2D 스프라이트 판(위 ══) ── */
+  /** 이 붓이 평면 몸을 스프라이트로 그리나 — 지도 붓만 켠다(glUnits9 · `#glspr=0` 이면 끔). 도록 아이콘 붓은 끈 채다. */
+  sprOn = false;
+  /** 판(2048² RGBA · 번짐이면 빛 판 한 장 더) 상한 — 폰 3 · PC 6(glUnits9 가 메시 상한으로 가른다). 넘으면 가장 오래 안 쓴 판을 통째로 비운다. */
+  sprPageMax = 6;
+  /** 한 장에 새로 찍는 칸 수 상한 — 넘는 몫은 다음 장(그 사이는 메시 길). */
+  sprBudget = 96;
+  private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number;
+    uCanvasD: WebGLUniformLocation | null; uTex: WebGLUniformLocation | null; uEm: WebGLUniformLocation | null; uHasEm: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null } | null = null;
+  private sprPages: SprPage9[] = [];
+  private sprMap = new Map<string, SprCell9>();
+  private sprEm = false;
+  private sprScr: { ms: WebGLFramebuffer; rbs: WebGLRenderbuffer[]; rs: WebGLFramebuffer; rsEm: WebGLFramebuffer | null; texs: WebGLTexture[]; samples: number; em: boolean } | null = null;
+  private sprScrFail = false;
+  private sprWarm = new Map<string, SprWarm9>();
+  private sprArr = new Float32Array(SPR_F9 * 256);
+  /** 진단 — 이 장의 스프라이트 몸·그림자 수 · 새로 찍은 칸 · 늘여 쓴 칸 · 메시 길로 떨어진 몸 · 판 수 · 칸 수. */
+  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0 };
+  /** 판을 통째로 비운다(번짐 켬·끔이 바뀌어 판 꼴이 갈릴 때). */
+  private sprReset9(): void {
+    const gl = this.gl;
+    for (const pg of this.sprPages) { gl.deleteTexture(pg.tex); gl.deleteFramebuffer(pg.fb); if (pg.emTex) gl.deleteTexture(pg.emTex); if (pg.emFb) gl.deleteFramebuffer(pg.emFb); }
+    this.sprPages = []; this.sprMap.clear(); this.sprWarm.clear();
+  }
+  private sprTex9(w: number, h: number): [WebGLTexture, WebGLFramebuffer] {
+    const gl = this.gl;
+    const tex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fb = gl.createFramebuffer()!;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    return [tex, fb];
+  }
+  private sprPageClear9(pg: SprPage9): void {
+    const gl = this.gl;
+    gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pg.fb); gl.clear(gl.COLOR_BUFFER_BIT);
+    if (pg.emFb) { gl.bindFramebuffer(gl.FRAMEBUFFER, pg.emFb); gl.clear(gl.COLOR_BUFFER_BIT); }
+    pg.shelves = []; pg.yTop = 0; pg.keys = [];
+  }
+  /** 칸 하나를 판에 잡는다(선반 쌓기) — 판이 다 차면 새 판, 상한이면 이 장에 안 쓴 가장 오래된 판을 통째로 비운다. */
+  private sprAlloc9(w: number, h: number): { page: SprPage9; px: number; py: number } | null {
+    const P = SPR_PAGE9;
+    if (w > P || h > P) return null;
+    const tryPage = (pg: SprPage9): { px: number; py: number } | null => {
+      for (const sv of pg.shelves) if (h <= sv.h && h >= sv.h * 0.55 && sv.x + w <= P) { const r = { px: sv.x, py: sv.y }; sv.x += w + 2; return r; }
+      if (pg.yTop + h <= P) { pg.shelves.push({ y: pg.yTop, h, x: w + 2 }); const r = { px: 0, py: pg.yTop }; pg.yTop += h + 2; return r; }
+      return null;
+    };
+    for (const pg of this.sprPages) { const r = tryPage(pg); if (r) return { page: pg, ...r }; }
+    if (this.sprPages.length < this.sprPageMax) {
+      const [tex, fb] = this.sprTex9(P, P);
+      let emTex: WebGLTexture | null = null; let emFb: WebGLFramebuffer | null = null;
+      if (this.sprEm) [emTex, emFb] = this.sprTex9(P, P);
+      const pg: SprPage9 = { tex, fb, emTex, emFb, shelves: [], yTop: 0, keys: [], last: this.frameNo };
+      this.sprPageClear9(pg);
+      this.sprPages.push(pg);
+      const r = tryPage(pg); return r ? { page: pg, ...r } : null;
+    }
+    let lru: SprPage9 | null = null;
+    for (const pg of this.sprPages) if (pg.last < this.frameNo && (!lru || pg.last < lru.last)) lru = pg;
+    if (!lru) return null;
+    for (const k of lru.keys) this.sprMap.delete(k);
+    this.sprPageClear9(lru);
+    const r = tryPage(lru); return r ? { page: lru, ...r } : null;
+  }
+  /** 굽는 판 — MSAA(단 표의 표본 수) 색(+빛 판)·깊이와, 풀어 받을 홑 표본 텍스처. */
+  private sprScrEnsure9(em: boolean): boolean {
+    if (this.sprScrFail || !this.gl2) return false;
+    const gl = this.gl as WebGL2RenderingContext;
+    const samples = Math.max(0, Math.min(GL_MSAA9 >= 0 ? GL_MSAA9 : this.msaa, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0));
+    const o = this.sprScr;
+    if (o && o.samples === samples && o.em === em) return true;
+    if (o) { gl.deleteFramebuffer(o.ms); gl.deleteFramebuffer(o.rs); if (o.rsEm) gl.deleteFramebuffer(o.rsEm); for (const r of o.rbs) gl.deleteRenderbuffer(r); for (const t of o.texs) gl.deleteTexture(t); this.sprScr = null; }
+    try {
+      const S = SPR_SCR9;
+      const [t0, rs] = this.sprTex9(S, S);
+      const texs = [t0]; let rsEm: WebGLFramebuffer | null = null;
+      if (em) { const [t1, f1] = this.sprTex9(S, S); texs.push(t1); rsEm = f1; }
+      const rbs: WebGLRenderbuffer[] = [];
+      const rb = (fmt: number): WebGLRenderbuffer => {
+        const r = gl.createRenderbuffer()!; gl.bindRenderbuffer(gl.RENDERBUFFER, r);
+        if (samples > 0) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, fmt, S, S); else gl.renderbufferStorage(gl.RENDERBUFFER, fmt, S, S);
+        rbs.push(r); return r;
+      };
+      const ms = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, ms);
+      if (samples > 0) {
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb(gl.RGBA8));
+        if (em) gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, rb(gl.RGBA8));
+      } else {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t0, 0);
+        if (em) gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, texs[1], 0);
+      }
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, rb(gl.DEPTH24_STENCIL8));
+      gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("스프라이트 굽는 판");
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.sprScr = { ms, rbs, rs, rsEm, texs, samples, em };
+      return true;
+    } catch (e) { console.warn("[gl9] 스프라이트 굽는 판", e); gl.bindFramebuffer(gl.FRAMEBUFFER, null); this.sprScrFail = true; return false; }
+  }
+  /** 땅에 눕힌 그림자의 상자(모형 자 · 앵커 기준) — 정점 셰이더의 그림자 식 그대로(빛 방향으로 밀고 z 를 0 으로). */
+  private shadowFoot9(mesh: GlMesh9, yawDeg: number, cam: GlCam9): GlFoot9 {
+    const yk = Math.round(yawDeg); const key = `s${yk}|${cam.key}`;
+    const got = mesh.foot.get(key); if (got) return got;
+    const th = (yk * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
+    let minX = Infinity; let maxX = -Infinity; let bot = -Infinity; let top = Infinity;
+    const v = mesh.pts;
+    for (let i = 0; i < v.length; i += 3) {
+      const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
+      const rx = x * c + y * sn + z * SHADOW_K9[0]; const ry = -x * sn + y * c + z * SHADOW_K9[1];
+      const X = rx + ry * cam.squash * cam.shear; const Y = ry * cam.squash;
+      if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y; if (Y < top) top = Y;
+    }
+    const ft = { w: maxX - minX, cx: (minX + maxX) / 2, bot, top };
+    mesh.foot.set(key, ft);
+    return ft;
+  }
+  /** 메시의 정점 속성 여덟 + 메시마다의 광택 유니폼(지도 패스·스프라이트 굽기가 같이 쓴다). */
+  private bindMesh9(mesh: GlMesh9): void {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
+    const U = gl.UNSIGNED_BYTE;
+    gl.enableVertexAttribArray(this.att.aPos); gl.vertexAttribPointer(this.att.aPos, 3, gl.FLOAT, false, STRIDE_B, 0);
+    gl.enableVertexAttribArray(this.att.aNrm); gl.vertexAttribPointer(this.att.aNrm, 3, gl.FLOAT, false, STRIDE_B, 12);
+    gl.enableVertexAttribArray(this.att.aRgb); gl.vertexAttribPointer(this.att.aRgb, 3, U, true, STRIDE_B, 24);
+    gl.enableVertexAttribArray(this.att.aTeam); gl.vertexAttribPointer(this.att.aTeam, 1, U, true, STRIDE_B, 27);
+    gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, U, true, STRIDE_B, 28);
+    gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, U, true, STRIDE_B, 29);
+    gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
+    gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
+    const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
+    gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
+    gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
+    gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
+  }
+  /** 카메라 유니폼 — 납작비·높이·숙임·밀림과 반각 H(시선이 카메라의 것이라 카메라가 바뀔 때만). */
+  private camSet9(cam: GlCam9): void {
+    const gl = this.gl;
+    gl.uniform2f(this.loc.uCam, cam.squash, cam.zk); gl.uniform2f(this.loc.uLean, cam.lean, cam.shear);
+    const hx = LIGHT[0]; const hy = LIGHT[1] + cam.zk; const hz = LIGHT[2] + cam.squash;
+    const hl = Math.hypot(hx, hy, hz) || 1;
+    gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
+  }
+  /** 평면 몸인가(스프라이트로 그려도 되나) — 평면 카메라 · 발광·더하기·소환 드러남·가스 덩이가 아님. */
+  private sprOk9(it: GlInst9): boolean {
+    return it.cam.key.charCodeAt(0) === 116 && !it.flat && !it.add && it.warp === undefined && !it.mesh.key.startsWith("u:gaspuff");
+  }
+  /** 칸 한 벌을 굽는 일감으로 — 상자(기기 px · 앵커 기준)와 열쇠. */
+  private sprJob9(key: string, mesh: GlMesh9, yaw: number, cam: GlCam9, kd: number, kc: number, color: string, gR: number, gCy: number, sh: boolean): SprJob9 {
+    const f = sh ? this.shadowFoot9(mesh, yaw, cam) : this.footOf(mesh, yaw, cam);
+    const minX = f.cx - f.w / 2; const maxX = f.cx + f.w / 2;
+    const m = 3 + 0.05 * kd * Math.max(f.w, f.bot - f.top);
+    const x0 = Math.floor(kd * minX - m); const y0 = Math.floor(kd * f.top - m);
+    const x1 = Math.ceil(kd * maxX + m); const y1 = Math.ceil(kd * f.bot + m);
+    return { key, mesh, yaw, cam, kd, kc, color, gR, gCy, sh, x0, y0, w: x1 - x0, h: y1 - y0, cell: null };
+  }
+  /** 일감들을 굽는다 — 굽는 판(MSAA)에 지도와 같은 셰이더로 그리고, 풀어서, 칸마다 제 판 자리로 옮긴다. */
+  private sprBake9(jobs: SprJob9[], dprK: number): void {
+    if (!jobs.length || !this.sprScrEnsure9(this.sprEm)) return;
+    const gl = this.gl as WebGL2RenderingContext; const scr = this.sprScr!;
+    const S = SPR_SCR9;
+    let i0 = 0;
+    while (i0 < jobs.length) {
+      /* 굽는 판에 선반으로 늘어놓는다 — 차면 이 묶음을 굽고 다음 묶음. */
+      const batch: { j: SprJob9; sx: number; sy: number }[] = [];
+      let x = 0; let y = 0; let rowH = 0;
+      for (; i0 < jobs.length; i0 += 1) {
+        const j = jobs[i0];
+        if (j.w > S || j.h > S) continue;
+        if (x + j.w > S) { x = 0; y += rowH + 2; rowH = 0; }
+        if (y + j.h > S) break;
+        batch.push({ j, sx: x, sy: y }); x += j.w + 2; rowH = Math.max(rowH, j.h);
+      }
+      if (!batch.length) break;
+      const usedH = Math.min(S, y + rowH);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, scr.ms);
+      gl.drawBuffers(scr.em ? [gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1] : [gl.COLOR_ATTACHMENT0]);
+      gl.viewport(0, 0, S, S);
+      gl.disable(gl.SCISSOR_TEST);
+      gl.clearColor(0, 0, 0, 0); gl.depthMask(true);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(this.prog);
+      gl.uniform2f(this.loc.uCanvas, S, S);
+      gl.uniform3f(this.loc.uLight, LIGHT[0], LIGHT[1], LIGHT[2]);
+      gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
+      gl.uniform1f(this.loc.uPersp, MODEL_PERSP);
+      gl.uniform1f(this.loc.uDbg, GL_SHADE9);
+      gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
+      gl.uniform1f(this.loc.uDepthK, 1 / 80);
+      gl.uniform1f(this.loc.uEmit, 0); gl.uniform1f(this.loc.uFlat, 0);
+      gl.uniform1f(this.loc.uKg, 1 / Math.max(0.01, dprK));
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.blendEquation(gl.FUNC_ADD);
+      gl.disable(gl.CULL_FACE);
+      /* 기록 — 지도 패스의 rec 와 같은 자리(앵커 · 요잉 · 배율 · 알파 1 · 깊이 칸 0 · 실루엣 상자 · 결 · 임자색 · 그림자). */
+      const need = batch.length * INST_F9;
+      if (need > this.instArr.length) this.instArr = new Float32Array(Math.max(need, this.instArr.length * 2));
+      const a = this.instArr;
+      for (let b = 0; b < batch.length; b += 1) {
+        const { j, sx, sy } = batch[b]; const o = b * INST_F9;
+        const th = (j.yaw * Math.PI) / 180;
+        a[o] = sx - j.x0; a[o + 1] = sy - j.y0; a[o + 2] = Math.cos(th); a[o + 3] = Math.sin(th);
+        a[o + 4] = j.kd; a[o + 5] = 0; a[o + 6] = 1; a[o + 7] = 0;
+        a[o + 8] = j.gR; a[o + 9] = j.gCy;
+        a[o + 10] = !j.sh && j.kc >= 11 && GL_SHADE9 >= 1 ? j.mesh.gloss[4] * GL_GRAIN9 : 0;
+        a[o + 11] = 0;
+        const tc = this.colOf(j.color); a[o + 12] = tc[0]; a[o + 13] = tc[1]; a[o + 14] = tc[2];
+        a[o + 15] = 0; a[o + 16] = 0; a[o + 17] = 0;
+        if (j.sh) { a[o + 18] = 1; a[o + 19] = 0; a[o + 20] = 0; a[o + 21] = 1; } else { a[o + 18] = 0; a[o + 19] = 0; a[o + 20] = 0; a[o + 21] = 0; }
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.instVbo);
+      gl.bufferData(gl.ARRAY_BUFFER, a.subarray(0, need), gl.DYNAMIC_DRAW);
+      let camNow: GlCam9 | null = null;
+      for (let b = 0; b < batch.length; b += 1) {
+        const { j } = batch[b]; const m = j.mesh;
+        if (j.cam !== camNow) { camNow = j.cam; this.camSet9(j.cam); }
+        this.bindMesh9(m);
+        if (j.sh) {
+          gl.uniform1f(this.loc.uShZ, 0.996);
+          this.drawRec(0, m.n, b, 1);
+          gl.uniform1f(this.loc.uShZ, 0);
+        } else {
+          this.drawRec(0, m.nSolid, b, 1);
+          if (m.nSolid < m.n) { gl.depthMask(false); this.drawRec(m.nSolid, m.n - m.nSolid, b, 1); gl.depthMask(true); }
+        }
+        this.stat.draws += 1;
+      }
+      /* 풀기(MSAA → 홑 표본) — 표본이 있으면 같은 자리로(ES 3 은 MSAA 풀기에 자리 이동을 못 한다). */
+      const y0gl = S - usedH;
+      if (scr.samples > 0) {
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, scr.ms);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, scr.rs);
+        gl.blitFramebuffer(0, y0gl, S, S, 0, y0gl, S, S, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        if (scr.em && scr.rsEm) {
+          gl.readBuffer(gl.COLOR_ATTACHMENT1); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, scr.rsEm);
+          gl.blitFramebuffer(0, y0gl, S, S, 0, y0gl, S, S, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        }
+      }
+      /* 칸마다 제 판 자리로 — 판 자리를 잡고(없으면 그 칸은 이 장 메시 길) 옮긴다. */
+      const P = SPR_PAGE9;
+      for (const { j, sx, sy } of batch) {
+        const al = this.sprAlloc9(j.w, j.h);
+        if (!al) continue;
+        const cell: SprCell9 = { page: al.page, px: al.px, py: al.py, w: j.w, h: j.h, x0: j.x0, y0: j.y0, kd: j.kd };
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, scr.rs); gl.readBuffer(gl.COLOR_ATTACHMENT0);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, al.page.fb);
+        gl.blitFramebuffer(sx, S - sy - j.h, sx + j.w, S - sy, al.px, P - al.py - j.h, al.px + j.w, P - al.py, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        if (scr.em && scr.rsEm && al.page.emFb) {
+          gl.bindFramebuffer(gl.READ_FRAMEBUFFER, scr.rsEm); gl.readBuffer(gl.COLOR_ATTACHMENT0);
+          gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, al.page.emFb);
+          gl.blitFramebuffer(sx, S - sy - j.h, sx + j.w, S - sy, al.px, P - al.py - j.h, al.px + j.w, P - al.py, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        }
+        al.page.keys.push(j.key); al.page.last = this.frameNo;
+        this.sprMap.set(j.key, cell); j.cell = cell;
+        this.sprStat.bake += 1;
+      }
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+  /** 스프라이트 판 쓰기 계획 — 개체마다 몸 칸 · 그림자 칸(땅에 눕는 그림자만)을 찾고, 없으면 일감으로 굽는다(예산 안).
+   *  돌려주는 [칸, 배수] 의 배수는 '지금 배율 ÷ 찍은 배율'(1 이면 제 배율 · 손짓 중 늘여 쓰면 1 이 아니다). */
+  private sprPlan9(q: GlInst9[], dprK: number): { B: ([SprCell9, number] | null)[]; S: ([SprCell9, number] | null)[] } {
+    const N = q.length;
+    const B: ([SprCell9, number] | null)[] = new Array(N).fill(null);
+    const S: ([SprCell9, number] | null)[] = new Array(N).fill(null);
+    const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0;
+    const jobs: SprJob9[] = []; const jobOf = new Map<string, SprJob9>();
+    const waitB: [number, SprJob9][] = []; const waitS: [number, SprJob9][] = [];
+    let budget = this.sprBudget;
+    const keyOf = (mesh: GlMesh9, cam: GlCam9, yb: number, qk: number, color: string, gRq: number, gCyq: number, sh: boolean): string =>
+      `${mesh.key}|${cam.key}|${yb}|${qk}|${mesh.team && !sh ? color : ""}|${gRq}|${gCyq}|${sh ? 1 : 0}`;
+    /** 가까운 배율의 칸(늘여 쓰기) — 배수 [lo, hi] 안에서 눈금 차가 가장 작은 것. */
+    const near = (mesh: GlMesh9, cam: GlCam9, yb: number, qk: number, color: string, gRq: number, gCyq: number, sh: boolean, kd: number, lo: number, hi: number): [SprCell9, number] | null => {
+      for (let d = 1; d <= SPR_KQ9; d += 1) {
+        for (const sg of [-1, 1]) {
+          const c = this.sprMap.get(keyOf(mesh, cam, yb, qk + sg * d, color, gRq, gCyq, sh));
+          if (c) { const s9 = kd / c.kd; if (s9 >= lo && s9 <= hi) return [c, s9]; }
+        }
+      }
+      return null;
+    };
+    const want = (it: GlInst9, sh: boolean): { cell: [SprCell9, number] | null; job: SprJob9 | null } => {
+      const kd = it.k * dprK;
+      const yb = ((Math.round((it.yawDeg / 360) * SPR_YAW9) % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
+      const qk = Math.round(Math.log2(kd) * SPR_KQ9);
+      const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
+      const key = keyOf(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh);
+      const hit = this.sprMap.get(key);
+      if (hit) { hit.page.last = this.frameNo; return { cell: [hit, kd / hit.kd], job: null }; }
+      const pend = jobOf.get(key); if (pend) return { cell: null, job: pend };
+      if (SPR_HOLD9) { const n9 = near(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh, kd, 0.55, 1.8); if (n9) { n9[0].page.last = this.frameNo; st.scaled += 1; return { cell: n9, job: null }; } }
+      if (budget > 0) {
+        budget -= 1;
+        const kq = 2 ** (qk / SPR_KQ9);
+        const j = this.sprJob9(key, it.mesh, (yb * 360) / SPR_YAW9, it.cam, kq, it.k, it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
+        jobs.push(j); jobOf.set(key, j);
+        /* 미리 찍기 표에 올린다 — 같은 몸의 다른 요잉 칸을 남는 예산으로 찍는다(둘 이상의 요잉을 본 것만). */
+        {
+          const wk = `${it.mesh.key}|${it.cam.key}|${qk}|${it.mesh.team && !sh ? it.color : ""}|${gRq}|${gCyq}|${sh ? 1 : 0}`;
+          let w9 = this.sprWarm.get(wk);
+          if (!w9) {
+            if (this.sprWarm.size > 600) { const k0 = this.sprWarm.keys().next().value; if (k0 !== undefined) this.sprWarm.delete(k0); }
+            w9 = { job: { mesh: it.mesh, cam: it.cam, kd: kq, kc: it.k, color: it.color, gR: j.gR, gCy: j.gCy, sh }, yb0: yb, ys: new Set(), step: 1, qk, gRq, gCyq };
+            this.sprWarm.set(wk, w9);
+          }
+          w9.ys.add(yb);
+        }
+        return { cell: null, job: j };
+      }
+      const n9 = near(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh, kd, 0.4, 2.5);
+      if (n9) { n9[0].page.last = this.frameNo; st.scaled += 1; return { cell: n9, job: null }; }
+      return { cell: null, job: null };
+    };
+    for (let i = 0; i < N; i += 1) {
+      const it = q[i];
+      if (!this.sprOk9(it) || !(it.k > 0.01)) continue;
+      const b = want(it, false);
+      if (b.cell) B[i] = b.cell; else if (b.job) waitB.push([i, b.job]);
+      if (it.shadow?.ground) {
+        const sw = want(it, true);
+        if (sw.cell) S[i] = sw.cell; else if (sw.job) waitS.push([i, sw.job]);
+      }
+    }
+    /* 미리 찍기 — 남는 예산의 절반으로, 돌고 있는(요잉 둘 이상을 본) 몸의 다른 요잉 칸을 가까운 칸부터 찍는다. 손짓 중에는 안 한다. */
+    if (!SPR_HOLD9 && budget > 0) {
+      let wb = Math.floor(budget / 2);
+      for (const w9 of this.sprWarm.values()) {
+        if (wb <= 0) break;
+        if (w9.ys.size < 2 || w9.step > SPR_YAW9) continue;
+        while (wb > 0 && w9.step <= SPR_YAW9) {
+          const off = w9.step % 2 ? (w9.step + 1) / 2 : -(w9.step / 2);
+          w9.step += 1;
+          const yb = (((w9.yb0 + off) % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
+          const J = w9.job;
+          const key = keyOf(J.mesh, J.cam, yb, w9.qk, J.color, w9.gRq, w9.gCyq, J.sh);
+          if (this.sprMap.has(key) || jobOf.has(key)) continue;
+          if (this.meshes.get(J.mesh.key) !== J.mesh) { w9.step = SPR_YAW9 + 1; break; }   // 메시가 버려졌다(다시 지었으면 딴 벌) — 그 몸은 그만
+          const j = this.sprJob9(key, J.mesh, (yb * 360) / SPR_YAW9, J.cam, J.kd, J.kc, J.color, J.gR, J.gCy, J.sh);
+          jobs.push(j); jobOf.set(key, j); wb -= 1; st.warm += 1;
+        }
+      }
+    }
+    this.sprBake9(jobs, dprK);
+    for (const [i, j] of waitB) if (j.cell) B[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
+    for (const [i, j] of waitS) if (j.cell) S[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
+    st.pages = this.sprPages.length; st.cells = this.sprMap.size;
+    return { B, S };
+  }
+  /** 스프라이트 기록을 그린다 — 판이 같은 것끼리 잇달아 한 드로 콜(차례는 기록 차례 그대로). mark 면 연기 위 몸만 스텐실에 찍는다. */
+  private sprDraw9(n: number, pages: SprPage9[], bw: number, bh: number, mark: boolean, emOn: boolean): void {
+    const sp = this.spr; if (!sp || n <= 0) return;
+    const gl = this.gl;
+    gl.useProgram(sp.prog);
+    gl.uniform2f(sp.uCanvasD, bw, bh);
+    gl.uniform1i(sp.uTex, 0); gl.uniform1i(sp.uEm, 1);
+    gl.uniform1f(sp.uMark, mark ? 1 : 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, sp.qvbo);
+    gl.enableVertexAttribArray(sp.aQ); gl.vertexAttribPointer(sp.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(sp.aQ, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, sp.ivbo);
+    gl.bufferData(gl.ARRAY_BUFFER, this.sprArr.subarray(0, n * SPR_F9), gl.DYNAMIC_DRAW);
+    let r0 = 0;
+    while (r0 < n) {
+      const pg = pages[r0]; let r1 = r0 + 1;
+      while (r1 < n && pages[r1] === pg) r1 += 1;
+      const set = (loc: number, off: number): void => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, SPR_B9, r0 * SPR_B9 + off); this.divisor(loc, 1); };
+      set(sp.aSA, 0); set(sp.aSB, 16); set(sp.aSC, 32); set(sp.aSD, 48);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, emOn && pg.emTex ? pg.emTex : null);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pg.tex);
+      gl.uniform1f(sp.uHasEm, emOn && pg.emTex ? 1 : 0);
+      this.drawInst(0, 6, r1 - r0);
+      this.stat.draws += 1;
+      r0 = r1;
+    }
+    for (const l of [sp.aQ, sp.aSA, sp.aSB, sp.aSC, sp.aSD]) { this.divisor(l, 0); gl.disableVertexAttribArray(l); }
+    gl.useProgram(this.prog);
   }
   /** 효과 삼각형(glctx9)을 이 문맥이 맡나 — 아니면 붓이 종전대로 효과 캔버스에 그린다. */
   vecOk = false;
@@ -1325,7 +1787,7 @@ export class GlUnits9 implements VecSink9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
         const n = vi;
-        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map(), gloss: glossOfKey9(key), emit: m.parts.some((p2) => p2.emit) };
+        mesh = { vbo, n, nSolid: clear.length ? nSolid : n, bias, pts: new Float32Array(pts), bytes: buf.byteLength, cols: cols.size, foot: new Map(), gloss: glossOfKey9(key), emit: m.parts.some((p2) => p2.emit), key, team: cols.has("team") };
         this.stat.bytes += buf.byteLength;
       }
     } catch (e) { console.warn("[gl9] 메시", key, e); }
@@ -1548,6 +2010,16 @@ export class GlUnits9 implements VecSink9 {
     this.scrubMs = 0;
     if (cv.width !== bw) cv.width = bw;
     if (cv.height !== bh) cv.height = bh;
+    /* ★ 2D 스프라이트 판(위 ══) — 칸을 찾고 없는 것을 굽는다. 굽기는 제 판에 그리므로 기본 판을 지우기 **전에** 한다.
+       판의 빛 판 여부는 번짐 켬(단 표)을 따르고, 바뀌면 판을 통째로 비운다(분할 칸의 가위는 안 본다 — 칸마다 갈아 끼우지 않게). */
+    const dprK9 = bw / Math.max(1, cw);
+    let sprB: ([SprCell9, number] | null)[] | null = null; let sprS: ([SprCell9, number] | null)[] | null = null;
+    if (this.sprOn && this.spr && this.queue.length) {
+      const em9 = this.gl2 && this.mrtOk && GL_MRT9 !== 0 && (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
+      if (em9 !== this.sprEm) { this.sprReset9(); this.sprEm = em9; }
+      const pl9 = this.sprPlan9(this.queue, dprK9);
+      sprB = pl9.B; sprS = pl9.S;
+    }
     gl.viewport(0, 0, bw, bh);
     /* 칠할 네모(this.clip)를 GL 자(아래가 0)로 — 있으면 지우기·몸 패스를 가위로 죈다. */
     let sc9: [number, number, number, number] | null = null;
@@ -1589,6 +2061,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform1f(this.loc.uPersp, MODEL_PERSP);
     gl.uniform1f(this.loc.uDbg, GL_SHADE9);
     gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
+    gl.uniform1f(this.loc.uKg, 1);   // 결 배율 몫 — 스프라이트 굽기가 1/DPR 로 바꿔 두므로 장마다 되돌린다
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
        한 개체 안의 부품 앞뒤(지붕 위 원통·벽의 환풍구)가 양자화에 묻혔다(실측: 판에는 있는 부품이 GL 에서 사라짐).
        화면에서 겹치는(원 반지름 = 실루엣 상자) 앞선 개체보다 한 칸 앞에만 서면 되므로 칸 수는 겹침 깊이(보통 10 안팎)다. */
@@ -1628,31 +2101,9 @@ export class GlUnits9 implements VecSink9 {
     this.stat.slots = M;
     gl.uniform1f(this.loc.uDepthK, slot / 80);
     /* 메시의 정점 속성 여덟 + 메시마다의 광택 유니폼. 인스턴스 속성은 drawRec 이 건다. */
-    const bind = (mesh: GlMesh9): void => {
-      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
-      const U = gl.UNSIGNED_BYTE;
-      gl.enableVertexAttribArray(this.att.aPos); gl.vertexAttribPointer(this.att.aPos, 3, gl.FLOAT, false, STRIDE_B, 0);
-      gl.enableVertexAttribArray(this.att.aNrm); gl.vertexAttribPointer(this.att.aNrm, 3, gl.FLOAT, false, STRIDE_B, 12);
-      gl.enableVertexAttribArray(this.att.aRgb); gl.vertexAttribPointer(this.att.aRgb, 3, U, true, STRIDE_B, 24);
-      gl.enableVertexAttribArray(this.att.aTeam); gl.vertexAttribPointer(this.att.aTeam, 1, U, true, STRIDE_B, 27);
-      gl.enableVertexAttribArray(this.att.aAlpha); gl.vertexAttribPointer(this.att.aAlpha, 1, U, true, STRIDE_B, 28);
-      gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, U, true, STRIDE_B, 29);
-      gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
-      gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
-      const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
-      gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
-      gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
-      gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
-    };
+    const bind = (mesh: GlMesh9): void => this.bindMesh9(mesh);
     let camNow: GlCam9 | null = null;
-    const setCam = (cam: GlCam9): void => {
-      if (cam === camNow) return;
-      camNow = cam; gl.uniform2f(this.loc.uCam, cam.squash, cam.zk); gl.uniform2f(this.loc.uLean, cam.lean, cam.shear);
-      /* 반각 H = 정규화(빛 + 시선) — 시선은 카메라가 정하므로 카메라가 바뀔 때만 다시 낸다. */
-      const hx = LIGHT[0]; const hy = LIGHT[1] + cam.zk; const hz = LIGHT[2] + cam.squash;
-      const hl = Math.hypot(hx, hy, hz) || 1;
-      gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
-    };
+    const setCam = (cam: GlCam9): void => { if (cam === camNow) return; camNow = cam; this.camSet9(cam); };   // 반각 H 는 카메라가 바뀔 때만(camSet9)
     /* ── 인스턴스 기록 ── 22 float: A(앵커 x·y·cos·sin) B(k·yoff·알파·깊이 칸) C(gradR·gradCy·결 켬·단색 켬) 임자색 단색 그림자(켬·h·dy·알파). */
     let nRec = 0;
     const rec = (it: GlInst9, i: number, shadow: boolean): number => {
@@ -1693,8 +2144,11 @@ export class GlUnits9 implements VecSink9 {
     const fillGroups = (gs: Grp9[], shadow: boolean): void => { for (const g of gs) { g.r0 = nRec; for (const i of g.idx) rec(q[i], i, shadow); } };
     /* ① 그림자 무리 · ② 불투명 몸 무리(알파 1 · 발광·더하기·단색이 아닌 것) · ③ 차례 몫(큐 차례) · ④ 번짐. */
     const isOpq = (it: GlInst9): boolean => !it.flat && !it.add && !it.solid && it.alpha >= 0.995;
-    const shG = groupsOf((it) => !!it.shadow);
-    const opG = groupsOf((it) => isOpq(it));
+    /* 스프라이트로 그리는 몸·그림자는 메시 무리에서 뺀다 — 땅에 눕는 그림자는 제 칸이, 떠서 밀리는 그림자는 몸 칸이 있어야 빠진다. */
+    const sprBody = (i: number): boolean => !!(sprB && sprB[i]);
+    const sprShad = (it: GlInst9, i: number): boolean => !!it.shadow && (it.shadow.ground ? !!(sprS && sprS[i]) : sprBody(i));
+    const shG = groupsOf((it, i) => !!it.shadow && !sprShad(it, i));
+    const opG = groupsOf((it, i) => isOpq(it) && !sprBody(i));
     /* ★ 불투명 개체의 **반투명 꼬리**(nSolid 뒤의 부품 — 유리·빛무리·옅은 그늘)도 메시 무리로 그린다. 큐 차례를 지키면 개체마다
        메시가 갈려 무리가 안 서고(실측: 890기에 드로 콜 760), 꼬리는 깊이 검사를 그대로 받으므로(쓰기만 끈다) 몸에 가려지는 것은
        그대로 가려진다 — 갈리는 것은 딴 개체의 꼬리끼리 겹치는 자리의 섞는 차례뿐이라 받아들였다. 무리는 ② 와 같은 기록을 쓴다. */
@@ -1703,7 +2157,7 @@ export class GlUnits9 implements VecSink9 {
     fillGroups(shG, true); fillGroups(opG, false);
     for (let i = 0; i < q.length; i += 1) {
       const it = q[i];
-      if (isOpq(it)) continue;   // 불투명 개체는 ②(몸)와 꼬리 무리로 끝
+      if (isOpq(it) || sprBody(i)) continue;   // 불투명 개체는 ②(몸)와 꼬리 무리로 끝 · 스프라이트 몸은 ②' 가 그린다
       /* ★ 발광(flat — 아콘·다크아콘·워프인)은 깊이를 **재되 쓰지 않는다**(2026-10-11, 지적: "공중유닛이 지상유닛에 가려지는 부분이 있네" — 아콘 구체가
          발키리를 덮었다). 깊이 없이(noZ) 그리면 불투명 몸(②)을 다 그린 **뒤**라 칸이 더 앞인 몸(공중 · 아래쪽 지상)까지 덮는다. 쓰기만 끄면 제 겹끼리는
          화가 차례 그대로 섞이고, 칸이 앞선 몸에는 가려진다. 더하기(add — 폭풍·핵)는 큐 맨 뒤의 효과라 깊이 없이 그대로. */
@@ -1713,7 +2167,54 @@ export class GlUnits9 implements VecSink9 {
       if (last && last.mesh === it.mesh && last.cam === it.cam && last.noZ === noZ && last.add === add && last.flat === flat && last.over === over && last.r0 + last.count === r) last.count += 1;
       else runs.push({ mesh: it.mesh, cam: it.cam, r0: r, count: 1, tail: false, noZ, add, flat, over });
     }
-    for (const it of q) this.stat.tris += it.mesh.n / 3;
+    for (let i = 0; i < q.length; i += 1) if (!sprBody(i)) this.stat.tris += q[i].mesh.n / 3;
+    /* 스프라이트 기록 — 그림자 먼저(깊이 0.996 못 박음 · 꼴 2) 그다음 몸(큐 차례 · 제 깊이 칸 · 꼴 0/1). 기기 px 자리이고, 제 배율이면 앵커를 기기 화소에 맞춰 칸 화소와 화면 화소를 1:1 로 둔다. */
+    let nSprSh = 0; let nSpr = 0; const sprPg: SprPage9[] = [];
+    if (sprB) {
+      const P = SPR_PAGE9;
+      let o9 = 0;
+      const put = (c: SprCell9, s9: number, AX: number, AY: number, alpha: number, depth: number, mode: number, over: boolean, solid: string | undefined): void => {
+        if ((o9 + 1) * SPR_F9 > this.sprArr.length) { const nx = new Float32Array(this.sprArr.length * 2); nx.set(this.sprArr); this.sprArr = nx; }
+        const a = this.sprArr; const o = o9 * SPR_F9;
+        if (Math.abs(s9 - 1) < 0.004) { a[o] = Math.round(AX) + c.x0; a[o + 1] = Math.round(AY) + c.y0; a[o + 2] = c.w; a[o + 3] = c.h; }
+        else { a[o] = AX + c.x0 * s9; a[o + 1] = AY + c.y0 * s9; a[o + 2] = c.w * s9; a[o + 3] = c.h * s9; }
+        a[o + 4] = c.px / P; a[o + 5] = (P - c.py) / P; a[o + 6] = (c.px + c.w) / P; a[o + 7] = (P - c.py - c.h) / P;
+        a[o + 8] = alpha; a[o + 9] = depth; a[o + 10] = mode; a[o + 11] = over ? 1 : 0;
+        if (solid) { const sc = hexRgb(solid); a[o + 12] = sc[0]; a[o + 13] = sc[1]; a[o + 14] = sc[2]; } else { a[o + 12] = 0; a[o + 13] = 0; a[o + 14] = 0; }
+        a[o + 15] = 0;
+        sprPg[o9] = c.page; o9 += 1;
+      };
+      for (let i = 0; i < q.length; i += 1) {
+        const it = q[i]; const sh = it.shadow;
+        if (!sh || !sprShad(it, i)) continue;
+        const dy9 = sh.dy ?? 0;
+        if (sh.ground) {
+          const [c, s9] = sprS![i]!; const h9 = sh.h ?? 0;
+          const AX = (it.ax + it.k * h9 * (SHADOW_K9[0] + SHADOW_K9[1] * it.cam.squash * it.cam.shear)) * dprK9;
+          const AY = (it.ay + it.yoff + it.k * h9 * SHADOW_K9[1] * it.cam.squash + dy9) * dprK9;
+          put(c, s9, AX, AY, sh.alpha, 0.996, 2, false, undefined);
+        } else {
+          const [c, s9] = sprB[i]!;
+          put(c, s9, it.ax * dprK9, (it.ay + it.yoff + dy9) * dprK9, sh.alpha, 0.996, 2, false, undefined);
+        }
+      }
+      nSprSh = o9;
+      for (let i = 0; i < q.length; i += 1) {
+        const b9 = sprB[i]; if (!b9) continue;
+        const it = q[i];
+        put(b9[0], b9[1], it.ax * dprK9, (it.ay + it.yoff) * dprK9, it.alpha, 1 - slot * (slotOf[i] + 1), it.solid ? 1 : 0, !!it.over, it.solid);
+      }
+      nSpr = o9 - nSprSh;
+      this.sprStat.body = nSpr; this.sprStat.shadow = nSprSh;
+      for (let i = 0; i < q.length; i += 1) if (!sprB[i] && this.sprOk9(q[i])) this.sprStat.mesh += 1;
+    }
+    /** 스프라이트 그리기 — 그림자 [0, nSprSh) 또는 몸 [nSprSh, nSprSh + nSpr). 기록을 그 몫만큼 앞으로 당겨 올린다. */
+    const sprPass = (from: number, n: number, mark: boolean): void => {
+      if (n <= 0) return;
+      if (from > 0) { this.sprArr.copyWithin(0, from * SPR_F9, (from + n) * SPR_F9); for (let k9 = 0; k9 < n; k9 += 1) sprPg[k9] = sprPg[from + k9]; }
+      this.sprDraw9(n, sprPg, bw, bh, mark, mrtOn && !!this.mrt && this.mrt.em);
+      gl.useProgram(this.prog);
+    };
     /* 번짐 몫도 같은 버퍼에 미리 적는다(한 번만 올리려고). */
     let nEm = 0; let sx0 = Infinity; let sy0 = Infinity; let sx1 = -Infinity; let sy1 = -Infinity;
     const bloomOn9 = (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !sc9;
@@ -1765,6 +2266,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform1f(this.loc.uFlat, 0); gl.uniform1f(this.loc.uEmit, 0);
     gl.uniform1f(this.loc.uShZ, 0.996);
     for (const g of shG) drawG(g, 0, g.mesh.n);
+    sprPass(0, nSprSh, false);   // 스프라이트 그림자 — 같은 못 박은 깊이(0.996)라 메시 그림자와도 한 겹이다
     gl.uniform1f(this.loc.uShZ, 0);
     /* 2) 불투명 몸 — 깊이가 가르므로 메시 무리로 한 번에. */
     gl.depthMask(true); if (GL_DEPTH9) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
@@ -1772,6 +2274,9 @@ export class GlUnits9 implements VecSink9 {
     gl.depthMask(false);
     for (const g of opG) if (g.mesh.nSolid < g.mesh.n) drawG(g, g.mesh.nSolid, g.mesh.n - g.mesh.nSolid);
     gl.depthMask(true);
+    /* ②' 스프라이트 몸 — 큐 차례(화가 차례)로 제 깊이 칸에 쓴다. 메시 몸(②)과는 깊이가 가르고, 반투명 가장자리는 차례가 섞는다.
+       뒤의 링·승하차 줄·발광 몸·소환 드러남(메시 길)이 이 깊이를 그대로 탄다. 그 뒤 기록은 몸이 앞으로 당겨져 있다(연기 표식이 다시 쓴다). */
+    sprPass(nSprSh, nSpr, false);
     /* 3) 차례 몫 — 반투명 꼬리·반투명 개체·발광·더하기는 큐 차례(화가 차례)를 지킨다.
        발광(flat)·더하기(add) 개체는 깊이 없이 **화가 차례**(메시의 부품 차례 = zsorted)로 겹친다 — 2D 의 동심원·빛무리 그대로.
        더하기 효과(폭풍·핵)는 2D 의 lighter 처럼 깊이 없이 겹쳐 더한다 — 큐의 맨 뒤(몸 다음)에 서므로 몸 위에 얹힌다. */
@@ -1805,6 +2310,7 @@ export class GlUnits9 implements VecSink9 {
     const mark9 = (): void => {
       for (const g of opG) if (g.over) drawG(g, 0, g.mesh.n);
       for (const r of runs) if (r.over) { setCam(r.cam); bind(r.mesh); this.drawRec(0, r.mesh.n, r.r0, r.count); }
+      sprPass(0, nSpr, true);   // 스프라이트 몸 중 연기 위(over)만 — 몸 패스 뒤라 기록은 [0, nSpr) 에 있다
     };
     if (mrtOn) {
       /* ★★ MRT: 색을 캔버스로 옮기고(MSAA 풀기), 빛 판은 홑 표본 텍스처로 옮겨 1/4 로 내려 흐린 뒤 화면에 더한다.
@@ -2030,10 +2536,13 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
     // 단이 올랐으면 새 상한·번짐·표본 수를 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; }
+    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = meshMax <= 300 ? 3 : 6; }
     return glInst9;
   }
-  try { glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec); if (glInst9) glInst9.msaa = msaa; } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
+  try {
+    glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 3 : 6; glInst9.sprBudget = meshMax <= 300 ? 48 : 96; }   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+  } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
 }

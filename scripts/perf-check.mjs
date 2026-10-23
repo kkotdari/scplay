@@ -982,6 +982,12 @@ if (has("--namefit")) {
 if (has("--pause")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
 const SHOT = flag("--shot", null);
 /* --press <css>(2026-10-23) — 그 요소 가운데서 마우스를 눌러 둔 채(:active) 끝 사진을 찍는다(크리스탈 단추의 누름 꼴 검산). */
+/* --glms(2026-10-23) — GL 붓 flush 한 번을 gl.finish() 까지 잰다(헤드리스는 GL 도 CPU 라 끝내기까지가 곧 그리기 값 — 2D 스프라이트 판 켬/끔 견줌). 표본 동안 모아 끝에 낸다. */
+if (has("--glms")) await page.evaluate(() => {
+  const g = globalThis.__gl9; if (!g) return;
+  const f0 = g.flush.bind(g); globalThis.__glms = [];
+  g.flush = (...a) => { const t = performance.now(); f0(...a); g.gl.finish(); globalThis.__glms.push(performance.now() - t); };
+});
 if (has("--press")) {
   const b9 = await page.locator(String(flag("--press"))).first().boundingBox();
   if (b9) { await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2); await page.mouse.down(); await page.waitForTimeout(300); }
@@ -2811,6 +2817,7 @@ const prof = PROFILE ? (await cdp.send("Profiler.stop")).profile : null;
 
 if (TRACE) await browser.stopTracing();
 const frames = await page.evaluate(() => window.__frames);
+const glms9 = has("--glms") ? await page.evaluate(() => (globalThis.__glms || []).slice()) : [];
 const sprite = await page.evaluate(() => window.__spritePerf.line());
 /* --top — 판 예산을 **무엇이** 먹는지 종류별로 본다(합계만으로는 고칠 자리가 안 갈린다). */
 const topLines = has("--top")
@@ -2868,6 +2875,10 @@ console.log(`\n[프레임] ${dts.length}개 표본 · CPU ${CPU}배 조임 · ${
 
 console.log(`  p50 ${pct(0.5).toFixed(1)}ms · p75 ${pct(0.75).toFixed(1)}ms · p95 ${pct(0.95).toFixed(1)}ms · 최악 ${dts[dts.length - 1].toFixed(1)}ms`);
 console.log(`  33ms 초과(=밀린 프레임) ${(dts.filter((d) => d > 33).length / dts.length * 100).toFixed(1)}%`);
+if (has("--glms")) {
+  const so9 = [...glms9].sort((x, y) => x - y); const q9 = (p) => so9.length ? so9[Math.min(so9.length - 1, Math.floor(p * so9.length))].toFixed(1) : "-";
+  console.log(`[GL flush+finish] ${so9.length}번 · p50 ${q9(0.5)}ms · p95 ${q9(0.95)}ms · 합 ${so9.reduce((x, y) => x + y, 0).toFixed(0)}ms`);
+}
 console.log(`\n[스프라이트] ${sprite}`);
 if (topLines) console.log(`\n[판 무게]\n${topLines}`);
 if (topLines) console.log(`\n[판 무게]\n${topLines}`);
