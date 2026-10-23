@@ -1366,7 +1366,8 @@ export class GlUnits9 implements VecSink9 {
     const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0;
     const jobs: SprJob9[] = []; const jobOf = new Map<string, SprJob9>();
     const waitB: [number, SprJob9][] = []; const waitS: [number, SprJob9][] = [];
-    let budget = SPR_HOLD9 ? Math.ceil(this.sprBudget / 4) : this.sprBudget;   // 손짓 중엔 새로 보인 몸만 조금씩(배율이 열쇠에 없어 줌으로는 안 찍는다) · 미리 찍기는 쉰다
+    /* 손짓 중 예산 1/4 → 1/2(2026-10-23, 지적: 폰 "줌 아웃 아직 딜레이와 모델 늦게 뜸") — 못 찍은 몸은 그 장을 **메시 길**로 그리는데 폰에서는 그쪽이 더 무겁다(MSAA 없는 굽기 한 장 < 메시 한 벌). */
+    let budget = SPR_HOLD9 ? Math.ceil(this.sprBudget / 2) : this.sprBudget;   // 손짓 중엔 새로 보인 몸만(배율이 열쇠에 없어 줌으로는 안 찍는다) · 미리 찍기는 쉰다
     const keyOf = (mesh: GlMesh9, cam: GlCam9, yb: number, qk: number, color: string, gRq: number, gCyq: number, sh: boolean): string =>
       `${mesh.key}|${cam.key}|${yb}|${qk}|${mesh.team && !sh ? color : ""}|${gRq}|${gCyq}|${sh ? 1 : 0}`;
     /** 몸의 찍는 단(옥타브 눈금 qk) — 요잉 0·45 상자의 긴 변이 상한(유닛 SPR_CAP_U9 · 건물 SPR_CAP_B9)에 드는 가장 큰 단. 메시·카메라·그림자마다 한 번 잰다. */

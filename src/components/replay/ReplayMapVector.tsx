@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReplayMapGrid } from "./mapGrid";
 import { drawMapGrid, type MapTerrainLike } from "../../utils/mapTiles";
 import { decodeMapTerrain, terrainFace } from "../../utils/mapTerrain";
-import { SCR_DIAG, scrDiagOn } from "./ReplayMotionPlayer";
+import { SCR_DIAG, scrDiagOn, smallDevice9 } from "./ReplayMotionPlayer";
 import { pWrap, pCount, PERF9, DPRCAP9 } from "./perf9";
 
 /* ── 지도 벡터층(요청: "지도 이미지는 벡터화해서 확대해도 선명하게") ────────────────
@@ -740,7 +740,9 @@ export default function ReplayMapVector({
       painter.current = (z9, p9) => {
         /* 갈무리한 값은 **굽기에만** 넘긴다 — 자리는 손끝 배율 그대로여야 유닛과 안
            어긋난다(위 paint 주석의 수리). */
-        const zq = 2 ** (Math.round(Math.log2(Math.max(0.05, z9)) * 2) / 2);
+        /* 폰은 **옥타브(2배) 칸**이다(2026-10-23, 지적: 폰 "줌인은 왜 느리지?") — √2 칸이면 핀치 한 번(5 → 12배)에 지형 판을 두세 번 다시 굽고, 폰에서 그 한 번이 수십 ms 다.
+           2배 칸은 한 번쯤이고 그 사이는 늘려 깐다(최대 2배 · 손짓 중만 · 놓으면 제 배율로 다시 굽는다). PC 는 √2 그대로. */
+        const zq = smallDevice9 ? 2 ** Math.round(Math.log2(Math.max(0.05, z9))) : 2 ** (Math.round(Math.log2(Math.max(0.05, z9)) * 2) / 2);
         /* 1.45배 넓게 굽고, 그 판을 손짓 내내 **그대로 쓴다**(hold) — 자리만 옮긴다.
            굽기는 손짓 시작의 한 번뿐이고, 놓는 순간 부모의 상태 변화가 제 창으로 다시
            굽는다(그때는 pad 1·hold 없음이라 열쇠가 갈린다). */

@@ -106,7 +106,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glSprHold9, glNow9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -1251,7 +1251,7 @@ const ROSTER_SLIDE_MS9 = 450;
 const ROSTER_HEAD_GAP9 = 0.3;
 /** 팀 사이 틈(줄 키의 몫 · 2026-10-09, 요청: "1팀 2팀 사이를 좀 더 갭") — --rows 셈에도 든다. */
 const ROSTER_GAP_ROWS9 = 0.6;
-const smallDevice9 = ((): boolean => {
+export const smallDevice9 = ((): boolean => {
   if (typeof window === "undefined") return false;
   const coarse9 = !!window.matchMedia?.("(pointer: coarse)").matches;
   const side9 = Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0);
@@ -5355,7 +5355,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          · ⚠ 이것은 접기 규칙에서 이미 한 번 고친 함정과 **같은 자리**다("한 장 규칙은 메시를 처음 짓는
            첫 프레임에 걸려 손짓마다 접힌 채 돌았다") — 그때 접기만 고치고 **배킹은 안 고쳤다**.
            손짓 중 한 장으로 판정하는 자가 또 있으면 다 이 손이다. */
-      const kWant9 = (gest9 && xfLive9.on) ? 1
+      /* ★ **평면 2D 판(스프라이트) 길에서는 배킹을 안 내린다**(2026-10-23, 지적: 폰 "줌인은 왜 느리지?") — 배킹을 내리면 캔버스 크기가 바뀌고, GL 은 그때마다
+         MRT 판(색 + 깊이 · 폰은 MSAA 2)을 통째로 다시 잡는다(gl9 mrtEnsure) — 손짓 시작에 한 번(1 → 0.7), 놓을 때 한 번(→ 1). 그 두 멎음이 곧 줌마다의 '딜레이'이고,
+         첫 장이 그 멎음으로 무거워지면 미룸(XF_HEAVY_MS9)에 걸려 모델까지 늦게 섰다. 스프라이트 몸은 GPU 채우기가 싸서 픽셀을 줄여 버는 것이 없다 — 입체(메시)와 2D 폴백(#gl=0)만 옛 규칙. */
+      const flatSpr9 = GL_ON9 && GL_SPR9 && !pitchedProp;
+      const kWant9 = (gest9 && (xfLive9.on || flatSpr9)) ? 1
         : xfMsRef9.v >= 70 ? 0.4
           : xfMsRef9.v >= XF_HEAVY_MS9 ? 0.5
             : xfMsRef9.v >= 25 ? 0.7 : 1;
