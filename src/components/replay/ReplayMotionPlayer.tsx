@@ -12128,7 +12128,7 @@ export default function ReplayMotionPlayer({
         return (
           <div key={`${c9.sec}|${c9.name}|${c9.text}`} className="scr-fs-chat-line">
             {pl9
-              ? <span className="scr-split-chip scr-cast-chip scr-fs-chat-chip" style={chipStyle(c9.name, teamOfRaw(c9.name))}><span className="scr-cast-chip-txt">{capName9(c9.name)}</span></span>
+              ? <span className="scr-fs-chat-nm" style={{ color: modeColor(c9.name, teamOfRaw(c9.name)) }}>{capName9(c9.name)}</span>
               : <span className="scr-fs-chat-obs">{c9.name}</span>}
             <span className="scr-fs-chat-sep">:</span>{c9.text}
           </div>
@@ -18657,11 +18657,13 @@ export default function ReplayMotionPlayer({
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
                               같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다).
                               ★ 임자색 바탕은 **배지 칸까지만**(2026-10-16, 요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌") —
-                              배지를 감싼 칸(.scr-dock-chipbox)이 임자색을 지고 닉네임(.scr-dock-nm)은 바탕 없이 그 옆에 선다(글자는 전광판 녹색). */}
-                          <span className="scr-dock-chipbox" style={{ background: chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1).background }}>
+                              배지를 감싼 칸(.scr-dock-chipbox)이 임자색을 지고 닉네임(.scr-dock-nm)은 바탕 없이 그 옆에 선다.
+                              ★ 배지 칸의 임자색 바탕은 걷었다 — 종족 원만 남는다(2026-10-23, 요청: "종족배지 임자색 배경패널 없애기 원만 남겨").
+                              ★ 닉네임 글자는 **임자색**(2026-10-23, 요청: "모든 글씨 흰색은 아니고 잘 살펴봐야 함" — 원작 점수판은 이름만 임자색 · 숫자는 흰색). */}
+                          <span className="scr-dock-chipbox">
                             {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
                           </span>
-                          <span className="scr-dock-nm">{m.name}</span>
+                          <span className="scr-dock-nm" style={{ color: modeColor(m.key, m.team) }}>{m.name}</span>
                         </span>
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>

@@ -14,6 +14,9 @@
   /* 스타 인게임 UI 글자 녹색(2026-10-16, 요청: "전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 · 자막의 일반 텍스트, 화면 주인의 개인 화면 글자도") —
      한 값에 매달아 고칠 때 한 곳만 고친다. 흐린 녹색(머리 글·빈 안내)은 같은 색의 투명도로. */
   --scr-sc-green: #64dc5a; --scr-sc-green-dim: rgba(100, 220, 90, 0.6);   /* (100,220,90)(2026-10-17, 요청: "글자색 이걸로" — 사용자가 보낸 원작 체력 글자 "1500/1500" 그림의 녹색을 눈대중으로 · 앞 판 팔레트 189 (104,184,104) "좀 어두운 듯 189 로") · 188 (88,176,88)(2026-10-17, 요청: "인게임이 더 어두운 것 같아" → 후보 견줌에서 188) — 선택 링(UI_OWN9 #10fc18 · 팔레트 117)은 그대로 */   /* = 화면 주인 초록(UI_OWN9 · 선택 링·미니맵 제 몸) — 2026-10-16 되요청: "이 색 말고 우리 화면 주인색 녹색 · 선택 링 같은 거 그 색으로 통일"(첫 판 #2cf22c) */
+  /* 글자는 흰색(2026-10-23, 요청: "메탈 테마에 실제 UI 접목 … 흰 글씨도 필요 · 글씨색은 다른 테마에도 적용") — 바탕 글자(전광판·인포창·자막·개인 화면·로딩)는 이 자.
+     녹색(--scr-sc-green)은 아이콘·켜짐·배속 다이얼·카메라 단추 같은 UI 표시에만 남는다. */
+  --scr-sc-text: #fff; --scr-sc-text-dim: rgba(255, 255, 255, 0.62);
   font-family: var(--scr-font);
 }
 /* 단추·입력칸은 브라우저 기본이 글꼴을 안 물려받는다 — 특이도 0(:where)이라 제 글꼴을 적은 규칙(고정폭 등)에는 진다. */
@@ -4593,8 +4596,8 @@
 .scr-motion-pc9 .scr-fs-chat { max-width: min(40%, calc(100% - var(--cap-side) - var(--sd-room, 0px) - var(--sd-gap, 0px))); gap: round(nearest, calc(4px * var(--dk) / 1.35), 2px);
   font-size: round(nearest, calc(18px * var(--dk) / 1.35 * var(--capk, 1)), 2px); }
 .scr-fs-chat-line { max-width: 100%; box-sizing: border-box; padding: 0 0.4em; border-radius: 4px; background: rgba(8, 10, 14, 0.55); overflow-wrap: anywhere; animation: scr-cast-caption-in 0.3s ease-out; }
-.scr-fs-chat-chip.scr-fs-chat-chip { display: inline-block; vertical-align: middle; position: relative; top: -0.08em; font-size: 1em; line-height: 1.2em; padding: 0 0.25em; border-radius: 1px; text-shadow: none; max-width: 10em; }
 .scr-fs-chat-obs { color: #c8ccd4; }
+.scr-fs-chat-nm { font-weight: 700; }   /* 채팅 이름 = 임자색 글자(칩 아님 · 2026-10-23, 요청: "채팅의 이름도 임자색으로 표현 · 칩 말고" — 원작 채팅 결 · 색은 JSX 인라인) */
 .scr-fs-chat-sep { margin: 0 0.3em 0 0.15em; }
 @media (prefers-reduced-motion: reduce) { .scr-fs-chat-line { animation: none; } }
 
@@ -4915,15 +4918,16 @@
 /* ══ 스타 인게임 UI 녹색 글자 · 전광판 칩은 배지 칸만(2026-10-16) ═════════════════════════════════════════════════════════════════
    요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌 · 전광판의 글자들과 인포창 글자를 스타 인게임 ui 글자 녹색으로 ·
    자막의 일반 텍스트, 화면 주인의 개인 화면 글자도 똑같이". 색은 재생기 뿌리의 --scr-sc-green 하나(흐린 것 --scr-sc-green-dim).
-   뜻을 지닌 색(광물 파랑·가스·준/받은 데미지·실드·에너지·체력 바·임자색 칩)은 그대로 둔다 — 바탕 글자만 녹색이다. */
-.scr-dock-roster { color: var(--scr-sc-green); }
-.scr-dock-head { color: var(--scr-sc-green-dim); }
-.scr-motion-infodock, .scr-motion-infodock-name, .scr-motion-infodock-supply b, .scr-motion-infodock-upsq b { color: var(--scr-sc-green); }
-.scr-motion-infodock-supply { color: var(--scr-sc-green-dim); }
-.scr-motion-infodock .scr-motion-info-line { color: var(--scr-sc-green); }   /* "생산 중 마린" · "연구 중 …" 줄 글(옛 흰 82%) */
-.scr-motion-infodock-empty { color: var(--scr-sc-green-dim); }
-.scr-cast-caption { color: var(--scr-sc-green); }
-.scr-split-cap > .scr-split-word, .scr-fs-solo-cap > .scr-split-word { color: var(--scr-sc-green); }
+   뜻을 지닌 색(광물 파랑·가스·준/받은 데미지·실드·에너지·체력 바·임자색 칩)은 그대로 둔다 — 바탕 글자만 녹색이다.
+   ⚠ 바탕 글자는 이제 **흰색**(--scr-sc-text · 2026-10-23 "흰 글씨도 필요 · 글씨색은 다른 테마에도") — 이 절의 녹색 글자는 되물렸다. */
+.scr-dock-roster { color: var(--scr-sc-text); }
+.scr-dock-head { color: var(--scr-sc-text-dim); }
+.scr-motion-infodock, .scr-motion-infodock-name, .scr-motion-infodock-supply b, .scr-motion-infodock-upsq b { color: var(--scr-sc-text); }
+.scr-motion-infodock-supply { color: var(--scr-sc-text-dim); }
+.scr-motion-infodock .scr-motion-info-line { color: var(--scr-sc-text); }   /* "생산 중 마린" · "연구 중 …" 줄 글(옛 흰 82%) */
+.scr-motion-infodock-empty { color: var(--scr-sc-text-dim); }
+.scr-cast-caption { color: var(--scr-sc-text); }
+.scr-split-cap > .scr-split-word, .scr-fs-solo-cap > .scr-split-word { color: var(--scr-sc-text); }
 /* 칩 = 배지 칸(임자색) + 바탕 없는 닉네임. 겉 칩(.scr-dock-name.is-split)은 바탕·안 여백을 버리고 두 조각을 나란히 — 무게는 :is(#…)로 칩 크기 규칙들(PC·폰·2×2 · 많게는 7겹)
    위에 둔다(그 규칙들의 키·글자 크기는 그대로 산다 · 여기서는 여백·틈만 고친다). */
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { padding: 0; gap: 0.35em; background: none; overflow: hidden; }
@@ -4932,7 +4936,7 @@
   min-width: calc(var(--rp) * 0.6 + 6px * var(--dk)); padding: 0 calc(3px * var(--dk)); border-radius: calc(3px * var(--dk));   /* 네 모서리 같은 둥글기(2026-10-16, 요청: "종족칩 라운딩 주려면 네 모서리 다 줘" — 옛 2px 는 겉 칩의 둥근 자름(4·dk)과 갈려 왼쪽만 둥글었다) */
 }
 .scr-dock-chipbox > .scr-motion-teamcol-race:is(*, #scr-dock-split-hi) { margin: 0; }
-.scr-dock-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; color: var(--scr-sc-green); }
+.scr-dock-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; color: var(--scr-sc-text); }
 /* ── 아이콘·배속 다이얼도 녹색(2026-10-16, 요청: "아이콘과 배속 오버레이 흰색도 마찬가지로") — 흰 잉크였던 것만 바꾼다:
    툴박스 우물 단추 아이콘·공유·검색 알약(검색 적중 노랑은 그대로) · 켜진 단추(흰 반전 → 녹색 반전, 아이콘은 짙은 녹색) · 전광판 카메라 아이콘(켜짐 초록 바탕은 그대로) ·
    배속 다이얼의 글자·선·채움·눈금·손잡이. 색 단추의 팀/주인공 원그래프 위 흰 아이콘, 재생 줄(쇠 위 어두운 잉크)은 그대로. */
@@ -4946,13 +4950,14 @@
 .scr-tb .scr-motion-searchwrap.is-open, .scr-tb .scr-motion-searchwrap.is-open button.scr-motion-mapbtn { color: var(--scr-sc-green); }
 .scr-motion-mapbtns button.scr-motion-mapbtn.is-on { background: var(--scr-sc-green); color: #06260a; }
 .scr-roster-cam { color: var(--scr-sc-green); }
-.scr-speeddial, .scr-speeddial-tick.is-on { color: var(--scr-sc-green); }
-.scr-speeddial-tick { color: var(--scr-sc-green-dim); }
-.scr-speeddial-line { background: rgba(100, 220, 90, 0.45); }
-.scr-speeddial-fill, .scr-speeddial-knob { background: var(--scr-sc-green); }
-.scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(100, 220, 90, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
+/* 배속·배율 다이얼은 흰색(2026-10-23, 요청: "채팅이랑 줌·배속 오버레이 등도 흰색 — 원작에서 그 색이니까" · 옛 녹색 2026-10-16 되물림) */
+.scr-speeddial, .scr-speeddial-tick.is-on { color: var(--scr-sc-text); }
+.scr-speeddial-tick { color: var(--scr-sc-text-dim); }
+.scr-speeddial-line { background: rgba(255, 255, 255, 0.45); }
+.scr-speeddial-fill, .scr-speeddial-knob { background: var(--scr-sc-text); }
+.scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(255, 255, 255, 0.22), 0 1px 3px rgba(0, 0, 0, 0.6); }
 /* ★ 배율 원도 녹색 + 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 원 안에 라벨·값 두 줄(배속 다이얼의 "속도"·값과 같은 크기). */
-.scr-zoomdial { flex-direction: column; color: var(--scr-sc-green); }
+.scr-zoomdial { flex-direction: column; color: var(--scr-sc-text); }
 .scr-zoomdial-lab { font-size: calc(8px * var(--sdk)); line-height: 1.2; font-weight: 700; opacity: 0.75; white-space: nowrap; margin-bottom: calc(1px * var(--sdk)); }
 .scr-zoomdial.is-base .scr-zoomdial-lab { opacity: 0.6; }
 /* ★ 자동중계 = **라벨 + 온오프 스위치**(2026-10-20, 요청: "자동중계 버튼을 라벨로 바꾸고 옆에 온오프 토글 스위치 넣기 · 색은 녹색 테마 유지") — 단추 바탕·켜짐 바탕·깜빡임을 걷고
@@ -4975,9 +4980,9 @@
 .scr-roster-cam-auto.is-on > .scr-cast-switch > i { transform: translateX(calc(var(--sw-w) - var(--sw-h))); background: var(--scr-sc-green); }
 @media (prefers-reduced-motion: reduce) { .scr-cast-switch, .scr-cast-switch > i { transition: none; } }
 /* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도") — 로딩은 뿌리 밖 지도 상자 위라 값을 바로 적는다(변수가 안 닿는 자리 대비). */
-.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #64dc5a); }
+.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-text, #fff); }
 /* 로딩 글자(LOADING)·재생 품질 알림도 같은 화면 주인 초록(2026-10-16, 요청: "로딩하고 재생품질 표시도"). */
-.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-green, #64dc5a); }
+.scr-motion-simnote, .scr-motion-qualitynote { color: var(--scr-sc-text, #fff); }
 /* 폰 — 사람 카메라 단추 대신 **보여 주는 사람의 칩(배지 칸 + 닉네임)을 둥근 네모 테로**(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시
    종족 칩과 닉네임을 둥근 네모로 감싸기"). 테는 안쪽 그림자(inset)라 칩 크기·줄 배치가 안 흔들린다 · 왼쪽 안 여백만 테 몫 2px. 색 = 화면 주인 초록. */
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name:is(.is-split, #scr-dock-split-hi) { border-radius: calc(3px * var(--dk)); }   /* 5 → 3·dk = 배지 칸 둥글기(2026-10-17, 요청: "전광판 모바일 유저칩 감싸개 래디우스 줄여야 할 듯") */
@@ -5215,3 +5220,55 @@
   color: var(--crystal-ink); background: var(--crystal-bg); box-shadow: var(--crystal-shadow); border: none; border-radius: calc(6px * var(--ui));
 }   /* 홀로그램 접기 단추(녹색 판)를 라이트에선 클레이 단추로 */
 .scr-light-theme .scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold:active { background: var(--crystal-press); box-shadow: var(--crystal-press-shadow); }
+
+/* ★★ **메탈 독 = 스타 원작 UI 결**(2026-10-23, 요청: "메탈 테마에 실제 UI 접목 — 빨간 안쪽 꾸밈선 테두리 · 요철 있는 어두운 철판 등등 · 반투명 패널도 · 흰 글씨도 필요"
+   + 원작 리마스터 화면 사진) — 풀 보기의 쇠 독(요약 중 .is-digest 는 홀로그램·클레이라 안 탄다)만. 위 밝은 솔질 쇠(#b2b8c0 → #656c75)를 덮는다:
+   ① 판 = **어두운 요철 철판**(짙은 건메탈 세로 음영 + 45°/−45° 돋은 줄무늬 — 밝은 1px 날 + 어두운 1px 그늘이 엇갈려 마름모 요철로 읽힌다) · 윗선 베벨은 검은 1px + 옅은 흰 1px.
+   ② 받침(미니맵·전광판이 솟은 몫) · 구분 막대도 같은 철판.
+   ③ 우물(미니맵·전광판·인포창) = **반투명 검정 판**(뒤 철판 결이 비친다 · 원작 점수판처럼) + **빨간 안쪽 꾸밈선**(검은 1px 안에 붉은 1px · 원작 콘솔의 붉은 테) — 미니맵만 붉은 테 없음(아래).
+   ④ 판 글자(음각 글귀 · 재생 줄 시계·탐색바·재생 단추)는 어두운 판 위라 **흰 잉크**로 뒤집는다. 단추(심플 투명)는 그대로("지금 메탈은 아주 좋고"). */
+.scr-fs-layer:not(.is-digest) {
+  --steel-dark:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(255, 255, 255, 0.07) 6px 7px, rgba(0, 0, 0, 0.32) 7px 8px, transparent 8px 14px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255, 255, 255, 0.05) 6px 7px, rgba(0, 0, 0, 0.28) 7px 8px, transparent 8px 14px),
+    linear-gradient(180deg, #3b3f45 0%, #2b2e33 14%, #222529 55%, #1a1c1f 100%);
+  --sc-trim: rgba(196, 34, 30, 0.78);
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-lower::before {
+  background: var(--steel-dark) #222529;
+  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607;
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel::before {
+  background:
+    linear-gradient(90deg, #050607 0 1px, rgba(255, 255, 255, 0.1) 1px 2px, transparent 2px calc(100% - 2px), rgba(0, 0, 0, 0.4) calc(100% - 2px) calc(100% - 1px), #050607 calc(100% - 1px)) 0 0 / 100% var(--ped-h) no-repeat,
+    var(--steel-dark) #2b2e33;
+  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14);
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel::after {
+  background: var(--steel-dark);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4);
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+  background: rgba(4, 6, 8, 0.6);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px var(--sc-trim), inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmark { color: rgba(255, 255, 255, 0.34); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.06); }
+.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7); }
+.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+.scr-fs-layer:not(.is-digest) .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+/* 미니맵 우물은 **붉은 테 없이**(같은 날 요청: "미니맵은 붉은 테 없는데 원작에 · 대신 맵이 반투명 검정 패널 안에 있는 모양") — 반투명 검정 판(위 ③의 바탕) 안에
+   지도가 둘레 4·dk 를 띄우고 앉는다(지도 상자 키·폭에서 그 여백을 뺀다 · 판은 그대로 --mini-h). */
+.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel {
+  --mm-pad: round(nearest, calc(4px * var(--dk, 1)), 2px);
+  box-shadow: inset 0 0 0 1px #000, inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.scr-fs-layer:not(.is-digest) .scr-fs-minipanel .scr-fs-minimap {
+  height: min(calc(100cqh - 2 * var(--mm-pad)), calc((100cqw - 2 * var(--mm-pad)) / var(--scr-mini-ar, 1)));
+}
