@@ -9,7 +9,7 @@
  *                                                                               같은 편은 색 모드 · 주인 있으면 주인 클릭·링만) — [자국]·[링]·[링 폭](시간에 따른 폭 흔들림)
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
  *   node scripts/perf-check.mjs --wide --press ".scr-kakao-share-btn" --shot x.png   그 요소를 눌러 둔 채(:active) 찍는다(크리스탈 단추 누름 꼴 · 2026-10-23)
- *   node scripts/perf-check.mjs --wide --ask 30 [--theme holo|metal] --shot x.png   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
+ *   node scripts/perf-check.mjs --wide --ask 30 [--light] --shot x.png   (--light = 앱 라이트 테마 깃발 · 판 꼴: 다크 홀로그램 / 라이트 클레이 메탈)   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
  *                                                                               요약 알약(n/N)·시계·배속을 찍는다(창 사이 건너뜀 · 마지막 창 끝 멈춤 검산)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
  *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
@@ -620,8 +620,7 @@ if (${JSON.stringify(process.argv.includes("--bgm"))}) setReplayBgm([{ title: "�
 /* 공유 표(clockKey "perf") — castprobe 가 '중계·추적 중에는 자리를 안 싣고 &tr= 만 싣나'를 읽는다. */
 window.__share9 = () => { const q = sceneLinkQueryOf9("perf"); return { tr: q.get("tr"), pos: q.has("z") || q.has("cx"), qs: q.toString() }; };
 window.__mount = (motion, players, walkJson, terrainB64) => {
-  /* --theme holo|metal(2026-10-23) — 보기 모드 판 꼴은 들어올 때 Math.random 한 번으로 고른다 · 첫 렌더 동안만 그 값을 돌려 꼴을 못 박는다. */
-  if (window.__theme) { const r0 = Math.random; const v = window.__theme === "metal" ? 0.9 : 0.1; Math.random = () => v; setTimeout(() => { Math.random = r0; }, 400); }
+
   const el = document.getElementById("root");
   const tiles = btoa(String.fromCharCode(...new Uint8Array(128 * 128)));
   const grid = {
@@ -906,13 +905,13 @@ else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치�
 }
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9, th9]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9; window.__ask = ask9; window.__theme = th9;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9; window.__ask = ask9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
-  Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask"), flag("--theme", "") || null]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+  Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
@@ -928,6 +927,8 @@ if (flag("--loadshot", null)) {
 }
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
+/* --light(2026-10-23) — 앱의 라이트 테마 깃발(html.scr-light-theme)을 단다 — 보기 모드 판·요약 중 독의 클레이 메탈 꼴 검산. */
+if (has("--light")) await page.evaluate(() => document.documentElement.classList.add("scr-light-theme"));
 if (has("--ask")) await page.waitForSelector(".scr-mode-ask", { timeout: 60000 });   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
