@@ -988,6 +988,12 @@ if (has("--glms")) await page.evaluate(() => {
   const f0 = g.flush.bind(g); globalThis.__glms = [];
   g.flush = (...a) => { const t = performance.now(); f0(...a); g.gl.finish(); globalThis.__glms.push(performance.now() - t); };
 });
+/* --fold(2026-10-23) — 독(인포창·미니맵 줄)을 접은 채 찍는다(접힘 때 툴박스 폭 검산). */
+if (has("--fold")) {
+  const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /인포창 접기$/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
+  await page.waitForTimeout(600);
+  console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}`);
+}
 if (has("--press")) {
   const b9 = await page.locator(String(flag("--press"))).first().boundingBox();
   if (b9) { await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2); await page.mouse.down(); await page.waitForTimeout(300); }

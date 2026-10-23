@@ -715,9 +715,10 @@ export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 
   }
   return c;
 }
-const LIGHT = ((): [number, number, number] => { const v = [-0.9, 0.45, 1.0]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
+// 광원 (−0.9, 0.45, 1) → (0, 0.45, 1)(2026-10-23 · 가운데 위 — shapeOblique LIGHT_PLAN 과 한 벌)
+const LIGHT = ((): [number, number, number] => { const v = [0, 0.45, 1.0]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
 /** 바닥 그림자의 기울기 — 높이 z 의 꼭짓점이 바닥에서 얼마나 밀리나(= −평면빛/높이빛, shapeOblique 의 LIGHT_PLAN·LIGHT_ELEV 와 같은 자). */
-const SHADOW_K9: [number, number] = [0.5, -0.25];   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
+const SHADOW_K9: [number, number] = [0, -0.25];   // (0.5, −0.25) → (0, −0.25)(2026-10-23 · 광원 가운데 위 — 그림자는 곧장 위로)   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
 /** ★ 그림자의 **번짐 고리는 걷었다**(2026-09, 지적: "연한 거 진한 거 한 장씩 두 장이 겹친다") ─────────────
  *  같은 실루엣을 1.1 배로 한 번 더 옅게 깔아 가장자리를 무르게 하려던 손이다. 그런데 배수는 **앵커를 축으로**
  *  걸리므로 고리가 실루엣을 감싸는 것이 아니라 **비스듬히 밀린 복사판**이 된다 — 부품마다 진한 타원 옆에

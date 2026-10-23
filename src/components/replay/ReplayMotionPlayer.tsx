@@ -5288,8 +5288,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          자리) — 그 몫을 CSS에서 되읽는다(부모가 지도, 나 자신이 지도+여유). 좌표 사상은
          **지도 크기**로 하고 그린 뒤 여유만큼 내린다: 그래야 분수 0~1이 여전히 지도의
          위·아래 끝이고, 늘린 몫은 지도 밖으로 솟은 그림만 받는다. */
-      const band9 = Math.max(0, ch - (cv.parentElement?.clientHeight ?? ch));
-      const mh9 = Math.max(1, ch - band9);
+      /* 띠는 **위로 늘린 몫만**이다 — 아래로 늘린 몫(--map-ext · 독 뒤)은 지도 자리에 안 든다(2026-10-23). offsetTop 은 손짓 변환(transform)과 무관한 레이아웃 값. */
+      const band9 = Math.max(0, -cv.offsetTop);
+      const mh9 = Math.max(1, cv.parentElement?.clientHeight ?? (ch - band9));
       if (!cw || !ch) return;
       /* 선명한 확대(지적: 확대가 선명하게 돼야) — 렌즈의 CSS 확대에 태우면 배킹 해상도가
          줌을 따라 커져야 해서 한계(4096px)에 막혀 흐려졌다. 이제 캔버스는 렌즈 밖에서
@@ -16746,7 +16747,7 @@ export default function ReplayMotionPlayer({
     const cw9 = ucv9.clientWidth;
     const ch9 = ucv9.clientHeight;
     const mh9 = Math.min(ch9, ucv9.parentElement?.clientHeight ?? ch9);
-    const band9 = ch9 - mh9;
+    const band9 = Math.max(0, -ucv9.offsetTop);   // 위 띠만 — 아래 늘림(--map-ext)은 띠가 아니다(2026-10-23 · UnitLayer 와 같은 자)
     if (!(cw9 > 0) || !(mh9 > 0)) return;
     const ur9 = ucv9.getBoundingClientRect();
     if (!(ur9.width > 0) || !(ur9.height > 0)) return;
@@ -20258,6 +20259,12 @@ export default function ReplayMotionPlayer({
     };
     const read9 = (): void => {
       fit9();
+      /* ★ 접힌 독(is-fold · display none)은 줄·틀 폭이 0 이라 --dock-side 가 0 으로 떨어져 툴박스가 화면 폭으로 **넓어졌다**(2026-10-23, 요청: "접었을 때 넓어지지 않고
+         원래 폭 유지하기") — 마지막 값을 그대로 둔다(펼치면 의존성으로 다시 돈다). */
+      if (row9.clientWidth === 0) {
+        fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-holes", "none");   // 접힌 쇠판엔 우물이 없다 — 옛 구멍으로 지도가 비쳤다(실측)
+        return;
+      }
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
@@ -20447,6 +20454,11 @@ export default function ReplayMotionPlayer({
                  3D도 같은 식이면 된다 — 회전이 그림을 상자 안 가운데로 눌러 놓으므로
                  상자 가운데가 곧 그림 가운데다. */
               top: `${Math.round((stage.h - fsCoverH) / 2)}px`,
+              /* ★ **독 뒤까지 그린다 — 폰도**(2026-10-23, 요청: "폰에서도 독 뒤까지 지도 그리기") — PC 는 상자가 무대보다 세로로 커(폭 덮기) 독 자리까지 상자가 내려가
+                 무대의 clip-path 늘림(--dock-under)만으로 보였다. 폰 세로는 상자 키 = 무대 키라 상자 아래가 곧 끝이다. 상자(카메라·팬 한계의 자)는 그대로 두고 **캔버스들만**
+                 (유닛·GL·지형·효과·안개 — .scr-motion-unitlayer 의 bottom) 독 키에서 상자가 이미 내려간 몫을 뺀 만큼 아래로 늘린다. 1배에서는 지도 아랫변이 무대 아랫변이라
+                 더 그릴 게 없고, 당기거나 끌면 지도가 독 뒤로 이어진다(PC 와 같은 몫). */
+              ["--map-ext" as string]: `${Math.max(0, Math.round(rowsH - (fsCoverH - stage.h) / 2))}px`,
               /* (걷어냄 · 2026-10-09) translate(−50% + --snx) 가운데 맞춤 — 위 ★★. 변환은 없다. */
               /* 높이도 **정수로 못 박는다** — aspectRatio 로 두면 정사각이 아닌 지도에서 소수 px 가 되어 캔버스가 통째로 보간된다
                  (위 fsCoverW 의 ★★). 폭·높이가 다 서므로 aspectRatio 는 이 갈래에서 안 먹는다. */

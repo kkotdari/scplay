@@ -213,8 +213,10 @@ export default function ReplayFogLayer({
        사각형 밖은 어차피 안 칠하므로(아래 사다리꼴) 실제 그리는 몫은 그대로다. */
     const PADX = fogPad9(cw);
     const PADY = fogPad9(ch);
+    /* 아래로 더(--map-ext · 2026-10-23 "폰에서도 독 뒤까지 지도 그리기") — 유닛 캔버스들이 독 뒤까지 늘어난 만큼 안개도 덮어야 그 띠가 밝게 안 샌다. */
+    const EXT9 = Math.max(0, parseFloat(getComputedStyle(box).getPropertyValue("--map-ext")) || 0);
     const vw = cw + PADX * 2;
-    const vh = ch + PADY * 2;
+    const vh = ch + PADY * 2 + EXT9;
     if (cv.width !== Math.round(vw * B) || cv.height !== Math.round(vh * B)) {
       cv.width = Math.round(vw * B);
       cv.height = Math.round(vh * B);
