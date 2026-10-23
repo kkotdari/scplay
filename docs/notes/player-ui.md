@@ -2213,3 +2213,7 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - **재생기 테마 무작위**(요청: "라이트·다크 테마 상관없이 랜덤하게 재생기 테마 적용 · 처음부터 결정된 테마로 보이게") — `modeTheme9` 는 열 때 한 번 `Math.random()` 으로
   metal / holo(앱 테마 MutationObserver 걷음). 홀로그램이면 뿌리에 **늘** `is-holodock`(옛 `is-digest` — 요약이 돌 때만 붙어 판을 고르기 전엔 메탈 독이 먼저 보였다 ·
   CSS 이름을 통째로 바꿨다). 못 박기 `#theme=metal|holo` · perf-check `--theme metal|holo`(없으면 무작위 — 샷을 견줄 땐 늘 단다).
+
+## 최대 확대 16 → 12배(2026-10-23)
+요청: "재생기 최대 확대를 좀 낮추고" → "12배로". `PLAYBACK_ZOOM_MAX` 16 → 12 · 사다리 `ZOOM_STEPS` = [1, 2, 4, 8, PLAYBACK_ZOOM_MAX](맨 위 칸 = 상한).
+더블탭(ZOOM_TAP = 둘째 위 칸)은 8 그대로 · 링크의 z 도 12 로 죈다. 🔎 `perf-check --wide --diag --zoomsweep 16 --zoomshot x.png` 머리줄 "배율 12.00".
