@@ -3646,16 +3646,36 @@
 /* ★ 쇠판 위의 단추·재생 줄은 **우물**이다(독의 미니맵·인포창 우물과 같은 꼴 — 어두운 속 · 위 안쪽 그늘 · 아래 밝은 입술) —
    옛 '옅은 흰 막'은 어두운 지도 위에서만 읽혔고 밝은 쇠 위에서는 안 보인다. 켜진 단추(is-on — 흰 반전)·색 단추(팀·주인공의
    원그래프)는 제 꼴 그대로다. 재생 줄은 줄째로 한 우물이라 그 안의 배속·재생·탐색바·시계는 옛 흰 잉크 그대로 읽힌다. */
+/* ★★ 툴박스 단추는 **크리스탈**이다(2026-10-23, 요청: "다른 버튼도 유리 테마 적용 · 유리 녹색 말고 크리스탈 느낌 · 뒤에 메탈이 비쳐야지") — 옛 우물(#0d1116 · 어두운 속)을
+   걷고, 맑은 몸(흰 6%) + 위 절반 흰 광택(가운데서 꺾임) + 흰 테 · 위 안쪽 흰 줄 · 아래 안쪽 그늘 · 바깥 검은 실선 · 뜬 그림자. 뒤 쇠판의 헤어라인이 비친다
+   (backdrop-filter 는 살짝 흐리고 밝힐 뿐). 아이콘은 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 — 맑은 몸 너머로 밝은 쇠가 비쳐 흰 잉크는 안 읽힌다).
+   켜진 단추(is-on)·색 단추(팀·주인공)는 제 꼴 그대로. 보기 모드 판의 쇠 꼴 단추 · 배속 · 접기 단추도 같은 자(--crystal-*). */
+.scr-fs-layer {
+  --crystal-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 44%, rgba(255, 255, 255, 0.04) 51%, rgba(255, 255, 255, 0.12) 100%),
+    rgba(255, 255, 255, 0.06);
+  --crystal-bg-hi:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.28) 44%, rgba(255, 255, 255, 0.08) 51%, rgba(255, 255, 255, 0.2) 100%),
+    rgba(255, 255, 255, 0.12);
+  --crystal-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(0, 0, 0, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 1px rgba(0, 0, 0, 0.32), 0 2px 5px rgba(0, 0, 0, 0.32);
+  --crystal-ink: #141920;
+}
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb .scr-tb-tail .scr-kakao-share-btn {
-  background: #0d1116;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: var(--crystal-bg); color: var(--crystal-ink);
+  -webkit-backdrop-filter: blur(1.5px) brightness(1.06); backdrop-filter: blur(1.5px) brightness(1.06);
+  box-shadow: var(--crystal-shadow);
 }
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero) svg,
+.scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero) svg,
+.scr-tb .scr-tb-tail .scr-kakao-share-btn svg { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55)); }
 @media (hover: hover) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
   .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
-  .scr-tb .scr-tb-tail .scr-kakao-share-btn:hover { background: #1a2028; }
+  .scr-tb .scr-tb-tail .scr-kakao-share-btn:hover { background: var(--crystal-bg-hi); }
 }
 /* ★ 재생 줄은 **우물 없이 쇠 위에 바로** 선다(2026-09, 요청: "재생컨트롤부분 검정배경 없애기") — 그래서 그 줄만 잉크를 뒤집는다:
    재생 단추·탐색바·시계가 흰 잉크면 밝은 쇠에서 안 읽히므로 **어두운 잉크 + 아래 흰 한 줄**(독의 음각 글귀와 같은 결)이다.
@@ -3671,8 +3691,7 @@
 .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-thumb { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.5); }
 .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-thumb { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.5); }
 .scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on) {
-  background: #0d1116;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: var(--crystal-bg); color: var(--crystal-ink); box-shadow: var(--crystal-shadow);   /* 크리스탈(위 ★★) */
 }
 /* ★★ PC 툴박스는 **한 줄**(2026-10-09, 요청: "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부
    좌우로 배치") — [아이콘 단추들 | 재생 줄(남는 폭 전부 — 진행바가 는다) | 꼬리]. 위아래 여백은 두 줄 때와 같아 비는 키 = 단추 줄 한 줄 + 줄 사이
@@ -3691,13 +3710,14 @@
   /* ★ **독 쇠판에 새긴 단추**다(2026-10-22, 요청: "재생기 접기 버튼 못생겨서 안 되겠어 독 프레임에 새겨진 버튼으로 변경") — 얹은 쇠 정사각
      (옛 2026-10 '입체감·둥글기 한 단 낮춤' 꼴)을 걷고, 판을 파낸 홈이다: 바탕은 쇠 결이 비치는 옅은 그늘 · 위 입술 어두운 한 줄과 안 그늘 ·
      아래 입술 밝은 한 줄. 삼각형은 시계·음각 글귀(.scr-fs-dockmark)와 같은 판 글자(어두운 잉크 + 아래 흰 한 줄)다. */
-  border: none; border-radius: calc(3px * var(--ui));
-  color: rgba(22, 26, 32, 0.78);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.08) 100%);
-  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.38);
+  border: none; border-radius: calc(6px * var(--ui));
+  /* 크리스탈(2026-10-23 · 위 툴박스 단추 ★★) — 옛 판을 파낸 홈(어두운 그늘)은 되물렸다. */
+  color: var(--crystal-ink);
+  background: var(--crystal-bg);
+  box-shadow: var(--crystal-shadow);
 }
 .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.4)); }
-.scr-tb-tail > .scr-motion-infodock-fold:hover { filter: none; background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.14) 100%); }
+.scr-tb-tail > .scr-motion-infodock-fold:hover { filter: none; background: var(--crystal-bg-hi); }
 .scr-tb-tail { display: flex; align-items: center; gap: calc(6px * var(--ui)); flex: none; margin-left: auto; }
 /* (걷어냄 · 2026-10-09, 요청 3: "스탯바는 중계화면에서 모두 제거") 현황 칸 꼴(.scr-who-stats · .scr-who-i · .scr-who-v · 폭 ch) — 분할 칸 머리·폰 발치·폰 단독 상자가 쓰던 것. */
 /* ★ 인구 칸의 **종족 풀 덧줄**(2026-10, 요청: "마인드컨트롤한 경우는 인구를 두 줄로 보여주고 크기를 반 이하로 줄여서 레이아웃에 전혀
@@ -4879,10 +4899,14 @@
 /* ── 아이콘·배속 다이얼도 녹색(2026-10-16, 요청: "아이콘과 배속 오버레이 흰색도 마찬가지로") — 흰 잉크였던 것만 바꾼다:
    툴박스 우물 단추 아이콘·공유·검색 알약(검색 적중 노랑은 그대로) · 켜진 단추(흰 반전 → 녹색 반전, 아이콘은 짙은 녹색) · 전광판 카메라 아이콘(켜짐 초록 바탕은 그대로) ·
    배속 다이얼의 글자·선·채움·눈금·손잡이. 색 단추의 팀/주인공 원그래프 위 흰 아이콘, 재생 줄(쇠 위 어두운 잉크)은 그대로. */
+/* ★ 크리스탈 단추(2026-10-23 · 툴박스 ★★)의 아이콘은 **짙은 녹색**(#1d6a1b · 아래 흰 한 줄) — 맑은 몸 너머 밝은 쇠 위에서 밝은 녹색은 안 읽혔다(실측).
+   펴진 검색 알약(어두운 우물)만 밝은 녹색 그대로. */
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb .scr-tb-tail .scr-kakao-share-btn,
-.scr-tb .scr-motion-searchwrap, .scr-tb .scr-motion-searchwrap button.scr-motion-mapbtn { color: var(--scr-sc-green); }
+.scr-tb .scr-motion-searchwrap:not(.is-open), .scr-tb .scr-motion-searchwrap:not(.is-open) button.scr-motion-mapbtn,
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on), .scr-tb-tail > .scr-motion-infodock-fold { color: #1d6a1b; }
+.scr-tb .scr-motion-searchwrap.is-open, .scr-tb .scr-motion-searchwrap.is-open button.scr-motion-mapbtn { color: var(--scr-sc-green); }
 .scr-motion-mapbtns button.scr-motion-mapbtn.is-on { background: var(--scr-sc-green); color: #06260a; }
 .scr-roster-cam { color: var(--scr-sc-green); }
 .scr-speeddial, .scr-speeddial-tick.is-on { color: var(--scr-sc-green); }
@@ -5070,30 +5094,19 @@
 }
 .scr-mode-ask.is-metal { border-radius: calc(6px * var(--ui, 1)); }
 .scr-mode-ask.is-metal .scr-mode-ask-title { color: rgba(18, 22, 28, 0.85); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
-/* ★ 쇠 꼴 단추는 **입체 유리**(같은 날 요청: "메탈의 팝업 버튼을 입체 유리 버튼 형태로") — 짙은 녹색 유리 몸 + 위 절반 흰 광택(가운데서 꺾이는 반사) ·
-   흰 반투명 테 · 위 안쪽 흰 줄 · 아래 안쪽 그늘 · 쇠판 위로 뜬 그림자. 글자는 밝은 초록 + 어두운 그늘(유리 위에서 읽히게). 알약의 [풀로 보기]도 같은 유리. */
+/* ★ 쇠 꼴 단추는 **크리스탈**(같은 날 요청: "메탈의 팝업 버튼을 입체 유리 버튼 형태로" → "유리 녹색 말고 크리스탈 느낌 · 뒤에 메탈이 비쳐야지" — 첫 판의 짙은 녹색 유리는
+   되물렸다) — 툴박스 단추와 같은 자(--crystal-*): 맑은 몸 너머로 판의 쇠 결이 비치고 위 절반 흰 광택 · 흰 테 · 뜬 그림자. 글자는 쇠 위 음각 잉크 · 누르면 1px 내려앉음.
+   알약 [풀로 보기]도 같은 크리스탈. */
 .scr-mode-ask.is-metal .scr-mode-ask-btn, .scr-digest-pill.is-metal .scr-digest-pill-btn {
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.14) 46%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.12) 100%),
-    radial-gradient(120% 80% at 50% 110%, rgba(110, 255, 120, 0.28), transparent 60%),
-    rgba(14, 46, 26, 0.72);
-  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
-  color: #8dff7e; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 8px rgba(100, 255, 110, 0.45);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -3px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 3px 8px rgba(0, 0, 0, 0.45), 0 1px 1px rgba(0, 0, 0, 0.5);
+  border: none; background: var(--crystal-bg);
+  -webkit-backdrop-filter: blur(1.5px) brightness(1.06); backdrop-filter: blur(1.5px) brightness(1.06);
+  color: var(--crystal-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: var(--crystal-shadow);
 }
 .scr-mode-ask.is-metal .scr-mode-ask-btn { border-radius: calc(10px * var(--ui, 1)); }
-.scr-mode-ask.is-metal .scr-mode-ask-sub { color: rgba(255, 255, 255, 0.78); }
+.scr-mode-ask.is-metal .scr-mode-ask-sub { color: rgba(20, 25, 32, 0.72); }
 @media (hover: hover) {
-  .scr-mode-ask.is-metal .scr-mode-ask-btn:hover {
-    border-color: rgba(255, 255, 255, 0.8);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0.2) 46%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.08) 100%),
-      radial-gradient(120% 80% at 50% 110%, rgba(130, 255, 140, 0.42), transparent 62%),
-      rgba(18, 60, 34, 0.72);
-  }
+  .scr-mode-ask.is-metal .scr-mode-ask-btn:hover { background: var(--crystal-bg-hi); }
 }
-.scr-mode-ask.is-metal .scr-mode-ask-btn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.5); }
+.scr-mode-ask.is-metal .scr-mode-ask-btn:active { transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.32); }
 .scr-digest-pill.is-metal { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); font-weight: 800; }
