@@ -2586,6 +2586,8 @@ export const glBakeMsTake9 = (): number => {
   const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
 };
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
+/** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
+export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {

@@ -2777,6 +2777,9 @@ if (has("--panprobe")) {
 if (has("--terrprobe")) {
   const t9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag div")].map((d) => d.textContent || "").filter((x) => /지도판|로딩/.test(x)).join(" | "));
   console.log(`[지형판] ${t9 || "(진단 줄 없음 — #diag=load?)"} · 지도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gridWH) || "?")}`);
+  // GL 지형층(glTerrain9) — 붓이 건 네 귀 자리·기하 요약(2026-10-23).
+  console.log(`[지도상자] ${await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const u = document.querySelector(".scr-motion-unitlayer"); if (!m) return "-"; const r = m.getBoundingClientRect(); const ru = u ? u.getBoundingClientRect() : null; return `map ${r.left.toFixed(1)},${r.top.toFixed(1)} ${r.width.toFixed(1)}x${r.height.toFixed(1)} 가운데 ${(r.left + r.width / 2).toFixed(1)},${(r.top + r.height / 2).toFixed(1)}${ru ? ` · 유닛층 ${ru.left.toFixed(1)},${ru.top.toFixed(1)} ${ru.width.toFixed(1)}x${ru.height.toFixed(1)}` : ""} dpr ${window.devicePixelRatio}`; })}`);
+  console.log(`[GL지형] ${await page.evaluate(() => { const t = window.__terr9; if (!t) return "지형층 없음(옛 벡터층)"; return `캔버스 ${t.canvas.width}x${t.canvas.height} stat ${JSON.stringify(t.terr.stat)}`; })}`);
 }
 // 드래그 부하(--drag) — 표본을 모으는 동안 마우스로 지도를 계속 왕복 드래그한다.
 const DRAG = has("--drag");
@@ -2823,6 +2826,7 @@ if (has("--3d")) {
     return "눌렀다";
   });
   await page.waitForTimeout(1200);
+  if (flag("--shot3d", null)) { await page.waitForTimeout(1500); await page.screenshot({ path: String(flag("--shot3d", "x3d.png")) }); console.log(`[3D 사진] ${flag("--shot3d", "")}`); }   // 입체로 바꾼 뒤 한 장(2026-10-23 · GL 지형층 검산)
   const now3d = await page.evaluate(() => {
     const b = [...document.querySelectorAll("button")]
       .find((e) => /입체|평면/.test(e.getAttribute("aria-label") || ""));

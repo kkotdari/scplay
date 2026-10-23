@@ -970,6 +970,9 @@
 /* WebGL 붓(gl9.ts)의 캔버스 — **화면의 한 층**이다(2026-09, 합성 걷기): 유닛 캔버스(아래) 위, 효과 캔버스(.scr-motion-fx9, 위)
    아래에 DOM 차례로 선다. 셋이 같은 클래스라 크기·감춤·변환 규칙을 함께 받는다. 옛 display:none(숨은 캔버스를 매 장 베끼던 길)은 걷었다. */
 .scr-motion-unitlayer.scr-motion-gl9, .scr-motion-unitlayer.scr-motion-fx9 { background: transparent; }
+/* GL 지형층(glTerrain9 · 2026-10-23) — 유닛 층과 같은 상자·변환을 받되 **안개(5500)·안개 띠(5499) 아래**에 선다(옛 벡터층 자리). 2D 유닛 캔버스의 크립과 몸은 그 위다. */
+.scr-motion-unitlayer.scr-motion-terr9 { z-index: 5400; background: transparent; }
+.scr-hide-mapvec .scr-motion-terr9, .scr-hide-all .scr-motion-terr9 { display: none; }
 /* (삭제) PC 확대 조절바(.scr-motion-zoom) — PC의 확대 기능을 통째로 걷었다(요청). */
 /* 래디우스 없음(요청: 제거) — 화면 폭 확대에서 모서리가 둥글면 가장자리가 뜬다. */
 .scr-motion-canvas {

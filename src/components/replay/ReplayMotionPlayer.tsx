@@ -58,7 +58,9 @@ import {
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
-import { drawMapGrid, type MapTerrainLike } from "../../utils/mapTiles";
+import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
+import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
+import { GL_TERR9, glTerrCanvas9, glTerrLast9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -106,7 +108,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glAlive9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -5187,7 +5189,7 @@ export function paintFxList9(
   WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -5214,6 +5216,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
    *  원근 투영된 사다리꼴이다(재지적: 3D에서 크립이 영역을 벗어남 — 직사각 클립은
    *  평면에서만 맞았다). rotateX 원근은 호모그래피라 변이 직선으로 남아 네 점이면 된다. */
   clipQuad?: [number, number][];
+  /** GL 벡터 지형층의 기하(glTerrain9) — 있으면 flush 가 몸보다 먼저 지형을 그린다. 네 귀의 화면 자리는 clipQuad(posFrac 네 귀)를 zx·zy 로 옮겨 건다. */
+  terrain?: { current: TerrainGeom9 | null };
+  /** GL 붓을 못 열었다 — 지형층을 내리고 옛 벡터층을 올리라는 신호. */
+  terrainOff?: () => void;
   /** 저배율 마커 보기(요청) — 렌더 쪽 markerView와 같은 값이 내려온다. */
   marker?: boolean;
   /** 마커로 갈아타는 **배율 문턱** — 이 값보다 낮은 배율로 그리면 마커다(지적: "줌
@@ -5244,6 +5250,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
+  /** GL 지형층의 캔버스(glTerrain9 · 안개 아래) — 유닛 캔버스들과 같은 상자·같은 손짓 변환(unitCanvases9 선택자)을 받는다. */
+  const terrRef = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<HTMLCanvasElement>(null);
   /** 효과 캔버스를 세울지 — GL 심(glctx9)이 효과를 맡으면 이 층은 늘 비어 있어 **안 세운다**(폰 DPR 3 이면 캔버스 한 장이 수 MB 다).
    *  붓이 첫 장에서 `gl9.vecOk` 가 거짓인 것을 보면 켠다(그 한 장은 유닛 캔버스에 그린다). */
@@ -5407,6 +5415,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
       const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
+      if (!gl9 && GL_ON9 && terrain?.current && terrainOff) { terrain.current = null; terrainOff(); }   // GL 을 못 열었다 — 지형층을 내리고 옛 벡터층으로(glTerrain9)
       if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
       /* ★ **효과도 GL 이 그린다**(2026-09, 다음 손 2 "링·체력바·효과 GL로") — 붓(paintFxList9)은 캔버스 2D 를 말하지만 그 말을
@@ -6700,6 +6709,15 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
         const pcl9 = PAINT_CLIP9;
         gl9.clip = pcl9 ? [pcl9[0] * Bd, pcl9[1] * Bd, pcl9[2] * Bd, pcl9[3] * Bd] : null;
+        /* ★ GL 지형층(2026-10-23, glTerrain9) — **제 캔버스**(terrRef · 안개 아래 z 5400)에 지도 네 귀(posFrac 의 clipQuad · 유닛과 같은 사상)를 이 장의
+           zx·zy 로 옮겨 호모그래피로 그린다(입체면 사변형). 벽띠 배수는 옛 벡터층과 같다(평면 2 · 입체 4). 분할 칸은 같은 가위(pcl9). 기하가 없거나
+           (옛 지도 · #glterr=0) 문맥을 못 열면 안 그리고 옛 벡터층으로 물러난다(terrainOff). 배킹은 몸 캔버스와 같은 크기다. */
+        const tg9 = terrain?.current ?? null; const tcv9 = terrRef.current;
+        if (tg9 && tcv9 && clipQuad && clipQuad.length === 4) {
+          const tc9 = glTerrCanvas9(tcv9);
+          const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
+          if (!tc9 || !tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, pcl9)) { if (terrain) terrain.current = null; terrainOff?.(); }
+        }
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
           if (!DUMP9.at) DUMP9.at = performance.now();
@@ -6711,7 +6729,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -6724,7 +6742,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          몫이 **두 번** 먹혀 한 프레임 튄다. 여태 그 걷어내기를 부모의 렌즈 effect가
          했는데, 그 effect는 zoom·pan **상태**가 바뀔 때만 돈다 — 손짓 중에는 상태가
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
-      for (const cv9 of [cv, glRef.current, fxRef.current]) if (cv9) xfSet9(cv9, XF_ID9);
+      for (const cv9 of [cv, glRef.current, fxRef.current, terrRef.current]) if (cv9) xfSet9(cv9, XF_ID9);
       onPainted?.(zoom, pan);
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
@@ -6740,6 +6758,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
      캔버스를 합성할 때 SwiftShader 가 ReadPixels 로 서서 한 장이 3초가 된다(실측 p50 3117ms) — 옛 drawImage 가 치르던 그 값이
      브라우저 합성기로 옮겨 갔을 뿐이다. 실기 GPU 에는 없는 값이라 계측에서만 뺀다. */
   return <>
+    {GL_ON9 && GL_TERR9 ? <canvas ref={terrRef} className="scr-motion-unitlayer scr-motion-terr9" aria-hidden /> : null}
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
     {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? (GL_FILTER9 ? { filter: "contrast(1.001)" } : undefined) : GL_HIDE9} aria-hidden /> : null}
     {GL_ON9 && fxCvOn9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
@@ -16555,6 +16574,25 @@ export default function ReplayMotionPlayer({
   const splitJumpRef9 = useRef(new Map<string, number>());
   const splitShowRef9 = useRef(new Map<string, { x: number; y: number }>());
   const splitTerrRef9 = useRef<HTMLCanvasElement | null>(null);
+  /* ══ GL 벡터 지형층(2026-10-23, 요청: "1 → 3으로 가자") — 지도 기하(terrainGeom9)를 한 번 지어 GL 붓에 넘기고, 옛 캔버스 벡터층(ReplayMapVector)은
+     내린다. GL 이 없거나(#gl=0) 지형층을 껐거나(#glterr=0) 지형이 아직 없으면 옛 층 그대로다. 기하는 지도 해시로 캐시되어 다시 열어도 한 번뿐이다. */
+  const glTerrRef9 = useRef<TerrainGeom9 | null>(null);
+  const [glTerrOn9, setGlTerrOn9] = useState(false);
+  const glTerrOnRef9 = useRef(false);
+  glTerrOnRef9.current = glTerrOn9;
+  useEffect(() => {
+    let dead9 = false;
+    if (!GL_ON9 || !GL_TERR9 || !grid.terrain) { glTerrRef9.current = null; setGlTerrOn9(false); return undefined; }
+    void decodeMapTerrain(grid.terrain).then((m9) => {
+      if (dead9) return;
+      if (!m9 || m9.w !== grid.width || m9.h !== grid.height) { glTerrRef9.current = null; setGlTerrOn9(false); return; }
+      // GL 붓이 서야 지형층도 선다(열다 실패한 문맥이면 옛 층) — 붓이 뒤에 죽으면 UnitLayer 가 terrainOff 로 알린다.
+      if (!glAlive9()) { glTerrRef9.current = null; setGlTerrOn9(false); return; }
+      glTerrRef9.current = terrainGeom9(grid.hash, terrainFace(m9), terrainFill);
+      setGlTerrOn9(true);
+    });
+    return () => { dead9 = true; };
+  }, [grid.terrain, grid.hash, grid.width, grid.height]);
   /* (걷어냄 · 2026-10-09, 요청 3: "분할보기 미니맵 제거 — 아래 미니맵은 처음엔 전체모드와 같게 쓰다가 화면 고른 사람걸 보여주기") 칸마다의 미니맵
      캔버스(splitMiniRef9)와 팀마다 한 장 굽던 미니맵 판(teamMiniRef9 · splitMiniBgRef9 · splitMiniAtRef9 · splitMiniPaint9) — 독 미니맵
      (ReplayFullscreenMinimap · viewAt/ownRaw 가 누른 칸의 사람을 따른다)이 그 일을 한다. */
@@ -16589,10 +16627,11 @@ export default function ReplayMotionPlayer({
       drawMapGrid(c9, grid, mt9, ppt9, false, 2);   // 2D 벽띠 배수(벡터층 WALL_2D_K9)와 같은 그림
       splitTerrRef9.current = cv9;
     };
+    if (glTerrOn9) { splitTerrRef9.current = null; return () => { dead9 = true; }; }   // GL 지형층이 칸마다 flush 에 지형을 그린다(terrQuad 는 칸의 zx·zy) — 캔버스 베끼기는 필요 없다
     if (grid.terrain) void decodeMapTerrain(grid.terrain).then((m9) => bake9(m9 ? terrainFace(m9) : null));
     else bake9(null);
     return () => { dead9 = true; };
-  }, [splitOn9, grid]);
+  }, [splitOn9, grid, glTerrOn9]);
   /* (걷어냄 · 2026-10-09, 요청 3) splitMiniPaint9 — 칸 미니맵 붓(팀 판 굽기 · 칸 베끼기 · 주인 점 · 핑). 위 refs 주석. */
   /** 분할 칸의 몸 목록 — 선택 링은 그 칸 사람이 고른 몸에만, 건설 고스트는 그 사람 것만(위 splitPaint9 의 ★). */
   const splitOwnOps9 = (ops9: UnitDrawOp[], raw9: string): UnitDrawOp[] => {
@@ -20464,7 +20503,7 @@ export default function ReplayMotionPlayer({
               픽셀로 직접 셈한다(그쪽 place()). 렌즈보다 **앞**에 두어 밑에 깔린다.
               입체(각도)일 때만 예외로 컨테이너가 변환을 지므로, 렌즈 몫(translate·scale)을
               여기서 앞에 붙여 넘긴다 — 조상이 하던 일을 그대로 이어받는 순서다. */}
-          {grid.terrain && (
+          {grid.terrain && !glTerrOn9 && (
             <ReplayMapVector
               grid={grid} zoom={zoom} pan={pan} pitched={pitched} painter={mapPaintRef}
               tileFrac={mapFracRef} pitchSig={pitched ? pitchTiltDeg.toFixed(1) : ""}
@@ -20596,6 +20635,7 @@ export default function ReplayMotionPlayer({
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} onPainted={onUnitPainted}
+            terrain={glTerrRef9} terrainOff={() => setGlTerrOn9(false)}
             /* 손짓이 도는가 — 배킹을 내린 손짓에서만 그림자를 접는다(위 shFold9). */
             gesture={xfGestureRef}
             /* 사양 라디오 × 배율 칸(요청) — 둘 다 켜져야 켜진다. 칸 2 이하는 몸만.

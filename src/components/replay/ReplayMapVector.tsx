@@ -772,6 +772,8 @@ export default function ReplayMapVector({
       depPrevRef.current = cur9;
     }
     pWrap("붓:지도벡터", () => paint(zoom, pan));
+    // 내릴 때 붓을 놓는다(2026-10-23 · GL 지형층이 이 층을 대신하면 부모의 손짓이 떼어 낸 캔버스에 굽지 않게).
+    return () => { if (painter) painter.current = null; };
   }, [grid, mt, mtLate, zoom, pan.x, pan.y, box, pitched, pitchSig, painter, tileFrac]);
   return (
     <div className="scr-motion-canvas scr-motion-mapvec" style={style} ref={boxRef}>
