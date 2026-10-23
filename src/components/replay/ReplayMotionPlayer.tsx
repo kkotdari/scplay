@@ -20987,7 +20987,7 @@ export default function ReplayMotionPlayer({
                   요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
-                  풀<span className="scr-mode-ask-sub">처음부터</span>
+                  풀<span className="scr-mode-ask-sub">전체</span>
                 </button>
               </span>
             </div>
