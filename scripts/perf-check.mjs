@@ -2773,6 +2773,11 @@ if (has("--panprobe")) {
     await page.mouse.up(); await page.waitForTimeout(600); await line9("놓음");
   }
 }
+/* --terrprobe(2026-10-23) — 진단판의 '지도판' 줄(구움 수 · 굽기 ms · 최악)을 찍는다 — 지형 판 재사용 연구의 자. --diag 와 함께 · --zoomsweep 뒤에 두면 줌 훑기의 굽기 수가 든다. */
+if (has("--terrprobe")) {
+  const t9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag div")].map((d) => d.textContent || "").filter((x) => /지도판|로딩/.test(x)).join(" | "));
+  console.log(`[지형판] ${t9 || "(진단 줄 없음 — #diag=load?)"} · 지도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gridWH) || "?")}`);
+}
 // 드래그 부하(--drag) — 표본을 모으는 동안 마우스로 지도를 계속 왕복 드래그한다.
 const DRAG = has("--drag");
 const dragDrive = async () => {
