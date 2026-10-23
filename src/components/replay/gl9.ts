@@ -1346,9 +1346,10 @@ export class GlUnits9 implements VecSink9 {
     const pg = this.sprPages.find((p) => p.stale);
     if (!pg) return;
     const gl = this.gl;
+    /* ⚠ 단 상한을 **먼저** 올리고 짓는다 — generateMipmap 은 TEXTURE_MAX_LEVEL 까지만 짓는다(0 인 채 부르면 한 단도 안 지어 묵은 단이 남아 몸이 바랬다 · 실측). */
+    this.sprMipLevel9(pg, SPR_MIP9);
     gl.bindTexture(gl.TEXTURE_2D, pg.tex); gl.generateMipmap(gl.TEXTURE_2D);
     if (pg.emTex) { gl.bindTexture(gl.TEXTURE_2D, pg.emTex); gl.generateMipmap(gl.TEXTURE_2D); }
-    this.sprMipLevel9(pg, SPR_MIP9);
     pg.stale = false;
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
