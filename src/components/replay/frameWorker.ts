@@ -137,6 +137,9 @@ const post = (m: unknown, transfer?: Transferable[]): void => {
 
 /** 프레임 사이 게임 시각 간격. 기본 speed/30초. 짓기가 그보다 오래 걸리면(폰·긴 경기) 간격을 벌려 시계를 따라간다 —
  *  벽시계로 한 장에 buildMs면 게임 시각으로는 buildMs·speed만큼 흐른다. 그 1.3배를 간격으로 삼는다. */
+/** 한 뭉치(앞날 몰아 짓기)의 상한(ms) — 그동안 온 시야·명령은 뭉치가 끝나야 받는다(아래 pump 의 ★). */
+const PUMP_MS9 = 24;
+
 const stepNow = (): number => {
   const base = Math.max(1 / 240, clock.speed / FPS9);
   const need = (buildMs / 1000) * clock.speed * 1.3;
@@ -261,10 +264,12 @@ const pump = (): void => {
   let bytesMain = 0;
   for (const b of built) { if (b.t >= cur) bytesAhead += b.bytes; if (b.t >= clock.t0) bytesMain += b.bytes; }
   const mainCap = clock.aheadBytes * 2.5;
-  /* 한 번에 여덟 장 또는 60ms까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다. */
+  /* 한 번에 여덟 장 또는 PUMP_MS9 까지만 짓고 한숨 돌린다 — 느린 기기에서 여덟 장이 1초를 넘으면 그동안 명령이 줄을 선다.
+     ★ 60 → 24ms(2026-10-23, 요청: "미니맵의 방식(옮긴 자리 지금 한 장 먼저)을 드래그와 줌에도" — 새 시야는 이미 지금 시각 한 장부터 짓지만(nextT −1),
+     앞날을 몰아 짓는 뭉치 하나(최대 60ms)가 끝나야 그 시야를 받았다. 뭉치를 줄여 새 자리의 첫 장이 그만큼 빨리 선다 · 앞날 짓기는 setTimeout 0 으로 바로 잇는다). */
   let n = 0;
   const pumpAt = nowMs();
-  while (nextT <= until && bytesAhead < clock.aheadBytes && bytesMain < mainCap && n < 8 && nowMs() - pumpAt < 60) {
+  while (nextT <= until && bytesAhead < clock.aheadBytes && bytesMain < mainCap && n < 8 && nowMs() - pumpAt < PUMP_MS9) {
     const b9 = emit(nextT);
     bytesAhead += b9; bytesMain += b9;
     nextT += stepNow();
