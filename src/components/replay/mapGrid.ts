@@ -35,3 +35,9 @@ export interface ReplayMapGrid {
   /** 그 지형의 타일셋(0~7) — 절벽·물의 색을 고르는 데 쓴다. */
   tileset?: number | null;
 }
+
+/** ★ 빈 지도(128×128 · 팔레트 0 하나) — 자료를 기다리는 재생기(ReplayModule pending · 2026-10-23)가 받는 자리 채움. 그림은 까만 판에 가려 안 보인다.
+ *  타일 16384 바이트(0) = base64 "AAAA" × 5461 + "AA==". */
+export const PENDING_GRID9: ReplayMapGrid = {
+  hash: "", name: "", width: 128, height: 128, palette: [0], tiles: "AAAA".repeat(5461) + "AA==", resources: [],
+};

@@ -19,6 +19,7 @@ export type { ReplayMapFetcher } from "./useReplayMap";
 
 // 자료의 꼴 — 앱이 채워 넘기는 것들.
 export type { ReplayMapGrid } from "./mapGrid";
+export { PENDING_GRID9 } from "./mapGrid";
 export type { Race } from "./race";
 export type { TerrainGrid } from "./terrainGrid";
 export type { MotionBase } from "./ReplayMotionPlayer";

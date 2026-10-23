@@ -22,7 +22,7 @@ export interface ReplayModuleProps {
   /** 그 게임 아이디가 어느 편인가 — 팀색이 이 답을 쓴다. */
   teamOfRaw: (raw: string) => 1 | 2 | undefined;
   /** 참값 자취를 가져오는 길 — 앱이 제 API로 채운다(모듈은 주소를 모른다). */
-  loadUnitTracks: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string }[] }>;
+  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string }[] }>;
   /** 이긴 편(트로피). 모르면 undefined. */
   winnerTeam?: 1 | 2;
   /** 편이 없는 판(밀리) — 로스터 한 테이블·팀색 손잡이 없음. */
@@ -60,6 +60,8 @@ export interface ReplayModuleProps {
   avatars?: boolean;
   /** 들어올 때 보기 모드(요약 · 풀)를 묻는다 — 게임 상세(ReplayMotionPlayer askMode). */
   askMode?: boolean;
+  /** 자료(게임·지도)를 기다리는 동안 먼저 세우는 재생기 — 빈 지도(PENDING_GRID9)와 함께(ReplayMotionPlayer pending). */
+  pending?: boolean;
 }
 
 export default function ReplayModule({
@@ -67,7 +69,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, shareNode, onShare, shareLabel,
-  onGuide, guide, side, menu, avatars, askMode,
+  onGuide, guide, side, menu, avatars, askMode, pending,
 }: ReplayModuleProps) {
   return (
     <div className="scr-story-map">
@@ -91,6 +93,7 @@ export default function ReplayModule({
         menu={menu}
         avatars={avatars}
         askMode={askMode}
+        pending={pending}
       />
     </div>
   );

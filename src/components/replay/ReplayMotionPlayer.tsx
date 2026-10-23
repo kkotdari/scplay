@@ -9055,7 +9055,7 @@ export default function ReplayMotionPlayer({
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
-  onFinish, askMode,
+  onFinish, askMode, pending,
 }: {
   grid: ReplayMapGrid;
   /** 경기 길이(초) — 경기 메타(durationSeconds)에서 온다. 없으면 트랙의 끝으로 잡는다. */
@@ -9111,6 +9111,10 @@ export default function ReplayMotionPlayer({
   avatars?: boolean;
   /** ★ 들어올 때 **보기 모드**(요약 · 풀)를 묻는다(아래 modeAsk9 ★ · 게임 상세) — 장면 링크로 들어왔으면 안 묻는다. */
   askMode?: boolean;
+  /** ★ **자료를 기다리는 재생기**(2026-10-23, 요청: "그러지 말고 재생기를 처음부터 보여줘 · 데이터는 나중에 채우고") — 앱이 게임·지도를 받기 전에 같은 재생기를
+   *  빈 지도(PENDING_GRID9)로 먼저 세운다: 틀·독·툴박스는 그대로 서고 무대는 까만 판 + LOADING · 시계는 선다 · 보기 모드는 안 묻는다. 자료가 오면 앱이
+   *  진짜 재생기로 갈아 끼운다(같은 자리 · 같은 꼴이라 빈 칸이 채워지는 것으로 보인다). */
+  pending?: boolean;
   /** 이 재생기가 화면에 홀로 있나 — 상세 모달이나 게임 페이지처럼 한 판만 보고 있는
    *  화면이다. 갈라진 판 경고는 여기서만 뜬다(목록은 카드마다 재생기가 하나씩이라
    *  경고창이 겹친다). */
@@ -11583,7 +11587,7 @@ export default function ReplayMotionPlayer({
      풀 = 여태 그대로(자동 중계 · 1배). 요약 = 자동 중계를 켜고 2배속으로, 편성표의 장면 토막을 무게 차례로 경기 시각 240초(2배속 2분 · 같은 날 "1-2분" — 첫 판 120초 1분) 안에 고른 창들(cast9 castDigest9)만
      차례로 돈다 — 창 끝에 닿으면 다음 창 처음으로 건너뛰고 마지막 창 끝에서 멈춘다. 손으로 창 밖으로 감거나 중계를 끄거나 [풀로 보기]를 누르면 요약을 풀고 그 자리부터 평소대로.
      편성표가 아직이면(자취 받는 중) 고른 뜻만 들고 있다가 서면 간다 · 자취가 없거나 장면이 없으면 풀로 내려간다. */
-  const [modeAsk9, setModeAsk9] = useState(() => !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
+  const [modeAsk9, setModeAsk9] = useState(() => !pending && !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
   /* 판 꼴은 들어올 때마다 **둘 중 하나를 무작위로**(같은 날 요청: "메탈독용 팝업은 그 테마로 따로 만들어서 랜덤하게 선택되게") — holo = 녹색 홀로그램(요약 중 독도
      홀로그램으로 바꾼다 · 뿌리 is-holo) · metal = 독과 같은 솔질한 쇠(요약 중에도 독은 쇠 그대로). 판 · 요약 알약이 같은 꼴을 탄다. */
   const [modeTheme9] = useState<"holo" | "metal">(() => (Math.random() < 0.5 ? "holo" : "metal"));
@@ -17923,12 +17927,12 @@ export default function ReplayMotionPlayer({
      자취가 와도 첫 예열이 끝나기 전엔 지도·안개·미니맵을 다 감춘다 — 자취가 온 판과 예열이 warmAt 을 놓는
      판 사이에 한 판이 비어, 지형이 한 번 번쩍였다. 한 번 서면 걸쇠다(시점 각을 바꿔 다시 구울 땐 몸만 감춘다 — is-baking). */
   const [introWarm9, setIntroWarm9] = useState(false);
-  const introReady9 = tracksReady && (entData === null || introWarm9);
+  const introReady9 = tracksReady && (entData === null || introWarm9) && !pending;   // 자료를 기다리는 재생기(pending)는 까만 판 그대로
   const baking9 = !!warmAt;
   /** ★ **가려진 동안·진입 굽기 동안은 시계가 안 간다**(2026-10-14, 지적: "모델 굽는 중이 끝나면 시간이 흘러가 있는 문제") — 첫 굽기까지 지도는 까맣게 가려져 있는데(introReady9),
    *  예열 effect 의 첫 rAF 전 · 경기 자료(entData)가 자취보다 늦게 오는 틈에는 warmingRef 가 아직 안 서 재생 시계가 돌았다. 아래 재생 틱이 이 ref 도 본다. */
   const introHoldRef9 = useRef(true);
-  introHoldRef9.current = !introReady9 || baking9 || modeAsk9;   // 보기 모드를 고르는 동안도 시계가 안 간다(위 modeAsk9 ★★)
+  introHoldRef9.current = !introReady9 || baking9 || modeAsk9 || !!pending;   // 보기 모드를 고르는 동안도 시계가 안 간다(위 modeAsk9 ★★)
   // (걷어냄) sceneReady — 두 뜻을 묶어 두던 이름이다. 이제 쓰는 쪽이 둘을 따로 본다.
   /** 굽는 중인가 — 재생 틱이 이 깃발을 보고 시간을 멈춘다(핀치와 같은 자리). 상태로
    *  보면 프레임마다 시계 effect가 다시 서므로 ref로 든다. */
@@ -18798,8 +18802,9 @@ export default function ReplayMotionPlayer({
               끌기 중의 직접 쓰기(textContent)가 그 셋을 갈아 끼워 React 가 떨어진 노드만 고치게 된다
               (한 번이라도 끌고 나면 시계가 그 자리에 멈췄다 · 지적: "시간표시부분이 안바뀌는 문제").
               문자열 하나면 React 도 이 요소의 textContent 로 고치므로 두 손이 같은 자리를 쓴다. */}
+          {/* 자료 기다림(pending)은 길이를 아직 모른다 — 자식은 늘 문자열 하나(손으로 textContent 를 쓰는 자리 · CLAUDE.md). */}
           <span className="scr-motion-clock" ref={clockElRef9}>
-            {`${fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`}
+            {pending ? "0:00 / --:--" : `${fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`}
           </span>
         </span>
       </div>
@@ -20349,7 +20354,7 @@ export default function ReplayMotionPlayer({
         {/* ★ **로딩 표시는 하나 — 띄운 글자 L O A D I N G**(2026-10-16, 요청: "재생기 모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 옛 셋
             (자취 받는 중 · 모델 굽는 중 n% · 재생 중 굽기 몰림 "모델 굽는 중…")을 한 자리·한 꼴로 묶었다. 글자마다 차례로 떠오른다(scr-load-bob · 움직임 줄이기면 멈춘 글자).
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
-          {!modeAsk9 && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold) && (
+          {!modeAsk9 && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
             <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
               {"LOADING".split("").map((ch9, i9) => (
                 <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
@@ -20973,7 +20978,7 @@ export default function ReplayMotionPlayer({
               단추(N)는 이것을 여닫는다. 현황(스탯) 상자는 없다(요청 3 — 값은 독 로스터가 든다). 분할은 칸이 제 것을 든다. */}
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
-          {zoomDial9}
+          {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {modeAsk9 && (
