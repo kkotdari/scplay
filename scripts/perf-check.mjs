@@ -8,6 +8,8 @@
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor] [--ringprobe 10]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 ·
  *                                                                               같은 편은 색 모드 · 주인 있으면 주인 클릭·링만) — [자국]·[링]·[링 폭](시간에 따른 폭 흔들림)
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
+ *   node scripts/perf-check.mjs --wide --ask 30 --shot x.png   보기 모드 판(요약 · 풀 · 2026-10-23) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
+ *                                                                               요약 알약(n/N)·시계·배속을 찍는다(창 사이 건너뜀 · 마지막 창 끝 멈춤 검산)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
  *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
  *                                                                               --vw 755 --vh 905 폴드 1.3 · --vw/--vh 없는 PC 돌림은 ui=1 로 못 박는다)
@@ -639,7 +641,8 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
-    sceneLink: {
+    ...(window.__ask ? { askMode: true } : {}),   // --ask — 보기 모드 판(링크가 있으면 안 묻는다 → 아래 sceneLink 를 안 싣는다)
+    sceneLink: window.__ask ? null : {
       t: window.__t ?? 46,   // --t N 으로 다른 시각에 연다(착지 먼지 1.1초 같은 짧은 효과를 볼 때)
       ...(window.__track ? { tr: window.__track } : {}),
       ...(window.__zoom > 1 ? { z: window.__zoom } : {}),
@@ -900,13 +903,13 @@ else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치�
 }
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
-await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9]) => {
+await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
-  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9;
+  window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9; window.__ask = ask9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
   Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
-  Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+  Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
@@ -922,7 +925,8 @@ if (flag("--loadshot", null)) {
 }
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
-await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
+if (has("--ask")) await page.waitForSelector(".scr-mode-ask", { timeout: 60000 });   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다
+else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
@@ -973,6 +977,26 @@ if (has("--namefit")) {
 /* --pause(2026-10-12) — 들어오자마자 멈춘다(--t 그 시각의 짧은 효과 — 승하차 줄 1초 같은 것 — 를 찍을 때 · 재생 단추를 한 번 누른다). */
 if (has("--pause")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
 const SHOT = flag("--shot", null);
+/* --ask [초](2026-10-23) — 보기 모드 판이 섰나 · 시계가 서 있나를 찍고(--shot 이면 판 사진) [요약]을 눌러 N초 동안 알약·시계·배속을 0.5초마다 찍는다. */
+if (has("--ask")) {
+  const secs9 = Number(flag("--ask", 30)) || 30;
+  const clock9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
+  await page.waitForTimeout(2500);
+  const c0 = await clock9(); await page.waitForTimeout(1500); const c1 = await clock9();
+  console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다)`);
+  if (SHOT) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_ask.png") });
+  await page.locator(".scr-mode-ask-btn").first().click();
+  let last9 = "";
+  for (let i9 = 0; i9 < secs9 * 2; i9 += 1) {
+    await page.waitForTimeout(500);
+    const r9 = await page.evaluate(() => ({ pill: (() => { const p = document.querySelector(".scr-digest-pill"); if (!p) return "-"; const b = p.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return `${p.querySelector("span")?.textContent} @${b.left.toFixed(0)},${b.top.toFixed(0)} ${b.width.toFixed(0)}x${b.height.toFixed(0)} 위=${e === p || p.contains(e) ? "제것" : e?.className?.toString().slice(0, 40)}`; })(), clock: document.querySelector(".scr-motion-clock")?.textContent ?? "?",
+      spd: document.querySelector(".scr-motion-speed, .scr-spd-btn, [aria-label*='배속']")?.textContent ?? "", toast: document.querySelector(".scr-replay-toast, [role=status].scr-toast")?.textContent ?? "" }));
+    const k9 = `${r9.pill}|${r9.toast}`;
+    if (k9 !== last9 || i9 % 4 === 0) console.log(`  +${(i9 / 2 + 0.5).toFixed(1)}s 알약 ${r9.pill} · 시계 ${r9.clock} · 배속 ${r9.spd.trim()} ${r9.toast ? `· 알림 ${r9.toast}` : ""}`);
+    if (i9 === 6 && SHOT) await page.screenshot({ path: String(SHOT) });
+    last9 = k9;
+  }
+}
 /* --castoff — 들어오자마자 켜진 자동 중계(AUTO)를 끈다(2026-10-09 — 중계 꺼진 단독 화면 검산 · 무대 왼아래 미니맵이 손짓을 받는 꼴). */
 if (has("--castoff")) {
   await page.evaluate(() => { const b = document.querySelector(".scr-roster-cam-auto.is-on"); if (b instanceof HTMLElement) b.click(); });

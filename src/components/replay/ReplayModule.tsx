@@ -58,6 +58,8 @@ export interface ReplayModuleProps {
   /** 로스터에 프사를 그릴까 — 기본은 그린다. 프사 그림 자체는 앱이 꽂는다
    *  (setReplayChrome) — 안 꽂혔으면 켜 두어도 안 그린다. */
   avatars?: boolean;
+  /** 들어올 때 보기 모드(요약 · 풀)를 묻는다 — 게임 상세(ReplayMotionPlayer askMode). */
+  askMode?: boolean;
 }
 
 export default function ReplayModule({
@@ -65,7 +67,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, shareNode, onShare, shareLabel,
-  onGuide, guide, side, menu, avatars,
+  onGuide, guide, side, menu, avatars, askMode,
 }: ReplayModuleProps) {
   return (
     <div className="scr-story-map">
@@ -88,6 +90,7 @@ export default function ReplayModule({
         side={side}
         menu={menu}
         avatars={avatars}
+        askMode={askMode}
       />
     </div>
   );

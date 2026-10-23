@@ -3664,3 +3664,40 @@ export function castAt9(plan: readonly CastSeg9[], t: number): number {
   }
   return at9;
 }
+
+/** ★ **요약 보기**(2026-10-23, 요청: "게임 상세 들어가면 아주 가볍게 생긴 선택 팝업 · 보기 모드 요약/풀 중에 선택 · 요약은 중계 중 중요도 높은 것만
+ *  2배속 기본값으로 재생 · 총 1분 이내") — 편성표의 **장면 토막**(cyc 거짓)을 무게(score) 큰 차례로 골라 경기 시각 budget 초(2배속 1분 = 120) 안에 담고,
+ *  때 차례로 돌려준다. 한 토막은 그 토막 시작(at — 장면보다 CAST_LEAD9 앞)부터 자막 끝(capTo + DIGEST_TAIL9) · 다음 토막 시작 · DIGEST_MAX9 중 이른 때까지다.
+ *  예산에 안 드는 토막은 건너뛰고 더 짧은 것을 찾는다(잘라 담지 않는다 — 장면 앞부분만 남으면 무엇이 벌어졌는지 모른다). 붙은 창(DIGEST_JOIN9 안)은 하나로 잇는다. */
+const DIGEST_MAX9 = 24;
+const DIGEST_MIN9 = 4;
+const DIGEST_TAIL9 = 1.5;
+const DIGEST_JOIN9 = 1.5;
+export function castDigest9(plan: readonly CastSeg9[], total: number, budget = 120): [number, number][] {
+  const wins9: { a: number; b: number; w: number }[] = [];
+  plan.forEach((s9, i9) => {
+    if (s9.cyc) return;
+    const next9 = i9 + 1 < plan.length ? plan[i9 + 1].at : total;
+    const a9 = Math.max(0, s9.at);
+    const b9 = Math.min(next9, s9.capTo !== undefined ? s9.capTo + DIGEST_TAIL9 : next9, a9 + DIGEST_MAX9, total);
+    if (b9 - a9 >= DIGEST_MIN9) wins9.push({ a: a9, b: b9, w: s9.score });
+  });
+  wins9.sort((x9, y9) => y9.w - x9.w || x9.a - y9.a);
+  let left9 = budget;
+  const got9: [number, number][] = [];
+  for (const x9 of wins9) {
+    const len9 = x9.b - x9.a;
+    if (len9 > left9) continue;
+    got9.push([x9.a, x9.b]);
+    left9 -= len9;
+    if (left9 < DIGEST_MIN9) break;
+  }
+  got9.sort((x9, y9) => x9[0] - y9[0]);
+  const out9: [number, number][] = [];
+  for (const w9 of got9) {
+    const last9 = out9[out9.length - 1];
+    if (last9 && w9[0] - last9[1] <= DIGEST_JOIN9) last9[1] = Math.max(last9[1], w9[1]);
+    else out9.push([w9[0], w9[1]]);
+  }
+  return out9;
+}
