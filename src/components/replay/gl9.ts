@@ -1064,6 +1064,8 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 찍기(다른 요잉) 한 프레임 상한 — 폰 6 · PC 24(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉" — 옛 예산 절반(24)이 폰에서
    *  프레임마다 MSAA 굽기 24장 + 밉맵 재생성을 불렀다). */
   sprWarmMax = 24;
+  /** 굽기 판(스크래치) MSAA 상한 — −1 이면 지도 붓 표본 그대로 · 폰 0(위 sprScrEnsure9 ★). */
+  sprMsaa = -1;
   /** 몸마다의 찍는 단(lvOf) — 메시·카메라·그림자 열쇠. */
   private sprLv = new Map<string, number>();
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number;
@@ -1135,7 +1137,9 @@ export class GlUnits9 implements VecSink9 {
   private sprScrEnsure9(em: boolean): boolean {
     if (this.sprScrFail || !this.gl2) return false;
     const gl = this.gl as WebGL2RenderingContext;
-    const samples = Math.max(0, Math.min(GL_MSAA9 >= 0 ? GL_MSAA9 : this.msaa, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0));
+    /* 굽기 판의 표본 수 — `#glmsaa=N` > 폰 상한(sprMsaa) > 지도 붓 표본. 폰은 0(2026-10-23, 지적: "폰에서 아직 느리네 MSAA 끄는 거 해봐") — 표본이 있으면 칸을 찍을 때마다
+       1024² MSAA 판을 비우고 풀어(resolve) 옮겨야 해 폰 GPU 가 굽는 프레임마다 그 값을 냈다. 0 이면 텍스처에 바로 그려 풀기가 없다(칸 테두리는 계단). */
+    const samples = Math.max(0, Math.min(GL_MSAA9 >= 0 ? GL_MSAA9 : this.sprMsaa >= 0 ? Math.min(this.sprMsaa, this.msaa) : this.msaa, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0));
     const o = this.sprScr;
     if (o && o.samples === samples && o.em === em) return true;
     if (o) { gl.deleteFramebuffer(o.ms); gl.deleteFramebuffer(o.rs); if (o.rsEm) gl.deleteFramebuffer(o.rsEm); for (const r of o.rbs) gl.deleteRenderbuffer(r); for (const t of o.texs) gl.deleteTexture(t); this.sprScr = null; }
@@ -2590,7 +2594,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
-    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; glInst9.sprMsaa = meshMax <= 300 ? 0 : -1; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;

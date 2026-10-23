@@ -1431,3 +1431,5 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
   LRU 로 비운 판도 stale(밉 단에 옛 그림이 남는다).
 - 범인 후보 ②: 미리 찍기(다른 요잉)가 예산 절반(폰 24장/프레임)으로 MSAA 굽기를 프레임마다 돌렸다 → `sprWarmMax` 폰 6 · PC 24.
 - 헤드리스는 GPU 몫을 못 재므로 체감은 폰에서. 🔎 `--ios --diag --zoomsweep` 의 2D판 줄(굽기·칸)로 굽기 수만 본다.
+- (같은 날 이어서 · 지적: "폰에서 아직 느리네 MSAA 끄는 거 해봐") 굽기 판 표본 `sprMsaa` 폰 0(PC 는 지도 붓 표본 그대로) — 칸마다 1024² MSAA 판 비우기·풀기(resolve)가
+  없어진다 · 칸 테두리는 계단(폰 화면은 작아 덜 보인다). `#glmsaa=N` 이 앞선다.
