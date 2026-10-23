@@ -4500,9 +4500,9 @@
 .scr-motion-pc9 .scr-cast-caption { font-size: round(nearest, calc(24px * var(--dk) / 1.35 * var(--capk, 1)), 2px); }   /* 32 → **24**(× 0.75 · 2026-10-13 같은 요청) */   /* 이름표와 같은 크기 → 2.5배(46) → 2배(36) → **32**(36 × 0.9 = 32.4 → 짝수 · 2026-10-11 요청: "자막 10프로 정도 축소") · 이름표는 --cap-fs(34) */
 .scr-motion-pc9 .scr-cast-caption .scr-cast-chip { top: round(nearest, -0.08em, 2px); }   /* 칩 들림도 짝수(28 → −2 · 24 면 −2) */
 /* PC 단독 화면 여백(2026-10-10, 요청: "화면의 유저칩 위쪽 여백 늘리고 자막은 아래쪽 여백 많이 늘려서 위로 올리기") — 이름표 위 3·dk(≈4) → **16** · 자막 바닥 3·dk(≈4) → **48**(받침 솟음 더함 · 1080p 짝수). */
-.scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(16px * var(--dk) / 1.35), 2px); }
+.scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(28px * var(--dk) / 1.35), 2px); }   /* 16 → 28(2026-10-23, 요청: "주인탭 너무 위 여백이 없더라" — 팀 배지가 칩 위로 솟아 실제 여백이 더 좁다) */
 /* 폰 단독 화면 이름표도 살짝 내린다(2026-10-12, 요청: "재생기 모바일의 화면 주인 부분 살짝 내리기") — 위 3·dk 는 팀 배지가 화면 윗변에 닿았다 → **10·dk**(짝수). */
-.scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { top: round(nearest, calc(10px * var(--dk)), 2px); }
+.scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { top: round(nearest, calc(18px * var(--dk)), 2px); }   /* 10 → 18(2026-10-23 같은 요청) */
 .scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translateY(0.5em); }
@@ -4965,7 +4965,7 @@
   --holo-hi: inset 0 1px 0 rgba(255, 255, 255, 0.42);
   --holo-glow: 0 0 22px rgba(70, 255, 120, 0.22), inset 0 0 28px rgba(70, 255, 120, 0.14);
 }
-.scr-mode-ask, .scr-digest-pill, .scr-fs-layer.is-digest .scr-fs-lower::before {
+.scr-mode-ask.is-holo, .scr-digest-pill.is-holo, .scr-fs-layer.is-holo .scr-fs-lower::before {
   background:
     repeating-linear-gradient(180deg, rgba(160, 255, 180, 0.05) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(0deg, var(--holo-grid) 0 1px, transparent 1px 14px),
@@ -4976,7 +4976,7 @@
   box-shadow: var(--holo-hi), var(--holo-glow);
 }
 /* 판 네 귀퉁이의 흰 꺾쇠 — 테 바깥 3px 에 서는 L 자 넷(배경 켜 여덟 · 12px). */
-.scr-mode-ask::after {
+.scr-mode-ask.is-holo::after {
   content: ""; position: absolute; inset: -4px; pointer-events: none;
   --c: rgba(255, 255, 255, 0.85);
   background:
@@ -5012,44 +5012,71 @@
 @media (hover: hover) {
   .scr-mode-ask-btn:hover { background: rgba(60, 190, 95, 0.34); border-color: rgba(255, 255, 255, 0.9); box-shadow: var(--holo-hi), inset 0 0 18px rgba(90, 255, 140, 0.28), 0 0 14px rgba(90, 255, 140, 0.35); }
 }
+/* 알약은 **무대 왼위 · 한 단 작게**(같은 날 요청: "요약 풀 토글이 화면 주인 탭하고 겹칠 듯 · 크기 줄이고 왼쪽으로") — 옛 자리(위 가운데)는 화면 주인 이름표 자리다. */
 .scr-digest-pill {
-  position: absolute; left: 50%; top: calc(8px * var(--ui, 1)); transform: translateX(-50%); z-index: 30000;
-  display: inline-flex; align-items: center; gap: calc(8px * var(--ui, 1));
-  padding: calc(4px * var(--ui, 1)) calc(5px * var(--ui, 1)) calc(4px * var(--ui, 1)) calc(12px * var(--ui, 1));
+  position: absolute; left: calc(8px * var(--ui, 1)); top: calc(8px * var(--ui, 1)); z-index: 30000;
+  display: inline-flex; align-items: center; gap: calc(6px * var(--ui, 1));
+  padding: calc(2px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(2px * var(--ui, 1)) calc(9px * var(--ui, 1));
   border-radius: 999px;
-  color: #fff; font-size: calc(12px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: #fff; font-size: calc(10px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
   text-shadow: 0 0 8px rgba(90, 255, 130, 0.5);
 }
+.scr-fs-layer.is-fs .scr-digest-pill { top: calc(8px * var(--ui, 1) + var(--safe-top, 0px)); left: calc(8px * var(--ui, 1) + env(safe-area-inset-left, 0px)); }
 .scr-digest-pill-btn {
-  padding: calc(3px * var(--ui, 1)) calc(10px * var(--ui, 1)); border: 1px solid var(--holo-edge); border-radius: 999px;
+  padding: calc(2px * var(--ui, 1)) calc(8px * var(--ui, 1)); border: 1px solid var(--holo-edge); border-radius: 999px;
   background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
 }
-/* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-digest(요약이 도는 동안).
+/* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-holo(요약이 도는 동안 · 판 꼴이 홀로그램일 때).
    쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
    걷고, 판이 가장 높이 솟는 받침 키(--dock-lift · dockFit9)만큼 위로 올라 그 자리까지 덮는다(층 모양 대신 한 장). 우물(미니맵·인포창·전광판)은 짙은 녹색 바탕에
    중간 밝기 녹색 테 · 둥근 모서리. */
-.scr-fs-layer.is-digest .scr-fs-lower::before {
+.scr-fs-layer.is-holo .scr-fs-lower::before {
   clip-path: none; top: calc(-1 * var(--dock-lift, 0px)); border-radius: calc(16px * var(--dk, 1));
 }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::before,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::before,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::after,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-motion-infodock,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-rosterpanel::before,
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-holo .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
   background: rgba(2, 18, 8, 0.72); border-radius: calc(10px * var(--dk, 1));
   box-shadow: inset 0 0 0 1px rgba(100, 220, 120, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 16px rgba(70, 255, 120, 0.08);
 }
 /* 요약 중 독의 재생 줄 · 접기 단추 — 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 · 위 .scr-tb-seek)를 홀로그램 위 **흰 잉크 + 녹색 번짐**으로 뒤집는다
    (녹색 판에선 어두운 잉크가 묻혔다 · 실측). 접기 단추는 판 홈 대신 홀로그램 테 정사각. */
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
-.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold {
+.scr-fs-layer.is-holo .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer.is-holo .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-holo .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
+.scr-fs-layer.is-holo .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-holo .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-holo .scr-tb-tail > .scr-motion-infodock-fold {
   color: #fff; background: rgba(40, 140, 70, 0.22); border-radius: calc(8px * var(--ui));
   box-shadow: inset 0 0 0 1px var(--holo-edge), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
-.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-holo .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+/* ★ **쇠 꼴 판 · 알약**(is-metal · 같은 날 요청: "메탈독용 팝업은 그 테마로 따로 만들어서 랜덤하게") — 독 쇠판과 같은 솔질한 쇠(세로 헤어라인 · 무광 강철 띠 · 베벨) ·
+   윗모서리 살짝 깎기(--dock-cham 과 같은 결) · 단추는 쇠판에 파인 우물(어두운 속 · 화면 주인 초록 글자) · 제목은 음각 잉크(어두운 글자 + 아래 흰 한 줄). 크기·자리는 홀로그램과 같다. */
+.scr-mode-ask.is-metal, .scr-digest-pill.is-metal {
+  color: #12161c;
+  background:
+    linear-gradient(104deg, transparent 36%, rgba(255, 255, 255, 0.16) 46%, rgba(255, 255, 255, 0.03) 53%, transparent 61%),
+    repeating-linear-gradient(180deg, transparent 0, rgba(255, 255, 255, 0.07) 23px, transparent 41px, rgba(0, 0, 0, 0.06) 67px, transparent 89px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #b2b8c0 0%, #979fa8 15%, #7a828b 45%, #656c75 52%, #737b84 72%, #89919a 100%);
+  border: 1px solid #0b0d10;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.scr-mode-ask.is-metal { border-radius: calc(6px * var(--ui, 1)); }
+.scr-mode-ask.is-metal .scr-mode-ask-title { color: rgba(18, 22, 28, 0.85); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
+.scr-mode-ask.is-metal .scr-mode-ask-btn, .scr-digest-pill.is-metal .scr-digest-pill-btn {
+  border: none; background: #0d1116; color: var(--scr-sc-green, #64dc5a); text-shadow: 0 0 8px rgba(100, 220, 90, 0.45);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.scr-mode-ask.is-metal .scr-mode-ask-btn { border-radius: calc(5px * var(--ui, 1)); }
+.scr-mode-ask.is-metal .scr-mode-ask-sub { color: rgba(255, 255, 255, 0.62); }
+@media (hover: hover) {
+  .scr-mode-ask.is-metal .scr-mode-ask-btn:hover { background: #1a2028; border: none; box-shadow: inset 0 0 0 1.5px rgba(100, 220, 90, 0.78), inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.35); }
+}
+.scr-digest-pill.is-metal { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); font-weight: 800; }

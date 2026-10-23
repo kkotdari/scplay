@@ -11584,6 +11584,9 @@ export default function ReplayMotionPlayer({
      차례로 돈다 — 창 끝에 닿으면 다음 창 처음으로 건너뛰고 마지막 창 끝에서 멈춘다. 손으로 창 밖으로 감거나 중계를 끄거나 [풀로 보기]를 누르면 요약을 풀고 그 자리부터 평소대로.
      편성표가 아직이면(자취 받는 중) 고른 뜻만 들고 있다가 서면 간다 · 자취가 없거나 장면이 없으면 풀로 내려간다. */
   const [modeAsk9, setModeAsk9] = useState(() => !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
+  /* 판 꼴은 들어올 때마다 **둘 중 하나를 무작위로**(같은 날 요청: "메탈독용 팝업은 그 테마로 따로 만들어서 랜덤하게 선택되게") — holo = 녹색 홀로그램(요약 중 독도
+     홀로그램으로 바꾼다 · 뿌리 is-holo) · metal = 독과 같은 솔질한 쇠(요약 중에도 독은 쇠 그대로). 판 · 요약 알약이 같은 꼴을 탄다. */
+  const [modeTheme9] = useState<"holo" | "metal">(() => (Math.random() < 0.5 ? "holo" : "metal"));
   const [digestWant9, setDigestWant9] = useState(false);
   const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
   const digestEndRef9 = useRef(-1);
@@ -20894,7 +20897,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", digest9 && "is-digest")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", digest9 && modeTheme9 === "holo" && "is-holo")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -20975,7 +20978,7 @@ export default function ReplayMotionPlayer({
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {modeAsk9 && (
             <div
-              className="scr-mode-ask" role="dialog" aria-label="보기 모드"
+              className={cx("scr-mode-ask", `is-${modeTheme9}`)} role="dialog" aria-label="보기 모드"
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
             >
               <span className="scr-mode-ask-title">보기 모드</span>
@@ -20990,7 +20993,7 @@ export default function ReplayMotionPlayer({
             </div>
           )}
           {digest9 && (
-            <div className="scr-digest-pill" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <div className={cx("scr-digest-pill", `is-${modeTheme9}`)} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
               <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>
               <button type="button" className="scr-digest-pill-btn" onClick={() => setDigest9(null)}>풀로 보기</button>
             </div>
