@@ -5318,9 +5318,14 @@
 /* 가짜 요소의 기준 상자 — 로스터(.scr-dock-roster 는 absolute inset 0)·미니맵 판(relative)은 이미 자리가 있다. 툴박스·인포창만 relative 를 준다
    (⚠ 넷에 한꺼번에 relative 를 주면 로스터의 absolute 가 풀려 전광판 자리·크기가 깨진다 — 2026-10-23 지적 "홀로그램 전광판 크기 위치 이상"). */
 .scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb, .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock { position: relative; }
+/* ⚠ 전광판 우물(.scr-dock-roster)·인포창은 overflow: hidden 이라 제 가짜 요소가 테와 함께 잘렸다(지적: "전광판 테두리가 없어졌어") — 전광판은 감싸개
+   (.scr-fs-rosterpanel · overflow visible · 같은 상자)의 ::after 에, 인포창은 제 overflow 를 풀고 몸(body)에 넘긴다(아래). */
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel { position: relative; isolation: isolate; }
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock { overflow: visible; }
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { overflow: hidden; }
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel::after,
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock::before,
-.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster::before,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel::after,
 .scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb::before {
   content: ""; display: block; position: absolute; inset: calc(-1 * var(--holo-ext)); z-index: -1; pointer-events: none;
   background: var(--holo-panel); border-radius: calc(10px * var(--dk, 1) + var(--holo-ext));

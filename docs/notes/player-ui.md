@@ -2291,3 +2291,6 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - 🔎 `perf-check --wide|--ios --theme metal|holo [--fold] --shot x.png`(`--fold` 새 플래그 · 접은 채 찍기).
 - (같은 날 지적: "홀로그램 전광판 크기·위치 이상") — 위 홀로 판 규칙이 넷에 `position: relative` 를 한꺼번에 주어 로스터(.scr-dock-roster · absolute inset 0)의 자리가 풀렸다.
   relative 는 툴박스·인포창에만. 로스터 우물 키 메탈과 같음(444px @1280) 확인.
+- (같은 날 지적: "전광판 테두리가 없어졌어") — 전광판 우물(.scr-dock-roster)·인포창은 `overflow: hidden` 이라 밖으로 넓힌 가짜 요소가 테와 함께 잘렸다. 전광판 판 그림은
+  감싸개 `.scr-fs-rosterpanel::after`(overflow visible · 같은 상자 · isolation) 로, 인포창은 홀로에서 제 overflow 를 풀고 몸(.scr-motion-infodock-body)에 hidden 을 넘겼다.
+  🔎 인포창까지 보려면 `--vw 1920 --vh 1080 --info --track 정구 --dockrax --players 3`(1280 폭에선 자리가 없어 인포창이 숨는다).
