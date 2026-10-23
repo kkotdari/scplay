@@ -2289,3 +2289,5 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   아래로 늘린다(상자 style 변수 · PC 는 보통 0). 붓의 띠(band9)는 `-offsetTop`(위 띠만)으로 — 옛 `ch − 부모키` 는 아래 늘림을 띠로 셌다(UnitLayer · splitPaint9 둘 다).
   안개 캔버스도 같은 몫만큼 아래로(ReplayFogLayer EXT9). 1배에선 지도 아랫변 = 무대 아랫변이라 더 그릴 게 없고, 당기거나 끌면 독 뒤로 이어진다(PC 와 같은 몫).
 - 🔎 `perf-check --wide|--ios --theme metal|holo [--fold] --shot x.png`(`--fold` 새 플래그 · 접은 채 찍기).
+- (같은 날 지적: "홀로그램 전광판 크기·위치 이상") — 위 홀로 판 규칙이 넷에 `position: relative` 를 한꺼번에 주어 로스터(.scr-dock-roster · absolute inset 0)의 자리가 풀렸다.
+  relative 는 툴박스·인포창에만. 로스터 우물 키 메탈과 같음(444px @1280) 확인.

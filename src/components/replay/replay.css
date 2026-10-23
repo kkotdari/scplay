@@ -5313,8 +5313,11 @@
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster,
 .scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb {
   /* 판 그림은 아래 가짜 요소(--holo-ext 만큼 넓은)가 진다 — 제 바탕은 비운다. isolation 으로 제 겹 문맥을 세워 가짜 요소(z −1)가 제 바탕 위·내용 아래에 선다. */
-  background: none; border-radius: calc(10px * var(--dk, 1)); box-shadow: none; position: relative; isolation: isolate;
+  background: none; border-radius: calc(10px * var(--dk, 1)); box-shadow: none; isolation: isolate;
 }
+/* 가짜 요소의 기준 상자 — 로스터(.scr-dock-roster 는 absolute inset 0)·미니맵 판(relative)은 이미 자리가 있다. 툴박스·인포창만 relative 를 준다
+   (⚠ 넷에 한꺼번에 relative 를 주면 로스터의 absolute 가 풀려 전광판 자리·크기가 깨진다 — 2026-10-23 지적 "홀로그램 전광판 크기 위치 이상"). */
+.scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb, .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock { position: relative; }
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel::after,
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock::before,
 .scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster::before,
