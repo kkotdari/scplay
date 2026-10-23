@@ -11580,7 +11580,7 @@ export default function ReplayMotionPlayer({
   const [done, setDone] = useState(false);
   /* ★★ **보기 모드 — 요약 / 풀**(2026-10-23, 요청: "게임 상세 들어가면 아주 가볍게 생긴 선택 팝업 뜨게 · 보기모드 요약/풀 중에 선택 · 요약은 중계 중 중요도 높은 것만
      2배속 기본값으로 재생 · 총 1분 이내") — askMode 면 들어올 때 작은 판을 띄우고 고를 때까지 시계를 세운다(introHoldRef9). 장면 링크(시각·자리·임자)로 왔으면 안 묻는다.
-     풀 = 여태 그대로(자동 중계 · 1배). 요약 = 자동 중계를 켜고 2배속으로, 편성표의 장면 토막을 무게 차례로 경기 시각 120초(2배속 1분) 안에 고른 창들(cast9 castDigest9)만
+     풀 = 여태 그대로(자동 중계 · 1배). 요약 = 자동 중계를 켜고 2배속으로, 편성표의 장면 토막을 무게 차례로 경기 시각 240초(2배속 2분 · 같은 날 "1-2분" — 첫 판 120초 1분) 안에 고른 창들(cast9 castDigest9)만
      차례로 돈다 — 창 끝에 닿으면 다음 창 처음으로 건너뛰고 마지막 창 끝에서 멈춘다. 손으로 창 밖으로 감거나 중계를 끄거나 [풀로 보기]를 누르면 요약을 풀고 그 자리부터 평소대로.
      편성표가 아직이면(자취 받는 중) 고른 뜻만 들고 있다가 서면 간다 · 자취가 없거나 장면이 없으면 풀로 내려간다. */
   const [modeAsk9, setModeAsk9] = useState(() => !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
@@ -20894,7 +20894,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", digest9 && "is-digest")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -20981,7 +20981,7 @@ export default function ReplayMotionPlayer({
               <span className="scr-mode-ask-title">보기 모드</span>
               <span className="scr-mode-ask-btns">
                 <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
-                  요약<span className="scr-mode-ask-sub">1분 · 2배속</span>
+                  요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
                   풀<span className="scr-mode-ask-sub">처음부터</span>

@@ -4953,37 +4953,103 @@
 .scr-sharepick-cancel { text-align: center; color: rgba(238, 242, 247, 0.7); }
 .scr-sharepick-cancel:hover, .scr-sharepick-cancel:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
 
-/* ★ 보기 모드 판(요약 · 풀 · 2026-10-23, 요청: "게임 상세 들어가면 아주 가볍게 생긴 선택 팝업") — 지도 정가운데 작은 반투명 판 · 단추 둘(제목 + 작은 부제).
-   요약 중 알약(.scr-digest-pill)은 무대 위 가운데 '요약 n/N · 풀로 보기'. 둘 다 LOADING 글자(.scr-motion-simnote)와 같은 겹(30000) · 화면 주인 초록 테. */
+/* ★ 보기 모드 판(요약 · 풀 · 2026-10-23, 요청: "게임 상세 들어가면 아주 가볍게 생긴 선택 팝업" → 같은 날 "검정이 아닌 녹색톤 반투명창에 배경 보더 좀 밝은 녹색으로
+   격자무늬 · 테두리는 중간 밝기 · 마치 사이버틱 컴퓨터 홀로그램 느낌으로 · 크기는 좀 키우고") — 홀로그램 한 벌(--holo-*)을 판 · 요약 알약 · 요약 중 독이 함께 쓴다:
+   녹색 반투명 바탕 + 밝은 녹색 격자(14px) + 옅은 가로 주사선 · 중간 밝기 녹색 테 · 안팎 녹색 번짐. 판은 무대 가운데 · 알약은 무대 위 가운데(둘 다 LOADING 과 같은 겹).
+   흰색은 짚는 데만(같은 날 요청: "흰색도 적절히 사용 필요") — 윗선 한 줄 빛(--holo-hi) · 판 네 귀퉁이 흰 꺾쇠 · 단추 글자 · 고른(호버) 단추 테. */
+.scr-fs-layer {
+  --holo-bg: rgba(16, 62, 32, 0.58);
+  --holo-grid: rgba(130, 255, 160, 0.16);
+  --holo-edge: rgba(100, 220, 120, 0.6);
+  --holo-text: #d6ffdc;
+  --holo-hi: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  --holo-glow: 0 0 22px rgba(70, 255, 120, 0.22), inset 0 0 28px rgba(70, 255, 120, 0.14);
+}
+.scr-mode-ask, .scr-digest-pill, .scr-fs-layer.is-digest .scr-fs-lower::before {
+  background:
+    repeating-linear-gradient(180deg, rgba(160, 255, 180, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, var(--holo-grid) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, var(--holo-grid) 0 1px, transparent 1px 14px),
+    var(--holo-bg);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border: 1px solid var(--holo-edge);
+  box-shadow: var(--holo-hi), var(--holo-glow);
+}
+/* 판 네 귀퉁이의 흰 꺾쇠 — 테 바깥 3px 에 서는 L 자 넷(배경 켜 여덟 · 12px). */
+.scr-mode-ask::after {
+  content: ""; position: absolute; inset: -4px; pointer-events: none;
+  --c: rgba(255, 255, 255, 0.85);
+  background:
+    linear-gradient(var(--c), var(--c)) left top / 12px 2px no-repeat, linear-gradient(var(--c), var(--c)) left top / 2px 12px no-repeat,
+    linear-gradient(var(--c), var(--c)) right top / 12px 2px no-repeat, linear-gradient(var(--c), var(--c)) right top / 2px 12px no-repeat,
+    linear-gradient(var(--c), var(--c)) left bottom / 12px 2px no-repeat, linear-gradient(var(--c), var(--c)) left bottom / 2px 12px no-repeat,
+    linear-gradient(var(--c), var(--c)) right bottom / 12px 2px no-repeat, linear-gradient(var(--c), var(--c)) right bottom / 2px 12px no-repeat;
+}
 .scr-mode-ask {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30001;
-  display: flex; flex-direction: column; align-items: center; gap: calc(8px * var(--ui, 1));
-  padding: calc(12px * var(--ui, 1)) calc(14px * var(--ui, 1));
-  border-radius: calc(14px * var(--ui, 1));
-  background: rgba(8, 12, 18, 0.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  color: #e6f1ff; animation: scr-mode-ask-in .18s ease-out;
+  display: flex; flex-direction: column; align-items: center; gap: calc(14px * var(--ui, 1));
+  padding: calc(18px * var(--ui, 1)) calc(22px * var(--ui, 1)) calc(20px * var(--ui, 1));
+  border-radius: calc(16px * var(--ui, 1));
+  color: var(--holo-text); animation: scr-mode-ask-in .22s ease-out;
 }
-@keyframes scr-mode-ask-in { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
-.scr-mode-ask-title { font-size: calc(11px * var(--ui, 1)); font-weight: 600; letter-spacing: 0.04em; opacity: 0.72; }
-.scr-mode-ask-btns { display: flex; gap: calc(8px * var(--ui, 1)); }
+@keyframes scr-mode-ask-in { from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.scr-mode-ask-title {
+  font-size: calc(13px * var(--ui, 1)); font-weight: 700; letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.92); text-shadow: 0 0 8px rgba(90, 255, 130, 0.7);
+}
+.scr-mode-ask-btns { display: flex; gap: calc(12px * var(--ui, 1)); }
 .scr-mode-ask-btn {
-  display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--ui, 1));
-  min-width: calc(76px * var(--ui, 1)); padding: calc(8px * var(--ui, 1)) calc(12px * var(--ui, 1));
-  border: 1px solid rgba(100, 220, 90, 0.45); border-radius: calc(10px * var(--ui, 1));
-  background: rgba(100, 220, 90, 0.12); color: #fff; cursor: pointer;
-  font-family: inherit; font-size: calc(15px * var(--ui, 1)); font-weight: 700; line-height: 1.1;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--ui, 1));
+  min-width: calc(124px * var(--ui, 1)); padding: calc(14px * var(--ui, 1)) calc(18px * var(--ui, 1));
+  border: 1px solid var(--holo-edge); border-radius: calc(12px * var(--ui, 1));
+  background: rgba(40, 140, 70, 0.22); color: #fff; cursor: pointer;
+  box-shadow: var(--holo-hi), inset 0 0 14px rgba(70, 255, 120, 0.16);
+  font-family: inherit; font-size: calc(21px * var(--ui, 1)); font-weight: 800; line-height: 1.1;
+  text-shadow: 0 0 10px rgba(90, 255, 130, 0.6);
+  transition: background .15s, border-color .15s, box-shadow .15s;
 }
-.scr-mode-ask-sub { font-size: calc(10px * var(--ui, 1)); font-weight: 500; opacity: 0.7; }
-@media (hover: hover) { .scr-mode-ask-btn:hover { background: rgba(100, 220, 90, 0.24); border-color: rgba(100, 220, 90, 0.75); } }
+.scr-mode-ask-sub { white-space: nowrap; font-size: calc(12px * var(--ui, 1)); font-weight: 600; color: rgba(255, 255, 255, 0.72); text-shadow: none; }
+@media (hover: hover) {
+  .scr-mode-ask-btn:hover { background: rgba(60, 190, 95, 0.34); border-color: rgba(255, 255, 255, 0.9); box-shadow: var(--holo-hi), inset 0 0 18px rgba(90, 255, 140, 0.28), 0 0 14px rgba(90, 255, 140, 0.35); }
+}
 .scr-digest-pill {
   position: absolute; left: 50%; top: calc(8px * var(--ui, 1)); transform: translateX(-50%); z-index: 30000;
   display: inline-flex; align-items: center; gap: calc(8px * var(--ui, 1));
-  padding: calc(3px * var(--ui, 1)) calc(4px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(10px * var(--ui, 1));
-  border-radius: 999px; background: rgba(8, 12, 18, 0.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
-  color: #e6f1ff; font-size: calc(11px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  padding: calc(4px * var(--ui, 1)) calc(5px * var(--ui, 1)) calc(4px * var(--ui, 1)) calc(12px * var(--ui, 1));
+  border-radius: 999px;
+  color: #fff; font-size: calc(12px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  text-shadow: 0 0 8px rgba(90, 255, 130, 0.5);
 }
 .scr-digest-pill-btn {
-  padding: calc(3px * var(--ui, 1)) calc(8px * var(--ui, 1)); border: none; border-radius: 999px;
-  background: rgba(100, 220, 90, 0.2); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
+  padding: calc(3px * var(--ui, 1)) calc(10px * var(--ui, 1)); border: 1px solid var(--holo-edge); border-radius: 999px;
+  background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
 }
+/* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-digest(요약이 도는 동안).
+   쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
+   걷고, 판이 가장 높이 솟는 받침 키(--dock-lift · dockFit9)만큼 위로 올라 그 자리까지 덮는다(층 모양 대신 한 장). 우물(미니맵·인포창·전광판)은 짙은 녹색 바탕에
+   중간 밝기 녹색 테 · 둥근 모서리. */
+.scr-fs-layer.is-digest .scr-fs-lower::before {
+  clip-path: none; top: calc(-1 * var(--dock-lift, 0px)); border-radius: calc(16px * var(--dk, 1));
+}
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::before,
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+  background: rgba(2, 18, 8, 0.72); border-radius: calc(10px * var(--dk, 1));
+  box-shadow: inset 0 0 0 1px rgba(100, 220, 120, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 16px rgba(70, 255, 120, 0.08);
+}
+/* 요약 중 독의 재생 줄 · 접기 단추 — 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 · 위 .scr-tb-seek)를 홀로그램 위 **흰 잉크 + 녹색 번짐**으로 뒤집는다
+   (녹색 판에선 어두운 잉크가 묻혔다 · 실측). 접기 단추는 판 홈 대신 홀로그램 테 정사각. */
+.scr-fs-layer.is-digest .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
+.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold {
+  color: #fff; background: rgba(40, 140, 70, 0.22); border-radius: calc(8px * var(--ui));
+  box-shadow: inset 0 0 0 1px var(--holo-edge), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }

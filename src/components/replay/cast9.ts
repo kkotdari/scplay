@@ -3666,14 +3666,14 @@ export function castAt9(plan: readonly CastSeg9[], t: number): number {
 }
 
 /** ★ **요약 보기**(2026-10-23, 요청: "게임 상세 들어가면 아주 가볍게 생긴 선택 팝업 · 보기 모드 요약/풀 중에 선택 · 요약은 중계 중 중요도 높은 것만
- *  2배속 기본값으로 재생 · 총 1분 이내") — 편성표의 **장면 토막**(cyc 거짓)을 무게(score) 큰 차례로 골라 경기 시각 budget 초(2배속 1분 = 120) 안에 담고,
+ *  2배속 기본값으로 재생 · 총 1분 이내") — 편성표의 **장면 토막**(cyc 거짓)을 무게(score) 큰 차례로 골라 경기 시각 budget 초(2배속 2분 = 240 · 같은 날 되요청 "1-2분" — 첫 판 120) 안에 담고,
  *  때 차례로 돌려준다. 한 토막은 그 토막 시작(at — 장면보다 CAST_LEAD9 앞)부터 자막 끝(capTo + DIGEST_TAIL9) · 다음 토막 시작 · DIGEST_MAX9 중 이른 때까지다.
  *  예산에 안 드는 토막은 건너뛰고 더 짧은 것을 찾는다(잘라 담지 않는다 — 장면 앞부분만 남으면 무엇이 벌어졌는지 모른다). 붙은 창(DIGEST_JOIN9 안)은 하나로 잇는다. */
 const DIGEST_MAX9 = 24;
 const DIGEST_MIN9 = 4;
 const DIGEST_TAIL9 = 1.5;
 const DIGEST_JOIN9 = 1.5;
-export function castDigest9(plan: readonly CastSeg9[], total: number, budget = 120): [number, number][] {
+export function castDigest9(plan: readonly CastSeg9[], total: number, budget = 240): [number, number][] {
   const wins9: { a: number; b: number; w: number }[] = [];
   plan.forEach((s9, i9) => {
     if (s9.cyc) return;
