@@ -2746,6 +2746,20 @@ if (TRACE) {
   ] });
 }
 
+/* --zoomsweep N [--zoomshot x.png] [--zoomat x,y](2026-10-23) — 휠로 N 걸음 당겼다가 N 걸음 물리며 걸음마다 GL 줄의 2D판 몫(굽기·늘임·메시)을 적는다 — "줌과 무관하게 한 장" 검산(굽기가 줌마다 안 나야 한다). --diag 와 함께. */
+if (flag("--zoomsweep", null)) {
+  const n9 = Number(flag("--zoomsweep", 6)) || 6;
+  const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  const at9 = flag("--zoomat", null);   // 당길 자리(뷰포트 px "x,y") — 없으면 지도 가운데
+  if (pt9 && at9) { const [ax, ay] = String(at9).split(",").map(Number); pt9[0] = ax; pt9[1] = ay; }
+  if (pt9) {
+    await page.mouse.move(pt9[0], pt9[1]);
+    const line9 = async (tag) => { const g = await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gl) || ""); const m = /2D판 [^\n]*/.exec(g); console.log(`[줌걸음] ${tag} ${m ? m[0] : g.slice(0, 80)}`); };
+    for (let i = 0; i < n9; i += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(700); await line9(`당김${i + 1}`); }
+    if (flag("--zoomshot", null)) await page.screenshot({ path: String(flag("--zoomshot", null)) });   // 가장 당긴 자리
+    for (let i = 0; i < n9; i += 1) { await page.mouse.wheel(0, 240); await page.waitForTimeout(700); await line9(`물림${i + 1}`); }
+  }
+}
 // 드래그 부하(--drag) — 표본을 모으는 동안 마우스로 지도를 계속 왕복 드래그한다.
 const DRAG = has("--drag");
 const dragDrive = async () => {

@@ -14608,7 +14608,7 @@ export default function ReplayMotionPlayer({
     // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
-    glSprHold9(true);   // 2D 스프라이트 판 — 손짓 동안 새 배율을 안 굽고 가까운 배율 칸을 늘여 쓴다(gl9 ══)
+    glSprHold9(true);   // 2D 스프라이트 판 — 손짓 동안 굽기를 줄이고 미리 찍기를 쉰다(그림은 배율과 무관한 한 장 · gl9 SPR_CAP ★)
     xfApplyAtRef9.current = performance.now();
     xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
     /* ★★ 원근을 손끝에 맞추는 일은 **가벼운 자리에서만** 한다(계측: 배율 6·입체·949기에서
@@ -14663,7 +14663,7 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(zoomRef.current, panRef.current);
     miniPaintRef.current?.(zoomRef.current, panRef.current);
     xfGestureRef.current = false;
-    glSprHold9(false);   // 놓았다 — 다음 장부터 제 배율 칸을 굽는다
+    glSprHold9(false);   // 놓았다 — 굽기 예산·미리 찍기를 되돌린다
     if (mapRef.current) fogBandSet9(mapRef.current, null);   // 손을 뗐다 — 막 띠를 걷는다(위 ★)
     viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
     /* 예약해 둔 한 장은 걷는다 — 손을 뗀 뒤에 도착하면 아래 커밋이 그릴 그림을 한 번
