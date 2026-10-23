@@ -2760,6 +2760,19 @@ if (flag("--zoomsweep", null)) {
     for (let i = 0; i < n9; i += 1) { await page.mouse.wheel(0, 240); await page.waitForTimeout(700); await line9(`물림${i + 1}`); }
   }
 }
+/* --panprobe(2026-10-23) — 휠로 세 번 당긴 뒤 한 방향으로 길게 끌며 걸음마다 GL 개체 수·보낸 시야 수를 적는다 — "움직일 때 더 빨리 모델이 보이게"(손짓 중 컬링 미리 보내기) 검산. --diag 와 함께. */
+if (has("--panprobe")) {
+  const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  if (pt9) {
+    await page.mouse.move(pt9[0], pt9[1]);
+    for (let i = 0; i < 3; i += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(500); }
+    const line9 = async (tag) => { const d = await page.evaluate(() => { const s = window.__scrDiag || {}; return [(/개체 (\d+)/.exec(s.gl || "") || [])[1], (/view (\d+)/.exec(s.worker || "") || [])[1]]; }); console.log(`[팬걸음] ${tag} 개체 ${d[0]} · 보낸 시야 ${d[1]}`); };
+    await line9("시작");
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) { await page.mouse.move(pt9[0] - i * 40, pt9[1] - i * 25, { steps: 4 }); await page.waitForTimeout(120); await line9(`끎${i}`); }
+    await page.mouse.up(); await page.waitForTimeout(600); await line9("놓음");
+  }
+}
 // 드래그 부하(--drag) — 표본을 모으는 동안 마우스로 지도를 계속 왕복 드래그한다.
 const DRAG = has("--drag");
 const dragDrive = async () => {

@@ -993,6 +993,8 @@ function pixPaint9(c9: HTMLCanvasElement | null): void {
   x9.drawImage(pixTmp9, 0, 0, c9.width, c9.height);
 }
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
+/** `#nocull` — 워커 시야 컬링을 끈다(지도 전체를 짓는다 · 견줌용). */
+const NO_CULL9 = typeof location !== "undefined" && /nocull/.test(location.hash);
 /** `#diag=grid` — 유닛(2D 효과 캔버스)·GL 층에 **기기 픽셀 한 줄짜리 시험 무늬**(검은 줄 + 흰 줄 · 64px 마다, GL 은 1px 고리)를 얹는다(2026-10-09,
  *  지적: "같은 창 크기에서도 분할 여부에 따라 흐려") — 어느 층이 재표본되는지 눈으로 가르는 자: 1:1 이면 줄이 또렷한 흑백이고, 반 픽셀이라도
  *  밀리거나 늘어나면 회색으로 뭉갠다. 흐림: 줄(기하)과 짝이다 — 기하가 다 1.0000 인데 무늬가 회색이면 합성기(브라우저) 쪽이다. */
@@ -9472,6 +9474,8 @@ export default function ReplayMotionPlayer({
      간격을 두는 까닭은 원점이 바뀔 때마다 워커가 앞장을 버리고 다시 짓기 때문이다 — 너무 잦으면 짓기만 하다
      한 장도 못 낸다. 평면(2D)에서는 원점이 0이라 아무 일도 안 한다. */
   const engViewRef9 = useRef<EngineView9 | null>(null);
+  /** 손짓 중 컬링 사각형 미리 보내기(렌더가 매번 갈아 끼운다 · applyGestureXf 가 부른다 — 아래 cullAround9 곁 ★). */
+  const cullLiveRef9 = useRef<(() => void) | null>(null);
   const colorTableRef9 = useRef<Record<string, string> | null>(null);
   const pitchGeomLiveRef9 = useRef<(() => PitchGeom9) | null>(null);
   const liveViewAtRef9 = useRef(0);
@@ -14356,6 +14360,7 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
+    cullLiveRef9.current?.();   // 손끝 창이 보낸 컬링 사각형 가장자리에 닿기 전에 새 사각형을 워커로(cullAround9 곁 ★)
     // 손끝이 움직인 시각 — 이 자리는 값이 바뀌었을 때만 불린다(드래그 rAF의 '안 움직였으면 안 그린다').
     xfMoveAtRef9.current = performance.now();
     /* 배율이 실제로 바뀐 시각을 적어 둔다 — 아래 다시 그리기가 '지금 줌 중인가'를
@@ -15579,8 +15584,7 @@ export default function ReplayMotionPlayer({
      앞뒤로 한 화면씩 여유를 붙여(3×3) 보내고, 보이는 사각형이 그 안에 있는 동안은 다시 안 보낸다 — 작은 팬은
      설계도를 안 버린다. 여유가 보이는 것의 20배를 넘으면(많이 당겨 들어옴) 조인다. 1.2배 이하는 지도가 거의
      다 보이니 없음(지도 전체). */
-  const visRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
-    const z9 = zoomRef.current;
+  const visOf9 = (z9: number, pan9: { x: number; y: number }): { x0: number; x1: number; y0: number; y1: number } | null => {
     if (!(z9 > 1.2)) return null;
     const st9 = stageSizeRef.current;
     const cv9 = coverRef.current;
@@ -15588,10 +15592,11 @@ export default function ReplayMotionPlayer({
     const winH9 = Math.max(st9.h, viewHRef.current || 0);
     const spanX = st9.w / (cv9.w * z9);
     const spanY = winH9 / (cv9.h * z9);
-    const cxF = 0.5 - panRef.current.x / (cv9.w * z9);
-    const cyF = 0.5 - panRef.current.y / (cv9.h * z9);
+    const cxF = 0.5 - pan9.x / (cv9.w * z9);
+    const cyF = 0.5 - pan9.y / (cv9.h * z9);
     return { x0: cxF - spanX / 2, x1: cxF + spanX / 2, y0: cyF - spanY / 2, y1: cyF + spanY / 2 };
-  })();
+  };
+  const visRect9 = visOf9(zoomRef.current, panRef.current);
   /** 칸 카메라(지도 분수) — splitPaint9 가 잡고 아래 칸 컬링(splitCull9)이 읽는다. */
   const splitCamRef9 = useRef(new Map<string, { x: number; y: number }>());
   /** 칸마다 마지막으로 칠한 창(지도 분수 cx·cy·w·h) — 미니맵이 누른 사람의 것을 흰 네모로 그린다(요청: "미니맵은 현재 선택한
@@ -15601,13 +15606,20 @@ export default function ReplayMotionPlayer({
   const cullRect9 = ((): { x0: number; x1: number; y0: number; y1: number } | null => {
     const sent9 = cullSentRef9.current;
     /* 분할보기는 칸마다 딴 자리를 보므로 워커가 **지도 전체**를 짓는다(위 splitOn9). */
-    if (!visRect9 || splitOn9) { cullSentRef9.current = null; return null; }
+    if (!visRect9 || splitOn9 || NO_CULL9) { cullSentRef9.current = null; return null; }   // `#nocull` = 지도 전체(견줌용)
     if (sent9) {
       const inside9 = visRect9.x0 >= sent9.x0 && visRect9.x1 <= sent9.x1 && visRect9.y0 >= sent9.y0 && visRect9.y1 <= sent9.y1;
       const aSent9 = (sent9.x1 - sent9.x0) * (sent9.y1 - sent9.y0);
       const aVis9 = (visRect9.x1 - visRect9.x0) * (visRect9.y1 - visRect9.y0);
       if (inside9 && aSent9 <= aVis9 * 20) return sent9;
     }
+    const r9 = cullAround9(visRect9);
+    cullSentRef9.current = r9;
+    return r9;
+  })();
+  /** 보이는 창(vis)에 여유를 붙인 컬링 사각형 — 렌더(위 cullRect9)와 손짓의 미리 보내기(cullLiveRef9)가 같이 쓴다. */
+  function cullAround9(vis9: { x0: number; x1: number; y0: number; y1: number }): { x0: number; x1: number; y0: number; y1: number } {
+    const visRect9 = vis9;
     // 여유 — PC는 앞뒤 한 화면씩(3×3), 폰은 반 화면씩(2×2): 설계도 한 장의 op 수·메모리가 그만큼 준다.
     const mk9 = DEV9.cullMargin;
     /* ★ 여유는 화면의 몫이되 **여덟 타일 아래로는 안 내려간다**(2026-09, 지적: "화면에 조금이라도 들어온 모델은 그려야") —
@@ -15615,13 +15627,38 @@ export default function ReplayMotionPlayer({
        워커가 통째로 걸렀다. 큰 건물(4×3)·뜬 공중 유닛(2.3타일)을 다 덮는 값이다. */
     const mx9 = Math.max((visRect9.x1 - visRect9.x0) * mk9, 8 / Math.max(1, grid.width));
     const my9 = Math.max((visRect9.y1 - visRect9.y0) * mk9, 8 / Math.max(1, grid.height));
-    const r9 = {
+    return {
       x0: Math.max(-0.05, visRect9.x0 - mx9), x1: Math.min(1.05, visRect9.x1 + mx9),
       y0: Math.max(-0.05, visRect9.y0 - my9), y1: Math.min(1.05, visRect9.y1 + my9),
     };
+  }
+  /* ★ **손짓 중에도 시야를 미리 보낸다**(2026-10-23, 요청: "움직일 때 더 빨리 모델이 보이게" — 옛: 컬링 사각형은 렌더(손짓 중 100ms 박자)에서만 재고, 보이는
+     창이 보낸 사각형을 **벗어난 뒤에야** 새로 보내 워커가 그 자리 몸을 짓기 전까지 빈 땅이 보였다). 손짓 프레임마다(applyGestureXf) 손끝 자리의 창을 재서,
+     보낸 사각형의 가장자리 띠(여유의 40%)에 들어서면 **곧장** 새 사각형으로 워커에 보낸다 — 닿기 전에 새 장이 온다. 열쇠·보낸 표는 렌더와 같은 자리(viewSentRef9)에
+     적어, 뒤이은 렌더가 같은 것을 다시 보내지 않는다. `#nocull`(지도 전체 · 견줌용)·분할은 안 탄다. */
+  cullLiveRef9.current = (): void => {
+    if (splitOn9 || NO_CULL9) return;
+    const vis9 = visOf9(zoomRef.current, panRef.current);
+    const sent9 = cullSentRef9.current;
+    const w9 = frameWorkerRef.current;
+    const base9 = engViewRef9.current;
+    if (!vis9 || !sent9 || !w9 || !base9 || !base9.cull) return;
+    const bx9 = Math.max(0, ((sent9.x1 - sent9.x0) - (vis9.x1 - vis9.x0)) / 2) * 0.4;
+    const by9 = Math.max(0, ((sent9.y1 - sent9.y0) - (vis9.y1 - vis9.y0)) / 2) * 0.4;
+    const ok9 = (vis9.x0 >= sent9.x0 + bx9 || sent9.x0 <= -0.05) && (vis9.x1 <= sent9.x1 - bx9 || sent9.x1 >= 1.05)
+      && (vis9.y0 >= sent9.y0 + by9 || sent9.y0 <= -0.05) && (vis9.y1 <= sent9.y1 - by9 || sent9.y1 >= 1.05);
+    if (ok9) return;
+    const r9 = cullAround9(vis9);
     cullSentRef9.current = r9;
-    return r9;
-  })();
+    const v9: EngineView9 = { ...base9, cull: r9 };
+    const key9 = viewKeyOf9(v9);
+    const col9 = colorTableRef9.current ?? viewSentRef9.current?.colors;
+    if (!col9 || viewSentRef9.current?.key === key9) return;
+    viewSentRef9.current = { key: key9, colors: col9 };
+    engViewRef9.current = v9;
+    wStatRef.current.sentView += 1;
+    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq });
+  };
   /* ★★ 프레임은 워커(설계 일꾼)가 낸다. 여기서는 화면 쪽 입력(상자 크기·기울기·시점·색·품질·시야)을 건넨다.
      배율·팬 자체는 안 건넨다 — 낮은 배율의 간이화는 붓이 한다. */
   /* ★★ **분할 칸도 컬링한다 — 칸마다 제 창만, 팀 엔진은 제 팀 칸만**(2026-10, 지적: "분할모드 도입후 발열이 많이 심해졌는데") ───
