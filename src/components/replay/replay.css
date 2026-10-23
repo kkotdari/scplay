@@ -3670,30 +3670,18 @@
 }
 /* 요약 중 독(다크 = 홀로그램)의 단추는 **옛 크리스탈 그대로**(같은 날 요청: "홀로그램 단추는 아까로 원복 · 지금 메탈은 아주 좋고") —
    위 심플 투명은 쇠 독(풀 보기)만. 라이트의 요약 중 독은 아래 클레이 단추가 이 자를 다시 덮는다. */
+/* ★ 요약 중 독(다크 = 홀로그램)의 단추는 **f0d9a0b 꼴**(같은 날 요청: "이 버전으로 돌아가 홀로그램은" · 사진 두 장) — 크리스탈 이전의 우물(#0d1116 · 안 그늘 ·
+   아래 밝은 입술) · 아이콘 화면 주인 녹색 · 켜짐(누름) = 녹색 판 + 짙은 녹색 아이콘. 옛 '크리스탈 원복'은 되물렸다. 라이트는 아래 클레이 단추가 이 자를 다시 덮는다. */
 .scr-fs-layer.is-digest {
-  --crystal-bg:
-    linear-gradient(120deg, transparent 28%, rgba(255, 255, 255, 0.16) 40%, transparent 49%),
-    radial-gradient(75% 40% at 50% 104%, rgba(200, 225, 255, 0.45), transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.16) 42%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.04) 100%),
-    rgba(24, 32, 44, 0.34);
-  --crystal-bg-hi:
-    linear-gradient(120deg, transparent 26%, rgba(255, 255, 255, 0.24) 40%, transparent 50%),
-    radial-gradient(75% 45% at 50% 104%, rgba(210, 232, 255, 0.6), transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.08) 100%),
-    rgba(28, 38, 52, 0.3);
-  --crystal-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(200, 225, 255, 0.55), inset 0 -6px 9px rgba(0, 0, 0, 0.22),
-    0 0 0 1px rgba(10, 14, 20, 0.45), 0 3px 6px rgba(0, 0, 0, 0.32), 0 1px 1px rgba(0, 0, 0, 0.4);
-  --crystal-press:
-    radial-gradient(80% 70% at 50% 55%, rgba(90, 170, 255, 0.32), transparent 72%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.08) 45%, rgba(255, 255, 255, 0.08) 100%),
-    rgba(14, 22, 34, 0.52);
-  --crystal-press-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(150, 200, 255, 0.5), inset 0 0 10px rgba(90, 170, 255, 0.38),
-    0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 10px rgba(90, 170, 255, 0.45), 0 1px 0 rgba(255, 255, 255, 0.35);
-  --crystal-ink: #dfe4ea;
-  --crystal-press-ink: #d6ecff;
-  --crystal-svg-press: drop-shadow(0 0 4px rgba(110, 180, 255, 0.85)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  --crystal-bg: #0d1116;
+  --crystal-bg-hi: #1a2028;
+  --crystal-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
+  --crystal-press: var(--scr-sc-green, #64dc5a);
+  --crystal-press-shadow: none;
+  --crystal-ink: var(--scr-sc-green, #64dc5a);
+  --crystal-press-ink: #06260a;
+  --crystal-svg: none;
+  --crystal-svg-press: none;
 }
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
@@ -5090,24 +5078,17 @@
   position: absolute; left: calc(8px * var(--ui, 1)); top: calc(8px * var(--ui, 1)); z-index: 30000;
   display: inline-flex; align-items: center; gap: calc(6px * var(--ui, 1));
   padding: calc(3px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1));
-  border-radius: calc(7px * var(--ui, 1));   /* 알약 → 둥근 네모(같은 날 요청: "토글 패널은 알약 아닌 둥근 네모") */
+  border-radius: 999px;   /* 알약(f0d9a0b 꼴 원복 · 같은 날 "이 버전으로 돌아가 홀로그램은" — 옛 '둥근 네모'는 되물렸다 · 라이트 클레이는 아래에서 둥근 네모) */
   color: #fff; font-size: calc(10px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
   text-shadow: 0 0 8px rgba(90, 255, 130, 0.5);
 }
 .scr-fs-layer.is-fs .scr-digest-pill { top: calc(8px * var(--ui, 1) + var(--safe-top, 0px)); left: calc(8px * var(--ui, 1) + env(safe-area-inset-left, 0px)); }
 /* [풀로 보기]는 두 꼴 다 크리스탈(같은 날 요청: "요약 토글도 적용") · 둥근 네모 · 은색 글자 · 누르면 쏙 + 푸른 빛. */
 .scr-digest-pill-btn {
-  padding: calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1)); border: none; border-radius: calc(5px * var(--ui, 1));
-  background: var(--crystal-bg); box-shadow: var(--crystal-shadow);
-  -webkit-backdrop-filter: blur(1.5px) brightness(1.06); backdrop-filter: blur(1.5px) brightness(1.06);
-  color: var(--crystal-ink); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
-  font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
+  padding: calc(2px * var(--ui, 1)) calc(8px * var(--ui, 1)); border: 1px solid var(--holo-edge); border-radius: 999px;
+  background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
 }
-@media (hover: hover) { .scr-digest-pill-btn:hover { background: var(--crystal-bg-hi); } }
-.scr-digest-pill-btn:active {
-  background: var(--crystal-press); box-shadow: var(--crystal-press-shadow); color: var(--crystal-press-ink);
-  text-shadow: 0 0 6px rgba(110, 180, 255, 0.8), 0 1px 1px rgba(0, 0, 0, 0.6);
-}
+@media (hover: hover) { .scr-digest-pill-btn:hover { background: rgba(60, 190, 95, 0.4); } }
 /* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-digest(요약이 도는 동안 · 다크 테마 = 홀로그램 · 라이트는 아래 클레이 메탈).
    쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
    걷고, 판이 가장 높이 솟는 받침 키(--dock-lift · dockFit9)만큼 위로 올라 그 자리까지 덮는다(층 모양 대신 한 장). 우물(미니맵·인포창·전광판)은 짙은 녹색 바탕에
@@ -5208,7 +5189,8 @@
 .scr-light-theme .scr-mode-ask.is-auto .scr-mode-ask-btn:active, .scr-light-theme .scr-digest-pill.is-auto .scr-digest-pill-btn:active {
   transform: translateY(1px); background: var(--clay-press); box-shadow: var(--clay-press-shadow); color: #25703a; text-shadow: none;
 }
-.scr-light-theme .scr-digest-pill.is-auto { color: var(--clay-ink); text-shadow: none; }
+.scr-light-theme .scr-digest-pill.is-auto { color: var(--clay-ink); text-shadow: none; border-radius: calc(7px * var(--ui, 1)); }
+.scr-light-theme .scr-digest-pill.is-auto .scr-digest-pill-btn { border-radius: calc(5px * var(--ui, 1)); padding: calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1)); }
 /* 요약 중 독(라이트) — 쇠판 대신 클레이 판 한 장(둥근 · 솟는 받침 키까지 · 위 .is-digest 공통 규칙) · 우물은 짙은 남회색 + 부드러운 안 그늘 · 재생 줄 잉크는 짙은 회남색. */
 .scr-light-theme .scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-light-theme .scr-fs-layer.is-digest .scr-fs-dockmain > .scr-motion-infodock,
