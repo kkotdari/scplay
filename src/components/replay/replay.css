@@ -3650,17 +3650,33 @@
    걷고, 맑은 몸(흰 6%) + 위 절반 흰 광택(가운데서 꺾임) + 흰 테 · 위 안쪽 흰 줄 · 아래 안쪽 그늘 · 바깥 검은 실선 · 뜬 그림자. 뒤 쇠판의 헤어라인이 비친다
    (backdrop-filter 는 살짝 흐리고 밝힐 뿐). 아이콘은 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 — 맑은 몸 너머로 밝은 쇠가 비쳐 흰 잉크는 안 읽힌다).
    켜진 단추(is-on)·색 단추(팀·주인공)는 제 꼴 그대로. 보기 모드 판의 쇠 꼴 단추 · 배속 · 접기 단추도 같은 자(--crystal-*). */
+/* ★ 크리스탈 다듬기(같은 날 요청: "크리스탈 버튼 더 예쁘게 · 버튼에 표시는 은색으로 · 누르면 쏙 들어간 느낌 + 푸른 은은한 빛") — 몸은 **연기 낀 크리스탈**(짙은 푸른 회색 34% ·
+   은색 표시가 밝은 쇠 위에서도 읽히게 · 쇠 결은 그대로 비친다) + 위 절반 흰 광택 + 비스듬한 반사 한 줄기 + 아래 가장자리 푸른 흰 반사광(빛이 크리스탈 안에서 모이는 꼴) ·
+   흰 테 · 위 흰 줄 · 아래 푸른 흰 줄 · 바깥 검은 실선 · 뜬 그림자. 표시(아이콘·글자)는 은색(#dfe4ea + 아래 검은 그늘).
+   누름(:active)·켜짐(is-on — 툴박스 켜기 단추)은 **쏙 들어간** 꼴(--crystal-press: 광택 걷고 위 안쪽 깊은 그늘) + **푸른 은은한 빛**(안팎 번짐 · 표시도 푸른 은색). */
 .scr-fs-layer {
   --crystal-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 44%, rgba(255, 255, 255, 0.04) 51%, rgba(255, 255, 255, 0.12) 100%),
-    rgba(255, 255, 255, 0.06);
+    linear-gradient(120deg, transparent 28%, rgba(255, 255, 255, 0.16) 40%, transparent 49%),
+    radial-gradient(75% 40% at 50% 104%, rgba(200, 225, 255, 0.45), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.16) 42%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.04) 100%),
+    rgba(24, 32, 44, 0.34);
   --crystal-bg-hi:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.28) 44%, rgba(255, 255, 255, 0.08) 51%, rgba(255, 255, 255, 0.2) 100%),
-    rgba(255, 255, 255, 0.12);
+    linear-gradient(120deg, transparent 26%, rgba(255, 255, 255, 0.24) 40%, transparent 50%),
+    radial-gradient(75% 45% at 50% 104%, rgba(210, 232, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.08) 100%),
+    rgba(28, 38, 52, 0.3);
   --crystal-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(0, 0, 0, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.4),
-    0 0 0 1px rgba(0, 0, 0, 0.32), 0 2px 5px rgba(0, 0, 0, 0.32);
-  --crystal-ink: #141920;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(200, 225, 255, 0.55), inset 0 -6px 9px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(10, 14, 20, 0.45), 0 3px 6px rgba(0, 0, 0, 0.32), 0 1px 1px rgba(0, 0, 0, 0.4);
+  --crystal-press:
+    radial-gradient(80% 70% at 50% 55%, rgba(90, 170, 255, 0.32), transparent 72%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.08) 45%, rgba(255, 255, 255, 0.08) 100%),
+    rgba(14, 22, 34, 0.52);
+  --crystal-press-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(150, 200, 255, 0.5), inset 0 0 10px rgba(90, 170, 255, 0.38),
+    0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 10px rgba(90, 170, 255, 0.45), 0 1px 0 rgba(255, 255, 255, 0.35);
+  --crystal-ink: #dfe4ea;
+  --crystal-press-ink: #d6ecff;
 }
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
@@ -3671,7 +3687,23 @@
 }
 .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero) svg,
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero) svg,
-.scr-tb .scr-tb-tail .scr-kakao-share-btn svg { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55)); }
+.scr-tb .scr-tb-tail .scr-kakao-share-btn svg,
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on) svg,
+.scr-fs-layer .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75)); }
+/* 누름 · 켜짐 — 쏙 들어간 크리스탈 + 푸른 빛(위 ★). 팀·주인공 색 단추는 제 꼴 그대로. */
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-team):not(.is-hero):is(.is-on, :active),
+.scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-team):not(.is-hero):is(.is-on, :active),
+.scr-tb .scr-tb-tail .scr-kakao-share-btn:active,
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:is(.is-on, :active),
+.scr-fs-layer .scr-tb-tail > .scr-motion-infodock-fold:active {
+  background: var(--crystal-press); color: var(--crystal-press-ink); box-shadow: var(--crystal-press-shadow);
+  -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px);
+}
+.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-team):not(.is-hero):is(.is-on, :active) svg,
+.scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-team):not(.is-hero):is(.is-on, :active) svg,
+.scr-tb .scr-tb-tail .scr-kakao-share-btn:active svg,
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:is(.is-on, :active) svg,
+.scr-fs-layer .scr-tb-tail > .scr-motion-infodock-fold:active svg { filter: drop-shadow(0 0 4px rgba(110, 180, 255, 0.85)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
 @media (hover: hover) {
   .scr-tb .scr-tb-btnrow > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
   .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero):hover,
@@ -4905,7 +4937,7 @@
 .scr-tb.is-one > .scr-motion-mapbtns button.scr-motion-mapbtn:not(.is-on):not(.is-team):not(.is-hero),
 .scr-tb .scr-tb-tail .scr-kakao-share-btn,
 .scr-tb .scr-motion-searchwrap:not(.is-open), .scr-tb .scr-motion-searchwrap:not(.is-open) button.scr-motion-mapbtn,
-.scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on), .scr-tb-tail > .scr-motion-infodock-fold { color: #1d6a1b; }
+.scr-tb .scr-tb-speed button.scr-motion-mapbtn:not(.is-on), .scr-tb-tail > .scr-motion-infodock-fold { color: var(--crystal-ink); }   /* 은색(2026-10-23 · 옛 짙은 녹색 #1d6a1b 되물림) */
 .scr-tb .scr-motion-searchwrap.is-open, .scr-tb .scr-motion-searchwrap.is-open button.scr-motion-mapbtn { color: var(--scr-sc-green); }
 .scr-motion-mapbtns button.scr-motion-mapbtn.is-on { background: var(--scr-sc-green); color: #06260a; }
 .scr-roster-cam { color: var(--scr-sc-green); }
@@ -5040,15 +5072,24 @@
 .scr-digest-pill {
   position: absolute; left: calc(8px * var(--ui, 1)); top: calc(8px * var(--ui, 1)); z-index: 30000;
   display: inline-flex; align-items: center; gap: calc(6px * var(--ui, 1));
-  padding: calc(2px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(2px * var(--ui, 1)) calc(9px * var(--ui, 1));
-  border-radius: 999px;
+  padding: calc(3px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1));
+  border-radius: calc(7px * var(--ui, 1));   /* 알약 → 둥근 네모(같은 날 요청: "토글 패널은 알약 아닌 둥근 네모") */
   color: #fff; font-size: calc(10px * var(--ui, 1)); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
   text-shadow: 0 0 8px rgba(90, 255, 130, 0.5);
 }
 .scr-fs-layer.is-fs .scr-digest-pill { top: calc(8px * var(--ui, 1) + var(--safe-top, 0px)); left: calc(8px * var(--ui, 1) + env(safe-area-inset-left, 0px)); }
+/* [풀로 보기]는 두 꼴 다 크리스탈(같은 날 요청: "요약 토글도 적용") · 둥근 네모 · 은색 글자 · 누르면 쏙 + 푸른 빛. */
 .scr-digest-pill-btn {
-  padding: calc(2px * var(--ui, 1)) calc(8px * var(--ui, 1)); border: 1px solid var(--holo-edge); border-radius: 999px;
-  background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
+  padding: calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1)); border: none; border-radius: calc(5px * var(--ui, 1));
+  background: var(--crystal-bg); box-shadow: var(--crystal-shadow);
+  -webkit-backdrop-filter: blur(1.5px) brightness(1.06); backdrop-filter: blur(1.5px) brightness(1.06);
+  color: var(--crystal-ink); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
+  font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
+}
+@media (hover: hover) { .scr-digest-pill-btn:hover { background: var(--crystal-bg-hi); } }
+.scr-digest-pill-btn:active {
+  background: var(--crystal-press); box-shadow: var(--crystal-press-shadow); color: var(--crystal-press-ink);
+  text-shadow: 0 0 6px rgba(110, 180, 255, 0.8), 0 1px 1px rgba(0, 0, 0, 0.6);
 }
 /* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-holo(요약이 도는 동안 · 판 꼴이 홀로그램일 때).
    쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
@@ -5095,18 +5136,19 @@
 .scr-mode-ask.is-metal { border-radius: calc(6px * var(--ui, 1)); }
 .scr-mode-ask.is-metal .scr-mode-ask-title { color: rgba(18, 22, 28, 0.85); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
 /* ★ 쇠 꼴 단추는 **크리스탈**(같은 날 요청: "메탈의 팝업 버튼을 입체 유리 버튼 형태로" → "유리 녹색 말고 크리스탈 느낌 · 뒤에 메탈이 비쳐야지" — 첫 판의 짙은 녹색 유리는
-   되물렸다) — 툴박스 단추와 같은 자(--crystal-*): 맑은 몸 너머로 판의 쇠 결이 비치고 위 절반 흰 광택 · 흰 테 · 뜬 그림자. 글자는 쇠 위 음각 잉크 · 누르면 1px 내려앉음.
-   알약 [풀로 보기]도 같은 크리스탈. */
-.scr-mode-ask.is-metal .scr-mode-ask-btn, .scr-digest-pill.is-metal .scr-digest-pill-btn {
-  border: none; background: var(--crystal-bg);
+   되물렸다) — 툴박스 단추와 같은 자(--crystal-*): 연기 낀 크리스탈 너머로 판의 쇠 결이 비친다 · 글자는 은색 · 누르면 1px 쏙 + 푸른 빛. 알약 [풀로 보기]는 위 .scr-digest-pill-btn. */
+.scr-mode-ask.is-metal .scr-mode-ask-btn {
+  border: none; background: var(--crystal-bg); border-radius: calc(10px * var(--ui, 1));
   -webkit-backdrop-filter: blur(1.5px) brightness(1.06); backdrop-filter: blur(1.5px) brightness(1.06);
-  color: var(--crystal-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: var(--crystal-ink); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.5);
   box-shadow: var(--crystal-shadow);
 }
-.scr-mode-ask.is-metal .scr-mode-ask-btn { border-radius: calc(10px * var(--ui, 1)); }
-.scr-mode-ask.is-metal .scr-mode-ask-sub { color: rgba(20, 25, 32, 0.72); }
+.scr-mode-ask.is-metal .scr-mode-ask-sub { color: rgba(214, 220, 228, 0.82); }
 @media (hover: hover) {
   .scr-mode-ask.is-metal .scr-mode-ask-btn:hover { background: var(--crystal-bg-hi); }
 }
-.scr-mode-ask.is-metal .scr-mode-ask-btn:active { transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.32); }
+.scr-mode-ask.is-metal .scr-mode-ask-btn:active {
+  transform: translateY(1px); background: var(--crystal-press); box-shadow: var(--crystal-press-shadow); color: var(--crystal-press-ink);
+  text-shadow: 0 0 8px rgba(110, 180, 255, 0.8), 0 1px 1px rgba(0, 0, 0, 0.6);
+}
 .scr-digest-pill.is-metal { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); font-weight: 800; }

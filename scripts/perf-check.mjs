@@ -8,6 +8,7 @@
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor] [--ringprobe 10]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 ·
  *                                                                               같은 편은 색 모드 · 주인 있으면 주인 클릭·링만) — [자국]·[링]·[링 폭](시간에 따른 폭 흔들림)
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
+ *   node scripts/perf-check.mjs --wide --press ".scr-kakao-share-btn" --shot x.png   그 요소를 눌러 둔 채(:active) 찍는다(크리스탈 단추 누름 꼴 · 2026-10-23)
  *   node scripts/perf-check.mjs --wide --ask 30 [--theme holo|metal] --shot x.png   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
  *                                                                               요약 알약(n/N)·시계·배속을 찍는다(창 사이 건너뜀 · 마지막 창 끝 멈춤 검산)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
@@ -979,6 +980,12 @@ if (has("--namefit")) {
 /* --pause(2026-10-12) — 들어오자마자 멈춘다(--t 그 시각의 짧은 효과 — 승하차 줄 1초 같은 것 — 를 찍을 때 · 재생 단추를 한 번 누른다). */
 if (has("--pause")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
 const SHOT = flag("--shot", null);
+/* --press <css>(2026-10-23) — 그 요소 가운데서 마우스를 눌러 둔 채(:active) 끝 사진을 찍는다(크리스탈 단추의 누름 꼴 검산). */
+if (has("--press")) {
+  const b9 = await page.locator(String(flag("--press"))).first().boundingBox();
+  if (b9) { await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2); await page.mouse.down(); await page.waitForTimeout(300); }
+  console.log(`[누름] ${flag("--press")} ${b9 ? "눌림" : "못 찾음"}`);
+}
 /* --ask [초](2026-10-23) — 보기 모드 판이 섰나 · 시계가 서 있나를 찍고(--shot 이면 판 사진) [요약]을 눌러 N초 동안 알약·시계·배속을 0.5초마다 찍는다. */
 if (has("--ask")) {
   const secs9 = Number(flag("--ask", 30)) || 30;
