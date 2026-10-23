@@ -533,7 +533,7 @@ export declare interface ReplayChromeMember {
     avatar: string | null;
 }
 
-/** 사용법(요청: 공통 — 버튼도 페이지도 재생기 안) — 재생기 아래 '사용법' 버튼이 이 문서를 화면 위에 덮는다.
+/** 도움말(옛 '사용법' · 요청: 공통 — 버튼도 페이지도 재생기 안) — 툴박스의 '도움말'(?) 버튼이 이 문서를 화면 위에 덮는다.
  *  앱은 이 파일을 갖지 않는다. 닫기는 덮개를 걷는 일뿐이다(뒤로가기는 재생기가 history로 맞춘다). */
 export declare function ReplayGuide({ onClose }?: {
     onClose?: () => void;
