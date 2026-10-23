@@ -2200,3 +2200,16 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
 - 홀로그램 독: 판 한 장을 걷고 **미니맵 · 전광판 · 인포창 · 툴박스가 저마다 홀로그램 판**(--holo-panel 격자 · 테 · 번짐 · 둥근 10·dk) · 툴박스 판은 좌우 max(--dock-side, --dock-out) · 아래 --dock-out 띄움 ·
   미니맵은 판 안에 둘레 4·dk.
 - 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --shot x.png`(메탈) · `--ask 3`(다크 홀로그램) · `--ask 3 --light`(라이트 메탈) · `--ios --ask 3`.
+
+## 독 양옆 지도 · 우물 뒤 쇠판 구멍 · 재생기 테마 무작위(2026-10-23)
+- **독 양옆 빈자리에도 지도**(요청: "뒤에 검정 흰색 남는 부분도 화면 그리는 게 낫지 않나") — 무대(.scr-fs-stage)의 자르기를 아래로 `--dock-under`(뿌리 − 무대 키 ·
+  rowsH 셈이 뿌리에 적는다)만큼 늘린다(`overflow: visible; clip-path: inset(0 0 -dock-under 0)`). 카메라·맞춤 셈은 그대로 — 무대 밖 아래 띠는 지도 상자(cover)가
+  원래 그리던 몫이 덤으로 보일 뿐이다. ⚠ 폰 세로는 지도 상자가 무대 키에 맞아(폭이 넘친다) 아래로 더 그릴 게 없다 — 독 밑은 뿌리 바탕이다.
+- **우물 뒤는 쇠판이 없다**(요청: "우물 뒤는 메탈판이 없어야 지도가 비쳐 보일 것" · "지도 검정 프레임이 중간에 끊어진다") — 메탈 우물(반투명 검정 0.6)이 받침(위)·쇠판(아래)
+  위에 앉아 둘의 이음매가 미니맵 둘레에 가로 단으로 비쳤다. 쇠판 켜(.scr-fs-lower::before)는 dock 맞춤의 read9 가 잰 우물 상자(미니맵 판·인포창·전광판 우물)마다
+  검은 판 한 장을 `--plate-holes` 로 적어 `mask-composite: exclude`(웹킷 xor)로 판다 — 원점은 그 켜의 왼끝(틀 옆 − 1px). 받침(minipanel/rosterpanel ::before)은
+  제 우물 자리(옆·위 틀 여백 + 테 1px 안 · `--ped-in`)를 CSS 만으로 판다. ResizeObserver 는 독 줄·틀에 더해 감싸개(.scr-fs-lower · 툴박스 키)·dockmain 자식들도 본다.
+  홀로그램 독은 판이 없어 안 탄다.
+- **재생기 테마 무작위**(요청: "라이트·다크 테마 상관없이 랜덤하게 재생기 테마 적용 · 처음부터 결정된 테마로 보이게") — `modeTheme9` 는 열 때 한 번 `Math.random()` 으로
+  metal / holo(앱 테마 MutationObserver 걷음). 홀로그램이면 뿌리에 **늘** `is-holodock`(옛 `is-digest` — 요약이 돌 때만 붙어 판을 고르기 전엔 메탈 독이 먼저 보였다 ·
+  CSS 이름을 통째로 바꿨다). 못 박기 `#theme=metal|holo` · perf-check `--theme metal|holo`(없으면 무작위 — 샷을 견줄 땐 늘 단다).

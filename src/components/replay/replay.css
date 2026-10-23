@@ -3675,7 +3675,7 @@
    위 심플 투명은 쇠 독(풀 보기)만. 라이트의 요약 중 독은 아래 클레이 단추가 이 자를 다시 덮는다. */
 /* ★ 요약 중 독(다크 = 홀로그램)의 단추는 **f0d9a0b 꼴**(같은 날 요청: "이 버전으로 돌아가 홀로그램은" · 사진 두 장) — 크리스탈 이전의 우물(#0d1116 · 안 그늘 ·
    아래 밝은 입술) · 아이콘 화면 주인 녹색 · 켜짐(누름) = 녹색 판 + 짙은 녹색 아이콘. 옛 '크리스탈 원복'은 되물렸다. 라이트는 아래 클레이 단추가 이 자를 다시 덮는다. */
-.scr-fs-layer.is-digest {
+.scr-fs-layer.is-holodock {
   --crystal-bg: #0d1116;
   --crystal-bg-hi: #1a2028;
   --crystal-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -5031,7 +5031,7 @@
   --holo-hi: inset 0 1px 0 rgba(255, 255, 255, 0.42);
   --holo-glow: 0 0 22px rgba(70, 255, 120, 0.22), inset 0 0 28px rgba(70, 255, 120, 0.14);
 }
-.scr-mode-ask.is-holo, .scr-digest-pill.is-holo, .scr-fs-layer.is-digest .scr-fs-lower::before {
+.scr-mode-ask.is-holo, .scr-digest-pill.is-holo, .scr-fs-layer.is-holodock .scr-fs-lower::before {
   background:
     repeating-linear-gradient(180deg, rgba(160, 255, 180, 0.05) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(0deg, var(--holo-grid) 0 1px, transparent 1px 14px),
@@ -5094,38 +5094,38 @@
   background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
 }
 @media (hover: hover) { .scr-digest-pill-btn:hover { background: rgba(60, 190, 95, 0.4); } }
-/* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-digest(요약이 도는 동안 · 다크 테마 = 홀로그램 · 라이트는 아래 클레이 메탈).
+/* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-holodock(요약이 도는 동안 · 다크 테마 = 홀로그램 · 라이트는 아래 클레이 메탈).
    쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
    걷고, 판이 가장 높이 솟는 받침 키(--dock-lift · dockFit9)만큼 위로 올라 그 자리까지 덮는다(층 모양 대신 한 장). 우물(미니맵·인포창·전광판)은 짙은 녹색 바탕에
    중간 밝기 녹색 테 · 둥근 모서리. */
-.scr-fs-layer.is-digest .scr-fs-lower::before {
+.scr-fs-layer.is-holodock .scr-fs-lower::before {
   clip-path: none; top: calc(-1 * var(--dock-lift, 0px)); border-radius: calc(16px * var(--dk, 1));
 }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::before,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::before,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel::after,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-motion-infodock,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel::before,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel::after { display: none; }
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
   background: rgba(2, 18, 8, 0.72); border-radius: calc(10px * var(--dk, 1));
   box-shadow: inset 0 0 0 1px rgba(100, 220, 120, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 16px rgba(70, 255, 120, 0.08);
 }
 /* 요약 중 독의 재생 줄 · 접기 단추 — 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 · 위 .scr-tb-seek)를 홀로그램 위 **흰 잉크 + 녹색 번짐**으로 뒤집는다
    (녹색 판에선 어두운 잉크가 묻혔다 · 실측). 접기 단추는 판 홈 대신 홀로그램 테 정사각. */
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
-.scr-fs-layer.is-digest .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
-.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold {
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
+.scr-fs-layer.is-holodock .scr-tb-tail > .scr-motion-infodock-fold {
   color: #fff; background: rgba(40, 140, 70, 0.22); border-radius: calc(8px * var(--ui));
   box-shadow: inset 0 0 0 1px var(--holo-edge), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
-.scr-fs-layer.is-digest .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-holodock .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
 /* ★ **메탈 판 · 알약**(is-metal · 라이트 테마 — 같은 날 요청: "클레이 미사용 · 메탈·홀로그램만 사용") — 풀 보기 메탈 독과 **같은 결**(아래 ★★ 메탈 독 = 스타 원작 UI 결):
    어두운 요철 철판(--steel-dark) · 검은 테 안에 붉은 안쪽 꾸밈선 · 흰 글씨. 단추는 반투명 검정 우물(붉은 테) · 누르면 쏙 들어간다. 옛 밝은 솔질 쇠·크리스탈 단추는 되물렸다.
-   --steel-dark·--sc-trim 은 요약이 아닌 뿌리(.scr-fs-layer:not(.is-digest))에 있다 — 라이트에선 요약 중에도 is-digest 가 안 서므로(메탈 독 그대로) 알약도 읽는다. */
+   --steel-dark·--sc-trim 은 요약이 아닌 뿌리(.scr-fs-layer:not(.is-holodock))에 있다 — 라이트에선 요약 중에도 is-holodock 가 안 서므로(메탈 독 그대로) 알약도 읽는다. */
 .scr-mode-ask.is-metal, .scr-digest-pill.is-metal {
   color: #fff;
   background: var(--steel-dark, #222529) #222529;
@@ -5156,7 +5156,7 @@
    ★★ **라이트 테마 = 클레이 메탈**(2026-10-23, 요청: "라이트 테마용 하나 · 꾸밈이 덜하고 심플 담백" → 시안 셋(서리유리·종이·민트) 탈락 "스타랑 안 어울림" →
    카툰 시안 둘 탈락 "너무 힘준 느낌" → "내 모델들과 어울리게" → 1번 "클레이 메탈") — 재생기 모델의 재질을 그대로 판으로: 무광 · 라벤더빛 차가운 회색 금속 ·
    위 밝고 아래로 살짝 어두운 부드러운 음영 · **외곽선 없음** · 둥근 모서리 · 부드러운 그림자. 글자는 녹색 계열(재생기 글자와 같은 결).
-   버튼은 같은 금속의 도드라진 판 · 누르면 쏙 들어가고 아래에 건물 창 같은 **민트 빛**이 올라온다. 판(.scr-mode-ask) · 요약 알약 · 요약 중 독(.is-digest) 셋이 같은 꼴.
+   버튼은 같은 금속의 도드라진 판 · 누르면 쏙 들어가고 아래에 건물 창 같은 **민트 빛**이 올라온다. 판(.scr-mode-ask) · 요약 알약 · 요약 중 독(.is-holodock) 셋이 같은 꼴.
    다크 테마는 위 녹색 홀로그램 그대로(.is-holo 의 기본). */
 .scr-fs-layer.is-clay {
   --clay-bg: linear-gradient(180deg, #eef0f6 0%, #d9dce8 55%, #c9cddc 100%);
@@ -5193,7 +5193,7 @@
 }
 .scr-digest-pill.is-clay { color: var(--clay-ink); text-shadow: none; border-radius: calc(7px * var(--ui, 1)); }
 .scr-digest-pill.is-clay .scr-digest-pill-btn { border-radius: calc(5px * var(--ui, 1)); padding: calc(3px * var(--ui, 1)) calc(9px * var(--ui, 1)); }
-/* 요약 중 독(라이트) — 쇠판 대신 클레이 판 한 장(둥근 · 솟는 받침 키까지 · 위 .is-digest 공통 규칙) · 우물은 짙은 남회색 + 부드러운 안 그늘 · 재생 줄 잉크는 짙은 회남색. */
+/* 요약 중 독(라이트) — 쇠판 대신 클레이 판 한 장(둥근 · 솟는 받침 키까지 · 위 .is-holodock 공통 규칙) · 우물은 짙은 남회색 + 부드러운 안 그늘 · 재생 줄 잉크는 짙은 회남색. */
 .scr-fs-layer.is-clay .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-layer.is-clay .scr-fs-dockmain > .scr-motion-infodock,
 .scr-fs-layer.is-clay .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
@@ -5219,86 +5219,106 @@
 .scr-fs-layer.is-clay .scr-tb-tail > .scr-motion-infodock-fold:active { background: var(--crystal-press); box-shadow: var(--crystal-press-shadow); }
 
 /* ★★ **메탈 독 = 스타 원작 UI 결**(2026-10-23, 요청: "메탈 테마에 실제 UI 접목 — 빨간 안쪽 꾸밈선 테두리 · 요철 있는 어두운 철판 등등 · 반투명 패널도 · 흰 글씨도 필요"
-   + 원작 리마스터 화면 사진) — 풀 보기의 쇠 독(요약 중 .is-digest 는 홀로그램·클레이라 안 탄다)만. 위 밝은 솔질 쇠(#b2b8c0 → #656c75)를 덮는다:
+   + 원작 리마스터 화면 사진) — 풀 보기의 쇠 독(요약 중 .is-holodock 는 홀로그램·클레이라 안 탄다)만. 위 밝은 솔질 쇠(#b2b8c0 → #656c75)를 덮는다:
    ① 판 = **어두운 요철 철판**(짙은 건메탈 세로 음영 + 45°/−45° 돋은 줄무늬 — 밝은 1px 날 + 어두운 1px 그늘이 엇갈려 마름모 요철로 읽힌다) · 윗선 베벨은 검은 1px + 옅은 흰 1px.
    ② 받침(미니맵·전광판이 솟은 몫) · 구분 막대도 같은 철판.
    ③ 우물(미니맵·전광판·인포창) = **반투명 검정 판**(뒤 철판 결이 비친다 · 원작 점수판처럼) + **빨간 안쪽 꾸밈선**(검은 1px 안에 붉은 1px · 원작 콘솔의 붉은 테) — 미니맵만 붉은 테 없음(아래).
    ④ 판 글자(음각 글귀 · 재생 줄 시계·탐색바·재생 단추)는 어두운 판 위라 **흰 잉크**로 뒤집는다. 단추(심플 투명)는 그대로("지금 메탈은 아주 좋고"). */
-.scr-fs-layer:not(.is-digest) {
+.scr-fs-layer:not(.is-holodock) {
   --steel-dark:
     repeating-linear-gradient(45deg, transparent 0 6px, rgba(255, 255, 255, 0.07) 6px 7px, rgba(0, 0, 0, 0.32) 7px 8px, transparent 8px 14px),
     repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255, 255, 255, 0.05) 6px 7px, rgba(0, 0, 0, 0.28) 7px 8px, transparent 8px 14px),
     linear-gradient(180deg, #3b3f45 0%, #2b2e33 14%, #222529 55%, #1a1c1f 100%);
   --sc-trim: rgba(196, 34, 30, 0.78);
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-lower::before {
+.scr-fs-layer:not(.is-holodock) .scr-fs-lower::before {
   background: var(--steel-dark) #222529;
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607;
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel::before,
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel::before {
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel::before {
   background:
     linear-gradient(90deg, #050607 0 1px, rgba(255, 255, 255, 0.1) 1px 2px, transparent 2px calc(100% - 2px), rgba(0, 0, 0, 0.4) calc(100% - 2px) calc(100% - 1px), #050607 calc(100% - 1px)) 0 0 / 100% var(--ped-h) no-repeat,
     var(--steel-dark) #2b2e33;
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14);
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel::after,
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel::after {
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel::after {
   background: var(--steel-dark);
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4);
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel,
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-motion-infodock,
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
   background: rgba(4, 6, 8, 0.6);
   box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px var(--sc-trim), inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.1);
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmark { color: rgba(255, 255, 255, 0.34); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.06); }
-.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
-.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
-.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7); }
-.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
-.scr-fs-layer:not(.is-digest) .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
-.scr-fs-layer:not(.is-digest) .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmark { color: rgba(255, 255, 255, 0.34); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.06); }
+.scr-fs-layer:not(.is-holodock) .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer:not(.is-holodock) .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.scr-fs-layer:not(.is-holodock) .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7); }
+.scr-fs-layer:not(.is-holodock) .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+.scr-fs-layer:not(.is-holodock) .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+.scr-fs-layer:not(.is-holodock) .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
 /* 미니맵 우물은 **붉은 테 없이**(같은 날 요청: "미니맵은 붉은 테 없는데 원작에 · 대신 맵이 반투명 검정 패널 안에 있는 모양") — 반투명 검정 판(위 ③의 바탕) 안에
    지도가 둘레 4·dk 를 띄우고 앉는다(지도 상자 키·폭에서 그 여백을 뺀다 · 판은 그대로 --mini-h). */
-.scr-fs-layer:not(.is-digest) .scr-fs-dockmain > .scr-fs-minipanel {
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel {
   --mm-pad: round(nearest, calc(4px * var(--dk, 1)), 2px);
   box-shadow: inset 0 0 0 1px #000, inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.1);
 }
-.scr-fs-layer:not(.is-digest) .scr-fs-minipanel .scr-fs-minimap {
+.scr-fs-layer:not(.is-holodock) .scr-fs-minipanel .scr-fs-minimap {
   height: min(calc(100cqh - 2 * var(--mm-pad)), calc((100cqw - 2 * var(--mm-pad)) / var(--scr-mini-ar, 1)));
 }
 
 /* ★★ **독 모양 — 필요한 자리만**(2026-10-23, 요청: "독을 양옆으로 꽉 채우지 말고 필요 부분만 따서 모양을 만들기 · 홀로그램은 맵 부분·조작부·인포창·전광판 각각 (독)패널화") ──
    ① 메탈(풀 보기 · 라이트 테마의 요약도): 쇠판(.scr-fs-lower::before)은 **독 틀 폭만**(좌우 --dock-side 를 비운다 — dockMark9 가 잰 틀 옆 남는 폭 · 뿌리에도 적는다) ·
       툴박스도 같은 폭으로 든다. 그래서 넓은 창에서 판이 화면 끝까지 안 뻗고 틀 + 받침 층 모양 그대로 선다. 틀 옆 음각 글귀는 판 밖이라 걷는다. 폰은 틀이 화면 폭이라 그대로다.
-   ② 홀로그램(다크 테마의 요약 중 · .is-digest): 판 한 장을 걷고 **미니맵 · 전광판 · 인포창 · 조작부(툴박스)가 저마다 홀로그램 판**이다(녹색 반투명 + 격자 + 테 + 번짐 · 둥근 모서리).
+   ② 홀로그램(다크 테마의 요약 중 · .is-holodock): 판 한 장을 걷고 **미니맵 · 전광판 · 인포창 · 조작부(툴박스)가 저마다 홀로그램 판**이다(녹색 반투명 + 격자 + 테 + 번짐 · 둥근 모서리).
       사이는 비어 아래가 비친다. 미니맵은 메탈처럼 판 안에 둘레를 띄운다. */
 .scr-fs-layer .scr-fs-lower > .scr-tb { margin-left: var(--dock-side, 0px); margin-right: var(--dock-side, 0px); }
-.scr-fs-layer:not(.is-digest) .scr-fs-lower::before { left: max(0px, calc(var(--dock-side, 0px) - 1px)); right: max(0px, calc(var(--dock-side, 0px) - 1px)); }
+.scr-fs-layer:not(.is-holodock) .scr-fs-lower::before { left: max(0px, calc(var(--dock-side, 0px) - 1px)); right: max(0px, calc(var(--dock-side, 0px) - 1px)); }
 .scr-fs-layer .scr-fs-dockrow .scr-fs-dockmark { display: none; }   /* 틀 옆은 이제 판 밖(메탈) · 빈자리(홀로그램)라 음각 글귀를 걷는다 */
-.scr-fs-layer.is-digest .scr-fs-lower::before { display: none; }
-.scr-fs-layer.is-digest {
+.scr-fs-layer.is-holodock .scr-fs-lower::before { display: none; }
+.scr-fs-layer.is-holodock {
   --holo-panel:
     repeating-linear-gradient(180deg, rgba(160, 255, 180, 0.04) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(0deg, rgba(130, 255, 160, 0.11) 0 1px, transparent 1px 14px),
     repeating-linear-gradient(90deg, rgba(130, 255, 160, 0.11) 0 1px, transparent 1px 14px),
     rgba(8, 40, 20, 0.8);
 }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-motion-infodock,
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster,
-.scr-fs-layer.is-digest .scr-fs-lower > .scr-tb {
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster,
+.scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb {
   background: var(--holo-panel); border-radius: calc(10px * var(--dk, 1));
   box-shadow: inset 0 0 0 1px var(--holo-edge), var(--holo-hi), 0 0 14px rgba(70, 255, 120, 0.2), inset 0 0 18px rgba(70, 255, 120, 0.1);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
-.scr-fs-layer.is-digest .scr-fs-lower > .scr-tb {
+.scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb {
   margin-left: max(var(--dock-side, 0px), var(--dock-out, 6px)); margin-right: max(var(--dock-side, 0px), var(--dock-out, 6px));
   margin-bottom: var(--dock-out, 6px);
 }
-.scr-fs-layer.is-digest .scr-fs-dockmain > .scr-fs-minipanel { --mm-pad: round(nearest, calc(4px * var(--dk, 1)), 2px); }
-.scr-fs-layer.is-digest .scr-fs-minipanel .scr-fs-minimap {
+.scr-fs-layer.is-holodock .scr-fs-dockmain > .scr-fs-minipanel { --mm-pad: round(nearest, calc(4px * var(--dk, 1)), 2px); }
+.scr-fs-layer.is-holodock .scr-fs-minipanel .scr-fs-minimap {
   height: min(calc(100cqh - 2 * var(--mm-pad)), calc((100cqw - 2 * var(--mm-pad)) / var(--scr-mini-ar, 1)));
+}
+
+/* ★ **독 양옆 빈자리에도 지도**(2026-10-23, 요청: "뒤에 검정 흰색 남는 부분도 화면 그리는 게 낫지 않나") — 지도 상자는 원래 무대보다 크게(cover) 그려지고 무대가 잘라
+   보였다(overflow hidden). 자르기를 **아래로만 독 키(--dock-under = 뿌리 − 무대 · rowsH 셈이 적는다)만큼 늘려**, 틀 폭만 깐 쇠판(메탈)·칸 판(홀로그램) 양옆으로
+   지도가 이어져 보이게 한다. 무대 상자·카메라·맞춤 셈은 그대로(무대 안이 곧 보기 창)다 — 아래 띠는 덤으로 보이는 몫이다. 독이 늦게 칠해 위에 선다. */
+.scr-fs-layer .scr-fs-stage { overflow: visible; clip-path: inset(0 0 calc(-1 * var(--dock-under, 0px)) 0); }
+
+/* ★ **우물 뒤는 쇠판이 없다**(2026-10-23, 요청: "우물 뒤는 메탈판이 없어야 지도가 비쳐 보일 것" · "지도 검정 프레임이 중간에 끊어진다") — 메탈 우물(반투명 검정)이
+   쇠판·받침 위에 앉아 결이 비치고, 받침(위)과 쇠판(아래)의 이음매가 미니맵 둘레에 가로 단으로 보였다. 쇠판 켜는 dockFit 의 read9 가 잰 우물 상자들(--plate-holes)로,
+   받침(::before)은 제 우물 자리(옆·위 틀 여백 + 테 1px 안쪽)로 **판다**(mask exclude) — 우물은 무대(독 아래까지 그려지는 지도) 위에 바로 앉는다. 홀로그램은 판이 없어 안 탄다. */
+.scr-fs-layer:not(.is-holodock) .scr-fs-lower::before {
+  -webkit-mask: var(--plate-holes, none); mask: var(--plate-holes, none);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel::before {
+  --ped-in: calc(var(--dock-out) + 1px);
+  -webkit-mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) 100% no-repeat, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) 100% no-repeat, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
 }

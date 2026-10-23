@@ -9,7 +9,7 @@
  *                                                                               같은 편은 색 모드 · 주인 있으면 주인 클릭·링만) — [자국]·[링]·[링 폭](시간에 따른 폭 흔들림)
  *   node scripts/perf-check.mjs --ios --players 2 --dmg --glblit --split x.png   폰 분할 칸의 두 줄 현황(데미지 칸에 값 — 판 13 데미지 절 합성)
  *   node scripts/perf-check.mjs --wide --press ".scr-kakao-share-btn" --shot x.png   그 요소를 눌러 둔 채(:active) 찍는다(크리스탈 단추 누름 꼴 · 2026-10-23)
- *   node scripts/perf-check.mjs --wide --ask 30 [--light] --shot x.png   (--light = 앱 라이트 테마 깃발 · 판 꼴: 다크 홀로그램 / 라이트 클레이 메탈)   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
+ *   node scripts/perf-check.mjs --wide --ask 30 [--theme metal|holo] [--light] --shot x.png   (--theme = 재생기 테마 못 박기 · 없으면 무작위 · --light = 앱 라이트 테마 깃발 · 재생기 테마와 무관)   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
  *                                                                               요약 알약(n/N)·시계·배속을 찍는다(창 사이 건너뜀 · 마지막 창 끝 멈춤 검산)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
  *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
@@ -878,7 +878,7 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* 해상도 단 못 박기(2026-10) — PC 기본 창(1280×900)은 FHD 단(0.75)이라, --vw/--vh 없는 PC 돌림은 `ui=1`(QHD 단 · 개발 기준)로 못 박는다
    (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
-const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
+const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
@@ -927,7 +927,7 @@ if (flag("--loadshot", null)) {
 }
 // 재생이 실제로 그려질 때까지 — blit이 돌기 시작하면 준비된 것이다.
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
-/* --light(2026-10-23) — 앱의 라이트 테마 깃발(html.scr-light-theme)을 단다 — 보기 모드 판·요약 중 독의 클레이 메탈 꼴 검산. */
+/* --light(2026-10-23) — 앱의 라이트 테마 깃발(html.scr-light-theme)을 단다. 재생기 테마(메탈·홀로그램)는 이제 무작위라 안 엮인다 — 꼴은 --theme 로 못 박는다. */
 if (has("--light")) await page.evaluate(() => document.documentElement.classList.add("scr-light-theme"));
 if (has("--ask")) await page.waitForSelector(".scr-mode-ask", { timeout: 60000 });   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });

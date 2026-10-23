@@ -11588,17 +11588,13 @@ export default function ReplayMotionPlayer({
      차례로 돈다 — 창 끝에 닿으면 다음 창 처음으로 건너뛰고 마지막 창 끝에서 멈춘다. 손으로 창 밖으로 감거나 중계를 끄거나 [풀로 보기]를 누르면 요약을 풀고 그 자리부터 평소대로.
      편성표가 아직이면(자취 받는 중) 고른 뜻만 들고 있다가 서면 간다 · 자취가 없거나 장면이 없으면 풀로 내려간다. */
   const [modeAsk9, setModeAsk9] = useState(() => !pending && !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
-  /* 판 꼴은 **앱 테마를 따른다** — 다크 = 녹색 홀로그램(is-holo · 요약 중엔 뿌리에 is-digest 로 독도 홀로그램 칸들) · 라이트(html.scr-light-theme) = **메탈**(is-metal ·
-     독은 풀 보기와 같은 메탈 독 그대로)(2026-10-23, 요청: "클레이 미사용 · 메탈·홀로그램만 사용" — 옛 라이트 = 클레이 메탈은 CSS 만 보관 .is-clay). 테마가 바뀌면 바로 따른다. */
-  const [light9, setLight9] = useState(() => typeof document !== "undefined" && document.documentElement.classList.contains("scr-light-theme"));
-  useEffect(() => {
-    if (typeof MutationObserver === "undefined") return undefined;
-    const el9 = document.documentElement;
-    const mo9 = new MutationObserver(() => setLight9(el9.classList.contains("scr-light-theme")));
-    mo9.observe(el9, { attributes: true, attributeFilter: ["class"] });
-    return () => mo9.disconnect();
-  }, []);
-  const modeTheme9 = light9 ? "metal" : "holo";
+  /* ★ 재생기 테마는 **열 때 한 번 무작위**(2026-10-23, 요청: "라이트·다크 테마 상관없이 랜덤하게 재생기 테마 적용 · 처음부터 결정된 테마로 보이게") — 메탈(is-metal)
+     또는 홀로그램(is-holo) · 앱 테마와 안 엮인다(옛: 다크 = 홀로그램 · 라이트 = 메탈 — MutationObserver 로 따르던 것 걷음). 첫 그림부터 그 꼴이다: 보기 모드 판·요약 알약·
+     **독**(홀로그램이면 뿌리에 is-holodock — 옛 is-digest 는 요약이 돌 때만 독을 홀로그램 칸으로 바꿔, 판을 고르기 전엔 메탈 독이 먼저 보였다). `#theme=metal|holo` 로 못 박는다(검산). */
+  const [modeTheme9] = useState<"metal" | "holo">(() => {
+    const m9 = typeof location !== "undefined" ? /theme=(metal|holo)/.exec(location.hash) : null;
+    return m9 ? (m9[1] as "metal" | "holo") : Math.random() < 0.5 ? "metal" : "holo";
+  });
   const [digestWant9, setDigestWant9] = useState(false);
   const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
   const digestEndRef9 = useRef(-1);
@@ -12532,6 +12528,8 @@ export default function ReplayMotionPlayer({
          무대의 높이와 무관하므로 무대를 늘려도 이 값이 안 바뀐다. */
       const h9 = Math.max(0, root9.offsetHeight - st9.offsetHeight);
       setRowsH((v9) => (Math.abs(v9 - h9) > 1 ? h9 : v9));
+      /* 무대 아래 독의 키 — 무대가 그만큼 아래로 **더 그려 보인다**(replay.css .scr-fs-stage 의 --dock-under · 2026-10-23 "뒤에 검정 흰색 남는 부분도 화면 그리는 게 낫지 않나"). */
+      root9.style.setProperty("--dock-under", `${Math.round(h9)}px`);
     };
     read9();
     /* 줄의 높이는 폭·글꼴·로스터 여닫이에 따라 바뀐다 — 관찰자로 따라간다. 되먹임은
@@ -20165,6 +20163,17 @@ export default function ReplayMotionPlayer({
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
+      /* 쇠판에 **우물 자리 구멍**(2026-10-23, 요청: "우물 뒤는 메탈판이 없어야 지도가 비쳐 보일 것") — 쇠판 켜(.scr-fs-lower::before · 왼끝 = 틀 옆 − 1px)
+         기준으로 우물 상자마다 검은 판 한 장을 적어 mask(exclude)로 판다(replay.css --plate-holes). 숨은 우물(폭 0)은 뺀다. */
+      const low9 = fr9.closest<HTMLElement>(".scr-fs-lower");
+      if (low9) {
+        const lr9 = low9.getBoundingClientRect();
+        const ox9 = lr9.left + Math.max(0, side9 - 1);
+        const holes9 = Array.from(fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > .scr-fs-minipanel, .scr-fs-dockmain > .scr-motion-infodock, .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster"))
+          .map((el9) => el9.getBoundingClientRect()).filter((r9) => r9.width > 0.5 && r9.height > 0.5)
+          .map((r9) => `linear-gradient(#000 0 0) ${(r9.left - ox9).toFixed(1)}px ${(r9.top - lr9.top).toFixed(1)}px / ${r9.width.toFixed(1)}px ${r9.height.toFixed(1)}px no-repeat`);
+        low9.style.setProperty("--plate-holes", holes9.length ? `${holes9.join(", ")}, linear-gradient(#000 0 0)` : "none");
+      }
       setDockMark9(side9 >= mk9.getBoundingClientRect().width + DOCK_MARK_PAD9);
     };
     read9();
@@ -20172,6 +20181,9 @@ export default function ReplayMotionPlayer({
     const ro9 = new ResizeObserver(read9);
     ro9.observe(row9);
     ro9.observe(fr9);
+    const lowO9 = fr9.closest<HTMLElement>(".scr-fs-lower");
+    if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
+    fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
   }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
@@ -20915,7 +20927,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", digest9 && modeTheme9 === "holo" && "is-digest")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
