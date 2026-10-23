@@ -394,6 +394,10 @@ export declare type MotionBase = Omit<MinimapMarker, "x" | "y"> & {
     y?: number;
 };
 
+/** ★ 빈 지도(128×128 · 팔레트 0 하나) — 자료를 기다리는 재생기(ReplayModule pending · 2026-10-23)가 받는 자리 채움. 그림은 까만 판에 가려 안 보인다.
+ *  타일 16384 바이트(0) = base64 "AAAA" × 5461 + "AA==". */
+export declare const PENDING_GRID9: ReplayMapGrid;
+
 /** ★ 확대 상한 — **바깥도 이 값을 본다**(지적: "z=12인데 8배로 나오는 버그") ──────────
  *  공유 링크를 읽는 쪽(GameResultStory)이 `Math.min(8, …)`으로 죄고 있었다. 8은 옛 사다리
  *  (1·2·4·8·16)의 잔재다 — 사다리를 1·2·3·6·12로 갈 때 재생기 안의 상한만 따라오고 링크를
@@ -583,7 +587,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, onGuide, guide, side, menu, avatars, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, onGuide, guide, side, menu, avatars, askMode, pending, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -595,7 +599,7 @@ export declare interface ReplayModuleProps {
     /** 그 게임 아이디가 어느 편인가 — 팀색이 이 답을 쓴다. */
     teamOfRaw: (raw: string) => 1 | 2 | undefined;
     /** 참값 자취를 가져오는 길 — 앱이 제 API로 채운다(모듈은 주소를 모른다). */
-    loadUnitTracks: () => Promise<{
+    loadUnitTracks?: () => Promise<{
         motion: string | null;
         chats?: {
             sec: number;
@@ -638,6 +642,10 @@ export declare interface ReplayModuleProps {
     /** 로스터에 프사를 그릴까 — 기본은 그린다. 프사 그림 자체는 앱이 꽂는다
      *  (setReplayChrome) — 안 꽂혔으면 켜 두어도 안 그린다. */
     avatars?: boolean;
+    /** 들어올 때 보기 모드(요약 · 풀)를 묻는다 — 게임 상세(ReplayMotionPlayer askMode). */
+    askMode?: boolean;
+    /** 자료(게임·지도)를 기다리는 동안 먼저 세우는 재생기 — 빈 지도(PENDING_GRID9)와 함께(ReplayMotionPlayer pending). */
+    pending?: boolean;
 }
 
 declare type ReplayRaceBadgeComponent = ComponentType<{
