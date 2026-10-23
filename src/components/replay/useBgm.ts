@@ -203,20 +203,28 @@ export function useBgm(playing = true, seedKey?: string): Bgm {
 
   /* (armFirstGesture 다음에 resume이 온다 — resume이 그것을 부른다.) */
   /** 첫 누름을 기다리는 귀 — 자동재생이 막혔을 때만 단다. 한 번 울리면 스스로 걷힌다. */
+  /** 창에 달아 둔 첫 누름 귀들 — 판을 떠날 때 다 걷는다(아래 ★ 이중 재생). */
+  const earsRef = useRef(new Set<() => void>());
+  const listenOnce = useCallback((go: () => void): void => {
+    const h9 = (): void => { earsRef.current.delete(h9); window.removeEventListener("pointerdown", h9, true); window.removeEventListener("keydown", h9, true); go(); };
+    earsRef.current.add(h9);
+    window.addEventListener("pointerdown", h9, true);
+    window.addEventListener("keydown", h9, true);
+  }, []);
   const armFirstGesture = useCallback(() => {
     if (armedRef.current) return;
     armedRef.current = true;
-    const go = (): void => {
-      window.removeEventListener("pointerdown", go, true);
-      window.removeEventListener("keydown", go, true);
+    listenOnce(() => {
       armedRef.current = false;
       // 그새 사람이 꺼 두었으면 아무 일도 안 한다.
       if (!onRef.current) return;
       playOrNext().catch(() => { /* 그래도 막히면 다음 누름을 또 기다린다 */ armFirstGesture(); });
-    };
-    window.addEventListener("pointerdown", go, true);
-    window.addEventListener("keydown", go, true);
-  }, [playOrNext]);
+    });
+  }, [playOrNext, listenOnce]);
+  /* ★★ **판을 떠나면 귀도 걷는다**(2026-10-23, 지적: "음악이 이중으로 나오고") — 자료를 기다리는 재생기(pending · 빈 지도)가 먼저 서서 첫 곡을 틀려다 막히면
+     창에 '첫 누름에 켜기' 귀를 달았는데, 그 재생기가 진짜 재생기로 갈려 **사라진 뒤에도 귀는 남아** 첫 누름에 죽은 재생기의 오디오를 틀었다. 진짜 재생기의
+     귀도 같은 누름에 울려 두 곡이 겹쳤다. 언마운트에 귀를 다 걷는다(armFirstGesture · 아래 처음 켜기 귀 둘 다 listenOnce 를 지난다). */
+  useEffect(() => () => { for (const h9 of earsRef.current) { window.removeEventListener("pointerdown", h9, true); window.removeEventListener("keydown", h9, true); } earsRef.current.clear(); }, []);
 
   /** 소리를 **다시 낸다** — 둘이 다 참일 때만이다: 켜 둔 뜻 · 재생 중.
    *  하나라도 어긋나면 아무 일도 안 한다(부르는 쪽이 조건을 또 따질 일이 없다).
@@ -339,18 +347,14 @@ export function useBgm(playing = true, seedKey?: string): Bgm {
       /* ★ 기본이 켜짐이 된 뒤로는 막힌 채 영영 조용하면 '기본으로 안 켜진다'가 그대로 남는다(외부 링크로 바로 들어온 길 —
          브라우저가 누름 전 소리를 막는다). 그래서 **첫 누름에 켠다** — 얼굴은 실제로 소리가 난 뒤에야 켜진다(위 ★ 그대로:
          켜진 얼굴인데 조용한 일은 없다). 그새 사람이 음악 목록에서 끄기를 골랐으면(KEY "0") 안 켠다. */
-      const go = (): void => {
-        window.removeEventListener("pointerdown", go, true);
-        window.removeEventListener("keydown", go, true);
+      listenOnce(() => {
         if (onRef.current || !wantOn()) return;
         onRef.current = true;
         if (!playingRef.current) { setOn(true); return; }
         playOrNext().then(() => { if (onRef.current) setOn(true); else audio().pause(); }).catch(() => { onRef.current = false; setOn(false); });
-      };
-      window.addEventListener("pointerdown", go, true);
-      window.addEventListener("keydown", go, true);
+      });
     });
-  }, [next, audio, playOrNext, hasTracks]);
+  }, [next, audio, playOrNext, hasTracks, listenOnce]);
 
   const off = useCallback(() => {
     onRef.current = false;

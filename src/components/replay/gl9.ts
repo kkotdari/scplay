@@ -870,7 +870,8 @@ void main() {
   fragColor = o;
   emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? texture(uEm, vUv, -0.4) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
 }`;
-interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; shelves: { y: number; h: number; x: number }[]; yTop: number; keys: string[]; last: number }
+interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null; shelves: { y: number; h: number; x: number }[]; yTop: number; keys: string[]; last: number;
+  /** 밉맵이 묵었나(새 칸이 들었는데 아직 안 지었다) — 그동안은 0단만 본다(TEXTURE_MAX_LEVEL 0 · 아래 sprMipSettle9 ★). */ stale: boolean }
 /** 칸 — 판 자리(위가 0 인 px) · 크기 · 앵커에서 칸 왼위까지(x0·y0 · 기기 px · 음수) · 찍은 배율(kd = CSS 배율 × DPR). */
 interface SprCell9 { page: SprPage9; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }
 interface SprJob9 { key: string; mesh: GlMesh9; yaw: number; cam: GlCam9; kd: number; kc: number; color: string; gR: number; gCy: number; sh: boolean; x0: number; y0: number; w: number; h: number; cell: SprCell9 | null }
@@ -1060,6 +1061,9 @@ export class GlUnits9 implements VecSink9 {
   sprPageMax = 8;
   /** 한 장에 새로 찍는 칸 수 상한 — 넘는 몫은 다음 장(그 사이는 메시 길). */
   sprBudget = 96;
+  /** 미리 찍기(다른 요잉) 한 프레임 상한 — 폰 6 · PC 24(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉" — 옛 예산 절반(24)이 폰에서
+   *  프레임마다 MSAA 굽기 24장 + 밉맵 재생성을 불렀다). */
+  sprWarmMax = 24;
   /** 몸마다의 찍는 단(lvOf) — 메시·카메라·그림자 열쇠. */
   private sprLv = new Map<string, number>();
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number;
@@ -1098,6 +1102,7 @@ export class GlUnits9 implements VecSink9 {
     gl.bindFramebuffer(gl.FRAMEBUFFER, pg.fb); gl.clear(gl.COLOR_BUFFER_BIT);
     if (pg.emFb) { gl.bindFramebuffer(gl.FRAMEBUFFER, pg.emFb); gl.clear(gl.COLOR_BUFFER_BIT); }
     pg.shelves = []; pg.yTop = 0; pg.keys = [];
+    if (!pg.stale) { pg.stale = true; this.sprMipLevel9(pg, 0); }   // 비운 판의 밉 단에는 옛 그림이 남아 있다 — 다시 지을 때까지 0단만(sprMipSettle9)
   }
   /** 칸 하나를 판에 잡는다(선반 쌓기) — 판이 다 차면 새 판, 상한이면 이 장에 안 쓴 가장 오래된 판을 통째로 비운다. */
   private sprAlloc9(w: number, h: number): { page: SprPage9; px: number; py: number } | null {
@@ -1114,7 +1119,7 @@ export class GlUnits9 implements VecSink9 {
       const [tex, fb] = this.sprTex9(P, P, true);
       let emTex: WebGLTexture | null = null; let emFb: WebGLFramebuffer | null = null;
       if (this.sprEm) [emTex, emFb] = this.sprTex9(P, P, true);
-      const pg: SprPage9 = { tex, fb, emTex, emFb, shelves: [], yTop: 0, keys: [], last: this.frameNo };
+      const pg: SprPage9 = { tex, fb, emTex, emFb, shelves: [], yTop: 0, keys: [], last: this.frameNo, stale: false };
       this.sprPageClear9(pg);
       this.sprPages.push(pg);
       const r = tryPage(pg); return r ? { page: pg, ...r } : null;
@@ -1322,11 +1327,29 @@ export class GlUnits9 implements VecSink9 {
       }
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    /* 새 칸이 든 판은 밉맵을 다시 짓는다 — 작게 볼 때 같은 그림을 줄여 붙이는 자(위 SPR_CAP ★). */
-    for (const pg of touched) {
-      gl.bindTexture(gl.TEXTURE_2D, pg.tex); gl.generateMipmap(gl.TEXTURE_2D);
-      if (pg.emTex) { gl.bindTexture(gl.TEXTURE_2D, pg.emTex); gl.generateMipmap(gl.TEXTURE_2D); }
-    }
+    /* ★ 새 칸이 든 판의 밉맵은 **바로 안 짓는다**(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉") — 2048² 판(+빛 판)의 generateMipmap 을
+       굽는 프레임마다 돌리면 폰 GPU 가 그 값에 묶인다(끌어 들어온 새 몸이 몇 프레임 연달아 굽힌다). 묵은 판은 0단만 보게 하고(TEXTURE_MAX_LEVEL 0 — 작게 본 몸이 잠깐
+       거칠다) 굽기가 잠잠한 프레임에 한 판씩 짓는다(sprMipSettle9). */
+    for (const pg of touched) if (!pg.stale) { pg.stale = true; this.sprMipLevel9(pg, 0); }
+    this.sprBakedAt = this.frameNo;
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+  private sprBakedAt = -1;
+  private sprMipLevel9(pg: SprPage9, lv: number): void {
+    const gl = this.gl as WebGL2RenderingContext;
+    gl.bindTexture(gl.TEXTURE_2D, pg.tex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, lv);
+    if (pg.emTex) { gl.bindTexture(gl.TEXTURE_2D, pg.emTex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, lv); }
+  }
+  /** 묵은 판의 밉맵을 짓는다 — 이 프레임에 굽기가 없었을 때 **한 판**만(위 sprBake9 ★). 손짓 중(SPR_HOLD9)엔 안 짓는다. */
+  private sprMipSettle9(): void {
+    if (SPR_HOLD9 || this.sprBakedAt === this.frameNo) return;
+    const pg = this.sprPages.find((p) => p.stale);
+    if (!pg) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, pg.tex); gl.generateMipmap(gl.TEXTURE_2D);
+    if (pg.emTex) { gl.bindTexture(gl.TEXTURE_2D, pg.emTex); gl.generateMipmap(gl.TEXTURE_2D); }
+    this.sprMipLevel9(pg, SPR_MIP9);
+    pg.stale = false;
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
   /** 스프라이트 판 쓰기 계획 — 개체마다 몸 칸 · 그림자 칸(땅에 눕는 그림자만)을 찾고, 없으면 일감으로 굽는다(예산 안).
@@ -1395,7 +1418,7 @@ export class GlUnits9 implements VecSink9 {
     /* 미리 찍기 — 남는 예산의 절반으로, 돌고 있는(요잉 둘 이상을 본) 몸의 다른 요잉 칸을 가까운 칸부터 찍는다. 손짓 중에는 안 한다. */
     /* 판이 상한까지 찼으면 미리 찍기는 쉰다 — 더 찍으면 LRU 가 지금 쓰는 칸이 든 판을 비워 다시 찍게 만든다(줌 훑기에서 칸 1600 · 판 8 출렁임 실측). */
     if (!SPR_HOLD9 && budget > 0 && this.sprPages.length < this.sprPageMax) {
-      let wb = Math.floor(budget / 2);
+      let wb = Math.min(this.sprWarmMax, Math.floor(budget / 2));
       for (const w9 of this.sprWarm.values()) {
         if (wb <= 0) break;
         if (w9.ys.size < 2 || w9.step > SPR_YAW9) continue;
@@ -1413,6 +1436,7 @@ export class GlUnits9 implements VecSink9 {
       }
     }
     this.sprBake9(jobs, dprK);
+    this.sprMipSettle9();
     for (const [i, j] of waitB) if (j.cell) B[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
     for (const [i, j] of waitS) if (j.cell) S[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
     st.pages = this.sprPages.length; st.cells = this.sprMap.size;
@@ -2563,7 +2587,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
-    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 48 : 96; }   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 48 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; }   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;

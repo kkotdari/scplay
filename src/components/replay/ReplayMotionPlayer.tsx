@@ -13221,7 +13221,7 @@ export default function ReplayMotionPlayer({
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
      있는 동안은 음악도 함께 잠든다. */
-  const bgm = useBgm(playing, clockKey);
+  const bgm = useBgm(playing && !pending, clockKey);   // 자료를 기다리는 재생기(pending)는 음악을 안 튼다 — 진짜 재생기가 처음부터 튼다(useBgm ★★ 이중 재생)
   /* ★ 효과음(2026-10-22 · sfx9 · sfx9Cues) — 켜 둔 뜻은 브라우저에 남는다(기본 켜짐). 붓이 장마다 SfxCues9 로 새로 일어난 일에 소리를 붙인다(아래 paintFnRef9).
      iOS 는 누름 안에서 <audio> 묶음을 한 번 깨워야 그 뒤로 난다 — 첫 누름에 깨우고 소리를 미리 굽는다. 멈추면 나던 소리도 끊는다. */
   const sfxOnNow9 = useSyncExternalStore(subscribeSfx9, sfxOn9, sfxOn9);
