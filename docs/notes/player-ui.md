@@ -2251,3 +2251,11 @@ AUTO 글자 합성) · 현재 화면에 보여주는 화면 주인(들)은 기�
   ReplayMapVector 는 창(zBake 칸·pad)이 바뀌면 전부 다시 — 끌어 창을 벗어나면 같은 배율이라도 처음부터다. 밑판(1024 변 전체)은 한 번뿐.
 - 길: ① 지도별 기하 캐시(길·중앙값 — 열쇠 grid.hash·pitched·wallScale) → 굽기 = 채우기만 ② 타일 묶음(청크) 판을 옥타브별로 GL 아틀라스에
   두고 끌기·같은 옥타브 줌에서 되쓰기(웹 지도 피라미드 · 프레임마다 한 청크씩) ③ GL 삼각화 벡터 지형(래스터 0). ①→② 차례가 안전.
+
+## 지형 1단계 — 기하 캐시(utils/terrainGeom)(2026-10-23)
+요청: "1 → 3으로 가자, 3 시작해". 등고선(마칭 스퀘어·Chaikin×3)·갈래 중앙값 색·램프 파내기 고리·타일별 결 색을 **지도마다 한 번**(열쇠 grid.hash)
+뽑아 두고(`terrainGeom9`), `drawMapGrid` 는 그 고리를 Path2D(타일 자 · 지도마다 한 벌 `pathsOf9`)로 **채우기만** 한다(ctx.scale(P) · 선 굵기는 타일 자 max(1/P, 0.22·0.09)).
+`contour.maskPath` 는 `maskLoops`+`loopsPath` 로 갈랐다. `MapTerrainLike` 는 terrainGeom 으로 옮기고 mapTiles 가 다시 내보낸다.
+- 실측(합성 96×80 · 헤드리스 · 캐시 적중): 23.7px/타일 판 25.2 → 4.9ms · 8px 판 38.6 → 21.7ms(첫 장 기하 포함).
+  픽셀 차: 최대 1~3(AA 반올림) · 다른 화소 1~2.6% — 그림은 같다. 🔎 비교 수단은 scratchpad 의 terr_snap.mjs(합성 지도 → PNG).
+- 옛 지도(실색 층 없음)의 갈래 색은 hsl 문자열 그대로 썼는데 이제 parseCol9 로 rgb 로 바꿔 채운다(±1).

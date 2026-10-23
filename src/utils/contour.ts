@@ -169,12 +169,23 @@ function squareCorners(loop: Loop, w: number, h: number): Loop {
 export function maskPath(
   test: (i: number) => boolean, w: number, h: number, scale: number, smooth = 3,
 ): Path2D {
+  return loopsPath(maskLoops(test, w, h, smooth), scale);
+}
+
+/** 0/1 판정 → 깎은 **고리들**(타일 단위 · Path2D 전 단계). 지형 기하 캐시(terrainGeom)가 이것을 지도마다 한 번만 뽑아 두고,
+ *  캔버스(loopsPath)와 GL(스텐실 부채꼴)이 같은 고리를 쓴다(2026-10-23 · 지형 판 재사용). */
+export function maskLoops(test: (i: number) => boolean, w: number, h: number, smooth = 3): Loop[] {
   const f = new Float32Array(w * h);
   for (let i = 0; i < f.length; i += 1) f[i] = test(i) ? 1 : 0;
   /* ★ 지도 테두리는 각지게 남긴다(2026-09, 지적: "맵 모서리가 둥근데") — 테두리 밖을 0 으로 둘러 고리를 닫으니 지도의 네 귀가
      마칭 스퀘어에 대각선으로 잘리고 Chaikin 에 둥글려졌다. 귀를 되살리고 테두리 위 꼭짓점은 깎지 않는다. */
   let loops = contoursOf(f, w, h).map((lp) => squareCorners(lp, w, h));
   for (let q = 0; q < smooth; q += 1) loops = loops.map((lp) => chaikin(lp, w, h));
+  return loops.filter((lp) => lp.length >= 6);
+}
+
+/** 고리들 → Path2D(좌표 × scale). */
+export function loopsPath(loops: Loop[], scale: number): Path2D {
   const p = new Path2D();
   for (const lp of loops) {
     const m = lp.length / 2;

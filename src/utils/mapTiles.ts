@@ -5,7 +5,9 @@
  * **장식 제거·최빈값 다듬기는 안 베꼈더니**, 내려받은 그림에만 나무·바위가 밝은 점으로
  * 흩뿌려져 딴 맵처럼 보였다. 둘이 같은 그림이어야 하므로 근거를 한 곳에 둔다.
  */
-import { maskPath } from "./contour";
+import { loopsPath } from "./contour";
+import { terrainGeom9, type TerrainGeom9, type MapTerrainLike } from "./terrainGeom";
+export type { MapTerrainLike } from "./terrainGeom";
 
 /** 타일셋 여덟의 [땅 색상(H), 땅 채도(S), 물·우주 색, **땅 밝기(0단)**, **절벽 밝기 몫**].
  *  차례는 OpenBW 그대로다.
@@ -208,7 +210,9 @@ export function terrainFill(
 export function drawMapGrid(
   ctx: CanvasRenderingContext2D,
   grid: { width: number; height: number; palette: number[]; tiles: string;
-    resources?: [number, number, 0 | 1][] | null },
+    resources?: [number, number, 0 | 1][] | null;
+    /** 격자 내용의 해시 — 지형 기하 캐시(terrainGeom)의 열쇠. 없으면 크기·타일셋만으로 가른다(같은 세션 안의 한 지도면 족하다). */
+    hash?: string },
   mt: MapTerrainLike | null,
   pxPerTile: number,
   /** 자원 점을 찍나 — 재생 화면의 지도 벡터층만 끈다(요청: "지도벡터 상에 자원 표시는
@@ -230,236 +234,50 @@ export function drawMapGrid(
 
   if (mt && mt.w === w && mt.h === h) {
     /* ══ 지형은 **곡선 벡터**로 칠한다(요청: "맵타일도 연결부를 곡선벡터로 처리") ══
-       여태는 칸마다 축에 나란한 사각형을 칠했다. 그래서 물가·절벽선·고도 경계가 전부
-       타일 계단이었고, 확대하면 그 계단이 그대로 커졌다.
-       이제 갈래마다 **등고선을 뽑아**(마칭 스퀘어) Chaikin으로 깎은 곡선 길을 채운다
-       (utils/contour). 지형은 경기 중에 안 변하므로 이 셈은 **굽을 때 한 번**이고,
-       그 뒤로는 어느 배율에서도 도형이라 계단이 없다.
-       ★ 갈래를 **겹쳐 쌓는다** — 낱낱을 따로 칠하면 곡선끼리 조금씩 어긋나 틈이 벌어진다.
-         물 위에 땅 전체, 그 위에 고도 1 이상, 그 위에 2 이상… 순으로 덮으면 경계가
-         언제나 맞물린다(포개는 쪽이 이긴다). */
+       칸마다 축에 나란한 사각형을 칠하면 물가·절벽선·고도 경계가 전부 타일 계단이고, 확대하면 그 계단이 그대로 커진다.
+       갈래마다 **등고선을 뽑아**(마칭 스퀘어) Chaikin으로 깎은 곡선 길을 채운다(utils/contour). 지형은 경기 중에 안 변하므로
+       그 기하는 **지도마다 한 번**이다(utils/terrainGeom · 2026-10-23: 여태는 굽을 때마다 전부 다시 뽑았다 — 굽기 한 번에 90ms).
+       여기서는 그 고리를 Path2D 로 채우기만 한다.
+       ★ 갈래를 **겹쳐 쌓는다** — 낱낱을 따로 칠하면 곡선끼리 조금씩 어긋나 틈이 벌어진다. 물 위에 땅 전체, 그 위에 고도 1 이상,
+         그 위에 2 이상… 순으로 덮으면 경계가 언제나 맞물린다(포개는 쪽이 이긴다).
+       ★ 좌표는 **타일 자**로 그리고 변환에 P 를 싣는다 — 고리가 타일 단위라 Path2D 를 배율마다 다시 안 짓는다(지도마다 한 벌 · 아래 pathsOf9). */
+    const G = terrainGeom9(grid.hash ?? `${w}x${h}`, mt, terrainFill);
+    const PT = pathsOf9(G);
+    const { lvl, walk } = G;
     const n9 = w * h;
-    const lvl = new Uint8Array(n9);
-    const walk = new Uint8Array(n9);
-    const ramp = new Uint8Array(n9);
-    for (let y = 0; y < h; y += 1) {
-      for (let x = 0; x < w; x += 1) {
-        const i = y * w + x;
-        lvl[i] = mt.levelAt(x, y);
-        walk[i] = mt.walkAt(x, y) ? 1 : 0;
-        /* 램프인가 — **원작 자료가 아는 답**이 있으면 그것이다(vf4의 미니타일 고도가
-           한 칸 안에서 갈리나 — mapTerrain의 TILE.ramp 주석). 옛 판으로 구운 지도만
-           아래 어림으로 물러난다: 그 깃발은 램프와 절벽 가장자리를 못 가르므로,
-           **고도가 실제로 갈리는 자리**인가를 두 칸까지 보고 덧붙인다. */
-        ramp[i] = mt.rampAt ? (mt.rampAt(x, y) ? 1 : 0) : ((): number => {
-          if (!mt.partialAt(x, y) || !mt.walkAt(x, y)) return 0;
-          const lv = mt.levelAt(x, y);
-          for (let d = 1; d <= 2; d += 1) {
-            if (mt.levelAt(x - d, y) !== lv || mt.levelAt(x + d, y) !== lv
-              || mt.levelAt(x, y - d) !== lv || mt.levelAt(x, y + d) !== lv) return 1;
-          }
-          return 0;
-        })();
-      }
-    }
-    /* ★ 램프 깃발은 **두 고도를 잇는 무리**만 믿는다(지적: "빠른무한에서 언덕(벽) 위 경계가 저렇게 다 날아가") ──
-       깃발(한 칸 안에서 걷는 미니타일의 고도가 갈리는 칸)은 벽·절벽 가장자리의 걷는 칸에도 켜질 수 있다 — 벽 발치의
-       칸은 위 단과 아래 단의 미니타일을 함께 든다. 그런 칸을 램프로 치면 그 둘레의 절벽선(띠·윤곽)을 다 지우고,
-       빠른무한처럼 벽이 긴 맵에서는 언덕 위 경계가 통째로 사라졌다. 램프는 정의상 **두 단을 잇는다**: 깃발 칸을
-       8이웃으로 묶고, 그 무리에 맞닿은 걷는 비램프 칸의 고도가 둘 이상일 때만 램프로 남긴다. 한 단(또는 절벽면)에만
-       붙은 무리는 램프가 아니라 가장자리다 — 깃발을 걷는다. */
-    {
-      const raw0 = ramp.slice();   // 원래 깃발(아래 되살리기용)
-      const raw = ramp.slice();
-      ramp.fill(0);
-      /* ★ 램프 칸은 **거의 다 걷는 칸**이다(재지적: 빠른무한에서 언덕 경계선이 일부만 남는다 — 벽 발치 깃발 칸이
-         띄엄띄엄 이어져 무리가 위·아래 단에 다 닿아 위 규칙을 통과했다). 진짜 램프는 미니타일 16개가 거의 다 걷는
-         칸이고, 절벽 가장자리 칸은 절반쯤이 절벽면(못 걷는 미니타일)이다. 걷는 미니타일이 12개 미만이면 깃발을 걷는다. */
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          const i = y * w + x;
-          if (raw[i] !== 1) continue;
-          let nw = 0;
-          for (let my = 0; my < 4; my += 1) for (let mx = 0; mx < 4; mx += 1) if (mt.walkAtMini(x * 4 + mx, y * 4 + my)) nw += 1;
-          if (nw < 12) raw[i] = 0;
-        }
-      }
-      const seen = new Uint8Array(n9);
-      const stack: number[] = [];
-      for (let s0 = 0; s0 < n9; s0 += 1) {
-        if (raw[s0] !== 1 || seen[s0] === 1) continue;
-        const comp: number[] = [];
-        const levels = new Set<number>();
-        seen[s0] = 1;
-        stack.push(s0);
-        while (stack.length > 0) {
-          const i = stack.pop() as number;
-          comp.push(i);
-          const x = i % w;
-          const y = (i - x) / w;
-          for (let dy = -1; dy <= 1; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              if (dx === 0 && dy === 0) continue;
-              const xx = x + dx;
-              const yy = y + dy;
-              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-              const j = yy * w + xx;
-              if (raw[j] === 1) { if (seen[j] === 0) { seen[j] = 1; stack.push(j); } continue; }
-              if (walk[j] === 1) levels.add(lvl[j]);
-            }
-          }
-        }
-        if (levels.size >= 2) for (const i of comp) ramp[i] = 1;
-      }
-      /* ★ 진짜 램프에 **붙은 깃발 칸은 되살린다**(재지적: "램프 일부분에 경계선이 생김, 특히 위쪽") — 램프의 맨 윗줄과
-         양옆 칸은 미니타일 일부가 절벽면이라 위 12개 문턱에 걸려 빠졌고, 그 자리(램프 머리)에 선이 도로 그어졌다.
-         걸러진 것은 벽 발치의 외딴 깃발이면 족하다: 살아남은 램프 무리에 8이웃으로 닿는 원래 깃발 칸은 램프로 되돌린다
-         (한 겹만 — 벽 발치 깃발 띠가 램프 곁에서 이어지면 한 칸까지만 딸려 온다). */
-      const grown = ramp.slice();
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          const i = y * w + x;
-          if (raw0[i] !== 1 || ramp[i] === 1) continue;
-          let near = false;
-          for (let dy = -1; dy <= 1 && !near; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              const xx = x + dx;
-              const yy = y + dy;
-              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-              if (ramp[yy * w + xx] === 1) { near = true; break; }
-            }
-          }
-          if (near) grown[i] = 1;
-        }
-      }
-      ramp.set(grown);
-    }
     const P = pxPerTile;
-    /** 그 판정의 곡선 길 — 좌표가 타일 단위라 픽셀 배수만 곱하면 된다. */
-    const pathOf = (test: (i: number) => boolean): Path2D => maskPath(test, w, h, P);
-    /** 물이 아닌 땅(걸을 수 있거나 절벽면) — 이 그림의 바탕 윤곽이다. */
-    const isLand = (i: number): boolean => walk[i] === 1 || lvl[i] > 0;
-    /* ★ **색은 원작 그림이 정한다**(요청: "투혼 미니맵 이미지 줄게 픽셀 대조해서 색깔
-       맞춰봐 타일" · "내가 준 이미지의 초록색류가 풀이야") ────────────────────────
-       여태 색은 타일셋마다 손으로 맞춘 표(TILESET_TONE)였다. 그 표로는 흙과 풀을 못
-       가른다 — 둘은 통행도 고도도 같아서, 우리가 가진 깃발에는 차이가 없다. 그건
-       '지형이 무엇인가'가 아니라 '어느 그림을 깔았나'의 문제라 답이 그림에만 있다.
-       이제 굽는 쪽이 타일마다 **원작 타일셋 그림의 평균색**을 실어 준다(판 3).
-       쓰는 법은 이렇다:
-         · 갈래(물·땅·절벽·램프)의 **윤곽**은 그대로 지형 깃발이 정한다 — 곡선 경계와
-           3D 벽띠는 그 구조가 있어야 선다.
-         · 그 안을 채우는 **색**은 그 갈래에 든 타일들의 실제 색 **중앙값**이다.
-         · 그 위에 타일마다 제 색을 옅게 한 겹 덧칠한다 — 흙 위의 풀 얼룩, 진흙,
-           바위처럼 갈래 안에서 갈리는 결이 그 한 겹으로 살아난다.
-       판 3이 아닌 옛 지도는 종전 색표로 그대로 물러난다. */
-    const realRGB = mt.rgbAt;
-    /* ★ 타일에서 뽑은 색은 **채도를 조금 빼고 살짝 파스텔로**(요청: "너무 쨍한 거 같아 … 약간 파스텔화") —
-       밝기(luma)와 25% 섞어 채도를 내리고, 흰색 쪽으로 8% 올린다. 갈래 중앙값과 칸별 덧칠 둘 다 이 문을 지난다. */
-    /* 0.25/0.08 → 0.15/0.03(지적: "타일이 너무 밝다 — 어둡고 진하게") — 파스텔화가 흰 쪽으로 밀던 몫을 줄인다.
-       어둡기 자체는 mapTerrain의 SHOW_GAMMA가 맡는다(둘이 한 결이다). */
-    /* 0.15/0.03 → 0.10/0(요청: "전체적으로 빛을 줄여 원작의 진하고 살짝 어두운 색감") —
-       흰 쪽으로 미는 몫을 아예 걷고 채도 빼는 몫도 줄인다. 파스텔은 원작 타일의 결이 아니다. */
-    const SOFT_K = 0.10;
-    const PASTEL_K = 0;
-    const soften = (c: readonly number[]): [number, number, number] => {
-      const lum = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
-      const f = (v: number): number => Math.round(Math.min(255, (v + (lum - v) * SOFT_K) * (1 - PASTEL_K) + 255 * PASTEL_K));
-      return [f(c[0]), f(c[1]), f(c[2])];
-    };
-    /** 그 갈래에 든 타일들의 실제 색 중앙값 — 평균이 아니라 중앙값인 까닭은, 갈래
-     *  안에 섞인 얼룩(풀·바위)이 평균을 끌어당겨 어느 쪽도 아닌 색이 되기 때문이다. */
-    const midColor = (test: (i: number) => boolean, fallback: string): string => {
-      if (!realRGB) return fallback;
-      const rs: number[] = [];
-      const gs: number[] = [];
-      const bs: number[] = [];
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          if (!test(y * w + x)) continue;
-          const c = realRGB(x, y);
-          if (!c) continue;
-          rs.push(c[0]); gs.push(c[1]); bs.push(c[2]);
-        }
-      }
-      if (rs.length === 0) return fallback;
-      const mid = (a: number[]): number => {
-        a.sort((p9, q9) => p9 - q9);
-        return a[a.length >> 1];
-      };
-      const sc = soften([mid(rs), mid(gs), mid(bs)]);
-      return `rgb(${sc[0]},${sc[1]},${sc[2]})`;
-    };
+    ctx.save();
+    ctx.scale(P, P);
+    /** 화면 px 를 타일 자로(선 굵기 · 최소 1px). */
+    const px9 = (v: number): number => v / P;
 
     // ① 바탕 — 물·우주로 통째로 깐다. 땅이 그 위를 덮는다.
-    ctx.fillStyle = midColor((i) => !isLand(i), terrainFill(mt.tileset, 0, false, false));
-    ctx.fillRect(0, 0, w * P, h * P);
+    ctx.fillStyle = G.water.col;
+    ctx.fillRect(0, 0, w, h);
 
     // ② 땅 전체(고도 0 색) + **물가 안쪽 그늘**.
-    const landPath = pathOf(isLand);
-    /* 물가 그늘 — 땅 윤곽을 굵게 긋고 그 위에 땅을 다시 채운다. 그러면 선의 바깥
-       절반만 물 쪽에 남아, 가장자리가 물속으로 가라앉은 것처럼 읽힌다(칸마다 사각형을
-       그리던 옛 lip과 같은 뜻이고, 이쪽은 곡선을 따라간다). */
-    const lip = Math.max(1, P * 0.22);
+    const landPath = PT.land;
+    /* 물가 그늘 — 땅 윤곽을 굵게 긋고 그 위에 땅을 다시 채운다. 그러면 선의 바깥 절반만 물 쪽에 남아, 가장자리가 물속으로
+       가라앉은 것처럼 읽힌다(칸마다 사각형을 그리던 옛 lip과 같은 뜻이고, 이쪽은 곡선을 따라간다). */
+    const lip = Math.max(px9(1), 0.22);
     ctx.strokeStyle = "rgba(0,0,0,0.30)";
     ctx.lineWidth = lip * 2;
     ctx.lineJoin = "round";
     ctx.stroke(landPath);
-    ctx.fillStyle = midColor((i) => walk[i] === 1 && lvl[i] === 0,
-      terrainFill(mt.tileset, 0, true, false));
+    ctx.fillStyle = G.land.col;
     ctx.fill(landPath, "evenodd");
 
     /* ③ 고도를 한 단씩 덮는다 — 덮기 **직전**에 그 단의 **3D 벽띠**를 깐다.
-       띠는 '그 단 전체를 아래로 민 그림'이다: 아래로 민 것을 어둡게 칠하고 그 위에
-       제 단을 제 색으로 덮으면, 남는 것은 아랫변에서 아래로 뻗은 띠뿐이다 — 곧 우리
-       쪽을 보는 절벽면이고, 곡선 윤곽을 그대로 따라간다. */
-    const wallUnit = P * 0.55 * wallScale;
+       띠는 '그 단 전체를 아래로 민 그림'이다: 아래로 민 것을 어둡게 칠하고 그 위에 제 단을 제 색으로 덮으면, 남는 것은
+       아랫변에서 아래로 뻗은 띠뿐이다 — 곧 우리 쪽을 보는 절벽면이고, 곡선 윤곽을 그대로 따라간다. */
+    const wallUnit = 0.55 * wallScale;
     /* ★ 램프는 **턱 없이 잇는다**(지적: "램프가 잘 표현이 안 되는 거 같아 — 언덕 위와 아래가 테두리나 층 없이 연결된
-       모양으로") — 단 경계(pL)가 램프 칸을 가로지르므로 절벽 띠와 흰 윤곽선이 램프 위에 그어져 계단이 됐다. 띠와
-       윤곽선을 그릴 때 램프 칸을 클립으로 빼면 그 자리는 위 단 색과 램프 색이 그대로 맞닿아 비탈로 읽힌다. */
-    let hasRamp = false;
-    for (let i = 0; i < n9; i += 1) if (ramp[i] === 1) { hasRamp = true; break; }
-    /* ★ 램프 **머리도** 빼야 한다(지적: "램프 윗부분에 경계가 그려져 있어서 절벽 위쪽으로 읽혀 — 램프는 사방의
-       테두리가 없어야") — 원작 깃발(rampAt)은 미니타일 고도가 **갈리는** 칸만 램프라 하므로, 램프가 위 단에 닿는
-       마지막 줄(온전히 높은 칸)은 램프가 아니고, 단 경계와 흰 윤곽선이 바로 그 줄과 램프 사이에 그어졌다. 램프
-       칸에 **걸어 다닐 수 있는** 이웃 한 칸을 더해 클립한다 — 못 걷는 이웃(램프 옆 절벽면)은 그대로 두어 옆
-       절벽선은 남는다. 8이웃이라 비스듬한 램프의 귀퉁이도 덮인다. */
-    /* ★ 이웃 칸을 **통째로** 클립하지 않는다(지적: "진짜 언덕인데도 위쪽 모서리 표현이 사라지는 경우 있어 — 지난번
-       램프 수정의 부작용") — 8이웃 걷는 칸을 다 클립하니, 램프 머리 옆 귀퉁이의 **진짜 절벽 윗선**까지 그 칸에
-       속한 몫이 통째로 지워졌다. 지워야 할 것은 램프와 그 이웃이 **맞닿은 변**의 선뿐이다. 절벽선은 그 변 위에
-       ±0.22칸(lip)으로 그어지니, 램프 칸을 걷는 이웃 쪽으로 **반 칸**만 부풀린 자리를 클립하면 맞닿은 변의 선은
-       지워지고 이웃 칸의 바깥 변(0.78칸 너머)의 선은 남는다. 못 걷는 이웃(램프 옆 절벽면) 쪽으로는 안 부풀린다.
-       반 칸 격자(2w×2h, P/2)로 마스크를 만든다: 반 칸의 제 칸이 램프면 클립, 제 칸이 걷는 칸이고 그 반 칸이 향한
-       쪽(x·y·대각)의 이웃 칸이 램프면 클립. */
-    /* 반 칸 → **사분 칸**(재지적: "언덕 위쪽 경계선 안 그려지는 거 아직도 그래") — 반 칸 부풀림은 비스듬한 램프 곁의
-       걷는 칸에서 절벽 윗선의 반을 먹었다. 절벽선은 변 위 ±0.22칸이므로 0.25칸이면 맞닿은 변의 선은 다 지워지고
-       이웃 칸의 나머지 4분의 3은 그대로다. 사분 칸 격자(4w×4h, P/4): 제 칸이 램프면 클립, 제 칸이 걷는 칸이고
-       그 사분 칸이 칸의 **바깥 띠**(x 또는 y의 첫·끝 사분)이며 그쪽 이웃 칸이 램프면 클립(모서리 사분은 대각 이웃도). */
-    const w4 = w * 4;
-    const h4 = h * 4;
-    const rampQ = new Uint8Array(w4 * h4);
-    if (hasRamp) {
-      const rampAt = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < w && y < h && ramp[y * w + x] === 1;
-      for (let qy = 0; qy < h4; qy += 1) {
-        for (let qx = 0; qx < w4; qx += 1) {
-          const tx = qx >> 2;
-          const ty = qy >> 2;
-          if (ramp[ty * w + tx] === 1) { rampQ[qy * w4 + qx] = 1; continue; }
-          if (walk[ty * w + tx] !== 1) continue;
-          const sx = (qx & 3) === 0 ? -1 : (qx & 3) === 3 ? 1 : 0;
-          const sy = (qy & 3) === 0 ? -1 : (qy & 3) === 3 ? 1 : 0;
-          if ((sx !== 0 && rampAt(tx + sx, ty)) || (sy !== 0 && rampAt(tx, ty + sy))
-            || (sx !== 0 && sy !== 0 && rampAt(tx + sx, ty + sy))) rampQ[qy * w4 + qx] = 1;
-        }
-      }
-    }
-    const noRampPath = hasRamp ? maskPath((i) => rampQ[i] !== 1, w4, h4, P / 4, 2) : null;
-    /* ★ 램프 곁의 띠·윤곽선은 **덧판에 그려 램프 둘레를 지우고** 얹는다(요청: "램프
-       일부에 경계선 그려진 것"). 클립 마스크(칸 4분의 1 띠)로 가리던 방식은 비스듬한
-       램프에서 샜다 — 단의 길은 계단 모양 칸 경계를 곡선으로 편 것이라 램프 칸 모서리에서
-       반 칸까지 벗어나는데, 4분의 1 띠는 거기 못 미친다. 램프 길을 **같은 곡선**으로 뽑아
-       그 안과 둘레(반 칸 굵기 선)를 destination-out으로 파내면 어느 각도든 같이 휜다.
-       덧판을 못 만들면(문서 없음) 예전 클립으로 물러난다. */
-    const rampPath = hasRamp ? pathOf((i) => ramp[i] === 1) : null;
+       모양으로") — 단 경계(pL)가 램프 칸을 가로지르므로 절벽 띠와 흰 윤곽선이 램프 위에 그어져 계단이 됐다. 띠·윤곽선은
+       **덧판에 그려 램프 둘레를 지우고** 얹는다(지적: "램프 일부에 경계선 그려진 것" — 램프 길을 같은 곡선으로 뽑아 그 안과
+       둘레(반 칸 굵기 선)를 destination-out으로 파내면 어느 각도든 같이 휜다). 덧판을 못 만들면(문서 없음) 사분 칸 클립으로
+       물러난다(terrainGeom 의 noRampLoops 주석). */
+    const rampPath = PT.ramp;
+    const noRampPath = PT.noRamp;
     const lay = rampPath && typeof document !== "undefined" ? document.createElement("canvas") : null;
     if (lay) { lay.width = ctx.canvas.width; lay.height = ctx.canvas.height; }
     const lctx = lay ? lay.getContext("2d") : null;
@@ -476,7 +294,7 @@ export function drawMapGrid(
       lctx.fillStyle = "#000";
       lctx.fill(rampPath, "evenodd");
       lctx.strokeStyle = "#000";
-      lctx.lineWidth = P * 0.7;   // 곡선이 계단 모서리에서 벗어나는 반 칸을 덮는다
+      lctx.lineWidth = 0.7;   // 곡선이 계단 모서리에서 벗어나는 반 칸을 덮는다
       lctx.lineJoin = "round";
       lctx.stroke(rampPath);
       lctx.globalCompositeOperation = "source-over";
@@ -486,12 +304,9 @@ export function drawMapGrid(
       ctx.restore();
     };
     for (let L = 1; L <= 3; L += 1) {
-      const has = (): boolean => {
-        for (let i = 0; i < n9; i += 1) if (lvl[i] >= L && isLand(i)) return true;
-        return false;
-      };
-      if (!has()) continue;
-      const pL = pathOf((i) => lvl[i] >= L && isLand(i));
+      const lay9 = G.levels[L - 1];
+      if (lay9.loops.length === 0) continue;
+      const pL = PT.levels[L - 1]!;
       // 벽띠 두 겹 — 붙은 쪽이 짙고 바닥으로 갈수록 사라진다. 램프 둘레는 판다.
       const b9 = overlayOpen();
       b9.save();
@@ -503,65 +318,53 @@ export function drawMapGrid(
       b9.fill(pL, "evenodd");
       b9.restore();
       overlayClose();
-      ctx.fillStyle = midColor((i) => walk[i] === 1 && lvl[i] === L,
-        terrainFill(mt.tileset, L, true, false));
+      ctx.fillStyle = lay9.col;
       ctx.fill(pL, "evenodd");
       /* 마루 테 — 절벽선이 위에서 읽히는 자리다. 곡선을 얇게 한 줄 긋는다. 램프 둘레는 판다. */
       const o9 = overlayOpen();
       o9.strokeStyle = "rgba(255,255,255,0.34)";
-      o9.lineWidth = Math.max(1, P * 0.09);
+      o9.lineWidth = Math.max(px9(1), 0.09);
       o9.stroke(pL);
       overlayClose();
     }
 
-    /* ④ 절벽면 — 고도가 있는데 못 걷는 칸. 위에서 제 단 색으로 덮였으므로 여기서
-       제 색(바위)으로 되칠한다. 단마다 색이 달라 단별로 나눈다. */
+    /* ④ 절벽면 — 고도가 있는데 못 걷는 칸. 위에서 제 단 색으로 덮였으므로 여기서 제 색(바위)으로 되칠한다. 단마다 색이 달라 단별로 나눈다. */
     for (let L = 1; L <= 3; L += 1) {
-      let any = false;
-      for (let i = 0; i < n9; i += 1) if (lvl[i] === L && walk[i] === 0) { any = true; break; }
-      if (!any) continue;
-      ctx.fillStyle = midColor((i) => lvl[i] === L && walk[i] === 0,
-        terrainFill(mt.tileset, L, false, false));
-      ctx.fill(pathOf((i) => lvl[i] === L && walk[i] === 0), "evenodd");
+      const c9 = G.cliffs[L - 1];
+      if (c9.loops.length === 0) continue;
+      ctx.fillStyle = c9.col;
+      ctx.fill(PT.cliffs[L - 1]!, "evenodd");
     }
 
     /* ⑤ 램프 — 맨 위다. 두 고도를 잇는 길이라 어느 땅에도 안 묻혀야 한다. */
     for (let L = 0; L <= 3; L += 1) {
-      let any = false;
-      for (let i = 0; i < n9; i += 1) if (ramp[i] === 1 && lvl[i] === L) { any = true; break; }
-      if (!any) continue;
-      ctx.fillStyle = midColor((i) => ramp[i] === 1 && lvl[i] === L,
-        terrainFill(mt.tileset, L, true, true));
-      ctx.fill(pathOf((i) => ramp[i] === 1 && lvl[i] === L), "evenodd");
+      const r9 = G.ramps[L];
+      if (r9.loops.length === 0) continue;
+      ctx.fillStyle = r9.col;
+      ctx.fill(PT.ramps[L]!, "evenodd");
     }
 
     /* ⑥ **타일결** — 갈래 안에서 갈리는 무늬를 한 겹 덧칠한다.
-       위 칠하기는 지형의 **뜻**(통행·고도)만 보므로 넓은 면이 한 색으로 뭉갠다. 원작에서
-       그 자리에 깔린 결 — 흙 위의 풀 얼룩, 진흙, 바위, 격자 이음매 — 은 뜻이 아니라
-       '어느 그림을 깔았나'다.
-       ★ 판 3(타일 색 층)이 있으면 **그 타일의 실제 색을 그대로** 옅게 얹는다. 흙·풀·
-         진흙이 저마다 제 색으로 살아나므로 어림할 것이 없다(요청: "내가 준 이미지의
-         초록색류가 풀이야"). 옛 지도만 아래 어림으로 물러난다: 타일 그룹 번호의
-         홀짝으로 밝기를 흔들어 격자무늬만 되살린다(밝고 어둠을 해시가 정하면 번갈아
-         깐 두 그룹이 우연히 같은 쪽으로 떨어져 무늬가 통째로 사라진다).
-       ★ 어느 쪽이든 **땅 윤곽 안에만** 깐다 — 칸 사각형이라 곡선 밖으로 삐치면 애써
-         깎은 경계에 계단이 되돌아온다. */
+       위 칠하기는 지형의 **뜻**(통행·고도)만 보므로 넓은 면이 한 색으로 뭉갠다. 원작에서 그 자리에 깔린 결 — 흙 위의 풀 얼룩,
+       진흙, 바위, 격자 이음매 — 은 뜻이 아니라 '어느 그림을 깔았나'다.
+       ★ 판 3(타일 색 층)이 있으면 **그 타일의 실제 색을 그대로** 옅게 얹는다(요청: "내가 준 이미지의 초록색류가 풀이야").
+         옛 지도만 아래 어림으로 물러난다: 타일 그룹 번호의 홀짝으로 밝기를 흔들어 격자무늬만 되살린다.
+       ★ 어느 쪽이든 **땅 윤곽 안에만** 깐다 — 칸 사각형이라 곡선 밖으로 삐치면 애써 깎은 경계에 계단이 되돌아온다. */
     {
       ctx.save();
       ctx.clip(landPath, "evenodd");
-      if (realRGB) {
+      if (G.tileCol) {
+        const tc = G.tileCol;
         ctx.globalAlpha = 0.62;
         for (let y = 0; y < h; y += 1) {
           let runStart = 0;
           let runC = "";
           for (let x = 0; x <= w; x += 1) {
-            const c0 = x < w && walk[y * w + x] === 1 ? realRGB(x, y) : null;
-            const c9 = c0 ? soften(c0) : null;
-            const col = c9 ? `rgb(${c9[0]},${c9[1]},${c9[2]})` : "";
+            const col = x < w ? tc[y * w + x] : "";
             if (col === runC) continue;
             if (runC) {
               ctx.fillStyle = runC;
-              ctx.fillRect(runStart * P, y * P, (x - runStart) * P, P);
+              ctx.fillRect(runStart, y, x - runStart, 1);
             }
             runStart = x;
             runC = col;
@@ -586,7 +389,7 @@ export function drawMapGrid(
               ctx.fillStyle = runJ > 0
                 ? `rgba(${lightRGB},${(runJ * 0.14).toFixed(3)})`
                 : `rgba(22,29,45,${(-runJ * 0.32).toFixed(3)})`;
-              ctx.fillRect(runStart * P, y * P, (x - runStart) * P, P);
+              ctx.fillRect(runStart, y, x - runStart, 1);
             }
             runStart = x;
             runJ = on;
@@ -595,6 +398,8 @@ export function drawMapGrid(
       }
       ctx.restore();
     }
+    void lvl; void n9;
+    ctx.restore();
   } else {
     // 옛 길 — 타일 그룹 램프(장식 제거·최빈값 다듬기를 거친 격자로).
     const tiles = terrainTiles(idxs, palette, w, h);
@@ -635,19 +440,21 @@ export function drawMapGrid(
   }
 }
 
-/** 그리는 쪽이 지형에게 물어보는 것들 — mapTerrain의 것을 그대로 받되, 이 파일이
- *  그쪽을 임포트해 순환이 생기지 않게 함수로만 받는다. */
-export interface MapTerrainLike {
-  w: number;
-  h: number;
-  tileset: number;
-  levelAt: (x: number, y: number) => number;
-  walkAt: (x: number, y: number) => boolean;
-  partialAt: (x: number, y: number) => boolean;
-  /** 램프인가 — **원작 자료가 아는 답**이다(판 2로 구운 지도만 있다). 없으면 아래
-   *  isRamp가 옛 어림(고도가 갈리나)으로 물러난다. */
-  rampAt?: (x: number, y: number) => boolean;
-  /** 그 타일의 **실제 색**(판 3) — 원작 타일셋 그림의 평균이다. 없으면 옛 색표를 쓴다. */
-  rgbAt?: (x: number, y: number) => [number, number, number] | null;
-  walkAtMini: (mx: number, my: number) => boolean;
+/* MapTerrainLike 는 utils/terrainGeom 으로 옮겼다(2026-10-23 · 위에서 다시 내보낸다 — 쓰는 쪽은 그대로다). */
+
+/** 지도의 Path2D 한 벌(타일 자) — 기하(terrainGeom)마다 한 번 짓는다. 배율은 ctx.scale 이 싣는다. */
+interface TerrPaths9 { land: Path2D; levels: (Path2D | null)[]; cliffs: (Path2D | null)[]; ramps: (Path2D | null)[]; ramp: Path2D | null; noRamp: Path2D | null }
+const PATHS9 = new WeakMap<TerrainGeom9, TerrPaths9>();
+function pathsOf9(G: TerrainGeom9): TerrPaths9 {
+  let p = PATHS9.get(G);
+  if (p) return p;
+  const of = (l: { loops: import("./contour").Loop[] }): Path2D | null => (l.loops.length ? loopsPath(l.loops, 1) : null);
+  p = {
+    land: loopsPath(G.land.loops, 1),
+    levels: G.levels.map(of), cliffs: G.cliffs.map(of), ramps: G.ramps.map(of),
+    ramp: G.rampLoops ? loopsPath(G.rampLoops, 1) : null,
+    noRamp: G.noRampLoops ? loopsPath(G.noRampLoops, 1) : null,
+  };
+  PATHS9.set(G, p);
+  return p;
 }
