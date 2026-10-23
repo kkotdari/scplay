@@ -676,6 +676,10 @@ const xfBackK9 = { k: 1 };
 /** 이 손짓에서 **실시간 원근이 살아 있나**(liveViewOkRef9 의 거울) — 붓이 배킹을 내릴지 가리는 데 쓴다.
  *  모듈 전역인 까닭은 xfMsRef9 와 같다(붓은 React 밖에서 불려 부모의 ref 를 못 본다). */
 const xfLive9 = { on: false };
+/** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
+ *  "최소 줌에서 더 줄이려고 하면 모델이 흐려짐" — 1배에서 휠·핀치로 더 줄이면 배율은 1에 막혀 화면이 그대로인데 손짓은 서서, 지도 전체라 무거운 그 자리의
+ *  손짓 한 장 값(xfMsRef9 · 옛 손짓의 값이 남아 있기도 했다)으로 배킹을 0.7~0.4배로 내려 그렸다). beginGestureXf 가 끄고 applyGestureXf 가 켠다. */
+const xfMoved9 = { on: false };
 let brushAT9 = -1;
 /** 재생기 인스턴스 번호(마운트 순) — 한 페이지에 재생기가 둘이면 진단 고리에 섞이므로 가른다. 렌더가 세운다. */
 let INST_SEQ9 = 0;
@@ -5290,7 +5294,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          이 깃발이 그 동안 둘을 접는다: ① 접지·부양 그림자(몸마다 한 겹 더 칠하는 몫) ② 배킹 배수(아래 Bd).
          자세함 문턱(detail)은 안 내린다 — 그쪽은 **판 열쇠를 바꿔** 손짓 시작마다 판을 새로 굽게 만든다.
          그림자와 배킹은 열쇠와 무관해 껐다 켜도 굽는 일이 없다. 손을 떼면 그 프레임에 제대로 한 장 그린다. */
-      const gest9 = gesture?.current === true;
+      const gest9 = gesture?.current === true && xfMoved9.on;   // 안 움직인 손짓(1배에서 더 줄이기 등)은 손짓 몫을 안 탄다(위 xfMoved9)
       /* ★ **저배율에서는 배킹을 화면 픽셀 1배로 내린다**(요청: "사진처럼 그릴요소가 엄청
          많을때 버벅임을 좀 해결할수있는 방법") ────────────────────────────────────
          계측(scripts/perf-check.mjs — 1000유닛·PC폭·CPU 4배 조임)이 가리키는 자리다:
@@ -11603,6 +11607,8 @@ export default function ReplayMotionPlayer({
   const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
   const digestEndRef9 = useRef(-1);
   const pickFull9 = (): void => { setModeAsk9(false); };
+  /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
+  const pickFree9 = (): void => { setModeAsk9(false); setCastOn(false); };
   const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); };
   const digestJump9 = (v9: number): void => { tLiveRef9.current = v9; setT(v9); setDone(false); };
   useEffect(() => {
@@ -14194,6 +14200,8 @@ export default function ReplayMotionPlayer({
    *  제자리로 튄다).
    *  그래서 안개는 제 기준을 따로 든다 — 임시 변환은 늘 '지금 보기 − 이 기준'이다. */
   const fogXfRef9 = useRef({ z: 0, x: 0, y: 0 });
+  /** 손짓이 시작된 보기 — 움직였나(xfMoved9)를 가리는 자. xfBaseRef 는 칠할 때마다 옮는 변환 기준이라 못 쓴다. */
+  const xfStartRef9 = useRef({ z: 1, x: 0, y: 0 });
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
@@ -14360,6 +14368,7 @@ export default function ReplayMotionPlayer({
     const z1 = zoomRef.current;
     const px = panRef.current.x;
     const py = panRef.current.y;
+    { const b0 = xfStartRef9.current; if (z1 !== b0.z || px !== b0.x || py !== b0.y) xfMoved9.on = true; }
     cullLiveRef9.current?.();   // 손끝 창이 보낸 컬링 사각형 가장자리에 닿기 전에 새 사각형을 워커로(cullAround9 곁 ★)
     // 손끝이 움직인 시각 — 이 자리는 값이 바뀌었을 때만 불린다(드래그 rAF의 '안 움직였으면 안 그린다').
     xfMoveAtRef9.current = performance.now();
@@ -14616,6 +14625,8 @@ export default function ReplayMotionPlayer({
     glSprHold9(true);   // 2D 스프라이트 판 — 손짓 동안 굽기를 줄이고 미리 찍기를 쉰다(그림은 배율과 무관한 한 장 · gl9 SPR_CAP ★)
     xfApplyAtRef9.current = performance.now();
     xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
+    xfMoved9.on = false;   // 보기가 실제로 움직여야 손짓 몫(배킹 내림)을 탄다(위 xfMoved9)
+    xfStartRef9.current = { z: zoomRef.current, x: panRef.current.x, y: panRef.current.y };
     /* ★★ 원근을 손끝에 맞추는 일은 **가벼운 자리에서만** 한다(계측: 배율 6·입체·949기에서
        손짓 한 장이 23 → **240ms**로 뛰었다 — 미룸으로 떨어져 끄는 동안 화면이 아예 멎고, 놓는
        순간 쌓인 장이 몰려 한동안 출렁였다. 앞 0.0초·7장 · 시계차 −0.7초가 그 자국이다) ────────
@@ -21054,7 +21065,10 @@ export default function ReplayMotionPlayer({
                   요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
-                  풀<span className="scr-mode-ask-sub">전체</span>
+                  풀<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
+                </button>
+                <button type="button" className="scr-mode-ask-btn" onClick={pickFree9}>
+                  자유<span className="scr-mode-ask-sub">중계 없이</span>
                 </button>
               </span>
             </div>

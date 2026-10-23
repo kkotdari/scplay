@@ -1001,7 +1001,7 @@ if (has("--ask")) {
   const c0 = await clock9(); await page.waitForTimeout(1500); const c1 = await clock9();
   console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다)`);
   if (SHOT) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_ask.png") });
-  await page.locator(".scr-mode-ask-btn").first().click();
+  await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 요약 · 1 풀 · 2 자유)
   let last9 = "";
   for (let i9 = 0; i9 < secs9 * 2; i9 += 1) {
     await page.waitForTimeout(500);

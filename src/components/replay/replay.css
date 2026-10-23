@@ -5064,6 +5064,10 @@
   color: rgba(255, 255, 255, 0.92); text-shadow: 0 0 8px rgba(90, 255, 130, 0.7);
 }
 .scr-mode-ask-btns { display: flex; gap: calc(12px * var(--ui, 1)); }
+/* 셋째 단추(자유 보기 · 2026-10-23)로 폰 폭(390)에 들게 단추 하나를 조인다 — 옛 124px 셋은 판이 440px 로 화면을 넘었다. */
+.scr-mode-ask-btns > .scr-mode-ask-btn { min-width: calc(96px * var(--ui, 1)); padding-left: calc(10px * var(--ui, 1)); padding-right: calc(10px * var(--ui, 1)); }
+.scr-mode-ask:has(.scr-mode-ask-btn:nth-child(3)) { padding-left: calc(16px * var(--ui, 1)); padding-right: calc(16px * var(--ui, 1)); }
+.scr-mode-ask:has(.scr-mode-ask-btn:nth-child(3)) .scr-mode-ask-btns { gap: calc(9px * var(--ui, 1)); }
 .scr-mode-ask-btn {
   display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--ui, 1));
   min-width: calc(124px * var(--ui, 1)); padding: calc(14px * var(--ui, 1)) calc(18px * var(--ui, 1));
