@@ -9480,6 +9480,7 @@ export default function ReplayMotionPlayer({
   const engViewRef9 = useRef<EngineView9 | null>(null);
   /** 손짓 중 컬링 사각형 미리 보내기(렌더가 매번 갈아 끼운다 · applyGestureXf 가 부른다 — 아래 cullAround9 곁 ★). */
   const cullLiveRef9 = useRef<(() => void) | null>(null);
+  const cullLiveAtRef9 = useRef(0);
   const colorTableRef9 = useRef<Record<string, string> | null>(null);
   const pitchGeomLiveRef9 = useRef<(() => PitchGeom9) | null>(null);
   const liveViewAtRef9 = useRef(0);
@@ -15649,6 +15650,11 @@ export default function ReplayMotionPlayer({
      적어, 뒤이은 렌더가 같은 것을 다시 보내지 않는다. `#nocull`(지도 전체 · 견줌용)·분할은 안 탄다. */
   cullLiveRef9.current = (): void => {
     if (splitOn9 || NO_CULL9) return;
+    /* ★ 박자 — 120ms 에 한 번(2026-10-23, 지적: "미니맵 터치해도 딜레이 후 이동 · 드래그도 · 줌은 말할 것도 없고") — 줌 아웃은 보이는 창이 **매 프레임 넓어져** 매 프레임
+       띠를 넘었고, 그때마다 새 사각형을 보내 워커가 지은 장을 버리고 처음부터 다시 지었다(한 시야에 여덟 장 뭉치) — 워커·메인이 그 홍수에 묶여 모든 입력이 늦었다.
+       보내는 것도 `live`(지금 한 장만 · 앞날은 손을 뗀 뒤)다. */
+    const now9 = performance.now();
+    if (now9 - cullLiveAtRef9.current < 120) return;
     const vis9 = visOf9(zoomRef.current, panRef.current);
     const sent9 = cullSentRef9.current;
     const w9 = frameWorkerRef.current;
@@ -15665,10 +15671,11 @@ export default function ReplayMotionPlayer({
     const key9 = viewKeyOf9(v9);
     const col9 = colorTableRef9.current ?? viewSentRef9.current?.colors;
     if (!col9 || viewSentRef9.current?.key === key9) return;
+    cullLiveAtRef9.current = now9;
     viewSentRef9.current = { key: key9, colors: col9 };
     engViewRef9.current = v9;
     wStatRef.current.sentView += 1;
-    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq });
+    w9.postMessage({ type: "view", view: v9, seq: wStatRef.current.sentView, fogSeq: fogSeqRef9.current.seq, live: true });
   };
   /* ★★ 프레임은 워커(설계 일꾼)가 낸다. 여기서는 화면 쪽 입력(상자 크기·기울기·시점·색·품질·시야)을 건넨다.
      배율·팬 자체는 안 건넨다 — 낮은 배율의 간이화는 붓이 한다. */

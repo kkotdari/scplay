@@ -1418,7 +1418,9 @@ export class GlUnits9 implements VecSink9 {
     }
     /* 미리 찍기 — 남는 예산의 절반으로, 돌고 있는(요잉 둘 이상을 본) 몸의 다른 요잉 칸을 가까운 칸부터 찍는다. 손짓 중에는 안 한다. */
     /* 판이 상한까지 찼으면 미리 찍기는 쉰다 — 더 찍으면 LRU 가 지금 쓰는 칸이 든 판을 비워 다시 찍게 만든다(줌 훑기에서 칸 1600 · 판 8 출렁임 실측). */
-    if (!SPR_HOLD9 && budget > 0 && this.sprPages.length < this.sprPageMax) {
+    /* 폰(sprWarmMax 작은 단)은 미리 찍기를 **세 프레임에 한 번**만 — MSAA 굽기 판 한 번이 폰 GPU 에 무겁다(2026-10-23 입력 지연 지적). */
+    const warmTick9 = this.sprWarmMax >= 24 || this.frameNo % 3 === 0;
+    if (!SPR_HOLD9 && budget > 0 && warmTick9 && this.sprPages.length < this.sprPageMax) {
       let wb = Math.min(this.sprWarmMax, Math.floor(budget / 2));
       for (const w9 of this.sprWarm.values()) {
         if (wb <= 0) break;
@@ -2588,7 +2590,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
-    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 48 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; }   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 4 : 8; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
