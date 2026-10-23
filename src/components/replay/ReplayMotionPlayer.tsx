@@ -20820,9 +20820,9 @@ export default function ReplayMotionPlayer({
               {/* (걷어냄) 전체화면의 '도구 숨기기' 단추 — 툴박스가 저 혼자 아이콘 하나로 접히므로(위 ★★) 숨기는 손잡이가
                   따로 있을 까닭이 없다. 사용법은 이제 두 배치 다 이 자리다(요청: "툴박스 = 버튼로우 + 공유 + 사용법"). */}
               {/* 사용법은 **프레임에서만**이다(2026-09, 요청: "전체화면에서 사용법 버튼 제거"). */}
-              {/* 사용법도 **PC 에만**이다(2026-09, 요청: "도움말 버튼도 로스터버튼과 함께 pc에서만 보이기"). */}
-              {guide && !fsOn && !uiPhone9 && (
-                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="사용법" title="사용법">
+              {/* 폰에도 선다(2026-10-22, 요청: "모바일에도 재생기 도움말 넣기 · 피시도 이름을 도움말로" — 옛 2026-09 "도움말 버튼도 로스터버튼과 함께 pc에서만"). */}
+              {guide && !fsOn && (
+                <button type="button" className="scr-kakao-share-btn scr-guide-btn" onClick={openGuide9} aria-label="도움말" title="도움말">
                   <QMarkIcon size={18} />
                 </button>
               )}

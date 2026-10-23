@@ -30,7 +30,7 @@ function Row({ ic, name, keys, children }: { ic: ReactNode; name: string; keys?:
 
 const T = ({ s }: { s: string }) => <span className="scr-guide-ic-txt">{s}</span>;
 
-/** 사용법(요청: 공통 — 버튼도 페이지도 재생기 안) — 재생기 아래 '사용법' 버튼이 이 문서를 화면 위에 덮는다.
+/** 도움말(옛 '사용법' · 요청: 공통 — 버튼도 페이지도 재생기 안) — 툴박스의 '도움말'(?) 버튼이 이 문서를 화면 위에 덮는다.
  *  앱은 이 파일을 갖지 않는다. 닫기는 덮개를 걷는 일뿐이다(뒤로가기는 재생기가 history로 맞춘다). */
 export default function ReplayGuide({ onClose }: {
     onClose?: () => void;
@@ -39,11 +39,11 @@ export default function ReplayGuide({ onClose }: {
 
     return (<div className="scr-guide">
       <header className="scr-guide-top">
-        <button type="button" className="scr-guide-close" onClick={closeGuide} aria-label="사용법 닫기" title="닫기">
+        <button type="button" className="scr-guide-close" onClick={closeGuide} aria-label="도움말 닫기" title="닫기">
           <X size={18}/>
         </button>
-        <span className="scr-guide-eyebrow">사용법</span>
-        <h1 className="scr-title">재생기 사용법</h1>
+        <span className="scr-guide-eyebrow">도움말</span>
+        <h1 className="scr-title">재생기 도움말</h1>
         <p className="scr-guide-deck">경기를 실제로 다시 돌린 화면입니다. 기능 옆의 <kbd>키</kbd>는 PC 단축키입니다.</p>
       </header>
 
