@@ -404,7 +404,7 @@ export declare const PENDING_GRID9: ReplayMapGrid;
  *  읽는 쪽은 안 따라와, 12배에서 공유한 장면이 받는 쪽에서 8배로 열렸다.
  *  DEEP_MIN_ZOOM이 8에 못 박혀 밀려 있던 것과 **같은 갈래의 흠**이다: 사다리에 매인 수를
  *  두 곳에 적으면 언젠가 한쪽만 고쳐진다. 값을 내보내 자를 하나로 둔다. */
-export declare const PLAYBACK_ZOOM_MAX = 16;
+export declare const PLAYBACK_ZOOM_MAX = 12;
 
 /** 경기별 현재 재생 시각(요청: 특정 시간으로 카톡 공유) — 재생기가 제 clockKey로 지금
  *  t를 계속 적어 두면, 공유 버튼이 링크에 &t=로 실어 보낸다. */
