@@ -1065,6 +1065,9 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 찍기(다른 요잉) 한 프레임 상한 — 폰 6 · PC 24(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉" — 옛 예산 절반(24)이 폰에서
    *  프레임마다 MSAA 굽기 24장 + 밉맵 재생성을 불렀다). */
   sprWarmMax = 24;
+  /** ★ 판을 이보다 크게 **늘려 찍어야** 하면 그 몸은 메시로 그린다(2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — 칸은 몸의 상한(SPR_CAP)에 드는 단으로 한 번 굽고 배율이 커지면
+   *  늘려 찍으므로 깊은 배율에서 흐렸다. 단이 높은 PC 는 1.25(높음) · 1.6(보통)이고 낮음·폰은 ∞(메시 길이 더 무겁다). glSprTune9 가 준다. */
+  sprUpMax = Infinity;
   /** 굽기 판(스크래치) MSAA 상한 — −1 이면 지도 붓 표본 그대로 · 폰 0(위 sprScrEnsure9 ★). */
   sprMsaa = -1;
   /** 몸마다의 찍는 단(lvOf) — 메시·카메라·그림자 열쇠. */
@@ -1388,6 +1391,8 @@ export class GlUnits9 implements VecSink9 {
       const yb = ((Math.round((it.yawDeg / 360) * SPR_YAW9) % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
       const qk = lvOf(it.mesh, it.cam, sh);   // 그 몸의 한 단(위 SPR_CAP ★) — 배율과 무관하다
       const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
+      const kq0 = 2 ** (qk / SPR_KQ9);
+      if (kd / kq0 > this.sprUpMax) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
       const key = keyOf(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh);
       const hit = this.sprMap.get(key);
       if (hit) { hit.page.last = this.frameNo; if (Math.abs(kd / hit.kd - 1) > 0.004) st.scaled += 1; return { cell: [hit, kd / hit.kd], job: null }; }
@@ -2589,6 +2594,8 @@ export const glBakeMsTake9 = (): number => {
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 /** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
 export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
+/** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시). */
+export function glSprTune9(upMax: number): void { if (glInst9) glInst9.sprUpMax = upMax; }
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {

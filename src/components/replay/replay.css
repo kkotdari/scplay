@@ -2943,6 +2943,8 @@
      그만큼만 좌우가 잘리고 끌어서 본다. */
 .scr-fs-layer {
   position: relative; z-index: 0;
+  /* 글자 선택 없음(2026-10-24, 지적: "드래그하는데 저것들이 딸려감" — 선택된 글자를 끄는 네이티브 드래그의 고스트) · 입력칸만 되살린다(아래). dragstart 는 뿌리 onDragStart 가 끊는다. */
+  user-select: none; -webkit-user-select: none;
   display: block; margin: 0 auto; padding: 0; gap: 0;
   width: 100%; max-width: 100%;
   /* 바닥값 — 오버레이가 서로 안 겹칠 최소 높이다. 도구 판(아래 140 + 높이 190)이
@@ -3222,7 +3224,7 @@
      밑에 깔린다)로 옮겨 그 켜만 깎는다 — 자식·펼침 목록·솟은 미니맵 받침은 안 잘린다. 깎은 빗변에는 윗선과 같은 베벨(검은 1px + 흰 한 줄)을 모서리 판의 대각선 띠로 긋는다
      (to bottom right 의 50% 선이 곧 빗변). 깎는 폭 --dock-cham 4·dk(첫 판 22 는 되물림) · 솟은 미니맵 받침의 윗모서리도 같은 폭. 아래 모서리는 그대로 각지다. */
   .scr-fs-layer .scr-fs-lower::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    content: ""; position: absolute; inset: 0; top: var(--plate-top, 0px); z-index: -1; pointer-events: none;
     clip-path: polygon(var(--dock-cham) 0, calc(100% - var(--dock-cham)) 0, 100% var(--dock-cham), 100% 100%, 0 100%, 0 var(--dock-cham));
     background:
       linear-gradient(to bottom right, transparent calc(50% - 1px), #0b0d10 calc(50% - 1px) calc(50% + 0.5px), rgba(255, 255, 255, 0.55) calc(50% + 0.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) left top / var(--dock-cham) var(--dock-cham) no-repeat,
@@ -3329,8 +3331,10 @@
 .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { flex: none; width: var(--dock-w); height: var(--info-h); transform: scale(var(--info-k, 1)); transform-origin: center center; }
 /* ★ 접으면 독 줄이 **통째로** 사라진다(2026-09, 요청: "접혔을때 인포창아예 안남게") — 손잡이는 툴박스 재생 줄의 시계 옆이라 남는다.
    옛 '접어도 폭은 그대로 · 손잡이 키만 남는다'는 되물렸다. */
-.scr-fs-dockrow.is-fold { display: none; }
-.scr-fs-dockrow.is-fold + .scr-tb { padding-top: calc(1px + 2 * 5.1px * var(--dk)); }   /* 펼친 때의 위 테 = 틀의 투명 1px + --dock-out · ×2(2026-10-06 "위아래 여백 2배" — 아래 .scr-tb 의 padding-bottom 과 같은 값) */
+/* ★ 접힘은 **숨기기만**(2026-10-24, 지적: "독 뒤에 지도를 늘 그리니까 접을 때 그냥 위의 독들을 숨기기만 하면 될 텐데 다시 그려 깜빡여") — 옛 display:none 은 줄 키가 0 이 되어
+   무대(rowsH · --map-ext · 덮는 판)가 다시 서고 캔버스가 통째로 다시 그려졌다. 이제 줄은 자리를 지킨 채 보이지만 않고(visibility), 쇠판 켜는 툴박스 위끝으로 내려간다
+   (--plate-top · dockFit read9 가 적는다) — 독이 서던 자리엔 뒤에 그려진 지도가 보인다. 옛 `.is-fold + .scr-tb` 위 여백 보정은 줄이 남아 필요 없다. */
+.scr-fs-dockrow.is-fold { visibility: hidden; pointer-events: none; }
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-rosterpanel,
 .scr-fs-dockmain > .scr-fs-minipanel,
@@ -5239,15 +5243,21 @@
   --steel-dark:
     linear-gradient(104deg, transparent 22%, rgba(255, 255, 255, 0.06) 36%, rgba(255, 255, 255, 0.015) 44%, transparent 56%),
     linear-gradient(76deg, transparent 58%, rgba(255, 255, 255, 0.035) 70%, transparent 80%),
-    repeating-linear-gradient(27deg, transparent 0 131px, rgba(255, 255, 255, 0.09) 131px 132px, rgba(0, 0, 0, 0.3) 132px 133px, transparent 133px 219px),
-    repeating-linear-gradient(-58deg, transparent 0 173px, rgba(255, 255, 255, 0.07) 173px 174px, rgba(0, 0, 0, 0.26) 174px 175px, transparent 175px 311px),
-    repeating-linear-gradient(9deg, transparent 0 257px, rgba(255, 255, 255, 0.05) 257px 258px, rgba(0, 0, 0, 0.22) 258px 259px, transparent 259px 401px),
+    /* ★ 흠집은 **짧은 긁힘 몇 줄**(2026-10-24, 지적: "쇠독 흠집은 저런 격자형 무늬가 아니라 부분부분 긁힌 상처") — 옛 세 겹 반복 사선은 판을 가로질러 격자로 읽혔다.
+       SVG 한 장(520×360)에 길이 24~90px 긁힘 아홉(밝은 날 + 그늘 · 각·자리 제각각)을 그려 타일로 깐다 — 타일이 커서 반복이 눈에 안 든다. */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='360'><g stroke-linecap='round'><path d='M38 61l54 -17' stroke='rgba(0,0,0,.34)' stroke-width='1.6'/><path d='M38 60l54 -17' stroke='rgba(255,255,255,.13)' stroke-width='.8'/><path d='M212 118l90 11' stroke='rgba(0,0,0,.3)' stroke-width='1.4'/><path d='M212 117l90 11' stroke='rgba(255,255,255,.12)' stroke-width='.8'/><path d='M402 44l26 48' stroke='rgba(0,0,0,.3)' stroke-width='1.3'/><path d='M403 44l26 48' stroke='rgba(255,255,255,.1)' stroke-width='.7'/><path d='M96 232l62 -31' stroke='rgba(0,0,0,.32)' stroke-width='1.5'/><path d='M96 231l62 -31' stroke='rgba(255,255,255,.12)' stroke-width='.8'/><path d='M330 262l44 -8' stroke='rgba(0,0,0,.28)' stroke-width='1.2'/><path d='M330 261l44 -8' stroke='rgba(255,255,255,.1)' stroke-width='.7'/><path d='M466 300l34 29' stroke='rgba(0,0,0,.3)' stroke-width='1.4'/><path d='M467 299l34 29' stroke='rgba(255,255,255,.11)' stroke-width='.7'/><path d='M150 322l28 -6' stroke='rgba(0,0,0,.26)' stroke-width='1.1'/><path d='M150 321l28 -6' stroke='rgba(255,255,255,.1)' stroke-width='.6'/><path d='M268 20l24 10' stroke='rgba(0,0,0,.26)' stroke-width='1.1'/><path d='M268 19l24 10' stroke='rgba(255,255,255,.1)' stroke-width='.6'/><path d='M500 170l-78 -22' stroke='rgba(0,0,0,.3)' stroke-width='1.4'/><path d='M500 169l-78 -22' stroke='rgba(255,255,255,.11)' stroke-width='.7'/></g></svg>") 0 0 / 520px 360px repeat,
     radial-gradient(ellipse 54px 22px at 11% 74%, rgba(150, 72, 28, 0.26), rgba(120, 58, 22, 0.1) 55%, transparent 72%),
     radial-gradient(ellipse 38px 30px at 37% 18%, rgba(140, 66, 26, 0.2), transparent 70%),
     radial-gradient(ellipse 70px 18px at 63% 88%, rgba(150, 72, 28, 0.22), rgba(120, 58, 22, 0.08) 60%, transparent 75%),
     radial-gradient(ellipse 26px 26px at 82% 36%, rgba(140, 66, 26, 0.18), transparent 70%),
     radial-gradient(ellipse 44px 16px at 93% 64%, rgba(150, 72, 28, 0.2), transparent 72%),
     linear-gradient(180deg, #3b3f45 0%, #2b2e33 14%, #222529 55%, #1a1c1f 100%);
+  /* 받침(쇠판 위로 솟은 덩이)의 벌 — 긁힘·녹은 같고 세로 음영만 아래끝이 쇠판 윗색(#3b3f45)이라 이음이 안 보인다(2026-10-24 · 위 받침 규칙 ★). */
+  --steel-dark-ped:
+    linear-gradient(104deg, transparent 22%, rgba(255, 255, 255, 0.06) 36%, rgba(255, 255, 255, 0.015) 44%, transparent 56%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='360'><g stroke-linecap='round'><path d='M38 61l54 -17' stroke='rgba(0,0,0,.34)' stroke-width='1.6'/><path d='M38 60l54 -17' stroke='rgba(255,255,255,.13)' stroke-width='.8'/><path d='M212 118l90 11' stroke='rgba(0,0,0,.3)' stroke-width='1.4'/><path d='M212 117l90 11' stroke='rgba(255,255,255,.12)' stroke-width='.8'/><path d='M402 44l26 48' stroke='rgba(0,0,0,.3)' stroke-width='1.3'/><path d='M403 44l26 48' stroke='rgba(255,255,255,.1)' stroke-width='.7'/><path d='M96 232l62 -31' stroke='rgba(0,0,0,.32)' stroke-width='1.5'/><path d='M96 231l62 -31' stroke='rgba(255,255,255,.12)' stroke-width='.8'/></g></svg>") 140px 60px / 520px 360px repeat,
+    radial-gradient(ellipse 38px 30px at 37% 18%, rgba(140, 66, 26, 0.2), transparent 70%),
+    linear-gradient(180deg, #353940 0%, #3b3f45 100%);
   --sc-trim: rgba(196, 34, 30, 0.78);
 }
 .scr-fs-layer:not(.is-holodock) .scr-fs-lower::before {
@@ -5258,7 +5268,7 @@
 .scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel::before {
   background:
     linear-gradient(90deg, #050607 0 1px, rgba(255, 255, 255, 0.1) 1px 2px, transparent 2px calc(100% - 2px), rgba(0, 0, 0, 0.4) calc(100% - 2px) calc(100% - 1px), #050607 calc(100% - 1px)) 0 0 / 100% var(--ped-h) no-repeat,
-    var(--steel-dark) #2b2e33;
+    var(--steel-dark-ped) #2b2e33;   /* ★ 받침은 세로 음영이 쇠판 윗색(#3b3f45)으로 **이어지는** 벌(2026-10-24, 지적: "맵 프레임 중간에 색이 달라지는 부분 — 기본 독과 겹치는 부분") — 옛 --steel-dark 는 제 키 안에서 밝음→어둠을 다 돌아 쇠판과 만나는 선에서 단이 졌다 */
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14);
 }
 .scr-fs-layer:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel::after,
@@ -5303,7 +5313,7 @@
     repeating-linear-gradient(180deg, rgba(160, 255, 180, 0.04) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(0deg, rgba(130, 255, 160, 0.11) 0 1px, transparent 1px 14px),
     repeating-linear-gradient(90deg, rgba(130, 255, 160, 0.11) 0 1px, transparent 1px 14px),
-    rgba(14, 58, 30, 0.8);   /* (8,40,20) → (14,58,30)(2026-10-23, 요청: "홀로그램 판 색 좀 더 밝게") */
+    rgba(14, 58, 30, 0.62);   /* (8,40,20) → (14,58,30)(2026-10-23, 요청: "홀로그램 판 색 좀 더 밝게") · 0.8 → 0.62(2026-10-24, 요청: "홀로그램 우물 부분 좀 더 투명하게") */
   /* 판을 **밖으로 넓힌 몫**(2026-10-23, 요청: "판 간 갭 줄이기 — 각 판의 테두리 부분을 넓혀서 · 재생부 판은 위쪽 여백 더") — 판 그림을 ::before/::after 에 옮겨
      이만큼 사방으로 키운다(내용·배치·독 맞춤 셈은 그대로). 칸 사이 틈(--dock-sep)의 대부분을 두 판이 나눠 먹는다. */
   --holo-ext: calc(0.42 * var(--dock-sep, 6px));
@@ -5336,6 +5346,8 @@
 }
 /* 재생부(툴박스) 판은 **위로 더**(요청) — 독 줄과의 틈(틀 여백 --dock-out)을 거의 메운다. */
 .scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb::before { top: calc(-1 * var(--dock-out, 6px) - var(--holo-ext)); }
+/* 폰은 미니맵 판이 전광판보다 아래로 솟아(--mini-up · 바닥 맞춤) 재생부 판의 위 넓힘과 겹쳤다(2026-10-24, 지적: "모바일 홀로그램 독 위아래가 살짝 겹침") — 폰은 넓힘 몫만. */
+.scr-motion:not(.scr-motion-pc9).is-holodock .scr-fs-lower > .scr-tb::before { top: calc(-1 * var(--holo-ext)); }
 .scr-fs-layer.is-holodock .scr-fs-lower > .scr-tb {
   margin-left: max(var(--dock-side, 0px), var(--dock-out, 6px)); margin-right: max(var(--dock-side, 0px), var(--dock-out, 6px));
   margin-bottom: var(--dock-out, 6px);

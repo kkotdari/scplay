@@ -108,7 +108,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glAlive9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -680,6 +680,8 @@ const xfBackK9 = { k: 1 };
 const xfLive9 = { on: false };
 /** GL 안개 기하가 새로 먹였나(2026-10-24 · terrLive9) — 보기가 그대로여도 안개만 바뀐 장을 지형 캔버스에 다시 그리게 하는 표식. */
 const fogGlDirty9 = { v: false };
+/** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
+const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
  *  "최소 줌에서 더 줄이려고 하면 모델이 흐려짐" — 1배에서 휠·핀치로 더 줄이면 배율은 1에 막혀 화면이 그대로인데 손짓은 서서, 지도 전체라 무거운 그 자리의
  *  손짓 한 장 값(xfMsRef9 · 옛 손짓의 값이 남아 있기도 했다)으로 배킹을 0.7~0.4배로 내려 그렸다). beginGestureXf 가 끄고 applyGestureXf 가 켠다. */
@@ -5423,6 +5425,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
       const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
+      /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
+      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : TIER9.v === 1 ? 1.6 : 1.25);
       if (!gl9 && GL_ON9 && terrain?.current && terrainOff) { terrain.current = null; terrainOff(); }   // GL 을 못 열었다 — 지형층을 내리고 옛 벡터층으로(glTerrain9)
       if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
@@ -11650,10 +11654,22 @@ export default function ReplayMotionPlayer({
   /* ★ 재생기 테마는 **열 때 한 번 무작위**(2026-10-23, 요청: "라이트·다크 테마 상관없이 랜덤하게 재생기 테마 적용 · 처음부터 결정된 테마로 보이게") — 메탈(is-metal)
      또는 홀로그램(is-holo) · 앱 테마와 안 엮인다(옛: 다크 = 홀로그램 · 라이트 = 메탈 — MutationObserver 로 따르던 것 걷음). 첫 그림부터 그 꼴이다: 보기 모드 판·요약 알약·
      **독**(홀로그램이면 뿌리에 is-holodock — 옛 is-digest 는 요약이 돌 때만 독을 홀로그램 칸으로 바꿔, 판을 고르기 전엔 메탈 독이 먼저 보였다). `#theme=metal|holo` 로 못 박는다(검산). */
+  /* ★ 테마는 **살아 있는 재생기끼리 같다**(2026-10-24, 지적: "처음 재생기 보일 때랑 팝업창 뜰 때부터랑 다른 테마가 나옴") — 상세는 자료를 기다리는 재생기(sg-web
+     PlayerLoadShell · pending)를 먼저 세우고 자료가 오면 진짜 재생기로 갈아 끼우는데, 둘이 저마다 주사위를 던져 테마가 바뀌었다. 다른 재생기가 아직 살아 있거나(alive)
+     방금(1.5초 안) 내려갔으면 그 테마를 잇고, 그 밖(새로 연 판)만 다시 던진다. */
   const [modeTheme9] = useState<"metal" | "holo">(() => {
     const m9 = typeof location !== "undefined" ? /theme=(metal|holo)/.exec(location.hash) : null;
-    return m9 ? (m9[1] as "metal" | "holo") : Math.random() < 0.5 ? "metal" : "holo";
+    if (m9) return m9[1] as "metal" | "holo";
+    const T9 = THEME_PICK9;
+    if (T9.v && (T9.alive > 0 || performance.now() - T9.gone < 1500)) return T9.v;
+    T9.v = Math.random() < 0.5 ? "metal" : "holo";
+    return T9.v;
   });
+  useEffect(() => {
+    const T9 = THEME_PICK9;
+    T9.alive += 1;
+    return () => { T9.alive -= 1; T9.gone = performance.now(); };
+  }, []);
   const [digestWant9, setDigestWant9] = useState(false);
   const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
   const digestEndRef9 = useRef(-1);
@@ -11794,7 +11810,9 @@ export default function ReplayMotionPlayer({
   /* 8 → 16 → 8 → **12**(지시: 사다리를 1·2·3·6·12로) — 맨 위 칸이 곧 상한이다.
      16은 화면에 유닛 한둘만 남아 무슨 상황인지가 안 읽혔고, 12는 그 앞 칸(6)의 두 배라
      '더 크게 보는' 자리를 남기면서도 판이 남는다. */
-  const ZOOM_MAX = PLAYBACK_ZOOM_MAX;
+  /* ★ 확대 상한은 **기기 단**을 본다(2026-10-24, 요청: "성능에 따라 구워놓는 그림 배율을 바꿔야 할 듯 · 그에 맞춰서 확대 배율 제한") — 0단(낮음)은 8배까지(판을 늘려 찍는 자리를 안 연다) ·
+     그 위는 PLAYBACK_ZOOM_MAX. 판보다 큰 배율의 선명함은 gl9 의 sprUpMax(판을 1.25~1.6배 넘게 늘려야 하면 그 몸은 메시로)가 맡는다(glSprTune9 · 단이 높을수록 엄격). */
+  const ZOOM_MAX = TIER9.v === 0 ? Math.min(8, PLAYBACK_ZOOM_MAX) : PLAYBACK_ZOOM_MAX;
   /** 휠 한 픽셀이 배율에 더하는 몫 — 100px(보통 휠 한 틱) = 한 칸(위 onWheel 의 ★ 자연수). */
   const WHEEL_STEP_PER_PX9 = 0.01;
   /* 배율을 **다섯 칸**으로 끊는다(제안: "줌 단계를 5개로 줄이고 캐싱하면 좀 덜
@@ -11824,7 +11842,7 @@ export default function ReplayMotionPlayer({
      좁은 자리 이동 자세 4배·자세히 8배. 더블탭은 둘째 위 칸(4). 맨 위 8은 굽기 상한 안이라 또렷하다. */
   /* ★ 16배 칸 추가(요청) — 더블클릭·더블탭은 '둘째 위 칸'(ZOOM_TAP)이라 4 → 8로 저절로 오른다(같은 요청: "더블클릭 시
      4배가 아니라 8배"). PC는 판 상한을 4096으로 열어 16배도 제 크기로 굽는다(DEV9.bakeSideMax). */
-  const ZOOM_STEPS = [1, 2, 4, 8, PLAYBACK_ZOOM_MAX];   // 맨 위 칸 = 상한(12 · 2026-10-23 · 옛 16)
+  const ZOOM_STEPS = ZOOM_MAX > 8 ? [1, 2, 4, 8, ZOOM_MAX] : [1, 2, 4, 8];   // 맨 위 칸 = 상한(12 · 2026-10-23 · 옛 16) · 0단은 8 까지(2026-10-24 위 ZOOM_MAX ★)
   /** 더블클릭·더블탭이 **한 번에 뛰는** 배율(요청: "더블클릭 시 맨 위가 아니라 한 칸
    *  아래로") — 이어서 늘리는 길(휠·핀치·한 손 줌)의 상한은 ZOOM_MAX 그대로다. 한 번에
    *  뛰는 자리만 **한 칸 낮다**: 맨 위 칸은 화면에 유닛 한둘만 남아 무슨 상황인지가 안
@@ -11832,7 +11850,7 @@ export default function ReplayMotionPlayer({
    *  그 자리에서 휠·핀치로 한 칸 더 가면 된다.
    *  ★ 수로 안 적고 **사다리에서 꺼낸다** — 칸을 고칠 때 여기가 따라오지 않으면 더블탭이
    *    사다리에 없는 배율로 뛴다(그러면 snapZoom이 곧장 옆 칸으로 끌어당겨 튄다). */
-  const ZOOM_TAP = ZOOM_STEPS[ZOOM_STEPS.length - 2];
+  const ZOOM_TAP = ZOOM_STEPS.length >= 5 ? ZOOM_STEPS[ZOOM_STEPS.length - 2] : ZOOM_STEPS[ZOOM_STEPS.length - 1];   // 사다리가 넷(0단)이면 맨 위(8)
   /** 가장 가까운 칸으로 — 손짓 중에도 이 값만 쓰므로 굽는 크기가 손짓 내내 안 흔들린다. */
   const snapZoom = (z9: number): number => ZOOM_STEPS.reduce(
     (best, v) => (Math.abs(v - z9) < Math.abs(best - z9) ? v : best), ZOOM_STEPS[0],
@@ -20348,6 +20366,17 @@ export default function ReplayMotionPlayer({
         fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-holes", "none");   // 접힌 쇠판엔 우물이 없다 — 옛 구멍으로 지도가 비쳤다(실측)
         return;
       }
+      /* ★ 접힘은 이제 **숨기기만**(2026-10-24, 지적: "독 뒤에 지도를 이제 항상 그리니까 접을 때 그냥 위의 독들을 숨기기만 하면 될 거 같은데 뭔가 다시 그리네 깜빡여") —
+         독 줄은 visibility 로 숨어 키를 그대로 지키고(무대·rowsH·--map-ext 가 안 바뀌어 다시 그릴 것이 없다), 쇠판 켜(.scr-fs-lower::before)만 툴박스 위끝으로 내려
+         (--plate-top) 독이 서던 자리엔 그 뒤에 그려진 지도가 보인다. 우물 구멍도 없다. */
+      if (dockFoldOn9) {
+        const low9 = fr9.closest<HTMLElement>(".scr-fs-lower");
+        const tb9 = low9?.querySelector<HTMLElement>(":scope > .scr-tb");
+        low9?.style.setProperty("--plate-holes", "none");
+        low9?.style.setProperty("--plate-top", `${tb9 ? tb9.offsetTop : 0}px`);
+        return;
+      }
+      fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
@@ -21128,6 +21157,10 @@ export default function ReplayMotionPlayer({
          오버레이가 설 최소 높이는 CSS가 받친다(.scr-fs-layer의 min-height). 폭 상한은
          넓은 배치에서만, 지도가 쓰던 값 그대로. */
       style={{ ...(fsOn ? null : frameStyle), ...uiVars9 }}   /* --ui·--dk·--dk-roster: 해상도 단(위 uiStep9) */
+      /* ★ 네이티브 드래그 금지(2026-10-24, 지적: "드래그하는데 저것들이 딸려감" — 사진: 배율 원·배속 다이얼 글자가 반투명 고스트로 끌려옴) — 글자가 선택된 채(더블클릭·Ctrl+A 등)
+         지도를 누르면 브라우저가 **선택을 끄는 드래그**를 시작해 선택 안의 글자(다이얼 값·눈금)를 고스트로 띄운다. 재생기 안에서 난 dragstart 는 모두 끊는다(지도 끌기는 포인터
+         사건이라 안 다친다). 글자 선택 자체도 뿌리에서 끈다(replay.css .scr-fs-layer user-select) — 검색 입력칸만 되살린다. */
+      onDragStart={(e) => e.preventDefault()}
     >
       {/* 지도 비를 CSS에 알린다(--scr-mini-ar) — 전체화면의 미니맵은 **키를 먼저 정하고**
           폭을 그 비로 낸다(요청: "미니맵 영역 높이를 버튼 최대값일 때 오른쪽 조작부 높이에
