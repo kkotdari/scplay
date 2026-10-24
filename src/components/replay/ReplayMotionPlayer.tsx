@@ -108,7 +108,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, GL_SPR9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -18293,6 +18293,14 @@ export default function ReplayMotionPlayer({
     let raf9 = 0;
     let lastPost9 = 0;
     const flat9 = !pitched;
+    /* ★★ **경기에 나올 몸을 미리 굽는다**(2026-10-24, 요청: "임자색과 요잉 8칸 처음에 다 굽기 한번 해보자" · gl9 임자색 분리 ★★) — 메시를 데운 종류마다 평면 카메라의
+       2D 스프라이트 칸을 요잉 8칸(폰 4칸 · 건물은 제 요잉 한 칸)과 그림자까지 큐에 올리고(sprPrebake9), 메시 예열이 끝난 뒤 프레임마다 몇 장씩 굽는다(sprPreStep9).
+       임자색은 열쇠에서 빠졌으므로 임자가 몇이든 한 벌이다. 입체(3D)는 스프라이트를 안 쓰므로 안 굽는다. `#glpre=0` 으로 끈다. 진행률은 예열 띠에 함께 든다. */
+    const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
+    const preYaws9 = DEV9.name === "phone" ? [0, 16, 32, 48] : [0, 8, 16, 24, 32, 40, 48, 56];
+    const preYb9 = (yawDeg: number): number => ((Math.round((yawDeg / 360) * 64) % 64) + 64) % 64;
+    const preStep9 = DEV9.name === "phone" ? 4 : 12;
+    let preN9 = 0;
     const step9 = (): void => {
       /* 한 프레임 예산 12 → 6ms + 개수 상한(8) — 예산은 **일감 사이에서만** 재므로,
          큰 모델 하나가 예산을 넘겨 버리면 그 프레임이 통째로 밀린다(계측: 최악 127ms).
@@ -18316,8 +18324,13 @@ export default function ReplayMotionPlayer({
           else if (j9.gl) {
             const g9 = glNow9();
             if (g9) {
-              if (j9.gl === "u") g9.unitMesh(j9.kind, 0);
-              else g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
+              const u9 = j9.gl === "u";
+              const m9 = u9 ? g9.unitMesh(j9.kind, 0) : g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
+              /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
+              if (m9 && pre9) {
+                const norm9 = u9 ? modelNormOf(j9.kind) : (bldNormOf(j9.kind) ?? 1);
+                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9 : [preYb9(-BUILDING_BASE_YAW)], DEV9.meshShadow);
+              }
             }
           } else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
         } catch { /* 낯선 종류 하나가 로딩을 통째로 막지 않게 — 그건 재생 중 굽는다. */ }
@@ -18333,6 +18346,18 @@ export default function ReplayMotionPlayer({
         }
         raf9 = requestAnimationFrame(step9);
       } else {
+        /* 메시 예열이 끝났다 — 미리 굽기 큐가 남았으면 프레임마다 몇 장씩(위 pre9 ★★ · 판 자리가 안 나면 그 칸은 빠진다). */
+        const g9 = glNow9();
+        const left9 = g9 && preN9 > 0 ? g9.sprPreStep9(preStep9) : 0;
+        if (left9 > 0) {
+          warmingRef.current = true;
+          if (performance.now() - lastPost9 > 160) {
+            lastPost9 = performance.now();
+            setWarmAt({ done: jobs.length + preN9 - left9, total: jobs.length + preN9 });
+          }
+          raf9 = requestAnimationFrame(step9);
+          return;
+        }
         warmingRef.current = false;
         setWarmAt(null);
         setIntroWarm9(true);
