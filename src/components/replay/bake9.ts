@@ -14504,6 +14504,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      자체를 변경") — 그리는 쪽에서 돌리지 않고 **모델의 기본 자세**를 바꾼다(withModelSpin). 그래야 잉크 상자·
      정규화·부품 등급표·총구 앵커가 모두 그 자세로 다시 재어지고, 도록·미니맵·붓이 한 자세를 쓴다. */
   armory: () => withModelSpin(-45, () => {
+    /** 드럼 반지름(2026-10-24 · 옛 2.6) — 우물·뚜껑·톱니 자리가 다 여기서 나온다. */
+    const AR_R9 = 2.2;
     /* ★ 화면 자 타원을 **모형 자 원반**으로(2026-09, 요청: "우회로 없애고 … 승격하는 과정 없앨 수
        있어?") — `discPath3(x, y, z, …)` 는 3D 기록이 없어 메시가 이웃에서 높이를
        빌린다. `discPath3` 는 같은 그림을 그리면서 제 3D 를 적는다(눌림은 groundSquashNow 가 건다). */
@@ -14533,16 +14535,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           1, winLit("#4cd86a")] as ShapeFace,
       ] : []),
       // 가운데 우물 드럼 — 기본 테란색(요청: 황동 → 스테인 쇠), 둘레엔 초록 발광 칸.
-      ...cylinderFaces3(0, 0, 2.6, 2.4),
-      capFace(discPath3(0, 0, 2.44, 1.85), 0.45),
+      /* ★ 드럼 지름 축소 2.6 → **2.2**(2026-10-24, 요청: "아모리 드럼통 지름 축소") — 우물 원반(1.85 → 1.55)·임자색 뚜껑(1.95 → 1.65)·톱니 자리(2.65 → 2.31)가 함께 따라온다. */
+      ...cylinderFaces3(0, 0, AR_R9, 2.4),
+      capFace(discPath3(0, 0, 2.44, AR_R9 - 0.65), 0.45),
       /* ★ 톱니도 **저마다 가운데를 본다**(2026-09, 요청: "아모리 본체 주변 톱니들도") — 트리뷰널
          기둥과 똑같은 자리다. `boxFaces3` 는 축 정렬이라 자리만 원둘레에 흩으면 열넷이 다 같은
          쪽을 보고, 그러면 드럼을 **두른 이빨**이 아니라 원 위에 늘어놓은 네모가 된다.
          제자리(0, R)에 세워 `withModelSpin(−각)` 으로 프레임째 돌린다 — 자리·방향이 한 번에 맞고,
          보임 판정(facingRatio)도 그 안에서 (0, 1) 한 값이면 된다(회전을 같은 문이 지난다). */
+      /* ★ 톱니는 **납작하게 · 창은 바깥면만**(2026-10-24, 요청: "둘레의 이빨들 튀어나온 거 납작하게 하고 창문 부품은 이의 바깥면만 적용 전체가 아니라") — 옛 0.5×0.5×0.72 상자를
+         통째로 발광색으로 칠했다. 이제 드럼 벽에서 0.22 만 나오는 0.5×0.22×0.5 쇠 토막(테란 기본색)이고, 그 바깥면(+y)에 살 밖 0.03 으로 초록 창 한 장만 얹는다. */
       ...Array.from({ length: 14 }, (_, k9) => withModelSpin(-(k9 / 14) * 360, () => (
         facingRatio(0, 1) > 0.05
-          ? paintBase(boxFaces3(0, 2.65, 0.5, 0.5, 0.72, 1.52), winLit("#4cd86a"))
+          ? [
+            ...boxFaces3(0, AR_R9 + 0.11, 0.5, 0.22, 0.5, 1.52),
+            [polyPath3([[-0.18, AR_R9 + 0.25, 1.6], [0.18, AR_R9 + 0.25, 1.6], [0.18, AR_R9 + 0.25, 1.94], [-0.18, AR_R9 + 0.25, 1.94]]), 1, winLit("#4cd86a")] as ShapeFace,
+          ]
           : []
       ))).flat(),
       /* ★ **윗면의 반사광 동그라미 셋은 걷었다**(2026-09, 요청: "아머리 윗면의 반사광 동그라미
@@ -14569,7 +14577,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const N9 = 20;
         const d9 = polyPath3(Array.from({ length: N9 + 1 }, (_, q9) => {
           const a9 = (q9 / N9) * Math.PI * 2;
-          return [Math.cos(a9) * 1.95, Math.sin(a9) * 1.95, 2.46] as [number, number, number];
+          return [Math.cos(a9) * (AR_R9 - 0.55), Math.sin(a9) * (AR_R9 - 0.55), 2.46] as [number, number, number];
         }));
         return [bodyFace(d9), topFace(d9, 0.24)];
       })(), 10),
@@ -31399,13 +31407,18 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
   });
   const key0: number[] = new Array<number>(n);
   const key1: number[] = new Array<number>(n);
+  /* ★★ **3D 가 없는 낯은 3D 벌 안에서 맨 뒤다**(2026-10-24, 지적: "커맨드센터 꼭대기 부품, 배럭 천장의 선이 건설 초반부터 나오는 문제 — 가장 마지막쯤이어야") —
+     3D 를 안 적은 낯(2D 경로만 · 데칼·선)은 옛 자(−화면 밑변 · 수백 음수)로 떨어져 **모형 z(0~8)보다 늘 앞**에 섰다 — 커맨드 꼭대기 구리 테가 2단에 서 있었다.
+     3D 가 하나라도 있는 굽기에서는 그런 낯을 맨 꼭대기 바로 위(zTop + 0.01)로 보낸다. 2D 폴백(3D 없음)만 옛 자 그대로. */
+  let zTop9 = -Infinity;
+  for (let i = 0; i < n; i += 1) if (!Number.isNaN(z1[i]) && z1[i] > zTop9) zTop9 = z1[i];
   for (let i = 0; i < n; i += 1) {
     const gg = gid[i];
     const a9 = Number.isNaN(z0[i]) ? (gz0[gg] < Infinity ? gz0[gg] : NaN) : z0[i];
     const b9 = Number.isNaN(z1[i]) ? (gz1[gg] > -Infinity ? gz1[gg] : NaN) : z1[i];
     /* 3D 가 아예 없는 굽기(2D 폴백)에서는 옛 자로 — 밑변이 낮은(화면 y 가 큰) 것부터. */
-    key0[i] = Number.isNaN(a9) ? -box[i][3] : a9;
-    key1[i] = Number.isNaN(b9) ? -box[i][1] : b9;
+    key0[i] = Number.isNaN(a9) ? (has3d9 ? zTop9 + 0.01 : -box[i][3]) : a9;
+    key1[i] = Number.isNaN(b9) ? (has3d9 ? zTop9 + 0.01 : -box[i][1]) : b9;
   }
   /* ⚠ **한가운데 높이로 재면 안 된다** — 넣었다가 걷었다(2026-09). 키 다른 덩이를 나누려고
      (z0+z1)/2 로 재 봤더니, 벽(가운데 3.0)보다 그 벽에 붙은 띠(가운데 2.2)가 **먼저** 떠서
@@ -31457,9 +31470,16 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
       if (effZ9[b9] > effZ9[a9]) effZ9[a9] = effZ9[b9];
     }
   }
-  /** 낯의 밑변 — 제가 얹힌 받침의 밑변까지 끌어올린 값이다(3D 가 없으면 옛 자 그대로). */
-  const kz9 = key0.map((v9, i) => (Number.isNaN(z0[i]) && gz0[gid[i]] === Infinity
-    ? v9 : Math.max(v9, effZ9[gid[i]])));
+  /** 낯의 밑변 — 제가 얹힌 받침의 밑변까지 끌어올린 값이다(3D 가 없으면 옛 자 그대로).
+   *  ★ **납작한 얹힘(데칼·선·띠)은 맨 뒤**(2026-10-24, 같은 지적 — 배럭 천장의 선이 지붕과 함께 섰다) — 다른 부품 안에 든(lvl ≥ 1) 두께 거의 0(≤ 0.05)인 부품은 몸이
+   *    다 선 뒤(zTop + 0.02)로 보낸다. 낱 부품(태그로 갈린 묶음)만 걸린다 — 태그 없이 이웃과 한 묶음이 된 낯은 두께가 커서 안 걸린다. */
+  const flatTop9 = zTop9 + 0.02;
+  const kz9 = key0.map((v9, i) => {
+    const gg = gid[i];
+    if (Number.isNaN(z0[i]) && gz0[gg] === Infinity) return v9;
+    if (has3d9 && lvl9[gg] >= 1 && gz1[gg] - gz0[gg] <= 0.05) return flatTop9;
+    return Math.max(v9, effZ9[gg]);
+  });
   const order = kz9.map((_, i) => i)
     .sort((a, b) => kz9[a] - kz9[b] || lvl9[gid[a]] - lvl9[gid[b]]
       || gRank9[gid[a]] - gRank9[gid[b]]

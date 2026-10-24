@@ -1553,3 +1553,8 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
 - 누르면: 잠긴 화면은 종전(`viewCut9` + `holdFit9`) · 손 카메라는 `zoomTo(1)`(가운데 기준 · 팬은 한계 안 — 확대 버튼과 같은 길).
 - 🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --diag --castoff --zoomlockprobe --shot x.png` → `[배율 원] 전 ×3.0 · 확대 뒤 ×6.0 · 누른 뒤 ×1.0 (배율 1)` ·
   `--ios` 도 `누른 뒤 ×1.0`. 헤드리스에선 휠의 미끄러짐이 rAF 를 못 타 `휠 뒤` 값이 ↑ 뒤에 함께 찍힌다(붓 문제 아님).
+
+## 요약 보기 — 시작 소개는 짧게 한 바퀴(2026-10-24)
+요청: "요약 모드에서 시작 소개는 짧게 한 바퀴 돌리기". 요약이 돌 때는 편성표를 따로 짓는다(`planDigest9` · `castPlan9(… introCycle: DIGEST_INTRO_CYC9 = 3)`): 경기 시작의 첫 순환
+N 토막(N = 그때 산 사람 수)은 3초씩 고리 차례대로(사건·인구 막힘 끼어들기 없음 — cast9 fill9 의 introLeft9) · 그 뒤는 CYCLE9(6). 요약 창 맨 앞에 [0, N × 3] 을 끼운다(첫 창과
+닿으면 잇는다) — 2배속이라 한 사람 1.5초. 보통 중계(planAll9)는 그대로. digestWant9·digest9 상태는 planDigest9 가 읽어 rosterKeys9 곁으로 올렸다.

@@ -680,6 +680,8 @@ const xfBackK9 = { k: 1 };
 const xfLive9 = { on: false };
 /** GL 안개 기하가 새로 먹였나(2026-10-24 · terrLive9) — 보기가 그대로여도 안개만 바뀐 장을 지형 캔버스에 다시 그리게 하는 표식. */
 const fogGlDirty9 = { v: false };
+/** 요약 시작 소개의 한 사람 몫(경기 초 · 2배속이면 1.5초 · 2026-10-24) — cast9 opts.introCycle · 요약 창 맨 앞. */
+const DIGEST_INTRO_CYC9 = 3;
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
@@ -5426,7 +5428,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
       const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
-      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : TIER9.v === 1 ? 1.6 : 1.25);
+      /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
+         둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
+      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0);
       if (!gl9 && GL_ON9 && terrain?.current && terrainOff) { terrain.current = null; terrainOff(); }   // GL 을 못 열었다 — 지형층을 내리고 옛 벡터층으로(glTerrain9)
       if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
@@ -10854,6 +10858,9 @@ export default function ReplayMotionPlayer({
   const [splitSel9, setSplitSel9] = useState<string[] | null>(null);
   /** 로스터에 있는 이름만 중계에 세운다 — 관전자는 obsNames로 따로 뺀다. */
   const rosterKeys9 = useMemo(() => new Set(bases.map((b9) => b9.key)), [bases]);
+  /** 요약 보기 상태(2026-10-23 · 아래 pickDigest9 ★) — 요약을 켜 달라는 뜻 · 도는 요약(창 목록 · 지금 창). planDigest9(아래)가 읽어 여기 선다. */
+  const [digestWant9, setDigestWant9] = useState(false);
+  const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
   /** 편성표 — 참값 한 벌에 한 번 굽는다(끄면 아예 안 굽는다). */
   /* 순환 고리의 자(cast9 의 ★) — 로스터 차례(bases)와 팀. 밀리는 팀이 없으니 차례만 준다. */
   /** 재생기 검색어(아래 searchHits9 ★★) — 편성표 앞에 선다: 중계가 꺼져 있어도 검색이 전술 자막을 찾으려면 편성표를 굽는다(planAll9). */
@@ -10896,7 +10903,17 @@ export default function ReplayMotionPlayer({
         tracks: truth?.tracks })   // 정찰은 몸이 상대 기지에 실제로 들어선 때(2026-10-21)
       : NO_PLAN9),
     [planWant9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth, castMovesV9]);
-  const castPlan = castOn ? planAll9 : NO_PLAN9;
+  /* ★ 요약의 **시작 소개는 짧게 한 바퀴**(2026-10-24, 요청: "요약 모드에서 시작 소개는 짧게 한 바퀴 돌리기") — 요약이 도는 동안은 첫 순환 한 바퀴를 DIGEST_INTRO_CYC9 초마다 한 사람씩
+     도는 편성표(cast9 opts.introCycle)를 쓰고, 요약 창 맨 앞에 그 한 바퀴([0, 사람 수 × 초])를 끼운다(아래 digestWant9 effect). 보통 중계(planAll9 · 6초 순환)는 그대로. */
+  const planDigest9 = useMemo<CastSeg9[]>(
+    () => ((digestWant9 || digest9) && planAll9 !== NO_PLAN9 && entData
+      ? castPlan9(entData, { total, skip: obsNames, only: rosterKeys9, order: bases.map((b9) => b9.key), teamOf: melee ? undefined : teamMap9,
+        resources: grid.resources, mapW: grid.width, mapH: grid.height, terrain: castTerrain9, event: true, chats: chats9, bank: truth?.res, moves: castMovesV9, tracks: truth?.tracks,
+        introCycle: DIGEST_INTRO_CYC9 })
+      : NO_PLAN9),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [digestWant9, digest9 !== null, planAll9, entData, total, obsNames, rosterKeys9, bases, melee, teamMap9, grid.resources, grid.width, grid.height, castTerrain9, chats9, truth, castMovesV9]);
+  const castPlan = castOn ? (digest9 && planDigest9 !== NO_PLAN9 ? planDigest9 : planAll9) : NO_PLAN9;
   /** 지금 짚히는 토막 번호 — 렌더마다 이분으로 찾는다(상태로 두면 프레임마다 렌더가 한 번 더 돈다). */
   const castIdx9 = castPlan.length > 0 ? castAt9(castPlan, t) : -1;
   /** 중계가 고른 사람 — 끄거나 표가 없으면 null. */
@@ -11670,8 +11687,7 @@ export default function ReplayMotionPlayer({
     T9.alive += 1;
     return () => { T9.alive -= 1; T9.gone = performance.now(); };
   }, []);
-  const [digestWant9, setDigestWant9] = useState(false);
-  const [digest9, setDigest9] = useState<{ wins: [number, number][]; i: number } | null>(null);
+  // (옮김 2026-10-24) digestWant9 · digest9 상태는 planDigest9 가 읽어 rosterKeys9 곁으로 올렸다.
   const digestEndRef9 = useRef(-1);
   const pickFull9 = (): void => { setModeAsk9(false); };
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
@@ -11685,6 +11701,12 @@ export default function ReplayMotionPlayer({
     if (!entData || planAll9 === NO_PLAN9) return;
     const wins9 = castDigest9(planAll9, total);
     if (wins9.length === 0) { fail9(); return; }
+    /* 시작 소개 한 바퀴(위 planDigest9 ★) — 로스터 사람 수 × DIGEST_INTRO_CYC9 초를 맨 앞에. 첫 창과 닿으면 잇는다. */
+    {
+      const intro9 = Math.min(total, Math.max(1, rosterKeys9.size) * DIGEST_INTRO_CYC9);
+      if (wins9[0][0] <= intro9 + 1.5) wins9[0] = [0, Math.max(wins9[0][1], intro9)];
+      else wins9.unshift([0, intro9]);
+    }
     setDigestWant9(false);
     digestEndRef9.current = -1;
     setDigest9({ wins: wins9, i: 0 });
@@ -14716,10 +14738,8 @@ export default function ReplayMotionPlayer({
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
     if (xfGestureRef.current) return;
-    /* ★ 화면을 움직이면 인포 팝업은 닫는다(요청: "인포 팝업 열린 상태에서 드래그·줌 시 창 닫혀야 하고 키보드로
-       이동·줌 시에도") — 휠·핀치·드래그(슬롭 지난 뒤)·가장자리 밀기·WASD가 모두 이 문을 지나므로 여기 한 곳이면
-       된다. 단추·키보드 배율(zoomStep9·zoomTo·fsWheelZoom)은 이 문을 안 지나 따로 닫는다. */
-    closePicked9();
+    /* (되물림 · 2026-10-24, 요청: "유닛·건물 선택 상태로 드래그나 줌해도 선택 취소 안 되게") — 옛 '화면을 움직이면 인포 팝업은 닫는다'(휠·핀치·드래그·가장자리·WASD ·
+       단추·키보드 배율 zoomStep9·zoomTo·fsWheelZoom 도 함께)는 걷었다. 선택은 다른 것을 고르거나 빈 땅을 누르거나(pickAt) 중계 카메라가 사람을 갈아탈 때(camRaw9·viewRaw)만 풀린다. */
     // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
@@ -17593,7 +17613,7 @@ export default function ReplayMotionPlayer({
    *  한가운데가 유일하게 뜻이 통하는 축이다. 팬은 새 배율의 한계 안으로 죈다 —
    *  안 그러면 축소할 때 지도가 화면 밖으로 밀린 채 남는다. */
   const zoomTo = (z1: number): void => {
-    closePicked9();   // 단추 배율도 팝업을 닫는다(요청).
+    // (되물림 2026-10-24) 단추 배율은 선택을 안 닫는다 — beginGestureXf 의 ★.
     const el = mapRef.current;
     const r = el?.getBoundingClientRect();
     if (!r || r.width < 4 || r.height < 4) return;
@@ -17873,7 +17893,7 @@ export default function ReplayMotionPlayer({
       const zoomStep9 = (up9: boolean): void => {
         if (splitOnRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 단독 중계·개인 화면은 열렸다(zoomCapRef9 ★ 2026-10-19) · 토스트
         wheelStopRef9.current();   // 미끄러지던 휠은 멈춘다(위 ★)
-        closePicked9();   // 키보드 배율도 팝업을 닫는다(요청).
+        // (되물림 2026-10-24) 키보드 배율은 선택을 안 닫는다 — beginGestureXf 의 ★.
         const el9 = mapRef.current;
         const r9 = el9?.getBoundingClientRect();
         if (!r9 || r9.width < 4) return;
@@ -21050,7 +21070,7 @@ export default function ReplayMotionPlayer({
     if (camLockRef9.current) { miniLockToast9(); return; }   // 중계 중엔 미니맵 휠 배율도 없다(camLockRef9 · 2026-10-09) — 토스트로 말한다(위 ★)
     const z9 = zoomNext(zoomRef.current, up);
     if (z9 === null || z9 === zoomRef.current) return;
-    closePicked9();   // 미니맵 위 휠 배율도 팝업을 닫는다(요청).
+    // (되물림 2026-10-24) 미니맵 휠 배율은 선택을 안 닫는다 — beginGestureXf 의 ★.
     const [fx9, fy9] = miniProject(mx, my);
     const lim9 = panLimit(z9);
     setView9(z9, {

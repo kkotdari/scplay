@@ -92,6 +92,9 @@ export type CastPlanOpts9 = {
   only?: ReadonlySet<string>;
   /** 로스터 차례(이름) — 순환 고리의 자다. 안 주면 참값의 사람 차례. */
   order?: readonly string[];
+  /** ★ 시작 소개 한 바퀴의 한 사람 몫(초 · 2026-10-24, 요약 보기 "시작 소개는 짧게 한 바퀴") — 주면 경기 시작의 첫 순환은 산 사람 수만큼 이 간격으로 고리 차례대로 돌고(사건·인구 막힘
+   *  끼어들기 없음), 그 뒤는 CYCLE9. 안 주면(보통 중계) 종전대로. */
+  introCycle?: number;
   /** 이름 → 팀 — 고리를 팀 번갈아 짠다. 안 주면(밀리) 로스터 차례 그대로. */
   teamOf?: Readonly<Record<string, number | undefined>>;
   /** 지도 자원 점(ReplayMapGrid.resources — 미네랄 밭(겹친 것은 하나)·가스 [타일 x, 타일 y, 가스]) — 앞마당·멀티를 가르는 자(2026-10-10). 없으면 본진 건물은 수로만 센다. */
@@ -1984,8 +1987,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 끝은 **MIN_HOLD9 앞**에서 멎는다 — 장면 바로 앞에 순환 한 토막을 끼우면 자막이
        두 번 잇달아 뜨고(그 둘은 다른 사람이다) 앞 토막은 몇 초 만에 끊긴다. */
     /* 그 칸에 인구가 막힌 사람이 있으면 그 사람이 먼저다(2026-10-10 · 인구 막힘 ★★) — 한 막힘은 한 번만 데려온다. */
-    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += CYCLE9) {
+    /* ★ 시작 소개 한 바퀴(opts.introCycle · 2026-10-24) — 경기 시작(from 0 · 첫 채움)의 첫 N 토막(N = 그때 산 사람 수)은 introCycle 초씩 고리 차례대로. */
+    let introLeft9 = opts.introCycle && from9 <= 0 && out9.length === 0 ? aliveAt9(0).length : 0;
+    for (let s9 = s09; s9 < to9 - MIN_HOLD9; s9 += introLeft9 > 0 ? opts.introCycle! : CYCLE9) {
       const alive9 = aliveAt9(s9);
+      if (introLeft9 > 0) { introLeft9 -= 1; push9(s9, nextRing9(alive9), "순환 중계", true, 0); continue; }
       const blk9 = alive9.find((r9) => { const b9 = blockIn9(r9, s9, s9 + CYCLE9); return !!b9 && !blockShown9.has(b9); });
       /* ★ 사건 중계는 **그 칸에 가장 중요한 일을 한 사람**을 먼저 데려온다(2026-10-14, 지적: "생산 건물 늘림보다 입구 막기가 더 중요해 — 중요도 판단 필요") —
          그 칸(앞 2초 ~ 칸 끝)의 이정표 rank(MILE_RANK9) 가 가장 큰 사람. 전술 이상(입구 막기·러시…)은 인구 막힘보다도 먼저 · 빌드 이정표는 인구 막힘 다음 · 없으면 돌림. */
