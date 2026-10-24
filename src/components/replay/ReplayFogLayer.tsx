@@ -74,6 +74,65 @@ export function exploredPath9(exploredAt: Uint16Array, w: number, h: number, t: 
   }
   return { path, count };
 }
+/** 밝힌 시각 판 → 깎은 **고리들**(타일 자) — 위 exploredPath9 와 같은 셈(한 겹 흐림 · 마칭 스퀘어 · Chaikin 두 번). f·tmp 는 되쓰는 밭. */
+export function exploredLoops9(exploredAt: Uint16Array, w: number, h: number, t: number, f: Float32Array, tmp: Float32Array): Loop[] {
+  const n = w * h;
+  for (let i = 0; i < n; i += 1) f[i] = exploredAt[i] <= t ? 1 : 0;
+  for (let y = 0; y < h; y += 1) {
+    const r = y * w;
+    for (let x = 0; x < w; x += 1) tmp[r + x] = (f[r + (x > 0 ? x - 1 : 0)] + 2 * f[r + x] + f[r + (x < w - 1 ? x + 1 : w - 1)]) * 0.25;
+  }
+  for (let x = 0; x < w; x += 1) {
+    for (let y = 0; y < h; y += 1) {
+      f[y * w + x] = (tmp[(y > 0 ? y - 1 : 0) * w + x] + 2 * tmp[y * w + x] + tmp[(y < h - 1 ? y + 1 : h - 1) * w + x]) * 0.25;
+    }
+  }
+  return contoursOf(f, w, h).map((lp) => chaikin(chaikin(lp))).filter((lp) => lp.length >= 6);
+}
+
+/** ★ **GL 안개층의 기하**(2026-10-24, 요청: "안개도 지형처럼 벡터나 뭐 그런 방법 없나") — 이 층(캔버스)의 paint 가 하던 두 셈을 React 밖에서 든다:
+ *  ① 밝힌 판 합치기(칸마다 min · 시야 갈래가 바뀌면 새로) ② 밝힘 등고선(판이 바뀌고 · CT_MS9 마다 · 크게 갈리면 곧장). 고리(타일 자)와 열쇠(key · 바뀌면
+ *  GL 이 부채꼴 VBO 를 다시 올린다)를 내준다. 그리는 것은 glTerrain9 — 지형과 같은 캔버스·같은 장에 스텐실 홀짝으로(밝힘 밖 = 1 · 밝힘 안 시야 밖 = DIM · 시야 원 = 0). */
+export class FogGeom9 {
+  private mg: { src: Uint16Array | null; out: Uint16Array | null; ver: number; branch?: number } = { src: null, out: null, ver: 0 };
+  private ct: { count: number; at: number; ver: number; t: number } | null = null;
+  private fld: { n: number; f: Float32Array; tmp: Float32Array } | null = null;
+  loops: Loop[] = [];
+  key = 0;
+  /** 붓이 고른 장의 안개 한 벌을 먹인다 — 고리가 바뀌었으면 key 가 오른다. */
+  feed(ov: FogOverride, w: number, h: number): void {
+    const n = w * h;
+    const src9 = ov.exploredAt;
+    if (src9.length !== n || n <= 0) return;
+    const mg9 = this.mg;
+    const br9 = ov.branch;
+    if (br9 !== undefined && mg9.branch !== undefined && br9 !== mg9.branch) { mg9.out = null; this.ct = null; }
+    if (br9 !== undefined) mg9.branch = br9;
+    if (!(mg9.src === src9 && mg9.out)) {
+      if (!mg9.out || mg9.out.length !== n) mg9.out = src9.slice();
+      else { const o9 = mg9.out; for (let i = 0; i < n; i += 1) if (src9[i] < o9[i]) o9[i] = src9[i]; }
+      mg9.src = src9;
+      mg9.ver += 1;
+    }
+    const exploredAt = mg9.out;
+    const t = ov.t;
+    let fb = this.fld;
+    if (!fb || fb.n !== n) { fb = { n, f: new Float32Array(n), tmp: new Float32Array(n) }; this.fld = fb; }
+    const ct9 = this.ct;
+    if (!ct9 || ct9.ver !== mg9.ver || ct9.t !== t) {
+      let count = 0;
+      for (let i = 0; i < n; i += 1) if (exploredAt[i] <= t) count += 1;
+      const now9 = typeof performance === "undefined" ? Date.now() : performance.now();
+      const jump9 = !ct9 || Math.abs(count - ct9.count) > n / 64;
+      if (ct9) { ct9.ver = mg9.ver; ct9.t = t; }
+      if (!ct9 || (ct9.count !== count && (jump9 || now9 - ct9.at >= CT_MS9))) {
+        this.loops = exploredLoops9(exploredAt, w, h, t, fb.f, fb.tmp);
+        this.key += 1;
+        this.ct = { count, at: now9, ver: mg9.ver, t };
+      }
+    }
+  }
+}
 /** 붓이 넘기는 최신 안개 한 벌 — 눈 목록(vis)·밝힌 시각 판(exploredAt)·그 시각(t). */
 export type FogOverride = {
   vis: Float32Array; exploredAt: Uint16Array; t: number;

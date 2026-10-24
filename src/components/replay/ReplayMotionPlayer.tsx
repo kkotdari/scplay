@@ -19,7 +19,7 @@ import { baseArea9, castAt9, castDigest9, castFocus9, castMoves9, castPlan9, typ
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
-import ReplayFogLayer, { DIM as FOG_DIM9, FOG_RGB as FOG_RGB9, exploredPath9, fogPad9, type FogOverride } from "./ReplayFogLayer";
+import ReplayFogLayer, { DIM as FOG_DIM9, FOG_RGB as FOG_RGB9, exploredPath9, fogPad9, FogGeom9, type FogOverride } from "./ReplayFogLayer";
 /* (걷어냄) PillTabs — 품질 알약이 있던 시절의 것(도구 판과 함께 미사용). */
 import { cx } from "./cx";
 /* 프사·종족 배지·알림은 **앱이 꽂는다**(chrome.ts 머리말) — 모듈은 그 구현을 안 갖는다. */
@@ -60,7 +60,7 @@ import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { GL_TERR9, glTerrCanvas9, glTerrLast9 } from "./glTerrain9";
+import { GL_TERR9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -5189,7 +5189,7 @@ export function paintFxList9(
   WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -5220,6 +5220,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   terrain?: { current: TerrainGeom9 | null };
   /** GL 붓을 못 열었다 — 지형층을 내리고 옛 벡터층을 올리라는 신호. */
   terrainOff?: () => void;
+  /** GL 안개(glTerrain9 GlFog9 · 2026-10-24) — 있으면 지형 캔버스에 지형 다음으로 그린다(옛 안개 캔버스는 안 선다). 붓(paintFnRef9)이 장마다 채운다. */
+  fog?: { current: GlFog9 | null };
   /** 저배율 마커 보기(요청) — 렌더 쪽 markerView와 같은 값이 내려온다. */
   marker?: boolean;
   /** 마커로 갈아타는 **배율 문턱** — 이 값보다 낮은 배율로 그리면 마커다(지적: "줌
@@ -6717,7 +6719,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (tg9 && tcv9 && clipQuad && clipQuad.length === 4) {
           const tc9 = glTerrCanvas9(tcv9);
           const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
-          if (!tc9 || !tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, pcl9)) { if (terrain) terrain.current = null; terrainOff?.(); }
+          if (!tc9 || !tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null))) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
         }
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
@@ -6730,7 +6732,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -13859,6 +13861,8 @@ export default function ReplayMotionPlayer({
     let wheelGoal9 = 0;
     let wheelRaf9 = 0;
     let wheelAt9 = 0;
+    /** 커서 아래 지도 지점을 붙드는 닻(잠긴 화면이 아닐 때) — ax·ay 커서(상자 가운데 기준) · ux·uy 그 아래 지점(배율 1 자). */
+    let wheelAnchor9: { ax: number; ay: number; ux: number; uy: number } | null = null;
     /** 미끄러짐 시간 상수(ms) — 한 장마다 남은 몫의 1 − e^(−dt/τ) 를 간다(기기 장 빠르기와 무관 · 0.2초 남짓에 닿는다). */
     const WHEEL_TAU9 = 70;
     /* 배율 원·키 배율이 손대면 미끄러짐을 그 자리에서 멈춘다(그대로 두면 남은 걸음이 새 배율을 덮어쓴다). */
@@ -13908,43 +13912,40 @@ export default function ReplayMotionPlayer({
          그것이고, 그쪽은 연속 배율을 받아도 그대로 판정한다(snapZoom은 그 자리에 남는다). */
       /* ★ 단독 중계·개인 화면은 휠 한 칸도 **미끄러져** 간다(2026-10-19, 지적: "사진 확대축소하듯 부드럽지가 않네") — 자연수로 끊지 않고 목표(raw1)로 rAF 마다 WHEEL_EASE9 몫씩
          다가간다. 자리는 applyGestureXf 가 잠긴 가운데로 잡는다. 손짓은 다 닿은 뒤 140ms 에 굳힌다(중간에 굳히면 남은 걸음이 버려진다). */
-      if (camLockRef9.current) {
-        wheelGoal9 = raw1;
-        window.clearTimeout(wheelTimer);
-        if (!wheelRaf9) {
-          wheelAt9 = performance.now();
-          const step9 = (): void => {
-            const now9 = performance.now();
-            const k9 = 1 - Math.exp(-Math.max(0, now9 - wheelAt9) / WHEEL_TAU9);
-            wheelAt9 = now9;
-            const zc9 = zoomRef.current;
-            let nz9 = zc9 + (wheelGoal9 - zc9) * k9;
-            if (Math.abs(wheelGoal9 - nz9) < 0.003) nz9 = wheelGoal9;
-            zoomRef.current = nz9;
-            applyGestureXf();
-            if (nz9 !== wheelGoal9) { wheelRaf9 = requestAnimationFrame(step9); return; }
-            wheelRaf9 = 0;
-            wheelTimer = window.setTimeout(() => endGestureXf(), 140);
-          };
-          wheelRaf9 = requestAnimationFrame(step9);
-        }
-        return;
+      /* ★ 휠은 **어디서나 미끄러진다**(2026-10-24, 지적: "줌인아웃에서 사진처럼 자연스럽지 않고 단계적") — 옛 자연수 반올림(z1 = round(raw1) · 한 틱 한 칸)은
+         잠긴 화면 밖에서 남아 있었다. 이제 모두 목표(raw1 · 소수 그대로)로 rAF 마다 다가가고, 커서 아래 지점은 닻(wheelAnchor9)으로 붙든다 — 잠긴 화면은
+         applyGestureXf 가 가운데를 붙드니 닻이 없다. 되물린 값: round(raw1) 즉시 반영. */
+      wheelGoal9 = raw1;
+      if (camLockRef9.current) wheelAnchor9 = null;
+      else {
+        const ox = rect.left + rect.width / 2;
+        const oy = rect.top + rect.height / 2;
+        wheelAnchor9 = { ax: e.clientX - ox, ay: e.clientY - oy, ux: (e.clientX - ox - panRef.current.x) / z0, uy: (e.clientY - oy - panRef.current.y) / z0 };
       }
-      const z1 = Math.min(zoomCapRef9.current(), Math.round(raw1));
-      const ox = rect.left + rect.width / 2;
-      const oy = rect.top + rect.height / 2;
-      // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자).
-      const ux = (e.clientX - ox - panRef.current.x) / z0;
-      const uy = (e.clientY - oy - panRef.current.y) / z0;
-      const { x: maxX, y: maxY, yTop: topY } = panLimit(z1);
-      const px = Math.min(maxX, Math.max(-maxX, e.clientX - ox - z1 * ux));
-      const py = Math.min(topY, Math.max(-maxY, e.clientY - oy - z1 * uy));
-      zoomRef.current = z1;
-      panRef.current = { x: px, y: py };
-      // 렌즈·효과층·유닛 캔버스를 한 벌로(공용 헬퍼) — 굳으면 effect가 다시 맞춘다.
-      applyGestureXf();
       window.clearTimeout(wheelTimer);
-      wheelTimer = window.setTimeout(() => endGestureXf(), 140);
+      if (!wheelRaf9) {
+        wheelAt9 = performance.now();
+        const step9 = (): void => {
+          const now9 = performance.now();
+          const k9 = 1 - Math.exp(-Math.max(0, now9 - wheelAt9) / WHEEL_TAU9);
+          wheelAt9 = now9;
+          const zc9 = zoomRef.current;
+          let nz9 = zc9 + (wheelGoal9 - zc9) * k9;
+          if (Math.abs(wheelGoal9 - nz9) < 0.003) nz9 = wheelGoal9;
+          const an9 = wheelAnchor9;
+          if (an9) {
+            // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자) · 한계 안으로.
+            const { x: maxX, y: maxY, yTop: topY } = panLimit(nz9);
+            panRef.current = { x: Math.min(maxX, Math.max(-maxX, an9.ax - nz9 * an9.ux)), y: Math.min(topY, Math.max(-maxY, an9.ay - nz9 * an9.uy)) };
+          }
+          zoomRef.current = nz9;
+          applyGestureXf();
+          if (nz9 !== wheelGoal9) { wheelRaf9 = requestAnimationFrame(step9); return; }
+          wheelRaf9 = 0;
+          wheelTimer = window.setTimeout(() => endGestureXf(), 140);
+        };
+        wheelRaf9 = requestAnimationFrame(step9);
+      }
     };
     /* ★ 휠은 **판 전체**가 받는다(지적: "로스터 상시표시 부분이 휠을 먹어버리네") ────
        여태 이 리스너는 지도 상자에만 붙어 있었다. 평소 배치에서는 로스터가 지도 **밖**
@@ -15016,7 +15017,9 @@ export default function ReplayMotionPlayer({
       // 핀치도 자연수다(요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") — 벌린 비를 반올림한다.
       /* 단독 중계·개인 화면은 자연수로 끊지 않는다(2026-10-19 · 사진처럼 — 기본 배율이 4.84 같은 소수라 반올림하면 칸마다 15~20% 씩 튄다). */
       const zc9 = Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d));
-      const z = Math.min(zoomCapRef9.current(), camLockRef9.current ? zc9 : Math.round(zc9));
+      /* ★ 핀치는 **연속**이다(2026-10-24, 지적: "줌인아웃에서 사진처럼 자연스럽지 않고 단계적으로 되는 느낌") — 옛 자연수 반올림(2026-09 요청)은 지형·판을 배율 칸으로
+         굽던 때의 값이고, 지금은 지형이 GL(배율 무관)·몸이 한 장짜리 판이라 끊을 까닭이 없다. 되물린 값: Math.round(zc9). */
+      const z = Math.min(zoomCapRef9.current(), zc9);
       const mx2 = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       // 핀치 시작점 아래의 지도 지점이 손가락을 따라오도록 pan을 푼다.
@@ -16581,6 +16584,13 @@ export default function ReplayMotionPlayer({
   const [glTerrOn9, setGlTerrOn9] = useState(false);
   const glTerrOnRef9 = useRef(false);
   glTerrOnRef9.current = glTerrOn9;
+  /* ══ GL 안개(2026-10-24, 요청: "안개도 지형처럼 벡터나 뭐 그런 방법 없나") — 안개를 캔버스가 아니라 지형 캔버스(glTerrain9)에 지형 다음으로 그린다. 기하(합치기·
+     등고선)는 FogGeom9, 눈 원은 GL 이 부채꼴로. 붓(paintFnRef9)이 장마다 fogGlRef9 를 채우고 UnitLayer 가 지형과 함께 그리므로 **지형·안개·몸이 한 장**이다
+     (옛 안개 캔버스는 제 박자·제 변환 기준이라 지형보다 늦게 따라왔다 — 지적: "안개는 늦네"). GL 지형층이 섰을 때만 · 평면만(fogOn 이 이미 입체를 끈다). */
+  const fogGeomRef9 = useRef<FogGeom9 | null>(null);
+  const fogGlRef9 = useRef<GlFog9 | null>(null);
+  const fogShowRef9 = useRef(false);
+  const FOG_RGB_ARR9 = useMemo((): [number, number, number] => { const a9 = FOG_RGB9.split(",").map((v9) => Number(v9.trim())); return [a9[0] || 0, a9[1] || 0, a9[2] || 0]; }, []);
   useEffect(() => {
     let dead9 = false;
     if (!GL_ON9 || !GL_TERR9 || !grid.terrain) { glTerrRef9.current = null; setGlTerrOn9(false); return undefined; }
@@ -17057,8 +17067,10 @@ export default function ReplayMotionPlayer({
       FOGM9.was = FOGM9.gest;
     }
     fogBin9().brush += 1;
-    if (!(fr9.visSrc && fr9.explored && fogPaintRef.current)) fogBin9().nosrc += 1;
-    if (fr9.visSrc && fr9.explored && fogPaintRef.current && !splitOnRef9.current) {   // 분할보기는 안개를 안 칠한다(본 지도가 숨는다)
+    /* GL 안개(위 fogGlRef9)는 옛 안개 캔버스(fogPaintRef)가 없어도 이 블록을 지난다 — 기하를 먹이고 미니맵 안개(miniFogLiveRef9)도 여기서 산다. */
+    const glFog9 = glTerrOnRef9.current && fogShowRef9.current;
+    if (!(fr9.visSrc && fr9.explored && (fogPaintRef.current || glFog9))) fogBin9().nosrc += 1;
+    if (fr9.visSrc && fr9.explored && (fogPaintRef.current || glFog9) && !splitOnRef9.current) {   // 분할보기는 안개를 안 칠한다(본 지도가 숨는다)
       /* 계측: 지금 칠할 목록이 전 장보다 이른 시각인가(위 FOGBACK9의 ★). 칠할지 말지를
          가리기 **전에** 센다 — 같은 목록이라 건너뛴 장은 뒤로 간 것이 아니므로 여기서
          was가 그대로 유지되는 것이 맞다. */
@@ -17096,7 +17108,13 @@ export default function ReplayMotionPlayer({
         ft9.vis = fr9.visSrc; ft9.ver = fr9.visVer; ft9.explored = fr9.explored; ft9.tq = tq9; ft9.z = vz9; ft9.px = vx9; ft9.py = vy9;
         ft9.at = gnow9;
         const pt09 = pNow();
-        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9, branch: fogBranchRef9.current });
+        const ov9: FogOverride = { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9, branch: fogBranchRef9.current };
+        if (fogPaintRef.current) fogPaintRef.current(zoomRef.current, panRef.current, ov9);
+        if (glFog9) {
+          const g9 = fogGeomRef9.current ?? (fogGeomRef9.current = new FogGeom9());
+          g9.feed(ov9, gw9, gh9);
+          fogGlRef9.current = { loops: g9.loops, key: g9.key, eyes: fr9.visSrc, rgb: FOG_RGB_ARR9, dim: FOG_DIM9 };
+        }
         miniFogLiveRef9.current = { eyes: fr9.visSrc, explored: fr9.explored, t: tNow9, seq: (miniFogLiveRef9.current?.seq ?? 0) + 1 };
         fogBin9().pms += pNow() - pt09;
         fogXfRef9.current = { z: vz9, x: vx9, y: vy9 };   // 이 보기로 칠했다 — 임시 변환의 새 기준
@@ -17200,6 +17218,11 @@ export default function ReplayMotionPlayer({
   if (frame9.explored) fogSeenRef9.current = true;
   const exploredAt = frame9.explored ?? (fogSeenRef9.current ? null : fogHold9?.explored) ?? null;
   const visNow = frame9.visNow ?? (fogSeenRef9.current ? null : fogHold9?.visNow) ?? null;
+  /* GL 안개의 켬·끔(위 fogGlRef9) — 안개 층이 설 조건과 같다. GL 지형층이 서 있으면 안개도 GL 로(옛 캔버스는 안 그린다). 첫 판이 오기 전엔 고리 없음·눈 없음 = 전부 안개. */
+  fogShowRef9.current = fogOn && !!exploredAt && !!visNow;
+  const glFogOn9 = glTerrOn9 && fogShowRef9.current;
+  if (!glFogOn9) fogGlRef9.current = null;
+  else if (!fogGlRef9.current) fogGlRef9.current = { loops: [], key: 0, eyes: null, rgb: FOG_RGB_ARR9, dim: FOG_DIM9 };
   /** DOM 효과 기록 → 스팬. 죽음 여운(dieat)만은 낮은 배율에서 효과 시트로 보낸다(캔버스 burst는 2배부터). */
   /* 입체(3D)에서 CSS 효과의 자·눕기(지적: "스캔 등 CSS 효과가 눕지 않음 · 피격·사망 등 CSS 효과가 너무
      크게 나옴") — 캔버스 op의 자(unitGlyphPx)는 깊이 배율 pitchK(y)를 먹는데, DOM 효과의 폭은 '지도 폭의
@@ -20624,12 +20647,12 @@ export default function ReplayMotionPlayer({
               잔상 건물은 원작에서도 안개 밑에 잠겨 보인다. 마법 효과 층(z 7000)은
               이보다 위라 안개에 안 잠긴다. */}
           {/* 안 움직이는 막(위 CSS의 ★) — 안개 판이 못 덮는 네 띠에만 선다. 자리는 손짓이 적는다. */}
-          {fogOn && exploredAt && visNow && (
+          {fogOn && exploredAt && visNow && !glFogOn9 && (
             <div className="scr-motion-fogbg" aria-hidden>
               <i /><i /><i /><i />
             </div>
           )}
-          {fogOn && exploredAt && visNow && (
+          {fogOn && exploredAt && visNow && !glFogOn9 && (
               <ReplayFogLayer
                 className="scr-motion-fog"
                 w={gw9} h={gh9} exploredAt={exploredAt} t={t}
@@ -20647,7 +20670,7 @@ export default function ReplayMotionPlayer({
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
             painter={unitPaintRef} onPainted={onUnitPainted}
-            terrain={glTerrRef9} terrainOff={() => setGlTerrOn9(false)}
+            terrain={glTerrRef9} terrainOff={() => setGlTerrOn9(false)} fog={fogGlRef9}
             /* 손짓이 도는가 — 배킹을 내린 손짓에서만 그림자를 접는다(위 shFold9). */
             gesture={xfGestureRef}
             /* 사양 라디오 × 배율 칸(요청) — 둘 다 켜져야 켜진다. 칸 2 이하는 몸만.

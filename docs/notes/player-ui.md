@@ -2294,3 +2294,14 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - (같은 날 지적: "전광판 테두리가 없어졌어") — 전광판 우물(.scr-dock-roster)·인포창은 `overflow: hidden` 이라 밖으로 넓힌 가짜 요소가 테와 함께 잘렸다. 전광판 판 그림은
   감싸개 `.scr-fs-rosterpanel::after`(overflow visible · 같은 상자 · isolation) 로, 인포창은 홀로에서 제 overflow 를 풀고 몸(.scr-motion-infodock-body)에 hidden 을 넘겼다.
   🔎 인포창까지 보려면 `--vw 1920 --vh 1080 --info --track 정구 --dockrax --players 3`(1280 폭에선 자리가 없어 인포창이 숨는다).
+
+## GL 안개 · 연속 줌(핀치·휠)(2026-10-24)
+요청: "줌인아웃에서 사진처럼 자연스럽지 않고 단계적으로 되는 느낌" · "안개는 늦네" → "안개도 지형처럼 벡터나 뭐 그런 방법 없나".
+- **GL 안개**: 안개를 지형 캔버스(glTerrain9)에 지형 다음으로 그린다 — 지형·안개·몸이 **한 장**이라 늦을 수가 없다. 기하는 `ReplayFogLayer.FogGeom9`(옛 캔버스 paint 의
+  밝힌 판 합치기(min·갈래)와 밝힘 등고선(CT_MS9 뜸하게)을 React 밖으로 뽑은 것 · `exploredLoops9`), 그리기는 스텐실 두 비트(bit0 밝힘 홀짝 INVERT · bit1 시야 원 REPLACE) →
+  (0,0) 짙게 1 · (1,0) DIM 0.6 · 시야 원 0. 시야 원은 타일 자의 진짜 원(조각 8~40 · 둘레 6 기기 px 마다)이라 눈 배열이 갈릴 때마다 다시 짓는다(731눈 88k 정점 · 40ms 마다).
+  켬 = GL 지형층 섰고 안개가 설 조건(fogOn·판·시야)일 때(glFogOn9) — 그때 옛 안개 캔버스·막 띠(fogbg)는 안 그린다(폴백 그대로 남음). 입체는 fogOn 이 이미 끈다. 분할 칸은 안개 없음.
+  붓(paintFnRef9)의 안개 블록이 캔버스가 없어도 돌아 기하를 먹이고 미니맵 안개(miniFogLiveRef9)도 산다. 첫 판 전엔 고리·눈 없음 = 전부 안개.
+- **핀치 연속**: `Math.round(zc9)` 되물림 — 지형이 GL(배율 무관)·몸이 한 장 판이라 끊을 까닭이 없다. **휠**도 어디서나 미끄러진다(옛 잠긴 화면만 easing · 그 밖은 round(raw1) 즉시) —
+  목표(raw1 소수)로 τ 70ms 로 다가가고 커서 아래 지점은 닻(wheelAnchor9)으로 붙든다. 2026-09 '자연수 배수만' 요청은 되물렸다.
+- 🔎 `perf-check --ios|--wide --diag --shot x.png` — [GL] 줄 `안개 눈N·Nk정점·고리N` · 줌 훑기 `--zoomsweep 4`(휠 easing 으로도 칸이 선다).

@@ -48,6 +48,9 @@ void main() {
   //__EMIT0__
 }`;
 
+/** GL 안개 한 벌(2026-10-24 · ReplayFogLayer.FogGeom9 가 짓는다) — 밝힘 고리(타일 자 · key 가 바뀌면 다시 올린다) · 눈 목록(x,y,r,id 넷씩 · 타일 자 · 같은 배열이면 안 다시 짓는다) · 색·어둑함. */
+export interface GlFog9 { loops: Loop[]; key: number; eyes: Float32Array | null; rgb: [number, number, number]; dim: number }
+
 /** 한 갈래의 GPU 몫 — 채우기 부채꼴(정점 수) · 띠(정점 수) · 타일 자 상자. */
 interface Bufs9 { fill: WebGLBuffer | null; nFill: number; strip: WebGLBuffer | null; nStrip: number; box: [number, number, number, number] }
 
@@ -152,7 +155,10 @@ export class GlTerrain9 {
   private nAttr = 8;
   private bufs: WebGLBuffer[] = [];
   /** 진단 — 올린 정점 수 · 올리는 데 든 ms · 지난 장의 드로 콜. */
-  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0 };
+  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0 };
+  /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
+  private fogFan: WebGLBuffer | null = null; private nFogFan = 0; private fogKey = -1;
+  private eyeFan: WebGLBuffer | null = null; private nEyeFan = 0; private eyeSrc: Float32Array | null = null; private eyePpt = 0;
   constructor(private readonly gl: WebGLRenderingContext | WebGL2RenderingContext, mkProg: (vs: string, fs: string) => WebGLProgram,
     private readonly divisor: (loc: number, d: number) => void = () => {}) {
     this.prog = mkProg(TERR_VS, TERR_FS);
@@ -200,7 +206,7 @@ export class GlTerrain9 {
   }
   /** 지형 한 장 — 몸보다 먼저, 깊이 없이. `quad` 는 지도 네 귀 (0,0)(W,0)(W,H)(0,H) 의 화면 CSS px(x,y 여덟 수) · `wallScale` 벽띠 배수(평면 2 · 입체 4) ·
    *  `dprK` 기기 px/CSS px(최소 선 굵기 1 기기 px 의 자). 호출자가 판·가위·뷰포트를 걸어 둔 채 부른다. 끝나면 블렌드(ONE, 1−a)·깊이 켬 상태로 돌려 둔다. */
-  draw(G: TerrainGeom9, quad: number[], cw: number, ch: number, wallScale: number, dprK: number): void {
+  draw(G: TerrainGeom9, quad: number[], cw: number, ch: number, wallScale: number, dprK: number, fog: GlFog9 | null = null): void {
     const gl = this.gl;
     this.ensure(G);
     this.stat.draws = 0;
@@ -337,6 +343,56 @@ export class GlTerrain9 {
       cover(this.land, false, () => { gl.uniform1f(this.loc.uMode, 1); gl.uniform4f(this.loc.uCol, 0, 0, 0, 0.62); });
       gl.uniform1f(this.loc.uMode, 0);
     }
+    /* ══ 안개(2026-10-24, 요청: "안개도 지형처럼") — 지형 위 · 같은 장 · 같은 카메라. 캔버스 안개와 같은 뜻: 지도 전체 = 안개 1 → 밝힌 고리 안 = DIM →
+       시야 원 안 = 0. 스텐실 두 비트로 가른다 — bit0 = 밝힘 홀짝(부채꼴 INVERT) · bit1 = 시야 원(REPLACE). 덮기 둘: (0,0) 짙게 · (1,0) 옅게. 시야 원은
+       타일 자의 진짜 원이라 입체(호모그래피)에서도 바닥에 눕는다. 밝힘 고리는 FogGeom9 가 뜸하게 다시 뽑고(key), 눈 원은 눈 배열이 갈릴 때 다시 짓는다. */
+    if (fog) {
+      if (fog.key !== this.fogKey) {
+        const f = fanOf(fog.loops);
+        if (!this.fogFan) this.fogFan = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.fogFan!); gl.bufferData(gl.ARRAY_BUFFER, f, gl.DYNAMIC_DRAW);
+        this.nFogFan = f.length / 2; this.fogKey = fog.key;
+      }
+      const pptQ = Math.max(1, Math.round(cssPerTile * dprK / 8) * 8);   // 배율 칸(8 기기 px) — 그 안에서는 눈 원의 조각 수가 같다
+      if (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt) {
+        const e = fog.eyes; let nv = 0; const segOf = (r: number): number => Math.max(8, Math.min(40, Math.round((2 * Math.PI * r * pptQ) / 6)));
+        if (e) for (let i = 0; i + 2 < e.length; i += 4) if (e[i + 2] > 0) nv += segOf(e[i + 2]) * 3;
+        const a = new Float32Array(nv * 2); let o = 0;
+        if (e) for (let i = 0; i + 2 < e.length; i += 4) {
+          const cx = e[i]; const cy = e[i + 1]; const r = e[i + 2]; if (!(r > 0)) continue;
+          const n = segOf(r);
+          for (let k = 0; k < n; k += 1) {
+            const a0 = (k / n) * Math.PI * 2; const a1 = ((k + 1) / n) * Math.PI * 2;
+            a[o] = cx; a[o + 1] = cy; a[o + 2] = cx + r * Math.cos(a0); a[o + 3] = cy + r * Math.sin(a0); a[o + 4] = cx + r * Math.cos(a1); a[o + 5] = cy + r * Math.sin(a1); o += 6;
+          }
+        }
+        if (!this.eyeFan) this.eyeFan = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.eyeFan!); gl.bufferData(gl.ARRAY_BUFFER, a, gl.DYNAMIC_DRAW);
+        this.nEyeFan = nv; this.eyeSrc = fog.eyes; this.eyePpt = pptQ;
+        this.stat.fogEyes = e ? e.length >> 2 : 0; this.stat.fogVerts = nv;
+      }
+      const fanRaw = (buf: WebGLBuffer | null, n: number, mask: number, invert: boolean): void => {
+        if (!buf || n <= 0) return;
+        gl.stencilMask(mask);
+        if (invert) { gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.INVERT); }
+        else { gl.stencilFunc(gl.ALWAYS, mask, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE); }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+        gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, n); this.stat.draws += 1;
+      };
+      gl.uniform1f(this.loc.uMode, 0); gl.uniform2f(this.loc.uOff, 0, 0); gl.uniform1f(this.loc.uHalfW, 0);
+      gl.colorMask(false, false, false, false);
+      fanRaw(this.fogFan, this.nFogFan, 0x01, true);
+      fanRaw(this.eyeFan, this.nEyeFan, 0x02, false);
+      gl.colorMask(true, true, true, true);
+      gl.stencilMask(0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+      gl.stencilFunc(gl.EQUAL, 0, 0x03); col(fog.rgb, 1); rect(0, 0, W, H);
+      gl.stencilFunc(gl.EQUAL, 1, 0x03); col(fog.rgb, fog.dim); rect(0, 0, W, H);
+      gl.colorMask(false, false, false, false);
+      gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);
+      gl.colorMask(true, true, true, true);
+    }
     gl.disable(gl.STENCIL_TEST);
     gl.stencilMask(0xff);
     gl.colorMask(true, true, true, true);
@@ -383,7 +439,7 @@ export class GlTerrCanvas9 {
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.dead = true; });
   }
   /** 한 장 — bw·bh 배킹(기기 px · 몸 캔버스와 같게) · cw·ch CSS px · quad 지도 네 귀(CSS px) · clip 가위(CSS px 왼위·오른아래 · 분할 칸) */
-  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null): boolean {
+  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null): boolean {
     if (this.dead) return false;
     const gl = this.gl; const cv = this.canvas;
     if (cv.width !== bw) cv.width = bw;
@@ -398,7 +454,7 @@ export class GlTerrCanvas9 {
     } else gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0); gl.clearStencil(0); gl.stencilMask(0xff);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw));
+    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog);
     gl.disable(gl.SCISSOR_TEST);
     return true;
   }
