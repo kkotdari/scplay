@@ -690,7 +690,11 @@ const BLD_LIT_ALL9 = typeof location !== "undefined" && /bldlit=1/.test(location
 const PITCH_HASH9 = typeof location !== "undefined" && /(?:^|[#&,])3d=1/.test(location.hash);
 /** ★ 2D 판 조율 한 자리(2026-10-24) — 판 늘림 상한(sprUpMax · 폰·저사양 끔) · 요잉 칸 수(PC 16 · 폰·저사양 PC 8 · 저사양 폰 4). 붓(장마다)과 예열(미리 굽기 전)이 같은 것을 부른다 —
  *  예열이 벌을 먼저 세울 때(아래 ★) 칸 수가 기본값(16)인 채 폰 판을 구우면 붓의 칸(8)과 어긋난다. */
-const sprTune9 = (): void => glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
+/* PC 늘림 상한 1.0 → **0.6**(2026-10-24, 지적: "일부 유닛은 아직도 높은 배율에서 선명하지 않음(울트라 등)") — 큰 몸은 칸 상한(160px)에 걸려 낮은 단으로 구워지고, 1.0 이면 그 그림을
+   거의 1:1 로 붙여 MSAA 구운 가장자리가 선형 보간에 뭉갰다(작은 몸은 같은 배율에서 이미 상한을 넘어 메시라 또렷). 0.6 이면 판은 **줄여 붙일 때만** 쓰고 그 위는 메시다.
+   폰·저사양 PC 는 ∞ 그대로(메시가 더 비싸다). */
+const SPR_UP_PC9 = 0.6;
+const sprTune9 = (): void => glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : SPR_UP_PC9, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
@@ -18449,9 +18453,13 @@ export default function ReplayMotionPlayer({
             if (g9) {
               const u9 = j9.gl === "u";
               /* 건물 변종(2026-10-24 · 붓의 sprFlatB9 ★★ 와 같은 규칙): 회전 칸은 짝수 여덟(SPIN_SPR_KINDS9) · 성큰 혀 네 컷 · 켜짐은 마스크 벌 하나(열쇠에서 뺌). */
-              const spins9 = u9 ? [0] : SPIN_SPR_KINDS9.has(j9.kind) ? [0, 2, 4, 6, 8, 10, 12, 14] : j9.kind === "sunkentongue" ? [0, 1, 2, 3] : [0];
-              for (const sp9 of spins9) {
-                const opW9 = { kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1, spin: sp9 } as UnitDrawOp;
+              /* 저그 공사 고치(cocoon·cocoon1·cocoon2)는 **공사 단계** 변종(0~3)도(2026-10-24 8인 실측: 놓침 289 가 전부 `b:cocoon:2`). */
+              const vars9: Partial<UnitDrawOp>[] = u9 ? [{}]
+                : SPIN_SPR_KINDS9.has(j9.kind) ? [0, 2, 4, 6, 8, 10, 12, 14].map((sp9) => ({ spin: sp9 }))
+                  : j9.kind === "sunkentongue" ? [0, 1, 2, 3].map((sp9) => ({ spin: sp9 }))
+                    : /^cocoon/.test(j9.kind) ? [0, 1, 2, 3].map((st9) => ({ buildStage: st9 })) : [{}];
+              for (const v9 of vars9) {
+                const opW9 = { kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1, spin: 0, ...v9 } as UnitDrawOp;
                 const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh(opW9);
                 /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
                 if (m9 && pre9) {
