@@ -682,6 +682,9 @@ const xfLive9 = { on: false };
 const fogGlDirty9 = { v: false };
 /** 요약 시작 소개의 한 사람 몫(경기 초 · 2배속이면 1.5초 · 2026-10-24) — cast9 opts.introCycle · 요약 창 맨 앞. */
 const DIGEST_INTRO_CYC9 = 3;
+/** ★ 2D 판 조율 한 자리(2026-10-24) — 판 늘림 상한(sprUpMax · 폰·저사양 끔) · 요잉 칸 수(PC 16 · 폰·저사양 PC 8 · 저사양 폰 4). 붓(장마다)과 예열(미리 굽기 전)이 같은 것을 부른다 —
+ *  예열이 벌을 먼저 세울 때(아래 ★) 칸 수가 기본값(16)인 채 폰 판을 구우면 붓의 칸(8)과 어긋난다. */
+const sprTune9 = (): void => glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
@@ -5430,8 +5433,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
          둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
-      /* 요잉 칸 수(gl9 sprYaw · 2026-10-24 결정): PC 16 · 폰·저사양 PC 8 · 저사양 폰 4. */
-      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
+      sprTune9();   // 판 늘림 상한 · 요잉 칸 수(아래 sprTune9 ★ · 예열도 같은 것을 부른다)
       if (!gl9 && GL_ON9 && terrain?.current && terrainOff) { terrain.current = null; terrainOff(); }   // GL 을 못 열었다 — 지형층을 내리고 옛 벡터층으로(glTerrain9)
       if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
@@ -17138,8 +17140,8 @@ export default function ReplayMotionPlayer({
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
     const bw09 = pNow();
-    /* GL 벌이 새로 섰나(위 glGen9S ★) — 첫 벌(1)은 예열이 어차피 돌고 있으니 안 올리고, 그 뒤 바뀜만 올린다. */
-    { const gg9 = glGen9(); if (gg9 !== glGenRef9.current) { const was9 = glGenRef9.current; glGenRef9.current = gg9; if (was9 > 0 && gg9 >= 2) setGlGen9S(gg9); } }
+    /* GL 벌이 예열이 본 벌과 다른가(위 warmGenRef9 ★) — 예열 뒤에 처음 선 벌(0 → 1)도, 새로 지어진 벌(n → n+1)도 예열을 다시 부른다. 예열이 아직 한 번도 안 돌았으면(−1) 안 건드린다. */
+    { const gg9 = glGen9(); if (gg9 !== glGenRef9.current) { glGenRef9.current = gg9; if (gg9 > 0 && warmGenRef9.current >= 0 && gg9 !== warmGenRef9.current) setGlGen9S(gg9); } }
     /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
        세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
     if (!fogOnly9) {
@@ -18221,10 +18223,22 @@ export default function ReplayMotionPlayer({
   /** GL 벌 세대(gl9 glGen9 ★) — 붓(paintFnRef9)이 장마다 읽어 벌이 새로 섰으면(2 이상으로 바뀜) 올린다 → 아래 예열이 다시 돈다(조용히). */
   const [glGen9S, setGlGen9S] = useState(0);
   const glGenRef9 = useRef(0);
+  /** 예열이 **어느 벌에서** 돌았나(그때의 glGen9 · 벌이 아직 없었으면 0) · 몇 번째 예열인가 — 붓이 보는 벌이 이것과 다르면 다시 돈다(아래 paintFnRef9 ★).
+   *  실측(폰 프로브): 벌이 예열 **뒤에** 서서(캔버스가 늦게 마운트) 메시도 미리 굽기도 없이 재생에 들어갔다(메시 28 · 칸 28/판 1). */
+  const warmGenRef9 = useRef(-1);
+  const warmRuns9 = useRef(0);
   useEffect(() => {
     if (!entData || !active) return undefined;
-    /** 다시 도는 예열(벌이 새로 섬)인가 — 로딩 띠·소개 멈춤 없이 뒤에서만 돈다. */
-    const quiet9 = glGen9S >= 2;
+    /** 다시 도는 예열인가(둘째 번부터) — 로딩 띠·소개 멈춤 없이 뒤에서만 돈다. */
+    const quiet9 = warmRuns9.current > 0;
+    warmRuns9.current += 1;
+    /* ★ GL 벌을 **예열이 먼저 세운다**(2026-10-24 실측, 폰 프로브: 첫 예열이 끝나기 전엔 붓이 안 돌아 벌이 없었고 → 메시·미리 굽기 일감이 다 건너뛰어져 재생 중에 굽었다 · 칸 28/판 1).
+       붓이 쓰는 그 캔버스(.scr-motion-gl9)로 같은 인자로 세우고 판 조율(sprTune9)까지 맞춘 뒤 일감을 짠다. 캔버스가 아직 없으면 종전대로(벌이 서면 아래 glGen9S 로 다시 돈다). */
+    if (GL_ON9 && !glNow9()) {
+      const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-gl9") ?? null;
+      if (cv9) { glUnits9(cv9, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
+    } else if (glNow9()) sprTune9();
+    warmGenRef9.current = glGen9();
     /* 벤치를 먼저 세운다 — 아래에서 방향 칸 수를 기기의 힘으로 가른다(crowdInit9는 한 번만 돈다). */
     crowdInit9();
     /* 이 경기에 나오는 모델 종류 — 유닛은 이름표(UNIT_3D)로, 건물은 SHAPE_KIND로 푼다.
