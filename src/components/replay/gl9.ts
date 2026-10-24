@@ -1124,7 +1124,9 @@ export class GlUnits9 implements VecSink9 {
   private sprWarm = new Map<string, SprWarm9>();
   private sprArr = new Float32Array(SPR_F9 * 256);
   /** 진단 — 이 장의 스프라이트 몸·그림자 수 · 새로 찍은 칸 · 늘여 쓴 칸 · 메시 길로 떨어진 몸 · 판 수 · 칸 수. */
-  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0 };
+  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0,
+    /** 진단 — 재생 중 **새로 보여 구운** 칸의 열쇠(미리 찍기 아님 · 최근 12) · 그 누계. 미리 굽기가 놓친 것이 무엇인지 가리는 자(perf-check [GL] 놓침). */
+    missLog: [] as string[], missN: 0 };
   /** 판을 통째로 비운다(번짐 켬·끔이 바뀌어 판 꼴이 갈릴 때). */
   private sprReset9(): void {
     const gl = this.gl;
@@ -1532,6 +1534,7 @@ export class GlUnits9 implements VecSink9 {
         const kq = 2 ** (qk / SPR_KQ9);
         const j = this.sprJob9(key, it.mesh, (yb * 360) / SPR_YAW9, it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
         jobs.push(j); jobOf.set(key, j);
+        st.missN += 1; st.missLog.push(key); if (st.missLog.length > 12) st.missLog.shift();
         /* 미리 찍기 표에 올린다 — 같은 몸의 다른 요잉 칸을 남는 예산으로 찍는다(둘 이상의 요잉을 본 것만). */
         {
           const wk = `${it.mesh.key}|${it.cam.key}|${qk}|${it.mesh.team && !sh && !this.sprTint ? it.color : ""}|${gRq}|${gCyq}|${sh ? 1 : 0}`;
