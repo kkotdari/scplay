@@ -13475,6 +13475,10 @@ export default function ReplayMotionPlayer({
   useEffect(() => { if (!playing) hushSfx9(); }, [playing]);
   /* 음량 슬라이더를 안 세우는 기기(iOS — bgm.volumeOk 거짓)는 효과음도 최대로(sfx9 setSfxFullVolume9 ★). */
   useEffect(() => { setSfxFullVolume9(!bgm.volumeOk); }, [bgm.volumeOk]);
+  /* ★ 효과음 음량은 **슬라이더 값 하나**를 따른다(2026-10-24, 지적: "크롬 소리 음소거까지 내려도 안 꺼진다는데") — 음악 음량(useBgm · scr.bgm.vol)과 효과음 음량
+     (sfx9 · scr.sfx.vol)이 따로 저장돼, 슬라이더를 움직인 때만 둘이 같이 갔다. 효과음이 생기기 전에 0 으로 내려 둔 판은 슬라이더가 0 인데 효과음은 제 저장값(기본 0.6)으로
+     났다. 판이 설 때와 값이 바뀔 때마다 효과음을 슬라이더 값에 맞춘다(iOS 의 '최대' 규칙은 위 full 이 덮는다). */
+  useEffect(() => { setSfxVolume9(bgm.volume); }, [bgm.volume]);
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
