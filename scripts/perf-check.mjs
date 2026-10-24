@@ -929,7 +929,15 @@ if (flag("--loadshot", null)) {
 // GL 붓(기본 켬)은 판을 안 찍는다 — 그린 개체 수(__glInst9)로도 준비를 안다.
 /* --light(2026-10-23) — 앱의 라이트 테마 깃발(html.scr-light-theme)을 단다. 재생기 테마(메탈·홀로그램)는 이제 무작위라 안 엮인다 — 꼴은 --theme 로 못 박는다. */
 if (has("--light")) await page.evaluate(() => document.documentElement.classList.add("scr-light-theme"));
-if (has("--ask")) await page.waitForSelector(".scr-mode-ask", { timeout: 60000 });   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다
+if (has("--ask")) {   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다 · --askwait ms(기본 60000) · 기다리는 동안 5초마다 예열 줄(--diag)을 찍는다
+  const until9 = Date.now() + (Number(flag("--askwait", 60000)) || 60000);
+  for (;;) {
+    if (await page.locator(".scr-mode-ask").count()) break;
+    if (Date.now() > until9) throw new Error("보기 모드 판이 안 섰다(--askwait)");
+    await page.waitForTimeout(5000);
+    console.log("  [판 기다림]", await page.evaluate(() => { const d = window.__scrDiag || {}; return `예열 ${d.warm9 ?? "-"} · 그림 ${d.paints ?? "-"}장 · 로딩글 ${!!document.querySelector(".scr-motion-simnote")}`; }));
+  }
+}
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
@@ -1024,6 +1032,24 @@ if (has("--castoff")) {
   // 자동중계 스위치·숫자패드 0 다 걷었다(2026-10-24 · 고른 모드로 끝까지) — 보기 모드 판이 서 있으면 [자유](중계 없이)를 누른다. 판이 없으면(--ask 가 이미 골랐으면) 그대로.
   if (await page.locator(".scr-mode-ask-btn").count()) await page.locator(".scr-mode-ask-btn").nth(0).click();
   await page.waitForTimeout(500);
+}
+/* --edgescroll(2026-10-24, 요청: "피시 창모드에서도 엣지투스크롤 적용") — 창모드(--fs 없이)에서 마우스를 지도 틀 안쪽 오른 끝(6px)에 두고 몇 초 뒤 팬(__scrDiag.pan)이
+   음수 x 로 움직였나 · 가운데로 돌아오면 멈추나를 찍는다. --diag 와 함께(헤드리스는 rAF 가 느려 몇 초 둔다). */
+if (has("--edgescroll")) {
+  if (await page.locator(".scr-mode-ask-btn").count()) { await page.locator(".scr-mode-ask-btn").nth(0).click(); await page.waitForTimeout(800); }
+  const r9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const b = m.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; });
+  const pan9 = () => page.evaluate(() => `${(window.__scrDiag && window.__scrDiag.pan) || "-"} [${(window.__scrDiag && window.__scrDiag.edge) || "-"}]`);
+  if (r9) {
+    // 1배(지도 전체)는 팬 여유가 0 이라 먼저 휠로 두 걸음 당긴다.
+    await page.mouse.move((r9.l + r9.r) / 2, (r9.t + r9.b) / 2); await page.mouse.wheel(0, -240); await page.waitForTimeout(500); await page.mouse.wheel(0, -240); await page.waitForTimeout(4000);   // 미끄러짐이 다 닿게(헤드리스는 장이 느리다)
+    console.log("[엣지] 시작 팬", await pan9(), "배율", await page.evaluate(() => window.__scrDiag?.zoom));
+    await page.mouse.move(r9.r - 6, (r9.t + r9.b) / 2, { steps: 5 }); await page.waitForTimeout(8000);
+    console.log("[엣지] 오른 끝 4초 뒤 팬", await pan9(), "(x 가 줄어야)");
+    await page.mouse.move((r9.l + r9.r) / 2, (r9.t + r9.b) / 2, { steps: 5 }); await page.waitForTimeout(1500);
+    const p1 = await pan9(); await page.waitForTimeout(1500); console.log("[엣지] 가운데 뒤 팬", p1, "→", await pan9(), "(같아야)");
+    await page.mouse.move(r9.l + 6, r9.t + 6, { steps: 5 }); await page.waitForTimeout(3000);
+    console.log("[엣지] 왼 위 끝 3초 뒤 팬", await pan9(), "(x·y 가 늘어야)");
+  }
 }
 /* --zoomlockprobe — 중계 중엔 휠·↑ 배율이 잠기나(2026-10-09, 요청: "중계가 켜진 순간 드래그 줌 다 막혀야해") — 켠 채 휠·ArrowUp 뒤 배율,
    카메라를 놓은 뒤 같은 손짓의 배율을 찍는다(`__scrDiag.zoom` 은 붓이 장마다 적는다 · --diag 와 함께). */

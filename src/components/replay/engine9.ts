@@ -2833,6 +2833,12 @@ export const SCR_DIAG: {
   /** 초해상 배수(ReplayMotionPlayer ssK9 · dpr 1 PC 에서 1.5~2) — 배킹 = dpr × 이 값. 1 이면 화면 밀도 그대로. */
   ss: number;
   areaCap: number; allocOk: boolean; zoom: number;
+  /** 엣지 스크롤 검산용 팬 "x,y"(perf-check --edgescroll · 2026-10-24). */
+  pan: string;
+  /** 유닛 캔버스가 그려진 횟수(onUnitPainted · 보기 모드 판의 '매끄럽게 돈다' 검산 · 2026-10-24). */
+  paints: number;
+  /** 엣지 스크롤 걸음의 속내(방향 u · 마우스 · 틀 상자 · 속도 · 잠금 — perf-check --edgescroll 검산 · 2026-10-24). */
+  edge: string;
   /** 손짓 중 한 장이 든 시간(ms) — 끄는 동안의 반응은 이 값이 정한다(계측 도구가 읽는다). */
   xfms: number;
   /** 손짓 중 지형·안개 캔버스만 한 장(terrLive9) 든 ms. */
@@ -2902,7 +2908,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0, ss: 1, rootSnap: "",
-  areaCap: 0, allocOk: true, zoom: 0, xfms: 0, terrms: 0, warm9: "", gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, pan: "", paints: 0, edge: "", xfms: 0, terrms: 0, warm9: "", gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "", split: "", ring: "", ui: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

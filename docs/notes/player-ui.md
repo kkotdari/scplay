@@ -2414,3 +2414,13 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   allKeyRef9·castKeyRef9·offKeyRef9(모드 잠금이라 몫이 없다). 안내의 V(입체)도 지웠다(`#3d=1` 로만 · 키는 그 전에 걷었다).
 - PgUp/PgDn 은 **e.code** 로 읽는다 — NumLock 꺼진 숫자패드 9/3 은 e.key 가 PageUp/PageDown 이라(첫 검산에서 패드 3·9 가 먹었다) 숫자패드는 통째로 안 듣는다.
 - perf-check: `--castoff` 는 보기 모드 판의 [자유] 를, `--pickshot` 은 [풀] 을 누른다(숫자패드 0/. 가 없다). `--campick` 키 검산은 PgUp/PgDn·C·E(안 먹어야)로.
+
+
+## 보기 모드 판은 그림이 매끄럽게 돈 뒤 · 엣지 스크롤은 창모드에서도(2026-10-24)
+- 지적 "모드 선택 팝업이 너무 일찍 뜨는 듯 — 화면 멈춘 상태에서 뜨네": 예열(introWarm9)이 끝나도 첫 장들(지형 GL 올림·첫 flush·워커 첫 장)이 메인을 잡아 화면이 멎는데
+  그때 판이 떴다. `paintSettled9` — 준비(introReady9)가 서면 무장하고 UnitLayer 의 onPainted 가 **세 장을 400ms 안에** 잇달아 올리면 참(헤드리스처럼 느린 곳은 6초 상한).
+  askReady9 가 이것도 본다 · 그때까지 LOADING(simnote 문에 `modeAsk9 && !askShow9`).
+- 요청 "피시 창모드에서도 엣지투스크롤 적용": 엣지 스크롤 effect 를 전체화면 effect 에서 떼어 PC(마우스)면 늘 돈다. 전체화면 = 창 맨 끝 2px(종전) · 창모드 = **지도 틀 안쪽
+  18px 띠**(마우스가 틀 밖으로 나가므로 · 틀 상자는 창으로 잘라 **보이는 끝**이 끝) · 틀 밖이면 놓는다. 조작부 떠 있을 때 안 미는 규칙은 전체화면 몫만. 카메라 잠금(camLockRef9 · 중계)도 안 민다(WASD 와 같은 문).
+- 🔎 `perf-check --wide --warm 0 --diag --ask 1 --askpick 0 --askwait 240000 --edgescroll`(판에서 [자유]를 골라야 카메라가 안 잠긴다 · `--castoff` 만으로는 판이 서기 전이라 중계가 켜진 채였다) —
+  `[엣지] …` 의 `[u -1,0 … v -64,0]` 처럼 u 가 서고 v 가 붙었다 가운데서 감속한다. 헤드리스는 장이 몇 초마다라 거의 안 움직인다(hold 0.05 = 걸음 하나). `__scrDiag.pan`·`edge` 는 이때 더했다.

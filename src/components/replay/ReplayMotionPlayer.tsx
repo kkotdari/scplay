@@ -5502,6 +5502,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       if (scrDiagOn()) {
         SCR_DIAG.dpr = dpr;
         SCR_DIAG.zoom = zoom;
+        SCR_DIAG.pan = `${Math.round(pan.x)},${Math.round(pan.y)}`;   // 엣지 스크롤 검산(perf-check --edgescroll · 2026-10-24)
         SCR_DIAG.unitCss = `${cw}x${ch}`;
         SCR_DIAG.unitBack = `${cv.width}x${cv.height}`;
         SCR_DIAG.unitB = B;
@@ -12891,6 +12892,10 @@ export default function ReplayMotionPlayer({
   const TRACK_EDGE = 0;
   const trackCamRef = useRef<{ raw: string | null; z: number; pan: { x: number; y: number }; sel: string; jump?: number }>(
     { raw: null, z: 0, pan: { x: 0, y: 0 }, sel: "" });
+  /** ★ 카메라가 겨누는 대상의 지도 분수(trackView 가 매 렌더 적는다 · 2026-10-24, 지적: "중계모드에서도 줌인아웃시 엉뚱한 곳(x값이 중앙)에 줌된 후 원래 보여야 할 곳으로 이동") —
+   *  잠긴 화면의 배율 변경은 **이 점을 화면에 붙들고** 늘인다(applyGestureXf · 아래 배율 갈아타기). 가운데를 축으로 늘이면 지도 끝(팬 한계)에 걸려 가운데에 못 선 대상이
+   *  배율마다 다른 자리로 밀렸다가 놓는 순간 다시 잡혀 튀었다. */
+  const camFocusRef9 = useRef<{ fx: number; fy: number } | null>(null);
   /** ★ 다시 잡을 때 **미끄러져 간다**(2026-10, 요청: "아웃오브스크린 화면 이동시 부드럽게") — 같은 사람·같은 배율에서 무리가 화면을
    *  벗어나 다시 잡는 이동만 CAM_GLIDE_MS9 동안 ease-in-out 으로 옮긴다(사람이 바뀌거나 배율이 바뀌면 곧장 선다 — 누구 화면인지가
    *  먼저 읽혀야 한다). 그 동안은 아래 effect 가 rAF 마다 렌더를 한 번씩 불러 trackView 가 사이 자리를 낸다. */
@@ -12946,7 +12951,14 @@ export default function ReplayMotionPlayer({
       const c0 = trackCamRef.current;
       if (c0.raw === camKey9 && c0.z > 0 && c0.z !== z9) {
         const k9 = z9 / c0.z;
-        const cl9 = (p9: { x: number; y: number }): { x: number; y: number } => ({ x: Math.min(lim9.x, Math.max(-lim9.x, p9.x * k9)), y: Math.min(lim9.yTop, Math.max(-lim9.y, p9.y * k9)) });
+        /* ★ 늘이는 축은 **대상**(camFocusRef9 · 2026-10-24) — 가운데(p × k)가 아니라 대상의 화면 자리를 붙든다: 팬 = 화면자리 − z × 대상(배율 1 자) 이므로
+           새 팬 = 옛 팬 + 대상 × (옛 z − 새 z). 대상이 가운데였으면 p × k 와 같은 값이고, 지도 끝에 걸려 가운데에 못 섰던 대상은 그 자리에 그대로 남는다
+           (applyGestureXf 의 손짓 덧칠과 같은 식이라 놓는 순간 안 튄다). 대상을 모르면 종전대로 가운데 축. */
+        const f0 = camFocusRef9.current;
+        const ux9 = f0 ? (f0.fx - 0.5) * cov9.w : 0; const uy9 = f0 ? (f0.fy - 0.5) * cov9.h : 0;
+        const cl9 = (p9: { x: number; y: number }): { x: number; y: number } => (f0
+          ? { x: Math.min(lim9.x, Math.max(-lim9.x, p9.x + ux9 * (c0.z - z9))), y: Math.min(lim9.yTop, Math.max(-lim9.y, p9.y + uy9 * (c0.z - z9))) }
+          : { x: Math.min(lim9.x, Math.max(-lim9.x, p9.x * k9)), y: Math.min(lim9.yTop, Math.max(-lim9.y, p9.y * k9)) });
         trackCamRef.current = { ...c0, z: z9, pan: cl9(c0.pan) };
         const ss9 = spotSpring9.current;
         if (ss9) { const p9 = cl9(ss9); spotSpring9.current = { ...ss9, x: p9.x, y: p9.y, vx: ss9.vx * k9, vy: ss9.vy * k9 }; }
@@ -12967,6 +12979,7 @@ export default function ReplayMotionPlayer({
     const fr9 = mapFracRef.current?.(trackAt.x, trackAt.y);
     const cx9 = fr9 ? fr9[0] : trackAt.x / Math.max(1, grid.width);
     const cy9 = fr9 ? fr9[1] : trackAt.y / Math.max(1, grid.height);
+    camFocusRef9.current = { fx: cx9, fy: cy9 };
     /** 그 점을 한가운데로 데려오는 자리(지도 밖으로는 못 나가게 죈다). */
     const mid9 = {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx9) * cov9.w * z9)),
@@ -14473,10 +14486,21 @@ export default function ReplayMotionPlayer({
    *  지형은 매 장 다시 그리므로 둘의 기준이 갈린다. applyGestureXf 가 이 기준으로 지형 캔버스의 임시 변환을 건다(안개 캔버스의 fogXfRef9 와 같은 결). */
   const terrXfRef9 = useRef({ z: 0, x: 0, y: 0 });
   const terrPaintRef9 = useRef<((z: number, p: { x: number; y: number }) => boolean) | null>(null);
+  /* ★ **그림이 매끄럽게 돌기 시작했나**(2026-10-24, 지적: "모드 선택 팝업이 너무 일찍 뜨는 듯 — 화면 멈춘 상태에서 뜨네") — 예열(introWarm9)이 끝나도 첫 장들(지형 GL 올림 ·
+     첫 flush · 워커 첫 장)이 메인 스레드를 잡아 화면이 멎는다. 판은 **세 장이 400ms 안에 잇달아 그려진 뒤**(아래 onUnitPainted) 띄운다. 헤드리스처럼 장이 느린 곳은
+     6초 뒤 그냥 띄운다(아래 effect). 준비(introReady9)가 서면 무장(armed)한다. */
+  const [paintSettled9, setPaintSettled9] = useState(false);
+  const paintLog9 = useRef<{ t: number[]; armed: boolean }>({ t: [], armed: false });
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
     terrXfRef9.current = { z: z9, x: p9.x, y: p9.y };   // 유닛 한 장은 지형도 함께 그린다(UnitLayer 붓의 지형 블록)
     xfPaintAtRef.current = performance.now();
+    if (scrDiagOn()) SCR_DIAG.paints += 1;
+    const L9 = paintLog9.current;
+    if (L9.armed) {
+      L9.t.push(xfPaintAtRef.current); if (L9.t.length > 4) L9.t.shift();
+      if (L9.t.length >= 3 && L9.t[L9.t.length - 1] - L9.t[L9.t.length - 3] < 400) { L9.armed = false; setPaintSettled9(true); }
+    }
   }, []);
   /** 손짓 중 유닛을 안 그리는 프레임의 지형·안개 한 장(위 terrXfRef9 · xfPaintNow 가 부른다) — 보기가 그대로면 건너뛴다. 분할은 칸이 제 땅을 든다. */
   const terrLive9 = (): void => {
@@ -14640,10 +14664,20 @@ export default function ReplayMotionPlayer({
     /* ★ **잠긴 화면의 확대는 그 가운데를 붙든다**(2026-10-19, 지적: "확대축소시 사진 확대축소하듯 부드럽지가 않네") — 잠긴 자리(trackView.pan)는 렌더 때 배율에서 잰 값이라
        손짓 중 배율이 바뀌면 그 자리가 어긋나 화면이 밀리다가 손을 떼는 순간 trackView 가 다시 가운데로 잡아 툭 움직였다. 가운데로 잡은 팬은 배율에 비례하므로
        (0.5 − 분수) × 판 폭 × z) 그 비만큼 늘려 쓰고 새 배율의 한계로 죈다 — 손짓 내내 대상이 화면 가운데에 남고 놓을 때도 같은 자리다. */
+    /* ★★ 축은 **대상**이다(camFocusRef9 · 2026-10-24, 지적: "중계모드에서도 줌인아웃시 엉뚱한 곳(x값이 중앙)에 줌된 후 원래 보여야 할 곳으로 이동") — 가운데 축(p × k)은
+       대상이 가운데일 때만 맞다. 지도 끝(팬 한계 · 창모드는 폭이 좁아 x 가 0 으로 죄인다)에 걸려 가운데에 못 선 대상은 가운데 축으로 늘이면 자리가 밀렸다가,
+       손을 떼면 trackView 가 다시 잡아 끌어왔다. 대상의 잠근 때 화면 자리(ax = 팬 + z0 × 대상)를 붙들고 새 배율로 푼다(팬 = ax − z1 × 대상) · 한계로 죈다. */
     if (lock9) {
-      const k9 = zoomRef.current / Math.max(0.01, trackLockZRef9.current);
-      const lm9 = panLimit(zoomRef.current);
-      panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x * k9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y * k9)) };
+      const z09 = Math.max(0.01, trackLockZRef9.current); const z19 = zoomRef.current;
+      const lm9 = panLimit(z19);
+      const f9 = camFocusRef9.current; const cv9 = coverRef.current;
+      if (f9 && cv9.w > 0) {
+        const ux9 = (f9.fx - 0.5) * cv9.w; const uy9 = (f9.fy - 0.5) * cv9.h;
+        panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x + ux9 * (z09 - z19))), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y + uy9 * (z09 - z19))) };
+      } else {
+        const k9 = z19 / z09;
+        panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x * k9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y * k9)) };
+      }
     }
     const lens = lensRef.current;
     const z1 = zoomRef.current;
@@ -15009,6 +15043,13 @@ export default function ReplayMotionPlayer({
     window.clearTimeout(fsHideRef.current);
     fsStickRef.current = false;
     setFsUi(false);
+    return () => { window.clearTimeout(fsHideRef.current); };
+  }, [fsOn, fsWake]);
+  /* ★★ 엣지 스크롤은 **창모드에서도**(2026-10-24, 요청: "피시 창모드에서도 엣지투스크롤 적용") — 전체화면 effect 에서 떼어 PC(마우스)면 늘 돈다.
+     전체화면은 종전대로 화면 맨 끝 2px(마우스가 더 못 나가니 닿을 수 있다) · 창모드는 마우스가 틀 밖으로 나가 버리므로 **지도 틀 안쪽 18px 띠**가 끝이고,
+     틀 밖으로 나가면 민 것을 놓는다(겨눈 속도 0 → 감속). 조작부가 떠 있을 때 안 미는 규칙은 전체화면 몫만(창모드 조종부는 지도 밖에 있다). */
+  useEffect(() => {
+    if (uiPhone9) return undefined;
     /* ★ 가장자리는 이제 **화면을 민다**(요청: "피시 전체화면에서 상하좌우 모서리는
        그방향으로 이동(부드럽게) / 기존 오버레이 노출은 클릭으로만") ─────────────────
        원작의 화면 밀기(edge scroll) 그대로다: 마우스가 화면 끝 띠에 들어가 있는 동안
@@ -15032,7 +15073,7 @@ export default function ReplayMotionPlayer({
        빠르기의 자를 **머문 시간**으로 바꾼다: 닿는 순간 520px/s 로 시작해 0.8초 머물면
        1900px/s 에 닿는다. 깊이로 재던 때와 같은 두 끝을 시간 축에 옮긴 것이라, 살짝 밀고
        떼는 손짓은 여전히 느리고 눌러 두면 빨라진다. */
-    const EDGE = 2;           // 미는 띠 폭(px) — 화면의 맨 끝
+    const EDGE = fsOn ? 2 : 18;   // 미는 띠 폭(px) — 전체화면은 화면 맨 끝 · 창모드는 지도 틀 안쪽 띠
     const EDGE_MIN = 520;     // 끝에 닿는 순간의 초당 픽셀
     const EDGE_MAX = 1900;    // 계속 붙어 있을 때의 초당 픽셀
     const EDGE_RAMP = 0.8;    // 밑값에서 최대까지 오르는 데 걸리는 초
@@ -15048,15 +15089,10 @@ export default function ReplayMotionPlayer({
       if (e.pointerType !== "mouse") return;
       mx9 = e.clientX;
       my9 = e.clientY;
+      if (!fsOn) return;
       /* 이미 떠 있는 조작부 위에 마우스가 있으면 계속 깨어 있는다 — 버튼을 겨누는
-         동안 사라지면 누를 수가 없다. */
+         동안 사라지면 누를 수가 없다(전체화면 몫 · 위 fs effect 의 ★ "이미 떠 있을 때만"). */
       if (e.target instanceof Element && e.target.closest(".scr-fs-menubtn")) return;
-      /* ★ **이미 떠 있을 때만** 깨어 있게 한다(지적: "엣지 투 스크롤이 안 먹을 때도 있어")
-         ────────────────────────────────────────────────────────────────────────────────
-         뜻은 '버튼을 겨누는 동안 사라지지 않게'였는데, 조건에 '떠 있나'가 빠져 있어 **닫힌
-         조작부를 hover만으로 열었다**. 조종부 줄은 화면 아래 끝에 붙어 있으므로, 아래로
-         밀려고 마우스를 내리는 그 길이 곧 그 판 위다 — 닿는 순간 판이 뜨고, 판이 뜨면
-         엣지 스크롤은 꺼진다(아래 uiOn9). 아래·오른쪽으로 밀 때만 안 먹던 까닭이다. */
       if (fsUiRef.current && e.target instanceof Element && e.target.closest(".scr-tb")) fsWake();
     };
     const step9 = (now9: number): void => {
@@ -15066,33 +15102,38 @@ export default function ReplayMotionPlayer({
       const el9 = mapRef.current;
       if (!el9 || mx9 < 0 || dt9 <= 0) return;
       /* 추적 중에는 가장자리로도 안 민다(요청) — 밀던 중이었으면 그 손짓을 접는다. */
-      if (trackLockRef.current || splitOnRef9.current) {   // 분할보기도 가장자리로 안 민다
+      if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) {   // 분할보기·카메라 잠금도 가장자리로 안 민다
         if (edgeOn) { edgeOn = false; vx9 = 0; vy9 = 0; endGestureXf(); }
         return;
       }
-      /* 조작부가 떠 있으면 안 민다(요청: "전체화면 피시에서 오버레이 활성화시 엣지
-         스크롤 끄기") — 오버레이 판은 화면 좌·우·아래 끝에 붙어 있어, 버튼을 겨누러
-         가는 길이 곧 미는 띠 안이다. 그래서 로스터나 슬라이드 바를 만지려고만 해도
-         지도가 그쪽으로 흘러갔다. 판이 떠 있는 동안은 '보는 중'이 아니라 '만지는
-         중'이므로 밀기를 멈춘다. 이미 붙어 있던 속도는 아래 감속으로 부드럽게 선다
-         (겨눈 속도를 0으로 두는 것과 같은 길이다). */
-      const uiOn9 = fsUiRef.current;
-      const vw9 = window.innerWidth;
-      const vh9 = window.innerHeight;
-      /* 끝에 닿았나(−1·0·+1) — 오른쪽 끝이면 화면을 오른쪽으로 보내야 하므로 팬은
-         음수다(렌즈를 왼쪽으로 민다). */
-      const ux9 = uiOn9 ? 0 : mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
-      const uy9 = uiOn9 ? 0 : my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
+      /* 조작부가 떠 있으면 안 민다(요청: "전체화면 피시에서 오버레이 활성화시 엣지 스크롤 끄기") — 전체화면 몫. */
+      const uiOn9 = fsOn && fsUiRef.current;
+      /* 끝에 닿았나(−1·0·+1) — 전체화면은 창 끝, 창모드는 지도 틀(mapRef 상자) 안쪽 띠 · 틀 밖이면 0. 오른쪽 끝이면 화면을 오른쪽으로
+         보내야 하므로 팬은 음수다(렌즈를 왼쪽으로 민다). */
+      let ux9 = 0; let uy9 = 0;
+      if (!uiOn9) {
+        if (fsOn) {
+          const vw9 = window.innerWidth; const vh9 = window.innerHeight;
+          ux9 = mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
+          uy9 = my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
+        } else {
+          /* 틀이 창 밖으로 나가 있으면(위로 스크롤된 페이지 · 하네스처럼 틀이 창보다 큰 배치) **보이는 끝**이 끝이다 — 틀 상자를 창으로 자른다. */
+          const rb9 = el9.getBoundingClientRect();
+          const r9 = { left: Math.max(0, rb9.left), top: Math.max(0, rb9.top), right: Math.min(window.innerWidth, rb9.right), bottom: Math.min(window.innerHeight, rb9.bottom) };
+          const in9 = mx9 >= r9.left && mx9 <= r9.right && my9 >= r9.top && my9 <= r9.bottom;
+          if (in9) {
+            ux9 = mx9 < r9.left + EDGE ? 1 : mx9 > r9.right - EDGE ? -1 : 0;
+            uy9 = my9 < r9.top + EDGE ? 1 : my9 > r9.bottom - EDGE ? -1 : 0;
+          }
+        }
+      }
       // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
       hold9 = ux9 !== 0 || uy9 !== 0 ? hold9 + dt9 : 0;
+      if (scrDiagOn()) { const rb9 = el9.getBoundingClientRect(); SCR_DIAG.edge = `u ${ux9},${uy9} m ${mx9.toFixed(0)},${my9.toFixed(0)} r ${rb9.left.toFixed(0)},${rb9.top.toFixed(0)}~${rb9.right.toFixed(0)},${rb9.bottom.toFixed(0)} v ${vx9.toFixed(0)},${vy9.toFixed(0)} hold ${hold9.toFixed(2)} fs ${fsOn ? 1 : 0} ui ${uiOn9 ? 1 : 0}`; }
       /** 방향 u(−1·0·+1)를 겨눈 속도로 — 밑값에서 시작해 머물수록 빨라진다. */
       const vel9 = (u8: number): number => (u8 === 0 ? 0
         : u8 * (EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.min(1, hold9 / EDGE_RAMP)));
-      /* 겨눈 속도로 **미끄러지듯** 붙는다(요청: "드래그 수준으로 부드럽게") — 여태
-         띠에 닿는 순간 520px/s가 그대로 꽂히고 나오는 순간 0으로 뚝 떨어져, 시작과
-         끝이 계단이었다. 지수 완화(시정수 0.11초)로 따라가면 붙고 떨어지는 자리가
-         손으로 끌던 관성처럼 이어진다. 띠 밖에서는 겨눈 속도가 0이라 같은 식이 곧
-         감속이 된다 — 그래서 멈춘 뒤에야 손짓을 닫는다. */
+      /* 겨눈 속도로 **미끄러지듯** 붙는다(요청: "드래그 수준으로 부드럽게") — 지수 완화(시정수 0.11초). 띠 밖에서는 겨눈 속도가 0이라 같은 식이 곧 감속이다. */
       const TAU9 = 0.11;
       const k9 = 1 - Math.exp(-dt9 / TAU9);
       vx9 += (vel9(ux9) - vx9) * k9;
@@ -15117,9 +15158,8 @@ export default function ReplayMotionPlayer({
       window.removeEventListener("pointermove", onMove);
       cancelAnimationFrame(raf9);
       if (edgeOn) endGestureXf();
-      window.clearTimeout(fsHideRef.current);
     };
-  }, [fsOn, fsWake, beginGestureXf, applyGestureXf, endGestureXf, gestureFrame9, panLimit]);
+  }, [fsOn, uiPhone9, fsWake, beginGestureXf, endGestureXf, gestureFrame9, panLimit]);
   /* 렌즈 변환은 리액트 스타일이 아니라 이 effect가 쓴다(위 렌즈 상자 주석) — 손짓
      동안의 직접 변환과 싸우지 않게. 캔버스에 걸어 뒀던 임시 변환도 여기서 걷는다:
      자식(UnitLayer)의 그리기 effect가 먼저 돌아, 이 시점엔 이미 새 배율로 또렷하다. */
@@ -18312,7 +18352,16 @@ export default function ReplayMotionPlayer({
      LOADING 만 보이고 판은 숨긴다(modeAsk9 는 그대로 참이라 시계도 선 채). */
   /* ★ 첫 예열이 **끝난 뒤**라야 준비다(2026-10-24, 지적: "로딩 남았는데 팝업 나옴") — warmAt 은 예열 effect 가 160ms 박자로 놓는 값이라 자취가 온 뒤 첫 박자
      전(그리고 effect 가 서기 전) 잠깐 null 이고, 그 틈에 askReady9 가 참이 되어 아래 잠금(askLatch9)이 판을 띄운 채 예열 띠가 돌았다. introWarm9(예열 끝)로 못 박는다. */
-  const askReady9 = !pending && (entData === null || introWarm9) && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
+  /* ★ 그리고 그림이 **매끄럽게 돌기 시작한 뒤**(paintSettled9 · 2026-10-24, 지적: "팝업이 너무 일찍 — 화면 멈춘 상태에서 뜨네"). 그때까지는 LOADING 이 선다(아래 simnote 문). */
+  /* 판의 다른 조건이 **다 선 뒤에** 무장한다(askBase9 — introReady9 는 자료(entData)가 오기 전 null 인 틈에 참이 되어 6초 시계가 예열 중에 다 돌아 버렸다). */
+  const askBase9 = !pending && (entData === null || introWarm9) && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
+  useEffect(() => {
+    if (!askBase9 || paintSettled9) return undefined;
+    paintLog9.current = { t: [], armed: true };
+    const id9 = window.setTimeout(() => { paintLog9.current.armed = false; setPaintSettled9(true); }, 6000);
+    return () => { window.clearTimeout(id9); paintLog9.current.armed = false; };
+  }, [askBase9, paintSettled9]);
+  const askReady9 = askBase9 && paintSettled9;
   /* ★ 한 번 뜬 판은 **다시 안 숨긴다**(2026-10-24, 지적: "팝업이 떴다가 다시 로딩 뜨고 다시 팝업 뜨는 경우 있어") — 준비가 됐다가 굽기 몰림(bakeHold)·재예열(warmAt)이
      잠깐 다시 서면 askReady9 가 거짓으로 돌아가 판이 사라졌다 되살아났다. 준비를 한 번 봤으면 그 뒤로는 판을 그대로 둔다(LOADING 은 판 뒤에서 안 뜬다). */
   const askLatch9 = useRef(false);
@@ -20837,7 +20886,7 @@ export default function ReplayMotionPlayer({
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
           {/* ★ 재생 중 굽기 몰림(bakeHold)은 **첫 예열 전에만** LOADING 을 띄운다(2026-10-24, 지적: "모바일에서 줌이나 드래그 시(특히 줌아웃) 로딩 워드마크 뜨고 멈춤") — 보고 있는
               장면 위에 글자가 덮이는 것이 더 거슬린다. 그 뒤로는 못 찍은 몸이 그 장에 메시로 서거나 다음 장에 선다. */}
-          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || (bakeHold && !introWarm9) || !!pending) && (
+          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || (bakeHold && !introWarm9) || !!pending || (modeAsk9 && !askShow9)) && (
             <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
               {"LOADING".split("").map((ch9, i9) => (
                 <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
