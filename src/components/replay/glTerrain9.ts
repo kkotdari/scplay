@@ -353,7 +353,7 @@ export class GlTerrain9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.fogFan!); gl.bufferData(gl.ARRAY_BUFFER, f, gl.DYNAMIC_DRAW);
         this.nFogFan = f.length / 2; this.fogKey = fog.key;
       }
-      const pptQ = Math.max(1, Math.round(cssPerTile * dprK / 8) * 8);   // 배율 칸(8 기기 px) — 그 안에서는 눈 원의 조각 수가 같다
+      const pptQ = Math.max(1, Math.round(cssPerTile * dprK / 16) * 16);   // 배율 칸(16 기기 px · 옛 8 — 2026-10-24 줌 손짓마다 눈 원 88k 정점을 다시 짓는 횟수 반) — 그 안에서는 눈 원의 조각 수가 같다
       if (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt) {
         const e = fog.eyes; let nv = 0; const segOf = (r: number): number => Math.max(8, Math.min(40, Math.round((2 * Math.PI * r * pptQ) / 6)));
         if (e) for (let i = 0; i + 2 < e.length; i += 4) if (e[i + 2] > 0) nv += segOf(e[i + 2]) * 3;

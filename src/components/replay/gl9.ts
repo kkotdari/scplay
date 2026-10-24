@@ -880,7 +880,10 @@ interface SprJob9 { key: string; mesh: GlMesh9; yaw: number; cam: GlCam9; kd: nu
 interface SprWarm9 { job: Omit<SprJob9, "key" | "yaw" | "x0" | "y0" | "w" | "h" | "cell">; yb0: number; ys: Set<number>; step: number; qk: number; gRq: number; gCyq: number }
 let SPR_HOLD9 = false;
 /** 손짓 중 — 굽기 예산을 1/4 로 줄이고 미리 찍기(다른 요잉)를 쉰다(배율은 칸 열쇠에 없어 줌으로는 새로 안 찍는다 · SPR_CAP ★). */
-export const glSprHold9 = (on: boolean): void => { SPR_HOLD9 = on; };
+export const glSprHold9 = (on: boolean): void => { SPR_HOLD9 = on; if (!on) sprHeldMode9.clear(); };
+/** ★ 손짓 동안 몸마다 '판이냐 메시냐'를 **못 박는다**(2026-10-24, 지적: "줌에서 모델들이 좀 울렁거리는 현상") — 늘림 상한(sprUpMax)을 배율이 지날 때마다 몸이 하나씩 판 ↔ 메시로
+ *  갈아타며 모양이 살짝 달라져(판은 요잉 칸·MSAA 로 구운 그림) 확대 내내 출렁였다. 손짓이 도는 동안은 처음 본 모드를 지키고, 손을 떼면(glSprHold9(false)) 비운다 — 한 번만 갈아탄다. */
+const sprHeldMode9 = new Map<string, boolean>();
 /** `#glspr=0` — 2D 스프라이트 판을 끈다(평면도 메시 길 · 견줌용). */
 export const GL_SPR9 = !(typeof location !== "undefined" && /glspr=0/.test(location.hash));
 /** 번짐 세기·크기 — [더할 세기, 흐리기 걸음(1/4 판의 텍셀 배수)]. 눈으로 고른 값이다. */
@@ -1392,8 +1395,10 @@ export class GlUnits9 implements VecSink9 {
       const qk = lvOf(it.mesh, it.cam, sh);   // 그 몸의 한 단(위 SPR_CAP ★) — 배율과 무관하다
       const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
       const kq0 = 2 ** (qk / SPR_KQ9);
-      if (kd / kq0 > this.sprUpMax) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
       const key = keyOf(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh);
+      let over = kd / kq0 > this.sprUpMax;
+      if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)
+      if (over) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
       const hit = this.sprMap.get(key);
       if (hit) { hit.page.last = this.frameNo; if (Math.abs(kd / hit.kd - 1) > 0.004) st.scaled += 1; return { cell: [hit, kd / hit.kd], job: null }; }
       const pend = jobOf.get(key); if (pend) return { cell: null, job: pend };

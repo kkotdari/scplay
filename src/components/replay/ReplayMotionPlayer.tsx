@@ -18178,6 +18178,9 @@ export default function ReplayMotionPlayer({
   /** 굽기 멈춤 상태 — ms는 이어 멈춘 길이, win/winDt는 띠를 켜고 끄는 최근 창. */
   const bakeHoldRef = useRef({ ms: 0, win: 0, winDt: 0, shown: false });
   const [bakeHold, setBakeHold] = useState(false);
+  /* ★ 보기 모드 판은 **재생 준비가 다 된 뒤에** 뜬다(2026-10-24, 요청: "플레이어 첫 진입 시 로딩만 뜨게 하고 플레이 준비 다 되면 그때 팝업") — 자료(참값)·굽기(warmAt·bakeHold)가 끝날 때까지는
+     LOADING 만 보이고 판은 숨긴다(modeAsk9 는 그대로 참이라 시계도 선 채). */
+  const askReady9 = !pending && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
   /** 재생 품질 알림(위 QUALITY9) — 값이 있으면 지도 오른쪽 위에 3초. */
   const [qualityNote, setQualityNote] = useState<string | null>(null);
   useEffect(() => {
@@ -20625,7 +20628,7 @@ export default function ReplayMotionPlayer({
         {/* ★ **로딩 표시는 하나 — 띄운 글자 L O A D I N G**(2026-10-16, 요청: "재생기 모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 옛 셋
             (자취 받는 중 · 모델 굽는 중 n% · 재생 중 굽기 몰림 "모델 굽는 중…")을 한 자리·한 꼴로 묶었다. 글자마다 차례로 떠오른다(scr-load-bob · 움직임 줄이기면 멈춘 글자).
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
-          {!modeAsk9 && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
+          {(!modeAsk9 || !askReady9) && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
             <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
               {"LOADING".split("").map((ch9, i9) => (
                 <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
@@ -21257,7 +21260,7 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
-          {modeAsk9 && (
+          {modeAsk9 && askReady9 && (
             <div
               className={cx("scr-mode-ask", `is-${modeTheme9}`)} role="dialog" aria-label="보기 모드"
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
