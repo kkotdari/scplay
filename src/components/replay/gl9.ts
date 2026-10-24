@@ -2751,6 +2751,10 @@ export const GL_BLIT9 = !(typeof location !== "undefined" && /glblit=0/.test(loc
  *  null 을 굳혀 같은 폴백으로 돈다. */
 export const GL_ON9 = typeof location === "undefined" || !/(^|[#&,])gl=0/.test(location.hash);
 let glInst9: GlUnits9 | null | undefined;
+let glGen9N = 0;
+/** GL 벌 세대 — `new GlUnits9` 마다 1 오른다(2026-10-24 실측: 폰에서 캔버스가 다시 서며 벌이 새로 지어져 메시·미리 구운 판·처방이 다 사라졌는데 예열은 다시 안 돌았다 → 칸 28/판 1).
+ *  RMP 예열이 이 값을 보고 벌이 새로 섰으면 메시·미리 굽기를 **조용히**(로딩 띠 없이) 다시 한다. */
+export const glGen9 = (): number => glGen9N;
 /** 지금 선 GL 붓(없으면 null) — 붓 밖(데우기 등)에서 메시를 미리 지을 때. */
 export const glNow9 = (): GlUnits9 | null => glInst9 ?? null;
 /** ★★ **끌기(재생바 스크럽) 중에는 메시를 예산 안에서만 짓는다**(2026-09, 지적: "재생바 이동시 로딩이
@@ -2784,6 +2788,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
+    glGen9N += 1;
     if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 10 : 24; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; glInst9.sprMsaa = meshMax <= 300 ? 0 : -1; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)

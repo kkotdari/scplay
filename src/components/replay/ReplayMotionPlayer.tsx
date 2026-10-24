@@ -108,7 +108,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
-import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -17138,6 +17138,8 @@ export default function ReplayMotionPlayer({
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
     const bw09 = pNow();
+    /* GL 벌이 새로 섰나(위 glGen9S ★) — 첫 벌(1)은 예열이 어차피 돌고 있으니 안 올리고, 그 뒤 바뀜만 올린다. */
+    { const gg9 = glGen9(); if (gg9 !== glGenRef9.current) { const was9 = glGenRef9.current; glGenRef9.current = gg9; if (was9 > 0 && gg9 >= 2) setGlGen9S(gg9); } }
     /* fps 계측(요청: "#diag=fps로 오른쪽 귀퉁이에 프레임 오버레이만 작게") — 붓이 칠한 장을 벽시계 0.5초마다
        세어 SCR_DIAG.fps에 적는다. 진단이 꺼져 있으면 셈만 하고(싸다) 아무것도 안 그린다. */
     if (!fogOnly9) {
@@ -18216,8 +18218,13 @@ export default function ReplayMotionPlayer({
     return () => { QUALITY9.fn = null; window.clearTimeout(tm9); };
   }, []);
   const warmingRef = useRef(false);
+  /** GL 벌 세대(gl9 glGen9 ★) — 붓(paintFnRef9)이 장마다 읽어 벌이 새로 섰으면(2 이상으로 바뀜) 올린다 → 아래 예열이 다시 돈다(조용히). */
+  const [glGen9S, setGlGen9S] = useState(0);
+  const glGenRef9 = useRef(0);
   useEffect(() => {
     if (!entData || !active) return undefined;
+    /** 다시 도는 예열(벌이 새로 섬)인가 — 로딩 띠·소개 멈춤 없이 뒤에서만 돈다. */
+    const quiet9 = glGen9S >= 2;
     /* 벤치를 먼저 세운다 — 아래에서 방향 칸 수를 기기의 힘으로 가른다(crowdInit9는 한 번만 돈다). */
     crowdInit9();
     /* 이 경기에 나오는 모델 종류 — 유닛은 이름표(UNIT_3D)로, 건물은 SHAPE_KIND로 푼다.
@@ -18382,7 +18389,7 @@ export default function ReplayMotionPlayer({
            돌아 캔버스를 다시 그리고, 정작 굽는 데 쓸 프레임을 그 일이 먹는다. */
         if (performance.now() - lastPost9 > 160) {
           lastPost9 = performance.now();
-          setWarmAt({ done: i9, total: jobs.length });
+          if (!quiet9) setWarmAt({ done: i9, total: jobs.length });
         }
         raf9 = requestAnimationFrame(step9);
       } else {
@@ -18393,7 +18400,7 @@ export default function ReplayMotionPlayer({
           warmingRef.current = true;
           if (performance.now() - lastPost9 > 160) {
             lastPost9 = performance.now();
-            setWarmAt({ done: jobs.length + preN9 - left9, total: jobs.length + preN9 });
+            if (!quiet9) setWarmAt({ done: jobs.length + preN9 - left9, total: jobs.length + preN9 });
           }
           raf9 = requestAnimationFrame(step9);
           return;
@@ -18406,7 +18413,7 @@ export default function ReplayMotionPlayer({
     raf9 = requestAnimationFrame(step9);
     return () => { cancelAnimationFrame(raf9); warmingRef.current = false; setWarmAt(null); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entData, active, pitched, pitchDeg]);
+  }, [entData, active, pitched, pitchDeg, glGen9S]);
 
   /* 시계 — rAF로 게임 시간 t를 배속만큼 민다. state로 두는 이유는 매 프레임 그리는 것들
      (자취·건물·마법)이 전부 t의 함수라서다. */
