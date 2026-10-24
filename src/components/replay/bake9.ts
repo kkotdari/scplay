@@ -7657,7 +7657,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const sx9 of [-1, 1] as const) {
       /* ⚠ 키는 **그 판의 자리**(PCY9)다(지적: "양옆 건물 위의 갈라짐 선 안 보임") — 판을
          줄이며 중심이 y 0 에서 옮겨 갔는데 이 선만 0 으로 재고 있어 판 뒤로 깔렸다. */
-      const k9 = depthNow(sx9 * PX, PCY9) * 1.6 + 0.3;
+      /* ★ 좌우 선의 키를 **한 톨 가른다**(2026-10-24, 재지적: "배럭 아직도 선이 먼저(틈) 보이잖아") — depthNow 가 ±x 에서 같은 값이라 두 선이 stageFaces 의 한 묶음(tagKey 가 같은
+         이웃 낯)으로 합쳐져 x −4~4 의 넓은 판으로 재어졌고, '눕힌 작은 판'(건설 맨 뒤) 자에 안 걸려 판보다 먼저 섰다(실측: 7단 kept). 키 차 0.0001 은 그리는 차례엔 뜻이 없다. */
+      const k9 = depthNow(sx9 * PX, PCY9) * 1.6 + 0.3 + (sx9 > 0 ? 0.0001 : 0);
       const y09 = VF9 + VPAD9 + 0.25;
       const y19 = PD / 2 - 0.3;
       for (const dx9 of [0]) {   // 한 줄(요청)
@@ -31363,6 +31365,8 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
   const gcn = new Array<number>(ng).fill(0);
   /** 부품의 3D 상자 [x0, y0, x1, y1] — '무엇이 무엇 안에 들었나'(얹힘)를 잰다. */
   const gbx = Array.from({ length: ng }, () => [Infinity, Infinity, -Infinity, -Infinity]);
+  /** 낯 하나의 평면 상자 [x0, y0, x1, y1](2026-10-24 · 아래 isoFlat9 — 묶음 안에서 홀로 뜬 눕힌 낯을 가르는 자). */
+  const fbx = Array.from({ length: n }, () => [Infinity, Infinity, -Infinity, -Infinity]);
   let has3d9 = false;
   for (let i = 0; i < n; i += 1) {
     const ps = MESH9.byD.get(faces[i][0]);
@@ -31377,6 +31381,11 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
         if (q[j + 1] < bb9[1]) bb9[1] = q[j + 1];
         if (q[j] > bb9[2]) bb9[2] = q[j];
         if (q[j + 1] > bb9[3]) bb9[3] = q[j + 1];
+        const fb9 = fbx[i];
+        if (q[j] < fb9[0]) fb9[0] = q[j];
+        if (q[j + 1] < fb9[1]) fb9[1] = q[j + 1];
+        if (q[j] > fb9[2]) fb9[2] = q[j];
+        if (q[j + 1] > fb9[3]) fb9[3] = q[j + 1];
       }
     }
     if (!(a9 <= b9)) continue;
@@ -31457,7 +31466,8 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
   const inside9 = (a: number, b: number): boolean => {
     const p = gbx[a]; const q = gbx[b];
     if (!(p[0] > -Infinity) || !(q[0] > -Infinity)) return false;
-    const m9 = 0.02;
+    /* 여유 0.02 → **0.06**(2026-10-24, 지적: "배럭 아직도 선이 먼저(틈) 보이잖아") — 살 밖 0.03 에 얹는 띠·데칼(faceBand9)이 0.02 여유에선 '안에 든 것'으로 안 잡혀 제 판보다 먼저 섰다. */
+    const m9 = 0.06;
     return p[0] >= q[0] - m9 && p[2] <= q[2] + m9 && p[1] >= q[1] - m9 && p[3] <= q[3] + m9
       && gz0[a] >= gz0[b] - m9 && gz1[a] <= gz1[b] + m9
       && (q[2] - q[0]) * (q[3] - q[1]) * (gz1[b] - gz0[b])
@@ -31471,13 +31481,48 @@ export function stageFaces(faces: ShapeFace[], stg: number, kind?: string): Shap
     }
   }
   /** 낯의 밑변 — 제가 얹힌 받침의 밑변까지 끌어올린 값이다(3D 가 없으면 옛 자 그대로).
-   *  ★ **납작한 얹힘(데칼·선·띠)은 맨 뒤**(2026-10-24, 같은 지적 — 배럭 천장의 선이 지붕과 함께 섰다) — 다른 부품 안에 든(lvl ≥ 1) 두께 거의 0(≤ 0.05)인 부품은 몸이
-   *    다 선 뒤(zTop + 0.02)로 보낸다. 낱 부품(태그로 갈린 묶음)만 걸린다 — 태그 없이 이웃과 한 묶음이 된 낯은 두께가 커서 안 걸린다. */
+   *  ★ **얇은 얹힘(데칼·선·띠)은 맨 뒤**(2026-10-24, 지적: "배럭 천장의 선이 지붕과 함께 섰다" → "아직도 선이 먼저(틈) 보이잖아") — 다른 부품 안에 든(lvl ≥ 1 · 여유 0.06)
+   *    부품 가운데 **세 축 중 한 축이 0.06 이하**(판 겉에 붙은 띠는 두께가, 지붕 위 선은 키가 얇다)인 것은 몸이 다 선 뒤(zTop + 0.02)로 보낸다. 낱 부품(태그로 갈린 묶음)만 걸린다 —
+   *    태그 없이 이웃과 한 묶음이 된 낯은 상자가 커서 안 걸린다. 첫 판은 z 두께 ≤ 0.05 만 봐서 벽 띠(키 0.15 · 두께 0.03)를 놓쳤다. */
   const flatTop9 = zTop9 + 0.02;
+  /** 얇은 부품 — 세 축 가운데 한 축이 0.06 이하(판 겉의 띠 · 지붕 위 선) 이거나 두 축이 0.08 이하(가는 막대). */
+  const thin9 = (gg: number): boolean => {
+    const b9 = gbx[gg];
+    if (!(b9[0] > -Infinity)) return false;
+    const e9 = [b9[2] - b9[0], b9[3] - b9[1], gz1[gg] - gz0[gg]].sort((p9, q9) => p9 - q9);
+    return e9[0] <= 0.06 || e9[1] <= 0.08;
+  };
+  /* ★ **눕힌 작은 판**(지붕 위 선·원반 — 배럭 옥상의 갈라짐 선 SEAM9 는 줄인 판과 그 뒤 기둥에 걸쳐 어느 상자에도 안 든다)은 안에 안 들어도 맨 뒤다(2026-10-24 재지적) —
+     z 두께 ≤ 0.02 · 바닥(아래 20%) 위 · 평면 넓이가 건물 발자국의 15% 아래. 세로 벽(낯 하나 = 두께 0 이지만 키가 크다)·지붕 판(넓다)·발판(바닥)은 안 걸린다. */
+  let fx09 = Infinity; let fy09 = Infinity; let fx19 = -Infinity; let fy19 = -Infinity; let zBot9 = Infinity;
+  for (let gg = 0; gg < ng; gg += 1) {
+    const b9 = gbx[gg]; if (!(b9[0] > -Infinity)) continue;
+    if (b9[0] < fx09) fx09 = b9[0]; if (b9[1] < fy09) fy09 = b9[1]; if (b9[2] > fx19) fx19 = b9[2]; if (b9[3] > fy19) fy19 = b9[3];
+    if (gz0[gg] < zBot9) zBot9 = gz0[gg];
+  }
+  const foot9 = Math.max(1e-6, (fx19 - fx09) * (fy19 - fy09));
+  const flatDeco9 = (gg: number): boolean => {
+    const b9 = gbx[gg];
+    if (!(b9[0] > -Infinity) || gz1[gg] - gz0[gg] > 0.02) return false;
+    return gz0[gg] > zBot9 + 0.2 * (zTop9 - zBot9) && (b9[2] - b9[0]) * (b9[3] - b9[1]) <= 0.15 * foot9;
+  };
+  /* ★ **묶음 안에서 홀로 뜬 눕힌 낯**도 맨 뒤(2026-10-24 재지적 — 배럭 옥상 선 SEAM9 는 같은 열쇠의 벽 띠(z 3.5~4.1)와 한 묶음이라 묶음 자(thin9·flatDeco9)에 안 걸렸다):
+     낯 하나가 눕혔고(z 두께 ≤ 0.02) · 바닥 20% 위 · 넓이가 발자국의 15% 아래 · 같은 묶음의 다른 낯이 그 높이(±0.05)에 하나도 안 닿으면 홀로 뜬 데칼이다 — 상자의 뚜껑·바닥은
+     벽이 그 높이에 닿으므로 안 걸린다. */
+  const members9: number[][] = Array.from({ length: ng }, () => []);
+  for (let i = 0; i < n; i += 1) if (!Number.isNaN(z0[i])) members9[gid[i]].push(i);
+  const isoFlat9 = (i: number): boolean => {
+    if (Number.isNaN(z0[i]) || z1[i] - z0[i] > 0.02) return false;
+    if (!(z0[i] > zBot9 + 0.2 * (zTop9 - zBot9))) return false;
+    const fb9 = fbx[i];
+    if ((fb9[2] - fb9[0]) * (fb9[3] - fb9[1]) > 0.15 * foot9) return false;
+    for (const j of members9[gid[i]]) if (j !== i && z0[j] <= z0[i] + 0.05 && z1[j] >= z0[i] - 0.05) return false;
+    return true;
+  };
   const kz9 = key0.map((v9, i) => {
     const gg = gid[i];
     if (Number.isNaN(z0[i]) && gz0[gg] === Infinity) return v9;
-    if (has3d9 && lvl9[gg] >= 1 && gz1[gg] - gz0[gg] <= 0.05) return flatTop9;
+    if (has3d9 && ((thin9(gg) && lvl9[gg] >= 1) || flatDeco9(gg) || isoFlat9(i))) return flatTop9;   // 안에 든 얇은 것 · 눕힌 작은 판 · 묶음 안 홀로 뜬 눕힌 낯 — 홀로 선 벽(낯 하나 = 두께 0)은 안 건다(실측: 걸면 서플라이 몸이 9단에야)
     return Math.max(v9, effZ9[gg]);
   });
   const order = kz9.map((_, i) => i)
