@@ -16,3 +16,11 @@ scratchpad/
 # perf-check 가 돌 때만 잠깐 서는 진입 파일
 scripts/.perf-entry.tmp.ts
 *.tsbuildinfo
+
+# tsc 가 src 옆에 뱉은 컴파일 산출물(vite 가 .tsx 대신 집어 간다 · 2026-10-24)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+!src/vite-env.d.ts
+vite.config.ts.timestamp-*.mjs

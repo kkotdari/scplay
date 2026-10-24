@@ -358,3 +358,10 @@ u32 개수 · 줄마다 u8 사람 · varint(그 사람 앞 줄과의 프레임�
 - 해독기 `gath: [초, 임자, 캔 미네랄, 캔 가스][]`(옛 판은 빈 배열) · `TRUTH_VER_MAX9` 14. 재생기 화면은 아직 안 쓴다 — 서버 곡선(sg-api series.py rs.cm·cg)이 쓴다.
 - ⚠ 배포 차례: **scplay(판 14 를 읽는 해독기) → sg-api(판 14 를 굽는 덤퍼)**. 거꾸로면 그 사이 재분석한 판이 옛 재생기에서 "판 14 를 물리쳤다"가 된다.
 - 🔎 `node scripts/openbw-tracks-check.mjs`(지은 판 11~14 · 판 15 물리침) · 덤퍼 대조는 `--rep <x.rep>`.
+
+## 빌드 함정 — src 옆 컴파일 .js 가 .tsx 를 가린다(2026-10-24)
+`npx tsc -p tsconfig.json`(--noEmit 없이)·`tsc -b` 를 scplay 에서 돌리면 `src/**/*.js`·`*.d.ts` 가 소스 옆에 떨어진다.
+vite 라이브러리 빌드(`src/components/replay/index.ts` 의 `./ReplayMotionPlayer`)와 perf-check 는 **그 .js 를 .tsx 보다 먼저 집어 간다** —
+dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 보기 모드 판 차례·요약/전체 pill 이 옛것) 화면 확인 샷도 옛 UI 가 나온다.
+🔎 `find src -name '*.js' ! -name '*.gen.*'` 이 0 이어야 한다. 막음: tsconfig `noEmit: true`(vite-plugin-dts 는 제 설정으로 d.ts 를 뽑는다 ·
+`dist/index.d.ts` 그대로) · `.gitignore` 에 `src/**/*.js`·`*.d.ts`·`*.map`(`src/vite-env.d.ts` 만 예외) · 60 파일은 a615bec 에서 들어와 1e… 뒤 커밋에서 걷었다.
