@@ -2381,3 +2381,7 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   지도 휠 손잡이의 걸음 루프를 `wheelRun9` 로 끌어냈다(onWheel 은 목표만 적고 부른다).
 - 지도 **드래그** 자체는 이미 한 장 길(dragPendRef + rAF + gestureFrame9)이다 — 남은 버벅임은 `camGliding9` 의 rAF setState(2026-10-24 '줌 울렁거림' 절 ②)·무거운 장이 후보.
   🔎 `node scripts/perf-check.mjs --wide --castoff --drag --warm 0 --glblit --readyms 150000`(헤드리스 PC · `--diag` 를 붙이면 framesDone 을 못 기다린다).
+
+## 보기 모드 판이 예열 전 빈틈에 뜨던 것(2026-10-24)
+지적: "로딩 남았는데 팝업 나옴". `askReady9` 의 `warmAt` 은 예열 effect 가 **160ms 박자**로 놓는 값이라 자취가 온 뒤 첫 박자 전(effect 가 서기 전도) 잠깐 null 이고,
+그 틈에 준비로 읽혀 잠금(askLatch9 · 같은 날 "팝업이 떴다가 다시 로딩")이 판을 띄운 채 예열 띠가 돌았다. 고침: `askReady9` 에 `(entData === null || introWarm9)`(첫 예열 끝) 을 더했다 — introReady9 와 같은 문.

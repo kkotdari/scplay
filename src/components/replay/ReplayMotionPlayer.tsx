@@ -6755,7 +6755,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages} 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 예열[${SCR_DIAG.warm9}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages} 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -18240,7 +18240,9 @@ export default function ReplayMotionPlayer({
   const [bakeHold, setBakeHold] = useState(false);
   /* ★ 보기 모드 판은 **재생 준비가 다 된 뒤에** 뜬다(2026-10-24, 요청: "플레이어 첫 진입 시 로딩만 뜨게 하고 플레이 준비 다 되면 그때 팝업") — 자료(참값)·굽기(warmAt·bakeHold)가 끝날 때까지는
      LOADING 만 보이고 판은 숨긴다(modeAsk9 는 그대로 참이라 시계도 선 채). */
-  const askReady9 = !pending && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
+  /* ★ 첫 예열이 **끝난 뒤**라야 준비다(2026-10-24, 지적: "로딩 남았는데 팝업 나옴") — warmAt 은 예열 effect 가 160ms 박자로 놓는 값이라 자취가 온 뒤 첫 박자
+     전(그리고 effect 가 서기 전) 잠깐 null 이고, 그 틈에 askReady9 가 참이 되어 아래 잠금(askLatch9)이 판을 띄운 채 예열 띠가 돌았다. introWarm9(예열 끝)로 못 박는다. */
+  const askReady9 = !pending && (entData === null || introWarm9) && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
   /* ★ 한 번 뜬 판은 **다시 안 숨긴다**(2026-10-24, 지적: "팝업이 떴다가 다시 로딩 뜨고 다시 팝업 뜨는 경우 있어") — 준비가 됐다가 굽기 몰림(bakeHold)·재예열(warmAt)이
      잠깐 다시 서면 askReady9 가 거짓으로 돌아가 판이 사라졌다 되살아났다. 준비를 한 번 봤으면 그 뒤로는 판을 그대로 둔다(LOADING 은 판 뒤에서 안 뜬다). */
   const askLatch9 = useRef(false);
