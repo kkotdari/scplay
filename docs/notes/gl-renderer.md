@@ -1503,3 +1503,13 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
 - 미리 굽기 호출 `sprPrebake9(…, lt)` 가 마스크 벌을 받고 처방(sprRecipes.ltKey)에도 남긴다. 예열의 건물 일감은 변종(회전 칸)마다 한 번씩 올린다.
 - 진단: `#bldlit=1`(RMP BLD_LIT_ALL9 · 엔진은 워커라 붓에서 건다) 이면 모든 건물을 켜진 것으로 그린다.
 - 🔎 `node scripts/scene-sheet.mjs --race 테란 --dpr 2 --hash bldlit=1` 과 `--hash "bldlit=1,glspr=0"` 를 나란히 — 아카데미 창(노랑)·머신샵 라디에이터(주황)·컴샛 LED(초록)가 같아야 한다.
+
+## 줌아웃 프레임 저하 — 판 길의 메시 등급을 LOD_FINE 하나로(2026-10-24)
+지적: "드래그 줌아웃시 프레임이 너무 떨어지네(메쉬랑 2D 오가며 문제 없나? 이미 다 로드된 그림 불러오는데 왜 로딩이나 프레임드랍이 생겨?)".
+- 원인: 메시 열쇠가 `u:kind:pose:**lod**` · `b:kind:…:**lod**` 라 판 칸 열쇠(mesh.key 포함)도 등급을 탔다. 등급(lodOf)은 화면 px(배율)·lodZoom(2.5 위 최고)·
+  lodCap(사양)·**lodPenalty(느린 프레임 90 → 한 단 내림)** 로 1~3 을 오간다. 줌아웃 = 문턱(22/44px · 유닛 5/11 잉크px)을 지날 때마다 화면의 **모든 몸이 새 열쇠로 놓침**
+  → 손짓 중 다시 굽기(예산 1/2) → 못 찍은 몸은 그 장을 메시로 → 프레임 밀림 → 벌점으로 등급 또 내려 또 굽기(되먹임). 예열은 `unitMesh(kind,pose)`·`bldMesh(op)` 기본값
+  = 등급 3 만 구워, 사양 상한 1~2 인 폰은 **예열한 칸을 한 번도 안 썼다**(줌아웃 "모델 늦게 뜸"의 한 몫).
+- 고침: 판 길(sprFlatB9 · sprFlatU9 = gl9.sprTint && GL_SPR9 && !op.pitch)은 등급을 늘 LOD_FINE 으로(판 칸은 배율과 무관한 한 단으로 굽고 축소는 밉맵이라 부품을 덜 그릴 까닭이
+  없다). 입체(op.pitch)·메시 길은 종전 lodOf. 메시↔판 갈아타기(sprUpMax)는 확대 쪽 문턱이라 줌아웃과 무관(손짓 중 sprHeldMode9 로 못 박힘).
+- 🔎 `node scripts/perf-check.mjs --wide --warm 0 --diag --castoff --zoomsweep 6` — 물림(줌아웃) 걸음마다 `굽기0` 이어야 한다. 헤드리스는 GPU 몫을 못 재니 수치는 굽기 수만.

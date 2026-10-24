@@ -1021,8 +1021,8 @@ if (has("--ask")) {
 }
 /* --castoff — 들어오자마자 켜진 자동 중계(AUTO)를 끈다(2026-10-09 — 중계 꺼진 단독 화면 검산 · 무대 왼아래 미니맵이 손짓을 받는 꼴). */
 if (has("--castoff")) {
-  // 자동중계 스위치는 걷었다(2026-10-24 · 고른 모드로 끝까지) — 숫자패드 0(중계 끄기)으로 끈다.
-  await page.keyboard.press("Numpad0");
+  // 자동중계 스위치·숫자패드 0 다 걷었다(2026-10-24 · 고른 모드로 끝까지) — 보기 모드 판이 서 있으면 [자유](중계 없이)를 누른다. 판이 없으면(--ask 가 이미 골랐으면) 그대로.
+  if (await page.locator(".scr-mode-ask-btn").count()) await page.locator(".scr-mode-ask-btn").nth(0).click();
   await page.waitForTimeout(500);
 }
 /* --zoomlockprobe — 중계 중엔 휠·↑ 배율이 잠기나(2026-10-09, 요청: "중계가 켜진 순간 드래그 줌 다 막혀야해") — 켠 채 휠·ArrowUp 뒤 배율,
@@ -1204,7 +1204,7 @@ if (has("--dockprobe")) {
    보인다. 중계가 켜진 채(기본값) 목록을 열면 둘이 한 자리에 겹치므로, 목록이 온전히 위에 서야 한다. 상자도 찍는다. */
 if (has("--pickshot")) {
   await page.waitForTimeout(1500);
-  await page.keyboard.press("NumpadDecimal");   // 자동중계 토글(스위치는 걷었다 · 2026-10-24)
+  if (await page.locator(".scr-mode-ask-btn").count()) await page.locator(".scr-mode-ask-btn").nth(1).click();   // [풀](자동 중계) — 스위치·숫자패드 . 다 걷었다(2026-10-24)
   const r9 = true;
   await page.waitForTimeout(400);
   const bx9 = await page.evaluate(() => {
@@ -1238,15 +1238,17 @@ if (has("--campick")) {
   await click9(0); await page.waitForTimeout(400); console.log(await st9("1번 누름"));
   await click9(1); await page.waitForTimeout(400); console.log(await st9("2번 누름"));
   await page.evaluate(() => (document.activeElement instanceof HTMLElement) && document.activeElement.blur());
-  /* 2026-10-13 — 화면 키는 숫자패드 한 벌(1~8 · -/+ · 9 전체 · . AUTO · 0 끄기 · / 색) · 스페이스 재생/일시정지 · F 장면 검색 · 윗줄 숫자·P·패드 Enter·* 는 안 먹어야 한다. */
+  /* 2026-10-24 — 화면 키는 PgUp(다음 사람)/PgDn(이전 사람) · C 색 · 스페이스 재생/일시정지 · F 장면 검색. 숫자패드 한 벌(1~8 · -/+ · 9 · . · 0 · /)·Q/E 배율·윗줄 숫자·P·패드 Enter·* 는 안 먹어야 한다. */
   const kp9 = async (code, lab) => { await page.keyboard.press(code); await page.waitForTimeout(400); console.log(await st9(lab), await auto9()); };
   const auto9 = () => page.evaluate(() => (document.querySelector(".scr-dock-roster .scr-roster-cam-auto")?.classList.contains("is-on") ? "AUTO 켜짐" : "AUTO 꺼짐"));
-  await kp9("Numpad3", "패드 3"); await kp9("Numpad1", "패드 1"); await kp9("Numpad1", "패드 1 다시");
-  await kp9("NumpadAdd", "패드 +"); await kp9("NumpadAdd", "패드 + 다시"); await kp9("NumpadSubtract", "패드 -"); await kp9("NumpadSubtract", "패드 - 다시");
-  await kp9("Digit3", "윗줄 3(안 먹어야)");
-  await kp9("Numpad9", "패드 9"); await kp9("Numpad9", "패드 9 다시"); await kp9("NumpadDecimal", "패드 ."); await kp9("NumpadDecimal", "패드 . 다시"); await kp9("Numpad0", "패드 0");
+  await kp9("PageUp", "PgUp"); await kp9("PageUp", "PgUp 다시"); await kp9("PageDown", "PgDn"); await kp9("PageDown", "PgDn 다시");
+  await kp9("Numpad3", "패드 3(안 먹어야)"); await kp9("NumpadAdd", "패드 +(안 먹어야)"); await kp9("Digit3", "윗줄 3(안 먹어야)");
+  await kp9("Numpad9", "패드 9(안 먹어야)"); await kp9("NumpadDecimal", "패드 .(안 먹어야)"); await kp9("Numpad0", "패드 0(안 먹어야)");
   const col9 = () => page.evaluate(() => document.querySelector(".scr-motion-colorbtn, [aria-label*='색']")?.getAttribute("aria-label") ?? "-");
-  console.log("[키] 색 전", await col9()); await page.keyboard.press("NumpadDivide"); await page.waitForTimeout(300); console.log("[키] 패드 / 뒤", await col9());
+  console.log("[키] 색 전", await col9()); await page.keyboard.press("NumpadDivide"); await page.waitForTimeout(300); console.log("[키] 패드 / 뒤(안 먹어야)", await col9());
+  await page.keyboard.press("KeyC"); await page.waitForTimeout(300); console.log("[키] C 뒤", await col9());
+  const zoom9 = () => page.evaluate(() => window.__scrDiag?.zoom ?? "-");
+  console.log("[키] 배율 전", await zoom9()); await page.keyboard.press("KeyE"); await page.waitForTimeout(300); console.log("[키] E 뒤(안 먹어야)", await zoom9());
   const play9 = () => page.evaluate(() => document.querySelector(".scr-motion-play, [aria-label*='일시정지'], [aria-label*='재생']")?.getAttribute("aria-label") ?? "-");
   console.log("[키] 재생 단추 전", await play9());
   await page.keyboard.press("KeyP"); await page.waitForTimeout(400); console.log("[키] P 뒤(안 먹어야)", await play9());

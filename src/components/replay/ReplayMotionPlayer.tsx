@@ -684,6 +684,8 @@ const fogGlDirty9 = { v: false };
 const DIGEST_INTRO_CYC9 = 3;
 /** 주소줄 `#3d=1` — 입체 보기로 시작(위 pitchDeg ★ · 단추·V 키는 2026-10-24 에 걷었다). */
 /** 2D 판에서 회전 칸을 8(짝수 칸)로 접는 건물 부품(2026-10-24 · 붓 sprFlatB9 ★★ · 예열 spins9) — 서플라이 팬 · 코어 디스크 · 포지 톱니 · 머신샵 톱니. */
+/** PC 분할보기(여러 사람 칸)를 **안 쓴다**(2026-10-24, 요청: "PC 분할화면 체제 미사용으로 변경 · 로스터 클릭시 개인화면으로 바로") — pickPerson9·startSplit9 의 문. 붓·칸 배치 코드는 남겨 둔다. */
+const SPLIT_OFF9 = true;
 const SPIN_SPR_KINDS9 = new Set(["trapezoid", "cyber", "forge", "mshop"]);
 /** 진단 — `#bldlit=1` 이면 모든 건물을 켜진 것으로 그린다(장면표로 켜짐 켜를 볼 때 · 엔진은 워커라 해시를 못 읽어 붓에서 건다 · 2026-10-24). */
 const BLD_LIT_ALL9 = typeof location !== "undefined" && /bldlit=1/.test(location.hash);
@@ -5939,12 +5941,17 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
           /* 건물 몸 — 메시 한 벌(종류·건설단계·포탑각·불빛·회전·LOD). 자리 자는 옛 판 블릿과 같다: x 는 상자 가운데(sx),
              y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
-          const lodB9 = lodOf(sideWant);
+          /* ★★★ 2D 판 길은 메시 등급(LOD)을 **최고 등급 하나로 못 박는다**(2026-10-24, 지적: "드래그 줌아웃시 프레임이 너무 떨어지네 — 이미 다 로드된 그림 불러오는데 왜 로딩이나 프레임드랍이 생겨?") —
+             등급(lodOf)은 화면 px·배율(lodZoom)·사양 상한(lodCap)·**프레임 벌점**(lodPenalty)으로 1~3 을 오가고, 메시 열쇠(`b:…:lod` · `u:…:lod`)에 들어 판 칸 열쇠까지
+             갈랐다. 그래서 줌아웃하면 등급 문턱을 지날 때마다 **모든 몸의 칸이 새 열쇠로 놓쳐** 손짓 중에 다시 구웠고(예열은 등급 3 만 굽는다 — 아래 warm 의 unitMesh/bldMesh
+             기본값), 프레임이 밀리면 벌점이 등급을 또 내려 또 굽는 되먹임까지 돌았다(폰은 사양 상한 1~2 라 예열한 등급 3 칸을 **한 번도 안 썼다**). 판 칸은 배율과 무관한 한 단으로
+             구워 축소는 밉맵이 맡으므로 부품을 덜 그릴 까닭이 없다 — 판 길(sprFlatB9·sprFlatU9)은 늘 LOD_FINE, 입체·메시 길만 종전 등급. 🔎 perf-check --zoomsweep 의 '굽기' 가 물림마다 0. */
+          const sprFlatB9 = !!gl9 && gl9.sprTint && GL_SPR9 && !op.pitch;
+          const lodB9 = sprFlatB9 ? LOD_FINE : lodOf(sideWant);
           /* ★★ 2D 판 길의 건물 벌(2026-10-24, 요청: "건물의 켜짐은 임자색처럼 처리 · 회전 건물부품도 수를 줄여서라도 미리 굽기") ──
              ① 켜짐(lit)은 칸 열쇠에서 뺀다 — 몸은 **꺼진 벌**로 그리고, 켜짐 마스크 벌(litMask · 켜진 낯이 흰색)을 함께 건네 gl9 가 (마스크 − 꺼짐) 을 판의 켜짐 켜에
                 적어 두고 켜진 개체에만 더한다(gl9 켜짐 켜 ★). 입체·메시 길(sprFlatB9 거짓)은 종전대로 켜진 벌.
              ② 도는 부품(SPIN_SPR_KINDS9)의 회전 칸은 16 → **8**(짝수 칸으로 둥글림) — 변종이 반이라 미리 굽기(예열)가 담는다. 성큰 혀(4컷)·통로 길이·가스 연기는 그대로. */
-          const sprFlatB9 = !!gl9 && gl9.sprTint && GL_SPR9 && !op.pitch;
           const spinQ9 = (k9: string, sp9: number | undefined): number | undefined =>
             (sprFlatB9 && sp9 !== undefined && SPIN_SPR_KINDS9.has(k9) ? Math.floor(sp9 / 2) * 2 : sp9);
           const litB9 = sprFlatB9 && LIT_KINDS.has(op.kind);
@@ -6194,7 +6201,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           continue;
         }
         /* GL 붓이 맡을 몸은 2D 면(요잉 칸별 빌더 굽기, resolveShapeFaces)을 아예 안 짓는다 — 메시는 종류·자세당 한 벌이다. */
-        const lod9 = lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO);
+        const sprFlatU9 = !!gl9 && gl9.sprTint && GL_SPR9 && !op.pitch;   // 판 길이면 등급은 늘 최고(위 건물 쪽 ★★★ · 줌아웃 재굽기 되먹임)
+        const lod9 = sprFlatU9 ? LOD_FINE : lodOf((Math.max(4, op.sizePx * bakeZoom) * modelInkOf(op.kind)) / 16, LOD_INK_POINT, LOD_INK_DECO);
         const glPre9 = gl9 && SHAPE_BUILDERS[op.kind] ? gl9.unitMesh(op.kind, op.pose ?? 0, lod9) : null;
         if (gl9 && !glPre9 && glScrubbing9() && SHAPE_BUILDERS[op.kind] && !GL_CANVAS_KINDS9.has(op.kind)) continue;   // 끌기 중 예산 밖(위 건물 쪽 ★)
         if (gl9 && !glPre9) GL_MISS9.set(op.kind, (GL_MISS9.get(op.kind) ?? 0) + 1);   // 진단: GL 이 못 맡아 판으로 떨어진 종류
@@ -11183,7 +11191,7 @@ export default function ReplayMotionPlayer({
    *  (칸의 붓은 평면 한 벌이다). ★ 처음엔 **아무 칸도 안 고른다**(2026-09, 요청: "처음엔 화면 미선택 · 선택 상태에서 또 누르면
    *  미선택으로") — 이미 켜진 분할에서 사람만 바뀌면 고른 칸이 남아 있을 때 그대로 둔다. */
   const startSplit9 = (sel9: string[] | null): void => {
-    if (uiPhone9) return;   // 폰(폰 UI)은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★)
+    if (uiPhone9 || SPLIT_OFF9) return;   // 폰(폰 UI)은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★) · PC 도 이제 안 쓴다(SPLIT_OFF9 · 2026-10-24)
     if (castOn) stopCast9();
     if (trackRaw !== null) stopTrack9();
     setViewRaw(null);
@@ -11207,8 +11215,10 @@ export default function ReplayMotionPlayer({
   /** 닉네임 누르기 — 고른 사람에 더하거나 뺀다. 남은 사람이 0 이면 끄고, 하나면 개인 추적, 둘 이상이면 그 사람들만 분할이다. */
   const pickPerson9 = (key9: string): void => {
     /* ★ 폰은 **분할이 없다**(2026-10-12, 요청: "모바일 분할 화면 완전제거 및 로스터 클릭시 그사람 화면으로 변경" · "여러명 선택 기능 아예 없고 토스터도 없음") —
-       옛 '두 명까지 + 셋째에 토스트'(SPLIT_PHONE_MAX9)를 걷었다. 다른 사람을 누르면 그 사람 화면으로 **바꾸고**, 켜진 사람을 다시 누르면 놓는다. */
-    if (uiPhone9) {
+       옛 '두 명까지 + 셋째에 토스트'(SPLIT_PHONE_MAX9)를 걷었다. 다른 사람을 누르면 그 사람 화면으로 **바꾸고**, 켜진 사람을 다시 누르면 놓는다.
+       ★★ PC 도 같다(2026-10-24, 요청: "PC 분할화면 체제 미사용으로 변경 · 로스터 클릭시 개인화면으로 바로 변경") — 여럿을 모아 분할로 가던 아래 갈래는 SPLIT_OFF9 로 닫았다
+       (분할 붓·칸 배치는 남아 있되 켜는 길이 없다 · startSplit9 도 되돌아간다). */
+    if (uiPhone9 || SPLIT_OFF9) {
       if (trackRaw === key9) { stopTrack9(); setViewRaw(null); } else toggleTrack(key9);
       return;
     }
@@ -11241,17 +11251,7 @@ export default function ReplayMotionPlayer({
     const i9 = at9 < 0 ? (d9 > 0 ? 0 : order9.length - 1) : (at9 + d9 + order9.length) % order9.length;
     return personKeyRef9.current(i9 + 1);
   };
-  const allKeyRef9 = useRef<() => boolean>(() => false);
-  allKeyRef9.current = () => { if (uiPhone9 || bases.length === 0) return false; if (!allOn9) startSplit9(null); return true; };   // 폰은 전체(분할)가 없다
-  const castKeyRef9 = useRef<() => void>(() => {});
-  castKeyRef9.current = () => { if (!castOn) toggleCast9(); };
-  /** 중계 끄기 — 자동·전체/분할·개인 추적 다 놓고 손 시점으로(각 단추를 끈 것과 같은 자리에 머문다). */
-  const offKeyRef9 = useRef<() => void>(() => {});
-  offKeyRef9.current = () => {
-    if (castOn) stopCast9();
-    if (splitOn9) setSplitOn9(false);
-    if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
-  };
+  /* (걷음 2026-10-24) 숫자패드 9 전체 · . 자동중계 · 0 중계 끄기의 손잡이(allKeyRef9·castKeyRef9·offKeyRef9) — 키를 걷으며 함께(모드 잠금 · 위 personStepRef9 만 남았다). */
   /* ★ 중계가 카메라를 처음 잡을 때 **한 번** 당겨 준다 — 1배(지도 전체)에서는 팬의 여유가
      0이라 카메라가 아무 데도 못 가고, 그러면 중계가 자막만 뜨는 기능으로 보인다. 개인
      추적이 켜질 때와 같은 배율(trackZoom9)이고, 그 뒤 손으로 바꾼 배율은 안 되돌린다. */
@@ -17986,35 +17986,8 @@ export default function ReplayMotionPlayer({
       /* ★ 키 배치(요청: "확대 축소: 위아래 화살표 · 배속: q/e · 스크랩/공유: z/x", 그 뒤 "로스터, 색깔, 평면입체:
          `, c, v · 조작부 감추기/보이기: f · 도움말에 표기된 단축키 이외의 매핑은 모두 제거"). 글자 키는 e.code(자판
          자리)로 읽어 한글 자판에서도 듣는다. 안내(ReplayGuide)에 적힌 키만 여기 있어야 한다 — 별칭을 더하지 않는다. */
-      const zoomStep9 = (up9: boolean): void => {
-        if (splitOnRef9.current) { camLockToastRef9.current(); return; }   // 분할보기는 칸마다 제 배율이다 — 키 배율도 없다 · 단독 중계·개인 화면은 열렸다(zoomCapRef9 ★ 2026-10-19) · 토스트
-        wheelStopRef9.current();   // 미끄러지던 휠은 멈춘다(위 ★)
-        // (되물림 2026-10-24) 키보드 배율은 선택을 안 닫는다 — beginGestureXf 의 ★.
-        const el9 = mapRef.current;
-        const r9 = el9?.getBoundingClientRect();
-        if (!r9 || r9.width < 4) return;
-        const z9 = Math.min(zoomCapRef9.current(), zoomNext(zoomRef.current, up9)
-          ?? (up9 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]));
-        if (z9 === zoomRef.current) return;
-        const kk9 = z9 / zoomRef.current;
-        const lim9 = panLimit(z9);
-        const np9 = {
-          x: Math.min(lim9.x, Math.max(-lim9.x, panRef.current.x * kk9)),
-          y: Math.min(lim9.yTop, Math.max(-lim9.y, panRef.current.y * kk9)),
-        };
-        linkHoldRef9.current = null;   // 키보드 배율도 사람의 조작이다(위 linkHoldRef9).
-        zoomRef.current = z9;
-        panRef.current = np9;
-        setZoom(z9);
-        setPan(np9);
-      };
-      /* (2026-10-11, 요청: "속도를 화살표 위아래에 매핑하고 축소/확대는 q/e, 재생/일시정지는 F로 변경") — 옛 ↑↓ 배율 · Q/E 배속 · 스페이스 재생을 맞바꿨다. */
-      if (e.code === "KeyQ" || e.code === "KeyE") {
-        // q/e = 축소/확대(요청).
-        e.preventDefault();
-        wakeUi();
-        zoomStep9(e.code === "KeyE");
-      } else if (k === "ArrowUp" || k === "ArrowDown") {
+      /* (걷음 2026-10-24, 요청: "줌 Q E 제거") — 키 배율(zoomStep9 · Q/E)을 걷었다. 배율은 휠·핀치·두 번 누르기만. */
+      if (k === "ArrowUp" || k === "ArrowDown") {
         // 위아래 화살표 = 배속 올리기/내리기(요청).
         e.preventDefault();
         wakeUi();
@@ -18045,20 +18018,16 @@ export default function ReplayMotionPlayer({
         /* ★ 검색 결과 앞뒤 — B 이전 · N 다음(2026-10-12, 요청: "검색 결과 이전/다음은 B/N 으로 매핑하고 검색창 닫아도 동작") — 검색창(입력)에 있을 땐 이 판이
            안 들으므로(위 INPUT 문) 창을 닫거나 접은 뒤에 먹는다. 결과가 없으면 키를 흘린다. */
         if (searchKeyRef9.current(e.code === "KeyN" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
-      } else if (/^Numpad[0-9]$|^Numpad(Subtract|Add|Decimal|Divide)$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        /* ★ **숫자패드 한 벌**(2026-10-13, 요청: "숫자패드 1~8: 각 플레이어 화면(단독) · 9: 전체중계 · 0: 중계 끄기 · .: 자동중계 · -: 이전사람(순번) · +: 다음사람 ·
-           /: 색깔 변경 · *: 검색 — 이전 매핑된 키는 이걸로 다 바꾸기") — 옛 윗줄 1~8 · -/= · 0 · ` · c 를 걷었다. e.code 라 NumLock 과 무관하다.
-           이어 "장면검색은 F · 숫자패드 엔터는 아무것도 매핑 X · 매핑은 기능당 한 키에만" — * 도 걷었다(검색은 F 하나 · 재생은 스페이스 하나).
-           켜는 키(1~9 · .)는 **전환**이다(이미 그것이면 그대로) — 끄기는 0 하나다. */
-        const c9 = e.code.slice(6);
-        let ok9 = true;
-        if (/^[1-8]$/.test(c9)) ok9 = personKeyRef9.current(Number(c9));
-        else if (c9 === "9") ok9 = allKeyRef9.current();
-        else if (c9 === "0") offKeyRef9.current();
-        else if (c9 === "Decimal") castKeyRef9.current();
-        else if (c9 === "Subtract" || c9 === "Add") ok9 = personStepRef9.current(c9 === "Add" ? 1 : -1);
-        else if (c9 === "Divide") setColorMode(colorNextRef9.current);   // 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공)
-        if (ok9) { e.preventDefault(); wakeUi(); }
+      } else if ((e.code === "PageUp" || e.code === "PageDown") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        /* ★ PgUp/PgDn = 다음/이전 사람(2026-10-24, 요청: "숫자패드 단축키 제거 · + − → pgUp pgDn · . 9 0 은 이제 필요없어서 제거 · 색깔 C 로 변경 · 줌 Q E 제거") —
+           옛 숫자패드 한 벌(2026-10-13 · 1~8 사람 · 9 전체 · 0 끄기 · . 자동중계 · −/+ 이전/다음 · / 색)을 통째로 걷었다. 고른 모드로 끝까지 보므로(모드 잠금 ·
+           player-ui.md) 9·0·. 은 몫이 없고 1~8 도 안 둔다 — 사람은 PgUp(+ · 다음)/PgDn(− · 이전)으로만 돈다(요청 차례 그대로 · 채널 +/−). **e.code** 다 — NumLock 꺼진 숫자패드 9/3 은 e.key 가 PageUp/PageDown 이라(검산에서 패드 3·9 가 먹었다) 숫자패드는 통째로 안 듣는다. */
+        if (personStepRef9.current(e.code === "PageUp" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
+      } else if (e.code === "KeyC" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // c = 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공) · 숫자패드 / 에서 돌아왔다(2026-10-24 · 위 ★).
+        e.preventDefault();
+        wakeUi();
+        setColorMode(colorNextRef9.current);
       } else if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // f = 장면 검색 — 검색 알약을 펴고 입력칸에 손(위 searchFocusKeyRef9 · 2026-10-13 요청). keydown 을 막아 f 글자는 입력칸에 안 들어간다.
         e.preventDefault();
@@ -18095,7 +18064,6 @@ export default function ReplayMotionPlayer({
            입력칸·단추 초점 걸러내기는 위에 그대로 있어, 자판이 붙어 있어도 글 쓰는 중에는
            안 뺏는다. */
       // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
-      /* (걷어냄 · 2026-10-13) c = 색 모드 — 숫자패드 / 로 옮겼다(위 숫자패드 ★). */
       /* (걷음 2026-10-24, 요청: "3D V 키로도 안 되게 — 특수 주소줄 파라미터로만 켜게") — v 키의 평면 ↔ 입체 토글. 입체는 `#3d=1`(PITCH_HASH9)로 연 재생기만. */
       } else if (e.code === "KeyM") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
@@ -19055,7 +19023,7 @@ export default function ReplayMotionPlayer({
                         <button
                           type="button" className={cx("scr-roster-cam", shown9 && "is-on")} onClick={() => pickPerson9(m.key)} aria-pressed={on9}
                           aria-label={on9 ? `${m.name} 화면 놓기` : `${m.name} 화면 보기`}
-                          title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                          title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다"}
                         >
                           <Video aria-hidden />
                         </button>

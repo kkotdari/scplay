@@ -2406,3 +2406,11 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - **자유 모드의 장면 검색**은 첫 자리로 한 번(lookAtTile9)만 옮기고 카메라를 풀어 둔다 — 장면 잡기(searchFocus9 → searchSegNow9 · 잠금)는 중계가 켜졌을 때만(요청 "중계모드 X").
 - 폰 2D 판 상한 10 → **14**(gl9 · 8인 경기 칸이 10판을 넘쳐 줌아웃마다 굽던 것 — 판 하나 ≈ 29MB(색 16 + 임자색·켜짐 RG8 8 + 밉)). 순간이동은 그 굽기 멈춤(터치 표본 뭉침)의 자국으로 보고
   이번엔 굽기 몰림만 덜었다 — 폰 `#diag` 의 `칸/판 · 비움` 으로 되본다.
+
+## PC 단축키 한 벌 2026-10-24(요청: "숫자패드 단축키 제거 · + − → PgUp PgDn · . 9 0 제거 · 색깔 C · 줌 Q E 제거")
+- 남은 키(onKey · ReplayGuide 와 한 벌): Space 재생 · ←→ 감기 · ↑↓ 배속 · WASD 밀기 · **PgUp 다음 사람 · PgDn 이전 사람**(personStepRef9 · + 가 PgUp · − 가 PgDn — 요청 차례
+  그대로 · 채널 +/−) · **C 색**(colorNextRef9) · M 소리 · F 검색 · B/N 검색 앞뒤 · X 장면 공유 · Alt+Enter 전체화면 · Esc.
+- 걷은 것: 숫자패드 한 벌 전부(1~8 사람 · 9 전체 · 0 끄기 · . 자동중계 · −/+ · / 색 · 2026-10-13 판) · Q/E 배율(zoomStep9 함수째) · 9/0/. 의 손잡이
+  allKeyRef9·castKeyRef9·offKeyRef9(모드 잠금이라 몫이 없다). 안내의 V(입체)도 지웠다(`#3d=1` 로만 · 키는 그 전에 걷었다).
+- PgUp/PgDn 은 **e.code** 로 읽는다 — NumLock 꺼진 숫자패드 9/3 은 e.key 가 PageUp/PageDown 이라(첫 검산에서 패드 3·9 가 먹었다) 숫자패드는 통째로 안 듣는다.
+- perf-check: `--castoff` 는 보기 모드 판의 [자유] 를, `--pickshot` 은 [풀] 을 누른다(숫자패드 0/. 가 없다). `--campick` 키 검산은 PgUp/PgDn·C·E(안 먹어야)로.
