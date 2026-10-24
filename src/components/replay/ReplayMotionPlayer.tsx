@@ -5430,7 +5430,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
          둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
-      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0);
+      /* 요잉 칸 수(gl9 sprYaw · 2026-10-24 결정): PC 16 · 폰·저사양 PC 8 · 저사양 폰 4. */
+      glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
       if (!gl9 && GL_ON9 && terrain?.current && terrainOff) { terrain.current = null; terrainOff(); }   // GL 을 못 열었다 — 지형층을 내리고 옛 벡터층으로(glTerrain9)
       if (gl9 && scrDiagOn()) SCR_DIAG.glBuf = `${gl9.gl.drawingBufferWidth}x${gl9.gl.drawingBufferHeight}`;   // 흐림 진단(blurDiag9)이 읽는다
       const fctx9 = fcv9 ? fcv9.getContext("2d") : null;
@@ -6083,7 +6084,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ? (gLift9 > 0.5
                 ? { ground: true, dy: gLift9, h: gLift9 / Math.max(1e-3, gk9), alpha: op.alpha * SHADOW_ALPHA9 }
                 : { ground: true, alpha: op.alpha * SHADOW_ALPHA9 }) : undefined;
-            const gR9 = sidePx * 0.707; const gCy9 = -8 * gk9;
+            /* 실루엣 빛 반지름도 맥박(pulseK)을 탄다(2026-10-24) — 안 태우면 gR/k 비가 맥박마다 달라져 판 칸 열쇠(gRq)가 바뀌고, 저그 건물이 숨 쉴 때마다 새 칸을 구웠다(놓침 로그 b:hatchery·sunken). */
+            const gR9 = sidePx * (op.pulseK ?? 1) * 0.707; const gCy9 = -8 * gk9;
             let bRing9: GlRing9 | undefined;
             /* ★ 건물 선택 링(2026-09, 요청: "건물 선택시 선택 링이 안보이는데 링 나오게") — 유닛과 같은 가는 타원 테를 **발자국**
                둘레에 깐다(바닥 도형 패스라 몸 밑에 깔린다). 자리는 발자국 한가운데 · 뜬 건물은 뜬 몫만큼 위(몸과 함께 든다). */
@@ -12826,6 +12828,25 @@ export default function ReplayMotionPlayer({
        맞춘 배율로 한 번 밀어 주고(toggleTrack · trackZoom9), 그 뒤로는 지금 배율을 따른다. */
     const z9 = zoom;
     const lim9 = panLimit(z9);
+    /* ★★ **배율이 바뀌면 카메라 상태를 그 비로 늘인다 — 다시 잡지 않는다**(2026-10-24, 지적: "중계 중 배율 조정할 때 현재 보여 줘야 하는 장소를 중심축으로 조정 안 되고
+       엉뚱한 곳으로 조정됐다가 이동") — 여태 배율이 달라지면(cur9.z ≠ z9) 잡아 둔 자리·스프링·미끄러짐을 다 버리고 한가운데를 **곧장 다시 잡았다**. 손짓 동안은
+       applyGestureXf 가 잡아 둔 팬을 배율 비로 늘여 보여 주는데(그쪽 ★ 사진처럼), 놓는 순간 이쪽이 딴 자리(가운데 다시 잡음 · 쫓던 스프링은 0 에서 새로)를 내니
+       화면이 한 번 튀었다. 팬은 배율에 비례하므로 자리·스프링 위치·속도·미끄러짐 양 끝을 같은 비로 늘이면 **손짓이 보여 주던 그 화면 그대로** 이어지고, 대상이 안전
+       상자를 벗어났으면 아래 keep9 판정이 종전 규칙대로(미끄러짐) 다시 잡는다. */
+    {
+      const c0 = trackCamRef.current;
+      if (c0.raw === camKey9 && c0.z > 0 && c0.z !== z9) {
+        const k9 = z9 / c0.z;
+        const cl9 = (p9: { x: number; y: number }): { x: number; y: number } => ({ x: Math.min(lim9.x, Math.max(-lim9.x, p9.x * k9)), y: Math.min(lim9.yTop, Math.max(-lim9.y, p9.y * k9)) });
+        trackCamRef.current = { ...c0, z: z9, pan: cl9(c0.pan) };
+        const ss9 = spotSpring9.current;
+        if (ss9) { const p9 = cl9(ss9); spotSpring9.current = { ...ss9, x: p9.x, y: p9.y, vx: ss9.vx * k9, vy: ss9.vy * k9 }; }
+        const ts9 = trackSpring9.current;
+        if (ts9) { const p9 = cl9(ts9); trackSpring9.current = { ...ts9, x: p9.x, y: p9.y, vx: ts9.vx * k9, vy: ts9.vy * k9 }; }
+        const g9 = camGlideRef9.current;
+        if (g9) camGlideRef9.current = { ...g9, from: cl9(g9.from), to: cl9(g9.to) };
+      }
+    }
     /* ★ 자리를 **지도와 같은 사상으로** 잰다(지적: "추적 기능이 3D에서 엉뚱한 데를
        보여 줘") ────────────────────────────────────────────────────────────────────
        여태 이 자리는 타일을 격자 크기로 나눈 **평면 분수**였다. 평면 보기에서는 그것이
@@ -18253,7 +18274,7 @@ export default function ReplayMotionPlayer({
       comsat: ["comsatbase", "comsatdish"],
       geyser: ["geyserdry"],
     };
-    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number }[] = [];
+    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number; /** 별본(WARM_KIN9)의 본 종류 — 붓은 별본에도 본 종류의 norm 으로 k 를 내므로 실루엣 비도 그걸로. */ baseKind?: string }[] = [];
     /* ★★ 자세 컷까지(2026-10-24, 질문 "PC 에서 아직 재생 중 굽기가 있는 이유" → 놓침 로그가 전부 자세 칸 · "3번이 맞지 않나" = 판 상한을 올리고 다 굽기) — 컷을 가진 종류(POSE_KINDS)는
        걸음 여섯 컷(move·flap·thrust → GAIT_CYCLE9) · 공격 셋(atk → 2·4·5) · 합체(merge → 10) · 시즈 전환 0~5 를 자세마다 한 일감으로(메시 한 벌 + 미리 굽기 칸). 엔진이 이 종류에만
        그 자세를 매기므로(poseTag) 다른 종류는 0 뿐이다. */
@@ -18282,7 +18303,7 @@ export default function ReplayMotionPlayer({
       if (GL_ON9 && GL_WARM9) {
         if (isBld) jobs.push({ kind: k9, gl: "b" });
         else for (const pose9 of posesOf9(k9)) jobs.push({ kind: k9, gl: "u", pose: pose9 });   // 자세마다 한 일감(위 posesOf9 ★★)
-        for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) for (const pose9 of posesOf9(v9)) jobs.push({ kind: v9, gl: "u", pose: pose9 });
+        for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) for (const pose9 of posesOf9(v9)) jobs.push({ kind: v9, gl: "u", pose: pose9, baseKind: k9 });
         continue;
       }
       if (isBld) jobs.push({ kind: k9 });
@@ -18316,8 +18337,8 @@ export default function ReplayMotionPlayer({
        2D 스프라이트 칸을 요잉 8칸(폰 4칸 · 건물은 제 요잉 한 칸)과 그림자까지 큐에 올리고(sprPrebake9), 메시 예열이 끝난 뒤 프레임마다 몇 장씩 굽는다(sprPreStep9).
        임자색은 열쇠에서 빠졌으므로 임자가 몇이든 한 벌이다. 입체(3D)는 스프라이트를 안 쓰므로 안 굽는다. `#glpre=0` 으로 끈다. 진행률은 예열 띠에 함께 든다. */
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
-    const preYaws9 = DEV9.name === "phone" ? [0, 16, 32, 48] : [0, 8, 16, 24, 32, 40, 48, 56];
-    const preYb9 = (yawDeg: number): number => ((Math.round((yawDeg / 360) * 64) % 64) + 64) % 64;
+    /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
+    const preYaws9 = (g9: GlUnits9): number[] => Array.from({ length: g9.sprYaw }, (_, i9) => i9);
     const preStep9 = DEV9.name === "phone" ? 4 : 24;   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
     let preN9 = 0;
     const step9 = (): void => {
@@ -18347,8 +18368,8 @@ export default function ReplayMotionPlayer({
               const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
               /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
               if (m9 && pre9) {
-                const norm9 = u9 ? modelNormOf(j9.kind) : (bldNormOf(j9.kind) ?? 1);
-                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9 : [preYb9(-BUILDING_BASE_YAW)], DEV9.meshShadow);
+                const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
+                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW)], DEV9.meshShadow);
               }
             }
           } else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);

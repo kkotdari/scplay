@@ -930,7 +930,7 @@ if (flag("--loadshot", null)) {
 /* --light(2026-10-23) — 앱의 라이트 테마 깃발(html.scr-light-theme)을 단다. 재생기 테마(메탈·홀로그램)는 이제 무작위라 안 엮인다 — 꼴은 --theme 로 못 박는다. */
 if (has("--light")) await page.evaluate(() => document.documentElement.classList.add("scr-light-theme"));
 if (has("--ask")) await page.waitForSelector(".scr-mode-ask", { timeout: 60000 });   // 보기 모드 판은 고를 때까지 시계를 세운다 — 그림 시작을 안 기다린다
-else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 30000 });
+else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 

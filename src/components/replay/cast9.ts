@@ -3476,6 +3476,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     out9.length = i9;
   };
   let cur9 = 0;
+  /* ★ 시작 소개 한 바퀴를 **먼저 깐다**(2026-10-24, 지적: "요약 자동 중계 — 처음에 소개를 한 바퀴 돌리지도 않고") — 여태 소개는 첫 장면 앞 소강(fill9(0, 첫 장면 at))에서만 섰고,
+     첫 장면이 일찍 오면(초반 정찰 · 빌드 이정표) 한두 사람 만에 끊겼다. 소개가 켜졌으면 N 사람 × introCycle 초를 먼저 채우고, 그 안에 든 장면은 소개 끝으로 민다(아래 at9 죔). */
+  let introEnd9 = 0;
+  if (opts.introCycle) {
+    introEnd9 = aliveAt9(0).length * opts.introCycle;
+    fill9(0, introEnd9 + MIN_HOLD9);
+    cur9 = introEnd9;
+  }
   for (const sc9 of scs9) {
     /* 카메라도 **싸움이 붙은 때**에 간다(위 emitScene9 ★ · 2026-10-11) — 장면 첫 CAP_WIN9 초 사건들의 eng 가운데 가장 이른 때 − CAST_LEAD9. */
     let eng9 = sc9.t0;
@@ -3494,6 +3502,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
     }
     if (drop9) at9 = Math.min(at9, drop9.arrive);
+    if (introEnd9 > 0 && at9 < introEnd9) at9 = introEnd9;   // 소개 한 바퀴 동안은 장면이 안 끼어든다(위 introEnd9 ★)
     const btot9 = bTot9.get(bid9)!;
     if (btot9 < MIN_SCENE9) continue;      // 잔 전투는 장면이 아니다 — 순환이 그 자리를 메운다(무게는 전투 전부의 합 · 위 ★★)
     const cont9 = bid9 === curBid9;

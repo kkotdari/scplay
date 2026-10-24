@@ -94,6 +94,16 @@ const ok = [
   ["맞대결이 끝난 뒤의 순환은 상대역이 없다", plan.every((s) => !s.cyc || !s.foe)],
 ];
 for (const [name, pass] of ok) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+/* ── ⑧ 요약의 시작 소개 한 바퀴(introCycle · 2026-10-24, 지적: "요약 자동 중계 — 처음에 소개를 한 바퀴 돌리지도 않고") — 두 사람이면 0초·3초 순환 둘이 먼저 서고 장면은 6초 뒤부터. */
+{
+  const ip = castPlan9(world, { total: 1200, introCycle: 3 });
+  const okI = [
+    ["소개 첫 토막 0초 순환", ip[0]?.cyc === true && ip[0].at === 0],
+    ["소개 둘째 토막 3초 순환(둘째 사람)", ip[1]?.cyc === true && ip[1].at === 3 && ip[1].raw !== ip[0].raw],
+    ["장면은 소개 한 바퀴(6초) 뒤", ip.filter((s) => !s.cyc).every((s) => s.at >= 6)],
+  ];
+  for (const [name, pass] of okI) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
 
 /* ── ⑦ 포토러시 — 러시한 쪽이 공격이다(2026-10, 지적: "포토러시 간 사람이 공격인데 방어로 나오는 현상") ──
    R(0)의 파일런·캐논 둘이 **Z 본진**(100,100)에서 부서지고(건물 = 살림), Z(1)는 캐논에 드론 하나를 잃고 R 의 프로브도 잡는다. 잃은 살림만 보면

@@ -822,7 +822,7 @@ void main() {
 /* ══ 2D 스프라이트 판(2026-10-23, 요청: "완전 2D화(3D 버전 제외) — 모델을 2D 로 미리 찍어서 한 번에 로드하고 그걸로 재생기에 노출해서 최대한
    부하를 줄이고 드래그 확대축소가 아주 빠르게" · "3D 2D 병행") ═══════════════════════════════════════════════════════════════════════
    평면 카메라(열쇠 't…')의 몸은 메시를 장마다 다시 그리지 않고, **메시를 한 번 찍은 판**(아틀라스 칸)을 사각 하나로 붙인다.
-   · 칸 열쇠 = 메시 열쇠(종류·자세·건설 단계·포탑 각·불빛·회전 칸) · 카메라 · 요잉 64칸 · 배율(기기 px · 옥타브 눈금) · 임자색(임자색 낯이 있을 때만) ·
+   · 칸 열쇠 = 메시 열쇠(종류·자세·건설 단계·포탑 각·불빛·회전 칸) · 카메라 · 요잉 칸(sprYaw · PC 16 · 폰 8 · 저사양 폰 4) · 배율(기기 px · 옥타브 눈금) · 임자색(임자색 낯이 있을 때만) ·
      실루엣 빛 상자(gradR/k) · 그림자 여부. 같은 셰이더·같은 빛으로 찍으므로 그림은 메시 길과 같다(요잉만 5.6° 눈금으로 선다).
    · 그림자: 땅에 눕는 그림자는 제 칸(빛 방향으로 눕힌 실루엣) · 떠서 밀리는 그림자는 몸 칸의 알파를 검게 쓴다. 나는 높이·dy 는 붙일 때 민다.
    · 앞뒤는 메시 길과 같은 **깊이 칸**(개체 차례) — 칸을 깊이로 쓰고 큐 차례로 그린다(링·승하차 줄·발광 몸이 그 깊이를 그대로 탄다).
@@ -830,7 +830,8 @@ void main() {
    · 배율은 몸마다 한 단 — 작게 볼 때는 밉맵으로 줄이고 크게 당겨도 같은 그림을 늘인다(SPR_CAP ★ · 줌과 무관하게 같은 그림 · LOD 치우침 −0.4 로 또렷하게).
    · 3D(입체 카메라 'p…')·발광(flat)·더하기(add)·소환 드러남(warp)·가스 덩이는 메시 길 그대로다. `#glspr=0` 으로 끈다. */
 const SPR_PAGE9 = 2048;
-const SPR_YAW9 = 64;
+/* 요잉 칸 수는 상수가 아니라 기기 단(GlUnits9.sprYaw · 2026-10-24 결정: "16으로 해, 모바일이랑 저사양 컴은 8, 저사양 모바일은 4") — 옛 64(5.6°)는 메시의 매끄러움에 맞추려던 값인데
+   '경기 몸을 처음에 다 굽기'로 가면서 칸 수가 그대로 곱해져(종류 × 자세 × 요잉 × 그림자) 판에 못 담았다. 16칸(22.5°)이면 전 자세를 다 구워도 PC 판 22장 안이다(옛 2D 붓이 PC 16 · 폰 8). */
 const SPR_KQ9 = 32;
 /** ★ **배율과 무관하게 한 장**(2026-10-23, 요청: "줌과 무관하게 같은 그림을 쓰면 안 되나" → "상위 해상도를 구우면 또 걸릴 텐데" → "그 방식(메시)이 느려서 2D 로
  *  가는 건데") — 몸마다 **정한 해상도 한 단**(옥타브 눈금 · 그 몸의 상자 긴 변이 SPR_CAP 기기 px 안에 드는 가장 큰 단)으로 **한 번만** 찍는다. 그보다 작게 볼 때는
@@ -1108,6 +1109,11 @@ export class GlUnits9 implements VecSink9 {
   private sprLv = new Map<string, number>();
   /** 임자색 분리를 쓰나(위 ★★ · WebGL2 + 스프라이트 프로그램이 섰을 때 · GL_TINT9). */
   sprTint = false;
+  /** 요잉 칸 수(위 SPR_YAW 주석) — PC 16 · 폰·저사양 PC 8 · 저사양 폰 4. glSprTune9 가 놓는다(바뀌면 판을 비운다 — 칸 열쇠의 요잉 칸이 달라진다). */
+  sprYaw = 16;
+  /** 요잉(도) → 칸 번호(0..sprYaw−1). 붓·미리 굽기가 같은 식을 쓴다. */
+  sprYbOf9(yawDeg: number): number { const n = this.sprYaw; return ((Math.round((yawDeg / 360) * n) % n) + n) % n; }
+  sprYawSet9(n: number): void { if (n !== this.sprYaw) { this.sprYaw = n; this.sprReset9(); } }
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
   private sprPre: SprJob9[] = [];
@@ -1306,10 +1312,10 @@ export class GlUnits9 implements VecSink9 {
       const kq = 2 ** (qk / SPR_KQ9);
       const gRq = Math.round(gRk * 8); const gCyq = Math.round(gCyk * 8);
       for (const yb0 of yawBuckets) {
-        const yb = ((yb0 % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
+        const n9 = this.sprYaw; const yb = ((yb0 % n9) + n9) % n9;
         const key = this.sprKey9(mesh, cam, yb, qk, color, gRq, gCyq, sh);
         if (this.sprMap.has(key) || this.sprPreKeys.has(key)) continue;
-        this.sprPre.push(this.sprJob9(key, mesh, (yb * 360) / SPR_YAW9, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh));
+        this.sprPre.push(this.sprJob9(key, mesh, (yb * 360) / this.sprYaw, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh));
         this.sprPreKeys.add(key); n += 1;
       }
     }
@@ -1518,7 +1524,7 @@ export class GlUnits9 implements VecSink9 {
     const lvOf = (mesh: GlMesh9, cam: GlCam9, sh: boolean): number => this.sprLv9(mesh, cam, sh);
     const want = (it: GlInst9, sh: boolean): { cell: [SprCell9, number] | null; job: SprJob9 | null } => {
       const kd = it.k * dprK;
-      const yb = ((Math.round((it.yawDeg / 360) * SPR_YAW9) % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
+      const yb = this.sprYbOf9(it.yawDeg);
       const qk = lvOf(it.mesh, it.cam, sh);   // 그 몸의 한 단(위 SPR_CAP ★) — 배율과 무관하다
       const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
       const kq0 = 2 ** (qk / SPR_KQ9);
@@ -1532,7 +1538,7 @@ export class GlUnits9 implements VecSink9 {
       if (budget > 0) {
         budget -= 1;
         const kq = 2 ** (qk / SPR_KQ9);
-        const j = this.sprJob9(key, it.mesh, (yb * 360) / SPR_YAW9, it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
+        const j = this.sprJob9(key, it.mesh, (yb * 360) / this.sprYaw, it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
         jobs.push(j); jobOf.set(key, j);
         st.missN += 1; st.missLog.push(key); if (st.missLog.length > 12) st.missLog.shift();
         /* 미리 찍기 표에 올린다 — 같은 몸의 다른 요잉 칸을 남는 예산으로 찍는다(둘 이상의 요잉을 본 것만). */
@@ -1568,16 +1574,17 @@ export class GlUnits9 implements VecSink9 {
       let wb = Math.min(this.sprWarmMax, Math.floor(budget / 2));
       for (const w9 of this.sprWarm.values()) {
         if (wb <= 0) break;
-        if (w9.ys.size < 2 || w9.step > SPR_YAW9) continue;
-        while (wb > 0 && w9.step <= SPR_YAW9) {
+        const n9 = this.sprYaw;
+        if (w9.ys.size < 2 || w9.step > n9) continue;
+        while (wb > 0 && w9.step <= n9) {
           const off = w9.step % 2 ? (w9.step + 1) / 2 : -(w9.step / 2);
           w9.step += 1;
-          const yb = (((w9.yb0 + off) % SPR_YAW9) + SPR_YAW9) % SPR_YAW9;
+          const yb = (((w9.yb0 + off) % n9) + n9) % n9;
           const J = w9.job;
           const key = keyOf(J.mesh, J.cam, yb, w9.qk, J.color, w9.gRq, w9.gCyq, J.sh);
           if (this.sprMap.has(key) || jobOf.has(key)) continue;
-          if (this.meshes.get(J.mesh.key) !== J.mesh) { w9.step = SPR_YAW9 + 1; break; }   // 메시가 버려졌다(다시 지었으면 딴 벌) — 그 몸은 그만
-          const j = this.sprJob9(key, J.mesh, (yb * 360) / SPR_YAW9, J.cam, J.kd, J.kc, J.color, J.gR, J.gCy, J.sh);
+          if (this.meshes.get(J.mesh.key) !== J.mesh) { w9.step = n9 + 1; break; }   // 메시가 버려졌다(다시 지었으면 딴 벌) — 그 몸은 그만
+          const j = this.sprJob9(key, J.mesh, (yb * 360) / n9, J.cam, J.kd, J.kc, J.color, J.gR, J.gCy, J.sh);
           jobs.push(j); jobOf.set(key, j); wb -= 1; st.warm += 1;
         }
       }
@@ -2733,17 +2740,17 @@ export const glBakeMsTake9 = (): number => {
 /** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
 export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
 /** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시). */
-export function glSprTune9(upMax: number): void { if (glInst9) glInst9.sprUpMax = upMax; }
+export function glSprTune9(upMax: number, yawN?: number): void { if (glInst9) { glInst9.sprUpMax = upMax; if (yawN) glInst9.sprYawSet9(yawN); } }
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
     // 단이 올랐으면 새 상한·번짐·표본 수를 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = meshMax <= 300 ? 6 : 24; }
+    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = meshMax <= 300 ? 10 : 24; }
     return glInst9;
   }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
-    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 6 : 24; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; glInst9.sprMsaa = meshMax <= 300 ? 0 : -1; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 10 : 24; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; glInst9.sprMsaa = meshMax <= 300 ? 0 : -1; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
