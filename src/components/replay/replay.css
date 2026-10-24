@@ -5107,6 +5107,7 @@
   background: rgba(40, 140, 70, 0.3); color: #fff; font-family: inherit; font-size: inherit; font-weight: 700; cursor: pointer;
 }
 @media (hover: hover) { .scr-digest-pill-btn:hover { background: rgba(60, 190, 95, 0.4); } }
+.scr-digest-pill-btn.is-on { background: rgba(60, 200, 100, 0.62); border-color: rgba(140, 255, 170, 0.8); box-shadow: 0 0 8px rgba(90, 255, 130, 0.45); }   /* 요약/전체 토글의 켜진 쪽(2026-10-24) */
 /* ★ **요약 중의 독**(같은 날 요청: "요약 버전 독 디자인도 방금 말한 테마로 · 쇠 걷어내고 래디우스 넣고") — 재생기 뿌리에 is-holodock(요약이 도는 동안 · 다크 테마 = 홀로그램 · 라이트는 아래 클레이 메탈).
    쇠판(.scr-fs-lower::before)을 홀로그램 판 **한 장**으로 바꾸고 둥글린다(윗모서리 깎기 걷음) — 위로 솟던 받침들(미니맵·전광판 ::before)과 구분 쇠 막대(::after)는
    걷고, 판이 가장 높이 솟는 받침 키(--dock-lift · dockFit9)만큼 위로 올라 그 자리까지 덮는다(층 모양 대신 한 장). 우물(미니맵·인포창·전광판)은 짙은 녹색 바탕에

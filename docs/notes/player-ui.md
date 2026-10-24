@@ -2361,3 +2361,8 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   🔎 `node scripts/perf-check.mjs --wide --castoff --drag --shot x.png` · 울렁거림은 헤드리스에서 못 본다(판 ↔ 메시 교체는 `--diag` 의 mesh 수로만 센다).
 - **보기 모드 판**: `askReady9 = !pending && !(참값 로딩 || warmAt || bakeHold)` — 참일 때만 판을 그리고, 그 전엔 LOADING 만(modeAsk9 는 그대로 참이라 시계는 선 채 · 예열은 판과 무관하게 돈다).
   🔎 `node scripts/perf-check.mjs --wide --ask 4 --askpick 0 --shot x.png` → "[보기 모드] 판 1 · 시계 0:00 서 있어야 한다".
+
+## 2D/3D 단추 걷음 · 요약/전체 토글 · 보기 모드 판 깜빡임(2026-10-24)
+- 요청 "3D 전환 버튼 제거": 조종 줄의 2D/3D 단추를 걷었다(PC). 입체는 V 키·`#pitch` 로만(pitchDeg·pitchAllowed 문 그대로). perf-check `--3d` 는 V 키를 누른다.
+- 요청 "중계 켜면 요약/전체 토글 보여 주기": 단독 자동 중계(castOn · 분할 아님)면 왼위 알약에 [요약][전체] 두 단추(켜진 쪽 `.is-on`) · 요약이 돌면 "요약 n/N" 도. 옛 알약은 요약 중 [풀로 보기]뿐이었다.
+- 지적 "팝업이 떴다가 다시 로딩 뜨고 다시 팝업": askReady9 가 굽기 몰림(bakeHold)·재예열(warmAt)로 잠깐 거짓이 되며 판이 숨었다 다시 섰다 → 한 번 뜬 판은 잠근다(askLatch9 · askShow9).

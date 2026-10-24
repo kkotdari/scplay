@@ -6749,7 +6749,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages} 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages} 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 예열[${SCR_DIAG.warm9}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -18206,6 +18206,11 @@ export default function ReplayMotionPlayer({
   /* ★ 보기 모드 판은 **재생 준비가 다 된 뒤에** 뜬다(2026-10-24, 요청: "플레이어 첫 진입 시 로딩만 뜨게 하고 플레이 준비 다 되면 그때 팝업") — 자료(참값)·굽기(warmAt·bakeHold)가 끝날 때까지는
      LOADING 만 보이고 판은 숨긴다(modeAsk9 는 그대로 참이라 시계도 선 채). */
   const askReady9 = !pending && !((!simTracks && entLoad === "loading") || !!warmAt || bakeHold);
+  /* ★ 한 번 뜬 판은 **다시 안 숨긴다**(2026-10-24, 지적: "팝업이 떴다가 다시 로딩 뜨고 다시 팝업 뜨는 경우 있어") — 준비가 됐다가 굽기 몰림(bakeHold)·재예열(warmAt)이
+     잠깐 다시 서면 askReady9 가 거짓으로 돌아가 판이 사라졌다 되살아났다. 준비를 한 번 봤으면 그 뒤로는 판을 그대로 둔다(LOADING 은 판 뒤에서 안 뜬다). */
+  const askLatch9 = useRef(false);
+  if (modeAsk9 && askReady9) askLatch9.current = true;
+  const askShow9 = modeAsk9 && (askReady9 || askLatch9.current);
   /** 재생 품질 알림(위 QUALITY9) — 값이 있으면 지도 오른쪽 위에 3초. */
   const [qualityNote, setQualityNote] = useState<string | null>(null);
   useEffect(() => {
@@ -18239,6 +18244,8 @@ export default function ReplayMotionPlayer({
       if (cv9) { glUnits9(cv9, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
     } else if (glNow9()) sprTune9();
     warmGenRef9.current = glGen9();
+    const warmNo9 = warmRuns9.current;
+    SCR_DIAG.warm9 = `#${warmNo9}${quiet9 ? "q" : ""} gl${glNow9() ? glGen9() : "없음"} 시작`;
     /* 벤치를 먼저 세운다 — 아래에서 방향 칸 수를 기기의 힘으로 가른다(crowdInit9는 한 번만 돈다). */
     crowdInit9();
     /* 이 경기에 나오는 모델 종류 — 유닛은 이름표(UNIT_3D)로, 건물은 SHAPE_KIND로 푼다.
@@ -18360,7 +18367,7 @@ export default function ReplayMotionPlayer({
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
     /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
     const preYaws9 = (g9: GlUnits9): number[] => Array.from({ length: g9.sprYaw }, (_, i9) => i9);
-    const preStep9 = DEV9.name === "phone" ? 4 : 24;   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
+    const preStep9 = DEV9.name === "phone" ? 8 : 24;   // 폰 4 → 8(2026-10-24 · 8칸 × 자세 1000칸 넘게를 로딩 안에 — 폰은 MSAA 0 이라 한 장이 싸다)   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
     let preN9 = 0;
     const step9 = (): void => {
       /* 한 프레임 예산 12 → 6ms + 개수 상한(8) — 예산은 **일감 사이에서만** 재므로,
@@ -18397,6 +18404,7 @@ export default function ReplayMotionPlayer({
         } catch { /* 낯선 종류 하나가 로딩을 통째로 막지 않게 — 그건 재생 중 굽는다. */ }
       }
       LOAD9.warmMs += performance.now() - t0;
+      SCR_DIAG.warm9 = `#${warmNo9}${quiet9 ? "q" : ""} gl${glNow9() ? glGen9() : "없음"} 일감 ${i9}/${jobs.length} 미리 ${preN9}` + (glNow9() ? ` 큐 ${glNow9()!.sprPreLeft9()}` : "");
       if (i9 < jobs.length) {
         warmingRef.current = true;
         /* 진행률은 **띄엄띄엄** 올린다 — 프레임마다 상태를 놓으면 그때마다 리렌더가
@@ -18410,6 +18418,7 @@ export default function ReplayMotionPlayer({
         /* 메시 예열이 끝났다 — 미리 굽기 큐가 남았으면 프레임마다 몇 장씩(위 pre9 ★★ · 판 자리가 안 나면 그 칸은 빠진다). */
         const g9 = glNow9();
         const left9 = g9 && preN9 > 0 ? g9.sprPreStep9(preStep9) : 0;
+        SCR_DIAG.warm9 = `#${warmNo9}${quiet9 ? "q" : ""} gl${g9 ? glGen9() : "없음"} 일감 끝 ${jobs.length} 미리 ${preN9} 남음 ${left9}${left9 > 0 ? "" : " 끝"}`;
         if (left9 > 0) {
           warmingRef.current = true;
           if (performance.now() - lastPost9 > 160) {
@@ -19602,27 +19611,7 @@ export default function ReplayMotionPlayer({
           </button>
         );
       })()}
-      {/* ★ **폰에는 2D/3D 단추가 없다**(2026-09, 요청: "3D버튼: 모바일에서 제거") — 폰은 입체 문턱(pitchAllowed · 벤치 12ms)을
-          거의 못 넘어 눌러도 '무거워요' 토스트만 났다. 손잡이만 남기면 고장난 단추다. 기기 판정은 smallDevice9 하나(DEV9 와 같은 자). */}
-      {!smallDevice9 && (
-        <button
-          type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn scr-motion-mapval", pitched && "is-on")}
-          onClick={() => {
-            if (camLockRef9.current) return;   // 중계 중엔 입체 전환 없음(아래 disabled 와 한 벌)
-            if (!pitchAllowed()) { pitchDenied(); return; }
-            setPitchDeg((v) => (v === 90 ? PITCH_3D : 90));
-          }}
-          /* ★ 중계 중(자동·개인·분할)엔 **비활성**(2026-10-09, 요청: "2D/3D전환은 중계중엔 비활성화(성능에 무리가)") — 켜질 때 평면으로 내린다(toggleCast9 ·
-             toggleTrack · startSplit9). V 키도 같은 문. */
-          disabled={camLockRef9.current}
-          aria-pressed={pitched}
-          aria-label={camLockRef9.current ? "보기 — 중계 중에는 평면 고정" : pitched ? "입체 보기 — 누르면 평면" : "평면 보기 — 누르면 입체"}
-          title={camLockRef9.current ? "중계 중에는 평면 고정(성능)" : "보기"}
-        >
-          <span className="scr-motion-mapval-num">{pitched ? "3D" : "2D"}</span>
-        </button>
-      )}
+      {/* (걷음 2026-10-24, 요청: "3D 전환 버튼 제거") — 2D/3D 단추. 입체는 V 키·`#pitch` 로만 바뀐다(pitchDeg 상태·pitchAllowed 문은 그대로). 폰은 2026-09 에 먼저 걷었다. */}
       {/* ★ 배경 음악(요청: "음악 on/off 아이콘 추가 · 전체화면 아이콘 왼쪽에") —
           아이콘은 하나고 **켜지면 밝아진다**(로스터·색 전환과 같은 결). 끈 꼴이 기본
           상태라 따로 표시하지 않는다 — 이 줄에서 밝은 것이 곧 '지금 켜 둔 것'이다.
@@ -20714,7 +20703,7 @@ export default function ReplayMotionPlayer({
         {/* ★ **로딩 표시는 하나 — 띄운 글자 L O A D I N G**(2026-10-16, 요청: "재생기 모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 옛 셋
             (자취 받는 중 · 모델 굽는 중 n% · 재생 중 굽기 몰림 "모델 굽는 중…")을 한 자리·한 꼴로 묶었다. 글자마다 차례로 떠오른다(scr-load-bob · 움직임 줄이기면 멈춘 글자).
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
-          {(!modeAsk9 || !askReady9) && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
+          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
             <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
               {"LOADING".split("").map((ch9, i9) => (
                 <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
@@ -21346,7 +21335,7 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
-          {modeAsk9 && askReady9 && (
+          {askShow9 && (
             <div
               className={cx("scr-mode-ask", `is-${modeTheme9}`)} role="dialog" aria-label="보기 모드"
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
@@ -21365,10 +21354,12 @@ export default function ReplayMotionPlayer({
               </span>
             </div>
           )}
-          {digest9 && (
+          {/* ★ 중계가 켜져 있으면 **요약/전체 토글**이 선다(2026-10-24, 요청: "중계 켜면 요약/전체 토글 보여 주기") — 옛 알약은 요약이 돌 때만 [풀로 보기] 였다. 요약이 돌면 "요약 n/N" 도 함께. */}
+          {castOn && !splitOn9 && (
             <div className={cx("scr-digest-pill", `is-${modeTheme9}`)} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-              <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>
-              <button type="button" className="scr-digest-pill-btn" onClick={() => setDigest9(null)}>풀로 보기</button>
+              {digest9 && <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>}
+              <button type="button" className={cx("scr-digest-pill-btn", (digest9 || digestWant9) && "is-on")} aria-pressed={!!digest9} onClick={() => { if (!digest9 && !digestWant9) setDigestWant9(true); }}>요약</button>
+              <button type="button" className={cx("scr-digest-pill-btn", !digest9 && !digestWant9 && "is-on")} aria-pressed={!digest9} onClick={() => { setDigestWant9(false); setDigest9(null); }}>전체</button>
             </div>
           )}
           {!splitOn9 && (

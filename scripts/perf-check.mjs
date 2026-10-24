@@ -2859,14 +2859,9 @@ const dragDrive = async () => {
 /* --3d — 입체 보기로 바꾼 뒤 잰다(조종부의 2D/3D 단추를 누른다). 폰 폭에서는 재생기가 3D 를 막으므로
    `--wide` 와 함께 쓴다. 손짓 중 실시간 원근(live3d)을 보려면 `--3d --drag --diag` 로 돌리고 아래 [손짓] 줄을 본다. */
 if (has("--3d")) {
-  const ok3d = await page.evaluate(() => {
-    const b = [...document.querySelectorAll("button")]
-      .find((e) => /입체|평면/.test(e.getAttribute("aria-label") || ""));
-    if (!b) return "단추 없음";
-    if (b.getAttribute("aria-pressed") === "true") return "이미 3D";
-    b.click();
-    return "눌렀다";
-  });
+  /* 2D/3D 단추는 걷었다(2026-10-24) — V 키로 바꾼다(재생기 KeyV · 같은 문). */
+  await page.keyboard.press("v");
+  const ok3d = "V 키";
   await page.waitForTimeout(1200);
   if (flag("--shot3d", null)) { await page.waitForTimeout(1500); await page.screenshot({ path: String(flag("--shot3d", "x3d.png")) }); console.log(`[3D 사진] ${flag("--shot3d", "")}`); }   // 입체로 바꾼 뒤 한 장(2026-10-23 · GL 지형층 검산)
   const now3d = await page.evaluate(() => {
