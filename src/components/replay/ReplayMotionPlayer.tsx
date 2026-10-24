@@ -14209,7 +14209,17 @@ export default function ReplayMotionPlayer({
      trackLockRef)이다. 렌더가 상태로 ref를 덮던 줄을 걷으면서 그 값이 눈에 안 실려, 붓은 굳은 팬(대개 0,0)으로
      칠했다 — 지도가 가운데에 붙박였다. 추적이 켜져 있는 동안은 그 값을 곧장 눈에 쓴다(손짓은 trackLockRef가
      막으므로 다투지 않는다). */
-  if (trackLockRef.current) panRef.current = trackLockRef.current;
+  /* ★★ 손짓(휠 미끄러짐) 중의 렌더는 **배율 비로 늘여서** 쓴다(2026-10-24, 지적: "아직도 중계 중 줌 시 엉뚱한 데서 줌이 돼 — x 좌표가 엉뚱") — trackView 의 팬은 상태 배율(zoom)에서
+     잰 값인데, 손짓 동안은 zoomRef 가 먼저 가고 상태는 놓을 때까지 옛 값이다. 재생 중엔 렌더가 초당 열 번 돌아 그때마다 이 줄이 **옛 배율의 팬**을 눈에 덮어써, 붓이 새 배율로
+     옛 팬을 그려 대상이 지도 가운데 쪽으로 (1 − 비)만큼 밀렸다가 다음 손짓 장에서 제자리로 돌아왔다(지도 가장자리의 사람일수록 x 가 크게 튄다). applyGestureXf 와 같은 식(비 × 한계 죔). */
+  if (trackLockRef.current) {
+    const kz9 = zoom > 0 ? zoomRef.current / zoom : 1;
+    if (Math.abs(kz9 - 1) < 1e-6) panRef.current = trackLockRef.current;
+    else {
+      const lk9 = trackLockRef.current; const lm9 = panLimit(zoomRef.current);
+      panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lk9.x * kz9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lk9.y * kz9)) };
+    }
+  }
   /** ★ 보는 눈 하나(재설계) — 보기의 진실은 zoomRef·panRef뿐이다. React 상태 zoom·pan은 UI(단추·미니맵·링크·한계)용
    *  거울이고 어떤 붓도 상태를 읽지 않는다. 상태를 바꾸는 모든 자리는 이 함수를 지난다(ref를 먼저 쓰고 거울을 맞춘다). */
   /** 링크가 준 자리를 **아직 우리가 쥐고 있나** — 사람이 보기를 건드리면 그 순간 놓는다.
