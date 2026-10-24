@@ -1112,7 +1112,11 @@ export class GlUnits9 implements VecSink9 {
   /** 요잉 칸 수(위 SPR_YAW 주석) — PC 16 · 폰·저사양 PC 8 · 저사양 폰 4. glSprTune9 가 놓는다(바뀌면 판을 비운다 — 칸 열쇠의 요잉 칸이 달라진다). */
   sprYaw = 16;
   /** 요잉(도) → 칸 번호(0..sprYaw−1). 붓·미리 굽기가 같은 식을 쓴다. */
-  sprYbOf9(yawDeg: number): number { const n = this.sprYaw; return ((Math.round((yawDeg / 360) * n) % n) + n) % n; }
+  /** 그 몸의 요잉 칸 수 — 유닛은 기기 칸(sprYaw) · **건물은 적어도 8칸**(2026-10-24, 지적: "모바일 건물이 45도 요잉이 아닌 0도로 나와 · 서플은 45도와 0도가
+   *  번갈아") — 건물 요잉은 늘 45도(BUILDING_BASE_YAW)인데 저사양 폰의 4칸(90도)으로 둥글리면 −45 → 0도 칸에 들어 판이 0도로 구워졌고, 회전 부품(서플 팬)은
+   *  칸이 없는 장엔 메시(45도)로 그려져 둘이 번갈았다. 8칸이면 315도 칸이 정확히 −45 다(PC 16칸도 22.5 의 배수라 정확). */
+  yawN9(mesh: GlMesh9): number { return mesh.key.startsWith("b:") ? Math.max(8, this.sprYaw) : this.sprYaw; }
+  sprYbOf9(yawDeg: number, mesh?: GlMesh9): number { const n = mesh ? this.yawN9(mesh) : this.sprYaw; return ((Math.round((yawDeg / 360) * n) % n) + n) % n; }
   /** 요잉 칸 수를 놓는다 — **판이 비어 있을 때만** 바뀐다(2026-10-24 실측: 폰 벤치가 뒤늦게 단을 내려 8 → 4 로 바뀌자 미리 구운 판 전체가 비워졌고(sprReset9) 다시 굽는 길이 없어
    *  재생 내내 굽었다 · 칸 24/판 1). 미리 굽기가 큐에 오르거나 칸이 하나라도 섰으면 그 뒤의 단 변화는 무시한다 — 칸 열쇠의 요잉 칸이 판과 어긋나면 안 되기 때문이다. */
   sprYawSet9(n: number): void {
@@ -1341,10 +1345,10 @@ export class GlUnits9 implements VecSink9 {
       const kq = 2 ** (qk / SPR_KQ9);
       const gRq = Math.round(gRk * 8); const gCyq = Math.round(gCyk * 8);
       for (const yb0 of yawBuckets) {
-        const n9 = this.sprYaw; const yb = ((yb0 % n9) + n9) % n9;
+        const n9 = this.yawN9(mesh); const yb = ((yb0 % n9) + n9) % n9;
         const key = this.sprKey9(mesh, cam, yb, qk, color, gRq, gCyq, sh);
         if (this.sprMap.has(key) || this.sprPreKeys.has(key)) continue;
-        this.sprPre.push(this.sprJob9(key, mesh, (yb * 360) / this.sprYaw, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh));
+        this.sprPre.push(this.sprJob9(key, mesh, (yb * 360) / n9, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh));
         this.sprPreKeys.add(key); n += 1;
       }
     }
@@ -1563,7 +1567,7 @@ export class GlUnits9 implements VecSink9 {
     const lvOf = (mesh: GlMesh9, cam: GlCam9, sh: boolean): number => this.sprLv9(mesh, cam, sh);
     const want = (it: GlInst9, sh: boolean): { cell: [SprCell9, number] | null; job: SprJob9 | null } => {
       const kd = it.k * dprK;
-      const yb = this.sprYbOf9(it.yawDeg);
+      const yb = this.sprYbOf9(it.yawDeg, it.mesh);
       const qk = lvOf(it.mesh, it.cam, sh);   // 그 몸의 한 단(위 SPR_CAP ★) — 배율과 무관하다
       const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
       const kq0 = 2 ** (qk / SPR_KQ9);
@@ -1577,7 +1581,7 @@ export class GlUnits9 implements VecSink9 {
       if (budget > 0) {
         budget -= 1;
         const kq = 2 ** (qk / SPR_KQ9);
-        const j = this.sprJob9(key, it.mesh, (yb * 360) / this.sprYaw, it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
+        const j = this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh);
         jobs.push(j); jobOf.set(key, j);
         st.missN += 1; st.missLog.push(key); if (st.missLog.length > 12) st.missLog.shift();
         /* 미리 찍기 표에 올린다 — 같은 몸의 다른 요잉 칸을 남는 예산으로 찍는다(둘 이상의 요잉을 본 것만). */
@@ -1613,7 +1617,7 @@ export class GlUnits9 implements VecSink9 {
       let wb = Math.min(this.sprWarmMax, Math.floor(budget / 2));
       for (const w9 of this.sprWarm.values()) {
         if (wb <= 0) break;
-        const n9 = this.sprYaw;
+        const n9 = this.yawN9(w9.job.mesh);   // 건물은 적어도 8칸(yawN9 ★)
         if (w9.ys.size < 2 || w9.step > n9) continue;
         while (wb > 0 && w9.step <= n9) {
           const off = w9.step % 2 ? (w9.step + 1) / 2 : -(w9.step / 2);

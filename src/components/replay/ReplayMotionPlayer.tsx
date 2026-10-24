@@ -18434,7 +18434,7 @@ export default function ReplayMotionPlayer({
               /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
               if (m9 && pre9) {
                 const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
-                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW)], DEV9.meshShadow);
+                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)], DEV9.meshShadow);
               }
             }
           } else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);

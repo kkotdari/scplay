@@ -1482,3 +1482,11 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
 - 진단: `[GL]` 줄 `놓침N[...]` 뒤 **`비움N`**(sprStat.evict · 판을 통째로 비운 횟수) — 0 이 아니면 판 상한이 경기의 칸 수를 못 담는다.
 - 안 한 것: 건물의 **켜짐(lit)·회전 칸(spin 16)·공사 단계** 변종은 미리 안 굽는다(건물 칸은 512px 라 변종을 다 구우면 판 수십 장). 그 놓침은 한 경기 수백 번 수준.
 - 🔎 `node scripts/perf-check.mjs --wide --castoff --warm 0 --glblit --readyms 150000` → `[GL] … 칸 n/판 m 놓침 k[…] 비움 e 예열[…]`.
+
+## 건물 판의 요잉 칸은 적어도 8(2026-10-24)
+지적: "모바일 건물이 45도 요잉이 아닌 0도로 나와 · 회전 부품 있는 건물(서플)에서 45도와 0도가 번갈아".
+- 건물 요잉은 늘 −45도(BUILDING_BASE_YAW)인데 칸 열쇠의 요잉은 기기 칸(sprYaw · PC 16 · 폰 8 · 저사양 폰 4)으로 둥글린다 — 4칸(90도)이면 round(−0.5) = 0 → **0도 칸**에 구워졌다.
+  회전 부품(서플 팬 · 16 회전 칸이 저마다 다른 메시 열쇠)은 칸이 없는 장에 메시(진짜 45도)로 그리고 다음 장에 판(0도)으로 그려 둘이 번갈았다.
+- 고침: gl9 `yawN9(mesh)` — `b:` 메시는 `max(8, sprYaw)` 칸(8칸이면 315도 칸이 정확히 −45 · PC 16도 22.5 배수라 정확), 유닛은 기기 칸 그대로. `sprYbOf9(yaw, mesh)` ·
+  미리 굽기(sprPrebake9) · 붓(want) · 이웃 요잉 미리 찍기 모두 그 칸 수로 각을 낸다. RMP 건물 미리 굽기도 `sprYbOf9(-BUILDING_BASE_YAW, m9)`.
+- 🔎 `node scripts/perf-check.mjs --ios --castoff --warm 0 --glblit --readyms 150000 --shot x.png`(폰 흉내 · 저사양 단은 `--hash tier=0`) — 서플 팬이 돌아도 몸이 45도로 서 있어야 한다.
