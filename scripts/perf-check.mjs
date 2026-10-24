@@ -1007,7 +1007,7 @@ if (has("--ask")) {
   const c0 = await clock9(); await page.waitForTimeout(1500); const c1 = await clock9();
   console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다)`);
   if (SHOT) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_ask.png") });
-  await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 요약 · 1 풀 · 2 자유)
+  await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 자유 · 1 풀 · 2 요약 · 2026-10-24 차례 바뀜)
   let last9 = "";
   for (let i9 = 0; i9 < secs9 * 2; i9 += 1) {
     await page.waitForTimeout(500);
@@ -1021,7 +1021,8 @@ if (has("--ask")) {
 }
 /* --castoff — 들어오자마자 켜진 자동 중계(AUTO)를 끈다(2026-10-09 — 중계 꺼진 단독 화면 검산 · 무대 왼아래 미니맵이 손짓을 받는 꼴). */
 if (has("--castoff")) {
-  await page.evaluate(() => { const b = document.querySelector(".scr-roster-cam-auto.is-on"); if (b instanceof HTMLElement) b.click(); });
+  // 자동중계 스위치는 걷었다(2026-10-24 · 고른 모드로 끝까지) — 숫자패드 0(중계 끄기)으로 끈다.
+  await page.keyboard.press("Numpad0");
   await page.waitForTimeout(500);
 }
 /* --zoomlockprobe — 중계 중엔 휠·↑ 배율이 잠기나(2026-10-09, 요청: "중계가 켜진 순간 드래그 줌 다 막혀야해") — 켠 채 휠·ArrowUp 뒤 배율,
@@ -1203,11 +1204,8 @@ if (has("--dockprobe")) {
    보인다. 중계가 켜진 채(기본값) 목록을 열면 둘이 한 자리에 겹치므로, 목록이 온전히 위에 서야 한다. 상자도 찍는다. */
 if (has("--pickshot")) {
   await page.waitForTimeout(1500);
-  const r9 = await page.evaluate(() => {
-    const b = document.querySelector(".scr-roster-cam-auto");
-    if (b instanceof HTMLElement) b.click();
-    return !!b;
-  });
+  await page.keyboard.press("NumpadDecimal");   // 자동중계 토글(스위치는 걷었다 · 2026-10-24)
+  const r9 = true;
   await page.waitForTimeout(400);
   const bx9 = await page.evaluate(() => {
     const q = (s) => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect();
@@ -2748,7 +2746,7 @@ if (SHOT) {
       await page.waitForTimeout(600); await samp9("굳은 뒤");
     }
   }
-  /* --digestprobe(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 요약 보기(--askpick 0 과 함께)로 돌면서 0.8초마다 [경기 시각 · 카메라 임자 · 자막 · 요약 n/N] 을 찍는다.
+  /* --digestprobe(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 요약 보기(--askpick 2 와 함께 · 2026-10-24 차례 바뀜)로 돌면서 0.8초마다 [경기 시각 · 카메라 임자 · 자막 · 요약 n/N] 을 찍는다.
      자막에 든 이름과 카메라 임자가 어긋나는 줄이 있으면 창과 편성표가 딴 판이다. --diag 와 함께. */
   if (has("--digestprobe")) {
     for (let i9 = 0; i9 < Number(flag("--digestn", 16)); i9 += 1) {

@@ -13661,7 +13661,10 @@ export default function ReplayMotionPlayer({
     /* ★ **검색 결과는 늘 사건 중계**(2026-10-12, 요청: "키워드는 전부 사건 중계로 변경(개인 화면 X)") — 자리를 모르는 결과(시즈·클로킹·건물 모름 연구·자리 없는 장면 자막)는
        그 사람 화면으로 갔다. 이제 그 사람이 그때(±SEARCH_ACT_SEC9) 명령한 자리들의 가운데(없으면 시작 본진)를 사건 자리로 삼는다 — searchSeg9 는 자리(spot)가 있으면 사람 화면을 안 세운다. */
     const p9 = h9.x !== undefined && h9.y !== undefined ? { x: h9.x, y: h9.y } : h9.spot && h9.spot.length > 0 ? null : searchActAt9(h9.raw, h9.sec);
-    setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: p9?.x, y: p9?.y, raw: h9.raw, spot: h9.spot });
+    /* ★ 자유 모드(중계 꺼짐)의 검색은 **첫 자리로만 옮기고 카메라를 풀어 둔다**(2026-10-24, 요청: "자유 모드에서 장면 검색시 최초 자리로만 이동해주고 자유롭게 이동하게 놔둠 ·
+       중계모드 X") — 장면 잡기(searchFocus9 → searchSegNow9 · 카메라 잠금·추적)는 중계가 켜져 있을 때만. 아래 lookAtTile9 가 그 한 번의 이동이다. */
+    if (castOn) setSearchFocus9({ from: v9, to: Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9), label: h9.label, x: p9?.x, y: p9?.y, raw: h9.raw, spot: h9.spot });
+    else setSearchFocus9(null);
     (SCR_DIAG as unknown as Record<string, unknown>).searchHit = `${h9.label} @${h9.sec.toFixed(1)}~${Math.max(h9.to ?? 0, h9.sec + SEARCH_HOLD9).toFixed(1)} ${p9 ? `(${p9.x.toFixed(0)},${p9.y.toFixed(0)})` : "-"} ${h9.raw ?? "-"} spot${h9.spot?.length ?? 0}`;   // perf-check --searchwait 가 찍는다
     /* 검색은 중계 꺼짐 꼴(위 castOn ★)이라 자동 중계가 켜져 있어도 손 카메라를 그 자리로 옮긴다 — 누른 장(Enter)은 아직 중계 잠금이 선 렌더라 camLockRef9 로 거르면 건너뛰어
        중계 전 옛 자리로 튀었다. 검색 중에도 남는 잠금(개인 추적·분할)일 때만 안 옮긴다. 자리가 없으면 중계 카메라가 보던 자리에 머문다(stopCast9 와 같은 문). */
@@ -18426,9 +18429,18 @@ export default function ReplayMotionPlayer({
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
     /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
     const preYaws9 = (g9: GlUnits9): number[] => Array.from({ length: g9.sprYaw }, (_, i9) => i9);
-    const preStep9 = DEV9.name === "phone" ? 8 : 24;   // 폰 4 → 8(2026-10-24 · 8칸 × 자세 1000칸 넘게를 로딩 안에 — 폰은 MSAA 0 이라 한 장이 싸다)   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
+    const preStep9 = DEV9.name === "phone" ? 8 : 24;
+    /* ★ 걸음은 **장 길이에 맞춘다**(2026-10-24, 지적: "팝업 뜬 상태에서 화면 멈춤 · 처음 로딩 애니메이션 멈추지 않게") — 한 장에 preStep9 장을 못 박으면 무거운 장(GPU 굽기 몰림)에
+       LOADING 글자 애니메이션이 함께 멎는다. 지난 장이 34ms 를 넘으면 반으로, 20ms 안이면 둘씩 되올린다(상한 preStep9 · 하한 2). */
+    let stepNow9 = preStep9;
+    let lastTs9 = 0;   // 폰 4 → 8(2026-10-24 · 8칸 × 자세 1000칸 넘게를 로딩 안에 — 폰은 MSAA 0 이라 한 장이 싸다)   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
     let preN9 = 0;
     const step9 = (): void => {
+      const nowTs9 = performance.now();
+      const dt9 = lastTs9 ? nowTs9 - lastTs9 : 16;
+      lastTs9 = nowTs9;
+      if (dt9 > 34) stepNow9 = Math.max(2, Math.floor(stepNow9 / 2));
+      else if (dt9 < 20 && stepNow9 < preStep9) stepNow9 = Math.min(preStep9, stepNow9 + 2);
       /* 한 프레임 예산 12 → 6ms + 개수 상한(8) — 예산은 **일감 사이에서만** 재므로,
          큰 모델 하나가 예산을 넘겨 버리면 그 프레임이 통째로 밀린다(계측: 최악 127ms).
          둘을 함께 조이면 한 프레임이 넘기는 몫이 모델 하나 값을 못 넘는다. */
@@ -18486,7 +18498,7 @@ export default function ReplayMotionPlayer({
       } else {
         /* 메시 예열이 끝났다 — 미리 굽기 큐가 남았으면 프레임마다 몇 장씩(위 pre9 ★★ · 판 자리가 안 나면 그 칸은 빠진다). */
         const g9 = glNow9();
-        const left9 = g9 && preN9 > 0 ? g9.sprPreStep9(preStep9) : 0;
+        const left9 = g9 && preN9 > 0 ? g9.sprPreStep9(stepNow9) : 0;
         SCR_DIAG.warm9 = `#${warmNo9}${quiet9 ? "q" : ""} gl${g9 ? glGen9() : "없음"} 일감 끝 ${jobs.length} 미리 ${preN9} 남음 ${left9}${left9 > 0 ? "" : " 끝"}`;
         if (left9 > 0) {
           warmingRef.current = true;
@@ -18960,7 +18972,7 @@ export default function ReplayMotionPlayer({
     /* ★ 폰 2×2 는 **한 팀이 셋 이상일 때만**(2026-10-13, 요청: "글자 수는 최대한 확보 · 적어도 4~5글자는 보여야 할 듯") — 1:1·2:2 는 한 기둥이라 칩이 판 폭을 다 쓴다
        (390 폰: 2×2 칩 54px → 한 기둥 ≈ 138px). 셋 이상이면 한 기둥은 줄 키가 너무 작아져(3:3 → 16px) 2×2 그대로. */
     const grid2_9 = uiPhone9 && teams9.some((t9) => t9.mates.length > 2);
-    const rows9 = 1 + ROSTER_HEAD_GAP9 + teams9.reduce((n9, t9) => n9 + (grid2_9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
+    const rows9 = (uiPhone9 ? 0 : 1 + ROSTER_HEAD_GAP9) + teams9.reduce((n9, t9) => n9 + (grid2_9 ? Math.ceil(t9.mates.length / 2) : t9.mates.length), 0)
       + ROSTER_GAP_ROWS9 * Math.max(0, teams9.length - 1);
     const pages9 = rosterPaged9 ? [...ROSTER_PAGES9, ROSTER_PAGES9[0]] : ROSTER_PAGES9;   // 끝의 복제 첫 쪽(위 ★ 되감기)은 쪽 꼴에서만
     const stripStyle9 = rosterPaged9 ? { transform: `translateX(-${rosterPage9 * 100}%)` } : undefined;
@@ -18980,9 +18992,13 @@ export default function ReplayMotionPlayer({
       <div className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged", rosterSnap9 && "is-snap")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
         {/* 머리 줄 하나 — 왼쪽(이름 기둥)은 AUTO(자동 중계 · 요청: "비디오카메라에 AUTO 글자 합성"), 오른쪽(자료 기둥)은 칸 라벨.
             쪽 꼴이면 라벨 띠도 자료 띠와 **같은 translateX** 로 미끄러져 쪽마다 제 라벨이 선다. */}
+        {/* ★ 머리 줄의 자동중계 스위치·전체 알약은 걷었다(2026-10-24, 요청: "한번 선택한 모드로 끝까지 … 자동중계로 바꾸는 버튼도 미표시 · 전체분할중계 버튼도 삭제") — 줄은
+            라벨 때문에 PC 에 남고(되요청 "전광판 윗줄 제거는 안되겠다 라벨이 있네"), 폰은 줄째 걷는다("모바일에선 지워도 되고" · rows9 도 그만큼 준다). */}
+        {!uiPhone9 && (
         <div className="scr-dock-team scr-dock-headrow">
           <div className="scr-dock-names">
             <div className="scr-dock-row scr-dock-head">
+              {false && (
               <button
                 type="button" role="switch" className={cx("scr-roster-cam scr-roster-cam-auto", castOn && "is-on")} onClick={toggleCast9} aria-checked={castOn}
                 aria-label="자동 중계" title={castOn ? "자동 중계 — 켜짐(누르면 끔)" : "자동 중계 — 볼 만한 사람을 저절로 따라간다"}
@@ -18993,8 +19009,9 @@ export default function ReplayMotionPlayer({
                 <Tv aria-hidden /><span className="scr-roster-cam-txt">자동중계</span>
                 <span className="scr-cast-switch" aria-hidden><i /></span>
               </button>
-              {/* ★ 전체 알약 — PC 만(2026-10-09, 요청: "PC 전광판 카메라 전체 선택 필요") · 모든 사람 화면 나누기(옛 TV 목록의 '전체'). 폰은 분할이 둘까지라 없다. */}
-              {!uiPhone9 && (
+              )}
+              {/* (걷어냄 · 2026-10-24) 전체 알약 — PC 만(2026-10-09) · 모든 사람 화면 나누기. 코드는 두되 안 그린다(toggleAll9 · allOn9 는 숫자패드 9 가 쓴다). */}
+              {false && !uiPhone9 && (
                 <button
                   type="button" className={cx("scr-roster-cam scr-roster-cam-all", allOn9 && "is-on")} onClick={toggleAll9} aria-pressed={allOn9}
                   aria-label={allOn9 ? "전체 화면 나누기 끄기" : "전체 화면 나누기"} title={allOn9 ? "전체 — 모든 사람 화면 나누기(누르면 끔)" : "전체 — 모든 사람 화면을 나눠 본다"}
@@ -19018,6 +19035,7 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
         </div>
+        )}
         {teams9.map(({ team, mates }, ti9) => (
           <React.Fragment key={team}>
             {ti9 > 0 && <div className="scr-dock-gap" aria-hidden />}
@@ -20772,7 +20790,9 @@ export default function ReplayMotionPlayer({
         {/* ★ **로딩 표시는 하나 — 띄운 글자 L O A D I N G**(2026-10-16, 요청: "재생기 모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 옛 셋
             (자취 받는 중 · 모델 굽는 중 n% · 재생 중 굽기 몰림 "모델 굽는 중…")을 한 자리·한 꼴로 묶었다. 글자마다 차례로 떠오른다(scr-load-bob · 움직임 줄이기면 멈춘 글자).
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
-          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || bakeHold || !!pending) && (
+          {/* ★ 재생 중 굽기 몰림(bakeHold)은 **첫 예열 전에만** LOADING 을 띄운다(2026-10-24, 지적: "모바일에서 줌이나 드래그 시(특히 줌아웃) 로딩 워드마크 뜨고 멈춤") — 보고 있는
+              장면 위에 글자가 덮이는 것이 더 거슬린다. 그 뒤로는 못 찍은 몸이 그 장에 메시로 서거나 다음 장에 선다. */}
+          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || (bakeHold && !introWarm9) || !!pending) && (
             <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
               {"LOADING".split("").map((ch9, i9) => (
                 <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
@@ -21440,25 +21460,26 @@ export default function ReplayMotionPlayer({
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
             >
               <span className="scr-mode-ask-title">보기 모드</span>
+              {/* 차례 자유 · 풀 · 요약(2026-10-24, 요청: "팝업 선택 순서 자유 풀 요약으로 변경" · perf-check --askpick 0 자유 · 1 풀 · 2 요약). */}
               <span className="scr-mode-ask-btns">
-                <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
-                  요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
+                <button type="button" className="scr-mode-ask-btn" onClick={pickFree9}>
+                  자유<span className="scr-mode-ask-sub">중계 없이</span>
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
                   풀<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
                 </button>
-                <button type="button" className="scr-mode-ask-btn" onClick={pickFree9}>
-                  자유<span className="scr-mode-ask-sub">중계 없이</span>
+                <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
+                  요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
                 </button>
               </span>
             </div>
           )}
           {/* ★ 중계가 켜져 있으면 **요약/전체 토글**이 선다(2026-10-24, 요청: "중계 켜면 요약/전체 토글 보여 주기") — 옛 알약은 요약이 돌 때만 [풀로 보기] 였다. 요약이 돌면 "요약 n/N" 도 함께. */}
-          {castOn && !splitOn9 && (
+          {/* ★ 고른 모드는 **끝까지**(2026-10-24, 요청: "한번 선택한 모드로 끝까지 보기로 하고 토글이나 자동중계로 바꾸는 버튼도 미표시") — 요약/전체 단추는 걷고 요약이 돌 때
+              진행(요약 n/N)만 남긴다. 자동중계 스위치·전체 분할 알약(전광판 머리 줄)도 같은 날 걷었다 — 숫자패드 키(0 · . · 9)는 남아 있다. */}
+          {castOn && !splitOn9 && digest9 && (
             <div className={cx("scr-digest-pill", `is-${modeTheme9}`)} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-              {digest9 && <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>}
-              <button type="button" className={cx("scr-digest-pill-btn", (digest9 || digestWant9) && "is-on")} aria-pressed={!!digest9} onClick={() => { if (!digest9 && !digestWant9) setDigestWant9(true); }}>요약</button>
-              <button type="button" className={cx("scr-digest-pill-btn", !digest9 && !digestWant9 && "is-on")} aria-pressed={!digest9} onClick={() => { setDigestWant9(false); setDigest9(null); }}>전체</button>
+              <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>
             </div>
           )}
           {!splitOn9 && (
