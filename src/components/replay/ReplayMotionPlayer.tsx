@@ -11693,13 +11693,17 @@ export default function ReplayMotionPlayer({
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
   const pickFree9 = (): void => { setModeAsk9(false); setCastOn(false); };
   const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); };
-  const digestJump9 = (v9: number): void => { tLiveRef9.current = v9; setT(v9); setDone(false); };
+  /* 창을 건너뛸 때 카메라는 **곧장**(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 미끄러짐·스프링을 버려(viewCut9) 자막이 뜨는 장에 그 자리가 바로 선다. */
+  const digestJump9 = (v9: number): void => { tLiveRef9.current = v9; setT(v9); setDone(false); viewCut9(); };
   useEffect(() => {
     if (!digestWant9) return;
     const fail9 = (): void => { setDigestWant9(false); replayToast("요약할 장면이 없어 풀로 보여 드려요", { kind: "info" }); };
     if (entLoad === "none") { fail9(); return; }
     if (!entData || planAll9 === NO_PLAN9) return;
-    const wins9 = castDigest9(planAll9, total);
+    /* ★ 창은 **요약이 실제로 따라갈 편성표**(planDigest9)에서 고른다(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 짧은 소개 한 바퀴가 순환 박자를 바꾸면 그 뒤 장면의
+       머묾 판정(held9 · MIN_HOLD9)·누구를 보여 주나(순환 원칙)가 보통 편성표와 달라져, 보통 편성표로 고른 창 안에서 요약 편성표는 딴 토막(딴 사람·딴 자막)을 보였다. */
+    const plan9 = planDigest9 !== NO_PLAN9 ? planDigest9 : planAll9;
+    const wins9 = castDigest9(plan9, total);
     if (wins9.length === 0) { fail9(); return; }
     /* 시작 소개 한 바퀴(위 planDigest9 ★) — 로스터 사람 수 × DIGEST_INTRO_CYC9 초를 맨 앞에. 첫 창과 닿으면 잇는다. */
     {
@@ -11713,7 +11717,7 @@ export default function ReplayMotionPlayer({
     digestJump9(wins9[0][0]);
     setPlaying(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [digestWant9, entLoad, entData, planAll9, total]);
+  }, [digestWant9, entLoad, entData, planAll9, planDigest9, total]);
   useEffect(() => { if (digest9 && !castOn) setDigest9(null); }, [digest9, castOn]);
   /** 창 끝을 이만큼(초) 넘어서까지는 '다음 창으로' · 그보다 멀거나 창 앞으로 감았으면 손으로 옮긴 것(배속에선 한 틱이 1초 넘게 건너뛴다 — 검색 SEARCH_NEXT_SLACK9 와 같은 자). */
   const DIGEST_SLACK9 = 4;

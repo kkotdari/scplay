@@ -2748,6 +2748,21 @@ if (SHOT) {
       await page.waitForTimeout(600); await samp9("굳은 뒤");
     }
   }
+  /* --digestprobe(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 요약 보기(--askpick 0 과 함께)로 돌면서 0.8초마다 [경기 시각 · 카메라 임자 · 자막 · 요약 n/N] 을 찍는다.
+     자막에 든 이름과 카메라 임자가 어긋나는 줄이 있으면 창과 편성표가 딴 판이다. --diag 와 함께. */
+  if (has("--digestprobe")) {
+    for (let i9 = 0; i9 < Number(flag("--digestn", 16)); i9 += 1) {
+      await page.waitForTimeout(800);
+      const d9 = await page.evaluate(() => {
+        const s = window.__scrDiag || {};
+        const cap = document.querySelector(".scr-cast-caption")?.textContent?.trim() ?? "";
+        const dg = document.querySelector(".scr-digest-pill")?.textContent?.trim() ?? "";
+        const own = document.querySelector(".scr-split-head, .scr-split-own, .scr-cast-own")?.textContent?.trim() ?? ""; const clock = document.querySelector(".scr-motion-clock")?.textContent ?? "?";
+        return { t: clock, raw: s.castRaw ?? "-", cap, dg, own };
+      });
+      console.log(`[요약] 시계 ${d9.t} · 카메라 ${d9.raw} · 주인 ${d9.own} · 자막 "${d9.cap}" · ${d9.dg}`);
+    }
+  }
   if (has("--tagprobe")) console.log("[미니맵 택]", await tagProbe9(page));
   if (has("--capprobe")) await capProbe9(page);
   await page.screenshot({ path: SHOT });

@@ -1558,3 +1558,10 @@ z = min(무대 폭·격자 폭 ÷ (판 폭·26), 무대 키·격자 키 ÷ (판 
 요청: "요약 모드에서 시작 소개는 짧게 한 바퀴 돌리기". 요약이 돌 때는 편성표를 따로 짓는다(`planDigest9` · `castPlan9(… introCycle: DIGEST_INTRO_CYC9 = 3)`): 경기 시작의 첫 순환
 N 토막(N = 그때 산 사람 수)은 3초씩 고리 차례대로(사건·인구 막힘 끼어들기 없음 — cast9 fill9 의 introLeft9) · 그 뒤는 CYCLE9(6). 요약 창 맨 앞에 [0, N × 3] 을 끼운다(첫 창과
 닿으면 잇는다) — 2배속이라 한 사람 1.5초. 보통 중계(planAll9)는 그대로. digestWant9·digest9 상태는 planDigest9 가 읽어 rosterKeys9 곁으로 올렸다.
+
+## 요약 중계 자막·장면 어긋남(2026-10-24)
+지적: "요약 중계 자막이랑 장면 안 맞음". 까닭: 요약 창은 보통 편성표(planAll9)에서 골랐는데 요약이 따라가는 것은 소개 한 바퀴를 끼운 편성표(planDigest9)다. 순환 박자가
+바뀌면 그 뒤 장면의 머묾 판정(held9 · MIN_HOLD9 · lastSwitch9)과 '누구를 보여 주나'(순환 원칙 · lonely9)가 달라져 같은 시각에 딴 토막(딴 사람·딴 자막)이 선다.
+- 창을 **planDigest9 에서** 고른다(없으면 planAll9) · 창을 건너뛸 때 `viewCut9`(카메라 곧장 — 자막이 뜨는 장에 자리가 바로 선다).
+- 🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --diag --ask 6 --askpick 0 --digestprobe --digestn 14` → `[요약] 시계 · 카메라 · 자막 · 요약 n/N` 줄(헤드리스는
+  2배속을 못 따라가 시계가 느리다 — 어긋남은 실기기로 볼 것).
