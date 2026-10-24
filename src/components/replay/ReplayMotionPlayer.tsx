@@ -19262,7 +19262,9 @@ export default function ReplayMotionPlayer({
   });
   /* ★ **배율 원**(2026-10-19, 요청: "확대축소 오버레이 · 기능은 현재 배율 보여주는 원 아이콘 · 오버레이 폭은 배속 오버레이와 같게 · 누르면 기본 배율로 돌아감") — 단독 중계·개인 화면
      (확대·축소가 열린 때 · 위 zoomCapRef9 ★)만 무대 오른위에 선다. 값은 기본 배율(castZoomFit9) 대비 "×1.5" · 기본이면 옅게 · 누르면 holdFit9(기본 배율 · 자리는 카메라가 잡는다). */
-  const zoomFit9 = camLockRef9.current && !splitOn9 ? castZoomFit9() : 0;
+  /* ★ 손 카메라(전체 보기)에도 선다(2026-10-24, 지적: "배율판이 자동중계때만 뜨는 문제") — 기본 배율은 1(지도 전체)이고 누르면 zoomTo(1)(가운데 기준 · 팬은 한계 안).
+     분할만 없다(칸마다 제 배율). 중계·개인 화면은 종전대로 castZoomFit9 대비 · holdFit9. */
+  const zoomFit9 = splitOn9 ? 0 : camLockRef9.current ? castZoomFit9() : 1;
   const zoomK9 = zoomFit9 > 0 ? zoom / zoomFit9 : 1;
   const zoomDial9 = zoomFit9 > 0 ? (
     <button
@@ -19272,7 +19274,7 @@ export default function ReplayMotionPlayer({
       title="배율 — 누르면 기본 배율로"
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); viewCut9(); holdFit9(); }}
+      onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); if (camLockRef9.current) { viewCut9(); holdFit9(); } else zoomTo(1); }}
     >
       {/* 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 배속 다이얼의 "속도"(.scr-speeddial-lab)와 같은 꼴. */}
       <span className="scr-zoomdial-lab" aria-hidden>배율</span>
