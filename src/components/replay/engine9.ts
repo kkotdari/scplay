@@ -4558,6 +4558,26 @@ export function startHallClear9<R extends [number, number, 0 | 1]>(res: readonly
     return !halls9.some((h9) => Math.abs(r9[0] - h9.x) < 2 + hw9 - 0.01 && Math.abs(r9[1] - h9.y) < 1.5 + hh9 - 0.01);
   });
 }
+/** ★ 이벤트 플래카드(2026-10-24, 요청: "이벤트성 기능 추가 — 재생기에 메인홀(스타팅만) 위에 플래카드 부착 · 좌우에 막대 세워져 있고 가운데 흰 천에
+ *  '고고&단우님 환영합니다!' 적혀 있는 거 꽂기" → "막대 말고 풍선으로") — 임자마다 **시작 본진**(START_HALL_SEC9 안에 선 가장 이른 본진 · startHallClear9 와 같은 자) 한 채에만.
+ *  그림은 효과 층(dom "placard" · RMP drawDomFx9 — GL 위라 글자가 산다). 끄려면 EVENT_PLACARD9 를 false 로. */
+export const EVENT_PLACARD9 = true;
+const START_HALL_BY_RAW9 = new WeakMap<object, Map<string, string>>();
+/** 임자(raw) → 시작 본진 줄의 열쇠 `${sec}|${unit}|${x}|${y}` — 배열이 같은 동안 한 번만 센다. */
+function startHallKeys9(rows: readonly (readonly [number, number, number, string, string, ...unknown[]])[]): Map<string, string> {
+  const got = START_HALL_BY_RAW9.get(rows); if (got) return got;
+  const best = new Map<string, { sec: number; key: string }>();
+  for (const r of rows) {
+    const [sec, x, y, unit, raw] = r;
+    if (sec > START_HALL_SEC9 || !START_HALL_KINDS9.has(unit)) continue;
+    const b = best.get(raw);
+    if (!b || sec < b.sec) best.set(raw, { sec, key: `${sec}|${unit}|${x}|${y}` });
+  }
+  const out = new Map<string, string>();
+  for (const [raw, b] of best) out.set(raw, b.key);
+  START_HALL_BY_RAW9.set(rows, out);
+  return out;
+}
 const RES_UNIQ9 = new WeakMap<object, [number, number, 0 | 1][]>();
 export function resUniq9(res: [number, number, 0 | 1][]): [number, number, 0 | 1][] {
   const got = RES_UNIQ9.get(res); if (got) return got;
@@ -6882,6 +6902,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 이 건물 판의 자리 — 아래 사격 판정이 벙커의 불빛을 나중에 켠다(요청:
          발사 시 창 번쩍임). op 목록은 이 순회가 다 끝난 뒤에야 그려지므로,
          자리만 들고 있다가 뒤에서 고쳐도 늦지 않다. */
+      /* ★ 이벤트 플래카드(위 EVENT_PLACARD9 ★) — 시작 본진 한 채 · 평면 · 완공 뒤 · 안 뜬 것 · 보이는 자리(잔상 아님)에만. 자리는 몸 상자 **윗변 가운데**
+         (바닥 = bodyY + boxH/2 · 높이 hTiles) 가 아니라 **지붕 높이**(바닥에서 0.55 hTiles · 막대가 지붕에 꽂힌 꼴) · 크기는 발자국 폭(wTiles · 배율 1 의 px). */
+      if (EVENT_PLACARD9 && !pitched && shapeKind && !raising && !flownFrom && !bldFrozen9 && alpha > 0.5
+        && startHallKeys9(buildsSrc).get(raw) === `${sec}|${unit}|${x}|${y}`) {
+        /* 천 아랫단은 상자 **윗변이 아니라 지붕 높이**에(첫 샷: 상자 윗변은 몸 잉크보다 한참 위라 너무 떠 보였다) — 바닥에서 상자 높이의 0.55 자리 · 풍선이 그 위로 떠 있다. */
+        const [pfx9, pfy9] = posFrac(centerX, bodyY + boxH / 2 - hTiles * 0.55);
+        fxOps.push({ kind: "dom", style: "placard", fx: pfx9, fy: pfy9, lift: 0, size: wTiles * tilePx, seed: 0, age: t });
+      }
       let bldOpIx9 = -1;
       if (shapeKind) {
         bldOpIx9 = unitOps.length;

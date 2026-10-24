@@ -3091,6 +3091,76 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
     put("nukecloud", spin9, w9, h9, ax, ay - h9 * 0.779 + (ty9 / 100) * h9 + h9 / 2, a9);
   }
 }
+/* ★ 이벤트 플래카드 판(2026-10-24, 요청: "메인홀(스타팅만) 위에 플래카드 — 좌우에 막대 세워져 있고 가운데 흰 천에 '고고&단우님 환영합니다!'" → "막대 말고 풍선으로") —
+   양 귀를 풍선 송이(넷씩)가 줄로 들고 있는 흰 천.
+   한 번 그려 두는 판(sprVer9)이고 엔진이 시작 본진마다 dom "placard" 를 낸다(engine9 EVENT_PLACARD9). 글꼴이 늦게 실리면 실린 뒤 한 번 다시 그려 판 번호를 올린다. */
+export const PLACARD_TEXT9 = "고고&단우님 환영합니다!";
+const PLACARD_W9 = 640;
+const PLACARD_H9 = 330;
+let placardCv9: HTMLCanvasElement | null = null;
+let placardFontTried9 = false;
+/** 풍선 하나 — 하이라이트 · 매듭. */
+function placardBalloon9(c9: CanvasRenderingContext2D, x: number, y: number, r: number, col: string): void {
+  c9.save();
+  c9.fillStyle = col;
+  c9.beginPath(); c9.ellipse(x, y, r, r * 1.15, 0, 0, Math.PI * 2); c9.fill();
+  const g = c9.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.1, x, y, r * 1.2);
+  g.addColorStop(0, "rgba(255,255,255,0.55)"); g.addColorStop(0.5, "rgba(255,255,255,0.08)"); g.addColorStop(1, "rgba(0,0,0,0.12)");
+  c9.fillStyle = g; c9.beginPath(); c9.ellipse(x, y, r, r * 1.15, 0, 0, Math.PI * 2); c9.fill();
+  c9.fillStyle = col; c9.beginPath(); c9.moveTo(x, y + r * 1.12); c9.lineTo(x - r * 0.18, y + r * 1.3); c9.lineTo(x + r * 0.18, y + r * 1.3); c9.closePath(); c9.fill();   // 매듭
+  c9.restore();
+}
+function placardDraw9(cv9: HTMLCanvasElement): void {
+  const c9 = cv9.getContext("2d"); if (!c9) return;
+  const W = PLACARD_W9; const H = PLACARD_H9;
+  c9.clearRect(0, 0, W, H);
+  /* 천 — 아래쪽에 매달려 살짝 처진 흰 천(양 귀는 풍선 줄에 묶임). */
+  const x0 = 70; const x1 = W - 70; const y0 = 190; const y1 = 300; const sag = 12;
+  /* 풍선 줄 — 천의 양 윗귀에서 풍선 송이로. (풍선 뒤에 그려 송이가 줄 끝을 덮는다 · 2026-10-24, 요청: "막대 말고 풍선으로") */
+  const knotL = { x: x0 + 4, y: y0 }; const knotR = { x: x1 - 4, y: y0 };
+  const bunch = (kx: number, ky: number, dir: number): { x: number; y: number; r: number; col: string }[] => [
+    { x: kx + dir * 6, y: ky - 118, r: 30, col: "#ef4b6a" },
+    { x: kx - dir * 40, y: ky - 100, r: 27, col: "#ffcf3f" },
+    { x: kx + dir * 42, y: ky - 86, r: 25, col: "#4ea7ff" },
+    { x: kx - dir * 8, y: ky - 70, r: 22, col: "#52d08a" },
+  ];
+  c9.strokeStyle = "rgba(60,60,70,0.75)"; c9.lineWidth = 1.6;
+  for (const [k, dir] of [[knotL, 1], [knotR, -1]] as const) {
+    for (const bl of bunch(k.x, k.y, dir)) {
+      c9.beginPath(); c9.moveTo(k.x, k.y); c9.quadraticCurveTo((k.x + bl.x) / 2 + dir * 6, (k.y + bl.y + bl.r * 1.3) / 2, bl.x, bl.y + bl.r * 1.3); c9.stroke();
+    }
+  }
+  c9.save();
+  c9.shadowColor = "rgba(0,0,0,0.35)"; c9.shadowBlur = 10; c9.shadowOffsetY = 5;
+  c9.fillStyle = "#fbfbf6";
+  c9.beginPath();
+  c9.moveTo(x0, y0); c9.quadraticCurveTo((x0 + x1) / 2, y0 + sag, x1, y0);
+  c9.lineTo(x1, y1); c9.quadraticCurveTo((x0 + x1) / 2, y1 + sag, x0, y1); c9.closePath(); c9.fill();
+  c9.restore();
+  c9.strokeStyle = "rgba(0,0,0,0.18)"; c9.lineWidth = 2; c9.stroke();
+  /* 풍선 송이 — 줄 위에 얹는다(큰 것이 앞). */
+  for (const [k, dir] of [[knotL, 1], [knotR, -1]] as const) {
+    const bs = bunch(k.x, k.y, dir).sort((p, q) => p.r - q.r);
+    for (const bl of bs) placardBalloon9(c9, bl.x, bl.y, bl.r, bl.col);
+  }
+  /* 글자 — 가운데 · 짙은 남색 · 천 폭에 맞춰 줄인다. */
+  c9.fillStyle = "#1f2a5c"; c9.textAlign = "center"; c9.textBaseline = "middle";
+  let fs = 54;
+  c9.font = `800 ${fs}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`;
+  const maxW = x1 - x0 - 36;
+  while (fs > 20 && c9.measureText(PLACARD_TEXT9).width > maxW) { fs -= 2; c9.font = `800 ${fs}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`; }
+  c9.fillText(PLACARD_TEXT9, (x0 + x1) / 2, (y0 + y1) / 2 + sag / 2 + 2);
+}
+function placardSpr9(): HTMLCanvasElement {
+  if (placardCv9) return placardCv9;
+  const cv9 = newCanvas9("플래카드"); cv9.width = PLACARD_W9; cv9.height = PLACARD_H9;
+  placardDraw9(cv9); sprVer9(cv9, 1); placardCv9 = cv9;
+  if (!placardFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
+    placardFontTried9 = true;
+    document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 2); } }).catch(() => {});
+  }
+  return cv9;
+}
 export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number,
   zoom: number, Bd9: number, tz9: number): void {
   const W9 = (f.size ?? 8) * zoom;
@@ -3117,6 +3187,13 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     ctx.restore();
   };
   switch (f.style) {
+    case "placard": {
+      /* 이벤트 플래카드(위 placardSpr9 ★) — 발자국 폭(W9)의 1.25배 · 판 비율 그대로 · 천 아랫단이 앵커(ay · 지붕 높이)에 닿는다(풍선이 들어 떠 있는 꼴). */
+      const pw9 = W9 * 1.25; const ph9 = pw9 * (PLACARD_H9 / PLACARD_W9);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(placardSpr9(), ax - pw9 / 2, ay - ph9, pw9, ph9);
+      break;
+    }
     case "die": {
       /* 죽음 여운 0.32초 — 캔버스 파편(burst)이 서는 2배 아래에서만 나온다(옛 스팬과 같은 칸). */
       const u9 = u0 / 0.32;

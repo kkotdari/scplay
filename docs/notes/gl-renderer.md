@@ -1513,3 +1513,13 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
 - 고침: 판 길(sprFlatB9 · sprFlatU9 = gl9.sprTint && GL_SPR9 && !op.pitch)은 등급을 늘 LOD_FINE 으로(판 칸은 배율과 무관한 한 단으로 굽고 축소는 밉맵이라 부품을 덜 그릴 까닭이
   없다). 입체(op.pitch)·메시 길은 종전 lodOf. 메시↔판 갈아타기(sprUpMax)는 확대 쪽 문턱이라 줌아웃과 무관(손짓 중 sprHeldMode9 로 못 박힘).
 - 🔎 `node scripts/perf-check.mjs --wide --warm 0 --diag --castoff --zoomsweep 6` — 물림(줌아웃) 걸음마다 `굽기0` 이어야 한다. 헤드리스는 GPU 몫을 못 재니 수치는 굽기 수만.
+
+## 이벤트 플래카드 — 시작 본진 위 '고고&단우님 환영합니다!'(2026-10-24)
+요청: "이벤트성 기능 추가 · 재생기에 메인홀(스타팅만) 위에 플래카드 부착 · 좌우에 막대 세워져 있고 가운데 흰 천에 '고고&단우님 환영합니다!' 적혀 있는 거 꽂기" → "막대 말고 풍선으로".
+- 자리: 임자마다 **시작 본진 한 채**(START_HALL_SEC9 30초 안에 선 가장 이른 커맨드·넥서스·해처리 · `startHallKeys9` — 자원 걷기 startHallClear9 와 같은 자). 평면만 ·
+  완공 뒤 · 안 뜬 것(flownFrom 없음) · 잔상(bldFrozen9) 아님 · alpha > 0.5. 천 아랫단은 바닥에서 상자 높이의 0.55(지붕) — 상자 윗변에 두면 너무 떠 보였다.
+- 그림: 글자는 메시로 못 구우니 **효과 층**(dom `style:"placard"` · GL 위 · glctx9 drawImage 텍스처)에 한 번 그린 판(`placardSpr9` 640×330 · sprVer9)을
+  발자국 폭 × 1.25 로 얹는다(`drawDomFx9`). 양 귀를 줄로 든 풍선 송이 둘(넷씩 · 빨강·노랑·파랑·초록) · 처진 흰 천 · 글자(PLACARD_TEXT9 · 천 폭에 맞춰 줄임). 글꼴이 늦게 실리면 `document.fonts.load`
+  뒤 한 번 다시 그려 판 번호 2. 끄기: engine9 `EVENT_PLACARD9 = false`.
+- 🔎 `node scripts/perf-check.mjs --wide --glblit --warm 5000 --castoff --readyms 240000 --t 40 --zoom 3 --cx 0.215 --cy 0.78 --pause --shot x.png`(합성 세계 Rex 해처리).
+  `--glblit` 없이는 GL 층이 숨어 몸이 안 찍힌다(헤드리스 기본).
