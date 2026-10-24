@@ -678,6 +678,8 @@ const xfBackK9 = { k: 1 };
 /** 이 손짓에서 **실시간 원근이 살아 있나**(liveViewOkRef9 의 거울) — 붓이 배킹을 내릴지 가리는 데 쓴다.
  *  모듈 전역인 까닭은 xfMsRef9 와 같다(붓은 React 밖에서 불려 부모의 ref 를 못 본다). */
 const xfLive9 = { on: false };
+/** GL 안개 기하가 새로 먹였나(2026-10-24 · terrLive9) — 보기가 그대로여도 안개만 바뀐 장을 지형 캔버스에 다시 그리게 하는 표식. */
+const fogGlDirty9 = { v: false };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
  *  "최소 줌에서 더 줄이려고 하면 모델이 흐려짐" — 1배에서 휠·핀치로 더 줄이면 배율은 1에 막혀 화면이 그대로인데 손짓은 서서, 지도 전체라 무거운 그 자리의
  *  손짓 한 장 값(xfMsRef9 · 옛 손짓의 값이 남아 있기도 했다)으로 배킹을 0.7~0.4배로 내려 그렸다). beginGestureXf 가 끄고 applyGestureXf 가 켠다. */
@@ -5189,7 +5191,7 @@ export function paintFxList9(
   WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog, terrPainter }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -5249,6 +5251,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
    *  으로 삼는다. 캔버스에 걸려 있던 변환은 그리는 쪽이 함께 걷으므로, 기준 갈아끼움과
    *  변환 걷기가 언제나 같은 순간이다(둘이 어긋나면 그림이 두 번 밀린다). */
   onPainted?: (z: number, p: { x: number; y: number }) => void;
+  /** ★ 지형·안개 캔버스만 다시 그리는 붓(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — 손짓 중 유닛 한 장을 미루거나 박자로 솎는 프레임에
+   *  부모(xfPaintNow)가 이것만 부른다. 유닛·GL 캔버스는 안 건드리고 지형 캔버스의 임시 변환만 걷는다(부모가 제 기준 terrXfRef9 를 갈아 끼운다). */
+  terrPainter?: { current: ((zoom: number, pan: { x: number; y: number }) => boolean) | null };
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -6750,6 +6755,25 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
     if (painter) painter.current = paint;
+    /* ★ 지형·안개만 한 장(위 terrPainter) — 유닛 붓과 **같은 사상**(cw·mh9·band9·zx·zy · 배킹은 몸 캔버스 크기)으로 지형 캔버스만 다시 그린다. 가위(분할)는 없다 —
+       분할은 부모가 안 부른다. 그린 뒤 지형 캔버스의 임시 변환만 항등으로(유닛 캔버스는 제 기준 그대로). 못 그렸으면 false. */
+    const terrPaint9 = (zoom: number, pan: { x: number; y: number }): boolean => {
+      const cv = ref.current; const tcv9 = terrRef.current; const tg9 = terrain?.current ?? null;
+      if (!cv || !tcv9 || !tg9 || !clipQuad || clipQuad.length !== 4) return false;
+      const cw = cv.clientWidth; const ch = cv.clientHeight;
+      if (!cw || !ch || !cv.width || !cv.height) return false;
+      const band9 = Math.max(0, -cv.offsetTop);
+      const mh9 = Math.max(1, cv.parentElement?.clientHeight ?? (ch - band9));
+      const zx = (f: number): number => (f - 0.5) * cw * zoom + cw / 2 + pan.x;
+      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + band9;
+      const tc9 = glTerrCanvas9(tcv9);
+      if (!tc9) return false;
+      const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
+      if (!tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, null, fog?.current ?? null)) return false;
+      xfSet9(tcv9, XF_ID9);
+      return true;
+    };
+    if (terrPainter) terrPainter.current = terrPaint9;
     /* ★ 여기서는 안 칠한다(재설계: 그리는 붓 하나) — 유닛 캔버스를 칠하는 것은 부모의 paintFnRef9뿐이다. 이 층은 붓 클로저를
        내주기만 하고, 렌더로 바뀐 것(배율·팬 거울, 사양 토글, 크기)은 부모가 렌더마다 requestPaint9로 한 장에 모은다. */
   });
@@ -13939,8 +13963,17 @@ export default function ReplayMotionPlayer({
             panRef.current = { x: Math.min(maxX, Math.max(-maxX, an9.ax - nz9 * an9.ux)), y: Math.min(topY, Math.max(-maxY, an9.ay - nz9 * an9.uy)) };
           }
           zoomRef.current = nz9;
-          applyGestureXf();
-          if (nz9 !== wheelGoal9) { wheelRaf9 = requestAnimationFrame(step9); return; }
+          /* ★ 다음 걸음의 rAF 를 **applyGestureXf 보다 먼저** 건다(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — applyGestureXf 가 손짓 붓(xfPaintNow)의
+             rAF 를 거는데, 그것이 다음 걸음보다 먼저 서면 다음 장에서 붓이 **옛 배율**로 그린 뒤 걸음이 새 배율의 CSS 변환을 걸어, 장마다 한 걸음치 빈 띠가 났다.
+             걸음이 먼저 서면 붓이 그 장의 새 배율로 그린다(붓이 걸음 뒤 — 같은 장). */
+          const more9 = nz9 !== wheelGoal9;
+          if (more9) wheelRaf9 = requestAnimationFrame(step9);
+          /* 붓은 **이 장에서 곧장** 부른다 — rAF 로 미루면(applyGestureXf 의 기본) 장마다 등록 시점이 엇갈려 한 장 걸러 옛 배율로 그렸다(실측 띠 0·66·0·80px 번갈아).
+             걸음 자체가 장에 한 번이라 묶을 것이 없다. 미뤄 둔 붓 rAF 가 있으면 걷는다(두 번 안 그리게). */
+          if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
+          applyGestureXf(false);
+          xfPaintNow();
+          if (more9) return;
           wheelRaf9 = 0;
           wheelTimer = window.setTimeout(() => endGestureXf(), 140);
         };
@@ -14229,10 +14262,25 @@ export default function ReplayMotionPlayer({
   /** 손짓이 시작된 보기 — 움직였나(xfMoved9)를 가리는 자. xfBaseRef 는 칠할 때마다 옮는 변환 기준이라 못 쓴다. */
   const xfStartRef9 = useRef({ z: 1, x: 0, y: 0 });
   /** 캔버스가 한 장 그려질 때마다 — 그 보기가 곧 임시 변환의 기준이다(자식이 부른다). */
+  /** 지형·안개 캔버스가 마지막으로 그려진 보기(2026-10-24 · 위 terrPainter) — 유닛 캔버스의 기준(xfBaseRef)과 따로 간다: 손짓 중 유닛을 미루는 프레임에도
+   *  지형은 매 장 다시 그리므로 둘의 기준이 갈린다. applyGestureXf 가 이 기준으로 지형 캔버스의 임시 변환을 건다(안개 캔버스의 fogXfRef9 와 같은 결). */
+  const terrXfRef9 = useRef({ z: 0, x: 0, y: 0 });
+  const terrPaintRef9 = useRef<((z: number, p: { x: number; y: number }) => boolean) | null>(null);
   const onUnitPainted = useCallback((z9: number, p9: { x: number; y: number }): void => {
     xfBaseRef.current = { z: z9, x: p9.x, y: p9.y };
+    terrXfRef9.current = { z: z9, x: p9.x, y: p9.y };   // 유닛 한 장은 지형도 함께 그린다(UnitLayer 붓의 지형 블록)
     xfPaintAtRef.current = performance.now();
   }, []);
+  /** 손짓 중 유닛을 안 그리는 프레임의 지형·안개 한 장(위 terrXfRef9 · xfPaintNow 가 부른다) — 보기가 그대로면 건너뛴다. 분할은 칸이 제 땅을 든다. */
+  const terrLive9 = (): void => {
+    const f9 = terrPaintRef9.current;
+    if (!f9 || !glTerrOnRef9.current || splitOnRef9.current) return;
+    const z9 = zoomRef.current; const p9 = panRef.current; const b9 = terrXfRef9.current;
+    if (b9.z === z9 && b9.x === p9.x && b9.y === p9.y && !fogGlDirty9.v) return;
+    const t09 = performance.now();
+    if (f9(z9, p9)) { terrXfRef9.current = { z: z9, x: p9.x, y: p9.y }; fogGlDirty9.v = false; }
+    if (scrDiagOn()) SCR_DIAG.terrms = Math.round((performance.now() - t09) * 10) / 10;
+  };
   /** 굳은 배율 — 판을 굽는 크기는 언제나 이 값이다(손짓 중에도 안 변한다).
    *  ★ 굽는 크기는 **칸으로 올림**한다(배율을 연속으로 바꾸면서 생긴 자리) — 배율이
    *    칸에서 풀리자 굳을 때마다 굽는 크기가 3.17배·3.42배처럼 제각각이 되어, 종류마다
@@ -14443,8 +14491,8 @@ export default function ReplayMotionPlayer({
       const xf9 = s9 === 1 && px === b9.x && py === b9.y ? XF_ID9
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
-      // 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★).
-      for (const cv9 of unitCanvases9(mapRef.current)) xfSet9(cv9, xf9);
+      // 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★). 지형 캔버스는 **제 기준**(terrXfRef9 · 2026-10-24)이다.
+      for (const cv9 of unitCanvases9(mapRef.current)) xfSet9(cv9, cv9.classList.contains("scr-motion-terr9") ? xfDelta9(terrXfRef9.current, z1, px, py) : xf9);
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
@@ -14579,6 +14627,7 @@ export default function ReplayMotionPlayer({
          걸리지 않고, 이 갈래가 곧 빈 띠가 나던 자리다. */
       brushSrc9 = "xf";
       paintFnRef9.current?.(tLiveRef9.current, false, true);
+      terrLive9();   // 지형·안개 캔버스는 값이 싸다 — 미루는 프레임에도 손끝 보기로(위 terrXfRef9)
       if (!xfIdleRef9.current) {
         xfIdleRef9.current = window.setTimeout(() => {
           xfIdleRef9.current = 0;
@@ -14634,9 +14683,10 @@ export default function ReplayMotionPlayer({
       }
       return;
     }
-    /* 유닛을 안 그리는 프레임(박자·안 움직임)에도 **안개는 프레임마다** 칠한다(위 붓의 ★). */
+    /* 유닛을 안 그리는 프레임(박자·안 움직임)에도 **안개는 프레임마다** 칠한다(위 붓의 ★). GL 지형·안개 캔버스도(terrLive9 · 2026-10-24). */
     brushSrc9 = "xf";
     paintFnRef9.current?.(tLiveRef9.current, false, true);
+    terrLive9();
   }, []);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
@@ -17114,6 +17164,7 @@ export default function ReplayMotionPlayer({
           const g9 = fogGeomRef9.current ?? (fogGeomRef9.current = new FogGeom9());
           g9.feed(ov9, gw9, gh9);
           fogGlRef9.current = { loops: g9.loops, key: g9.key, eyes: fr9.visSrc, rgb: FOG_RGB_ARR9, dim: FOG_DIM9 };
+          fogGlDirty9.v = true;   // 안개만 칠하는 장(xfPaintNow → terrLive9)이 보기가 그대로여도 다시 그리게
         }
         miniFogLiveRef9.current = { eyes: fr9.visSrc, explored: fr9.explored, t: tNow9, seq: (miniFogLiveRef9.current?.seq ?? 0) + 1 };
         fogBin9().pms += pNow() - pt09;
@@ -19095,7 +19146,7 @@ export default function ReplayMotionPlayer({
                 {dm9("gest") && (
                   /* 손짓 조사 — 한 장 값(미룸 문턱 XF_HEAVY_MS9)·배킹 몫·그린 장의 원점(ORG9)·세대·차례·실시간 원근 판정. */
                   <div>
-                    <b>손짓</b>{" "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}
+                    <b>손짓</b>{" "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}{SCR_DIAG.terrms > 0 ? ` 지형 ${SCR_DIAG.terrms}ms` : ""}
                     {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
                     {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
                     {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
@@ -20671,7 +20722,7 @@ export default function ReplayMotionPlayer({
             zoom={zoom} pan={pan} tilePx={tilePx} wallMask={creepMask} maskRects={creepMaskRects}
             /* 손짓(드래그·핀치·휠) 중에는 부모가 이 붓으로 캔버스만 다시 그린다 —
                리액트를 안 거치고, 그린 자리는 손끝 그대로다(xfLive). */
-            painter={unitPaintRef} onPainted={onUnitPainted}
+            painter={unitPaintRef} onPainted={onUnitPainted} terrPainter={terrPaintRef9}
             terrain={glTerrRef9} terrainOff={() => setGlTerrOn9(false)} fog={fogGlRef9}
             /* 손짓이 도는가 — 배킹을 내린 손짓에서만 그림자를 접는다(위 shFold9). */
             gesture={xfGestureRef}

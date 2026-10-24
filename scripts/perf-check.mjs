@@ -2727,6 +2727,27 @@ if (SHOT) {
     }
     return `${document.querySelector(".scr-dock-roster")?.className} · 인포창 ${w(".scr-fs-dockmain > .scr-motion-infodock")} · 판 ${w(".scr-fs-rosterpanel")} · 독메인 ${w(".scr-fs-dockmain")} · 줄 ${w(".scr-fs-dockrow")} · 인포 넘침 ${over.toFixed(1)} · 바닥 밖 ${below.toFixed(1)} · 옆 넘침 ${overX.toFixed(1)} · 오른쪽 밖 ${right.toFixed(1)}`;
   }));
+  /* --zoomoutprobe(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — 휠로 당겼다가 **빠르게** 밀며(휠 +300 × 4 · 16ms 간격) 장마다 GL 지형·안개
+     캔버스(.scr-motion-terr9)가 지도 상자를 못 덮는 띠(px)와 그 캔버스의 임시 변환·지형 한 장 ms(SCR_DIAG.terrms)를 찍는다. 띠가 0 이면 손끝 보기로 다시 그린 것.
+     --shot 과 함께면 손짓 한가운데 장을 x_zoomout.png 로. --diag 와 함께. */
+  if (has("--zoomoutprobe")) {
+    const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    if (pt9) {
+      const samp9 = async (tag) => { const d = await page.evaluate(() => {
+        const m = document.querySelector(".scr-motion-map"); const t = document.querySelector(".scr-motion-terr9"); const s = window.__scrDiag || {};
+        if (!m || !t) return null; const r = m.getBoundingClientRect(); const q = t.getBoundingClientRect();
+        const gap = Math.max(q.left - r.left, r.right - q.right, q.top - r.top, r.bottom - q.bottom);
+        return { gap: +gap.toFixed(1), xf: t.style.transform || "(없음)", z: s.zoom, terrms: s.terrms, xfms: s.xfms };
+      }); console.log(`[줌아웃] ${tag} 배율 ${d ? d.z : "-"} · 안 덮인 띠 ${d ? d.gap : "-"}px · 지형 xf ${d ? d.xf : "-"} · 지형 ${d ? d.terrms : "-"}ms · 손짓 ${d ? d.xfms : "-"}ms`); };
+      await page.mouse.move(pt9[0], pt9[1]);
+      for (let i = 0; i < 3; i += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(500); }
+      await samp9("당긴 뒤");
+      for (let i = 1; i <= 4; i += 1) { await page.mouse.wheel(0, 300); await page.waitForTimeout(16); await samp9(`밀기${i}`); }
+      if (has("--shot")) await page.screenshot({ path: String(flag("--shot", "x.png")).replace(/\.png$/, "_zoomout.png") });
+      await samp9("찍은 뒤");
+      await page.waitForTimeout(600); await samp9("굳은 뒤");
+    }
+  }
   if (has("--tagprobe")) console.log("[미니맵 택]", await tagProbe9(page));
   if (has("--capprobe")) await capProbe9(page);
   await page.screenshot({ path: SHOT });

@@ -2305,3 +2305,16 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - **핀치 연속**: `Math.round(zc9)` 되물림 — 지형이 GL(배율 무관)·몸이 한 장 판이라 끊을 까닭이 없다. **휠**도 어디서나 미끄러진다(옛 잠긴 화면만 easing · 그 밖은 round(raw1) 즉시) —
   목표(raw1 소수)로 τ 70ms 로 다가가고 커서 아래 지점은 닻(wheelAnchor9)으로 붙든다. 2026-09 '자연수 배수만' 요청은 되물렸다.
 - 🔎 `perf-check --ios|--wide --diag --shot x.png` — [GL] 줄 `안개 눈N·Nk정점·고리N` · 줌 훑기 `--zoomsweep 4`(휠 easing 으로도 칸이 선다).
+
+## 급한 줌아웃에서 GL 지형·안개가 늦게 그려짐(2026-10-24)
+지적: "급하게 줌아웃시 지형안개가 느리게 그려짐". 까닭 둘.
+- ① GL 지형·안개 캔버스(`.scr-motion-terr9`)는 유닛 붓의 지형 블록에서만 그려졌다 — 손짓 중 유닛 한 장을 박자로 솎거나(need9) 미루는(XF_HEAVY_MS9) 프레임엔 CSS 로 늘리기만 해,
+  축소하면 사방에 못 덮은 띠가 다음 유닛 장까지 남았다. 옛 DOM 안개는 '안개만' 붓(fogOnly)으로 매 장 칠했는데 GL 안개는 지형 캔버스로 옮기며 그 길을 잃었다.
+  → UnitLayer 에 **지형·안개만 그리는 붓** `terrPainter`(terrPaint9 · 유닛 붓과 같은 사상 cw·mh9·band9·zx·zy · 배킹은 몸 캔버스 크기)를 두고, xfPaintNow 의
+  안개만 칠하는 두 갈래(미룸·박자) 뒤에 `terrLive9` 로 부른다. 지형 캔버스는 **제 기준** `terrXfRef9`(안개의 fogXfRef9 와 같은 결)로 임시 변환을 받는다
+  (applyGestureXf 가 unitCanvases9 중 terr9 만 xfDelta9(terrXfRef9)) · 유닛 한 장(onUnitPainted)도 그 기준을 갈아 끼운다. 보기가 그대로고 안개 기하도 안 바뀌었으면
+  (`fogGlDirty9`) 건너뛴다. 한 장 값 실측 1.6~4.5ms(헤드리스 · `SCR_DIAG.terrms` · 진단 '손짓' 줄의 `지형 Nms`).
+- ② 휠 미끄러짐(step9)은 applyGestureXf 가 거는 붓 rAF 보다 **먼저** 다음 걸음 rAF 를 걸지 않아, 다음 장에서 붓이 옛 배율로 그린 뒤 걸음이 새 변환을 걸었다 — 한 장 걸러
+  한 걸음치 띠(실측 0·66·0·80px 번갈아). → 걸음은 장에 한 번이라 붓을 rAF 로 안 미루고 **그 장에서 곧장**(applyGestureXf(false) + xfPaintNow · 미뤄 둔 붓 rAF 는 걷는다).
+- 🔎 `perf-check --wide --vw 1920 --vh 1080 --dpr 1 --warm 0 --glblit --diag --castoff --zoomoutprobe --shot x.png`(`--ios` 도) → `[줌아웃] 밀기N … 안 덮인 띠 0px · 지형 xf scale(1)`
+  일곱 줄 다 0px(전: PC 94·97px · 폰 10~52px) · x_zoomout.png 가 손짓 한가운데 장. 실기기의 핀치는 헤드리스로 못 잰다 — 손끝 사이 장(한 장치)은 유닛과 같은 한 장 뒤.
