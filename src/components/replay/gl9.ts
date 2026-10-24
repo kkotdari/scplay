@@ -1124,6 +1124,10 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
   private sprPre: SprJob9[] = [];
   private sprPreKeys = new Set<string>();
+  /** 미리 굽기 **처방**(2026-10-24 실측: 폰 벤치가 뒤늦게 단을 내려 번짐 켜(sprEm)·요잉 칸이 바뀌자 판이 통째로 비워지고 다시 굽는 길이 없었다) — 판이 비워지면(sprReset9)
+   *  이 처방으로 큐를 다시 채우고, 재생 중 sprPlan9 가 남는 예산으로 조금씩 굽는다(자가 회복). 메시가 버려졌으면(열쇠로 못 찾음) 그 몸은 보일 때 굽는다. */
+  private sprRecipes: { meshKey: string; cam: GlCam9; gRk: number; gCyk: number; color: string; yaws: number[]; shadow: boolean }[] = [];
+  private sprReseeding = false;
   /** 마지막 flush 의 기기 px/CSS px — 미리 굽기가 kc 를 낼 때 쓴다(없으면 devicePixelRatio). */
   private lastDprK = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number;
@@ -1144,6 +1148,12 @@ export class GlUnits9 implements VecSink9 {
     const gl = this.gl;
     for (const pg of this.sprPages) { gl.deleteTexture(pg.tex); gl.deleteFramebuffer(pg.fb); if (pg.emTex) gl.deleteTexture(pg.emTex); if (pg.emFb) gl.deleteFramebuffer(pg.emFb); if (pg.tnTex) gl.deleteTexture(pg.tnTex); if (pg.tnFb) gl.deleteFramebuffer(pg.tnFb); }
     this.sprPages = []; this.sprMap.clear(); this.sprWarm.clear(); this.sprPre = []; this.sprPreKeys.clear();
+    /* 처방으로 큐를 다시 채운다(위 sprRecipes ★) — 재생 중 sprPlan9 가 남는 예산으로 굽는다. */
+    if (this.sprRecipes.length && !this.sprReseeding) {
+      this.sprReseeding = true;
+      try { for (const r of this.sprRecipes) { const m = this.meshes.get(r.meshKey); if (m) this.sprPrebake9(m, r.cam, r.gRk, r.gCyk, r.color, r.yaws, r.shadow); } }
+      finally { this.sprReseeding = false; }
+    }
   }
   private sprTex9(w: number, h: number, mip = false, r8 = false): [WebGLTexture, WebGLFramebuffer] {
     const gl = this.gl;
@@ -1311,6 +1321,10 @@ export class GlUnits9 implements VecSink9 {
    *  (그림자도) 큐에 올린다. 굽는 것은 sprPreStep9(예열 루프가 프레임마다 몇 장씩). 이미 있는 칸·큐의 칸은 건너뛴다. 올린 수를 돌려준다. */
   sprPrebake9(mesh: GlMesh9, cam: GlCam9, gRk: number, gCyk: number, color: string, yawBuckets: number[], shadow: boolean): number {
     if (!this.sprOn || !this.spr) return 0;
+    if (!this.sprReseeding) {
+      const rk = `${mesh.key}|${cam.key}|${shadow ? 1 : 0}`;
+      if (!this.sprRecipes.some((r) => `${r.meshKey}|${r.cam.key}|${r.shadow ? 1 : 0}` === rk)) this.sprRecipes.push({ meshKey: mesh.key, cam, gRk, gCyk, color, yaws: yawBuckets.slice(), shadow });
+    }
     const dprK = this.lastDprK;
     let n = 0;
     for (const sh of shadow ? [false, true] : [false]) {
@@ -1330,10 +1344,20 @@ export class GlUnits9 implements VecSink9 {
   /** 큐에서 n 장을 굽는다 — 남은 수를 돌려준다. 판 자리가 안 나면(상한 · 이 장 LRU 없음) 그 칸은 그냥 빠진다(재생 중 보이면 그때 굽는다). */
   sprPreStep9(n: number): number {
     if (!this.sprPre.length) return 0;
-    const batch = this.sprPre.splice(0, Math.max(1, n));
-    for (const j of batch) this.sprPreKeys.delete(j.key);
-    this.sprBake9(batch, this.lastDprK);
+    const batch = this.sprPreTake9(n);
+    if (batch.length) this.sprBake9(batch, this.lastDprK);
     return this.sprPre.length;
+  }
+  /** 큐에서 n 장을 꺼낸다 — 메시가 버려진(열쇠의 메시가 지금 벌이 아닌) 일감·이미 선 칸은 버린다. */
+  private sprPreTake9(n: number): SprJob9[] {
+    const out: SprJob9[] = [];
+    while (out.length < Math.max(1, n) && this.sprPre.length) {
+      const j = this.sprPre.shift()!;
+      this.sprPreKeys.delete(j.key);
+      if (this.meshes.get(j.mesh.key) !== j.mesh || this.sprMap.has(j.key)) continue;
+      out.push(j);
+    }
+    return out;
   }
   /** 미리 굽기 큐에 남은 수. */
   sprPreLeft9(): number { return this.sprPre.length; }
@@ -1594,6 +1618,10 @@ export class GlUnits9 implements VecSink9 {
           jobs.push(j); jobOf.set(key, j); wb -= 1; st.warm += 1;
         }
       }
+    }
+    /* 미리 굽기 큐가 남아 있으면(판이 비워진 뒤 처방으로 다시 찬 것 · 위 sprRecipes ★) 남는 예산의 1/4 로 조금씩 — 손짓 중엔 쉰다. */
+    if (!SPR_HOLD9 && this.sprPre.length && budget > 0) {
+      for (const j of this.sprPreTake9(Math.max(1, Math.floor(budget / 4)))) if (!jobOf.has(j.key)) { jobs.push(j); jobOf.set(j.key, j); }
     }
     this.sprBake9(jobs, dprK);
     this.sprMipSettle9();
