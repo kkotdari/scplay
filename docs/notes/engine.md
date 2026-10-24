@@ -364,4 +364,4 @@ u32 개수 · 줄마다 u8 사람 · varint(그 사람 앞 줄과의 프레임�
 vite 라이브러리 빌드(`src/components/replay/index.ts` 의 `./ReplayMotionPlayer`)와 perf-check 는 **그 .js 를 .tsx 보다 먼저 집어 간다** —
 dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 보기 모드 판 차례·요약/전체 pill 이 옛것) 화면 확인 샷도 옛 UI 가 나온다.
 🔎 `find src -name '*.js' ! -name '*.gen.*'` 이 0 이어야 한다. 막음: tsconfig `noEmit: true`(vite-plugin-dts 는 제 설정으로 d.ts 를 뽑는다 ·
-`dist/index.d.ts` 그대로) · `.gitignore` 에 `src/**/*.js`·`*.d.ts`·`*.map`(`src/vite-env.d.ts` 만 예외) · 60 파일은 a615bec 에서 들어와 1e… 뒤 커밋에서 걷었다.
+`dist/index.d.ts` 그대로) · `.gitignore` 에 `src/**/*.js`·`*.d.ts`·`*.map`(`src/vite-env.d.ts` 만 예외) · 60 파일은 a615bec 에서 들어와 ee2269c 에서 걷었다(dist 80dee924…).
