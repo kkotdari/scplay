@@ -468,7 +468,9 @@ export const archonMergeK9 = (kind: string, born: number, t: number, handoff?: b
 export const GAIT_CYCLE9: readonly Pose9[] = [1, 6, 7, 3, 8, 9];
 /** 걸음 컷 고르기 — gait 종류는 여섯 컷, 그 밖은 두 컷(1 ↔ 3). hz 는 옛 두 컷의 박자(컷/초). 지도·도록이 이 문 하나를 쓴다. */
 export function walkCutOf9(kind: string, hz: number, t: number): Pose9 {
-  if (POSE_KINDS[kind]?.gait) return GAIT_CYCLE9[Math.floor(t * hz * 3) % 6];
+  const pk9 = POSE_KINDS[kind];
+  /* 도약보 박자(gaitHz · 2026-10-24, 요청: "울트라와 저글링이 더 껑충껑충 넓게 뛰게 — 뛰는 빈도는 낮추고 넓게") — 한 바퀴를 그 배수만큼 늦게 돈다. */
+  if (pk9?.gait) return GAIT_CYCLE9[Math.floor(t * hz * (pk9.gaitHz ?? 1) * 3) % 6];
   return Math.floor(t * hz) % 2 === 1 ? 3 : 1;
 }
 export const POSE_ATK_R = 5;
@@ -483,6 +485,8 @@ export const POSE_ATK_R = 5;
 export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: number;
   /** 추진체 불꽃(요청: 비행체는 이동할 때만 불꽃) — 걸음 컷이 없는 비행체는 이동 중이면 자세 1을 고정으로 받는다. */
   thrust?: boolean;
+  /** 도약보 박자 배수(걸음 한 바퀴 빠르기 · 1 이 여느 걸음) — 저글링·울트라는 낮춰 크게 뛴다(walkCutOf9 · 2026-10-24). */
+  gaitHz?: number;
   /** 합체 컷(자세 10 · POSE_MERGE9) — 고리 없는 아콘. */
   merge?: boolean;
   /** ★ **궤도 굴림**(2026-09, 요청: "이동 시 탱크 캐터필러 실제로 돌아가게 가능?") — 다리도
@@ -537,7 +541,7 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   /* 나는 저그 둘 — 날개막이 늘 친다(요청). 뮤탈은 잰 날갯짓, 디바우러는 덩치가 커
      느릿하다. 공격 컷은 뮤탈이 글레이브를 던지고 디바우러가 산을 뱉는 그 반동이다. */
   // 걷는 것 넷을 더한다(요청) — 울트라·디파일러·골리앗·럴커.
-  ultra: { move: true, atk: true, gait: true },   // 여섯 컷(위 ★)
+  ultra: { move: true, atk: true, gait: true, gaitHz: 0.6 },   // 여섯 컷(위 ★) · 박자 0.6(껑충 · 2026-10-24)
   defiler: { move: true },
   goliath: { move: true, atk: true, gait: true },   // 걸음 + 포신 앞뒤 반동(요청)
   /* 탱크는 **포탑 판**만 컷을 갖는다(요청: "탱크도") — 차체 판(tankbody)은 궤도+차체
@@ -562,7 +566,7 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
   devourer: { flap: 1.7, atk: true },
   guardian: { flap: 1.4 },
   ovie: { move: true },   // 이동 모션(요청) — 다리·집게가 뒤·위로 끌리며 잔떨림(두 걸음 컷 1↔3)   // 뒤 옆구리 날개껍질 한 쌍의 날갯짓(요청) — 덩치가 커 디바우러보다 느긋하게
-  zling: { move: true, atk: true, gait: true },    // 다리 교차 + 낫팔 내리침 · 여섯 컷(위 ★)
+  zling: { move: true, atk: true, gait: true, gaitHz: 0.55 },    // 다리 교차 + 낫팔 내리침 · 여섯 컷(위 ★) · 박자 0.55(껑충 · 2026-10-24)
   /* (걷어냄) tankbody·tanksiegebody — "포신 앞뒤 이동"으로 적어 두었지만 그 두 판은
      궤도+차체라 포신이 없고, 반동은 이미 **op 자리 밀기**가 한다(포탑 판을 0.09타일
      뒤로 민다). 표에 남겨 두면 그림이 같은 판만 두 벌 굽는다. */

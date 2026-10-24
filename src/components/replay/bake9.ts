@@ -727,6 +727,12 @@ export const gaitIdx9 = (): number => GAIT_CYCLE9.indexOf(poseNow as Pose9);
  *  ★ 여섯 컷 걸음(gait)의 사잇컷은 ±0.5 다(한 바퀴의 코사인) — 팔 흔들기가 끊김 없이 오가고, `wd !== 0` 이 여전히 '걷는 중'이다. */
 const WALK_SWING9 = [1, 0.5, -0.5, -1, -0.5, 0.5] as const;
 export const walkDir = (): number => { const i9 = gaitIdx9(); return i9 < 0 ? 0 : WALK_SWING9[i9]; };
+/** 도약보의 **몸 들썩임**(2026-10-24, 요청: "울트라와 저글링이 더 껑충껑충 넓게 뛰게") — 뻗은 컷(walkDir +1 · 네 다리가 앞뒤로 쫙)이 공중이라 몸 전체를 h 만큼
+ *  든다(사잇컷 +0.5 는 반). 모은 컷(−1)은 땅. 빌더 뿌리를 withModelZOff 로 감싼다 — 2D·메시 다 같은 평행이동(shapeOblique modelZOff). 자세 0 은 0 이라
+ *  정규화·잉크 상자는 그대로다. 박자는 engine9 POSE_KINDS.gaitHz. */
+export const gaitHop9 = (h: number): number => Math.max(0, walkDir()) * h;
+const ZLING_HOP9 = 0.6;
+const ULTRA_HOP9 = 1.0;
 /* ★★ 여섯 컷 걸음의 **다리 한 짝**(2026-10 · engine9 GAIT_CYCLE9 의 ★★) ─────────────────────────────────────────────────────
    왼다리(m +1)는 한 바퀴의 컷 i, 오른다리(m −1)는 반 바퀴 뒤(i + 3)를 탄다. 디딤이 한 바퀴의 4/6, 흔듦이 2/6 이다:
      k0 닿음 — 발이 맨 앞(+1) · 다리를 쭉 편다(reach 0.995)          k1 받음 — 발이 +0.5 · 엉덩이가 가장 낮아 무릎이 굽는다
@@ -26506,7 +26512,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           앞다리는 짧게 앞아래로. 발끝은 상아 발톱.
      색 규약 — 살은 저그 살색, 짙은 마디는 갈색, 낫·발톱·어금니는 상아. 개인색은
      등마루 딱지 판이다(칠하지 않은 면 = 임자 색). */
-  zling: () => {
+  zling: () => withModelZOff(gaitHop9(ZLING_HOP9), (): ShapeFace[] => {
     const DARK = "#6b4732";
     const out: ShapeFace[] = [];
     /* 컷(요청: 애니메이션) — 걸음은 **네 다리가 대각으로 교차**하고(같은 쪽 앞뒤가
@@ -26660,10 +26666,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          좌우 벌어짐(sp)이 "벌렸다 모았다"의 그 몫이다 — 앞뒤로만 움직이면 위에서
          내려다보는 이 화면에서는 다리가 그냥 앞뒤로 미끄러져 보인다. */
       const gait9 = wd9;
+      /* ★ 보폭 0.8 → **1.3** · 벌어짐 0.16/0.13 → 0.22/0.18(2026-10-24, 요청: "더 껑충껑충 넓게 뛰게 … 다리를 쫙쫙 앞뒤로 뻗어서") — 뻗은 컷에 앞발이 코끝을
+         넘고(y 3.0) 뒷발이 꼬리 쪽(−3.8)까지 간다. 박자는 engine9 gaitHz 0.55 · 몸 들썩임은 빌더 뿌리 gaitHop9(ZLING_HOP9). */
+      const ZL_ST9 = 1.3;
       /** 뒷다리 — 뻗을 때 **뒤로** 찬다. 폭도 평보(0.5)보다 크다. */
-      const stB9 = -gait9 * 0.8;
+      const stB9 = -gait9 * ZL_ST9;
       /** 좌우 벌어짐 — 뻗을 때 바깥으로. */
-      const spB9 = gait9 * 0.16;
+      const spB9 = gait9 * 0.22;
       const hipB: [number, number, number] = [m * 0.55, -1.65, 1.92];
       const kneeB: [number, number, number] = [m * (1.25 + spB9), -0.85 + stB9 * 0.6, 1.28];
       const ankleB: [number, number, number] = [
@@ -26683,8 +26692,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          뒤로** 꺾인다: 어깨에서 뒤아래로 내려갔다가 발이 앞을 딛는다. */
       // 앞다리도 뒤로 민다(재지적: "머리랑 앞다리 뒤로 밀고 앞몸길이 축소").
       /** 앞다리 — 뒷짝과 **반대**다: 뻗을 때 앞으로 뻗고, 모을 때 배 밑으로 접힌다. */
-      const stF9 = gait9 * 0.8;
-      const spF9 = gait9 * 0.13;
+      const stF9 = gait9 * ZL_ST9;
+      const spF9 = gait9 * 0.18;
       const hipF: [number, number, number] = [m * 0.68, 1.0, 1.96];
       const kneeF: [number, number, number] = [m * (1.05 + spF9), 0.55 + stF9 * 0.6, 1.16];
       const footF: [number, number, number] = [
@@ -26708,7 +26717,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // (걷어냄·지적: "얼굴 앞에 두개의 뿔 제거") — 위로 솟던 어금니 한 쌍. 공용
     // 얼굴의 송곳니 넷이 이미 그 몫을 한다.
     return out;
-  },
+  }),
   /* 히드라리스크(사진 + 손그림 지시 — 요청: "목부터 꼬리까지 乙 자 모양 / 목은 지팡이
      처럼 아래로 휘어야 머리가 자연스럽게 붙는다 / 이마부터 머리장식 끝까지 한 면으로,
      45도, 끝으로 갈수록 넓어지고 양쪽 끝이 아래로 휘어 목과 등을 감싼다") ────────────
@@ -27022,7 +27031,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   },
   /* 울트라리스크(실물 참고) — 코끼리 다리 넷의 거체, 어깨에서 크게 휘는 거대 카이저
      낫 두 자루. */
-  ultra: () => {
+  ultra: () => withModelZOff(gaitHop9(ULTRA_HOP9), (): ShapeFace[] => {
     /* 울트라리스크(제로베이스 재작도 — 사진이 첫째 자료) ─────────────────────────
        사진이 말하는 것:
          · 몸은 둥근 살덩이가 아니라 **각진 갑옷 판**을 겹쳐 놓은 덩치다. 어깨가 넓고
@@ -27066,7 +27075,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          무릎이 0.375 → **1.125**(세 배) 나간다. 엉덩이는 몸에 붙어 있으니 허벅지가 그만큼 비스듬히
          뻗어 네 다리가 앞뒤로 크게 갈라진다. 나가는 발의 들림은 0.30 → **0.375** 다 — 계수를 0.4 →
          0.25 로 내려 폭이 두 배가 된 몫을 죈다(그대로 두면 0.6 이라 발이 몸 옆구리까지 솟는다). */
-      const ST_U9 = 1.5;
+      /* 1.5 → **2.2**(2026-10-24, 요청: "울트라와 저글링이 더 껑충껑충 넓게" — 무릎 1.125 → 1.65 · 발 들림 0.375 → 0.55). 박자 gaitHz 0.6 · 들썩임 ULTRA_HOP9. */
+      const ST_U9 = 2.2;
       const st9 = wdU9 * Math.sign(ly9) * ST_U9;
       const sp9 = wdU9 * 0.09 * sx9;
       const lf9 = Math.max(0, st9 * Math.sign(ly9)) * 0.25; const lf9z9 = Math.max(0, st9 * Math.sign(ly9)) * 0.2; /* z용 쌍둥이(model-z-scale ×0.8) */
@@ -27406,7 +27416,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     });
     return out;
-  },
+  }),
 
   /* 러커(실물 참고) — 넓은 가시 등딱지, 사방으로 벌린 낫 칼다리 두 쌍(끝이 안으로
      말림), 앞 입. */

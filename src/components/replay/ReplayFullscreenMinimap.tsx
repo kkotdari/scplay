@@ -39,7 +39,7 @@ const MINI_FOG_G = 8;
 const MINI_FOG_B = 14;
 
 export default function ReplayFullscreenMinimap({
-  image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewsAt, viewColor, zoom, pan, onSeek, onWheelZoom,
+  image, grid, ratio, dotsRef, extraRef, pingsRef, tick, viewAt, viewsAt, viewColor, zoom, pan, onSeek, onSeekStart, onSeekEnd, onWheelZoom,
   unproject, fog, painter, live,
   warming, ownRaw, ownColor, tags,
 }: {
@@ -94,6 +94,9 @@ export default function ReplayFullscreenMinimap({
   pan: { x: number; y: number };
   /** 프레임을 끌었다 — 그 자리를 화면 한가운데로 (지도 분수 좌표). */
   onSeek: (fx: number, fy: number) => void;
+  /** 끌기 시작·끝(2026-10-24) — 받는 쪽이 지도 끌기와 같은 손짓(begin/endGestureXf)으로 묶어 부드럽게 따라오게 한다. */
+  onSeekStart?: () => void;
+  onSeekEnd?: () => void;
   /** 미니맵 위에서 휠을 굴렸다 — **그 자리를 가운데 두고** 한 칸 확대·축소한다(지적:
    *  "미니맵 위에서 스크롤 시 현재 위치 중심에서 확대 축소하게. 지금은 좌하단 기준으로
    *  하는 듯"). 여태 미니맵에는 휠 손잡이가 없어 그 굴림이 지도 쪽 손잡이로 흘러갔는데,
@@ -575,11 +578,12 @@ export default function ReplayFullscreenMinimap({
         e.stopPropagation();
         dragRef.current = true;
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        onSeekStart?.();
         seekAt(e.clientX, e.clientY);
       }}
       onPointerMove={(e) => { if (dragRef.current) seekAt(e.clientX, e.clientY); }}
-      onPointerUp={() => { dragRef.current = false; }}
-      onPointerCancel={() => { dragRef.current = false; }}
+      onPointerUp={() => { if (dragRef.current) { dragRef.current = false; onSeekEnd?.(); } }}
+      onPointerCancel={() => { if (dragRef.current) { dragRef.current = false; onSeekEnd?.(); } }}
       role="presentation"
     >
       <canvas ref={cvRef} aria-hidden style={warming ? { opacity: 0 } : undefined} />

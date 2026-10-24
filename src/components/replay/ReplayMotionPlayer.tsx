@@ -3125,7 +3125,10 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const u9 = u0 / 1;
       if (u9 > 1) break;
       const rk9 = f.sub ?? "terran";
-      const ly9 = -(f.lift ?? 0) * zoom;
+      /* ★ 들기는 **ay 에 이미 들어 있다**(2026-10-24, 지적: "파일런 실드 피격과 폭발 동심원 위치가 폭발효과와 안맞음 더 위에 나옴") — 효과 붓의 ay 는
+         zy(fy) − lift·zoom 인데 여기서 또 −lift·zoom 을 더해 프로토스 고리·심이 몸 가운데의 **두 배** 높이에 섰다(빛줄기 burst 는 ay 그대로).
+         2026-10-19 에 clp 의 lift 를 0 → 몸 가운데로 올리며 생긴 겹침이다. 옛 ly9 = −lift·zoom. */
+      const ly9 = 0;
       const kc9 = u9 < 0.18 ? 0.3 + (1 - 0.3) * (u9 / 0.18) : key3v9((u9 - 0.18) / 0.82, 1, 1.5, 1.9, 0.51);
       const ac9 = u9 < 0.18 ? 0.2 + 0.8 * (u9 / 0.18) : key3v9((u9 - 0.18) / 0.82, 1, 0.5, 0, 0.51);
       if (rk9 === "toss") {
@@ -13013,6 +13016,8 @@ export default function ReplayMotionPlayer({
   const trackLockZRef9 = useRef(1);
   /** 단독 중계 휠 미끄러짐을 멈춘다(휠 effect 가 건다 · 배율 원·키 배율이 부른다). */
   const wheelStopRef9 = useRef<() => void>(() => {});
+  /** 휠 미끄러짐을 밖에서 몬다(2026-10-24) — 목표 배율과 **목표 자리**(미니맵 휠: 짚은 점이 가운데로)로. 지도 휠과 같은 rAF 걸음(WHEEL_TAU9)을 탄다. */
+  const wheelDriveRef9 = useRef<((goal9: number, panGoal9: { x: number; y: number } | null) => void) | null>(null);
   trackLockRef.current = trackView ? trackView.pan : null;
   trackLockZRef9.current = zoom;   // 그 자리를 잰 배율(아래 applyGestureXf ★ 사진처럼)
   viewHRef.current = fitH9;
@@ -13967,6 +13972,54 @@ export default function ReplayMotionPlayer({
       cancelAnimationFrame(wheelRaf9); wheelRaf9 = 0;
       endGestureXf();
     };
+    /** 미니맵 휠의 목표 자리(지도 휠은 닻 wheelAnchor9 · 2026-10-24). */
+    let wheelPanGoal9: { x: number; y: number } | null = null;
+    /** 미끄러짐 걸음(rAF) — 지도 휠·미니맵 휠이 같이 쓴다. 이미 돌고 있으면 목표만 바뀐 채 그 걸음이 잇는다. */
+    const wheelRun9 = (): void => {
+      if (!wheelRaf9) {
+        wheelAt9 = performance.now();
+        const step9 = (): void => {
+          const now9 = performance.now();
+          const k9 = 1 - Math.exp(-Math.max(0, now9 - wheelAt9) / WHEEL_TAU9);
+          wheelAt9 = now9;
+          const zc9 = zoomRef.current;
+          let nz9 = zc9 + (wheelGoal9 - zc9) * k9;
+          if (Math.abs(wheelGoal9 - nz9) < 0.003) nz9 = wheelGoal9;
+          const an9 = wheelAnchor9;
+          if (an9) {
+            // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자) · 한계 안으로.
+            const { x: maxX, y: maxY, yTop: topY } = panLimit(nz9);
+            panRef.current = { x: Math.min(maxX, Math.max(-maxX, an9.ax - nz9 * an9.ux)), y: Math.min(topY, Math.max(-maxY, an9.ay - nz9 * an9.uy)) };
+          } else if (wheelPanGoal9) {
+            /* 목표 자리로 같은 몫(k9)만큼 다가간다(미니맵 휠 · 2026-10-24) — 배율과 자리가 한 박자로 미끄러져 짚은 점이 가운데에 선다. */
+            const { x: maxX, y: maxY, yTop: topY } = panLimit(nz9);
+            const p0 = panRef.current;
+            panRef.current = { x: Math.min(maxX, Math.max(-maxX, p0.x + (wheelPanGoal9.x - p0.x) * k9)), y: Math.min(topY, Math.max(-maxY, p0.y + (wheelPanGoal9.y - p0.y) * k9)) };
+          }
+          zoomRef.current = nz9;
+          /* ★ 다음 걸음의 rAF 를 **applyGestureXf 보다 먼저** 건다(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — applyGestureXf 가 손짓 붓(xfPaintNow)의
+             rAF 를 거는데, 그것이 다음 걸음보다 먼저 서면 다음 장에서 붓이 **옛 배율**로 그린 뒤 걸음이 새 배율의 CSS 변환을 걸어, 장마다 한 걸음치 빈 띠가 났다.
+             걸음이 먼저 서면 붓이 그 장의 새 배율로 그린다(붓이 걸음 뒤 — 같은 장). */
+          const more9 = nz9 !== wheelGoal9;
+          if (more9) wheelRaf9 = requestAnimationFrame(step9);
+          gestureFrame9();   // 붓은 **이 장에서 곧장**(rAF 로 미루면 한 장 걸러 옛 배율로 그렸다 — 실측 띠 0·66·0·80px 번갈아)
+          if (more9) return;
+          wheelRaf9 = 0;
+          wheelTimer = window.setTimeout(() => endGestureXf(), 140);
+        };
+        wheelRaf9 = requestAnimationFrame(step9);
+      }
+    };
+    wheelDriveRef9.current = (goal9, panGoal9): void => {
+      if (splitOnRef9.current) { camLockToastRef9.current(); return; }
+      beginGestureXf();
+      wheelGoal9 = goal9;
+      zoomRawRef.current = goal9;   // 지도 휠의 누적 자도 같은 값에서 잇는다
+      wheelAnchor9 = null;
+      wheelPanGoal9 = panGoal9;
+      window.clearTimeout(wheelTimer);
+      wheelRun9();
+    };
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && Math.abs(e.deltaY) < 0.5) return;
       e.preventDefault();
@@ -14019,34 +14072,8 @@ export default function ReplayMotionPlayer({
         wheelAnchor9 = { ax: e.clientX - ox, ay: e.clientY - oy, ux: (e.clientX - ox - panRef.current.x) / z0, uy: (e.clientY - oy - panRef.current.y) / z0 };
       }
       window.clearTimeout(wheelTimer);
-      if (!wheelRaf9) {
-        wheelAt9 = performance.now();
-        const step9 = (): void => {
-          const now9 = performance.now();
-          const k9 = 1 - Math.exp(-Math.max(0, now9 - wheelAt9) / WHEEL_TAU9);
-          wheelAt9 = now9;
-          const zc9 = zoomRef.current;
-          let nz9 = zc9 + (wheelGoal9 - zc9) * k9;
-          if (Math.abs(wheelGoal9 - nz9) < 0.003) nz9 = wheelGoal9;
-          const an9 = wheelAnchor9;
-          if (an9) {
-            // 커서 아래의 지도 지점이 그 자리에 남도록 팬을 함께 푼다(더블클릭과 같은 자) · 한계 안으로.
-            const { x: maxX, y: maxY, yTop: topY } = panLimit(nz9);
-            panRef.current = { x: Math.min(maxX, Math.max(-maxX, an9.ax - nz9 * an9.ux)), y: Math.min(topY, Math.max(-maxY, an9.ay - nz9 * an9.uy)) };
-          }
-          zoomRef.current = nz9;
-          /* ★ 다음 걸음의 rAF 를 **applyGestureXf 보다 먼저** 건다(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — applyGestureXf 가 손짓 붓(xfPaintNow)의
-             rAF 를 거는데, 그것이 다음 걸음보다 먼저 서면 다음 장에서 붓이 **옛 배율**로 그린 뒤 걸음이 새 배율의 CSS 변환을 걸어, 장마다 한 걸음치 빈 띠가 났다.
-             걸음이 먼저 서면 붓이 그 장의 새 배율로 그린다(붓이 걸음 뒤 — 같은 장). */
-          const more9 = nz9 !== wheelGoal9;
-          if (more9) wheelRaf9 = requestAnimationFrame(step9);
-          gestureFrame9();   // 붓은 **이 장에서 곧장**(rAF 로 미루면 한 장 걸러 옛 배율로 그렸다 — 실측 띠 0·66·0·80px 번갈아)
-          if (more9) return;
-          wheelRaf9 = 0;
-          wheelTimer = window.setTimeout(() => endGestureXf(), 140);
-        };
-        wheelRaf9 = requestAnimationFrame(step9);
-      }
+      wheelPanGoal9 = null;
+      wheelRun9();
     };
     /* ★ 휠은 **판 전체**가 받는다(지적: "로스터 상시표시 부분이 휠을 먹어버리네") ────
        여태 이 리스너는 지도 상자에만 붙어 있었다. 평소 배치에서는 로스터가 지도 **밖**
@@ -21127,16 +21154,43 @@ export default function ReplayMotionPlayer({
     miniLockToastAt9.current = now9;
     replayToast(castOn || searchSegNow9 !== null ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
   };
-  /** 미니맵을 짚으면 그 자리가 가운데로 온다. */
+  /** 미니맵을 짚으면 그 자리가 가운데로 온다.
+   *  ★ 끌기는 **지도 끌기와 같은 길**이다(2026-10-24, 요청: "미니맵상 드래그줌등 더 부드럽게하기 지도에서 하는것처럼 부드럽게") — 옛 길은 pointermove 마다
+   *    setView9(React 상태) → 리렌더 → 붓이라 장마다 리렌더가 겹쳐 뚝뚝 끊겼다. 이제 누르면 손짓을 열고(fsSeekStart → beginGestureXf) 움직임은 한 장에 한 번
+   *    panRef 에 실어 gestureFrame9(CSS 변환 + 같은 장의 붓)로 그리며, 놓으면(fsSeekEnd → endGestureXf) 마지막 자리를 굳힌다 — 지도 드래그(onPointerMove)와 같은 꼴. */
+  const miniPendRef9 = useRef<{ x: number; y: number } | null>(null);
+  const miniRafRef9 = useRef(0);
+  const fsSeekStart = (): void => {
+    if (camLockRef9.current || fsCoverW <= 0 || fsCoverH <= 0) return;
+    beginGestureXf();
+    pendFlushRef9.current = (): void => {
+      if (miniRafRef9.current) { cancelAnimationFrame(miniRafRef9.current); miniRafRef9.current = 0; }
+      const p9 = miniPendRef9.current;
+      miniPendRef9.current = null;
+      if (p9) panRef.current = p9;
+    };
+  };
+  const fsSeekEnd = (): void => { endGestureXf(); };
   const fsSeek = (mx: number, my: number): void => {
     if (fsCoverW <= 0 || fsCoverH <= 0) return;
     if (camLockRef9.current) { miniLockToast9(); return; }   // 중계·개인 화면·분할은 카메라가 기계 것이다(위 ★)
     const [fx, fy] = miniProject(mx, my);
     const zS9 = zoomRef.current;
     const lim = panLimit(zS9);
-    setView9(zS9, {
+    const p9 = {
       x: Math.min(lim.x, Math.max(-lim.x, (0.5 - fx) * fsCoverW * zS9)),
       y: Math.min(centerTop9(lim, fy * grid.height), Math.max(-lim.y, (0.5 - fy) * fsCoverH * zS9)),
+    };
+    if (!xfGestureRef.current) { setView9(zS9, p9); return; }
+    miniPendRef9.current = p9;
+    if (miniRafRef9.current) return;
+    miniRafRef9.current = requestAnimationFrame(() => {
+      miniRafRef9.current = 0;
+      const np9 = miniPendRef9.current;
+      miniPendRef9.current = null;
+      if (!np9 || (np9.x === panRef.current.x && np9.y === panRef.current.y)) return;
+      panRef.current = np9;
+      gestureFrame9();   // 같은 장에서 붓까지(gestureFrame9 ★)
     });
   };
   /* ★ 전체화면을 껐다 켜면 미니맵을 **다시 칠한다**(지적: "전체화면 off 시 미니맵이
@@ -21163,10 +21217,13 @@ export default function ReplayMotionPlayer({
     // (되물림 2026-10-24) 미니맵 휠 배율은 선택을 안 닫는다 — beginGestureXf 의 ★.
     const [fx9, fy9] = miniProject(mx, my);
     const lim9 = panLimit(z9);
-    setView9(z9, {
+    const p9 = {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - fx9) * fsCoverW * z9)),
       y: Math.min(lim9.y, Math.max(-lim9.y, (0.5 - fy9) * fsCoverH * z9)),
-    });
+    };
+    /* 지도 휠처럼 **미끄러진다**(2026-10-24, 같은 요청) — 배율·자리를 한 박자로 목표에 다가간다(wheelDriveRef9 · 옛: setView9 로 툭). */
+    if (wheelDriveRef9.current) wheelDriveRef9.current(z9, p9);
+    else setView9(z9, p9);
   };
   /* ── 전체화면 오버레이(요청) ────────────────────────────────────────────────
      PC는 "좌우하단 조작부는 현재 PC화면과 동일한 위치와 형태, 구성" — 그래서 여기 서는
@@ -21515,6 +21572,8 @@ export default function ReplayMotionPlayer({
                     ownColor={UI_OWN9}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
+                    onSeekStart={fsSeekStart}
+                    onSeekEnd={fsSeekEnd}
                     onWheelZoom={fsWheelZoom}
                     unproject={miniUnproject}
                     fog={miniFog}

@@ -2369,3 +2369,15 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - 되물림(같은 날, 결정: "기기 단 바꾸지 않기로 · 3D 는 V 키로도 안 되게 특수 주소줄 파라미터로만"): ① 단은 첫 벤치(crowdInit9 → applyBenchTier9)에서 한 번 정해지고 되재기(crowdRecheck9 step9)
   로 오르던 길은 걷었다 — 단이 바뀌면 요잉 칸·번짐 켜가 달라져 미리 구운 2D 판을 버려야 했다. `#tier=N`·`#pctier=N` 강제는 그대로. ② 입체는 **`#3d=1`**(PITCH_HASH9)로 연 재생기만 — 단추·V 키 둘 다
   없다. 장면 링크의 각(initialView.deg)은 종전대로(pitchAllowed 문). perf-check `--3d` 는 hash 에 `3d=1` 을 싣는다.
+
+## 미니맵 끌기·휠을 지도 손짓 길로(2026-10-24)
+요청: "미니맵상 드래그줌등 더 부드럽게하기 지도에서 하는것처럼 부드럽게 · 줌은 이제 많이 좋은데 드래그는 아직도 좀 완전 부드럽진 않음".
+- **끌기** — 옛 `fsSeek` 는 pointermove 마다 `setView9`(React 상태 setZoom/setPan) → 리렌더 → 붓이라 장마다 리렌더가 겹쳐 끊겼다. 이제 미니맵 누름이 `fsSeekStart`(beginGestureXf ·
+  pendFlushRef9 에 대기 팬 반영을 건다) → 움직임은 `miniPendRef9` 에 실어 **한 장에 한 번**(rAF) `panRef` + `gestureFrame9`(CSS 변환 + 같은 장의 붓) → 놓으면 `fsSeekEnd`(endGestureXf 가
+  마지막 자리로 굳힌다). 지도 드래그(onPointerMove)와 같은 꼴. ReplayFullscreenMinimap 에 `onSeekStart`/`onSeekEnd` 가 생겼다(pointerup·cancel 둘 다 부른다).
+  카메라가 잠긴 때(camLockRef9)는 손짓을 안 열고 토스트만(종전).
+- **휠** — `fsWheelZoom` 이 `wheelDriveRef9(목표 배율, 목표 자리)` 를 부른다: 지도 휠의 rAF 걸음(`wheelRun9` · WHEEL_TAU9 70ms)을 그대로 타되 닻(wheelAnchor9) 대신 **목표 자리**
+  (`wheelPanGoal9` · 짚은 점이 가운데)로 같은 몫(k9)만큼 다가간다 — 배율·자리가 한 박자로 미끄러진다. 옛: `setView9` 로 툭. 지도 휠의 누적 자(zoomRawRef)도 같은 값에서 잇는다.
+  지도 휠 손잡이의 걸음 루프를 `wheelRun9` 로 끌어냈다(onWheel 은 목표만 적고 부른다).
+- 지도 **드래그** 자체는 이미 한 장 길(dragPendRef + rAF + gestureFrame9)이다 — 남은 버벅임은 `camGliding9` 의 rAF setState(2026-10-24 '줌 울렁거림' 절 ②)·무거운 장이 후보.
+  🔎 `node scripts/perf-check.mjs --wide --castoff --drag --warm 0 --glblit --readyms 150000`(헤드리스 PC · `--diag` 를 붙이면 framesDone 을 못 기다린다).
