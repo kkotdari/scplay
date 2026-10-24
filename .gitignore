@@ -15,3 +15,4 @@ scratchpad/
 
 # perf-check 가 돌 때만 잠깐 서는 진입 파일
 scripts/.perf-entry.tmp.ts
+*.tsbuildinfo
