@@ -699,11 +699,13 @@ const SPR_UP_PC9 = 0.6;
 /** 판 프로필은 **기기 이름**으로(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸" — gl9 glSprTune9 ★): 폰은 어느 단이든 판 14 · 예산 24(높음 32) ·
  *  미리 찍기 6(높음 8) · 굽기 MSAA 0. PC 는 판 36 · 예산 96 · 미리 24 · MSAA 는 붓과 같이.
  *  ★ 폰은 **바이트 상한**(낮음 192 · 보통 256 · 높음 320MB)이 판 수를 정하고 빛 켜를 안 세운다(2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐" —
- *  gl9 sprBytesMax ★ · 한 장 색+임자색 ≈34MB 라 5/7/9 장). */
+ *  gl9 sprBytesMax ★ · 한 장 색+임자색 ≈32MB 라 7/8/10 장).
+ *  ★ 폰 요잉은 어느 단이든 **8칸**(2026-10-24, 질문 "자세 0만 지을 거면 낮은 티어에서도 8방으로 해도 되려나" → ㅇㅇ) — 자세 0 × 요잉 8 × (몸 + ¼ 그림자)는 8인 경기도 5~6 장이라
+ *  낮음 상한을 192 → **224MB**(7장)로 한 칸 올려 자세 칸 자리를 남겼다. 옛 4칸은 돌 때 네 방향으로 툭툭 끊겼다. */
 const sprTune9 = (): void => {
   const phone9 = DEV9.name === "phone";
-  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16),
-    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0, bytesMB: TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 192, em: false }
+  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? 8 : (TIER9.v === 0 ? 8 : 16),
+    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0, bytesMB: TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224, em: false }
       : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1 });
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
