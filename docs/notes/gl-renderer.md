@@ -1523,3 +1523,12 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
   뒤 한 번 다시 그려 판 번호 2. 끄기: engine9 `EVENT_PLACARD9 = false`.
 - 🔎 `node scripts/perf-check.mjs --wide --glblit --warm 5000 --castoff --readyms 240000 --t 40 --zoom 3 --cx 0.215 --cy 0.78 --pause --shot x.png`(합성 세계 Rex 해처리).
   `--glblit` 없이는 GL 층이 숨어 몸이 안 찍힌다(헤드리스 기본).
+
+
+## 폰 '높음' 단이 PC 판 프로필을 타던 것(2026-10-24)
+지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸 — 왜 그래?". `glUnits9` 가 판 프로필을 **메시 상한 ≤300 → 폰** 으로 갈랐는데, 폰 벤치 단 표(PHONE_TIERS9)의
+'높음' 이 glMeshMax 360 이라 좋은 폰일수록 **PC 프로필**(판 36 · 한 장 굽기 예산 96 · 미리 찍기 24 · MSAA 굽기)을 탔다. 판 36 장 = 텍스처 세 켜(색·발광·임자) 1.4GB 가 넘고,
+한 장에 96칸을 MSAA 로 구우니 장이 길어지고(프레임 저하) 구울 칸이 밀려 모델이 늦게 섰다(오늘 PC 판 24 → 36 으로 올린 것이 폰에도 실려 더 나빠졌다).
+- 고침: `glSprTune9(upMax, yawN, prof)` — 재생기 `sprTune9` 가 **기기 이름**으로 프로필을 준다(GL 을 연 직후와 단이 오를 때). 폰: 판 14 · 예산 24(높음 32) · 미리 6(높음 8) ·
+  MSAA 0. PC: 판 36 · 예산 96 · 미리 24 · MSAA 붓과 같이. glUnits9 의 메시 상한 가름은 첫값일 뿐이다.
+- 🔎 `#diag` GL 줄 `칸n/판p(상한14·예산24·MSAA0)` — 폰은 상한 14 여야 한다. 하네스: `perf-check --ios --diag --hash tier=2 …`(폰 높음 단 강제).

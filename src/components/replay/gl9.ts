@@ -2846,8 +2846,18 @@ export const glBakeMsTake9 = (): number => {
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 /** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
 export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
-/** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시). */
-export function glSprTune9(upMax: number, yawN?: number): void { if (glInst9) { glInst9.sprUpMax = upMax; if (yawN) glInst9.sprYawSet9(yawN); } }
+/** 판 프로필 — 판 수 상한 · 한 장 굽기 예산 · 미리 찍기 상한 · 굽기 MSAA(-1 = 붓과 같이). */
+export interface SprProfile9 { pageMax: number; budget: number; warmMax: number; msaa: number }
+/** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시).
+ *  ★ 판 프로필도 여기서(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸") — glUnits9 는 메시 상한(≤300)으로 폰/PC 를 갈랐는데 폰 '높음' 단은
+ *  메시 상한이 360 이라 **PC 판 프로필**(판 36 · 예산 96 · MSAA 굽기)을 탔다: 판 36 장이면 GPU 텍스처가 1.4GB 를 넘고 한 장에 96칸을 MSAA 로 굽는다 — 폰이 버틸 수 없다.
+ *  재생기가 기기 이름으로 프로필을 준다(sprTune9 · GL 을 연 직후와 단이 오를 때). */
+export function glSprTune9(upMax: number, yawN?: number, prof?: SprProfile9): void {
+  if (!glInst9) return;
+  glInst9.sprUpMax = upMax;
+  if (yawN) glInst9.sprYawSet9(yawN);
+  if (prof) { glInst9.sprPageMax = prof.pageMax; glInst9.sprBudget = prof.budget; glInst9.sprWarmMax = prof.warmMax; glInst9.sprMsaa = prof.msaa; }
+}
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
