@@ -383,10 +383,16 @@ export const LIT_KINDS = new Set<string>([
      '뽑는 중'이 읽힌다. */
 ]);
 /** 굽기 열쇠에 박는 불빛 표식 — 불빛 없는 종류·꺼진 상태는 "0"이라 옛 열쇠와 같다. */
-export const litTag = (kind: string): string => (bldLitNow && LIT_KINDS.has(kind) ? "1" : "0");
+export const litTag = (kind: string): string => (bldLitNow && LIT_KINDS.has(kind) ? (bldLitMaskNow9 ? "2" : "1") : "0");   // 2 = 켜짐 마스크 벌(bldLitMaskSet9 ★)
 
 /** 굽는 도구(model-shot)가 불을 켜는 문 — 앱에서는 buildingSpriteBake가 op.lit로 세운다. */
 export function bldLitSet(on: boolean): void { bldLitNow = on; }
+/** ★ 켜짐 **마스크** 모드(2026-10-24, 요청: "건물의 켜짐은 임자색처럼 처리") — 켜진 낯(winLit·glowLit)을 **흰색**으로 찍는다. gl9 가 이 벌(P1)과 꺼진 벌(P0)의
+ *  차를 판의 켜짐 켜(tnTex G)에 적고, 붙일 때 켜진 몸에만 켜 × 켜짐 색을 더한다 — 켜짐이 칸 열쇠에서 빠져 건물마다 칸이 한 벌이다. 처음 지난 켜짐 색을 적어 둔다(litColorTake9). */
+export let bldLitMaskNow9 = false;
+export function bldLitMaskSet9(on: boolean): void { bldLitMaskNow9 = on; }
+let litColorNow9: string | null = null;
+export function litColorTake9(): string | null { const c = litColorNow9; litColorNow9 = null; return c; }
 /* 도는 부품(요청: "서플라이 팬 상시 회전 · 코어 디스크 회전") ─────────────────────
    옛 코어 주석은 "쌩쌩 돌아가는은 줄 수 없다 — 이 렌더러엔 시간 축이 없다"고 적어
    두었는데, 자세 컷(poseNow)·불빛(bldLitNow)이 들어오면서 그 말이 더는 참이 아니다:
@@ -597,6 +603,7 @@ export const WIN_DARK = "#1d2228";
  *  꺼져 있을 때는 어느 건물이든 같은 식은 유리(WIN_DARK)다. */
 export const winLit = (on: string): string => {
   if (!bldLitNow) return WIN_DARK;
+  if (bldLitMaskNow9) { if (!litColorNow9) litColorNow9 = on; return "#ffffff"; }   // 마스크 모드(bldLitMaskSet9 ★) — 켜진 낯은 흰색
   EMIT_FILL9.add(on);   // 켜진 창은 **빛**이다 — GL 의 번짐이 이 표를 본다(shapeOblique.EMIT_FILL9)
   return on;
 };
@@ -604,6 +611,7 @@ export const winLit = (on: string): string => {
  *  플라즈마, 저그 고치 아가리)는 검게 죽이는 대신 **식은 색**으로 가라앉힌다. */
 export const glowLit = (on: string, off: string): string => {
   if (!bldLitNow) return off;
+  if (bldLitMaskNow9) { if (!litColorNow9) litColorNow9 = on; return "#ffffff"; }   // 마스크 모드(bldLitMaskSet9 ★)
   EMIT_FILL9.add(on);
   return on;
 };

@@ -1490,3 +1490,16 @@ shadowGroundMinZoom: 0`, 단 표(PHONE_TIERS9)의 `shadowGroundMinZoom 2/1`·높
 - 고침: gl9 `yawN9(mesh)` — `b:` 메시는 `max(8, sprYaw)` 칸(8칸이면 315도 칸이 정확히 −45 · PC 16도 22.5 배수라 정확), 유닛은 기기 칸 그대로. `sprYbOf9(yaw, mesh)` ·
   미리 굽기(sprPrebake9) · 붓(want) · 이웃 요잉 미리 찍기 모두 그 칸 수로 각을 낸다. RMP 건물 미리 굽기도 `sprYbOf9(-BUILDING_BASE_YAW, m9)`.
 - 🔎 `node scripts/perf-check.mjs --ios --castoff --warm 0 --glblit --readyms 150000 --shot x.png`(폰 흉내 · 저사양 단은 `--hash tier=0`) — 서플 팬이 돌아도 몸이 45도로 서 있어야 한다.
+
+## 켜짐은 임자색처럼 — 켜짐 켜(tnTex G) · 회전 칸 8 미리 굽기(2026-10-24)
+요청: "건물의 켜짐은 임자색처럼 처리해도 되고 · 회전 건물부품도 (수를 줄여서라도) 미리 굽기".
+- **켜짐 켜** — 임자색 분리와 같은 꼴. 2D 판 길(RMP `sprFlatB9` = gl9.sprTint && GL_SPR9 && 평면)에서 LIT_KINDS 건물은 **꺼진 벌**(lit false)을 칸으로 쓰고, 켜짐 **마스크 벌**
+  (`op.litMask` · bake9 `bldLitMaskSet9` — winLit/glowLit 이 켜진 낯을 **흰색**으로 내고 처음 지난 켜짐 색을 `litColorTake9` 로 남긴다 · litTag "2") 을 `GlInst9.meshLt` 로 건넨다.
+  gl9 `sprBake9` 가 임자색 켜(P1 흰 − P0) 다음에 마스크 벌을 임자색 검정으로 한 번 더 찍고 (마스크 − P0) 기울기를 같은 판의 **G**(tnTex 가 R8 → **RG8** · 같은 TN 프로그램 ·
+  `colorMask` 로 채널 고름)에 적는다. 붙일 때 `aSF`(SPR_F9 20 → 24 · 켜짐 색 rgb + 켜짐 여부)로 켜진 개체에만 `G × 켜짐 색` 을 더하고 그 몫을 빛(emitColor)에도 싣는다(번짐).
+  입체·메시 길(`#glspr=0`)은 종전대로 켜진 벌. 켜짐 색은 마스크 벌의 `litColor`(그 종류가 처음 지난 winLit/glowLit 색 — 색이 여럿인 건물은 첫 색 하나로 뭉뚱그린다).
+- **회전 칸** — `SPIN_SPR_KINDS9`(trapezoid 서플 팬 · cyber 디스크 · forge 톱니 · mshop 톱니)는 2D 판 길에서 `spin` 을 짝수로 둥글려(16 → 8) 그리고, 예열이 여덟 칸을 다 미리 굽는다.
+  성큰 혀는 네 컷 그대로(넷 다 미리) · 통로 길이(addonlink)·가스 연기(연기는 메시 밖 덩이)는 그대로.
+- 미리 굽기 호출 `sprPrebake9(…, lt)` 가 마스크 벌을 받고 처방(sprRecipes.ltKey)에도 남긴다. 예열의 건물 일감은 변종(회전 칸)마다 한 번씩 올린다.
+- 진단: `#bldlit=1`(RMP BLD_LIT_ALL9 · 엔진은 워커라 붓에서 건다) 이면 모든 건물을 켜진 것으로 그린다.
+- 🔎 `node scripts/scene-sheet.mjs --race 테란 --dpr 2 --hash bldlit=1` 과 `--hash "bldlit=1,glspr=0"` 를 나란히 — 아카데미 창(노랑)·머신샵 라디에이터(주황)·컴샛 LED(초록)가 같아야 한다.

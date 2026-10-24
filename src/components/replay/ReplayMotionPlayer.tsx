@@ -683,6 +683,10 @@ const fogGlDirty9 = { v: false };
 /** 요약 시작 소개의 한 사람 몫(경기 초 · 2배속이면 1.5초 · 2026-10-24) — cast9 opts.introCycle · 요약 창 맨 앞. */
 const DIGEST_INTRO_CYC9 = 3;
 /** 주소줄 `#3d=1` — 입체 보기로 시작(위 pitchDeg ★ · 단추·V 키는 2026-10-24 에 걷었다). */
+/** 2D 판에서 회전 칸을 8(짝수 칸)로 접는 건물 부품(2026-10-24 · 붓 sprFlatB9 ★★ · 예열 spins9) — 서플라이 팬 · 코어 디스크 · 포지 톱니 · 머신샵 톱니. */
+const SPIN_SPR_KINDS9 = new Set(["trapezoid", "cyber", "forge", "mshop"]);
+/** 진단 — `#bldlit=1` 이면 모든 건물을 켜진 것으로 그린다(장면표로 켜짐 켜를 볼 때 · 엔진은 워커라 해시를 못 읽어 붓에서 건다 · 2026-10-24). */
+const BLD_LIT_ALL9 = typeof location !== "undefined" && /bldlit=1/.test(location.hash);
 const PITCH_HASH9 = typeof location !== "undefined" && /(?:^|[#&,])3d=1/.test(location.hash);
 /** ★ 2D 판 조율 한 자리(2026-10-24) — 판 늘림 상한(sprUpMax · 폰·저사양 끔) · 요잉 칸 수(PC 16 · 폰·저사양 PC 8 · 저사양 폰 4). 붓(장마다)과 예열(미리 굽기 전)이 같은 것을 부른다 —
  *  예열이 벌을 먼저 세울 때(아래 ★) 칸 수가 기본값(16)인 채 폰 판을 구우면 붓의 칸(8)과 어긋난다. */
@@ -5932,7 +5936,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* 건물 몸 — 메시 한 벌(종류·건설단계·포탑각·불빛·회전·LOD). 자리 자는 옛 판 블릿과 같다: x 는 상자 가운데(sx),
              y 는 잉크 바닥을 바닥선(groundY − 띄움)에 앉힌다(footOf 의 bot). */
           const lodB9 = lodOf(sideWant);
-          const glB9 = gl9 ? gl9.bldMesh(op, lodB9) : null;
+          /* ★★ 2D 판 길의 건물 벌(2026-10-24, 요청: "건물의 켜짐은 임자색처럼 처리 · 회전 건물부품도 수를 줄여서라도 미리 굽기") ──
+             ① 켜짐(lit)은 칸 열쇠에서 뺀다 — 몸은 **꺼진 벌**로 그리고, 켜짐 마스크 벌(litMask · 켜진 낯이 흰색)을 함께 건네 gl9 가 (마스크 − 꺼짐) 을 판의 켜짐 켜에
+                적어 두고 켜진 개체에만 더한다(gl9 켜짐 켜 ★). 입체·메시 길(sprFlatB9 거짓)은 종전대로 켜진 벌.
+             ② 도는 부품(SPIN_SPR_KINDS9)의 회전 칸은 16 → **8**(짝수 칸으로 둥글림) — 변종이 반이라 미리 굽기(예열)가 담는다. 성큰 혀(4컷)·통로 길이·가스 연기는 그대로. */
+          const sprFlatB9 = !!gl9 && gl9.sprTint && GL_SPR9 && !op.pitch;
+          const spinQ9 = (k9: string, sp9: number | undefined): number | undefined =>
+            (sprFlatB9 && sp9 !== undefined && SPIN_SPR_KINDS9.has(k9) ? Math.floor(sp9 / 2) * 2 : sp9);
+          const litB9 = sprFlatB9 && LIT_KINDS.has(op.kind);
+          const litOn9 = BLD_LIT_ALL9 || !!op.lit;
+          const opB9 = sprFlatB9 ? { ...op, lit: litB9 ? false : litOn9, spin: spinQ9(op.kind, op.spin) } : (BLD_LIT_ALL9 ? { ...op, lit: true } : op);
+          const glB9 = gl9 ? gl9.bldMesh(opB9, lodB9) : null;
+          const glBlt9 = glB9 && gl9 && litB9 ? gl9.bldMesh({ ...opB9, litMask: true }, lodB9) : null;
           /* ★ 끌기(재생바) 중 예산 밖의 메시는 이 프레임에 안 짓는다(gl9 glScrubSet9 의 ★★) — 그 몸은 이번 장에서
              그냥 빠진다. 폴백(면 곧장 그리기)으로 떨어뜨리면 굽기보다 더 느려 손이 도로 멎는다. */
           if (gl9 && !glB9 && glScrubbing9() && SHAPE_BUILDERS[op.kind]) continue;
@@ -5941,7 +5956,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              부품(포탑부)이라, 밑동만 재면 상자가 통째로 낮고 좁아져 체력바·링·총구 앵커가 따라 내려온다.
              각은 **몸의 요잉으로 못 박아** 잰다(도는 각으로 재면 상자가 프레임마다 바뀌어, 성큰이
              sunkenrear 로 갈릴 때 몸이 들썩이던 그 자리가 된다) — 곧 '머리 각 0 인 통째 모델'의 상자다. */
-          const glBa9 = glB9 && gl9 && op.attach ? gl9.bldMesh({ ...op, kind: op.attach, headDeg: undefined }, lodB9) : null;
+          const litA9 = sprFlatB9 && !!op.attach && LIT_KINDS.has(op.attach);
+          const opA9 = op.attach ? { ...opB9, kind: op.attach, headDeg: undefined, lit: litA9 ? false : litOn9, spin: spinQ9(op.attach, op.spin) } : null;
+          const glBa9 = glB9 && gl9 && opA9 ? gl9.bldMesh(opA9, lodB9) : null;
+          const glBalt9 = glBa9 && gl9 && opA9 && litA9 ? gl9.bldMesh({ ...opA9, litMask: true }, lodB9) : null;
           /* ★★ **도는 부품은 잉크 상자를 흔들면 안 된다**(2026-09, 지적: "포지는 톱니바퀴만이 아니라
              전체가 들썩였는데") — 바로 위 ★ 의 '머리 각으로 재지 마라'와 같은 자리인데, 회전 칸(spin)
              쪽은 안 막혀 있었다. 포지 톱니는 칸마다 이가 실루엣 밖으로 들고 나므로 상자의 **바닥이
@@ -5960,11 +5978,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              상자는 **다 지은 모델**로 잰다 — 몸이 자라도 앉는 자리가 안 움직인다.
              ⚠ 값은 거의 안 든다 — 그 한 벌은 완성되는 순간 어차피 쓰는 벌이라 미리 데워 두는 셈이다. */
           const glBbox9 = (glB9 && gl9 && ((op.spin ?? 0) !== 0 || (op.buildStage ?? 0) !== 0)
-            ? gl9.bldMesh({ ...op, spin: 0, buildStage: 0 }, lodB9) : glB9) ?? glB9;
+            ? gl9.bldMesh({ ...opB9, spin: 0, buildStage: 0 }, lodB9) : glB9) ?? glB9;
           /* 딸림 부품도 **같은 자로** 잰다 — 몸 쪽과 한 벌이라야 상자가 공사 중에 안 흔들린다
              (그리는 것은 종전대로 그 단계의 메시다). */
           const glBabox9 = (glBa9 && gl9 && op.attach && ((op.spin ?? 0) !== 0 || (op.buildStage ?? 0) !== 0)
-            ? gl9.bldMesh({ ...op, kind: op.attach, headDeg: undefined, spin: 0, buildStage: 0 }, lodB9) : glBa9) ?? glBa9;
+            ? gl9.bldMesh({ ...(opA9 ?? opB9), spin: 0, buildStage: 0 }, lodB9) : glBa9) ?? glBa9;
           const glBf9 = glBbox9 && gl9
             ? ((): GlFoot9 | null => {
               const a = gl9.footOf(glBbox9, -(op.rotDeg ?? 0), glBcam9);
@@ -6123,7 +6141,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
               else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
             }
-            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
+            gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(glBlt9 ? { lit: litOn9, meshLt: glBlt9 } : {}), ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
             if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
             if (op.attach) {
@@ -6134,7 +6152,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               /* 메시는 위 상자 잴 때 이미 지은 그 한 벌이다 — 요잉은 **열쇠에 안 드는** 유니폼이라
                  각이 아무리 돌아도 같은 벌을 되쓴다(그것이 이 갈라내기의 벌이 전부다). */
               const gm9 = glBa9;
-              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind), over: true });
+              if (gm9) gl9.push({ mesh: gm9, ax: gax9, ay: gay9, k: gk9, yoff: -gk9 * glBf9.bot, yawDeg: -arot9, color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(glBalt9 ? { lit: litOn9, meshLt: glBalt9 } : {}) });
             }
             // 바닥선(gay9 = 잉크 바닥이 앉는 줄) 바로 밑 — 옛 판 길의 `bspr.bot + 2 + wPx·0.03` 과 같은 자리다.
             bldHpBar9(Math.max(gay9 + 2 + wPx * 0.03, op.mkFrac === undefined ? bRingBot9 + 1 : -Infinity));
@@ -18430,11 +18448,17 @@ export default function ReplayMotionPlayer({
             const g9 = glNow9();
             if (g9) {
               const u9 = j9.gl === "u";
-              const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
-              /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
-              if (m9 && pre9) {
-                const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
-                preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)], DEV9.meshShadow);
+              /* 건물 변종(2026-10-24 · 붓의 sprFlatB9 ★★ 와 같은 규칙): 회전 칸은 짝수 여덟(SPIN_SPR_KINDS9) · 성큰 혀 네 컷 · 켜짐은 마스크 벌 하나(열쇠에서 뺌). */
+              const spins9 = u9 ? [0] : SPIN_SPR_KINDS9.has(j9.kind) ? [0, 2, 4, 6, 8, 10, 12, 14] : j9.kind === "sunkentongue" ? [0, 1, 2, 3] : [0];
+              for (const sp9 of spins9) {
+                const opW9 = { kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1, spin: sp9 } as UnitDrawOp;
+                const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh(opW9);
+                /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
+                if (m9 && pre9) {
+                  const lt9 = !u9 && g9.sprTint && LIT_KINDS.has(j9.kind) ? g9.bldMesh({ ...opW9, litMask: true }) : null;
+                  const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
+                  preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)], DEV9.meshShadow, lt9 ?? undefined);
+                }
               }
             }
           } else resolveShapeFaces(j9.kind, j9.rot, flat9, 0, pitched);
