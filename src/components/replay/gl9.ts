@@ -1113,7 +1113,13 @@ export class GlUnits9 implements VecSink9 {
   sprYaw = 16;
   /** 요잉(도) → 칸 번호(0..sprYaw−1). 붓·미리 굽기가 같은 식을 쓴다. */
   sprYbOf9(yawDeg: number): number { const n = this.sprYaw; return ((Math.round((yawDeg / 360) * n) % n) + n) % n; }
-  sprYawSet9(n: number): void { if (n !== this.sprYaw) { this.sprYaw = n; this.sprReset9(); } }
+  /** 요잉 칸 수를 놓는다 — **판이 비어 있을 때만** 바뀐다(2026-10-24 실측: 폰 벤치가 뒤늦게 단을 내려 8 → 4 로 바뀌자 미리 구운 판 전체가 비워졌고(sprReset9) 다시 굽는 길이 없어
+   *  재생 내내 굽었다 · 칸 24/판 1). 미리 굽기가 큐에 오르거나 칸이 하나라도 섰으면 그 뒤의 단 변화는 무시한다 — 칸 열쇠의 요잉 칸이 판과 어긋나면 안 되기 때문이다. */
+  sprYawSet9(n: number): void {
+    if (n === this.sprYaw) return;
+    if (this.sprMap.size > 0 || this.sprPre.length > 0) return;
+    this.sprYaw = n;
+  }
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
   private sprPre: SprJob9[] = [];
