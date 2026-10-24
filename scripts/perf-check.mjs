@@ -878,7 +878,7 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* 해상도 단 못 박기(2026-10) — PC 기본 창(1280×900)은 FHD 단(0.75)이라, --vw/--vh 없는 PC 돌림은 `ui=1`(QHD 단 · 개발 기준)로 못 박는다
    (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
-const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
+const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
@@ -2859,16 +2859,11 @@ const dragDrive = async () => {
 /* --3d — 입체 보기로 바꾼 뒤 잰다(조종부의 2D/3D 단추를 누른다). 폰 폭에서는 재생기가 3D 를 막으므로
    `--wide` 와 함께 쓴다. 손짓 중 실시간 원근(live3d)을 보려면 `--3d --drag --diag` 로 돌리고 아래 [손짓] 줄을 본다. */
 if (has("--3d")) {
-  /* 2D/3D 단추는 걷었다(2026-10-24) — V 키로 바꾼다(재생기 KeyV · 같은 문). */
-  await page.keyboard.press("v");
-  const ok3d = "V 키";
+  /* 2D/3D 단추·V 키는 걷었다(2026-10-24) — 입체는 주소줄 `#3d=1` 로만: 아래 hash9 에 `3d=1` 을 실어 열었으므로 여기서는 확인만 한다. */
+  const ok3d = "#3d=1";
   await page.waitForTimeout(1200);
   if (flag("--shot3d", null)) { await page.waitForTimeout(1500); await page.screenshot({ path: String(flag("--shot3d", "x3d.png")) }); console.log(`[3D 사진] ${flag("--shot3d", "")}`); }   // 입체로 바꾼 뒤 한 장(2026-10-23 · GL 지형층 검산)
-  const now3d = await page.evaluate(() => {
-    const b = [...document.querySelectorAll("button")]
-      .find((e) => /입체|평면/.test(e.getAttribute("aria-label") || ""));
-    return b?.getAttribute("aria-pressed") === "true" ? "3D" : "2D";
-  });
+  const now3d = await page.evaluate(() => ((window.__scrDiag && /· 3D \d+단/.test(String(window.__scrDiag.crowd || ""))) ? "3D" : "2D?"));   // 진단 crowd 줄의 '· 3D n단'(--diag 때만 정확)
   console.log(`입체 보기: ${ok3d} → ${now3d}`);
 }
 // 프레임 시간 표본 — rAF 간격을 SECS초 모은다.

@@ -2366,3 +2366,6 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - 요청 "3D 전환 버튼 제거": 조종 줄의 2D/3D 단추를 걷었다(PC). 입체는 V 키·`#pitch` 로만(pitchDeg·pitchAllowed 문 그대로). perf-check `--3d` 는 V 키를 누른다.
 - 요청 "중계 켜면 요약/전체 토글 보여 주기": 단독 자동 중계(castOn · 분할 아님)면 왼위 알약에 [요약][전체] 두 단추(켜진 쪽 `.is-on`) · 요약이 돌면 "요약 n/N" 도. 옛 알약은 요약 중 [풀로 보기]뿐이었다.
 - 지적 "팝업이 떴다가 다시 로딩 뜨고 다시 팝업": askReady9 가 굽기 몰림(bakeHold)·재예열(warmAt)로 잠깐 거짓이 되며 판이 숨었다 다시 섰다 → 한 번 뜬 판은 잠근다(askLatch9 · askShow9).
+- 되물림(같은 날, 결정: "기기 단 바꾸지 않기로 · 3D 는 V 키로도 안 되게 특수 주소줄 파라미터로만"): ① 단은 첫 벤치(crowdInit9 → applyBenchTier9)에서 한 번 정해지고 되재기(crowdRecheck9 step9)
+  로 오르던 길은 걷었다 — 단이 바뀌면 요잉 칸·번짐 켜가 달라져 미리 구운 2D 판을 버려야 했다. `#tier=N`·`#pctier=N` 강제는 그대로. ② 입체는 **`#3d=1`**(PITCH_HASH9)로 연 재생기만 — 단추·V 키 둘 다
+  없다. 장면 링크의 각(initialView.deg)은 종전대로(pitchAllowed 문). perf-check `--3d` 는 hash 에 `3d=1` 을 싣는다.

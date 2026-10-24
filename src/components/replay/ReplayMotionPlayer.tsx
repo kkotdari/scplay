@@ -682,6 +682,8 @@ const xfLive9 = { on: false };
 const fogGlDirty9 = { v: false };
 /** 요약 시작 소개의 한 사람 몫(경기 초 · 2배속이면 1.5초 · 2026-10-24) — cast9 opts.introCycle · 요약 창 맨 앞. */
 const DIGEST_INTRO_CYC9 = 3;
+/** 주소줄 `#3d=1` — 입체 보기로 시작(위 pitchDeg ★ · 단추·V 키는 2026-10-24 에 걷었다). */
+const PITCH_HASH9 = typeof location !== "undefined" && /(?:^|[#&,])3d=1/.test(location.hash);
 /** ★ 2D 판 조율 한 자리(2026-10-24) — 판 늘림 상한(sprUpMax · 폰·저사양 끔) · 요잉 칸 수(PC 16 · 폰·저사양 PC 8 · 저사양 폰 4). 붓(장마다)과 예열(미리 굽기 전)이 같은 것을 부른다 —
  *  예열이 벌을 먼저 세울 때(아래 ★) 칸 수가 기본값(16)인 채 폰 판을 구우면 붓의 칸(8)과 어긋난다. */
 const sprTune9 = (): void => glSprTune9(DEV9.name === "phone" || TIER9.v === 0 ? Infinity : 1.0, DEV9.name === "phone" ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16));
@@ -1765,12 +1767,13 @@ function crowdRecheck9(): void {
       if (deep9) {
         if (c9.bench3 < 0 || ms9 < c9.bench3) {
           c9.bench3 = ms9; c9.weak3 = ms9 > CROWD_BENCH3D_MS9; c9.k3 = ms9 > CROWD_BENCH3D_MS9 * 2 ? 0.5 : 1; c9.re += 1;
-          applyBenchTier9(c9.bench);   // 폰 맨 위 단은 입체 벤치도 본다(up3Ms) — 그 값이 좋아졌으면 단이 오를 수 있다
+          /* (걷음 2026-10-24, 결정: "기기 단 바꾸지 않기로") — 되재기로 단이 오르던 applyBenchTier9. 단은 첫 벤치(crowdInit9)에서 한 번 정해지고 그 뒤로는 안 바뀐다:
+             단이 바뀌면 요잉 칸·번짐 켜가 달라져 미리 구운 2D 판을 통째로 버려야 했다(gl-renderer.md). */
           qualityNote9();
         }
       } else if (c9.bench < 0 || ms9 < c9.bench) {
         c9.bench = ms9; c9.weak = ms9 > CROWD_BENCH_MS9; c9.k = ms9 > CROWD_BENCH_MS9 * 2 ? 0.5 : 1; c9.re += 1;
-        applyBenchTier9(ms9);   // 더 작은 값이면 단이 오를 수 있다(위 ★) — 글로우·번짐도 그 표가 켠다
+        // (걷음 2026-10-24 · 위와 같은 결정) 되재기로 단 올리기 — 단은 첫 벤치에서만.
         applyWeak9();           // 미달이 풀렸으면 매우 낮음 덜어내기를 되돌린다
         qualityNote9();         // 폰의 미달이 풀렸을 수도 있다(위 QUALITY9)
       }
@@ -11911,7 +11914,9 @@ export default function ReplayMotionPlayer({
      렌즈(zoom·pan) 그대로다. */
   /* 각도는 이제 켜고 끄는 것이 아니라 칸이다(요청: 각도 5단계, 기본 90도=2D) —
      90도 칸이 예전의 '2D', 48도 칸이 예전의 '3D'다. pitched는 그 값에서 나온다. */
-  const [pitchDeg, setPitchDeg] = useState<number>(PITCH_DEGS[0]);
+  /* ★ 입체(3D)는 **주소줄 `#3d=1` 로만**(2026-10-24, 요청: "3D 전환 버튼 제거 · V 키로도 안 되게 — 특수 주소줄 파라미터로만") — 단추·V 키를 다 걷었고, 이 깃발로 연 재생기만 입체로 시작한다.
+     중계(camLock)가 켜지면 종전대로 평면으로 내려간다(toggleCast9 · 성능). */
+  const [pitchDeg, setPitchDeg] = useState<number>(PITCH_HASH9 ? PITCH_3D : PITCH_DEGS[0]);
   /** 키 판(v 토글)이 읽는 지금 기울기 — 키 판은 렌더마다 다시 안 걸리므로 ref로 본다. */
   const pitchDegRef9 = useRef(pitchDeg);
   /* 분할보기 동안은 평면이다(위 splitOn9 — 칸의 붓·지형 베끼기가 평면 한 벌이다). V 키·2D/3D 단추가 올려도 도로 내린다. */
@@ -18029,14 +18034,7 @@ export default function ReplayMotionPlayer({
            안 뺏는다. */
       // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
       /* (걷어냄 · 2026-10-13) c = 색 모드 — 숫자패드 / 로 옮겼다(위 숫자패드 ★). */
-      } else if (e.code === "KeyV") {
-        // v = 평면 ↔ 입체 토글(요청). 입체가 막힌 기기면 안내만 띄운다.
-        e.preventDefault();
-        wakeUi();
-        if (camLockRef9.current) return;   // 중계 중엔 입체 전환 없음(2026-10-09, 요청: 성능 — 단추도 비활성)
-        if (pitchDegRef9.current < 90) setPitchDeg(90);
-        else if (!pitchAllowed()) pitchDenied();
-        else setPitchDeg(PITCH_3D);
+      /* (걷음 2026-10-24, 요청: "3D V 키로도 안 되게 — 특수 주소줄 파라미터로만 켜게") — v 키의 평면 ↔ 입체 토글. 입체는 `#3d=1`(PITCH_HASH9)로 연 재생기만. */
       } else if (e.code === "KeyM") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
            있는 조작이라 **오버레이를 깨운다**(위 wakeUi 주석의 그 규약 — 눌러 놓고
@@ -19611,7 +19609,7 @@ export default function ReplayMotionPlayer({
           </button>
         );
       })()}
-      {/* (걷음 2026-10-24, 요청: "3D 전환 버튼 제거") — 2D/3D 단추. 입체는 V 키·`#pitch` 로만 바뀐다(pitchDeg 상태·pitchAllowed 문은 그대로). 폰은 2026-09 에 먼저 걷었다. */}
+      {/* (걷음 2026-10-24, 요청: "3D 전환 버튼 제거 · V 키로도 안 되게") — 2D/3D 단추. 입체는 주소줄 `#3d=1`(PITCH_HASH9)로 연 재생기만. 폰은 2026-09 에 먼저 걷었다. */}
       {/* ★ 배경 음악(요청: "음악 on/off 아이콘 추가 · 전체화면 아이콘 왼쪽에") —
           아이콘은 하나고 **켜지면 밝아진다**(로스터·색 전환과 같은 결). 끈 꼴이 기본
           상태라 따로 표시하지 않는다 — 이 줄에서 밝은 것이 곧 '지금 켜 둔 것'이다.
