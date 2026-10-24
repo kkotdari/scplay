@@ -99,7 +99,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, archonMergeK9, startHallClear9,
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, POSE_MERGE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
@@ -18253,7 +18253,21 @@ export default function ReplayMotionPlayer({
       comsat: ["comsatbase", "comsatdish"],
       geyser: ["geyserdry"],
     };
-    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b" }[] = [];
+    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number }[] = [];
+    /* ★★ 자세 컷까지(2026-10-24, 질문 "PC 에서 아직 재생 중 굽기가 있는 이유" → 놓침 로그가 전부 자세 칸 · "3번이 맞지 않나" = 판 상한을 올리고 다 굽기) — 컷을 가진 종류(POSE_KINDS)는
+       걸음 여섯 컷(move·flap·thrust → GAIT_CYCLE9) · 공격 셋(atk → 2·4·5) · 합체(merge → 10) · 시즈 전환 0~5 를 자세마다 한 일감으로(메시 한 벌 + 미리 굽기 칸). 엔진이 이 종류에만
+       그 자세를 매기므로(poseTag) 다른 종류는 0 뿐이다. */
+    const posesOf9 = (k9: string): number[] => {
+      const p9 = POSE_KINDS[k9]; const out9 = new Set<number>([0]);
+      if (p9) {
+        if (p9.move || p9.flap || p9.thrust) for (const g9 of GAIT_CYCLE9) out9.add(g9);
+        if (p9.atk) { out9.add(2); out9.add(POSE_ATK_L); out9.add(POSE_ATK_R); }
+        if (p9.merge) out9.add(POSE_MERGE9);
+      }
+      if (k9 === "tanksiege") out9.add(5);
+      if (k9 === "tankturretxf" || k9 === "tanksiegelegs") for (let i9 = 0; i9 <= 5; i9 += 1) out9.add(i9);
+      return [...out9];
+    };
     const tabled9 = new Set<string>();
     const pushTable9 = (k9: string): void => {
       if (tabled9.has(k9) || !SHAPE_BUILDERS[k9]) return;
@@ -18265,7 +18279,12 @@ export default function ReplayMotionPlayer({
       for (const v9 of WARM_KIN9[k9] ?? []) pushTable9(v9);
       const isBld = !UNIT_KIND_SET.has(k9);
       /* GL 붓(#gl=1)은 요잉 칸별 면이 아니라 종류당 메시 한 벌을 데운다(아래 step9 의 gl 갈래). */
-      if (GL_ON9 && GL_WARM9) { jobs.push({ kind: k9, gl: isBld ? "b" : "u" }); for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) jobs.push({ kind: v9, gl: "u" }); continue; }
+      if (GL_ON9 && GL_WARM9) {
+        if (isBld) jobs.push({ kind: k9, gl: "b" });
+        else for (const pose9 of posesOf9(k9)) jobs.push({ kind: k9, gl: "u", pose: pose9 });   // 자세마다 한 일감(위 posesOf9 ★★)
+        for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) for (const pose9 of posesOf9(v9)) jobs.push({ kind: v9, gl: "u", pose: pose9 });
+        continue;
+      }
       if (isBld) jobs.push({ kind: k9 });
       /* ★ **그릴 칸만 데운다**(수리: 큰 판에서 "로딩이 거의 안 됨") ────────────────────────
          여기는 늘 열여섯 칸(22.5도)을 데웠는데, 작은 기기의 붓은 그 칸을 **한 번도 안 쓴다**:
@@ -18299,7 +18318,7 @@ export default function ReplayMotionPlayer({
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
     const preYaws9 = DEV9.name === "phone" ? [0, 16, 32, 48] : [0, 8, 16, 24, 32, 40, 48, 56];
     const preYb9 = (yawDeg: number): number => ((Math.round((yawDeg / 360) * 64) % 64) + 64) % 64;
-    const preStep9 = DEV9.name === "phone" ? 4 : 12;
+    const preStep9 = DEV9.name === "phone" ? 4 : 24;   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
     let preN9 = 0;
     const step9 = (): void => {
       /* 한 프레임 예산 12 → 6ms + 개수 상한(8) — 예산은 **일감 사이에서만** 재므로,
@@ -18325,7 +18344,7 @@ export default function ReplayMotionPlayer({
             const g9 = glNow9();
             if (g9) {
               const u9 = j9.gl === "u";
-              const m9 = u9 ? g9.unitMesh(j9.kind, 0) : g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
+              const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh({ kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
               /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
               if (m9 && pre9) {
                 const norm9 = u9 ? modelNormOf(j9.kind) : (bldNormOf(j9.kind) ?? 1);
