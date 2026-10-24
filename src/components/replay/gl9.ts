@@ -1109,6 +1109,11 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 찍기(다른 요잉) 한 프레임 상한 — 폰 6 · PC 24(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉" — 옛 예산 절반(24)이 폰에서
    *  프레임마다 MSAA 굽기 24장 + 밉맵 재생성을 불렀다). */
   sprWarmMax = 24;
+  /** ★ 판 전체 GPU 바이트 상한(MB) — 판 수 상한(sprPageMax)과 함께 **더 작은 쪽**이 선다(sprPageCap9 · 2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐").
+   *  폰 '보통' 은 번짐이 켜져 판마다 빛 켜(22MB)가 더 서고 요잉 칸이 4 → 8 로 곱이라, 판 14 장이 차면 색·빛·임자색 켜가 ≈780MB — 탭이 죽었다. 폰은 192/256/320MB(단) · PC ∞. */
+  sprBytesMax = Infinity;
+  /** 빛 켜(번짐용 두 번째 판)를 세울지 — 폰은 false(위 sprBytesMax ★ · 같은 바이트면 판이 1.7배 선다 · 평면 몸의 번짐 테만 없고 켜짐(lit)·메시·효과의 번짐은 그대로). */
+  sprEmOn = true;
   /** ★ 판을 이보다 크게 **늘려 찍어야** 하면 그 몸은 메시로 그린다(2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — 칸은 몸의 상한(SPR_CAP)에 드는 단으로 한 번 굽고 배율이 커지면
    *  늘려 찍으므로 깊은 배율에서 흐렸다. 단이 높은 PC 는 1.25(높음) · 1.6(보통)이고 낮음·폰은 ∞(메시 길이 더 무겁다). glSprTune9 가 준다. */
   sprUpMax = Infinity;
@@ -1186,6 +1191,10 @@ export class GlUnits9 implements VecSink9 {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     return [tex, fb];
   }
+  /** 판 한 장의 GPU 바이트(MB) — 색 RGBA + (빛 RGBA) + (임자색 RG8), 밉 5단 ≈ ×4/3. */
+  sprPageMB9(): number { return (SPR_PAGE9 * SPR_PAGE9 * (4 + (this.sprEm ? 4 : 0) + (this.sprTint ? 2 : 0)) * 4) / 3 / 1048576; }
+  /** 지금 세울 수 있는 판 수 — min(판 수 상한, 바이트 상한 ÷ 한 장)(위 sprBytesMax ★ · 적어도 1). */
+  sprPageCap9(): number { return Math.max(1, Math.min(this.sprPageMax, Math.floor(this.sprBytesMax / this.sprPageMB9()))); }
   private sprPageClear9(pg: SprPage9): void {
     const gl = this.gl;
     gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0);
@@ -1206,7 +1215,7 @@ export class GlUnits9 implements VecSink9 {
       return null;
     };
     for (const pg of this.sprPages) { const r = tryPage(pg); if (r) return { page: pg, ...r }; }
-    if (this.sprPages.length < this.sprPageMax) {
+    if (this.sprPages.length < this.sprPageCap9()) {
       const [tex, fb] = this.sprTex9(P, P, true);
       let emTex: WebGLTexture | null = null; let emFb: WebGLFramebuffer | null = null;
       if (this.sprEm) [emTex, emFb] = this.sprTex9(P, P, true);
@@ -1664,7 +1673,7 @@ export class GlUnits9 implements VecSink9 {
     /* 판이 상한까지 찼으면 미리 찍기는 쉰다 — 더 찍으면 LRU 가 지금 쓰는 칸이 든 판을 비워 다시 찍게 만든다(줌 훑기에서 칸 1600 · 판 8 출렁임 실측). */
     /* 폰(sprWarmMax 작은 단)은 미리 찍기를 **세 프레임에 한 번**만 — MSAA 굽기 판 한 번이 폰 GPU 에 무겁다(2026-10-23 입력 지연 지적). */
     const warmTick9 = this.sprWarmMax >= 24 || this.frameNo % 3 === 0;
-    if (!SPR_HOLD9 && budget > 0 && warmTick9 && this.sprPages.length < this.sprPageMax) {
+    if (!SPR_HOLD9 && budget > 0 && warmTick9 && this.sprPages.length < this.sprPageCap9()) {
       let wb = Math.min(this.sprWarmMax, Math.floor(budget / 2));
       for (const w9 of this.sprWarm.values()) {
         if (wb <= 0) break;
@@ -2318,7 +2327,7 @@ export class GlUnits9 implements VecSink9 {
     this.lastDprK = dprK9;
     let sprB: ([SprCell9, number] | null)[] | null = null; let sprS: ([SprCell9, number] | null)[] | null = null;
     if (this.sprOn && this.spr && this.queue.length) {
-      const em9 = this.gl2 && this.mrtOk && GL_MRT9 !== 0 && (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;
+      const em9 = this.sprEmOn && this.gl2 && this.mrtOk && GL_MRT9 !== 0 && (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;   // sprEmOn: 폰은 빛 켜를 안 세운다(위 sprBytesMax ★)
       if (em9 !== this.sprEm) { this.sprReset9(); this.sprEm = em9; }
       const pl9 = this.sprPlan9(this.queue, dprK9);
       sprB = pl9.B; sprS = pl9.S;
@@ -2847,7 +2856,9 @@ export const glBakeMsTake9 = (): number => {
 /** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
 export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
 /** 판 프로필 — 판 수 상한 · 한 장 굽기 예산 · 미리 찍기 상한 · 굽기 MSAA(-1 = 붓과 같이). */
-export interface SprProfile9 { pageMax: number; budget: number; warmMax: number; msaa: number }
+export interface SprProfile9 { pageMax: number; budget: number; warmMax: number; msaa: number;
+  /** 판 전체의 GPU 바이트 상한(MB · 색·빛·임자색 켜와 밉 포함 — 폰은 이걸로 판 수가 선다 · 없으면 pageMax 만) · 빛 켜(번짐용 두 번째 판)를 세울지(폰 false). */
+  bytesMB?: number; em?: boolean }
 /** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시).
  *  ★ 판 프로필도 여기서(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸") — glUnits9 는 메시 상한(≤300)으로 폰/PC 를 갈랐는데 폰 '높음' 단은
  *  메시 상한이 360 이라 **PC 판 프로필**(판 36 · 예산 96 · MSAA 굽기)을 탔다: 판 36 장이면 GPU 텍스처가 1.4GB 를 넘고 한 장에 96칸을 MSAA 로 굽는다 — 폰이 버틸 수 없다.
@@ -2856,7 +2867,7 @@ export function glSprTune9(upMax: number, yawN?: number, prof?: SprProfile9): vo
   if (!glInst9) return;
   glInst9.sprUpMax = upMax;
   if (yawN) glInst9.sprYawSet9(yawN);
-  if (prof) { glInst9.sprPageMax = prof.pageMax; glInst9.sprBudget = prof.budget; glInst9.sprWarmMax = prof.warmMax; glInst9.sprMsaa = prof.msaa; }
+  if (prof) { glInst9.sprPageMax = prof.pageMax; glInst9.sprBudget = prof.budget; glInst9.sprWarmMax = prof.warmMax; glInst9.sprMsaa = prof.msaa; glInst9.sprBytesMax = prof.bytesMB ?? Infinity; glInst9.sprEmOn = prof.em ?? true; }
 }
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;

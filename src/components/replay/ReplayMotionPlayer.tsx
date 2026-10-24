@@ -697,11 +697,14 @@ const PITCH_HASH9 = typeof location !== "undefined" && /(?:^|[#&,])3d=1/.test(lo
    폰·저사양 PC 는 ∞ 그대로(메시가 더 비싸다). */
 const SPR_UP_PC9 = 0.6;
 /** 판 프로필은 **기기 이름**으로(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸" — gl9 glSprTune9 ★): 폰은 어느 단이든 판 14 · 예산 24(높음 32) ·
- *  미리 찍기 6(높음 8) · 굽기 MSAA 0. PC 는 판 36 · 예산 96 · 미리 24 · MSAA 는 붓과 같이. */
+ *  미리 찍기 6(높음 8) · 굽기 MSAA 0. PC 는 판 36 · 예산 96 · 미리 24 · MSAA 는 붓과 같이.
+ *  ★ 폰은 **바이트 상한**(낮음 192 · 보통 256 · 높음 320MB)이 판 수를 정하고 빛 켜를 안 세운다(2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐" —
+ *  gl9 sprBytesMax ★ · 한 장 색+임자색 ≈34MB 라 5/7/9 장). */
 const sprTune9 = (): void => {
   const phone9 = DEV9.name === "phone";
   glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? (TIER9.v === 0 ? 4 : 8) : (TIER9.v === 0 ? 8 : 16),
-    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0 } : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1 });
+    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0, bytesMB: TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 192, em: false }
+      : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1 });
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
@@ -6869,7 +6872,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageMax}·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -18474,6 +18477,9 @@ export default function ReplayMotionPlayer({
        그 자세를 매기므로(poseTag) 다른 종류는 0 뿐이다. */
     const posesOf9 = (k9: string): number[] => {
       const p9 = POSE_KINDS[k9]; const out9 = new Set<number>([0]);
+      /* ★ 폰은 자세 0 만 미리 굽는다(2026-10-24 · 탭 메모리 — 폰 판은 바이트 상한으로 5~9 장이라 종류 × 자세 × 요잉 8 을 다 담지 못한다 · 미리 굽기는 비우지 않으므로(sprNoEvict)
+         종류 차례로 앞 종류의 자세 칸이 판을 다 먹고 뒤 종류는 바탕 칸조차 못 가졌다 — 바탕 칸은 다 갖고 자세 칸은 재생 중 LRU 로). */
+      if (DEV9.name === "phone") return [0];
       if (p9) {
         if (p9.move || p9.flap || p9.thrust) for (const g9 of GAIT_CYCLE9) out9.add(g9);
         if (p9.atk) { out9.add(2); out9.add(POSE_ATK_L); out9.add(POSE_ATK_R); }
