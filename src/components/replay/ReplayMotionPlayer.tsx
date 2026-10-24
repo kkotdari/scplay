@@ -13968,11 +13968,7 @@ export default function ReplayMotionPlayer({
              걸음이 먼저 서면 붓이 그 장의 새 배율로 그린다(붓이 걸음 뒤 — 같은 장). */
           const more9 = nz9 !== wheelGoal9;
           if (more9) wheelRaf9 = requestAnimationFrame(step9);
-          /* 붓은 **이 장에서 곧장** 부른다 — rAF 로 미루면(applyGestureXf 의 기본) 장마다 등록 시점이 엇갈려 한 장 걸러 옛 배율로 그렸다(실측 띠 0·66·0·80px 번갈아).
-             걸음 자체가 장에 한 번이라 묶을 것이 없다. 미뤄 둔 붓 rAF 가 있으면 걷는다(두 번 안 그리게). */
-          if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
-          applyGestureXf(false);
-          xfPaintNow();
+          gestureFrame9();   // 붓은 **이 장에서 곧장**(rAF 로 미루면 한 장 걸러 옛 배율로 그렸다 — 실측 띠 0·66·0·80px 번갈아)
           if (more9) return;
           wheelRaf9 = 0;
           wheelTimer = window.setTimeout(() => endGestureXf(), 140);
@@ -14491,8 +14487,10 @@ export default function ReplayMotionPlayer({
       const xf9 = s9 === 1 && px === b9.x && py === b9.y ? XF_ID9
         : `translate(${(px - s9 * b9.x).toFixed(2)}px, ${(py - s9 * b9.y).toFixed(2)}px) scale(${s9.toFixed(4)})`;
       xfCvXfRef.current = xf9;
-      // 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★). 지형 캔버스는 **제 기준**(terrXfRef9 · 2026-10-24)이다.
-      for (const cv9 of unitCanvases9(mapRef.current)) xfSet9(cv9, cv9.classList.contains("scr-motion-terr9") ? xfDelta9(terrXfRef9.current, z1, px, py) : xf9);
+      /* 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★). 지형 캔버스는 **변환을 안 건다**(항등 고정 · 2026-10-24, 지적: "줌인아웃할 때 부드럽게 가다가
+         중간중간 반대로 튄다") — 손짓 장마다 손끝 보기로 다시 그리므로(terrLive9 · 같은 장) 변환이 필요 없고, 변환을 걸면 사파리가 캔버스 내용을 변환보다 한 장 늦게 올리는 장에
+         옛 그림이 새(항등) 변환으로 서서 한 걸음 **뒤로** 튀어 보였다(이 파일의 '사파리는 캔버스 내용을 변환보다 한 프레임 늦게' ★ 와 같은 결). 내용만 바뀌면 늦어도 한 장 뒤일 뿐 안 튄다. */
+      for (const cv9 of unitCanvases9(mapRef.current)) if (!cv9.classList.contains("scr-motion-terr9")) xfSet9(cv9, xf9);
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
@@ -14688,6 +14686,15 @@ export default function ReplayMotionPlayer({
     paintFnRef9.current?.(tLiveRef9.current, false, true);
     terrLive9();
   }, []);
+  /** ★ **rAF 안에서 뷰를 굳힌 손짓의 한 장**(2026-10-24, 지적: "빨라지긴 했는데 바로는 안 나오고 … 중간중간 반대로 튄다") — 핀치·드래그·가장자리·WASD·휠 걸음은 저마다
+   *  rAF 로 장에 한 번 뷰를 굳히는데, 그 뒤 applyGestureXf() 가 붓(xfPaintNow)을 **또** rAF 로 미뤄 붓이 늘 한 장 뒤였다(rAF 안에서 건 rAF 는 다음 장). 지형·안개가 '바로 안
+   *  나오는' 까닭이고, 그 한 장의 어긋남이 사파리의 늦은 캔버스 올림과 겹치면 뒤로 튄다. 이미 장에 한 번인 자리라 묶을 것이 없다 — 변환을 걸고 붓을 **같은 장에서 곧장** 부른다.
+   *  미뤄 둔 붓 rAF 는 걷는다(두 번 안 그리게). 사건에서 바로 부르는 자리(한 손 줌 quickZoom)는 종전대로 applyGestureXf() 가 rAF 로 묶는다. */
+  const gestureFrame9 = useCallback((): void => {
+    if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
+    applyGestureXf(false);
+    xfPaintNow();
+  }, [applyGestureXf, xfPaintNow]);
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
     if (xfGestureRef.current) return;
@@ -14893,7 +14900,7 @@ export default function ReplayMotionPlayer({
         x: Math.min(lim9.x, Math.max(-lim9.x, panRef.current.x + vx9 * dt9)),
         y: Math.min(lim9.yTop, Math.max(-lim9.y, panRef.current.y + vy9 * dt9)),
       };
-      applyGestureXf();
+      gestureFrame9();   // 같은 장에서 붓까지(위 gestureFrame9 ★)
     };
     window.addEventListener("pointermove", onMove, { passive: true });
     raf9 = requestAnimationFrame(step9);
@@ -14903,7 +14910,7 @@ export default function ReplayMotionPlayer({
       if (edgeOn) endGestureXf();
       window.clearTimeout(fsHideRef.current);
     };
-  }, [fsOn, fsWake, beginGestureXf, applyGestureXf, endGestureXf, panLimit]);
+  }, [fsOn, fsWake, beginGestureXf, applyGestureXf, endGestureXf, gestureFrame9, panLimit]);
   /* 렌즈 변환은 리액트 스타일이 아니라 이 effect가 쓴다(위 렌즈 상자 주석) — 손짓
      동안의 직접 변환과 싸우지 않게. 캔버스에 걸어 뒀던 임시 변환도 여기서 걷는다:
      자식(UnitLayer)의 그리기 effect가 먼저 돌아, 이 시점엔 이미 새 배율로 또렷하다. */
@@ -15108,7 +15115,7 @@ export default function ReplayMotionPlayer({
                도는 동안은 합성기만 일하고, 상태는 굴림 커밋(300ms)과 놓을 때뿐이다. */
             zoomRef.current = pinchPend.z;
             panRef.current = pinchPend.p;
-            applyGestureXf();
+            gestureFrame9();   // 같은 장에서 붓까지(위 gestureFrame9 ★)
             pinchPend = null;
           }
         });
@@ -17539,7 +17546,7 @@ export default function ReplayMotionPlayer({
            일이 예전과 똑같이 0이다. */
         if (np9.x === panRef.current.x && np9.y === panRef.current.y) return;
         panRef.current = np9;
-        applyGestureXf();
+        gestureFrame9();   // 같은 장에서 붓까지(위 gestureFrame9 ★)
       });
     }
   };
@@ -17816,7 +17823,7 @@ export default function ReplayMotionPlayer({
         x: Math.min(lim.x, Math.max(-lim.x, panRef.current.x + KP.vx * dt)),
         y: Math.min(lim.yTop, Math.max(-lim.y, panRef.current.y + KP.vy * dt)),
       };
-      applyGestureXf();
+      gestureFrame9();   // 같은 장에서 붓까지(위 gestureFrame9 ★)
       KP.raf = requestAnimationFrame(panStep);
     };
     /** 감기 놓기 — 이어 감기 중이었다면 멈추고, 감기 전에 돌던 재생을 되살린다. */
