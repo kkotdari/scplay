@@ -2,4 +2,4 @@
 /** 그림을 바꾸는 소스의 해시(--check 가 견준다). */
 export const SPR_ATLAS_SRC9 = "4d0d6b5f0d67";
 /** 재생기가 읽는 표(앱의 아틀라스 자리 아래 · 내용 해시 이름). */
-export const SPR_ATLAS_INDEX9 = "index.471e5f7a9f.json";
+export const SPR_ATLAS_INDEX9 = "index.e64879e186.json";
