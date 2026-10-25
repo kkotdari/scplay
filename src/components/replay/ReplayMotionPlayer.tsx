@@ -10520,7 +10520,7 @@ export default function ReplayMotionPlayer({
   /** ★ **진행바 전투량 곡선**(2026-10-25, 요청: "탐색바 마우스 호버 시 위로 그래프 — 전투가 일어난 양 / 인구수 중 장면 선택에 더 도움될 것" → 전투량 ·
    *  "모바일도 다이얼 드래그 중 보이고 점프 이동 시 잠깐 보이게") — 시간당 피해량(판 13 데미지 절 · 사람마다 **준** 몫 유닛+건물의 합 = 경기 전체가 깎인 양)을
    *  진행바 폭 칸(COMBAT_BINS9)에 모으고 6초 가우스로 편 뒤 0.6 제곱으로 눌러(큰 마지막 한타가 작은 교전을 납작하게 만들지 않게) 최댓값으로 맞춘다.
-   *  옛 판(≤12 · 데미지 절 없음)은 처치 절(판 11) 한 건을 1 로 센다 · 둘 다 없으면 null(그래프 없음).
+   *  옛 판(≤12 · 데미지 절 없음)은 곡선 대신 '데미지 기록 없음'을 띄운다(같은 날 요청: "데미지 기록 없는 게임은 없다고 띄우기" — 첫 판의 처치 절 대타는 걷었다).
    *  돌려주는 것은 [면, 윗선] SVG 경로 — viewBox `0 0 COMBAT_BINS9 100`(아래가 0). */
   const combatPath9 = useMemo((): [string, string] | null => {
     if (!entData || !(total > 0)) return null;
@@ -10532,12 +10532,8 @@ export default function ReplayMotionPlayer({
       bin9[Math.max(0, Math.min(n9 - 1, Math.floor((sec9 / total) * n9)))] += v9;
       any9 = true;
     };
-    if (entData.dmg.length > 0) {
-      const half9 = (entData.dmgBucketSec || 5) / 2;   // 통 가운데에 놓는다
-      for (const [sec9, , du9, db9] of entData.dmg) put9(sec9 + half9, du9 + db9);
-    } else {
-      for (const [sec9] of entData.kills) put9(sec9, 1);
-    }
+    const half9 = (entData.dmgBucketSec || 5) / 2;   // 통 가운데에 놓는다
+    for (const [sec9, , du9, db9] of entData.dmg) put9(sec9 + half9, du9 + db9);
     if (!any9) return null;
     const sg9 = Math.max(0.6, (6 / total) * n9);   // 6초를 칸으로
     const r9 = Math.ceil(sg9 * 3);
@@ -19648,11 +19644,13 @@ export default function ReplayMotionPlayer({
         {/* 검색 결과 태그(위 searchHits9 ★★) — 진행바 위에 겹친 얇은 판(누름은 바로 흘린다). 지금 결과는 밝게. 손잡이 폭(--th)만큼 양끝을 비워 손잡이 가운데와 맞춘다. */}
         <span className={cx("scr-motion-rangewrap", combatShow9 && "is-combat")}>
         {/* 전투량 곡선(위 combatPath9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */}
-        {combatPath9 && (
+        {combatPath9 ? (
           <svg className="scr-motion-combat" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
             <path className="scr-motion-combat-area" d={combatPath9[0]} />
             <path className="scr-motion-combat-line" d={combatPath9[1]} />
           </svg>
+        ) : entData && (
+          <span className="scr-motion-combat is-none" aria-hidden>데미지 기록 없음</span>
         )}
         {searchHits9.length > 0 && total > 0 && (
           <span className="scr-motion-searchtags" aria-hidden>
