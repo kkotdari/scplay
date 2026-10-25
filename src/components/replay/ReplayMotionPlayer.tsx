@@ -1441,12 +1441,14 @@ const PC_TIERS9: readonly BenchTier9[] = [
    생략) 문턱도 함께 죈다: 26 → 23 · 11 → 10 · 입체 24 → 22. 폰 0·1단은 MSAA 2 표본·심 마디 0.6/0.8 이고 2단부터 제값이다. */
 /* ★ 한 칸 더 죈다(2026-10-12, 요청: "모바일 벤치마크 문턱 높이고 · 발열이 심해"): 보통 23 → **18** · 높음 10 → **8** · 입체 22 → **18**(약 2할) —
    같은 폰이 한 단 아래에 머물 몫이 커진다. 벤치 미달(매우 낮음)의 덜어내기는 아래 phoneWeak9. */
+/* ★ **폰은 번짐(블룸)을 어느 단에서도 안 켠다**(2026-10-25, 요청: "폰 발열로 인한 트로틀링 — 다른 성능 말고 화질을 좀 포기하면서 발열 줄이기" → 1·2·3) —
+   번짐은 화면 전체를 몇 겹 더 칠하는 패스라 화소 몫이 가장 크다. 보통·높음의 `glBloom: true` 를 걷었다(DEV9 기본 false 그대로) · 보려면 `#glbloom=1`. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 12 },   // 앞 짓기 바이트 6 → 12 · 10 → 20 · 16 → 32(2026-10-25 · 지도 전체 장은 2.5배 · NO_CULL9 ★)
   { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 20,
-    glMeshMax: 300, glSpec: true, glBloom: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
+    glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
   { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 32,
-    glMeshMax: 360, glBloom: true, yaw8Always: false,
+    glMeshMax: 360, yaw8Always: false,
     decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
 ];
 /** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
@@ -1466,7 +1468,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   tiers: PHONE_TIERS9,
   /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 꼭짓점 사본(footOf)이라 메모리다. */
   glMeshMax: 240,
-  /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 **0·1단은 끈다**(2단에서 표가 켠다. `#glbloom=0|1` 로 못 박는다). */
+  /** 번짐(블룸) — 화면 한 겹을 더 칠하는 일이라 폰은 **전 단에서 끈다**(2026-10-25 발열 · 위 PHONE_TIERS9 의 ★. `#glbloom=0|1` 로 못 박는다). */
   glBloom: false,
   /** 광택(스페큘러) — 정점마다 곱셈 여남은 번이라 GPU 에서는 거의 공짜지만, **0단(벤치 미달)은 끈다**(1단부터 표가 켠다).
    *  셰이더의 유니폼 가지라 끄면 그 식이 아예 안 돈다. `#glspec=0` 으로 못 박는다. */
@@ -1648,7 +1650,8 @@ const CROWD_BENCH_MS9 = DEV9.name === "phone" ? 20 : 24;
    벤치를 유휴에 다시 재어 미달이 풀리거나 단이 오르면 ①② 는 저절로 풀리고(매 장 phoneWeak9 를 읽는다) ③ 은 applyWeak9 가 되돌린다. */
 /* ★ 1.5 → **2**(2026-10-15, 요청: "모바일 매우낮음 낮음에서 그리기 배율 줄인거 너무 심한거 같구") — dpr 3 폰에서 1.5 는 화소 4분의 1 이라 흐림이 눈에 띄었다.
    2 면 4/9 · dpr 2 폰은 그대로다. */
-const WEAK_DPR9 = 2;
+/* 2 → **1.75**(2026-10-25, 발열 요청 1 — 폰 배킹 상한을 단마다 한 칸(0.25)씩 내린다: 높음 2.5 → 2.25 · 보통·낮음 2.25 → 2 · 매우 낮음 2 → 1.75). */
+const WEAK_DPR9 = 1.75;
 const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
 const WEAK_GAP_MS9 = 33;
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
@@ -1660,11 +1663,11 @@ const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
 /** ★ **폰은 어느 단이든 배킹 상한 2.25**(2026-10-25, 결정: "폰 배킹 0.75배 + 낮음·보통 MSAA 0 — 일단 앞에 두개만 하고 배포") — 폰 프레임의 큰 몫은 DPR 3 전체화면 MRT 판
  *  (색·깊이·빛)을 장마다 칠하고 푸는 GPU 화소 수다(워커 짓기는 조임 4배에서도 5.5ms). dpr 3 폰이면 화소 0.5625배(GPU 몫 거의 절반) · dpr 2 폰은 그대로(상한이라 안 올린다 —
  *  dpr 2 에 0.75 를 곱하면 1.5 로 흐림이 눈에 띈다 · 옛 WEAK_DPR9 1.5 지적). 낮음(LOW_DPR9 2.5)·매우 낮음(WEAK_DPR9 2)은 더 작은 쪽. `#pctier` 는 DEV9 가 PC 라 안 탄다. */
-const PHONE_DPR9 = 2.25;
-/** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2.5 · 보통·낮음 2.25(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 2 ·
+const PHONE_DPR9 = 2;   // 2.25 → 2(2026-10-25, 발열 요청 1 · 위 WEAK_DPR9) — dpr 3 폰이면 화소 0.56 → 0.44배 · dpr 2 폰은 그대로
+/** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2.25 · 보통·낮음 2(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25 발열로 한 칸씩 내림 · 옛 2.5/2.25/2) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
 const backCap9 = (): number => (DEV9.name === "phone"
-  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.5 : PHONE_DPR9)
+  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.25 : PHONE_DPR9)
   : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
  *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
@@ -1677,7 +1680,8 @@ function drsNote9(now: number, interval: number, target: number): void {
   DRS9.slow = DRS9.ema > 1.3 ? DRS9.slow + interval : 0;
   DRS9.fast = DRS9.ema < 1.08 ? DRS9.fast + interval : 0;
   if (now - DRS9.at < 4000) return;
-  const floor9 = DEV9.name === "phone" ? 2 : 1;
+  /* 폰 바닥 2 → **1.5**(2026-10-25, 발열 요청 3) — 트로틀링으로 장이 늦어지면 장 수보다 배킹이 먼저 내려가게 자리를 더 둔다(식으면 위 fast 문이 되올린다). */
+  const floor9 = DEV9.name === "phone" ? 1.5 : 1;
   const cap9 = backCap9();
   if (DRS9.slow > 2000 && DRS9.lastB > floor9 + 0.01) {
     DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
