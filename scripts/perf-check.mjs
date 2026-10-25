@@ -1105,7 +1105,13 @@ if (has("--zoomlockprobe")) {
   const poke9 = async () => {
     const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
     await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2);
-    await page.mouse.wheel(0, -300); await page.waitForTimeout(500);
+    await page.mouse.wheel(0, -300);
+    if (has("--zoomtrace")) {   // 휠 뒤 배율을 50ms 마다 1.2초(2026-10-25 · 중계·개인 화면 확대가 되돌아가는지)
+      const tr9 = [];
+      for (let i9 = 0; i9 < 24; i9 += 1) { tr9.push((await z9())?.toFixed?.(2) ?? "-"); await page.waitForTimeout(50); }
+      console.log(`[배율 자취] ${tr9.join(" ")}`);
+      console.log(`[붓 자취] ${await page.evaluate(() => (globalThis.__brushLog9 ?? []).slice(-16).map((r) => `${r.src} z${r.z.toFixed(2)} ${Math.round(r.px)},${Math.round(r.py)}`).join(" | "))}`);
+    } else await page.waitForTimeout(500);
     const zw9 = await z9();
     await page.keyboard.press("ArrowUp"); await page.waitForTimeout(500);
     return [zw9, await z9()];
@@ -2939,6 +2945,22 @@ if (flag("--seekgraph", null)) {
     console.log(`[진행바 곡선] ${touch9 ? "뗀 뒤 3.5초" : "벗어남"}: ${await op9()}`);
     await page.screenshot({ path: `${base9}_off.png`, clip: clip9 });
   }
+}
+/* --pinchtrace(2026-10-25, 지적: "중계모드 또는 개인화면 줌인하면 한번 깜빡이고 제자리로 이동") — 지도 가운데서 두 손가락을 벌려(CDP 터치) 확대하고, 손짓 시작부터 1.5초
+   동안 붓이 칠한 장마다 [출처 · 배율 · 팬]을 적는다(__brushLog9 · --diag 필요). 배율이 올랐다 옛 값으로 한 장 돌아가면 그 장이 깜빡임이다. */
+if (has("--pinchtrace")) {
+  const cdp9 = await page.context().newCDPSession(page);
+  const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
+  const cx9 = b9.x + b9.width / 2; const cy9 = b9.y + b9.height * 0.45;
+  const t09 = await page.evaluate(() => performance.now());
+  const pts9 = (d9) => [{ x: cx9 - d9, y: cy9, id: 1 }, { x: cx9 + d9, y: cy9, id: 2 }];
+  await cdp9.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts9(40) });
+  for (let i9 = 1; i9 <= 10; i9 += 1) { await cdp9.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts9(40 + i9 * 10) }); await page.waitForTimeout(30); }
+  await page.waitForTimeout(120);   // 멈췄다 뗀다(관성 없이)
+  await cdp9.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await page.waitForTimeout(1500);
+  const log9 = await page.evaluate((t0) => (globalThis.__brushLog9 ?? []).filter((r) => r.at >= t0).map((r) => `${Math.round(r.at - t0)}ms ${r.src} z${r.z.toFixed(2)} ${Math.round(r.px)},${Math.round(r.py)}`), t09);
+  console.log(`[핀치 자취] ${log9.length}장\n  ${log9.join("\n  ")}`);
 }
 if (has("--flingprobe")) {
   const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });

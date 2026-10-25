@@ -742,6 +742,7 @@ const PLAY_FLIPS9: { at: number; inst: number; on: boolean }[] = [];
 const brushLogPush9 = (z: number, px: number, py: number, n: number, xf: string): void => {
   BRUSH_LOG9.push({ at: performance.now(), src: brushSrc9, z, px, py, n, aT: brushAT9, xf, inst: brushInst9 });
   if (BRUSH_LOG9.length > 120) BRUSH_LOG9.splice(0, BRUSH_LOG9.length - 120);
+  (globalThis as unknown as { __brushLog9?: unknown }).__brushLog9 = BRUSH_LOG9;   // 하네스가 장마다 읽는다(perf-check --pinchtrace)
   brushSrc9 = "react";
 };
 /** 최근 2초 요약 — 진단 줄이 부른다. */
@@ -14542,14 +14543,23 @@ export default function ReplayMotionPlayer({
   /* ★★ 손짓(휠 미끄러짐) 중의 렌더는 **배율 비로 늘여서** 쓴다(2026-10-24, 지적: "아직도 중계 중 줌 시 엉뚱한 데서 줌이 돼 — x 좌표가 엉뚱") — trackView 의 팬은 상태 배율(zoom)에서
      잰 값인데, 손짓 동안은 zoomRef 가 먼저 가고 상태는 놓을 때까지 옛 값이다. 재생 중엔 렌더가 초당 열 번 돌아 그때마다 이 줄이 **옛 배율의 팬**을 눈에 덮어써, 붓이 새 배율로
      옛 팬을 그려 대상이 지도 가운데 쪽으로 (1 − 비)만큼 밀렸다가 다음 손짓 장에서 제자리로 돌아왔다(지도 가장자리의 사람일수록 x 가 크게 튄다). applyGestureXf 와 같은 식(비 × 한계 죔). */
-  if (trackLockRef.current) {
-    const kz9 = zoom > 0 ? zoomRef.current / zoom : 1;
-    if (Math.abs(kz9 - 1) < 1e-6) panRef.current = trackLockRef.current;
-    else {
-      const lk9 = trackLockRef.current; const lm9 = panLimit(zoomRef.current);
-      panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lk9.x * kz9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lk9.y * kz9)) };
+  /** 잠긴 카메라 자리(trackView.pan · 배율 z0 에서 잰 값)를 배율 z1 로 옮긴다 — **대상 축**(camFocusRef9 · 대상의 화면 자리를 붙든다 · 없으면 가운데 축 비)·새 한계로 죔.
+   *  ★ 렌더(아래)와 손짓(applyGestureXf)이 **같은 이 함수**를 쓴다(2026-10-25, 지적: "중계모드 또는 개인화면 줌인하면 한번 깜빡이고 제자리로 이동") — 렌더 쪽은 가운데 축 비만
+   *  쓰고 손짓 쪽은 대상 축을 써서, 대상이 지도 끝에 걸려 가운데가 아닐 때 둘이 갈렸다. 손을 뗀 뒤 상태 굳히기를 160ms 미룬 뒤로(endGestureXf ★) 그 틈의 렌더가
+   *  가운데 축 자리로 한 장 칠하고(깜빡) 굳힌 뒤 trackView 가 대상 자리로 되돌렸다(제자리로). */
+  const lockPan9 = useCallback((lock9: { x: number; y: number }, z09: number, z19: number): { x: number; y: number } => {
+    if (!(z09 > 0) || Math.abs(z19 / z09 - 1) < 1e-6) return lock9;
+    const lm9 = panLimit(z19);
+    const f9 = camFocusRef9.current; const cv9 = coverRef.current;
+    if (f9 && cv9.w > 0) {
+      const ux9 = (f9.fx - 0.5) * cv9.w; const uy9 = (f9.fy - 0.5) * cv9.h;
+      return { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x + ux9 * (z09 - z19))), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y + uy9 * (z09 - z19))) };
     }
-  }
+    const k9 = z19 / z09;
+    return { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x * k9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y * k9)) };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (trackLockRef.current) panRef.current = lockPan9(trackLockRef.current, zoom, zoomRef.current);
   /** ★ 보는 눈 하나(재설계) — 보기의 진실은 zoomRef·panRef뿐이다. React 상태 zoom·pan은 UI(단추·미니맵·링크·한계)용
    *  거울이고 어떤 붓도 상태를 읽지 않는다. 상태를 바꾸는 모든 자리는 이 함수를 지난다(ref를 먼저 쓰고 거울을 맞춘다). */
   /** 링크가 준 자리를 **아직 우리가 쥐고 있나** — 사람이 보기를 건드리면 그 순간 놓는다.
@@ -14857,18 +14867,7 @@ export default function ReplayMotionPlayer({
     /* ★★ 축은 **대상**이다(camFocusRef9 · 2026-10-24, 지적: "중계모드에서도 줌인아웃시 엉뚱한 곳(x값이 중앙)에 줌된 후 원래 보여야 할 곳으로 이동") — 가운데 축(p × k)은
        대상이 가운데일 때만 맞다. 지도 끝(팬 한계 · 창모드는 폭이 좁아 x 가 0 으로 죄인다)에 걸려 가운데에 못 선 대상은 가운데 축으로 늘이면 자리가 밀렸다가,
        손을 떼면 trackView 가 다시 잡아 끌어왔다. 대상의 잠근 때 화면 자리(ax = 팬 + z0 × 대상)를 붙들고 새 배율로 푼다(팬 = ax − z1 × 대상) · 한계로 죈다. */
-    if (lock9) {
-      const z09 = Math.max(0.01, trackLockZRef9.current); const z19 = zoomRef.current;
-      const lm9 = panLimit(z19);
-      const f9 = camFocusRef9.current; const cv9 = coverRef.current;
-      if (f9 && cv9.w > 0) {
-        const ux9 = (f9.fx - 0.5) * cv9.w; const uy9 = (f9.fy - 0.5) * cv9.h;
-        panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x + ux9 * (z09 - z19))), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y + uy9 * (z09 - z19))) };
-      } else {
-        const k9 = z19 / z09;
-        panRef.current = { x: Math.min(lm9.x, Math.max(-lm9.x, lock9.x * k9)), y: Math.min(lm9.yTop, Math.max(-lm9.y, lock9.y * k9)) };
-      }
-    }
+    if (lock9) panRef.current = lockPan9(lock9, Math.max(0.01, trackLockZRef9.current), zoomRef.current);   // 렌더와 같은 식(위 lockPan9 ★)
     const lens = lensRef.current;
     const z1 = zoomRef.current;
     const px = panRef.current.x;
