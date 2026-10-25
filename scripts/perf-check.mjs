@@ -1652,6 +1652,15 @@ if (has("--clockprobe")) {
    한 장짜리 깜빡임)을 센다. 갈아탄 시각은 window.__scrDiag.cast(있으면)로 찍는다. */
 if (has("--fogprobe")) {
   const secs9 = Number(flag("--fogprobe", 20)) || 20;
+  /* --fogzoom(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로") — 재는 동안 지도 가운데에서 휠로 당겼다 밀기를 되풀이한다(CDP · 기다리지 않고 나란히). */
+  let zoomOn9 = has("--fogzoom");
+  const zoomLoop9 = zoomOn9 ? (async () => {
+    const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    if (!pt9) return;
+    const cdpZ9 = await page.context().newCDPSession(page);   // 위쪽 자리라 아래 cdp 는 아직 없다
+    let k9 = 0;
+    while (zoomOn9) { const dy9 = (Math.floor(k9 / 4) % 2 === 0) ? -160 : 160; k9 += 1; await cdpZ9.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: pt9[0] + (k9 % 3) * 40, y: pt9[1], deltaX: 0, deltaY: dy9 }).catch(() => {}); await page.waitForTimeout(250); }
+  })() : null;
   const log9 = await page.evaluate(async (ms9) => {
     const out = [];
     const sm = document.createElement("canvas"); sm.width = 32; sm.height = 32;
@@ -1672,6 +1681,7 @@ if (has("--fogprobe")) {
     });
     return out;
   }, secs9 * 1000);
+  zoomOn9 = false; if (zoomLoop9) await zoomLoop9;
   let blips9 = 0; const sw9 = [];
   for (let i = 1; i < log9.length - 1; i += 1) {
     const [p, c, n] = [log9[i - 1], log9[i], log9[i + 1]];

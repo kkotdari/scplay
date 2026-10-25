@@ -46,9 +46,13 @@ type WorldMsg = {
 type TruthMsg = { type: "truth"; truth: TruthTracks | null };
 type ViewMsg = { type: "view"; view: EngineView9; seq?: number; /** 안개 갈래(시야 주인·전체시야·안개 켬이 바뀔 때만 오른다) */ fogSeq?: number;
   /** 손짓이 도는 중의 시야인가 — 참이면 앞으로 안 짓고 **지금 한 장**만 짓는다(아래 ★). */ live?: boolean };
-type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number };
+type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number; /** 장 간격 바탕(초당 장 · 폰 20 · PC 30) */ fps?: number };
 type WantMsg = { type: "want"; what: "walks"; raw?: string };
-type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg;
+/** ★ 시계 맞춤(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로 가는 경우" → "원천적인 해결" · 시계는 메인 하나) — 메인 틱이 그린 재생 시각을
+ *  50ms 마다 보낸다. 워커는 그 값에 제 시계를 붙인다(옛: 명령 cmd 의 t0 — React 렌더의 t 라 틱보다 최대 한 박자 늦고, 0.3초·배속×0.15초 어긋날 때까지
+ *  안 맞췄다 → 다시 짓는 첫 장이 메인보다 **과거**에 떨어져 유닛·안개가 뒤로 튀었다). 세대(gen)는 안 올린다 — 지어 둔 장은 그대로 쓴다. */
+type ClkMsg = { type: "clk"; t: number };
+type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg | ClkMsg;
 
 let world: EngineWorld9 | null = null;
 let truthData: TruthTracks | null = null;
@@ -85,7 +89,7 @@ const syncSubs = (): void => {
   }
 };
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
-let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number } = {
+let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number; fps?: number } = {
   playing: false, t0: 0, speed: 1, at: 0, aheadSec: AHEAD_WALL_SEC, aheadBytes: AHEAD_BYTES,
 };
 /** 다음에 지을 프레임의 시각. 음수면 '지금 시각부터 새로'. */
@@ -126,7 +130,9 @@ const nowMs = (): number => (typeof performance !== "undefined" ? performance.no
 /** 주인 명령 없이 제 시계로 굴리는 상한(벽시계 초). 주인은 재생 중 1초마다 심장박동 명령을 보낸다 — 그것이 끊기면
  *  (굽느라 시간을 안 보내는 프레임·멈춘 탭) 주인은 제자리인데 워커만 앞서 달려 설계도를 쌓는다(폰: 앞 9.1초·15MB).
  *  그래서 마지막 명령 뒤 이만큼까지만 굴리고 그 자리에 선다. 주인이 돌아오면 명령이 다시 온다. */
-const STALL_WALL_SEC = 2.5;
+/* 2.5 → 0.4초(2026-10-25) — 이제 메인 틱이 50ms 마다 시각을 보낸다(ClkMsg ★). 그 맞춤이 끊기면(굽기 홀드 · 숨은 탭) 메인 시각이 서 있는 것이라,
+   워커가 2.5초 앞서 달리면 돌아올 때 큰 되감기(엔진 잊기)가 됐다. */
+const STALL_WALL_SEC = 0.4;
 const clockT = (): number => (clock.playing
   ? clock.t0 + Math.min(STALL_WALL_SEC, (nowMs() - clock.at) / 1000) * clock.speed
   : clock.t0);
@@ -141,7 +147,7 @@ const post = (m: unknown, transfer?: Transferable[]): void => {
 const PUMP_MS9 = 24;
 
 const stepNow = (): number => {
-  const base = Math.max(1 / 240, clock.speed / FPS9);
+  const base = Math.max(1 / 240, clock.speed / (clock.fps ?? FPS9));
   const need = (buildMs / 1000) * clock.speed * 1.3;
   return Math.min(Math.max(base, need), Math.max(base, clock.speed / FPS_MIN9));
 };
@@ -386,11 +392,18 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
         if (scaleChanged9 && engine && clock) restartFrom(clockT(), false);
         pump();
       }
+    } else if (m.type === "clk") {
+      /* 메인 틱의 재생 시각에 붙인다(위 ClkMsg ★). 큰 차(탐색·되감기)는 명령(cmd)이 맞춘다 — 여기서 붙이면 되감기 갈래(엔진 잊기)를 못 탄다. */
+      if (!clock.playing) return;
+      const c9 = clockT();
+      if (Math.abs(m.t - c9) > Math.max(0.3, clock.speed * 0.15)) return;
+      clock.t0 = m.t; clock.at = nowMs();
+      if (lastCur > m.t) lastCur = m.t;   // 살짝 뒤로 붙인 것은 되감기가 아니다(pump 의 되감기 판정)
     } else if (m.type === "cmd") {
       gen += 1;
       clock = {
         playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs(),
-        aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES,
+        aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES, fps: m.fps,
       };
       pump();
     }

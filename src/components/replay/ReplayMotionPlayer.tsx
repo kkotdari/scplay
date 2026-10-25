@@ -1050,8 +1050,12 @@ function pixPaint9(c9: HTMLCanvasElement | null): void {
   x9.drawImage(pixTmp9, 0, 0, c9.width, c9.height);
 }
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
-/** `#nocull` — 워커 시야 컬링을 끈다(지도 전체를 짓는다 · 견줌용). */
-const NO_CULL9 = typeof location !== "undefined" && /nocull/.test(location.hash);
+/** ★ **워커는 지도 전체를 짓는다**(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로" · "안개가 앞뒤 시각으로 튐" → "원천적인 해결법" → "다 ㄱㄱ") — 옛: 보이는 곳 + 여유만
+ *  지어(컬링) 시야가 바뀔 때마다 워커가 지어 둔 장을 버리고 다시 섰다 → 새 자리 유닛이 늦게 뜨고 · 다시 지은 첫 장이 메인보다 과거면 뒤로 튀었다.
+ *  이제 평면 장은 **재생 시각만의 함수**다(배율과는 원래 무관) — 드래그·줌·미니맵 이동은 받은 장을 그대로 쓰고, 다시 짓는 것은 탐색뿐이다.
+ *  화면 밖 거르기는 붓(inView0 · 여유 160px)이 이미 한다. 실측(폰 5인 합성): 짓기 5.2 → 10.8ms · 장 81 → 204KB · op 178 → 766.
+ *  `#cull=1` 이면 옛 컬링(견줌용). 분할보기 칸 컬링(splitCull9)은 그대로. */
+const NO_CULL9 = !(typeof location !== "undefined" && /\bcull=1\b/.test(location.hash));
 /** `#diag=grid` — 유닛(2D 효과 캔버스)·GL 층에 **기기 픽셀 한 줄짜리 시험 무늬**(검은 줄 + 흰 줄 · 64px 마다, GL 은 1px 고리)를 얹는다(2026-10-09,
  *  지적: "같은 창 크기에서도 분할 여부에 따라 흐려") — 어느 층이 재표본되는지 눈으로 가르는 자: 1:1 이면 줄이 또렷한 흑백이고, 반 픽셀이라도
  *  밀리거나 늘어나면 회색으로 뭉갠다. 흐림: 줄(기하)과 짝이다 — 기하가 다 1.0000 인데 무늬가 회색이면 합성기(브라우저) 쪽이다. */
@@ -1399,17 +1403,17 @@ type BenchTier9 = {
      ⚠ 벤치 자체를 GL 로 바꾸지는 않았다 — 벤치는 '기기가 얼마나 빠른가'의 눈금이고, GL 은 헤드리스에서
        소프트웨어라 진입에서 재면 값이 기기가 아니라 드라이버를 잰다. */
 const PC_TIERS9: readonly BenchTier9[] = [
-  { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 24 },
+  { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 48 },   // 앞 짓기 바이트 두 배(2026-10-25 · 지도 전체 장 2.5배 — 실측 보통 48MB 에 5인 합성 1.3초뿐 · NO_CULL9 ★)
   /* (걷어냄) 단마다 켜던 `meshShadow: true` — 사영 그림자는 이제 PC **프로필 기본**이다(아래 DEV9 · 2026-09, 요청:
      "PC에서 그림자는 보통이 아니라 전 티어에서 모두 표시해도 될듯하고 타원 대체하지 않기"). 그 앞 판(요청: "pc 3티어에서
      그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "그렇게 무리 가는 기능 아니면 높음부터" → "pc 보통은?")은
      1단(보통)부터 4배 위에서만 켰다 — 그 아래는 접지 타원이 대타였다. */
-  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 48 },
-  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 80 },
+  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 96 },
+  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 160 },
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
      (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
-  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 80, live3d: true },
+  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 160, live3d: true },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -1438,10 +1442,10 @@ const PC_TIERS9: readonly BenchTier9[] = [
 /* ★ 한 칸 더 죈다(2026-10-12, 요청: "모바일 벤치마크 문턱 높이고 · 발열이 심해"): 보통 23 → **18** · 높음 10 → **8** · 입체 22 → **18**(약 2할) —
    같은 폰이 한 단 아래에 머물 몫이 커진다. 벤치 미달(매우 낮음)의 덜어내기는 아래 phoneWeak9. */
 const PHONE_TIERS9: readonly BenchTier9[] = [
-  { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 6 },
-  { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 10,
+  { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 12 },   // 앞 짓기 바이트 6 → 12 · 10 → 20 · 16 → 32(2026-10-25 · 지도 전체 장은 2.5배 · NO_CULL9 ★)
+  { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 20,
     glMeshMax: 300, glSpec: true, glBloom: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
-  { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 16,
+  { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 32,
     glMeshMax: 360, glBloom: true, yaw8Always: false,
     decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
 ];
@@ -1457,7 +1461,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   /* ★ 접지 그림자 최소 배율 4 → **0**(2026-10-15, 요청: "폰도 모든 티어에서 사영그림자로 해볼래?") — PC 와 같이 전 배율 · 옛 단 표의 2·1 도 걷었다. */
   hitShardK: 0.6, dieShards: 12, fxRasterMB: 6, shadowGroundMinZoom: 0,
   /** 워커 시야 여유(화면 배수) · 앞으로 지을 한도(벽시계 초·MB) · 요잉을 늘 여덟 칸으로 */
-  cullMargin: 0.5, aheadSec: 1.5, aheadMB: 6, yaw8Always: true,
+  cullMargin: 0.5, aheadSec: 1.5, aheadMB: 12, yaw8Always: true,
   /** 벤치 단 표(위 PHONE_TIERS9 — 한 줄이라 단이 없다). */
   tiers: PHONE_TIERS9,
   /** GL 붓 메시 상한(벌) — 한 벌은 VBO + 꼭짓점 사본(footOf)이라 메모리다. */
@@ -1483,7 +1487,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   bakeOneMB: 68, bakePoolMB: 80, bakeSideMax: 4096,
   hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다). */
-  cullMargin: 1, aheadSec: 3, aheadMB: 24, yaw8Always: false,
+  cullMargin: 1, aheadSec: 3, aheadMB: 48, yaw8Always: false,
   tiers: PC_TIERS9,
   glMeshMax: 600,
   glBloom: true,
@@ -9786,6 +9790,8 @@ export default function ReplayMotionPlayer({
        프레임마다 보내는 지금은 옛 차례래야 한 프레임(16ms) 낡은 원근이라 섞여도 눈에 안 띈다. */
   }, []);
   const instIdRef9 = useRef(0);
+  /** 워커에 시각을 마지막으로 붙인 때(틱의 clk · frameWorker ClkMsg ★). */
+  const clkAtRef9 = useRef(0);
   const lastPlaying9 = useRef<boolean | null>(null);
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
@@ -16398,18 +16404,22 @@ export default function ReplayMotionPlayer({
     const w9 = frameWorkerRef.current;
     const c9 = cmdSentRef9.current;
     const pred9 = c9 ? (c9.playing ? c9.t0 + ((pNow() - c9.at) / 1000) * c9.speed : c9.t0) : Number.NaN;
-    const jumped9 = !c9 || Math.abs(t - pred9) > Math.max(0.3, 0.15 * speed);
+    const jumped9 = !c9 || Math.abs(tLiveRef9.current - pred9) > Math.max(0.3, 0.15 * speed);   // 틱의 살아 있는 시각으로 견준다(아래 t09 ★)
     /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
        굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
     const beat9 = !!c9 && playing9 && pNow() - c9.at > 1000;
     if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
       DEV9_DIRTY9.v = false;   // 단이 바뀐 뒤 첫 cmd가 새 앞 한도를 싣는다(위 applyBenchTier9)
-      cmdSentRef9.current = { playing: playing9, t0: t, speed, at: pNow() };
+      /* t0 는 틱의 살아 있는 시각(tLiveRef9 — 바로 위에서 탐색이면 t 로 맞췄다) — React t 는 100ms 박자라 그만큼 늦어 워커가 뒤처졌다(ClkMsg ★). */
+      const t09 = tLiveRef9.current;
+      cmdSentRef9.current = { playing: playing9, t0: t09, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
-        type: "cmd", playing: playing9, t0: t, speed,
+        type: "cmd", playing: playing9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
+        /* 장 간격의 바탕 — 폰 초당 20장(지도 전체 장이라 짓기가 두 배 · 장 사이는 보간이 잇는다) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). */
+        fps: DEV9.name === "phone" ? 20 : 30,
       });
     }
   }
@@ -17575,7 +17585,14 @@ export default function ReplayMotionPlayer({
     // 효과음(위 sfxCuesRef9) — 새로 나타난 효과에 소리를 붙인다. 안개만 칠하는 장은 안 본다.
     if (!fogOnly9) sfxCuesRef9.current.run(fr9, { playing: cmdNowRef9.current.playing, scrubbing: scrubbing.current, speed: cmdNowRef9.current.speed, rect: visRect9 });
     opsRef.current = fr9.unitOps;
-    crowdTick9(fr9.unitOps.length, pitched);   // 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정)
+    /* 덜어내기 단 — 미달 기기에서 유닛 수만으로(입체는 제 판정). 장이 지도 전체라(NO_CULL9 ★) **보이는 창 + 반 창 여유** 안의 것만 센다 — 옛 워커 컬링(폰 반 화면)과 같은 몫. */
+    let nVis9 = fr9.unitOps.length;
+    if (NO_CULL9 && visRect9) {
+      const vr9 = visRect9; const mx9 = (vr9.x1 - vr9.x0) * 0.5; const my9 = (vr9.y1 - vr9.y0) * 0.5;
+      nVis9 = 0;
+      for (const o9 of fr9.unitOps) if (o9.fx >= vr9.x0 - mx9 && o9.fx <= vr9.x1 + mx9 && o9.fy >= vr9.y0 - my9 && o9.fy <= vr9.y1 + my9) nVis9 += 1;
+    }
+    crowdTick9(nVis9, pitched);
     /* ★ 손짓 중엔 **기준(xfBase) 자리에** 칠한다(지적: "팬 드래그 뒤 조금 이전 위치의 그림이 그려진다") ─────────
        여태 틱은 손끝 팬으로 칠하고 붓이 임시 변환을 걷었다 — 캔버스 내용과 CSS 변환이 **같은 프레임에 함께** 바뀐다.
        사파리는 캔버스 내용을 변환보다 한 프레임 늦게 올릴 수 있어, 그 프레임엔 옛 내용이 걷힌 변환으로(= 조금
@@ -19024,6 +19041,8 @@ export default function ReplayMotionPlayer({
         tLiveRef9.current = next9;
         paintFnRef9.current?.(next9);
         const nowR9 = performance.now();
+        /* 시계는 메인 하나(frameWorker ClkMsg ★) — 그린 시각을 50ms 마다 워커에 붙인다. */
+        { const wk9 = frameWorkerRef.current; if (wk9 && nowR9 - clkAtRef9.current >= 50) { clkAtRef9.current = nowR9; wk9.postMessage({ type: "clk", t: next9 }); } }
         if (ended9 || nowR9 - reactAtRef9.current >= reactStepRef9.current) {
           reactAtRef9.current = nowR9;
           tFromTickRef9.current = next9;
