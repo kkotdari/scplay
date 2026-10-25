@@ -21961,11 +21961,13 @@ export default function ReplayMotionPlayer({
               {/* 차례 자유 · 풀 · 요약(2026-10-24, 요청: "팝업 선택 순서 자유 풀 요약으로 변경" · perf-check --askpick 0 자유 · 1 풀 · 2 요약). */}
               <span className="scr-mode-ask-btns">
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFree9}>
-                  자유<span className="scr-mode-ask-sub">중계 없이</span>
+                  {/* 밑글 없음(2026-10-25, 요청: "자유: 설명 없음") */}
+                  자유
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
                   {/* 이름 '풀' → '중계'(2026-10-25, 요청: "풀 -> 중계로 변경") */}
-                  중계<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
+                  {/* 밑글 옛 "전체 · 자동 중계"(2026-10-25, 요청: "중계: 자동 카메라") */}
+                  중계<span className="scr-mode-ask-sub">자동 카메라</span>
                 </button>
                 {DIGEST_ON9 && (
                   <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
