@@ -6105,9 +6105,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           /* ★★ 2D 판 길의 건물 벌(2026-10-24, 요청: "건물의 켜짐은 임자색처럼 처리 · 회전 건물부품도 수를 줄여서라도 미리 굽기") ──
              ① 켜짐(lit)은 칸 열쇠에서 뺀다 — 몸은 **꺼진 벌**로 그리고, 켜짐 마스크 벌(litMask · 켜진 낯이 흰색)을 함께 건네 gl9 가 (마스크 − 꺼짐) 을 판의 켜짐 켜에
                 적어 두고 켜진 개체에만 더한다(gl9 켜짐 켜 ★). 입체·메시 길(sprFlatB9 거짓)은 종전대로 켜진 벌.
-             ② 도는 부품(SPIN_SPR_KINDS9)의 회전 칸은 16 → **8**(짝수 칸으로 둥글림) — 변종이 반이라 미리 굽기(예열)가 담는다. 성큰 혀(4컷)·통로 길이·가스 연기는 그대로. */
-          const spinQ9 = (k9: string, sp9: number | undefined): number | undefined =>
-            (sprFlatB9 && sp9 !== undefined && SPIN_SPR_KINDS9.has(k9) ? Math.floor(sp9 / 2) * 2 : sp9);
+             ② 도는 부품(SPIN_SPR_KINDS9)의 회전 칸은 16 → 8(짝수 칸으로 둥글림)이었다 — 변종이 반이라 미리 굽기(예열)가 담는다. 성큰 혀(4컷)·통로 길이·가스 연기는 그대로.
+                ★ **도로 16칸**(2026-10-25, 요청: "건물 회전 부품은 좀 더 부드럽게 찍을 수 있어?" → 1번 "16장으로 되돌리기") — 여덟 칸은 뚝뚝 끊겨 보였다. 둥글림을 걷고 예열도 열여섯을 다 굽는다. */
+          const spinQ9 = (_k9: string, sp9: number | undefined): number | undefined => sp9;
           const litB9 = sprFlatB9 && LIT_KINDS.has(op.kind);
           const litOn9 = BLD_LIT_ALL9 || !!op.lit;
           const opB9 = sprFlatB9 ? { ...op, lit: litB9 ? false : litOn9, spin: spinQ9(op.kind, op.spin) } : (BLD_LIT_ALL9 ? { ...op, lit: true } : op);
@@ -18936,10 +18936,10 @@ export default function ReplayMotionPlayer({
             const g9 = glNow9();
             if (g9) {
               const u9 = j9.gl === "u";
-              /* 건물 변종(2026-10-24 · 붓의 sprFlatB9 ★★ 와 같은 규칙): 회전 칸은 짝수 여덟(SPIN_SPR_KINDS9) · 성큰 혀 네 컷 · 켜짐은 마스크 벌 하나(열쇠에서 뺌). */
+              /* 건물 변종(2026-10-24 · 붓의 sprFlatB9 ★★ 와 같은 규칙): 회전 칸은 열여섯 다(SPIN_SPR_KINDS9 · 2026-10-25 여덟 → 열여섯) · 성큰 혀 네 컷 · 켜짐은 마스크 벌 하나(열쇠에서 뺌). */
               /* 저그 공사 고치(cocoon·cocoon1·cocoon2)는 **공사 단계** 변종(0~3)도(2026-10-24 8인 실측: 놓침 289 가 전부 `b:cocoon:2`). */
               const vars9: Partial<UnitDrawOp>[] = u9 ? [{}]
-                : SPIN_SPR_KINDS9.has(j9.kind) ? [0, 2, 4, 6, 8, 10, 12, 14].map((sp9) => ({ spin: sp9 }))
+                : SPIN_SPR_KINDS9.has(j9.kind) ? Array.from({ length: SPIN_ANIM9 }, (_v9, sp9) => ({ spin: sp9 }))
                   : j9.kind === "sunkentongue" ? [0, 1, 2, 3].map((sp9) => ({ spin: sp9 }))
                     : /^cocoon/.test(j9.kind) ? [0, 1, 2, 3].map((st9) => ({ buildStage: st9 })) : [{}];
               for (const v9 of vars9) {
