@@ -2764,8 +2764,9 @@ if (SHOT) {
         const m = document.querySelector(".scr-motion-map"); const t = document.querySelector(".scr-motion-terr9"); const s = window.__scrDiag || {};
         if (!m || !t) return null; const r = m.getBoundingClientRect(); const q = t.getBoundingClientRect();
         const gap = Math.max(q.left - r.left, r.right - q.right, q.top - r.top, r.bottom - q.bottom);
-        return { gap: +gap.toFixed(1), xf: t.style.transform || "(없음)", z: s.zoom, terrms: s.terrms, xfms: s.xfms };
-      }); console.log(`[줌아웃] ${tag} 배율 ${d ? d.z : "-"} · 안 덮인 띠 ${d ? d.gap : "-"}px · 지형 xf ${d ? d.xf : "-"} · 지형 ${d ? d.terrms : "-"}ms · 손짓 ${d ? d.xfms : "-"}ms`); };
+        const g = document.querySelector(".scr-motion-gl9");
+        return { gap: +gap.toFixed(1), xf: t.style.transform || "(없음)", gxf: g ? (g.style.transform || "(없음)") : "-", z: s.zoom, terrms: s.terrms, xfms: s.xfms, gest: s.gest || "" };
+      }); console.log(`[줌아웃] ${tag} 배율 ${d ? d.z : "-"} · 안 덮인 띠 ${d ? d.gap : "-"}px · 지형 xf ${d ? d.xf : "-"} · GL xf ${d ? d.gxf : "-"} · 지형 ${d ? d.terrms : "-"}ms · 손짓 ${d ? d.xfms : "-"}ms${d && d.gest ? ` [${d.gest}]` : ""}`); };   // GL xf·[손짓 줄]: 폰 변환 없음 검산(2026-10-25)
       await page.mouse.move(pt9[0], pt9[1]);
       for (let i = 0; i < 3; i += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(500); }
       await samp9("당긴 뒤");

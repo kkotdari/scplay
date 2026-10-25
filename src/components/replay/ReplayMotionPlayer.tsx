@@ -664,6 +664,14 @@ const XF_HEAVY_MS9 = 55;
 const XF_STILL_MS9 = 140;
 /** 무거운 자리라도 마지막으로 그린 뒤 상자의 이만큼을 넘게 밀었으면 그린다 — 빈 가장자리의 상한이다. */
 const XF_FAR_FRAC9 = 0.25;
+/** ★ **폰은 손짓 중 캔버스에 CSS 변환을 안 건다 — 장마다 손끝 보기로 그린다**(2026-10-25, 지적: "폰 드래그·핀치가 부드럽지 않음 · 내 손과 화면이 다르거나 속도차가 있거나 튄다") —
+ *  지형 캔버스에 2026-10-24 '반대로 튐' 고침으로 둔 그 규약을 몸·효과·GL 캔버스에도. PC 의 혼합 길(장 사이는 CSS 로 밀고 need9 박자로 다시 그려 기준을 갈아 끼움)은 사파리가
+ *  캔버스 **내용**을 변환보다 한 장 늦게 올리는 자리(이 파일 '사파리는 캔버스 내용을 변환보다 한 프레임 늦게' ★)에서 기준을 갈아 끼우는 장마다 옛 그림이 항등 변환으로
+ *  서서 한 걸음 **뒤로** 튀고, 그 다음 장에 다시 앞으로 — 손끝과 어긋나는 '튐'과 '속도차'다. 변환이 없으면 내용이 늦어도 한 장 뒤일 뿐 되돌아가지 않는다(단조).
+ *  켜는 조건: 폰 · 평면 2D 판 길(GL 스프라이트 — GPU 채우기가 싸다) · 직전 한 장이 XF_HEAVY_MS9 미만(무거우면 옛 혼합 길 — 미룸 갈래가 바탕을 얼리므로 변환이 있어야 따라온다).
+ *  장마다 xfPaintNow 가 need9 박자 없이 그린다(붓이 든 만큼 프레임이 떨어지지만 어긋남은 없다). `#xfcss=1` 이면 옛 길. */
+const XF_CSS_HASH9 = typeof location !== "undefined" && /xfcss=1/.test(location.hash);
+const xfNoCss9 = (paintMs: number, pitched: boolean): boolean => !XF_CSS_HASH9 && DEV9.name === "phone" && GL_ON9 && GL_SPR9 && !pitched && paintMs < XF_HEAVY_MS9;
 /** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
  *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
@@ -14760,7 +14768,9 @@ export default function ReplayMotionPlayer({
       /* 유닛·GL·효과 캔버스 셋이 같은 변환을 탄다(같은 클래스 — UnitLayer 의 ★★). 지형 캔버스는 **변환을 안 건다**(항등 고정 · 2026-10-24, 지적: "줌인아웃할 때 부드럽게 가다가
          중간중간 반대로 튄다") — 손짓 장마다 손끝 보기로 다시 그리므로(terrLive9 · 같은 장) 변환이 필요 없고, 변환을 걸면 사파리가 캔버스 내용을 변환보다 한 장 늦게 올리는 장에
          옛 그림이 새(항등) 변환으로 서서 한 걸음 **뒤로** 튀어 보였다(이 파일의 '사파리는 캔버스 내용을 변환보다 한 프레임 늦게' ★ 와 같은 결). 내용만 바뀌면 늦어도 한 장 뒤일 뿐 안 튄다. */
-      for (const cv9 of unitCanvases9(mapRef.current)) if (!cv9.classList.contains("scr-motion-terr9")) xfSet9(cv9, xf9);
+      /* ★ 폰·평면 판 길은 변환을 안 건다(위 xfNoCss9 ★) — 같은 장의 xfPaintNow 가 손끝 보기로 그린다. 항등으로 두어 옛 변환이 남지 않게. */
+      const noCss9 = xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched);
+      for (const cv9 of unitCanvases9(mapRef.current)) if (!cv9.classList.contains("scr-motion-terr9")) xfSet9(cv9, noCss9 ? XF_ID9 : xf9);
       /* 안개는 **제 기준**으로 민다(위 fogXfRef9) — 유닛과 다른 박자로 칠해지므로 같은
          델타를 걸면 그만큼 어긋난 자리에 선다. */
       if (fg9) {
@@ -14864,7 +14874,8 @@ export default function ReplayMotionPlayer({
          갈리는 것은 오직 **설계도의 사영 중심**이다: 흔들림은 그 중심이 계단으로 따라오는 데서 나므로,
          고치는 자리도 거기(보내는 간격) 하나뿐이다. */
     postLiveView9();
-    const need9 = Math.min(400, xfPaintMsRef.current * 1.2);
+    /* ★ 폰·평면 판 길은 박자(need9) 없이 **장마다** 그린다(위 xfNoCss9 ★ — 변환을 안 걸었으니 안 그리면 몸이 제자리에 선다). */
+    const need9 = xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched) ? 0 : Math.min(400, xfPaintMsRef.current * 1.2);
     const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
     /* ★ **한 장이 무거우면 끄는 동안은 안 그린다**(지적: "3D 보기에서 드래그·팬 시 바로바로 시점이 바뀌지 않고
        놓아야만 바뀐다") ────────────────────────────────────────────────────────────────────────────────────
@@ -14947,7 +14958,7 @@ export default function ReplayMotionPlayer({
         SCR_DIAG.gest = `${Math.round(xfPaintMsRef.current)}ms 배킹×${xfBackK9.k}${xfLive9.on ? "(live 붙듦)" : ""}`
           + ` 원근 ${live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}`
           + ` 밀림 ${shearOxRef9.current === null ? "따라옴" : "얼림"}`
-          + ` 무거운장 ${xfHeavyRef9.current} · ${DEV9.name} ${TIER9.v}단`;
+          + ` 무거운장 ${xfHeavyRef9.current} · 변환 ${xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched) ? "없음(장마다)" : "CSS"} · ${DEV9.name} ${TIER9.v}단`;
       }
       return;
     }
