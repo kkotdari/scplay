@@ -2000,6 +2000,9 @@ if (SHOT) {
     return false;
   }, re.source ?? re);
   if (has("--fs")) {
+    /* GL 벌·아틀라스 받기 수를 전환 앞뒤로 견준다(2026-10-25, 지적: "전체화면 전환하면 그래픽 소스 다시 받는 문제") — 벌에 표식을 달고, 끈 뒤에도 같은 벌이면 '같음'. */
+    const glMark9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "-"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7); return g.__mark9; });
+    const gm0 = await glMark9(); const an0 = globalThis.__atlasN ?? 0;
     if (has("--fsoff")) console.log("[전체화면 전] " + await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const st = document.querySelector(".scr-fs-stage"); const r = m?.getBoundingClientRect(); const q = st?.getBoundingClientRect(); return `z ${window.__scrDiag?.zoom ?? null} 지도 ${r ? Math.round(r.width) + "×" + Math.round(r.height) : "-"} 무대 ${q ? Math.round(q.width) + "×" + Math.round(q.height) : "-"}`; }));
     if (!await clickByLabel(/^전체화면$/)) console.warn("⚠ 전체화면 버튼을 못 찾음");
     await page.waitForTimeout(has("--fsidle") ? 4200 : 800);
@@ -2019,6 +2022,8 @@ if (SHOT) {
       await page.waitForTimeout(1500);
       const z2 = await mz();
       console.log(`[전체화면 끔] ${z0} → ${z1} → ${z2}`);
+      const gm1 = await glMark9();
+      console.log(`[전체화면 GL] 벌 ${gm0} → ${gm1}${gm0 === gm1 ? " (같음)" : " (새로 섰다)"} · 아틀라스 받기 ${an0} → ${globalThis.__atlasN ?? 0}`);
     }
   }
   /* --foldprobe [dry] (--shot 과 함께): 독 접기·펴기 때 배율·팬·보이는 타일·카메라 가운데 타일을 시간에 따라 찍는다(2026-10-19, 지적: "독 접기시 배율 재계산
@@ -2885,8 +2890,34 @@ if (has("--panprobe")) {
     const line9 = async (tag) => { const d = await page.evaluate(() => { const s = window.__scrDiag || {}; return [(/개체 (\d+)/.exec(s.gl || "") || [])[1], (/view (\d+)/.exec(s.worker || "") || [])[1]]; }); console.log(`[팬걸음] ${tag} 개체 ${d[0]} · 보낸 시야 ${d[1]}`); };
     await line9("시작");
     await page.mouse.down();
-    for (let i = 1; i <= 12; i += 1) { await page.mouse.move(pt9[0] - i * 40, pt9[1] - i * 25, { steps: 4 }); await page.waitForTimeout(120); await line9(`끎${i}`); }
+    const psh9 = flag("--panshot", null);   // 걸음마다 화면을 <이름>_pN.png 로(2026-10-25 · 끌 때 비는 장 보기)
+    for (let i = 1; i <= 12; i += 1) { await page.mouse.move(pt9[0] - i * 40, pt9[1] - i * 25, { steps: 4 }); await page.waitForTimeout(120); await line9(`끎${i}`); if (psh9 && i <= 6) await page.screenshot({ path: String(psh9).replace(/\.png$/, `_p${i}.png`) }); }
     await page.mouse.up(); await page.waitForTimeout(600); await line9("놓음");
+  }
+}
+/* --flingprobe(2026-10-25, 요청: "드래그 … 떼도 좀더 이동하는거") — 휠로 세 번 당긴 뒤 빠르게 끌어(60ms 에 240px) 곧장 떼고, 뗀 뒤 시간마다 팬(__scrDiag.pan)을 찍는다.
+   관성이 서면 뗀 뒤에도 팬이 줄어드는 몫으로 더 가다 멎는다. --slow 면 천천히 끌다 멈춰 뗀다(관성이 없어야 한다). --diag 와 함께. */
+if (has("--flingprobe")) {
+  const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  if (pt9) {
+    await page.mouse.move(pt9[0], pt9[1]);
+    for (let i = 0; i < 3; i += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(400); }
+    await page.waitForTimeout(6000);   // 휠 미끄러짐이 다 멎은 뒤(안 그러면 휠 걸음이 끌기 자리를 덮는다)
+    const pan9 = () => page.evaluate(() => (window.__scrDiag && (window.__scrDiag.panLive || window.__scrDiag.pan)) || "-");
+    console.log(`[관성] 시작 팬 ${await pan9()}`);
+    /* 헤드리스는 한 장이 1초 가까이라 playwright 의 이동이 그만큼 늘어진다(손이 아주 느린 것으로 읽힌다) — CDP 로 **이벤트 시각을 박아** 보낸다(timestamp · 초).
+       빠름: 10ms 마다 40px(4px/ms 에 가깝다) · --slow: 60ms 마다 40px 뒤 250ms 멈췄다 뗀다. */
+    const slow9 = has("--slow");
+    const T09 = Date.now() / 1000; let tt9 = 0;
+    const ev9 = (type, x, y, buttons) => cdp.send("Input.dispatchMouseEvent", { type, x, y, button: "left", buttons, clickCount: type === "mouseMoved" ? 0 : 1, timestamp: T09 + tt9 / 1000 });
+    await ev9("mousePressed", pt9[0], pt9[1], 1);
+    for (let i = 1; i <= 8; i += 1) { tt9 += slow9 ? 60 : 10; await ev9("mouseMoved", pt9[0] - i * 40, pt9[1] - i * 12, 1); }
+    tt9 += slow9 ? 250 : 8;
+    await ev9("mouseReleased", pt9[0] - 8 * 40, pt9[1] - 8 * 12, 0);
+    const t09 = Date.now(); const row9 = [];
+    for (const at9 of [0, 160, 320, 640, 1000, 1500, 2500, 4000]) { const w9 = at9 - (Date.now() - t09); if (w9 > 0) await page.waitForTimeout(w9); row9.push(`${at9}ms ${await pan9()}`); }
+    console.log(`[관성] 뗀 뒤 ${row9.join(" · ")}`);
+    console.log(`[관성] 건 속도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fling) || "(안 걸림)")}`);
   }
 }
 /* --terrprobe(2026-10-23) — 진단판의 '지도판' 줄(구움 수 · 굽기 ms · 최악)을 찍는다 — 지형 판 재사용 연구의 자. --diag 와 함께 · --zoomsweep 뒤에 두면 줌 훑기의 굽기 수가 든다. */

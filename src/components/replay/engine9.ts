@@ -2835,6 +2835,10 @@ export const SCR_DIAG: {
   areaCap: number; allocOk: boolean; zoom: number;
   /** 엣지 스크롤 검산용 팬 "x,y"(perf-check --edgescroll · 2026-10-24). */
   pan: string;
+  /** 손짓 중 팬·배율(applyGestureXf 가 적는다 · perf-check --flingprobe). */
+  panLive?: string;
+  /** 마지막으로 건 관성(속도 · perf-check --flingprobe). */
+  fling?: string;
   /** 유닛 캔버스가 그려진 횟수(onUnitPainted · 보기 모드 판의 '매끄럽게 돈다' 검산 · 2026-10-24). */
   paints: number;
   /** 엣지 스크롤 걸음의 속내(방향 u · 마우스 · 틀 상자 · 속도 · 잠금 — perf-check --edgescroll 검산 · 2026-10-24). */

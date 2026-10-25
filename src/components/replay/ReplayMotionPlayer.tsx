@@ -684,6 +684,8 @@ const xfMsRef9 = { v: 8 };
 /** 손짓 한 번 동안의 **배킹 몫**(1 · 0.7 · 0.5 · 0.4) — 한 손짓 안에서는 **내려가기만 한다**(아래 ★).
  *  손짓이 시작될 때 1로 되돌린다(beginGestureXf). */
 const xfBackK9 = { k: 1 };
+/** PC 손짓 중 판 전체 다시 칠하기의 최소 사이(ms) — 평소 재생(16ms)과 같은 몫(xfPaintNow 의 ★ PC 64장). `#xfgap=N` 으로 바꿔 본다. */
+const XF_PC_GAP9 = typeof location !== "undefined" && /xfgap=(\d+)/.test(location.hash) ? Number(/xfgap=(\d+)/.exec(location.hash)?.[1]) : 15.5;
 /** 이 손짓에서 **실시간 원근이 살아 있나**(liveViewOkRef9 의 거울) — 붓이 배킹을 내릴지 가리는 데 쓴다.
  *  모듈 전역인 까닭은 xfMsRef9 와 같다(붓은 React 밖에서 불려 부모의 ref 를 못 본다). */
 const xfLive9 = { on: false };
@@ -9739,6 +9741,8 @@ export default function ReplayMotionPlayer({
   const engViewRef9 = useRef<EngineView9 | null>(null);
   /** 손짓 중 컬링 사각형 미리 보내기(렌더가 매번 갈아 끼운다 · applyGestureXf 가 부른다 — 아래 cullAround9 곁 ★). */
   const cullLiveRef9 = useRef<(() => void) | null>(null);
+  /** 손짓 중 지난 부름의 창(지도 분수)과 시각 — 창이 움직이는 빠르기로 컬링을 앞서 잡는다(cullLiveRef9 의 ★ 가는 쪽). */
+  const cullLiveVisRef9 = useRef<{ x0: number; x1: number; y0: number; y1: number; t: number } | null>(null);
   const cullLiveAtRef9 = useRef(0);
   const colorTableRef9 = useRef<Record<string, string> | null>(null);
   const pitchGeomLiveRef9 = useRef<(() => PitchGeom9) | null>(null);
@@ -12292,6 +12296,14 @@ export default function ReplayMotionPlayer({
      옛 식으로 되돌아온다. 전체화면에서는 지도를 화면보다 크게(cover) 깔아 두므로
      배율 1에서도 그 차이만큼 드래그 여유가 생긴다 — 그것이 곧 '크롭한 나머지 보기'다. */
   const [fsOn, setFsOn] = useState(false);
+  /* ★ 무대를 담는 **한 벌의 자리**(2026-10-25, 지적: "전체화면 전환하면 그래픽 소스 다시 받는 문제") — 옛: 전체화면이면 무대를 body 로 포털하고 아니면 프레임 안에
+     그대로 그려, 그 둘이 React 나무의 **딴 자리**라 전환마다 무대를 통째로 다시 세웠다 → GL 캔버스가 새로 서서 GL 벌(gl9)이 새로 열리고 아틀라스를 다시 받고 메시를
+     다시 데웠다. 이제 무대는 **늘 이 div 로 포털**하고, 전체화면 전환은 이 div 하나를 프레임 ↔ body 로 옮기는 일이다(DOM 을 옮겨도 WebGL 문맥은 산다).
+     div 는 display: contents 라 프레임 안에서는 없는 것과 같다(무대가 곧 프레임의 플렉스 자식). */
+  const [stageHost9] = useState<HTMLDivElement | null>(() => {
+    if (typeof document === "undefined") return null;
+    const d9 = document.createElement("div"); d9.className = "scr-motion-stagehost"; d9.style.display = "contents"; return d9;
+  });
   /* ★ 해상도 단(위 uiStep9) — 뿌리의 `--ui`. 화면이 바뀌면(폴드 펴기 · 딴 모니터로) resize 에서 다시 잰다. */
   const [ui9, setUi9] = useState(uiStep9);
   useEffect(() => {
@@ -12689,6 +12701,12 @@ export default function ReplayMotionPlayer({
        예산이 흔들려 판이 들썩인다. 목록처럼 프레임이 문서 한참 아래에 있는 자리에서는
        그 값이 커지므로 상한(200px)을 둔다. */
   const frameRef = useRef<HTMLDivElement | null>(null);
+  /* 무대 자리(stageHost9)를 프레임에 단다 — 프레임이 서는 순간(ref 는 무대 포털보다 먼저 달린다: 포털이 나무에서 프레임 뒤 형제다)이라 무대의 첫 측정이 문서 안에서 돈다. */
+  const fsOnRef9 = useRef(false);
+  const frameRefCb9 = useCallback((el9: HTMLDivElement | null): void => {
+    frameRef.current = el9;
+    if (el9 && stageHost9 && !fsOnRef9.current && stageHost9.parentNode !== el9) el9.appendChild(stageHost9);
+  }, [stageHost9]);
   const [frameMaxH, setFrameMaxH] = useState(0);
   /** 폰의 창 높이 붙들기(지적: "드래그·팬 뒤에 안개·모델이 위아래·좌우로 떨린다") — 아래 read가 쓰는 innerHeight는
    *  모바일에서 **주소창이 접히고 펴질 때마다** 바뀐다(스크롤 한 번에 수십 px, 그것도 몇 프레임에 걸쳐). 그때마다 예산이
@@ -13970,11 +13988,16 @@ export default function ReplayMotionPlayer({
      같은 배율에서 타일 크기가 달라진다. 켜는 길(enterFs)은 무대 붙들기를 이미 놓고 있었고, 끄는 길(버튼·Esc·브라우저)은 하나도
      안 놓았다. 이 이펙트가 세 길을 다 받고, 한 프레임 뒤 창 크기 사건을 한 번 쏴 두 자가 새 배치로 다시 재게 한다. */
   useLayoutEffect(() => {
+    /* 무대 자리(stageHost9 ★)를 옮긴다 — 전체화면이면 body · 아니면 프레임. 아래 resize 한 방이 새 자리에서 무대를 다시 재게 한다. */
+    fsOnRef9.current = fsOn;
+    if (stageHost9) { const to9 = fsOn ? document.body : frameRef.current; if (to9 && stageHost9.parentNode !== to9) to9.appendChild(stageHost9); }
     stageHold9.current = null;
     vhHold9.current = null;
     const r9 = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     return () => cancelAnimationFrame(r9);
-  }, [fsOn]);
+  }, [fsOn, stageHost9]);
+  /* 재생기가 내려가면 무대 자리도 걷는다(전체화면인 채 내려가면 body 에 빈 자리가 남는다). */
+  useEffect(() => () => { stageHost9?.remove(); }, [stageHost9]);
   /* 브라우저 쪽에서 나간 것(Esc·시스템 제스처)도 우리 상태에 반영한다. CSS 폴백으로만
      덮고 있는 기기에서는 이 이벤트가 안 오므로 Esc를 따로 받는다. */
   useEffect(() => {
@@ -14473,6 +14496,7 @@ export default function ReplayMotionPlayer({
   const setView9 = useCallback((z9: number, p9: { x: number; y: number }, keepLink9 = false): void => {
     // 사람이 낸 보기다 — 링크가 쥐고 있던 자리를 놓는다(위 linkHoldRef9).
     if (!keepLink9) linkHoldRef9.current = null;
+    if (flingRef9.current.raf) { flingStop9(); endGestureXf(); }   // 미끄러지던 관성은 여기서 멎는다(위 관성 ★)
     zoomRef.current = z9; panRef.current = p9; setZoom(z9); setPan(p9);
   }, []);
   /** 타일 한 점을 화면 가운데로(손 카메라 · 지금 배율 그대로) — 검색 결과로 갈 때 중계가 꺼져 있으면 부른다(searchGo9). 자리는 추적 카메라(trackView)와 같은 사상(mapFracRef). */
@@ -14744,6 +14768,7 @@ export default function ReplayMotionPlayer({
        틱·도착 붓(panRef)이 다른 자리를 번갈아 칠했다. 손짓이 살아 있지 않으면 여기서 아무것도 안 한다. */
     if (!xfGestureRef.current) return;
     xfApplyAtRef9.current = performance.now();   // 파수꾼(지도 상자 맞춤 곁)이 '멈춘 손짓'을 가리는 자
+    if (scrDiagOn()) SCR_DIAG.panLive = `${Math.round(panRef.current.x)},${Math.round(panRef.current.y)}@${zoomRef.current.toFixed(2)}`;   // 손짓 중 팬(perf-check --flingprobe · 2026-10-25)
     /* ★ 추적 중에는 **옮기는 것만** 막는다(요청: "드래그나 wasd 이동 가장자리 스크롤등
        다 막아야해" · "줌은 변경 가능하게") ────────────────────────────────────────────
        미는 길은 넷이다 — 드래그·wasd·가장자리 밀기·핀치. 그런데 넷 다 이 한 자리를
@@ -14934,7 +14959,10 @@ export default function ReplayMotionPlayer({
          고치는 자리도 거기(보내는 간격) 하나뿐이다. */
     postLiveView9();
     /* ★ 폰·평면 판 길은 박자(need9) 없이 **장마다** 그린다(위 xfNoCss9 ★ — 변환을 안 걸었으니 안 그리면 몸이 제자리에 선다). */
-    const need9 = xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched) ? 0 : Math.min(400, xfPaintMsRef.current * 1.2);
+    /* ★ PC 는 손짓 중에도 **초당 64장 안쪽**(2026-10-25, 지적: "피시에서도 드래그나 줌아웃시 프레임 드랍 특히 드래그가 심함") — 옛 사이는 직전 한 장의 **CPU** 시간 × 1.2 뿐이었다.
+       GL 은 CPU 에서 금방 끝나고 일은 GPU 가 뒤에 하므로 그 값이 늘 몇 ms 라, 끄는 동안은 rAF 마다(144Hz 모니터면 초당 144장) 판 전체를 다시 칠했다 — 평소 재생은
+       초당 60장(drawGapMs 16)이라 드래그에서만 GPU 일이 두세 배로 뛰었다. 그 사이는 CSS 이동이 잇는다(PC 는 변환 길 · 평면 판 몸은 옮기기라 같은 그림). 실시간 원근(live3d)은 그대로 장마다. */
+    const need9 = xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched) ? 0 : Math.max(DEV9.name === "phone" ? 0 : XF_PC_GAP9, Math.min(400, xfPaintMsRef.current * 1.2));
     const moved9 = moved >= 1 || Math.abs(s9 - 1) >= 0.0015;
     /* ★ **한 장이 무거우면 끄는 동안은 안 그린다**(지적: "3D 보기에서 드래그·팬 시 바로바로 시점이 바뀌지 않고
        놓아야만 바뀐다") ────────────────────────────────────────────────────────────────────────────────────
@@ -15035,8 +15063,84 @@ export default function ReplayMotionPlayer({
     applyGestureXf(false);
     xfPaintNow();
   }, [applyGestureXf, xfPaintNow]);
+  /* ★ **관성**(2026-10-25, 요청: "드래그만 피시 모바일에서 가속도 좀 적용가능? 떼도 좀더 이동하는거 있잖아" → "줌도 적용해줘도 될듯") ─────────────────
+     손을 떼기 직전 80ms 의 속도(드래그 = 손끝 · 핀치 = 두 손가락 가운데와 로그 배율)를 이어 받아, 손짓을 끝내지 않은 채 rAF 마다 감속하며 더 민다(팬 τ 325ms ·
+     배율 τ 260ms — 거리 ≈ 속도 × τ). 지도 끝에 닿은 축은 그 자리에서 멎고, 다 멎으면 그때 endGestureXf 로 굳힌다. 다른 손짓(beginGestureXf)·지도 누름·
+     카메라 이동(setView9)·잠금(추적·중계·분할)이 오면 곧장 멈춘다. 휠 줌은 원래 목표로 미끄러진다(wheelRun9 · WHEEL_TAU9)라 따로 안 건다. */
+  const FLING_TAU9 = 325;       // 팬 감속 시간 상수(ms)
+  const FLING_ZTAU9 = 260;      // 핀치 배율 감속 시간 상수(ms)
+  const FLING_MIN9 = 0.25;      // 이보다 느리게(px/ms) 떼면 관성 없음 — 천천히 놓는 손은 그 자리에 선다
+  const FLING_MAX9 = 4.5;       // 속도 상한(px/ms)
+  const flingRef9 = useRef({ raf: 0, vx: 0, vy: 0, vz: 0, ax: 0, ay: 0, at: 0 });
+  /** 손짓 표본(시각 · 손끝 또는 가운데 화면 자리 · 배율) — 최근 100ms 만 든다. */
+  const flingSamp9 = useRef<{ t: number; x: number; y: number; z: number }[]>([]);
+  /* 시각은 **이벤트가 난 시각**(e.timeStamp)이다 — 처리 시각(performance.now)은 메인 스레드가 바쁘면 몰려서, 빠르게 뗀 손이 '멈췄다 뗐다'로 읽혔다(헤드리스 실측). */
+  const flingPush9 = (t9: number, x9: number, y9: number, z9: number): void => {
+    const s9 = flingSamp9.current;
+    s9.push({ t: t9, x: x9, y: y9, z: z9 });
+    while (s9.length > 2 && t9 - s9[0].t > 100) s9.shift();
+  };
+  const flingStop9 = (): void => { const f9 = flingRef9.current; if (f9.raf) { cancelAnimationFrame(f9.raf); f9.raf = 0; } };
+  /** 떼는 순간의 속도 — 마지막 표본이 60ms 넘게 묵었으면(멈췄다 뗐다) 없음. 표본은 비운다. */
+  const flingVel9 = (tUp9: number): { vx: number; vy: number; vz: number; x: number; y: number } | null => {
+    const s9 = flingSamp9.current; flingSamp9.current = [];
+    if (s9.length < 2) return null;
+    const b9 = s9[s9.length - 1];
+    if (tUp9 - b9.t > 60) return null;
+    let a9 = s9[0];
+    for (const q9 of s9) if (b9.t - q9.t <= 80) { a9 = q9; break; }
+    const dt9 = b9.t - a9.t;
+    if (dt9 < 8) return null;
+    let vx9 = (b9.x - a9.x) / dt9; let vy9 = (b9.y - a9.y) / dt9;
+    const sp9 = Math.hypot(vx9, vy9);
+    if (sp9 > FLING_MAX9) { vx9 *= FLING_MAX9 / sp9; vy9 *= FLING_MAX9 / sp9; }
+    const vz9 = a9.z > 0 && b9.z > 0 ? Math.max(-0.004, Math.min(0.004, Math.log(b9.z / a9.z) / dt9)) : 0;
+    return { vx: vx9, vy: vy9, vz: vz9, x: b9.x, y: b9.y };
+  };
+  /** 관성을 건다 — ax·ay 는 배율 닻(지도 상자 가운데 기준 화면 자리). 걸었으면 참(그때는 부른 쪽이 손짓을 끝내지 않는다). */
+  const flingStart9 = (v9: { vx: number; vy: number; vz: number }, ax9: number, ay9: number): boolean => {
+    if (!xfGestureRef.current) return false;
+    const panOn9 = Math.hypot(v9.vx, v9.vy) >= FLING_MIN9;
+    const zOn9 = Math.abs(v9.vz) > 0.0006;   // 초당 0.6(로그) — 천천히 벌리다 뗀 손은 그 배율에 선다
+    if (!panOn9 && !zOn9) return false;
+    const f9 = flingRef9.current;
+    flingStop9();
+    f9.vx = panOn9 ? v9.vx : 0; f9.vy = panOn9 ? v9.vy : 0; f9.vz = zOn9 ? v9.vz : 0;
+    f9.ax = ax9; f9.ay = ay9; f9.at = performance.now();
+    let f9n9 = 0;
+    if (scrDiagOn()) SCR_DIAG.fling = `팬 ${(Math.hypot(f9.vx, f9.vy) * 1000).toFixed(0)}px/s · 배율 ${(f9.vz * 1000).toFixed(2)}/s`;   // perf-check --flingprobe
+    const step9 = (): void => {
+      f9.raf = 0;
+      if (!xfGestureRef.current) return;
+      if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { endGestureXf(); return; }
+      const now9 = performance.now(); const dt9 = Math.min(50, now9 - f9.at); f9.at = now9;
+      let z9 = zoomRef.current; let p9 = panRef.current;
+      if (f9.vz) {
+        const z1 = Math.min(zoomCapRef9.current(), Math.max(1, z9 * Math.exp(f9.vz * dt9)));
+        if (Math.abs(z1 - z9) < 1e-6) f9.vz = 0;   // 배율 끝에 닿았다
+        p9 = { x: f9.ax - (z1 * (f9.ax - p9.x)) / z9, y: f9.ay - (z1 * (f9.ay - p9.y)) / z9 };   // 닻 아래 지도 점이 그 자리에 남게
+        z9 = z1;
+      }
+      const nx9 = p9.x + f9.vx * dt9; const ny9 = p9.y + f9.vy * dt9;
+      const lim9 = panLimit(z9);
+      const cx9 = Math.min(lim9.x, Math.max(-lim9.x, nx9)); const cy9 = Math.min(lim9.yTop, Math.max(-lim9.y, ny9));
+      if (cx9 !== nx9) f9.vx = 0;   // 지도 끝에 닿은 축은 멎는다
+      if (cy9 !== ny9) f9.vy = 0;
+      zoomRef.current = z9; panRef.current = { x: cx9, y: cy9 };
+      const kp9 = Math.exp(-dt9 / FLING_TAU9); const kz9 = Math.exp(-dt9 / FLING_ZTAU9);
+      f9.vx *= kp9; f9.vy *= kp9; f9.vz *= kz9;
+      const done9 = Math.hypot(f9.vx, f9.vy) < 0.015 && Math.abs(f9.vz) < 0.00008;
+      if (scrDiagOn()) { f9n9 += 1; SCR_DIAG.fling = `${(SCR_DIAG.fling ?? "").split(" · 걸음")[0]} · 걸음 ${f9n9} · 팬 ${Math.round(cx9)},${Math.round(cy9)} · 한계 ${Math.round(lim9.x)},${Math.round(lim9.yTop)}/${Math.round(-lim9.y)}${done9 ? " · 멎음" : ""}`; }
+      if (!done9) f9.raf = requestAnimationFrame(step9);   // 다음 걸음을 붓보다 먼저(wheelRun9 와 같은 차례 ★)
+      gestureFrame9();
+      if (done9) endGestureXf();
+    };
+    f9.raf = requestAnimationFrame(step9);
+    return true;
+  };
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
+    flingStop9();   // 새 손짓이 관성을 넘겨받는다(위 관성 ★)
     if (xfGestureRef.current) return;
     /* (되물림 · 2026-10-24, 요청: "유닛·건물 선택 상태로 드래그나 줌해도 선택 취소 안 되게") — 옛 '화면을 움직이면 인포 팝업은 닫는다'(휠·핀치·드래그·가장자리·WASD ·
        단추·키보드 배율 zoomStep9·zoomTo·fsWheelZoom 도 함께)는 걷었다. 선택은 다른 것을 고르거나 빈 땅을 누르거나(pickAt) 중계 카메라가 사람을 갈아탈 때(camRaw9·viewRaw)만 풀린다. */
@@ -15143,8 +15247,9 @@ export default function ReplayMotionPlayer({
   /* ★★ 엣지 스크롤은 **창모드에서도**(2026-10-24, 요청: "피시 창모드에서도 엣지투스크롤 적용") — 전체화면 effect 에서 떼어 PC(마우스)면 늘 돈다.
      전체화면은 종전대로 화면 맨 끝 2px(마우스가 더 못 나가니 닿을 수 있다) · 창모드는 마우스가 틀 밖으로 나가 버리므로 **지도 틀 안쪽 18px 띠**가 끝이고,
      틀 밖으로 나가면 민 것을 놓는다(겨눈 속도 0 → 감속). 조작부가 떠 있을 때 안 미는 규칙은 전체화면 몫만(창모드 조종부는 지도 밖에 있다). */
+  /* ★★★ 창모드 엣지 스크롤은 **걷었다**(2026-10-25, 요청: "피시 윈도우모드의 엣지투 스크롤 제거") — 다시 전체화면에서만 돈다(아래 창모드 갈래는 fsOn 이 늘 참이라 안 탄다). */
   useEffect(() => {
-    if (uiPhone9) return undefined;
+    if (uiPhone9 || !fsOn) return undefined;
     /* ★ 가장자리는 이제 **화면을 민다**(요청: "피시 전체화면에서 상하좌우 모서리는
        그방향으로 이동(부드럽게) / 기존 오버레이 노출은 클릭으로만") ─────────────────
        원작의 화면 밀기(edge scroll) 그대로다: 마우스가 화면 끝 띠에 들어가 있는 동안
@@ -15384,6 +15489,7 @@ export default function ReplayMotionPlayer({
         if (pinchRaf) { cancelAnimationFrame(pinchRaf); pinchRaf = 0; }
         if (pinchPend) { zoomRef.current = pinchPend.z; panRef.current = pinchPend.p; pinchPend = null; }
       };
+      flingSamp9.current = [];   // 관성 표본은 핀치부터 새로(위 관성 ★)
       pinch = {
         d: Math.max(1, dist(e.touches)),
         z: zoomRef.current,
@@ -15446,6 +15552,7 @@ export default function ReplayMotionPlayer({
         x: Math.min(lim.x, Math.max(-lim.x, mx2 - ox - z * ux)),
         y: Math.min(lim.yTop, Math.max(-lim.y, my2 - oy - z * uy)),
       };
+      flingPush9(e.timeStamp, mx2, my2, z);   // 관성 표본 — 가운데 자리와 배율(위 관성 ★)
       if (pinchPend || Math.abs(z - zoomRef.current) / zoomRef.current > 0.004
         || Math.hypot(np.x - panRef.current.x, np.y - panRef.current.y) > 0.7) {
         pinchPend = { z, p: np };
@@ -15469,7 +15576,12 @@ export default function ReplayMotionPlayer({
       if (e.touches.length < 2 && pinch) {
         pinch = null;
         gestureRef.current = false;
-        endGestureXf();   // 대기 델타는 pendFlushRef9(아래 핀치 시작에서 건다)가 반영한다
+        /* 빠르게 벌리거나 오므리며(또는 두 손가락으로 밀며) 뗐으면 관성으로 잇는다(위 관성 ★) — 닻은 마지막 가운데 자리. */
+        pendFlushRef9.current?.(); pendFlushRef9.current = null;
+        const v9 = flingVel9(e.timeStamp);
+        const r9 = mapRef.current?.getBoundingClientRect();
+        const flung9 = !!v9 && !!r9 && flingStart9(v9, v9.x - (r9.left + r9.width / 2), v9.y - (r9.top + r9.height / 2));
+        if (!flung9) endGestureXf();   // 대기 델타는 pendFlushRef9(아래 핀치 시작에서 건다)가 반영한다
       } else if (e.touches.length < 2) {
         gestureRef.current = false;
       }
@@ -15825,7 +15937,7 @@ export default function ReplayMotionPlayer({
          지형도 손짓 몫(pad 1.45)으로 덜 또렷하게 굽는다. 끝 신호(pointerup·휠 타이머·keyup)를 하나라도 놓치면 그 깃발이
          켜진 채 남아 지도가 **통째로** 흐린 채 굳는다. 핀치(gestureRef)가 아니고 1.2초 넘게 화면을 안 옮겼으면 끝낸다 —
          가만히 누르고 있던 드래그는 다음 움직임에서 다시 열린다(드래그는 시작 자리에서 잰 절대 델타라 안 튄다). */
-      if (xfGestureRef.current && !gestureRef.current && performance.now() - xfApplyAtRef9.current > 1200) endGestureXf();
+      if (xfGestureRef.current && !gestureRef.current && flingRef9.current.raf === 0 && performance.now() - xfApplyAtRef9.current > 1200) endGestureXf();   // 관성이 미는 손짓은 제가 끝낸다(위 관성 ★)
       const cv9 = el9.querySelector<HTMLCanvasElement>(".scr-motion-unitlayer");
       if (!cv9 || (cv9.style.transform && cv9.style.transform !== XF_ID9)) return;   // 손짓·렌즈 중 — 그쪽이 다시 칠한다
       const was9 = UNIT_PAINTED_CSS9.get(cv9);
@@ -16092,8 +16204,31 @@ export default function ReplayMotionPlayer({
     const by9 = Math.max(0, ((sent9.y1 - sent9.y0) - (vis9.y1 - vis9.y0)) / 2) * 0.4;
     const ok9 = (vis9.x0 >= sent9.x0 + bx9 || sent9.x0 <= -0.05) && (vis9.x1 <= sent9.x1 - bx9 || sent9.x1 >= 1.05)
       && (vis9.y0 >= sent9.y0 + by9 || sent9.y0 <= -0.05) && (vis9.y1 <= sent9.y1 - by9 || sent9.y1 >= 1.05);
-    if (ok9) return;
-    const r9 = cullAround9(vis9);
+    /* ★ **가는 쪽으로 앞서 잡는다**(2026-10-25, 지적: "드래그나 줌할때 새로 그리는 유닛이 늦게 뜬다") — 옛: 사방 같은 여유(폰 반 화면)라 빠르게 끌거나 줌아웃하면
+       워커가 새 자리 장을 지어 보내기(박자 120ms + 짓기) 전에 창이 여유를 다 먹었다. 창의 움직임(가운데 · 폭)을 지난 부름과 견줘, 그 빠르기로 0.45초 뒤 창이 닿을
+       자리까지 그쪽 변만 넓힌다(한 변 상한 = 창 하나 반). 줌아웃이면 넓어지는 몫만큼 사방으로. 관성(위 ★)도 같은 길이다. */
+    const pv9 = cullLiveVisRef9.current; cullLiveVisRef9.current = { ...vis9, t: now9 };
+    let lead9 = { l: 0, r: 0, t: 0, b: 0 };
+    if (pv9 && now9 - pv9.t < 400) {
+      const dt9 = Math.max(16, now9 - pv9.t); const ahead9 = 450 / dt9;
+      const w9 = vis9.x1 - vis9.x0; const h9 = vis9.y1 - vis9.y0;
+      const dcx9 = ((vis9.x0 + vis9.x1) - (pv9.x0 + pv9.x1)) / 2 * ahead9; const dcy9 = ((vis9.y0 + vis9.y1) - (pv9.y0 + pv9.y1)) / 2 * ahead9;
+      const gw9 = Math.max(0, (w9 - (pv9.x1 - pv9.x0)) / 2 * ahead9); const gh9 = Math.max(0, (h9 - (pv9.y1 - pv9.y0)) / 2 * ahead9);
+      const cx9 = (v: number, m: number): number => Math.min(m * 1.5, Math.max(0, v));
+      lead9 = { l: cx9(-dcx9 + gw9, w9), r: cx9(dcx9 + gw9, w9), t: cx9(-dcy9 + gh9, h9), b: cx9(dcy9 + gh9, h9) };
+    }
+    if (ok9 && !(lead9.l || lead9.r || lead9.t || lead9.b)) return;
+    if (ok9) {
+      /* 아직 안쪽이지만 가는 쪽 앞 자리가 보낸 사각형 밖이면 미리 보낸다. */
+      const out9 = vis9.x0 - lead9.l < sent9.x0 - 1e-3 && sent9.x0 > -0.05 || vis9.x1 + lead9.r > sent9.x1 + 1e-3 && sent9.x1 < 1.05
+        || vis9.y0 - lead9.t < sent9.y0 - 1e-3 && sent9.y0 > -0.05 || vis9.y1 + lead9.b > sent9.y1 + 1e-3 && sent9.y1 < 1.05;
+      if (!out9) return;
+    }
+    const ra9 = cullAround9(vis9);
+    const r9 = {
+      x0: Math.max(-0.05, ra9.x0 - lead9.l), x1: Math.min(1.05, ra9.x1 + lead9.r),
+      y0: Math.max(-0.05, ra9.y0 - lead9.t), y1: Math.min(1.05, ra9.y1 + lead9.b),
+    };
     cullSentRef9.current = r9;
     const v9: EngineView9 = { ...base9, cull: r9 };
     const key9 = viewKeyOf9(v9);
@@ -17744,7 +17879,11 @@ export default function ReplayMotionPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const onMapPointerDown = (e: React.PointerEvent) => {
-    tapRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    /* 미끄러지던 관성을 붙잡는다 — 그 누름은 멈춤이지 클릭이 아니다(떼도 몸을 안 집는다 · 위 관성 ★). */
+    const flung9 = flingRef9.current.raf !== 0;
+    flingStop9();
+    flingSamp9.current = [];
+    tapRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: flung9 };
     /* 왼쪽 절반이면 뒤로, 오른쪽 절반이면 앞으로 — 기준은 **화면**이다(지도가 아니라).
        전체화면에서는 지도가 화면보다 크게 깔려 끌려 다니므로, 지도 기준으로 재면
        "오른쪽 절반"이 눈에 보이는 오른쪽과 안 맞는다. */
@@ -17878,6 +18017,7 @@ export default function ReplayMotionPlayer({
       x: Math.min(maxX, Math.max(-maxX, d.px + (e.clientX - d.sx))),
       y: Math.min(topY, Math.max(-maxY, d.py + (e.clientY - d.sy))),
     };
+    flingPush9(e.timeStamp, e.clientX, e.clientY, zoomRef.current);   // 관성 표본(위 관성 ★)
     if (!dragRafRef.current) {
       dragRafRef.current = requestAnimationFrame(() => {
         dragRafRef.current = 0;
@@ -17958,7 +18098,15 @@ export default function ReplayMotionPlayer({
        dragRef가 지워져 'dragged'가 거짓이 된다. 그 길로 나가면 xfGesture가 켜진 채
        남아, 그 뒤로는 렌즈 effect가 늘 손짓 갈래로만 돌고 refs도 상태와 안 맞아
        모델이 엉뚱한 자리에 그려지거나 안 그려졌다. 핀치가 아직 돌면 그쪽이 끝낸다. */
-    if (!gestureRef.current) endGestureXf();
+    /* 끌던 손을 **빠르게** 뗐으면 관성으로 더 민다(위 관성 ★) — 그때는 손짓을 안 끝낸다(관성이 다 멎으면 제가 끝낸다). 관성이 도는 중의 다른 손가락 떼기도 안 끝낸다. */
+    let flung9 = false;
+    const dU9 = dragRef.current;
+    if (dU9 && dU9.id === e.pointerId && dU9.live && !gestureRef.current && xfGestureRef.current) {
+      pendFlushRef9.current?.(); pendFlushRef9.current = null;   // 못 그린 마지막 걸음부터
+      const v9 = flingVel9(e.timeStamp);
+      if (v9) flung9 = flingStart9({ vx: v9.vx, vy: v9.vy, vz: 0 }, 0, 0);
+    }
+    if (!gestureRef.current && !flung9 && flingRef9.current.raf === 0) endGestureXf();
     lockDragRef9.current = null;
     /* 한 손 줌 마무리 — 위 endGestureXf가 마지막 배율·팬을 이미 굳혔다. 여기서는
        대기표를 걷고, 실제로 끌었던 탭이면 클릭·더블탭 갈래로 안 흘러가게 삼킨다.
@@ -21913,7 +22061,8 @@ export default function ReplayMotionPlayer({
   );
   /* 전체화면은 이 판을 body로 옮겨 심는 일이다 — 조상 카드에 backdrop-filter가 걸려
      있으면 fixed의 담을 상자가 그 카드로 바뀌므로(위 enterFs 주석) 반드시 body다. */
-  const fsInner = fsOn ? createPortal(stageNode, document.body) : null;
+  /* 무대는 늘 한 자리(stageHost9)로 포털한다 — 그 자리를 프레임 ↔ body 로 옮기는 것은 아래 frameRefCb9·useLayoutEffect(위 stageHost9 ★). */
+  const fsInner = stageHost9 ? createPortal(stageNode, stageHost9) : (fsOn ? createPortal(stageNode, document.body) : null);
   const guideNode9 = guideOpen9
     ? createPortal(<div className="scr-guide-overlay"><ReplayGuide onClose={closeGuide9} /></div>, document.body) : null;
   /* 분할보기의 공유 — 사람 하나 고르는 창(위 runTail9 ★). 판이 body 로 가 있어도(전체화면) 보이게 body 로 띄운다. */
@@ -21953,14 +22102,14 @@ export default function ReplayMotionPlayer({
       className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9")}
       style={{ margin: "0 auto", ...uiVars9 }}
     >
-      <div className="scr-motion-frame" ref={frameRef}>
+      <div className="scr-motion-frame" ref={frameRefCb9}>
         {fsOn ? (
           /* 전체화면 동안의 자리지기 — 판이 body로 나가 있는 사이 높이를 지킨다. */
           <div
             className="scr-motion-frame-hold"
             style={frameStyle}
           />
-        ) : stageNode}
+        ) : stageHost9 ? null : stageNode}
       </div>
       {/* 오른쪽 댓글 영역(요청: PC에서 댓글부를 미니맵 우측으로). */}
       {wide && side ? <div className="scr-motion-sidewrap">{side}</div> : null}

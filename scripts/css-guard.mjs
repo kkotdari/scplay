@@ -26,6 +26,7 @@ const APP_TOKENS = new Set([
    (예: scr-mapvec-base/sharp은 검진 도구 perf-check --probe-mapvec이 '배율을 따라오는
    판'을 집으려고 단 표식이고, 배치는 부모 .scr-motion-mapvec이 한다.) */
 const MARKERS = new Set([
+  "scr-motion-stagehost",   // 무대 포털 자리(2026-10-25 · display: contents 를 인라인으로 · 전체화면 전환에 무대를 다시 안 세운다)
   "scr-mapvec-base", "scr-mapvec-sharp",
   "scr-motion-searchbtn",   // 검색 돋보기(2026-10-12) — 꼴은 형제 규칙 · 펴진 알약 안 덮어쓰기는 .scr-motion-searchwrap.is-open 이 진다
   /* 관문을 조이니 드러난 둘(아래 ★) — 모두 **이름표**다. 규칙이 없는 게 맞고, 쓰는 자리는
