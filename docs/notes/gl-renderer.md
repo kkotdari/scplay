@@ -1577,3 +1577,5 @@ JS 더미가 얹혀 사파리/크롬이 탭을 죽였다. 0단은 빛 켜가 없
   표 이름은 `sprAtlas.gen.ts` 의 SPR_ATLAS_INDEX9 · 소스 판 SPR_ATLAS_SRC9 는 `node scripts/spr-atlas.mjs --check` 가 견준다(모델·셰이더를 고쳤으면 다시 굽는다). `#spratlas=0` 끔.
 - 🔎 굽기 `node scripts/spr-atlas.mjs --bake --out <dir> --basisu <basisu>`(npm 패키지 basisu 의 bin/linux/x64/basisu) · 짐만 `--dump <dir>` · 하네스 `perf-check --atlas <dir> --diag`
   → [GL] 줄 끝 `아틀라스[칸n·MB·형식·묶음·없음·ms 고정판n]`.
+- **해상도는 성능 단으로**(같은 날, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — 폰 높음은 2 배(f · 상한 256MB · 폰은 늘 판으로 그려 고배율에서
+  또렷해진다) · 폰 낮음·보통 1 배(h) · PC 2 배. 더 높은 벌(3·4 배)은 굽기(`#sprdump=Q`)와 짐에 단 하나만 더하면 되지만 화소가 배율의 제곱(4 배 = 16 배 화소)이라 PC 매우 높음 정도에만 맞다.

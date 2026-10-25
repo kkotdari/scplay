@@ -18593,7 +18593,10 @@ export default function ReplayMotionPlayer({
         atlasWait9 = true;
         const ph9 = DEV9.name === "phone";
         const kinds9 = [...new Set(jobs.filter((j9) => j9.gl).map((j9) => j9.kind))];
-        sprAtlasLoad9(g09, kinds9, { res: ph9 ? "h" : "f", odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024 })
+        /* 해상도는 **성능 단으로**(2026-10-25, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — 폰 높음은 2 배(f · 고배율에서도 판이 또렷 —
+           폰은 늘 판으로 그린다) · 폰 낮음·보통은 1 배(h) · PC 는 2 배. 상한에 닿으면 덜 쓰는 종류부터 빠지고 그 종류는 재생 중에 굽는다. */
+        const res9: "f" | "h" = ph9 && TIER9.v < 2 ? "h" : "f";
+        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 256 : TIER9.v === 1 ? 160 : 128) : 1024 })
           .then((r9) => {
             SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && r9.cells > 0) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
