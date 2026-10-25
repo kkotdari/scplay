@@ -1657,6 +1657,8 @@ const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 
 const WEAK_GAP_MS9 = 33;
 /** 진행바 전투량 곡선의 칸 수 · 점프 뒤 보이는 시간(ms) — 컴포넌트의 combatPath9 ★. */
 const COMBAT_BINS9 = 160;
+/** ★ 요약 보기는 **주소 파라미터로만**(2026-10-25, 요청: "요약 모드 아직 불완전해서 숨길게 파라미터로만 켤 수 있게") — `#digest=1` 이면 보기 모드 판에 [요약] 이 선다 · 없으면 자유 · 풀 둘. */
+const DIGEST_ON9 = typeof location !== "undefined" && /(^|[#&,])digest=1/.test(location.hash);
 const COMBAT_FLASH_MS9 = 1200;
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
@@ -21964,9 +21966,11 @@ export default function ReplayMotionPlayer({
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
                   풀<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
                 </button>
-                <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
-                  요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
-                </button>
+                {DIGEST_ON9 && (
+                  <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
+                    요약<span className="scr-mode-ask-sub">1-2분 · 2배속</span>
+                  </button>
+                )}
               </span>
             </div>
           )}

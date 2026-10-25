@@ -5388,7 +5388,7 @@
    PC 는 호버로 · 폰·PC 모두 끄는 동안과 점프 뒤 잠깐(.is-combat · ReplayMotionPlayer combatShow9). 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */
 .scr-motion-combat {
   position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1));
-  width: calc(100% - var(--th)); height: calc(30px * var(--ui, 1)); overflow: visible;
+  width: calc(100% - var(--th)); height: calc(60px * var(--ui, 1)); overflow: visible;   /* 30 → 60(2026-10-25, 요청: "탐색바 그래프 높이 2배 정도로") */
   pointer-events: none; z-index: 2; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .scr-motion-rangewrap.is-combat > .scr-motion-combat { opacity: 1; transform: none; }

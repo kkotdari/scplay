@@ -2524,3 +2524,8 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   한 번에 5초 넘게 뛴 것(검색 이동 · 요약 창 건너뛰기 등 · 재생은 8배속·손짓 박자 0.4초여도 3.2초라 안 걸린다).
 - 🔎 `npx vite build`(하네스는 dist CSS 를 싣는다) → `perf-check.mjs --wide|--ios --dmg --castoff --t 60 --seekgraph x.png` → `x_on.png`·`x_off.png` + 보임·사건 줄.
   ⚠ 합성 경기의 데미지(--dmg)는 고르게 깔린 값이라 곡선이 평평하다 — 모양은 실경기에서 본다. 헤드리스 --ios 는 (hover: hover) 가 참이라 뗀 뒤에도 마우스가 얹혀 있으면 보인다(실기 폰은 아님).
+- 높이 30 → **60px**(×--ui · 같은 날 요청: "탐색바 그래프 높이 2배 정도로") — 바 위 독 판 아래끝까지 덮는다(뜨는 동안만).
+
+## 요약 보기는 파라미터로만(2026-10-25)
+요청: "요약 모드 아직 불완전해서 숨길게 파라미터로만 켤 수 있게". 보기 모드 판의 [요약] 단추는 `#digest=1`(RMP `DIGEST_ON9`)일 때만 선다 — 없으면 자유 · 풀 둘.
+요약 쪽 코드(pickDigest9 · digestWant9 · castDigest9)는 그대로. 🔎 perf-check 의 `--askpick 2`(요약)는 `--hash digest=1` 과 함께.
