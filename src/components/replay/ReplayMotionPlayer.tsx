@@ -21964,7 +21964,8 @@ export default function ReplayMotionPlayer({
                   자유<span className="scr-mode-ask-sub">중계 없이</span>
                 </button>
                 <button type="button" className="scr-mode-ask-btn" onClick={pickFull9}>
-                  풀<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
+                  {/* 이름 '풀' → '중계'(2026-10-25, 요청: "풀 -> 중계로 변경") */}
+                  중계<span className="scr-mode-ask-sub">전체 · 자동 중계</span>
                 </button>
                 {DIGEST_ON9 && (
                   <button type="button" className="scr-mode-ask-btn" onClick={pickDigest9}>
