@@ -1655,6 +1655,34 @@ const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
  *  (색·깊이·빛)을 장마다 칠하고 푸는 GPU 화소 수다(워커 짓기는 조임 4배에서도 5.5ms). dpr 3 폰이면 화소 0.5625배(GPU 몫 거의 절반) · dpr 2 폰은 그대로(상한이라 안 올린다 —
  *  dpr 2 에 0.75 를 곱하면 1.5 로 흐림이 눈에 띈다 · 옛 WEAK_DPR9 1.5 지적). 낮음(LOW_DPR9 2.5)·매우 낮음(WEAK_DPR9 2)은 더 작은 쪽. `#pctier` 는 DEV9 가 PC 라 안 탄다. */
 const PHONE_DPR9 = 2.25;
+/** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2.5 · 보통·낮음 2.25(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 2 ·
+ *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
+const backCap9 = (): number => (DEV9.name === "phone"
+  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.5 : PHONE_DPR9)
+  : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
+/** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
+ *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
+ *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다). */
+const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
+function drsNote9(now: number, interval: number, target: number): void {
+  if (!DRS9.on || !(interval > 0) || interval > 500) return;
+  const r9 = interval / Math.max(16.7, target);
+  DRS9.ema += (r9 - DRS9.ema) * 0.1;
+  DRS9.slow = DRS9.ema > 1.3 ? DRS9.slow + interval : 0;
+  DRS9.fast = DRS9.ema < 1.08 ? DRS9.fast + interval : 0;
+  if (now - DRS9.at < 4000) return;
+  const floor9 = DEV9.name === "phone" ? 2 : 1;
+  const cap9 = backCap9();
+  if (DRS9.slow > 2000 && DRS9.lastB > floor9 + 0.01) {
+    DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
+    DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
+  } else if (DRS9.fast > 6000 && DRS9.cap < Infinity) {
+    DRS9.cap += 0.25;
+    if (DRS9.cap >= Math.min(cap9, 8)) DRS9.cap = Infinity;
+    DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
+  }
+  if (scrDiagOn()) SCR_DIAG.drs = `배킹×${DRS9.lastB.toFixed(2)} 상한 ${Number.isFinite(cap9) ? cap9 : "∞"}/조절 ${Number.isFinite(DRS9.cap) ? DRS9.cap : "∞"} · 비 ${DRS9.ema.toFixed(2)} · 바꿈 ${DRS9.steps}`;
+}
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
   if (DEV9.name !== "phone" || TIER9.v !== 0) return;   // 단이 오르면 그 표가 덮는다
@@ -5466,7 +5494,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, DEV9.name === "phone" ? Math.min(PHONE_DPR9, phoneWeak9() ? WEAK_DPR9 : phoneLow9() ? LOW_DPR9 : Infinity) : Infinity, 4096 / Math.max(cw, ch, 1));   // 폰 상한 2.25(위 PHONE_DPR9 ★)
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), DRS9.cap, 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 실측 조절(DRS9 ★)
+      DRS9.lastB = B;
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
@@ -18593,10 +18622,11 @@ export default function ReplayMotionPlayer({
         atlasWait9 = true;
         const ph9 = DEV9.name === "phone";
         const kinds9 = [...new Set(jobs.filter((j9) => j9.gl).map((j9) => j9.kind))];
-        /* 해상도는 **성능 단으로**(2026-10-25, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — 폰 높음은 2 배(f · 고배율에서도 판이 또렷 —
-           폰은 늘 판으로 그린다) · 폰 낮음·보통은 1 배(h) · PC 는 2 배. 상한에 닿으면 덜 쓰는 종류부터 빠지고 그 종류는 재생 중에 굽는다. */
-        const res9: "f" | "h" = ph9 && TIER9.v < 2 ? "h" : "f";
-        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 256 : TIER9.v === 1 ? 160 : 128) : 1024 })
+        /* 해상도는 성능 단으로(2026-10-25, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — PC 는 2 배(f) · 폰은 단과 무관하게 1 배(h).
+           ⚠ 폰 높음 2 배는 되물렸다(같은 날 실측 폰 2단 · 5인 합성 세계: f 는 33 묶음 중 12 만 256MB 에 들어 나머지를 재생 중에 구웠다 · h 는 33 묶음 89MB · 놓침 0).
+           2 배 벌은 1 배의 네 배 화소이고 그 대부분이 유닛이라(전 종류 짝 칸 유닛 f 759MB · 건물 325MB) '유닛만 2 배'도 안 든다. 상한에 닿으면 덜 쓰는 종류부터 빠진다. */
+        const res9: "f" | "h" = ph9 ? "h" : "f";
+        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024 })
           .then((r9) => {
             SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && r9.cells > 0) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
@@ -18814,6 +18844,8 @@ export default function ReplayMotionPlayer({
         /* ★ 붓은 React 밖에서(4번) — 살아 있는 시계(tLiveRef9)를 한 걸음 올리고 그 자리에서 캔버스를 칠한다. React 상태
            t는 초당 열 번(REACT_STEP_MS9)만 올린다. 그래서 React가 두 틱을 한 렌더로 합쳐도 캔버스의 걸음은 안 흔들린다
            (옛 '앞 걸음이 안 그려졌으면 버림' 규칙은 필요가 없어졌다). */
+        /* 실측 배킹 조절(DRS9 ★) — 앞 그림에서 이번 그림까지 · 손짓·굽기 멈춤·숨은 탭은 안 잰다. */
+        if (drawnAt > 0 && !xfGestureRef.current && !holding9 && !(typeof document !== "undefined" && document.hidden)) drsNote9(now, now - drawnAt, drawGapMs());
         const cur9 = tLiveRef9.current;
         let next9 = cur9 + advWall9 * speed;
         let ended9 = false;

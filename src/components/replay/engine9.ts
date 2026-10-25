@@ -2847,6 +2847,8 @@ export const SCR_DIAG: {
   warm9: string;
   /** 서버 아틀라스 싣기(RMP 예열 · sprAtlas9 · 2026-10-25) — 칸 · MB · 형식 · 묶음 · 못 찾은 종류 · ms · 오류. perf-check [GL] 줄에 선다. */
   atlas: string;
+  /** 배킹 조절(RMP DRS9 · 2026-10-25) — 지금 배킹 · 단 상한/조절 상한 · 간격 비 · 바꾼 수. */
+  drs: string;
   /** 손짓 한 줄 요약 — 한 장 ms · 배킹 몫 · 실시간 원근(live/접힘/off) · 밀림 기준(따라옴/얼림).
    *  화면 진단(#diag=gest)은 제 값으로 그리고, 이 문자열은 **계측 도구**가 읽는다(perf-check `[손짓]`). */
   gest: string;
@@ -2910,7 +2912,7 @@ export const SCR_DIAG: {
 } = {
   dpr: 0, unitCss: "", unitBack: "", unitB: 0,
   mapCss: "", mapBack: "", ppt: 0, needed: 0, scale: 0, unitScale: 0, ss: 1, rootSnap: "",
-  areaCap: 0, allocOk: true, zoom: 0, pan: "", paints: 0, edge: "", xfms: 0, terrms: 0, warm9: "", atlas: "", gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
+  areaCap: 0, allocOk: true, zoom: 0, pan: "", paints: 0, edge: "", xfms: 0, terrms: 0, warm9: "", atlas: "", drs: "", gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "", split: "", ring: "", ui: "",
 };
 /** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */

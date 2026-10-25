@@ -891,7 +891,7 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* 해상도 단 못 박기(2026-10) — PC 기본 창(1280×900)은 FHD 단(0.75)이라, --vw/--vh 없는 PC 돌림은 `ui=1`(QHD 단 · 개발 기준)로 못 박는다
    (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
-const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");
+const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0", has("--drs") ? "" : "drs=0"].filter(Boolean).join(",");   // drs=0: 실측 배킹 조절 끔(헤드리스는 늘 느리다 · --drs 로 켬)
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
@@ -2976,6 +2976,7 @@ try { console.log(`[안개] ${await page.evaluate(() => (window.__scrDiag && win
 try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); console.log(`[굽기일꾼] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.bakew) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
 /* 손짓(SCR_DIAG.gest) — 한 장 ms·배킹 몫·실시간 원근 판정(live/접힘/off)·밀림 기준. --3d --drag --diag 로 재는 자다. */
 try { const g9 = await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gest) || ""); if (g9) console.log(`[손짓] ${g9}`); } catch { /* 진단 없음 */ }
+try { const d9 = await page.evaluate(() => (window.__scrDiag && window.__scrDiag.drs) || ""); if (d9) console.log(`[배킹 조절] ${d9}`); } catch { /* 진단 없음 */ }
 if (has("--msgsize")) {
   const r = await page.evaluate(() => {
     const st = window.__msgStat; if (!st) return "없음";
