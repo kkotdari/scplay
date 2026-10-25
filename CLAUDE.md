@@ -30,7 +30,7 @@
 - GL 붓: `gl9.ts`(메시·인스턴스·MRT·번짐 · 평면 몸은 2D 스프라이트 판 — 3D 는 메시) · 효과 심 `glctx9.ts` · 메시 접기 `src/utils/mesh9.ts` · 카메라/사영 `src/utils/shapeOblique.ts`
 - 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~13)
 - 굽는 표(빌드 시각): `tierTable.gen.ts`·`muzzleTable.gen.ts`·`addonWall.gen.ts` — 모델을 고치면 다시 뽑는다
-- 서버 아틀라스(미리 구운 2D 판 · `sprAtlas9.ts`·`sprAtlas.gen.ts`): 모델·셰이더를 고치면 `node scripts/spr-atlas.mjs --check` → 다르면 `--bake`(gl-renderer.md '서버 아틀라스')
+- 서버 아틀라스(미리 구운 2D 판 · `sprAtlas9.ts`·`sprAtlas.gen.ts` · 원본 `spr/` 커밋 · dist 에 실린다 · 앱은 `bin/spr-copy.mjs` 로 베낀다): 모델·셰이더를 고치면 `node scripts/spr-atlas.mjs --check` → 다르면 `--bake --prune`(gl-renderer.md '서버 아틀라스')
 - 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나 · 해상도 단(UI 배수 `--ui`·`--dk`)은 `uiStep9`(player-ui.md).
 
 ## 도록(카탈로그) 뽑기
@@ -72,7 +72,7 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 **`npx tsc -b`**(Vercel 의 `np
 scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
 ⚠ **해시를 보고할 때는 늘 40자리 전체다**(`git rev-parse HEAD` 그대로 · scplay·scplayer 둘 다).
 락을 통째로 다시 만들 일이 있으면 **node_modules를 치운 채** `npm install --package-lock-only`(설치된 트리에서 뽑으면 Vercel `npm ci` 가 거부한다).
-scplay 의 export 를 새로 쓰는 scplayer 손질은 두 저장소가 한 벌이다(로컬 관문은 scplay `dist` 를 scplayer `node_modules/scplay/dist` 에 베껴 돌린다).
+scplay 의 export 를 새로 쓰는 scplayer 손질은 두 저장소가 한 벌이다(로컬 관문은 scplay `dist`·`spr`·`bin` 을 scplayer `node_modules/scplay/` 에 베끼고 `npm run spr` 뒤 돌린다).
 
 ## 늘 지킬 규약
 ### 요청 읽기

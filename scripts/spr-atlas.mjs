@@ -1,8 +1,14 @@
 /* 서버 아틀라스 굽기(2026-10-25, 요청: "모든 모델의 그림을 하나도 빠짐없이 그려서 가지고 있다가 보여주면" → "3번 ㄱㄱ" · "피시에도 같이" · "품질 높게" · "빛 켜 같은 것도") ──
  *
- *   node scripts/spr-atlas.mjs --bake --out <dir>        굽기(perf-check 덤프 · 수십 분) → 짐 꾸리기 → <dir>/<ver>/ · src/components/replay/sprAtlas.gen.ts 갱신
- *   node scripts/spr-atlas.mjs --dump <dumpdir> --out <dir>   이미 뜬 덤프로 짐만 다시 꾸린다
- *   node scripts/spr-atlas.mjs --check                   모델 소스의 판(ver)이 sprAtlas.gen.ts 와 같은가(다르면 1 · 모델을 고쳤으면 다시 굽는다)
+ *   node scripts/spr-atlas.mjs --bake [--prune]          굽기(perf-check 덤프 · 수십 분) → 짐 꾸리기 → spr/ · src/components/replay/sprAtlas.gen.ts 갱신
+ *   node scripts/spr-atlas.mjs --dump <dumpdir> [--prune]   이미 뜬 덤프로 짐만 다시 꾸린다
+ *   node scripts/spr-atlas.mjs --check                   모델 소스의 판(ver)이 sprAtlas.gen.ts 와 같은가 · 표가 가리키는 파일이 spr/ 에 다 있는가(아니면 1)
+ *   (--out <dir> 딴 자리에 꾸리기 · --work <dir> 덤프·PNG 작업 자리 — 기본 scratchpad/spr-work · 덤프는 5GB 남짓)
+ *
+ * 원본 자리(2026-10-25, 요청: "scplay를 쓰는 다른 곳들에서는 그 파일을 못쓰잖아 그래서 원본을 scplay에 두는게 맞다고 봐"):
+ *   구운 파일은 **scplay 저장소의 spr/** 에 커밋한다 — publish-dist.sh 가 dist 브랜치에 함께 싣고, 쓰는 앱은 설치 뒤
+ *   `node node_modules/scplay/bin/spr-copy.mjs public/spr` 로 제 정적 자리에 베껴 `setReplaySpriteAtlas({ base: "/spr" })` 로 가리킨다.
+ *   spr/basis 는 basis 변환기(three 0.169 examples/jsm/libs/basis) — 로더가 ${base}/basis 에서 읽는다.
  *
  * 굽기: 재생기를 `#sprdump=2` 로 열면(perf-check --sprdump) 모든 종류(UNIT_3D · SHAPE_KIND)·모든 자세·요잉 16 · 그림자 · 건물 변종의 2D 판 칸을 재생기와 **같은 셰이더**로
  *   2 배 해상도에 굽는다(gl9 sprDumpQ ★). 판 픽셀(색 · 임자색/켜짐 · 빛 — GL 행 차례)과 칸 표(열쇠 · 자리 · 배율 · 종류 꼬리표)가 덤프로 나온다.
@@ -41,19 +47,28 @@ export function atlasVer() {
 }
 const GEN = join(ROOT, "src/components/replay/sprAtlas.gen.ts");
 const genVer = () => (existsSync(GEN) ? (/SPR_ATLAS_SRC9 = "([0-9a-f]*)"/.exec(readFileSync(GEN, "utf8"))?.[1] ?? "") : "");
+const genIdx = () => (existsSync(GEN) ? (/SPR_ATLAS_INDEX9 = "([^"]*)"/.exec(readFileSync(GEN, "utf8"))?.[1] ?? "") : "");
+const OUT = flag("--out", join(ROOT, "spr"));
+const WORK = flag("--work", join(ROOT, "scratchpad", "spr-work"));
 
 if (has("--check")) {
-  const v = atlasVer(); const g = genVer();
-  if (v === g) { console.log(`[아틀라스] 판 ${v} — 소스와 같다`); process.exit(0); }
-  console.log(`[아틀라스] 판이 다르다: 소스 ${v} · gen ${g || "(없음)"} — 모델을 고쳤으면 다시 굽는다: node scripts/spr-atlas.mjs --bake --out <dir>`);
-  process.exit(1);
+  const v = atlasVer(); const g = genVer(); let bad = 0;
+  const ix = join(OUT, genIdx());
+  if (!genIdx() || !existsSync(ix)) { console.log(`[아틀라스] 표 ${genIdx() || "(없음)"} 이 ${OUT} 에 없다`); bad += 1; }
+  else {
+    const idx = JSON.parse(readFileSync(ix, "utf8"));
+    const miss = Object.values(idx.kinds).flatMap((e) => Object.values(e).flatMap((ch) => [...Object.values(ch.files.f), ...Object.values(ch.files.h)])).filter((f) => !existsSync(join(OUT, "k", f)));
+    if (miss.length) { console.log(`[아틀라스] 표가 가리키는 파일 ${miss.length} 개가 없다(예: ${miss[0]})`); bad += 1; }
+    for (const f of ["basis_transcoder.js", "basis_transcoder.wasm"]) if (!existsSync(join(OUT, "basis", f))) { console.log(`[아틀라스] basis/${f} 가 없다`); bad += 1; }
+  }
+  if (v !== g) { console.log(`[아틀라스] 판이 다르다: 소스 ${v} · gen ${g || "(없음)"} — 모델을 고쳤으면 다시 굽는다: node scripts/spr-atlas.mjs --bake --prune`); bad += 1; }
+  if (!bad) console.log(`[아틀라스] 판 ${v} — 소스와 같다 · 표 ${genIdx()} 의 파일 다 있음`);
+  process.exit(bad ? 1 : 0);
 }
 
-const OUT = flag("--out", null);
-if (!OUT) { console.error("--out <dir> 이 필요하다"); process.exit(2); }
 let DUMP = flag("--dump", null);
 if (has("--bake")) {
-  DUMP = join(OUT, "_dump");
+  DUMP = join(WORK, "_dump");
   rmSync(DUMP, { recursive: true, force: true });
   console.log("[아틀라스] 굽기(perf-check --sprdump) …");
   execFileSync("node", [join(ROOT, "scripts/perf-check.mjs"), "--wide", "--cpu", "1", "--warm", "0", "--bloom", "--mrt",
@@ -141,7 +156,7 @@ function half(buf, W, H) {
 const nonzero = (b) => { for (let i = 0; i < b.length; i += 4) if (b[i] | b[i + 1] | b[i + 2] | b[i + 3]) return true; return false; };
 const index = { src: ver, q: meta.q, yaw: 16, kinds: {} };
 let nEnc = 0; let nSkip = 0;
-const tmp = join(OUT, "_png"); mkdirSync(tmp, { recursive: true });
+const tmp = join(WORK, "_png"); mkdirSync(tmp, { recursive: true });
 let nDone = 0; let bytes = { f: 0, h: 0 };
 for (const [g, cells] of [...groups.entries()].sort()) {
   const [kind, par] = [g.slice(0, g.lastIndexOf(".")), g.slice(g.lastIndexOf(".") + 1)];

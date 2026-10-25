@@ -1590,3 +1590,15 @@ JS 더미가 얹혀 사파리/크롬이 탭을 죽였다. 0단은 빛 켜가 없
 - 실측 조절(`DRS9` · 재생 시계의 그리기 갈래): 앞 그림 → 이번 그림 간격 ÷ 목표(그리기 간격 · 적어도 16.7ms)의 평균이 1.3 넘게 2초면 상한 −0.25(바닥 폰 2 · PC 1) · 1.08 아래로 6초면 +0.25(단
   상한에 닿으면 풂). 바꾼 뒤 4초는 그대로(캔버스·MRT 를 다시 잡는 한 장 값 · 진동 막기). 손짓·굽기 멈춤·숨은 탭·0.5초 넘는 멎음은 안 잰다. `#drs=0` 끔 · perf-check 는 기본 끔(`--drs` 로 켬 —
   헤드리스는 한 장이 수백 ms~초라 멎음으로 걸러져 안 돈다 · 실기에서만 돈다). 진단 `SCR_DIAG.drs` · perf-check `[배킹 조절]`.
+
+## 서버 아틀라스 원본을 scplay 로(2026-10-25)
+요청: "결국은 scplay를 쓰는 다른 곳들에서는 그 파일을 못쓰잖아 그래서 원본을 scplay에 두는게 맞다고 봐". 옛: 구운 파일(154MB · 1076 묶음 + basis 변환기)을 sg-web `public/spr` 에 커밋.
+- 원본 자리: scplay 저장소 `spr/`(basis/ · k/ · index.<해시>.json). `scripts/spr-atlas.mjs` 의 `--out` 기본이 `spr/` · 덤프·PNG 작업 자리는 `--work`(기본 `scratchpad/spr-work` · 무시 목록).
+  `--check` 는 판(소스 해시)과 함께 표가 가리키는 파일·basis 가 `spr/` 에 다 있는지도 본다.
+- 싣기: package.json `files` 에 spr·bin · `publish-dist.sh` 가 dist 커밋에 spr/·bin/ 을 함께 담는다(이름이 내용 해시라 안 바뀐 덩이는 git 이 같은 blob 으로 묶는다).
+  아틀라스가 소스보다 묵었으면 publish 가 ⚠ 만 찍는다(다시 굽기는 수십 분이라 배포를 막지 않는다 · 앱은 묵은 그림을 그린다).
+- 쓰는 앱: `node node_modules/scplay/bin/spr-copy.mjs public/spr` 로 제 정적 자리에 베끼고 `setReplaySpriteAtlas({ base: "/spr" })`.
+  대상이 아틀라스 폴더(basis/·index.*.json)이거나 비었을 때만 통째로 갈아 끼운다(다른 폴더는 안 지운다).
+  sg-web: `npm run spr` · postinstall 이 그것을 부른다(Vercel `npm ci` 가 root postinstall 을 돈다 — 실측 1076 묶음) · `npm install <패키지>` 꼴은 root postinstall 을
+  안 부르므로 `npm run scplay` 끝에 `npm run spr` · `public/spr/` 는 무시 목록 · vercel.json 영구 캐시 머리는 그대로.
+- 무게: git 의존 타르볼 160MB(npm pack 실측) — 옛엔 같은 무게가 sg-web clone 에 실렸으니 Vercel 빌드 받는 양은 거의 같다.

@@ -4,7 +4,9 @@
   "description": "StarCraft: Remastered replay player — 참값(OpenBW) 자취를 그리는 재생기 모듈",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "spr",
+    "bin"
   ],
   "exports": {
     ".": {

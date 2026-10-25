@@ -13,7 +13,9 @@ ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 SRC=$(git rev-parse HEAD)
 [ -f dist/index.js ] || { echo "dist/index.js 가 없다 — 먼저 npx vite build" >&2; exit 1; }
-if [ -n "$(git status --porcelain -- src package.json)" ]; then echo "src·package.json 에 커밋 안 된 손질이 있다 — dist 가 HEAD 와 안 맞는다" >&2; exit 1; fi
+# 아틀라스가 모델 소스보다 묵었으면 알리기만 한다(앱은 묵은 그림을 그린다 — 다시 굽기는 수십 분이라 배포를 막지는 않는다).
+node scripts/spr-atlas.mjs --check >&2 || echo "⚠ 아틀라스(spr/)가 소스와 안 맞는다 — node scripts/spr-atlas.mjs --bake --prune 로 다시 굽는다" >&2
+if [ -n "$(git status --porcelain -- src package.json spr bin)" ]; then echo "src·package.json·spr·bin 에 커밋 안 된 손질이 있다 — dist 가 HEAD 와 안 맞는다" >&2; exit 1; fi
 WT=$(mktemp -d)
 trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true; rm -rf "$WT"' EXIT
 git fetch -q origin dist 2>/dev/null || true
@@ -25,6 +27,10 @@ else
 fi
 find "$WT" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp -r dist "$WT/dist"
+# 서버 아틀라스(미리 구운 모델 그림 · spr/)와 그것을 앱 정적 자리로 베끼는 bin/spr-copy.mjs 도 싣는다(2026-10-25 · 원본은 scplay).
+# 이름이 내용 해시라 안 바뀐 파일은 git 이 같은 덩이로 묶는다 — dist 커밋마다 늘지 않는다.
+cp -r spr "$WT/spr"
+cp -r bin "$WT/bin"
 node -e '
   const fs = require("fs");
   const p = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
