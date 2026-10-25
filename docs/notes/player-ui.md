@@ -2496,3 +2496,9 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   관성은 크게 끈 것(moved)만. 길게 눌러 감기(폰 · 400ms)는 그대로 — 그 사이 몇 px 밀린 것은 남는다.
 - 손짓 뒤 setZoom·setPan(재생기 전체 렌더 · 폰 수십 ms)을 **160ms 미룬다**(endGestureXf → commitTimerRef9) — 손을 떼자마자 다시 끌면 그 렌더가 첫 손짓을 막았다.
   붓·손짓은 ref 를 읽고 렌더가 ref 를 상태로 되돌리지 않으므로 그림은 안 갈린다. 그 사이 새 손짓이 서면(beginGestureXf) 굳히기를 걷고 그 손짓 끝에 굳힌다 · 굳힐 땐 그때의 ref.
+
+## 지도 밖 독 뒤 자리도 밤하늘(2026-10-25)
+요청 "재생기에 맵밖 공간 남는 경우 있어 이럴 때 우주 배경 보이게"(폰 · 밝은 테마 사진: 지도 아래 독 뒤가 앱 카드 색). 지도·유닛은 독 뒤까지 그리지만(무대 자르기 inset 아래
+−--dock-under · --map-ext) 밤하늘(.scr-fs-space · inset 0)은 무대 키에서 끝나 지도가 다 못 채운 독 뒤에 판 바깥(밝은 테마 = --card-bg)이 드러났다. 하늘을
+`bottom: −var(--dock-under)` 로 같은 몫만큼 내렸다. 🔎 `perf-check --ios --vw 430 --vh 932 --ask 1 --askpick 0 --wheel 10 --rects` → `.scr-fs-space` 키 = 판 키(실측 652 → 920).
+`--wheel N`(휠 N 번 · 양수 축소)·`--rects`(판·무대·지도·하늘·독 상자) 를 하네스에 더했다.

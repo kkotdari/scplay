@@ -2818,6 +2818,15 @@ if (SHOT) {
   /* --zoomoutprobe(2026-10-24, 지적: "급하게 줌아웃시 지형안개가 느리게 그려짐") — 휠로 당겼다가 **빠르게** 밀며(휠 +300 × 4 · 16ms 간격) 장마다 GL 지형·안개
      캔버스(.scr-motion-terr9)가 지도 상자를 못 덮는 띠(px)와 그 캔버스의 임시 변환·지형 한 장 ms(SCR_DIAG.terrms)를 찍는다. 띠가 0 이면 손끝 보기로 다시 그린 것.
      --shot 과 함께면 손짓 한가운데 장을 x_zoomout.png 로. --diag 와 함께. */
+  /* --wheel N(2026-10-25) — 지도 가운데에서 휠을 N 번 민다(양수 = 축소 · 음수 = 확대 · 한 번 300) 뒤 1.5초 기다린다. 배율 1 화면 찍기용. */
+  if (flag("--wheel", null)) {
+    const n9 = Number(flag("--wheel", 0)) || 0;
+    const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    if (pt9) { await page.mouse.move(pt9[0], pt9[1]); for (let i = 0; i < Math.abs(n9); i += 1) { await page.mouse.wheel(0, n9 > 0 ? 300 : -300); await page.waitForTimeout(250); } await page.waitForTimeout(1500); }
+    console.log(`[휠] ${n9} → 배율 ${await page.evaluate(() => window.__scrDiag?.zoom ?? "-")}`);
+  }
+  /* --rects(2026-10-25) — 판·무대·지도 상자·우주 층·독의 화면 상자(지도 밖 빈자리 가르기). */
+  if (has("--rects")) console.log("[상자] " + await page.evaluate(() => [".scr-fs-layer", ".scr-fs-root", ".scr-fs-stage", ".scr-fs-space", ".scr-motion-map", ".scr-motion-unitlayer", ".scr-fs-dockframe", ".scr-tb"].map((q) => { const e = document.querySelector(q); if (!e) return `${q} 없음`; const r = e.getBoundingClientRect(); return `${q} ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} bg ${getComputedStyle(e).backgroundColor}`; }).join("\n  ")));
   if (has("--zoomoutprobe")) {
     const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
     if (pt9) {
