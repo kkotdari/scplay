@@ -1455,8 +1455,9 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   meshShadow: true, meshShadowMinZoom: 0,
   /** 사영이 안 깔리는 프레임에 **접지 타원을 대타로** 깔까 — 폰도 이제 안 깐다(PC 와 같다 · 덜어내기 단에서도 사영을 안 접는다). */
   shadowEllipse: false,
-  /** MRT 판 MSAA 표본 수(폰 0·1단 2 · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★. */
-  glMsaa: 2, fxQual: 0.6,
+  /** MRT 판 MSAA 표본 수(폰 0·1단 **0** · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★.
+   *  ★ 0·1단 2 → **0**(2026-10-25, 위 PHONE_DPR9 의 결정) — 표본이 있으면 MRT 색·깊이·빛 판이 표본 수만큼 커지고 장마다 풀기(resolve)가 붙는다. 매우 낮음(applyWeak9)은 이미 0 이었다. */
+  glMsaa: 0, fxQual: 0.6,
 } : {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
@@ -1633,6 +1634,10 @@ const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROW
 /* 2 → **2.5**(2026-10-15, 같은 요청) — dpr 3 폰이면 화소 0.69배(옛 0.44배). */
 const LOW_DPR9 = 2.5;
 const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
+/** ★ **폰은 어느 단이든 배킹 상한 2.25**(2026-10-25, 결정: "폰 배킹 0.75배 + 낮음·보통 MSAA 0 — 일단 앞에 두개만 하고 배포") — 폰 프레임의 큰 몫은 DPR 3 전체화면 MRT 판
+ *  (색·깊이·빛)을 장마다 칠하고 푸는 GPU 화소 수다(워커 짓기는 조임 4배에서도 5.5ms). dpr 3 폰이면 화소 0.5625배(GPU 몫 거의 절반) · dpr 2 폰은 그대로(상한이라 안 올린다 —
+ *  dpr 2 에 0.75 를 곱하면 1.5 로 흐림이 눈에 띈다 · 옛 WEAK_DPR9 1.5 지적). 낮음(LOW_DPR9 2.5)·매우 낮음(WEAK_DPR9 2)은 더 작은 쪽. `#pctier` 는 DEV9 가 PC 라 안 탄다. */
+const PHONE_DPR9 = 2.25;
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
   if (DEV9.name !== "phone" || TIER9.v !== 0) return;   // 단이 오르면 그 표가 덮는다
@@ -5444,7 +5449,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, phoneWeak9() ? WEAK_DPR9 : phoneLow9() ? LOW_DPR9 : Infinity, 4096 / Math.max(cw, ch, 1));
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, DEV9.name === "phone" ? Math.min(PHONE_DPR9, phoneWeak9() ? WEAK_DPR9 : phoneLow9() ? LOW_DPR9 : Infinity) : Infinity, 4096 / Math.max(cw, ch, 1));   // 폰 상한 2.25(위 PHONE_DPR9 ★)
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
