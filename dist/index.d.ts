@@ -723,6 +723,11 @@ export declare function setReplayChrome(next: ReplayChrome): void;
 
 export declare function setReplayMapFetcher(fn: ReplayMapFetcher): void;
 
+/** 아틀라스 자리(앱이 준다 · 예: "/spr") — null 이면 끈다. */
+export declare function setReplaySpriteAtlas(opt: {
+    base: string;
+} | null): void;
+
 export declare const SHAPE_GALLERY: ShapeGalleryItem[];
 
 /** 겹쳐 그리는 면 하나 — [패스, 불투명도, 색?]. 색을 안 주면 currentColor. */
