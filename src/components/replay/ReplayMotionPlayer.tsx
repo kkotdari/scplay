@@ -8493,6 +8493,27 @@ export function DocIcon9({
 /** 겹판 한 무리의 2D 면과 그 자리·배율(16-상자 자) — ShapeIcon 이 `<g transform>` 으로 옮긴다. */
 type PartGrp9 = { faces: ShapeFace[]; dx: number; dy: number; k: number };
 /** 겹판 무리 하나 — 자리(dx·dy)와 배율(k)은 그 판의 **모델 원점**(16-상자의 8, 12)을 축으로 건다. */
+/** ★ **로딩 알림 문장**(2026-10-25, 요청: "로딩 워드마크를 제거하고 자세히 설명 · 페이드인아웃 · 예: 그래픽 소스 받는 중 · 게임 데이터 받는 중") — 단계(key)가 바뀌면 옛 글이
+ *  사라지며(is-out 0.32초) 새 글이 떠오른다(is-in) · 같은 단계 안의 글 바뀜(예열 %)은 그 자리에서 고친다 · null 이면 사라지고 내린다. 옛 띄운 글자 L O A D I N G 은 걷었다. */
+function LoadNote9({ stage }: { stage: { key: string; text: string } | null }) {
+  const [shown, setShown] = useState(stage);
+  const [out, setOut] = useState<{ key: string; text: string } | null>(null);
+  const skey = stage?.key ?? ""; const stext = stage?.text ?? "";
+  useEffect(() => {
+    if ((stage?.key ?? "") === (shown?.key ?? "")) { if (stage && shown && stage.text !== shown.text) setShown(stage); return undefined; }
+    if (shown) setOut(shown);
+    setShown(stage);
+    const id9 = window.setTimeout(() => setOut(null), 320);
+    return () => window.clearTimeout(id9);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skey, stext]);
+  return (
+    <>
+      {out && <span key={`o${out.key}`} className="scr-motion-simnote is-out" aria-hidden="true">{out.text}</span>}
+      {shown && <span key={`i${shown.key}`} className="scr-motion-simnote is-in" role="status">{shown.text}</span>}
+    </>
+  );
+}
 function PartGroup9({ grp }: { grp: PartGrp9 }) {
   const t9 = `translate(${8 + grp.dx} ${12 + grp.dy}) scale(${grp.k}) translate(-8 -12)`;
   return (
@@ -18384,6 +18405,8 @@ export default function ReplayMotionPlayer({
      ★ 어떻게 — 한 프레임에 12ms까지만 굽고 rAF로 넘긴다: 굽는 동안에도 화면이 살아
        있고, 진행률이 아래 로딩 띠로 나간다. */
   const [warmAt, setWarmAt] = useState<{ done: number; total: number } | null>(null);
+  /** 서버 아틀라스를 받는 중인가(로딩 알림 '그래픽 소스 받는 중' · 예열 effect 가 놓는다). */
+  const [atlasLoad9, setAtlasLoad9] = useState(false);
   /** 장면을 보여도 되나 — 자취가 자리 잡고(받았거나 없는 것으로 판명) 모델 굽기가 끝났나.
    *  ★ `entLoad`만 보면 안 된다: 처음 한 박자는 "idle"(아직 안 물어봄)이라 그때 보여
    *    버리면 빈 지도가 한 번 번쩍인 뒤 다시 숨는다. **자취를 실제로 손에 쥐었나**
@@ -18619,7 +18642,7 @@ export default function ReplayMotionPlayer({
     {
       const g09 = glNow9();
       if (g09 && pre9 && SPR_DUMP9 === 0 && sprAtlasOn9()) {
-        atlasWait9 = true;
+        atlasWait9 = true; setAtlasLoad9(true);
         const ph9 = DEV9.name === "phone";
         const kinds9 = [...new Set(jobs.filter((j9) => j9.gl).map((j9) => j9.kind))];
         /* 해상도는 성능 단으로(2026-10-25, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — PC 는 2 배(f) · 폰은 단과 무관하게 1 배(h).
@@ -18631,7 +18654,7 @@ export default function ReplayMotionPlayer({
             SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && r9.cells > 0) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
-          .finally(() => { atlasWait9 = false; });
+          .finally(() => { atlasWait9 = false; setAtlasLoad9(false); });
       }
     }
     const step9 = (): void => {
@@ -20999,13 +21022,16 @@ export default function ReplayMotionPlayer({
             뜨는 때는 그대로: 자취 받는 중 ∨ 진입 굽기(warmAt) ∨ 재생 중 굽기 몰림(bakeHold · 250ms 넘을 때). */}
           {/* ★ 재생 중 굽기 몰림(bakeHold)은 **첫 예열 전에만** LOADING 을 띄운다(2026-10-24, 지적: "모바일에서 줌이나 드래그 시(특히 줌아웃) 로딩 워드마크 뜨고 멈춤") — 보고 있는
               장면 위에 글자가 덮이는 것이 더 거슬린다. 그 뒤로는 못 찍은 몸이 그 장에 메시로 서거나 다음 장에 선다. */}
-          {(!modeAsk9 || !askShow9) && ((!simTracks && entLoad === "loading") || !!warmAt || (bakeHold && !introWarm9) || !!pending || (modeAsk9 && !askShow9)) && (
-            <span className="scr-motion-simnote" role="status" aria-label="로딩 중">
-              {"LOADING".split("").map((ch9, i9) => (
-                <span key={i9} className="scr-load-ch" style={{ ["--i" as string]: i9 } as React.CSSProperties} aria-hidden="true">{ch9}</span>
-              ))}
-            </span>
-          )}
+          {/* ★ 로딩 알림은 **지금 하는 일**을 말한다(2026-10-25 · LoadNote9 ★) — 뜨는 때는 옛 LOADING 과 같다. 차례: 게임 데이터 → 그래픽 소스(서버 아틀라스) → 모델 준비(예열 %) →
+              모델 굽기(재생 중 굽기 몰림 · 첫 예열 전만) → 화면 준비(그림이 매끄럽게 돌기 전 · 보기 모드 판 앞). */}
+          <LoadNote9 stage={(!modeAsk9 || !askShow9) ? (
+            pending || (!simTracks && entLoad === "loading") ? { key: "data", text: "게임 데이터 받는 중" }
+              : atlasLoad9 ? { key: "atlas", text: "그래픽 소스 받는 중" }
+                : warmAt ? { key: "warm", text: `모델 준비 중 ${Math.min(99, Math.round((warmAt.done / Math.max(1, warmAt.total)) * 100))}%` }
+                  : bakeHold && !introWarm9 ? { key: "bake", text: "모델 굽는 중" }
+                    : modeAsk9 && !askShow9 ? { key: "paint", text: "화면 준비 중" }
+                      : null
+          ) : null} />
           {/* (걷어냄·요청: "미니맵 연결해주세요는 이제 없애야해") — "미연결 상태에선
              유닛이 벽을 뚫고 다녀요"라는 한 줄이 여기 있었다. 그 말은 지형(벽)을 미니맵
              그림에서 어림하던 시절의 것이다: 그림이 없으면 벽도 없었다.

@@ -947,8 +947,8 @@ if (has("--ask")) {   // 보기 모드 판은 고를 때까지 시계를 세운�
   for (;;) {
     if (await page.locator(".scr-mode-ask").count()) break;
     if (Date.now() > until9) throw new Error("보기 모드 판이 안 섰다(--askwait)");
-    await page.waitForTimeout(5000);
-    console.log("  [판 기다림]", await page.evaluate(() => { const d = window.__scrDiag || {}; return `예열 ${d.warm9 ?? "-"} · 그림 ${d.paints ?? "-"}장 · 로딩글 ${!!document.querySelector(".scr-motion-simnote")}`; }));
+    await page.waitForTimeout(Number(flag("--askpoll", 5000)));
+    console.log("  [판 기다림]", await page.evaluate(() => { const d = window.__scrDiag || {}; return `예열 ${d.warm9 ?? "-"} · 그림 ${d.paints ?? "-"}장 · 로딩글 ${document.querySelector(".scr-motion-simnote.is-in")?.textContent ?? "-"}`; }));
   }
 }
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)

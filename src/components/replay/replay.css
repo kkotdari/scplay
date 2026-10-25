@@ -2861,16 +2861,18 @@
      "비어 있다"와 "받는 중이다"를 구분해 주지 못했다. 한가운데면 눈이 먼저 간다. */
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   z-index: 30000;
-  /* ★ 알약 바탕을 걷고 **띄운 글자 L O A D I N G** 만(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로 깔끔하게") — 글자 사이를 벌리고
-     글자마다 차례로(--i × 0.09s) 떠올랐다 내려앉는다. 어떤 바탕(밝은 지형·흰 바탕 색 모드)에서도 읽히게 옅은 그늘만 깐다. */
-  display: flex; gap: calc(9px * var(--ui, 1));
-  color: #e6f1ff; font-family: inherit; font-size: calc(18px * var(--ui, 1)); font-weight: 700; line-height: 1; letter-spacing: 0;
+  /* ★ **지금 하는 일을 말하는 문장**(2026-10-25, 요청: "로딩 워드마크를 제거하고 자세히 설명 · 페이드인아웃" — RMP LoadNote9) — 옛 띄운 글자 L O A D I N G(2026-10-16)는 걷었다.
+     바탕 없이 옅은 그늘만(어떤 지형·흰 바탕 색 모드에서도 읽힌다). 단계가 바뀌면 옛 글(is-out)이 사라지며 새 글(is-in)이 아래서 떠오르고 · 떠 있는 동안 은은히 숨 쉰다. */
+  color: #e6f1ff; font-family: inherit; font-size: calc(16px * var(--ui, 1)); font-weight: 600; line-height: 1.2; letter-spacing: 0.02em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
   pointer-events: none; white-space: nowrap;
 }
-.scr-load-ch { display: inline-block; animation: scr-load-bob 1.2s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 0.09s); }
-@keyframes scr-load-bob { 0%, 60%, 100% { transform: translateY(0); opacity: 0.55; } 30% { transform: translateY(-0.45em); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .scr-load-ch { animation: none; opacity: 0.85; } }
+.scr-motion-simnote.is-in { animation: scr-ln-in 0.32s ease-out both, scr-ln-breathe 1.8s ease-in-out 0.32s infinite; }
+.scr-motion-simnote.is-out { animation: scr-ln-out 0.32s ease-in both; }
+@keyframes scr-ln-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes scr-ln-out { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 0; transform: translate(-50%, calc(-50% - 6px)); } }
+@keyframes scr-ln-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
+@media (prefers-reduced-motion: reduce) { .scr-motion-simnote.is-in, .scr-motion-simnote.is-out { animation: none; } .scr-motion-simnote.is-out { display: none; } }
 
 /* 재생할 수 없는 경기(요청: 폴백 없음) — 참값 자취나 사건 표가 없는 판은 재생기 자리에
    이 한마디만 선다. 옛 경기·분석 실패·아직 안 구운 판이 여기 걸린다. 상자는 지도가
