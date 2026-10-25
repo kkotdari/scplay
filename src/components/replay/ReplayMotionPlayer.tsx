@@ -108,6 +108,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9,
 } from "./bake9";
+import { sprAtlasLoad9, sprAtlasOn9 } from "./sprAtlas9";
 import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
@@ -710,7 +711,15 @@ const SPR_UP_PC9 = 0.6;
  *  gl9 sprBytesMax ★ · 한 장 색+임자색 ≈32MB 라 7/8/10 장).
  *  ★ 폰 요잉은 어느 단이든 **8칸**(2026-10-24, 질문 "자세 0만 지을 거면 낮은 티어에서도 8방으로 해도 되려나" → ㅇㅇ) — 자세 0 × 요잉 8 × (몸 + ¼ 그림자)는 8인 경기도 5~6 장이라
  *  낮음 상한을 192 → **224MB**(7장)로 한 칸 올려 자세 칸 자리를 남겼다. 옛 4칸은 돌 때 네 방향으로 툭툭 끊겼다. */
+/** ★ 굽기 덤프(scripts/spr-atlas · `#sprdump=Q` · gl9 sprDumpQ ★) — 재생기가 경기 종류 대신 **모든 종류**·모든 자세·기기 요잉 칸(PC 16)을 Q 배로 굽고 다 구우면
+ *  window.__sprDumpDone 을 세운다. 판 상한은 없고(동적 판 999 · 바이트 ∞) 빛 켜도 굽는다. 재생기에서는 0. */
+const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = /sprdump=([\d.]+)/.exec(location.hash); return m9 ? Math.max(1, Math.min(3, Number(m9[1]) || 1)) : 0; })() : 0;
 const sprTune9 = (): void => {
+  if (SPR_DUMP9 > 0) {
+    glSprTune9(Infinity, 16, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });
+    const g9 = glNow9(); if (g9) g9.sprDumpQ = SPR_DUMP9;
+    return;
+  }
   const phone9 = DEV9.name === "phone";
   glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? 8 : (TIER9.v === 0 ? 8 : 16),
     phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0, bytesMB: TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224, em: false }
@@ -6887,7 +6896,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -18458,6 +18467,8 @@ export default function ReplayMotionPlayer({
       const k9 = e.bld ? SHAPE_KIND[e.kind] : UNIT_3D[e.kind];
       if (k9) { kinds.add(k9); useN9.set(k9, (useN9.get(k9) ?? 0) + 1); }
     }
+    /* 굽기 덤프(위 SPR_DUMP9 ★)는 경기 종류가 아니라 **이름표에 든 모든 종류**(유닛 UNIT_3D · 건물 SHAPE_KIND). */
+    if (SPR_DUMP9 > 0) for (const k9 of [...Object.values(UNIT_3D), ...Object.values(SHAPE_KIND)]) if (SHAPE_BUILDERS[k9]) kinds.add(k9);
     if (kinds.size === 0) { setIntroWarm9(true); return undefined; }
     /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
        ★ **등급표를 여기서 짓는다**(실기 계측: "굽기 7장 314ms · 최악판 devourer 270ms",
@@ -18505,7 +18516,9 @@ export default function ReplayMotionPlayer({
       const p9 = POSE_KINDS[k9]; const out9 = new Set<number>([0]);
       /* ★ 폰은 자세 0 만 미리 굽는다(2026-10-24 · 탭 메모리 — 폰 판은 바이트 상한으로 5~9 장이라 종류 × 자세 × 요잉 8 을 다 담지 못한다 · 미리 굽기는 비우지 않으므로(sprNoEvict)
          종류 차례로 앞 종류의 자세 칸이 판을 다 먹고 뒤 종류는 바탕 칸조차 못 가졌다 — 바탕 칸은 다 갖고 자세 칸은 재생 중 LRU 로). */
-      if (DEV9.name === "phone") return [0];
+      /* 서버 아틀라스가 켜졌으면(sprAtlas9 ★) 폰도 모든 자세의 **메시**를 데운다(2026-10-25, 지적: "자세 0 만 그리다 보니 모델 뜨는 데 좀 느려짐" — 자세 메시를 재생 중에 짓던 값) ·
+         폰의 동적 미리 굽기는 여전히 자세 0 만(아래 preOk9 — 나머지 자세 칸은 아틀라스가 싣는다). */
+      if (DEV9.name === "phone" && SPR_DUMP9 === 0 && !sprAtlasOn9()) return [0];
       if (p9) {
         if (p9.move || p9.flap || p9.thrust) for (const g9 of GAIT_CYCLE9) out9.add(g9);
         if (p9.atk) { out9.add(2); out9.add(POSE_ATK_L); out9.add(POSE_ATK_R); }
@@ -18571,7 +18584,25 @@ export default function ReplayMotionPlayer({
     let stepNow9 = preStep9;
     let lastTs9 = 0;   // 폰 4 → 8(2026-10-24 · 8칸 × 자세 1000칸 넘게를 로딩 안에 — 폰은 MSAA 0 이라 한 장이 싸다)   // PC 12 → 24(자세 칸까지 굽느라 수가 몇 배 — 로딩을 안 늘리려고)
     let preN9 = 0;
+    /* ★ **서버 아틀라스를 먼저 싣는다**(sprAtlas9 ★ · 2026-10-25) — 경기 종류(많이 쓰는 차례)의 묶음을 받아 고정 판에 싣고, 실린 칸은 아래 미리 굽기가 저절로 건너뛴다(같은 열쇠).
+       PC 는 2 배 해상도(f) · 요잉 16(짝 + 홀) · 빛 켜 · 폰은 1 배(h) · 요잉 8(짝) · 빛 켜는 번짐 단만 · 바이트 상한 안에서. 싣는 동안 예열 걸음은 기다린다(15초 넘으면 그냥 간다). */
+    let atlasWait9 = false; const atlasT09 = performance.now();
+    {
+      const g09 = glNow9();
+      if (g09 && pre9 && SPR_DUMP9 === 0 && sprAtlasOn9()) {
+        atlasWait9 = true;
+        const ph9 = DEV9.name === "phone";
+        const kinds9 = [...new Set(jobs.filter((j9) => j9.gl).map((j9) => j9.kind))];
+        sprAtlasLoad9(g09, kinds9, { res: ph9 ? "h" : "f", odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024 })
+          .then((r9) => {
+            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
+            if (ph9 && r9.cells > 0) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
+          })
+          .finally(() => { atlasWait9 = false; });
+      }
+    }
     const step9 = (): void => {
+      if (atlasWait9 && performance.now() - atlasT09 < 15000) { raf9 = requestAnimationFrame(step9); return; }
       const nowTs9 = performance.now();
       const dt9 = lastTs9 ? nowTs9 - lastTs9 : 16;
       lastTs9 = nowTs9;
@@ -18610,9 +18641,12 @@ export default function ReplayMotionPlayer({
                 const opW9 = { kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1, spin: 0, ...v9 } as UnitDrawOp;
                 const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh(opW9);
                 /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
-                if (m9 && pre9) {
+                /* 폰은 자세 0 만 동적으로 미리 굽는다(판 바이트 상한 · 위 posesOf9 ★) — 다른 자세 칸은 서버 아틀라스(sprAtlas9)가 싣는다. */
+                const preOk9 = !(DEV9.name === "phone" && SPR_DUMP9 === 0 && (j9.pose ?? 0) !== 0);
+                if (m9 && pre9 && preOk9) {
                   const lt9 = !u9 && g9.sprTint && LIT_KINDS.has(j9.kind) ? g9.bldMesh({ ...opW9, litMask: true }) : null;
                   const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
+                  g9.sprTag = j9.kind;   // 굽기 덤프의 종류 꼬리표(gl9 sprTag ★ · 재생기에서는 쓰지 않는다)
                   preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)], DEV9.meshShadow, lt9 ?? undefined);
                 }
               }
@@ -18648,6 +18682,8 @@ export default function ReplayMotionPlayer({
         warmingRef.current = false;
         setWarmAt(null);
         setIntroWarm9(true);
+        /* 굽기 덤프 끝(scripts/spr-atlas 가 기다린다) — GL 벌이 있고 미리 굽기가 실제로 돌았을 때만(GL 이 서기 전의 예열은 미리 굽기 없이 끝난다). */
+        if (SPR_DUMP9 > 0 && glNow9() && preN9 > 0) (window as unknown as { __sprDumpDone?: string }).__sprDumpDone = SCR_DIAG.warm9 || "끝";
       }
     };
     raf9 = requestAnimationFrame(step9);

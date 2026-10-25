@@ -10,6 +10,7 @@ export type { ReplayModuleProps } from "./ReplayModule";
 export { setReplayChrome } from "./chrome";
 export type { ReplayChrome, ReplayChromeMember } from "./chrome";
 export { setReplayBgm } from "./useBgm";
+export { setReplaySpriteAtlas } from "./sprAtlas9";
 export type { ReplayBgmTrack } from "./useBgm";
 export {
   setReplayMapFetcher, useReplayMap, useReplayMapTick,

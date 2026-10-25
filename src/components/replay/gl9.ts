@@ -886,7 +886,9 @@ void main() {
 interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null;
   /** 임자색 켜(R8 · 아래 임자색 분리 ★) — 임자색 낯의 기울기. 분리를 못 켜면 null. */ tnTex: WebGLTexture | null; tnFb: WebGLFramebuffer | null;
   shelves: { y: number; h: number; x: number }[]; yTop: number; keys: string[]; last: number;
-  /** 밉맵이 묵었나(새 칸이 들었는데 아직 안 지었다) — 그동안은 0단만 본다(TEXTURE_MAX_LEVEL 0 · 아래 sprMipSettle9 ★). */ stale: boolean }
+  /** 밉맵이 묵었나(새 칸이 들었는데 아직 안 지었다) — 그동안은 0단만 본다(TEXTURE_MAX_LEVEL 0 · 아래 sprMipSettle9 ★). */ stale: boolean;
+  /** ★ 미리 구운 판(서버 아틀라스 · sprAtlasAdd9 · 2026-10-25) — 크기(pw·ph · 없으면 SPR_PAGE9)·GPU 바이트(mb). 고정 판은 sprFixed 에만 들고
+   *  칸 잡기·LRU·밉 손질·비우기(sprReset9)를 안 탄다(fb·shelves 는 안 쓴다). */ pw?: number; ph?: number; fixed?: boolean; mb?: number }
 /** 칸 — 판 자리(위가 0 인 px) · 크기 · 앵커에서 칸 왼위까지(x0·y0 · 기기 px · 음수) · 찍은 배율(kd = CSS 배율 × DPR). */
 interface SprCell9 { page: SprPage9; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }
 interface SprJob9 { key: string; mesh: GlMesh9; yaw: number; cam: GlCam9; kd: number; kc: number; color: string; gR: number; gCy: number; sh: boolean; x0: number; y0: number; w: number; h: number; cell: SprCell9 | null;
@@ -1151,14 +1153,40 @@ export class GlUnits9 implements VecSink9 {
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number; aSF: number;
     uCanvasD: WebGLUniformLocation | null; uTex: WebGLUniformLocation | null; uEm: WebGLUniformLocation | null; uHasEm: WebGLUniformLocation | null; uTn: WebGLUniformLocation | null; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null } | null = null;
   private sprPages: SprPage9[] = [];
+  /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
+  private sprFixed: SprPage9[] = [];
+  private sprFixedCells = new Map<string, SprCell9>();
+  /** 고정 판의 GPU 바이트 합(MB) — 동적 판 바이트 상한(sprBytesMax)에서 뺀다. */
+  sprFixedMB = 0;
+  /** ★ 굽기 덤프(scripts/spr-atlas · `#sprdump=Q` · 2026-10-25) — 켜면 미리 굽기가 칸을 Q 배 해상도로 굽고(kd·실루엣 빛 상자 × Q · 결 자는 그대로) 칸마다
+   *  그 칸을 청한 종류(sprTag)를 적는다. 재생기에서는 늘 0. */
+  sprDumpQ = 0;
+  /** 굽는 판 한 변 — 덤프는 2048(2배 건물 칸이 1024 를 넘는다) · 재생기는 SPR_SCR9. */
+  private sprScrS(): number { return this.sprDumpQ > 0 ? SPR_PAGE9 : SPR_SCR9; }
+  sprTag: string | null = null;
+  private sprTagOf = new Map<string, string>();
   private sprMap = new Map<string, SprCell9>();
   private sprEm = false;
-  private sprScr: { ms: WebGLFramebuffer; rbs: WebGLRenderbuffer[]; rs: WebGLFramebuffer; rsEm: WebGLFramebuffer | null; texs: WebGLTexture[]; samples: number; em: boolean } | null = null;
+  private sprScr: { ms: WebGLFramebuffer; rbs: WebGLRenderbuffer[]; rs: WebGLFramebuffer; rsEm: WebGLFramebuffer | null; texs: WebGLTexture[]; samples: number; em: boolean; s: number } | null = null;
   private sprScrFail = false;
   private sprWarm = new Map<string, SprWarm9>();
   private sprArr = new Float32Array(SPR_F9 * 256);
   /** 진단 — 이 장의 스프라이트 몸·그림자 수 · 새로 찍은 칸 · 늘여 쓴 칸 · 메시 길로 떨어진 몸 · 판 수 · 칸 수. */
-  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0,
+  /** 빛 켜 여부를 한 번이라도 정했나(덤프 못 박기). */
+  private sprEmSet = false;
+  /** ★ 판의 빛 켜 여부를 지금 조건으로 맞춘다 — **굽기 전에** 부른다(2026-10-25 실측: 이 결정이 화면에 몸을 그리는 첫 장(flush)에만 있어, 무대가 가려진 예열 동안 빛 켜 없이
+   *  다 구운 판을 첫 장이 '빛 켜 켬'으로 바꾸며 통째로 비웠다 — PC 재생기는 미리 굽기를 한 번 버리고 재생 중에 다시 구웠다 · 덤프는 칸 144 만 남았다). 플러시·미리 굽기 큐 넣기·
+   *  미리 굽기 걸음이 다 부른다. 덤프 중엔 첫 결정을 못 박는다(헤드리스는 번짐이 늦게 실패(blFail)해 뒤집힌다). */
+  private sprEmSync9(): void {
+    const em9 = this.sprEmOn && this.gl2 && this.mrtOk && GL_MRT9 !== 0 && (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;   // sprEmOn: 폰은 아틀라스 없이는 빛 켜를 안 세운다(sprBytesMax ★)
+    if (em9 !== this.sprEm && !(this.sprDumpQ > 0 && this.sprEmSet)) {
+      const had = this.sprPages.length > 0 || this.sprPre.length > 0;
+      this.sprEm = em9;   // 비우기 전에 — sprReset9 의 처방 다시 넣기가 이 값으로 다시 부르므로
+      if (had) { this.sprReset9(); this.sprStat.resets += 1; }
+    }
+    this.sprEmSet = true;
+  }
+  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0, fixed: 0, resets: 0,
     /** 진단 — 재생 중 **새로 보여 구운** 칸의 열쇠(미리 찍기 아님 · 최근 12) · 그 누계. 미리 굽기가 놓친 것이 무엇인지 가리는 자(perf-check [GL] 놓침). */
     missLog: [] as string[], missN: 0,
     /** 판이 가득 차 LRU 판을 **통째로 비운** 횟수(누계) — 0 이 아니면 판 상한(sprPageMax)이 경기의 칸 수를 못 담는다(2026-10-24). */
@@ -1170,6 +1198,7 @@ export class GlUnits9 implements VecSink9 {
     const gl = this.gl;
     for (const pg of this.sprPages) { gl.deleteTexture(pg.tex); gl.deleteFramebuffer(pg.fb); if (pg.emTex) gl.deleteTexture(pg.emTex); if (pg.emFb) gl.deleteFramebuffer(pg.emFb); if (pg.tnTex) gl.deleteTexture(pg.tnTex); if (pg.tnFb) gl.deleteFramebuffer(pg.tnFb); }
     this.sprPages = []; this.sprMap.clear(); this.sprWarm.clear(); this.sprPre = []; this.sprPreKeys.clear();
+    for (const [k, c] of this.sprFixedCells) this.sprMap.set(k, c);   // 미리 구운 칸은 남는다(위 sprFixed ★)
     /* 처방으로 큐를 다시 채운다(위 sprRecipes ★) — 재생 중 sprPlan9 가 남는 예산으로 굽는다. */
     if (this.sprRecipes.length && !this.sprReseeding) {
       this.sprReseeding = true;
@@ -1194,7 +1223,7 @@ export class GlUnits9 implements VecSink9 {
   /** 판 한 장의 GPU 바이트(MB) — 색 RGBA + (빛 RGBA) + (임자색 RG8), 밉 5단 ≈ ×4/3. */
   sprPageMB9(): number { return (SPR_PAGE9 * SPR_PAGE9 * (4 + (this.sprEm ? 4 : 0) + (this.sprTint ? 2 : 0)) * 4) / 3 / 1048576; }
   /** 지금 세울 수 있는 판 수 — min(판 수 상한, 바이트 상한 ÷ 한 장)(위 sprBytesMax ★ · 적어도 1). */
-  sprPageCap9(): number { return Math.max(1, Math.min(this.sprPageMax, Math.floor(this.sprBytesMax / this.sprPageMB9()))); }
+  sprPageCap9(): number { return Math.max(1, Math.min(this.sprPageMax, Math.floor((this.sprBytesMax - this.sprFixedMB) / this.sprPageMB9()))); }
   private sprPageClear9(pg: SprPage9): void {
     const gl = this.gl;
     gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0);
@@ -1244,10 +1273,10 @@ export class GlUnits9 implements VecSink9 {
        1024² MSAA 판을 비우고 풀어(resolve) 옮겨야 해 폰 GPU 가 굽는 프레임마다 그 값을 냈다. 0 이면 텍스처에 바로 그려 풀기가 없다(칸 테두리는 계단). */
     const samples = Math.max(0, Math.min(GL_MSAA9 >= 0 ? GL_MSAA9 : this.sprMsaa >= 0 ? Math.min(this.sprMsaa, this.msaa) : this.msaa, Number(gl.getParameter(gl.MAX_SAMPLES)) || 0));
     const o = this.sprScr;
-    if (o && o.samples === samples && o.em === em) return true;
+    if (o && o.samples === samples && o.em === em && o.s === this.sprScrS()) return true;   // 크기도(덤프 2048 · sprScrS)
     if (o) { gl.deleteFramebuffer(o.ms); gl.deleteFramebuffer(o.rs); if (o.rsEm) gl.deleteFramebuffer(o.rsEm); for (const r of o.rbs) gl.deleteRenderbuffer(r); for (const t of o.texs) gl.deleteTexture(t); this.sprScr = null; }
     try {
-      const S = SPR_SCR9;
+      const S = this.sprScrS();
       const [t0, rs] = this.sprTex9(S, S);
       const texs = [t0]; let rsEm: WebGLFramebuffer | null = null;
       if (em) { const [t1, f1] = this.sprTex9(S, S); texs.push(t1); rsEm = f1; }
@@ -1270,7 +1299,7 @@ export class GlUnits9 implements VecSink9 {
       gl.bindRenderbuffer(gl.RENDERBUFFER, null);
       if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("스프라이트 굽는 판");
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      this.sprScr = { ms, rbs, rs, rsEm, texs, samples, em };
+      this.sprScr = { ms, rbs, rs, rsEm, texs, samples, em, s: S };
       return true;
     } catch (e) { console.warn("[gl9] 스프라이트 굽는 판", e); gl.bindFramebuffer(gl.FRAMEBUFFER, null); this.sprScrFail = true; return false; }
   }
@@ -1352,6 +1381,7 @@ export class GlUnits9 implements VecSink9 {
    *  (그림자도) 큐에 올린다. 굽는 것은 sprPreStep9(예열 루프가 프레임마다 몇 장씩). 이미 있는 칸·큐의 칸은 건너뛴다. 올린 수를 돌려준다. */
   sprPrebake9(mesh: GlMesh9, cam: GlCam9, gRk: number, gCyk: number, color: string, yawBuckets: number[], shadow: boolean, lt?: GlMesh9): number {
     if (!this.sprOn || !this.spr) return 0;
+    if (!this.sprReseeding) this.sprEmSync9();   // 빛 켜 결정을 굽기 전에(위 sprEmSync9 ★)
     if (!this.sprReseeding) {
       const rk = `${mesh.key}|${cam.key}|${shadow ? 1 : 0}`;
       if (!this.sprRecipes.some((r) => `${r.meshKey}|${r.cam.key}|${r.shadow ? 1 : 0}` === rk)) this.sprRecipes.push({ meshKey: mesh.key, cam, gRk, gCyk, color, yaws: yawBuckets.slice(), shadow, ltKey: lt?.key });
@@ -1365,8 +1395,20 @@ export class GlUnits9 implements VecSink9 {
       for (const yb0 of yawBuckets) {
         const n9 = this.yawN9(mesh); const yb = ((yb0 % n9) + n9) % n9;
         const key = this.sprKey9(mesh, cam, yb, qk, color, gRq, gCyq, sh);
-        if (this.sprMap.has(key) || this.sprPreKeys.has(key)) continue;
-        this.sprPre.push(this.sprJob9(key, mesh, (yb * 360) / n9, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, lt));
+        /* 덤프는 이미 선 칸이라도 **더 작은 배율**(재생 붓이 먼저 1 배로 구운 몸)이면 Q 배로 다시 굽는다 · 꼬리표는 이미 선 칸에도 단다. */
+        const have = this.sprMap.get(key);
+        const qWant = this.sprDumpQ > 0 ? this.sprDumpQ : 1;
+        if ((have && !(this.sprDumpQ > 0 && have.kd < kq * qWant - 1e-6 && !this.sprFixedCells.has(key))) || this.sprPreKeys.has(key)) {
+          if (this.sprTag && !this.sprTagOf.has(key)) this.sprTagOf.set(key, this.sprTag);
+          continue;
+        }
+        if (have) this.sprMap.delete(key);
+        /* 덤프(위 sprDumpQ ★)는 Q 배로 — 기기 px 자(kd·gR·gCy)만 곱하고 결 자(kc)는 그대로(굽기 uKg 도 1/(dpr·Q) · sprPreStep9). 칸이 굽는 판(SPR_SCR9)을 넘으면 1 배. */
+        const q9 = this.sprDumpQ > 0 ? this.sprDumpQ : 1;
+        let job = this.sprJob9(key, mesh, (yb * 360) / n9, cam, kq * q9, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq * q9, (gCyq / 8) * kq * q9, sh, lt);
+        if (q9 > 1 && (job.w > this.sprScrS() - 4 || job.h > this.sprScrS() - 4)) job = this.sprJob9(key, mesh, (yb * 360) / n9, cam, kq, kq / Math.max(0.01, dprK), color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, lt);
+        if (this.sprTag) this.sprTagOf.set(key, this.sprTag);
+        this.sprPre.push(job);
         this.sprPreKeys.add(key); n += 1;
       }
     }
@@ -1375,8 +1417,19 @@ export class GlUnits9 implements VecSink9 {
   /** 큐에서 n 장을 굽는다 — 남은 수를 돌려준다. 판 자리가 안 나면(상한 · 이 장 LRU 없음) 그 칸은 그냥 빠진다(재생 중 보이면 그때 굽는다). */
   sprPreStep9(n: number): number {
     if (!this.sprPre.length) return 0;
+    this.sprEmSync9();
     const batch = this.sprPreTake9(n);
-    if (batch.length) { this.sprNoEvict = true; try { this.sprBake9(batch, this.lastDprK); } finally { this.sprNoEvict = false; } }
+    if (batch.length) {
+      this.sprNoEvict = true;
+      try {
+        /* 덤프는 결 자(uKg = 1/(dpr·배율))를 칸마다 맞춘다 — 배율(kd/kq)이 같은 칸끼리 묶어 굽는다(Q 배 · 넘쳐 1 배로 떨군 칸). */
+        if (this.sprDumpQ > 0) {
+          const byQ = new Map<number, SprJob9[]>();
+          for (const j of batch) { const qq = Math.round((j.kd / Math.max(1e-6, j.kc * this.lastDprK)) * 100) / 100; const l = byQ.get(qq) ?? []; l.push(j); byQ.set(qq, l); }
+          for (const [qq, js] of byQ) this.sprBake9(js, this.lastDprK * qq);
+        } else this.sprBake9(batch, this.lastDprK);
+      } finally { this.sprNoEvict = false; }
+    }
     return this.sprPre.length;
   }
   /** 큐에서 n 장을 꺼낸다 — 메시가 버려진(열쇠의 메시가 지금 벌이 아닌) 일감·이미 선 칸은 버린다. */
@@ -1392,11 +1445,82 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 미리 굽기 큐에 남은 수. */
   sprPreLeft9(): number { return this.sprPre.length; }
+  /* ── 서버 아틀라스(2026-10-25, 요청: "모든 모델의 그림을 하나도 빠짐없이 그려서 가지고 있다가 보여주면" → "3번 ㄱㄱ" · "피시에도 같이" · "품질 높게" · "빛 켜 같은 것도") ──
+     굽기: scripts/spr-atlas.mjs 가 재생기를 `#sprdump=Q` 로 열어 모든 종류·자세·요잉 16 을 지금과 같은 셰이더로 Q 배 해상도에 굽고, 아래 덤프 둘로 판 픽셀과 칸 표를 꺼낸다.
+     쓰기: sprAtlas9.ts 가 경기에 나오는 종류의 묶음(KTX2)을 받아 기기 형식으로 풀고 sprAtlasTexture9 → sprAtlasAdd9 로 고정 판에 싣는다. 열쇠가 런타임과 같아 붓은 그대로 그 칸을 찾는다. */
+  /** 덤프 — 동적 판 i 의 0단 픽셀(색 RGBA · 임자색·켜짐 켜 RGBA(R·G) · 빛 켜 RGBA 또는 null). 행은 GL 차례(아래가 0). */
+  sprDumpPage9(i: number): { w: number; h: number; color: Uint8Array; tint: Uint8Array | null; em: Uint8Array | null } | null {
+    const pg = this.sprPages[i]; if (!pg) return null;
+    const gl = this.gl; const P = SPR_PAGE9;
+    const read = (fb: WebGLFramebuffer | null): Uint8Array | null => {
+      if (!fb) return null;
+      const out = new Uint8Array(P * P * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.readPixels(0, 0, P, P, gl.RGBA, gl.UNSIGNED_BYTE, out);
+      return out;
+    };
+    const r = { w: P, h: P, color: read(pg.fb)!, tint: read(pg.tnFb), em: read(pg.emFb) };
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return r;
+  }
+  /** 덤프 — 칸 표(열쇠 · 판 번호 · 자리 · 크기 · 앵커 · 배율 · 청한 종류). 고정 판 칸은 뺀다. */
+  sprDumpCells9(): { key: string; page: number; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number; tag: string }[] {
+    const out: { key: string; page: number; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number; tag: string }[] = [];
+    for (const [key, c] of this.sprMap) {
+      const pi = this.sprPages.indexOf(c.page); if (pi < 0) continue;
+      out.push({ key, page: pi, px: c.px, py: c.py, w: c.w, h: c.h, x0: c.x0, y0: c.y0, kd: c.kd, tag: this.sprTagOf.get(key) ?? "" });
+    }
+    return out;
+  }
+  /** 덤프 쪽 판 수(동적). */
+  sprDumpPages9(): number { return this.sprPages.length; }
+  /** 아틀라스 텍스처 하나 — 단(levels)마다 압축(fmt ≠ 0 · compressedTexImage2D) 또는 RGBA8(fmt 0) 자료를 올린다. 단 수 = levels 길이(밉 · LINEAR_MIPMAP_LINEAR). */
+  sprAtlasTexture9(levels: { w: number; h: number; data: Uint8Array }[], fmt: number): WebGLTexture | null {
+    const gl = this.gl as WebGL2RenderingContext;
+    if (!this.gl2 || levels.length === 0) return null;
+    const tex = gl.createTexture(); if (!tex) return null;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    try {
+      levels.forEach((lv, i) => {
+        if (fmt) gl.compressedTexImage2D(gl.TEXTURE_2D, i, fmt, lv.w, lv.h, 0, lv.data);
+        else gl.texImage2D(gl.TEXTURE_2D, i, gl.RGBA8, lv.w, lv.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, lv.data);
+      });
+    } catch (e) { gl.deleteTexture(tex); console.warn("[gl9] 아틀라스 텍스처", e); return null; }
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, levels.length - 1);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, levels.length > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return gl.getError() === gl.NO_ERROR ? tex : (gl.deleteTexture(tex), null);
+  }
+  /** 고정 판 하나와 그 칸들을 싣는다(위 SprPage9.fixed ★) — 같은 열쇠의 동적 칸이 있으면 고정 칸이 이긴다. 임자색 켜가 없는 판(tint null)은 분리를 못 쓰는 칸이라 싣지 않는다. */
+  sprAtlasAdd9(tex: WebGLTexture, tint: WebGLTexture | null, em: WebGLTexture | null, pw: number, ph: number, mb: number,
+    cells: { key: string; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }[]): number {
+    if (!this.sprTint && tint) { /* 분리를 못 켠 문맥 — 칸 열쇠에 임자색이 든다(sprKey9) · 아틀라스 열쇠와 안 맞는다 */ return 0; }
+    const pg: SprPage9 = { tex, fb: null as unknown as WebGLFramebuffer, emTex: em, emFb: null, tnTex: tint, tnFb: null, shelves: [], yTop: 0, keys: [], last: this.frameNo, stale: false, pw, ph, fixed: true, mb };
+    this.sprFixed.push(pg); this.sprFixedMB += mb;
+    let n = 0;
+    for (const c of cells) {
+      const cell: SprCell9 = { page: pg, px: c.px, py: c.py, w: c.w, h: c.h, x0: c.x0, y0: c.y0, kd: c.kd };
+      this.sprFixedCells.set(c.key, cell); this.sprMap.set(c.key, cell); pg.keys.push(c.key); n += 1;
+    }
+    return n;
+  }
+  /** 아틀라스를 풀 기기 형식 — ASTC 4×4(폰 대부분) > BC7(PC) > ETC2 RGBA(안드로이드 옛 GPU) > RGBA8. tf = Basis transcoder_texture_format · gl = 압축 내부 형식(0 이면 RGBA8). */
+  sprAtlasFmt9(): { tf: number; gl: number; name: string } {
+    const gl = this.gl;
+    if (gl.getExtension("WEBGL_compressed_texture_astc")) return { tf: 10, gl: 0x93b0, name: "ASTC" };
+    if (gl.getExtension("EXT_texture_compression_bptc")) return { tf: 6, gl: 0x8e8c, name: "BC7" };
+    if (gl.getExtension("WEBGL_compressed_texture_etc")) return { tf: 1, gl: 0x9278, name: "ETC2" };
+    return { tf: 13, gl: 0, name: "RGBA" };
+  }
+  /** 미리 구운 판 수 · 칸 수 · MB(진단). */
+  sprAtlasStat9(): { pages: number; cells: number; mb: number } { return { pages: this.sprFixed.length, cells: this.sprFixedCells.size, mb: this.sprFixedMB }; }
   /** 일감들을 굽는다 — 굽는 판(MSAA)에 지도와 같은 셰이더로 그리고, 풀어서, 칸마다 제 판 자리로 옮긴다. */
   private sprBake9(jobs: SprJob9[], dprK: number): void {
     if (!jobs.length || !this.sprScrEnsure9(this.sprEm)) return;
     const gl = this.gl as WebGL2RenderingContext; const scr = this.sprScr!;
-    const S = SPR_SCR9;
+    const S = this.sprScrS();
     const touched = new Set<SprPage9>();
     let i0 = 0;
     while (i0 < jobs.length) {
@@ -1632,13 +1756,15 @@ export class GlUnits9 implements VecSink9 {
       const gRq = Math.round((it.gradR / it.k) * 8); const gCyq = Math.round((it.gradCy / it.k) * 8);
       const kq0 = 2 ** (qk / SPR_KQ9);
       const key = keyOf(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh);
-      let over = kd / kq0 > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
+      /* 미리 구운 칸(서버 아틀라스 · Q 배로 구웠다)이 있으면 늘림 판정은 **그 칸의 배율**로 — 2 배 칸은 두 배 더 당겨도 판으로 그린다(메시가 준다 · 2026-10-25). */
+      const fx9 = this.sprFixedCells.get(key);
+      let over = kd / (fx9 ? fx9.kd : kq0) > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
       if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)
       if (over) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
       const hit = this.sprMap.get(key);
       if (hit) { hit.page.last = this.frameNo; if (Math.abs(kd / hit.kd - 1) > 0.004) st.scaled += 1; return { cell: [hit, kd / hit.kd], job: null }; }
       const pend = jobOf.get(key); if (pend) return { cell: null, job: pend };
-      if (budget > 0) {
+      if (budget > 0 && this.sprDumpQ === 0) {   // 덤프 중엔 재생 붓이 안 굽는다(미리 굽기가 Q 배로 굽는다 · 위 sprDumpQ ★)
         budget -= 1;
         const kq = 2 ** (qk / SPR_KQ9);
         const j = this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, it.meshLt);
@@ -1700,7 +1826,7 @@ export class GlUnits9 implements VecSink9 {
     this.sprMipSettle9();
     for (const [i, j] of waitB) if (j.cell) B[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
     for (const [i, j] of waitS) if (j.cell) S[i] = [j.cell, (q[i].k * dprK) / j.cell.kd];
-    st.pages = this.sprPages.length; st.cells = this.sprMap.size;
+    st.pages = this.sprPages.length; st.cells = this.sprMap.size; st.fixed = this.sprFixed.length;
     return { B, S };
   }
   /** 스프라이트 기록을 그린다 — 판이 같은 것끼리 잇달아 한 드로 콜(차례는 기록 차례 그대로). mark 면 연기 위 몸만 스텐실에 찍는다. */
@@ -2327,8 +2453,7 @@ export class GlUnits9 implements VecSink9 {
     this.lastDprK = dprK9;
     let sprB: ([SprCell9, number] | null)[] | null = null; let sprS: ([SprCell9, number] | null)[] | null = null;
     if (this.sprOn && this.spr && this.queue.length) {
-      const em9 = this.sprEmOn && this.gl2 && this.mrtOk && GL_MRT9 !== 0 && (GL_BLOOM9 === 1 || (GL_BLOOM9 < 0 && this.bloomOn)) && !this.blFail && !!this.fx;   // sprEmOn: 폰은 빛 켜를 안 세운다(위 sprBytesMax ★)
-      if (em9 !== this.sprEm) { this.sprReset9(); this.sprEm = em9; }
+      this.sprEmSync9();
       const pl9 = this.sprPlan9(this.queue, dprK9);
       sprB = pl9.B; sprS = pl9.S;
     }
@@ -2490,7 +2615,8 @@ export class GlUnits9 implements VecSink9 {
         const a = this.sprArr; const o = o9 * SPR_F9;
         if (Math.abs(s9 - 1) < 0.004) { a[o] = Math.round(AX) + c.x0; a[o + 1] = Math.round(AY) + c.y0; a[o + 2] = c.w; a[o + 3] = c.h; }
         else { a[o] = AX + c.x0 * s9; a[o + 1] = AY + c.y0 * s9; a[o + 2] = c.w * s9; a[o + 3] = c.h * s9; }
-        a[o + 4] = c.px / P; a[o + 5] = (P - c.py) / P; a[o + 6] = (c.px + c.w) / P; a[o + 7] = (P - c.py - c.h) / P;
+        const PW = c.page.pw ?? P; const PH = c.page.ph ?? P;   // 미리 구운 판은 제 크기(위 SprPage9.pw ★)
+        a[o + 4] = c.px / PW; a[o + 5] = (PH - c.py) / PH; a[o + 6] = (c.px + c.w) / PW; a[o + 7] = (PH - c.py - c.h) / PH;
         a[o + 8] = alpha; a[o + 9] = depth; a[o + 10] = mode; a[o + 11] = over ? 1 : 0;
         if (solid) { const sc = hexRgb(solid); a[o + 12] = sc[0]; a[o + 13] = sc[1]; a[o + 14] = sc[2]; } else { a[o + 12] = 0; a[o + 13] = 0; a[o + 14] = 0; }
         a[o + 15] = 0;

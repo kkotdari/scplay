@@ -612,6 +612,9 @@ import { createRoot } from "react-dom/client";
 import ReplayMotionPlayer, { sceneLinkQueryOf9 } from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
 /* --bgm — 곡 목록을 꽂아 음악 단추·목록(음량 슬라이더 + 끄기)을 세운다(2026-10-10). 소리는 안 난다(빈 data 주소). */
 import { setReplayBgm } from ${JSON.stringify(join(ROOT, "src/components/replay/useBgm"))};
+/* --atlas DIR(2026-10-25) — 서버 아틀라스(scripts/spr-atlas.mjs 의 --out)를 http://perf-check.local/spr/ 로 내주고 재생기에 그 자리를 준다(sprAtlas9). */
+import { setReplaySpriteAtlas } from ${JSON.stringify(join(ROOT, "src/components/replay/sprAtlas9"))};
+if (${JSON.stringify(process.argv.includes("--atlas"))}) setReplaySpriteAtlas({ base: "http://perf-check.local/spr" });
 /* 토스트를 모은다(--locktoast · 2026-10-11) — 앱이 꽂는 chrome.toast 자리. */
 import { setReplayChrome } from ${JSON.stringify(join(ROOT, "src/components/replay/chrome"))};
 window.__toasts = [];
@@ -848,6 +851,16 @@ if (has("--quickzoom") || has("--coarse")) {
       : orig(q));
   });
 }
+if (has("--atlas")) {   // 서버 아틀라스(위 ENTRY 의 --atlas) — DIR/<판>/… · DIR/basis/… · 받은 바이트를 센다([아틀라스 받기])
+  const AD9 = String(flag("--atlas", ""));
+  globalThis.__atlasBytes = 0; globalThis.__atlasN = 0;
+  await page.route("http://perf-check.local/spr/**", (r) => {
+    const f9 = join(AD9, decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/spr\//, "")));
+    if (!existsSync(f9)) return r.fulfill({ status: 404, body: "" });
+    const b9 = readFileSync(f9); globalThis.__atlasBytes += b9.length; globalThis.__atlasN += 1;
+    return r.fulfill({ body: b9, contentType: f9.endsWith(".json") ? "application/json" : f9.endsWith(".wasm") ? "application/wasm" : f9.endsWith(".js") ? "text/javascript" : "application/octet-stream" });
+  });
+}
 await page.route("http://perf-check.local/fonts/**", (r) => {   // 재생기 글꼴(dist/fonts)
   const f9 = join(ROOT, "dist", "fonts", decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/fonts\//, "")));
   return existsSync(f9) ? r.fulfill({ body: readFileSync(f9), contentType: f9.endsWith(".ttf") ? "font/ttf" : "font/woff2" }) : r.fulfill({ status: 404, body: "" });
@@ -939,6 +952,39 @@ if (has("--ask")) {   // 보기 모드 판은 고를 때까지 시계를 세운�
   }
 }
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
+/* --sprdump OUTDIR(2026-10-25 · 서버 아틀라스 굽기 — scripts/spr-atlas.mjs 가 부른다) — 재생기를 `#sprdump=Q` 로 열었을 때 모든 종류의 미리 굽기가 끝나기를(window.__sprDumpDone)
+   기다렸다가 gl9 의 동적 판 픽셀(색 · 임자색·켜짐 · 빛 — GL 행 차례)을 OUTDIR/p{i}.{c,t,e}.raw 로, 칸 표를 OUTDIR/cells.json 으로 쓰고 끝난다. */
+if (has("--sprdump")) {
+  const outD9 = String(flag("--sprdump", "sprdump"));
+  const { mkdirSync } = await import("node:fs");
+  mkdirSync(outD9, { recursive: true });
+  const t09 = Date.now();
+  for (;;) {
+    if (await page.evaluate(() => !!window.__sprDumpDone)) break;
+    if (Date.now() - t09 > Number(flag("--dumpwait", 3600000))) throw new Error("덤프가 안 끝났다(--dumpwait)");
+    await page.waitForTimeout(10000);
+    console.log("  [덤프 기다림]", Math.round((Date.now() - t09) / 1000), "s", await page.evaluate(() => (window.__scrDiag || {}).warm9 ?? "-"));
+  }
+  console.log("  [덤프 끝]", await page.evaluate(() => `${window.__sprDumpDone} · 판 비움 ${globalThis.__gl9.sprStat.resets} · 칸 ${globalThis.__gl9.sprStat.cells} · 큐 ${globalThis.__gl9.sprPreLeft9()} · 빛 켜 ${globalThis.__gl9.sprStat.pages}`));
+  const nP9 = await page.evaluate(() => globalThis.__gl9.sprDumpPages9());
+  const cells9 = await page.evaluate(() => globalThis.__gl9.sprDumpCells9());
+  writeFileSync(join(outD9, "cells.json"), JSON.stringify({ pages: nP9, q: Number(/sprdump=([\d.]+)/.exec(String(flag("--hash", "")))?.[1] ?? 1), cells: cells9 }));
+  for (let i9 = 0; i9 < nP9; i9 += 1) {
+    for (const [ly9, fld9] of [["c", "color"], ["t", "tint"], ["e", "em"]]) {
+      const b64 = await page.evaluate(([i, f]) => {
+        const d = globalThis.__gl9.sprDumpPage9(i); const u = d && d[f]; if (!u) return "";
+        let out = ""; const CH = 0x8000;
+        for (let o = 0; o < u.length; o += CH) out += String.fromCharCode.apply(null, u.subarray(o, o + CH));
+        return btoa(out);
+      }, [i9, fld9]);
+      if (b64) writeFileSync(join(outD9, `p${i9}.${ly9}.raw`), Buffer.from(b64, "base64"));
+    }
+    console.log(`  [덤프] 판 ${i9 + 1}/${nP9}`);
+  }
+  console.log(`[덤프] 판 ${nP9} · 칸 ${cells9.length} · ${Math.round((Date.now() - t09) / 1000)}s → ${outD9}`);
+  await browser.close();
+  process.exit(0);
+}
 // 첫 굽기(스프라이트 캐시 채우기)가 가라앉게 잠깐 둔다(--warm <ms>, 0 이면 첫 굽기까지 표본에 든다).
 await page.waitForTimeout(Number(flag("--warm", 2500)));
 
