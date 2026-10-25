@@ -15078,6 +15078,9 @@ export default function ReplayMotionPlayer({
   const FLING_MIN9 = 0.25;      // 이보다 느리게(px/ms) 떼면 관성 없음 — 천천히 놓는 손은 그 자리에 선다
   const FLING_MAX9 = 4.5;       // 속도 상한(px/ms)
   const flingRef9 = useRef({ raf: 0, vx: 0, vy: 0, vz: 0, ax: 0, ay: 0, at: 0 });
+  /** 손짓 뒤 미뤄 둔 상태 굳히기(endGestureXf ★). */
+  const commitTimerRef9 = useRef(0);
+  useEffect(() => () => { if (commitTimerRef9.current) window.clearTimeout(commitTimerRef9.current); }, []);
   /** 손짓 표본(시각 · 손끝 또는 가운데 화면 자리 · 배율) — 최근 100ms 만 든다. */
   const flingSamp9 = useRef<{ t: number; x: number; y: number; z: number }[]>([]);
   /* 시각은 **이벤트가 난 시각**(e.timeStamp)이다 — 처리 시각(performance.now)은 메인 스레드가 바쁘면 몰려서, 빠르게 뗀 손이 '멈췄다 뗐다'로 읽혔다(헤드리스 실측). */
@@ -15147,6 +15150,7 @@ export default function ReplayMotionPlayer({
   /** 손짓 시작 — 이미 도는 중이면 기준을 안 건드린다(휠→드래그 이어짐 등). */
   const beginGestureXf = useCallback((): void => {
     flingStop9();   // 새 손짓이 관성을 넘겨받는다(위 관성 ★)
+    if (commitTimerRef9.current) { window.clearTimeout(commitTimerRef9.current); commitTimerRef9.current = 0; }   // 미뤄 둔 굳히기는 이 손짓 끝에(endGestureXf ★)
     if (xfGestureRef.current) return;
     /* (되물림 · 2026-10-24, 요청: "유닛·건물 선택 상태로 드래그나 줌해도 선택 취소 안 되게") — 옛 '화면을 움직이면 인포 팝업은 닫는다'(휠·핀치·드래그·가장자리·WASD ·
        단추·키보드 배율 zoomStep9·zoomTo·fsWheelZoom 도 함께)는 걷었다. 선택은 다른 것을 고르거나 빈 땅을 누르거나(pickAt) 중계 카메라가 사람을 갈아탈 때(camRaw9·viewRaw)만 풀린다. */
@@ -15221,8 +15225,16 @@ export default function ReplayMotionPlayer({
        그렸다가 툭'이다. 붓 하나를 재기준으로 부르면 내용이 최종 자리로 가고 임시 변환이 걷힌다 — 커밋 타이밍과 무관하다. */
     brushSrc9 = "commit";
     paintFnRef9.current?.(tLiveRef9.current, true);
-    setZoom(zoomRef.current);
-    setPan({ ...panRef.current });
+    /* ★ 상태 굳히기는 **잠시 미룬다**(2026-10-25, 지적: "제스처 시작까지 살짝 딜레이" · 요청 "굳히기 미루기") — setZoom·setPan 은 재생기 전체 렌더라 폰에서 수십 ms 다.
+       손을 떼자마자 다시 끌면 그 렌더가 첫 손짓을 막았다. 붓·손짓은 ref(zoomRef·panRef)를 읽고 렌더가 ref 를 상태로 되돌리지 않으므로 160ms 늦게 굳혀도 그림이 안 갈린다.
+       그 사이 새 손짓이 서면(beginGestureXf) 굳히기를 걷는다 — 그 손짓이 끝날 때 굳힌다. 굳힐 때는 그때의 ref 를 읽는다(setView9 등이 사이에 옮겼어도 맞다). */
+    if (commitTimerRef9.current) window.clearTimeout(commitTimerRef9.current);
+    commitTimerRef9.current = window.setTimeout(() => {
+      commitTimerRef9.current = 0;
+      if (xfGestureRef.current) return;
+      setZoom(zoomRef.current);
+      setPan({ ...panRef.current });
+    }, 160);
   }, []);
   /* 3초 미조작이면 숨긴다(요청) — 깨우는 손짓은 기기마다 다르다:
        · PC — 마우스를 **가장자리로** 가져갈 때만(요청). 화면 한복판에서 마우스가
@@ -18009,8 +18021,11 @@ export default function ReplayMotionPlayer({
     }
     const d = dragRef.current;
     if (!d || d.id !== e.pointerId) return;
+    /* ★ **조금이라도 움직이면 곧장 끈다**(2026-10-25, 지적: "모바일에서 드래그나 줌시 제스처 시작까지 살짝 딜레이" → "조금이라도 이동한거는 무조건 이동 제스처로
+       판단하고 그 폭이 적으면 셀렉트로 적용" · "피시도 똑같이") — 옛: 10px(DRAG_SLOP)을 넘어야 끌기라 첫 10px 동안 지도가 멎어 있다가 넘는 순간 그만큼 툭 따라잡았다.
+       이제 문턱 없이 끌고, 뗄 때 움직인 폭이 DRAG_SLOP 안이면 클릭(몸 집기 · 더블탭 판정)으로도 친다(onMapPointerUp — tapRef.moved 가 그 자). 관성은 큰 끌기만. */
     if (!d.live) {
-      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) <= DRAG_SLOP) return;
+      if (e.clientX === d.sx && e.clientY === d.sy) return;
       d.live = true;
     }
     const el = mapRef.current;
@@ -18118,7 +18133,9 @@ export default function ReplayMotionPlayer({
     /* 끌던 손을 **빠르게** 뗐으면 관성으로 더 민다(위 관성 ★) — 그때는 손짓을 안 끝낸다(관성이 다 멎으면 제가 끝낸다). 관성이 도는 중의 다른 손가락 떼기도 안 끝낸다. */
     let flung9 = false;
     const dU9 = dragRef.current;
-    if (dU9 && dU9.id === e.pointerId && dU9.live && !gestureRef.current && xfGestureRef.current) {
+    const tpU9 = tapRef.current;
+    const bigU9 = !!tpU9 && tpU9.id === e.pointerId && tpU9.moved;   // DRAG_SLOP 을 넘게 끌었나 — 작은 끌기는 관성 없이 클릭으로도 친다(위 ★ 곧장 끈다)
+    if (dU9 && dU9.id === e.pointerId && dU9.live && bigU9 && !gestureRef.current && xfGestureRef.current) {
       pendFlushRef9.current?.(); pendFlushRef9.current = null;   // 못 그린 마지막 걸음부터
       const v9 = flingVel9(e.timeStamp);
       if (v9) flung9 = flingStart9({ vx: v9.vx, vy: v9.vy, vz: 0 }, 0, 0);
@@ -18149,7 +18166,8 @@ export default function ReplayMotionPlayer({
       tapRef.current = null;
       return;
     }
-    const dragged = dragRef.current?.id === e.pointerId && dragRef.current.live;
+    /* 끌었어도 폭이 DRAG_SLOP 안이면 클릭이다(위 ★ 곧장 끈다) — 아래 tp.moved 가 그 자라, 여기서는 '크게 끈 것'만 끌기로 센다. */
+    const dragged = dragRef.current?.id === e.pointerId && dragRef.current.live && bigU9;
     if (dragRef.current?.id === e.pointerId) dragRef.current = null;
     const tp = tapRef.current;
     if (tp?.id === e.pointerId) tapRef.current = null;
