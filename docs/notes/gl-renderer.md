@@ -1602,3 +1602,12 @@ JS 더미가 얹혀 사파리/크롬이 탭을 죽였다. 0단은 빛 켜가 없
   sg-web: `npm run spr` · postinstall 이 그것을 부른다(Vercel `npm ci` 가 root postinstall 을 돈다 — 실측 1076 묶음) · `npm install <패키지>` 꼴은 root postinstall 을
   안 부르므로 `npm run scplay` 끝에 `npm run spr` · `public/spr/` 는 무시 목록 · vercel.json 영구 캐시 머리는 그대로.
 - 무게: git 의존 타르볼 160MB(npm pack 실측) — 옛엔 같은 무게가 sg-web clone 에 실렸으니 Vercel 빌드 받는 양은 거의 같다.
+
+## 크립 마스크 세로 자 = 지도 키(2026-10-25)
+지적: "크립이 제대로 안그려지는 문제가 곳곳에서 — 부분부분 지워지거나 벽경계를 넘어가거나"(폰 · 확대).
+- 원인: UnitLayer 크립 길의 벽 마스크(`creepMask` → destination-out)와 지도 상자 클립이 세로 자로 `ch`(캔버스 키)를 썼다.
+  좌표 사상 `zy` 는 `mh9`(지도 키)다. 캔버스는 위 띠 + 지도 + 독 뒤 늘림(`--map-ext`, 10-23 "폰에서 독 뒤까지 지도 그리기")이라,
+  그 뒤로 마스크가 세로로 (지도+늘림)/지도 배 늘어나 벽 자리와 어긋났다 — 벽 위 크립은 남고 엉뚱한 땅의 크립이 파였다. PC 는 늘림이 보통 0 이라 덜 났다.
+- 손: 마스크 `dh9` 와 지도 상자 클립 높이를 `mh9 * zoom` 으로. 분할 칸 붓(17319 언저리)은 이미 mh9 였다.
+- 🔎 `perf-check.mjs --ios --warm 3000 --glblit --castoff --zoom 4 --cx 0.15 --cy 0.82 --t 60 --shot x.png`(Rex 본진 · 왼위 벽에 크립이 안 넘어야) · PC 는 `--wide --readyms 120000`.
+- 규약: 이 캔버스에서 지도 분수 → 화면은 늘 `zx`/`zy`(세로 mh9). `ch` 는 캔버스 지우기·화면 거르기에만.

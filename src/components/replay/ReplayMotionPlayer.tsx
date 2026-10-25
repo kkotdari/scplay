@@ -6804,7 +6804,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
           ctx.closePath();
         } else {
-          ctx.rect(zx(0), zy(0), cw * zoom, ch * zoom);
+          ctx.rect(zx(0), zy(0), cw * zoom, mh9 * zoom);   // 세로는 지도 키(mh9) — ch 는 위 띠·독 뒤 늘림(--map-ext)까지 든 캔버스 키다
         }
         ctx.clip();
         paintOps(creepList);
@@ -6822,7 +6822,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const dx9 = zx(fx0);
             const dy9 = zy(fy0);
             const dw9 = (fx1 - fx0) * cw * zoom;
-            const dh9 = (fy1 - fy0) * ch * zoom;
+            /* ★ 세로 자는 **지도 키(mh9)** 다 — zy 와 같은 자(2026-10-25, 지적: "크립이 부분부분 지워지거나 벽경계를 넘어가거나").
+               여기 ch(캔버스 키 = 위 띠 + 지도 + 독 뒤 늘림 --map-ext)를 쓰고 있어, 폰에서 독 뒤까지 그리기(10-23) 뒤로 마스크가
+               세로로 (지도+늘림)/지도 배만큼 늘어나 벽 자리에서 어긋났다 — 벽 위 크립은 남고 엉뚱한 땅의 크립이 파였다. */
+            const dh9 = (fy1 - fy0) * mh9 * zoom;
             if (dx9 + dw9 < 0 || dx9 > cw || dy9 + dh9 < 0 || dy9 > ch) continue;
             ctx.drawImage(wallMask, 0, sy0, wallMask.width, sh, dx9, dy9, dw9, dh9);
           }
