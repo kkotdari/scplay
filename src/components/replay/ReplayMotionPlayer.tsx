@@ -9142,6 +9142,8 @@ export const sceneLinkOf9 = (src: string | URLSearchParams): SceneLink9 | null =
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
 const REACT_STEP_MS9 = 100;
+/** 손짓 중 React 박자(ms) — 끄는 동안의 멈칫을 줄인다(틱의 ★ 손짓 중 0.4초). */
+const XF_REACT_MS9 = 400;
 /* (옮김) 핵·스톰 동안의 React 박자 — 기기의 **힘**으로 갈라야 해서 nukeStep9로 갔다(CROWD9 옆 ★). */
 /** 워커가 보낸 설계도 한 장 — 숫자 배열(unpack9로 푼다) + 안개(바뀐 장에만) + 짓기 ms. 푼 결과는 dec에 붙인다. */
 export type PackedFrame9 = {
@@ -19061,7 +19063,10 @@ export default function ReplayMotionPlayer({
         const nowR9 = performance.now();
         /* 시계는 메인 하나(frameWorker ClkMsg ★) — 그린 시각을 50ms 마다 워커에 붙인다. */
         { const wk9 = frameWorkerRef.current; if (wk9 && nowR9 - clkAtRef9.current >= 50) { clkAtRef9.current = nowR9; wk9.postMessage({ type: "clk", t: next9 }); } }
-        if (ended9 || nowR9 - reactAtRef9.current >= reactStepRef9.current) {
+        /* ★ 손짓 중엔 React 박자를 **0.4초**로(2026-10-25, 지적: "드래그시 부드러운데 중간중간 좀 멈칫") — React 한 장은 재생기 전체 렌더라 폰에서 15ms 안팎이고,
+           재생 중엔 0.1초마다 돌아 끄는 동안에도 열 장에 한 장꼴로 그 장이 60Hz 한 칸(16.7ms)을 넘겼다. 손짓 중 화면은 붓(틱·손짓 붓)이 ref 로 칠하므로
+           React 가 늦어도 지도는 안 멎는다 — 늦어지는 것은 시계 글자·인포창 숫자뿐이다. */
+        if (ended9 || nowR9 - reactAtRef9.current >= (xfGestureRef.current ? XF_REACT_MS9 : reactStepRef9.current)) {
           reactAtRef9.current = nowR9;
           tFromTickRef9.current = next9;
           setT(next9);

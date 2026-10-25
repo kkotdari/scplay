@@ -212,7 +212,8 @@ export function spaceBackdropUrl(seed: string): string {
     clusters.push([between(0, W), between(0, W), between(W * 0.08, W * 0.2)]);
   }
   // 별 수를 줄인다(요청: "별 개수 줄이기") — 300~500은 하늘이 소금 뿌린 듯 빽빽했다.
-  const starN = 130 + Math.floor(rnd() * 90);
+  // 한 번 더 반으로(2026-10-25, 요청: "우주배경 별들 크기와 숫자 줄이기" — 하늘이 독 뒤까지 내려가 덮는 판이 커지면서 별도 커지고 많아 보였다 · 옛 130~220).
+  const starN = 60 + Math.floor(rnd() * 45);
   const stars: string[] = [];
   for (let i = 0; i < starN; i += 1) {
     let x: number;
@@ -230,7 +231,7 @@ export function spaceBackdropUrl(seed: string): string {
     /* 크기는 **작은 것이 압도적으로 많다**(제곱으로 죄어 큰 별을 드물게) — 실제 하늘의
        밝기 분포가 그렇고, 그래야 몇 안 되는 큰 별이 눈에 든다. */
     const u = rnd() * rnd();
-    const r = 0.5 + u * 2.3;
+    const r = 0.35 + u * 1.25;   // 반지름 0.5~2.8 → 0.35~1.6(같은 요청)
     const a = 0.46 + rnd() * 0.54;
     /* 색은 흰빛이 압도적이고, 가끔만 **아주 옅게** 차거나 따뜻하다 — 별 하나하나가
        색을 띠면 하늘이 도로 알록달록해진다(요청: 보라·푸른색 빼기). */
@@ -242,16 +243,16 @@ export function spaceBackdropUrl(seed: string): string {
   body.push(stars.join(""));
 
   /* ── 밝은 별 몇 — 십자 광채를 두른다. 이것이 '사진 같음'의 대부분을 낸다. */
-  const brightN = 5 + Math.floor(rnd() * 6);
+  const brightN = 2 + Math.floor(rnd() * 3);   // 5~10 → 2~4(같은 요청)
   for (let i = 0; i < brightN; i += 1) {
     const x = between(W * 0.05, W * 0.95);
     const y = between(W * 0.05, W * 0.95);
     /* 광채도 줄인다(요청: "십자별 크기 줄이기") — 팔 길이가 하늘 폭의 12%(양쪽 합)
        까지 갔던 것을 5% 아래로. 심지와 획도 같은 몫으로 줄여야 십자가 가늘게 반짝인다. */
-    const len = between(W * 0.009, W * 0.024);
+    const len = between(W * 0.006, W * 0.015);   // 십자 팔도 줄인다(같은 요청 · 옛 0.009~0.024W)
     body.push(
       `<g opacity="${n2(between(0.7, 1))}">`
-      + `<circle cx="${n2(x)}" cy="${n2(y)}" r="${n2(between(1.1, 1.9))}" fill="#fff"/>`
+      + `<circle cx="${n2(x)}" cy="${n2(y)}" r="${n2(between(0.8, 1.3))}" fill="#fff"/>`
       + `<path d="M${n2(x - len)} ${n2(y)}H${n2(x + len)}M${n2(x)} ${n2(y - len)}V${n2(y + len)}"`
       + ` stroke="#fff" stroke-opacity="0.6" stroke-width="0.7"/>`
       + `</g>`,
