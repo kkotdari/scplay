@@ -2916,6 +2916,30 @@ if (has("--panprobe")) {
 }
 /* --flingprobe(2026-10-25, 요청: "드래그 … 떼도 좀더 이동하는거") — 휠로 세 번 당긴 뒤 빠르게 끌어(60ms 에 240px) 곧장 떼고, 뗀 뒤 시간마다 팬(__scrDiag.pan)을 찍는다.
    관성이 서면 뗀 뒤에도 팬이 줄어드는 몫으로 더 가다 멎는다. --slow 면 천천히 끌다 멈춰 뗀다(관성이 없어야 한다). --diag 와 함께. */
+/* --seekgraph x.png(2026-10-25 · 진행바 전투량 곡선) — PC 는 진행바에 마우스를 얹고(호버) · 폰(터치)은 손잡이를 눌러 끄는 동안 · 그리고 손을 뗀 뒤 2초(사라졌나)
+   진행바 둘레를 찍는다: x_on.png · x_off.png. 곡선 경로 길이·보임(opacity)을 적는다. */
+if (flag("--seekgraph", null)) {
+  const base9 = String(flag("--seekgraph")).replace(/\.png$/, "");
+  const r9 = await page.evaluate(() => { const e = document.querySelector(".scr-motion-range"); const b = e?.getBoundingClientRect(); return b ? { x: b.x, y: b.y, w: b.width, h: b.height } : null; });
+  if (!r9) console.log("[진행바] 없음");
+  else {
+    const op9 = () => page.evaluate(() => { const g = document.querySelector(".scr-motion-combat"); return g ? `${getComputedStyle(g).opacity}${g.parentElement.classList.contains("is-combat") ? " [is-combat]" : ""}${g.parentElement.matches(":hover") ? " [hover]" : ""} · 경로 ${g.querySelector("path")?.getAttribute("d")?.length ?? 0}자` : "곡선 없음"; });
+    const clip9 = { x: Math.max(0, r9.x - 20), y: Math.max(0, r9.y - 70), width: Math.min(r9.w + 40, 2000), height: r9.h + 90 };
+    const touch9 = has("--ios");
+    await page.evaluate(() => { window.__pev9 = []; const e = document.querySelector(".scr-motion-range"); for (const k of ["pointerdown", "pointerup", "pointercancel", "lostpointercapture", "touchend", "mouseup"]) e.addEventListener(k, (ev) => window.__pev9.push(`${k}:${ev.pointerType ?? ""}`)); });
+    const px9 = r9.x + r9.w * 0.6; const py9 = r9.y + r9.h / 2;
+    if (touch9) { await page.mouse.move(px9, py9); await page.mouse.down(); await page.mouse.move(px9 + 20, py9, { steps: 4 }); }
+    else await page.mouse.move(px9, py9);
+    await page.waitForTimeout(400);
+    console.log(`[진행바 곡선] ${touch9 ? "끄는 중" : "호버"}: ${await op9()}`);
+    await page.screenshot({ path: `${base9}_on.png`, clip: clip9 });
+    if (touch9) await page.mouse.up(); else await page.mouse.move(r9.x + r9.w / 2, Math.max(5, r9.y - 300));
+    await page.waitForTimeout(touch9 ? 3500 : 500);
+    console.log("[진행바 사건]", await page.evaluate(() => window.__pev9.join(" ")));
+    console.log(`[진행바 곡선] ${touch9 ? "뗀 뒤 3.5초" : "벗어남"}: ${await op9()}`);
+    await page.screenshot({ path: `${base9}_off.png`, clip: clip9 });
+  }
+}
 if (has("--flingprobe")) {
   const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
   if (pt9) {

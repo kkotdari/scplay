@@ -1654,6 +1654,9 @@ const CROWD_BENCH_MS9 = DEV9.name === "phone" ? 20 : 24;
 const WEAK_DPR9 = 1.75;
 const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
 const WEAK_GAP_MS9 = 33;
+/** 진행바 전투량 곡선의 칸 수 · 점프 뒤 보이는 시간(ms) — 컴포넌트의 combatPath9 ★. */
+const COMBAT_BINS9 = 160;
+const COMBAT_FLASH_MS9 = 1200;
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
  *  60 과 30 사이에 설 자리가 없어(rAF 16.7ms 의 배수) 화소만 덜어낸다: dpr 3 폰이면 4/9 · dpr 2 폰은 그대로. 매우 낮음은 위 WEAK_DPR9(1.5). */
@@ -10514,6 +10517,46 @@ export default function ReplayMotionPlayer({
     }
     return out;
   }, [entData]);
+  /** ★ **진행바 전투량 곡선**(2026-10-25, 요청: "탐색바 마우스 호버 시 위로 그래프 — 전투가 일어난 양 / 인구수 중 장면 선택에 더 도움될 것" → 전투량 ·
+   *  "모바일도 다이얼 드래그 중 보이고 점프 이동 시 잠깐 보이게") — 시간당 피해량(판 13 데미지 절 · 사람마다 **준** 몫 유닛+건물의 합 = 경기 전체가 깎인 양)을
+   *  진행바 폭 칸(COMBAT_BINS9)에 모으고 6초 가우스로 편 뒤 0.6 제곱으로 눌러(큰 마지막 한타가 작은 교전을 납작하게 만들지 않게) 최댓값으로 맞춘다.
+   *  옛 판(≤12 · 데미지 절 없음)은 처치 절(판 11) 한 건을 1 로 센다 · 둘 다 없으면 null(그래프 없음).
+   *  돌려주는 것은 [면, 윗선] SVG 경로 — viewBox `0 0 COMBAT_BINS9 100`(아래가 0). */
+  const combatPath9 = useMemo((): [string, string] | null => {
+    if (!entData || !(total > 0)) return null;
+    const n9 = COMBAT_BINS9;
+    const bin9 = new Float64Array(n9);
+    let any9 = false;
+    const put9 = (sec9: number, v9: number): void => {
+      if (!(v9 > 0)) return;
+      bin9[Math.max(0, Math.min(n9 - 1, Math.floor((sec9 / total) * n9)))] += v9;
+      any9 = true;
+    };
+    if (entData.dmg.length > 0) {
+      const half9 = (entData.dmgBucketSec || 5) / 2;   // 통 가운데에 놓는다
+      for (const [sec9, , du9, db9] of entData.dmg) put9(sec9 + half9, du9 + db9);
+    } else {
+      for (const [sec9] of entData.kills) put9(sec9, 1);
+    }
+    if (!any9) return null;
+    const sg9 = Math.max(0.6, (6 / total) * n9);   // 6초를 칸으로
+    const r9 = Math.ceil(sg9 * 3);
+    const w9: number[] = [];
+    for (let k9 = -r9; k9 <= r9; k9 += 1) w9.push(Math.exp(-(k9 * k9) / (2 * sg9 * sg9)));
+    const sm9 = new Float64Array(n9);
+    let mx9 = 0;
+    for (let i9 = 0; i9 < n9; i9 += 1) {
+      let a9 = 0;
+      for (let k9 = -r9; k9 <= r9; k9 += 1) { const j9 = i9 + k9; if (j9 >= 0 && j9 < n9) a9 += bin9[j9] * w9[k9 + r9]; }
+      sm9[i9] = Math.pow(a9, 0.6);
+      if (sm9[i9] > mx9) mx9 = sm9[i9];
+    }
+    if (!(mx9 > 0)) return null;
+    const pts9: string[] = [];
+    for (let i9 = 0; i9 < n9; i9 += 1) pts9.push(`${i9 + 0.5},${(100 - (sm9[i9] / mx9) * 94).toFixed(1)}`);
+    const line9 = `M0,${pts9[0].split(",")[1]} L${pts9.join(" L")} L${n9},${pts9[n9 - 1].split(",")[1]}`;
+    return [`${line9} L${n9},100 L0,100 Z`, line9];
+  }, [entData, total]);
   /** 지금 시각까지의 [준, 입은] 데미지 — 사람마다(통 시작 ≤ t 인 마지막 계단 · 아직 없으면 0/0). */
   const dmgNow = useMemo(() => {
     const m = new Map<string, [number, number]>();
@@ -11858,10 +11901,29 @@ export default function ReplayMotionPlayer({
   /** 시계 글자 — 끌기 중에는 리렌더 없이 여기에 직접 쓴다(위 onInput 의 ★★). */
   const clockElRef9 = useRef<HTMLSpanElement | null>(null);
   const seekPending = useRef<number | null>(null);
+  /** 진행바 전투량 곡선을 보이나(위 combatPath9 ★) — PC 는 호버(CSS)로도 서고, 이 값은 **끄는 동안**(폰 다이얼 · PC 손잡이)과 **점프 뒤 잠깐**(COMBAT_FLASH_MS9)이다. */
+  const [combatShow9, setCombatShow9] = useState(false);
+  const combatTimer9 = useRef(0);
+  const combatFlash9 = (ms9: number): void => {
+    if (combatTimer9.current) window.clearTimeout(combatTimer9.current);
+    setCombatShow9(true);
+    combatTimer9.current = ms9 > 0 ? window.setTimeout(() => { combatTimer9.current = 0; if (!scrubbing.current) setCombatShow9(false); }, ms9) : 0;
+  };
+  /* 점프(검색 이동 · 요약 창 건너뛰기 · 장면 링크 등 — 거울 시각이 한 번에 5초 넘게 뛴 것)도 잠깐 보인다. 재생은 거울 한 번에 8배속·손짓 박자(0.4초)여도 3.2초라
+     안 걸린다 · 끄는 동안은 위 pointerdown 이 이미 켰다. */
+  const combatPrevT9 = useRef(t);
+  useEffect(() => {
+    const d9 = Math.abs(t - combatPrevT9.current);
+    combatPrevT9.current = t;
+    if (d9 > 5 && !scrubbing.current) combatFlash9(COMBAT_FLASH_MS9);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
+  useEffect(() => () => { if (combatTimer9.current) window.clearTimeout(combatTimer9.current); }, []);
   /** 손을 뗀 자리 — 남은 거울을 곧장 놓고 굽기 예산을 푼다(그 다음 장에서 재생기가 따라잡는다). */
   const scrubEnd9 = (): void => {
     if (!scrubbing.current) return;
     scrubbing.current = false;
+    combatFlash9(COMBAT_FLASH_MS9);   // 손을 떼도 잠깐 남긴다(끌기 = 점프)
     glScrubSet9(false);
     if (seekTimer9.current) { window.clearTimeout(seekTimer9.current); seekTimer9.current = 0; }
     const sv = seekPending.current;
@@ -19584,7 +19646,14 @@ export default function ReplayMotionPlayer({
         {/* 비제어 탐색바(지적: 드래그가 안 먹고 느림 — 위 rangeRef 주석). step이 없어야
             ×4에서도 손잡이가 툭툭 안 뛴다. --p는 지나온 자리를 채우는 그라데이션 경계다. */}
         {/* 검색 결과 태그(위 searchHits9 ★★) — 진행바 위에 겹친 얇은 판(누름은 바로 흘린다). 지금 결과는 밝게. 손잡이 폭(--th)만큼 양끝을 비워 손잡이 가운데와 맞춘다. */}
-        <span className="scr-motion-rangewrap">
+        <span className={cx("scr-motion-rangewrap", combatShow9 && "is-combat")}>
+        {/* 전투량 곡선(위 combatPath9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */}
+        {combatPath9 && (
+          <svg className="scr-motion-combat" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
+            <path className="scr-motion-combat-area" d={combatPath9[0]} />
+            <path className="scr-motion-combat-line" d={combatPath9[1]} />
+          </svg>
+        )}
         {searchHits9.length > 0 && total > 0 && (
           <span className="scr-motion-searchtags" aria-hidden>
             {searchHits9.map((h9, i9) => (
@@ -19596,7 +19665,7 @@ export default function ReplayMotionPlayer({
           ref={rangeRef}
           className="scr-motion-range" type="range"
           min={0} max={total} step="any" defaultValue={t}
-          onPointerDown={() => { scrubbing.current = true; glScrubSet9(true); }}
+          onPointerDown={() => { scrubbing.current = true; glScrubSet9(true); combatFlash9(0); }}
           onPointerUp={() => { scrubEnd9(); }}
           onPointerCancel={() => { scrubEnd9(); }}
           onInput={(e) => {

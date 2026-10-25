@@ -5384,3 +5384,14 @@
   mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) 100% no-repeat, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
+/* ★ 진행바 전투량 곡선(2026-10-25, 요청: "탐색바 호버 시 위로 그래프 — 전투가 일어난 양" · "모바일도 다이얼 드래그 중 보이고 점프 이동 시 잠깐") — 바 위로 뜨는 옅은 면 + 윗선.
+   PC 는 호버로 · 폰·PC 모두 끄는 동안과 점프 뒤 잠깐(.is-combat · ReplayMotionPlayer combatShow9). 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */
+.scr-motion-combat {
+  position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1));
+  width: calc(100% - var(--th)); height: calc(30px * var(--ui, 1)); overflow: visible;
+  pointer-events: none; z-index: 2; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.scr-motion-rangewrap.is-combat > .scr-motion-combat { opacity: 1; transform: none; }
+@media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat { opacity: 1; transform: none; } }
+.scr-motion-combat-area { fill: rgba(255, 255, 255, 0.2); }
+.scr-motion-combat-line { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.25px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
