@@ -121,6 +121,9 @@ export type Bgm = {
   volume: number;
   setVolume: (v: number) => void;
   volumeOk: boolean;
+  /** 누름의 그 자리에서 튼다(2026-10-25 · 보기 모드 판 단추) — 켜 둔 뜻(on)이고 곡이 있으면 걸린 곡을 이어서, 없으면 첫 곡을. 부르는 쪽은 이 렌더 뒤에 playing 이 참이 될 것을
+   *  약속한다(판이 떠 있는 동안 playing 이 거짓이라 resume 은 안 틀고, 이 누름이 iOS 가 허락하는 첫 재생 자리다). 막히면 첫 누름 귀를 단다. */
+  kick: () => void;
 };
 
 /**
@@ -380,5 +383,9 @@ export function useBgm(playing = true, seedKey?: string): Bgm {
     if (elRef.current) elRef.current.volume = v9;
     try { localStorage.setItem(VOL_KEY, String(v9)); } catch { /* 저장 못 하면 이 판에서만 */ }
   }, []);
-  return { on, toggle, now, count: tracks.length, off, volume, setVolume, volumeOk };
+  const kick = useCallback((): void => {
+    if (!onRef.current || tracksRef.current.length === 0) return;
+    playOrNext().catch(() => armFirstGesture());
+  }, [playOrNext, armFirstGesture]);
+  return { on, toggle, now, count: tracks.length, off, volume, setVolume, volumeOk, kick };
 }

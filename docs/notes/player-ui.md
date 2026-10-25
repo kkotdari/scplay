@@ -2430,3 +2430,13 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 지적: "크롬 소리 음소거까지 내려도 안 꺼진다는데". 음악(useBgm `scr.bgm.vol` · `<audio>.volume`)과 효과음(sfx9 `scr.sfx.vol` · 주 GainNode)이 **따로 저장**돼 슬라이더를 움직인 때만
 둘이 같이 갔다 — 효과음이 생기기(2026-10-22) 전에 음량을 0 으로 내려 둔 브라우저는 슬라이더가 0 인데 효과음은 제 저장값(기본 0.6)으로 났다. RMP 가 `bgm.volume` 이 설 때·바뀔 때마다
 `setSfxVolume9` 로 맞춘다(iOS 의 효과음 최대 규칙 full 은 그대로 덮는다). 소리 그래프는 다 주 GainNode 를 지난다(unlock 의 1샘플 빈 소리만 곧장 · 무음).
+
+
+## 보기 모드 판 — 단추를 눌러야 화면과 음악(2026-10-25)
+요청: "모드 팝업 버튼 선택해야 그때부터 재생 화면과 음악이 노출되게". 그 전엔 판 뒤에 멈춘 경기 화면이 보였고, 음악은 브라우저가 허락하는 길(PC)에선 판이 뜰 때부터 났다.
+- 화면: RMP `stageCover9 = !introReady9 || modeAsk9` — 지도(.scr-motion-map)·단독 자막(.scr-fs-solo)·분할(.scr-split)·미니맵 `warming` 이 다 이 깃발로 `is-warming`(까만 바탕 ·
+  opacity 0). 그림은 그 아래서 계속 그려 paintSettled9(판 띄우기 조건)가 선다. 시계는 판 동안 선 채(introHoldRef9 의 modeAsk9 그대로).
+- 음악: `useBgm(playing && !pending && !modeAsk9)` — 판 동안 재생 깃발 거짓(첫 effect 는 켜진 얼굴만 두고 안 튼다 · '멈춘 채 들어온' 길과 같다). 단추(pickFull9·pickFree9·
+  pickDigest9)가 **누름의 그 자리**에서 `bgm.kick()`(useBgm 새 API · 걸린 곡 이어서 없으면 첫 곡 · 막히면 첫 누름 귀) — iOS 는 누름 스택 안의 첫 play 만 허락한다. bgm 은 단추보다
+  뒤에 서므로 `bgmKickRef9` 로 건넨다(bgmToggleRef 와 같은 꼴). 깃발이 참이 된 뒤 resume 의 play 는 이미 나는 곡이라 아무 일도 없다.
+- 🔎 `perf-check --wide --ask 3 --askwait 240000 --readyms 240000` → `[보기 모드] 판 1 · 시계 a → a(서 있어야 한다) · 가림 1` 그리고 `고른 뒤 가림 0`.

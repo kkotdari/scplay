@@ -1013,7 +1013,7 @@ if (has("--ask")) {
   const clock9 = () => page.evaluate(() => document.querySelector(".scr-motion-clock")?.textContent ?? "?");
   await page.waitForTimeout(2500);
   const c0 = await clock9(); await page.waitForTimeout(1500); const c1 = await clock9();
-  console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다)`);
+  console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다) · 가림 ${await page.locator(".scr-motion-map.is-warming").count()}(판 동안 1 · 2026-10-25)`);
   if (SHOT) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_ask.png") });
   await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 자유 · 1 풀 · 2 요약 · 2026-10-24 차례 바뀜)
   let last9 = "";
@@ -1022,6 +1022,7 @@ if (has("--ask")) {
     const r9 = await page.evaluate(() => ({ pill: (() => { const p = document.querySelector(".scr-digest-pill"); if (!p) return "-"; const b = p.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return `${p.querySelector("span")?.textContent} @${b.left.toFixed(0)},${b.top.toFixed(0)} ${b.width.toFixed(0)}x${b.height.toFixed(0)} 위=${e === p || p.contains(e) ? "제것" : e?.className?.toString().slice(0, 40)}`; })(), clock: document.querySelector(".scr-motion-clock")?.textContent ?? "?",
       spd: document.querySelector(".scr-motion-speed, .scr-spd-btn, [aria-label*='배속']")?.textContent ?? "", toast: document.querySelector(".scr-replay-toast, [role=status].scr-toast")?.textContent ?? "" }));
     const k9 = `${r9.pill}|${r9.toast}`;
+    if (i9 === 0) console.log(`  고른 뒤 가림 ${await page.locator(".scr-motion-map.is-warming").count()}(0 이어야 한다)`);
     if (k9 !== last9 || i9 % 4 === 0) console.log(`  +${(i9 / 2 + 0.5).toFixed(1)}s 알약 ${r9.pill} · 시계 ${r9.clock} · 배속 ${r9.spd.trim()} ${r9.toast ? `· 알림 ${r9.toast}` : ""}`);
     if (i9 === 6 && SHOT) await page.screenshot({ path: String(SHOT) });
     last9 = k9;

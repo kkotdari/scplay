@@ -11815,10 +11815,12 @@ export default function ReplayMotionPlayer({
   }, []);
   // (옮김 2026-10-24) digestWant9 · digest9 상태는 planDigest9 가 읽어 rosterKeys9 곁으로 올렸다.
   const digestEndRef9 = useRef(-1);
-  const pickFull9 = (): void => { setModeAsk9(false); };
+  /** 음악 틀기(useBgm kick)를 단추 누름의 그 자리에서 부르는 ref — bgm 은 아래(useBgm)에서 선다(위 stageCover9 ★). */
+  const bgmKickRef9 = useRef<() => void>(() => {});
+  const pickFull9 = (): void => { setModeAsk9(false); bgmKickRef9.current(); };
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
-  const pickFree9 = (): void => { setModeAsk9(false); setCastOn(false); };
-  const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); };
+  const pickFree9 = (): void => { setModeAsk9(false); setCastOn(false); bgmKickRef9.current(); };
+  const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); bgmKickRef9.current(); };
   /* 창을 건너뛸 때 카메라는 **곧장**(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 미끄러짐·스프링을 버려(viewCut9) 자막이 뜨는 장에 그 자리가 바로 선다. */
   const digestJump9 = (v9: number): void => { tLiveRef9.current = v9; setT(v9); setDone(false); viewCut9(); };
   useEffect(() => {
@@ -13477,7 +13479,10 @@ export default function ReplayMotionPlayer({
      따르는 방법(아무것도 안 건드리기)과 안드로이드의 한계가 그 파일 머리에 적혀 있다.
      재생 여부를 넘긴다(요청: "재생 멈추면 음악도 멈추기") — 일시정지·되감기 잡고
      있는 동안은 음악도 함께 잠든다. */
-  const bgm = useBgm(playing && !pending, clockKey);   // 자료를 기다리는 재생기(pending)는 음악을 안 튼다 — 진짜 재생기가 처음부터 튼다(useBgm ★★ 이중 재생)
+  /* ★ 보기 모드 판이 떠 있는 동안은 **음악도 안 튼다**(2026-10-25, 위 stageCover9 의 요청) — 단추를 누르면 pickXxx9 가 누름의 그 자리에서 bgm.kick 으로 튼다(iOS 는 누름
+     스택 안에서만 첫 재생을 허락한다 · useBgm next 의 ★). 그 뒤 깃발이 참이 되며 resume 이 한 번 더 play 를 부르지만 이미 나는 곡이라 아무 일도 없다. */
+  const bgm = useBgm(playing && !pending && !modeAsk9, clockKey);   // 자료를 기다리는 재생기(pending)는 음악을 안 튼다 — 진짜 재생기가 처음부터 튼다(useBgm ★★ 이중 재생)
+  bgmKickRef9.current = bgm.kick;
   /* ★ 효과음(2026-10-22 · sfx9 · sfx9Cues) — 켜 둔 뜻은 브라우저에 남는다(기본 켜짐). 붓이 장마다 SfxCues9 로 새로 일어난 일에 소리를 붙인다(아래 paintFnRef9).
      iOS 는 누름 안에서 <audio> 묶음을 한 번 깨워야 그 뒤로 난다 — 첫 누름에 깨우고 소리를 미리 굽는다. 멈추면 나던 소리도 끊는다. */
   const sfxOnNow9 = useSyncExternalStore(subscribeSfx9, sfxOn9, sfxOn9);
@@ -18348,6 +18353,9 @@ export default function ReplayMotionPlayer({
      판 사이에 한 판이 비어, 지형이 한 번 번쩍였다. 한 번 서면 걸쇠다(시점 각을 바꿔 다시 구울 땐 몸만 감춘다 — is-baking). */
   const [introWarm9, setIntroWarm9] = useState(false);
   const introReady9 = tracksReady && (entData === null || introWarm9) && !pending;   // 자료를 기다리는 재생기(pending)는 까만 판 그대로
+  /** ★ 무대 가림(is-warming) — 진입 준비 전 **그리고 보기 모드 판이 떠 있는 동안**(2026-10-25, 요청: "모드 팝업 버튼 선택해야 그때부터 재생 화면과 음악이 노출되게") —
+   *  판 뒤는 까만 바탕이고(지도·몸·안개·미니맵·자막 opacity 0 · 그림은 계속 그려 paintSettled9 가 선다) 단추를 누르는 순간 화면이 선다. 시계는 판 동안 선 채(introHoldRef9). */
+  const stageCover9 = !introReady9 || modeAsk9;
   const baking9 = !!warmAt;
   /** ★ **가려진 동안·진입 굽기 동안은 시계가 안 간다**(2026-10-14, 지적: "모델 굽는 중이 끝나면 시간이 흘러가 있는 문제") — 첫 굽기까지 지도는 까맣게 가려져 있는데(introReady9),
    *  예열 effect 의 첫 rAF 전 · 경기 자료(entData)가 자취보다 늦게 오는 틈에는 warmingRef 가 아직 안 서 재생 시계가 돌았다. 아래 재생 틱이 이 ref 도 본다. */
@@ -20798,7 +20806,7 @@ export default function ReplayMotionPlayer({
              자를 든 자리를 옮긴다. NOSHADOW9는 렌즈에 그대로 둔다 — 그쪽이 겨누는 것은
              렌즈 안의 DOM 마커 그림자라 자리가 맞다. */
           className={cx("scr-motion-map", pitched && "scr-motion-pitched", NO_MAP_ISO9 && "scr-t-nomapiso",
-            !introReady9 && "is-warming", baking9 && "is-baking") + HIDECLS9} ref={mapRef}
+            stageCover9 && "is-warming", baking9 && "is-baking") + HIDECLS9} ref={mapRef}
           /* (이동) 손짓 받는 자리 — **무대**로 올렸다(아래 stageNode의 onPointerDown
              주석). 손짓은 여기서 시작해도 거품처럼 올라가 무대가 받으므로 지도 위 동작은
              한 톨도 안 달라진다. */
@@ -21602,7 +21610,7 @@ export default function ReplayMotionPlayer({
           {!splitOn9 && (
             <div
               /* 지도와 함께 켠다(2026-10-10, 요청: "자막이랑 주인이름도 로딩 다 끝나면 같이 나오게") — 위 introReady9 · .scr-motion-map.is-warming 과 같은 깃발. */
-              className={cx("scr-fs-solo", !introReady9 && "is-warming")}
+              className={cx("scr-fs-solo", stageCover9 && "is-warming")}
               style={{ "--capk": capK9 } as React.CSSProperties}
             >
               {/* 화면 주인 이름표 — 분할 칸과 한 요소(위 ownerTag9 ★ · 옛 마크업의 이력: "화면" 칩 안 → 칩 밖 "개인 화면" · 깜빡이는 카메라 · 팀 귀퉁이). */}
@@ -21628,7 +21636,7 @@ export default function ReplayMotionPlayer({
             /* 분할보기 격자(위 splitOn9 · splitPaint9) — 무대를 통째로 덮는다. 칸을 누르면 독이 그 사람의 것을 든다.
                손짓은 여기서 끊는다(무대의 끌기·집기가 덮인 지도에 안 걸리게). */
             <div
-              className={cx("scr-split", `is-n${splitLay9.cells.length}`, !introReady9 && "is-warming")}
+              className={cx("scr-split", `is-n${splitLay9.cells.length}`, stageCover9 && "is-warming")}
               style={{ paddingBottom: splitTbH9, gridTemplateColumns: `repeat(${splitLay9.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${splitLay9.rows}, minmax(0, 1fr))` }}
               onPointerDown={(e) => e.stopPropagation()}
               onWheel={(e) => e.stopPropagation()}
@@ -21749,7 +21757,7 @@ export default function ReplayMotionPlayer({
                     onWheelZoom={fsWheelZoom}
                     unproject={miniUnproject}
                     fog={miniFog}
-                    warming={!introReady9}
+                    warming={stageCover9}
                     tags={miniTags9}
                   />
                 </div>
