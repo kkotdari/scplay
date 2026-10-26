@@ -10834,7 +10834,7 @@ export default function ReplayMotionPlayer({
    *  팀전 = TEAM_COLOR 1·2 · 난투 = 개인색. 생애(entData.lives)의 태어남·사라짐을
    *  진행바 칸(COMBAT_BINS9)에 더하고 빼 누적한 뒤 4초 가우스로 편다(변태 알 사이 꺼짐을 덮는다). 편이 둘 아래면 없음.
    *  돌려주는 것은 편마다 [색, 선 경로] — viewBox `0 0 COMBAT_BINS9 100`. 전투량 곡선(combatPath9)은 코드로 남긴다(SEEK_GRAPH9). */
-  const advLines9 = useMemo((): { fill: string; d: string }[] | null => {
+  const advLines9 = useMemo((): { fill: string; d: string; label: string; raw: boolean; endY: number }[] | null => {
     if (!entData || !(total > 0)) return null;
     const team9 = !melee && bases.some((b9) => teamMap9[b9.key] === 1) && bases.some((b9) => teamMap9[b9.key] === 2);
     const sides9: { key: string; fill: string }[] = team9
@@ -10912,7 +10912,12 @@ export default function ReplayMotionPlayer({
     return sides9.map((s9, i9) => {
       const ys9: string[] = [];
       for (let x9 = 0; x9 < n9; x9 += 1) ys9.push((100 - (val9[i9][x9] / mx9) * 94).toFixed(1));
-      return { fill: s9.fill, d: `M0,${ys9[0]} ${ys9.map((y9, x9) => `L${x9 + 0.5},${y9}`).join(" ")} L${n9},${ys9[n9 - 1]}` };
+      /* 선 이름(2026-10-26, 요청: "탐색바 그래프에 라벨 — 색만 보고 구분 어려워" → "아니 선에 직접") — 팀전 "1팀"·"2팀" · 난투는 사람(raw → capName9) · 선 오른끝 높이(endY · 0~100). */
+      const label9 = team9 ? (s9.key === "t1" ? "1팀" : "2팀") : s9.key;
+      return {
+        fill: s9.fill, d: `M0,${ys9[0]} ${ys9.map((y9, x9) => `L${x9 + 0.5},${y9}`).join(" ")} L${n9},${ys9[n9 - 1]}`,
+        label: label9, raw: !team9, endY: Number(ys9[n9 - 1]),
+      };
     });
   }, [entData, total, melee, bases, teamMap9, rosterColor]);
   const modeColor = (raw: string, team: 1 | 2 | undefined): string => {
@@ -19744,9 +19749,27 @@ export default function ReplayMotionPlayer({
         {/* 전투량 곡선(위 combatPath9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */}
         {SEEK_GRAPH9 === "adv" ? (advLines9 ? (
           /* 우세 곡선(위 advLines9 ★) — 전투량 곡선과 같은 자리·같은 보이는 때. */
-          <svg className="scr-motion-combat is-adv" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
-            {advLines9.map((l9, i9) => <path key={i9} className="scr-motion-adv-line" d={l9.d} style={{ stroke: l9.fill }} />)}
-          </svg>
+          <>
+            <svg className="scr-motion-combat is-adv" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
+              {advLines9.map((l9, i9) => <path key={i9} className="scr-motion-adv-line" d={l9.d} style={{ stroke: l9.fill }} />)}
+            </svg>
+            {/* 선 끝 이름(위 advLines9 ★ · "선에 직접") — 곡선 판과 같은 상자(.scr-motion-adv-tags) · 선 오른끝 높이에 그 선 색 칩(흰 글자 · 짙은 팀색은 어두운 바탕에서 글자로는 안 읽힌다). 끝이 가까운 선끼리는 이름 키만큼 위아래로 벌린다
+                (판 높이 PC 120 · 폰 60 × --ui 에 이름 키 14 × --ui 를 % 로). */}
+            <span className="scr-motion-adv-tags" aria-hidden>
+              {((): React.ReactNode => {
+                const sep9 = (14 / (uiPhone9 ? 60 : 120)) * 100;
+                const ord9 = advLines9.map((l9, i9) => ({ i: i9, y: l9.endY })).sort((a9, b9) => a9.y - b9.y);
+                for (let k9 = 1; k9 < ord9.length; k9 += 1) ord9[k9].y = Math.max(ord9[k9].y, ord9[k9 - 1].y + sep9);
+                const over9 = ord9.length ? ord9[ord9.length - 1].y - (100 - sep9 / 2) : 0;   // 아래로 넘치면 통째로 올린다
+                if (over9 > 0) for (const o9 of ord9) o9.y -= over9;
+                for (const o9 of ord9) o9.y = Math.max(sep9 / 2, o9.y);
+                return ord9.map((o9) => {
+                  const l9 = advLines9[o9.i];
+                  return <span key={o9.i} className="scr-motion-adv-tag" style={{ top: `${o9.y}%`, background: l9.fill }}>{l9.raw ? capName9(l9.label) : l9.label}</span>;
+                });
+              })()}
+            </span>
+          </>
         ) : null) : combatPath9 ? (
           <svg className="scr-motion-combat" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
             <path className="scr-motion-combat-area" d={combatPath9[0]} />

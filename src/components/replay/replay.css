@@ -5392,15 +5392,25 @@
    PC 는 호버로 · 폰·PC 모두 끄는 동안과 점프 뒤 잠깐(.is-combat · ReplayMotionPlayer combatShow9). 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */
 .scr-motion-combat {
   position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1));
-  width: calc(100% - var(--th)); height: calc(60px * var(--ui, 1)); overflow: visible;   /* 30 → 60(2026-10-25, 요청: "탐색바 그래프 높이 2배 정도로") */
+  width: calc(100% - var(--th)); height: calc(var(--cg-h, 60px) * var(--ui, 1)); overflow: visible;   /* 30 → 60(2026-10-25, 요청: "탐색바 그래프 높이 2배 정도로") */
   pointer-events: none; z-index: 2; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
   /* 뒤 반투명 판(2026-10-26, 요청: "재생바 그래프 뒤에 반투명 패널 깔아 줘야 해") — 곡선의 자(viewBox)를 안 건드리게 판의 여백은 box-shadow 로 바깥에 편다 · 흐림(backdrop-filter)은 폰 열 때문에 안 쓴다. */
   background: rgba(8, 10, 16, 0.62); border-radius: calc(6px * var(--ui, 1));
   box-shadow: 0 0 0 calc(5px * var(--ui, 1)) rgba(8, 10, 16, 0.62);
 }
-.scr-motion-pc9 .scr-motion-combat { height: calc(120px * var(--ui, 1)); }   /* PC 는 두 배(2026-10-26, 요청: "피시에서 재생바 그래프 높이 2배로" · 폰은 60 그대로) */
-.scr-motion-rangewrap.is-combat > .scr-motion-combat { opacity: 1; transform: none; }
-@media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat { opacity: 1; transform: none; } }
+.scr-motion-pc9 .scr-motion-rangewrap { --cg-h: 120px; }   /* PC 는 두 배(2026-10-26, 요청: "피시에서 재생바 그래프 높이 2배로" · 폰은 60 그대로) */
+.scr-motion-rangewrap.is-combat > .scr-motion-combat, .scr-motion-rangewrap.is-combat > .scr-motion-adv-tags { opacity: 1; transform: none; }
+@media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat, .scr-motion-rangewrap:hover > .scr-motion-adv-tags { opacity: 1; transform: none; } }
+/* 우세 선 끝 이름(2026-10-26, 요청: "탐색바 그래프에 라벨 — 색만 보고 구분 어려워" → "아니 선에 직접") — 곡선 판과 같은 상자 · 오른끝 안쪽 · 선 색 칩 + 흰 글자. */
+.scr-motion-adv-tags {
+  position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1)); height: calc(var(--cg-h, 60px) * var(--ui, 1));
+  pointer-events: none; z-index: 3; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.scr-motion-adv-tag {
+  position: absolute; right: calc(2px * var(--ui, 1)); transform: translateY(-50%); padding: 0 calc(4px * var(--ui, 1)); border-radius: calc(3px * var(--ui, 1));
+  color: #fff; font-size: calc(11px * var(--ui, 1)); font-weight: 700; line-height: calc(14px * var(--ui, 1)); white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45); box-shadow: 0 0 0 1px rgba(8, 10, 16, 0.6);   /* 바탕 = 선 색(JSX 인라인) */
+}
 .scr-motion-combat-area { fill: rgba(255, 255, 255, 0.2); }
 .scr-motion-combat-line { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.25px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* 우세 곡선(2026-10-26, 요청: "전투량 말고 팀(또는 개인) 우세 정도로" → "각각을 곡선으로" · ReplayMotionPlayer advLines9) — 편마다 유닛 몸값 한 줄 · 색은 편 색. */
