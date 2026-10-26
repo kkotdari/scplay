@@ -1,6 +1,25 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
+import { build as esbuild } from "esbuild";
+
+/* ★ 분석기(dist/analyzer.mjs · 2026-10-26) — 리플레이 읽기 · 색인 · 곡선 · 썸네일의 노드 명령줄(src/analysis/cli.ts). 서버(sg-api)가 이 한 파일을
+   베껴 `node analyzer.mjs` 로 부른다. screp-js 는 묶고 @napi-rs/canvas(기계마다 다른 이진)만 밖에 둔다 — 서버의 analyzer/package.json 이 받는다.
+   재생기 번들이 다 쓰인 뒤(closeBundle) 굽는다 — vite 가 dist 를 비운 다음이라야 남는다. */
+const analyzer = () => ({
+  name: "scplay-analyzer",
+  apply: "build" as const,
+  async closeBundle() {
+    await esbuild({
+      entryPoints: ["src/analysis/cli.ts"], outfile: "dist/analyzer.mjs",
+      bundle: true, platform: "node", format: "esm", target: "node20", external: ["@napi-rs/canvas"],
+      define: { "process.env.NODE_ENV": JSON.stringify("production") },
+      /* 묶인 CommonJS(screp-js)의 require 가 ESM 에서 돌게. */
+      banner: { js: 'import { createRequire as __cr } from "node:module"; const require = __cr(import.meta.url);' },
+      minify: true, keepNames: true, logLevel: "warning", legalComments: "none",
+    });
+  },
+});
 
 // 라이브러리 빌드 — ESM 하나 + 타입 + styles.css. react 계열은 쓰는 앱의 것을 쓴다(external).
 export default defineConfig({
@@ -23,7 +42,7 @@ export default defineConfig({
        external이라 이 치환이 닿는 곳이 없다. (perf-check는 제 번들에 같은 define을 두어 이 구멍이 안 보였다.) */
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
-  plugins: [react(), dts({ rollupTypes: true })],
+  plugins: [react(), dts({ rollupTypes: true }), analyzer()],
   /* 프레임 워커(?worker&inline) — 라이브러리 소비자(scplayer)가 워커 파일을 따로 안 챙기게 번들에
      **인라인**한다. 워커 안에는 react가 external일 수 없으므로(빈 지정자를 풀 길이 없다) 워커 번들만은
      전부 묶는다. 모듈 형식이라 ReplayMotionPlayer를 그대로 import한다. */

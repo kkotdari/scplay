@@ -384,3 +384,21 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
   ㉠ 워커 짓기(델타로 안 준다 — 엔진은 어차피 모든 유닛을 셈한다) ㉡ 앞 버퍼 메모리(델타가 주는 몫)뿐이다. 넣는다면 꼴은: 세대 첫 장(=탐색·되감기 뒤)과 1초마다
   **열쇠 장**(전부) + 그 사이는 **열쇠 장 대비** 바뀐 op 와 사라진 열쇠만(직전 장 대비가 아니다 — 메인은 장을 건너뛰고 되감기·배속에 앞뒤로 고르므로 사슬이 끊긴다).
   메인은 열쇠 장을 풀어 붙들고 델타를 얹어 그 장을 만든다. 탐색은 새 세대 = 열쇠 장부터라 그대로 맞는다. 4:4 후반 실기에서 앞 버퍼가 모자라면(뒤장없음↑) 그때 넣는다.
+
+## 분석기 — 리플레이 읽기 · 색인 · 곡선 · 썸네일을 서버에서(2026-10-26)
+요청: "리플레이 등록이나 재분석 시 웹에서 하는 작업 거의 없게" → "가장 책임이 분리되면서도 이치에 맞게 · 비슷한 작업은 같은 곳에서" → "지도도 노드로 · 그래프 계산 분석기 안으로 · 트레이 업로더 서버 읽기로".
+- **한 집**: `src/analysis/` — `replayParse.ts`(옛 sg-web `utils/replayParser.ts` 그대로 · 신호는 나감 셋 `leaveFrame/leaveReason/lastCmdFrame` 으로 줄여 낸다 · 날짜는 KST 고정 +9h —
+  옛 판은 기계 시간대를 탔다) · `curves.ts`(옛 sg-api `series.py` 를 한 값도 다르지 않게 · 파이썬 `round` 짝수 반올림 `pyRound`) · `thumb.ts`(붓은 `utils/mapTiles drawMapGrid` 한 곳 ·
+  판 `MAP_THUMB_VER` — sg-api `analyzer.MAP_THUMB_VER` 와 함께 올린다) · 색인은 기존 `gameIndexOf9`.
+- **명령줄** `src/analysis/cli.ts` → `dist/analyzer.mjs`(vite.config 의 `analyzer()` 가 closeBundle 에 esbuild 로 · minify+keepNames · 1.6MB · screp-js 묶음 · `@napi-rs/canvas` 만 밖).
+  표준입력 `{"jobs":[{cmd:"parse",path,name}|{cmd:"curves",motion}|{cmd:"index",motion,grid,endSec,chats,only,skip,teamOf}|{cmd:"thumb",grid}]}` → `{"results":[{ok,value}|{ok:false,error,parse?}]}`.
+  캔버스는 thumb 일에서만 동적으로 부른다(읽기 · 곡선 · 색인은 캔버스 없이 돈다). 문서(document)가 없으니 램프 둘레는 사분 칸 클립 길(옛 앱 일꾼과 같은 그림).
+- **서버**(sg-api): `analyzer/analyzer.mjs` 로 베낀다(`sh scripts/vendor-analyzer.sh ../scplay` · `analyzer/SOURCE` 에 scplay 커밋) — 배포 때 scplay main 뒤에 베껴 sg-api 를 함께 민다.
+  분석 일 줄(analysis_jobs) 이 등록 · 병합 · 재분석을 차례로 돈다: (재분석) 다시 읽기 → 지형 → 참값(덤퍼) → 곡선 · 색인(분석기 한 번) → 썸네일. 썸네일은 `GET /replay-maps/{hash}/thumb.png?k=표식`.
+- **앱**(sg-web): 읽기 `POST /replays/parse`(몸 = 리플레이 바이트) · 재분석 `POST /admin/reanalyze` + 진행 `GET /admin/reanalyze/{batch}` · 목록은 `mapsLite=1` 로 격자 없이 크기·표식만.
+  트레이 업로더는 웹 업로더 쪽(uploader.html)을 띄우므로 같은 replayDraft 를 타 서버 읽기가 된다(셸 새 판 없음). 앱이 쓰던 replayParser · 요약 일꾼 · 색인 굽기 · 지도 붓 사본 · screp-js 는 걷었다.
+  scplay 는 꼴(`ParsedReplay` …)과 붓(`drawMapGrid` · `decodeMapTerrain` · `terrainFace` — 대표맵 PNG 내려받기)만 내보낸다. screp 는 재생기 번들에 안 든다.
+- 🔎 **같은 값인지**: 곡선 — 실 자취 r1019 · r823 + sg-api 테스트 합성 11개를 파이썬과 TS 에 넣어 JSON 이 같다(정수 3 과 3.0 은 같게 본다).
+  읽기 — 실 리플레이 225판을 옛 앱 파서(TZ=Asia/Seoul)와 분석기로 읽어 225판 모두 같다. 썸네일 — 합성 지형(고도 셋 · 램프 · 물 · 타일색)을 노드와 크로뮴 일꾼으로 그려
+  다른 화소 17%(윤곽 안티에일리어스 · 최대 23/255) · 평면 판은 최대 2(색 반올림) — 눈으로 같다.
+- 실측(로컬): 읽기 한 판 ≈1.2초(노드 띄우기 포함) · 썸네일 0.5초 · 등록 화면은 넷씩 나눠 묻는다(replayDraft PARSE_LANES).

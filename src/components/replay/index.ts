@@ -20,6 +20,13 @@ export type { ReplayMapFetcher } from "./useReplayMap";
 
 // 자료의 꼴 — 앱이 채워 넘기는 것들.
 export type { ReplayMapGrid } from "./mapGrid";
+/* 리플레이 읽은 꼴(서버의 분석기가 돌려준다 · analysis/replayParse · 2026-10-26) — 앱은 꼴만 쓴다(읽기는 서버). */
+export type {
+  ParsedReplayOut as ParsedReplay, ParsedReplayPlayerOut as ParsedReplayPlayer, ReplayLeaveSignals, GameType as ReplayGameType,
+} from "../../analysis/replayParse";
+/* 지도 붓 한 곳(미니맵 · 내려받는 PNG · 서버 썸네일이 함께 쓴다) — 앱의 대표맵 화면이 내려받기에 쓴다(옛 앱의 베낀 붓은 걷었다). */
+export { drawMapGrid } from "../../utils/mapTiles";
+export { decodeMapTerrain, terrainFace } from "../../utils/mapTerrain";
 export { PENDING_GRID9 } from "./mapGrid";
 export type { Race } from "./race";
 export type { TerrainGrid } from "./terrainGrid";

@@ -29,6 +29,7 @@
 - 순수 엔진(시각 t → 프레임): `engine9.ts` · 워커 `frameWorker.ts` · 포장 `framePack.ts`
 - GL 붓: `gl9.ts`(메시·인스턴스·MRT·번짐 · 평면 몸은 2D 스프라이트 판 — 3D 는 메시) · 효과 심 `glctx9.ts` · 메시 접기 `src/utils/mesh9.ts` · 카메라/사영 `src/utils/shapeOblique.ts`
 - 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~13)
+- 분석기(노드 · 서버가 부른다): `src/analysis/`(읽기 replayParse · 곡선 curves · 썸네일 thumb · 명령줄 cli → `dist/analyzer.mjs`) — engine.md '분석기'
 - 굽는 표(빌드 시각): `tierTable.gen.ts`·`muzzleTable.gen.ts`·`addonWall.gen.ts` — 모델을 고치면 다시 뽑는다
 - 서버 아틀라스(미리 구운 2D 판 · `sprAtlas9.ts`·`sprAtlas.gen.ts` · 원본 `spr/` 커밋 · dist 에 실린다 · 앱은 `bin/spr-copy.mjs` 로 베낀다): 모델·셰이더를 고치면 `node scripts/spr-atlas.mjs --check` → 다르면 `--bake --prune`(gl-renderer.md '서버 아틀라스')
 - 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나 · 해상도 단(UI 배수 `--ui`·`--dk`)은 `uiStep9`(player-ui.md).
@@ -69,6 +70,7 @@ wtA = scplay `1e20b08` · hist-shot-make)과 시대별 카메라·그림자 규�
 커밋("재생기 갱신: …")을 브랜치와 main에 푸시. scplayer 는 `github:kkotdari/scplay#dist` 를 받는다 — dist 커밋엔 prepare·devDependencies 가 없어
 Vercel `npm ci` 가 scplay 를 빌드하지 않는다(2026-10-13 · 옛 길은 main 커밋을 가리켜 배포마다 scplay 빌드 40초). 보고는 main·dist 해시 둘 다.
 scplayer 쪽 소스를 만졌으면 그쪽에서 **`npx tsc -b`**(Vercel 의 `npm run build` = `tsc -b && vite build` 그대로 · 그쪽 `tsconfig.json` 은 `files: []` 참조뿐이라 `--noEmit -p tsconfig.json` 은 아무것도 안 본다 — 2026-10-11 배포 실패)와 **`npx vite build`까지** 돌린다(CSS 문법 오류는 tsc가 못 잡는다).
+분석기(`dist/analyzer.mjs` · 리플레이 읽기·색인·곡선·썸네일)는 sg-api 가 쓴다 — scplay main 을 민 뒤 sg-api 에서 `sh scripts/vendor-analyzer.sh ../scplay` 를 커밋해 함께 민다(engine.md '분석기').
 scplayer는 락 고정이다(vercel installCommand `npm ci`) — 락을 안 올리면 scplay main을 밀어도 앱에 안 실린다.
 ⚠ **해시를 보고할 때는 늘 40자리 전체다**(`git rev-parse HEAD` 그대로 · scplay·scplayer 둘 다).
 락을 통째로 다시 만들 일이 있으면 **node_modules를 치운 채** `npm install --package-lock-only`(설치된 트리에서 뽑으면 Vercel `npm ci` 가 거부한다).
