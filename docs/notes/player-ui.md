@@ -2580,3 +2580,11 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   판 안 단추(Tab·Enter) · Esc · Ctrl/⌘/Alt 조합은 흘린다 · 기본 동작은 안 막는다.
 - 누름: 뿌리(.scr-motion-root · .scr-fs-layer)에 `is-asking` → `.scr-mode-ask` 말고 전부 pointer-events none(replay.css 끝).
 - 🔎 `perf-check --wide --ask 2 --askwait 300000` → `[판 동안 막힘]` 줄: 판 단추만 auto · 진행바·툴박스·지도·다이얼 none · 뒤에 건 키 판에 닿은 수 0.
+
+## 팀색 바로잡음 — 1팀 빨강 · 2팀 파랑(2026-10-26)
+- 요청: "원작을 다시 보니 1팀이 빨강 2팀이 파랑이네 · 우린 다 반대로 쓰고 있어 · 바로잡아줘".
+- `markers.ts TEAM_COLOR` 하나가 재생기(팀색 모드 · 팀 배지 `.scr-truby` · 분할 칸 테두리 · 우세도 등)와 sg-web(게임 그래프 창)의 팀색이다 —
+  `{1: #2050d0, 2: #d81f28}` → `{1: #d81f28, 2: #2050d0}`. 따로 박힌 글자색 `.scr-motion-team1/2`(replay.css)도 맞바꿨다(sg-web `.scr-sum-team1/2` 도).
+- 3·4팀: 원작 기본 자리 색 차례는 빨 · 파 · 청록 · 보라 · 주황 · 갈 · 흰 · 노랑. 팀 밀리의 팀색은 그 팀 주인 자리의 색을 따른다는 기록이 있으나
+  (ShieldBattery #1718) 팀 번호별 고정 색을 밝힌 공식 기록은 못 찾았다. 우리 기록엔 편이 둘뿐(team1/team2)이라 아직 안 적는다.
+- 🔎 `grep -rn "TEAM_COLOR\|scr-motion-team\|scr-sum-team" src` (sg-web 포함).
