@@ -12057,6 +12057,22 @@ export default function ReplayMotionPlayer({
      차례로 돈다 — 창 끝에 닿으면 다음 창 처음으로 건너뛰고 마지막 창 끝에서 멈춘다. 손으로 창 밖으로 감거나 중계를 끄거나 [풀로 보기]를 누르면 요약을 풀고 그 자리부터 평소대로.
      편성표가 아직이면(자취 받는 중) 고른 뜻만 들고 있다가 서면 간다 · 자취가 없거나 장면이 없으면 풀로 내려간다. */
   const [modeAsk9, setModeAsk9] = useState(() => !pending && !!askMode && (!sceneLink || Object.values(sceneLink).every((v9) => v9 === undefined)));
+  /* ★ **모드를 고르기 전엔 아무것도 못 쓴다**(2026-10-26, 요청: "모드 선택 전에는 단축키 및 독, 배율·배속 오버레이 등 모든 거 사용 불가로 막기") —
+     ① 키: 이 재생기에서 **가장 먼저 거는** 창 캡처 판이 판 밖 키를 멈춘다(stopImmediatePropagation · 다른 키 판들은 모두 이 뒤에 걸린다 — 이 효과가 맨 앞 훅이고
+        의존이 없어 다시 안 걸린다). 판 안 단추(Tab·Enter)와 Esc · Ctrl/⌘/Alt 조합(브라우저 몫)은 흘린다. 기본 동작은 안 막는다.
+     ② 누름: 뿌리에 is-asking — 판(.scr-mode-ask) 말고 전부 pointer-events 없음(replay.css). */
+  const modeAskRef9 = useRef(modeAsk9);
+  modeAskRef9.current = modeAsk9;
+  useEffect(() => {
+    const block9 = (e: KeyboardEvent): void => {
+      if (!modeAskRef9.current || e.key === "Escape" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if ((e.target as Element | null)?.closest?.(".scr-mode-ask")) return;
+      e.stopImmediatePropagation();
+    };
+    window.addEventListener("keydown", block9, true);
+    window.addEventListener("keyup", block9, true);
+    return () => { window.removeEventListener("keydown", block9, true); window.removeEventListener("keyup", block9, true); };
+  }, []);
   /* ★ 재생기 테마는 **열 때 한 번 무작위**(2026-10-23, 요청: "라이트·다크 테마 상관없이 랜덤하게 재생기 테마 적용 · 처음부터 결정된 테마로 보이게") — 메탈(is-metal)
      또는 홀로그램(is-holo) · 앱 테마와 안 엮인다(옛: 다크 = 홀로그램 · 라이트 = 메탈 — MutationObserver 로 따르던 것 걷음). 첫 그림부터 그 꼴이다: 보기 모드 판·요약 알약·
      **독**(홀로그램이면 뿌리에 is-holodock — 옛 is-digest 는 요약이 돌 때만 독을 홀로그램 칸으로 바꿔, 판을 고르기 전엔 메탈 독이 먼저 보였다). `#theme=metal|holo` 로 못 박는다(검산). */
@@ -22013,7 +22029,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock", modeAsk9 && "is-asking")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -22365,7 +22381,7 @@ export default function ReplayMotionPlayer({
   const body = (
     <div
       ref={setRoot}
-      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9")}
+      className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9", modeAsk9 && "is-asking")}
       style={{ margin: "0 auto", ...uiVars9 }}
     >
       <div className="scr-motion-frame" ref={frameRefCb9}>
@@ -22406,7 +22422,7 @@ export default function ReplayMotionPlayer({
     return (
       <div
         ref={setRoot}
-        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9")}
+        className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9", modeAsk9 && "is-asking")}
         style={{ margin: "0 auto", ...uiVars9 }}
       >
         <div className="scr-motion-frame">

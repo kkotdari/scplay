@@ -1061,6 +1061,17 @@ if (has("--ask")) {
   const c0 = await clock9(); await page.waitForTimeout(1500); const c1 = await clock9();
   console.log(`[보기 모드] 판 ${await page.locator(".scr-mode-ask").count()} · 시계 ${c0} → ${c1}(서 있어야 한다) · 가림 ${await page.locator(".scr-motion-map.is-warming").count()}(판 동안 1 · 2026-10-25)`);
   if (SHOT) await page.screenshot({ path: String(SHOT).replace(/\.png$/, "_ask.png") });
+  /* 판 동안 막힘(2026-10-26, 요청: "모드 선택 전에는 단축키 및 독, 배율·배속 오버레이 등 모든 거 사용 불가") — 누름 받는 것(pointer-events)과 키(+ · c · Space) 뒤 배율·색·시계. */
+  {
+    const pe9 = () => page.evaluate(() => [".scr-mode-ask-btn", ".scr-motion-range", ".scr-tb button", ".scr-motion-map", "[class*='speeddial'], [class*='spd-dial']", "[class*='zoomdial'], [class*='zoom-dial']"]
+      .map((q) => { const e = document.querySelector(q); return `${q.split(",")[0]}=${e ? getComputedStyle(e).pointerEvents : "-"}`; }).join(" · "));
+    const st9 = () => page.evaluate(() => `${document.querySelector(".scr-motion-clock")?.textContent ?? "?"} · 배율 ${(window.__scrDiag && window.__scrDiag.panLive) || "-"}`);
+    const b9 = await st9();
+    await page.evaluate(() => { window.__askKeys9 = 0; window.addEventListener("keydown", () => { window.__askKeys9 += 1; }, true); });   // 뒤에 건 캡처 판 — 막혔으면 0
+    for (const k9 of ["Equal", "KeyC", "Space", "KeyW"]) await page.keyboard.press(k9);
+    await page.waitForTimeout(800);
+    console.log(`[판 동안 막힘] ${await pe9()}\n  키 + c Space w 앞 ${b9} → 뒤 ${await st9()} · 뒤에 건 키 판에 닿은 수 ${await page.evaluate(() => window.__askKeys9)}(0 이어야 한다)`);
+  }
   await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 자유 · 1 풀 · 2 요약 · 2026-10-24 차례 바뀜 · 요약은 --hash digest=1 일 때만 선다 · 2026-10-25)
   let last9 = "";
   for (let i9 = 0; i9 < secs9 * 2; i9 += 1) {

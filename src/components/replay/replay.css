@@ -5425,3 +5425,8 @@
   font-size: calc(11px * var(--ui, 1)); font-weight: 600; line-height: 1; color: rgba(255, 255, 255, 0.78); white-space: nowrap;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
+
+/* ★ 모드를 고르기 전엔 아무것도 못 쓴다(2026-10-26, 요청: "모드 선택 전에는 단축키 및 독, 배율·배속 오버레이 등 모든 거 사용 불가로 막기" · ReplayMotionPlayer modeAsk9 ★) —
+   뿌리(.scr-motion-root · 전체화면 무대 .scr-fs-layer)에 is-asking 이면 보기 모드 판만 누름을 받는다.  키는 JS 가 막는다. */
+.scr-motion.is-asking, .scr-motion.is-asking * { pointer-events: none !important; }
+.scr-motion.is-asking .scr-mode-ask, .scr-motion.is-asking .scr-mode-ask * { pointer-events: auto !important; }
