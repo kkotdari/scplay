@@ -18619,7 +18619,8 @@ export default function ReplayMotionPlayer({
         /* ★ PgUp/PgDn = 다음/이전 사람(2026-10-24, 요청: "숫자패드 단축키 제거 · + − → pgUp pgDn · . 9 0 은 이제 필요없어서 제거 · 색깔 C 로 변경 · 줌 Q E 제거") —
            옛 숫자패드 한 벌(2026-10-13 · 1~8 사람 · 9 전체 · 0 끄기 · . 자동중계 · −/+ 이전/다음 · / 색)을 통째로 걷었다. 고른 모드로 끝까지 보므로(모드 잠금 ·
            player-ui.md) 9·0·. 은 몫이 없고 1~8 도 안 둔다 — 사람은 PgUp(+ · 다음)/PgDn(− · 이전)으로만 돈다(요청 차례 그대로 · 채널 +/−). **e.code** 다 — NumLock 꺼진 숫자패드 9/3 은 e.key 가 PageUp/PageDown 이라(검산에서 패드 3·9 가 먹었다) 숫자패드는 통째로 안 듣는다. */
-        if (personStepRef9.current(e.code === "PageUp" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
+        /* (2026-10-26, 지적: "pgUp dn 반대로 매핑된듯") — PgUp = 이전(전광판 위쪽 사람) · PgDn = 다음(아래쪽). 옛: PgUp 다음 · PgDn 이전(채널 +/− 차례). */
+        if (personStepRef9.current(e.code === "PageUp" ? -1 : 1)) { e.preventDefault(); wakeUi(); }
       } else if (e.code === "KeyC" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // c = 색 모드 다음 갈래(단추와 같다 — 개인 → 팀 → 주인공) · 숫자패드 / 에서 돌아왔다(2026-10-24 · 위 ★).
         e.preventDefault();

@@ -1330,7 +1330,7 @@ if (has("--campick")) {
   await click9(0); await page.waitForTimeout(400); console.log(await st9("1번 누름"));
   await click9(1); await page.waitForTimeout(400); console.log(await st9("2번 누름"));
   await page.evaluate(() => (document.activeElement instanceof HTMLElement) && document.activeElement.blur());
-  /* 2026-10-24 — 화면 키는 PgUp(다음 사람)/PgDn(이전 사람) · C 색 · 스페이스 재생/일시정지 · F 장면 검색. 숫자패드 한 벌(1~8 · -/+ · 9 · . · 0 · /)·Q/E 배율·윗줄 숫자·P·패드 Enter·* 는 안 먹어야 한다. */
+  /* 2026-10-24 — 화면 키는 PgUp(이전 사람)/PgDn(다음 사람 · 2026-10-26 뒤바꿈) · C 색 · 스페이스 재생/일시정지 · F 장면 검색. 숫자패드 한 벌(1~8 · -/+ · 9 · . · 0 · /)·Q/E 배율·윗줄 숫자·P·패드 Enter·* 는 안 먹어야 한다. */
   const kp9 = async (code, lab) => { await page.keyboard.press(code); await page.waitForTimeout(400); console.log(await st9(lab), await auto9()); };
   const auto9 = () => page.evaluate(() => (document.querySelector(".scr-dock-roster .scr-roster-cam-auto")?.classList.contains("is-on") ? "AUTO 켜짐" : "AUTO 꺼짐"));
   await kp9("PageUp", "PgUp"); await kp9("PageUp", "PgUp 다시"); await kp9("PageDown", "PgDn"); await kp9("PageDown", "PgDn 다시");

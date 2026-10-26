@@ -67,7 +67,7 @@ export default function ReplayGuide({ onClose }: {
         <h3 className="scr-guide-h3">중계 — 전광판의 카메라 단추</h3>
         <ul className="scr-guide-legend">
           <Row ic={<Tv size={14}/>} name="자동중계">교전 · 견제 · 드랍 자리를 따라갑니다.</Row>
-          <Row ic={<Video size={14}/>} name="한 사람" keys={<Keys k={["PgUp", "PgDn"]}/>}>전광판에서 누르면 그 사람 화면 · PgUp 다음 · PgDn 이전.</Row>
+          <Row ic={<Video size={14}/>} name="한 사람" keys={<Keys k={["PgUp", "PgDn"]}/>}>전광판에서 누르면 그 사람 화면 · PgUp 이전 · PgDn 다음.</Row>
           <Row ic={<T s="끔"/>} name="중계 끄기"/>
         </ul>
 
