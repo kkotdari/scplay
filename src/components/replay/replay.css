@@ -5394,6 +5394,7 @@
   background: rgba(8, 10, 16, 0.62); border-radius: calc(6px * var(--ui, 1));
   box-shadow: 0 0 0 calc(5px * var(--ui, 1)) rgba(8, 10, 16, 0.62);
 }
+.scr-motion-pc9 .scr-motion-combat { height: calc(120px * var(--ui, 1)); }   /* PC 는 두 배(2026-10-26, 요청: "피시에서 재생바 그래프 높이 2배로" · 폰은 60 그대로) */
 .scr-motion-rangewrap.is-combat > .scr-motion-combat { opacity: 1; transform: none; }
 @media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat { opacity: 1; transform: none; } }
 .scr-motion-combat-area { fill: rgba(255, 255, 255, 0.2); }

@@ -1662,6 +1662,10 @@ const DIGEST_ON9 = typeof location !== "undefined" && /(^|[#&,])digest=1/.test(l
 const COMBAT_FLASH_MS9 = 1200;
 /** 진행바 그래프 갈래 — "adv" 우세 띠(2026-10-26 · 요청: "전투량 말고 팀(또는 개인) 우세 정도로") · "combat" 옛 전투량 곡선(코드로 남김). */
 const SEEK_GRAPH9: "adv" | "combat" = "adv";
+/** ★ 우세 점수의 자(2026-10-26, 요청: "병력과 싸움 결과를 종합해야 하지 않을까 · 그리고 본진 영역 크기도" — 컴포넌트의 advLines9 ★) —
+ *  점수 = 병력(유닛 몸값) + 기지 영역(건물 몸값 × bld + 본진 건물마다 hall) + 싸움 결과(최근 잡은 적 몸값 × kill · τ tau 초로 스러진다). */
+const ADV9 = { bld: 0.5, hall: 300, kill: 1, tau: 90 };
+const ADV_HALL9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
  *  60 과 30 사이에 설 자리가 없어(rAF 16.7ms 의 배수) 화소만 덜어낸다: dpr 3 폰이면 4/9 · dpr 2 폰은 그대로. 매우 낮음은 위 WEAK_DPR9(1.5). */
@@ -10824,7 +10828,8 @@ export default function ReplayMotionPlayer({
     return new Set(m9.values()).size > 1 ? m9 : new Map<string, string>();
   }, [bases]);
   /** ★ **진행바 우세 띠**(2026-10-26, 요청: "탐색바 그래프를 전투량 말고 1팀 2팀 우세 정도로" · "무조건 1·2팀은 아니고 각 팀(또는 개인)") —
-   *  시각마다 편(팀전 = 팀 · 난투·팀 없음 = 사람)이 가진 **유닛 몸값**(castValue9 · 미네랄 + 가스 1.5배 · 일꾼 포함 · 건물·애벌레·알 0) 몫을
+   *  시각마다 편(팀전 = 팀 · 난투·팀 없음 = 사람)의 **우세 점수**(위 ADV9 — 같은 날 "병력과 싸움 결과 종합 · 본진 영역 크기도": 유닛 몸값 + 건물·본진 + 최근 잡은 몸값 ·
+   *  옛: 유닛 몸값만 · castValue9 = 미네랄 + 가스 1.5배 · 애벌레·알 0) 몫을
    *  편마다 **곡선 하나**로 그린다(같은 날 "아니 각각을 곡선으로 해야지" — 처음 낸 100% 쌓은 띠는 걷었다 · 모든 편이 한 자라 위에 있는 선이 앞선 편).
    *  팀전 = TEAM_COLOR 1·2 · 난투 = 개인색. 생애(entData.lives)의 태어남·사라짐을
    *  진행바 칸(COMBAT_BINS9)에 더하고 빼 누적한 뒤 4초 가우스로 편다(변태 알 사이 꺼짐을 덮는다). 편이 둘 아래면 없음.
@@ -10848,22 +10853,50 @@ export default function ReplayMotionPlayer({
     const n9 = COMBAT_BINS9; const m9 = sides9.length;
     const del9 = Array.from({ length: m9 }, () => new Float64Array(n9 + 1));
     const binOf9 = (sec9: number): number => Math.max(0, Math.min(n9, Math.ceil((sec9 / total) * n9 - 0.5)));   // 칸 가운데 시각 ≥ sec 인 첫 칸
+    /* ① 병력(유닛 몸값 · 일꾼 포함) + ② 기지 영역(건물 몸값 × ADV9.bld · 본진 건물마다 ADV9.hall 덤) — 생애의 태어남에 더하고 사라짐에 뺀다. */
+    const imp9 = Array.from({ length: m9 }, () => new Float64Array(n9 + 1));   // ③ 싸움 결과 — 잡은 몸값(때에 박힌 충격 · 아래 ADV9.tau 로 스러진다)
+    const byTag9 = new Map<number, typeof entData.lives>();
     for (const l9 of entData.lives) {
-      if (l9.bld) continue;
       const i9 = sideOf9.get(l9.owner);
       if (i9 === undefined) continue;
-      const v9 = castValue9(l9.kind);
+      const v9 = l9.bld ? castValue9(l9.kind) * ADV9.bld + (ADV_HALL9.has(l9.kind) ? ADV9.hall : 0) : castValue9(l9.kind);
       if (!(v9 > 0)) continue;
       del9[i9][binOf9(l9.born)] += v9;
       if (l9.died !== null) del9[i9][binOf9(l9.died)] -= v9;
+      let a9 = byTag9.get(l9.tag);
+      if (!a9) { a9 = []; byTag9.set(l9.tag, a9); }
+      a9.push(l9);
     }
+    /* 잡은 몸(판 11 처치 절 · 죽은 태그의 그때 생애) 값은 잡은 편에 — 건물·유닛 모두 제 몸값(건물도 다 친다) · 제 편끼리는 안 센다.
+       처치 절이 없는 옛 판은 적에게 죽은 생애(end "atk")를 나머지 편이 고르게 나눠 가진다. */
+    const deadVal9 = (l9: (typeof entData.lives)[number]): number => castValue9(l9.kind) + (l9.bld && ADV_HALL9.has(l9.kind) ? ADV9.hall : 0);
+    if (entData.kills.length > 0) {
+      for (const [sec9, ko9, , dt9] of entData.kills) {
+        const ki9 = sideOf9.get(ko9);
+        const ls9 = byTag9.get(dt9);
+        if (ki9 === undefined || !ls9) continue;
+        let l9 = ls9[ls9.length - 1];
+        for (const q9 of ls9) if (q9.died !== null && Math.abs(q9.died - sec9) <= 1.5) { l9 = q9; break; }
+        const di9 = sideOf9.get(l9.owner);
+        if (di9 === undefined || di9 === ki9) continue;
+        imp9[ki9][binOf9(sec9)] += deadVal9(l9) * ADV9.kill;
+      }
+    } else {
+      for (const ls9 of byTag9.values()) for (const l9 of ls9) {
+        if (l9.end !== "atk" || l9.died === null) continue;
+        const di9 = sideOf9.get(l9.owner);
+        if (di9 === undefined) continue;
+        for (let k9 = 0; k9 < m9; k9 += 1) if (k9 !== di9) imp9[k9][binOf9(l9.died)] += (deadVal9(l9) * ADV9.kill) / (m9 - 1);
+      }
+    }
+    const keep9 = Math.exp(-(total / n9) / ADV9.tau);
     const sg9 = Math.max(0.6, (4 / total) * n9);
     const r9 = Math.ceil(sg9 * 3);
     const w9: number[] = [];
     for (let k9 = -r9; k9 <= r9; k9 += 1) w9.push(Math.exp(-(k9 * k9) / (2 * sg9 * sg9)));
-    const val9 = del9.map((d9) => {
-      const raw9 = new Float64Array(n9); let a9 = 0;
-      for (let i9 = 0; i9 < n9; i9 += 1) { a9 += d9[i9]; raw9[i9] = Math.max(0, a9); }
+    const val9 = del9.map((d9, si9) => {
+      const raw9 = new Float64Array(n9); let a9 = 0; let k9 = 0;
+      for (let i9 = 0; i9 < n9; i9 += 1) { a9 += d9[i9]; k9 = k9 * keep9 + imp9[si9][i9]; raw9[i9] = Math.max(0, a9) + k9; }
       const sm9 = new Float64Array(n9);
       for (let i9 = 0; i9 < n9; i9 += 1) {
         let s9 = 0; let ws9 = 0;
