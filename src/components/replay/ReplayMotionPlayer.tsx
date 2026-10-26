@@ -9531,7 +9531,7 @@ export default function ReplayMotionPlayer({
        재생기가 하나씩이라, 목록에서 띄우면 경고창이 여러 개 겹쳐 뜬다.
        ★ 여태 그 자격을 onDetailClose(상세 모달의 닫기 통로)로 갈음했는데(지적:
          "분석오류도 경고가 안뜨네"), 게임 페이지(활동 › 게임 › 번호)는 그 컨텍스트를
-         일부러 안 씌운다("GameDetailClose 컨텍스트를 안 씌우므로" — ActivityScreen).
+         일부러 안 씌운다("GameDetailClose 컨텍스트를 안 씌우므로" — GamesScreen).
          그래서 정작 사람이 제일 오래 머무는 화면에서 경고가 한 번도 안 떴다. 자격을
          제 이름의 prop으로 받는다. */
   /* (걷어냄) trustWarn 상태 — 경고가 모달이던 시절, '지금 떠 있나'를 화면이 들고

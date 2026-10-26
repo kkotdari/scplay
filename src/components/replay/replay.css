@@ -139,7 +139,7 @@
      살아남아** 지도를 통째로 왼쪽으로 밀었다. 카드 358 · 창 390이면 179 − 195 = −16px,
      그만큼 오른쪽에 검은 띠가 났다(실측: 무대 left 16 · 지도 left −1 · 오른쪽 −15).
      같은 뜻을 프레임에 걸면 판 전체가 화면 폭으로 나가고, 안의 지도는 무대와 안 어긋난다. */
-  .scr-activity-detail-full .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
+  .scr-feed-detail-full .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
 }
 
 
@@ -662,7 +662,7 @@
    트랜지션이다. 확대는 맵만이다(지적: 로스터 수평 위치는 변하면 안 됨) — 맵 요소만
    넓히고, 위 로스터 줄은 제자리를 지킨다. */
 /* (삭제·요청: 모바일 확대 제거 둘째 판) — .scr-motion-wide 규칙이 있던 자리. 전체화면
-   게임 상세(.scr-activity-detail-full)가 같은 트릭을 상시로 쓴다. */
+   게임 상세(.scr-feed-detail-full)가 같은 트릭을 상시로 쓴다. */
 .scr-motion-teamcol { display: flex; flex-direction: column; gap: 10px; width: 88px; flex: 0 0 auto; }
 .scr-motion-teamcol-item {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px;
@@ -1797,13 +1797,13 @@
   grid-column: 3; grid-row: 1 / 6; align-self: stretch; min-height: 0;
   overflow-y: auto; padding: 2px 4px 2px 2px;
 }
-/* 확대 기둥의 댓글은 위 구분선이 필요 없다(요청) — 카드 인라인용 경계선(.scr-activity-notes
+/* 확대 기둥의 댓글은 위 구분선이 필요 없다(요청) — 카드 인라인용 경계선(.scr-feed-notes
    border-top)은 본문과 댓글을 가르는 선인데, 여기선 기둥 자체가 이미 제 영역이다. */
-.scr-motion-sidewrap .scr-activity-notes { border-top: none; margin-top: 0; padding-top: 0; }
+.scr-motion-sidewrap .scr-feed-notes { border-top: none; margin-top: 0; padding-top: 0; }
 /* 넓은 배치에선 댓글이 오른쪽 기둥(sidewrap)에 선다 — 카드 아래의 원래 댓글부는 숨긴다
    (지적: 댓글이 옆과 아래 모두 노출). 직계 자식만 겨눠야 기둥 안 댓글(같은 클래스를
    제 몸에 겸함)은 안 걸린다. */
-.scr-activity-card:has(.scr-motion-wide) > .scr-activity-card-comment { display: none; }
+.scr-feed-card:has(.scr-motion-wide) > .scr-feed-card-comment { display: none; }
 
 .scr-story-map { display: flex; flex-direction: column; gap: 6px; align-items: center; }
 /* 폭은 **어느 화면에서나 그릇을 다 쓴다** — 상한이 없다(아래 ★). 가운데로 오도록
@@ -1815,8 +1815,8 @@
    로스터는 진작 **지도 위에 얹힌 판**으로 옮겨 갔다 — 옆에 서던 기둥이 없으니 비켜 줄
    상대도 없다. 남은 것은 요청마다 키워 온 숫자뿐이었고(320 → 400 → 480 → 560),
    그 이력 자체가 "이 값이 무엇을 지키는지 아무도 모른다"는 증거다.
-   함께 걷은 것: 그 상한을 도로 푸는 예외 둘(.scr-activity-group-page ≥900px ·
-   .scr-activity-detail-modal ≥1160px). 상한이 없으니 풀 것도 없다 — 예외는 규칙이
+   함께 걷은 것: 그 상한을 도로 푸는 예외 둘(.scr-feed-group-page ≥900px ·
+   .scr-feed-detail-modal ≥1160px). 상한이 없으니 풀 것도 없다 — 예외는 규칙이
    있을 때만 뜻이 있고, 규칙만 지우고 예외를 남기면 다음 사람이 없는 규칙을 찾는다.
    폭은 이제 그릇이 정한다(위 width: 100%). 좁은 창에서는 플레이어의 높이 기반 인라인
    maxWidth가 여전히 지도 크기를 잡으므로 세로가 넘칠 일은 없다. */
@@ -1826,12 +1826,12 @@
    그린다(요청: 재생기 위 타이틀 상자를 걷어 화면 확보). 승패 배지 .scr-story-win 과 가림 .scr-story-win-veil 은 앱이 그대로 쓰므로 남긴다. */
 /* 모바일 — 게임 페이지의 승패 배지(로스터 옆)는 한 단 작게 · 지도는 뷰포트 폭(아래). */
 @media (max-width: 960px) {
-  .scr-activity-group-page .scr-story-win,
-  .scr-activity-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
+  .scr-feed-group-page .scr-story-win,
+  .scr-feed-detail-full .scr-story-win { font-size: 10px; height: 16px; padding: 0 5px; }
   /* 게임 페이지의 모바일 맵도 뷰포트 폭(요청: 좌우 패딩 없이 최대한 넓게) — 전체화면
-     상세(.scr-activity-detail-full)와 같은 트릭. */
+     상세(.scr-feed-detail-full)와 같은 트릭. */
   /* 거는 대상은 위와 같이 **프레임**이다(지도에 걸면 −16px 밀린다). */
-  .scr-activity-group-page .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
+  .scr-feed-group-page .scr-motion-frame { width: 100vw; margin-left: calc(50% - 50vw); }
 }
 
 /* (이동) 미니맵 조작 안내 — 재생 버튼 아래로 내렸다(요청). 규칙은 .scr-story-hint에 있다. */

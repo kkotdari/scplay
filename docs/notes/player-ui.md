@@ -2588,3 +2588,8 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
 - 3·4팀: 원작 기본 자리 색 차례는 빨 · 파 · 청록 · 보라 · 주황 · 갈 · 흰 · 노랑. 팀 밀리의 팀색은 그 팀 주인 자리의 색을 따른다는 기록이 있으나
   (ShieldBattery #1718) 팀 번호별 고정 색을 밝힌 공식 기록은 못 찾았다. 우리 기록엔 편이 둘뿐(team1/team2)이라 아직 안 적는다.
 - 🔎 `grep -rn "TEAM_COLOR\|scr-motion-team\|scr-sum-team" src` (sg-web 포함).
+
+## 앱 목록 클래스 이름 scr-activity-* → scr-feed-*(2026-10-26)
+sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(요청: "activity라는 파일이나 클래스를 다 변경") 앱 쪽 목록·카드 클래스가
+`scr-activity-*` → `scr-feed-*` 로 바뀌었다. replay.css 가 그 앱 클래스를 건드리던 자리(`.scr-feed-detail-full` 게임 상세 풀폭 ·
+`.scr-feed-card` 댓글 칸 · `.scr-feed-notes` · `.scr-feed-group-page`)도 같이 바꿨다 — 앱과 재생기는 한 벌로 배포한다.
