@@ -19045,7 +19045,7 @@ export default function ReplayMotionPlayer({
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
         const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
         sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024,
-          core: core9, onCore: release9, pending: atlasPend9 })
+          core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB)${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리

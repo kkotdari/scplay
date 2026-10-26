@@ -75,12 +75,13 @@ const WORKER_SRC9 = [
 ].join("\n");
 type Pool9 = { ws: Worker[]; busy: number[]; next: number; wait: Map<number, (v: Levels9 | null) => void> };
 let poolP9: Promise<Pool9 | null> | null = null; let poolBase9 = "";
-function pool9(): Promise<Pool9 | null> {
+/* 워커 수 — 부른 쪽이 정하면 그 수(폰 1 · 2026-10-26, 요청: "워커 1개 고정" — 첫 판 몇 초 동안 코어 여럿을 꽉 채우던 순간 발열) · 아니면 코어 − 1(2~4). 풀은 처음 선 수 그대로 산다. */
+function pool9(want?: number): Promise<Pool9 | null> {
   if (!BASE || typeof Worker === "undefined") return Promise.resolve(null);
   if (poolP9 && poolBase9 === BASE) return poolP9;
   poolBase9 = BASE;
   const abs9 = new URL(BASE + "/", typeof location !== "undefined" ? location.href : "http://x/").href.replace(/\/+$/, "");
-  const n9 = Math.max(2, Math.min(4, ((typeof navigator !== "undefined" && navigator.hardwareConcurrency) || 4) - 1));
+  const n9 = want !== undefined && want >= 1 ? Math.floor(want) : Math.max(2, Math.min(4, ((typeof navigator !== "undefined" && navigator.hardwareConcurrency) || 4) - 1));
   poolP9 = (async () => {
     let url9 = "";
     try { url9 = URL.createObjectURL(new Blob([WORKER_SRC9], { type: "text/javascript" })); } catch { return null; }
@@ -125,7 +126,7 @@ export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: str
  *  ★ `core` 개 종류(앞에서부터)의 묶음이 다 실리면(또는 실을 것이 없으면) `onCore` 를 한 번 부른다(2026-10-26 · 요청 2 — 많이 쓰는 종류만 먼저 싣고 재생을 시작 · 나머지는 뒤에서).
  *  `pending` 은 아직 안 실린 종류를 담고 실릴 때마다 뺀다(예열이 그 종류의 동적 미리 굽기를 건너뛰는 자) — 다 끝나면 비운다. */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; odd: boolean; em: boolean; mbCap: number;
-  core?: number; onCore?: () => void; pending?: Set<string> }): Promise<SprAtlasLoad9> {
+  core?: number; onCore?: () => void; pending?: Set<string>; workers?: number }): Promise<SprAtlasLoad9> {
   let cored9 = false;
   const core9 = (): void => { if (!cored9) { cored9 = true; opt.onCore?.(); } };
   const t0 = performance.now();
@@ -134,7 +135,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
   try {
     const idx = await index9();
     if (!idx) { r.err = "판 없음"; return r; }
-    const [M, pl9] = await Promise.all([basis9(), pool9()]);
+    const [M, pl9] = await Promise.all([basis9(), pool9(opt.workers)]);
     r.workers = pl9 ? pl9.ws.length : 0;
     const fmt = g9.sprAtlasFmt9(); r.fmt = fmt.name;
     /* 압축 확장이 하나도 없으면(RGBA 로 푼다) 화소당 4 바이트라 — 반 해상도로 내리고 상한을 죈다. */
