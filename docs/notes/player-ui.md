@@ -2622,3 +2622,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 셈: 중계 쪽 = castOn 이거나 중계에서 연 개인 화면(castBackRef9 — 끄면 중계로 돌아갈 자리). 누르면 다른 쪽으로 — 자유로: 개인 화면·중계 다 놓기(stopTrack9 · stopCast9 ·
   castBackRef9 지움 · 요약이 돌던 중이면 중계가 꺼지며 digest 도 걷힌다) · 중계로: toggleCast9(개인 화면을 놓고 자동 중계 · 요약 아님).
 - 🔎 perf-check `--ios --theme metal|holo --shot x.png` — 폰 390 폭에서 왼·오른 무리가 안 겹친다(홀로는 단추가 커서 두 무리가 여느 간격으로 붙는다).
+- (옮김 2026-10-26, 요청: "자유 중계 토글을 화면 좌상단으로 이동") 버튼 줄에서 무대 왼위 겹 단추로 — `modeToggle9`(`.scr-modetog-stage`) ·
+  배율 다이얼과 짝(같은 --sd-gap 띄움 · 키 --sd-w · --sdk 배수 · 같은 옅은 막) · 전체화면은 top 에 --safe-top. 로딩 중(pending)·보기 모드 판(askShow9) 엔 안 띄운다.
+  셈(modeCastSide9)은 그대로. 옛 `.scr-motion-modetog` CSS 는 걷었다 · 버튼 줄 왼쪽 무리는 색·소리·검색 셋으로 돌아갔다.

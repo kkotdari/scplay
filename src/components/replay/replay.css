@@ -365,20 +365,6 @@
   background: rgba(255, 255, 255, 0.92); color: #10151a;
   box-shadow: none;
 }
-/* ★ 재생 모드 토글 [자유 | 중계](2026-10-26 · RMP mapBtnRow 맨 앞) — 형제 동그라미와 같은 키·같은 옅은 막의 알약 하나 · 켜진 쪽은 반전(위 is-on 과 같은 색). 누르면 다른 쪽으로. */
-.scr-motion-mapbtns button.scr-motion-modetog {
-  flex: none; display: inline-flex; align-items: stretch; gap: 0; box-sizing: border-box;
-  height: var(--mapbtn-h); padding: calc(2px * var(--ui)); margin: 0; border: 0; border-radius: 999px;
-  background: rgba(255, 255, 255, 0.10); box-shadow: none; cursor: pointer; font-family: inherit;
-  -webkit-tap-highlight-color: transparent;
-}
-.scr-motion-modetog > span {
-  display: inline-flex; align-items: center; padding: 0 calc(7px * var(--ui)); border-radius: 999px;
-  font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1; white-space: nowrap;
-  color: #f5f6f7; opacity: 0.7; transition: background-color .15s, color .15s, opacity .15s;
-}
-.scr-motion-modetog > span.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; opacity: 1; }
-.scr-motion-mapbtns button.scr-motion-modetog:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
 
 /* 지도 + 좌우 기둥 한 줄 — 기둥은 지도와 같은 높이로 늘어난다(요청: 로스터는 최상단,
    버튼단은 하단). */
@@ -4493,6 +4479,23 @@
   user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none;
 }
 .scr-fs-layer.is-fs .scr-zoomdial { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
+/* ★ 재생 모드 토글 [자유 | 중계](2026-10-26, 요청: "자유 중계 토글을 화면 좌상단으로 이동" · 옛 자리 버튼 줄 왼쪽 맨 앞) — 무대 왼위 · 배율 원(오른위)과 같은 틈·바탕·그늘·글자 ·
+   키는 배율 원 지름(--sd-w) · 켜진 쪽은 흰 바탕에 검은 글자. 전체화면은 노치 몫만큼 내린다. */
+.scr-modetog-stage {
+  position: absolute; left: var(--sd-gap); top: var(--sd-gap); z-index: 30001;
+  display: inline-flex; align-items: stretch; gap: 0; box-sizing: border-box; height: var(--sd-w);
+  padding: calc(3px * var(--sdk)); margin: 0; border: 0; border-radius: 999px;
+  background: rgba(8, 10, 14, 0.4); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  font: inherit; cursor: pointer; pointer-events: auto; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none;
+}
+.scr-fs-layer.is-fs .scr-modetog-stage { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
+.scr-modetog-stage:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+.scr-modetog-stage > span {
+  display: inline-flex; align-items: center; padding: 0 calc(9px * var(--sdk)); border-radius: 999px;
+  font-size: calc(11px * var(--sdk)); font-weight: 800; line-height: 1; white-space: nowrap;
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); opacity: 0.75; transition: background-color .15s, color .15s, opacity .15s;
+}
+.scr-modetog-stage > span.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; text-shadow: none; opacity: 1; }
 .scr-zoomdial:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
 .scr-zoomdial-val { font-size: calc(10px * var(--sdk)); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.02em; }
 .scr-zoomdial.is-base .scr-zoomdial-val { opacity: 0.6; }

@@ -20271,6 +20271,31 @@ export default function ReplayMotionPlayer({
      무대 오른아래의 다이얼(speedDial9)이 맡는다. */
   /* (걷어냄 · 2026-10-09, 요청: "중계버튼 제거하고 로스터 닉네임 왼쪽에 비디오카메라 버튼 추가") — 아이콘 줄 맨 왼쪽의 TV 단추(castBtnNode9)와
      그 위로 펼치는 목록(전체 · 사람들 · 자동 · 끄기). 고르는 손잡이는 독 로스터의 카메라 단추(아래 dockRoster9)다 — 사람 = pickPerson9 · AUTO = toggleCast9. */
+  /* ★ 재생 모드 토글 [자유 | 중계](2026-10-26, 요청: "재생기 버튼부 왼쪽무리에 재생모드 전환 토글 추가 · 두개의 라벨 자유 중계 사이를 오가는" → "자유 중계 토글을 화면 좌상단으로 이동") —
+     무대 왼위(배율 원의 맞은편 · 같은 바탕·그늘 · .scr-modetog-stage). 보기 모드 잠금(2026-10-24 · 고른 모드로 끝까지)을 이 한 손잡이로 푼다. 켜진 쪽이 흰 바탕.
+     중계 = 자동 중계(toggleCast9 · 요약이 돌던 중이면 요약은 그친다 — 중계를 끄면 digest 가 걷힌다) · 중계에서 연 개인 화면도 '중계' 쪽(castBackRef9 — 끄면 중계로 돌아가는 자리).
+     자유 = 중계·개인 화면 다 놓고 손으로. 무대 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. */
+  const modeCastSide9 = castOn || (trackRaw !== null && castBackRef9.current);
+  const modeToggle9 = (
+    <button
+      type="button" role="switch" aria-checked={modeCastSide9}
+      className="scr-modetog-stage"
+      onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (modeCastSide9) {
+          castBackRef9.current = false;
+          if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+          if (castOn) stopCast9();
+        } else toggleCast9();
+      }}
+      aria-label={modeCastSide9 ? "재생 모드: 중계 — 누르면 자유" : "재생 모드: 자유 — 누르면 중계"}
+      title={modeCastSide9 ? "중계 (누르면 자유)" : "자유 (누르면 중계)"}
+    >
+      <span className={cx(!modeCastSide9 && "is-on")}>자유</span>
+      <span className={cx(modeCastSide9 && "is-on")}>중계</span>
+    </button>
+  );
   const mapBtnRow = (
     <div
       // (걷어냄) is-up — 도구 판이 없어져 밀어 줄 것이 없다(요청).
@@ -20342,31 +20367,7 @@ export default function ReplayMotionPlayer({
           녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛰고, 중계가 꺼지면
           주인공색을 건너뛴다 — 그래서 **밀리에 중계까지 꺼지면 고를 것이 개인색 하나라 단추를 안 단다**.
           → 2026-10-26 두 갈래로(nextColorMode9 ★): 화면 주인이 있는 단독 화면은 개인색 ↔ 주인공색 · 그 밖은 개인색 ↔ 팀색(밀리면 단추 없음). */}
-      {/* ★ 재생 모드 토글 [자유 | 중계](2026-10-26, 요청: "재생기 버튼부 왼쪽무리에 재생모드 전환 토글 추가 · 두개의 라벨 자유 중계 사이를 오가는") — 왼쪽 무리 맨 앞.
-          보기 모드 잠금(2026-10-24 · 고른 모드로 끝까지)을 이 한 손잡이로 푼다. 켜진 쪽이 흰 바탕(형제 is-on 과 같은 반전). 중계 = 자동 중계(toggleCast9 · 요약이 돌던 중이면
-          요약은 그친다 — 중계를 끄면 digest 가 걷힌다) · 중계에서 연 개인 화면도 '중계' 쪽으로 친다(castBackRef9 — 끄면 중계로 돌아가는 자리). 자유 = 중계·개인 화면 다 놓고 손으로. */}
-      {(() => {
-        const castSide9 = castOn || (trackRaw !== null && castBackRef9.current);
-        const flip9 = (): void => {
-          if (castSide9) {
-            castBackRef9.current = false;
-            if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
-            if (castOn) stopCast9();
-          } else toggleCast9();
-        };
-        return (
-          <button
-            type="button" role="switch" aria-checked={castSide9}
-            className="scr-motion-modetog"
-            onClick={flip9}
-            aria-label={castSide9 ? "재생 모드: 중계 — 누르면 자유" : "재생 모드: 자유 — 누르면 중계"}
-            title={castSide9 ? "중계 (누르면 자유)" : "자유 (누르면 중계)"}
-          >
-            <span className={cx(!castSide9 && "is-on")}>자유</span>
-            <span className={cx(castSide9 && "is-on")}>중계</span>
-          </button>
-        );
-      })()}
+      {/* (옮김 2026-10-26, 요청: "자유 중계 토글을 화면 좌상단으로 이동") 재생 모드 토글 — 무대 왼위(아래 modeToggle9). */}
       {(!melee || soloColor9) && (() => {
         const next9 = nextColorMode9(colorNow, !!melee, soloColor9);
         return (
@@ -22135,6 +22136,7 @@ export default function ReplayMotionPlayer({
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
+          {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {askShow9 && (
