@@ -73,7 +73,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">도구</h3>
         <ul className="scr-guide-legend">
-          <Row ic={<Palette size={15}/>} name="색" keys={<Keys k={["C"]}/>}>개인색 → 팀색 → 주인공색(중계 중).</Row>
+          <Row ic={<Palette size={15}/>} name="색" keys={<Keys k={["C"]}/>}>개인색 ↔ 팀색 · 개인 화면에선 개인색 ↔ 주인공색.</Row>
           <Row ic={<T s="2D"/>} name="평면 / 입체"/>
           <Row ic={<Volume2 size={15}/>} name="소리" keys={<Keys k={["M"]}/>}/>
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · B · N 이전 · 다음.</Row>

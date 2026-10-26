@@ -59,11 +59,12 @@ function transcode9(M: BasisM, buf: ArrayBuffer, tf: number, maxLv: number): { w
 }
 /** 이 GL 벌에 이미 실은 묶음(종류.a/b.f/h) — 예열이 다시 돌아도 두 번 안 싣는다. */
 const loaded9 = new WeakMap<GlUnits9, Set<string>>();
-export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: string; chunks: number; miss: number; err?: string }
+/** 한 번 싣기의 결과 — cells·mb·chunks 는 이번에 새로 실은 것 · kept 는 앞 판에서 물려받은 묶음 · dropped 는 상한에 걷은 묶음. */
+export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: string; chunks: number; miss: number; kept: number; dropped: number; err?: string }
 /** 경기 종류들의 아틀라스를 싣는다 — kinds 는 많이 쓰는 차례 · mbCap 을 넘으면 거기서 멈춘다(나머지는 재생 중 굽기). */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; odd: boolean; em: boolean; mbCap: number }): Promise<SprAtlasLoad9> {
   const t0 = performance.now();
-  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0 };
+  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0, kept: 0, dropped: 0 };
   if (!sprAtlasOn9() || !g9.sprTint || !g9.gl2) { r.err = !g9.sprTint ? "임자색 분리 없음" : "꺼짐"; return r; }
   try {
     const idx = await index9();
@@ -73,12 +74,16 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     /* 압축 확장이 하나도 없으면(RGBA 로 푼다) 화소당 4 바이트라 — 반 해상도로 내리고 상한을 죈다. */
     if (fmt.gl === 0) { opt = { ...opt, res: "h", mbCap: Math.min(opt.mbCap, 384) }; }
     const done = loaded9.get(g9) ?? new Set<string>(); loaded9.set(g9, done);
+    /* ★ 벌이 판을 넘어 산다(2026-10-26, 요청: "그래픽소스를 매판 받지 않게 하기" — RMP 의 GL 캔버스 맡김 ★) — 앞 판에 실은 묶음은 그대로 쓰고(done) 새 종류만 받는다.
+       상한은 **이미 실은 것 전부**(g9.sprFixedMB)에 견준다 — 넘치면 이번 판에 안 나오는 묶음부터(먼저 실은 차례로) 걷어 자리를 낸다. */
+    const want = new Set(kinds);
+    const spare = (): string | undefined => [...done].find((tg) => !want.has(tg.slice(0, tg.indexOf("."))));
     const yaw8 = g9.sprYaw === 8;
     const k = opt.res === "h" ? 0.5 : 1;
     const jobs: { kind: string; par: "a" | "b"; ch: Chunk9 }[] = [];
     for (const kind of kinds) {
       const e = idx.kinds[kind]; if (!e) { r.miss += 1; continue; }
-      for (const par of (opt.odd && !yaw8 ? ["a", "b"] : ["a"]) as ("a" | "b")[]) { const ch = e[par]; if (ch && !done.has(`${kind}.${par}.${opt.res}`)) jobs.push({ kind, par, ch }); }
+      for (const par of (opt.odd && !yaw8 ? ["a", "b"] : ["a"]) as ("a" | "b")[]) { const ch = e[par]; if (!ch) continue; if (done.has(`${kind}.${par}.${opt.res}`)) r.kept += 1; else jobs.push({ kind, par, ch }); }
     }
     /* 받기는 여섯씩 겹쳐서 · 싣기는 차례대로(GL) — 바이트 상한에 닿으면 그만. */
     const url = (j: (typeof jobs)[number], ly: string): string => `${BASE}/k/${j.ch.files[opt.res][ly]}`;
@@ -99,7 +104,9 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       const t = lv(bufs.t); const e = lv(bufs.e);
       const mbOf = (ls: { data: Uint8Array }[] | null): number => (ls ? ls.reduce((s, x) => s + x.data.length, 0) / 1048576 : 0);
       const mb = mbOf(c) + mbOf(t) + mbOf(e);
-      if (r.mb + mb > opt.mbCap) break;
+      let tg: string | undefined;
+      while (g9.sprFixedMB + mb > opt.mbCap && (tg = spare()) !== undefined) { g9.sprAtlasDrop9(tg); done.delete(tg); r.dropped += 1; }
+      if (g9.sprFixedMB + mb > opt.mbCap) break;
       const tc = g9.sprAtlasTexture9(c, fmt.gl); if (!tc) continue;
       const tt = t ? g9.sprAtlasTexture9(t, fmt.gl) : null; const te = e ? g9.sprAtlasTexture9(e, fmt.gl) : null;
       const cells = [];
@@ -108,7 +115,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         if (yaw8) { const p = key0.split("|"); const yb = Number(p[p.length - 6]); if (yb % 2) continue; p[p.length - 6] = String(yb / 2); key = p.join("|"); }
         cells.push({ key, px: px * k, py: py * k, w: w * k, h: h * k, x0: x0 * k, y0: y0 * k, kd: kd * k });
       }
-      r.cells += g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells);
+      r.cells += g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells, `${j.kind}.${j.par}.${opt.res}`);
       r.mb += mb; r.chunks += 1;
       done.add(`${j.kind}.${j.par}.${opt.res}`);
       /* 한 묶음마다 한 박자 쉰다 — 로딩 글자 애니메이션이 서지 않게. */

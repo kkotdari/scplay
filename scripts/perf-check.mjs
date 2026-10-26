@@ -640,7 +640,9 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     team: p.force, x: p.home[0], y: p.home[1], withName: true,
   }));
   const teamOfRaw = (raw) => { const f = players.find((p) => p.name === raw); return f ? f.force : undefined; };
-  createRoot(el).render(React.createElement(ReplayMotionPlayer, {
+  window.__remountArgs9 = [motion, players, walkJson, terrainB64];   // --remount — 닫고 같은 판을 다시 연다
+  window.__root9 = createRoot(el);
+  window.__root9.render(React.createElement(ReplayMotionPlayer, {
     grid, endSec: 120, bases, teamOfRaw, active: true, clockKey: "perf",
     ...(window.__winner === 1 || window.__winner === 2 ? { winnerTeam: window.__winner } : {}),
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
@@ -857,7 +859,7 @@ if (has("--atlas")) {   // 서버 아틀라스(위 ENTRY 의 --atlas) — DIR/<�
   await page.route("http://perf-check.local/spr/**", (r) => {
     const f9 = join(AD9, decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/spr\//, "")));
     if (!existsSync(f9)) return r.fulfill({ status: 404, body: "" });
-    const b9 = readFileSync(f9); globalThis.__atlasBytes += b9.length; globalThis.__atlasN += 1;
+    const b9 = readFileSync(f9); globalThis.__atlasBytes += b9.length; globalThis.__atlasN += 1; (globalThis.__atlasUrls ??= []).push(f9.slice(AD9.length));
     return r.fulfill({ body: b9, contentType: f9.endsWith(".json") ? "application/json" : f9.endsWith(".wasm") ? "application/wasm" : f9.endsWith(".js") ? "text/javascript" : "application/octet-stream" });
   });
 }
@@ -2026,6 +2028,24 @@ if (SHOT) {
     if (b instanceof HTMLElement) { b.click(); return true; }
     return false;
   }, re.source ?? re);
+  /* --remount [ms](2026-10-26, 요청: "그래픽소스를 매판 받지 않게 하기") — 재생기를 닫고(unmount) 같은 판을 다시 연다(앱에서 다음 경기를 여는 꼴) · GL 벌이 같은지 ·
+     아틀라스 받기 수 · 예열 줄(atlas)을 앞뒤로 찍는다. 기다림 ms 기본 20000. */
+  if (has("--remount")) {
+    const glMark9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "-"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7); return g.__mark9; });
+    const gm0 = await glMark9(); const an0 = globalThis.__atlasN ?? 0;
+    const at0 = await page.evaluate(() => window.__scrDiag?.atlas ?? "-");
+    await page.evaluate(() => { window.__root9.unmount(); document.getElementById("root").innerHTML = ""; window.__glInst9 = 0; });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.__mount(...window.__remountArgs9));
+    await page.waitForTimeout(Number(flag("--remount", 20000)) || 20000);
+    const gm1 = await glMark9();
+    const at1 = await page.evaluate(() => window.__scrDiag?.atlas ?? "-");
+    const cvN = await page.evaluate(() => document.querySelectorAll("canvas.scr-motion-gl9").length);
+    console.log(`[다시 열기] 벌 ${gm0} → ${gm1}${gm0 === gm1 ? " (같음)" : " (새로 섰다)"} · 아틀라스 받기 ${an0} → ${globalThis.__atlasN ?? 0} · GL 캔버스 ${cvN}`);
+    console.log(`[다시 열기] 아틀라스 앞: ${at0}`);
+    console.log(`[다시 열기] 뒤에 받은 것: ${(globalThis.__atlasUrls ?? []).slice(an0).join(" ") || "없음"}`);
+    console.log(`[다시 열기] 아틀라스 뒤: ${at1}`);
+  }
   if (has("--fs")) {
     /* GL 벌·아틀라스 받기 수를 전환 앞뒤로 견준다(2026-10-25, 지적: "전체화면 전환하면 그래픽 소스 다시 받는 문제") — 벌에 표식을 달고, 끈 뒤에도 같은 벌이면 '같음'. */
     const glMark9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "-"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7); return g.__mark9; });

@@ -888,7 +888,8 @@ interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTextur
   shelves: { y: number; h: number; x: number }[]; yTop: number; keys: string[]; last: number;
   /** 밉맵이 묵었나(새 칸이 들었는데 아직 안 지었다) — 그동안은 0단만 본다(TEXTURE_MAX_LEVEL 0 · 아래 sprMipSettle9 ★). */ stale: boolean;
   /** ★ 미리 구운 판(서버 아틀라스 · sprAtlasAdd9 · 2026-10-25) — 크기(pw·ph · 없으면 SPR_PAGE9)·GPU 바이트(mb). 고정 판은 sprFixed 에만 들고
-   *  칸 잡기·LRU·밉 손질·비우기(sprReset9)를 안 탄다(fb·shelves 는 안 쓴다). */ pw?: number; ph?: number; fixed?: boolean; mb?: number }
+   *  칸 잡기·LRU·밉 손질·비우기(sprReset9)를 안 탄다(fb·shelves 는 안 쓴다). */ pw?: number; ph?: number; fixed?: boolean; mb?: number;
+  /** 고정 판의 묶음 이름(sprAtlas9 '종류.짝홀.해상도') — 판을 넘어 남은 묶음을 걷을 때(sprAtlasDrop9) 찾는다. */ tag?: string }
 /** 칸 — 판 자리(위가 0 인 px) · 크기 · 앵커에서 칸 왼위까지(x0·y0 · 기기 px · 음수) · 찍은 배율(kd = CSS 배율 × DPR). */
 interface SprCell9 { page: SprPage9; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }
 interface SprJob9 { key: string; mesh: GlMesh9; yaw: number; cam: GlCam9; kd: number; kc: number; color: string; gR: number; gCy: number; sh: boolean; x0: number; y0: number; w: number; h: number; cell: SprCell9 | null;
@@ -1495,9 +1496,9 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 고정 판 하나와 그 칸들을 싣는다(위 SprPage9.fixed ★) — 같은 열쇠의 동적 칸이 있으면 고정 칸이 이긴다. 임자색 켜가 없는 판(tint null)은 분리를 못 쓰는 칸이라 싣지 않는다. */
   sprAtlasAdd9(tex: WebGLTexture, tint: WebGLTexture | null, em: WebGLTexture | null, pw: number, ph: number, mb: number,
-    cells: { key: string; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }[]): number {
+    cells: { key: string; px: number; py: number; w: number; h: number; x0: number; y0: number; kd: number }[], tag?: string): number {
     if (!this.sprTint && tint) { /* 분리를 못 켠 문맥 — 칸 열쇠에 임자색이 든다(sprKey9) · 아틀라스 열쇠와 안 맞는다 */ return 0; }
-    const pg: SprPage9 = { tex, fb: null as unknown as WebGLFramebuffer, emTex: em, emFb: null, tnTex: tint, tnFb: null, shelves: [], yTop: 0, keys: [], last: this.frameNo, stale: false, pw, ph, fixed: true, mb };
+    const pg: SprPage9 = { tex, fb: null as unknown as WebGLFramebuffer, emTex: em, emFb: null, tnTex: tint, tnFb: null, shelves: [], yTop: 0, keys: [], last: this.frameNo, stale: false, pw, ph, fixed: true, mb, tag };
     this.sprFixed.push(pg); this.sprFixedMB += mb;
     let n = 0;
     for (const c of cells) {
@@ -1505,6 +1506,17 @@ export class GlUnits9 implements VecSink9 {
       this.sprFixedCells.set(c.key, cell); this.sprMap.set(c.key, cell); pg.keys.push(c.key); n += 1;
     }
     return n;
+  }
+  /** 고정 판 하나(묶음 tag)를 걷는다 — 벌이 판을 넘어 살아(RMP 의 GL 캔버스 맡김 ★) 상한에 닿았을 때 이번 판에 안 나오는 묶음부터. 걷은 MB(없으면 0).
+   *  그 칸들은 지도에서 빠지고(같은 열쇠의 동적 칸도 이미 고정 칸이 덮었다) 다시 쓰면 재생 중에 굽는다. */
+  sprAtlasDrop9(tag: string): number {
+    const i = this.sprFixed.findIndex((pg) => pg.tag === tag); if (i < 0) return 0;
+    const pg = this.sprFixed[i]; const gl = this.gl;
+    this.sprFixed.splice(i, 1);
+    for (const k of pg.keys) { if (this.sprFixedCells.get(k)?.page === pg) this.sprFixedCells.delete(k); if (this.sprMap.get(k)?.page === pg) this.sprMap.delete(k); }
+    gl.deleteTexture(pg.tex); if (pg.tnTex) gl.deleteTexture(pg.tnTex); if (pg.emTex) gl.deleteTexture(pg.emTex);
+    const mb = pg.mb ?? 0; this.sprFixedMB = Math.max(0, this.sprFixedMB - mb);
+    return mb;
   }
   /** 아틀라스를 풀 기기 형식 — ASTC 4×4(폰 대부분) > BC7(PC) > ETC2 RGBA(안드로이드 옛 GPU) > RGBA8. tf = Basis transcoder_texture_format · gl = 압축 내부 형식(0 이면 RGBA8). */
   sprAtlasFmt9(): { tf: number; gl: number; name: string } {

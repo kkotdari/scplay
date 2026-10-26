@@ -418,7 +418,9 @@ type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
   /** 러시 판의 둘째 건물부터(2026-10-21 · rushSess9 ★★) — 그것뿐인 토막은 그 러시를 보던 중일 때만 잇는다(새 장면으로 카메라를 끌어오지 않는다). */
   more?: boolean;
   /** 러시 판 번호(rushSess9 의 자리 · 2026-10-21) — 같은 판의 토막은 때가 떨어져도 한 전투(bid)다. */
-  rid?: number };
+  rid?: number;
+  /** 정찰한 몸의 태그(2026-10-26 · 아래 scouts ★★) — 그 장면 동안 카메라가 이 몸을 따라간다(CastSeg9.follow). 스캔은 없다. */
+  stag?: number };
 
 /** 편성표를 굽는다 — 참값 한 벌에 한 번이다(재생 중에는 짚기만 한다). */
 /** ★ 검색 거리(2026-10-12, 요청: "자막에 나온 내용이 아니더라도 검색되면 좋겠는데") — 편성표 밖의 글귀: **모든 장면**(잔 장면·밀린 장면 포함 · 그 장면 1등을 주인공으로 지은
@@ -1514,14 +1516,43 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     };
     const trOf9 = new Map((opts.tracks ?? []).map((tr9) => [tr9.tag, tr9]));
     const last9 = new Map<string, number>();
-    const put9 = (sec9: number, att9: string, foe9: string, how9: string, x9: number, y9: number): void => {
+    const put9 = (sec9: number, att9: string, foe9: string, how9: string, x9: number, y9: number, stag9?: number): void => {
       if (sec9 > total - 3) return;
       const key9 = `${att9}|${foe9}|${how9}`;
       if ((last9.get(key9) ?? -Infinity) > sec9 - SCOUT9.dedup) return;
       last9.set(key9, sec9);
-      evs9.push({ sec: sec9, raw: att9, vs: foe9, w: SCOUT9.w, why: "정찰", tech: how9, px: x9, py: y9, tail: SCOUT9.tail });
+      evs9.push({ sec: sec9, raw: att9, vs: foe9, w: SCOUT9.w, why: "정찰", tech: how9, px: x9, py: y9, tail: SCOUT9.tail, ...(stag9 !== undefined ? { stag: stag9 } : {}) });
     };
-    type Sc0_9 = { sec: number; att: string; foe: string; how: string; x: number; y: number };
+    type Sc0_9 = { sec: number; att: string; foe: string; how: string; x: number; y: number; stag?: number };
+    /* ★ **적의 건물·유닛을 처음 본 때**(2026-10-26, 요청: "정찰은 기지 입장이 아닌 건물 유닛을 일부라도 본순간부터 정찰로 판단") — 그 상대의 몸(살아 있는 건물 · 유닛)이
+       정찰하는 몸의 시야(sightTiles) 안에 일부라도 든 때. 건물은 발자국 상자(앉은 자리 · BUILDING_FOOT)까지의 거리 · 유닛은 자취 자리(반 칸 몸). 상대마다 생애를 한 번 모은다. */
+    const foeLives9 = new Map<string, (typeof world.lives)[number][]>();
+    const livesOf9 = (foe9: string): (typeof world.lives)[number][] => {
+      let l9 = foeLives9.get(foe9);
+      if (!l9) { const ow9 = ownersOfRaw0_9(foe9); l9 = world.lives.filter((e9) => ow9.has(e9.owner)); foeLives9.set(foe9, l9); }
+      return l9;
+    };
+    const seesFoe9 = (foe9: string, x9: number, y9: number, r9: number, s9: number): boolean => {
+      for (const e9 of livesOf9(foe9)) {
+        if (e9.born > s9 || (e9.died !== null && e9.died < s9)) continue;
+        if (e9.bld) {
+          if (e9.lifts.filter((l9) => l9 <= s9).length > e9.sites.filter(([st9]) => st9 <= s9).length - 1) {   // 떠 있는 동안은 자취 자리
+            const q9 = trOf9.get(e9.tag); const p9 = q9 ? posAtTruth(q9, s9) : null;
+            if (p9 && Math.hypot(p9.x - x9, p9.y - y9) <= r9 + 1) return true;
+            continue;
+          }
+          const [fw9, fh9] = BUILDING_FOOT[e9.kind] ?? [2, 2];
+          let sx9 = e9.bornX - fw9 / 2; let sy9 = e9.bornY - fh9 / 2;
+          for (const [st9, tx9, ty9] of e9.sites) if (st9 <= s9) { sx9 = tx9; sy9 = ty9; }
+          const dx9 = Math.max(sx9 - x9, 0, x9 - (sx9 + fw9)); const dy9 = Math.max(sy9 - y9, 0, y9 - (sy9 + fh9));
+          if (Math.hypot(dx9, dy9) <= r9) return true;
+        } else {
+          const q9 = trOf9.get(e9.tag); const p9 = q9 ? posAtTruth(q9, s9) : null;
+          if (p9 && Math.hypot(p9.x - x9, p9.y - y9) <= r9 + 0.5) return true;
+        }
+      }
+      return false;
+    };
     const found9: Sc0_9[] = [];
     for (const [sec9, cx9, cy9, tech9, own9] of world.casts) {
       if (tech9 !== "Scanner Sweep") continue;
@@ -1549,14 +1580,16 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           /* ★ **도착하면 사건**(2026-10-21, 지적: "정찰은 도착하면 사건이 됨") — 자취로 그 명령부터 다음 명령(없으면 죽음 · 길어야 150초)까지 0.5초 걸음으로 몸 자리를 보고,
              그 상대의 기지 안에 처음 들어선 때·자리를 사건으로 낸다. 끝내 못 들어갔으면(돌려세움·죽음) 정찰이 아니다. 옛: 명령 + 곧은 거리 ÷ 걸음 — 길을 돌아가는 땅 유닛은 그보다 늦게 닿아
              카메라가 아직 가는 중인 몸을 비췄다. */
+          /* (2026-10-26) 때는 기지에 들어선 때가 아니라 **그 상대의 건물·유닛을 처음 본 때**(위 seesFoe9 ★) — 기지에 먼저 들어섰으면 그때. */
           const end9 = Math.min(e9.orders[k9 + 1]?.[0] ?? Infinity, e9.died ?? Infinity, ot9 + 150);
+          const sight9 = sightTiles(e9.kind) || 7;
           for (let s9 = ot9; s9 <= end9; s9 += 0.5) {
             const q9 = posAtTruth(tr9, s9);
-            if (q9 && inFoe9(foe9, q9.x, q9.y, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y }); break; }
+            if (q9 && (inFoe9(foe9, q9.x, q9.y, s9) || seesFoe9(foe9, q9.x, q9.y, sight9, s9))) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
           }
         } else if (foe9) {
           const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
-          if (!(e9.died !== null && arr9 > e9.died)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9 });
+          if (!(e9.died !== null && arr9 > e9.died)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9, stag: e9.tag });
         }
         px9 = ox9; py9 = oy9;
       }
@@ -1568,7 +1601,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     found9.sort((a9, b9) => a9.sec - b9.sec);
     for (const f9 of found9) {
       if (f9.how === "일꾼" && builtIn9(f9.att, f9.foe, f9.sec)) continue;
-      put9(f9.sec, f9.att, f9.foe, f9.how, f9.x, f9.y);
+      put9(f9.sec, f9.att, f9.foe, f9.how, f9.x, f9.y, f9.stag);
     }
   }
   evs9.sort((a9, b9) => a9.sec - b9.sec);
@@ -3532,6 +3565,11 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (cont9 && cur9raw !== null && sc9.by.has(cur9raw)) pick9 = cur9raw;   // 같은 전투는 같은 주인공으로 잇는다(위 ★★)
     if (must9 && pick9 !== sc9.hall![0] && pick9 !== sc9.hall![1]) pick9 = cur9raw === sc9.hall![1] ? sc9.hall![1] : sc9.hall![0];   // 뚝배기는 깬 쪽(지금 잃는 쪽을 보던 중이면 그대로)
     if (drop9 && !must9) pick9 = drop9.raw;   // 폭탄드랍은 드랍한 사람의 화면(위 ★)
+    /* ★ **정찰은 정찰하는 몸을 따라간다**(2026-10-26, 요청: "정찰장면에서 정찰주체를 카메라가 따라가야") — 그 장면에 든 정찰 사건(몸 태그가 있는 것 · 스캔은 자리 그대로)의
+       몸을 장면 끝까지 따라간다(폭탄드랍의 follow 와 같은 길 · 몸이 죽으면 재생기는 종전 카메라로). 주인공이 그 정찰한 사람일 때만. */
+    const scoutEv9 = !drop9 ? sc9.evs.find((e9) => e9.why === "정찰" && e9.stag !== undefined) : undefined;
+    const scoutFol9: { raw: string; follow: CastFollow9[] } | null = scoutEv9
+      ? { raw: scoutEv9.raw, follow: [{ t0: Math.min(at9, scoutEv9.sec), t1: scEnd9, tags: [scoutEv9.stag!] }] } : null;
     /* ★ 같은 전투·딴 전투의 문도 **장면 최소 시간**을 지난다(위 MIN_SHOW9) — 카메라가 갈리는 경우(pick ≠ 지금)에만. */
     const heavy9 = tot9 >= lastScore9() * JUMP9;
     /* ★ **주인공이 애매하면 교전 자리**(위 CastSeg9.spot ★) — 그 장면의 둘째 몫이 첫째의 SPOT_TIE9 배 이상이면(맞대결이 엇비슷 · 여럿이 비슷하게 싸움) 한 사람의
@@ -3546,13 +3584,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       curBid9 = bid9;
       curSc9 = sc9;
       /* 따라갈 몸은 그 사람의 토막 가운데 그 구간에 걸친 것에 싣는다(앞 토막에 이어 붙었어도 — 시각이 절대 초라 그 구간에서만 먹는다). */
-      if (drop9 && pick9 === drop9.raw) {
-        const f09 = drop9.follow[0].t0; const f19 = drop9.follow[drop9.follow.length - 1].t1;
+      const fol9 = drop9 ?? scoutFol9;
+      if (fol9 && pick9 === fol9.raw) {
+        const f09 = fol9.follow[0].t0; const f19 = fol9.follow[fol9.follow.length - 1].t1;
         for (let i9 = out9.length - 1; i9 >= 0; i9 -= 1) {
           const g9 = out9[i9];
           const nx9 = out9[i9 + 1]?.at ?? Infinity;
           if (nx9 <= f09) break;
-          if (g9.raw === pick9 && (opts.event || !g9.spot) && g9.at < f19) g9.follow = drop9.follow;   // 사건 중계는 spot 토막에도(재생기가 따라갈 몸을 길보다 먼저 본다)
+          if (g9.raw === pick9 && (opts.event || !g9.spot) && g9.at < f19) g9.follow = fol9.follow;   // 사건 중계는 spot 토막에도(재생기가 따라갈 몸을 길보다 먼저 본다)
         }
       }
     }   // 최소 시간에 걸린 딴 전투는 안 보여 준다(위 trimFrom9 ★)

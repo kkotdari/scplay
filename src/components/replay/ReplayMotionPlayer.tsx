@@ -3171,18 +3171,30 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
    한 번 그려 두는 판(sprVer9)이고 엔진이 시작 본진마다 dom "placard" 를 낸다(engine9 EVENT_PLACARD9). 글꼴이 늦게 실리면 실린 뒤 한 번 다시 그려 판 번호를 올린다. */
 export const PLACARD_TEXT9 = "고고&단우님 환영합니다!";
 const PLACARD_W9 = 640;
-const PLACARD_H9 = 330;
+const PLACARD_H9 = 400;   // 330 → 400(2026-10-26, 요청: "좀더 높이 띄우기" — 풍선 줄을 늘린 만큼 판 위를 키운다)
 let placardCv9: HTMLCanvasElement | null = null;
 let placardFontTried9 = false;
-/** 풍선 하나 — 하이라이트 · 매듭. */
+/** 풍선 하나 — 건물을 보는 카메라(TOP_ELEV9 · 40도 내려다봄)로 본 모습(2026-10-26, 요청: "풍선을 위에서 45도? 건물 보는 각도에서 보는 모습으로").
+ *  세로로 긴 알(가로 r · 세로 1.15r)을 내려다보면 세로 폭은 √((1.15r·cos)²+(r·sin)²) 로 줄어 거의 둥글고, 꼭지(정수리)가 보이며
+ *  밑의 매듭은 몸 뒤로 숨는다 — 그래서 매듭은 안 그리고(줄 끝이 몸 아래에 묻힌다) 빛은 정수리 쪽에, 그늘은 아랫배에 둔다. */
+const PLACARD_SIN9 = Math.sin((TOP_ELEV9 * Math.PI) / 180);
+const PLACARD_COS9 = Math.cos((TOP_ELEV9 * Math.PI) / 180);
+const BALLOON_KY9 = Math.hypot(1.15 * PLACARD_COS9, PLACARD_SIN9);   // 세로 반폭 ÷ r(≈1.09)
+/** 풍선 밑(매듭) 자리의 화면 아래 거리 ÷ r — 줄이 여기서 나온다(몸 안이라 가려진다). */
+const BALLOON_KNOT9 = 1.15 * PLACARD_COS9;
 function placardBalloon9(c9: CanvasRenderingContext2D, x: number, y: number, r: number, col: string): void {
+  const ry = r * BALLOON_KY9;
   c9.save();
   c9.fillStyle = col;
-  c9.beginPath(); c9.ellipse(x, y, r, r * 1.15, 0, 0, Math.PI * 2); c9.fill();
-  const g = c9.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.1, x, y, r * 1.2);
-  g.addColorStop(0, "rgba(255,255,255,0.55)"); g.addColorStop(0.5, "rgba(255,255,255,0.08)"); g.addColorStop(1, "rgba(0,0,0,0.12)");
-  c9.fillStyle = g; c9.beginPath(); c9.ellipse(x, y, r, r * 1.15, 0, 0, Math.PI * 2); c9.fill();
-  c9.fillStyle = col; c9.beginPath(); c9.moveTo(x, y + r * 1.12); c9.lineTo(x - r * 0.18, y + r * 1.3); c9.lineTo(x + r * 0.18, y + r * 1.3); c9.closePath(); c9.fill();   // 매듭
+  c9.beginPath(); c9.ellipse(x, y, r, ry, 0, 0, Math.PI * 2); c9.fill();
+  /* 정수리 빛 — 하늘을 보는 면이 카메라 쪽으로 기울어 위쪽 가운데가 가장 밝다. */
+  const topY = y - ry * 0.52;
+  const g = c9.createRadialGradient(x - r * 0.12, topY, r * 0.05, x, y + ry * 0.15, r * 1.25);
+  g.addColorStop(0, "rgba(255,255,255,0.62)"); g.addColorStop(0.32, "rgba(255,255,255,0.14)"); g.addColorStop(0.75, "rgba(0,0,0,0.04)"); g.addColorStop(1, "rgba(0,0,0,0.26)");
+  c9.fillStyle = g; c9.beginPath(); c9.ellipse(x, y, r, ry, 0, 0, Math.PI * 2); c9.fill();
+  /* 정수리 반짝 — 작은 납작 타원(위에서 본 꼭지). */
+  c9.fillStyle = "rgba(255,255,255,0.55)";
+  c9.beginPath(); c9.ellipse(x - r * 0.16, topY - ry * 0.06, r * 0.2, r * 0.2 * PLACARD_SIN9, -0.25, 0, Math.PI * 2); c9.fill();
   c9.restore();
 }
 function placardDraw9(cv9: HTMLCanvasElement): void {
@@ -3190,19 +3202,19 @@ function placardDraw9(cv9: HTMLCanvasElement): void {
   const W = PLACARD_W9; const H = PLACARD_H9;
   c9.clearRect(0, 0, W, H);
   /* 천 — 아래쪽에 매달려 살짝 처진 흰 천(양 귀는 풍선 줄에 묶임). */
-  const x0 = 70; const x1 = W - 70; const y0 = 190; const y1 = 300; const sag = 12;
+  const x0 = 70; const x1 = W - 70; const y0 = 260; const y1 = 370; const sag = 12;
   /* 풍선 줄 — 천의 양 윗귀에서 풍선 송이로. (풍선 뒤에 그려 송이가 줄 끝을 덮는다 · 2026-10-24, 요청: "막대 말고 풍선으로") */
   const knotL = { x: x0 + 4, y: y0 }; const knotR = { x: x1 - 4, y: y0 };
   const bunch = (kx: number, ky: number, dir: number): { x: number; y: number; r: number; col: string }[] => [
-    { x: kx + dir * 6, y: ky - 118, r: 30, col: "#ef4b6a" },
-    { x: kx - dir * 40, y: ky - 100, r: 27, col: "#ffcf3f" },
-    { x: kx + dir * 42, y: ky - 86, r: 25, col: "#4ea7ff" },
-    { x: kx - dir * 8, y: ky - 70, r: 22, col: "#52d08a" },
+    { x: kx + dir * 6, y: ky - 188, r: 30, col: "#ef4b6a" },
+    { x: kx - dir * 40, y: ky - 170, r: 27, col: "#ffcf3f" },
+    { x: kx + dir * 42, y: ky - 156, r: 25, col: "#4ea7ff" },
+    { x: kx - dir * 8, y: ky - 140, r: 22, col: "#52d08a" },
   ];
   c9.strokeStyle = "rgba(60,60,70,0.75)"; c9.lineWidth = 1.6;
   for (const [k, dir] of [[knotL, 1], [knotR, -1]] as const) {
     for (const bl of bunch(k.x, k.y, dir)) {
-      c9.beginPath(); c9.moveTo(k.x, k.y); c9.quadraticCurveTo((k.x + bl.x) / 2 + dir * 6, (k.y + bl.y + bl.r * 1.3) / 2, bl.x, bl.y + bl.r * 1.3); c9.stroke();
+      c9.beginPath(); c9.moveTo(k.x, k.y); c9.quadraticCurveTo((k.x + bl.x) / 2 + dir * 6, (k.y + bl.y + bl.r * BALLOON_KNOT9) / 2, bl.x, bl.y + bl.r * BALLOON_KNOT9); c9.stroke();
     }
   }
   c9.save();
@@ -3213,9 +3225,9 @@ function placardDraw9(cv9: HTMLCanvasElement): void {
   c9.lineTo(x1, y1); c9.quadraticCurveTo((x0 + x1) / 2, y1 + sag, x0, y1); c9.closePath(); c9.fill();
   c9.restore();
   c9.strokeStyle = "rgba(0,0,0,0.18)"; c9.lineWidth = 2; c9.stroke();
-  /* 풍선 송이 — 줄 위에 얹는다(큰 것이 앞). */
+  /* 풍선 송이 — 줄 위에 얹는다. 내려다보는 카메라라 화면 위쪽이 먼 것 — 위에서 아래로 그려 아래(가까운) 것이 앞(2026-10-26 · 옛: 큰 것이 앞). */
   for (const [k, dir] of [[knotL, 1], [knotR, -1]] as const) {
-    const bs = bunch(k.x, k.y, dir).sort((p, q) => p.r - q.r);
+    const bs = bunch(k.x, k.y, dir).sort((p, q) => p.y - q.y);
     for (const bl of bs) placardBalloon9(c9, bl.x, bl.y, bl.r, bl.col);
   }
   /* 글자 — 가운데 · 짙은 남색 · 천 폭에 맞춰 줄인다. */
@@ -3229,10 +3241,10 @@ function placardDraw9(cv9: HTMLCanvasElement): void {
 function placardSpr9(): HTMLCanvasElement {
   if (placardCv9) return placardCv9;
   const cv9 = newCanvas9("플래카드"); cv9.width = PLACARD_W9; cv9.height = PLACARD_H9;
-  placardDraw9(cv9); sprVer9(cv9, 1); placardCv9 = cv9;
+  placardDraw9(cv9); sprVer9(cv9, 3); placardCv9 = cv9;
   if (!placardFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
     placardFontTried9 = true;
-    document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 2); } }).catch(() => {});
+    document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 4); } }).catch(() => {});
   }
   return cv9;
 }
@@ -5366,6 +5378,8 @@ export function paintFxList9(
   WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
+/** 판을 넘어 사는 GL 캔버스(UnitLayer 의 GL 캔버스 물려주기 ★) — 처음 선 GL 층의 캔버스. */
+let glKeepCv9: HTMLCanvasElement | null = null;
 function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog, terrPainter }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
@@ -5431,7 +5445,23 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   terrPainter?: { current: ((zoom: number, pan: { x: number; y: number }) => boolean) | null };
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const glRef = useRef<HTMLCanvasElement>(null);
+  /** GL 캔버스 — JSX 의 자리표(glHoldRef)를 판을 넘어 산 캔버스(glKeepCv9)로 갈아 끼운 것(아래 ★). */
+  const glRef = useRef<HTMLCanvasElement | null>(null);
+  const glHoldRef = useRef<HTMLCanvasElement>(null);
+  /* ★ **GL 캔버스를 판을 넘어 물려준다**(2026-10-26, 요청: "그래픽소스를 매판 받지 않게 하기") — 옛: 재생기를 닫고 다음 경기를 열면 이 층이 새로 서며 GL 캔버스도 새로 서서
+     GL 벌(gl9 · 캔버스가 바뀌면 새로 연다)이 새로 열리고, 서버 아틀라스를 다시 받아 풀고(PC 수 초) 메시·판을 다시 데웠다. 이제 첫 판의 캔버스를 모듈에 맡겨 두고
+     다음 판은 JSX 의 자리표 캔버스를 그것으로 **갈아 끼운다**(DOM 을 옮겨도 WebGL 문맥·텍스처는 산다) — gl9 이 같은 벌을 돌려주고 아틀라스는 새 종류만 싣는다(sprAtlas9 ★).
+     닫힐 때는 자리표를 제자리에 되돌린다(리액트가 지우는 것은 제 노드라야 한다 — 레이아웃 정리는 노드를 떼기 전에 돈다). 클래스·인라인 꼴은 자리표 것을 베낀다. */
+  useLayoutEffect(() => {
+    const ph9 = glHoldRef.current; if (!ph9) return undefined;
+    let cv9 = ph9;
+    if (glKeepCv9 && glKeepCv9 !== ph9 && !glKeepCv9.isConnected) {
+      glKeepCv9.className = ph9.className; glKeepCv9.style.cssText = ph9.style.cssText;
+      ph9.replaceWith(glKeepCv9); cv9 = glKeepCv9;
+    }
+    glKeepCv9 = cv9; glRef.current = cv9;
+    return () => { if (cv9 !== ph9 && cv9.parentNode) cv9.replaceWith(ph9); glRef.current = null; };
+  }, []);
   /** GL 지형층의 캔버스(glTerrain9 · 안개 아래) — 유닛 캔버스들과 같은 상자·같은 손짓 변환(unitCanvases9 선택자)을 받는다. */
   const terrRef = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<HTMLCanvasElement>(null);
@@ -6992,7 +7022,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   return <>
     {GL_ON9 && GL_TERR9 ? <canvas ref={terrRef} className="scr-motion-unitlayer scr-motion-terr9" aria-hidden /> : null}
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
-    {GL_ON9 ? <canvas ref={glRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? (GL_FILTER9 ? { filter: "contrast(1.001)" } : undefined) : GL_HIDE9} aria-hidden /> : null}
+    {GL_ON9 ? <canvas ref={glHoldRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? (GL_FILTER9 ? { filter: "contrast(1.001)" } : undefined) : GL_HIDE9} aria-hidden /> : null}
     {GL_ON9 && fxCvOn9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
   </>;
 }
@@ -9329,8 +9359,10 @@ export type ColorMode9 = "personal" | "team" | "hero";
 export const HERO_COL9 = { me: "#2cb494", ally: "#fcfc38", foe: "#f40404" } as const;
 const COLOR_MODE_NAME9: Record<ColorMode9, string> = { personal: "개인색", team: "팀색", hero: "주인공색" };
 /** 다음 갈래 — 개인 → 팀 → 주인공 → 개인. 밀리는 팀을 건너뛰고(편이 없다) 중계가 꺼지면 주인공을 건너뛴다. */
-const nextColorMode9 = (m: ColorMode9, melee: boolean, hero: boolean): ColorMode9 => {
-  const ring9: ColorMode9[] = ["personal", ...(melee ? [] : ["team" as const]), ...(hero ? ["hero" as const] : [])];
+/* ★ 두 갈래만 돈다(2026-10-26, 요청: "색토글 — 개인화면: 개인색 -> 주인공색간 전환, 팀색 미사용 / 그 외: 개인색과 팀색간 전환") — 옛: 개인색 → 팀색 → 주인공색 세 갈래.
+   solo = 화면 주인이 있는 화면('개인 화면' 이름표가 선 단독 화면 — 개인 추적·자동 중계의 사람 토막). 밀리의 '그 외'는 팀색이 없어 고를 것이 하나다. */
+const nextColorMode9 = (m: ColorMode9, melee: boolean, solo: boolean): ColorMode9 => {
+  const ring9: ColorMode9[] = solo ? ["personal", "hero"] : ["personal", ...(melee ? [] : ["team" as const])];
   return ring9[(ring9.indexOf(m) + 1) % ring9.length] ?? "personal";
 };
 export default function ReplayMotionPlayer({
@@ -11348,11 +11380,13 @@ export default function ReplayMotionPlayer({
   const heroOk9 = (camRaw9 !== null || spotNow9 !== null) && !splitOn9;   // 맞대결 분할은 칸이 둘이라 '나'가 없다 · 교전 자리 토막은 '나'가 없어도 모드는 지킨다(아래 colorNow)
   /** 실제로 쓰는 색 갈래 — 밀리는 편이 없으니 팀색은 개인색으로 떨어진다(요청: 팀컬러 변경 비활성화) ·
    *  주인공색은 중계가 꺼지면 개인색이다(effect 가 상태를 되돌리기 전 한 렌더도 안 새게 여기서도 막는다). */
-  const colorNow: ColorMode9 = (melee && colorMode === "team") || (colorMode === "hero" && (!heroOk9 || camRaw9 === null)) ? "personal" : colorMode;
+  /** 화면 주인이 있는 단독 화면('개인 화면' · 위 nextColorMode9 ★) — 주인공색만 서고 팀색은 안 쓴다. 그 밖은 팀색만. */
+  const soloColor9 = camRaw9 !== null && !splitOn9;
+  const colorNow: ColorMode9 = (colorMode === "team" && (melee || soloColor9)) || (colorMode === "hero" && (!heroOk9 || !soloColor9)) ? "personal" : colorMode;
   useEffect(() => { if (!heroOk9) setColorMode((m) => (m === "hero" ? "personal" : m)); }, [heroOk9]);
   /** C 키가 도는 다음 갈래 — 키 처리기는 의존성이 길어 렌더마다 다시 안 짓으므로 ref 로 읽는다(단추와 같은 셈). */
   const colorNextRef9 = useRef<ColorMode9>("team");
-  colorNextRef9.current = nextColorMode9(colorNow, !!melee, heroOk9);
+  colorNextRef9.current = nextColorMode9(colorNow, !!melee, soloColor9);
   /** ★ 주인공색의 '나' = **화면 주인**(camRaw9 — 개인 추적이면 그 사람, 자동 중계면 중계가 고른 사람).
    *  자동 중계도 따른다(요청: "자동 중계에도 적용해야해") — 중계가 사람을 갈아타면 색도 그 사람 기준으로 갈린다
    *  (토막이 바뀔 때만 · 색표는 문자열 값으로 memo 하므로 그 사이 프레임에는 안 흔들린다). */
@@ -18988,8 +19022,8 @@ export default function ReplayMotionPlayer({
         const res9: "f" | "h" = ph9 ? "h" : "f";
         sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024 })
           .then((r9) => {
-            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
-            if (ph9 && r9.cells > 0) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
+            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms${r9.err ? "·" + r9.err : ""}`;
+            if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
           .finally(() => { atlasWait9 = false; setAtlasLoad9(false); });
       }
@@ -20281,9 +20315,10 @@ export default function ReplayMotionPlayer({
           없다. 손잡이만 남기면 눌러도 아무 일이 없는 버튼이 된다. */}
       {/* ★ 세 갈래를 돈다(2026-09, 요청: 개인색 → 팀색 → 주인공색) — 버튼 **바탕이 곧 지금 모드**다(무지개 · 빨/파 ·
           녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛰고, 중계가 꺼지면
-          주인공색을 건너뛴다 — 그래서 **밀리에 중계까지 꺼지면 고를 것이 개인색 하나라 단추를 안 단다**. */}
-      {(!melee || heroOk9) && (() => {
-        const next9 = nextColorMode9(colorNow, !!melee, heroOk9);
+          주인공색을 건너뛴다 — 그래서 **밀리에 중계까지 꺼지면 고를 것이 개인색 하나라 단추를 안 단다**.
+          → 2026-10-26 두 갈래로(nextColorMode9 ★): 화면 주인이 있는 단독 화면은 개인색 ↔ 주인공색 · 그 밖은 개인색 ↔ 팀색(밀리면 단추 없음). */}
+      {(!melee || soloColor9) && (() => {
+        const next9 = nextColorMode9(colorNow, !!melee, soloColor9);
         return (
           <button
             type="button"

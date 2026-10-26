@@ -1772,3 +1772,27 @@ rmSync(tmp, { recursive: true, force: true });
     ["돌아선 오버로드(끝내 못 닿음)는 정찰이 아니다", !sc.some((g) => /오버로드 정찰/.test(capTxt(g)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+/* ㉛d 정찰은 **적의 건물·유닛을 처음 본 때**부터 · 카메라는 정찰하는 몸을 따라간다(2026-10-26, 요청: "정찰장면에서 정찰주체를 카메라가 따라가야하고 정찰은 기지 입장이 아닌
+   건물 유닛을 일부라도 본순간부터 정찰로 판단"). ㉛c 와 같은 판에 R 의 파일런 하나를 길목(52,30)에 둔다 — 드론(시야 7)은 65초쯤 그것을 본다(기지에 들어선 때는 90초 넘어). */
+{
+  let tt = 93000;
+  const L = [];
+  const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+    sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+  const trk = (tag, owner, kind, keys) => ({ tag, owner, kind, born: keys[0][0], died: null, own: [],
+    kt: Float32Array.from(keys.map((k) => k[0])), kxy: Int16Array.from(keys.flatMap((k) => [k[1] * 32, k[2] * 32])), kh: new Uint8Array(keys.length),
+    kst: new Uint8Array(keys.length).fill(1), done: new Uint8Array(keys.length).fill(1), types: new Uint16Array(keys.length).fill(41) });
+  mk(0, "Nexus", true, 10, 10, 0); mk(1, "Hatchery", true, 100, 100, 0); mk(0, "Pylon", true, 52, 30, 20);
+  const dr = mk(1, "Drone", false, 100, 100, 0, { orders: [[40, 12, 12, false]] });
+  const tracks = [trk(dr.tag, 1, "Drone", [[0, 100, 100], [40, 100, 100], [60, 60, 40], [110, 14, 14]])];
+  const w = { players: [["R", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+    lives: L, ups: [], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [] };
+  const ev = castPlan9(w, { total: 400, order: ["R", "Z"], teamOf: { R: 1, Z: 2 }, mapW: 110, mapH: 110, event: true, tracks });
+  const sc = ev.filter((g) => /정찰/.test(capTxt(g)));
+  console.log(`본 순간 정찰: ${sc.map((g) => `${g.at.toFixed(0)}s ${capTxt(g)} 따라감 ${JSON.stringify(g.follow ?? null)}`).join(" · ") || "없음"}`);
+  const wk = sc.find((g) => capTxt(g) === "[Z]ga [R] 기지 일꾼 정찰");
+  for (const [name, pass] of [
+    ["드론 정찰은 R 의 파일런을 본 때(55~70초) — 기지에 들어선 때(90초 넘어)가 아니다", !!wk && wk.at >= 55 && wk.at <= 70],
+    ["그 토막의 카메라는 드론을 따라간다(follow 에 드론 태그)", !!wk?.follow?.some((f) => f.tags.includes(dr.tag) && f.t0 <= wk.at + 1 && f.t1 > wk.at + 5)],
+  ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
+}
