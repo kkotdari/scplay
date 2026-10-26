@@ -723,14 +723,15 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 각은 설계 자(z/0.8)로 셈하고 다시 접는다(강체 회전). depthNow(키)·2D 법선은 안 태운다(GL 은 꼭짓점에서 법선을 다시 낸다). +deg 는 앞(+y)이 내려간다. 첫 손님은 프로브(models-protoss.md).
 
 ## 2D 면 표(SHAPE_FACES·SHAPE_FACES_TOP)는 처음 읽을 때 굽는다(2026-10-26)
-지적: "게임 목록 로드중에 다른 탭이 안눌러짐". 앱(sg-web)은 첫 화면에서 scplay 꾸러미를 통째로 들이는데, bake9 가 모듈을 들일 때
-전 종류(162)를 표준·부감 두 번 굽고 있었다 — 실측 PC 1.9초 · CPU ×4 조임 7초 넘게 메인이 막혀 탭·게임 탭이 안 눌렸다.
-- 이제 `lazyFaces9` 가 종류마다 getter 로 둔다. 빌더는 **옛 자리의 것**을 잡아 두고(`FACE_BUILDERS9`), 굽는 동안만 SHAPE_BUILDERS 를
-  그 자리 그대로 되돌린다(`withFaceBuilders9`) — 짐 든 일꾼(scvMin·probeGas·droneMin… 12종)은 빌더 안에서 `SHAPE_BUILDERS.scv()` 를
-  다시 찾는데, 뒤의 광택 감싸기(GLOSS)를 타면 면 색이 달라졌다(Node 대조로 잡음).
-- **그리는 중에 처음 읽히면 안 된다** — 크립 얼룩(creeppatch*)이 재생기에서 이 표를 읽는 유일한 손인데(perf-check 계측), 그 빌더는
-  `project()`·`meshPut9` 를 부른다: 그리는 중엔 지도 각(pitchFlatSet9)·메시 기록이 선 채라 그대로 굳는다. 그래서 브라우저에선
-  들이자마자 쉬는 틈에 8ms 씩(`warmShapeFacesIdle9` · rIC 기한 없음 — 기한을 주면 느린 폰에서 한 종류 0.3초가 누름을 막았다)
-  채우고, 재생기는 첫 렌더에서(`useState(warmShapeFaces9)` — pitchFlatSet9 레이아웃 이펙트보다 앞) 남은 칸을 다 채운다.
-- 실측: PC 첫 긴 일 1865 → 197ms · 목록 응답 2.5 → 0.9초 · CPU ×4 에서 목록 9.2 → 2.3초, 게시판 탭 누름 '안 됨' → 1~3초.
+지적: "게임 목록 로드중에 다른 탭이 안눌러짐" → "게임목록 사진 뜨기전까지 화면 멈추고 뜨면 풀려". 앱(sg-web)은 첫 화면에서 scplay 꾸러미를
+통째로 들이는데, bake9 가 모듈을 들일 때 전 종류(162)를 표준·부감 두 번 굽고 있었다 — 실측 PC 1.9초 · CPU ×4 조임 7초 넘게 메인이 막혔다.
+- `lazyFaceOn9` 가 칸마다 getter 를 둔다(두 표 · 공사 고치·발판은 `lazyFaceBoth9`). 빌더는 **옛 자리의 것**을 잡아 두고, 굽는 동안만
+  SHAPE_BUILDERS 를 그 자리의 판(snap)으로 되돌린다(`withFaceBuilders9`) — 짐 든 일꾼(scvMin·probeGas·droneMin… 12종)은 빌더 안에서
+  `SHAPE_BUILDERS.scv()` 를 다시 찾는데, 뒤의 광택 감싸기를 타면 면 색이 달라졌다(Node 대조로 잡음). 굽는 동안 메시 기록(MESH9.on)은 끈다.
+- **쉬는 틈 미리 굽기는 걷었다** — 한 종류가 PC 최대 145ms(리버 · 고치 93 · 커번 83) · 폰 0.6초라 쪼개 구워도 그 한 칸이 누름을 막았다.
+  재생기가 이 표로 읽는 것은 크립 얼룩(DECAL_KINDS)뿐이다(perf-check 에 getter 기록을 심어 잼). 그 빌더는 `project()`·`meshPut9` 를 부르므로
+  그리는 중(지도 각 pitchFlatSet9 · 메시 기록이 선 채)에 처음 읽히지 않게 재생기 첫 렌더에서 `useState(() => warmShapeFaces9(DECAL_KINDS))`
+  (pitchFlatSet9 레이아웃 이펙트보다 앞). 다른 종류가 대체 길(rotDeg 없음)로 처음 읽히면 그 자리의 깃발로 굽는다 — 옛 표는 깃발 없는 판이었다.
+- 실측(CPU ×4 · 폰 창): 첫 긴 일 1.9 → 0.3초 · 게임 목록(맵 12종) 긴 일 합 6.5 → 1.9초 · 게시판 탭 누름 1.4~4.7 → 0.6초(앱 쪽 맵 그림 일꾼과 함께).
 - 🔎 옛 표와 같나: bake9 를 esbuild 로 Node 번들 → 두 표를 키 차례로 JSON 덤프 → 옛 소스 덤프와 `cmp`(바이트 같음 확인).
+- ⚠ 아틀라스 판(spr-atlas `--check`)은 bake9.ts **글자**의 해시라 이 손질로 '다르다'가 뜬다 — 그림은 같다(아틀라스는 메시로 굽는다 · 런타임은 판을 안 본다).

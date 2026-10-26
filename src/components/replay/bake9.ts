@@ -30030,62 +30030,52 @@ for (const k of TERRAN_LT_KINDS9) {
 /* ★ 두 표(표준 시점 · 부감)는 **처음 읽을 때 종류마다 굽는다**(2026-10-26, 지적: "게임 목록 로드중에 다른 탭이 안눌러짐") —
    모듈을 들일 때 전 종류를 두 번 굽던 것이 PC 1.5초 · 폰(CPU ×4) 6초 넘게 메인을 막았다(앱은 첫 화면에서 이 꾸러미를 들인다).
    빌더는 **이 자리의 것**을 잡아 둔다(뒤에서 SHAPE_BUILDERS 를 감싼 것은 안 탄다 — 옛 표와 같다). 그리는 중(자세·불빛 깃발이 선 채)에
-   처음 읽혀 그 깃발이 표에 굳지 않게, 쉬는 틈에 조각조각(warmShapeFacesIdle9) · 재생기가 서기 전에 한 번에(warmShapeFaces9) 다 채운다. */
+   처음 읽혀 그 깃발이 표에 굳지 않게, 재생기가 서기 전에 그것이 읽는 종류를 굽는다(warmShapeFaces9 · 아래 ★). */
 /* 짐 든 일꾼(scvMin·probeGas…)처럼 **빌더 안에서 SHAPE_BUILDERS 를 다시 찾는** 종류는 그 표가 이 자리 그대로여야 옛 표와 같다
    (뒤의 광택 감싸기를 안 탄다 — Node 대조 실측 12종이 갈렸다). 굽는 동안만 이 자리의 표를 되돌려 둔다. */
 const FACE_BUILDERS9: Record<string, () => ShapeFace[]> = { ...SHAPE_BUILDERS };
-function withFaceBuilders9<T>(fn: () => T): T {
+function withFaceBuilders9<T>(snap: Record<string, () => ShapeFace[]>, fn: () => T): T {
   const now9: Record<string, () => ShapeFace[]> = {};
-  for (const k in FACE_BUILDERS9) { now9[k] = SHAPE_BUILDERS[k]; SHAPE_BUILDERS[k] = FACE_BUILDERS9[k]; }
+  for (const k in snap) { now9[k] = SHAPE_BUILDERS[k]; SHAPE_BUILDERS[k] = snap[k]; }
   try { return fn(); } finally { for (const k in now9) SHAPE_BUILDERS[k] = now9[k]; }
+}
+/** 표 한 칸을 처음 읽을 때 굽는 자리로 둔다 — snap 은 그 칸을 옛날에 굽던 자리의 SHAPE_BUILDERS 그대로. */
+function lazyFaceOn9(out: Record<string, ShapeFace[]>, k: string, b: () => ShapeFace[], top: boolean, snap: Record<string, () => ShapeFace[]>): void {
+  const put = (v: ShapeFace[]): void => {
+    Object.defineProperty(out, k, { value: v, writable: true, enumerable: true, configurable: true });
+  };
+  Object.defineProperty(out, k, {
+    enumerable: true, configurable: true,
+    get: () => {
+      /* 메시 기록 중(collectMesh9)에 처음 읽혀도 그 기록에 섞이지 않게 — 옛 표는 기록이 꺼진 모듈 적재 때 구웠다. */
+      const mesh9 = MESH9.on; MESH9.on = false;
+      try { const v = withFaceBuilders9(snap, () => (top ? withTopView(() => bake(b)) : bake(b))); put(v); return v; } finally { MESH9.on = mesh9; }
+    },
+    set: (v: ShapeFace[]) => put(v),
+  });
 }
 function lazyFaces9(top: boolean): Record<string, ShapeFace[]> {
   const out: Record<string, ShapeFace[]> = {};
-  const put = (k: string, v: ShapeFace[]): void => {
-    Object.defineProperty(out, k, { value: v, writable: true, enumerable: true, configurable: true });
-  };
-  for (const [k, b] of Object.entries(FACE_BUILDERS9)) {
-    Object.defineProperty(out, k, {
-      enumerable: true, configurable: true,
-      get: () => { const v = withFaceBuilders9(() => (top ? withTopView(() => bake(b)) : bake(b))); put(k, v); return v; },
-      set: (v: ShapeFace[]) => put(k, v),
-    });
-  }
+  for (const [k, b] of Object.entries(FACE_BUILDERS9)) lazyFaceOn9(out, k, b, top, FACE_BUILDERS9);
   return out;
+}
+/** 뒤에 등록하는 종류(공사 고치·발판)를 두 표에 — 그 자리의 SHAPE_BUILDERS 를 잡아 두고 처음 읽을 때 굽는다(옛 판은 그 자리에서 바로 구웠다). */
+function lazyFaceBoth9(k: string): void {
+  const snap = { ...SHAPE_BUILDERS };
+  lazyFaceOn9(SHAPE_FACES, k, SHAPE_BUILDERS[k], false, snap);
+  lazyFaceOn9(SHAPE_FACES_TOP, k, SHAPE_BUILDERS[k], true, snap);
 }
 // 3D 빌더 전부를 표준 시점으로 굽는다(2D 기호 삭제·요청 — 갈래 기호도 전부 3D 빌더가 만든다: 삼각형은 삼각뿔로).
 export const SHAPE_FACES: Record<string, ShapeFace[]> = lazyFaces9(false);
 /* 위에서 본 판(요청: 입체 아닌 모드에서 좀 더 부감으로) — 같은 빌더를 납작비 0.66·
    높이 0.6으로 다시 구운 것. 입체 보기가 아닐 때 지도 마커가 이쪽을 쓴다. */
 export const SHAPE_FACES_TOP: Record<string, ShapeFace[]> = lazyFaces9(true);
-const FACE_KEYS9 = Object.keys(SHAPE_FACES);
-let faceWarmAt9 = 0;   // 다음에 구울 칸(두 표를 이어 센다)
-/** 남은 칸을 굽는다 — 한도(ms)를 넘으면 멈추고 다 했는지 돌려준다. */
-function warmFacesStep9(budgetMs: number): boolean {
-  const t0 = performance.now();
-  const n9 = FACE_KEYS9.length;
-  while (faceWarmAt9 < n9 * 2) {
-    const k = FACE_KEYS9[faceWarmAt9 % n9];
-    void (faceWarmAt9 < n9 ? SHAPE_FACES[k] : SHAPE_FACES_TOP[k]);
-    faceWarmAt9 += 1;
-    if (performance.now() - t0 > budgetMs) break;
-  }
-  return faceWarmAt9 >= n9 * 2;
+/** 그 종류들을 지금 굽는다 — 재생기가 그리기 전에 부른다(그리는 중 깃발·지도 각이 선 채로 처음 읽히지 않게 · 이미 구웠으면 그냥 지난다).
+ *  ★ **쉬는 틈 미리 굽기는 걷었다**(2026-10-26, 지적: "게임목록 사진 뜨기전까지 화면 멈추고") — 한 종류가 PC 최대 145ms(리버) · 폰 0.6초라
+ *  쪼개 구워도 그 한 칸이 누름을 막았다. 재생기가 이 표로 읽는 것은 크립 얼룩(DECAL_KINDS)뿐이라(perf-check 계측) 그것만 미리 굽는다. */
+export function warmShapeFaces9(kinds: Iterable<string>): void {
+  for (const k of kinds) { void SHAPE_FACES[k]; void SHAPE_FACES_TOP[k]; }
 }
-/** 두 표를 지금 다 채운다 — 재생기가 그리기 전에 부른다(이미 다 구웠으면 아무것도 안 한다). */
-export function warmShapeFaces9(): void { warmFacesStep9(Infinity); }
-/** 쉬는 틈에 조금씩(한 번에 8ms) 채운다 — 메인을 막지 않는다. 사파리는 requestIdleCallback 이 없어 setTimeout 으로 잇는다. */
-export function warmShapeFacesIdle9(): void {
-  const next = (): void => {
-    // 기한(timeout)은 안 준다 — 바쁠 때 억지로 끼면 느린 폰에서 한 종류(~0.3초)가 누름을 막는다.
-    const ric = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-    if (ric) ric(run); else setTimeout(run, 50);
-  };
-  const run = (): void => { if (!warmFacesStep9(8)) next(); };
-  next();
-}
-// 앱(브라우저 메인)에서는 들이자마자 쉬는 틈 굽기를 건다 — 도구(Node)는 읽을 때 굽는다.
-if (typeof window !== "undefined") warmShapeFacesIdle9();
 /** 방향(요잉) 굽기 갈무리 — kind×22.5도(16방향) 버킷×(부감 여부)마다 한 번 굽는다. */
 export const HEAD_FACES = new Map<string, ShapeFace[]>();/** 도형째 돌려 그리는 각도(시계방향) — 옛 스타게이트(반쪽 원통)용 45도는 봉오리
  *  재설계로 걷었다: 잎이 정확히 위아래·좌우에 서야 하고(요청), 화면 회전은 바닥
@@ -31244,14 +31234,11 @@ export const bldBlinkSet9 = (v: number): void => { bldBlinkNow9 = v ? 1 : 0; };
      띄우는 자**(perf-check)가 이 자리의 관문이다. */
 /* 공사 고치 1·2단(cocoonBuild9 의 ★★) — 3단이 본판 cocoon 이다. */
 SHAPE_BUILDERS.cocoon1 = (): ShapeFace[] => cocoonBuild9(1);
-SHAPE_FACES.cocoon1 = bake(SHAPE_BUILDERS.cocoon1);
-SHAPE_FACES_TOP.cocoon1 = withTopView(() => bake(SHAPE_BUILDERS.cocoon1));
+lazyFaceBoth9("cocoon1");   // 처음 읽을 때 굽는다(lazyFaces9 ★)
 SHAPE_BUILDERS.cocoon2 = (): ShapeFace[] => cocoonBuild9(2);
-SHAPE_FACES.cocoon2 = bake(SHAPE_BUILDERS.cocoon2);
-SHAPE_FACES_TOP.cocoon2 = withTopView(() => bake(SHAPE_BUILDERS.cocoon2));
+lazyFaceBoth9("cocoon2");   // 처음 읽을 때 굽는다(lazyFaces9 ★)
 SHAPE_BUILDERS.scaffold = (): ShapeFace[] => scaffold9(0, 0, 4, 2);   // 5 → 4 · 단 둘(2026-10-14 · 공사장 탑과 같은 짜임)
-SHAPE_FACES.scaffold = bake(SHAPE_BUILDERS.scaffold);
-SHAPE_FACES_TOP.scaffold = withTopView(() => bake(SHAPE_BUILDERS.scaffold));
+lazyFaceBoth9("scaffold");   // 처음 읽을 때 굽는다(lazyFaces9 ★)
 /** 공사 발판 탑 한 채 — 가는 기둥 넷이 서고 그 안을 계단이 돌며 오르며, 밑동에 해저드
  *  띠, 꼭대기에 붉은 경광등과 지브 크레인이 달린다(2026-09, 요청: "공사 중에 앞 오른쪽과
  *  뒤 왼쪽에 스캐폴드 탑 두 개").

@@ -9438,8 +9438,8 @@ export default function ReplayMotionPlayer({
      핵·스톰 동안 박자가 25~60Hz로 오르므로(nukeStep9), 한 장이 그 박자보다 길면 그때부터
      주 실마리가 통째로 막힌다. #diag=draw의 "리액트" 줄이 그 둘을 나란히 보인다. */
   const rT09 = pNow();
-  /* 2D 면 표(SHAPE_FACES)는 처음 읽을 때 굽는다(bake9 lazyFaces9 ★) — 그리기 전, 자세·불빛 깃발이 안 선 지금 남은 칸을 다 채운다. */
-  useState(warmShapeFaces9);
+  /* 2D 면 표(SHAPE_FACES)는 처음 읽을 때 굽는다(bake9 lazyFaces9 ★) — 그리기 전, 자세·불빛 깃발과 지도 각이 안 선 지금 이 표로 읽는 크립 얼룩을 굽는다. */
+  useState(() => warmShapeFaces9(DECAL_KINDS));
   /* 렌더 함수 **전체**에 든 JS 시간 — 준비·mapNode만 재면 그 사이 수백 줄의
      훅과 useMemo가 안 잡힌다. 프레임주기에서 이것과 커밋을 빼야 브라우저 몫이 남는다. */
   const pRender9 = PERF9 ? pNow() : 0;
