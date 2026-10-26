@@ -1651,7 +1651,7 @@ function YL({ onClose: t } = {}) {
       /* @__PURE__ */ Bt("h3", { className: "scr-guide-h3", children: "중계 — 전광판의 카메라 단추" }),
       /* @__PURE__ */ rs("ul", { className: "scr-guide-legend", children: [
         /* @__PURE__ */ Bt(yg, { ic: /* @__PURE__ */ Bt(BK, { size: 14 }), name: "자동중계", children: "교전 · 견제 · 드랍 자리를 따라갑니다." }),
-        /* @__PURE__ */ Bt(yg, { ic: /* @__PURE__ */ Bt(py, { size: 14 }), name: "한 사람", keys: /* @__PURE__ */ Bt(R0, { k: ["PgUp", "PgDn"] }), children: "전광판에서 누르면 그 사람 화면 · PgUp 다음 · PgDn 이전." }),
+        /* @__PURE__ */ Bt(yg, { ic: /* @__PURE__ */ Bt(py, { size: 14 }), name: "한 사람", keys: /* @__PURE__ */ Bt(R0, { k: ["PgUp", "PgDn"] }), children: "전광판에서 누르면 그 사람 화면 · PgUp 이전 · PgDn 다음." }),
         /* @__PURE__ */ Bt(yg, { ic: /* @__PURE__ */ Bt(bi, { s: "끔" }), name: "중계 끄기" })
       ] }),
       /* @__PURE__ */ Bt("h3", { className: "scr-guide-h3", children: "도구" }),
@@ -40359,7 +40359,7 @@ function VE({
       } else if ((rt.code === "KeyB" || rt.code === "KeyN") && !rt.ctrlKey && !rt.metaKey && !rt.altKey)
         gw.current(rt.code === "KeyN" ? 1 : -1) && (rt.preventDefault(), Jt());
       else if ((rt.code === "PageUp" || rt.code === "PageDown") && !rt.ctrlKey && !rt.metaKey && !rt.altKey)
-        Og.current(rt.code === "PageUp" ? 1 : -1) && (rt.preventDefault(), Jt());
+        Og.current(rt.code === "PageUp" ? -1 : 1) && (rt.preventDefault(), Jt());
       else if (rt.code === "KeyC" && !rt.ctrlKey && !rt.metaKey && !rt.altKey)
         rt.preventDefault(), Jt(), F(Ms.current);
       else if (rt.code === "KeyF" && !rt.ctrlKey && !rt.metaKey && !rt.altKey)
@@ -40889,7 +40889,7 @@ function VE({
       " · UI ",
       vs.ui,
       " · 판 ",
-      "10-27 01:13",
+      "10-27 01:24",
       vs.ss !== 1 ? ` · 초해상 ×${vs.ss.toFixed(2)}` : "",
       Math.abs(vs.unitScale - vs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${vs.unitScale.toFixed(4)})` : vs.scale > 0 && Math.abs(vs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${vs.scale.toFixed(4)})` : "",
       vs.allocOk ? "" : " · ⚠배킹확보 실패"
