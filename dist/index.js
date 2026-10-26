@@ -40850,7 +40850,7 @@ function EY({
       " · UI ",
       Ts.ui,
       " · 판 ",
-      "10-26 19:28",
+      "10-26 20:57",
       Ts.ss !== 1 ? ` · 초해상 ×${Ts.ss.toFixed(2)}` : "",
       Math.abs(Ts.unitScale - Ts.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ts.unitScale.toFixed(4)})` : Ts.scale > 0 && Math.abs(Ts.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ts.scale.toFixed(4)})` : "",
       Ts.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -43139,10 +43139,12 @@ export {
   yc as TEAM_COLOR,
   qk as atkCutOf,
   aW as cachedReplayMap,
+  kc as decodeMapTerrain,
   sY as docAnimOf9,
   bY as docCellBox9,
   WD as docCellsOf9,
   mp as docWeaponOf9,
+  Yc as drawMapGrid,
   iO as flapCutOf,
   yA as galleryYawOf,
   DW as gameIndexOf9,
@@ -43162,6 +43164,7 @@ export {
   uW as setReplaySpriteAtlas,
   KD as shapeFitBox,
   si as shapeMapTiles,
+  hA as terrainFace,
   AW as useReplayMap,
   lW as useReplayMapTick
 };

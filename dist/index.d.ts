@@ -17,6 +17,13 @@ export declare function atkCutOf(kindMain: string, ph: number, flapHz?: number, 
  *    이만큼이다 — 다 지으면 그 열쇠는 안 쓰이고 LRU 가 걷어 간다. */
 export declare const BUILD_STAGES = 10;
 
+declare interface BuildPos {
+    unit: string;
+    frame: number | null;
+    x: number;
+    y: number;
+}
+
 /** 이미 받아 둔 격자 — **훅 밖에서** 한 값만 읽어야 할 때 쓴다(목록의 알약이 대표맵
  *  이름을 쓴다). 아직 안 받았으면 null이다: 부르는 쪽은 목록 렌더 함수라 여기서 조회를
  *  걸 수 없다(그 자리에서 훅을 부를 수 없고, 목록은 이미 primeReplayMaps로 다 받아 둔다). */
@@ -29,6 +36,9 @@ export declare function cachedReplayMap(hash: string | null | undefined): Replay
  *  아니라 중계를 켠 채로 연다. 이 글자를 쓰는 자리는 이 파일뿐이다(짓는 sceneLinkQueryOf9 · 받는 sceneLink prop) —
  *  앱은 링크를 만지지 않으므로(아래 ★★) 값을 바꿔도 여기 한 곳이다. */
 export declare const CAST_AUTO_LINK9 = "*";
+
+/** 서버가 준 base64 지형을 푼다 — 없거나 꼴이 다르면 null(그러면 옛 어림으로 돌아간다). */
+export declare function decodeMapTerrain(b64: string | null | undefined): Promise<MapTerrain | null>;
 
 /** 그 종류가 **무엇으로 움직이나** — 도록이 칸을 세울지 말지 이것으로 가른다. */
 export declare type DocAnim9 = {
@@ -219,6 +229,35 @@ export declare function DocTracer9({ kind, t, className, overlay, box, rotDeg, h
 /** 그 모델이 쏘는 트레이서 갈래(FX_BEAM 의 이름) — 없으면 null(근접·일꾼·건물 대부분). */
 export declare function docWeaponOf9(kind: string): string | null;
 
+/** 격자를 캔버스에 그린다 — **썸네일과 내려받는 그림이 이 한 곳을 함께 쓴다**.
+ *
+ *  베껴 두면 반드시 갈린다(지적: "색깔이 왜 타일하고 달라" — 색 램프는 베끼고 장식
+ *  제거는 안 베껴 두 그림이 달라졌다). 배율(pxPerTile)만 다르고 그림은 같아야 한다.
+ *
+ *  mt(참값 지형)가 있으면 지형으로 칠하고, 없으면 옛 그룹 램프로 돌아간다(아직 지형을
+ *  안 구운 맵). 벽은 지형이 있을 때만 **미니타일(8px) 단위**로 한 겹 더 어둡게 긋는다 —
+ *  타일로 그리면 한 칸 굵기의 절벽이 통째로 검게 칠해져 지형이 뭉개진다. */
+export declare function drawMapGrid(ctx: CanvasRenderingContext2D, grid: {
+    width: number;
+    height: number;
+    palette: number[];
+    tiles: string;
+    resources?: [number, number, 0 | 1][] | null;
+    /** 격자 내용의 해시 — 지형 기하 캐시(terrainGeom)의 열쇠. 없으면 크기·타일셋만으로 가른다(같은 세션 안의 한 지도면 족하다). */
+    hash?: string;
+}, mt: MapTerrainLike | null, pxPerTile: number, 
+/** 자원 점을 찍나 — 재생 화면의 지도 벡터층만 끈다(요청: "지도벡터 상에 자원 표시는
+ *  제거"). 거기에는 **진짜 밭과 간헐천 모델**이 그 자리에 서므로, 밑그림의 점은 같은
+ *  것을 두 번 말하면서 모델 밑으로 청록 얼룩만 남긴다. 미니맵·내려받는 PNG·썸네일은
+ *  모델이 없으니 이 점이 곧 자원 표시라 그대로 둔다. */
+drawResources?: boolean, 
+/** 3D 벽띠(절벽면)의 높이 배수(요청: "3D 모드에서 벽/언덕 높이 지금의 4배로 증가") —
+ *  입체(각도) 보기에서만 크게 준다. 이 그림은 미니맵·내려받는 PNG·썸네일도 함께 쓰는데,
+ *  거기서는 위에서 곧바로 내려다보는 그림이라 벽이 높으면 고원이 통째로 남쪽으로 밀린
+ *  것처럼 보인다 — 높이가 화면 세로에 실리는 사영이라 그렇다(모델의 z와 같은 사정).
+ *  그래서 배수는 부르는 쪽이 정한다. */
+wallScale?: number): void;
+
 export declare function flapCutOf(hz: number, t: number): 1 | 3 | 4;
 
 /** 도록의 **방위 눈금**을 그 갈래의 기준각으로 옮긴다(요청: "도록은 45도 단위인데 건물은
@@ -270,6 +309,35 @@ export declare type GameIndexRow9 = {
 };
 
 declare type Group = ModelCatalogGroup;
+
+declare interface MapTerrain {
+    /** 타일 단위 크기. */
+    w: number;
+    h: number;
+    /** 타일셋 번호(0~7). */
+    tileset: number;
+    /** 구운 판(1·2) — 2부터 타일 바이트에 램프 비트가 있다. */
+    ver: number;
+    /** 타일마다 한 바이트(위 TILE 깃발). 길이 w*h, 행 우선. */
+    tile: Uint8Array;
+    /** 미니타일(8px) 통행 비트 — (w*4)*(h*4) 비트. 벽의 실제 모양이다. */
+    walkBits: Uint8Array;
+    /** 타일마다 실제 색 RGB 세 바이트(판 3부터). 옛 판은 null. */
+    rgb: Uint8Array | null;
+}
+
+/** 그리는 쪽이 지형에게 물어보는 것들 — mapTerrain.terrainFace 가 만든다(mapTiles.MapTerrainLike 와 같은 꼴 · 순환 피하려 여기 둔다). */
+declare interface MapTerrainLike {
+    w: number;
+    h: number;
+    tileset: number;
+    levelAt: (x: number, y: number) => number;
+    walkAt: (x: number, y: number) => boolean;
+    partialAt: (x: number, y: number) => boolean;
+    rampAt?: (x: number, y: number) => boolean;
+    rgbAt?: (x: number, y: number) => [number, number, number] | null;
+    walkAtMini: (mx: number, my: number) => boolean;
+}
 
 export declare interface MinimapMarker {
     /** 리플레이 원본 게임 아이디 — 목록 키로도 쓴다. */
@@ -393,6 +461,61 @@ export declare type MotionBase = Omit<MinimapMarker, "x" | "y"> & {
     x?: number;
     y?: number;
 };
+
+/** 밖으로 내는 꼴 — 사람의 신호를 나감 셋으로 줄인 것(위 ★ ②). */
+export declare type ParsedReplay = Omit<ParsedReplay_2, "players" | "team1" | "team2"> & {
+    players: ParsedReplayPlayer[];
+    team1: ParsedReplayPlayer[];
+    team2: ParsedReplayPlayer[];
+};
+
+declare interface ParsedReplay_2 {
+    fileName: string;
+    date: string;
+    mapName: string;
+    gameTypeId: number | null;
+    gameTypeName: string;
+    gameStartedAt: string | null;
+    durationSeconds: number | null;
+    players: ParsedReplayPlayer_2[];
+    team1: ParsedReplayPlayer_2[];
+    team2: ParsedReplayPlayer_2[];
+    matchType: ReplayGameType;
+    winnerSide: "team1" | "team2" | null;
+    guessedObservers: string[];
+    teamSplitUncertain: boolean;
+    ffa: boolean;
+    mapGrid: ReplayMapGrid | null;
+    /** 경기 채팅 — name 은 말한 사람의 게임 이름(2026-10-10 · 재생기 중계 자막 gg 선언·노엘 외침). */
+    chats: {
+        frame: number;
+        text: string;
+        name?: string;
+    }[];
+    /** 이 리플레이를 저장한 사람의 게임 이름(2026-10-26) — 서버가 팀챗/전체를 가른다(상대 편 저장본이 그 말을 봤나). 채팅이 없으면 null. */
+    chatSaver: string | null;
+    startSpots: [number, number][];
+}
+
+export declare type ParsedReplayPlayer = Omit<ParsedReplayPlayer_2, "signals"> & {
+    signals: ReplayLeaveSignals | null;
+};
+
+declare interface ParsedReplayPlayer_2 {
+    rawName: string;
+    race: Race | "";
+    team: number;
+    color: string | null;
+    apm: number | null;
+    eapm: number | null;
+    cmdCount: number | null;
+    effectiveCmdCount: number | null;
+    buildCount: number | null;
+    isComputer: boolean;
+    startX: number | null;
+    startY: number | null;
+    signals: ReplayPlayerSignals | null;
+}
 
 /** ★ 빈 지도(128×128 · 팔레트 0 하나) — 자료를 기다리는 재생기(ReplayModule pending · 2026-10-23)가 받는 자리 채움. 그림은 까만 판에 가려 안 보인다.
  *  타일 16384 바이트(0) = base64 "AAAA" × 5461 + "AA==". */
@@ -537,11 +660,20 @@ export declare interface ReplayChromeMember {
     avatar: string | null;
 }
 
+export declare type ReplayGameType = "0101" | "0102" | "0103";
+
 /** 도움말(옛 '사용법' · 요청: 공통 — 버튼도 페이지도 재생기 안) — 툴박스의 '도움말'(?) 버튼이 이 문서를 화면 위에 덮는다.
  *  앱은 이 파일을 갖지 않는다. 닫기는 덮개를 걷는 일뿐이다(뒤로가기는 재생기가 history로 맞춘다). */
 export declare function ReplayGuide({ onClose }?: {
     onClose?: () => void;
 }): JSX_2.Element;
+
+/** 밖으로 내는 신호 — 나감 셋만(위 ★ ②). */
+export declare interface ReplayLeaveSignals {
+    leaveFrame: number | null;
+    leaveReason: string | null;
+    lastCmdFrame: number | null;
+}
 
 /** 격자를 그린 캔버스 하나. 크기는 CSS가 정한다(부모를 꽉 채운다).
  *
@@ -647,6 +779,90 @@ export declare interface ReplayModuleProps {
     askMode?: boolean;
     /** 자료(게임·지도)를 기다리는 동안 먼저 세우는 재생기 — 빈 지도(PENDING_GRID9)와 함께(ReplayMotionPlayer pending). */
     pending?: boolean;
+}
+
+declare interface ReplayPlayerSignals {
+    unitCounts: Record<string, number>;
+    lands: {
+        frame: number;
+        x: number;
+        y: number;
+    }[];
+    lifts?: number[];
+    flyPositions?: {
+        frame: number;
+        x: number;
+        y: number;
+    }[];
+    unloadPositions?: {
+        frame: number;
+        x: number;
+        y: number;
+    }[];
+    loadPositions?: {
+        frame: number;
+        x: number;
+        y: number;
+    }[];
+    cancelBuilds: number[];
+    buildingMorphs: {
+        frame: number;
+        to: string;
+    }[];
+    rallies: {
+        frame: number;
+        x: number;
+        y: number;
+        tag: number;
+    }[];
+    firstUnitFrame: Record<string, number>;
+    buildingCounts: Record<string, number>;
+    firstBuildingFrame: Record<string, number>;
+    unitFrames: Record<string, number[]>;
+    trainTags: Record<string, number[]>;
+    buildingFrames: Record<string, number[]>;
+    buildPositions: BuildPos[];
+    orderPositions: {
+        frame: number;
+        x: number;
+        y: number;
+        kind?: "attack" | "move";
+        g?: number;
+        by?: string;
+        n?: number;
+    }[];
+    hits: {
+        frame: number;
+        x: number;
+        y: number;
+        whom: string;
+    }[];
+    techNames: string[];
+    upgradeNames: string[];
+    firstTechFrame: Record<string, number>;
+    firstUpgradeFrame: Record<string, number>;
+    techUses: Record<string, number>;
+    techFrames: Record<string, number[]>;
+    castPositions: {
+        tech: string;
+        frame: number;
+        x: number;
+        y: number;
+    }[];
+    firstTechUseFrame: Record<string, number>;
+    chats: {
+        frame: number | null;
+        text: string;
+    }[];
+    unloadCount: number;
+    firstUnloadFrame: number | null;
+    liftOffCount: number;
+    firstLiftOffFrame: number | null;
+    leaveFrame: number | null;
+    leaveReason: string | null;
+    firstCmdFrame: number | null;
+    lastCmdFrame: number | null;
+    cmdCountByThird: [number, number, number];
 }
 
 declare type ReplayRaceBadgeComponent = ComponentType<{
@@ -854,6 +1070,10 @@ export declare const shapeMapTiles: (kind0: string) => number;
 export declare const TACTIC_TERMS9: readonly string[];
 
 export declare const TEAM_COLOR: Record<number, string>;
+
+/** 그리는 쪽(mapTiles.drawMapGrid)이 쓰는 얼굴로 감싼다 — 그쪽이 이 파일을 임포트하면
+ *  순환이 되므로 함수 묶음만 넘긴다. */
+export declare function terrainFace(t: MapTerrain): MapTerrainLike;
 
 export declare interface TerrainGrid {
     w: number;
