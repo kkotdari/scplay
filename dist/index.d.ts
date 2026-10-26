@@ -1,21 +1,6 @@
 import { ComponentType } from 'react';
-import { default as default_2 } from 'react';
 import { JSX as JSX_2 } from 'react';
 import { ReactNode } from 'react';
-
-/** 공격 한 바퀴의 컷 — `ph`는 쿨다운 안의 위상(0~1)이다.
- *
- *  종류마다 결이 다르다: 질럿은 짧은 잽 둘, 다크는 크게 한 번, 고스트는 총을 꺼냈다
- *  넣는다. 나는 저그(flapHz)는 쏘지 않는 위상에 **기본 자세가 아니라 날갯짓**으로
- *  돌아간다 — 공중의 몸에게 기본 자세는 쉬는 것이 아니라 떨어지는 것이다. */
-export declare function atkCutOf(kindMain: string, ph: number, flapHz?: number, t?: number): Pose9;
-
-/** 공사 단계 수 — 3 → 5 → **10**(요청: "5단계가 아니라 10단계로 늘려도 되겠지").
- *  부품이 많은 건물일수록 칸이 적으면 한 칸에 몇 분의 일이 통째로 솟아 '자라는' 대신
- *  '툭 나타나는' 것으로 보인다. 낯 단위로 세우게 된 지금은 칸이 많을수록 곱게 자란다.
- *  ⚠ 값이 메시 열쇠(b:종류:단계:…)에 드는 자라, 짓는 중인 건물 한 채가 쥘 수 있는 벌 수도
- *    이만큼이다 — 다 지으면 그 열쇠는 안 쓰이고 LRU 가 걷어 간다. */
-export declare const BUILD_STAGES = 10;
 
 declare interface BuildPos {
     unit: string;
@@ -29,205 +14,8 @@ declare interface BuildPos {
  *  걸 수 없다(그 자리에서 훅을 부를 수 없고, 목록은 이미 primeReplayMaps로 다 받아 둔다). */
 export declare function cachedReplayMap(hash: string | null | undefined): ReplayMapGrid | null;
 
-/** ★ **자동 중계**를 뜻하는 `&tr=` 의 값(2026-09, 요청: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고
- *  대신 중계 파라미터 공유하기로 변경") — 그 표(playbackTrackOf)는 이제 '카메라를 누가 쥐고 있나'다: 사람이면
- *  그 아이디, 자동 중계면 이 글자. 게임 아이디로는 못 쓰는 글자라 사람과 안 겹치고, URLSearchParams 가
- *  안 감싸는(escape) 글자라 링크에 그대로 `&tr=*` 로 선다. 받는 쪽(initialTrack)이 이 값을 보면 개인 추적이
- *  아니라 중계를 켠 채로 연다. 이 글자를 쓰는 자리는 이 파일뿐이다(짓는 sceneLinkQueryOf9 · 받는 sceneLink prop) —
- *  앱은 링크를 만지지 않으므로(아래 ★★) 값을 바꿔도 여기 한 곳이다. */
-export declare const CAST_AUTO_LINK9 = "*";
-
 /** 서버가 준 base64 지형을 푼다 — 없거나 꼴이 다르면 null(그러면 옛 어림으로 돌아간다). */
 export declare function decodeMapTerrain(b64: string | null | undefined): Promise<MapTerrain | null>;
-
-/** 그 종류가 **무엇으로 움직이나** — 도록이 칸을 세울지 말지 이것으로 가른다. */
-export declare type DocAnim9 = {
-    /** 회전 칸(spin)이 그림을 바꾸나 — 서플라이 팬·코어 원반·포지 톱니·머신샵 톱니·성큰 혀의 뻗는 컷. */
-    spin: boolean;
-    /** ★ **일할 때만 도나**(2026-09, 지적: "코어 대기중엔 디스크 돌면 안 되고") — 지도는 도는
-     *  부품을 둘로 가른다: 서플라이 환풍팬은 건물이 서 있는 한 늘 돌고(설비), 포지 톱니·코어
-     *  플라즈마 디스크·머신샵 톱니는 **연구 중에만** 돈다(일). 도록이 이 칸을 안 보면 쉬는
-     *  코어의 디스크까지 돌아, 그 회전이 '지금 업그레이드 중'이라는 신호가 못 된다. */
-    spinWork: boolean;
-    /** 포탑 각(headDeg)이 그림을 바꾸나 — 터렛·포토·성큰(쏘는 몸). 주면 '겨누는 중'이 함께 선다. */
-    head: boolean;
-    /** 불빛 컷(lit)이 있나 — 생산·연구·가스 채취·벙커 사격. */
-    lit: boolean;
-    /** 건설 단계(stage)를 깎을 수 있나 — 건물이면 참(발판 두 채가 함께 선다). */
-    stage: boolean;
-    /** 요잉 자체가 그 모델의 움직임인가 — 핵탄두는 떨어지며 두 바퀴 돈다. */
-    yawSpin: boolean;
-    /** 자세 컷(pose)을 가진 종류인가 — 유닛의 걸음·공격이 그것이다(poseCutsOf 가 자세히 안다). */
-    pose: boolean;
-    /** **변신 차례** — 이 종류가 무엇을 거쳐 무엇이 되나(DOC_MORPH9 의 ★). 없으면 안 바뀐다. */
-    morph?: string[];
-};
-
-export declare function docAnimOf9(kind: string): DocAnim9;
-
-/** 도록 한 칸 — 그릴 종류와 그 칸이 내려 줄 값들(DocIcon9 의 프롭 그대로다). */
-export declare type DocCell9 = {
-    /** 칸 이름 — 대기 · 이동 · 활성 · 공격 · 액션. */
-    label: string;
-    /** 덧말(변신 컷 이름 · 낙하 회전) — 칸 이름 뒤에 붙는다. */
-    note?: string;
-    /** 그 칸이 그릴 종류 — 없으면 항목 제 종류(성큰의 사격 몸 · 변신 차례의 지금 컷). */
-    kind?: string;
-    /** 딸림 부품(성큰 혓바닥). */ attach?: string;
-    /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
-    /** ★★ **겹쳐 그리는 판들**(2026-09, 요청: "탱크 변신 장면을 재생기와 똑같이 애니메이션으로") —
-     *  지도가 한 개체를 여러 판으로 그리는 동작(시즈 전환의 차체 + 버팀다리 둘 + 전환 포탑)은
-     *  `attach` 한 자리로 못 담는다. 몸과 **같은 자리·같은 창**에 차례로 얹고, 각자 제 자세·요잉을 쥔다.
-     *  ⚠ 도록(앱)은 칸의 창을 '그 칸이 그릴 수 있는 종류'의 합집합으로 재므로 **이 목록도 그 셈에 넣어야**
-     *    한다 — 안 넣으면 겹판이 창 밖으로 잘린다(GalleryScreen boxOf). */
-    parts?: DocPart9[];
-    pose?: Pose9;
-    spin?: number;
-    headDeg?: number;
-    lit?: boolean;
-    blink?: boolean;
-    /** 그 칸만 요잉을 달리 쓸 때(핵탄두의 낙하 회전). */ rotDeg?: number;
-    /** 트레이서 한 발을 **그 칸 위에 겹쳐** 그리나(요청: "트레이서는 공격 셀에 같이 넣어야함"). */
-    tracer?: boolean;
-    /** ★ 그 칸이 그릴 **트레이서 갈래**(2026-09, 요청: 지상·대공이 다른 종류는 두 칸) —
-     *  안 주면 그 종류의 기본(docWeaponOf9)이다. */
-    fx?: string;
-    /** ★★ **총구에서 표적까지의 거리**(16-상자 자) — 2026-09 에 열었다(표적 인형).
-     *  `parts` 의 마지막에 선 인형이 앉은 그 자리이고, `DocTracer9` 의 줄기가 닿는 그 거리다.
-     *  **한 자리에서 셈해 둘이 나눠 쓴다** — 따로 재면 줄기 끝과 인형이 조용히 어긋난다. */
-    tgt?: number;
-    /** ★ 줄기 끝을 발밑에서 **몸 가운데**(+ 공중이면 뜬 높이)로 올리는 몫(16-상자 자) — `docTgtUp9`. */
-    tgtUp?: number;
-    /** ★ **대공 무기의 칸인가**(2026-09, 요청: "지대공 지대지 트레이서 시작점을 분리해서
-     *  가지고 있어야 해") — 총구 앵커가 채널마다 갈리므로(engine9 `MUZZLE_AIR9`) 줄기를
-     *  그리는 자도 이 칸이 어느 무기인지 알아야 한다. 표적 인형도 이 값으로 갈린다. */
-    air?: boolean;
-};
-
-/** ★★ **칸의 창은 scplay 가 잰다**(2026-09, 요청: "재생기의 로직을 그대로 가져와서 보이게
- *  해줘 그래야 앞으로 두쪽 수정을 안할수 있어 트레이서 위치나 크기 거리 등 모두 / 모든
- *  요소들이 셀에 들어가게 스케일 조정해주고") ─────────────────────────────────────────────
- *  여태 이 셈은 **앱(GalleryScreen boxOf)** 에 있었다. 칸이 무엇을 그리는지 알아야 창을 재는데
- *  그것을 아는 것은 `docCellsOf9`(여기)이므로, 칸에 무엇이 하나 늘 때마다 **두 쪽을 맞춰야**
- *  했다(겹판을 더할 때 한 번, 표적을 더하며 또 한 번 — 앱 쪽 ★ 주석이 그 자취다).
- *  이제 여기서 낸다. 앱은 `docCellBox9(kind, group)` 를 부르고 받은 표를 내려 주기만 한다.
- *  자는 종전과 같다:
- *    · 칸(라벨)마다 따로 — 한 창으로 묶으면 가장 큰 몸에 맞춰져 작은 몸이 점이 된다.
- *    · 그 칸이 **시각을 돌며 그릴 수 있는 것 전부**(몸 · 딸림 부품 · 겹판 · 표적)의 여덟 각 합집합.
- *    · 트레이서를 겹치는 칸은 한 뼘 넓힌다 — 단, **표적이 선 칸은 안 넓힌다**(그 칸의 창은
- *      이미 표적까지를 아우르므로, 더 넓히면 몸만 작아진다).
- *  ⚠ **치우친 것(표적)은 그 몫만큼 밀어서 잰다** — gl9 아이콘의 그 ⚠와 같은 자리다. */
-export declare function docCellBox9(kind: string, group?: string): Map<string, string | undefined>;
-
-export declare function docCellsOf9(kind: string, t: number, yaw: number): DocCell9[];
-
-/** 도록 아이콘 — GL 붓이 켜져 있으면(GL_ON9 · `gl` 로 못 박음) **화면과 같은 메시 그림**(<canvas>, gl9.glIconRequest9 가 한 프레임의 청을 모아
- *  한 번에 그려 제 칸을 곧장 찍어 준다)이고, 아니면(폰·`#gl=0`·입체 보기·GL 못 섬·메시 못 지음) ShapeIcon(SVG, 2D 면) 그대로다. 프롭·창 규약(fit·fitPad·fitBox·
- *  wide·pose·spin)은 ShapeIcon 과 같다 — 도록(GalleryScreen·doc-sheet)이 이것을 쓰면 키값·마주 봄 판정 같은 2D 전용 어긋남 없이
- *  지도가 그리는 그 그림을 본다. 색은 요소의 currentColor(도록의 --scr-doc-own)다. */
-export declare function DocIcon9({ kind, rotDeg, pose, spin, headDeg, lit, stage, blink, attach, attachRot, parts, flat, fit, fitPad, fitBox, wide, className, gl, tint, }: {
-    kind: string;
-    rotDeg?: number;
-    pose?: Pose9;
-    spin?: number;
-    flat?: boolean;
-    fit?: boolean;
-    fitPad?: number;
-    fitBox?: string;
-    wide?: boolean;
-    className?: string;
-    /** 포탑 각(절대 도) — 터렛·포토·성큰만 그림이 바뀌고, 주면 '겨누는 중'이 함께 선다. */
-    headDeg?: number;
-    /** 창·속심의 불빛 — 생산·연구·가스 채취·벙커 사격의 그 컷. */
-    lit?: boolean;
-    /** 건설 단계 1~BUILD_STAGES−1(0·없음이면 완성) — 발판 두 채가 서고 몸이 그만큼만 자란다. */
-    stage?: number;
-    /** 발판 경광등의 깜빡임. */
-    blink?: boolean;
-    /** 딸림 부품(터렛 포탑부·성큰 혓바닥) — 한 벌 더 그린다. */
-    attach?: string;
-    /** 그 부품만의 절대 요잉(도) — 안 주면 몸의 요잉을 탄다. */
-    attachRot?: number;
-    /** 한 칸에 겹쳐 그리는 판들(DocCell9.parts) — 지도가 한 개체를 여러 판으로 그리는 동작이 이 자다. */
-    parts?: DocPart9[];
-    /** GL 로 그릴지 못 박기(안 주면 GL_ON9). */ gl?: boolean;
-    /** ★ 한 색 실루엣(2026-09, 요청: 하단 인포창 아이콘 — "실루엣") — 주면 그 색 한 가지로 물들인다. 밝기(명암)는 남기고
-     *  색만 갈아 끼운다(캔버스 합성 'color' — 원작 와이어프레임처럼 체력색 한 벌이되 디테일은 읽힌다). */
-    tint?: string;
-}): default_2.JSX.Element;
-
-/** 한 칸에 겹쳐 그리는 판 하나 — 지도가 한 개체를 여러 판으로 그리는 그 자다(차체·버팀다리·포탑). */
-declare type DocPart9 = {
-    kind: string;
-    pose?: Pose9;
-    rotDeg?: number;
-    /** ★ 뜬 높이(16-상자 자) — `dy` 에 이미 뺀 값이고, 창(docCellBox9)이 땅의 원을 이 몫만큼 올려 아우르는 데 쓴다. */
-    up?: number;
-    /** ★★ **칸 안에서 옮겨 앉히는 몫**(16-상자 자 · 화면 방향 · y 는 아래가 +) — 2026-09 에
-     *  열었다(요청: "도록 공격신에 가상의 타겟을 세워줘"). 여태 겹판은 몸과 **같은 자리**에만
-     *  앉을 수 있었는데(시즈 전환의 다리·포탑), 표적은 **사거리만큼 떨어진 자리**에 서야 한다.
-     *  ⚠ 자는 트레이서와 **같다** — `DocTracer9` 가 총구에서 표적까지 재는 그 (ux, uy)·그 거리다.
-     *    그래서 줄기의 끝과 인형이 한 점에서 만난다(따로 셈하면 조용히 어긋난다).
-     *  ⚠ **2D 폴백(`#gl=0`·폰)에는 치우침이 없다** — 그 길은 구운 면의 경로를 이어 붙이는
-     *    자라 판을 옮길 자리가 없다. 거기서는 표적이 안 서고 쏘는 몸만 선다(줄기는 그대로
-     *    제 사거리까지 뻗는다). 마주 봄 판정·방향광과 같은 갈래의 폴백 차이다. */
-    dx?: number;
-    dy?: number;
-    /** ★ **그 판만의 배율**(2026-09, 요청: "캐리어·리버 … 게임 중의 한 장면처럼") — 아이콘은 판을 다 같은 k 로
-     *  그리는데, 인터셉터·스캐럽의 16-상자는 캐리어·리버의 것과 자가 다르다(지도는 종류마다 타일 수 × MODEL_NORM 을
-     *  곱한다). 그 비(`docPartK9`)를 여기 실으면 겹판이 **지도에서의 크기 비** 그대로 선다. 안 주면 1. */
-    k?: number;
-    /** ★ **건물 길로 굽는다**(2026-09, 애드온 부착 칸의 본 건물·통로) — 안 주면 유닛 길(unitMesh)이다.
-     *  건물은 회전 칸·불빛 깃발을 세워야 하므로 그리는 문이 통째로 다르다(gl9 partMesh9). */
-    bld?: boolean;
-    /** 그 겹판의 회전 칸 — 통로(addonlink)는 이 칸이 곧 **길이**다(engine9 linkLenOf9). */
-    spin?: number;
-    /** 그 겹판의 창·속심 불빛. */
-    lit?: boolean;
-    /** ★ **몸보다 뒤에 선다** — 칸의 앞뒤는 미는 차례가 가르므로(gl9 aOrd · 2D 는 화가 차례),
-     *  땅에서 몸보다 먼 겹판은 몸보다 **먼저** 그려야 한다(애드온 부착 칸의 뒤쪽 건물). */
-    back?: boolean;
-};
-
-/** ★ **도록의 트레이서 칸**(2026-09, 요청: "그리고 트레이서는 못그려주나? 도록에") ──────
- *  지도와 **같은 붓**으로 한 발을 그린다(paintFxList9 — 그 함수의 ★ 에 왜 떼어냈는지가 있다).
- *  칸 왼아래가 총구, 오른위가 표적이고 그 사이를 한 발이 지난다: 화면 자 셈(zx·zy)을
- *  '분수 0 이 총구 · 1 이 표적'으로 주면 트레이서도 피격도 제자리에 앉는다.
- *  배율은 8(PC 지도의 흔한 자)로 못 박는다 — 갈래표의 값이 렌즈 px 상수라, 배율이 곧
- *  그 굵기·길이의 자다.
- *  ⚠ 날아가는 무기(PROJECTILE_FX)는 `shot`(진행률 u), 즉발은 `beam`(제자리 번쩍임)이다 —
- *    지도가 가르는 그 자리와 같은 명단을 쓴다. 쏘는 쪽에 아무것도 안 그리는 무기
- *    (커세어 플레어 · NO_BEAM_FX)는 **표적 그림이 전부**이므로 hit 만 낸다. */
-export declare function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, tgt, tgtUp, air, fx: fxProp }: {
-    kind: string;
-    t: number;
-    className?: string;
-    /** ★ 그릴 갈래를 못 박을 때(요청: 지상·대공 두 칸) — 안 주면 그 종류의 기본이다.
-     *  ⚠ 이름을 `style` 로 두지 않는다 — 리액트에서 그 이름은 CSS 를 뜻해 읽는 사람이 헷갈린다. */
-    fx?: string;
-    /** ★ **공격 칸 위에 겹쳐 그리나**(2026-09, 요청: "트레이서는 공격 셀에 같이 넣어야함"). */
-    overlay?: boolean;
-    /** ★★ **그 칸의 창**(fitBox "x y w h") — 주면 트레이서가 **모델에 붙는다**(아래 ★★).
-     *  안 주면 옛 자리(칸 왼아래 → 오른위)로 물러난다. */
-    box?: string;
-    /** 모델의 요잉(도) — 총알이 **그 방향으로** 나간다(요청: "회전하면 트레이서도 회전"). */
-    rotDeg?: number;
-    /** 겨누는 포탑의 절대 각(터렛·포토·성큰) — 있으면 몸이 아니라 이 각이 쏘는 쪽이다. */
-    headDeg?: number;
-    /** ★ **대공 무기의 칸인가** — 총구 앵커·갈래가 그 채널의 것이다(engine9 MUZZLE_AIR9). */
-    /** ★ **대공 채널인가** — 총구 앵커가 갈리는 종류(레이스·골리앗·스카우트)는 이 값으로
-     *  제 발사관을 고른다(engine9 `MUZZLE_AIR9`). 칸이 `DocCell9.air` 로 준다. */
-    air?: boolean;
-    /** ★★ **표적까지의 거리**(16-상자 자 · `DocCell9.tgt`) — 2026-09 에 열었다(표적 인형).
-     *  주면 줄기가 **그 거리까지만** 간다(곧 지도의 사거리다). 안 주면 옛 자리(칸 가장자리까지)로
-     *  물러난다 — 표적이 없는 칸(야마토 같은 액션 칸)이 그 길이다. */
-    tgt?: number;
-    /** ★ 끝점을 표적 발밑에서 **몸 가운데**로 올리는 몫(16-상자 자 · `DocCell9.tgtUp`) — 지도의 foeBody9 + 뜬 높이. */
-    tgtUp?: number;
-}): default_2.JSX.Element | null;
-
-/** 그 모델이 쏘는 트레이서 갈래(FX_BEAM 의 이름) — 없으면 null(근접·일꾼·건물 대부분). */
-export declare function docWeaponOf9(kind: string): string | null;
 
 /** 격자를 캔버스에 그린다 — **썸네일과 내려받는 그림이 이 한 곳을 함께 쓴다**.
  *
@@ -258,55 +46,7 @@ drawResources?: boolean,
  *  그래서 배수는 부르는 쪽이 정한다. */
 wallScale?: number): void;
 
-export declare function flapCutOf(hz: number, t: number): 1 | 3 | 4;
-
-/** 도록의 **방위 눈금**을 그 갈래의 기준각으로 옮긴다(요청: "도록은 45도 단위인데 건물은
- *  40도라 어떡하지") ────────────────────────────────────────────────────────────────
- *  건물은 지도에서 각이 하나뿐(BUILDING_BASE_YAW)이므로, 도록의 네·여덟 방위는 그 각을
- *  90도(혹은 45도)씩 돌린 것이라야 "도록에서 본 그 면"이 지도에서 그대로 나온다. 45 눈금을
- *  그대로 쓰면 건물만 5도 어긋나 앞면이 지도와 미묘하게 다른 각으로 선다. 유닛은 제 방향이
- *  자유로우니 45 눈금 그대로다. 옮긴 각은 yawBucket9가 죄지 않고 지난다(그 함수의 ★). */
-export declare const galleryYawOf: (deg: number, group?: string) => number;
-
-/** ★ **게임 색인 한 줄**(사건 한 건 · 합치지 않는다) — 사이트 게임 검색이 담는 꼴. 사람은 참값 이름(raw — 앱의 슬롯 rawName).
- *  kind: unit 유닛 · building 건물 · upgrade 연구·업그레이드 · skill 마법·핵 · tactic 전술(공격 · 견제 · 포토러시 · 몰래 배럭 …).
- *  term = 대상의 한글 이름(전술은 낱말 그대로) · key = 영문 원 이름(BW 종류·기술 이름 · 전술은 "") · act = 행위(생산 · 건설 · 개발 · 사용 · 활약 · 장전 · 투하 · 시즈 모드 ·
- *  시즈 해제 · 클로킹 · 띄움 · 전술은 "") · attr = 덧붙임(본진 몇 번째 · 업그레이드 단계 · 활약 킬 수 · 없으면 "").
- *  공격·견제는 term "공격"/"견제"에 주인(owner)·타겟(target)을 단다 — "A 공격함" = owner A · "B 공격당함" = target B. */
-export declare type GameIndexKind9 = "unit" | "building" | "upgrade" | "skill" | "tactic";
-
-/** 참값 자취(OBWT · base64 — 재생기가 받는 motion 그대로) → 그 판의 색인 줄. 자취를 못 풀면 null(줄 없음과 가른다). */
-export declare function gameIndexOf9(motion: string, opts: GameIndexOpts9): Promise<GameIndexRow9[] | null>;
-
-export declare type GameIndexOpts9 = {
-    /** 그 판의 맵 — 자원 점(앞마당 가름) · 크기(센터) · 참값 지형(언덕탱·입구). 없으면 그 판정만 빠진다. */
-    grid?: Pick<ReplayMapGrid, "width" | "height" | "resources" | "terrain"> | null;
-    /** 경기 길이(초). */
-    endSec: number;
-    /** 경기 채팅 — 재생기가 받는 꼴 그대로. */
-    chats?: readonly {
-        sec: number;
-        name: string;
-        text: string;
-    }[];
-    /** 로스터(참값 이름) — 이 사람들만 색인에 든다. */
-    only: readonly string[];
-    /** 관전자 등 뺄 이름. */
-    skip?: readonly string[];
-    /** 이름 → 팀(팀전) — 밀리면 안 준다. */
-    teamOf?: Readonly<Record<string, number | undefined>>;
-};
-
-export declare type GameIndexRow9 = {
-    sec: number;
-    owner: string | null;
-    target: string | null;
-    kind: GameIndexKind9;
-    term: string;
-    key: string;
-    act: string;
-    attr: string;
-};
+declare type GameType = "0101" | "0102" | "0103";
 
 declare type Group = ModelCatalogGroup;
 
@@ -339,7 +79,7 @@ declare interface MapTerrainLike {
     walkAtMini: (mx: number, my: number) => boolean;
 }
 
-export declare interface MinimapMarker {
+declare interface MinimapMarker {
     /** 리플레이 원본 게임 아이디 — 목록 키로도 쓴다. */
     key: string;
     /** 화면에 보일 이름. */
@@ -464,9 +204,9 @@ export declare type MotionBase = Omit<MinimapMarker, "x" | "y"> & {
 
 /** 밖으로 내는 꼴 — 사람의 신호를 나감 셋으로 줄인 것(위 ★ ②). */
 export declare type ParsedReplay = Omit<ParsedReplay_2, "players" | "team1" | "team2"> & {
-    players: ParsedReplayPlayer[];
-    team1: ParsedReplayPlayer[];
-    team2: ParsedReplayPlayer[];
+    players: ParsedReplayPlayerOut[];
+    team1: ParsedReplayPlayerOut[];
+    team2: ParsedReplayPlayerOut[];
 };
 
 declare interface ParsedReplay_2 {
@@ -477,10 +217,10 @@ declare interface ParsedReplay_2 {
     gameTypeName: string;
     gameStartedAt: string | null;
     durationSeconds: number | null;
-    players: ParsedReplayPlayer_2[];
-    team1: ParsedReplayPlayer_2[];
-    team2: ParsedReplayPlayer_2[];
-    matchType: ReplayGameType;
+    players: ParsedReplayPlayer[];
+    team1: ParsedReplayPlayer[];
+    team2: ParsedReplayPlayer[];
+    matchType: GameType;
     winnerSide: "team1" | "team2" | null;
     guessedObservers: string[];
     teamSplitUncertain: boolean;
@@ -497,11 +237,7 @@ declare interface ParsedReplay_2 {
     startSpots: [number, number][];
 }
 
-export declare type ParsedReplayPlayer = Omit<ParsedReplayPlayer_2, "signals"> & {
-    signals: ReplayLeaveSignals | null;
-};
-
-declare interface ParsedReplayPlayer_2 {
+declare interface ParsedReplayPlayer {
     rawName: string;
     race: Race | "";
     team: number;
@@ -517,77 +253,17 @@ declare interface ParsedReplayPlayer_2 {
     signals: ReplayPlayerSignals | null;
 }
 
+declare type ParsedReplayPlayerOut = Omit<ParsedReplayPlayer, "signals"> & {
+    signals: ReplayLeaveSignals | null;
+};
+
 /** ★ 빈 지도(128×128 · 팔레트 0 하나) — 자료를 기다리는 재생기(ReplayModule pending · 2026-10-23)가 받는 자리 채움. 그림은 까만 판에 가려 안 보인다.
  *  타일 16384 바이트(0) = base64 "AAAA" × 5461 + "AA==". */
 export declare const PENDING_GRID9: ReplayMapGrid;
 
-/** ★ 확대 상한 — **바깥도 이 값을 본다**(지적: "z=12인데 8배로 나오는 버그") ──────────
- *  공유 링크를 읽는 쪽(GameResultStory)이 `Math.min(8, …)`으로 죄고 있었다. 8은 옛 사다리
- *  (1·2·4·8·16)의 잔재다 — 사다리를 1·2·3·6·12로 갈 때 재생기 안의 상한만 따라오고 링크를
- *  읽는 쪽은 안 따라와, 12배에서 공유한 장면이 받는 쪽에서 8배로 열렸다.
- *  DEEP_MIN_ZOOM이 8에 못 박혀 밀려 있던 것과 **같은 갈래의 흠**이다: 사다리에 매인 수를
- *  두 곳에 적으면 언젠가 한쪽만 고쳐진다. 값을 내보내 자를 하나로 둔다. */
-export declare const PLAYBACK_ZOOM_MAX = 12;
-
 /** 경기별 현재 재생 시각(요청: 특정 시간으로 카톡 공유) — 재생기가 제 clockKey로 지금
  *  t를 계속 적어 두면, 공유 버튼이 링크에 &t=로 실어 보낸다. */
 export declare const playbackClockOf: Map<string, number>;
-
-/** 경기별 **지금 배속**(요청: 공유 파라미터에 속도 추가) — 시각·자리와 같은 결이다:
- *  받는 쪽이 같은 장면을 보려면 '어디를'과 '언제'뿐 아니라 '얼마나 빠르게'도 같아야 한다.
- *  1배는 안 싣는다(기본값이라 주소만 길어진다 — &t=·&z=와 같은 규약). */
-export declare const playbackSpeedOf: Map<string, number>;
-
-/** 경기별 **지금 추적 중인 사람**(요청: "장면 공유·스크랩에 추적 파라미터 추가") —
- *  시각·자리·배속과 같은 결이다. 추적을 켜고 보낸 장면은 '그 사람을 따라가며 보는 장면'
- *  이라, 그것까지 실어야 받는 쪽이 같은 것을 본다. 값은 그 판에서 쓴 게임 아이디(raw)다 —
- *  회원 식별로 적으면 비회원·컴퓨터를 못 가리키고, 아이디를 바꾼 사람의 옛 판이 어긋난다.
- *  안 켜져 있으면 아예 안 담는다(지우고 나간다). */
-export declare const playbackTrackOf: Map<string, string>;
-
-/** ★ 자리(배율·가운데점)는 **카메라를 기계가 쥐고 있으면 안 싣는다**(2026-09, 요청: "중계 활성화상태에서 공유시
- *  위치 좌표 전송 금지" → 넓힘: "중계는 자동이든 한사람이든 사용중이면 좌표, 배율 공유안하고 대신 중계 파라미터
- *  공유하기로 변경") — 자동 중계든 개인 추적이든 그때의 카메라는 편성표·그 사람의 명령이 몰고 있어 '내가 보던
- *  자리'가 아니고, 받는 쪽도 첫 토막·첫 자국에서 그 자리를 덮어쓴다. 그때는 z·cx·cy 를 비우고(공유 버튼은
- *  없는 값을 안 싣는다) 각도(deg)만 남긴다 — 각은 카메라가 아니라 보는 취향이다. 배율(z)도 함께 비운다:
- *  가운데점 없는 배율은 반쪽 자리라 받는 쪽에서 추적의 당김(trackZoom9)과 서로 민다. 대신 **누가 쥐고 있나**를
- *  playbackTrackOf 가 싣는다(사람 아이디 · 자동은 CAST_AUTO_LINK9). */
-export declare const playbackViewOf: Map<string, {
-    /** 배율(1이 기본) — 중계·추적 중에는 없다 */ z?: number;
-    /** 화면 한가운데의 지도 가로 분수(0~1) — 중계·추적 중에는 없다 */ cx?: number;
-    /** 세로 분수(0~1) — 중계·추적 중에는 없다 */ cy?: number;
-    /** 시점 각도(도) */ deg: number;
-}>;
-
-/** 자세 번호 — 0 기본 · 1/3 걸음(거울 한 쌍) · 2/4/5 공격 · 6~9 여섯 컷 걸음의 사잇컷(GAIT_CYCLE9). */
-declare type Pose9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-
-/** ★ 이 종류가 **어떤 컷을 갖나**(요청: "이동, 액션 모션은 별도 모델링이 없으면 idle
- *  모션이 그 모션이 됨") — 도록이 칸을 세울지 idle로 갈음할지 이 값이 정한다.
- *
- *  poseTempoOf는 '컷이 있나'만 말하고 **어느 컷인지**는 안 말한다. 그런데 종류마다
- *  가진 컷이 다르다: 하이템·아콘은 공격만, 리버·디파일러는 걸음만, 뮤탈·디바우러는
- *  날갯짓까지다. 없는 컷을 달라고 하면 굽기 열쇠(poseTag)가 "0"으로 접어 idle을
- *  돌려주는데 — 그림은 옳지만 **빌더는 그 컷으로 한 번 불린다**. 열쇠와 그림이
- *  어긋날 자리를 만드느니, 부르는 쪽이 있는 컷만 묻는 편이 낫다. */
-export declare function poseCutsOf(kind: string): {
-    move?: boolean;
-    atk?: boolean;
-    flap?: number;
-    thrust?: boolean;
-    roll?: boolean;
-    gait?: boolean;
-} | null;
-
-export declare function poseTempoOf(kind: string): {
-    walkHz: number;
-    atkCd: number;
-} | null;
-
-/** 목록을 부를 때 필요한 격자를 미리 다 받아 둔다 — 댓글과 같은 이유다(ActivityComments의
- *  primeActivityComments 주석): 카드가 뜬 뒤에 격자가 도착하면 미니맵이 그때 생겨나며 카드
- *  키가 자라고, 그만큼 활동의 스크롤 자리가 밀린다. 이미 받아 둔 해시는 건너뛴다. */
-export declare function primeReplayMaps(hashes: (string | null | undefined)[]): Promise<void>;
 
 export declare type Race = "테란" | "프로토스" | "저그" | "랜덤";
 
@@ -660,33 +336,12 @@ export declare interface ReplayChromeMember {
     avatar: string | null;
 }
 
-export declare type ReplayGameType = "0101" | "0102" | "0103";
-
-/** 도움말(옛 '사용법' · 요청: 공통 — 버튼도 페이지도 재생기 안) — 툴박스의 '도움말'(?) 버튼이 이 문서를 화면 위에 덮는다.
- *  앱은 이 파일을 갖지 않는다. 닫기는 덮개를 걷는 일뿐이다(뒤로가기는 재생기가 history로 맞춘다). */
-export declare function ReplayGuide({ onClose }?: {
-    onClose?: () => void;
-}): JSX_2.Element;
-
 /** 밖으로 내는 신호 — 나감 셋만(위 ★ ②). */
-export declare interface ReplayLeaveSignals {
+declare interface ReplayLeaveSignals {
     leaveFrame: number | null;
     leaveReason: string | null;
     lastCmdFrame: number | null;
 }
-
-/** 격자를 그린 캔버스 하나. 크기는 CSS가 정한다(부모를 꽉 채운다).
- *
- *  ★ targetSide — **화면에 실제로 그려질 한 변(장치 픽셀)**이다(지적: "지도를 16배 최대
- *    확대하면 맵이 흐려"). 여태 굽는 크기가 타일당 4px로 못 박혀 있어, 128타일 맵이면
- *    배킹이 512px이었다. 그걸 1024px 상자에 깔고 16배로 늘리면 **32배 확대한 그림**이라
- *    흐릴 수밖에 없다 — 배율을 아무리 올려도 화소가 안 는다.
- *    이 값을 주면 굽는 크기가 그 배율을 따라간다(상한 안에서). 안 주면 예전 그대로다. */
-export declare function ReplayMapCanvas({ grid, className, targetSide }: {
-    grid: ReplayMapGrid;
-    className?: string;
-    targetSide?: number;
-}): JSX_2.Element;
 
 export declare type ReplayMapFetcher = (hashes: string[]) => Promise<ReplayMapGrid[]>;
 
@@ -872,44 +527,11 @@ declare type ReplayRaceBadgeComponent = ComponentType<{
     className?: string;
 }>;
 
-/** 재생 화면이 뜰 때 그 행을 **세션에 한 번** 서버와 대조한다.
- *
- *  ★ 조건이 "지형이 없을 때"에서 **"세션에 한 번은 무조건"** 으로 바뀌었다(지적: "타일
- *    이미지 굽는 걸 게임 mpq 파일로 정확히 뽑는 걸로 바꿨는데 왜 그전하고 똑같지?").
- *    그 물음의 답이 여기 있었다: 지형은 서버가 **다시 구울 수 있는** 값인데(굽는 규칙이
- *    좋아지면 재분석이 force로 다시 굽는다) 이쪽은 '없을 때만' 물었다. 그래서 한 번
- *    지형을 받은 탭은 서버가 아무리 새로 구워도 **영영 옛 지형**을 들고 있었다 —
- *    오래 사는 폰 사파리는 며칠씩 그랬다.
- *    이제 없든 있든 한 번은 묻는다. 삯은 맵 종류당 요청 하나뿐이고(세션에 한 번),
- *    바뀐 것이 없으면 같은 값이 와 캐시가 그대로다. */
-export declare function revalidateReplayMap(hash: string | null | undefined): Promise<void>;
-
-/** ── 로스터 손잡이의 '켠 얼굴' — **사람 + 표**(요청: "사람+테이블로도 가능한가") ─────
- *
- *  루시드에는 이 뜻의 글리프가 없다. 가장 가까운 것이 IdCard(카드 안에 사람 + 줄 둘)
- *  인데, 뼈대가 **카드**라 곁에 서는 지도·전체화면 아이콘(선으로 된 도형)과 결이 다르고,
- *  무엇보다 획이 안쪽에 몰려 있어 작은 크기에서 뭉갠다.
- *
- *  ★ 이 아이콘의 유일한 제약은 **크기**다 — 이 줄의 아이콘은 모바일에서 13px이다.
- *    24칸 뷰박스에서 13px이면 한 칸이 0.5px이라, 획 굵기 2가 곧 1px이다. 그러면
- *    반지름 1.5짜리 머리는 화면에서 1.5px 덩이가 되어 점으로 뭉갠다. 그래서 '표 격자
- *    안 첫 칸에 사람'처럼 안쪽을 잘게 나누는 꼴은 쓸 수 없다. 대신 **획을 적게, 크게**:
- *      · 왼쪽 — 사람 하나(머리 지름 6칸 · 어깨 하나). 곁의 Users와 같은 몸집이라
- *        꺼진 얼굴 ↔ 켠 얼굴이 사람 크기가 안 바뀐 채로 넘어간다.
- *      · 오른쪽 — 표의 줄 셋. 격자 대신 줄로 두면 12px에서도 셋이 각각 읽힌다.
- *    획 다섯 · 가장 작은 것이 3칸(1.5px)이라 이 줄에서 가장 굵은 축에 든다.
- *
- *  나머지 규격은 루시드 문법 그대로다(24×24 · 획 2 · 둥근 끝·이음 · 칠 없음) — 한 벌로
- *  서야 하므로 여기서만 다른 값을 쓰면 이 버튼만 톤이 튄다. */
-export declare function RosterTableIcon({ size }: {
-    size?: number;
-}): JSX_2.Element;
-
 /** 장면 링크의 열쇠 일곱 — 다른 화면으로 옮길 때 떼어 낼 것도 이 목록이다(scplayer ExtShareScreen). */
 export declare const SCENE_LINK_KEYS9: readonly ["t", "s", "z", "cx", "cy", "a", "tr"];
 
 /** 링크에서 푼 장면 한 벌 — 없는 값은 없는 대로 둔다(기본값은 재생기가 안다). */
-export declare type SceneLink9 = {
+declare type SceneLink9 = {
     /** 시작 시각(초) */ t?: number;
     /** 배속 */ s?: number;
     /** 배율(1~PLAYBACK_ZOOM_MAX) */ z?: number;
@@ -945,53 +567,8 @@ export declare function setReplaySpriteAtlas(opt: {
     base: string;
 } | null): void;
 
-export declare const SHAPE_GALLERY: ShapeGalleryItem[];
-
-/** 겹쳐 그리는 면 하나 — [패스, 불투명도, 색?]. 색을 안 주면 currentColor. */
-/** [패스, 불투명도, 색?, 깊이?, 등급?] — 넷째 값은 부품 중심의 화면 깊이(요잉 반영,
- *  +가 시청자 쪽)로, zsorted가 painter 순서를 다시 세우는 열쇠다. 없으면 '직전 부품에
- *  붙은 장식'으로 본다.
- *
- *  다섯째는 부품 등급(LOD, 요청: "형체를 결정하는것(개인색 포함)이 1티어 장식이 2티어
- *  세부포인트 3티어") — 없으면 1이다. **숫자가 작을수록 끝까지 남는다**:
- *    1 형체   작아져도 끝까지 그린다. 없으면 무엇인지 못 알아본다 —
- *             몸통·머리·다리·포신·날개, 그리고 **개인색**(누구 것인지).
- *    2 장식   형체 위에 얹히는 것. 명암(윗면 밝기·옆면 그늘), 덧댄 판, 큰 무늬.
- *    3 세부   가장 작은 것. 원통 단면, 광택 점, 리벳, 데칼, 잔가시. 가장 먼저 빠진다.
- *  걸러 내는 일은 스프라이트를 굽는 순간 딱 한 번 일어난다(unitSprite/buildingSprite) —
- *  프레임마다 재는 것이 아니라, 등급이 캐시 열쇠에 들어가 판이 등급별로 따로 구워진다. */
-/** 면 하나 — [경로, 농도, 색?, 깊이 열쇠?, 등급?, 부품 번호?].
- *  ★ 여섯째가 부품 번호다(수리: 각도에 따라 팔·다리가 저·중에서 사라진다) — 넷째(깊이
- *    열쇠)는 **각도마다 값이 달라지는 깊이**라 부품 신원으로 쓸 수 없었다. 등급 매기기
- *    (autoTier)가 그 값의 '같은 값이 이어지는 구간'으로 부품을 묶고 있었는데, 각도가
- *    바뀌면 깊이가 재편돼 묶음이 통째로 달라졌다(실측: 99종 중 74종에서 부품 수가
- *    각도마다 바뀌었고, 러커는 면 45개 고정인데 부품이 13~21개로 흔들렸다). 그래서
- *    같은 팔이 각도마다 다른 등급을 받아 나타났다 사라졌다. 부품 번호는 굽는 각도와
- *    무관하게 '빌더가 몇 번째로 선언한 부품인가'만 말한다. */
-declare type ShapeFace = [string, number, string?, number?, number?, number?];
-
-/** ★ 여러 컷을 **한 창**으로(지적: "모션컷에 따라 모델 확대율이 달라짐") ───────────────
- *  ShapeIcon의 fit은 그 컷의 잉크에 창을 맞추므로, 자세가 갈리면(팔을 뻗고 다리를 벌리고)
- *  실루엣과 함께 창도 갈리고 모델이 컷마다 커졌다 작아졌다 한다. 도록의 모션 창처럼
- *  **같은 모델의 여러 컷을 나란히** 놓는 자리에서는 그 흔들림이 곧 거짓말이다.
- *  부르는 쪽이 이 함수로 컷들을 미리 훑어 한 상자를 얻고 그것을 세 칸의 fitBox로 내리면,
- *  창이 못 박혀 컷 사이에 오직 **모델의 움직임만** 남는다.
- *  면 목록은 ShapeIcon과 같은 문(resolveShapeFaces·같은 캐시)을 지나므로, 한 번 구운
- *  각·컷을 다시 훑는 것은 거의 공짜다. */
-export declare function shapeFitBox(kind: string, opts?: {
-    /** 요잉(도) — 안 주면 지도의 기본 자세(BUILDING_BASE_YAW)다. ShapeIcon과 같은 규약. */
-    rotDeg?: number;
-    /** 훑을 컷들 — 안 주면 여섯 컷 모두. 그 종류가 안 가진 컷은 idle과 같은 면이라 해가 없다. */
-    poses?: readonly (Pose9)[];
-    flat?: boolean;
-    viewYaw?: number;
-    pitchView?: boolean;
-    /** 여백(짧은 변 비율) — ShapeIcon의 fitPad와 같은 뜻·같은 기본값(0.12). */
-    fitPad?: number;
-}): string | undefined;
-
 /** 도록 한 칸 — 밖(앱의 도록 화면)이 이 꼴을 그대로 먹는다. */
-export declare type ShapeGalleryItem = {
+declare type ShapeGalleryItem = {
     kind: string;
     label: string;
     /** 갈래 — "부가"는 유닛도 건물도 아닌 것들(자원·크립·버로우 구멍·핵·스톰·탱크 부품). */
@@ -1008,64 +585,6 @@ export declare type ShapeGalleryItem = {
     hidden?: true;
 };
 
-export declare function ShapeIcon({ kind, className, faces: facesOverride, rotDeg, flat, keepRatio, viewYaw, pitchView, wide, fit, fitPad, fitBox: fitBoxProp, spin, pose, headDeg, lit, stage, attach, attachRot, parts, }: {
-    kind: string;
-    className?: string;
-    /** ★ 자세 컷(요청: 도록에서 idle·이동·액션을 보여 준다) — 0 기본 · 1·3 걸음 ·
-     *  2·4·5 공격이다(POSE_* 상수와 같은 번호).
-     *  ★ 왜 프롭이 필요한가 — 컷은 모듈 전역 깃발(poseNow)이라 굽기 **직전에** 세우고
-     *    끝나면 되돌려야 한다(안 되돌리면 다음에 굽는 남의 모델까지 그 컷으로 굽힌다).
-     *    밖에서 poseSet을 부르면 리액트의 그리는 차례와 그 창을 맞출 길이 없다 — 여기
-     *    안에서 spin과 **같은 규약**으로 감싼다. */
-    pose?: Pose9;
-    /** 포탑 각(절대 도). */ headDeg?: number;
-    /** 창·속심 불빛. */ lit?: boolean;
-    /** 건설 단계(0이면 완성). */ stage?: number;
-    /** 딸림 부품(터렛 포탑부·성큰 혓바닥). */ attach?: string;
-    /** 그 부품만의 절대 요잉(도). */ attachRot?: number;
-    /** 한 칸에 겹쳐 그리는 판들(시즈 전환의 차체 + 버팀다리 + 포탑) — DocCell9.parts 와 같은 자. */
-    parts?: DocPart9[];
-    /** 회전 칸(요청: 스톰을 모델로) — 도는 부품을 가진 종류(SPIN_KINDS)의 변종 번호다.
-     *  스톰은 이 값이 **번개 무늬의 씨앗**이라, 칸이 바뀌면 무늬가 통째로 갈린다.
-     *  굽기 열쇠(spinTag)가 이 값을 물므로 같은 칸은 늘 같은 그림이다. */
-    spin?: number;
-    /** 뷰어의 요잉 회전(요청) — withYaw로 다시 투영한 면 목록을 그대로 그린다. */
-    faces?: ShapeFace[];
-    /** 이동 방향 회전(요청: 유닛 마커도 방향) — 시계방향 도. */
-    rotDeg?: number;
-    /** 위에서 본 판(요청) — 입체 보기가 아닐 때의 지도 마커가 켠다. */
-    flat?: boolean;
-    /** 원본 비율 유지(요청: 자료실에서 보는 비율 그대로 — 캔버스에 맞춰 늘리기 금지). */
-    keepRatio?: boolean;
-    /** 좌우 시점(지적: 입체 보기 시점이 정면 고정) — 카메라가 비껴 본 각(도). */
-    viewYaw?: number;
-    /** 입체 보기 판(지적: 모델이 맵하고 안 맞음) — 맵과 같은 45도 각으로 굽는다. */
-    pitchView?: boolean;
-    /** 넓은 창(도록 전용) — 16-상자 밖까지 보여 준다(지적: "스파이어, 파일런 등이 안나옴").
-     *  건물 정규화는 잉크를 상자의 1.2~2.8배까지 채우고(파일런 1.88·고치 2.84) 스파이어는
-     *  키가 상자를 훌쩍 넘는다. 지도는 그 넘침이 제 모습이지만 도록은 **모델 전체**를
-     *  봐야 하므로, 창을 사방으로 한 상자씩 넓혀 32-상자로 본다. */
-    wide?: boolean;
-    /** 잉크에 창을 맞춘다(도록의 "크기: 최대" — 요청: "최대는 진짜 최대야, 각 유닛을
-     *  그리드에 패딩만 빼고 최대로 채우기"). 정규화(MODEL_NORM·BLD_NORM)는 **모델끼리
-     *  같은 몫으로 채우는가**를 보는 자라 창을 남기는 것이 제 일이고, 그래서 칸의 절반쯤은
-     *  늘 빈다. 여기서는 그 자를 아예 안 태우고 실제로 칠해진 상자를 재서 그 상자를 창으로
-     *  삼는다 — 어느 모델이든 칸을 꽉 채운다. 비율은 지키고(meet) 가운데 놓는다.
-     *  "인게임"은 이 문을 안 지난다: 거기서는 서로 얼마나 큰지가 물음이라 창이 공통이어야
-     *  한다. */
-    fit?: boolean;
-    /** 잉크 창의 여백(짧은 변 비율) — 도록은 넉넉히(0.12), 효과는 바짝(FxModel이 0.02). */
-    fitPad?: number;
-    /** 창을 **밖에서 못 박는다**(요청: "최대화 모드에서 각도나 동작 변화에 따라 줌 크기가
-     *  달라지면 안 돼") — fit은 그때그때의 잉크에 창을 맞추므로, 자세가 바뀌거나 몸이
-     *  돌면 실루엣이 달라지며 창도 함께 달라진다. 그러면 같은 모델이 컷마다 커졌다
-     *  작아졌다 하고, 무엇이 실제로 커진 것인지 알 수 없게 된다. 부르는 쪽이 여러 자세·
-     *  여러 각을 미리 훑어 **하나의 창**을 정하고 그것을 여기 내려 준다. */
-    fitBox?: string;
-}): default_2.JSX.Element;
-
-export declare const shapeMapTiles: (kind0: string) => number;
-
 /** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 색인 줄 gameIndexOf9 가 돌려준다). */
 export declare const TACTIC_TERMS9: readonly string[];
 
@@ -1074,21 +593,6 @@ export declare const TEAM_COLOR: Record<number, string>;
 /** 그리는 쪽(mapTiles.drawMapGrid)이 쓰는 얼굴로 감싼다 — 그쪽이 이 파일을 임포트하면
  *  순환이 되므로 함수 묶음만 넘긴다. */
 export declare function terrainFace(t: MapTerrain): MapTerrainLike;
-
-export declare interface TerrainGrid {
-    w: number;
-    h: number;
-    /** 행 우선 — 1이면 걸을 수 있는 땅으로 본다. */
-    walk: Uint8Array;
-    /** 행 우선, 1이면 크립이 못 퍼지는 칸(요청: 램프·다리) — 걷긴 하지만 크립은 못 앉는
-     *  땅이라 walk와 별개 층이다. 검수 모달에서 사람이 칠하고, 없으면 벽만 크립을 막는다. */
-    creep?: Uint8Array;
-    /** 행 우선, 1이면 **언덕(높은 땅)**(요청) — 원작의 명중 규칙이 높이를 본다: 낮은 데서
-     *  높은 데를 쏘면 46.9%가 빗나간다([OBW] missChanceRaw의 119 가지). 리플레이에도
-     *  미니맵 그림에도 고도는 안 실려 있어, 크립 층과 같은 식으로 사람이 칠한다.
-     *  칠한 게 없으면 온 지도가 같은 높이 — 예전과 똑같이 아무도 안 빗나간다. */
-    high?: Uint8Array;
-}
 
 /** 그 해시의 맵 격자 — 서버에 없으면 null, '아직 조회 중'이면 undefined.
  *  (구분 이유·지적: 조회 중을 null로 뭉개면 카드가 첫 그림에 옛 로스터 폼을 그렸다가
