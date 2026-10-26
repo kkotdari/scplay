@@ -605,6 +605,7 @@ export declare interface ReplayModuleProps {
             sec: number;
             name: string;
             text: string;
+            scope?: "team" | "all";
         }[];
     }>;
     /** 이긴 편(트로피). 모르면 undefined. */
