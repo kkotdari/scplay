@@ -5390,6 +5390,9 @@
   position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1));
   width: calc(100% - var(--th)); height: calc(60px * var(--ui, 1)); overflow: visible;   /* 30 → 60(2026-10-25, 요청: "탐색바 그래프 높이 2배 정도로") */
   pointer-events: none; z-index: 2; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
+  /* 뒤 반투명 판(2026-10-26, 요청: "재생바 그래프 뒤에 반투명 패널 깔아 줘야 해") — 곡선의 자(viewBox)를 안 건드리게 판의 여백은 box-shadow 로 바깥에 편다 · 흐림(backdrop-filter)은 폰 열 때문에 안 쓴다. */
+  background: rgba(8, 10, 16, 0.62); border-radius: calc(6px * var(--ui, 1));
+  box-shadow: 0 0 0 calc(5px * var(--ui, 1)) rgba(8, 10, 16, 0.62);
 }
 .scr-motion-rangewrap.is-combat > .scr-motion-combat { opacity: 1; transform: none; }
 @media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat { opacity: 1; transform: none; } }

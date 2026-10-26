@@ -2547,3 +2547,5 @@ GPU 에 한 번 올리고(`glTerrain9.ts` · 128² 56k 정점 0.7MB) 장마다 �
   선 2px · 검은 그림자 · 편이 둘 아래면 그리지 않는다. 자리·높이·보이는 때는 옛 전투량 곡선(.scr-motion-combat)과 같다.
 - 옛 전투량 곡선(combatPath9 · '데미지 기록 없음')은 `SEEK_GRAPH9 = "combat"` 으로 되살린다(코드로 남김).
 - ⚠ 합성 경기는 유닛이 처음부터 끝까지 살아 있어 선이 평평하다 — 모양은 실경기에서 본다. 🔎 `perf-check --wide --castoff --t 60 --seekgraph x.png`.
+- (같은 날) 요청 "재생바 그래프 뒤에 반투명 패널 깔아 줘야 해" — `.scr-motion-combat` 에 rgba(8,10,16,.62) 판 · 모서리 6px · 여백 5px 은 box-shadow 로 바깥에(viewBox 자 그대로) ·
+  흐림(backdrop-filter)은 폰 열 때문에 안 씀. 우세 곡선·옛 전투량·'데미지 기록 없음' 모두 같은 판.
