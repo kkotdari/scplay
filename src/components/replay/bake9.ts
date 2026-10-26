@@ -30027,15 +30027,65 @@ for (const k of TERRAN_LT_KINDS9) {
 }
 
 
-export const SHAPE_FACES: Record<string, ShapeFace[]> = {
-  // 3D 빌더 전부를 표준 시점으로 한 번 굽고, 2D 기호(전투 갈래)는 그대로 얹는다.
-  ...Object.fromEntries(Object.entries(SHAPE_BUILDERS).map(([k, b]) => [k, bake(b)])),
-  // (2D 기호 삭제·요청) — 갈래 기호도 전부 3D 빌더가 만든다: 삼각형은 삼각뿔로.
-};
+/* ★ 두 표(표준 시점 · 부감)는 **처음 읽을 때 종류마다 굽는다**(2026-10-26, 지적: "게임 목록 로드중에 다른 탭이 안눌러짐") —
+   모듈을 들일 때 전 종류를 두 번 굽던 것이 PC 1.5초 · 폰(CPU ×4) 6초 넘게 메인을 막았다(앱은 첫 화면에서 이 꾸러미를 들인다).
+   빌더는 **이 자리의 것**을 잡아 둔다(뒤에서 SHAPE_BUILDERS 를 감싼 것은 안 탄다 — 옛 표와 같다). 그리는 중(자세·불빛 깃발이 선 채)에
+   처음 읽혀 그 깃발이 표에 굳지 않게, 쉬는 틈에 조각조각(warmShapeFacesIdle9) · 재생기가 서기 전에 한 번에(warmShapeFaces9) 다 채운다. */
+/* 짐 든 일꾼(scvMin·probeGas…)처럼 **빌더 안에서 SHAPE_BUILDERS 를 다시 찾는** 종류는 그 표가 이 자리 그대로여야 옛 표와 같다
+   (뒤의 광택 감싸기를 안 탄다 — Node 대조 실측 12종이 갈렸다). 굽는 동안만 이 자리의 표를 되돌려 둔다. */
+const FACE_BUILDERS9: Record<string, () => ShapeFace[]> = { ...SHAPE_BUILDERS };
+function withFaceBuilders9<T>(fn: () => T): T {
+  const now9: Record<string, () => ShapeFace[]> = {};
+  for (const k in FACE_BUILDERS9) { now9[k] = SHAPE_BUILDERS[k]; SHAPE_BUILDERS[k] = FACE_BUILDERS9[k]; }
+  try { return fn(); } finally { for (const k in now9) SHAPE_BUILDERS[k] = now9[k]; }
+}
+function lazyFaces9(top: boolean): Record<string, ShapeFace[]> {
+  const out: Record<string, ShapeFace[]> = {};
+  const put = (k: string, v: ShapeFace[]): void => {
+    Object.defineProperty(out, k, { value: v, writable: true, enumerable: true, configurable: true });
+  };
+  for (const [k, b] of Object.entries(FACE_BUILDERS9)) {
+    Object.defineProperty(out, k, {
+      enumerable: true, configurable: true,
+      get: () => { const v = withFaceBuilders9(() => (top ? withTopView(() => bake(b)) : bake(b))); put(k, v); return v; },
+      set: (v: ShapeFace[]) => put(k, v),
+    });
+  }
+  return out;
+}
+// 3D 빌더 전부를 표준 시점으로 굽는다(2D 기호 삭제·요청 — 갈래 기호도 전부 3D 빌더가 만든다: 삼각형은 삼각뿔로).
+export const SHAPE_FACES: Record<string, ShapeFace[]> = lazyFaces9(false);
 /* 위에서 본 판(요청: 입체 아닌 모드에서 좀 더 부감으로) — 같은 빌더를 납작비 0.66·
    높이 0.6으로 다시 구운 것. 입체 보기가 아닐 때 지도 마커가 이쪽을 쓴다. */
-export const SHAPE_FACES_TOP: Record<string, ShapeFace[]> = withTopView(() =>
-  Object.fromEntries(Object.entries(SHAPE_BUILDERS).map(([k, b]) => [k, bake(b)])));
+export const SHAPE_FACES_TOP: Record<string, ShapeFace[]> = lazyFaces9(true);
+const FACE_KEYS9 = Object.keys(SHAPE_FACES);
+let faceWarmAt9 = 0;   // 다음에 구울 칸(두 표를 이어 센다)
+/** 남은 칸을 굽는다 — 한도(ms)를 넘으면 멈추고 다 했는지 돌려준다. */
+function warmFacesStep9(budgetMs: number): boolean {
+  const t0 = performance.now();
+  const n9 = FACE_KEYS9.length;
+  while (faceWarmAt9 < n9 * 2) {
+    const k = FACE_KEYS9[faceWarmAt9 % n9];
+    void (faceWarmAt9 < n9 ? SHAPE_FACES[k] : SHAPE_FACES_TOP[k]);
+    faceWarmAt9 += 1;
+    if (performance.now() - t0 > budgetMs) break;
+  }
+  return faceWarmAt9 >= n9 * 2;
+}
+/** 두 표를 지금 다 채운다 — 재생기가 그리기 전에 부른다(이미 다 구웠으면 아무것도 안 한다). */
+export function warmShapeFaces9(): void { warmFacesStep9(Infinity); }
+/** 쉬는 틈에 조금씩(한 번에 8ms) 채운다 — 메인을 막지 않는다. 사파리는 requestIdleCallback 이 없어 setTimeout 으로 잇는다. */
+export function warmShapeFacesIdle9(): void {
+  const next = (): void => {
+    // 기한(timeout)은 안 준다 — 바쁠 때 억지로 끼면 느린 폰에서 한 종류(~0.3초)가 누름을 막는다.
+    const ric = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (ric) ric(run); else setTimeout(run, 50);
+  };
+  const run = (): void => { if (!warmFacesStep9(8)) next(); };
+  next();
+}
+// 앱(브라우저 메인)에서는 들이자마자 쉬는 틈 굽기를 건다 — 도구(Node)는 읽을 때 굽는다.
+if (typeof window !== "undefined") warmShapeFacesIdle9();
 /** 방향(요잉) 굽기 갈무리 — kind×22.5도(16방향) 버킷×(부감 여부)마다 한 번 굽는다. */
 export const HEAD_FACES = new Map<string, ShapeFace[]>();/** 도형째 돌려 그리는 각도(시계방향) — 옛 스타게이트(반쪽 원통)용 45도는 봉오리
  *  재설계로 걷었다: 잎이 정확히 위아래·좌우에 서야 하고(요청), 화면 회전은 바닥
@@ -31183,7 +31233,7 @@ export const bldBlinkSet9 = (v: number): void => { bldBlinkNow9 = v ? 1 : 0; };
    한 채를 보인다.
    ⚠⚠ **등록은 여기다 — SHAPE_FACES 표보다 앞에 두면 앱이 통째로 터진다**(2026-09, 실측:
      `ReferenceError: Cannot access 'bldBlinkNow9' before initialization` · perf-check 가
-     잡았다). 그 표는 모듈을 들일 때 SHAPE_BUILDERS 를 **통째로 한 번 굽는데**, 발판
+     잡았다). 그 표는 모듈을 들일 때 SHAPE_BUILDERS 를 **통째로 한 번 굽는데**(2026-10-26 부터는 처음 읽을 때 — lazyFaces9 ★), 발판
      빌더는 바로 위의 `bldBlinkNow9`(let)을 읽는다 — 그 선언보다 먼저 구우면 TDZ 다.
      bake9 의 '문 차례' 규약이 말하는 자리가 바로 이런 것이다: 파생 빌더 등록은 그 빌더가
      **읽는 모든 모듈 값의 선언 뒤**여야 하고, 표보다 앞이어야 하는 것은 그 표가 굽는

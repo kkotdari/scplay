@@ -106,7 +106,7 @@ import {
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
-  GAS_KINDS9,
+  GAS_KINDS9, warmShapeFaces9,
 } from "./bake9";
 import { sprAtlasLoad9, sprAtlasOn9 } from "./sprAtlas9";
 import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
@@ -9438,6 +9438,8 @@ export default function ReplayMotionPlayer({
      핵·스톰 동안 박자가 25~60Hz로 오르므로(nukeStep9), 한 장이 그 박자보다 길면 그때부터
      주 실마리가 통째로 막힌다. #diag=draw의 "리액트" 줄이 그 둘을 나란히 보인다. */
   const rT09 = pNow();
+  /* 2D 면 표(SHAPE_FACES)는 처음 읽을 때 굽는다(bake9 lazyFaces9 ★) — 그리기 전, 자세·불빛 깃발이 안 선 지금 남은 칸을 다 채운다. */
+  useState(warmShapeFaces9);
   /* 렌더 함수 **전체**에 든 JS 시간 — 준비·mapNode만 재면 그 사이 수백 줄의
      훅과 useMemo가 안 잡힌다. 프레임주기에서 이것과 커밋을 빼야 브라우저 몫이 남는다. */
   const pRender9 = PERF9 ? pNow() : 0;

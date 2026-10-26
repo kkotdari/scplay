@@ -721,3 +721,16 @@ scplayer 쪽 소스를 만졌으면 그쪽에서 `npx tsc --noEmit -p tsconfig.j
 몸 전체를 x축 둘레로 숙이는 손은 shapeOblique `withModelPitch(deg, py, pz, fn)` — project·modelPoint9(메시 mp3·총구) 가 **회전(spun) 뒤 · z 평행이동(modelZOff) 앞**에 (y, z) 를 돌린다.
 비틀기 칸(withModelWarp·Out·Tw)으로 숙이면 안 되는 까닭: 그 칸들은 회전 **앞**이라 `withModelSpin` 으로 돌려 세운 부품(프로브 눈 렌즈)에서는 제 국소 축으로 기울어 몸과 어긋난다.
 각은 설계 자(z/0.8)로 셈하고 다시 접는다(강체 회전). depthNow(키)·2D 법선은 안 태운다(GL 은 꼭짓점에서 법선을 다시 낸다). +deg 는 앞(+y)이 내려간다. 첫 손님은 프로브(models-protoss.md).
+
+## 2D 면 표(SHAPE_FACES·SHAPE_FACES_TOP)는 처음 읽을 때 굽는다(2026-10-26)
+지적: "게임 목록 로드중에 다른 탭이 안눌러짐". 앱(sg-web)은 첫 화면에서 scplay 꾸러미를 통째로 들이는데, bake9 가 모듈을 들일 때
+전 종류(162)를 표준·부감 두 번 굽고 있었다 — 실측 PC 1.9초 · CPU ×4 조임 7초 넘게 메인이 막혀 탭·게임 탭이 안 눌렸다.
+- 이제 `lazyFaces9` 가 종류마다 getter 로 둔다. 빌더는 **옛 자리의 것**을 잡아 두고(`FACE_BUILDERS9`), 굽는 동안만 SHAPE_BUILDERS 를
+  그 자리 그대로 되돌린다(`withFaceBuilders9`) — 짐 든 일꾼(scvMin·probeGas·droneMin… 12종)은 빌더 안에서 `SHAPE_BUILDERS.scv()` 를
+  다시 찾는데, 뒤의 광택 감싸기(GLOSS)를 타면 면 색이 달라졌다(Node 대조로 잡음).
+- **그리는 중에 처음 읽히면 안 된다** — 크립 얼룩(creeppatch*)이 재생기에서 이 표를 읽는 유일한 손인데(perf-check 계측), 그 빌더는
+  `project()`·`meshPut9` 를 부른다: 그리는 중엔 지도 각(pitchFlatSet9)·메시 기록이 선 채라 그대로 굳는다. 그래서 브라우저에선
+  들이자마자 쉬는 틈에 8ms 씩(`warmShapeFacesIdle9` · rIC 기한 없음 — 기한을 주면 느린 폰에서 한 종류 0.3초가 누름을 막았다)
+  채우고, 재생기는 첫 렌더에서(`useState(warmShapeFaces9)` — pitchFlatSet9 레이아웃 이펙트보다 앞) 남은 칸을 다 채운다.
+- 실측: PC 첫 긴 일 1865 → 197ms · 목록 응답 2.5 → 0.9초 · CPU ×4 에서 목록 9.2 → 2.3초, 게시판 탭 누름 '안 됨' → 1~3초.
+- 🔎 옛 표와 같나: bake9 를 esbuild 로 Node 번들 → 두 표를 키 차례로 JSON 덤프 → 옛 소스 덤프와 `cmp`(바이트 같음 확인).
