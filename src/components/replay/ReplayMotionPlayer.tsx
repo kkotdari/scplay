@@ -714,6 +714,8 @@ const SPR_UP_PC9 = 0.6;
  *  낮음 상한을 192 → **224MB**(7장)로 한 칸 올려 자세 칸 자리를 남겼다. 옛 4칸은 돌 때 네 방향으로 툭툭 끊겼다. */
 /** ★ 굽기 덤프(scripts/spr-atlas · `#sprdump=Q` · gl9 sprDumpQ ★) — 재생기가 경기 종류 대신 **모든 종류**·모든 자세·기기 요잉 칸(PC 16)을 Q 배로 굽고 다 구우면
  *  window.__sprDumpDone 을 세운다. 판 상한은 없고(동적 판 999 · 바이트 ∞) 빛 켜도 굽는다. 재생기에서는 0. */
+/** 아틀라스를 기다리는 앞 종류의 몫(많이 쓰는 차례 · 적어도 6 종류 · 예열 effect 의 ★ '많이 쓰는 종류만 기다린다' · 2026-10-26). */
+const ATLAS_CORE9 = 0.3;
 const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = /sprdump=([\d.]+)/.exec(location.hash); return m9 ? Math.max(1, Math.min(3, Number(m9[1]) || 1)) : 0; })() : 0;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
@@ -19025,6 +19027,8 @@ export default function ReplayMotionPlayer({
     /* ★ **서버 아틀라스를 먼저 싣는다**(sprAtlas9 ★ · 2026-10-25) — 경기 종류(많이 쓰는 차례)의 묶음을 받아 고정 판에 싣고, 실린 칸은 아래 미리 굽기가 저절로 건너뛴다(같은 열쇠).
        PC 는 2 배 해상도(f) · 요잉 16(짝 + 홀) · 빛 켜 · 폰은 1 배(h) · 요잉 8(짝) · 빛 켜는 번짐 단만 · 바이트 상한 안에서. 싣는 동안 예열 걸음은 기다린다(15초 넘으면 그냥 간다). */
     let atlasWait9 = false; const atlasT09 = performance.now();
+    /** 아직 아틀라스가 안 실린 종류(sprAtlas9 pending ★) — 예열이 그 종류의 동적 미리 굽기를 건너뛴다(곧 실릴 칸을 재생 중에 두 번 굽지 않게 · 끝내 못 실리면 재생 중 굽기). */
+    const atlasPend9 = new Set<string>();
     {
       const g09 = glNow9();
       if (g09 && pre9 && SPR_DUMP9 === 0 && sprAtlasOn9()) {
@@ -19035,12 +19039,18 @@ export default function ReplayMotionPlayer({
            ⚠ 폰 높음 2 배는 되물렸다(같은 날 실측 폰 2단 · 5인 합성 세계: f 는 33 묶음 중 12 만 256MB 에 들어 나머지를 재생 중에 구웠다 · h 는 33 묶음 89MB · 놓침 0).
            2 배 벌은 1 배의 네 배 화소이고 그 대부분이 유닛이라(전 종류 짝 칸 유닛 f 759MB · 건물 325MB) '유닛만 2 배'도 안 든다. 상한에 닿으면 덜 쓰는 종류부터 빠진다. */
         const res9: "f" | "h" = ph9 ? "h" : "f";
-        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024 })
+        /* ★ **많이 쓰는 종류만 기다린다**(2026-10-26, 요청 2 — "1, 2 ㄱㄱ") — 앞 ATLAS_CORE9 몫(많이 쓰는 차례 · 적어도 6 종류)의 묶음이 실리면 예열을 풀어 재생을 시작하고
+           나머지는 뒤에서 싣는다(풀기는 워커 · 싣기는 묶음마다 한 박자 쉬며). 옛: 다 실릴 때까지(15초 상한) 기다렸다. 뒤에서 실리는 종류는 그 사이 재생 중 굽기로 그려지다가
+           실리면 고정 칸이 이긴다(sprAtlasAdd9 — 같은 열쇠) · 그 종류의 동적 미리 굽기는 건너뛴다(atlasPend9). */
+        const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
+        const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
+        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024,
+          core: core9, onCore: release9, pending: atlasPend9 })
           .then((r9) => {
-            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(받기대기${Math.round(r9.waitMs)}·풀기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB)${r9.err ? "·" + r9.err : ""}`;
+            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB)${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
-          .finally(() => { atlasWait9 = false; setAtlasLoad9(false); });
+          .finally(release9);
       }
     }
     const step9 = (): void => {
@@ -19084,7 +19094,7 @@ export default function ReplayMotionPlayer({
                 const m9 = u9 ? g9.unitMesh(j9.kind, j9.pose ?? 0) : g9.bldMesh(opW9);
                 /* 미리 굽기 큐(위 pre9 ★★) — 실루엣 빛 상자 비는 붓이 미는 값 그대로(유닛 gradR = px·0.707 · k = px/16·norm → 11.312/norm · 건물 gCy = −8k). */
                 /* 폰은 자세 0 만 동적으로 미리 굽는다(판 바이트 상한 · 위 posesOf9 ★) — 다른 자세 칸은 서버 아틀라스(sprAtlas9)가 싣는다. */
-                const preOk9 = !(DEV9.name === "phone" && SPR_DUMP9 === 0 && (j9.pose ?? 0) !== 0);
+                const preOk9 = !(DEV9.name === "phone" && SPR_DUMP9 === 0 && (j9.pose ?? 0) !== 0) && !atlasPend9.has(j9.baseKind ?? j9.kind) && !atlasPend9.has(j9.kind);
                 if (m9 && pre9 && preOk9) {
                   const lt9 = !u9 && g9.sprTint && LIT_KINDS.has(j9.kind) ? g9.bldMesh({ ...opW9, litMask: true }) : null;
                   const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
