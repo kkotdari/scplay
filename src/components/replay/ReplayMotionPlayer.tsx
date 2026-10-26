@@ -20342,6 +20342,31 @@ export default function ReplayMotionPlayer({
           녹/노/빨). 켜짐(is-on) 표시는 안 쓴다 — 세 모드 중 '꺼진' 것이 없다. 밀리는 팀색을 건너뛰고, 중계가 꺼지면
           주인공색을 건너뛴다 — 그래서 **밀리에 중계까지 꺼지면 고를 것이 개인색 하나라 단추를 안 단다**.
           → 2026-10-26 두 갈래로(nextColorMode9 ★): 화면 주인이 있는 단독 화면은 개인색 ↔ 주인공색 · 그 밖은 개인색 ↔ 팀색(밀리면 단추 없음). */}
+      {/* ★ 재생 모드 토글 [자유 | 중계](2026-10-26, 요청: "재생기 버튼부 왼쪽무리에 재생모드 전환 토글 추가 · 두개의 라벨 자유 중계 사이를 오가는") — 왼쪽 무리 맨 앞.
+          보기 모드 잠금(2026-10-24 · 고른 모드로 끝까지)을 이 한 손잡이로 푼다. 켜진 쪽이 흰 바탕(형제 is-on 과 같은 반전). 중계 = 자동 중계(toggleCast9 · 요약이 돌던 중이면
+          요약은 그친다 — 중계를 끄면 digest 가 걷힌다) · 중계에서 연 개인 화면도 '중계' 쪽으로 친다(castBackRef9 — 끄면 중계로 돌아가는 자리). 자유 = 중계·개인 화면 다 놓고 손으로. */}
+      {(() => {
+        const castSide9 = castOn || (trackRaw !== null && castBackRef9.current);
+        const flip9 = (): void => {
+          if (castSide9) {
+            castBackRef9.current = false;
+            if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+            if (castOn) stopCast9();
+          } else toggleCast9();
+        };
+        return (
+          <button
+            type="button" role="switch" aria-checked={castSide9}
+            className="scr-motion-modetog"
+            onClick={flip9}
+            aria-label={castSide9 ? "재생 모드: 중계 — 누르면 자유" : "재생 모드: 자유 — 누르면 중계"}
+            title={castSide9 ? "중계 (누르면 자유)" : "자유 (누르면 중계)"}
+          >
+            <span className={cx(!castSide9 && "is-on")}>자유</span>
+            <span className={cx(castSide9 && "is-on")}>중계</span>
+          </button>
+        );
+      })()}
       {(!melee || soloColor9) && (() => {
         const next9 = nextColorMode9(colorNow, !!melee, soloColor9);
         return (

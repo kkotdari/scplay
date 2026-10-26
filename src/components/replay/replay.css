@@ -365,6 +365,20 @@
   background: rgba(255, 255, 255, 0.92); color: #10151a;
   box-shadow: none;
 }
+/* ★ 재생 모드 토글 [자유 | 중계](2026-10-26 · RMP mapBtnRow 맨 앞) — 형제 동그라미와 같은 키·같은 옅은 막의 알약 하나 · 켜진 쪽은 반전(위 is-on 과 같은 색). 누르면 다른 쪽으로. */
+.scr-motion-mapbtns button.scr-motion-modetog {
+  flex: none; display: inline-flex; align-items: stretch; gap: 0; box-sizing: border-box;
+  height: var(--mapbtn-h); padding: calc(2px * var(--ui)); margin: 0; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10); box-shadow: none; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.scr-motion-modetog > span {
+  display: inline-flex; align-items: center; padding: 0 calc(7px * var(--ui)); border-radius: 999px;
+  font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1; white-space: nowrap;
+  color: #f5f6f7; opacity: 0.7; transition: background-color .15s, color .15s, opacity .15s;
+}
+.scr-motion-modetog > span.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; opacity: 1; }
+.scr-motion-mapbtns button.scr-motion-modetog:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
 
 /* 지도 + 좌우 기둥 한 줄 — 기둥은 지도와 같은 높이로 늘어난다(요청: 로스터는 최상단,
    버튼단은 하단). */
