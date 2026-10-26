@@ -5395,6 +5395,8 @@
 @media (hover: hover) { .scr-motion-rangewrap:hover > .scr-motion-combat { opacity: 1; transform: none; } }
 .scr-motion-combat-area { fill: rgba(255, 255, 255, 0.2); }
 .scr-motion-combat-line { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.25px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* 우세 곡선(2026-10-26, 요청: "전투량 말고 팀(또는 개인) 우세 정도로" → "각각을 곡선으로" · ReplayMotionPlayer advLines9) — 편마다 유닛 몸값 한 줄 · 색은 편 색. */
+.scr-motion-adv-line { fill: none; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 /* 데미지 기록이 없는 판(판 ≤12) — 곡선 자리에 글 한 줄(2026-10-25, 요청: "데미지 기록 없는 게임은 없다고 띄우기") · 보이는 때는 곡선과 같다. */
 .scr-motion-combat.is-none {
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(2px * var(--ui, 1)); box-sizing: border-box;

@@ -15,7 +15,7 @@ const GHOST_PLATE_COL9 = "#3ee06a";
 import ReplayGuide from "./ReplayGuide";
 import QMarkIcon from "./QMarkIcon";
 /* 중계(중요도 기반 추적) — 편성표를 굽는 순수 문. 경기 한 벌에 한 번 돌고, 재생은 짚기만 한다. */
-import { baseArea9, castAt9, castDigest9, castFocus9, castMoves9, castPlan9, type BaseArea9, type CapPart9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
+import { baseArea9, castAt9, castValue9, castDigest9, castFocus9, castMoves9, castPlan9, type BaseArea9, type CapPart9, type CastPlanOpts9, type CastRole9, type CastSeg9 } from "./cast9";
 /* 미니맵 — 이제 **제 오버레이 판**이고 제 아이콘으로 여닫는다(요청: "미니맵 오버레이
    및 아이콘 추가"). 도구 판 안에 세들어 살던 시절과 달리, 켜고 끄는 것이 이것 하나다. */
 import ReplayFullscreenMinimap, { type MiniDot, type MiniPing, type MiniTag } from "./ReplayFullscreenMinimap";
@@ -1660,6 +1660,8 @@ const COMBAT_BINS9 = 160;
 /** ★ 요약 보기는 **주소 파라미터로만**(2026-10-25, 요청: "요약 모드 아직 불완전해서 숨길게 파라미터로만 켤 수 있게") — `#digest=1` 이면 보기 모드 판에 [요약] 이 선다 · 없으면 자유 · 풀 둘. */
 const DIGEST_ON9 = typeof location !== "undefined" && /(^|[#&,])digest=1/.test(location.hash);
 const COMBAT_FLASH_MS9 = 1200;
+/** 진행바 그래프 갈래 — "adv" 우세 띠(2026-10-26 · 요청: "전투량 말고 팀(또는 개인) 우세 정도로") · "combat" 옛 전투량 곡선(코드로 남김). */
+const SEEK_GRAPH9: "adv" | "combat" = "adv";
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
  *  60 과 30 사이에 설 자리가 없어(rAF 16.7ms 의 배수) 화소만 덜어낸다: dpr 3 폰이면 4/9 · dpr 2 폰은 그대로. 매우 낮음은 위 WEAK_DPR9(1.5). */
@@ -10821,6 +10823,65 @@ export default function ReplayMotionPlayer({
     }
     return new Set(m9.values()).size > 1 ? m9 : new Map<string, string>();
   }, [bases]);
+  /** ★ **진행바 우세 띠**(2026-10-26, 요청: "탐색바 그래프를 전투량 말고 1팀 2팀 우세 정도로" · "무조건 1·2팀은 아니고 각 팀(또는 개인)") —
+   *  시각마다 편(팀전 = 팀 · 난투·팀 없음 = 사람)이 가진 **유닛 몸값**(castValue9 · 미네랄 + 가스 1.5배 · 일꾼 포함 · 건물·애벌레·알 0) 몫을
+   *  편마다 **곡선 하나**로 그린다(같은 날 "아니 각각을 곡선으로 해야지" — 처음 낸 100% 쌓은 띠는 걷었다 · 모든 편이 한 자라 위에 있는 선이 앞선 편).
+   *  팀전 = TEAM_COLOR 1·2 · 난투 = 개인색. 생애(entData.lives)의 태어남·사라짐을
+   *  진행바 칸(COMBAT_BINS9)에 더하고 빼 누적한 뒤 4초 가우스로 편다(변태 알 사이 꺼짐을 덮는다). 편이 둘 아래면 없음.
+   *  돌려주는 것은 편마다 [색, 선 경로] — viewBox `0 0 COMBAT_BINS9 100`. 전투량 곡선(combatPath9)은 코드로 남긴다(SEEK_GRAPH9). */
+  const advLines9 = useMemo((): { fill: string; d: string }[] | null => {
+    if (!entData || !(total > 0)) return null;
+    const team9 = !melee && bases.some((b9) => teamMap9[b9.key] === 1) && bases.some((b9) => teamMap9[b9.key] === 2);
+    const sides9: { key: string; fill: string }[] = team9
+      ? [{ key: "t1", fill: TEAM_COLOR[1] }, { key: "t2", fill: TEAM_COLOR[2] }]
+      : bases.map((b9) => ({
+        key: b9.key,
+        fill: entData.players.find((pl) => pl.name === b9.key)?.color ?? rosterColor.get(b9.key) ?? "#9aa3b5",
+      }));
+    if (sides9.length < 2) return null;
+    const sideOf9 = new Map<number, number>();
+    for (const pl of entData.players) {
+      const k9 = team9 ? (teamMap9[pl.name] === 1 ? "t1" : teamMap9[pl.name] === 2 ? "t2" : "") : pl.name;
+      const i9 = sides9.findIndex((s9) => s9.key === k9);
+      if (i9 >= 0) sideOf9.set(pl.owner, i9);
+    }
+    const n9 = COMBAT_BINS9; const m9 = sides9.length;
+    const del9 = Array.from({ length: m9 }, () => new Float64Array(n9 + 1));
+    const binOf9 = (sec9: number): number => Math.max(0, Math.min(n9, Math.ceil((sec9 / total) * n9 - 0.5)));   // 칸 가운데 시각 ≥ sec 인 첫 칸
+    for (const l9 of entData.lives) {
+      if (l9.bld) continue;
+      const i9 = sideOf9.get(l9.owner);
+      if (i9 === undefined) continue;
+      const v9 = castValue9(l9.kind);
+      if (!(v9 > 0)) continue;
+      del9[i9][binOf9(l9.born)] += v9;
+      if (l9.died !== null) del9[i9][binOf9(l9.died)] -= v9;
+    }
+    const sg9 = Math.max(0.6, (4 / total) * n9);
+    const r9 = Math.ceil(sg9 * 3);
+    const w9: number[] = [];
+    for (let k9 = -r9; k9 <= r9; k9 += 1) w9.push(Math.exp(-(k9 * k9) / (2 * sg9 * sg9)));
+    const val9 = del9.map((d9) => {
+      const raw9 = new Float64Array(n9); let a9 = 0;
+      for (let i9 = 0; i9 < n9; i9 += 1) { a9 += d9[i9]; raw9[i9] = Math.max(0, a9); }
+      const sm9 = new Float64Array(n9);
+      for (let i9 = 0; i9 < n9; i9 += 1) {
+        let s9 = 0; let ws9 = 0;
+        for (let k9 = -r9; k9 <= r9; k9 += 1) { const j9 = i9 + k9; if (j9 >= 0 && j9 < n9) { s9 += raw9[j9] * w9[k9 + r9]; ws9 += w9[k9 + r9]; } }
+        sm9[i9] = ws9 > 0 ? s9 / ws9 : 0;
+      }
+      return sm9;
+    });
+    /* 편마다 곡선 하나(같은 자 — 모든 편의 최댓값이 꼭대기) — 위에 있는 선이 그 시각 앞선 편이다. */
+    let mx9 = 0;
+    for (const v9 of val9) for (let x9 = 0; x9 < n9; x9 += 1) if (v9[x9] > mx9) mx9 = v9[x9];
+    if (!(mx9 > 0)) return null;
+    return sides9.map((s9, i9) => {
+      const ys9: string[] = [];
+      for (let x9 = 0; x9 < n9; x9 += 1) ys9.push((100 - (val9[i9][x9] / mx9) * 94).toFixed(1));
+      return { fill: s9.fill, d: `M0,${ys9[0]} ${ys9.map((y9, x9) => `L${x9 + 0.5},${y9}`).join(" ")} L${n9},${ys9[n9 - 1]}` };
+    });
+  }, [entData, total, melee, bases, teamMap9, rosterColor]);
   const modeColor = (raw: string, team: 1 | 2 | undefined): string => {
     /* 주인공색 — 나 · 아군 · 적군 셋뿐이다. 개인색을 몰라도 서므로 기다리는 색(COLOR_PENDING)이 없다.
        ⚠ heroRaw9 는 이 함수보다 **아래**에 선언된다 — 렌더 중 이 함수를 부르는 자리(colorTable9)를 그 뒤로 옮겼다. */
@@ -15141,10 +15202,11 @@ export default function ReplayMotionPlayer({
      손을 떼기 직전 80ms 의 속도(드래그 = 손끝 · 핀치 = 두 손가락 가운데와 로그 배율)를 이어 받아, 손짓을 끝내지 않은 채 rAF 마다 감속하며 더 민다(팬 τ 325ms ·
      배율 τ 260ms — 거리 ≈ 속도 × τ). 지도 끝에 닿은 축은 그 자리에서 멎고, 다 멎으면 그때 endGestureXf 로 굳힌다. 다른 손짓(beginGestureXf)·지도 누름·
      카메라 이동(setView9)·잠금(추적·중계·분할)이 오면 곧장 멈춘다. 휠 줌은 원래 목표로 미끄러진다(wheelRun9 · WHEEL_TAU9)라 따로 안 건다. */
-  const FLING_TAU9 = 325;       // 팬 감속 시간 상수(ms)
+  /* PC 는 약하게(2026-10-25, 요청: "피시에서 드래그 관성 약하게") — τ 325 → 180 · 상한 4.5 → 3 · 문턱 0.25 → 0.35. 폰은 그대로. */
+  const FLING_TAU9 = smallDevice9 ? 325 : 180;   // 팬 감속 시간 상수(ms)
   const FLING_ZTAU9 = 260;      // 핀치 배율 감속 시간 상수(ms)
-  const FLING_MIN9 = 0.25;      // 이보다 느리게(px/ms) 떼면 관성 없음 — 천천히 놓는 손은 그 자리에 선다
-  const FLING_MAX9 = 4.5;       // 속도 상한(px/ms)
+  const FLING_MIN9 = smallDevice9 ? 0.25 : 0.35;   // 이보다 느리게(px/ms) 떼면 관성 없음 — 천천히 놓는 손은 그 자리에 선다
+  const FLING_MAX9 = smallDevice9 ? 4.5 : 3;   // 속도 상한(px/ms)
   const flingRef9 = useRef({ raf: 0, vx: 0, vy: 0, vz: 0, ax: 0, ay: 0, at: 0 });
   /** 손짓 뒤 미뤄 둔 상태 굳히기(endGestureXf ★). */
   const commitTimerRef9 = useRef(0);
@@ -19645,7 +19707,12 @@ export default function ReplayMotionPlayer({
         {/* 검색 결과 태그(위 searchHits9 ★★) — 진행바 위에 겹친 얇은 판(누름은 바로 흘린다). 지금 결과는 밝게. 손잡이 폭(--th)만큼 양끝을 비워 손잡이 가운데와 맞춘다. */}
         <span className={cx("scr-motion-rangewrap", combatShow9 && "is-combat")}>
         {/* 전투량 곡선(위 combatPath9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */}
-        {combatPath9 ? (
+        {SEEK_GRAPH9 === "adv" ? (advLines9 ? (
+          /* 우세 곡선(위 advLines9 ★) — 전투량 곡선과 같은 자리·같은 보이는 때. */
+          <svg className="scr-motion-combat is-adv" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
+            {advLines9.map((l9, i9) => <path key={i9} className="scr-motion-adv-line" d={l9.d} style={{ stroke: l9.fill }} />)}
+          </svg>
+        ) : null) : combatPath9 ? (
           <svg className="scr-motion-combat" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
             <path className="scr-motion-combat-area" d={combatPath9[0]} />
             <path className="scr-motion-combat-line" d={combatPath9[1]} />
