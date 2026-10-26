@@ -58,31 +58,6 @@ async function flush(): Promise<void> {
   for (const l of listeners) l();
 }
 
-/** 목록을 부를 때 필요한 격자를 미리 다 받아 둔다 — 댓글과 같은 이유다(ActivityComments의
- *  primeActivityComments 주석): 카드가 뜬 뒤에 격자가 도착하면 미니맵이 그때 생겨나며 카드
- *  키가 자라고, 그만큼 활동의 스크롤 자리가 밀린다. 이미 받아 둔 해시는 건너뛴다. */
-export async function primeReplayMaps(hashes: (string | null | undefined)[]): Promise<void> {
-  const need = [...new Set(hashes.filter((h): h is string => !!h && !cache.has(h)))];
-  for (let i = 0; i < need.length; i += BATCH_MAX) {
-    const chunk = need.slice(i, i + BATCH_MAX);
-    try {
-      const maps = await fetchMaps(chunk);
-      const got = new Map(maps.map((m) => [m.hash, m]));
-      for (const h of chunk) cache.set(h, got.get(h) ?? null);
-    } catch {
-      // 실패는 캐시에 안 남긴다 — 그 카드가 뜰 때 위 훅이 한 번 더 시도한다.
-    }
-  }
-  for (const l of listeners) l();
-}
-
-/** 맵연결 직후(요청: 게임 상세의 맵연결 버튼) — 서버가 돌려준 새 격자(그림 포함)를
- *  캐시에 바로 심어, 그 해시를 쓰는 모든 카드가 즉시 새 그림으로 갈아탄다. */
-export function applyReplayMap(grid: ReplayMapGrid): void {
-  cache.set(grid.hash, grid);
-  for (const l of listeners) l();
-}
-
 /* (걷음) 원본 그림 승급(?full=1) — 작은 판으로 받아 두었다가 크게 그릴 때 원본을 다시
    묻던 갈래다. 그림 자체가 사라졌다(요청: 참값 맵과 지형만 쓴다) — 지도는 이제 참값
    지형에서 **그 배율로 그때그때 다시 그린다**(ReplayMapCanvas). 굳은 스냅샷을 갈아

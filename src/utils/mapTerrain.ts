@@ -50,11 +50,6 @@ export const TILE = {
   ramp: 1 << 7,
 } as const;
 
-/** 타일셋 번호 → 이름(0~7) — 굽는 쪽 OpenBW의 차례 그대로다. */
-export const TILESET_NAME = [
-  "badlands", "platform", "install", "ashworld", "jungle", "desert", "ice", "twilight",
-] as const;
-
 export interface MapTerrain {
   /** 타일 단위 크기. */
   w: number;

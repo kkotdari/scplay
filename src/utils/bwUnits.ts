@@ -40,8 +40,6 @@ export const FRAME_SEC = 1 / 23.81;
 export const FP = 256;
 /** 사람이 읽는 수 → fp8 raw. */
 export const fp = (n: number): number => Math.round(n * FP);
-/** fp8 raw → 사람이 읽는 수. */
-export const unfp = (raw: number): number => raw / FP;
 /** C++ 정수 나눗셈(0 방향 절삭) — `damage /= damage_divisor`. */
 const truncDiv = (a: number, b: number): number => Math.trunc(a / b);
 /** fp8 곱(-∞ 방향 내림) — `damage *= 128_fp8`. [OBW] util.h "rounds towards negative infinity" */
@@ -67,15 +65,6 @@ export const SIZE_MUL_256: Record<DmgType, [number, number, number, number]> = {
   concussive: [0, 256, 128, 64],
   normal: [256, 256, 256, 256],
   ignoreArmor: [256, 256, 256, 256],
-};
-
-/** 사람이 읽는 배수표 — 표시·검산용. 셈에는 SIZE_MUL_256을 쓴다. */
-export const DMG_MULT: Record<DmgType, Record<UnitSize, number>> = {
-  independent: { independent: 0, small: 0, medium: 0, large: 0 },
-  explosive: { independent: 0, small: 0.5, medium: 0.75, large: 1 },
-  concussive: { independent: 0, small: 1, medium: 0.5, large: 0.25 },
-  normal: { independent: 1, small: 1, medium: 1, large: 1 },
-  ignoreArmor: { independent: 1, small: 1, medium: 1, large: 1 },
 };
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -490,35 +479,6 @@ export function speedOfUnit(unit: string, ups?: Set<string> | string[]): number 
   return upsHasUpgrade(ups, up) ? base * SPEED_UP_MULT : base;
 }
 
-/* ── 라바 ─────────────────────────────────────────────────────────────────────
-   해처리 계열은 라바를 뱉는다. 아래는 그 규칙(원작의 사실)이다.
-   ⚠ 여기 있던 "리플레이에 라바 자체는 안 남는다"는 말은 **명령 기록만 보던 시절의
-     것**이라 지웠다. 참값 자취에는 라바가 제 유닛으로 실린다 — 그래서 이 상수들로
-     라바 수를 되짚던 층(hatchState)은 걷어냈다(아래 걷어냄 주석). */
-
-/** 라바 하나가 새로 도는 데 걸리는 프레임 — 342(빠른 속도 23.81fps에서 14.36초).
- *  ⚠ [어림] 원전 코드를 못 읽었다. 널리 쓰이는 값이고 화면에서도 맞지만, 확인되면
- *  출처와 함께 고쳐라. */
-export const LARVA_SPAWN_FRAMES = 342;
-/** 14.36초. */
-export const LARVA_SPAWN_SEC = LARVA_SPAWN_FRAMES / 23.81;
-/** 해처리 하나가 데리고 있을 수 있는 라바 수 — 셋. */
-export const LARVA_MAX = 3;
-/** 시작 해처리는 처음부터 라바 셋을 데리고 있다. 새로 지은 해처리는 빈손으로 시작해
- *  LARVA_SPAWN_SEC마다 하나씩 채운다. */
-export const LARVA_START = 3;
-/** 경기 시작 자원(요청: "게임 시작 시 미네랄 50원") — 저그가 0초에 낼 수 있는 변태는
- *  이 돈으로 살 수 있는 만큼뿐이다. 드론 50이니 0초의 알은 많아야 하나다. */
-export const START_MINERALS = 50;
-/** 알 하나에서 둘이 나오는 유닛 — 개체 수를 알 수로 셀 때 둘씩 묶는다. */
-export const EGG_TWINS = new Set(["Zergling", "Scourge"]);
-/** 미네랄 값(변태에 드는 몫만) — 0초 알 개수를 가리는 데 쓴다. */
-export const MORPH_MINERAL: Record<string, number> = {
-  Drone: 50, Zergling: 50, Overlord: 100, Hydralisk: 75, Mutalisk: 100,
-  Scourge: 25, Queen: 100, Defiler: 50, Ultralisk: 200, Lurker: 50,
-  Guardian: 50, Devourer: 50, "Infested Terran": 100,
-};
-
 /* ── 값(미네랄·가스) ── [DAT] units.dat MineralCost / GasCost 실덤프.
    자원 모형(채취 수입 · 지출)의 지출 쪽 재료다. 손으로 적지 않았다 —
    heinermann/factorio-starcraft의 arr/units.lua(units.dat 통짜 덤프)를 긁어 이 프로젝트가
@@ -657,7 +617,6 @@ export const TURN_RATE: Record<string, number> = {
   Reaver: 160, Carrier: 130, Battlecruiser: 130, Guardian: 160, Ultralisk: 240,
   Lurker: 240, Arbiter: 200, "Science Vessel": 200, Overlord: 130,
 };
-export const DEFAULT_TURN_RATE = 380;
 
 /* ════════════════════════════════════════════════════════════════════════════
    6. 업그레이드 — [DAT] UpgradeType.cpp
@@ -721,73 +680,6 @@ export const UPGRADE_TIME: Record<string, [number, number, number]> = {
   "Anabolic Synthesis": [2000, 0, 1],
   "Charon Boosters": [2000, 0, 1],
 };
-
-/** 업그레이드 비용 [기준, 레벨당 증가] — 가스는 미네랄과 같은 값이다. */
-export const UPGRADE_COST: Record<string, [number, number]> = {
-  "Terran Infantry Armor": [100, 75],
-  "Terran Vehicle Plating": [100, 75],
-  "Terran Ship Plating": [150, 75],
-  "Zerg Carapace": [150, 75],
-  "Zerg Flyer Carapace": [150, 75],
-  "Protoss Ground Armor": [100, 75],
-  "Protoss Air Armor": [150, 75],
-  "Terran Infantry Weapons": [100, 75],
-  "Terran Vehicle Weapons": [100, 75],
-  "Terran Ship Weapons": [100, 50],
-  "Zerg Melee Attacks": [100, 50],
-  "Zerg Missile Attacks": [100, 50],
-  "Zerg Flyer Attacks": [100, 75],
-  "Protoss Ground Weapons": [100, 50],
-  "Protoss Air Weapons": [100, 75],
-  "Protoss Plasma Shields": [200, 100],
-  "U-238 Shells": [150, 0],
-  "Ion Thrusters": [100, 0],
-  "Titan Reactor": [150, 0],
-  "Ocular Implants": [100, 0],
-  "Moebius Reactor": [150, 0],
-  "Apollo Reactor": [200, 0],
-  "Colossus Reactor": [150, 0],
-  "Ventral Sacs": [200, 0],
-  Antennae: [150, 0],
-  "Pneumatized Carapace": [150, 0],
-  "Metabolic Boost": [100, 0],
-  "Adrenal Glands": [200, 0],
-  "Muscular Augments": [150, 0],
-  "Grooved Spines": [150, 0],
-  "Gamete Meiosis": [150, 0],
-  "Metasynaptic Node": [150, 0],
-  "Singularity Charge": [150, 0],
-  "Leg Enhancements": [150, 0],
-  "Scarab Damage": [200, 0],
-  "Reaver Capacity": [200, 0],
-  "Gravitic Drive": [200, 0],
-  "Sensor Array": [150, 0],
-  "Gravitic Boosters": [150, 0],
-  "Khaydarin Amulet": [150, 0],
-  "Apial Sensors": [100, 0],
-  "Gravitic Thrusters": [200, 0],
-  "Carrier Capacity": [100, 0],
-  "Khaydarin Core": [150, 0],
-  "Argus Jewel": [100, 0],
-  "Argus Talisman": [150, 0],
-  "Caduceus Reactor": [150, 0],
-  "Chitinous Plating": [150, 0],
-  "Anabolic Synthesis": [200, 0],
-  "Charon Boosters": [100, 0],
-};
-
-/** 무기 표가 실제로 쓰는 공격 업그레이드 이름. 증가량은 무기마다 다르다(Weapon.bonus). */
-export const WEAPON_UPGRADES: readonly string[] = [
-  "Protoss Air Weapons", "Protoss Ground Weapons", "Scarab Damage",
-  "Terran Infantry Weapons", "Terran Ship Weapons", "Terran Vehicle Weapons",
-  "Zerg Flyer Attacks", "Zerg Melee Attacks", "Zerg Missile Attacks",
-];
-/** 유닛 표가 실제로 쓰는 방어 업그레이드 이름 — 전부 레벨당 +1이다. 건물엔 안 붙는다. */
-export const ARMOR_UPGRADES: readonly string[] = [
-  "Protoss Air Armor", "Protoss Ground Armor", "Terran Infantry Armor",
-  "Terran Ship Plating", "Terran Vehicle Plating", "Zerg Carapace",
-  "Zerg Flyer Carapace",
-];
 /** 실드에만 걸리는 업그레이드 — 레벨당 −1. */
 export const PLASMA_SHIELD_UPGRADE = "Protoss Plasma Shields";
 /* ── 인구 ── [DAT] UnitType.cpp supplyRequired / supplyProvided
@@ -1018,11 +910,6 @@ export function missChanceRaw(env: {
   return r;
 }
 
-/** 그 원값의 실제 빗맞음 확률 — 비교가 `<=`라 (raw+1)/256이다.
- *  119 → 120/256 = 46.875%(흔히 말하는 "53%"는 명중률 쪽이다).
- *  0   → 1/256 = 0.39% — 평지에서도 빗나간다. */
-export const missProbability = (raw: number): number => (raw + 1) / 256;
-
 /** 다크 스웜을 뚫는가 — 빗맞음 플래그를 검사하는 hit_type은 normal과 corrosive_acid
  *  둘뿐이다. [OBW] bullet_hit */
 export function ignoresDarkSwarm(wp: Weapon): boolean {
@@ -1152,25 +1039,9 @@ export function splashDivisor(
 export const splashHitsOwnUnits = (wp: Weapon): boolean => wp.splashKind === "radial";
 /** 시전자 본인도 제 스플래시에 맞는가 — 사이오닉 스톰만 맞는다. */
 export const splashHitsCaster = (wp: Weapon): boolean => wp.id === "Psionic_Storm";
-
-/* ── 러커 ── 무기·사거리·쿨다운은 WEAPONS.Subterranean_Spines에 있다. 여기는 그 무기가
-   일반 스플래시 경로를 안 타기 때문에 따로 적어 두는 규칙들이다. */
-/** 같은 표적을 다시 때리기까지 막는 프레임 — st.recent_lurker_hits. */
-export const LURKER_REHIT_FRAMES = 32;
 /** 가시가 제 자리에서 나아가는 거리(픽셀)와 속도(픽셀/프레임) — behaviour 9 "go to max range". */
 export const LURKER_SPINE_TRAVEL_PX = 212;
 export const LURKER_SPINE_SPEED_PX = 18.75;
-/** 버로우를 풀기까지 최소 4틱 = 36프레임. 버로우한 러커는 이동 명령 자체가 거부된다. */
-export const UNBURROW_MIN_FRAMES = 36;
-
-/* ── 재생·치유 ── [OBW] 매 프레임 더한다. 초당값은 ×23.81이다. */
-/** 저그 체력 재생 +4_fp8/프레임 = 0.372/초. **정액이다 — 최대체력 비례가 아니다.** */
-export const ZERG_REGEN_PER_SEC = (4 / FP) / FRAME_SEC;
-/** 프로토스 실드 재생 +7_fp8/프레임 = 0.651/초. 정액이고, 완성 전 건물도 찬다. */
-export const SHIELD_REGEN_PER_SEC = (7 / FP) / FRAME_SEC;
-/** 테란 건물 화재 — 체력 33% 이하에서 20_fp8/프레임 = 1.86/초. **하한이 없어 타서 무너진다.** */
-export const TERRAN_BURN_PER_SEC = (20 / FP) / FRAME_SEC;
-export const TERRAN_BURN_HP_PCT = 33;
 /** 메딕 힐 — min(부족분, 200_fp8)/프레임 = 18.6/초. 에너지 1당 2HP, 중첩 불가, 사거리 30px. */
 export const MEDIC_HEAL_PER_SEC = (200 / FP) / FRAME_SEC;
 export const MEDIC_HEAL_RANGE_PX = 30;
@@ -1186,10 +1057,6 @@ export const STATUS_TICKS = {
    *  제 타이머를 따로 들고, 상태 틱(8프레임)마다 하나씩 준다 → 1200프레임(빠름 50.4초). */
   acidSpore: 150,
 } as const;
-/** 산성포자 최대 중첩 — [OBW] `if (u->acid_spore_count < 9) ++…`. */
-export const ACID_SPORE_MAX = 9;
-/** 산성포자가 번지는 반경(픽셀) — [OBW] add_acid_spore(pos, owner)의 square_at(pos, 64). */
-export const ACID_SPORE_PX = 64;
 /** 디펜시브 매트릭스 흡수량. */
 export const MATRIX_HP = 250;
 /** 스팀팩 자해 — 방어력·실드 무시 생피해. hp > 10일 때만 발동한다. */
@@ -1199,62 +1066,6 @@ export const STIM_SELF_DAMAGE = 10;
  *    SCV·메딕·탱크에도 증거(f=16)가 남는다. 실측으로 한 경기에서 SCV 54기·메딕 3기·
  *    탱크 2기가 스팀 증거를 갖고 있었다. 그대로 믿으면 SCV가 두 배로 빨리 때린다. */
 export const STIM_UNITS = new Set(["Marine", "Firebat"]);
-/** 플레이그 — 피해 공식을 안 탄다(직접 차감). 75틱에 걸쳐 300, 절대 못 죽인다. */
-export const PLAGUE_TOTAL = 300;
-/** 이레디에이트 — ignoreArmor로 75틱에 250. 표적 32px 안 유기물 비건물 전원에게 번진다. */
-export const IRRADIATE_TOTAL = 250;
-/** 핵 — 표적마다 max(500, (최대체력+최대실드) × 2/3), 폭발형. */
-export const nukeDamage = (maxHpPlusShield: number): number =>
-  Math.max(500, Math.trunc((maxHpPlusShield * 2) / 3));
-
-/* ── 판정 주기 ── [OBW] 오더는 9프레임마다 한 번 돈다(order_process_timer=8 재장전). */
-export const ORDER_PROCESS_FRAMES = 9;
-/** 표적을 다시 고르는 주기. */
-export const RETARGET_FRAMES = 15;
-
-/* ════════════════════════════════════════════════════════════════════════════
-   9. 옛 이름 껍데기 — 아직 옛 모양으로 부르는 곳(simCore)이 있어 남겨 둔다.
-      호출부를 dealOneHit/attackOnce로 옮기고 나면 이 절은 지운다.
-   ════════════════════════════════════════════════════════════════════════════ */
-
-export const UNIT_SIZE: Record<string, UnitSize> =
-  Object.fromEntries(Object.entries(UNITS).map(([k, v]) => [k, v.size]));
-export const UNIT_ARMOR: Record<string, number> =
-  Object.fromEntries(Object.entries(UNITS).map(([k, v]) => [k, v.armor]));
-export const UNIT_HP: Record<string, number> =
-  Object.fromEntries(Object.entries(UNITS).map(([k, v]) => [k, v.hp]));
-export const UNIT_SHIELD: Record<string, number> =
-  Object.fromEntries(Object.entries(UNITS).map(([k, v]) => [k, v.shield]));
-
-/** 지상 무기 — 없으면 지상을 못 친다.
- *  ⚠ 벙커가 여기 없는 것은 빠뜨린 게 아니다. 원작에서 벙커 자신은 표적을 잡지도 쏘지도
- *  않는다 — 안에 탄 마린·파이어뱃·고스트가 쏜다(무기 +64px, 획득 +2타일). */
-export const WEAPON_GROUND: Record<string, Weapon> = Object.fromEntries(
-  Object.entries(UNITS).filter(([, v]) => v.ground).map(([k, v]) => [k, WEAPONS[v.ground!]]),
-);
-/** 대공 무기 — 없으면 공중을 못 친다. */
-export const WEAPON_AIR: Record<string, Weapon> = Object.fromEntries(
-  Object.entries(UNITS).filter(([, v]) => v.air).map(([k, v]) => [k, WEAPONS[v.air!]]),
-);
-
-/** 옛 damageOf의 자리 — 새 셈(attackOnce)을 부르는 얇은 껍데기다.
- *
- *  옛 것과 달라진 점 둘. ① 순서를 바로잡았다((피해−방어력)×크기배수). ② 한 번의 공격에
- *  들어가는 히트 수(질럿 2, 파이어뱃 3, 발키리 8)를 반영한다 — 방어력이 히트마다 빠지므로
- *  합산한 값에서 한 번 빼는 것과는 결과가 다르다.
- *
- *  ⚠ 이 껍데기는 표적의 실드가 얼마나 남았는지를 모른다. onShield면 실드가 통째로
- *  흡수한다고 보고 방어력·크기배수 없는 값을, 아니면 실드가 하나도 없다고 보고 체력
- *  피해를 낸다. 실드가 애매하게 남은 순간의 넘침은 못 낸다 — 그 자리는 호출부를
- *  dealOneHit으로 옮겨야 맞아떨어진다. */
-export function damageOf(w: Weapon, size: UnitSize, armor: number, onShield: boolean): number {
-  if (onShield) {
-    // 실드는 유닛 방어력도 크기 배수도 안 받는다. 하한 0.5만 걸린다.
-    return unfp(Math.max(fp(w.dmg), 128) * w.hits);
-  }
-  const t: DmgTarget = { hp: 1 << 30, shield: 0, hasShield: false, size, armor };
-  return unfp(attackOnce(w, t).hp);
-}
 
 /* ════════════════════════════════════════════════════════════════════════════
    10. 발자국·몸집 — [DAT] unitDimensions
@@ -1348,45 +1159,9 @@ export function buildingBox(kind: string): [number, number, number, number] {
   return [f[0], f[1], 0, 0];
 }
 
-/** 지상 유닛 몸 상자(타일) — [폭, 높이]. 틈을 지날 수 있나는 이 둘로 가른다:
- *  가로 틈은 폭, 세로 틈은 높이가 들어가야 지난다(저글링 16×16px = 0.5×0.5타일). */
-export function unitBoxTiles(kind: string): [number, number] {
-  const u = UNITS[kind];
-  if (!u) return [BODY_R.medium * 2, BODY_R.medium * 2];
-  const [bl, bu, br, bd] = u.box;
-  return [(bl + br + 1) / 32, (bu + bd + 1) / 32];
-}
-
 /** 자원 발자국(타일) — Resource_Mineral_Field / Resource_Vespene_Geyser. */
 export const MINERAL_FOOT: [number, number] = [2, 1];
 export const GEYSER_FOOT: [number, number] = [4, 2];
-
-/* ── 자원 채취 순환(요청: 자원 모델을 붙일 거라 공식문서급으로) ────────────────────
-   원작의 한 번 왕복은 늘 같은 차례다:
-     밭·간헐천 테두리로 걸어가 → 붙고(딜레이) → 캐고 → 떨어지고(딜레이) →
-     홀 테두리로 걸어와 → 반납(딜레이) → 되돌아선다.
-   · 한 번에 실어 나르는 양은 미네랄·가스 모두 8이다.
-   · **밭 하나·간헐천 하나에는 한 번에 한 일꾼만 붙는다** — 나머지는 곁에서 기다린다.
-     이것이 '밭당 3기까지가 쓸모 있다'는 포화 규칙의 뿌리다.
-   · 가스는 일꾼이 정제소 **안으로 들어가** 캐는 동안 화면에서 사라진다.
-
-   ★ 프레임 값의 출처 — 채취 자체(MINERAL·GAS)는 널리 인용되는 커뮤니티 문서(BWAPI·
-     Liquipedia 계열) 값이고, 붙고 떨어지고 반납하는 세 딜레이는 그만큼 확실한 출처를
-     못 찾아 왕복 리듬에 맞춘 어림이다. 자원 모델(수입 곡선)을 붙일 때 **이 블록만**
-     원전과 대조하면 된다 — 순환 전체가 여기서만 시간을 읽는다. */
-/** 한 번 왕복에 실어 나르는 양(미네랄·가스 공통). */
-export const HARVEST_AMOUNT = 8;
-/** 미네랄에 붙어 캐는 시간(프레임). */
-export const MINE_MINERAL_FRAMES = 80;
-/** 정제소 안에서 가스를 뽑는 시간(프레임) — 이 동안 일꾼은 안 보인다. */
-export const MINE_GAS_FRAMES = 37;
-/** 자원에 붙는 딜레이(프레임, 어림) — 도착해서 캐기 시작하기까지. */
-export const MINE_ATTACH_FRAMES = 11;
-/** 자원에서 떨어지는 딜레이(프레임, 어림) — 캐기를 마치고 돌아서기까지. */
-export const MINE_DETACH_FRAMES = 8;
-/** 홀에 반납하는 딜레이(프레임, 어림) — 닿아서 되돌아서기까지. */
-export const MINE_RETURN_FRAMES = 12;
-
 
 /* ════════════════════════════════════════════════════════════════════════════
    12. 짓는 시간 — [DAT] units.dat BuildTime 실덤프
@@ -1713,40 +1488,6 @@ export function moveDynOf(unit: string, ups?: Set<string> | string[]): MoveDyn |
     turnCourse: d.up.turnCourse, turnBody: d.up.turnBody,
   };
 }
-
-/** 가속을 타는가 — false면 코어는 첫 틱부터 최고속을 꽂아야 한다.
- *  표에 없는 유닛은 옛 등속 걸음이 곧 즉발이므로 false다. */
-export const acceleratesOf = (unit: string): boolean => (MOVE_DYN[unit]?.accel ?? 0) > 0;
-
-/** 최고속에 닿기까지 걸리는 초 — 즉발이면 0. 검산용이자 코어의 램프 길이다. */
-export function timeToTopSpeed(unit: string, ups?: Set<string> | string[]): number {
-  const d = moveDynOf(unit, ups);
-  if (!d || d.accel <= 0) return 0;
-  return d.top / d.accel;
-}
-
-/* ════════════════════════════════════════════════════════════════════════════
-   12. 버로우·벙커 부속 — 8절에 없던 나머지.
-
-   8절이 이미 내보내는 것(LURKER_REHIT_FRAMES · LURKER_SPINE_TRAVEL_PX ·
-   LURKER_SPINE_SPEED_PX · UNBURROW_MIN_FRAMES · BUNKER_RANGE_PX ·
-   BUNKER_ACQUIRE_TILES · BUNKER_SHOOTERS)은 여기서 다시 만들지 않는다.
-   러커 가시의 사거리를 찾는다면 WEAPONS.Subterranean_Spines.rangePx(192px = 6타일)가
-   그 값이다 — 따로 둔 LURKER_SPINE.range 같은 이름은 만들지 않았다. 같은 숫자가 두 곳에
-   있으면 반드시 한 곳이 뒤처진다는 것이 이번 병합에서 배운 것이다.
-   스플래시 안쪽 반경도 마찬가지다. 땅속 표적이 전액을 받는 그 '안쪽 링'은
-   Weapon.splashPx[0]이다 — inner 라는 별도 칸을 더하지 않았다.
-   ════════════════════════════════════════════════════════════════════════════ */
-
-/** 버로우할 수 있는 정체 — [DAT] units.dat flag_can_burrow.
- *  영웅 셋(Unclean One·Hunter Killer·Devouring One)은 이 프로젝트 이름표에 안 나와 뺐다. */
-export const BURROW_UNITS = new Set([
-  "Zergling", "Hydralisk", "Drone", "Defiler", "Infested Terran", "Lurker",
-]);
-
-/** 버로우가 끝나기까지의 하한(프레임) — 서 있고 이미 그 방향을 볼 때 2틱 = 18프레임.
- *  걷다가 들어가면 감속·회전만큼 더 걸린다. UNBURROW_MIN_FRAMES(36)와 짝이다. */
-export const BURROW_MIN_FRAMES = 2 * ORDER_PROCESS_FRAMES;
 
 /** 벙커 자리 수 — [DAT] units.dat space_provided. */
 export const BUNKER_SEATS = 4;

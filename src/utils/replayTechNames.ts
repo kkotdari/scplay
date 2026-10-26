@@ -84,61 +84,6 @@ export const ARMOR_WEAPON_PAIRS: Record<string, { weapon: UpgradeName; armor: Up
   ],
 };
 
-/** 그 종족의 공/방 묶음이 무엇을 굴리는 업그레이드인지 — "지상 3-3", "공중 2-2"처럼 부른다. */
-export const UPGRADE_LINE_KO: Record<string, string> = {
-  "Terran Infantry Weapons": "보병",
-  "Terran Vehicle Weapons": "메카닉",
-  "Terran Ship Weapons": "공중",
-  // 저그는 지상 공격이 근접(저글링·울트라)과 원거리(히드라)로 갈린다 — 둘 다 "지상"이라
-  // 부르면 한 사람에게 같은 이름이 두 줄 나온다. 실제로 부르는 대로 나눠 적는다.
-  "Zerg Melee Attacks": "저글링",
-  "Zerg Missile Attacks": "히드라",
-  "Zerg Flyer Attacks": "공중",
-  "Protoss Ground Weapons": "지상",
-  "Protoss Air Weapons": "공중",
-};
-
-/** 그 자체로 이야깃거리가 되는 '상징 업그레이드' — 속업·사업처럼 이름만 대도 그림이 그려지는
- *  것들만. 흔하다고 다 빼지는 않는다(저글링 속업은 거의 다 하지만 '언제' 했는지가 곧 판이다). */
-export const SIGNATURE_UPGRADE_KO: Partial<Record<UpgradeName, string>> = {
-  "Metabolic Boost": "저글링 속업",
-  "Adrenal Glands": "저글링 아드레날린",
-  "Muscular Augments": "히드라 속업",
-  "Grooved Spines": "히드라 사업",
-  "Pneumatized Carapace": "오버로드 속업",
-  "Ventral Sacs": "오버로드 수송",
-  "Chitinous Plating": "울트라 방업",
-  "Anabolic Synthesis": "울트라 속업",
-  "U-238 Shells": "마린 사업",
-  "Ion Thrusters": "벌처 속업",
-  "Charon Boosters": "골리앗 사업",
-  "Singularity Charge": "드라군 사업",
-  "Leg Enhancement": "질럿 속업",
-  "Gravitic Drive": "셔틀 속업",
-  "Carrier Capacity": "캐리어 인터셉터 증설",
-  "Reaver Capacity": "리버 스캐럽 증설",
-  "Scarab Damage": "스캐럽 공업",
-  "Khaydarin Amulet": "템플러 에너지업",
-  // 아래는 '나오면 그 판의 방향이 보이는' 것들 — 옵저버 속업은 클로킹 싸움, 디파일러·
-  // 다크아콘 에너지업은 마법을 주력으로 쓰겠다는 선언이다(요청: 유의미한 업그레이드 진술).
-  "Gravitic Booster": "옵저버 속업",
-  "Sensor Array": "옵저버 시야업",
-  "Gravitic Thrusters": "스카웃 속업",
-  "Apial Sensors": "스카웃 시야업",
-  "Argus Talisman": "다크아콘 에너지업",
-  "Argus Jewel": "커세어 에너지업",
-  "Defiler Energy": "디파일러 에너지업",
-  "Khaydarin Core": "아비터 에너지업",
-  "Gamete Meiosis": "퀸 에너지업",
-  "Moebius Reactor": "고스트 에너지업",
-  "Ocular Implants": "고스트 시야업",
-  "Titan Reactor": "베슬 에너지업",
-  "Caduceus Reactor": "메딕 에너지업",
-  "Apollo Reactor": "레이스 에너지업",
-  "Colossus Reactor": "배틀크루저 에너지업",
-  Antennae: "오버로드 시야업",
-};
-
 /* ── 연구 이름의 한국어(요청: "인포팝업 유닛명 기술명은 한글 음독으로") ─────────────
    인포 팝업은 여태 `TECH_KO[n] ?? n`으로 이름을 냈다. TECH_KO는 **기술(Tech)** 표라
    업그레이드는 한 줄도 없어, '연구 중'·'연구 완료'가 죄다 영문으로 나왔다
@@ -327,33 +272,6 @@ export const UPGRADE_UNITS: Record<string, readonly string[]> = {
   Burrowing: ["Zergling", "Hydralisk", "Drone", "Defiler", "Lurker", "Infested Terran"],
 };
 
-/** 상징 업그레이드의 '이야깃거리 점수' — TECH_RANK와 같은 뜻이다(클수록 먼저 말한다).
- *
- *  기준은 '그 업그레이드가 판을 바꾸나'다(지적으로 바로잡은 순서).
- *   · 속업·사업(이동속도·사거리)이 가장 높다. 병력의 성능 자체가 달라져서, 언제 찍었느냐로
- *     그 판의 싸움이 갈린다 — 발업 저글링과 안 된 저글링은 다른 유닛이다.
- *   · 오버로드 수송·셔틀 속업처럼 '무엇을 하겠다'는 선언이 그다음이다.
- *   · 에너지업·시야업이 가장 낮다. 그 유닛을 오래 쓰면 으레 따라오는 것이라 판을 바꾸지
- *     않는다(지적: 템플러·다크아콘·아비터·디파일러 에너지업은 낮은 축이다).
- *
- *  여기 없는 것은 0점이고, 0점짜리는 아예 문장이 되지 않는다(replaySummary의
- *  UPGRADE_MIN_RANK). 캐리어 인터셉터 증설과 리버 스캐럽 증설이 그렇다 — 그 유닛을 쓰면
- *  으레 따라오는 것이라 "무슨 일이 있었나"를 말해 주지 않는다(지적). */
-export const UPGRADE_RANK: Partial<Record<UpgradeName, number>> = {
-  // 병력의 성능 자체가 달라지는 것들 — 속업·사업.
-  "Metabolic Boost": 6, "Adrenal Glands": 6, "Muscular Augments": 6, "Grooved Spines": 6,
-  "Singularity Charge": 6, "Leg Enhancement": 6, "Ion Thrusters": 6, "Charon Boosters": 6,
-  "U-238 Shells": 6, "Anabolic Synthesis": 6, "Chitinous Plating": 6,
-  // '무엇을 하겠다'는 선언 — 드랍을 가겠다, 옵저버로 훑겠다.
-  "Ventral Sacs": 4, "Gravitic Drive": 4, "Gravitic Booster": 4, "Gravitic Thrusters": 4,
-  "Pneumatized Carapace": 4, "Scarab Damage": 4,
-  // 오래 쓰면 으레 따라오는 것들 — 에너지업·시야업.
-  "Khaydarin Amulet": 2, "Khaydarin Core": 2, "Argus Talisman": 2, "Argus Jewel": 2,
-  "Defiler Energy": 2, "Gamete Meiosis": 2, "Moebius Reactor": 2, "Titan Reactor": 2,
-  "Colossus Reactor": 2, "Apollo Reactor": 2, "Caduceus Reactor": 2,
-  "Sensor Array": 2, "Apial Sensors": 2, "Ocular Implants": 2, Antennae: 2,
-};
-
 /** 기술의 '이야깃거리 점수' — 클수록 요약에서 먼저 말한다.
  *
  *  예전에는 정해둔 집합에서 "먼저 연구한 것 하나"를 골랐다. 그러면 거의 모든 테란 경기가
@@ -388,12 +306,6 @@ export interface TechSignalsLike {
   firstTechUseFrame: Record<string, number>;
 }
 
-/** 이 기술을 연구했나. 이름이 TechName으로 좁혀져 있어, 없는 이름이나 업그레이드 이름을
- *  잘못 넣으면 컴파일이 안 된다(예전에 "Cloaking"·"Cloaking Field"로 헛돌던 자리들). */
-export function hasTech(s: TechSignalsLike, name: TechName): boolean {
-  return s.techNames.includes(name);
-}
-
 /** 이 업그레이드를 했나 — 단계는 안 본다(1단계라도 true). */
 export function hasUpgrade(s: TechSignalsLike, name: UpgradeName): boolean {
   return s.upgradeNames.includes(name);
@@ -412,29 +324,6 @@ export function upgradeLevel(s: TechSignalsLike, name: UpgradeName): number {
 
 /** 브루드워 공/방 업그레이드의 최고 단계. */
 export const MAX_UPGRADE_LEVEL = 3;
-
-/** 이 기술을 처음 연구한 프레임(안 했으면 null). */
-export function techFrame(s: TechSignalsLike, name: TechName): number | null {
-  return s.firstTechFrame[name] ?? null;
-}
-
-/** 이 업그레이드를 처음 누른 프레임(안 했으면 null) — 공/방이면 1단계 시점이다. */
-export function upgradeFrame(s: TechSignalsLike, name: UpgradeName): number | null {
-  return s.firstUpgradeFrame[name] ?? null;
-}
-
-/** 이 사람이 연구한 기술 중 가장 이야깃거리가 되는 것 하나 — TECH_RANK가 큰 쪽.
- *  같은 점수면 먼저 연구한 것을 고른다(그 경기에서 더 이른 결정이라서). */
-export function topTech(s: TechSignalsLike): TechName | null {
-  let best: TechName | null = null;
-  let bestRank = 0;
-  for (const raw of s.techNames) {
-    const name = raw as TechName;
-    const rank = TECH_RANK[name] ?? 0;
-    if (rank > bestRank) { bestRank = rank; best = name; }
-  }
-  return best;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "썼나" — 연구했다는 사실만으로는 아무 일도 안 일어난 것이다(지적).
@@ -503,43 +392,6 @@ export const USE_CMD_TO_TECH: Record<string, TechName> = {
 /** 마인은 심는 순간의 Order로 잡는다. */
 export const PLACE_MINE_ORDER = "PlaceMine";
 
-/** 이 기술을 실제로 몇 번 썼나 — 0이면 연구만 하고 안 쓴 것이다. */
-export function techUseCount(s: TechSignalsLike, name: TechName): number {
-  return s.techUses[name] ?? 0;
-}
-
-/** 실제로 쓴 기술 중 가장 이야깃거리가 되는 것 — 안 쓴 것은 아예 후보가 아니다.
- *
- *  드묾(TECH_RANK)만 보면 안 된다. 실제 리플레이에서 시즈모드를 49번 쓰고 마인을 2번 깐
- *  테란이 있었는데, 랭크만 보면 마인(2)이 시즈모드(1)를 이겨 "마인을 두 번 깔았다"가
- *  나간다 — 그 판의 그림은 시즈 49번 쪽이다. 그래서 많이 쓸수록 점수를 얹는다(10번마다
- *  1점).
- *
- *  다만 그 덤은 최상위(10)를 넘볼 수 없어야 한다. 예전 상한이 3이라 스톰 30번(7+3=10)이
- *  핵 2발(10+0=10)과 동점이 됐고, 동점은 횟수로 갈리니 늘 스톰이 이겼다 — 그 판에서
- *  유일하게 드문 일인 핵이 밀려났다(지적: 핵 쏜 게 요약에 안 나온다). 상한을 2로 낮추면
- *  아무리 많이 써도 9가 최대라 10짜리(핵·마인드컨트롤)를 못 넘고, 원래 이 덤이 풀려던
- *  문제(시즈 1+2=3 > 마인 2)는 그대로 풀린다. */
-const USE_BONUS_MAX = 2;
-export function topUsedTech(s: TechSignalsLike): TechName | null {
-  let best: TechName | null = null;
-  let bestScore = 0;
-  let bestUses = 0;
-  for (const [raw, uses] of Object.entries(s.techUses)) {
-    if (uses <= 0) continue;
-    const name = raw as TechName;
-    const rank = TECH_RANK[name] ?? 0;
-    if (rank <= 0) continue;
-    const score = rank + Math.min(USE_BONUS_MAX, Math.floor(uses / 10));
-    if (score > bestScore || (score === bestScore && uses > bestUses)) {
-      bestScore = score;
-      bestUses = uses;
-      best = name;
-    }
-  }
-  return best;
-}
-
 /** 실제로 쓴 기술을 이야깃거리 순으로 여러 개 — topUsedTech와 같은 점수 규칙이다.
  *
  *  사람마다 하나만 말하면 요약이 늘 같은 말만 하게 된다(요청: 다양한 세부 기술 사용 진술).
@@ -547,72 +399,6 @@ export function topUsedTech(s: TechSignalsLike): TechName | null {
  *  (시즈·스팀·마인)까지 줄줄이 붙으면 그것대로 지루해서, 두 번째부터는 '판을 가르는' 급
  *  (TECH_RANK가 SECOND_TECH_MIN_RANK 이상)에 실제로 여러 번 쓴 것만 남긴다. */
 export const SECOND_TECH_MIN_RANK = 5;
-export const SECOND_TECH_MIN_USES = 3;
-export function topUsedTechs(s: TechSignalsLike, max: number): TechName[] {
-  const scored: { name: TechName; score: number; uses: number }[] = [];
-  for (const [raw, uses] of Object.entries(s.techUses)) {
-    if (uses <= 0) continue;
-    const name = raw as TechName;
-    const rank = TECH_RANK[name] ?? 0;
-    if (rank <= 0) continue;
-    scored.push({ name, score: rank + Math.min(USE_BONUS_MAX, Math.floor(uses / 10)), uses });
-  }
-  scored.sort((a, b) => b.score - a.score || b.uses - a.uses);
-  return scored
-    .filter((x, i) => i === 0
-      || ((TECH_RANK[x.name] ?? 0) >= SECOND_TECH_MIN_RANK && x.uses >= SECOND_TECH_MIN_USES))
-    .slice(0, max)
-    .map((x) => x.name);
-}
-
-/** 그 기술을 "쓴다"를 우리말로 어떻게 말하나 — 마법은 쓰지만 시즈는 펴고 마인은 깐다.
- *  {n}에 횟수가 들어간다. 없는 기술은 기본형("…를 N번 씀")을 쓴다.
- *
- *  기술마다 제 말투를 적어 두는 이유는 두 가지다. 하나는 정확함이다 — "다크스웜을 썼다"
- *  보다 "다크스웜을 깔아 총알을 지웠다"가 그 마법이 실제로 한 일이다. 다른 하나는 다채로움
- *  이다(요청: 다양한 세부 기술 사용 진술) — 기본형만 쓰면 어느 경기든 "…를 N번 썼다"
- *  한 줄로 끝나서, 스톰 서른 번과 브루들링 다섯 번이 같은 문장이 된다. 한 기술에 여럿을
- *  적어 두면 같은 마법이라도 경기마다 다르게 읽힌다. */
-export const TECH_USE_PHRASE: Partial<Record<TechName, string[]>> = {
-  // ── 능력(마법이 아닌 것) ──
-  "Tank Siege Mode": ["시즈를 {n}번 폄", "탱크를 {n}번 앉혔다 일으킴"],
-  "Spider Mines": ["마인을 {n}개 깜", "길목마다 마인을 {n}개 심음"],
-  Burrowing: ["버로우로 {n}번 숨음", "{n}번 땅에 숨어 기다림"],
-  "Personnel Cloaking": ["고스트를 {n}번 숨김", "고스트를 {n}번 지워 놓고 움직임"],
-  "Cloaking Field": ["레이스를 {n}번 숨김", "레이스를 {n}번 지워 놓고 들어감"],
-  "Stim Packs": ["스팀팩을 {n}번 씀", "스팀을 {n}번 올려 달려듦"],
-  // ── 프로토스 ──
-  "Psionic Storm": [
-    "스톰을 {n}번 뿌림", "사이오닉 스톰으로 {n}번 지짐", "머리 위로 스톰을 {n}번 떨굼",
-  ],
-  "Stasis Field": [
-    "스테이시스로 {n}번 병력을 통째로 묶음", "스테이시스 필드를 {n}번 걸어 시간을 벌음",
-  ],
-  Hallucination: ["할루시네이션으로 {n}번 허상을 앞세움", "환영을 {n}번 만들어 앞세움"],
-  "Mind Control": ["마인드컨트롤로 {n}번 빼앗음", "다크아콘으로 {n}번 남의 유닛을 가져옴"],
-  Feedback: ["피드백으로 {n}번 마나를 터뜨림", "상대 마법 유닛을 {n}번 피드백으로 지움"],
-  "Disruption Web": ["디스럽션 웹을 {n}번 깔아 지상 공격을 막음", "웹을 {n}번 깔아 길을 끊음"],
-  Maelstrom: ["마엘스트롬으로 {n}번 얼려 세움", "마엘스트롬을 {n}번 걸어 발을 묶음"],
-  // ── 저그 ──
-  "Dark Swarm": [
-    "다크스웜을 {n}번 깔아 총알을 지움", "스웜 아래로 {n}번 밀고 들어감",
-  ],
-  Plague: ["플레이그를 {n}번 뿌려 체력을 깎음", "플레이그로 {n}번 병력을 갉아 놓음"],
-  Consume: ["컨슘으로 {n}번 마나를 채움", "저글링을 {n}번 삼켜 마나를 채움"],
-  Ensnare: ["인스네어를 {n}번 뿌려 발을 묶음", "인스네어로 {n}번 속도를 죽임"],
-  Parasite: ["패러사이트로 {n}번 시야를 훔침", "{n}번 패러사이트를 걸어 속을 들여다봄"],
-  "Spawn Broodlings": [
-    "브루들링으로 {n}번 유닛을 통째로 지움", "브루들링을 {n}번 심어 한 방에 없앰",
-  ],
-  // ── 테란 ──
-  Lockdown: ["락다운으로 {n}번 묶어 놓음", "락다운을 {n}번 걸어 세워 둠"],
-  "EMP Shockwave": ["EMP로 {n}번 마나와 실드를 날림", "EMP를 {n}번 터뜨려 판을 정리함"],
-  Irradiate: ["이레디에이트를 {n}번 걸음", "이레디로 {n}번 뭉친 병력을 녹임"],
-  "Yamato Gun": ["야마토를 {n}번 쏨", "야마토로 {n}번 큰 것을 지움"],
-  Restoration: ["리스토레이션으로 {n}번 풀어냄", "걸린 마법을 {n}번 풀어 줌"],
-  "Optical Flare": ["옵티컬 플레어로 {n}번 눈을 멀게 함", "{n}번 눈을 멀게 해 놓고 붙음"],
-  "Defensive Matrix": ["디펜시브 매트릭스를 {n}번 씌움", "{n}번 매트릭스로 감싸 살림"],
-};
 
 /** 그 마법을 쓸 수 있는 유닛 — 마법 하나는 대개 한 유닛만 쓴다. 명령을 내린 순간 골라져
  *  있던 유닛 번호에 이 이름을 붙여 두면, 그 뒤(그리고 그 앞)의 이동·공격 명령이 '누구를

@@ -340,19 +340,21 @@ function glaive9(v: number): Float32Array {
   }), 0.45);
 }
 
-/** 용접(SCV 건설·수리·채집 가스) — 지지직 튀는 불꽃 + 높은 쉬익 · 아크 윙. */
+/** 용접(SCV 건설·수리·채집 가스) — 부드럽게(2026-10-26, 요청: "용접소리 거슬려서 좀 부드럽게") — 옛 판은 3.5kHz 위 흰 잡음 쉬익에 불꽃이 세게 튀었다.
+ *  이제 1.2~2.6kHz 띠의 잔 지글거림(작은 알갱이만 · 큰 튐 없음)을 저역으로 한 번 더 누르고, 아래에 낮은 아크 웅을 옅게 깐다 · 앞뒤를 천천히 연다. */
 function weld9(v: number): Float32Array {
   const r = rng9(1401 + v);
-  const hp = new Biquad9("hp", 3500, 0.7);
-  let burst = 0;
+  const bp = new Biquad9("bp", 1800 + v * 200, 0.9);
+  const lp = new Biquad9("lp", 2600, 0.7);
+  let grain = 0;
   return finish9(render9(0.55, (t) => {
-    if (r() < 0.006) burst = 0.6 + r() * 0.4;
-    burst *= 0.993;
-    const sizzle = hp.run(r() * 2 - 1) * (0.25 + burst);
-    const arc = Math.sin(2 * Math.PI * (120 + v * 10) * t) * 0.12 * (r() < 0.5 ? 1 : 0.6);
-    const env = Math.min(1, t / 0.02) * Math.min(1, (0.55 - t) / 0.08);
+    if (r() < 0.02) grain = 0.2 + r() * 0.25;
+    grain *= 0.985;
+    const sizzle = lp.run(bp.run(r() * 2 - 1) * (0.3 + grain));
+    const arc = Math.sin(2 * Math.PI * (110 + v * 8) * t) * 0.07;
+    const env = Math.sin(Math.PI * Math.min(1, t / 0.55)) ** 0.8;
     return (sizzle + arc) * env;
-  }), 0.32);
+  }), 0.22);
 }
 
 /** 탑승/내림 — 쿵 하는 해치 + 서보 윙(타면 올라가고 내리면 내려간다). */
@@ -444,6 +446,24 @@ function warpEnd9(v: number): Float32Array {
   return finish9(echo9(echo9(raw, 0.11, 0.38), 0.27, 0.32), 0.44);
 }
 
+/** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
+ *  이제 낮고 둥근 '뽁'(130→75Hz 사인 · 천천히 열고 닫음)에 저역 거른 젖은 잡음을 옅게 · 끝에 아주 작은 두 번째 방울. */
+function eggPop9(v: number): Float32Array {
+  const r = rng9(2501 + v);
+  const lp = new Biquad9("lp", 700, 0.7);
+  let ph = 0; let ph2 = 0;
+  const f0 = 130 + v * 12;
+  return finish9(render9(0.36, (t) => {
+    ph += (f0 - 55 * Math.min(1, t / 0.12)) / SFX_RATE9;
+    const pop = Math.sin(2 * Math.PI * ph) * ad9(t, 0.015, 14);
+    const wet = lp.run(r() * 2 - 1) * ad9(t, 0.02, 16) * 0.35;
+    const u = t - 0.11;
+    let drop = 0;
+    if (u >= 0) { ph2 += (f0 * 1.6) / SFX_RATE9; drop = Math.sin(2 * Math.PI * ph2) * ad9(u, 0.01, 22) * 0.22; }
+    return pop + wet + drop;
+  }), 0.3);
+}
+
 /** 저그 공사 고치 — 심장 소리(쿵–쿵 · 2026-10-22, 요청: "공사고치 소리는 약간 심장 소리 비슷하게"). 낮은 사인 두 번(둘째가 작고 조금 높다)에 살 같은 둔탁함. */
 function heart9(v: number): Float32Array {
   const r = rng9(2401 + v); const br = brown9(r);
@@ -523,7 +543,7 @@ function spine9(v: number): Float32Array {
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
-  | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe";
+  | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -535,18 +555,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
   flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
   warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
+  eggPop: [2, eggPop9],
 };
-
-/** PCM(−1~1) → 16비트 모노 WAV 바이트. */
-export function wavBytes9(pcm: Float32Array): Uint8Array {
-  const n = pcm.length;
-  const buf = new ArrayBuffer(44 + n * 2);
-  const dv = new DataView(buf);
-  const str = (o: number, s: string): void => { for (let i = 0; i < s.length; i += 1) dv.setUint8(o + i, s.charCodeAt(i)); };
-  str(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); str(8, "WAVE");
-  str(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
-  dv.setUint32(24, SFX_RATE9, true); dv.setUint32(28, SFX_RATE9 * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
-  str(36, "data"); dv.setUint32(40, n * 2, true);
-  for (let i = 0; i < n; i += 1) dv.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
-  return new Uint8Array(buf);
-}

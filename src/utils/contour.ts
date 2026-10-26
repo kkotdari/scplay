@@ -161,17 +161,6 @@ function squareCorners(loop: Loop, w: number, h: number): Loop {
   return out;
 }
 
-/** 0/1 판정 → 곡선 길(Path2D). 좌표는 타일 단위이므로 `scale`로 픽셀에 맞춘다.
- *
- *  ★ 밭을 **흐리지 않는다** — 흐리면 한 칸 폭의 가는 절벽선이 문턱을 못 넘고 통째로
- *    사라진다(3×3 텐트 한 번이면 외딴 칸의 값이 0.25까지 떨어진다). 마칭 스퀘어가
- *    내는 45도 계단은 Chaikin 세 번이면 충분히 둥글고, 있던 것이 없어지지도 않는다. */
-export function maskPath(
-  test: (i: number) => boolean, w: number, h: number, scale: number, smooth = 3,
-): Path2D {
-  return loopsPath(maskLoops(test, w, h, smooth), scale);
-}
-
 /** 0/1 판정 → 깎은 **고리들**(타일 단위 · Path2D 전 단계). 지형 기하 캐시(terrainGeom)가 이것을 지도마다 한 번만 뽑아 두고,
  *  캔버스(loopsPath)와 GL(스텐실 부채꼴)이 같은 고리를 쓴다(2026-10-23 · 지형 판 재사용). */
 export function maskLoops(test: (i: number) => boolean, w: number, h: number, smooth = 3): Loop[] {

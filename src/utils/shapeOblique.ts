@@ -423,13 +423,6 @@ export function cylinderFaces(
   return [bodyFace(body), sideFace(shade, OP.sideSoft), topFace(groundEllipse(cx, yTop, r, ry))];
 }
 
-/** 방향 있는 원통(다리 등)의 단면을 어떻게 보일지 — 위 '원통 단면 규칙'의 코드판.
- *  앞이면 1(또렷), 옆이면 0.6(작고 기울여), 뒤면 0(그리지 않는다). 도형을 만드는 쪽이
- *  이 배율로 캡 크기를 정하고, 0이면 아예 빼면 된다. */
-export type RadialDir = "front" | "side" | "back";
-export const capScaleOf = (dir: RadialDir): number =>
-  dir === "front" ? 1 : dir === "side" ? 0.6 : 0;
-
 /** 소수 둘째 자리 반올림 — 패스 문자열이 지저분해지지 않게. */
 function r2(v: number): number {
   return Math.round(v * 100) / 100;
@@ -570,8 +563,6 @@ export function boxSkip(faces: ShapeFace[]): ShapeFace[] {
 }
 /** 일곱째 칸의 표식 비트(1 자 재기 제외 · 2 감싸는 껍질) */
 const mark9 = (f: ShapeFace): number => ((f as unknown as number[])[6] ?? 0);
-/** 그 표식이 붙었나 — 자를 재는 도구(bld-norm·model-norm)만 본다. */
-export const isBoxSkip = (f: ShapeFace): boolean => (mark9(f) & 1) !== 0;
 /** ★★ **몸을 감싸는 띠는 '위에 얹는 데칼'이 아니라 껍질이다**(2026-09, 지적: "포신 안쪽에는 왜
  *  데칼이 보여") ───────────────────────────────────────────────────────────────────────
  *  시즈 포신을 두른 해저드 띠의 **먼 쪽 반**이 살을 뚫고 보였다. 깊이가 틀린 것이 아니라
@@ -1017,27 +1008,6 @@ export function wallDiscPath(
   const d = conjugateEllipsePath(sx, sy, axx - sx, axy - sy, bxx - sx, bxy - sy);
   if (MESH9.on) { const ring: number[] = []; for (let i = 0; i < 12; i += 1) { const t = (i / 12) * Math.PI * 2; ring.push(...mp3(cx + rx * Math.cos(t), y, cz + rz * Math.sin(t))); } meshPut9(d, [ring]); }
   return d;
-}
-
-/** 벽 무늬의 평면 좌표계 — 중심과 켤레 축을 돌려주어, 부속 장식(팬 날개 등)을 같은
- *  평면 안에서 그릴 수 있게 한다. pt(각, 가로배율, 세로배율)가 화면 점을 준다. */
-export function wallFrame(
-  cx: number, y: number, cz: number, rx: number, rz: number = rx,
-): { c: [number, number]; pt: (t: number, kx?: number, kz?: number) => [number, number] } {
-  const [sx, sy] = project(cx, y, cz);
-  const [axx, axy] = project(cx + rx, y, cz);
-  const [bxx, bxy] = project(cx, y, cz + rz);
-  const ux = axx - sx;
-  const uy = axy - sy;
-  const vx = bxx - sx;
-  const vy = bxy - sy;
-  return {
-    c: [sx, sy],
-    pt: (t, kx = 1, kz = kx) => [
-      r2(sx + ux * kx * Math.cos(t) + vx * kz * Math.sin(t)),
-      r2(sy + uy * kx * Math.cos(t) + vy * kz * Math.sin(t)),
-    ],
-  };
 }
 
 /** 세운 다각기둥 — 평면 다각형(plan)을 z0에서 h만큼 밀어 올린다. 규칙 다각형이 아니어도
@@ -1722,21 +1692,6 @@ export function halfSphereFaces3(
   }
   return tagKey([body, sideFace(shade, OP.sideSoft), topFace(gloss, OP.topSoft)],
     depthNow(cx, cy) + r);
-}
-
-/** 화면 1/4구 — 반구를 다시 앞뒤로 갈라 **뒤 절반**만 남긴 껍데기. 위 반원과, 세로로
- *  자른 단면(위로 부푼 타원 호) 사이의 초승달이다. 얼굴가리개 뒤에 한 겹 세우면 그것이
- *  곧 뒤통수를 감싸는 껍데기다. */
-export function quarterSphereFaces3(
-  cx: number, cy: number, cz: number, r: number, fill?: string,
-): ShapeFace[] {
-  const [sx, sy] = project(cx, cy, cz);
-  const ry = r * groundSquashNow();
-  const d = `M${r2(sx - r)} ${r2(sy)}A${r2(r)} ${r2(r)} 0 0 1 ${r2(sx + r)} ${r2(sy)}`
-    + `A${r2(r)} ${r2(ry)} 0 0 0 ${r2(sx - r)} ${r2(sy)}Z`;
-  const body: ShapeFace = fill ? [d, 1, fill] : bodyFace(d);
-  if (MESH9.on) meshPut9(d, meshDome9(cx, cy, cz, r, r));
-  return tagKey([body, topFace(d, OP.topSoft)], depthNow(cx, cy) + r);
 }
 
 /** 공(구) 한 덩이 — 중심만 투영하고 반지름은 화면 원이다. 몸 + 좌상 광택 + 우하 그늘.

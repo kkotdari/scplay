@@ -234,6 +234,3 @@ export const BW_UNIT_NAME: Record<number, string> = {
   225: "Vespene Gas Sac Type 2",
   226: "Vespene Gas Tank Type 1",
 };
-
-/** 지도가 놓아 준 자원 — 앱은 이것을 지도에서 그리므로 트랙에 없다(덤퍼가 이미 뺀다). */
-export const MAP_RESOURCE_IDS = new Set([176, 177, 178, 188, 214]);

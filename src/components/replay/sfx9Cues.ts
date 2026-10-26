@@ -81,11 +81,12 @@ export class SfxCues9 {
           if (!fresh(`b${op.bld ? 1 : 0}:${op.seed}`) || (op.ph ?? 0) > 0.6) break;
           const mat = op.mat;
           let k: SfxKind9;
-          // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다).
-          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "puff" : "boomBig";
+          // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다)
+          // → 부드러운 전용 '뽁'(eggPop · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게").
+          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggPop" : "boomBig";
           else if (mat === "bio") k = Math.random() < 0.3 ? "screamF" : "screamM";
           else if (mat === "zerg") k = "squeal";
-          else if (mat === "cocoon") k = "puff";
+          else if (mat === "cocoon") k = "eggPop";
           else if (mat === "toss") k = op.tmech ? "boom" : "zap";
           else k = "boom";
           play(k, op.fx, op.fy);

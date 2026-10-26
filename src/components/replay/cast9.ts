@@ -80,8 +80,6 @@ export type CastFollow9 = { t0: number; t1: number; tags: number[] };
 /** 자막 한 조각 — 글귀(text) 또는 사람(raw · 뒤에 붙일 조사 p: ga 가/이 · eul 를/을 · wa 와/과 · ui 의). */
 export type CapPart9 = { text: string; raw?: undefined; p?: undefined } | { raw: string; p?: "ga" | "eul" | "wa" | "ui"; text?: undefined };
 export type CastRole9 = "atk" | "def" | "war";
-/** 상대역의 몫 — 주인공의 거울. */
-export const castFoeRole9 = (r9: CastRole9): CastRole9 => (r9 === "atk" ? "def" : r9 === "def" ? "atk" : "war");
 
 export type CastPlanOpts9 = {
   /** 경기 길이(초). */

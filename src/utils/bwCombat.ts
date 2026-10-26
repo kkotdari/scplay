@@ -34,13 +34,11 @@
  * 리액트를 안 쓴다 — 웹 워커와 노드 CLI가 그대로 번들해 돌린다. */
 
 import {
-  BUNKER_SHOOTERS,
-  CHITINOUS_PLATING, FIREBAT_HITS_ON_ONE_TARGET, FRAME_SEC,
-  ORDER_PROCESS_FRAMES, PLASMA_SHIELD_UPGRADE, RETARGET_FRAMES,
+  CHITINOUS_PLATING, FIREBAT_HITS_ON_ONE_TARGET, PLASMA_SHIELD_UPGRADE,
   UNITS, WEAPONS,
-  acquireTiles, attackOnce, bodyRadiusTiles, cooldownFrames, dealOneHit,
-  ignoresDarkSwarm, isAir, missChanceRaw, missProbability, sightTiles,
-  splashDivisor, targetOf, unitOf, upgradeMaxLevel, weaponRangePx,
+  acquireTiles, attackOnce, bodyRadiusTiles, cooldownFrames,
+  isAir, sightTiles,
+  targetOf, unitOf, upgradeMaxLevel, weaponRangePx,
   type DmgTarget, type DmgType, type HitCtx, type HitResult,
   type SplashKind, type UnitSize, type Weapon, type WeaponKey,
 } from "./bwUnits";
@@ -69,55 +67,6 @@ export {
    bwCombat 하나"라는 규약이 타입 쪽으로만 새 버린다 — 값은 이 문으로, 타입은 저 문으로
    들어오는 코드는 나중에 어느 쪽이 진실인지 아무도 모르게 된다. 문을 하나로 닫는다. */
 export type { DmgTarget, DmgType, HitCtx, HitResult, UnitSize, Weapon, WeaponKey } from "./bwUnits";
-
-/* ── 사이오닉 스톰(과제 #54) ────────────────────────────────────────────────────
-   무기는 표에 진작 있었다(Psionic_Storm: 14 · ignoreArmor · 48px · radial). 코어가
-   못 쓴 것은 문이 없어서였다. 스톰만 여기 문을 따로 내는 까닭은, 이것이 **표적이 아니라
-   자리를 때리는** 유일한 상시 무기라 attackOf(공격자·표적) 꼴에 안 들어맞기 때문이다.
-
-   합계 112를 8박자로 나눠 준다(14×8). 반경과 피해·방어력 무시는 표에서 오고, 박자 수와
-   간격만 어림이다 — 원작은 프레임 단위로 쪼개지만 우리 틱(0.126초)에는 그만 한 해상도가
-   없다. [추정]
-   radial이라 아군도, splashHitsCaster라 시전자 본인도 맞는다 — 편을 가리지 않는다. */
-export const STORM_PULSES = 8;
-export const STORM_PULSE_SEC = 0.5;
-export const STORM_TILES = WEAPONS.Psionic_Storm.splashPx[0] / 32;
-/** 스톰 한 박자를 표적에게 먹인다 — 방어력·크기배수를 안 탄다(ignoreArmor). */
-export function stormPulse(t: DmgTarget): HitResult {
-  return dealOneHit(WEAPONS.Psionic_Storm, t);
-}
-
-/* ════════════════════════════════════════════════════════════════════════════
-   1. 원전의 시계 — 유닛이 '무엇을 할지' 다시 생각하는 눈금
-
-   execute_main_order 안에는 switch가 둘이고 그 사이에 게이트가 있다. 타이머가 0일 때만
-   두 번째 switch가 돌고, 돈 뒤에 8을 다시 채운다 — 그래서 주기가 9프레임이다.
-   재표적(15프레임)만은 정말로 15인데, bwgame.h:12564가 main_order_timer=15와 **함께**
-   order_process_timer=0을 놓아 위상을 다시 잡기 때문이다. 원작은 15를 원할 때 이렇게
-   명시적으로 위상을 재설정한다 — 그러지 않는 자리(하차)는 18로 밀린다(bwTransport.ts).
-   ════════════════════════════════════════════════════════════════════════════ */
-
-/** 오더 처리 주기(프레임) — 9. */
-export const ORDER_PERIOD_FRAMES = ORDER_PROCESS_FRAMES;
-/** 오더 처리 주기(초) — 0.378초. 평소 표적 훑기가 이 눈금에 걸린다. */
-export const ORDER_PERIOD_SEC = ORDER_PROCESS_FRAMES * FRAME_SEC;
-/** 재표적 주기(프레임) — 15. 표적을 놓친 뒤 새로 잡기까지. */
-export const RETARGET_PERIOD_FRAMES = RETARGET_FRAMES;
-/** 재표적 주기(초) — 0.630초. */
-export const RETARGET_SEC = RETARGET_FRAMES * FRAME_SEC;
-
-/** 개체마다 다른 오더 처리 위상(초).
- *  원작에서 유닛들은 저마다 다른 프레임에 타이머가 돌아온다(태어난 프레임이 다르니까).
- *  전부 같은 눈금에 걸리면 부대 전체가 한 프레임에 우르르 표적을 잡아 '동시에 붙는' 티가
- *  난다. 태그로 9프레임을 갈라 그 티를 없앤다 — 태그는 리플레이 안에서 불변이라
- *  결정론이 깨지지 않는다. [추정] 원작의 실제 위상은 생성 프레임이지 태그가 아니다. */
-export const acqPhaseOf = (tag: number): number =>
-  (Math.abs(Math.trunc(tag)) % ORDER_PERIOD_FRAMES) * FRAME_SEC;
-
-/** 시각 t(초)를 그 개체의 오더 격자로 올려 붙인다 — 명령이 언제 들어왔든 실제로 도는
- *  것은 다음 폴링이다. 1e-9는 격자 위에 정확히 놓인 값이 한 칸 더 밀리는 것을 막는 여유. */
-export const toOrderGridSec = (t: number, phase = 0): number =>
-  phase + Math.ceil((t - phase) / ORDER_PERIOD_SEC - 1e-9) * ORDER_PERIOD_SEC;
 
 /* ════════════════════════════════════════════════════════════════════════════
    2. 업그레이드 — 이름 하나로 레벨을 센다
@@ -330,18 +279,6 @@ export function profileOf(
  *  전에 부르는 쪽이 알아챌 수 있게 내놓는다. */
 export const isKnownKind = (kind: string): boolean => kind in UNITS;
 
-/** 벙커 안에서 쏘는 유닛의 값 — 못 쏘는 것(메딕·SCV)은 null.
- *  벙커 **자신**은 무기가 없다: UNITS.Bunker의 ground/air가 둘 다 null이라 profileOf가
- *  이미 무장 없는 값을 낸다. 옛 판이 하던 "건물은 large·방어력 최소 1" 같은 손보정은
- *  지웠다 — 새 표에 건물의 진짜 크기·방어력이 들어 있어 지어낼 이유가 없다. */
-export const bunkerShooterProfileOf = (kind: string): CombatProfile | null =>
-  (BUNKER_SHOOTERS.has(kind) ? profileOf(kind, undefined, true) : null);
-
-/** 벙커에 누가 탔는지 모르는 자리(원장·렌더러)가 쓸 어림 — 벙커 보너스를 받은 마린 한 기.
- *  탑승 목록을 들고 있는 쪽(simCore)은 이것을 쓰지 말고 실제 탑승자로 세라. [추정] */
-export const bunkerFallbackProfile = (): CombatProfile =>
-  profileOf("Marine", undefined, true);
-
 /* ════════════════════════════════════════════════════════════════════════════
    5. 사거리 — ★ 중심-중심 거리로 옮기는 곳. 이 파일의 핵심.
    ════════════════════════════════════════════════════════════════════════════ */
@@ -397,32 +334,6 @@ export function minReachTiles(
   return w.minRangeTiles + a.radius + t.radius;
 }
 
-/** 지금 거리(타일, 중심 사이)에서 쏠 수 있는가 — 최대·최소를 한 번에 본다. */
-export function canFireAt(
-  attacker: string | CombatProfile,
-  target: string | CombatProfile,
-  distTiles: number,
-  targetAir?: boolean,
-  ups?: UpgradeState,
-): boolean {
-  const max = reachTiles(attacker, target, targetAir, ups);
-  if (max < 0 || distTiles > max) return false;
-  return distTiles >= minReachTiles(attacker, target, targetAir, ups);
-}
-
-/** 자동 표적 획득 거리(타일, 중심 기준). 0이면 스스로 표적을 안 잡는다.
- *  [추정] 획득 사거리에 몸 반지름을 더하는 것은 원작 find_acquire_target이 상자를 부풀려
- *  훑는 것을 중심 거리로 옮긴 어림이다. 무기 사거리와 달리 원전 문장으로 확인하지 못했다. */
-export function acquireReachTiles(
-  attacker: string | CombatProfile,
-  target: string | CombatProfile,
-  ups?: UpgradeState,
-): number {
-  const a = asProfile(attacker, ups);
-  if (a.acquire <= 0) return 0;
-  return a.acquire + a.radius + asProfile(target).radius;
-}
-
 /* ── 이름만 아는 쪽(렌더러)을 위한 지름길. 업글은 안 본다 — 그리는 쪽은 그 차를 못 보인다. ── */
 
 /** 순수 무기 사거리(타일, 모서리 기준). 못 치면 −1. 원을 그릴 때는 몸 반지름을 더해라. */
@@ -430,8 +341,6 @@ export const fireRangeTilesOf = (kind: string, targetAir = false): number =>
   weaponVs(profileOf(kind), targetAir)?.rangeTiles ?? -1;
 /** 자동 획득 사거리(타일). */
 export const acquireTilesOf = (kind: string): number => profileOf(kind).acquire;
-/** 시야(타일) — 디텍터의 탐지 거리이기도 하다. 일률 9로 뭉개면 캐논·터렛이 2타일 준다. */
-export const sightTilesOf = (kind: string): number => profileOf(kind).sight;
 /** 몸 반지름(타일). */
 export const bodyRadiusOf = (kind: string): number => profileOf(kind).radius;
 
@@ -461,13 +370,6 @@ export function targetFor(
 export const hitsOnOneTarget = (w: ProfWeapon): number =>
   (w.key === "Flame_Thrower" ? FIREBAT_HITS_ON_ONE_TARGET : w.hits);
 
-/** 히트 1회 — 공격자의 공업 레벨을 얹어 표의 셈을 부른다. */
-export function hitOnce(
-  w: ProfWeapon, attacker: CombatProfile, t: DmgTarget, ctx: HitCtx = {},
-): HitResult {
-  return dealOneHit(w.wp, t, { ...ctx, weaponLv: ctx.weaponLv ?? attacker.wLv });
-}
-
 /** 한 번의 공격(쿨다운 1회분) — 히트 수만큼 되풀이한다.
  *  ★ 히트마다 방어력·크기배수·하한이 따로 걸리므로 **절대 미리 합산하지 마라.**
  *  질럿 8×2는 방어력 1인 표적에 14이지 15가 아니다. */
@@ -487,28 +389,6 @@ export function attackOf(
   });
 }
 
-/** 초당 피해(사람이 읽는 수) — 원장이 화력을 초당으로 배분할 때 쓴다.
- *
- *  실드 몫과 체력 몫을 **따로** 잰다. 실드가 애매하게 남은 순간의 넘침(실드를 뚫고 남은
- *  피해가 방어력을 물고 체력으로 흐르는 것)은 이 두 숫자로 못 낸다 — 그 순간이 중요한
- *  쪽(simCore)은 dealOneHit을 직접 불러 표적 상태를 그 자리에서 깎아야 한다.
- *  쿨다운은 무보정 원값이다(스팀·아드레날은 attackPeriodFrames로 따로 재라). */
-export function dpsOf(
-  w: ProfWeapon, attacker: CombatProfile, targetKind: string, targetUps?: UpgradeState,
-): { hp: number; shield: number } {
-  const cdSec = w.cd > 0 ? w.cd : FRAME_SEC;
-  const big = 1 << 30;
-  const bare = targetFor(targetKind, targetUps, { hp: big, shield: 0, hasShield: false });
-  const hp = attackOf(w, attacker, bare).hp / 256;
-  const tp = profileOf(targetKind, targetUps);
-  let shield = 0;
-  if (tp.hasShield) {
-    const shielded = targetFor(targetKind, targetUps, { hp: big, shield: big, hasShield: true });
-    shield = attackOf(w, attacker, shielded).shield / 256;
-  }
-  return { hp: hp / cdSec, shield: shield / cdSec };
-}
-
 /* ── 쿨다운 ── */
 
 /** 실제 쿨다운(프레임) — 스팀·아드레날(÷2, 중첩 없음)·엔슬레어(+25%)·산성포자.
@@ -517,32 +397,3 @@ export function dpsOf(
 export const attackPeriodFrames = (
   w: ProfWeapon, s?: Parameters<typeof cooldownFrames>[1],
 ): number => cooldownFrames(w.wp, s);
-export const attackPeriodSec = (
-  w: ProfWeapon, s?: Parameters<typeof cooldownFrames>[1],
-): number => cooldownFrames(w.wp, s) * FRAME_SEC;
-
-/* ── 빗맞음 ── */
-
-export type MissEnv = Parameters<typeof missChanceRaw>[0];
-
-/** 이 무기가 이 상황에서 빗나갈 확률(0~1).
- *  근접·스플래시·주문은 총알이 없어 굴림 자체가 없다(0). 다크 스웜은 뚫는 무기면
- *  없는 셈 치고 다시 잰다 — 언덕 119는 그대로 남는다.
- *  ⚠ simCore는 결정론이라 이 확률을 실제로 굴리려면 시드 있는 난수가 먼저 있어야 한다.
- *     지금은 '얼마나 빗나갈 값인가'를 재는 데까지만 쓴다. */
-export function missChanceOf(w: ProfWeapon, env: MissEnv): number {
-  if (!w.rollsMiss) return 0;
-  const e = env.targetUnderDarkSwarm && ignoresDarkSwarm(w.wp)
-    ? { ...env, targetUnderDarkSwarm: false }
-    : env;
-  return missProbability(missChanceRaw(e));
-}
-
-/* ── 스플래시 ── */
-
-/** 그 거리(픽셀)에서 쓸 divisor(1/2/4). 못 맞으면 null.
- *  ⚠ 버로우한 표적은 안쪽 링(splashPx[0])만 맞는다 — 바깥 두 링은 아예 안 닿는다.
- *  ⚠ 러커 가시는 감쇠가 없다(안쪽 링 안이면 전액). */
-export const splashDivisorAt = (
-  w: ProfWeapon, distPx: number, o?: { burrowed?: boolean; isBulletTarget?: boolean },
-): number | null => splashDivisor(w.wp, distPx, o);

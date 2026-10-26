@@ -235,7 +235,6 @@ const pitchDenied = (): void => {
 const PITCH_DIST_FAR = 2.95;
 const pitchDistOf = (s: number): number => Math.max(1.15, PITCH_DIST_FAR - 2.05 * s);
 
-
 const pct = (v: number, span: number) => `${(v / span) * 100}%`;
 /** 저그 둔덕 몸통 — 셋이 같은 몸을 쓰고 뿔만 자란다(아래 lair/hive). 옆구리는 종 모양
  *  으로 불룩하게(지적: "해처리의 곡선이 반대로 됨" — 나팔처럼 파인 곡선을 뒤집었다).
@@ -768,16 +767,6 @@ const brushLogSummary9 = (): string => {
   const detail9 = Object.entries(bySrc9).map(([k9, e9]) => `${k9} 보기${e9.views.size} 팬(${e9.last.px.toFixed(1)},${e9.last.py.toFixed(1)}) op${e9.last.n} 장${e9.last.aT >= 0 ? e9.last.aT.toFixed(2) : "-"}`).join(" / ");
   return `${detail9} ‖ ${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9} · 재생뒤집힘 ${flips9.length}${flips9.length ? `(${flips9.slice(-4).map((f9) => `${f9.inst}:${f9.on ? "on" : "off"}`).join(" ")})` : ""} · 인스턴스 ${INST_SEQ9}`;
 };
-/** 도록이 컷을 **실제 박자**로 돌리는 데 쓰는 값(요청: "도록은 애니메이션으로 보여줘야지
- *  실제 공속 이속에 맞게") — 모델 kind로 그 유닛의 이속·공속을 되찾는다.
- *  walkHz는 재생기와 같은 식(이속 × 2.2, 2~9Hz)이고, atkCd는 그 무기의 쿨다운이다.
- *  컷이 없는 종류는 null이라 도록이 정지 그림 셋을 그대로 보여 준다. */
-/** 이 모델이 **어떤 컷을 갖나**(요청: "이동/공격은 있는 거만 표시하는 걸로 변경") —
- *  도록이 칸을 몇 개 세울지 이 값으로 정한다. 없는 컷의 칸을 세우면 정지와 똑같은 그림이
- *  나란히 서서, '이 모델은 안 움직이나'가 아니라 '고장 났나'로 읽힌다. */
-export function poseKindsOf(kind: string): { move?: boolean; atk?: boolean; flap?: number } | null {
-  return POSE_KINDS[kind] ?? null;
-}
 /** ★ 이 종류가 **어떤 컷을 갖나**(요청: "이동, 액션 모션은 별도 모델링이 없으면 idle
  *  모션이 그 모션이 됨") — 도록이 칸을 세울지 idle로 갈음할지 이 값이 정한다.
  *
@@ -1655,13 +1644,11 @@ const CROWD_BENCH_MS9 = DEV9.name === "phone" ? 20 : 24;
 const WEAK_DPR9 = 1.75;
 const BENCH_HASH9 = typeof location !== "undefined" ? ((): number => { const m9 = /benchms=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() : -1;
 const WEAK_GAP_MS9 = 33;
-/** 진행바 전투량 곡선의 칸 수 · 점프 뒤 보이는 시간(ms) — 컴포넌트의 combatPath9 ★. */
+/** 진행바 우세 곡선의 칸 수 · 점프 뒤 보이는 시간(ms) — 컴포넌트의 advLines9 ★. */
 const COMBAT_BINS9 = 160;
 /** ★ 요약 보기는 **주소 파라미터로만**(2026-10-25, 요청: "요약 모드 아직 불완전해서 숨길게 파라미터로만 켤 수 있게") — `#digest=1` 이면 보기 모드 판에 [요약] 이 선다 · 없으면 자유 · 풀 둘. */
 const DIGEST_ON9 = typeof location !== "undefined" && /(^|[#&,])digest=1/.test(location.hash);
 const COMBAT_FLASH_MS9 = 1200;
-/** 진행바 그래프 갈래 — "adv" 우세 띠(2026-10-26 · 요청: "전투량 말고 팀(또는 개인) 우세 정도로") · "combat" 옛 전투량 곡선(코드로 남김). */
-const SEEK_GRAPH9: "adv" | "combat" = "adv";
 /** ★ 우세 점수의 자(2026-10-26, 요청: "병력과 싸움 결과를 종합해야 하지 않을까 · 그리고 본진 영역 크기도" — 컴포넌트의 advLines9 ★) —
  *  점수 = 병력(유닛 몸값) + 기지 영역(건물 몸값 × bld + 본진 건물마다 hall) + 싸움 결과(최근 잡은 적 몸값 × kill · τ tau 초로 스러진다). */
 const ADV9 = { bld: 0.5, hall: 300, kill: 1, tau: 90, dmg: 3, dmgTau: 60, dmgCum: 1 };
@@ -10533,42 +10520,6 @@ export default function ReplayMotionPlayer({
     }
     return out;
   }, [entData]);
-  /** ★ **진행바 전투량 곡선**(2026-10-25, 요청: "탐색바 마우스 호버 시 위로 그래프 — 전투가 일어난 양 / 인구수 중 장면 선택에 더 도움될 것" → 전투량 ·
-   *  "모바일도 다이얼 드래그 중 보이고 점프 이동 시 잠깐 보이게") — 시간당 피해량(판 13 데미지 절 · 사람마다 **준** 몫 유닛+건물의 합 = 경기 전체가 깎인 양)을
-   *  진행바 폭 칸(COMBAT_BINS9)에 모으고 6초 가우스로 편 뒤 0.6 제곱으로 눌러(큰 마지막 한타가 작은 교전을 납작하게 만들지 않게) 최댓값으로 맞춘다.
-   *  옛 판(≤12 · 데미지 절 없음)은 곡선 대신 '데미지 기록 없음'을 띄운다(같은 날 요청: "데미지 기록 없는 게임은 없다고 띄우기" — 첫 판의 처치 절 대타는 걷었다).
-   *  돌려주는 것은 [면, 윗선] SVG 경로 — viewBox `0 0 COMBAT_BINS9 100`(아래가 0). */
-  const combatPath9 = useMemo((): [string, string] | null => {
-    if (!entData || !(total > 0)) return null;
-    const n9 = COMBAT_BINS9;
-    const bin9 = new Float64Array(n9);
-    let any9 = false;
-    const put9 = (sec9: number, v9: number): void => {
-      if (!(v9 > 0)) return;
-      bin9[Math.max(0, Math.min(n9 - 1, Math.floor((sec9 / total) * n9)))] += v9;
-      any9 = true;
-    };
-    const half9 = (entData.dmgBucketSec || 5) / 2;   // 통 가운데에 놓는다
-    for (const [sec9, , du9, db9] of entData.dmg) put9(sec9 + half9, du9 + db9);
-    if (!any9) return null;
-    const sg9 = Math.max(0.6, (6 / total) * n9);   // 6초를 칸으로
-    const r9 = Math.ceil(sg9 * 3);
-    const w9: number[] = [];
-    for (let k9 = -r9; k9 <= r9; k9 += 1) w9.push(Math.exp(-(k9 * k9) / (2 * sg9 * sg9)));
-    const sm9 = new Float64Array(n9);
-    let mx9 = 0;
-    for (let i9 = 0; i9 < n9; i9 += 1) {
-      let a9 = 0;
-      for (let k9 = -r9; k9 <= r9; k9 += 1) { const j9 = i9 + k9; if (j9 >= 0 && j9 < n9) a9 += bin9[j9] * w9[k9 + r9]; }
-      sm9[i9] = Math.pow(a9, 0.6);
-      if (sm9[i9] > mx9) mx9 = sm9[i9];
-    }
-    if (!(mx9 > 0)) return null;
-    const pts9: string[] = [];
-    for (let i9 = 0; i9 < n9; i9 += 1) pts9.push(`${i9 + 0.5},${(100 - (sm9[i9] / mx9) * 94).toFixed(1)}`);
-    const line9 = `M0,${pts9[0].split(",")[1]} L${pts9.join(" L")} L${n9},${pts9[n9 - 1].split(",")[1]}`;
-    return [`${line9} L${n9},100 L0,100 Z`, line9];
-  }, [entData, total]);
   /** 지금 시각까지의 [준, 입은] 데미지 — 사람마다(통 시작 ≤ t 인 마지막 계단 · 아직 없으면 0/0). */
   const dmgNow = useMemo(() => {
     const m = new Map<string, [number, number]>();
@@ -10840,7 +10791,7 @@ export default function ReplayMotionPlayer({
    *  편마다 **곡선 하나**로 그린다(같은 날 "아니 각각을 곡선으로 해야지" — 처음 낸 100% 쌓은 띠는 걷었다 · 모든 편이 한 자라 위에 있는 선이 앞선 편).
    *  팀전 = TEAM_COLOR 1·2 · 난투 = 개인색. 생애(entData.lives)의 태어남·사라짐을
    *  진행바 칸(COMBAT_BINS9)에 더하고 빼 누적한 뒤 4초 가우스로 편다(변태 알 사이 꺼짐을 덮는다). 편이 둘 아래면 없음.
-   *  돌려주는 것은 편마다 [색, 선 경로] — viewBox `0 0 COMBAT_BINS9 100`. 전투량 곡선(combatPath9)은 코드로 남긴다(SEEK_GRAPH9). */
+   *  돌려주는 것은 편마다 [색, 선 경로] — viewBox `0 0 COMBAT_BINS9 100`. */
   const advLines9 = useMemo((): { fill: string; d: string; label: string; raw: boolean; endY: number }[] | null => {
     if (!entData || !(total > 0)) return null;
     const team9 = !melee && bases.some((b9) => teamMap9[b9.key] === 1) && bases.some((b9) => teamMap9[b9.key] === 2);
@@ -12018,7 +11969,7 @@ export default function ReplayMotionPlayer({
   /** 시계 글자 — 끌기 중에는 리렌더 없이 여기에 직접 쓴다(위 onInput 의 ★★). */
   const clockElRef9 = useRef<HTMLSpanElement | null>(null);
   const seekPending = useRef<number | null>(null);
-  /** 진행바 전투량 곡선을 보이나(위 combatPath9 ★) — PC 는 호버(CSS)로도 서고, 이 값은 **끄는 동안**(폰 다이얼 · PC 손잡이)과 **점프 뒤 잠깐**(COMBAT_FLASH_MS9)이다. */
+  /** 진행바 우세 곡선을 보이나(아래 advLines9 ★) — PC 는 호버(CSS)로도 서고, 이 값은 **끄는 동안**(폰 다이얼 · PC 손잡이)과 **점프 뒤 잠깐**(COMBAT_FLASH_MS9)이다. */
   const [combatShow9, setCombatShow9] = useState(false);
   const combatTimer9 = useRef(0);
   const combatFlash9 = (ms9: number): void => {
@@ -13132,7 +13083,6 @@ export default function ReplayMotionPlayer({
    *    → **20%·최대 190px**. 지도가 그만큼 작아지는 맞바꿈이라 한 번에 크게 안 가고
    *    한 단씩 올린다(7%·64 → 13%·120 → 20%·190). */
 
-
   /* ★ 무대 크기는 **세로가 먼저, 가로가 나중**이다(요청) ─────────────────────────────
        ① 화면에 남은 세로(예산 = 프레임 높이 − 조작부)에 **지도 + 그림 여유**가 들어가게
           지도 크기를 정한다. 조작부는 고정이므로 예산은 그것을 뺀 나머지다.
@@ -13174,7 +13124,6 @@ export default function ReplayMotionPlayer({
     ? evenIf9(Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height))))
     : 0;
   const fsCoverH = fsCoverW > 0 ? evenIf9(Math.round((fsCoverW * grid.height) / Math.max(1, grid.width))) : 0;
-
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
      낡은 한계로 죄인다). 셋이 한 자리에 있는 것이 요점이다: 갈리면 끌기가 어긋난다. */
@@ -19347,8 +19296,6 @@ export default function ReplayMotionPlayer({
      침묵 조건을 같이 건다) — 내 건물이 무너진 자리 곁(8타일)에 서 있었고, 무너진 뒤로
      새 명령 없이 한참(DEAD_QUIET_SEC) 지난 마커는 그 함락에서 정리된 것으로 본다. */
 
-
-
   /* 폭은 무조건 컨테이너 최대가 아니라 화면 세로 공간이 허락하는 만큼(지적: 노트북처럼
      납작한 화면에서 전체 폭을 쓰면 미니맵이 한 화면에 다 안 들어옴) — 맵 높이가
      (100dvh − 조작부 몫)을 넘지 않게 폭을 비율로 역산해 상한을 걸고 가운데 정렬.
@@ -19781,8 +19728,9 @@ export default function ReplayMotionPlayer({
             ×4에서도 손잡이가 툭툭 안 뛴다. --p는 지나온 자리를 채우는 그라데이션 경계다. */}
         {/* 검색 결과 태그(위 searchHits9 ★★) — 진행바 위에 겹친 얇은 판(누름은 바로 흘린다). 지금 결과는 밝게. 손잡이 폭(--th)만큼 양끝을 비워 손잡이 가운데와 맞춘다. */}
         <span className={cx("scr-motion-rangewrap", combatShow9 && "is-combat")}>
-        {/* 전투량 곡선(위 combatPath9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다). */}
-        {SEEK_GRAPH9 === "adv" ? (advLines9 ? (
+        {/* 우세 곡선(아래 advLines9 ★) — 진행바 위로 뜬다 · 누름은 흘린다. 자는 검색 태그와 같다(손잡이 폭의 반씩 양끝을 비운다).
+            옛 전투량 곡선(combatPath9 · SEEK_GRAPH9)은 2026-10-26 걷었다(요청: "불필요한 소스 다 삭제"). */}
+        {advLines9 ? (
           /* 우세 곡선(위 advLines9 ★) — 전투량 곡선과 같은 자리·같은 보이는 때. */
           <>
             <svg className="scr-motion-combat is-adv" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
@@ -19807,14 +19755,7 @@ export default function ReplayMotionPlayer({
               })()}
             </span>
           </>
-        ) : null) : combatPath9 ? (
-          <svg className="scr-motion-combat" viewBox={`0 0 ${COMBAT_BINS9} 100`} preserveAspectRatio="none" aria-hidden>
-            <path className="scr-motion-combat-area" d={combatPath9[0]} />
-            <path className="scr-motion-combat-line" d={combatPath9[1]} />
-          </svg>
-        ) : entData && (
-          <span className="scr-motion-combat is-none" aria-hidden>데미지 기록 없음</span>
-        )}
+        ) : null}
         {searchHits9.length > 0 && total > 0 && (
           <span className="scr-motion-searchtags" aria-hidden>
             {searchHits9.map((h9, i9) => (
@@ -21524,7 +21465,6 @@ export default function ReplayMotionPlayer({
               이름은 하나만 적고 나머지는 점(지적: 겹치면 안 보인다). 긴 이름은 폰트를 한
               단계 줄인다. 생산·연구 중이면 심장처럼 뛴다(요청). */}
 
-
           {/* 채굴 일꾼(요청, 지적: 방향 반대) — 자원 지대마다, 그 시점에 서 있는 가장
               가까운 본진 건물(시작 본진·확장 포함)을 찾아 그리로 오간다. 가까운 홀이 없는
               자원(아직 안 편 멀티)은 비워 둔다. */}
@@ -21554,13 +21494,11 @@ export default function ReplayMotionPlayer({
               건물·자원·크립·마법은 v1 그대로다. 정체를 모르는 개체는 그 종족의 기본 보병
               꼴을 반투명으로 — 아는 척은 안 하되 존재는 보인다. */}
 
-
           {/* 마법 — 떨어진 자리에 이름이 잠깐 떠오른다. 핵만은 이름에 폭발 파문까지
               얹는다(요청: "핵 떨어지는거도 효과") — 경기 하나에 몇 번 없는, 그 판의 가장
               큰 사건이라 다른 마법과 같은 글자 한 줄로는 안 보였다. */}
           {/* (옮김) 클릭 자국·미니맵 핑 → 아래 효과 렌즈(.scr-motion-fxlens). 지적: 크립 위·안개 지역에서 안 보임 —
               이 렌즈는 transform으로 제 쌓임 맥락을 만들어 안의 z가 유닛 캔버스(6000)·안개(5500)와 못 겨룬다. */}
-
 
           </div>
           {/* 유닛 캔버스 층(요청: 캔버스 전환 — 성능, 지적: 확대가 선명해야) — 렌즈 밖에

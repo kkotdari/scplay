@@ -84,12 +84,10 @@ export type TruthTrack = {
   /** 키마다 '다 지어졌나' — 0이면 짓는 중이다. 시작부터 서 있던 건물과 지금 짓는 건물을
    *  가리는 표다. 키 수와 길이가 같다. */
   done: Uint8Array;
-  /** 키마다 '떠 있나'(1이면 공중) — **판 3부터만 있다**. 판 2로 구운 옛 자취에는 이 칸이
-   *  통째로 없으므로(undefined) 읽는 쪽은 없을 때의 길을 따로 가져야 한다
-   *  (truthLives의 착륙 판정 참고). 뜬 건물과 나는 유닛이 함께 켜진다 — 건물인지는
+  /** 키마다 '떠 있나'(1이면 공중) — 해독기는 늘 채운다(판 11~14). 뜬 건물과 나는 유닛이 함께 켜진다 — 건물인지는
    *  종류가 말한다. */
   air?: Uint8Array;
-  /** 키마다 '은신 중인가'(1/0) — 판 5부터. 없으면 그 덤프는 은신을 모른다. */
+  /** 키마다 '은신 중인가'(1/0) — 해독기는 늘 채운다(판 11~14). */
   cloak?: Uint8Array;
   /** 키마다의 유닛 종류 번호 — 한 생애 안에서 바뀐다(라바→알→저글링, 탱크↔시즈모드).
    *  `kind`는 그중 **마지막**이다. 키 수와 길이가 같다. */
@@ -471,43 +469,16 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const c = new Cursor(raw);
     if (c.u8() !== 0x4f || c.u8() !== 0x42 || c.u8() !== 0x57 || c.u8() !== 0x54) return null; // "OBWT"
     const version = c.u8();
-    /* 판 2도 계속 읽는다(요청: 테란 건물 리프팅 — 판 3에서 '떠 있다' 비트가 생겼다) —
-       서버가 새 덤퍼로 바뀌어도 **이미 구워 둔 자취는 판 2인 채로 남는다**. 여기서
-       판 3만 받으면 재분석이 다 돌 때까지 모든 옛 경기가 "재생할 수 없는 게임"이 된다.
-       달라진 것은 상태 바이트의 깃발 한 칸뿐이라, 판 2는 그 칸이 늘 0인 판 3과 같다. */
-    /* ★ 판 9 = 판 8 + 맨 뒤의 **건설 명령** 절(2026-09) — 한때 옛 판 8·9·10 도 그대로 읽었다(덤퍼를 갈아 끼우고
-       재분석이 다 돌기까지 옛 경기가 "재생할 수 없는 게임"이 되지 않게). ★★ 지금은 **판 11 만** 읽는다(2026-09, 요청:
-       "판 10 이하 참값은 재생 안되게" — 덤퍼가 판 11 로 일괄 재분석한다). 10 이하는 그 자리에서 물리친다. */
+    /* ★★ **판 11~14 만** 읽는다(2026-09, 요청: "판 10 이하 참값은 재생 안되게" — 덤퍼가 판 11 로 일괄 재분석한다). 10 이하는
+       그 자리에서 물리친다 — 판 3~10 의 절(떠 있음·자원 밭·은신·표적·업그레이드 태그·임자바뀜·건설·선택)은 늘 있다
+       (옛 판 갈래는 2026-10-26 걷었다, 요청: "예전 버전 받게 한 거 다 삭제"). */
     if (version < TRUTH_VER_MIN9 || version > TRUTH_VER_MAX9) return null;
-    const hasAir = version >= 3;
-    /** 건설 명령 절(판 9) — 맨 뒤라 옛 판은 그 앞에서 끝난다. */
-    const hasBuilds = version >= 9;
-    /** 선택 절(판 10) — 건설 명령 절 뒤, 맨 뒤다. */
-    const hasSels = version >= 10;
     /** 선택 줄마다 갈래 바이트(판 12). */
     const hasSelKind = version >= 12;
-    /** 에너지·탑승·자원량·처치 네 절(판 11) — 선택 절 뒤, 맨 뒤다(2026-09, 요청: 하단 인포창 — "어림 말고 덤퍼에 부탁"). */
-    const hasInfo = version >= 11;
     /** 데미지 절(판 13) — 네 절 뒤, 맨 뒤다. */
     const hasDmg = version >= 13;
     /** 채집 절(판 14) — 데미지 절 뒤, 맨 뒤다. */
     const hasGath = version >= 14;
-    /* 은신은 판 5부터다(요청: "참값에 은신 칸 추가하는 쪽으로 가자") — 옛 덤프는 그 깃발이
-       늘 0이라 '은신 아님'으로 읽히는데, 그건 **모르는 것**이지 아님이 아니다. 판으로 갈라
-       옛 판에서는 칸 자체를 안 만든다(없으면 화면이 이름으로 아는 상시 은신만 쓴다). */
-    const hasCloak = version >= 5;
-    /* 자원 밭의 남은 단은 판 4부터다(요청: 고갈 표현) — 맨 뒤 절이라, 옛 판은 그 앞에서
-       끝난다. 없으면 빈 배열이고 화면은 '늘 가득'으로 그린다(옛 자취의 예전 모습). */
-    const hasResFields = version >= 4;
-    /* ★ **지금 겨눈 개체**는 판 6부터다(지시: "지금 갖고 있는 표적을 정확히 명시할 필요가
-       있어 보임") — 원작이 매 프레임 들고 있는 값(order_target)을 덤퍼가 이제 실어 준다.
-       없던 동안 화면은 '가장 가까운 적'을 골라 썼고, 그 어림이 조준각·트레이서·스플래시를
-       서로 다른 대상에 붙였다. 옛 판은 이 칸 자체를 안 만든다 — 없는 것과 '표적 없음'은
-       다른 말이라, 화면이 그 둘을 갈라 볼 수 있어야 한다. */
-    const hasTarget = version >= 6;
-    /* 업그레이드 줄에 건물 태그가 붙는가(위 머리말 ★) — 줄마다 u32 하나가 늘어난다.
-       판 6 뭉치는 이 칸이 없으므로 태그 0(모름)으로 채운다. */
-    const hasUpTag = version >= 7;
     const fps = c.f32();
     const trustFrame = c.i32();
     if (!Number.isFinite(fps) || fps <= 0) return null;
@@ -544,7 +515,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       count: number; hp: number; ic: number; tgt: number; own: { f: number; owner: number }[] }[] = new Array(n);
     for (let i = 0; i < n; i += 1) {
       head[i] = { tag: c.u32(), owner: c.u8(), type: c.u16(),
-        count: c.u32(), hp: c.u32(), ic: c.u32(), tgt: hasTarget ? c.u32() : 0, own: [] };
+        count: c.u32(), hp: c.u32(), ic: c.u32(), tgt: c.u32(), own: [] };
       /* 임자바뀜 목록(판 8) — 줄 끝에 u8 수, 바뀜마다 u32 프레임(LE) · u8 새 임자. 차례로 읽는다. */
       const nOwn9 = c.u8();
       for (let k = 0; k < nOwn9; k += 1) head[i].own.push({ f: c.u32(), owner: c.u8() });
@@ -559,8 +530,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       const kst = new Uint8Array(h.count);
       const types = new Uint16Array(h.count);
       const done = new Uint8Array(h.count);
-      const air = hasAir ? new Uint8Array(h.count) : undefined;
-      const cloak = hasCloak ? new Uint8Array(h.count) : undefined;
+      const air = new Uint8Array(h.count);
+      const cloak = new Uint8Array(h.count);
       let pf = 0;
       let px = 0;
       let py = 0;
@@ -578,9 +549,9 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
            값이 0~8뿐이라 이 마스크가 예전과 똑같은 답을 낸다. */
         const state = stateByte & 0x0f;
         done[k] = stateByte & 0x80 ? 0 : 1;
-        if (air) air[k] = stateByte & 0x40 ? 1 : 0;
-        // 0x20 = 은신 중(판 5부터) — 남아 있던 깃발 자리를 쓴다(0x10은 아직 빈다).
-        if (cloak) cloak[k] = stateByte & 0x20 ? 1 : 0;
+        air[k] = stateByte & 0x40 ? 1 : 0;
+        // 0x20 = 은신 중 — 남아 있던 깃발 자리를 쓴다(0x10은 아직 빈다).
+        cloak[k] = stateByte & 0x20 ? 1 : 0;
         pt += c.varint();
         types[k] = pt;
         const t = pf / fps;
@@ -602,8 +573,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         kt, kxy, kh, kst,
         types,
         done,
-        ...(air ? { air } : {}),
-        ...(cloak ? { cloak } : {}),
+        air,
+        cloak,
       });
     }
 
@@ -630,7 +601,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     readTicks((h) => h.ic, (tr, v) => { tr.ic = v; });
     /* 표적 흐름(판 6) — 값이 **태그**라 차이로 안 적혀 있다(순서 없는 이름표라 이웃끼리
        가깝지 않다). 그래서 readTicks를 못 쓰고 제 고리를 돈다. */
-    if (hasTarget) {
+    {
       for (let i = 0; i < n; i += 1) {
         const cnt = head[i].tgt;
         if (!cnt) continue;
@@ -656,7 +627,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         const who = c.u8();
         /* 태그는 이름을 모르는 줄에서도 **반드시 읽는다** — 아래 `if (nm)`은 담을지를
            가릴 뿐이고, 안 읽으면 커서가 4바이트씩 밀려 그 뒤가 통째로 어긋난다. */
-        const utag = hasUpTag ? c.u32() : 0;
+        const utag = c.u32();
         const nm = bwUpgradeName(id);
         // 2단계·3단계는 이름 뒤에 단계를 붙인다 — 옛 표기와 같은 자리다.
         if (nm) ups.push([pf / fps, level > 1 ? `${nm} ${level}` : nm, who, utag]);
@@ -727,7 +698,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       } }
 
     const resFields: [number, number, number, number][] = [];
-    if (hasResFields) {
+    {
       let pf = 0;
       const cnt = c.u32();
       for (let i = 0; i < cnt; i += 1) {
@@ -741,7 +712,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     /* 건설 명령(판 9) — [초, 임자, 일꾼 태그, 타일 x, 타일 y, 건물 이름]. 자리는 **발자국 좌상단 타일**이다
        (원작 action_build 의 tile_pos 그대로 — 픽셀도 가운데도 아니다). 종류는 units.dat 번호를 이름으로 푼다. */
     const builds: [number, number, number, number, number, string][] = [];
-    if (hasBuilds) {
+    {
       let pf = 0;
       const cnt = c.u32();
       for (let i = 0; i < cnt; i += 1) {
@@ -758,7 +729,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     /* 선택(판 10) — [초, 임자, 태그들]. 그 명령을 치른 **뒤의 선택 전체**라 화면은 한 줄만 보면 된다
        (ShiftSelect·ShiftDeselect 를 덤퍼가 풀어 준다 — 차이를 쌓는 셈을 화면이 되풀이하지 않게). */
     const sels: [number, number, number[], number][] = [];
-    if (hasSels) {
+    {
       let pf = 0;
       const cnt = c.u32();
       for (let i = 0; i < cnt; i += 1) {
@@ -777,7 +748,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const loads: [number, number, number][] = [];
     const amounts: [number, number, number, number][] = [];
     const kills: [number, number, number, number][] = [];
-    if (hasInfo) {
+    {
       {
         let pf = 0;
         const cnt = c.u32();

@@ -402,3 +402,17 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
   읽기 — 실 리플레이 225판을 옛 앱 파서(TZ=Asia/Seoul)와 분석기로 읽어 225판 모두 같다. 썸네일 — 합성 지형(고도 셋 · 램프 · 물 · 타일색)을 노드와 크로뮴 일꾼으로 그려
   다른 화소 17%(윤곽 안티에일리어스 · 최대 23/255) · 평면 판은 최대 2(색 반올림) — 눈으로 같다.
 - 실측(로컬): 읽기 한 판 ≈1.2초(노드 띄우기 포함) · 썸네일 0.5초 · 등록 화면은 넷씩 나눠 묻는다(replayDraft PARSE_LANES).
+
+## 옛 길 걷기 — OBWT 판 3~10 갈래 · 꾸러미 문 좁히기 · 죽은 표(2026-10-26)
+요청: "불필요한 소스 펄백을 위해 남긴거(예전 버전 받게한거나 안쓰는 api등등) 다 삭제".
+- **참값 해독**(`openbwTracks.decodeTruthTracks`): 문이 판 11~14 만 받으므로 `hasAir·hasCloak·hasResFields·hasTarget·hasUpTag·hasBuilds·hasSels·hasInfo`(판 3~11 깃발)는 늘 참이었다 —
+  걷고 그 절들을 늘 읽는다. 남은 갈림은 판 12 선택 갈래 · 13 데미지 · 14 채집뿐. `air`·`cloak` 은 늘 채운다(타입은 선택 그대로 — 읽는 쪽 `?.` 가 남아도 같다).
+  🔎 perf-check 합성 뭉치(판 12 · `--dmg --res` 판 13)를 `PERF_MOTION_OUT` 으로 떠서 옛/새 해독기 결과를 JSON 으로 견줘 같다(733 · 734 트랙).
+- **꾸러미 문**(`components/replay/index.ts`): 앱(sg-web)이 안 쓰는 값 문을 걷었다 — 도록 조각(ShapeIcon·DocIcon9·SHAPE_GALLERY… · 도록 페이지 ModelCatalog 가 안에서 쓴다) ·
+  `ReplayGuide`·`RosterTableIcon`(재생기 안에서만) · `ReplayMapCanvas`(파일째) · `primeReplayMaps`·`applyReplayMap`·`revalidateReplayMap` 문 · 재생 상태 열쇠 셋 · `gameIndexOf9`(분석기는 소스를 곧장 묶는다).
+  scripts/ 는 소스 모듈을 곧장 들이므로 문과 무관하다. 앱이 쓰는 검색 낱말 둘(TACTIC_TERMS9 · SEARCH_ROLES9)은 남는다.
+- **진행바 옛 전투량 곡선**(`combatPath9` · `SEEK_GRAPH9 = "adv"` 로 늘 꺼져 있던 갈래 · '데미지 기록 없음' 글 · CSS 셋) 걷음 — 우세 곡선만.
+- **죽은 표·함수**: 어디서도(소스·scripts·bin) 안 부르는 export 를 걷었다 — bwUnits(라바·채집 프레임·피해 표 사본 따위 40여) · bwCombat(스톰 펄스·재조준 주기·명중 도우미) ·
+  replayTechNames(업그레이드 줄 이름·기술 횟수 셈) · statsMix · shapeOblique 도우미 넷 · mapTerrain `TILESET_NAME` 등. 🔎 이름을 소스 전체에서 세어 1(정의뿐)인 것만 · `tsc --noUnusedLocals` 의 새 줄 0.
+- 남긴 것: `#gl=0` 2D 폴백 · SHAPE_GALLERY 의 hidden 별본 · 진단 해시 깃발(scripts 가 쓴다).
+- ⚠ perf-check 는 이제 보기 모드 판이 서야 그림이 돈다 — `--ask` 없이는 준비 기다림이, `--ask` 로도 헤드리스에서 판이 안 서 멈춘다(HEAD 에서도 같다 · 이번 손질과 무관).
