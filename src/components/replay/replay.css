@@ -4610,6 +4610,10 @@
 .scr-fs-chat-obs { color: #c8ccd4; }
 .scr-fs-chat-nm { font-weight: 700; }   /* 채팅 이름 = 임자색 글자(칩 아님 · 2026-10-23, 요청: "채팅의 이름도 임자색으로 표현 · 칩 말고" — 원작 채팅 결 · 색은 JSX 인라인) */
 .scr-fs-chat-sep { margin: 0 0.3em 0 0.15em; }
+/* 팀챗 · 전체 배지(2026-10-26, 요청: "팀챗은 팀챗, 전체는 전체 배지 달기") — 이름 앞 작은 알약 · 못 가른 줄은 배지 없음. */
+.scr-fs-chat-scope { display: inline-block; margin-right: 0.35em; padding: 0 0.35em; border-radius: 0.3em; font-size: 0.78em; font-weight: 700; line-height: 1.45; vertical-align: 0.08em; color: #fff; }
+.scr-fs-chat-scope.is-team { background: rgba(46, 160, 92, 0.85); }
+.scr-fs-chat-scope.is-all { background: rgba(120, 128, 142, 0.85); }
 @media (prefers-reduced-motion: reduce) { .scr-fs-chat-line { animation: none; } }
 
 /* ── 모델 도록(요청: "scplayer에 도록 페이지 추가" · 2026-10 scplayer global.css 에서 옮김 — ModelCatalog.tsx) ────────────────────────────────

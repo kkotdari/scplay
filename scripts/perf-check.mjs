@@ -658,7 +658,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     },
     /* --chat(2026-10-19) — 경기 채팅 넷(사람 셋 · 관전자 하나 · 긴 글 하나) · 42~45초 · 열리는 46초에 다 5초 창 안이다(재생기 왼아래 채팅). */
     loadUnitTracks: async () => ({ motion, ...(window.__chat ? { chats: [
-      { sec: 42, name: "정구", text: "ㅎㅇ 잘 부탁드립니다" }, { sec: 43, name: "수달이", text: "ㄱㄱ" },
+      { sec: 42, name: "정구", text: "ㅎㅇ 잘 부탁드립니다", scope: "all" }, { sec: 43, name: "수달이", text: "ㄱㄱ", scope: "team" },   // scope = 팀챗·전체 배지(2026-10-26)
       { sec: 44, name: "관전자", text: "오 핵이다" },
       { sec: 45, name: "Rex", text: "이번 판은 진짜 길게 가 봅시다 앞마당 먹고 하이브까지 가는 걸로 다들 화이팅" }] } : {}) }),
     /* 장면 공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백이다. 버튼은 재생기가 그린다(아이콘 원). 스크랩은 2026-10-22 걷었다.

@@ -9390,7 +9390,7 @@ export default function ReplayMotionPlayer({
    *  (자리·방향·상태·종류·체력·업그레이드·마법·핑·로스터). 없으면 재생기는 아무것도
    *  안 그리고 "재생할 수 없는 게임"이라고만 말한다(요청: 폴백 없음). */
   /** 자취 받기 — chats(2026-10-10 · 있으면)는 경기 채팅 [초 · 말한 사람(게임 이름) · 글]: 중계 자막의 gg 선언·노엘 외침(cast9 ★★). */
-  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string }[] }>;
+  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string; scope?: "team" | "all" }[] }>;
   /** 링크로 받은 장면 한 벌(`sceneLinkOf9` 가 푼 그대로 — 앱은 안 만진다): 시작 시각(&t=) · 배속(&s= · 사다리에
    *  없는 값은 가장 가까운 칸) · 자리(&z=·&cx=·&cy=·&a= · 지도 상자가 실제로 서고 나서 한 번만 건다) · 카메라 임자
    *  (&tr= · 그 판의 게임 아이디면 그 사람을 **추적한 채로**, `*`(CAST_AUTO_LINK9)면 **자동 중계를 켠 채로** 시작 ·
@@ -9512,7 +9512,7 @@ export default function ReplayMotionPlayer({
   }, [gridIn, entData]);
   const [entLoad, setEntLoad] = useState<"idle" | "loading" | "none">("idle");
   /** 경기 채팅(자취와 함께 온다 · 2026-10-10) — 중계 편성표의 gg 선언·노엘 외침 재료. */
-  const [chats9, setChats9] = useState<{ sec: number; name: string; text: string }[] | undefined>(undefined);
+  const [chats9, setChats9] = useState<{ sec: number; name: string; text: string; scope?: "team" | "all" }[] | undefined>(undefined);
   /* 유닛의 자리·방향·상태 — 서버가 리플레이를 그대로 돌려 구운 참값이다. 태그로 찾는다.
      (이름이 sim으로 남은 것은 읽는 자리가 수백 군데라서다 — 값의 출처만 바뀌었다.) */
   const [simTracks, setSimTracks] = useState<Map<number, TruthTrack> | null>(null);
@@ -12604,7 +12604,7 @@ export default function ReplayMotionPlayer({
   /* ★ **채팅 표시**(2026-10-19, 요청: "채팅 표시 추가 · 왼쪽 자막이랑 안겹치는 아래쪽에 표시 · 표시 시간은 약 5초") — 경기 채팅(chats9 · 자취 받기의 chats)을 무대 **왼아래**에
      [말한 사람 칩] 글 꼴로 띄운다. 한 줄은 그 말을 한 때부터 화면 시간 CHAT_SHOW9 초(게임 초 = × 배속) · 한꺼번에 CHAT_MAX9 줄(새 줄이 아래). 자막과 안 겹치게
      **자막이 맡는 최대 키(--cap-res) 위**(--over-cap)에 선다 — 배속 다이얼도 같은 줄(같은 날 요청: "자막은 폭을 거의 다 사용 · 배속표시와 채팅은 자막 위에 놓이게" · replay.css). */
-  const CHAT_SHOW9 = 5;
+  const CHAT_SHOW9 = 10;   // 5 → 10(2026-10-26, 요청: "채팅은 10초간 유지")
   const CHAT_MAX9 = 4;
   const chatsSorted9 = useMemo(() => (chats9 ? [...chats9].sort((a9, b9) => a9.sec - b9.sec) : []), [chats9]);
   const chatNow9 = chatsSorted9.filter((c9) => c9.sec <= t && t < c9.sec + CHAT_SHOW9 * Math.max(1, speed)).slice(-CHAT_MAX9);
@@ -12614,6 +12614,8 @@ export default function ReplayMotionPlayer({
         const pl9 = bases.some((b9) => b9.key === c9.name);
         return (
           <div key={`${c9.sec}|${c9.name}|${c9.text}`} className="scr-fs-chat-line">
+            {/* 팀챗 · 전체 배지(2026-10-26, 요청: "팀챗은 팀챗, 전체는 전체 배지 달기" · "구분 못 한 건 배지 없이") — scope 는 서버가 저장자로 가른 값(sg-api _chat_scope). */}
+            {c9.scope && <span className={cx("scr-fs-chat-scope", `is-${c9.scope}`)}>{c9.scope === "team" ? "팀챗" : "전체"}</span>}
             {pl9
               ? <span className="scr-fs-chat-nm" style={{ color: modeColor(c9.name, teamOfRaw(c9.name)) }}>{capName9(c9.name)}</span>
               : <span className="scr-fs-chat-obs">{c9.name}</span>}
