@@ -3171,7 +3171,9 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
    한 번 그려 두는 판(sprVer9)이고 엔진이 시작 본진마다 dom "placard" 를 낸다(engine9 EVENT_PLACARD9). 글꼴이 늦게 실리면 실린 뒤 한 번 다시 그려 판 번호를 올린다. */
 export const PLACARD_TEXT9 = "고고&단우님 환영합니다!";
 const PLACARD_W9 = 640;
-const PLACARD_H9 = 400;   // 330 → 400(2026-10-26, 요청: "좀더 높이 띄우기" — 풍선 줄을 늘린 만큼 판 위를 키운다)
+const PLACARD_H9 = 330;   // (2026-10-26 한때 400 — 줄을 늘린 것은 되물렸다: "풍선줄을 높이라는게 아니라 풍선과 플래카드 전체를 다 높이라는것" → 판 전체를 띄운다 · drawDomFx9 PLACARD_LIFT9)
+/** 판 전체를 지붕 위로 띄우는 몫(발자국 폭 W9 배 · 2026-10-26, 요청: "풍선과 플래카드 전체를 다 높이") — 옛 0: 천 아랫단이 지붕(앵커)에 닿았다. */
+const PLACARD_LIFT9 = 0.5;
 let placardCv9: HTMLCanvasElement | null = null;
 let placardFontTried9 = false;
 /** 풍선 하나 — 건물을 보는 카메라(TOP_ELEV9 · 40도 내려다봄)로 본 모습(2026-10-26, 요청: "풍선을 위에서 45도? 건물 보는 각도에서 보는 모습으로").
@@ -3202,14 +3204,14 @@ function placardDraw9(cv9: HTMLCanvasElement): void {
   const W = PLACARD_W9; const H = PLACARD_H9;
   c9.clearRect(0, 0, W, H);
   /* 천 — 아래쪽에 매달려 살짝 처진 흰 천(양 귀는 풍선 줄에 묶임). */
-  const x0 = 70; const x1 = W - 70; const y0 = 260; const y1 = 370; const sag = 12;
+  const x0 = 70; const x1 = W - 70; const y0 = 190; const y1 = 300; const sag = 12;
   /* 풍선 줄 — 천의 양 윗귀에서 풍선 송이로. (풍선 뒤에 그려 송이가 줄 끝을 덮는다 · 2026-10-24, 요청: "막대 말고 풍선으로") */
   const knotL = { x: x0 + 4, y: y0 }; const knotR = { x: x1 - 4, y: y0 };
   const bunch = (kx: number, ky: number, dir: number): { x: number; y: number; r: number; col: string }[] => [
-    { x: kx + dir * 6, y: ky - 188, r: 30, col: "#ef4b6a" },
-    { x: kx - dir * 40, y: ky - 170, r: 27, col: "#ffcf3f" },
-    { x: kx + dir * 42, y: ky - 156, r: 25, col: "#4ea7ff" },
-    { x: kx - dir * 8, y: ky - 140, r: 22, col: "#52d08a" },
+    { x: kx + dir * 6, y: ky - 118, r: 30, col: "#ef4b6a" },
+    { x: kx - dir * 40, y: ky - 100, r: 27, col: "#ffcf3f" },
+    { x: kx + dir * 42, y: ky - 86, r: 25, col: "#4ea7ff" },
+    { x: kx - dir * 8, y: ky - 70, r: 22, col: "#52d08a" },
   ];
   c9.strokeStyle = "rgba(60,60,70,0.75)"; c9.lineWidth = 1.6;
   for (const [k, dir] of [[knotL, 1], [knotR, -1]] as const) {
@@ -3241,10 +3243,10 @@ function placardDraw9(cv9: HTMLCanvasElement): void {
 function placardSpr9(): HTMLCanvasElement {
   if (placardCv9) return placardCv9;
   const cv9 = newCanvas9("플래카드"); cv9.width = PLACARD_W9; cv9.height = PLACARD_H9;
-  placardDraw9(cv9); sprVer9(cv9, 3); placardCv9 = cv9;
+  placardDraw9(cv9); sprVer9(cv9, 5); placardCv9 = cv9;
   if (!placardFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
     placardFontTried9 = true;
-    document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 4); } }).catch(() => {});
+    document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 6); } }).catch(() => {});
   }
   return cv9;
 }
@@ -3275,10 +3277,10 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
   };
   switch (f.style) {
     case "placard": {
-      /* 이벤트 플래카드(위 placardSpr9 ★) — 발자국 폭(W9)의 1.25배 · 판 비율 그대로 · 천 아랫단이 앵커(ay · 지붕 높이)에 닿는다(풍선이 들어 떠 있는 꼴). */
+      /* 이벤트 플래카드(위 placardSpr9 ★) — 발자국 폭(W9)의 1.25배 · 판 비율 그대로 · 천 아랫단이 앵커(ay · 지붕 높이)에서 W9 × PLACARD_LIFT9 위에 뜬다(2026-10-26 · 옛: 지붕에 닿았다). */
       const pw9 = W9 * 1.25; const ph9 = pw9 * (PLACARD_H9 / PLACARD_W9);
       ctx.globalAlpha = 1;
-      ctx.drawImage(placardSpr9(), ax - pw9 / 2, ay - ph9, pw9, ph9);
+      ctx.drawImage(placardSpr9(), ax - pw9 / 2, ay - ph9 - W9 * PLACARD_LIFT9, pw9, ph9);
       break;
     }
     case "die": {
@@ -11482,15 +11484,25 @@ export default function ReplayMotionPlayer({
     if (trackRaw && trackCamRef.current.raw === trackRaw) setView9(zoomRef.current, { ...trackCamRef.current.pan });
     setTrackRaw(null);
   };
+  /** ★ 개인 화면을 열 때 중계가 켜져 있었나(2026-10-26, 지적: "헛점 — 중계모드 → 개인화면모드 → 오프시 자유모드로 변경됨") — 끄면 그 모드(중계)로 돌아간다.
+   *  옛: 끌 때 중계를 되살리지 않았다('지금 자리에 머무는 것') — 보기 모드는 고른 것으로 끝까지라(2026-10-24 보기 모드 잠금) 중계로 고른 사람이 자유 모드에 떨어졌다.
+   *  AUTO(toggleCast9)·분할은 제 갈 곳을 스스로 정하므로 이 표식을 지운다. */
+  const castBackRef9 = useRef(false);
+  /** 개인 화면을 끈다 — 시야를 전체로 · 중계에서 왔으면 중계로 돌아간다(위 castBackRef9 ★). */
+  const endTrack9 = (): void => {
+    stopTrack9();
+    setViewRaw(null);
+    if (castBackRef9.current) { castBackRef9.current = false; setCastOn(true); }
+  };
   const toggleTrack = (key: string): void => {
     const on9 = trackRaw !== key;
     if (on9 && pitchDegRef9.current < 90) setPitchDeg(90);   // 중계 중엔 평면(2026-10-09, 요청: "2D/3D전환은 중계중엔 비활성화(성능)")
-    /* 개인 추적과 중계는 **배타**다(요청) — 손이 사람을 고르면 중계는 물러난다. 끌 때는
-       중계를 되살리지 않는다: 껐다 켠 사람이 바라는 것은 '지금 자리에 머무는 것'이다. */
-    if (on9 && castOn) stopCast9();
+    /* 개인 추적과 중계는 **배타**다(요청) — 손이 사람을 고르면 중계는 물러난다. 끌 때는 중계에서 왔으면 중계로 돌아간다(위 endTrack9 ★ · 옛: 되살리지 않았다). */
+    if (on9 && castOn) { castBackRef9.current = true; stopCast9(); }
     if (on9) setSplitOn9(false);   // 분할보기와도 배타다
-    if (on9) setTrackRaw(key); else stopTrack9();
-    setViewRaw(on9 ? key : null);
+    if (!on9) { endTrack9(); return; }
+    setTrackRaw(key);
+    setViewRaw(key);
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
@@ -11504,6 +11516,7 @@ export default function ReplayMotionPlayer({
   };
   /** 중계 켜기·끄기(로스터 맨 아래 TV 단추) — 켜면 개인 추적이 풀린다(배타). */
   const toggleCast9 = (): void => {
+    castBackRef9.current = false;
     if (castOn) { stopCast9(); return; }
     if (searchOn9) searchCancel9();   // 검색 중에 AUTO 를 누르면 검색을 닫고 중계로(검색 중엔 중계가 물러나 있다 · 위 castOn ★)
     if (pitchDegRef9.current < 90) setPitchDeg(90);   // 중계 중엔 평면(위 toggleTrack 과 같은 문)
@@ -11517,6 +11530,7 @@ export default function ReplayMotionPlayer({
    *  미선택으로") — 이미 켜진 분할에서 사람만 바뀌면 고른 칸이 남아 있을 때 그대로 둔다. */
   const startSplit9 = (sel9: string[] | null): void => {
     if (uiPhone9 || SPLIT_OFF9) return;   // 폰(폰 UI)은 분할이 없다(2026-10-12 · 아래 pickPerson9 ★) · PC 도 이제 안 쓴다(SPLIT_OFF9 · 2026-10-24)
+    castBackRef9.current = false;
     if (castOn) stopCast9();
     if (trackRaw !== null) stopTrack9();
     setViewRaw(null);
@@ -11544,13 +11558,13 @@ export default function ReplayMotionPlayer({
        ★★ PC 도 같다(2026-10-24, 요청: "PC 분할화면 체제 미사용으로 변경 · 로스터 클릭시 개인화면으로 바로 변경") — 여럿을 모아 분할로 가던 아래 갈래는 SPLIT_OFF9 로 닫았다
        (분할 붓·칸 배치는 남아 있되 켜는 길이 없다 · startSplit9 도 되돌아간다). */
     if (uiPhone9 || SPLIT_OFF9) {
-      if (trackRaw === key9) { stopTrack9(); setViewRaw(null); } else toggleTrack(key9);
+      if (trackRaw === key9) endTrack9(); else toggleTrack(key9);
       return;
     }
     const next9 = castSel9.includes(key9) ? castSel9.filter((k9) => k9 !== key9) : [...castSel9, key9];
     if (next9.length === 0) {
       if (splitUser9) setSplitOn9(false);
-      if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+      if (trackRaw !== null) endTrack9();
     } else if (next9.length === 1) {
       if (trackRaw !== next9[0]) toggleTrack(next9[0]);   // 분할에서 내려오면 toggleTrack 이 분할을 끈다
     } else if (next9.length >= bases.length) startSplit9(null);   // 다 고르면 곧 '전체'다
