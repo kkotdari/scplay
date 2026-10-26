@@ -5406,6 +5406,10 @@
   position: absolute; left: calc(var(--th) / 2); right: calc(var(--th) / 2); bottom: calc(50% + 7px * var(--ui, 1)); height: calc(var(--cg-h, 60px) * var(--ui, 1));
   pointer-events: none; z-index: 3; opacity: 0; transform: translateY(3px); transition: opacity 0.18s ease, transform 0.18s ease;
 }
+.scr-motion-adv-title {   /* 판 왼쪽 위 제목 "우세도"(2026-10-26) */
+  position: absolute; left: calc(4px * var(--ui, 1)); top: calc(3px * var(--ui, 1)); font-size: calc(11px * var(--ui, 1)); font-weight: 700; line-height: 1;
+  color: rgba(255, 255, 255, 0.72); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); white-space: nowrap;
+}
 .scr-motion-adv-tag {
   position: absolute; right: calc(2px * var(--ui, 1)); transform: translateY(-50%); padding: 0 calc(4px * var(--ui, 1)); border-radius: calc(3px * var(--ui, 1));
   color: #fff; font-size: calc(11px * var(--ui, 1)); font-weight: 700; line-height: calc(14px * var(--ui, 1)); white-space: nowrap;

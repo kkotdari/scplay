@@ -1664,7 +1664,12 @@ const COMBAT_FLASH_MS9 = 1200;
 const SEEK_GRAPH9: "adv" | "combat" = "adv";
 /** ★ 우세 점수의 자(2026-10-26, 요청: "병력과 싸움 결과를 종합해야 하지 않을까 · 그리고 본진 영역 크기도" — 컴포넌트의 advLines9 ★) —
  *  점수 = 병력(유닛 몸값) + 기지 영역(건물 몸값 × bld + 본진 건물마다 hall) + 싸움 결과(최근 잡은 적 몸값 × kill · τ tau 초로 스러진다). */
-const ADV9 = { bld: 0.5, hall: 300, kill: 1, tau: 90 };
+const ADV9 = { bld: 0.5, hall: 300, kill: 1, tau: 90, dmg: 3, dmgTau: 60, dmgCum: 1 };
+/* ④ 데미지(같은 날 지적: "우세도가 정확하지 않음 — 데미지를 큰 폭으로 반영해야") — 판 13 데미지 절의 **준 − 입은**(체력+실드 점수 · 팀전이면 상대 팀 몫과 정확히 맞선다)을
+   최근 몫(τ dmgTau 60초 × dmg 3)과 누적 몫(× dmgCum 1)으로 더한다. 실측(r1019 960초): 최근 1팀 준 9108 · 입은 12874 → 1팀 −11300 · 2팀 +11300 — 병력(3만 남짓)을 흔들 만큼.
+   점수는 0 아래로 안 간다. 데미지 절 없는 옛 판(≤12)은 0. */
+/** 우세 곡선 꼭대기(판 높이의 %) — 위 몫은 제목 "우세도" 자리(2026-10-26 · 옛 94 는 제목과 맨 위 선이 겹쳤다). */
+const ADV_TOP9 = 78;
 const ADV_HALL9 = new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]);
 const phoneWeak9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0 && CROWD9.weak;
 /** ★ **낮음(폰 0단)도 배킹을 2배로 죈다**(2026-10-12, 요청: "낮음 레벨에서도 발열 대책 필요") — 열은 칠하는 화소 × 장 수인데, 장 수는 60Hz 폰에서
@@ -10890,13 +10895,25 @@ export default function ReplayMotionPlayer({
       }
     }
     const keep9 = Math.exp(-(total / n9) / ADV9.tau);
+    /* ④ 데미지 준 − 입은(위 ADV9) — 통 가운데 시각의 칸에. */
+    const net9 = Array.from({ length: m9 }, () => new Float64Array(n9 + 1));
+    const dHalf9 = (entData.dmgBucketSec || 5) / 2;
+    for (const [sec9, who9, du9, db9, tu9, tb9] of entData.dmg) {
+      const i9 = sideOf9.get(who9);
+      if (i9 !== undefined) net9[i9][binOf9(sec9 + dHalf9)] += du9 + db9 - tu9 - tb9;
+    }
+    const keepD9 = Math.exp(-(total / n9) / ADV9.dmgTau);
     const sg9 = Math.max(0.6, (4 / total) * n9);
     const r9 = Math.ceil(sg9 * 3);
     const w9: number[] = [];
     for (let k9 = -r9; k9 <= r9; k9 += 1) w9.push(Math.exp(-(k9 * k9) / (2 * sg9 * sg9)));
     const val9 = del9.map((d9, si9) => {
-      const raw9 = new Float64Array(n9); let a9 = 0; let k9 = 0;
-      for (let i9 = 0; i9 < n9; i9 += 1) { a9 += d9[i9]; k9 = k9 * keep9 + imp9[si9][i9]; raw9[i9] = Math.max(0, a9) + k9; }
+      const raw9 = new Float64Array(n9); let a9 = 0; let k9 = 0; let kd9 = 0; let cum9 = 0;
+      for (let i9 = 0; i9 < n9; i9 += 1) {
+        a9 += d9[i9]; k9 = k9 * keep9 + imp9[si9][i9];
+        kd9 = kd9 * keepD9 + net9[si9][i9]; cum9 += net9[si9][i9];
+        raw9[i9] = Math.max(0, Math.max(0, a9) + k9 + ADV9.dmg * kd9 + ADV9.dmgCum * cum9);
+      }
       const sm9 = new Float64Array(n9);
       for (let i9 = 0; i9 < n9; i9 += 1) {
         let s9 = 0; let ws9 = 0;
@@ -10911,7 +10928,7 @@ export default function ReplayMotionPlayer({
     if (!(mx9 > 0)) return null;
     return sides9.map((s9, i9) => {
       const ys9: string[] = [];
-      for (let x9 = 0; x9 < n9; x9 += 1) ys9.push((100 - (val9[i9][x9] / mx9) * 94).toFixed(1));
+      for (let x9 = 0; x9 < n9; x9 += 1) ys9.push((100 - (val9[i9][x9] / mx9) * ADV_TOP9).toFixed(1));
       /* 선 이름(2026-10-26, 요청: "탐색바 그래프에 라벨 — 색만 보고 구분 어려워" → "아니 선에 직접") — 팀전 "1팀"·"2팀" · 난투는 사람(raw → capName9) · 선 오른끝 높이(endY · 0~100). */
       const label9 = team9 ? (s9.key === "t1" ? "1팀" : "2팀") : s9.key;
       return {
@@ -19756,6 +19773,8 @@ export default function ReplayMotionPlayer({
             {/* 선 끝 이름(위 advLines9 ★ · "선에 직접") — 곡선 판과 같은 상자(.scr-motion-adv-tags) · 선 오른끝 높이에 그 선 색 칩(흰 글자 · 짙은 팀색은 어두운 바탕에서 글자로는 안 읽힌다). 끝이 가까운 선끼리는 이름 키만큼 위아래로 벌린다
                 (판 높이 PC 120 · 폰 60 × --ui 에 이름 키 14 × --ui 를 % 로). */}
             <span className="scr-motion-adv-tags" aria-hidden>
+              {/* 제목(2026-10-26, 요청: "탐색바 우세도 그래프에 타이틀 붙이기(좌상단) 우세도라고") */}
+              <b className="scr-motion-adv-title">우세도</b>
               {((): React.ReactNode => {
                 const sep9 = (14 / (uiPhone9 ? 60 : 120)) * 100;
                 const ord9 = advLines9.map((l9, i9) => ({ i: i9, y: l9.endY })).sort((a9, b9) => a9.y - b9.y);
