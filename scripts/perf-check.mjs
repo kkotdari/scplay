@@ -860,6 +860,13 @@ if (has("--atlas")) {   // 서버 아틀라스(위 ENTRY 의 --atlas) — DIR/<�
     const f9 = join(AD9, decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/spr\//, "")));
     if (!existsSync(f9)) return r.fulfill({ status: 404, body: "" });
     const b9 = readFileSync(f9); globalThis.__atlasBytes += b9.length; globalThis.__atlasN += 1; (globalThis.__atlasUrls ??= []).push(f9.slice(AD9.length));
+    /* --atlasnet MBps,rttms(2026-10-26) — 실제 망 흉내: 한 줄 대역(MB/s)을 요청들이 나눠 쓰고(먼저 온 차례로 줄 선다) 응답마다 rtt 를 더한다. route.fulfill 은 CDP 망 조절을 안 타서 여기서 늦춘다. */
+    if (has("--atlasnet")) {
+      const [bw9, rtt9] = String(flag("--atlasnet", "5,60")).split(",").map(Number);
+      const now9 = Date.now(); const st9 = Math.max(now9 + rtt9, globalThis.__linkFree ?? 0);
+      const end9 = st9 + (b9.length / 1048576 / bw9) * 1000; globalThis.__linkFree = end9;
+      return new Promise((res9) => setTimeout(res9, end9 - now9)).then(() => r.fulfill({ body: b9, contentType: f9.endsWith(".json") ? "application/json" : f9.endsWith(".wasm") ? "application/wasm" : f9.endsWith(".js") ? "text/javascript" : "application/octet-stream" }));
+    }
     return r.fulfill({ body: b9, contentType: f9.endsWith(".json") ? "application/json" : f9.endsWith(".wasm") ? "application/wasm" : f9.endsWith(".js") ? "text/javascript" : "application/octet-stream" });
   });
 }

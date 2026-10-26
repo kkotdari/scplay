@@ -62,11 +62,13 @@ const loaded9 = new WeakMap<GlUnits9, Set<string>>();
 /** 이 벌에서 싣기에 실패한 묶음(풀기 실패 · 텍스처 상한 초과 등) — 벌이 판을 넘어 살므로 판마다 다시 받지 않게 적어 둔다(2026-10-26). */
 const failed9 = new WeakMap<GlUnits9, Set<string>>();
 /** 한 번 싣기의 결과 — cells·mb·chunks 는 이번에 새로 실은 것 · kept 는 앞 판에서 물려받은 묶음 · dropped 는 상한에 걷은 묶음. */
-export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: string; chunks: number; miss: number; kept: number; dropped: number; err?: string }
+export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: string; chunks: number; miss: number; kept: number; dropped: number;
+  /** 받기를 기다린 ms(풀기가 다음 묶음을 기다리며 선 때) · 풀고 올린 ms · 받은 바이트(MB) — 오래 걸리는 몫이 망인지 풀기인지 가르는 자(2026-10-26). */
+  waitMs: number; workMs: number; netMB: number; err?: string }
 /** 경기 종류들의 아틀라스를 싣는다 — kinds 는 많이 쓰는 차례 · mbCap 을 넘으면 거기서 멈춘다(나머지는 재생 중 굽기). */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; odd: boolean; em: boolean; mbCap: number }): Promise<SprAtlasLoad9> {
   const t0 = performance.now();
-  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0, kept: 0, dropped: 0 };
+  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0, kept: 0, dropped: 0, waitMs: 0, workMs: 0, netMB: 0 };
   if (!sprAtlasOn9() || !g9.sprTint || !g9.gl2) { r.err = !g9.sprTint ? "임자색 분리 없음" : "꺼짐"; return r; }
   try {
     const idx = await index9();
@@ -92,15 +94,17 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const url = (j: (typeof jobs)[number], ly: string): string => `${BASE}/k/${j.ch.files[opt.res][ly]}`;
     const fetchJob = (j: (typeof jobs)[number]): Promise<Record<string, ArrayBuffer | null>> => {
       const lys = j.ch.layers.filter((ly) => (ly !== "e" || opt.em) && !!j.ch.files[opt.res][ly]);
-      return Promise.all(lys.map((ly) => fetch(url(j, ly)).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null)))
+      return Promise.all(lys.map((ly) => fetch(url(j, ly)).then((x) => (x.ok ? x.arrayBuffer() : null)).then((b) => { if (b) r.netMB += b.byteLength / 1048576; return b; }).catch(() => null)))
         .then((bs) => Object.fromEntries(lys.map((ly, i) => [ly, bs[i]])));
     };
     const pend: Promise<Record<string, ArrayBuffer | null>>[] = [];
     for (let i = 0; i < Math.min(6, jobs.length); i += 1) pend.push(fetchJob(jobs[i]));
     for (let i = 0; i < jobs.length; i += 1) {
       const j = jobs[i];
+      const tw = performance.now();
       const bufs = await pend[i];
       if (i + 6 < jobs.length) pend.push(fetchJob(jobs[i + 6]));
+      const tk = performance.now(); r.waitMs += tk - tw;
       const jt = `${j.kind}.${j.par}.${opt.res}`;
       if (!bufs.c) continue;   // 받기 실패(망) — 다음 판에 다시 받는다
       const lv = (b: ArrayBuffer | null | undefined): { w: number; h: number; data: Uint8Array }[] | null => (b ? transcode9(M, b, fmt.tf, 6) : null);
@@ -122,6 +126,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       r.cells += g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells, jt);
       r.mb += mb; r.chunks += 1;
       done.add(jt);
+      r.workMs += performance.now() - tk;
       /* 한 묶음마다 한 박자 쉰다 — 로딩 글자 애니메이션이 서지 않게. */
       await new Promise((res) => setTimeout(res, 0));
     }
