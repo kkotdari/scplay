@@ -11379,6 +11379,8 @@ export default function ReplayMotionPlayer({
      옛 **맞대결 자동 분할**(2026-10 · 편성표의 foe 로 두 사람을 나란히 · 배지 → 화살표·⚔️ 표)은 되물렸다. 편성표는 여전히 장면마다 상대역·
      몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
   const castSeg9 = searchSegNow9 ?? (castIdx9 >= 0 ? castPlan[castIdx9] : null);
+  if (scrDiagOn() && typeof window !== "undefined") (window as unknown as { __castPlan9?: CastSeg9[] }).__castPlan9 = castPlan;   // perf-check --planprobe
+  if (scrDiagOn() && castSeg9) (SCR_DIAG as unknown as Record<string, unknown>).castSeg = `${castSeg9.at.toFixed(1)} ${castSeg9.why ?? ""} ${castSeg9.raw}${castSeg9.spot ? " spot" : ""} fol${(castSeg9.follow ?? []).map((f9) => `[${f9.t0.toFixed(1)}-${f9.t1.toFixed(1)}:${f9.tags.join("/")}]`).join("")}`;   // perf-check --camprobe
   /** 지금 따라가는 교전 자리 길(위 castRaw ★) — 자동 중계 · 개인 추적·손 분할이 아닐 때만. */
   const spotNow9 = (castOn || searchSegNow9 !== null) && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
   /** 그 길의 t 자리(1초 간격 키 사이를 직선으로). */
@@ -11672,7 +11674,8 @@ export default function ReplayMotionPlayer({
     if (!w9) return;
     /* **다음 사람 것도 미리** 청한다(중계) — 편성표가 누구로 갈아탈지 이미 알고 있으므로,
        갈아타는 순간에 구조화 복제가 걸려 그 프레임이 멎는 일을 미리 치른다. */
-    const want9 = [camRaw9, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null,
+    /* 지금 토막의 임자도(사람 없는 spot 토막이면 camRaw9 가 null — 그 토막의 따라갈 몸이 그 임자의 자취를 읽는다 · 아래 walksByTag ★ · 2026-10-27). */
+    const want9 = [camRaw9, castIdx9 >= 0 && castPlan[castIdx9]?.follow?.length ? castPlan[castIdx9].raw : null, castIdx9 >= 0 ? castPlan[castIdx9 + 1]?.raw ?? null : null,
       ...(splitOn9 ? splitBases9.map((b9) => b9.key) : [])];
     for (const r9 of want9) {
       if (!r9 || walksByRaw9.has(r9) || walksAskedRef9.current.has(r9)) continue;
@@ -11681,17 +11684,23 @@ export default function ReplayMotionPlayer({
       w9.postMessage({ type: "want", what: "walks", raw: r9 });
     }
   }, [camRaw9, castIdx9, castPlan, walksByRaw9, worldGen9, workerTick9, splitOn9, splitBases9]);
+  /** 따라갈 몸이 있는 사람 없는 토막(spot)의 임자 — 아래 walksByTag ★. */
+  const folRaw9 = castOn && castSeg9?.spot && castSeg9.follow?.length ? castSeg9.raw : null;
   const walksByTag = useMemo(() => {
     const m9 = new Map<number, typeof entWalks>();
     /* 추적·중계가 사람을 잡기 전에는 **한 톨도 안 만든다** — 이 표를 쌓는 데 드는 것은 생애
-       수만큼의 한 바퀴인데, 안 쓰는 화면에서까지 낼 값은 아니다. */
-    if (!camRaw9) return m9;
-    for (const e9 of entWalks) {
+       수만큼의 한 바퀴인데, 안 쓰는 화면에서까지 낼 값은 아니다.
+       ★ 중계가 켜져 있으면 사람을 안 잡은 토막(교전 자리 spot)에도 만든다(2026-10-27, 지적: "정찰이 아직도 정찰 본체를 안 따라감") — 사건 중계(cast9 opts.event)의
+       정찰·폭탄드랍 토막은 spot 이라 camRaw9 가 null 이고 entWalks(카메라 임자의 자취)도 비는데, 그 토막의 따라갈 몸(castSeg9.follow → bodyAt9)이 이 표를 읽는다.
+       표가 비어 몸을 못 찾고 늘 장면 자리로 물러났다 — 그 토막의 임자(정찰·드랍한 사람 · castSeg9.raw)의 자취로 채운다. */
+    const src9 = camRaw9 ? entWalks : folRaw9 ? (walksByRaw9.get(folRaw9) ?? EMPTY_WALKS9) : EMPTY_WALKS9;
+    if (src9.length === 0) return m9;
+    for (const e9 of src9) {
       const a9 = m9.get(e9.tag);
       if (a9) a9.push(e9); else m9.set(e9.tag, [e9]);
     }
     return m9;
-  }, [entWalks, camRaw9]);
+  }, [entWalks, camRaw9, folRaw9, walksByRaw9]);
   /** 태그 → 건물 생애들 — 건물은 자취(entWalks)에 안 들어간다(v1 건물 층이 그린다). */
   const bldsByTag = useMemo(() => {
     const m9 = new Map<number, TruthLife[]>();
@@ -11811,6 +11820,7 @@ export default function ReplayMotionPlayer({
     /* 사건 중계(spot 토막 · cast9 opts.event)에서도 따라갈 몸이 길보다 먼저다 — 그 구간엔 수송선 → 내린 유닛을 본다(2026-10-14). */
     const fol9 = trackRaw === null && castOn && !splitUser9 && castSeg9 && (castSeg9.spot ? !camRaw9 : castSeg9.raw === camRaw9)
       ? castSeg9.follow?.find((f9) => t >= f9.t0 && t < f9.t1) : undefined;
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).folWhy = `tr${trackRaw ?? "-"} on${castOn ? 1 : 0} su${splitUser9 ? 1 : 0} cam${camRaw9 ?? "-"} t${t.toFixed(1)} fol${fol9 ? fol9.tags.map((g9) => `${g9}:${bodyAt9(g9, t) ? "o" : "x"}/${walksByTag.size}`).join(",") : "-"}`;
     if (fol9) {
       let sx9 = 0; let sy9 = 0; let n9 = 0;
       const pts9: { x: number; y: number }[] = [];
@@ -13277,6 +13287,17 @@ export default function ReplayMotionPlayer({
   /** 사람 화면의 끌림(아래 trackView ★ 행군) — 사건 자리 스프링과 같은 꼴. */
   const trackSpring9 = useRef<{ x: number; y: number; vx: number; vy: number; chase: boolean; t: number } | null>(null);
   const [camGlideTick9, setCamGlideTick9] = useState(0);
+  /* ★ **재생 중 카메라 걸음은 붓 틱이 한다**(2026-10-27, 지적: "중계에서 드래그 이동이 좀 부드럽지 않음" — 카메라가 스스로 옮겨 갈 때) — 스프링·미끄러짐은 렌더가 내는 값이라
+     움직이는 동안 rAF 마다 setCamGlideTick9 로 **재생기 전체 렌더**를 불렀다(실측: 한 장 36ms · CPU 4배 늦춤 — 폰에서 장마다 한 칸을 넘겨 카메라가 덜컥였다). 이제 재생 중에는
+     렌더가 목표(camAimRef9 · 초당 열 번)만 적고, 틱이 장마다 그 목표로 스프링을 한 걸음 몰아(camStepRef9) panRef·렌즈를 옮긴 뒤 칠한다. 렌더는 틱이 둔 자리를 그대로 쓴다
+     (camTickOwnRef9 — 렌더가 따로 한 걸음 더 가면 굳은 팬과 칠한 팬이 갈려 한 장을 더 칠한다). 멈춘 채의 움직임(정지 중 토막 갈아탐)은 종전대로 rAF 렌더다. */
+  const camTickOwnRef9 = useRef(false);
+  /** 스프링이 쫓는 목표(렌더가 적는다) — 무슨 스프링인가 · 목표 팬 · 각진동수 · 가속 상한(px/초²). */
+  const camAimRef9 = useRef<{ kind: "spot" | "track"; mid: { x: number; y: number }; w: number; amax: number } | null>(null);
+  /** 틱이 한 걸음 미는 함수(아래 applyGestureXf 곁에서 선다). */
+  const camStepRef9 = useRef<((now9: number) => void) | null>(null);
+  /** 틱이 미끄러짐(camGlideRef9)에서 마지막으로 낸 자리 — 그 미끄러짐과 짝지어 둔다. */
+  const camGlideTickPan9 = useRef<{ g: object; p: { x: number; y: number } } | null>(null);
   /* ★★ **화면 전환은 곧장 선다 — 미끄러짐 없이**(2026-10-19, 요청: "접기펴기 분할화면 중계 등 모든 화면에서 쓰는 배율및 화면위치(중앙) 재계산 로직을 중앙화하고
      화면전환즉시는 슬라이딩없이 바로 그화면이 나오게") — 전환(접기·펴기 · 전체화면 · 2D/3D · 무대 크기 · 분할 켜고 끔 · 중계·추적 켜고 끔)마다 `viewCut9` 한 문을 지난다:
      하던 미끄러짐·스프링을 버리고, 다음 장의 카메라(trackView · 분할 칸 splitPaint9)는 **다시 잡되 곧장** 선다. 배율·자리를 다시 셈하는 것은 한 effect(viewGeom9)다. */
@@ -13348,6 +13369,7 @@ export default function ReplayMotionPlayer({
        실제 화면 자리가 크게 어긋나고, 그 어긋난 만큼 카메라가 엉뚱한 데를 잡았다.
        지도가 쓰는 그 사상(posFrac)을 그대로 쓴다 — 한 벌이어야 카메라와 그림이 같은 곳을
        가리킨다. 없으면(첫 렌더) 옛 평면 셈으로 물러난다. */
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camSel = `${camKey9}|${trackAt.sel}|${trackAt.x.toFixed(1)},${trackAt.y.toFixed(1)}`;   // perf-check --camprobe(2026-10-27)
     const fr9 = mapFracRef.current?.(trackAt.x, trackAt.y);
     const cx9 = fr9 ? fr9[0] : trackAt.x / Math.max(1, grid.width);
     const cy9 = fr9 ? fr9[1] : trackAt.y / Math.max(1, grid.height);
@@ -13371,7 +13393,7 @@ export default function ReplayMotionPlayer({
         sp9 = { ...sp0! };
         const dx9 = mid9.x - sp9.x; const dy9 = mid9.y - sp9.y;
         if (!sp9.chase && (Math.abs(dx9) > lim9.winW * SPOT_START9 || Math.abs(dy9) > lim9.winH * SPOT_START9)) { sp9.chase = true; sp9.t = now9; }
-        if (sp9.chase) {
+        if (sp9.chase && !camTickOwnRef9.current) {
           const dt9 = Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
           const w9 = SPOT_OMEGA9;
           /* 임계 감쇠: a = ω²·(목표 − x) − 2ω·v — 반 암시적 오일러(속도 먼저)로 걸음이 커도 안 튄다. */
@@ -13379,14 +13401,16 @@ export default function ReplayMotionPlayer({
           sp9.x += sp9.vx * dt9; sp9.y += sp9.vy * dt9;
           if (Math.hypot(mid9.x - sp9.x, mid9.y - sp9.y) < SPOT_STOP9 && Math.hypot(sp9.vx, sp9.vy) < SPOT_STOP9 * 4) { sp9.chase = false; sp9.vx = 0; sp9.vy = 0; }
         }
-        sp9.t = now9;
+        if (!(sp9.chase && camTickOwnRef9.current) || sp9.t <= 0) sp9.t = now9;   // 틱이 모는 동안은 틱의 시계(위 camTickOwnRef9 ★)
       }
       spotSpring9.current = sp9;
+      camAimRef9.current = sp9.chase ? { kind: "spot", mid: mid9, w: SPOT_OMEGA9, amax: Infinity } : null;
       trackCamRef.current = { raw: camKey9, z: z9, pan: { x: sp9.x, y: sp9.y }, sel: trackAt.sel, jump: cur9.jump };
       if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [sp9.x, sp9.y];
       return { pan: { x: sp9.x, y: sp9.y } };
     }
     spotSpring9.current = null;
+    camAimRef9.current = null;
     /* 다시 잡아야 하나 — 사람이 바뀌었거나(처음 켬 포함), 배율이 바뀌었거나(잡아 둔
        자리는 그 배율에서 잰 px이라 다른 배율에서는 뜻이 없다), 안전 상자를 벗어났거나. */
     let keep9 = !cut9 && cur9.raw === camKey9 && cur9.z === z9 && lim9.winW > 0 && lim9.winH > 0;
@@ -13440,7 +13464,8 @@ export default function ReplayMotionPlayer({
       const now9 = performance.now();
       const sp9 = tsp0?.chase ? { ...tsp0 } : { x: cur9.pan.x, y: cur9.pan.y, vx: 0, vy: 0, chase: true, t: now9 };
       if (!tsp0?.chase && scrDiagOn()) viewDiagPush9("cam", `행군 Δ${(mid9.x - cur9.pan.x).toFixed(0)},${(mid9.y - cur9.pan.y).toFixed(0)}px`);
-      const dt9 = Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
+      /* 틱이 모는 동안(위 camTickOwnRef9 ★)은 목표만 적고 걸음은 틱 몫 — 막 쫓기 시작한 장도 같다(그 장의 dt 는 0). */
+      const dt9 = camTickOwnRef9.current ? 0 : Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
       const w9 = SPOT_OMEGA9 * Math.sqrt(Math.max(1, speed));
       const dx9 = mid9.x - sp9.x; const dy9 = mid9.y - sp9.y;
       /* 가속 상한(TRACK_AMAX9 × 창 폭 × √배속 px/초²) — 처음 붙을 때 화면 밖까지 벌어진 거리를 한 번에 당기면 덜컥거린다(모의: 상한 없이 ×8 출발 가속이 옛 길의 3배). */
@@ -13450,15 +13475,17 @@ export default function ReplayMotionPlayer({
       if (an9 > am9) { ax9 *= am9 / an9; ay9 *= am9 / an9; }
       sp9.vx += ax9 * dt9; sp9.vy += ay9 * dt9;
       sp9.x += sp9.vx * dt9; sp9.y += sp9.vy * dt9;
-      sp9.t = now9;
+      if (dt9 > 0 || !tsp0?.chase) sp9.t = now9;
       if (Math.hypot(mid9.x - sp9.x, mid9.y - sp9.y) < SPOT_STOP9 && Math.hypot(sp9.vx, sp9.vy) < SPOT_STOP9 * 4) { sp9.chase = false; sp9.vx = 0; sp9.vy = 0; }
       trackSpring9.current = sp9;
+      camAimRef9.current = sp9.chase ? { kind: "track", mid: mid9, w: w9, amax: am9 } : null;
       camGlideRef9.current = null;
       trackCamRef.current = { raw: camKey9, z: z9, pan: { x: sp9.x, y: sp9.y }, sel: trackAt.sel, jump: cur9.jump };
       if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [sp9.x, sp9.y];
       return { pan: { x: sp9.x, y: sp9.y } };
     }
     trackSpring9.current = null;
+    camAimRef9.current = null;
     if (!keep9) {
       if (scrDiagOn()) {
         const why9 = cur9.raw !== camKey9 ? "사람" : cur9.z !== z9 ? "배율" : jump9 ? "두번누름" : !inView9 ? (selSame9 ? "밖" : "새선택밖") : "?";
@@ -13477,7 +13504,9 @@ export default function ReplayMotionPlayer({
       trackCamRef.current = { raw: camKey9, z: z9, pan: mid9, sel: trackAt.sel, jump: jump9 ? trackAt.sec : cur9.jump };
     }
     const g9 = camGlideRef9.current;
-    const gp9 = g9 ? camGlideAt9(g9, performance.now()) : null;
+    /* 틱이 모는 미끄러짐은 틱이 마지막으로 둔 자리(위 camTickOwnRef9 ★) — 렌더 시각으로 다시 셈하면 칠한 자리와 갈린다. */
+    const gt9 = camGlideTickPan9.current;
+    const gp9 = g9 ? (camTickOwnRef9.current && gt9 && gt9.g === g9 ? gt9.p : camGlideAt9(g9, performance.now())) : null;
     if (g9 && !gp9) camGlideRef9.current = null;
     const out9 = gp9 ?? trackCamRef.current.pan;
     if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [out9.x, out9.y];   // perf-check --fogprobe 의 카메라 걸음(2026-10-14)
@@ -13486,10 +13515,10 @@ export default function ReplayMotionPlayer({
   /* 미끄러지는 동안 rAF 마다 렌더를 한 번씩 부른다(trackView 는 렌더가 내는 값이다). 끝나면 멎는다. */
   const camGliding9 = camGlideRef9.current !== null || (spotSpring9.current?.chase ?? false) || (trackSpring9.current?.chase ?? false);   // 스프링이 쫓는 동안도 rAF(위 SPOT_OMEGA9 ★ · 행군 ★)
   useEffect(() => {
-    if (!camGliding9) return undefined;
+    if (!camGliding9 || (playing && active)) return undefined;   // 재생 중엔 틱이 민다(위 camTickOwnRef9 ★)
     const id9 = requestAnimationFrame(() => setCamGlideTick9((n9) => n9 + 1));
     return () => cancelAnimationFrame(id9);
-  }, [camGliding9, camGlideTick9]);
+  }, [camGliding9, camGlideTick9, playing, active]);
   /** 화면에 실제로 먹는 자리 — 추적 중이면 추적이, 아니면 사람이 정한다.
    *  ★ 이 값이 곧 **카메라 잠금**이다(요청: "드래그나 wasd 이동 가장자리 스크롤등 다
    *    막아야해") — 미는 길이 몇이든 결국 손짓 한 벌(applyGestureXf)과 상태(panBase)를
@@ -15165,6 +15194,49 @@ export default function ReplayMotionPlayer({
       xfPaintNow();
     });
   }, []);
+  /* 재생 틱의 카메라 한 걸음(위 camTickOwnRef9 ★) — 스프링은 렌더가 적은 목표로 렌더와 같은 식(임계 감쇠 · 가속 상한)을 한 걸음, 미끄러짐은 그 시각의 자리.
+     자리를 눈(panRef)·잠금(trackLockRef)에 쓰고 렌즈·효과층·지도 벡터층·미니맵을 옮긴다(유닛·지형·안개는 바로 뒤의 붓이 이 눈으로 칠한다). 손짓 중이거나
+     배율이 굳은 값과 다르면(휠 미끄러짐) 손대지 않는다 — 그쪽이 눈의 주인이다. */
+  camStepRef9.current = (now9: number): void => {
+    if (xfGestureRef.current || !trackLockRef.current || zoomRef.current !== trackLockZRef9.current) return;
+    const a9 = camAimRef9.current;
+    const sr9 = a9 ? (a9.kind === "spot" ? spotSpring9 : trackSpring9) : null;
+    const sp0 = sr9?.current;
+    let p9: { x: number; y: number };
+    if (a9 && sr9 && sp0?.chase) {
+      const sp9 = { ...sp0 };
+      const dt9 = Math.min(0.05, Math.max(0, (now9 - sp9.t) / 1000));
+      const w9 = a9.w;
+      const dx9 = a9.mid.x - sp9.x; const dy9 = a9.mid.y - sp9.y;
+      let ax9 = w9 * w9 * dx9 - 2 * w9 * sp9.vx; let ay9 = w9 * w9 * dy9 - 2 * w9 * sp9.vy;
+      const an9 = Math.hypot(ax9, ay9);
+      if (an9 > a9.amax) { ax9 *= a9.amax / an9; ay9 *= a9.amax / an9; }
+      sp9.vx += ax9 * dt9; sp9.vy += ay9 * dt9;
+      sp9.x += sp9.vx * dt9; sp9.y += sp9.vy * dt9;
+      sp9.t = now9;
+      if (Math.hypot(a9.mid.x - sp9.x, a9.mid.y - sp9.y) < SPOT_STOP9 && Math.hypot(sp9.vx, sp9.vy) < SPOT_STOP9 * 4) { sp9.chase = false; sp9.vx = 0; sp9.vy = 0; camAimRef9.current = null; }
+      sr9.current = sp9;
+      p9 = { x: sp9.x, y: sp9.y };
+      trackCamRef.current = { ...trackCamRef.current, pan: p9 };
+    } else {
+      const g9 = camGlideRef9.current;
+      if (!g9) return;
+      const gp9 = camGlideAt9(g9, now9);
+      if (!gp9) { camGlideRef9.current = null; camGlideTickPan9.current = null; p9 = g9.to; }
+      else { p9 = gp9; camGlideTickPan9.current = { g: g9, p: gp9 }; }
+    }
+    const o9 = panRef.current;
+    if (o9.x === p9.x && o9.y === p9.y) return;
+    trackLockRef.current = p9;
+    panRef.current = p9;
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).camPan = [p9.x, p9.y];
+    const z9 = zoomRef.current;
+    const lens9 = lensRef.current;
+    if (lens9) lens9.style.transform = z9 > 1 || p9.x !== 0 || p9.y !== 0 ? `translate(${p9.x}px, ${p9.y}px) scale(${z9})` : "";
+    if (fxLensRef.current) fxLensRef.current.style.transform = `translate(-50%, -50%) translate(${p9.x}px, ${p9.y}px)`;
+    mapPaintRef.current?.(z9, p9);
+    if (now9 - miniAtRef9.current >= 100) { miniAtRef9.current = now9; miniPaintRef.current?.(z9, p9); }
+  };
   /** 손짓 중 한 장 — rAF 안에서만 불린다(위). 지금 손끝 값(refs)으로 그린다. */
   const xfPaintNow = useCallback((): void => {
     const z1 = zoomRef.current;
@@ -19241,6 +19313,7 @@ export default function ReplayMotionPlayer({
   const gestureRef = useRef(false);
   useEffect(() => {
     if (!playing || !active) return undefined;
+    camTickOwnRef9.current = true;   // 카메라 걸음은 이제 틱 몫(위 camTickOwnRef9 ★)
     // 모바일은 20Hz(재지적: 모바일과 PC는 주기가 달라야) — 폰 CPU에서 30Hz 리렌더는
     // 오히려 밀려서 더 뚝뚝해진다. PC는 30Hz.
     /* 손짓 중에는 그리기 주기를 늘린다(지적: "엣지스크롤 너무 뚝뚝 끊기고 느려") —
@@ -19346,6 +19419,7 @@ export default function ReplayMotionPlayer({
         let ended9 = false;
         if (next9 >= total) { next9 = total; ended9 = true; }
         tLiveRef9.current = next9;
+        camStepRef9.current?.(performance.now());   // 카메라 한 걸음(위 camTickOwnRef9 ★) — 붓이 그 눈으로 칠한다
         paintFnRef9.current?.(next9);
         const nowR9 = performance.now();
         /* 시계는 메인 하나(frameWorker ClkMsg ★) — 그린 시각을 50ms 마다 워커에 붙인다. */
@@ -19364,6 +19438,7 @@ export default function ReplayMotionPlayer({
     };
     clockRef.current = { raf: requestAnimationFrame(tick), last: performance.now(), acc: 0, drawn: 0 };
     return () => {
+      camTickOwnRef9.current = false;
       if (clockRef.current) cancelAnimationFrame(clockRef.current.raf);
       clockRef.current = null;
       /* ★ 멈출 때 살아 있는 시각을 React에 넘긴다(지적: "럴커 버로우 때 재생 중과 일시정지의 위치가 다르다") — 붓은

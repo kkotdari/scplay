@@ -1614,3 +1614,19 @@ N 토막(N = 그때 산 사람 수)은 3초씩 고리 차례대로(사건·인�
 끝까지 가는 지금(2026-10-24 보기 모드 잠금)은 중계로 고른 사람이 자유 모드에 떨어지는 구멍이었다.
 - `castBackRef9` — 사람을 골라 개인 화면을 열 때 중계가 켜져 있었으면 적어 두고, 끌 때(`endTrack9` — 같은 사람 다시 누르기 · 로스터 놓기 · toggleTrack 끄기)
   중계를 다시 켠다. 사람 → 다른 사람으로 갈아타도 표식은 남는다. AUTO(toggleCast9)·분할(startSplit9)은 제 갈 곳을 스스로 정하므로 표식을 지운다. 자유 모드에서 연 개인 화면은 끄면 자유 모드.
+
+## 정찰 토막이 정찰 몸을 안 따라감 · 카메라 자동 이동이 덜컥임(2026-10-27)
+지적: "중계에서 드래그 이동이 좀 부드럽지 않음 / 정찰이 아직도 정찰본체를 안따라가는 문제"(되물음 답: 카메라가 스스로 옮겨 갈 때 · 중계(전체)).
+- **정찰 따라가기**: 정찰·폭탄드랍 토막은 `spot`(castPlan9 `event: true`)이라 `camRaw9` 가 null 이다. 따라갈 몸(`CastSeg9.follow` → `bodyAt9`)은
+  `walksByTag` 를 읽는데 그 표가 `entWalks`(카메라 임자의 자취)로만 채워져 늘 비었다 — 몸을 못 찾고 장면 자리(정찰 시작점)에 머물렀다. 워커에 걷기를
+  청하는 목록(`want9`)에도 그 사람이 없었다. 이제 follow 가 있는 spot 토막은 그 임자(`castSeg9.raw` → `folRaw9`)의 자취로 표를 채우고 `want9` 에도 넣는다.
+  실경기 검: 48.7초 정찰 토막 `fol[48.7-57.7:3105]` · `folWhy fol3105:o` · 팬 y −851 → −978 로 오버로드를 따라 흐른다.
+- **카메라 걸음은 재생 틱이 한다**: 스프링(사건 자리 `spotSpring9` · 행군 `trackSpring9`)·미끄러짐(`camGlideRef9`)이 렌더 값이라 움직이는 동안
+  rAF 마다 `setCamGlideTick9` 로 재생기 **전체 렌더**를 불렀다(한 장 36ms · CPU 4배 늦춤) — 폰에서 장마다 한 칸을 넘겨 덜컥였다. 이제 재생 중엔
+  렌더가 목표(`camAimRef9` — 종류·목표 팬·ω·가속 상한)만 적고, 틱이 칠하기 직전 `camStepRef9` 로 같은 식을 한 걸음 몰아 `panRef`·`trackLockRef`·
+  렌즈·효과층·지도 벡터층·미니맵(100ms)을 옮긴다. 렌더는 틱이 둔 자리를 그대로 쓴다(`camTickOwnRef9` — 렌더가 따로 한 걸음 더 가면 굳은 팬과 칠한 팬이
+  갈려 레이아웃 effect 가 한 장 더 칠한다 · 미끄러짐은 `camGlideTickPan9`). 손짓 중·배율이 굳은 값과 다를 때(휠 미끄러짐)는 틱이 손대지 않는다.
+  멈춘 채의 움직임은 종전대로 rAF 렌더. 실경기 검: 정찰 토막 내내 리액트 0~1장/s 로 팬이 이어 흐른다.
+- 🔎 실경기 하네스: `node scripts/perf-check.mjs --wide --real <real.json> --track '*' --t 49 --diag --no-profile --secs 1 --warm 15000 --readyms 180000 --camprobe 40`
+  (`[카메라]` 줄 = 시계 · 카메라 열쇠|자국|자리 · 팬 · 토막(`castSeg`) · `folWhy` · 리액트 박자) · `--planprobe a,b` 는 그 구간의 편성표 줄.
+  `real.json`(`{motion, players[{name, race 0/1/2, force, home}], end, mapW, mapH}`)은 tracks.json 에서 뽑는다(scratchpad `meta.mts` 꼴).

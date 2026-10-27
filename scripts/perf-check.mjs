@@ -643,7 +643,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
   window.__remountArgs9 = [motion, players, walkJson, terrainB64];   // --remount — 닫고 같은 판을 다시 연다
   window.__root9 = createRoot(el);
   window.__root9.render(React.createElement(ReplayMotionPlayer, {
-    grid, endSec: 120, bases, teamOfRaw, active: true, clockKey: "perf",
+    grid, endSec: window.__endSec || 120, bases, teamOfRaw, active: true, clockKey: "perf",
     ...(window.__winner === 1 || window.__winner === 2 ? { winnerTeam: window.__winner } : {}),
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
@@ -693,7 +693,10 @@ function bundle() {
 }
 
 /* ── 달리기 ─────────────────────────────────────────────────────────────────── */
-const world = makeWorld();
+/* --real <file>(2026-10-27, 지적: 중계 "정찰이 정찰 본체를 안 따라감" · "카메라 이동이 부드럽지 않음") — 합성 세계 대신 **실제 경기의 참값**(OBWT motion)을 물린다.
+   파일: { motion, players: [{ name, race 0저그·1테란·2프로토스, force, home: [x,y] }], end(초), mapW, mapH } — 참값에서 뽑는 스크립트는 notes cast-split '실경기 하네스'. */
+const REAL9 = flag("--real", null) ? JSON.parse(readFileSync(String(flag("--real")), "utf8")) : null;
+const world = REAL9 ? { motion: REAL9.motion, players: REAL9.players, nTracks: -1 } : makeWorld();
 console.log(`합성 세계: 트랙 ${world.nTracks}개 · motion ${(world.motion.length / 1024).toFixed(0)}KB`);
 /* --vite — esbuild 대신 **vite로** 묶는다(프레임 워커 `?worker&inline`은 vite만 안다). 배포판과 같은
    길이라 워커가 실제로 도는지를 여기서 잰다. 동적 import까지 한 파일에 넣는다(inlineDynamicImports). */
@@ -931,9 +934,10 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
   window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9; window.__ask = ask9;
 }, [Number(flag("--zoom", 1)), Number(flag("--deg", 90)),
-  Number(flag("--mapw", 128)), Number(flag("--maph", 128)),
+  Number(flag("--mapw", REAL9?.mapW ?? 128)), Number(flag("--maph", REAL9?.mapH ?? 128)),
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
   Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
+if (REAL9) await page.evaluate((e9) => { window.__endSec = e9; }, REAL9.end);   // --real 경기 길이
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
@@ -1729,6 +1733,24 @@ if (has("--fogprobe")) {
   const swap9 = await page.evaluate(() => window.__scrDiag?.branchSwap ?? 0);
   console.log(`[안개] 갈래 빈틈을 팀 장으로 메운 장 ${swap9}`);
   console.log(`[안개] 장 ${log9.length} · 한 장짜리 튐 ${blips9} · 갈아탐 ${sw9.join(" ")} · 큰 변화 ${big9.map((x) => `${x.ms}ms ${x.d > 0 ? "+" : ""}${x.d}`).join(" ")}`);
+}
+/* --planprobe a,b(2026-10-27) — 재생기가 실제로 쓰는 편성표(window.__castPlan9 · --diag)의 [a, b] 초 토막: 시각 · 왜 · 임자 · spot · 따라갈 몸. */
+if (flag("--planprobe", null)) {
+  const [a9, b9] = String(flag("--planprobe")).split(",").map(Number);
+  const rows9 = await page.evaluate(([a, b]) => (window.__castPlan9 ?? []).filter((s) => s.at >= a && s.at <= b).map((s) =>
+    `${s.at.toFixed(1)} ${s.why ?? ""} ${s.raw}${s.spot ? " spot" : ""}${s.cyc ? " cyc" : ""} fol${(s.follow ?? []).map((f) => `[${f.t0.toFixed(1)}-${f.t1.toFixed(1)}]`).join("")} ${(s.caps ?? []).map((c) => c.text ?? c.raw ?? "").join("").slice(0, 40)}`), [a9, b9]);
+  for (const r9 of rows9) console.log(`[편성] ${r9}`);
+}
+/* --camprobe N(2026-10-27, 지적: 중계 "정찰이 정찰 본체를 안 따라감" · "카메라 이동 부드럽지 않음") — N 초 동안 0.2초마다 [시계 · 카메라 열쇠|자국|따라갈 자리 · 팬]을
+   찍는다(--real 실경기와 함께 · --track "*" 자동 중계 · --diag). 정찰 토막이면 자국이 follow… 이고 자리가 정찰 몸을 따라 움직여야 한다. */
+if (flag("--camprobe", null)) {
+  const n9 = Number(flag("--camprobe", 10)) || 10;
+  for (let i9 = 0; i9 < n9 * 5; i9 += 1) {
+    const r9 = await page.evaluate(() => { const s = window.__scrDiag || {}; const cp = s.camPan;
+      return `${document.querySelector(".scr-motion-clock")?.textContent ?? "?"} · ${s.camSel ?? "-"} · 팬 ${cp ? cp.map((v) => Math.round(v)).join(",") : "-"} · ${s.castRaw ?? ""} · 토막 ${s.castSeg ?? "-"} · ${s.folWhy ?? ""} · 리액트 ${s.react ?? "-"}`; });
+    console.log(`[카메라] ${r9}`);
+    await page.waitForTimeout(200);
+  }
 }
 /* 중계 자(--castprobe [초]): 중계 스위치·자막·카메라 임자를 한동안 지켜본다 — 편성표가
    실제로 사람을 갈아타는지는 정지 그림 한 장으로는 못 본다. 자막은 **상시**라(요청: "토스터가 아니라
