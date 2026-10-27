@@ -1158,6 +1158,30 @@ if (has("--zoomlockprobe")) {
     console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
   }
 }
+/* --dtapprobe(2026-10-27, 지적: "중계중에 더블탭 확대축소 더블탭끌기로 줌도 안 되는 문제") — 지도 가운데를 두 번 눌러(마우스) 배율이 기본 ↔ 상한을 오가는지,
+   --ios 면 터치로 탭 · 재누름 · 위로 120px 끌기(한 손 줌) 뒤 배율을 찍는다(--track '*' · --diag 와 함께). */
+if (has("--dtapprobe")) {
+  const z9 = () => page.evaluate(() => window.__scrDiag?.zoom ?? null);
+  const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
+  const cx9 = b9.x + b9.width / 2; const cy9 = b9.y + b9.height / 2;
+  /* 재생을 멈추고 잰다 — 헤드리스는 한 장이 길어 두 누름 사이가 더블탭 창(DTAP_MS)을 넘는다. */
+  await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(1500);
+  const dbl9 = async () => { await page.mouse.dblclick(cx9, cy9); await page.waitForTimeout(1500); return z9(); };
+  const z0 = await z9(); const z1 = await dbl9(); const z2 = await dbl9();
+  { const tr9 = []; for (let i9 = 0; i9 < 10; i9 += 1) { tr9.push((await z9())?.toFixed?.(2)); await page.waitForTimeout(300); } console.log(`[더블탭 자취] ${tr9.join(" ")} · zoomRef ${await page.evaluate(() => window.__scrDiag?.panLive ?? "-")}`); }
+  const at9 = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return `${e?.tagName}.${e?.className}`; }, [cx9, cy9]);
+  console.log(`[더블탭] 전 ${z0?.toFixed?.(2)} · 한 번 ${z1?.toFixed?.(2)} · 두 번 ${z2?.toFixed?.(2)} · 가운데 ${at9} · ${await page.evaluate(() => window.__scrDiag?.tapZoom ?? "tapZoom 안 불림")} · 뗌 ${await page.evaluate(() => window.__scrDiag?.tapUp ?? "안 옴")}`);
+  if (has("--ios")) {
+    const cdp9 = await page.context().newCDPSession(page);
+    const t9 = (type, y) => cdp9.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x: cx9, y }] });
+    await t9("touchStart", cy9); await page.waitForTimeout(40); await t9("touchEnd", cy9); await page.waitForTimeout(90);
+    await t9("touchStart", cy9);
+    for (let k9 = 1; k9 <= 12; k9 += 1) { await t9("touchMove", cy9 - k9 * 10); await page.waitForTimeout(16); }
+    await t9("touchEnd", cy9 - 120); await page.waitForTimeout(700);
+    console.log(`[한 손 줌] 전 ${z2?.toFixed?.(2)} · 위로 120px 뒤 ${(await z9())?.toFixed?.(2)}`);
+  }
+}
 /* 폭 바꾸기(--resizeto W) — 뜬 뒤 창 폭을 조금 바꾼다(2026-10, 지적: "아직 흐려지는데" — 지형 판의 '거의 같은 판' 지름길이
    폭이 2% 안쪽으로 바뀌면 옛 판을 늘려 붙여 지도 전체를 재표본했다). --dockprobe 의 [캔버스] 줄에서 scr-mapvec-sharp 의
    w(배킹)와 bw(화면 폭)가 같아야 한다(dpr 1). */

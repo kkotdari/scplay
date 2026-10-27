@@ -18276,7 +18276,9 @@ export default function ReplayMotionPlayer({
        그 탭을 삼킨다. 가만히 오래 누르는 것(감기)은 **앞선 탭이 없을 때**만이라
        서로 안 겹친다. */
     const lt0 = lastTapRef.current;
-    if (coarse && !camLockRef9.current && lt0 && performance.now() - lt0.t <= DTAP_MS
+    /* 분할만 막는다(2026-10-27, 지적: "중계중에 더블탭 확대축소 더블탭끌기로 줌도 안 되는 문제") — 단독 중계·개인 화면은 휠·핀치처럼 열렸다(zoomCapRef9 ★).
+       잠긴 카메라에서는 손짓 덧칠(applyGestureXf)이 팬을 대상 축으로 되돌리므로 짚은 자리 대신 대상을 붙든 채 늘어난다. */
+    if (coarse && !splitOnRef9.current && lt0 && performance.now() - lt0.t <= DTAP_MS
       && Math.hypot(e.clientX - lt0.x, e.clientY - lt0.y) <= DTAP_SLOP) {
       quickZoomRef.current = {
         id: e.pointerId, ax: e.clientX, ay: e.clientY,
@@ -18353,7 +18355,7 @@ export default function ReplayMotionPlayer({
       const rQ = elQ.getBoundingClientRect();
       if (rQ.width < 4 || rQ.height < 4) return;
       // 300px 끌면 약 11배(e^2.4) — 폰 화면 한 뼘으로 1배↔상한을 오간다. 위가 +다.
-      const zQ = Math.min(ZOOM_MAX, Math.max(1, qz9.z0 * Math.exp(-dyQ * 0.008)));
+      const zQ = Math.min(zoomCapRef9.current(), Math.max(1, qz9.z0 * Math.exp(-dyQ * 0.008)));   // 상한은 휠·핀치와 한 자(단독 중계는 기본 배율 × 2)
       const oxQ = rQ.left + rQ.width / 2;
       const oyQ = rQ.top + rQ.height / 2;
       const uxQ = (qz9.ax - oxQ - qz9.px0) / qz9.z0;
@@ -18459,8 +18461,16 @@ export default function ReplayMotionPlayer({
     });
   };
   const tapZoom = (cx: number, cy: number): void => {
-    /* 중계·분할·개인 화면은 더블탭 배율도 없다(camLockRef9 · 휠·핀치·키와 한 벌) — 토스트로 말한다(2026-10-11). */
-    if (camLockRef9.current) { camLockToastRef9.current(); return; }
+    /* 분할은 더블탭 배율이 없다 — 토스트로 말한다(2026-10-11). */
+    if (splitOnRef9.current) { camLockToastRef9.current(); return; }
+    /* ★ 단독 중계·개인 화면은 **기본 배율 ↔ 상한**을 오간다(2026-10-27, 지적: "중계중에 더블탭 확대축소 … 안 되는 문제") — 옛: 휠·핀치만 열고(2026-10-19) 더블탭은 잠가 두었다.
+       1배 ↔ ZOOM_TAP 은 기본 배율이 1이 아닌 이 화면에 안 맞는다(늘 1배 = 지도 전체로 튄다). 휠 미끄러짐(wheelDriveRef9)으로 몰아 부드럽게 · 자리는 잠긴 카메라가 대상 축으로 잡는다. */
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).tapZoom = `${camLockRef9.current ? "잠금" : "자유"} z${zoomRef.current.toFixed(2)} 기본${castZoomFit9().toFixed(2)} 상한${zoomCapRef9.current().toFixed(2)} 몰이${wheelDriveRef9.current ? 1 : 0}`;   // perf-check --dtapprobe
+    if (camLockRef9.current) {
+      const fit9 = castZoomFit9();
+      wheelDriveRef9.current?.(zoomRef.current > fit9 * 1.05 ? fit9 : zoomCapRef9.current(), null);
+      return;
+    }
     const el = mapRef.current;
     const r = el?.getBoundingClientRect();
     if (!r || r.width < 4 || r.height < 4) return;
@@ -18525,6 +18535,7 @@ export default function ReplayMotionPlayer({
     const tp = tapRef.current;
     if (tp?.id === e.pointerId) tapRef.current = null;
     /* 클릭은 '누른 그 손가락이, 거의 안 움직이고, 손짓(핀치) 중이 아닐 때' 뿐이다. */
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).tapUp = `끌${dragged ? 1 : 0} tp${tp ? (tp.id === e.pointerId ? 1 : "다른") : 0} 움${tp?.moved ? 1 : 0} 손${gestureRef.current ? 1 : 0} 앞탭${lastTapRef.current ? Math.round(performance.now() - lastTapRef.current.t) : "-"}`;   // perf-check --dtapprobe
     if (dragged || !tp || tp.id !== e.pointerId || tp.moved || gestureRef.current) return;
     /* 이 누름이 한 일이 하나면 그것으로 끝이다 — 몸을 집었으면 정보 팝업이 뜬 참이고,
        떠 있던 팝업을 닫았으면 그것이 이 누름의 몫이다. 거기에 조작부까지 함께

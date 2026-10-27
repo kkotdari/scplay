@@ -1630,3 +1630,11 @@ N 토막(N = 그때 산 사람 수)은 3초씩 고리 차례대로(사건·인�
 - 🔎 실경기 하네스: `node scripts/perf-check.mjs --wide --real <real.json> --track '*' --t 49 --diag --no-profile --secs 1 --warm 15000 --readyms 180000 --camprobe 40`
   (`[카메라]` 줄 = 시계 · 카메라 열쇠|자국|자리 · 팬 · 토막(`castSeg`) · `folWhy` · 리액트 박자) · `--planprobe a,b` 는 그 구간의 편성표 줄.
   `real.json`(`{motion, players[{name, race 0/1/2, force, home}], end, mapW, mapH}`)은 tracks.json 에서 뽑는다(scratchpad `meta.mts` 꼴).
+
+## 단독 중계·개인 화면 더블탭·한 손 줌 풀림(2026-10-27)
+지적: "중계중에 더블탭 확대축소 더블탭끌기로 줌도 안되는 문제" — 위 '단독 중계·개인 화면 확대·축소 풀림'(2026-10-19)은 휠·핀치·↑↓ 만 열고 더블탭·한 손 줌은 잠금(camLockRef9)에 남겨 두었다.
+- 둘 다 이제 **분할만** 막는다(`splitOnRef9`) — 상한은 휠·핀치와 같은 `zoomCapRef9`(기본 배율 × 2 · 하한 1).
+- 더블탭(`tapZoom`)은 잠긴 화면에서 **기본 배율 ↔ 상한**을 오간다(옛 1배 ↔ ZOOM_TAP 은 기본 배율이 1이 아닌 화면에서 지도 전체로 튄다) — `wheelDriveRef9` 미끄러짐으로 몰고,
+  자리는 잠긴 카메라가 대상 축(applyGestureXf 의 lockPan9)으로 잡는다. 한 손 줌도 같은 덧칠이라 짚은 자리 대신 대상을 붙든 채 늘어난다.
+- 🔎 `perf-check --wide --real <real.json> --track '*' --t 49 --diag --dtapprobe` → `[더블탭 자취]`(기본 2.95 → 5.89 → 2.95) · `--ios` 는 `[한 손 줌] 전 4.89 · 위로 120px 뒤 9.77`
+  (터치 둘째 누름은 CDP 터치로 · 헤드리스는 장이 길어 마우스 두 클릭 사이가 DTAP_MS 320 을 넘으니 dblclick 으로 잰다 · 재생을 멈추고 잰다). `__scrDiag.tapZoom`·`tapUp` 이 왜 안 불렸나를 적는다.
