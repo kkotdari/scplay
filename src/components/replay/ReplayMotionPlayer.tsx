@@ -460,7 +460,7 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
   parts9.push(`조상 ${anc9.length ? anc9.join(" ") : "-"}`);
   const vv9 = window.visualViewport;
   const sc9 = document.scrollingElement;
-  parts9.push(`뷰 ${vv9 ? vv9.scale.toFixed(3) : "-"} 스크롤 ${fr9(sc9 ? sc9.scrollTop : 0)} 되맞춤 ${SCR_DIAG.rootSnap || "-"} 손짓 ${gest9 ? (pinch9 ? "핀치" : "on") : "-"} 배킹몫 ${xfBackK9.k}${xfLive9.on ? " live" : ""}`);
+  parts9.push(`뷰 ${vv9 ? vv9.scale.toFixed(3) : "-"} 스크롤 ${fr9(sc9 ? sc9.scrollTop : 0)} 되맞춤 ${SCR_DIAG.rootSnap || "-"} 손짓 ${gest9 ? (pinch9 ? "핀치" : "on") : "-"} 배킹몫 ${xfBackK9.k}${xfLive9.on ? " live" : ""}${SCR_DIAG.drs ? " · " + SCR_DIAG.drs : ""}`);
   return `흐림: ${parts9.join(" · ")}`;
 }
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
@@ -1670,18 +1670,21 @@ const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
  *  (색·깊이·빛)을 장마다 칠하고 푸는 GPU 화소 수다(워커 짓기는 조임 4배에서도 5.5ms). dpr 3 폰이면 화소 0.5625배(GPU 몫 거의 절반) · dpr 2 폰은 그대로(상한이라 안 올린다 —
  *  dpr 2 에 0.75 를 곱하면 1.5 로 흐림이 눈에 띈다 · 옛 WEAK_DPR9 1.5 지적). 낮음(LOW_DPR9 2.5)·매우 낮음(WEAK_DPR9 2)은 더 작은 쪽. `#pctier` 는 DEV9 가 PC 라 안 탄다. */
 /* 2.25 → 2(2026-10-25, 발열 요청 1 · 위 WEAK_DPR9) — dpr 3 폰이면 화소 0.56 → 0.44배 · dpr 2 폰은 그대로.
-   2 → **1.75**(2026-10-26, 요청: "해상도 내려" — 발열 · 높음 2.25 → 2 도 함께 · 매우 낮음 WEAK_DPR9 1.75 는 그대로: 1.5 는 2026-10-15 에 '너무 심하다'로 되물린 값).
-   dpr 3 폰 보통이면 화소 0.44 → 0.34배 · dpr 2 폰도 이제 0.77배(살짝 흐려진다). */
-const PHONE_DPR9 = 1.75;
+   2 → 1.75(2026-10-26, 요청: "해상도 내려") → **2 로 되물림**(2026-10-27, 요청: "폰과 피시 해상도 안내리고 다른 방법 연구" — 높음 2 → 2.25 도 함께).
+   실기 #diag 에서 dpr 3 폰이 `재표본 ×0.5004`(아래 DRS9 바닥 1.5)로 어느 배율에서나 흐렸다. */
+const PHONE_DPR9 = 2;
 /** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2 · 보통·낮음 1.75(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25·26 발열로 한 칸씩 내림 · 옛 2.5/2.25/2 → 2.25/2/1.75) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
 const backCap9 = (): number => (DEV9.name === "phone"
-  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2 : PHONE_DPR9)
+  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.25 : PHONE_DPR9)
   : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
  *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
  *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다). */
-const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
+/* ★ **기본 끔**(2026-10-27, 요청: "폰과 피시 해상도 안내리고 다른 방법 연구") — 간격 비는 왜 느린지 모른다: 폰이 화면 박자를 30Hz 로 묶으면(저전력 모드 · 발열 조절)
+   간격이 늘 33ms 라 비 2 로 읽혀 바닥(폰 1.5)까지 내려가고, 되올림 문(비 < 1.08)은 30Hz 에서 영영 안 열려 늘 흐렸다(실기 #diag `재표본 ×0.5004` · 가벼운 장면 · 워커 7ms).
+   해상도는 단 상한(backCap9) 그대로 두고 발열은 다른 길로 덜어낸다. `#drs=1` 이면 켠다. */
+const DRS9 = { on: typeof location !== "undefined" && /(^|[#&,])drs=1/.test(location.hash), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
   const r9 = interval / Math.max(16.7, target);
