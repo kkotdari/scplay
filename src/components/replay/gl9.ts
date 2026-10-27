@@ -870,6 +870,16 @@ void main() {
   gl_Position = vec4(p.x / uCanvasD.x * 2.0 - 1.0, 1.0 - p.y / uCanvasD.y * 2.0, aSC.y, 1.0);
   vUv = mix(aSB.xy, aSB.zw, aQ); vC = aSC; vS = aSD.rgb; vE = aSE; vL = aSF;
 }`;
+/** ★ **보기 견줌 손잡이**(2026-10-27, 요청: "선명도랑 광택 강도 조절해서 3개 정도" → "비교용으로 쓸 수 있는 파라미터 넣어줘") — 2D 판(스프라이트)을 **붙일 때**
+ *  셰이더가 선명(언샤프)·광택(밝은 면 하이패스)을 얹는다(SPR_FS9 uLook). #look=1|2|3 = 약·중·강 · #lsharp=x,lgloss=y 로 따로(역따옴표를 쓰지 마라 — spr-atlas 판 해시가 템플릿 문자열을 잰다). 꺼지면 0 · 0(옛 그림 그대로 · 탭 없음).
+ *  견줌용이다 — 정하면 굽는 쪽(판)에 넣어 붙일 때 값을 0 으로 돌린다. 메시 길(큰 배율·3D)은 안 탄다. */
+const LOOK9: [number, number] = ((): [number, number] => {
+  if (typeof location === "undefined") return [0, 0];
+  const h9 = location.hash; const lv9 = /(?:^|[#&,])look=(\d)/.exec(h9);
+  const base9: [number, number] = lv9 ? ([[0, 0], [0.7, 0.35], [1.4, 0.75], [2.3, 1.25]][Math.min(3, Number(lv9[1]))] as [number, number]) : [0, 0];
+  const sh9 = /(?:^|[#&,])lsharp=([0-9.]+)/.exec(h9); const gl9 = /(?:^|[#&,])lgloss=([0-9.]+)/.exec(h9);
+  return [sh9 ? Number(sh9[1]) : base9[0], gl9 ? Number(gl9[1]) : base9[1]];
+})();
 /** 스프라이트 한 드로 콜이 함께 거는 판 수(sprDraw9 ★ · 판마다 텍스처 칸 셋 → 12 칸 · WebGL2 는 16 칸을 보장한다). 셰이더의 txC·txE·txT 와 같은 수. */
 const SPR_K9 = 4;
 /** 한 묶음에 실제로 넣는 판 수 — `#sprk=1` 이면 옛 길(판이 바뀔 때마다 끊음 · 픽셀 견줌용). */
@@ -880,7 +890,7 @@ layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor
 uniform sampler2D uTex0; uniform sampler2D uTex1; uniform sampler2D uTex2; uniform sampler2D uTex3;
 uniform sampler2D uEm0; uniform sampler2D uEm1; uniform sampler2D uEm2; uniform sampler2D uEm3;
 uniform sampler2D uTn0; uniform sampler2D uTn1; uniform sampler2D uTn2; uniform sampler2D uTn3;
-uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark;
+uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark; uniform vec2 uLook;
 in vec2 vUv; in vec4 vC; in vec3 vS; in vec4 vE; in vec4 vL; flat in int vP;
 /* 판 넷 묶음(SPR_K9 · 2026-10-27) — 개체의 판 자리(vP · 한 개체 안에서 같다)로 고른다. */
 vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
@@ -889,6 +899,17 @@ vec4 txT(vec2 u) { if (vP == 0) return texture(uTn0, u, -0.4); if (vP == 1) retu
 void main() {
   float uHasEm = uHasEm4[vP]; float uHasTn = uHasTn4[vP];
   vec4 c = txC(vUv);
+  vec2 fw = fwidth(vUv);
+  /* 보기 견줌(LOOK9 · #look=1|2|3) — 선명(화면 1.5px 언샤프) · 광택(밝은 면의 하이패스를 흰 빛으로). 그림자 칸(vC.z 2)은 안 탄다. */
+  if (uLook.x + uLook.y > 0.0 && vC.z < 1.5) {
+    vec2 d1 = fw * 1.5; vec2 d3 = fw * 4.0;
+    vec4 b1 = (txC(vUv + vec2(d1.x, 0.0)) + txC(vUv - vec2(d1.x, 0.0)) + txC(vUv + vec2(0.0, d1.y)) + txC(vUv - vec2(0.0, d1.y))) * 0.25;
+    vec4 b3 = (txC(vUv + vec2(d3.x, 0.0)) + txC(vUv - vec2(d3.x, 0.0)) + txC(vUv + vec2(0.0, d3.y)) + txC(vUv - vec2(0.0, d3.y))) * 0.25;
+    const vec3 W9 = vec3(0.299, 0.587, 0.114);
+    float lc = dot(c.rgb, W9) / max(c.a, 0.001); float lb = dot(b3.rgb, W9) / max(b3.a, 0.001);
+    float sp = clamp((lc - lb) * 5.0, 0.0, 1.0) * clamp((lc - 0.5) * 2.5, 0.0, 1.0);
+    c.rgb = clamp(c.rgb + (c.rgb - b1.rgb) * uLook.x + vec3(sp * uLook.y * 0.7) * c.a, 0.0, c.a);
+  }
   /* 임자색 분리(아래 ★) — 칸은 임자색을 검정으로 찍은 그림(P0)이고, 임자색 켜(uTn · R)는 '임자색을 흰색으로 찍은 그림 − P0' 의 기울기다. 임자색 × 기울기를 더하면 그 색으로 찍은 것과 같다(선형).
      켜짐 켜(uTn · G · 2026-10-24) — '켜진 낯을 흰색으로 찍은 그림 − P0'. 켜진 개체(vL.w)에만 켜 × 켜짐 색(vL.rgb)을 더하고, 그 몫은 빛(번짐 켜)에도 싣는다. */
   float lt9 = 0.0;
@@ -1110,7 +1131,7 @@ export class GlUnits9 implements VecSink9 {
           aQ: gl.getAttribLocation(q, "aQ"), aSA: gl.getAttribLocation(q, "aSA"), aSB: gl.getAttribLocation(q, "aSB"), aSC: gl.getAttribLocation(q, "aSC"), aSD: gl.getAttribLocation(q, "aSD"), aSE: gl.getAttribLocation(q, "aSE"), aSF: gl.getAttribLocation(q, "aSF"),
           uCanvasD: gl.getUniformLocation(q, "uCanvasD"),
           uTex: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTex" + k)), uEm: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uEm" + k)), uTn: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTn" + k)),
-          uHasEm: gl.getUniformLocation(q, "uHasEm4"), uHasTn: gl.getUniformLocation(q, "uHasTn4"), uMark: gl.getUniformLocation(q, "uMark"),
+          uHasEm: gl.getUniformLocation(q, "uHasEm4"), uHasTn: gl.getUniformLocation(q, "uHasTn4"), uMark: gl.getUniformLocation(q, "uMark"), uLook: gl.getUniformLocation(q, "uLook"),
         };
         /* 임자색 켜 프로그램(위 ★★) — 못 세우면 분리 없이 옛 길(열쇠에 임자색). */
         if (GL_TINT9) {
@@ -1175,7 +1196,7 @@ export class GlUnits9 implements VecSink9 {
   /** 마지막 flush 의 기기 px/CSS px — 미리 굽기가 kc 를 낼 때 쓴다(없으면 devicePixelRatio). */
   private lastDprK = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number; aSF: number;
-    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null } | null = null;
+    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null; uLook: WebGLUniformLocation | null } | null = null;
   private sprPages: SprPage9[] = [];
   /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
   private sprFixed: SprPage9[] = [];
@@ -1890,6 +1911,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform2f(sp.uCanvasD, bw, bh);
     for (let k = 0; k < SPR_K9; k += 1) { gl.uniform1i(sp.uTex[k], k); gl.uniform1i(sp.uEm[k], SPR_K9 + k); gl.uniform1i(sp.uTn[k], 2 * SPR_K9 + k); }
     gl.uniform1f(sp.uMark, mark ? 1 : 0);
+    gl.uniform2f(sp.uLook, LOOK9[0], LOOK9[1]);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.qvbo);
     gl.enableVertexAttribArray(sp.aQ); gl.vertexAttribPointer(sp.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(sp.aQ, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.ivbo);
