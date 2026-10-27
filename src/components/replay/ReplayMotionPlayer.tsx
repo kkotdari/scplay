@@ -18191,7 +18191,8 @@ export default function ReplayMotionPlayer({
      뒤에는 팬을 끊는다 — 손가락은 이제 감기 손잡이지 지도가 아니다.
      감았으면 뗄 때 탭 취급을 안 한다: 정보 팝업도 안 뜨고 조작부도 안 열린다.
      손가락 기기 전용이다(요청: 모바일) — PC에서 마우스를 누르고 있는 것은 끌기다. */
-  const HOLD_MS = 400;
+  /* 400 → 800ms(2026-10-27, 지적: "모바일 꾹 눌러 되감기 발동시간 문턱 높이기 너무 잘 발동됨") — 0.4초는 지도를 보며 손가락을 잠깐 얹어 두는 것만으로도 넘었다. */
+  const HOLD_MS = 800;
   const holdTimerRef = useRef(0);
   const holdRafRef = useRef(0);
   /** 지금 감고 있나 — 팬을 끊는 표다. */
