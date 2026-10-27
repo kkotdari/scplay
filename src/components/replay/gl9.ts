@@ -864,23 +864,35 @@ const SPR_F9 = 24; const SPR_B9 = SPR_F9 * 4;   // 20 → 24(켜짐 색 aSF · 2
 const SPR_VS9 = `#version 300 es
 in vec2 aQ; in vec4 aSA; in vec4 aSB; in vec4 aSC; in vec4 aSD; in vec4 aSE; in vec4 aSF;
 uniform vec2 uCanvasD;
-out vec2 vUv; out vec4 vC; out vec3 vS; out vec4 vE; out vec4 vL;
+out vec2 vUv; out vec4 vC; out vec3 vS; out vec4 vE; out vec4 vL; flat out int vP;
 void main() {
-  vec2 p = aSA.xy + aQ * aSA.zw;
+  vec2 p = aSA.xy + aQ * aSA.zw; vP = int(aSD.w + 0.5);
   gl_Position = vec4(p.x / uCanvasD.x * 2.0 - 1.0, 1.0 - p.y / uCanvasD.y * 2.0, aSC.y, 1.0);
   vUv = mix(aSB.xy, aSB.zw, aQ); vC = aSC; vS = aSD.rgb; vE = aSE; vL = aSF;
 }`;
+/** 스프라이트 한 드로 콜이 함께 거는 판 수(sprDraw9 ★ · 판마다 텍스처 칸 셋 → 12 칸 · WebGL2 는 16 칸을 보장한다). 셰이더의 txC·txE·txT 와 같은 수. */
+const SPR_K9 = 4;
+/** 한 묶음에 실제로 넣는 판 수 — `#sprk=1` 이면 옛 길(판이 바뀔 때마다 끊음 · 픽셀 견줌용). */
+const SPR_KRUN9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])sprk=(\d)/.exec(location.hash) : null; return m9 ? Math.max(1, Math.min(SPR_K9, Number(m9[1]))) : SPR_K9; })();
 const SPR_FS9 = `#version 300 es
 precision mediump float;
 layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor;
-uniform sampler2D uTex; uniform sampler2D uEm; uniform sampler2D uTn; uniform float uHasEm; uniform float uHasTn; uniform float uMark;
-in vec2 vUv; in vec4 vC; in vec3 vS; in vec4 vE; in vec4 vL;
+uniform sampler2D uTex0; uniform sampler2D uTex1; uniform sampler2D uTex2; uniform sampler2D uTex3;
+uniform sampler2D uEm0; uniform sampler2D uEm1; uniform sampler2D uEm2; uniform sampler2D uEm3;
+uniform sampler2D uTn0; uniform sampler2D uTn1; uniform sampler2D uTn2; uniform sampler2D uTn3;
+uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark;
+in vec2 vUv; in vec4 vC; in vec3 vS; in vec4 vE; in vec4 vL; flat in int vP;
+/* 판 넷 묶음(SPR_K9 · 2026-10-27) — 개체의 판 자리(vP · 한 개체 안에서 같다)로 고른다. */
+vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
+vec4 txE(vec2 u) { if (vP == 0) return texture(uEm0, u, -0.4); if (vP == 1) return texture(uEm1, u, -0.4); if (vP == 2) return texture(uEm2, u, -0.4); return texture(uEm3, u, -0.4); }
+vec4 txT(vec2 u) { if (vP == 0) return texture(uTn0, u, -0.4); if (vP == 1) return texture(uTn1, u, -0.4); if (vP == 2) return texture(uTn2, u, -0.4); return texture(uTn3, u, -0.4); }
 void main() {
-  vec4 c = texture(uTex, vUv, -0.4);
+  float uHasEm = uHasEm4[vP]; float uHasTn = uHasTn4[vP];
+  vec4 c = txC(vUv);
   /* 임자색 분리(아래 ★) — 칸은 임자색을 검정으로 찍은 그림(P0)이고, 임자색 켜(uTn · R)는 '임자색을 흰색으로 찍은 그림 − P0' 의 기울기다. 임자색 × 기울기를 더하면 그 색으로 찍은 것과 같다(선형).
      켜짐 켜(uTn · G · 2026-10-24) — '켜진 낯을 흰색으로 찍은 그림 − P0'. 켜진 개체(vL.w)에만 켜 × 켜짐 색(vL.rgb)을 더하고, 그 몫은 빛(번짐 켜)에도 싣는다. */
   float lt9 = 0.0;
-  if (uHasTn > 0.5) { vec2 tn = texture(uTn, vUv, -0.4).rg; if (vE.w > 0.5) c.rgb += tn.r * vE.rgb; if (vL.w > 0.5) { lt9 = tn.g; c.rgb += lt9 * vL.rgb; } }
+  if (uHasTn > 0.5) { vec2 tn = txT(vUv).rg; if (vE.w > 0.5) c.rgb += tn.r * vE.rgb; if (vL.w > 0.5) { lt9 = tn.g; c.rgb += lt9 * vL.rgb; } }
   if (uMark > 0.5 && (c.a < 0.5 || vC.w < 0.5)) discard;
   if (vC.z > 1.5) {
     if (c.a < 0.35) discard;
@@ -889,7 +901,7 @@ void main() {
   if (c.a < 0.004) discard;
   vec4 o = vC.z > 0.5 ? vec4(vS * c.a, c.a) * vC.x : c * vC.x;
   fragColor = o;
-  emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? texture(uEm, vUv, -0.4) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
+  emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? txE(vUv) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
   if (lt9 > 0.0 && vC.z < 0.5) emitColor.rgb += lt9 * vL.rgb * c.a * vC.x;   // 켜진 창은 빛이다(bake9 winLit 의 EMIT_FILL9 과 같은 몫)
 }`;
 interface SprPage9 { tex: WebGLTexture; fb: WebGLFramebuffer; emTex: WebGLTexture | null; emFb: WebGLFramebuffer | null;
@@ -965,7 +977,8 @@ export class GlUnits9 implements VecSink9 {
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
   stat = {
     /** 바닥 도형(링·타원·체력바 네모) 수 — 한 드로 콜. */ prims: 0,
-    /** 효과 삼각형 수(glctx9 심). */ fxTris: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0 };
+    /** 효과 삼각형 수(glctx9 심). */ fxTris: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0,
+    /** 드로 콜 갈래(2026-10-27 · 아래 '드로 콜 갈래 세기') — 바닥(p)·판(s)·효과(v)·스웜(w)·번짐 사각(f). 나머지가 메시다. */ dp: { p: 0, s: 0, v: 0, w: 0, f: 0 } };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
   /** meshMax: 메시 상한(기기 표 DEV9.glMeshMax — PC 600 · 폰 240; 메시 한 벌은 VBO + footOf 용 정점 사본이라 폰 메모리에 든다). */
@@ -1095,8 +1108,9 @@ export class GlUnits9 implements VecSink9 {
         this.spr = {
           prog: q, qvbo: qv, ivbo: gl.createBuffer()!,
           aQ: gl.getAttribLocation(q, "aQ"), aSA: gl.getAttribLocation(q, "aSA"), aSB: gl.getAttribLocation(q, "aSB"), aSC: gl.getAttribLocation(q, "aSC"), aSD: gl.getAttribLocation(q, "aSD"), aSE: gl.getAttribLocation(q, "aSE"), aSF: gl.getAttribLocation(q, "aSF"),
-          uCanvasD: gl.getUniformLocation(q, "uCanvasD"), uTex: gl.getUniformLocation(q, "uTex"), uEm: gl.getUniformLocation(q, "uEm"), uTn: gl.getUniformLocation(q, "uTn"),
-          uHasEm: gl.getUniformLocation(q, "uHasEm"), uHasTn: gl.getUniformLocation(q, "uHasTn"), uMark: gl.getUniformLocation(q, "uMark"),
+          uCanvasD: gl.getUniformLocation(q, "uCanvasD"),
+          uTex: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTex" + k)), uEm: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uEm" + k)), uTn: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTn" + k)),
+          uHasEm: gl.getUniformLocation(q, "uHasEm4"), uHasTn: gl.getUniformLocation(q, "uHasTn4"), uMark: gl.getUniformLocation(q, "uMark"),
         };
         /* 임자색 켜 프로그램(위 ★★) — 못 세우면 분리 없이 옛 길(열쇠에 임자색). */
         if (GL_TINT9) {
@@ -1161,7 +1175,7 @@ export class GlUnits9 implements VecSink9 {
   /** 마지막 flush 의 기기 px/CSS px — 미리 굽기가 kc 를 낼 때 쓴다(없으면 devicePixelRatio). */
   private lastDprK = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number; aSF: number;
-    uCanvasD: WebGLUniformLocation | null; uTex: WebGLUniformLocation | null; uEm: WebGLUniformLocation | null; uHasEm: WebGLUniformLocation | null; uTn: WebGLUniformLocation | null; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null } | null = null;
+    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null } | null = null;
   private sprPages: SprPage9[] = [];
   /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
   private sprFixed: SprPage9[] = [];
@@ -1855,36 +1869,58 @@ export class GlUnits9 implements VecSink9 {
     st.pages = this.sprPages.length; st.cells = this.sprMap.size; st.fixed = this.sprFixed.length;
     return { B, S };
   }
-  /** 스프라이트 기록을 그린다 — 판이 같은 것끼리 잇달아 한 드로 콜(차례는 기록 차례 그대로). mark 면 연기 위 몸만 스텐실에 찍는다. */
+  /** 스프라이트 기록을 그린다 — 차례는 기록 차례 그대로, 판 SPR_K9 장까지를 한 드로 콜에 묶는다(아래 ★). mark 면 연기 위 몸만 스텐실에 찍는다.
+   *  ★ **판 넷을 한 번에**(2026-10-27, 지적: 폰 난전 40fps · 한 장 55ms · 해상도를 내려도 그대로 = CPU) — 서버 아틀라스는 종류마다 판이 따로라, 화가 차례(깊이 칸)대로
+   *  잇는 기록이 종류가 바뀔 때마다 끊겨 섞인 병력이면 **개체 하나에 드로 하나**였다(헤드리스 난전 943 중 판 938 · 끊길 때마다 속성 6·텍스처 3·유니폼 2 · 사파리는 부름마다
+   *  GPU 프로세스로 건너간다). 판 SPR_K9 장을 텍스처 칸 3×K(색·빛·임자색 켜)에 함께 걸고, 개체마다 제 판 자리(기록 15 · 셰이더 vP)를 적는다 — 차례는 안 바뀐다.
+   *  끊김은 묶음에 없는 판이 K+1 번째로 올 때뿐이다. */
   private sprDraw9(n: number, pages: SprPage9[], bw: number, bh: number, mark: boolean, emOn: boolean): void {
     const sp = this.spr; if (!sp || n <= 0) return;
     const gl = this.gl;
+    /* 묶음 나누기 — 판 자리를 기록에 적는다(올리기 전에). runs: [시작, 끝) · 그 묶음의 판들. */
+    const a = this.sprArr; const runs = this.sprRuns9; runs.length = 0;
+    let cur: SprPage9[] = []; let r0 = 0;
+    for (let r = 0; r < n; r += 1) {
+      const pg = pages[r]; let k = cur.indexOf(pg);
+      if (k < 0) { if (cur.length >= SPR_KRUN9) { runs.push({ r0, r1: r, pgs: cur }); cur = []; r0 = r; } k = cur.length; cur.push(pg); }
+      a[r * SPR_F9 + 15] = k;
+    }
+    runs.push({ r0, r1: n, pgs: cur });
     gl.useProgram(sp.prog);
     gl.uniform2f(sp.uCanvasD, bw, bh);
-    gl.uniform1i(sp.uTex, 0); gl.uniform1i(sp.uEm, 1); gl.uniform1i(sp.uTn, 2);
+    for (let k = 0; k < SPR_K9; k += 1) { gl.uniform1i(sp.uTex[k], k); gl.uniform1i(sp.uEm[k], SPR_K9 + k); gl.uniform1i(sp.uTn[k], 2 * SPR_K9 + k); }
     gl.uniform1f(sp.uMark, mark ? 1 : 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.qvbo);
     gl.enableVertexAttribArray(sp.aQ); gl.vertexAttribPointer(sp.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(sp.aQ, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.ivbo);
-    gl.bufferData(gl.ARRAY_BUFFER, this.sprArr.subarray(0, n * SPR_F9), gl.DYNAMIC_DRAW);
-    let r0 = 0;
-    while (r0 < n) {
-      const pg = pages[r0]; let r1 = r0 + 1;
-      while (r1 < n && pages[r1] === pg) r1 += 1;
-      const set = (loc: number, off: number): void => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, SPR_B9, r0 * SPR_B9 + off); this.divisor(loc, 1); };
+    gl.bufferData(gl.ARRAY_BUFFER, a.subarray(0, n * SPR_F9), gl.DYNAMIC_DRAW);
+    const hasEm = [0, 0, 0, 0]; const hasTn = [0, 0, 0, 0];
+    this.sprBound9.fill(undefined);   // 부름 사이에 다른 패스가 칸을 바꿨을 수 있다(번짐·스웜 · 그리는 판이 칸에 걸리면 되먹임 오류) — 첫 묶음은 다 건다
+    for (const { r0: q0, r1: q1, pgs } of runs) {
+      const set = (loc: number, off: number): void => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, SPR_B9, q0 * SPR_B9 + off); this.divisor(loc, 1); };
       set(sp.aSA, 0); set(sp.aSB, 16); set(sp.aSC, 32); set(sp.aSD, 48); set(sp.aSE, 64); set(sp.aSF, 80);
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, pg.tnTex);   // 임자색 켜(분리 ★★ · 없으면 null)
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, emOn && pg.emTex ? pg.emTex : null);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pg.tex);
-      gl.uniform1f(sp.uHasEm, emOn && pg.emTex ? 1 : 0); gl.uniform1f(sp.uHasTn, pg.tnTex ? 1 : 0);
-      this.drawInst(0, 6, r1 - r0);
+      for (let k = 0; k < SPR_K9; k += 1) {
+        const pg = pgs[k] ?? null;   // 빈 자리는 null(셰이더가 안 고른다)
+        const em = pg && emOn && pg.emTex ? pg.emTex : null;
+        if (this.sprBound9[k] !== (pg ? pg.tex : null)) { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, pg ? pg.tex : null); this.sprBound9[k] = pg ? pg.tex : null; }
+        if (this.sprBound9[SPR_K9 + k] !== em) { gl.activeTexture(gl.TEXTURE0 + SPR_K9 + k); gl.bindTexture(gl.TEXTURE_2D, em); this.sprBound9[SPR_K9 + k] = em; }
+        const tn = pg ? pg.tnTex : null;
+        if (this.sprBound9[2 * SPR_K9 + k] !== tn) { gl.activeTexture(gl.TEXTURE0 + 2 * SPR_K9 + k); gl.bindTexture(gl.TEXTURE_2D, tn); this.sprBound9[2 * SPR_K9 + k] = tn; }
+        hasEm[k] = em ? 1 : 0; hasTn[k] = tn ? 1 : 0;
+      }
+      gl.uniform4f(sp.uHasEm, hasEm[0], hasEm[1], hasEm[2], hasEm[3]); gl.uniform4f(sp.uHasTn, hasTn[0], hasTn[1], hasTn[2], hasTn[3]);
+      this.drawInst(0, 6, q1 - q0);
       this.stat.draws += 1;
-      r0 = r1;
     }
     for (const l of [sp.aQ, sp.aSA, sp.aSB, sp.aSC, sp.aSD, sp.aSE, sp.aSF]) { this.divisor(l, 0); gl.disableVertexAttribArray(l); }
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null); gl.activeTexture(gl.TEXTURE0);
+    /* 칸 1.. 은 풀어 둔다(다른 패스가 TEXTURE0 만 믿는다 · 옛 길도 TEXTURE2 를 비웠다) — 다음 장은 다시 건다. */
+    for (let k = 1; k < 3 * SPR_K9; k += 1) if (this.sprBound9[k] !== null) { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, null); }
+    gl.activeTexture(gl.TEXTURE0);
     gl.useProgram(this.prog);
   }
+  /** 판 넷 묶음의 기록 나눔(위 sprDraw9 ★ · 장마다 다시 쓴다) · 이 패스 안에서 칸마다 걸어 둔 텍스처(같으면 다시 안 건다). */
+  private sprRuns9: { r0: number; r1: number; pgs: SprPage9[] }[] = [];
+  private sprBound9: (WebGLTexture | null | undefined)[] = new Array(12).fill(undefined);
   /** 효과 삼각형(glctx9)을 이 문맥이 맡나 — 아니면 붓이 종전대로 효과 캔버스에 그린다. */
   vecOk = false;
   private maxEq: number | null = null;
@@ -2495,7 +2531,7 @@ export class GlUnits9 implements VecSink9 {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const q = this.queue; this.queue = [];
-    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0;
+    this.stat.inst = q.length; this.stat.tris = 0; this.stat.meshes = this.meshes.size; this.stat.draws = 0; this.stat.swarm = 0; { const d9 = this.stat.dp; d9.p = 0; d9.s = 0; d9.v = 0; d9.w = 0; d9.f = 0; }
     (globalThis as unknown as { __glInst9?: number }).__glInst9 = q.length;   // 계측(perf-check)이 '그려졌다'를 아는 창
     const pl9 = this.swarmPlate; this.swarmPlate = null;
     if (!q.length) { this.frameNo += 1; this.primPass(cw, ch); if (pl9) this.swarmPass(pl9, bw, bh, null); this.vecPass(bw, bh); gl.disable(gl.SCISSOR_TEST); return; }
@@ -2922,6 +2958,15 @@ export class GlUnits9 implements VecSink9 {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, bw, bh);
       this.vecPass(bw, bh);
     }
+  }
+}
+/** ★ **드로 콜 갈래 세기**(2026-10-27, 지적: 폰 난전 40fps · 한 장 55ms — 해상도를 내려도 그대로라 CPU 다. 사파리 WebGL 은 부름마다 GPU 프로세스로 건너가
+ *  드로 콜 수가 곧 CPU 값이다 · 헤드리스 난전 606) — 패스 넷과 번짐 사각의 드로 증가분을 stat.dp 에 더한다. `#diag` 의 GL 줄 '드로 N[…]'. 감쌈 값은 부름당 뺄셈 하나. */
+{
+  const P9 = GlUnits9.prototype as unknown as Record<string, (this: GlUnits9, ...a: unknown[]) => unknown>;
+  for (const [k9, m9] of [["p", "primPass"], ["s", "sprDraw9"], ["v", "vecPass"], ["w", "swarmPass"], ["f", "fxQuad"]] as const) {
+    const f9 = P9[m9];
+    P9[m9] = function (this: GlUnits9, ...a9: unknown[]): unknown { const d09 = this.stat.draws; const r9 = f9.apply(this, a9); this.stat.dp[k9] += this.stat.draws - d09; return r9; };
   }
 }
 /** 진단 `#glshade=N` — 음영 겹을 단계별로 끈다(0 덧칠 없음 · 1 면 덧칠 · 2 +실루엣 빛, 기본 2). */

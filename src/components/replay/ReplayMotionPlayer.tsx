@@ -660,6 +660,10 @@ function fogMeterTick9(): void {
   FOGM9.g = fogCnt9();
 }
 const XF_HEAVY_MS9 = 55;
+/** ★ **배율판 옆 fps 글자**(2026-10-27, 요청: "개발하면서 계속 필요하니까 한동안 프레임을(fps만) 배율 옆에 글자만 표시해줘") — 늘 선다 · `#fps=0` 끔.
+ *  붓의 fps 계측(0.5초)이 이 칸의 textContent 만 바꾼다(React 를 다시 그리지 않는다 — 큰 판의 리렌더가 곧 재려는 CPU 다). 걷을 때는 이 상수와 .scr-zoomfps 만. */
+const FPS_TAG9 = !(typeof location !== "undefined" && /(?:^|[#&,])fps=0/.test(location.hash));
+const fpsTagEl9: { el: HTMLElement | null } = { el: null };
 /** ★ **폰 손짓은 초당 30장**(2026-10-27, 지적: "자유모드가 드래그 줌도 많고 유닛도 많이 보일일이 많아서 발열이 심한듯" → 제안 A+B "ㅇㅋ") — 폰 평면 판 길(xfNoCss9)은
  *  손짓 중 CSS 변환 없이 장마다 손끝 보기로 판 전체(지형·안개·몸)를 다시 그려 화면 박자(60Hz · 120Hz 폰은 더)만큼 GPU 를 썼다. 손짓 한 장(gestureFrame9)과 재생 붓(drawGapMs)을
  *  이 간격(28ms — 60Hz 에서 두 장에 한 번 · 120Hz 에서 네 장에 한 번)으로 묶는다. 장마다 손끝 보기로 그리는 것은 그대로라 옛 '뒤로 튐'은 다시 안 난다(변환을 안 건다) —
@@ -1704,18 +1708,20 @@ const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(lo
  *  (제안: 배율 상한 + 프레임 바닥 두 겹) "좋은 생각 · 문턱은 써보면서 조절 — 폰에서 4배는 진짜 작게 보이고 5-6배도 작은 편") ─────────────────────────────────────
  *  ① 배율 상한 `zoomCap9` — 폰 ZCAP_Z9(6)배 아래는 **처음부터** ZCAP_B9(1.25)로 그린다(프레임과 무관 · 드래그 전에 이미 가볍다). 그 위는 단 상한 그대로.
  *  ② 프레임 바닥 `drsFloor9` — 떨어지는 동안 DRS9 가 내려가는 끝: 폰 ZCAP_Z9 아래 DRS_LO9(0.75) · 그 위 DRS_HI9(1.0) · PC 1.
- *     (차례: 2배 아래 1.0·4배 아래 1.25·그 위 1.5 → "4배미만 1보다 작게 8배 1로" 0.75/1.0 → 문턱 4 → 6.)
+ *     (차례: 2배 아래 1.0·4배 아래 1.25·그 위 1.5 → "4배미만 1보다 작게 8배 1로" 0.75/1.0 → 문턱 4 → 6 → **둘 다 걷음**(아래 ★★).)
  *  둘 다 **손짓 중에는 손짓 앞 배율(BZ9)로 고른다** — 핀치가 문턱을 넘나들 때 배킹이 바뀌면 캔버스 크기가 바뀌어 GL 이 MRT 판을 통째로 다시 잡는다(멎음 · player-ui.md
  *  '폰 줌 지연 — 손짓 중 배킹 고정'). 손을 떼면 그 배율로 바뀐다. 줌인하면 내린 DRS 값은 곧장 그 배율의 바닥까지 올라온다(배킹 셈의 max).
- *  문턱은 해시로 바로 바꿔 본다: `#zcapz=6,zcap=1.25,drslo=0.75,drshi=1`(실기에서 고르는 자 · 사람들이 많이 쓰는 배율을 보며 조절). */
+ *  문턱은 해시로 바로 바꿔 본다: `#zcapz=6,zcap=1.25,drslo=0.75,drshi=1`(실기에서 고르는 자 · 사람들이 많이 쓰는 배율을 보며 조절).
+ *  ★★ **걷음**(2026-10-27, 폰 사파리 스크린샷 4.4배·1.7배 난전 "엄청 흐리네" → 1안 "배율 상한을 없애고 바닥 1.0") — 배킹을 0.75 까지 내려도 40~44fps · 한 장 55ms 그대로였다:
+ *  난전의 병목은 GPU 가 아니라 CPU 라 해상도로 버는 프레임이 없고 선명함만 잃었다. 기본값: 상한 문턱 0(안 건다) · 바닥 1.0(배율 무관). 해시 자는 그대로 둔다(되돌려 견줄 때). */
 const hashNum9 = (k9: string, d9: number): number => {
   if (typeof location === "undefined") return d9;
   const m9 = new RegExp("(?:^|[#&,])" + k9 + "=([0-9.]+)").exec(location.hash);
   return m9 && Number.isFinite(Number(m9[1])) ? Number(m9[1]) : d9;
 };
-const ZCAP_Z9 = hashNum9("zcapz", 6);
+const ZCAP_Z9 = hashNum9("zcapz", 0);
 const ZCAP_B9 = hashNum9("zcap", 1.25);
-const DRS_LO9 = hashNum9("drslo", 0.75);
+const DRS_LO9 = hashNum9("drslo", 1);
 const DRS_HI9 = hashNum9("drshi", 1);
 const zoomCap9 = (z: number): number => (DEV9.name === "phone" && z < ZCAP_Z9 ? ZCAP_B9 : Infinity);
 const drsFloor9 = (z: number): number => (DEV9.name === "phone" ? (z < ZCAP_Z9 ? DRS_LO9 : DRS_HI9) : 1);
@@ -7028,7 +7034,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws} 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -17861,6 +17867,7 @@ export default function ReplayMotionPlayer({
         fm9.n = 0;
         fm9.at = now9;
         if (fpsOnlyRef9.current) setFpsTick9((k9) => k9 + 1);
+        if (fpsTagEl9.el) fpsTagEl9.el.textContent = `${SCR_DIAG.fps}fps`;   // 위 FPS_TAG9 — 빈 span 이라 글자 하나만 바꾼다
       }
     }
     const fr9 = frameAt9(tNow9, true);
@@ -22210,6 +22217,7 @@ export default function ReplayMotionPlayer({
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
+          {!pending && zoomDial9 && FPS_TAG9 ? <span className="scr-zoomfps" aria-hidden ref={(el) => { fpsTagEl9.el = el; }} /> : null}   {/* 위 FPS_TAG9 — 자식 없음(글자는 계측이 쓴다) */}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}

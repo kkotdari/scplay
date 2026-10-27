@@ -4497,6 +4497,14 @@
 }
 .scr-modetog-stage > span.is-on { background: rgba(255, 255, 255, 0.92); color: #10151a; text-shadow: none; opacity: 1; }
 .scr-zoomdial:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+/* 배율판 옆 fps 글자(2026-10-27 · RMP FPS_TAG9) — 바탕 없이 글자만 · 배율 원 왼쪽 · 원 가운데 높이. */
+.scr-zoomfps {
+  position: absolute; right: calc(var(--sd-gap) + var(--sd-w) + 6px * var(--sdk)); top: var(--sd-gap); height: var(--sd-w); z-index: 30001;
+  display: flex; align-items: center; pointer-events: none; user-select: none; -webkit-user-select: none;
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); font-size: calc(10px * var(--sdk)); font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap; opacity: 0.85;
+}
+.scr-fs-layer.is-fs .scr-zoomfps { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
 .scr-zoomdial-val { font-size: calc(10px * var(--sdk)); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.02em; }
 .scr-zoomdial.is-base .scr-zoomdial-val { opacity: 0.6; }
 /* 맨 위 라벨 "속도"(2026-10-12, 요청: "배속창에 맨 위에 라벨 속도 넣기") — 값보다 한 단 작고 옅게. 그 몫(줄 키 + 틈)만큼 다이얼 키(--sd-h)를 늘려 눈금 선 길이는 그대로. */
