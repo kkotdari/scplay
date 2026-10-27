@@ -30,7 +30,7 @@ const GAP9: Partial<Record<SfxKind9, number>> = {
   thunder: 600, warp: 500, liftOff: 700, landing: 700, load: 250, unload: 250, burrow: 300, unburrow: 300, eggPop: 220,
 };
 /** 종류마다 크기. */
-const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.6 };
+const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";

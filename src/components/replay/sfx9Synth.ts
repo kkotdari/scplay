@@ -447,21 +447,32 @@ function warpEnd9(v: number): Float32Array {
 }
 
 /** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
- *  이제 낮고 둥근 '뽁'(130→75Hz 사인 · 천천히 열고 닫음)에 저역 거른 젖은 잡음을 옅게 · 끝에 아주 작은 두 번째 방울. */
+ *  ★ 다시(2026-10-27, 요청: "저그 알 고치등 부화소리 너무 높고 날카로움 · 좀더 낮고 부드럽게 생물적으로 터지는 느낌") — 10-26 판의 몸은 130→75Hz 사인이라
+ *  폰 스피커가 거의 못 내고, 남는 것은 700Hz 2차 거름을 새어 나온 흰 잡음의 위쪽과 208Hz 방울뿐이라 높고 날카롭게 들렸다. 이제 몸이 **갈색 잡음의 '철퍽'**이다:
+ *  거름 끝이 900 → 170Hz 로 내려가는 4차 저역(살이 찢어지며 젖어 가라앉는 결) + 그 아래 95→48Hz 둥근 퉁(포화로 배음을 얹어 폰에서도 '낮게' 들린다) +
+ *  뒤따르는 작은 방울 셋(185~130Hz 에서 아래로 미끄러지는 짧은 꾸룩)을 같은 저역에 묶는다 — 마지막에 1.1kHz 4차 저역을 한 번 더 걸어 위쪽을 걷는다. 앞머리는 8ms 로 연다. */
 function eggPop9(v: number): Float32Array {
-  const r = rng9(2501 + v);
-  const lp = new Biquad9("lp", 700, 0.7);
-  let ph = 0; let ph2 = 0;
-  const f0 = 130 + v * 12;
-  return finish9(render9(0.36, (t) => {
-    ph += (f0 - 55 * Math.min(1, t / 0.12)) / SFX_RATE9;
-    const pop = Math.sin(2 * Math.PI * ph) * ad9(t, 0.015, 14);
-    const wet = lp.run(r() * 2 - 1) * ad9(t, 0.02, 16) * 0.35;
-    const u = t - 0.11;
-    let drop = 0;
-    if (u >= 0) { ph2 += (f0 * 1.6) / SFX_RATE9; drop = Math.sin(2 * Math.PI * ph2) * ad9(u, 0.01, 22) * 0.22; }
-    return pop + wet + drop;
-  }), 0.3);
+  const r = rng9(2501 + v); const br = brown9(r);
+  const lpA = new Biquad9("lp", 900, 0.9); const lpB = new Biquad9("lp", 900, 0.6);
+  const outA = new Biquad9("lp", 1100, 0.7); const outB = new Biquad9("lp", 1100, 0.7);
+  let ph = 0;
+  const f0 = 95 + v * 8;
+  /** 방울 셋 — 시작(초)·높이(Hz)·크기. 갈래마다 조금씩 다르다. */
+  const bub = [[0.07 + r() * 0.03, 185 + r() * 30, 0.2], [0.15 + r() * 0.04, 155 + r() * 25, 0.14], [0.24 + r() * 0.05, 130 + r() * 20, 0.1]];
+  const bph = [0, 0, 0];
+  return finish9(render9(0.48, (t) => {
+    const splat = lpB.run(lpA.run(br() + (r() * 2 - 1) * 0.15)) * ad9(t, 0.008, 9) * 1.4;
+    ph += (f0 - 47 * Math.min(1, t / 0.18)) / SFX_RATE9;
+    const thump = Math.sin(2 * Math.PI * ph) * ad9(t, 0.01, 11);
+    let gl = 0;
+    for (let k = 0; k < 3; k += 1) {
+      const u = t - bub[k][0];
+      if (u < 0) continue;
+      bph[k] += (bub[k][1] * (1 - 0.38 * Math.min(1, u / 0.06))) / SFX_RATE9;
+      gl += Math.sin(2 * Math.PI * bph[k]) * ad9(u, 0.006, 30) * bub[k][2];
+    }
+    return outB.run(outA.run(sat9(splat + thump * 0.8 + gl, 1.6)));
+  }, (t) => { const f = 170 + 730 * Math.exp(-t * 9); lpA.set(f); lpB.set(f); }), 0.3);
 }
 
 /** 저그 공사 고치 — 심장 소리(쿵–쿵 · 2026-10-22, 요청: "공사고치 소리는 약간 심장 소리 비슷하게"). 낮은 사인 두 번(둘째가 작고 조금 높다)에 살 같은 둔탁함. */
