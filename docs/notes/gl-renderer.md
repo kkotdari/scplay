@@ -1768,3 +1768,6 @@ SPR_CAP_B9 512 안에 드는 가장 큰 **옥타브**)는 화면에서 크게 �
   `#sprk=1` 이면 옛 길(판마다 끊음 · 견줌).
 - **fps 글자**: RMP `FPS_TAG9` — 배율 원 왼쪽에 `NNfps` 글자만(.scr-zoomfps · 바탕 없음). 붓 fps 계측(0.5초)이 textContent 만 바꾼다(리렌더 없음). `#fps=0` 끔 · 개발 동안만.
 - 🔎 `perf-check --ios --castoff --players 8 --units 120 --cpu 1 --secs 6 --atlas spr --warm 20000 --diag --no-profile` → GL 줄 `드로 N[…]` · `--glblit --wheel 2 --shot` 로 그림.
+- 아틀라스 다시 굽기(gl9 를 고쳐 판 열쇠가 바뀜 · 굽는 셰이더는 그대로): 덤프 58분(헤드리스 · 판 147 · 칸 10780) + 짐 22분 · 누름 400 · 그대로 676 · f 124MB · h 59MB.
+  ⚠ basisu 는 저장소에 없다 — `npm pack basisu` 로 받아 `bin/linux/x64/basisu` 를 `--basisu` 로 준다(없으면 덤프 뒤에 멈춘다 · 덤프는 `--dump <dir>` 로 다시 쓴다).
+  ⚠ 기다리는 셸에 `pgrep -f "<스크립트 이름>"` 을 쓰지 마라 — 제 명령줄이 걸려 끝없이 기다린다.
