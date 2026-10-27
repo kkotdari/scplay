@@ -1704,6 +1704,17 @@ const backCap9 = (): number => (DEV9.name === "phone"
    내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 0.75/1.0 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
 const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
   base: 0, ivm: 0, steady: 0, t0: 0, z: 1 };
+/** ★ **프레임 대응 사다리 — 해상도는 마지막**(2026-10-27, 요청: "프레임대응 해상도는 최후의 수단 · 그전에 불필요 그래픽효과 줄이기 —
+ *  사영그림자를 타원으로 바꾸고 공중유닛과 비행건물만 그리기 · 그밖의 비필수효과 끄기 · 방향 4방으로 줄이기 · 해상도 줄이기 순") ──────────
+ *  아래 drsNote9 가 '느리다'를 읽으면 배킹보다 이 단을 먼저 한 칸씩 올리고(누적), 셋째 단까지 다 올린 뒤에야 배킹(DRS9.cap)을 내린다.
+ *  되올림은 거꾸로 — 배킹을 먼저 다 풀고 그다음 단을 한 칸씩 내린다. 박자(1초 느림 · 2초 빠름 · 바꾼 뒤 1.5초)는 DRS 와 같다. 멈추면 0.
+ *    1단 — 사영 그림자 끔(meshShadow9) · 타원은 **공중 유닛·뜬 건물만**(땅에 선 몸·부양 지상 유닛·건물 그림자 없음 · 기기의 타원 대타 여부와 무관)
+ *    2단 — 비필수 효과 끔: 건물 상처(불·연기·피 폭포) · 꾸밈(용접·흙덩이·착지·스웜) · 피격 파편(섬광은 남김) · 실드 번쩍 · 죽음 파편 1/3 · 번짐(블룸)
+ *    3단 — 유닛 방향 4칸(90도 · 낮은 배율 죄기와 같은 불감대)
+ *  남기는 것: 트레이서 · 죽음 폭발 · 소환 섬광 · 스톰·핵·지역 마법 · 승하차 줄 — 무슨 일이 일어났나를 말하는 것들. `#fq=N` 은 그 단에 못 박는다(견줌). */
+const FQ9 = { lv: 0, force: typeof location === "undefined" ? -1 : ((): number => { const m9 = /(?:^|[#&,])fq=(\d)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() };
+if (FQ9.force >= 0) FQ9.lv = FQ9.force;
+const FQ_MAX9 = 3;
 /** ★ **배율이 해상도를 미리 정한다**(2026-10-27, 요청: "이미 드래그 시작 전에 적용이 돼있어야 프레임이 떨어지지 않을텐데 프레임에 따라 하니 미리 대응이 안되네" →
  *  (제안: 배율 상한 + 프레임 바닥 두 겹) "좋은 생각 · 문턱은 써보면서 조절 — 폰에서 4배는 진짜 작게 보이고 5-6배도 작은 편") ─────────────────────────────────────
  *  ① 배율 상한 `zoomCap9` — 폰 ZCAP_Z9(6)배 아래는 **처음부터** ZCAP_B9(1.25)로 그린다(프레임과 무관 · 드래그 전에 이미 가볍다). 그 위는 단 상한 그대로.
@@ -1745,16 +1756,23 @@ function drsNote9(now: number, interval: number, target: number): void {
   const floor9 = drsFloor9(DRS9.z);
   const cap9 = backCap9();
   if (now - DRS9.t0 >= 2500 && now - DRS9.at >= 1500) {
-    if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
+    /* 사다리(위 FQ9 ★) — 내릴 때는 효과 단 먼저 · 해상도 나중, 올릴 때는 해상도 먼저 · 효과 단 나중. */
+    if (DRS9.slow > 1000 && FQ9.force < 0 && FQ9.lv < FQ_MAX9) {
+      FQ9.lv += 1;
+      DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
+    } else if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
       DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
       DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
     } else if (DRS9.fast > 2000 && DRS9.cap < Infinity) {
       DRS9.cap += 0.25;
       if (DRS9.cap >= Math.min(cap9, 8)) DRS9.cap = Infinity;
       DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
+    } else if (DRS9.fast > 2000 && FQ9.force < 0 && FQ9.lv > 0) {
+      FQ9.lv -= 1;
+      DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
     }
   }
-  if (scrDiagOn()) SCR_DIAG.drs = `배킹×${DRS9.lastB.toFixed(2)} 상한 ${Number.isFinite(cap9) ? cap9 : "∞"}/조절 ${Number.isFinite(DRS9.cap) ? DRS9.cap : "∞"} · 비 ${DRS9.ema.toFixed(2)} · 기준 ${DRS9.base.toFixed(0)}ms · 바꿈 ${DRS9.steps}`;
+  if (scrDiagOn()) SCR_DIAG.drs = `효과단 ${FQ9.lv}${FQ9.force >= 0 ? "(못박음)" : ""} · 배킹×${DRS9.lastB.toFixed(2)} 상한 ${Number.isFinite(cap9) ? cap9 : "∞"}/조절 ${Number.isFinite(DRS9.cap) ? DRS9.cap : "∞"} · 비 ${DRS9.ema.toFixed(2)} · 기준 ${DRS9.base.toFixed(0)}ms · 바꿈 ${DRS9.steps}`;
 }
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
@@ -2158,7 +2176,7 @@ function crowdTick9(units: number, deep = false): void {
   else if (c.lv > 0 && units < CROWD_DOWN9[c.lv - 1] * k) c.lv -= 1;
 }
 /** 파편 수 배수 — 0단 1 · 1단 절반 · 2단 3분의 1. */
-const crowdShardK9 = (): number => (CROWD9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);
+const crowdShardK9 = (): number => (CROWD9.lv >= 2 || FQ9.lv >= 2 ? 0.34 : CROWD9.lv === 1 ? 0.5 : 1);   // 사다리 2단도 1/3(FQ9 ★)
 /* ★ **데칼**은 또렷함이 필요 없다 — 굽기 상한을 따로 낮춘다(지적: "모바일에서 저그 본진을
    볼 때 너무 끊긴다") ────────────────────────────────────────────────────────────────
    재 보니 크립 얼룩이 이 화면에서 가장 큰 판이다. 해처리 크립은 15타일이라 해처리 본체
@@ -4316,7 +4334,7 @@ export function paintFxList9(
       ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
     /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
        무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
-    if (trim9 >= 1) {
+    if (trim9 >= 1 || FQ9.lv >= 2) {   // 프레임 사다리 2단(FQ9 ★)도 꾸밈·상처를 던다(트레이서까지 던지는 2단 죄기와는 따로)
       if (f.kind === "wound") continue;
       if (f.kind === "dom" && TRIM1_SKIP9.has(f.style ?? "")) continue;
       if (trim9 >= 2) {
@@ -4421,7 +4439,7 @@ export function paintFxList9(
          프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
          dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
          (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
-      if (CROWD9.lv >= 2) continue;   // 덜어내기 2단: 피격 불티는 통째로 생략(죽음 burst만 남는다)
+      if (CROWD9.lv >= 2 || FQ9.lv >= 2) continue;   // 덜어내기 2단 · 프레임 사다리 2단(FQ9 ★): 피격 불티는 통째로 생략(섬광·죽음 burst만 남는다)
       const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
       /* ★ **파편은 알약이 아니다**(2026-09, 지적: "이 효과들 형태가 알약 형태라 부자연스럽지? 실제 효과는 안 그럴 거 아니야
          자연에서") — 둥근 끝 획(lineCap round) 넷은 폭이 고르고 양 끝이 반원이라 캡슐로 읽혔다. 자연의 파편은 **머리와 꼬리가
@@ -4601,7 +4619,7 @@ export function paintFxList9(
       }
       continue;
     }
-    if (f.kind === "shield" && !SHIELD_FX_ON) continue;   // 꺼 두어도 총구 번쩍임 갈래로 흘러가면 안 된다.
+    if (f.kind === "shield" && (!SHIELD_FX_ON || FQ9.lv >= 2)) continue;   // 사다리 2단은 실드 번쩍도 끈다(FQ9 ★)   // 꺼 두어도 총구 번쩍임 갈래로 흘러가면 안 된다.
     if (f.kind === "shield") {
       /* 막은 **죽음과 갈려야 한다**(지적: "스커지 자폭에서 왜 프로토스 사별 효과가 나지") —
          스커지 자체는 저그 재질로 터진다(engine9의 dk). 프로토스로 보인 것은 **맞은 쪽**의
@@ -5693,7 +5711,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa);
+      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★)
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
          둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
@@ -5796,7 +5814,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            · 탱크: detailAt 아래서는 차체+포탑 판 대신 한 판(tank·tanksiege)으로 그리고 포신 op은 버린다.
          옛 만드는 쪽 판정(liteView·liteYaw)과 같은 칸에서 같은 답이 나오게 문턱을 그대로 받는다. */
       const lite9 = !detail;
-      const liteYaw9 = yawAt !== undefined && zoom < yawAt;
+      const liteYaw9 = (yawAt !== undefined && zoom < yawAt) || FQ9.lv >= 3;   // 사다리 3단(FQ9 ★)은 배율과 무관하게 4칸
       /* 낮은 배율 죄기 — 배율은 **지금 칠하는 값**으로 잰다(손짓 중에는 React가 안 돌므로
          프롭으로 받으면 한 박자 늦는다). 사정은 lowZoomTrim9 주석에. */
       const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
@@ -5858,7 +5876,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              그래서 직전에 고른 칸을 기억해 두고, 각이 칸의 0.72(90도 칸이면 65도)를 넘어 멀어질
              때에만 옮긴다 — 경계에서 20도쯤의 불감대가 생겨 파닥임이 사라진다. */
           if (liteYaw9 && rotDeg !== undefined && UNIT_KIND_SET.has(kind)) {
-            const st9 = trim9 >= 1 ? 90 : 45;
+            const st9 = trim9 >= 1 || FQ9.lv >= 3 ? 90 : 45;
             let q9 = Math.round(rotDeg / st9) * st9;
             const pkq9 = op0.pickKey;
             if (pkq9 !== undefined) {
@@ -6270,7 +6288,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              유닛 타원 수백은 그렇게 덜어낼 값이 있지만 뜬 건물은 한두 채이고 그 타원이 **높이를 말하는 유일한 그림**이다 —
              없으면 건물이 뜬 것이 아니라 땅에 앉은 채 어긋나 보인다. 남는 문은 그림자 스위치 · 사영이 깔리나(glShB9) ·
              대타를 까는 프로필인가(shadowEllipse9) 셋이다. */
-          if (op.groundShadow && showShadows !== false && !glShB9 && shadowEllipse9()) {
+          if (op.groundShadow && showShadows !== false && !glShB9 && (shadowEllipse9() || FQ9.lv >= 1)) {   // 뜬 건물 — 사다리 1단은 사영 대신 타원(FQ9 ★)
             /* 바닥 '발자국'만 덮는다(정정: 칸(hPx)은 모델 높이까지 포함해, 칸 기준 타원은
                건물을 통째로 감싸는 큰 원이었다 — 내접으로 바꿔도 거의 그대로라 "적용 안
                됨"으로 보였다). 발자국 깊이 = 폭 × footRatio, 자리는 칸 바닥에 붙인다. */
@@ -6522,8 +6540,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          *    문턱을 넘으면 메시 그림자와 타원을 **둘 다** 받았다(공중에서 한 번 고쳤던 '그림자가 둘'과 같은 자리다).
          *    이제 타원은 GL 바닥 그림자가 **안 깔리는 프레임의 대타**로만 남는다(덜어내기 · 손짓 중 접힘 · 낮은 배율). */
         const glShadow9 = meshShadow9(zoom) && !!(glM9 && gl9 && bodyShadow && (op.air || zoom >= shadowGroundMinZoom9()));   // 사영 그림자(PC 높음 · 4배부터) — 그 밖은 타원
+        /* 사다리 1단(FQ9 ★) — 타원은 **공중 유닛만**(부양 지상 유닛은 뺀다) · 기기의 타원 대타 여부와 무관하게 깐다(사영을 끈 대타). */
         if (hover && !op.noShadow && showShadows !== false && (CROWD9.lv === 0 || op.air) && detail && !shFold9
-          && !glShadow9 && shadowEllipse9()) {
+          && !glShadow9 && (FQ9.lv >= 1 ? !!op.air : shadowEllipse9())) {
           /* 떠다니는 지상 유닛(일꾼·벌처·아콘류)은 겨우 발밑만 떠 있다(지적: 그림자가
              너무 크고 진해) — 높이 나는 공중 유닛보다 작고 옅은 타원. */
           // 그림자 살짝 축소(지적) — 높이 나는 만큼 발밑 그림자는 작고 옅게.
@@ -6580,7 +6599,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.ellipse(sx, groundY ?? groundOy9, shw * 1.1, shw * (op.air ? 0.5 : 0.42) * pitchGroundK9(op), 0, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else if (showShadows !== false && CROWD9.lv === 0 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
+        } else if (showShadows !== false && CROWD9.lv === 0 && FQ9.lv < 1 && detail && !shFold9 && !op.air && !op.clipWalk && !op.noShadow
           && !glShadow9 && shadowEllipse9()) {
           /* ⚠⚠ **여기에도 같은 문이 있어야 한다**(2026-09, 지적: "프로브 같은 유닛 그림자가 사영 그림자와
              타원 그림자 두 개가 나와") — 위 부양 갈래는 `!glShadow9` 로 막아 두었는데, 막힌 몸이 **떨어져
@@ -8994,7 +9013,7 @@ const MESH_SHADOW_Z9 = ((): number | null => {
   const m9 = /glshadowz=([0-9.]+)/.exec(location.hash);
   return m9 ? Number(m9[1]) : null;
 })();
-const meshShadow9 = (zoom: number): boolean => (MESH_SHADOW9 ?? DEV9.meshShadow) && zoom >= (MESH_SHADOW_Z9 ?? DEV9.meshShadowMinZoom);
+const meshShadow9 = (zoom: number): boolean => FQ9.lv < 1 && (MESH_SHADOW9 ?? DEV9.meshShadow) && zoom >= (MESH_SHADOW_Z9 ?? DEV9.meshShadowMinZoom);   // 사다리 1단은 사영을 끈다(FQ9 ★)
 /** ★ 전투 효과가 **갈래마다** 서는 칸 — 요청: "2배에서 전투효과: 가시 분출 우리 /
  *  4배에서 전투효과: 피격 / 나머지는 다 8배부터 노출".
  *  여기 적힌 것은 **사다리(가장 이른 칸)** 이고, 실제 칸은 배치의 바닥과 함께 잰다
@@ -19046,7 +19065,7 @@ export default function ReplayMotionPlayer({
        붓이 쓰는 그 캔버스(.scr-motion-gl9)로 같은 인자로 세우고 판 조율(sprTune9)까지 맞춘 뒤 일감을 짠다. 캔버스가 아직 없으면 종전대로(벌이 서면 아래 glGen9S 로 다시 돈다). */
     if (GL_ON9 && !glNow9()) {
       const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-gl9") ?? null;
-      if (cv9) { glUnits9(cv9, DEV9.glMeshMax, DEV9.glBloom, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
+      if (cv9) { glUnits9(cv9, DEV9.glMeshMax, DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
     } else if (glNow9()) sprTune9();
     warmGenRef9.current = glGen9();
     const warmNo9 = warmRuns9.current;
@@ -19461,6 +19480,7 @@ export default function ReplayMotionPlayer({
       const tl9 = tLiveRef9.current;
       if (tl9 > 0 && tl9 !== tFromTickRef9.current) { tFromTickRef9.current = tl9; setT(tl9); }
       /* 멈추면 내린 배킹을 곧장 풀고 한 장 다시 그린다(DRS9 ★ ③ — 정지 화면은 늘 단 상한으로 또렷이). */
+      if (FQ9.force < 0) FQ9.lv = 0;   // 사다리 효과 단도(위 FQ9 ★) — 정지 화면은 다 갖춘 그림
       if (DRS9.cap < Infinity) {
         DRS9.cap = Infinity; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1;
         requestAnimationFrame(() => { if (!clockRef.current && mapRef.current?.isConnected) paintFnRef9.current?.(tLiveRef9.current); });
