@@ -33219,7 +33219,7 @@ function pv(t, s, o) {
   }
   I.push(`조상 ${C.length ? C.join(" ") : "-"}`);
   const c = window.visualViewport, l = document.scrollingElement;
-  return I.push(`뷰 ${c ? c.scale.toFixed(3) : "-"} 스크롤 ${g(l ? l.scrollTop : 0)} 되맞춤 ${Ts.rootSnap || "-"} 손짓 ${s ? o ? "핀치" : "on" : "-"} 배킹몫 ${_I.k}${gA.on ? " live" : ""}`), `흐림: ${I.join(" · ")}`;
+  return I.push(`뷰 ${c ? c.scale.toFixed(3) : "-"} 스크롤 ${g(l ? l.scrollTop : 0)} 되맞춤 ${Ts.rootSnap || "-"} 손짓 ${s ? o ? "핀치" : "on" : "-"} 배킹몫 ${_I.k}${gA.on ? " live" : ""}${Ts.drs ? " · " + Ts.drs : ""}`), `흐림: ${I.join(" · ")}`;
 }
 const ry = /* @__PURE__ */ new Map(), hh = [], Zl = (t) => {
   hh.push(t), hh.length > 12 && hh.shift();
@@ -33779,7 +33779,7 @@ function px(t) {
 const me = { lv: 0, weak: !1, k: 1, bench: -1, units: 0, force: -1, bench3: -1, weak3: !1, k3: 1, re: 0 }, jh = wn.name === "phone" ? 20 : 24, wx = 1.75, PC = typeof location < "u" ? (() => {
   const t = /benchms=(\d+)/.exec(location.hash);
   return t ? Number(t[1]) : -1;
-})() : -1, mx = 33, bM = 160, bx = typeof location < "u" && /(^|[#&,])digest=1/.test(location.hash), MM = 1200, Si = { bld: 0.5, hall: 300, kill: 1, tau: 90, dmg: 3, dmgTau: 60, dmgCum: 1 }, Mx = 78, OM = /* @__PURE__ */ new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]), yD = () => wn.name === "phone" && Yo.v === 0 && me.weak, Ox = 1.75, pD = () => wn.name === "phone" ? yD() ? wx : Yo.v >= 2 ? 2 : Ox : Yo.v === 0 ? 1.5 : Yo.v === 1 ? 2 : 1 / 0, Zo = { on: !(typeof location < "u" && /(^|[#&,])drs=0/.test(location.hash)), cap: 1 / 0, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
+})() : -1, mx = 33, bM = 160, bx = typeof location < "u" && /(^|[#&,])digest=1/.test(location.hash), MM = 1200, Si = { bld: 0.5, hall: 300, kill: 1, tau: 90, dmg: 3, dmgTau: 60, dmgCum: 1 }, Mx = 78, OM = /* @__PURE__ */ new Set(["Command Center", "Nexus", "Hatchery", "Lair", "Hive"]), yD = () => wn.name === "phone" && Yo.v === 0 && me.weak, Ox = 2, pD = () => wn.name === "phone" ? yD() ? wx : Yo.v >= 2 ? 2.25 : Ox : Yo.v === 0 ? 1.5 : Yo.v === 1 ? 2 : 1 / 0, Zo = { on: typeof location < "u" && /(^|[#&,])drs=1/.test(location.hash), cap: 1 / 0, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
 function Dx(t, s, o) {
   if (!Zo.on || !(s > 0) || s > 500) return;
   const n = s / Math.max(16.7, o);
@@ -41040,7 +41040,7 @@ function iE({
       " · UI ",
       Ts.ui,
       " · 판 ",
-      "10-27 10:13",
+      "10-27 12:10",
       Ts.ss !== 1 ? ` · 초해상 ×${Ts.ss.toFixed(2)}` : "",
       Math.abs(Ts.unitScale - Ts.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ts.unitScale.toFixed(4)})` : Ts.scale > 0 && Math.abs(Ts.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ts.scale.toFixed(4)})` : "",
       Ts.allocOk ? "" : " · ⚠배킹확보 실패"
