@@ -1692,9 +1692,13 @@ const backCap9 = (): number => (DEV9.name === "phone"
       빠른 간격엔 곧장 붙고 느린 쪽으로는 고른 박자일 때만 옮긴다 · 위로 40ms 상한)다. 30Hz 폰은 33ms 가 보통이다.
    ② 되올림이 6초 · 비 < 1.08 이라 30Hz 에서 영영 안 열렸다 → 비 < 1.12 가 2초면 한 칸씩 되올린다(상한에 닿으면 풀림).
    ③ 정지 중엔 안 재서 내린 채 남았다 → 멈추면 곧장 풀고 한 장 다시 그린다(아래 재생 effect 정리).
-   내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥 폰 1.5 / PC 1 · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
+   내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 1.0/1.25/1.5 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
 const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
-  base: 0, ivm: 0, steady: 0, t0: 0 };
+  base: 0, ivm: 0, steady: 0, t0: 0, z: 1 };
+/** ★ **바닥은 배율로**(2026-10-27, 요청: "더 과감하게 — 어차피 프레임이 떨어지는건 낮은 배율일때가 많으니까 해상도를 프레임에 따라 단계적으로 계속 내리는거") —
+ *  멀리 볼수록 몸이 작아 화소를 덜어도 티가 덜 난다. 폰: 2배 아래 1.0 · 4배 아래 1.25 · 그 위 1.5(옛 바닥 하나) · PC 1. 붓이 그리는 배율(DRS9.z)로 고르고,
+ *  배킹은 늘 그 배율의 바닥 이상이다(줌인하면 내린 값이 곧장 바닥까지 올라온다 — 아래 B 의 max). */
+const drsFloor9 = (z: number): number => (DEV9.name === "phone" ? (z < 2 ? 1 : z < 4 ? 1.25 : 1.5) : 1);
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
   const tgt9 = Math.max(16.7, target);
@@ -1710,7 +1714,7 @@ function drsNote9(now: number, interval: number, target: number): void {
   DRS9.ema += (r9 - DRS9.ema) * 0.1;
   DRS9.slow = DRS9.ema > 1.3 ? DRS9.slow + interval : 0;
   DRS9.fast = DRS9.ema < 1.12 ? DRS9.fast + interval : 0;
-  const floor9 = DEV9.name === "phone" ? 1.5 : 1;
+  const floor9 = drsFloor9(DRS9.z);
   const cap9 = backCap9();
   if (now - DRS9.t0 >= 2500 && now - DRS9.at >= 1500) {
     if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
@@ -5567,8 +5571,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), DRS9.cap, 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 실측 조절(DRS9 ★)
-      DRS9.lastB = B;
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), Math.max(DRS9.cap, drsFloor9(zoom)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥 drsFloor9)
+      DRS9.lastB = B; DRS9.z = zoom;
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
