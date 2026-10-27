@@ -1695,11 +1695,27 @@ const backCap9 = (): number => (DEV9.name === "phone"
    내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 0.75/1.0 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
 const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
   base: 0, ivm: 0, steady: 0, t0: 0, z: 1 };
-/** ★ **바닥은 배율로**(2026-10-27, 요청: "더 과감하게 — 어차피 프레임이 떨어지는건 낮은 배율일때가 많으니까 해상도를 프레임에 따라 단계적으로 계속 내리는거") —
- *  멀리 볼수록 몸이 작아 화소를 덜어도 티가 덜 난다. 폰: 4배 아래 0.75 · 그 위 1.0(아래 되물림 차례) · PC 1. 붓이 그리는 배율(DRS9.z)로 고르고,
- *  배킹은 늘 그 배율의 바닥 이상이다(줌인하면 내린 값이 곧장 바닥까지 올라온다 — 아래 B 의 max). */
-/* 폰 바닥 2배 아래 1.0 · 4배 아래 1.25 · 그 위 1.5 → **4배 아래 0.75 · 그 위 1.0**(2026-10-27, 요청: "4배미만 1보다 작게 8배 1로 해볼래? 너무 심한가?") — 떨어지는 동안에만 닿는 바닥이다. */
-const drsFloor9 = (z: number): number => (DEV9.name === "phone" ? (z < 4 ? 0.75 : 1) : 1);
+/** ★ **배율이 해상도를 미리 정한다**(2026-10-27, 요청: "이미 드래그 시작 전에 적용이 돼있어야 프레임이 떨어지지 않을텐데 프레임에 따라 하니 미리 대응이 안되네" →
+ *  (제안: 배율 상한 + 프레임 바닥 두 겹) "좋은 생각 · 문턱은 써보면서 조절 — 폰에서 4배는 진짜 작게 보이고 5-6배도 작은 편") ─────────────────────────────────────
+ *  ① 배율 상한 `zoomCap9` — 폰 ZCAP_Z9(6)배 아래는 **처음부터** ZCAP_B9(1.25)로 그린다(프레임과 무관 · 드래그 전에 이미 가볍다). 그 위는 단 상한 그대로.
+ *  ② 프레임 바닥 `drsFloor9` — 떨어지는 동안 DRS9 가 내려가는 끝: 폰 ZCAP_Z9 아래 DRS_LO9(0.75) · 그 위 DRS_HI9(1.0) · PC 1.
+ *     (차례: 2배 아래 1.0·4배 아래 1.25·그 위 1.5 → "4배미만 1보다 작게 8배 1로" 0.75/1.0 → 문턱 4 → 6.)
+ *  둘 다 **손짓 중에는 손짓 앞 배율(BZ9)로 고른다** — 핀치가 문턱을 넘나들 때 배킹이 바뀌면 캔버스 크기가 바뀌어 GL 이 MRT 판을 통째로 다시 잡는다(멎음 · player-ui.md
+ *  '폰 줌 지연 — 손짓 중 배킹 고정'). 손을 떼면 그 배율로 바뀐다. 줌인하면 내린 DRS 값은 곧장 그 배율의 바닥까지 올라온다(배킹 셈의 max).
+ *  문턱은 해시로 바로 바꿔 본다: `#zcapz=6,zcap=1.25,drslo=0.75,drshi=1`(실기에서 고르는 자 · 사람들이 많이 쓰는 배율을 보며 조절). */
+const hashNum9 = (k9: string, d9: number): number => {
+  if (typeof location === "undefined") return d9;
+  const m9 = new RegExp("(?:^|[#&,])" + k9 + "=([0-9.]+)").exec(location.hash);
+  return m9 && Number.isFinite(Number(m9[1])) ? Number(m9[1]) : d9;
+};
+const ZCAP_Z9 = hashNum9("zcapz", 6);
+const ZCAP_B9 = hashNum9("zcap", 1.25);
+const DRS_LO9 = hashNum9("drslo", 0.75);
+const DRS_HI9 = hashNum9("drshi", 1);
+const zoomCap9 = (z: number): number => (DEV9.name === "phone" && z < ZCAP_Z9 ? ZCAP_B9 : Infinity);
+const drsFloor9 = (z: number): number => (DEV9.name === "phone" ? (z < ZCAP_Z9 ? DRS_LO9 : DRS_HI9) : 1);
+/** 배킹을 고르는 배율 — 손짓 중에는 손짓 앞 값을 지킨다(위 ★). */
+const BZ9 = { z: 0 };
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
   const tgt9 = Math.max(16.7, target);
@@ -5569,11 +5585,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          요잉 8칸·자세 컷 없이도 179장 35MB로 예산 끝이었다). 한 장의 픽셀이 2.25분의 1이라 같은 예산에 두 배 넘게
          담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
          우선이다(더 낮은 쪽). */
+      if (gesture?.current !== true || BZ9.z <= 0) BZ9.z = zoom;   // 손짓 중엔 손짓 앞 배율(위 BZ9 ★)
       const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), Math.max(DRS9.cap, drsFloor9(zoom)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥 drsFloor9)
-      DRS9.lastB = B; DRS9.z = zoom;
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥)
+      DRS9.lastB = B; DRS9.z = BZ9.z;
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
          제곱으로 는다. 끄는 동안 0.7배로 내리면 픽셀이 절반이 된다 — 그만큼 한 장이 싸지고, 주 실마리가 그만큼
