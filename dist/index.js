@@ -30124,7 +30124,7 @@ function VT(t, s, o, n) {
     $g = I, ni = i, ge = !1, C0 = 0;
   }
 }
-const UT = /* @__PURE__ */ new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extract", "archives", "tribunal"]), QT = "index.9a5f0d053f.json";
+const UT = /* @__PURE__ */ new Set(["gspire", "spire", "hive", "lair", "pyramidWide", "hydraden", "plane", "extract", "archives", "tribunal"]), QT = "index.3973b54922.json";
 let jg = null;
 function _W(t) {
   jg = t != null && t.base ? t.base.replace(/\/+$/, "") : null;
@@ -41135,7 +41135,7 @@ function OW({
       " · UI ",
       Ts.ui,
       " · 판 ",
-      "10-27 17:54",
+      "10-27 19:15",
       Ts.ss !== 1 ? ` · 초해상 ×${Ts.ss.toFixed(2)}` : "",
       Math.abs(Ts.unitScale - Ts.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Ts.unitScale.toFixed(4)})` : Ts.scale > 0 && Math.abs(Ts.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Ts.scale.toFixed(4)})` : "",
       Ts.allocOk ? "" : " · ⚠배킹확보 실패"
