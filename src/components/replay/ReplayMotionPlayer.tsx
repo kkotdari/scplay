@@ -673,10 +673,15 @@ const XF_FAR_FRAC9 = 0.25;
  *  지형 캔버스에 2026-10-24 '반대로 튐' 고침으로 둔 그 규약을 몸·효과·GL 캔버스에도. PC 의 혼합 길(장 사이는 CSS 로 밀고 need9 박자로 다시 그려 기준을 갈아 끼움)은 사파리가
  *  캔버스 **내용**을 변환보다 한 장 늦게 올리는 자리(이 파일 '사파리는 캔버스 내용을 변환보다 한 프레임 늦게' ★)에서 기준을 갈아 끼우는 장마다 옛 그림이 항등 변환으로
  *  서서 한 걸음 **뒤로** 튀고, 그 다음 장에 다시 앞으로 — 손끝과 어긋나는 '튐'과 '속도차'다. 변환이 없으면 내용이 늦어도 한 장 뒤일 뿐 되돌아가지 않는다(단조).
- *  켜는 조건: 폰 · 평면 2D 판 길(GL 스프라이트 — GPU 채우기가 싸다) · 직전 한 장이 XF_HEAVY_MS9 미만(무거우면 옛 혼합 길 — 미룸 갈래가 바탕을 얼리므로 변환이 있어야 따라온다).
+ *  켜는 조건: 폰 · 평면 2D 판 길(GL 스프라이트 — GPU 채우기가 싸다) · 직전 한 장이 XF_NOCSS_MS9(150ms) 미만(무거우면 옛 혼합 길 — 미룸 갈래가 바탕을 얼리므로 변환이 있어야 따라온다).
  *  장마다 xfPaintNow 가 need9 박자 없이 그린다(붓이 든 만큼 프레임이 떨어지지만 어긋남은 없다). `#xfcss=1` 이면 옛 길. */
 const XF_CSS_HASH9 = typeof location !== "undefined" && /xfcss=1/.test(location.hash);
-const xfNoCss9 = (paintMs: number, pitched: boolean): boolean => !XF_CSS_HASH9 && DEV9.name === "phone" && GL_ON9 && GL_SPR9 && !pitched && paintMs < XF_HEAVY_MS9;
+/** ★ **무거워도 혼합 길로 안 넘어간다**(2026-10-27, 지적: 폰 사파리 2D "드래그나 줌시 유닛층과 지형층 그림이 어긋남" · 유닛이 많을 때) — 옛 문턱은 XF_HEAVY_MS9(55ms)라
+ *  난전에서 한 장이 55ms 를 넘으면 혼합 길(몸은 CSS 로 밀고 지형은 장마다 다시 그림)로 넘어갔고, 사파리는 다시 그린 지형을 CSS 변환보다 한 장 늦게 올려 지형이 몸보다
+ *  손끝 한 장만큼 뒤처졌다(핀치는 배율까지 바뀌어 가장자리일수록 더 벌어진다). 문턱을 이 값으로 올려 무거운 자리에서도 장마다 그린다 — 손짓 프레임은 떨어지지만 층이
+ *  안 어긋난다. 아래 xfPaintNow 의 미룸 갈래는 이 길에서 안 탄다(변환이 없으니 미루면 몸이 제자리에 선다). `#xfnocss=N`(ms). */
+const XF_NOCSS_MS9 = typeof location !== "undefined" ? ((): number => { const m9 = /(?:^|[#&,])xfnocss=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : 150; })() : 150;
+const xfNoCss9 = (paintMs: number, pitched: boolean): boolean => !XF_CSS_HASH9 && DEV9.name === "phone" && GL_ON9 && GL_SPR9 && !pitched && paintMs < XF_NOCSS_MS9;
 /** `#diag=brush`(지적: "아직도 떨린다" — 실기기에서 어느 붓이 어긋나는지 가리려고) — 유닛 붓이 칠할 때마다 한 줄 적는
  *  고리(최근 120). src는 부르는 쪽이 세운다: tick(재생 틱) · arrive(멈춘 채 장 도착) · xf(손짓 붓) · commit(손짓 끝) ·
  *  react(UnitLayer effect). aT는 그 붓이 든 앞 장의 시각(틱 계열만). */
@@ -15242,6 +15247,7 @@ export default function ReplayMotionPlayer({
     const live3d9 = liveViewOkRef9.current;
     const box9 = mapRef.current?.offsetWidth ?? 0;
     if (!live3d9 && xfPaintMsRef.current >= XF_HEAVY_MS9
+      && !xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched)   // 변환 없는 길은 미루지 않는다(위 XF_NOCSS_MS9 ★)
       && !(box9 > 0 && moved >= box9 * XF_FAR_FRAC9)
       && now9 - xfMoveAtRef9.current < XF_STILL_MS9) {
       FOGM9.gest = true; fogBin9().defer += 1;
