@@ -1697,3 +1697,6 @@ SPR_CAP_B9 512 안에 드는 가장 큰 **옥타브**)는 화면에서 크게 �
 - 첫 표(19 종류): bc 6 · carrier 5 · guardian·muta·queen 4 · tankbody·vessel 3 · arbiter·devourer·ebay·ovie·ultra 2 · cavern·corsair·cube·hive·lair·lurker·pyramidWide 1
   → 모두 1.3 이하(1.10~1.28). 고르지 않은 '완전히 같게'(목표 1.0)는 아틀라스 +87% · '가볍게'(1.5)는 +26% 로 셈했다(목표 1.3 은 +38% 셈).
 - 🔎 `node scripts/scene-sheet.mjs --out d --zoom 3 --dpr 2 --noshadow --sprprobe p.json [--hash sprlift=0]` · 끄고 견줌 `#sprlift=0`.
+- 아틀라스 다시 구움(같은 날 · `spr-atlas.mjs --bake --prune --basisu …`): 표 index.9a5f0d053f.json · 묶음 188 · f 107.8 → **124.4MB**(+15%) · h 50.2 → **59.3MB**(+18%) — 셈(+38%)보다 작다.
+  실측(헤드리스 · 첫 판 · 다 실린 뒤): 폰 `칸1604·64 → 68MB · 놓침0` · PC `칸3124·610 → 650MB · 놓침0`. 그림: 장면 시트 `--hash pctier=0`(판 늘림 ∞ — PC 낮음 · 폰과 같은 길) 배율 4 에서
+  배틀크루저가 뭉갠 판 → 또렷(`sprlift=0` 과 견줌).
