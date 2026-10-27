@@ -952,6 +952,22 @@ void main() { vec2 p = mix(uDst.xy, uDst.zw, aQ); gl_Position = vec4(p, 0.0, 1.0
 const TN_FS9 = `#version 300 es
 precision mediump float; uniform sampler2D uT1; uniform sampler2D uT0; in vec2 v1; in vec2 v0; out vec4 o;
 void main() { vec4 a = textureLod(uT1, v1, 0.0); vec4 b = textureLod(uT0, v0, 0.0); float d = clamp(max(max(a.r - b.r, a.g - b.g), a.b - b.b), 0.0, 1.0); o = vec4(d, d, 0.0, 1.0); }`;   // R·G 같은 값 — 쓰는 채널은 colorMask 가 고른다(임자색 R · 켜짐 G)
+/** ★ **굽는 선명·광택**(2026-10-27, 요청: 견줌 손잡이 #look 으로 고른 "0.5 0.5로 정했어 구워줘") — 판 칸을 다 찍은 뒤(임자색·켜짐 켜까지 — 그 켜는 거르지 않은 P0 로 잰다)
+ *  칸 색(P0)에만 언샤프(1.5 칸 · 세기 [0])와 광택(4 칸 하이패스의 밝은 면 → 흰 빛 · 세기 [1])을 한 번 얹는다. 붙일 때(SPR_FS9 uLook)와 같은 식이다 —
+ *  거리는 굽는 판 텍셀 × 덤프 배수(Q · 폰 h 는 반으로 줄여 실린다). 0 · 0 이면 이 패스를 건너뛴다. 바꾸면 아틀라스를 다시 굽는다(이 상수는 판 해시에 든다). */
+const SPR_LOOK9: [number, number] = [0.5, 0.5];
+const FLT_FS9 = `#version 300 es
+precision mediump float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform vec2 uLk; in vec2 v1; in vec2 v0; out vec4 o;
+vec4 tx(vec2 u) { return textureLod(uT1, clamp(u, uR.xy, uR.zw), 0.0); }
+void main() {
+  vec4 c = tx(v1); vec2 d1 = uPx * 1.5; vec2 d3 = uPx * 4.0;
+  vec4 b1 = (tx(v1 + vec2(d1.x, 0.0)) + tx(v1 - vec2(d1.x, 0.0)) + tx(v1 + vec2(0.0, d1.y)) + tx(v1 - vec2(0.0, d1.y))) * 0.25;
+  vec4 b3 = (tx(v1 + vec2(d3.x, 0.0)) + tx(v1 - vec2(d3.x, 0.0)) + tx(v1 + vec2(0.0, d3.y)) + tx(v1 - vec2(0.0, d3.y))) * 0.25;
+  const vec3 W9 = vec3(0.299, 0.587, 0.114);
+  float lc = dot(c.rgb, W9) / max(c.a, 0.001); float lb = dot(b3.rgb, W9) / max(b3.a, 0.001);
+  float sp = clamp((lc - lb) * 5.0, 0.0, 1.0) * clamp((lc - 0.5) * 2.5, 0.0, 1.0);
+  o = vec4(clamp(c.rgb + (c.rgb - b1.rgb) * uLk.x + vec3(sp * uLk.y * 0.7) * c.a, 0.0, c.a), c.a);
+}`;
 /** 미리 찍기(돌기) — 한 번 본 몸(메시·배율·색)의 **다른 요잉 칸**을 남는 예산으로 차례로 찍어 둔다. 둘 이상의 요잉을 본 것만(도는 몸) 연다. */
 interface SprWarm9 { job: Omit<SprJob9, "key" | "yaw" | "x0" | "y0" | "w" | "h" | "cell" | "tint">; yb0: number; ys: Set<number>; step: number; qk: number; gRq: number; gCyq: number }
 let SPR_HOLD9 = false;
@@ -1143,6 +1159,15 @@ export class GlUnits9 implements VecSink9 {
             this.sprTint = true;
           } catch (e) { console.warn("[gl9] 임자색 켜", e); this.tn = null; this.sprTint = false; }
         }
+        if (SPR_LOOK9[0] + SPR_LOOK9[1] > 0) {
+          try {
+            const f9 = gl.createProgram()!;
+            gl.attachShader(f9, raw(gl.VERTEX_SHADER, TN_VS9)); gl.attachShader(f9, raw(gl.FRAGMENT_SHADER, FLT_FS9)); gl.linkProgram(f9);
+            if (!gl.getProgramParameter(f9, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(f9));
+            this.flt = { prog: f9, aQ: gl.getAttribLocation(f9, "aQ"), uDst: gl.getUniformLocation(f9, "uDst"), uUv1: gl.getUniformLocation(f9, "uUv1"), uUv0: gl.getUniformLocation(f9, "uUv0"),
+              uT1: gl.getUniformLocation(f9, "uT1"), uR: gl.getUniformLocation(f9, "uR"), uPx: gl.getUniformLocation(f9, "uPx"), uLk: gl.getUniformLocation(f9, "uLk") };
+          } catch (e) { console.warn("[gl9] 굽는 선명·광택", e); this.flt = null; }
+        }
       } catch (e) { console.warn("[gl9] 스프라이트", e); this.spr = null; }
     }
   }
@@ -1185,6 +1210,8 @@ export class GlUnits9 implements VecSink9 {
     if (this.sprMap.size > 0 || this.sprPre.length > 0) return;
     this.sprYaw = n;
   }
+  /** 굽는 선명·광택 프로그램(위 SPR_LOOK9 ★) — 못 세우면 null(옛 그림). */
+  private flt: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uLk: WebGLUniformLocation | null } | null = null;
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
   private sprPre: SprJob9[] = [];
@@ -1759,6 +1786,36 @@ export class GlUnits9 implements VecSink9 {
         }
         gl.disableVertexAttribArray(tn.aQ); gl.colorMask(true, true, true, true);
         gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null); gl.activeTexture(gl.TEXTURE0);
+        gl.useProgram(this.prog);
+        gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
+      }
+      /* ★ 굽는 선명·광택(위 SPR_LOOK9 ★) — 칸을 판 → 굽는 판(제 자리 sx·sy · 이제 빈 자리다)으로 되옮기고, 거른 그림을 판 제 자리에 다시 쓴다. 칸 밖은 안 읽는다(uR). */
+      const flt = this.flt;
+      if (flt && placed.length && this.spr) {
+        const g2 = gl as WebGL2RenderingContext; const q9 = this.sprDumpQ > 0 ? this.sprDumpQ : 1;
+        for (const { sx, sy, cell } of placed) {
+          g2.bindFramebuffer(g2.READ_FRAMEBUFFER, cell.page.fb); g2.readBuffer(g2.COLOR_ATTACHMENT0);
+          g2.bindFramebuffer(g2.DRAW_FRAMEBUFFER, scr.rs);
+          g2.blitFramebuffer(cell.px, P - cell.py - cell.h, cell.px + cell.w, P - cell.py, sx, S - sy - cell.h, sx + cell.w, S - sy, g2.COLOR_BUFFER_BIT, g2.NEAREST);
+        }
+        gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.SCISSOR_TEST); gl.colorMask(true, true, true, true);
+        gl.useProgram(flt.prog); gl.uniform1i(flt.uT1, 0); gl.uniform2f(flt.uPx, q9 / S, q9 / S); gl.uniform2f(flt.uLk, SPR_LOOK9[0], SPR_LOOK9[1]);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, scr.texs[0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spr.qvbo);
+        gl.enableVertexAttribArray(flt.aQ); gl.vertexAttribPointer(flt.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(flt.aQ, 0);
+        let pgF: SprPage9 | null = null;
+        for (const { sx, sy, cell } of placed) {
+          if (cell.page !== pgF) { pgF = cell.page; gl.bindFramebuffer(gl.FRAMEBUFFER, pgF.fb); gl.viewport(0, 0, P, P); }
+          const dx0 = cell.px / P * 2 - 1; const dx1 = (cell.px + cell.w) / P * 2 - 1;
+          const dy0 = (P - cell.py - cell.h) / P * 2 - 1; const dy1 = (P - cell.py) / P * 2 - 1;
+          const u0 = sx / S; const v0 = (S - sy - cell.h) / S; const u1 = (sx + cell.w) / S; const v1 = (S - sy) / S;
+          gl.uniform4f(flt.uDst, dx0, dy0, dx1, dy1);
+          gl.uniform4f(flt.uUv1, u0, v0, u1, v1);
+          gl.uniform4f(flt.uR, u0 + 0.5 / S, v0 + 0.5 / S, u1 - 0.5 / S, v1 - 0.5 / S);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          this.stat.draws += 1;
+        }
+        gl.disableVertexAttribArray(flt.aQ);
         gl.useProgram(this.prog);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
       }
