@@ -1686,29 +1686,43 @@ const backCap9 = (): number => (DEV9.name === "phone"
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
  *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
  *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다). */
-/* ★ **기본 끔**(2026-10-27, 요청: "폰과 피시 해상도 안내리고 다른 방법 연구") — 간격 비는 왜 느린지 모른다: 폰이 화면 박자를 30Hz 로 묶으면(저전력 모드 · 발열 조절)
-   간격이 늘 33ms 라 비 2 로 읽혀 바닥(폰 1.5)까지 내려가고, 되올림 문(비 < 1.08)은 30Hz 에서 영영 안 열려 늘 흐렸다(실기 #diag `재표본 ×0.5004` · 가벼운 장면 · 워커 7ms).
-   해상도는 단 상한(backCap9) 그대로 두고 발열은 다른 길로 덜어낸다. `#drs=1` 이면 켠다. */
-const DRS9 = { on: typeof location !== "undefined" && /(^|[#&,])drs=1/.test(location.hash), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0 };
+/* ★ **프레임이 떨어지는 동안에만 내린다**(2026-10-27, 요청: "프레임 드랍중에만 무조건 내리는걸로" — 앞서 "해상도 안내리고"로 끈 뒤 "어제·엊그제보다 전반적으로 느려짐, 끊김") ──
+   옛 판의 함정 셋을 걷었다(실기 #diag `재표본 ×0.5004` · 정지·가벼운 장면에서도 바닥):
+   ① 느림의 자가 16.7ms 붙박이였다 — 폰이 화면 박자를 30Hz 로 묶으면(저전력·발열 조절) 늘 비 2 로 읽혀 바닥까지 갔다. 이제 자는 **그 기기의 박자**(base ·
+      빠른 간격엔 곧장 붙고 느린 쪽으로는 고른 박자일 때만 옮긴다 · 위로 40ms 상한)다. 30Hz 폰은 33ms 가 보통이다.
+   ② 되올림이 6초 · 비 < 1.08 이라 30Hz 에서 영영 안 열렸다 → 비 < 1.12 가 2초면 한 칸씩 되올린다(상한에 닿으면 풀림).
+   ③ 정지 중엔 안 재서 내린 채 남았다 → 멈추면 곧장 풀고 한 장 다시 그린다(아래 재생 effect 정리).
+   내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥 폰 1.5 / PC 1 · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
+const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
+  base: 0, ivm: 0, steady: 0, t0: 0 };
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
-  const r9 = interval / Math.max(16.7, target);
+  const tgt9 = Math.max(16.7, target);
+  if (DRS9.t0 === 0) DRS9.t0 = now;
+  /* 기준 박자(위 ①) — 빠른 간격엔 곧장 붙고, 느린 쪽으로는 **고른 박자**(최근 평균 ±12% 안이 45장 이어짐 = 화면 박자에 묶인 꼴)일 때만 옮긴다.
+     난전의 들쭉날쭉한 간격(33·50·66 이 섞임)은 기준을 못 끌어올린다 — 처음부터 난전이어도 내린다. 첫 2.5초는 재기만 한다(기준을 배우는 동안). */
+  DRS9.ivm = DRS9.ivm <= 0 ? interval : DRS9.ivm + (interval - DRS9.ivm) * 0.1;
+  DRS9.steady = Math.abs(interval - DRS9.ivm) < 0.12 * DRS9.ivm ? DRS9.steady + 1 : 0;
+  if (DRS9.base <= 0) DRS9.base = tgt9;
+  if (interval < DRS9.base) DRS9.base += (interval - DRS9.base) * 0.2;
+  else if (DRS9.steady >= 45) DRS9.base += (Math.min(DRS9.ivm, 40) - DRS9.base) * 0.1;
+  const r9 = interval / Math.max(tgt9, Math.min(DRS9.base, 40));
   DRS9.ema += (r9 - DRS9.ema) * 0.1;
   DRS9.slow = DRS9.ema > 1.3 ? DRS9.slow + interval : 0;
-  DRS9.fast = DRS9.ema < 1.08 ? DRS9.fast + interval : 0;
-  if (now - DRS9.at < 4000) return;
-  /* 폰 바닥 2 → **1.5**(2026-10-25, 발열 요청 3) — 트로틀링으로 장이 늦어지면 장 수보다 배킹이 먼저 내려가게 자리를 더 둔다(식으면 위 fast 문이 되올린다). */
+  DRS9.fast = DRS9.ema < 1.12 ? DRS9.fast + interval : 0;
   const floor9 = DEV9.name === "phone" ? 1.5 : 1;
   const cap9 = backCap9();
-  if (DRS9.slow > 2000 && DRS9.lastB > floor9 + 0.01) {
-    DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
-    DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
-  } else if (DRS9.fast > 6000 && DRS9.cap < Infinity) {
-    DRS9.cap += 0.25;
-    if (DRS9.cap >= Math.min(cap9, 8)) DRS9.cap = Infinity;
-    DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
+  if (now - DRS9.t0 >= 2500 && now - DRS9.at >= 1500) {
+    if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
+      DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
+      DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
+    } else if (DRS9.fast > 2000 && DRS9.cap < Infinity) {
+      DRS9.cap += 0.25;
+      if (DRS9.cap >= Math.min(cap9, 8)) DRS9.cap = Infinity;
+      DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
+    }
   }
-  if (scrDiagOn()) SCR_DIAG.drs = `배킹×${DRS9.lastB.toFixed(2)} 상한 ${Number.isFinite(cap9) ? cap9 : "∞"}/조절 ${Number.isFinite(DRS9.cap) ? DRS9.cap : "∞"} · 비 ${DRS9.ema.toFixed(2)} · 바꿈 ${DRS9.steps}`;
+  if (scrDiagOn()) SCR_DIAG.drs = `배킹×${DRS9.lastB.toFixed(2)} 상한 ${Number.isFinite(cap9) ? cap9 : "∞"}/조절 ${Number.isFinite(DRS9.cap) ? DRS9.cap : "∞"} · 비 ${DRS9.ema.toFixed(2)} · 기준 ${DRS9.base.toFixed(0)}ms · 바꿈 ${DRS9.steps}`;
 }
 const WEAK_KEEP9 = { glMsaa: DEV9.glMsaa, fxQual: DEV9.fxQual, hitShardK: DEV9.hitShardK, dieShards: DEV9.dieShards };
 function applyWeak9(): void {
@@ -19322,6 +19336,11 @@ export default function ReplayMotionPlayer({
          ≤100ms **앞 장**으로 되돌아간다(버로우 지점에 못 박히기 직전 걸어오던 자리 같은). 배속을 바꿀 때도 같다. */
       const tl9 = tLiveRef9.current;
       if (tl9 > 0 && tl9 !== tFromTickRef9.current) { tFromTickRef9.current = tl9; setT(tl9); }
+      /* 멈추면 내린 배킹을 곧장 풀고 한 장 다시 그린다(DRS9 ★ ③ — 정지 화면은 늘 단 상한으로 또렷이). */
+      if (DRS9.cap < Infinity) {
+        DRS9.cap = Infinity; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1;
+        requestAnimationFrame(() => { if (!clockRef.current && mapRef.current?.isConnected) paintFnRef9.current?.(tLiveRef9.current); });
+      }
     };
   }, [playing, active, speed, total]);
 

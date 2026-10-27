@@ -900,7 +900,7 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 /* 해상도 단 못 박기(2026-10) — PC 기본 창(1280×900)은 FHD 단(0.75)이라, --vw/--vh 없는 PC 돌림은 `ui=1`(QHD 단 · 개발 기준)로 못 박는다
    (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
-const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0", has("--drs") ? "drs=1" : "drs=0"].filter(Boolean).join(",");   // drs=0: 실측 배킹 조절 끔(헤드리스는 늘 느리다 · --drs 로 켬)
+const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0", has("--drs") ? "" : "drs=0"].filter(Boolean).join(",");   // drs=0: 실측 배킹 조절 끔(헤드리스는 늘 느리다 · --drs 로 켬)
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
