@@ -660,6 +660,11 @@ function fogMeterTick9(): void {
   FOGM9.g = fogCnt9();
 }
 const XF_HEAVY_MS9 = 55;
+/** ★ **폰 손짓은 초당 30장**(2026-10-27, 지적: "자유모드가 드래그 줌도 많고 유닛도 많이 보일일이 많아서 발열이 심한듯" → 제안 A+B "ㅇㅋ") — 폰 평면 판 길(xfNoCss9)은
+ *  손짓 중 CSS 변환 없이 장마다 손끝 보기로 판 전체(지형·안개·몸)를 다시 그려 화면 박자(60Hz · 120Hz 폰은 더)만큼 GPU 를 썼다. 손짓 한 장(gestureFrame9)과 재생 붓(drawGapMs)을
+ *  이 간격(28ms — 60Hz 에서 두 장에 한 번 · 120Hz 에서 네 장에 한 번)으로 묶는다. 장마다 손끝 보기로 그리는 것은 그대로라 옛 '뒤로 튐'은 다시 안 난다(변환을 안 건다) —
+ *  덜 매끄러울 뿐이다. 손을 떼는 순간(endGestureXf)은 그대로 곧장 그린다. `#xfgap=N`(ms · 0 이면 옛 매 장). */
+const XF_PHONE_GAP9 = typeof location !== "undefined" ? ((): number => { const m9 = /(?:^|[#&,])xfgap=(\d+)/.exec(location.hash); return m9 ? Number(m9[1]) : 28; })() : 28;
 /** 손끝이 이만큼 멈춰 있으면 '한 박자 쉰 것'으로 보고 무거운 자리에서도 한 장 그린다(마무리 한 장의 시계). */
 const XF_STILL_MS9 = 140;
 /** 무거운 자리라도 마지막으로 그린 뒤 상자의 이만큼을 넘게 밀었으면 그린다 — 빈 가장자리의 상한이다. */
@@ -1469,7 +1474,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   live3d: false,
   /** 사영 그림자(gl9 패스 ①) — ★ **폰도 전 티어·전 배율 사영**이다(2026-10-15, 요청: "폰도 모든 티어에서 사영그림자로 해볼래?" · PC 와 같은 규약 —
    *  gl-renderer.md '사영 그림자는 단과 배율이 켠다'). 옛 값: 0·1단 접지 타원 · 2단(높음) 8배부터. 뜨거우면 `#glshadow=0`(그때는 그림자가 없다 — 타원 대타 없음). */
-  meshShadow: true, meshShadowMinZoom: 0,
+  meshShadow: true, meshShadowMinZoom: 3,   // 0 → 3(2026-10-27, 제안 B "ㅇㅋ" — 줌아웃(3배 아래)에서만 몸 그림자를 걷는다 · 발열 · `#glshadowz=N` 이 앞선다)
   /** 사영이 안 깔리는 프레임에 **접지 타원을 대타로** 깔까 — 폰도 이제 안 깐다(PC 와 같다 · 덜어내기 단에서도 사영을 안 접는다). */
   shadowEllipse: false,
   /** MRT 판 MSAA 표본 수(폰 0·1단 **0** · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★.
@@ -15273,11 +15278,26 @@ export default function ReplayMotionPlayer({
    *  rAF 로 장에 한 번 뷰를 굳히는데, 그 뒤 applyGestureXf() 가 붓(xfPaintNow)을 **또** rAF 로 미뤄 붓이 늘 한 장 뒤였다(rAF 안에서 건 rAF 는 다음 장). 지형·안개가 '바로 안
    *  나오는' 까닭이고, 그 한 장의 어긋남이 사파리의 늦은 캔버스 올림과 겹치면 뒤로 튄다. 이미 장에 한 번인 자리라 묶을 것이 없다 — 변환을 걸고 붓을 **같은 장에서 곧장** 부른다.
    *  미뤄 둔 붓 rAF 는 걷는다(두 번 안 그리게). 사건에서 바로 부르는 자리(한 손 줌 quickZoom)는 종전대로 applyGestureXf() 가 rAF 로 묶는다. */
+  /* 폰 30장 묶음(위 XF_PHONE_GAP9 ★) — 간격 안이면 이 장을 건너뛰고 다음 rAF 에 한 번 더 본다(손이 멎어도 마지막 자리가 그려지게). */
+  const gfAtRef9 = useRef(0);
+  const gfRetryRef9 = useRef(0);
+  const gfSelfRef9 = useRef<() => void>(() => undefined);
   const gestureFrame9 = useCallback((): void => {
+    if (XF_PHONE_GAP9 > 0 && xfNoCss9(xfPaintMsRef.current, clipBoxRef.current.pitched)) {
+      const now9 = performance.now();
+      if (now9 - gfAtRef9.current < XF_PHONE_GAP9) {
+        if (!gfRetryRef9.current) gfRetryRef9.current = requestAnimationFrame(() => { gfRetryRef9.current = 0; if (xfGestureRef.current) gfSelfRef9.current(); });
+        return;
+      }
+      gfAtRef9.current = now9;
+    }
+    if (gfRetryRef9.current) { cancelAnimationFrame(gfRetryRef9.current); gfRetryRef9.current = 0; }
     if (xfRafRef.current) { cancelAnimationFrame(xfRafRef.current); xfRafRef.current = 0; }
     applyGestureXf(false);
     xfPaintNow();
   }, [applyGestureXf, xfPaintNow]);
+  gfSelfRef9.current = gestureFrame9;
+  useEffect(() => () => { if (gfRetryRef9.current) cancelAnimationFrame(gfRetryRef9.current); }, []);
   /* ★ **관성**(2026-10-25, 요청: "드래그만 피시 모바일에서 가속도 좀 적용가능? 떼도 좀더 이동하는거 있잖아" → "줌도 적용해줘도 될듯") ─────────────────
      손을 떼기 직전 80ms 의 속도(드래그 = 손끝 · 핀치 = 두 손가락 가운데와 로그 배율)를 이어 받아, 손짓을 끝내지 않은 채 rAF 마다 감속하며 더 민다(팬 τ 325ms ·
      배율 τ 260ms — 거리 ≈ 속도 × τ). 지도 끝에 닿은 축은 그 자리에서 멎고, 다 멎으면 그때 endGestureXf 로 굳힌다. 다른 손짓(beginGestureXf)·지도 누름·
@@ -19204,7 +19224,8 @@ export default function ReplayMotionPlayer({
        (30fps)이었다. 12ms면 60Hz는 매 rAF(60fps), 120Hz는 두 번에 한 번(60fps). 워커·보간이 있어 붓은 그만큼 가볍다. */
     const MOBILE_GAP_MS = 12;
     const drawGapMs = (): number => (
-      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : phoneWeak9() ? WEAK_GAP_MS9 : MOBILE_GAP_MS));
+      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : phoneWeak9() ? WEAK_GAP_MS9
+        : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : MOBILE_GAP_MS));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
     const tick = (now: number) => {
       const c = clockRef.current;
       /* 한 틱 상한 — 브라우저가 rAF를 멈췄다 되살리면(백그라운드 탭) dt가 자리 비운
