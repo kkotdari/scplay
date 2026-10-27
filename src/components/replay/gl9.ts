@@ -12,6 +12,7 @@ import { lodFilter, PITCH_LEAN9, BILL_CENTER9, MODEL_PERSP, type ShapeFace } fro
 import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
+import { SPR_LIFT9 } from "./sprLift.gen";
 
 export interface GlInst9 {
   mesh: GlMesh9;
@@ -844,6 +845,14 @@ const SPR_KQ9 = 32;
  *  옛 1/32 옥타브 눈금은 줌을 조금만 바꿔도 화면의 몸을 통째로 다시 찍었다(손을 뗄 때 굽기 몰림). 유닛은 요잉 64칸이라 건물보다 작게(칸 수 × 넓이 = 판 몫). */
 const SPR_CAP_U9 = 160;
 const SPR_CAP_B9 = 512;
+/** ★ **큰 몸은 단을 올린다**(2026-10-27, 지적: "같은 배율에서 큰유닛이 다른 유닛보다 흐린 현상" → "중간으로") — 위 상한(긴 변 160px)과 옥타브 눈금 때문에 화면에서 크게
+ *  그려지는 몸(배틀크루저·캐리어·탱크·베슬·가디언·아비터·뮤탈·퀸·울트라·커세어 · 엔지니어링 베이·배럭·넥서스·게이트)이 같은 배율에서 보통 유닛보다 1.3~3.5배 늘여 붙었다.
+ *  종류마다 ¼ 옥타브 칸 수(SPR_LIFT9 · scripts/spr-lift.mjs 가 장면 시트의 실측 늘림에서 뽑는다)를 단에 더해 **보통 유닛 늘림의 1.3배 이내**로 맞춘다. 올린 칸은 상한을 넘는다
+ *  (유닛 ≤ SPR_CAP_U9 의 2.83배 · 굽는 판 SPR_SCR9 안). `#sprlift=0` 이면 끈다(spr-lift 가 잴 때 · 견줌).
+ *  🔎 `#sprprobe` — 붓이 몸마다 '올림 없는 늘림'(kd / 단 배율 × 올림 배수)을 globalThis.__sprSt9 에 적는다(scene-sheet `--sprprobe`). */
+const SPR_LIFT_ON9 = !(typeof location !== "undefined" && /(^|[#&,])sprlift=0/.test(location.hash));
+const SPR_PROBE9 = typeof location !== "undefined" && /(^|[#&,])sprprobe\b/.test(location.hash);
+const sprLiftOf9 = (meshKey: string): number => (SPR_LIFT_ON9 ? SPR_LIFT9[meshKey.split(":")[1] ?? ""] ?? 0 : 0);
 /** 판 칸 사이 틈·맞춤(밉맵 단에서 이웃 칸이 덜 번지게) · 밉 단 상한(16배 축소 = 줌 1 언저리). */
 const SPR_GAP9 = 16;
 const SPR_MIP9 = 5;
@@ -1373,7 +1382,7 @@ export class GlUnits9 implements VecSink9 {
     const cap = mesh.key.startsWith("u:") ? SPR_CAP_U9 : SPR_CAP_B9;
     /* ★ 그림자는 **한 옥타브 낮게**(2026-10-24 · 판 포화 — 실측 PC 24판 가득 · 놓침 1132/경기): 그림자는 흐린 검은 실루엣이라 반 해상도를 늘여 써도
        티가 안 나고, 칸 넓이가 1/4 이 된다(전체 칸 수의 절반이 그림자). 붓의 '늘림 상한'(sprUpMax)은 그림자에 ×2 를 준다(want 의 over). */
-    const lv = Math.floor(Math.log2(cap / Math.max(0.01, span * 1.1))) * SPR_KQ9 - (sh ? SPR_KQ9 : 0);
+    const lv = Math.floor(Math.log2(cap / Math.max(0.01, span * 1.1))) * SPR_KQ9 - (sh ? SPR_KQ9 : 0) + sprLiftOf9(mesh.key) * (SPR_KQ9 / 4);   // 큰 몸 올림(위 SPR_LIFT9 ★)
     if (this.sprLv.size > 4000) this.sprLv.clear();
     this.sprLv.set(lk, lv);
     return lv;
@@ -1770,6 +1779,11 @@ export class GlUnits9 implements VecSink9 {
       const key = keyOf(it.mesh, it.cam, yb, qk, it.color, gRq, gCyq, sh);
       /* 미리 구운 칸(서버 아틀라스 · Q 배로 구웠다)이 있으면 늘림 판정은 **그 칸의 배율**로 — 2 배 칸은 두 배 더 당겨도 판으로 그린다(메시가 준다 · 2026-10-25). */
       const fx9 = this.sprFixedCells.get(key);
+      if (SPR_PROBE9 && !sh) {   // 올림 없는 늘림(위 SPR_PROBE9 ★) — 종류마다 가장 크게 늘인 값
+        const pm9 = ((globalThis as unknown as { __sprSt9?: Record<string, number> }).__sprSt9 ??= {});
+        const pk9 = it.mesh.key.split(":").slice(0, 2).join(":");
+        pm9[pk9] = Math.max(pm9[pk9] ?? 0, (kd / kq0) * 2 ** (sprLiftOf9(it.mesh.key) / 4));
+      }
       let over = kd / (fx9 ? fx9.kd : kq0) > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
       if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)
       if (over) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)

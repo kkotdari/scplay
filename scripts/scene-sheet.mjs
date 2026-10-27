@@ -37,6 +37,9 @@ const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
 const GAME_SEC = 120;
 /** 유닛 방향 바이트(0 북 · 64 동 · 128 남 · 192 서) — 기본 128(정면). `--hb N`으로 바꾼다. */
+/** --sprprobe <file> — 2D 판 늘림 실측을 모아 쓸 자리(아래 ★ · spr-lift). */
+const SPR_PROBE_OUT = flag("--sprprobe", null) ? String(flag("--sprprobe")) : "";
+const SPR_PROBE = {};
 const HB = Number(flag("--hb", 160));   // 기본 160 = 요잉 45(건물의 45와 같은 칸)
 
 const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
@@ -409,7 +412,7 @@ for (const race of RACES) {
     ${WHITE ? ".scr-motion-map{background:#fff!important}" : ""}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
   // --hash "cine=1" 처럼 해시를 더 얹는다(시네마틱 세기 · 붓 손잡이).
-  const hashX = (SHADOW ? ",glshadow=1,glshadowz=0" : "") + (flag("--hash", "") ? "," + String(flag("--hash")) : "");
+  const hashX = (SHADOW ? ",glshadow=1,glshadowz=0" : "") + (SPR_PROBE_OUT ? ",sprprobe" : "") + (flag("--hash", "") ? "," + String(flag("--hash")) : "");
   /* ★ **흰 바닥은 지형 캔버스를 빼는 것이다**(2026-09, 요청: "바닥을 흰색에 격자줄 들어간 형태로") — 잿빛 평지는
      `.scr-motion-mapvec` 의 지형 캔버스가 칠하므로, 재생기가 이미 든 손(`?hide=mapvec`)으로 그 층만 빼고 상자
      바탕을 흰색으로 둔다. 격자는 이 자가 덧대는 줄이고 흰 바닥에서는 색을 검게 뒤집는다(아래 GRIDC).
@@ -425,6 +428,8 @@ for (const race of RACES) {
   await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: 60000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   await page.waitForTimeout(4000);
+  /* --sprprobe <file> — 붓이 적은 '올림 없는 늘림'(gl9 SPR_PROBE9 ★ · `#sprprobe` 를 저절로 건다)을 종족마다 모아 JSON 으로(scripts/spr-lift.mjs 가 읽는다 · 2026-10-27). */
+  if (SPR_PROBE_OUT) { const st = await page.evaluate(() => globalThis.__sprSt9 || {}); for (const [k, v] of Object.entries(st)) SPR_PROBE[k] = Math.max(SPR_PROBE[k] ?? 0, v); }
   const why = await page.evaluate(() => { const d = window.__scrDiag || {}; return JSON.stringify({ truthWhy: d.truthWhy, truth: d.truth, worker: d.worker, crowd: d.crowd }); });
   console.log("진단:", why);
   /* 격자 타일(실제 게임 타일 크기)과 이름·배율 라벨을 지도 상자 위에 덧댄다 — 상자 좌표는 initialView와 같은 식
@@ -507,5 +512,6 @@ if (COMBO_ON && shots.length === 3) {
   }
 }
 await browser.close();
+if (SPR_PROBE_OUT) { writeFileSync(SPR_PROBE_OUT, JSON.stringify(SPR_PROBE, null, 1)); console.log(`[늘림 실측] ${Object.keys(SPR_PROBE).length} 종류 → ${SPR_PROBE_OUT}`); }
 rmSync(tdir, { recursive: true, force: true });
 rmSync(bdir, { recursive: true, force: true });

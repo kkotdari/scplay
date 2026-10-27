@@ -35,6 +35,7 @@ const flag = (f, d) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < arg
 const VER_FILES = [
   "src/components/replay/bake9.ts", "src/utils/mesh9.ts", "src/utils/shapeOblique.ts",
   "src/components/replay/tierTable.gen.ts", "src/components/replay/muzzleTable.gen.ts", "src/components/replay/addonWall.gen.ts",
+  "src/components/replay/sprLift.gen.ts",   // 큰 몸 단 올림(2026-10-27) — 칸 열쇠의 단이 바뀐다
 ];
 export function atlasVer() {
   const h = createHash("sha1");
