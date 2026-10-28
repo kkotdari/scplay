@@ -99,7 +99,7 @@ import {
 } from "../../utils/shapeOblique";
 import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
-  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, GAIT_CYCLE9, POSE_MERGE9, archonMergeK9, startHallClear9,
+  atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, poseOfRx9, GAIT_CYCLE9, POSE_MERGE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
   resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
 } from "./engine9";
@@ -9308,6 +9308,61 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
   return a + d * u;
 };
 
+/** 컷 처방(op.pz)이 있는 op 의 자세를 **그리는 시각**으로 고른다(engine9 UnitDrawOp.pz 의 ★ · 2026-10-28). */
+const posePz9 = (ops: UnitDrawOp[], t: number): void => {
+  for (let i9 = 0; i9 < ops.length; i9 += 1) { const o9 = ops[i9]; if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, t); }
+};
+/** ★ **효과를 그리는 시각으로 잇는다**(2026-10-28 · 폰 장 초당 5장) — 앞 장의 효과 op 를 dt(= 그리는 시각 − 장 시각)만큼 민다:
+ *  age·clk 은 dt 그대로 · ph 는 pr(쿨다운 박자 pc 면 감아 돈다 · 아니면 1 을 넘으면 끝난 효과라 뺀다 — 고이는 피(pool)는 1 에서 멈춘다) ·
+ *  탄 u 는 죄기 전 값(uw)에서 ur 로 · uc 로 감아 다음 발 · 1.2 넘으면(닿은 뒤) 뺀다. 빠르기가 없는 op 은 장 값 그대로(engine9 FxOp.pr 의 ★).
+ *  장 사이에 **새로 나는** 효과는 다음 장이 와야 선다(그 늦음은 한 장 간격 아래다). */
+function fxAdvance9(ops: FxOp[], dt: number): FxOp[] {
+  if (!(dt > 1e-4) || LIN9) return ops;
+  let out9: FxOp[] | null = null;
+  for (let i9 = 0; i9 < ops.length; i9 += 1) {
+    const o9 = ops[i9];
+    const move9 = o9.age !== undefined || o9.clk !== undefined || (o9.pr !== undefined && o9.ph !== undefined) || (o9.ur !== undefined && o9.uw !== undefined);
+    if (!move9) { if (out9) out9.push(o9); continue; }
+    if (!out9) out9 = ops.slice(0, i9);
+    const n9: FxOp = { ...o9 };
+    if (o9.age !== undefined) n9.age = o9.age + dt;
+    if (o9.clk !== undefined) n9.clk = o9.clk + dt;
+    if (o9.pr !== undefined && o9.ph !== undefined) {
+      let p9 = o9.ph + dt * o9.pr;
+      if (o9.pc) p9 -= Math.floor(p9);
+      else if (p9 > 1) { if (!o9.pool) continue; p9 = 1; }
+      n9.ph = p9;
+    }
+    if (o9.ur !== undefined && o9.uw !== undefined) {
+      let u9 = o9.uw + dt * o9.ur;
+      if (o9.uc !== undefined && o9.uc > 0) u9 %= o9.uc;
+      if (u9 >= 1.2) continue;
+      n9.uw = u9; n9.u = Math.min(1, u9);
+    }
+    out9.push(n9);
+  }
+  return out9 ?? ops;
+}
+/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 5 · PC 30). */
+const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
+/** `#lin` — 곡선 보간을 끄고 옛 직선 보간으로(견줌). */
+const LIN9 = typeof location !== "undefined" && /(^|[#&,])lin\b/.test(location.hash);
+/** ★ **곡선 보간**(2026-10-28, 요청: "보간은 부드럽게 해서 티 안 나게") — 두 장 사이를 직선으로 이으면 장이 성길수록(폰 초당 5장 · 8배속이면
+ *  장 사이가 게임 1.6초) 꺾는 자리에서 모서리를 깎고 장마다 빠르기가 툭 바뀐다. 앞·뒤 이웃 장(p0·p3)으로 양 끝의 기울기를 잡아 3차 에르미트로 잇는다.
+ *  넘침(멈추는 자리에서 지나쳤다 돌아옴)은 축마다 막는다 — 두 장 사이 변화가 0 이면 기울기 0 · 기울기 부호가 변화와 다르면 0 · 크기는 변화 기울기의 3배까지
+ *  (프리치–칼슨 단조 조건). 이웃이 없으면(새로 난 몸 · 첫 장) 그 끝은 두 장의 기울기 — 직선과 같다. */
+function herm9(p0: number | undefined, t0: number, pa: number, ta: number, pb: number, tb: number, p3: number | undefined, t3: number, u: number): number {
+  const h9 = tb - ta;
+  if (!(h9 > 0)) return pa;
+  const d9 = (pb - pa) / h9;
+  if (d9 === 0) return pa;
+  let ma9 = p0 !== undefined && ta > t0 ? (pb - p0) / (tb - t0) : d9;
+  let mb9 = p3 !== undefined && t3 > tb ? (p3 - pa) / (t3 - ta) : d9;
+  if (ma9 * d9 <= 0) ma9 = 0; else if (Math.abs(ma9) > 3 * Math.abs(d9)) ma9 = 3 * d9;
+  if (mb9 * d9 <= 0) mb9 = 0; else if (Math.abs(mb9) > 3 * Math.abs(d9)) mb9 = 3 * d9;
+  const u2 = u * u, u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * pa + (u3 - 2 * u2 + u) * h9 * ma9 + (-2 * u3 + 3 * u2) * pb + (u3 - u2) * h9 * mb9;
+}
 /** 워커에 보낸 시야를 견주는 열쇠 — 렌더가 보내는 자리와 손짓이 보내는 자리가 함께 쓴다. */
 function viewKeyOf9(v9: EngineView9): string {
   return `c${v9.crowd}|${v9.mapW}|${v9.mapH}|${v9.tilePx.toFixed(3)}|${v9.pitched ? 1 : 0}|${v9.pitchFlat.toFixed(4)}`
@@ -10191,7 +10246,9 @@ export default function ReplayMotionPlayer({
            앞 장부터** 버린다. 붓이 드는 것은 늘 't 이하 가장 늦은 장'이라 앞을 잘라도 안 굶는다. */
         const aheadMax9 = DEV9.aheadSec * Math.max(1, cmdNowRef9.current.speed) + 1;
         if (frames9.size > 8) {
-          for (const [k9, f9] of frames9) if (f9.t < tNow9 - 0.5 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
+          /* 뒤 창은 장 두 칸(곡선 보간이 앞 장의 앞까지 본다 · herm9) — 폰 초당 5장 × 배속이면 한 칸이 게임 0.2 × 배속초다. */
+          const back9 = Math.max(0.5, 0.45 * Math.max(1, cmdNowRef9.current.speed));
+          for (const [k9, f9] of frames9) if (f9.t < tNow9 - back9 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
           let by9 = 0;
           for (const f9 of frames9.values()) by9 += f9.buf.byteLength;
           const cap9 = DEV9.aheadMB * 1024 * 1024;
@@ -16805,8 +16862,9 @@ export default function ReplayMotionPlayer({
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
-        /* 장 간격의 바탕 — 폰 초당 10장(2026-10-28 덜 그리기 · 옛 20 — 장 사이는 보간이 잇는다 · 워커 일 절반) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). */
-        fps: DEV9.name === "phone" ? 10 : 30,
+        /* 장 간격의 바탕 — 폰 초당 5장(2026-10-28 덜 그리기 · 옛 20 → 10 → 5 — 장 사이는 곡선 보간(herm9)·컷 처방(pz)·효과 밀기(fxAdvance9)가 그리는 시각으로 잇는다 ·
+           워커 일 4분의 1) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 5 : 30,
       });
     }
   }
@@ -17023,8 +17081,18 @@ export default function ReplayMotionPlayer({
     return pf9.dec;
   };
   /** 바로 뒤의 설계도(t보다 앞선 것 중 가장 이른 것, 0.6초 안) — 보간의 끝점. */
-  /** 두 장(안개 판)을 잇는 한도(게임 초) — 0.6 또는 배속 × 0.15(워커 장 간격 상한 = 배속 ÷ 8 보다 넉넉히). */
-  const lerpSpan9 = (): number => Math.max(0.6, speed * 0.15);
+  /** 두 장(안개 판)을 잇는 한도(게임 초) — 0.6 또는 배속 × 0.3(폰 장 간격 = 배속 ÷ 5 보다 넉넉히). */
+  const lerpSpan9 = (): number => Math.max(0.6, speed * 0.3);
+  /** 곡선 보간의 앞 이웃 — a9 바로 앞 장(같은 세대 · 잇는 한도 안). */
+  const pickPrevFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
+    let prev: PackedFrame9 | null = null;
+    for (const f9 of wFramesRef.current.values()) {
+      if (f9.gen !== a9.gen) continue;
+      if (f9.t >= a9.t - 1e-6) continue;
+      if (!prev || f9.t > prev.t) prev = f9;
+    }
+    return prev && a9.t - prev.t <= lerpSpan9() ? prev : null;
+  };
   const pickNextFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
     let next: PackedFrame9 | null = null;
     for (const f9 of wFramesRef.current.values()) {
@@ -17032,7 +17100,7 @@ export default function ReplayMotionPlayer({
       if (f9.t <= a9.t + 1e-6) continue;
       if (!next || f9.t < next.t) next = f9;
     }
-    /* 잇는 한도는 배속을 탄다(2026-10-28 — 폰 장이 초당 10장이라 8배속이면 장 간격이 게임 0.8초다 · 고정 0.6초면 보간이 끊겨 장마다 뛴다). */
+    /* 잇는 한도는 배속을 탄다(2026-10-28 — 폰 장이 초당 5장이라 8배속이면 장 간격이 게임 1.6초다 · 고정 0.6초면 보간이 끊겨 장마다 뛴다). */
     return next && next.t - a9.t <= lerpSpan9() ? next : null;
   };
   /** ★ 두 설계도 사이 **보간**(지적: "툭툭 살짝씩 순간이동") ─────────────────────────────────────────
@@ -17085,6 +17153,7 @@ export default function ReplayMotionPlayer({
     const fa9 = decodeFrame9(a9);
     const bs9 = brushStatRef9.current;
     if (tNow9 <= a9.t + 1e-6) {
+      posePz9(fa9.unitOps, tNow9);
       fogWhy9 = "제장";
       const lz9 = latchVis9(slot9, fa9.visSrc, fa9.t);
       if (!lz9 || lz9.src === fa9.visSrc) return fa9;
@@ -17097,6 +17166,7 @@ export default function ReplayMotionPlayer({
     }
     const b9 = pickNextFrame9(a9);
     if (!b9) {
+      posePz9(fa9.unitOps, tNow9);
       bs9.noB += 1;
       for (const f9 of wFramesRef.current.values()) if (f9.t > a9.t + 0.6) { bs9.gapB += 1; break; }
       /* ★ **뒤 장이 없어도 눈 목록은 안 되돌린다**(같은 지적: "과거의 자리로 당겨졌다 다시 돌아와") ──
@@ -17130,6 +17200,20 @@ export default function ReplayMotionPlayer({
       b9.byKey = new Map();
       for (const op9 of fb9.unitOps) { const k9 = lerpKey9(op9); if (k9) b9.byKey.set(k9, op9); }
     }
+    /* 곡선 보간의 이웃 장(위 herm9) — 앞 장의 앞(p0)과 뒤 장의 뒤(p3). 같은 세대 · 잇는 한도 안에서만. */
+    const a0f9 = LIN9 ? null : pickPrevFrame9(a9);
+    const b1f9 = LIN9 ? null : pickNextFrame9(b9);
+    const byKeyOf9 = (pf9: PackedFrame9 | null): Map<string, UnitDrawOp> | null => {
+      if (!pf9) return null;
+      if (!pf9.byKey) {
+        const m9 = new Map<string, UnitDrawOp>();
+        for (const op9 of decodeFrame9(pf9).unitOps) { const k9 = lerpKey9(op9); if (k9) m9.set(k9, op9); }
+        pf9.byKey = m9;
+      }
+      return pf9.byKey;
+    };
+    const k0m9 = byKeyOf9(a0f9);
+    const k3m9 = byKeyOf9(b1f9);
     /* 보간 프레임은 하나를 계속 쓴다 — op 객체는 개체 열쇠별 풀에서 꺼내 앞 장의 값을 덮어쓴다. 그림자 발자국 배열도
        풀 객체의 것을 재사용한다(길이가 다를 때만 새로). 열쇠 없는 op(효과·장식)는 앞 장 객체 그대로. */
     const pool9 = lerpPoolRef9.current[slot9];
@@ -17161,8 +17245,15 @@ export default function ReplayMotionPlayer({
       }
       const n9 = b9.byKey.get(k9);
       if (n9) {
-        o9.fx = s9.fx + (n9.fx - s9.fx) * u9;
-        o9.fy = s9.fy + (n9.fy - s9.fy) * u9;
+        const p09 = k0m9 ? k0m9.get(k9) : undefined;
+        const p39 = k3m9 ? k3m9.get(k9) : undefined;
+        if (!LIN9 && (p09 || p39)) {
+          o9.fx = herm9(p09?.fx, a0f9?.t ?? a9.t, s9.fx, a9.t, n9.fx, b9.t, p39?.fx, b1f9?.t ?? b9.t, u9);
+          o9.fy = herm9(p09?.fy, a0f9?.t ?? a9.t, s9.fy, a9.t, n9.fy, b9.t, p39?.fy, b1f9?.t ?? b9.t, u9);
+        } else {
+          o9.fx = s9.fx + (n9.fx - s9.fx) * u9;
+          o9.fy = s9.fy + (n9.fy - s9.fy) * u9;
+        }
         if (s9.baseFy !== undefined && n9.baseFy !== undefined) o9.baseFy = s9.baseFy + (n9.baseFy - s9.baseFy) * u9;
         if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
         if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
@@ -17176,30 +17267,15 @@ export default function ReplayMotionPlayer({
           for (let j9 = 0; j9 < sp9.length; j9 += 1) op9[j9] = sp9[j9] + (np9[j9] - sp9[j9]) * u9;
         }
       }
+      if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, tNow9);   // 컷은 그리는 시각으로(위 posePz9)
       ops9.push(o9);
     }
     // 풀이 너무 크면(개체가 오래 사라짐) 비운다 — 다음 장에서 다시 찬다.
     if (pool9.size > src9.length * 3 + 200) pool9.clear();
     const fr9 = lf9.frame;
-    fr9.t = fa9.t; fr9.unitOps = ops9; fr9.fxOps = fa9.fxOps; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy;
-    /* ★ **럴커 가시의 위상도 잇는다**(요청: "애니메이션 프레임이 너무 적은 듯 — 프레임 늘려서 부드럽게") ──
-       효과 op은 여태 앞 장 것을 그대로 썼다. 유닛은 두 장 사이를 이어 매끄러운데 가시는 워커 장 박자
-       (30장/초, 폰은 그 아래)로만 위상이 바뀌고, 6배속에서는 장 하나가 경기 시간 0.2초라 한 낱개의
-       창(0.17초)을 통째로 건너뛰었다 — 그것이 '프레임이 적다'다. 프레임을 늘리는 길은 워커가 아니라 여기다:
-       뒤 장에 같은 자리(버로우한 몸이라 자리가 같다)의 가시가 있으면 그 위상까지 u9만큼 잇는다. 위상은
-       앞으로만 돈다(감싸기). 한 장 사이에 반 바퀴 넘게 갔으면 딴 사격이라 안 잇는다. */
-    if (fa9.fxOps.length > 0 && fb9.fxOps.length > 0 && fa9.fxOps.some((o9) => o9.kind === "spike")) {
-      fr9.fxOps = fa9.fxOps.map((o9) => {
-        if (o9.kind !== "spike" || o9.ph === undefined) return o9;
-        const m9 = fb9.fxOps.find((b9) => b9.kind === "spike" && b9.ph !== undefined
-          && Math.abs(b9.fx - o9.fx) < 1e-4 && Math.abs(b9.fy - o9.fy) < 1e-4);
-        if (!m9 || m9.ph === undefined) return o9;
-        let d9 = m9.ph - o9.ph;
-        if (d9 < 0) d9 += 1;
-        if (d9 > 0.5) return o9;
-        return { ...o9, ph: (o9.ph + d9 * u9) % 1 };
-      });
-    }
+    fr9.t = fa9.t; fr9.unitOps = ops9; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy;
+    /* 효과는 그리는 시각으로 민다(위 fxAdvance9) — 옛 럴커 가시 위상 잇기(뒤 장의 같은 자리 가시와 u9 로 잇던 갈래)는 이 한 길로 합쳤다. */
+    fr9.fxOps = fxAdvance9(fa9.fxOps, tNow9 - fa9.t);
     fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc; fr9.visVer = undefined;
     /* ★ **눈 목록도 잇는다**(지적: "안개 떨림 더 심해짐 — 그려야 할 데이터를 잘 못 찾는 느낌") ──────────────────
        유닛은 앞·뒤 장 사이를 보간해 매끄럽게 걷는데 안개(눈 목록)는 앞 장의 것을 그대로 썼다. 높은 배속에서는 장
@@ -17404,7 +17480,7 @@ export default function ReplayMotionPlayer({
     const fa9 = decodeSub9(ua9);
     const b9 = tNow9 > a9.t + 1e-6 ? pickNextFrame9(a9) : null;
     const ub9 = b9?.subs?.find((u9) => u9.team === team) ?? null;
-    if (!b9 || !ub9) return { unitOps: fa9.unitOps, fxOps: fa9.fxOps, eyes: ua9.eyes };
+    if (!b9 || !ub9) { posePz9(fa9.unitOps, tNow9); return { unitOps: fa9.unitOps, fxOps: fa9.fxOps, eyes: ua9.eyes }; }
     const fb9 = decodeSub9(ub9);
     const u9 = Math.min(1, Math.max(0, (tNow9 - a9.t) / Math.max(1e-6, b9.t - a9.t)));
     if (!ub9.byKey) {
@@ -17460,7 +17536,8 @@ export default function ReplayMotionPlayer({
       }
       eyes9 = out9;
     }
-    return { unitOps: ops9, fxOps: fa9.fxOps, eyes: eyes9 };
+    posePz9(ops9, tNow9);   // 컷은 그리는 시각으로(posePz9) — 보간 안 한 op 은 장의 것이라 같이 고른다
+    return { unitOps: ops9, fxOps: fxAdvance9(fa9.fxOps, tNow9 - a9.t), eyes: eyes9 };
   };
   /* 틱의 붓 — 살아 있는 시각으로 프레임을 골라 op·효과를 ref에 두고 유닛 캔버스를 곧장 칠한다(React 없이). */
   /* ── 분할보기의 붓(위 splitOn9) ──────────────────────────────────────────────────────────────────────────

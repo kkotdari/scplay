@@ -653,6 +653,24 @@ export function atkCutOf(
   if (ph < 0.35) return 2;
   return flapHz ? flapCutOf(flapHz, t) : 0;
 }
+/** 컷 처방(UnitDrawOp.pz)을 그 시각의 컷으로 — 붓이 그릴 때마다 부른다(위 pz 의 ★). 엔진의 고르기와 같은 함수를 지난다. */
+/** 사격 위상을 앞 장에서 잇는 한도(게임 초) — 옛 0.6초는 장 간격 20Hz·8배속(0.4초)을 덮었는데, 폰 장이 초당 5장이 되며(2026-10-28)
+ *  8배속 장 간격이 1.6초라 장마다 위상이 0으로 돌아가 공격 컷·트레이서가 첫 마디만 되풀이했다. */
+const FIRE_CONT_SEC9 = 2;
+export function poseOfRx9(kind: string, rx: number[], t: number): Pose9 {
+  switch (rx[0]) {
+    case 1: return walkCutOf9(kind, rx[1], t);
+    case 2: return flapCutOf(rx[1], t);
+    case 3: { const ph9 = Math.floor(t * rx[1]) % 3; return ph9 === 0 ? 0 : ph9 === 1 ? 1 : 3; }
+    case 4: {
+      const cd9 = rx[2];
+      const ph9 = ((((t - rx[1]) % cd9) + cd9) % cd9) / cd9;
+      return atkCutOf(kind, ph9, rx[3] > 0 ? rx[3] : undefined, t);
+    }
+    case 5: return Math.floor(t * 18) % 2 === 1 ? 5 : 4;
+    default: return 0;
+  }
+}
 /** ★ **고스트가 총을 꺼내고 넣는 한 마디**(2026-09, 요청: "고스트 총 꺼내기 부드럽게") — 교전에
  *  들어서는 순간 등에 멘 총(0)이 겨눔(2)으로 **한 프레임에** 튀었다(공격 컷이 '겨눈 채 반동'뿐이라).
  *  반쯤 든 컷(POSE_ATK_L)을 앞뒤로 한 마디씩 세운다: 든 지 `GHOST_DRAW_SEC9` 안이면 꺼내는 중,
@@ -2007,6 +2025,11 @@ export type UnitDrawOp = {
   /** 지금 그릴 자세(요청: 애니메이션) — 0 기본 · 1 이동 컷 · 2 공격 컷.
    *  컷을 가진 종류(POSE_KINDS)에서만 판이 갈리고, 나머지는 값이 있어도 무시된다. */
   pose?: Pose9;
+  /** ★ **컷 처방**(2026-10-28, 요청: "최대한 덜그리고 보정 — 보간은 부드럽게 티 안 나게") — 걸음·날갯짓·궤도·공격·버로우 파기 컷은
+   *  시각의 함수인데 여태 워커가 **장 시각**으로 골라 실었다. 장이 성기면(폰 초당 5장) 다리가 장 박자로 끊기고 빠른 컷(럴커 파기 9Hz)은
+   *  박자가 무너진다. 그래서 그 함수의 인자만 싣고 붓이 **그리는 시각**으로 고른다(poseOfRx9). 없으면 pose 그대로.
+   *    [1, hz] 걸음 · [2, hz] 날갯짓 · [3, rate] 궤도 굴림 · [4, 시작, 쿨다운, 날갯짓hz] 공격 · [5] 럴커 파기 */
+  pz?: number[];
   /** 남은 체력 비율 0~1(요청: 스탯을 지닌 생애주기) — 다쳤을 때만 와서 바가 뜬다. */
   hpFrac?: number;
   /** 체력바를 지금 보일 것인가 — 맞은 지 HP_BAR_SEC 안(요청: 공격당한 뒤 한동안만). 선택된 개체는 붓이 따로 늘 보인다. */
@@ -2341,6 +2364,10 @@ export type FxOp = {
   d0?: number;
   /** shot: 진행률 0~1. */
   u?: number;
+  /** ★ **진행 빠르기**(2026-10-28 · 폰 장 초당 5장 — 붓이 장 사이를 그리는 시각으로 잇는다 · RMP fxAdvance9) ──
+   *  pr = ph 가 게임 1초에 오르는 몫 · pc = ph 가 돌아가는(쿨다운 박자) 효과 · ur = u 가 1초에 오르는 몫 · uw = 죄기 전 u(1~1.2 는 '닿는 순간') ·
+   *  uc = u 의 한 바퀴(쿨다운 ÷ 비행 시간 — 이어 쏘는 동안 다음 발로 넘어간다). age·clk 은 늘 1초에 1씩이라 따로 안 싣는다. 없으면 장 값 그대로. */
+  pr?: number; pc?: boolean; ur?: number; uw?: number; uc?: number;
   /** beam/shot: **좌우 한 쌍의 한 발**인가(2026-09, 요청: "한 쌍 트레이서의 경우 타겟 쪽은 타겟 중심 한 점을
    *  향해 가야 함 · 미사일이 타겟에 가까워질수록 좀 휘어야") — 붓이 나는 길의 조종점을 더 앞(0.72)에 두어
    *  두 발이 제 발사관에서 **나란히** 나가다 표적 가까이에서 한 점으로 모인다. */
@@ -4894,8 +4921,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const m9 = fireStartRef.current;
       const prev = m9.get(key);
       /* 이어지는 사격인가 — 앞 프레임에도 쏘고 있었고 시계가 앞으로만 갔으면 잇는다.
-         0.6초는 그리기 주기(20Hz)와 배속(최대 8배)을 넉넉히 덮는 값이다. */
-      const start = prev && t >= prev.at && t - prev.at <= 0.6 && t >= prev.start
+         한도(FIRE_CONT_SEC9)는 장 간격(폰 초당 5장 × 8배속 = 게임 1.6초)을 넉넉히 덮는 값이다. */
+      const start = prev && t >= prev.at && t - prev.at <= FIRE_CONT_SEC9 && t >= prev.start
         ? prev.start : t;
       m9.set(key, { start, at: t });
       return ((t - start) % cd) / cd;
@@ -5821,7 +5848,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         fxOps.push({
           kind: "tether", fx: ufx9, fy: ufy9, tx: sfx9, ty: sfy9,
           lift: ubody9, tlift: slift9, stag: ship9.tag,
-          ph: ((inW9 ? t - r9.a : t - r9.b) / RIDE_TETHER_SEC),
+          ph: ((inW9 ? t - r9.a : t - r9.b) / RIDE_TETHER_SEC), pr: 1 / RIDE_TETHER_SEC,
           sub: inW9 ? "in" : "out",   // 탑승·내림 — 효과음(sfx9Cues)이 가른다(2026-10-22)
         });
       }
@@ -6708,7 +6735,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (bShieldUp9) {
           fxOps.push({
             kind: "shield", fx: bfx9, fy: bfy9, lift: bLift9,
-            size: bw9 * 0.95, ph: (t - bldHp.hurt) / 0.55,
+            size: bw9 * 0.95, ph: (t - bldHp.hurt) / 0.55, pr: 1 / 0.55,
           });
         } else {
           /* 건물도 제 결로 튄다(요청: 종족별 피해 효과) — 테란은 불꽃, 저그는 피,
@@ -6725,7 +6752,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                불티가 건물 폭만 하게 텄다. */
             // 튀는 자리도 몸 가운데 가까이(0.3 → 0.1) — 유닛과 같은 까닭(트레이서 끝과 겹치게).
             size: bw9 * 0.45, dist: bw9 * 0.1, mat: bMat9,
-            ph: (t - bldHp.hurt) / 0.18,
+            ph: (t - bldHp.hurt) / 0.18, pr: 1 / 0.18,
             ...(bWpn9 ? { style: bWpn9 } : {}),
             ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
           });
@@ -7378,14 +7405,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
               if (shotB !== null) {
                 fxOps.push({
                   kind: "shot", style: style9, fx: dffx9, fy: dffy9, lift: 0,
-                  mx: qx9, my: qy9, deg: degB, len: lenB, u: shotB,
+                  mx: qx9, my: qy9, deg: degB, len: lenB, u: shotB, ...(shotBr9 ?? {}),
                 });
               } else {
                 fxOps.push({
                   kind: "beam", style: style9, fx: dffx9, fy: dffy9, lift: 0,
                   // len = 포구→표적 — 유닛 쪽과 같은 까닭(표적을 안 넘게 죈다).
                   mx: qx9, my: qy9, deg: degB, len: lenB,
-                  ph: ((((t - delay9) % dur9) + dur9) % dur9) / dur9,
+                  ph: ((((t - delay9) % dur9) + dur9) % dur9) / dur9, pr: 1 / dur9, pc: true,
                 });
               }
             }
@@ -7397,6 +7424,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              성큰은 여기 안 든다: 혓바닥은 날아가는 탄이 아니라 표적까지 뻗는
              촉수라, 길이가 곧 실거리인 지금 그림이 맞다. 벙커 사수의 총·화염도
              즉발이라 그대로다. */
+          /** 방어 탄의 진행 빠르기(FxOp.ur 의 ★) — 아래 shotB 가 적는다. */
+          let shotBr9: { uw: number; ur: number; uc: number } | null = null;
           const shotB = ((): number | null => {
             const nm9 = defNm9;
             if (!nm9 || !PROJECTILE_FX.has(nm9) || lenB <= 1) return null;
@@ -7409,6 +7438,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                 dist9 / Math.max(1, shotSpeedOf9(nm9))));
             const ph9 = firePhase(defKey9, cd9);
             const u9 = (ph9 * cd9) / flySec9;
+            shotBr9 = { uw: u9, ur: 1 / flySec9, uc: cd9 / flySec9 };
             // 닿는 순간을 반드시 그린다 — 유닛 쪽과 같은 까닭(위 주석).
             return u9 < 1.2 ? Math.min(1, u9) : null;
           })();
@@ -7706,7 +7736,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       fxOps.push({
         kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.5,
-        ph: (t - d9) / (BLD_FX_SEC * 0.6),
+        ph: (t - d9) / (BLD_FX_SEC * 0.6), pr: 1 / (BLD_FX_SEC * 0.6),
         mat: "cocoon", seed: i + 29, tier: 3,
       });
     });
@@ -7975,7 +8005,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       fxOps.push({
         kind: "burst", fx: bfx9, fy: bfy9, lift: (cocoonB9 ? 0 : bldMidLift9(unit)) + flyUp9, bld: !cocoonB9,   // 몸 가운데에서(지적)
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * (cocoonB9 ? 0.5 : 1),
-        ph: (t - goneAt) / BLD_FX_SEC,
+        ph: (t - goneAt) / BLD_FX_SEC, pr: 1 / BLD_FX_SEC,
         mat: cocoonB9 ? "cocoon" : rk === "terran" ? "mech" : rk, seed: i + 13,
         tier: (FOOTPRINT[unit] ?? [3, 2])[0] <= 2 ? 1 : (FOOTPRINT[unit] ?? [3, 2])[0] === 3 ? 2 : 3,
       });
@@ -8745,7 +8775,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const [bfx9, bfy9] = posFrac(dpx, dpy);
         fxOps.push({
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
-          size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC,
+          size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC, pr: 1 / DIE_FX_SEC,
           mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
           ...(dk === "toss" && !TOSS_FLESH9.has(drawUnit) ? { tmech: true } : {}),
           ...(pool9 && (dk === "zerg" || dk === "bio") ? { pool: true, age: t - dieAt } : {}),
@@ -9084,7 +9114,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         lift: (uAir ? airLiftPxOf(ay3) : 0) + rise9 * cpx9 + cpx9 * 0.24,
         size: body9,
         // 아주 느린 숨 — 2.4초에 한 번.
-        ph: (((t - frzSt[0]) % 2.4) + 2.4) % 2.4 / 2.4,
+        ph: (((t - frzSt[0]) % 2.4) + 2.4) % 2.4 / 2.4, pr: 1 / 2.4, pc: true,
       });
     }
     /* ★ **마엘스톰·이레디에이트는 걸린 몸마다 그린다**(2026-09, 요청: "원작과 비슷하게 — 웹은 영역이고 마엘스톰·이레디에이트는
@@ -9124,6 +9154,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const cloakSil9 = cloakedNow9 && fogOn && !visAll && viewTeam > 0 && team !== viewTeam
       && !detectorSpots.some((dsp) => dsp.team === viewTeam
         && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9);
+    /** 컷 처방(UnitDrawOp.pz) — 아래 pose 고르기가 시각의 함수인 갈래에서 그 인자를 적는다. */
+    let poseRx9: number[] | undefined;
     unitOps.push({
       fx, fy,
       /* 공중은 2D에서도 y순(지적: 공중 유닛 간 앞뒤 섞임) — ei 나머지는 무작위
@@ -9288,7 +9320,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (!pk9 || markerView || !qAnim) return 0;
         /* 럴커 버로우 파기(요청: "가라앉는 게 아니라 제자리에서 앞다리 넷으로 빠르게 땅을 파는 모션") — 창 동안 4·5 컷을
            9Hz로 오간다(왼·오른 다리가 번갈아 찍는다). 간이 보기 문턱보다 앞이다 — 폰에서도 보여야 한다. */
-        if (digging9 && kindMain === "lurker") return Math.floor(t * 18) % 2 === 1 ? 5 : 4;
+        if (digging9 && kindMain === "lurker") { poseRx9 = [5]; return Math.floor(t * 18) % 2 === 1 ? 5 : 4; }
         /* 간이 보기에서는 **날갯짓이 있는 종류만** 컷을 고른다 — 차례는 아래
            그대로 둔다(공격 컷이 날갯짓보다 앞선다). 여기서 걸러 내기만 한다. */
         /* ★ 이동 컷(걸음·비행 추진)만은 **셋째 칸(3배)부터** 친다(요청) — 판은 컷 수만큼
@@ -9300,7 +9332,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (pk9.roll) {
           if (liteView || !movingNow) return 0;
           const sp9 = speedOf(drawUnit || "Siege Tank", t, e.ups);
-          const ph9 = Math.floor(t * Math.min(12, Math.max(4, sp9 * 2.6))) % 3;
+          const rr9 = Math.min(12, Math.max(4, sp9 * 2.6));
+          poseRx9 = [3, rr9];
+          const ph9 = Math.floor(t * rr9) % 3;
           return ph9 === 0 ? 0 : ph9 === 1 ? 1 : 3;
         }
         // 비행체(thrust): 걸음 컷이 없으니 이동 중이면 자세 1 고정 — 빌더가 그 자세에서만 불꽃을 낸다.
@@ -9314,6 +9348,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (pk9.move && movingNow) {
           const sp0 = speedOf(drawUnit || "Marine", t, e.ups);
           const cad0 = Math.min(9, Math.max(2, sp0 * 2.2));
+          poseRx9 = [1, cad0];
           return walkCutOf9(kindMain, cad0, t);
         }
         /* 컷 고르기는 **공용 문**(atkCutOf·flapCutOf)이 낸다 — 도록도 같은
@@ -9331,11 +9366,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              것이다. 그 처방이 공용 문 안에 들어가 있다(flapHz 인자). */
           /* 고스트는 교전에 든 첫 마디에 **반쯤 든 컷**으로 총을 꺼낸다(GHOST_DRAW_SEC9 의 ★). */
           if (kindMain === "ghost" && drawAge9(drawMemRef.current, holdKey, t) < GHOST_DRAW_SEC9) return POSE_ATK_L;
+          poseRx9 = [4, fireStartRef.current.get(`p${holdKey}`)?.start ?? t, cd9, pk9.flap ?? 0];
           return atkCutOf(kindMain, ph0, pk9.flap, t);
         }
         /* 날갯짓은 **자취가 멈춰 있어도** 돈다(요청) — 공중에 뜬 몸은 늘
            날개를 쳐야 떠 있는 것으로 읽힌다. */
         if (pk9.flap) {
+          poseRx9 = [2, pk9.flap];
           return flapCut();
         }
         if (pk9.move && movingNow) {
@@ -9343,6 +9380,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           const cad9 = Math.min(9, Math.max(2, sp9 * 2.2));
           /* 걸음은 **두 컷을 오간다**(1 ↔ 3) — 기본 자세로 돌아오면 앞으로
              나가는 발이 늘 한쪽이 된다(위 POSE_WALK_B 주석). */
+          poseRx9 = [1, cad9];
           return walkCutOf9(kindMain, cad9, t);
         }
         /* 고스트는 교전을 떠난 첫 마디에 같은 컷으로 총을 **넣는다** — 겨눔에서 등으로 한 프레임에 안 튄다. */
@@ -9379,6 +9417,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            (아래 이완의 같은 임자 일꾼 예외). */
       noSep: !WORKER_KIND_SET.has(kindMain),
     });
+    if (poseRx9) unitOps[unitOps.length - 1].pz = poseRx9;
     if (cloakSil9) {
       const o9 = unitOps[unitOps.length - 1];
       o9.alpha = CLOAK_SIL_A9; o9.solid = CLOAK_SIL_COL9;
@@ -9630,7 +9669,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, pr: 1 / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
@@ -9642,7 +9681,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            프로토스·테란이 남의 결로 터졌다. 그 갈래를 낸 옛 지적("스커지가 죽을 때 프로토스 효과")의
            정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
-        ph: (t - hurtAt) / 0.14, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
+        ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
         ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {
@@ -9827,6 +9866,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       return Math.min(cd9v * 0.9,
         Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : shotSpeedOf9(fxName9))));
     })(fxCdRaw, foeDist);
+    /** 죄기 전 u(위 FxOp.uw) — 아래 shotU 가 적는다. */
+    let shotUw9 = 0;
     const shotU = ((): number | null => {
       /* ★ 나는 거리는 **지도 위 거리**로 잰다(지적: "골리앗 스카웃 대공 미사일
          안 나감" · "트레이서가 여전히 떠 있는 건물엔 안 나가") ────────────────
@@ -9843,6 +9884,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       if (!Number.isFinite(foeDist) || foeDist <= 0.05) return null;
       const ph9 = firePhase(`u${holdKey}`, fxCdRaw);
       const u9 = (ph9 * fxCdRaw) / flySec9;
+      shotUw9 = u9;
       return u9 < 1.2 ? Math.min(1, u9) : null;
     })();
     if (beamDeg === null || !fxName9) return null;
@@ -10124,7 +10166,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              그 몸의 가슴 높이(0.34·몸), 모르면 종전값. */
           lift: foe.air ? foeLift9
             : (foe.uk && isKnownKind(foe.uk) ? unitPxOf(foe.uk, foe.by) : fxPx) * 0.34,
-          size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, splash: true,
+          size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, pr: 1 / fxCd, pc: true, splash: true,
         });
       }
       // 선을 안 그리는 갈래만 여기서 끝난다 — 나머지는 아래로 내려가 선도 그린다.
@@ -10162,7 +10204,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            지운 것이었다: 가시는 표적을 겨눠 멈추는 것이 아니라 **줄지어 솟아
            나가는 것**이고, 가까운 적은 그중 가까운 가시에 맞을 뿐이다. */
         len: (LURKER_SPINE_TRAVEL_PX / 32) * tPx9,
-        ph: spikePh9,
+        ph: spikePh9, pr: 1 / spikeDur9, pc: true,
       });
     } else if (glaveHop9) {
       /* ★ **튐 토막** — 앞 표적에서 다음 표적으로 나는 한 발(위 ★★). 자리·높이는 두 끝의
@@ -10228,6 +10270,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           ...tgtFields9(0),
           mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
+          uw: shotUw9, ur: 1 / flySec9, uc: fxCdRaw / flySec9,
           // 쌍이면 붓이 나란히 내보내 표적 가까이에서 모은다(FxOp.twin 의 ★).
           ...(laneAt9.length > 1 ? { twin: true } : {}),
         });
@@ -10300,7 +10343,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           ? Math.max(0, beamLen - surf9
             - (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95)
           : beamLen,
-        ph: ph9,
+        ph: ph9, pr: 1 / fxCd, pc: true,
       });
       }
       /* ★ 치료는 **낫는 쪽에도** 보인다(지적: "메딕이 힐 동작을 해도 타겟 피가
@@ -10316,7 +10359,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const [hlx9, hly9] = posFrac(foe.bx, foe.by);
         fxOps.push({
           kind: "beam", style: "heal", fx: hlx9, fy: hly9, lift: liftPx9,
-          mx: 0, my: 0, deg: 0, ph: ph9,
+          mx: 0, my: 0, deg: 0, ph: ph9, pr: 1 / fxCd, pc: true,
         });
       }
     }
