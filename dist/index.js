@@ -33763,6 +33763,8 @@ const x8 = typeof navigator > "u" ? 0 : navigator.deviceMemory ?? 0, E8 = [
     aheadMB: 32,
     glMeshMax: 360,
     yaw8Always: !1,
+    meshShadow: !0,
+    // 사영 그림자는 높음부터(위 폰 프로필 ★ · 3배 아래는 그대로 걷는다)
     decalBakeMax: 384,
     hitShardK: 1,
     dieShards: 24,
@@ -33803,9 +33805,10 @@ const x8 = typeof navigator > "u" ? 0 : navigator.deviceMemory ?? 0, E8 = [
   live3d: !1,
   /** 사영 그림자(gl9 패스 ①) — ★ **폰도 전 티어·전 배율 사영**이다(2026-10-15, 요청: "폰도 모든 티어에서 사영그림자로 해볼래?" · PC 와 같은 규약 —
    *  gl-renderer.md '사영 그림자는 단과 배율이 켠다'). 옛 값: 0·1단 접지 타원 · 2단(높음) 8배부터. 뜨거우면 `#glshadow=0`(그때는 그림자가 없다 — 타원 대타 없음). */
-  meshShadow: !0,
+  /* 폰 기본은 사영 그림자 **끔** → 접지 타원(shadowEllipse9 · 폰 참)이 대타(2026-10-27, 요청: "모바일은 사영그림자 값이 크다고 했던 기억이.. 모바일은 보통 이하 티어에서
+     타원그림자로 고정") — 낮음·보통은 늘 타원 · 높음 단만 사영을 켠다(아래 PHONE_TIERS9 · 단은 오르기만 한다). 옛: 전 단 사영 + 3배 아래 걷기(2026-10-27 제안 B). `#glshadow=1` 이 앞선다. */
+  meshShadow: !1,
   meshShadowMinZoom: 3,
-  // 0 → 3(2026-10-27, 제안 B "ㅇㅋ" — 줌아웃(3배 아래)에서만 몸 그림자를 걷는다 · 발열 · `#glshadowz=N` 이 앞선다)
   /** 사영이 안 깔리는 프레임에 **접지 타원을 대타로** 깔까 — 폰도 이제 안 깐다(PC 와 같다 · 덜어내기 단에서도 사영을 안 접는다). */
   shadowEllipse: !1,
   /** MRT 판 MSAA 표본 수(폰 0·1단 **0** · 2단 4) · 효과 심의 곡선 마디 몫(0단 0.6 · 1단 0.8 · 2단 1) — 위 PHONE_TIERS9 의 ★.
@@ -41262,7 +41265,7 @@ function xW({
       " · UI ",
       Zs.ui,
       " · 판 ",
-      "10-28 09:02",
+      "10-28 09:56",
       Zs.ss !== 1 ? ` · 초해상 ×${Zs.ss.toFixed(2)}` : "",
       Math.abs(Zs.unitScale - Zs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Zs.unitScale.toFixed(4)})` : Zs.scale > 0 && Math.abs(Zs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Zs.scale.toFixed(4)})` : "",
       Zs.allocOk ? "" : " · ⚠배킹확보 실패"
