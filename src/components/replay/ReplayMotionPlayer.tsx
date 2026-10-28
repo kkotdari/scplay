@@ -1713,10 +1713,12 @@ const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(lo
  *    1단 — 사영 그림자 끔(meshShadow9) · 타원은 **공중 유닛·뜬 건물만**(땅에 선 몸·부양 지상 유닛·건물 그림자 없음 · 기기의 타원 대타 여부와 무관)
  *    2단 — 비필수 효과 끔: 건물 상처(불·연기·피 폭포) · 꾸밈(용접·흙덩이·착지·스웜) · 피격 파편(섬광은 남김) · 실드 번쩍 · 죽음 파편 1/3 · 번짐(블룸)
  *    3단 — 유닛 방향 4칸(90도 · 낮은 배율 죄기와 같은 불감대)
+ *    4단(폰만) — 화면 박자 한 단 더(높음 60 → 30fps · 그 밖 30 → 20fps · 2026-10-28 덜 그리기 — drawGapMs 의 ★)
  *  남기는 것: 트레이서 · 죽음 폭발 · 소환 섬광 · 스톰·핵·지역 마법 · 승하차 줄 — 무슨 일이 일어났나를 말하는 것들. `#fq=N` 은 그 단에 못 박는다(견줌). */
 const FQ9 = { lv: 0, force: typeof location === "undefined" ? -1 : ((): number => { const m9 = /(?:^|[#&,])fq=(\d)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() };
 if (FQ9.force >= 0) FQ9.lv = FQ9.force;
-const FQ_MAX9 = 3;
+/** 사다리 꼭대기 — 폰은 4단(화면 박자 한 단 더 내림 · 아래 drawGapMs 의 ★ 덜 그리기)까지, PC 는 3단. */
+const fqMax9 = (): number => (DEV9.name === "phone" ? 4 : 3);
 /** ★ **배율이 해상도를 미리 정한다**(2026-10-27, 요청: "이미 드래그 시작 전에 적용이 돼있어야 프레임이 떨어지지 않을텐데 프레임에 따라 하니 미리 대응이 안되네" →
  *  (제안: 배율 상한 + 프레임 바닥 두 겹) "좋은 생각 · 문턱은 써보면서 조절 — 폰에서 4배는 진짜 작게 보이고 5-6배도 작은 편") ─────────────────────────────────────
  *  ① 배율 상한 `zoomCap9` — 폰 ZCAP_Z9(6)배 아래는 **처음부터** ZCAP_B9(1.25)로 그린다(프레임과 무관 · 드래그 전에 이미 가볍다). 그 위는 단 상한 그대로.
@@ -1759,7 +1761,7 @@ function drsNote9(now: number, interval: number, target: number): void {
   const cap9 = backCap9();
   if (now - DRS9.t0 >= 2500 && now - DRS9.at >= 1500) {
     /* 사다리(위 FQ9 ★) — 내릴 때는 효과 단 먼저 · 해상도 나중, 올릴 때는 해상도 먼저 · 효과 단 나중. */
-    if (DRS9.slow > 1000 && FQ9.force < 0 && FQ9.lv < FQ_MAX9) {
+    if (DRS9.slow > 1000 && FQ9.force < 0 && FQ9.lv < fqMax9()) {
       FQ9.lv += 1;
       DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
     } else if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
@@ -16803,8 +16805,8 @@ export default function ReplayMotionPlayer({
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
-        /* 장 간격의 바탕 — 폰 초당 20장(지도 전체 장이라 짓기가 두 배 · 장 사이는 보간이 잇는다) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). */
-        fps: DEV9.name === "phone" ? 20 : 30,
+        /* 장 간격의 바탕 — 폰 초당 10장(2026-10-28 덜 그리기 · 옛 20 — 장 사이는 보간이 잇는다 · 워커 일 절반) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). */
+        fps: DEV9.name === "phone" ? 10 : 30,
       });
     }
   }
@@ -16954,7 +16956,7 @@ export default function ReplayMotionPlayer({
         if (e9.fseq !== fseq9 || e9.vis.length === 0) continue;
         if (e9.t > e09.t + 1e-6) { e19 = e9; break; }
       }
-      if (e19 && (e19.t - e09.t > 0.6 || e19.t <= t9)) e19 = null;
+      if (e19 && (e19.t - e09.t > lerpSpan9() || e19.t <= t9)) e19 = null;
       return { a: e09.vis, b: e19 ? e19.vis : null, ta: e09.t, tb: e19 ? e19.t : e09.t };
     }
     const snaps9 = fogSnapsRef9.current;
@@ -16971,7 +16973,7 @@ export default function ReplayMotionPlayer({
       if (sf9.fseq !== fseq9 || sf9.fog.visSrc.length === 0) continue;
       if (sf9.t > s09.t + 1e-6) { s19 = sf9; break; }
     }
-    if (s19 && (s19.t - s09.t > 0.6 || s19.t <= t9)) s19 = null;
+    if (s19 && (s19.t - s09.t > lerpSpan9() || s19.t <= t9)) s19 = null;
     return { a: s09.fog.visSrc, b: s19 ? s19.fog.visSrc : null, ta: s09.t, tb: s19 ? s19.t : s09.t };
   };
   const decodeFrame9 = (pf9: PackedFrame9): Frame9 => {
@@ -17021,6 +17023,8 @@ export default function ReplayMotionPlayer({
     return pf9.dec;
   };
   /** 바로 뒤의 설계도(t보다 앞선 것 중 가장 이른 것, 0.6초 안) — 보간의 끝점. */
+  /** 두 장(안개 판)을 잇는 한도(게임 초) — 0.6 또는 배속 × 0.15(워커 장 간격 상한 = 배속 ÷ 8 보다 넉넉히). */
+  const lerpSpan9 = (): number => Math.max(0.6, speed * 0.15);
   const pickNextFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
     let next: PackedFrame9 | null = null;
     for (const f9 of wFramesRef.current.values()) {
@@ -17028,7 +17032,8 @@ export default function ReplayMotionPlayer({
       if (f9.t <= a9.t + 1e-6) continue;
       if (!next || f9.t < next.t) next = f9;
     }
-    return next && next.t - a9.t <= 0.6 ? next : null;
+    /* 잇는 한도는 배속을 탄다(2026-10-28 — 폰 장이 초당 10장이라 8배속이면 장 간격이 게임 0.8초다 · 고정 0.6초면 보간이 끊겨 장마다 뛴다). */
+    return next && next.t - a9.t <= lerpSpan9() ? next : null;
   };
   /** ★ 두 설계도 사이 **보간**(지적: "툭툭 살짝씩 순간이동") ─────────────────────────────────────────
    *  붓이 t 이하 가장 늦은 장을 그대로 쓰면 장 간격(워커 박자 40ms, 밀리면 100ms 넘게)만큼 자리가 뛴다. 앞 장(a)과
@@ -19380,9 +19385,19 @@ export default function ReplayMotionPlayer({
     /* 22 → 12ms(지적: "모바일 프레임 제한 있나, 가벼운데 프레임이 낮은 느낌") — 22ms는 60Hz 화면에서 rAF 두 번에 한 번
        (30fps)이었다. 12ms면 60Hz는 매 rAF(60fps), 120Hz는 두 번에 한 번(60fps). 워커·보간이 있어 붓은 그만큼 가볍다. */
     const MOBILE_GAP_MS = 12;
+    /* ★ **폰은 덜 그리고 보정한다**(2026-10-28, 지적: "폰도 뜨겁고 아이폰 스크린샷 기능도 버벅였어" → "최대한 덜그리고 보정하는 방법") ──────────
+       실기 #diag: 효과단 3 · 배킹 ×1.5(바닥) 인데도 27fps · 최악 88ms — 60장을 겨누는 붓이 한 장 끝나자마자 다음 장을 그려 기기가 쉴 틈이 없었다(발열 → 조절 →
+       워커까지 느려져 유닛만 뚝뚝). 유닛 자리는 그릴 때마다 그 시각으로 보간하므로(lerpFrame9) 장 수를 줄여도 걸음은 고르다. 그래서 폰 바탕 박자:
+       높음 60fps(MOBILE_GAP_MS) 그대로 · 보통 이하 30fps(PHONE_GAP9) · 사다리 4단(FQ9 ★)이면 한 단 더(높음 30 · 그 밖 20fps — PHONE_GAP_LO9).
+       31·48ms 인 까닭: 60Hz 화면의 두·세 박(33.3·50ms)에 rAF 떨림이 끼어도 한 박 늦게 걸리지 않게. 손짓 중은 종전대로(XF_PHONE_GAP9). */
+    const PHONE_GAP9 = 31;
+    const PHONE_GAP_LO9 = 48;
+    const phoneGap9 = (): number => (TIER9.v >= 2 && !phoneWeak9()
+      ? (FQ9.lv >= 4 ? PHONE_GAP9 : MOBILE_GAP_MS)
+      : (FQ9.lv >= 4 ? PHONE_GAP_LO9 : PHONE_GAP9));
     const drawGapMs = (): number => (
-      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16) : phoneWeak9() ? WEAK_GAP_MS9
-        : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : MOBILE_GAP_MS));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
+      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16)
+        : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
     const tick = (now: number) => {
       const c = clockRef.current;
       /* 한 틱 상한 — 브라우저가 rAF를 멈췄다 되살리면(백그라운드 탭) dt가 자리 비운
@@ -19518,7 +19533,8 @@ export default function ReplayMotionPlayer({
      족하다 — 이 큰 컴포넌트를 초당 예순 번 다시 그리던 일이 통째로 사라진다.
      깃발만 남긴다: 핵 창 계량기(NUKEM9)가 '언제부터 언제까지가 핵 창인가'로 쓴다. */
   const nukeOn9 = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm");
-  reactStepRef9.current = REACT_STEP_MS9;
+  /* 폰 보통 이하는 0.2초(2026-10-28 덜 그리기 — React 한 장이 폰에서 15ms 안팎 · 시계 글자·인포창 숫자만 늦다 · 유닛·카메라는 틱이 칠한다). */
+  reactStepRef9.current = DEV9.name === "phone" && TIER9.v < 2 ? REACT_STEP_MS9 * 2 : REACT_STEP_MS9;
   nukeOnRef9.current = nukeOn9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
