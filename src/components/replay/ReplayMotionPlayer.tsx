@@ -9351,6 +9351,9 @@ function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>)
 }
 /** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 5 · PC 30). */
 const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
+/** `#trace9` — 움직이는 몸 하나의 그린 자리를 그리기마다 적는다(window.__trace9 · 진단 · 2026-10-28 "구간 → 구간으로 움직인다"). */
+const TRACE9: { key: string; rows: number[][] } | null = typeof location !== "undefined" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
+if (TRACE9 && typeof window !== "undefined") (window as unknown as { __trace9?: unknown }).__trace9 = TRACE9;
 /** `#lin` — 곡선 보간을 끄고 옛 직선 보간으로(견줌). */
 const LIN9 = typeof location !== "undefined" && /(^|[#&,])lin\b/.test(location.hash);
 /** ★ **곡선 보간**(2026-10-28, 요청: "보간은 부드럽게 해서 티 안 나게") — 두 장 사이를 직선으로 이으면 장이 성길수록(폰 초당 5장 · 8배속이면
@@ -17089,23 +17092,32 @@ export default function ReplayMotionPlayer({
   /** 바로 뒤의 설계도(t보다 앞선 것 중 가장 이른 것, 0.6초 안) — 보간의 끝점. */
   /** 두 장(안개 판)을 잇는 한도(게임 초) — 0.6 또는 배속 × 0.3(폰 장 간격 = 배속 ÷ 5 보다 넉넉히). */
   const lerpSpan9 = (): number => Math.max(0.6, speed * 0.3);
-  /** 곡선 보간의 앞 이웃 — a9 바로 앞 장(같은 세대 · 잇는 한도 안). */
+  /** 곡선 보간의 앞 이웃 — a9 바로 앞 장(같은 세대 먼저 · 없으면 옛 세대 · 잇는 한도 안). */
   const pickPrevFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
     let prev: PackedFrame9 | null = null;
+    let prevLo: PackedFrame9 | null = null;   // 같은 세대가 없으면 옛 세대의 바로 앞 장(아래 pickNextFrame9 의 ★)
     for (const f9 of wFramesRef.current.values()) {
-      if (f9.gen !== a9.gen) continue;
       if (f9.t >= a9.t - 1e-6) continue;
-      if (!prev || f9.t > prev.t) prev = f9;
+      if (f9.gen === a9.gen) { if (!prev || f9.t > prev.t) prev = f9; }
+      else if (f9.gen < a9.gen && (!prevLo || f9.t > prevLo.t)) prevLo = f9;
     }
+    if (!prev) prev = prevLo;
     return prev && a9.t - prev.t <= lerpSpan9() ? prev : null;
   };
   const pickNextFrame9 = (a9: PackedFrame9): PackedFrame9 | null => {
     let next: PackedFrame9 | null = null;
+    /* ★ **같은 세대가 없으면 다음 세대의 장으로 잇는다**(2026-10-28, 지적: "유닛도 한 구간까지 움직였다 다시 다른 구간까지 움직이고 · 원래는 쭉 이어지는데") ──
+       시야가 바뀌면(중계 카메라·끌기 뒤 · 원근 원점이 열쇠에 든다) 워커가 세대를 올려 새로 짓는다. 여태 뒤 장은 같은 세대에서만 골라, 옛 세대의 마지막 장에
+       닿으면 새 세대의 첫 장이 '지금'이 될 때까지 몸이 섰다(뒤장없음 → 앞 장 그대로). 장이 초당 20장일 땐 그 멈춤이 0.05초라 안 보였는데 5장이 되며 0.2초 —
+       중계처럼 시야가 0.2초마다 바뀌면 거의 매 장이 경계라 '구간 → 구간'으로 움직였다. 같은 세대가 있으면 그것(원점이 같다), 없으면 더 높은 세대에서 가장 이른 뒤 장.
+       원점이 조금 다른 두 장을 잇는 몫은 한 장 안에서 흡수된다 — 서 있다가 뛰는 것보다 덜 보인다. */
+    let nextUp: PackedFrame9 | null = null;
     for (const f9 of wFramesRef.current.values()) {
-      if (f9.gen !== a9.gen) continue;   // 보간의 뒤 장은 같은 세대에서만(위 세대 경계)
       if (f9.t <= a9.t + 1e-6) continue;
-      if (!next || f9.t < next.t) next = f9;
+      if (f9.gen === a9.gen) { if (!next || f9.t < next.t) next = f9; }
+      else if (f9.gen > a9.gen && (!nextUp || f9.t < nextUp.t || (f9.t === nextUp.t && f9.gen > nextUp.gen))) nextUp = f9;
     }
+    if (!next) next = nextUp;
     /* 잇는 한도는 배속을 탄다(2026-10-28 — 폰 장이 초당 5장이라 8배속이면 장 간격이 게임 1.6초다 · 고정 0.6초면 보간이 끊겨 장마다 뛴다). */
     return next && next.t - a9.t <= lerpSpan9() ? next : null;
   };
@@ -17277,6 +17289,13 @@ export default function ReplayMotionPlayer({
       }
       if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, tNow9);   // 컷은 그리는 시각으로(위 posePz9)
       if (s9.pickKey && !s9.attach && !s9.ghost && (o9.fx !== s9.fx || o9.fy !== s9.fy)) mv9.set(s9.pickKey, [o9.fx - s9.fx, o9.fy - s9.fy]);
+      if (TRACE9 && slot9 === 1 && s9.pickKey && !s9.attach && !s9.ghost && n9 && (TRACE9.key === "" ? Math.hypot(n9.fx - s9.fx, n9.fy - s9.fy) > 1e-3 : TRACE9.key === s9.pickKey)) {
+        if (TRACE9.key === "") TRACE9.key = s9.pickKey;
+        if (TRACE9.key === s9.pickKey) {
+          TRACE9.rows.push([tNow9, o9.fx, o9.fy, a9.t, b9.t, k0m9?.get(k9) ? 1 : 0, k3m9?.get(k9) ? 1 : 0, a9.gen, b9.gen]);
+          if (TRACE9.rows.length > 400) TRACE9.rows.shift();
+        }
+      }
       ops9.push(o9);
     }
     // 풀이 너무 크면(개체가 오래 사라짐) 비운다 — 다음 장에서 다시 찬다.
@@ -17427,8 +17446,10 @@ export default function ReplayMotionPlayer({
         }
       }
       // 푼 것은 앞 장(그리는 장)과 뒤 장(보간 끝점)만 들고, 그보다 옛 장의 객체는 놓는다(폰 메모리).
+      /* 곡선 보간의 앞 이웃(pickPrevFrame9)은 남긴다 — 놓으면 그리기마다 그 장을 다시 풀었다(폰 장 200KB × 초당 30번 · 2026-10-28). */
+      const keepT9 = LIN9 ? wPacked9.t : (pickPrevFrame9(wPacked9)?.t ?? wPacked9.t);
       for (const f9 of wFramesRef.current.values()) {
-        if (f9.t < wPacked9.t && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
+        if (f9.t < keepT9 && f9.dec) { f9.dec = undefined; f9.byKey = undefined; }
         if (f9.t < wPacked9.t && f9.subs) for (const u9 of f9.subs) { u9.dec = undefined; u9.byKey = undefined; }
       }
       if (count9) paintPackedRef9.current = wPacked9;

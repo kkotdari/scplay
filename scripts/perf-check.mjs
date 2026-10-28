@@ -3162,6 +3162,11 @@ try { console.log(`[리액트] ${await page.evaluate(() => (window.__scrDiag && 
 // 안개 붓(SCR_DIAG.fog) — 최근 1초의 붓/칠/장당 ms. '한 장이 얼마인가'가 손짓 중 되칠기의 자다.
 try { console.log(`[안개] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fog) || "(진단 없음)")}`); } catch { console.log("[안개] (못 읽음)"); }
 // 프레임 워커 상태(SCR_DIAG.worker) — on/off · 받은 수 · 쓴 수 · 놓친 수.
+/* --trace9(2026-10-28) — `#trace9` 를 함께 걸면(--hash trace9) 붓이 적은 몸 하나의 그린 자리(시각 · fx · fy · 앞 장 · 뒤 장 · 앞앞 · 뒤뒤 · 앞 fx · 뒤 fx)를 JSON 으로. */
+if (has("--trace9")) {  // 표본을 다 뜬 뒤(위 --secs)
+  const tr9 = await page.evaluate(() => window.__trace9 ?? null);
+  console.log(`[trace9] ${JSON.stringify(tr9)}`);
+}
 try { console.log(`[워커] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.worker) || "(진단 없음)")}`); console.log(`[덜어내기] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.crowd) || "(폰 아님·진단 없음)")}`); console.log(`[굽기일꾼] ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.bakew) || "(진단 없음)")}`); } catch (e) { console.log("[워커] (못 읽음)", String(e).slice(0, 80)); }
 /* 손짓(SCR_DIAG.gest) — 한 장 ms·배킹 몫·실시간 원근 판정(live/접힘/off)·밀림 기준. --3d --drag --diag 로 재는 자다. */
 try { const g9 = await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gest) || ""); if (g9) console.log(`[손짓] ${g9}`); } catch { /* 진단 없음 */ }
