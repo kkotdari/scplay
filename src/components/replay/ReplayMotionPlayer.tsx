@@ -1712,13 +1712,13 @@ const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(lo
  *  되올림은 거꾸로 — 배킹을 먼저 다 풀고 그다음 단을 한 칸씩 내린다. 박자(1초 느림 · 2초 빠름 · 바꾼 뒤 1.5초)는 DRS 와 같다. 멈추면 0.
  *    1단 — 사영 그림자 끔(meshShadow9) · 타원은 **공중 유닛·뜬 건물만**(땅에 선 몸·부양 지상 유닛·건물 그림자 없음 · 기기의 타원 대타 여부와 무관)
  *    2단 — 비필수 효과 끔: 건물 상처(불·연기·피 폭포) · 꾸밈(용접·흙덩이·착지·스웜) · 피격 파편(섬광은 남김) · 실드 번쩍 · 죽음 파편 1/3 · 번짐(블룸)
- *    3단 — 유닛 방향 4칸(90도 · 낮은 배율 죄기와 같은 불감대)
- *    4단(폰만) — 화면 박자 한 단 더(높음 60 → 30fps · 그 밖 30 → 20fps · 2026-10-28 덜 그리기 — drawGapMs 의 ★)
+ *    (옛 3단 '유닛 방향 4칸'은 걷음 — 2026-10-28, 지적: "방향 4방으로 줄인건 취소해야할듯 너무 이상")
+ *    3단(폰만) — 화면 박자 한 단 더(높음 60 → 30fps · 그 밖 30 → 20fps · 2026-10-28 덜 그리기 — drawGapMs 의 ★)
  *  남기는 것: 트레이서 · 죽음 폭발 · 소환 섬광 · 스톰·핵·지역 마법 · 승하차 줄 — 무슨 일이 일어났나를 말하는 것들. `#fq=N` 은 그 단에 못 박는다(견줌). */
 const FQ9 = { lv: 0, force: typeof location === "undefined" ? -1 : ((): number => { const m9 = /(?:^|[#&,])fq=(\d)/.exec(location.hash); return m9 ? Number(m9[1]) : -1; })() };
 if (FQ9.force >= 0) FQ9.lv = FQ9.force;
-/** 사다리 꼭대기 — 폰은 4단(화면 박자 한 단 더 내림 · 아래 drawGapMs 의 ★ 덜 그리기)까지, PC 는 3단. */
-const fqMax9 = (): number => (DEV9.name === "phone" ? 4 : 3);
+/** 사다리 꼭대기 — 폰은 3단(화면 박자 한 단 더 내림 · 아래 drawGapMs 의 ★ 덜 그리기)까지, PC 는 2단(옛 3단 '방향 4칸'은 걷음 — 아래 FQ9 ★). */
+const fqMax9 = (): number => (DEV9.name === "phone" ? 3 : 2);
 /** ★ **배율이 해상도를 미리 정한다**(2026-10-27, 요청: "이미 드래그 시작 전에 적용이 돼있어야 프레임이 떨어지지 않을텐데 프레임에 따라 하니 미리 대응이 안되네" →
  *  (제안: 배율 상한 + 프레임 바닥 두 겹) "좋은 생각 · 문턱은 써보면서 조절 — 폰에서 4배는 진짜 작게 보이고 5-6배도 작은 편") ─────────────────────────────────────
  *  ① 배율 상한 `zoomCap9` — 폰 ZCAP_Z9(6)배 아래는 **처음부터** ZCAP_B9(1.25)로 그린다(프레임과 무관 · 드래그 전에 이미 가볍다). 그 위는 단 상한 그대로.
@@ -5818,7 +5818,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            · 탱크: detailAt 아래서는 차체+포탑 판 대신 한 판(tank·tanksiege)으로 그리고 포신 op은 버린다.
          옛 만드는 쪽 판정(liteView·liteYaw)과 같은 칸에서 같은 답이 나오게 문턱을 그대로 받는다. */
       const lite9 = !detail;
-      const liteYaw9 = (yawAt !== undefined && zoom < yawAt) || FQ9.lv >= 3;   // 사다리 3단(FQ9 ★)은 배율과 무관하게 4칸
+      const liteYaw9 = yawAt !== undefined && zoom < yawAt;   // (옛 사다리 3단 '배율과 무관하게 4칸'은 걷음 — FQ9 ★)
       /* 낮은 배율 죄기 — 배율은 **지금 칠하는 값**으로 잰다(손짓 중에는 React가 안 돌므로
          프롭으로 받으면 한 박자 늦는다). 사정은 lowZoomTrim9 주석에. */
       const trim9 = lowZoomTrim9(zoom, !!pitchedProp);
@@ -5880,7 +5880,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              그래서 직전에 고른 칸을 기억해 두고, 각이 칸의 0.72(90도 칸이면 65도)를 넘어 멀어질
              때에만 옮긴다 — 경계에서 20도쯤의 불감대가 생겨 파닥임이 사라진다. */
           if (liteYaw9 && rotDeg !== undefined && UNIT_KIND_SET.has(kind)) {
-            const st9 = trim9 >= 1 || FQ9.lv >= 3 ? 90 : 45;
+            const st9 = trim9 >= 1 ? 90 : 45;
             let q9 = Math.round(rotDeg / st9) * st9;
             const pkq9 = op0.pickKey;
             if (pkq9 !== undefined) {
@@ -9316,15 +9316,21 @@ const posePz9 = (ops: UnitDrawOp[], t: number): void => {
  *  age·clk 은 dt 그대로 · ph 는 pr(쿨다운 박자 pc 면 감아 돈다 · 아니면 1 을 넘으면 끝난 효과라 뺀다 — 고이는 피(pool)는 1 에서 멈춘다) ·
  *  탄 u 는 죄기 전 값(uw)에서 ur 로 · uc 로 감아 다음 발 · 1.2 넘으면(닿은 뒤) 뺀다. 빠르기가 없는 op 은 장 값 그대로(engine9 FxOp.pr 의 ★).
  *  장 사이에 **새로 나는** 효과는 다음 장이 와야 선다(그 늦음은 한 장 간격 아래다). */
-function fxAdvance9(ops: FxOp[], dt: number): FxOp[] {
+function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>): FxOp[] {
   if (!(dt > 1e-4) || LIN9) return ops;
+  const mvOf9 = (k9: string | undefined): [number, number] | undefined => (k9 && mv ? mv.get(k9) : undefined);
   let out9: FxOp[] | null = null;
   for (let i9 = 0; i9 < ops.length; i9 += 1) {
     const o9 = ops[i9];
-    const move9 = o9.age !== undefined || o9.clk !== undefined || (o9.pr !== undefined && o9.ph !== undefined) || (o9.ur !== undefined && o9.uw !== undefined);
+    const ma9 = mvOf9(o9.ok);
+    const mb9 = mvOf9(o9.tk);
+    const move9 = ma9 !== undefined || mb9 !== undefined || o9.age !== undefined || o9.clk !== undefined || (o9.pr !== undefined && o9.ph !== undefined) || (o9.ur !== undefined && o9.uw !== undefined);
     if (!move9) { if (out9) out9.push(o9); continue; }
     if (!out9) out9 = ops.slice(0, i9);
     const n9: FxOp = { ...o9 };
+    /* 따라 붙을 몸(engine9 FxOp.ok·tk)이 장 사이에 옮긴 만큼 — 쏘는 자리·표적 끝이 몸과 함께 간다. */
+    if (ma9) { n9.fx = o9.fx + ma9[0]; n9.fy = o9.fy + ma9[1]; }
+    if (mb9 && o9.tx !== undefined && o9.ty !== undefined) { n9.tx = o9.tx + mb9[0]; n9.ty = o9.ty + mb9[1]; }
     if (o9.age !== undefined) n9.age = o9.age + dt;
     if (o9.clk !== undefined) n9.clk = o9.clk + dt;
     if (o9.pr !== undefined && o9.ph !== undefined) {
@@ -17225,6 +17231,8 @@ export default function ReplayMotionPlayer({
     const ops9: UnitDrawOp[] = [];
     lf9.ops = ops9;
     const src9 = fa9.unitOps;
+    /** 몸마다 장 사이에 옮긴 몫(집기 열쇠 → [dfx, dfy]) — 효과가 따라 붙는다(fxAdvance9). */
+    const mv9 = new Map<string, [number, number]>();
     for (let i9 = 0; i9 < src9.length; i9 += 1) {
       const s9 = src9[i9];
       const k9 = lerpKey9(s9);
@@ -17268,6 +17276,7 @@ export default function ReplayMotionPlayer({
         }
       }
       if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, tNow9);   // 컷은 그리는 시각으로(위 posePz9)
+      if (s9.pickKey && !s9.attach && !s9.ghost && (o9.fx !== s9.fx || o9.fy !== s9.fy)) mv9.set(s9.pickKey, [o9.fx - s9.fx, o9.fy - s9.fy]);
       ops9.push(o9);
     }
     // 풀이 너무 크면(개체가 오래 사라짐) 비운다 — 다음 장에서 다시 찬다.
@@ -17275,7 +17284,7 @@ export default function ReplayMotionPlayer({
     const fr9 = lf9.frame;
     fr9.t = fa9.t; fr9.unitOps = ops9; fr9.miniExtra = fa9.miniExtra; fr9.gasBusy = fa9.gasBusy;
     /* 효과는 그리는 시각으로 민다(위 fxAdvance9) — 옛 럴커 가시 위상 잇기(뒤 장의 같은 자리 가시와 u9 로 잇던 갈래)는 이 한 길로 합쳤다. */
-    fr9.fxOps = fxAdvance9(fa9.fxOps, tNow9 - fa9.t);
+    fr9.fxOps = fxAdvance9(fa9.fxOps, tNow9 - fa9.t, mv9);
     fr9.explored = fa9.explored; fr9.visNow = fa9.visNow; fr9.visSrc = fa9.visSrc; fr9.visVer = undefined;
     /* ★ **눈 목록도 잇는다**(지적: "안개 떨림 더 심해짐 — 그려야 할 데이터를 잘 못 찾는 느낌") ──────────────────
        유닛은 앞·뒤 장 사이를 보간해 매끄럽게 걷는데 안개(눈 목록)는 앞 장의 것을 그대로 썼다. 높은 배속에서는 장
@@ -19465,13 +19474,13 @@ export default function ReplayMotionPlayer({
     /* ★ **폰은 덜 그리고 보정한다**(2026-10-28, 지적: "폰도 뜨겁고 아이폰 스크린샷 기능도 버벅였어" → "최대한 덜그리고 보정하는 방법") ──────────
        실기 #diag: 효과단 3 · 배킹 ×1.5(바닥) 인데도 27fps · 최악 88ms — 60장을 겨누는 붓이 한 장 끝나자마자 다음 장을 그려 기기가 쉴 틈이 없었다(발열 → 조절 →
        워커까지 느려져 유닛만 뚝뚝). 유닛 자리는 그릴 때마다 그 시각으로 보간하므로(lerpFrame9) 장 수를 줄여도 걸음은 고르다. 그래서 폰 바탕 박자:
-       높음 60fps(MOBILE_GAP_MS) 그대로 · 보통 이하 30fps(PHONE_GAP9) · 사다리 4단(FQ9 ★)이면 한 단 더(높음 30 · 그 밖 20fps — PHONE_GAP_LO9).
+       높음 60fps(MOBILE_GAP_MS) 그대로 · 보통 이하 30fps(PHONE_GAP9) · 사다리 3단(FQ9 ★)이면 한 단 더(높음 30 · 그 밖 20fps — PHONE_GAP_LO9).
        31·48ms 인 까닭: 60Hz 화면의 두·세 박(33.3·50ms)에 rAF 떨림이 끼어도 한 박 늦게 걸리지 않게. 손짓 중은 종전대로(XF_PHONE_GAP9). */
     const PHONE_GAP9 = 31;
     const PHONE_GAP_LO9 = 48;
     const phoneGap9 = (): number => (TIER9.v >= 2 && !phoneWeak9()
-      ? (FQ9.lv >= 4 ? PHONE_GAP9 : MOBILE_GAP_MS)
-      : (FQ9.lv >= 4 ? PHONE_GAP_LO9 : PHONE_GAP9));
+      ? (FQ9.lv >= 3 ? PHONE_GAP9 : MOBILE_GAP_MS)
+      : (FQ9.lv >= 3 ? PHONE_GAP_LO9 : PHONE_GAP9));
     const drawGapMs = (): number => (
       GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16)
         : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)

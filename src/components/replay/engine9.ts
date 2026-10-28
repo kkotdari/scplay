@@ -2368,6 +2368,9 @@ export type FxOp = {
    *  pr = ph 가 게임 1초에 오르는 몫 · pc = ph 가 돌아가는(쿨다운 박자) 효과 · ur = u 가 1초에 오르는 몫 · uw = 죄기 전 u(1~1.2 는 '닿는 순간') ·
    *  uc = u 의 한 바퀴(쿨다운 ÷ 비행 시간 — 이어 쏘는 동안 다음 발로 넘어간다). age·clk 은 늘 1초에 1씩이라 따로 안 싣는다. 없으면 장 값 그대로. */
   pr?: number; pc?: boolean; ur?: number; uw?: number; uc?: number;
+  /** ★ **따라 붙을 몸**(2026-10-28, 지적: "움직임이 부자연스럽게 구간이 만들어져 · 트레이서조차") — ok = 앵커(fx·fy)가 붙은 몸의 집기 열쇠(u태그) ·
+   *  tk = 표적 끝(tx·ty)이 붙은 몸. 붓이 그 몸을 장 사이에 보간한 만큼 효과도 같이 옮긴다(RMP fxAdvance9). 없으면 장 자리 그대로. */
+  ok?: string; tk?: string;
   /** beam/shot: **좌우 한 쌍의 한 발**인가(2026-09, 요청: "한 쌍 트레이서의 경우 타겟 쪽은 타겟 중심 한 점을
    *  향해 가야 함 · 미사일이 타겟에 가까워질수록 좀 휘어야") — 붓이 나는 길의 조종점을 더 앞(0.72)에 두어
    *  두 발이 제 발사관에서 **나란히** 나가다 표적 가까이에서 한 점으로 모인다. */
@@ -9669,7 +9672,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, pr: 1 / 0.4, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, pr: 1 / 0.4, ok: `u${e.tag}`, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
@@ -9681,7 +9684,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            프로토스·테란이 남의 결로 터졌다. 그 갈래를 낸 옛 지적("스커지가 죽을 때 프로토스 효과")의
            정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
-        ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
+        ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, ok: `u${e.tag}`, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
         ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
     if (hitFx9 && !fighting) {
@@ -10015,7 +10018,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         ? unitPxOf(foe.uk, foe.by) : fxPx) * (modelInkOf(aKind9) / 16) * 1.1;
       const [afx9, afy9] = posFrac(foe.bx, foe.by);
       fxOps.push({
-        kind: "beam", style: "acidspore", fx: afx9, fy: afy9,
+        kind: "beam", style: "acidspore", fx: afx9, fy: afy9, ok: `u${tgtTag9}`,
         lift: foe.air ? foeLift9 : aPx9 * 0.5,
         mx: 0, my: 0, deg: 0, ph: acidAge9, size: aPx9,
       });
@@ -10104,7 +10107,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const put9 = (px9: number, py9: number, size9: number, st9: string, ph9: number, deg9?: number): void => {
           const d9 = Math.hypot(px9, py9);
           fxOps.push({
-            kind: "hit", style: st9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
+            kind: "hit", style: st9, fx: mzfx9, fy: mzfy9, lift: mzLift9, ok: `u${e.tag}`,
             size: size9, dist: d9, dx: d9 > 0.01 ? px9 / d9 : 0, dy: d9 > 0.01 ? py9 / d9 : 0,
             ph: ph9, splash: true, ...(deg9 === undefined ? {} : { deg: deg9 }),
           });
@@ -10166,7 +10169,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              그 몸의 가슴 높이(0.34·몸), 모르면 종전값. */
           lift: foe.air ? foeLift9
             : (foe.uk && isKnownKind(foe.uk) ? unitPxOf(foe.uk, foe.by) : fxPx) * 0.34,
-          size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, pr: 1 / fxCd, pc: true, splash: true,
+          size: fxPx, dist: 0, dx: 0, dy: 0, ph: tph9, pr: 1 / fxCd, pc: true, splash: true, ok: `u${tgtTag9}`,
         });
       }
       // 선을 안 그리는 갈래만 여기서 끝난다 — 나머지는 아래로 내려가 선도 그린다.
@@ -10270,7 +10273,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           ...tgtFields9(0),
           mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
-          uw: shotUw9, ur: 1 / flySec9, uc: fxCdRaw / flySec9,
+          uw: shotUw9, ur: 1 / flySec9, uc: fxCdRaw / flySec9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
           // 쌍이면 붓이 나란히 내보내 표적 가까이에서 모은다(FxOp.twin 의 ★).
           ...(laneAt9.length > 1 ? { twin: true } : {}),
         });
@@ -10323,7 +10326,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           [Math.cos(rad9) * flH9 * fs9, Math.sin(rad9) * flH9 * fs9]);
       for (const [fdx9, fdy9] of beamAt9) {
       fxOps.push({
-        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
+        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
         ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
         ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
@@ -10358,7 +10361,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       if (fxName9 === "heal" && Number.isFinite(foe.bd)) {
         const [hlx9, hly9] = posFrac(foe.bx, foe.by);
         fxOps.push({
-          kind: "beam", style: "heal", fx: hlx9, fy: hly9, lift: liftPx9,
+          kind: "beam", style: "heal", fx: hlx9, fy: hly9, lift: liftPx9, ok: `u${tgtTag9}`,
           mx: 0, my: 0, deg: 0, ph: ph9, pr: 1 / fxCd, pc: true,
         });
       }
