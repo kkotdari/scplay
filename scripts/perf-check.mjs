@@ -3,6 +3,7 @@
  *   node scripts/perf-check.mjs                     기본(5인 · 유닛 600 · CPU 4배 조임)
  *   node scripts/perf-check.mjs --cpu 6 --secs 8
  *   node scripts/perf-check.mjs --units 80          한 사람당 유닛 수
+ *   node scripts/perf-check.mjs --ios --diag --diagfull   진단표 전부 + 붓·워커·gl·덜기 줄(뒤장없음 · 짓기 ms · 메시 버림 — "fps 는 정상인데 유닛이 뚝뚝" 가르기)
  *   node scripts/perf-check.mjs --wide              PC 화면(1280)으로
  *   node scripts/perf-check.mjs --mc --players 3    마인드 컨트롤(임자 바뀜 · 판 8) — 인구 칸의 종족 풀 덧줄 검산
  *   node scripts/perf-check.mjs --marks --info --players 3 --track 정구 --diag [--herocolor] [--ringprobe 10]   핑·클릭 마커·선택 링의 색(화면 주인 제 것 원작 초록 ·
@@ -1569,6 +1570,14 @@ const supProbe9 = async (label9) => {
   if (has("--diag")) {
     const h9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag > div")].slice(0, 2).map((d) => d.textContent ?? ""));
     for (const l9 of h9) console.log(`[진단머리] ${l9}`);
+    /* --diagfull — 진단표 전부(붓·워커 줄까지 · 2026-10-28 "fps 는 정상인데 유닛이 뚝뚝"을 재려고). */
+    if (has("--diagfull")) {
+      const a9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag > div")].map((d) => d.textContent ?? ""));
+      for (const l9 of a9) console.log(`[진단] ${l9}`);
+      const g9 = await page.evaluate(() => { const d = window.__scrDiag ?? {}; return { gl: d.gl ?? "", crowd: d.crowd ?? "", brush: d.brush ?? "", worker: d.worker ?? "", fps: d.fps ?? 0, drs: d.drs ?? "" }; });
+      console.log(`[진단 붓] ${g9.brush}`); console.log(`[진단 워커] ${g9.worker}`); console.log(`[진단 fps] ${g9.fps} ${g9.drs}`);
+      console.log(`[진단 gl] ${g9.gl}`); console.log(`[진단 덜기] ${g9.crowd}`);
+    }
   }
 }
 if (has("--mc")) await supProbe9("A");
