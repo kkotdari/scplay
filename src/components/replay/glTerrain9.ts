@@ -37,9 +37,10 @@ export const CON9: [number, number] = ((): [number, number] => {
   return [k ? Number(k[1]) - 1 : 0, m ? Number(m[1]) : 0.5];
 })();
 /** ★ **지형만 대비 1.2 기본**(2026-10-29, 요청: "지형에만 대비 1.2 넣을 수 있나?") — 몸(CON9)은 그대로 두고 지형(TERR_FS · 같은 캔버스의 안개 켜 포함)만 편다.
- *  `#tcon=k` 로 견준다(1 = 옛 지형) · 없으면 `#con` 이 있을 때 그 값 · 둘 다 없으면 1.2. 축은 CON9 의 m(`#conm`). 미니맵(캔버스)·옛 벡터층(#glterr=0)은 안 탄다. */
+ *  `#tcon=k` 로 견준다(1 = 옛 지형) · 없으면 `#con` 이 있을 때 그 값 · 둘 다 없으면 기본. 축은 CON9 의 m(`#conm`). 미니맵(캔버스)·옛 벡터층(#glterr=0)은 안 탄다.
+ *  ★ 기본 1.2 → **1**(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해") — 손잡이만 남는다. */
 export const TCON9: [number, number] = ((): [number, number] => {
-  const def9 = 1.2;
+  const def9 = 1;
   if (typeof location === "undefined") return [def9 - 1, CON9[1]];
   const t = /(?:^|[#&,])tcon=([0-9.]+)/.exec(location.hash);
   const k = t ? Number(t[1]) : /(?:^|[#&,])con=([0-9.]+)/.test(location.hash) ? CON9[0] + 1 : def9;

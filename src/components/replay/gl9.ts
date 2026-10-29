@@ -964,7 +964,7 @@ const SPR_LOOK9: [number, number] = [0.5, 0.5];
  *  같은 대비를 탄다(BODY_CON9) — 메시 길에는 안 그림자가 없다(칸마다 깊이 판을 찍는 값이 굽기 몫이다). 바꾸면 아틀라스를 다시 굽는다(SPR_ 줄은 판 해시에 든다).
  *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
 const SPR_ISH9 = 0.4;
-const SPR_BCON9 = 0.1;
+const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
 const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : SPR_ISH9; })();
 const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : SPR_BCON9; })();
 /** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */

@@ -3616,6 +3616,9 @@ export function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
    저그는 휘도를 조금 내리고 채도를 올린다(#b9724a → #c0632f: 색 치우침 111 → 145 ·
    휘도 131 → 122) — 생기는 밝기가 아니라 **채도**에서 오고, '진하게'는 그 반대편이다.
    테란·프로토스는 색상각을 그대로 두고 휘도만 올린다(테란 90 → 104 · 토스 183 → 202). */
+/* ★ 프로토스 건물의 손 금 #d4bd3c(넥서스 몸·기둥 · 게이트 몸 · 스타게이트·파일런 테·포토·어시밀·아카이브·옵저버토리 · 9곳)를 기본 금(TOSS_GOLD)으로(2026-10-29,
+   요청: "프로토스 기본 금색이 너무 진한 노란색" → "문제는 넥서스 게이트기둥 등등이 기본색이 아닌 듯" → 시안 "1번") — 녹색기·채도가 높고 어두운 금이 기본 금 옆에서 진한 노랑으로 읽혔다.
+   짙은 금(#8e6f1a · #d4af37 …)과 장식 금은 그대로. 게이트 기둥 데칼(기본 금)은 이제 몸과 같은 색이다. */
 export const RACE_BASE_TONE = { terran: "#626875", toss: "#e8cb5e", zerg: "#c0632f" } as const;   // 토스 #e6d063 → #e8cb5e(요청: 기본 골드를 살짝 붉은 톤으로)   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈 → 살짝 차갑고 한 단 진하게(요청: #616161 → #565961 → 한 번 더 차갑게 #555a64 · 휘도는 그대로)
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
@@ -9773,7 +9776,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           // 키 6.4 → PH9(×1.2) · taper PT9로 밑에서 빨리 좁아진다(요청: "기둥 높이 1.2배, 좁아지는 속도 빠르게")
           // 홀쭉이(재요청) — 밑 반폭 PW9; 옆선은 밑이 벌어진 바늘(위 PT9 주석)
-          x: px, y: py, z0: 0.32, h: PH9, w: PW9, tipW: PTIP9, sides: 3, segs: 8, fill: "#d4bd3c",
+          x: px, y: py, z0: 0.32, h: PH9, w: PW9, tipW: PTIP9, sides: 3, segs: 8, fill: TOSS_GOLD,
           widthOf: (t9: number): number => PTIP9 + (PW9 - PTIP9) * (1 - t9) ** PT9,
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           /* ★ 축은 **더 수직으로 오르다 위에서 안으로 굽는다**(재요청) — curve(t²) 대신 path로 t^PCP9(3.5)를 준다:
@@ -9846,7 +9849,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     // 6.0 → 5.6(재지적: 왼뒤 기둥이 너무 바깥) — 받침 원반이 피라미드 모서리에 걸치게 붙인다.
     /* 상자 정규화(지적: 넥서스가 발자국을 초과) — 기둥·받침이 요잉 투영에서 ±9까지
        나가 16칸 상자를 넘쳤다. 전체를 0.85배로 눌러 안에 들인다. */
-    const GOLD9 = "#d4bd3c";
+    const GOLD9 = TOSS_GOLD;
     const GOLDD = "#8e6f1a";
     const CYAN9 = "#5aecd8";
     // (걷어냄) GLASS9 — 정면 유리 창 셋이 쓰던 색이다. 창은 사다리꼴 현판으로 갈렸다.
@@ -10538,7 +10541,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        원통이라 탑에 판때기가 꽂힌 꼴이었다. */
     /* 몸은 금빛 바탕(재작도) — 여태 발판·마당·어금니 탑이 통째로 개인색이라 종족이
        안 읽혔다. 남은 밑칠을 금으로 덮고, 개인색은 아래 두 곳만 남긴다. */
-    const gated: ShapeFace[] = [...paintBase(out, "#d4bd3c"), ...gatePc9];
+    const gated: ShapeFace[] = [...paintBase(out, TOSS_GOLD), ...gatePc9];
     /* 발판 위 장식(지적: "게이트 발판위 장식을 긴 직육면체 띠모양으로하고 색이 연하게
        들어가고 있어서 원래색으로 변경") — 여태는 반지름 1.05·높이 0.16짜리 납작한
        원통이었다. 그렇게 납작하면 실루엣이 곧 윗면이라, cylinderFaces3가 마지막에
@@ -10645,7 +10648,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          **기타 몸통꼴 곡선 두 줄**(허리가 잘록한 S 물결·임자색)이 붙는다.
        · 발광 창은 **가로**다(지적: "발광 부분이 원작과 방향이 반대임(수직)") —
          팔을 따라 눕힌 마름모 넷. */
-    const GOLD9 = "#d4bd3c";
+    const GOLD9 = TOSS_GOLD;
     const PHIS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
     for (const phi of PHIS) {
       const rx = Math.sin(phi);   // 축에서 바깥 방향(x·z 평면)
@@ -10902,7 +10905,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 요청: "개인색을 고리에 적용하고 두르는 조각들은 금색으로 변경" — 임자 색과
        금색의 자리를 통째로 맞바꿨다. 링을 두르는 조각이 곧 이 갈고리들이라 금색을
        못 박고, 색을 안 준 면(=임자 색)은 링만 갖는다. */
-    const CLAW9 = "#d4bd3c";
+    const CLAW9 = TOSS_GOLD;
     const claw = (ang: number): ShapeFace[] => {
       const a = (ang * Math.PI) / 180;
       const bx = Math.sin(a) * RING_R;
@@ -12252,7 +12255,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const fl9 = faceLight(wl9.nx, wl9.ny, 0.3);
           body9.push(bodyFace(wl9.d), ...(fl9.visible ? fl9.face(wl9.d) : [sideFace(wl9.d, 0.44)]));
         }
-        out9.push(...paintBase(body9, "#d4bd3c"));
+        out9.push(...paintBase(body9, TOSS_GOLD));
         /* 잘린 단면 — **관 벽 두께만큼의 얇은 테**다(지적: "포톤 파이프 잘린 단면이
            안가려지고 다보임"). 안쪽 관 반지름까지 통째로 메우면 관 사이의 빈 공간이 검은
            원반으로 덮여 '두꺼운 와셔를 낀 기둥'이 된다 — 관은 속이 빈 파이프라 잘린
@@ -12282,7 +12285,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       if (facingRatio(Math.sin(a9), Math.cos(a9)) <= 0.05) continue;
       /* 포드는 뚜껑 위 얹힘 — 뚜껑(키 1.4)을 늘 이기게 2를 기준으로 제 깊이만큼
          살짝 갈린다(붙박이 큰 값이면 뒤 포드가 포탑 위로 튄다). */
-      out.push(...tagKey(paintBase(boxFaces3(px9, py9, 0.75, 0.75, 0.56, 0.24), "#d4bd3c"),
+      out.push(...tagKey(paintBase(boxFaces3(px9, py9, 0.75, 0.75, 0.56, 0.24), TOSS_GOLD),
         2 + depthNow(px9, py9) * 0.1));
     }
     return raceBase(out, "toss", pc);
@@ -12976,7 +12979,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return out;
   },
   assim: () => {
-    const GOLD = "#d4bd3c";
+    const GOLD = TOSS_GOLD;
     const GOLD_D = "#8a6f2a";
     /* (걷어냄) TEAL — 청록 #31c0ad. 녹색기가 돌아 황금 껍데기 위에서 이끼로 보였다는
        지적으로 렌즈·눈금은 사이언으로, 굴뚝 띠는 개인색으로 옮겼다. */
@@ -15473,7 +15476,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 아래다 — 앞(화면 왼아래)은 모델 (−1,−1)/√2, 뒤는 그 반대. */
   archives: () => withModelSpin(-225, () => {   // 요잉 −90 → −135 → 거기서 −90 더(재요청) = −225
     const AQUA9 = "#5aecd8";
-    const GOLD9 = "#d4bd3c";
+    const GOLD9 = TOSS_GOLD;
     const GOLD_D9 = "#8a6f2a";
     const WIRE9 = "#f2f4f0";
     const out: ShapeFace[] = [];
@@ -16055,7 +16058,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     return raceBase(out, "toss", pads);
   }),
   observatory: () => withModelSpin(270, () => {
-    const GOLD = "#d4bd3c";
+    const GOLD = TOSS_GOLD;
     /* 청록을 걷는다(요청: "어시밀레이터, 옵저버토리 청록색 계열 제거 → 금색이나 연한
        사이언색으로 변경") — #31c0ad은 녹색기가 돌아 황금 껍데기 위에서 이끼로 보인다.
        어시밀레이터가 같은 까닭으로 먼저 걷어냈고(그쪽 주석) 옵저버토리만 남아 있었다. */
@@ -29183,7 +29186,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        번쩍임의 대비(어두운 바탕 위의 흰 몇 면)는 오히려 또렷해진다. */
     return lit9(paintBase(
       // 초록기를 빼고 파랑 쪽으로(요청: "미네랄 모델 초록색톤 줄이고 더 청색톤에 가깝게") — 205° → 215°, 밝기·채도 그대로.
-      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#86b4e4"));   /* 2026-09: #689df3 → **#86b4e4**(요청: "검정기 빼서 밝게 · 따뜻쪽으로 조금" → "좀더 따뜻한 톤쪽으로" → 지적: "반대로 가고 있어 — 노란색 쪽으로 이동하라는 뜻인데 보라로 가네") — 노랑을 섞는다: 색상 217 → 211도(하늘 쪽) · 채도 78 → 63% · 밝기 68 → 71%. 보라(#9694f4)로 갔던 것은 되물렸다. */   /* #3f8ecf → #6cb6ea → #6aa2ee → #a6c2f0 → **#689df3**(요청: "미네랄 색 더 진하게(채도 높임)")
+      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#a6cbef"));   /* 2026-10-29: #86b4e4 → **#a6cbef**(요청: "미네랄 덩이 색 밝게" → 시안 B · 색상 그대로 밝기만) · 2026-09: #689df3 → **#86b4e4**(요청: "검정기 빼서 밝게 · 따뜻쪽으로 조금" → "좀더 따뜻한 톤쪽으로" → 지적: "반대로 가고 있어 — 노란색 쪽으로 이동하라는 뜻인데 보라로 가네") — 노랑을 섞는다: 색상 217 → 211도(하늘 쪽) · 채도 78 → 63% · 밝기 68 → 71%. 보라(#9694f4)로 갔던 것은 되물렸다. */   /* #3f8ecf → #6cb6ea → #6aa2ee → #a6c2f0 → **#689df3**(요청: "미네랄 색 더 진하게(채도 높임)")
        — 색상(217도)은 그대로 두고 채도 71 → 85%, 밝기 80 → 68%다. 흰 몫을 덜어내면 같은
        파랑이 짙어지고, 위에 얹히는 반사 곡선(gloss9)은 그대로라 번쩍이는 몇 면과의 대비가
        도리어 또렷해진다. 일꾼이 들고 가는 덩이도 같은 값을 쓴다(그 자리 주석). */
@@ -29808,7 +29811,7 @@ export function mineralLoad(cx: number, cy: number, cz: number, s = 1): ShapeFac
     ...shard(-0.5, -0.16, 0.62, 0.688),
     ...shard(0.48, 0.14, 0.56, 0.576),
     ...shard(0, 0, 0.92, 1.024),
-  ], "#86b4e4"), depthNow(cx, cy) * 1.6 + 2);   // 미네랄 밭과 같은 색(요청: "일꾼들이 들고 있는 미네랄 색을 실제 미네랄 덩이 색과 통일")
+  ], "#a6cbef"), depthNow(cx, cy) * 1.6 + 2);   // 미네랄 밭과 같은 색(요청: "일꾼들이 들고 있는 미네랄 색을 실제 미네랄 덩이 색과 통일")
 }
 
 /** 가스통(테란·프로토스) — 정육면체 상자다. 앞·윗면에 베스핀 초록 창이 난다.
