@@ -12183,6 +12183,26 @@ export default function ReplayMotionPlayer({
   const seekMirrorAt9 = useRef(0);
   /** 시계 글자 — 끌기 중에는 리렌더 없이 여기에 직접 쓴다(위 onInput 의 ★★). */
   const clockElRef9 = useRef<HTMLSpanElement | null>(null);
+  /** ★ 탐색바 시각 말풍선(2026-10-29, 요청: "탐색바에 마우스 오버하거나 터치 이동 시 마우스 포인터나 다이얼에 시각 툴팁 · 너무 크지 않게" → "테마에 맞으면 더 좋을 듯") —
+   *  PC 마우스는 얹은 자리(누르지 않아도) · 끌기(마우스·손가락)는 손잡이 위. 리렌더 없이 DOM 에 바로 쓴다(끌기 이벤트마다 setT 를 안 놓는 까닭과 같다 — 위 onInput ★★).
+   *  자리는 손잡이 가운데 자(.scr-motion-seektips 가 손잡이 폭의 반씩 양끝을 비운다 · 검색 태그와 같은 자)의 비율 --sp. 꼴은 replay.css(테마별). */
+  const seekTipRef9 = useRef<HTMLSpanElement | null>(null);
+  const seekTipShow9 = (frac: number | null): void => {
+    const el9 = seekTipRef9.current;
+    if (!el9) return;
+    if (frac === null || !(total > 0)) { el9.classList.remove("is-on"); return; }
+    const f9 = Math.min(1, Math.max(0, frac));
+    el9.style.setProperty("--sp", String(f9));
+    el9.textContent = fmtClock(f9 * total);
+    el9.classList.add("is-on");
+  };
+  /** 얹은 마우스의 비율 — 말풍선 판(손잡이 가운데 자)의 상자로 잰다. */
+  const seekTipFracAt9 = (clientX: number): number | null => {
+    const host9 = seekTipRef9.current?.parentElement;
+    if (!host9) return null;
+    const r9 = host9.getBoundingClientRect();
+    return r9.width > 0 ? (clientX - r9.left) / r9.width : null;
+  };
   const seekPending = useRef<number | null>(null);
   /** 진행바 우세 곡선을 보이나(아래 advLines9 ★) — PC 는 호버(CSS)로도 서고, 이 값은 **끄는 동안**(폰 다이얼 · PC 손잡이)과 **점프 뒤 잠깐**(COMBAT_FLASH_MS9)이다. */
   const [combatShow9, setCombatShow9] = useState(false);
@@ -20154,17 +20174,22 @@ export default function ReplayMotionPlayer({
             ))}
           </span>
         )}
+        {!pending && <span className="scr-motion-seektips" aria-hidden><span className="scr-motion-seektip" ref={seekTipRef9} /></span>}
         <input
           ref={rangeRef}
           className="scr-motion-range" type="range"
           min={0} max={total} step="any" defaultValue={t}
           onPointerDown={() => { scrubbing.current = true; glScrubSet9(true); combatFlash9(0); }}
-          onPointerUp={() => { scrubEnd9(); }}
-          onPointerCancel={() => { scrubEnd9(); }}
+          onPointerUp={(e) => { scrubEnd9(); if (e.pointerType !== "mouse") seekTipShow9(null); }}
+          onPointerCancel={() => { scrubEnd9(); seekTipShow9(null); }}
+          /* 시각 말풍선(위 seekTipRef9 ★) — 마우스는 얹기만 해도 그 자리 · 끌기는 아래 onInput 이 손잡이 위로 옮긴다. */
+          onPointerMove={(e) => { if (e.pointerType === "mouse" && !scrubbing.current) seekTipShow9(seekTipFracAt9(e.clientX)); }}
+          onPointerLeave={(e) => { if (e.pointerType === "mouse" && !scrubbing.current) seekTipShow9(null); }}
           onInput={(e) => {
             const el = e.target as HTMLInputElement;
             const v = Number(el.value);
             el.style.setProperty("--p", `${total > 0 ? (v / total) * 100 : 0}%`);
+            if (scrubbing.current) seekTipShow9(total > 0 ? v / total : null);   // 끄는 동안 말풍선은 손잡이 위(위 seekTipRef9 ★)
             /* ★★ **슬라이드가 우선이고 재생기가 따라간다**(2026-09, 지적: "재생바 이동시 로딩이 안 되면
                슬라이드가 안 되는 문제") ─────────────────────────────────────────────────────
                여태 끌기 이벤트마다(rAF 하나로 모아도 프레임마다) `setT` 를 놓아 **이 컴포넌트 전체가 리렌더**

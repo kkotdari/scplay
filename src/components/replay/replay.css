@@ -4915,6 +4915,23 @@
 .scr-motion-rangewrap > .scr-motion-range { flex: 1 1 auto; width: 100%; position: relative; z-index: 1; }
 @media (max-width: 960px) { .scr-motion-rangewrap { --th: calc(20px * var(--ui, 1)); } }
 @media (pointer: coarse) { .scr-motion-rangewrap { --th: calc(26px * var(--ui, 1)); } }
+/* ★ 탐색바 시각 말풍선(2026-10-29, 요청: "탐색바에 마우스 오버하거나 터치 이동 시 시각 툴팁 · 너무 크지 않게" → "테마에 맞으면 더 좋을 듯" · ReplayMotionPlayer seekTipRef9) —
+   판(.scr-motion-seektips)은 검색 태그와 같은 자(손잡이 폭의 반씩 양끝을 비운다) · 말풍선은 그 판의 --sp 비율 자리 · 손잡이 위로 뜬다. 누름은 흘린다.
+   꼴은 테마를 따른다: 메탈(기본) = 원작 콘솔 우물(반투명 검정 · 검은 1px 안 붉은 1px 테 · 흰 글자) · 홀로그램(요약 중 독) = 녹색 판. */
+.scr-motion-seektips { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 4;   /* 우세 곡선 판(2 · 이름 3) 위 */ }
+.scr-motion-seektip {
+  position: absolute; left: calc(var(--sp, 0) * 100%); bottom: calc(50% + var(--th) / 2 + 4px * var(--ui, 1)); transform: translateX(-50%);
+  padding: calc(2px * var(--ui, 1)) calc(6px * var(--ui, 1)); border-radius: calc(3px * var(--ui, 1));
+  font-size: calc(11px * var(--ui, 1)); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: rgba(0, 0, 0, 0.78); color: #fff; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px var(--sc-trim, rgba(196, 34, 30, 0.78)), 0 2px 6px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+  opacity: 0; visibility: hidden; transition: opacity .08s linear, visibility 0s linear .08s;
+}
+.scr-motion-seektip.is-on { opacity: 1; visibility: visible; transition: opacity .08s linear; }
+.scr-fs-layer.is-holodock .scr-motion-seektip {
+  background: rgba(16, 62, 32, 0.86); color: #d6ffdc; box-shadow: inset 0 0 0 1px rgba(100, 220, 120, 0.7), 0 0 10px rgba(70, 255, 120, 0.3);
+  text-shadow: 0 0 6px rgba(90, 255, 130, 0.6);
+}
 .scr-motion-searchtags { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 0; }
 .scr-motion-searchtag {
   position: absolute; top: 50%; left: calc(var(--sp) * 100%); width: calc(3px * var(--ui, 1)); height: calc(12px * var(--ui, 1));
