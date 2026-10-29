@@ -959,6 +959,32 @@ void main() { vec4 a = textureLod(uT1, v1, 0.0); vec4 b = textureLod(uT0, v0, 0.
  *  칸 색(P0)에만 언샤프(1.5 칸 · 세기 [0])와 광택(4 칸 하이패스의 밝은 면 → 흰 빛 · 세기 [1])을 한 번 얹는다. 붙일 때(SPR_FS9 uLook)와 같은 식이다 —
  *  거리는 굽는 판 텍셀 × 덤프 배수(Q · 폰 h 는 반으로 줄여 실린다). 0 · 0 이면 이 패스를 건너뛴다. 바꾸면 아틀라스를 다시 굽는다(이 상수는 판 해시에 든다). */
 const SPR_LOOK9: [number, number] = [0.5, 0.5];
+/** ★ **안 그림자 견줌**(2026-10-29, 요청: "모델들 대비 살짝 추가 + 내부 그림자 넣어서 구울 거야(내부 부품들 간 그림자 관계 적용) · 시안부터") — 굽기(sprBake9)만 탄다.
+ *  칸마다 빛 쪽에서 본 깊이 판(1024² · 정사영 · 모형 반지름에 맞춤)을 먼저 찍고, 본 패스가 그 판을 읽어 다른 부품에 가린 화소의 빛을 깎는다(PCF 3×3).
+ *  `#ishadow=s`(깎는 몫 0~1 · 예 0.35) · `#bcon=k`(굽는 대비 · 예 1.1). 둘 다 없으면 옛 굽기 그대로. 셰이더는 링크 때 글자로 끼운다(판 해시 안 움직임 — 정하면 템플릿에 넣고 다시 굽는다). */
+const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : 0; })();
+const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : 0; })();
+const ISH_RES9 = 1024;
+/** ★ **빛 한 벌 견줌**(2026-10-29, 지적: "재생기에서 쏘는 빛과 방향각이 맞아?" · "모델 통째로 깔던 음영(좌상 밝고 우하 어둡던 것) 제거" · "원작의 빛과 그림자를 잘 살펴봐") —
+ *  여태 빛이 넷이었다: 방향광 LIGHT(시선 쪽 위) · 바닥 그림자 SHADOW_K9(곧장 위로) · 실루엣 빛 uGrad(화면 왼위 밝음 · 몸 통째 기울기) · 안 그림자 ISH_L9.
+ *  `#litdir=x,y,z`(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 다 그 하나로 낸다. `#nograd` 는 실루엣 빛을 걷는다.
+ *  둘 다 없으면 옛 그림 그대로(이 상수 줄은 판 해시 정규식 밖이다 — 정하면 LIGHT·SHADOW_K9 에 넣고 다시 굽는다). */
+const LIGHT_OV9 = ((): [number, number, number] | null => {
+  const m9 = typeof location !== "undefined" ? /(?:^|[#&,])litdir=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
+  if (!m9) return null;
+  const v9 = [Number(m9[1]), Number(m9[2]), Number(m9[3])]; const l9 = Math.hypot(v9[0], v9[1], v9[2]) || 1; return [v9[0] / l9, v9[1] / l9, v9[2] / l9];
+})();
+const NOGRAD9 = typeof location !== "undefined" && /(?:^|[#&,])nograd\b/.test(location.hash);
+/** 빛 한 벌의 바닥 그림자 기울기 — 그림자는 빛 반대쪽으로(높이 1 당 −L.xy/L.z · 옛 자처럼 0.55 배로 줄인다). */
+const SHK_OV9: [number, number] | null = LIGHT_OV9 ? [(-LIGHT_OV9[0] / Math.max(0.2, LIGHT_OV9[2])) * 0.55, (-LIGHT_OV9[1] / Math.max(0.2, LIGHT_OV9[2])) * 0.55] : null;
+/** 안 그림자의 **빛 방향**(세계 자 · 빛 쪽을 가리킨다) — 몸의 방향광(LIGHT · 시선 쪽에서 내리쬔다)으로는 그림자가 몸 **뒤**로 져 화면에 안 보인다.
+ *  그래서 실루엣 빛(uGrad · 화면 왼위가 밝다)과 같은 쪽 — 왼쪽(−x) · 먼 쪽(−y) · 위 — 에서 비춘다: 그림자는 화면 오른아래로 진다. `#ishl=x,y,z` 로 견준다. */
+const ISH_L9 = ((): [number, number, number] => {
+  const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishl=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
+  if (!m9 && LIGHT_OV9) return LIGHT_OV9;   // 빛 한 벌(위 LIGHT_OV9 ★)이면 그 빛
+  const v9 = m9 ? [Number(m9[1]), Number(m9[2]), Number(m9[3])] : [-0.55, -0.35, 0.76];
+  const l9 = Math.hypot(v9[0], v9[1], v9[2]) || 1; return [v9[0] / l9, v9[1] / l9, v9[2] / l9];
+})();
 const FLT_FS9 = `#version 300 es
 precision mediump float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform vec2 uLk; in vec2 v1; in vec2 v0; out vec4 o;
 vec4 tx(vec2 u) { return textureLod(uT1, clamp(u, uR.xy, uR.zw), 0.0); }
@@ -1084,15 +1110,26 @@ export class GlUnits9 implements VecSink9 {
     };
     /* 대비 견줌(glTerrain9 CON9 · #con=k) — 메시 FS 의 마지막 색 줄 앞에 글자로 끼운다(FS 원본은 그대로 — 판 해시가 템플릿을 잰다).
        굽는 동안(sprBake9)은 0 으로 돌린다 — 판에는 대비가 안 들고 붙일 때(SPR_FS9) 얹는다. */
-    const fsCon9 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;")
+    /* 안 그림자 갈래는 WebGL2 만(깊이 판·highp) — ES 1.00 은 대비만 끼운다. */
+    const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;")
       .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
+    const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;\nuniform highp sampler2D uShTex; uniform highp vec4 uShP;")
+      .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
+      /* 안 그림자(위 ISH9 ★) — 대비보다 먼저(가린 빛을 깎은 뒤 편다). vLs.xyz = 빛 판 자리(0~1) · vLs.w = 빛을 마주 본 몫(등진 낯은 이미 어둡다 — 두 번 안 깎는다). */
+      .replace("gl_FragColor = vec4(c * a9, a9);", "if (uShP.x > 0.5) { highp float sh9 = 0.0; highp float bz9 = vLs.z - uShP.w; for (int i9 = -1; i9 <= 1; i9++) { for (int j9 = -1; j9 <= 1; j9++) { highp float d9 = texture2D(uShTex, vLs.xy + vec2(float(i9), float(j9)) * uShP.z).r; sh9 += bz9 > d9 ? 1.0 : 0.0; } } c *= 1.0 - uShP.y * (sh9 / 9.0) * vLs.w; }\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
+    /* 정점 쪽 — 빛 판 자리(vLs)와 빛 판 찍기 패스(uShPass · 깊이만 · 등진 낯도 다 찍는다). */
+    const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
+      .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n  vec3 ls9 = uLsM * vec3(rx, ry, pz);\n  vLs = vec4(ls9.xy * uLsK.x * 0.5 + 0.5, ls9.z * uLsK.y * 0.5 + 0.5, 0.0);\n  if (uShPass > 0.5) { gl_Position = vec4(ls9.xy * uLsK.x, ls9.z * uLsK.y, 1.0); vCol = vec4(1.0); return; }")
+      .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n  vLs.w = clamp(-dot(n, vec3(uLsM[0][2], uLsM[1][2], uLsM[2][2])) * 3.0, 0.0, 1.0);");
     const p = gl.createProgram()!;
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsCon9)); gl.linkProgram(p);
+    /* 실루엣 빛 걷기(위 NOGRAD9 ★) — 몸 통째의 왼위 밝음 · 오른아래 어둠 기울기를 0 으로. */
+    const vsUse9 = NOGRAD9 ? vsSh9.replace("if (uDbg < 2.0 || uFlat > 0.5) { gw = 0.0; gb = 0.0; }", "{ gw = 0.0; gb = 0.0; }") : vsSh9;
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsUse9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsCon9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, CON9[0], CON9[1]);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -1392,7 +1429,8 @@ export class GlUnits9 implements VecSink9 {
     const v = mesh.pts;
     for (let i = 0; i < v.length; i += 3) {
       const x = v[i]; const y = v[i + 1]; const z = v[i + 2];
-      const rx = x * c + y * sn + z * SHADOW_K9[0]; const ry = -x * sn + y * c + z * SHADOW_K9[1];
+      const SK9 = SHK_OV9 ?? SHADOW_K9;   // 빛 한 벌(LIGHT_OV9 ★)이면 그 기울기
+      const rx = x * c + y * sn + z * SK9[0]; const ry = -x * sn + y * c + z * SK9[1];
       const X = rx + ry * cam.squash * cam.shear; const Y = ry * cam.squash;
       if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y > bot) bot = Y; if (Y < top) top = Y;
     }
@@ -1422,7 +1460,8 @@ export class GlUnits9 implements VecSink9 {
   private camSet9(cam: GlCam9): void {
     const gl = this.gl;
     gl.uniform2f(this.loc.uCam, cam.squash, cam.zk); gl.uniform2f(this.loc.uLean, cam.lean, cam.shear);
-    const hx = LIGHT[0]; const hy = LIGHT[1] + cam.zk; const hz = LIGHT[2] + cam.squash;
+    const LT9 = LIGHT_OV9 ?? LIGHT;
+    const hx = LT9[0]; const hy = LT9[1] + cam.zk; const hz = LT9[2] + cam.squash;
     const hl = Math.hypot(hx, hy, hz) || 1;
     gl.uniform3f(this.loc.uHalf, hx / hl, hy / hl, hz / hl);
   }
@@ -1608,10 +1647,62 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 구운 판 수 · 칸 수 · MB(진단). */
   sprAtlasStat9(): { pages: number; cells: number; mb: number } { return { pages: this.sprFixed.length, cells: this.sprFixedCells.size, mb: this.sprFixedMB }; }
   /** 일감들을 굽는다 — 굽는 판(MSAA)에 지도와 같은 셰이더로 그리고, 풀어서, 칸마다 제 판 자리로 옮긴다. */
+  /** 안 그림자 빛 판(위 ISH9 ★) — 깊이 텍스처 하나(ISH_RES9²) · 못 세우면 null(그림자 없이 굽는다). */
+  private ishFb9: { fb: WebGLFramebuffer; tex: WebGLTexture } | null | undefined;
+  /** 칸 하나의 빛 판을 찍고 본 패스 유니폼을 건다 — 부르는 쪽은 굽는 판(scr.ms)에 메시·칸 기록을 걸어 둔 채다. 끝나면 그 판·뷰포트로 되돌린다. 찍었으면 참. */
+  private ishShadow9(m: GlMesh9, inst: number): boolean {
+    const gl = this.gl as WebGL2RenderingContext;
+    if (this.ishFb9 === undefined) {
+      try {
+        const tex = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, ISH_RES9, ISH_RES9, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const fb = gl.createFramebuffer()!; gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, tex, 0);
+        gl.drawBuffers([gl.NONE, gl.NONE]); gl.readBuffer(gl.NONE);
+        this.ishFb9 = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE ? { fb, tex } : null;
+        gl.bindTexture(gl.TEXTURE_2D, null);
+      } catch { this.ishFb9 = null; }
+    }
+    const sb9 = this.ishFb9; const scr9 = this.sprScr;
+    if (!sb9 || !scr9) return false;
+    /* 모형 반지름(겹치지 않는 꼭짓점 · 요잉과 무관) — 빛 판의 정사영 상자. 메시마다 한 번. */
+    const mm9 = m as GlMesh9 & { ishR9?: number };
+    if (mm9.ishR9 === undefined) { let r9 = 0.5; const v9 = m.pts; for (let i9 = 0; i9 + 2 < v9.length; i9 += 3) r9 = Math.max(r9, Math.hypot(v9[i9], v9[i9 + 1], v9[i9 + 2])); mm9.ishR9 = r9 * 1.02; }
+    const R9 = mm9.ishR9;
+    /* 빛 축 — 안 그림자 빛(ISH_L9 · 세계 자 · 요잉 뒤의 꼭짓점과 같은 자). U·V 는 빛에 수직인 판 · 깊이 = −L(빛에 가까울수록 작다 → LESS 가 가장 가까운 낯을 남긴다). */
+    const L9 = ISH_L9;
+    let U9 = [L9[1], -L9[0], 0]; let ul9 = Math.hypot(U9[0], U9[1]); if (ul9 < 1e-4) { U9 = [1, 0, 0]; ul9 = 1; }
+    U9 = [U9[0] / ul9, U9[1] / ul9, 0];
+    const V9 = [L9[1] * U9[2] - L9[2] * U9[1], L9[2] * U9[0] - L9[0] * U9[2], L9[0] * U9[1] - L9[1] * U9[0]];
+    gl.uniformMatrix3fv(this.loc.uLsM, false, new Float32Array([U9[0], V9[0], -L9[0], U9[1], V9[1], -L9[1], U9[2], V9[2], -L9[2]]));
+    gl.uniform2f(this.loc.uLsK, 1 / R9, 1 / R9);
+    // ① 빛 판 찍기 — 깊이만 · 모든 낯(등진 낯 걷기는 카메라 자라 빛 판에선 안 탄다 · 셰이더가 uShPass 에서 일찍 나간다).
+    /* 앞 칸이 7번에 걸어 둔 빛 판을 먼저 푼다 — 걸린 채 같은 텍스처에 깊이를 쓰면 되먹임 고리(INVALID_OPERATION)로 드로가 버려져 앞 칸의 판이 남는다. */
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, null); gl.activeTexture(gl.TEXTURE0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sb9.fb); gl.viewport(0, 0, ISH_RES9, ISH_RES9);
+    gl.colorMask(false, false, false, false); gl.depthMask(true); gl.clearDepth(1); gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.disable(gl.BLEND);
+    gl.uniform1f(this.loc.uShPass, 1);
+    /* 그림자 여드름(같은 낯이 제 깊이에 가려 줄무늬로 어두워짐)을 막는 기울기 몫 밀기 — 빛에 비스듬한 낯일수록 더 민다. */
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2.5, 6);
+    this.drawRec(0, m.n, inst, 1);
+    gl.disable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(0, 0);
+    gl.uniform1f(this.loc.uShPass, 0);
+    // ② 본 패스 되돌리기 — 굽는 판 · 뷰포트 · 색 쓰기 · 섞기. 빛 판은 7번 칸.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, scr9.ms);
+    const S9 = this.sprScrS(); gl.viewport(0, 0, S9, S9);
+    gl.colorMask(true, true, true, true); gl.enable(gl.BLEND);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, sb9.tex); gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(this.loc.uShTex, 7);
+    gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, 0.006);
+    return true;
+  }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
-    if (CON9[0] === 0) { this.sprBakeRun9(jobs, dprK); return; }
-    // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 끄고 붙일 때(SPR_FS9) 얹는다.
-    const gl = this.gl; gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, 0, CON9[1]);
+    if (CON9[0] === 0 && BCON9 === 0) { this.sprBakeRun9(jobs, dprK); return; }
+    // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 끄고 붙일 때(SPR_FS9) 얹는다. 굽는 대비(BCON9 · 위 ISH9 ★)만 판에 든다.
+    const gl = this.gl; gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, BCON9, CON9[1]);
     try { this.sprBakeRun9(jobs, dprK); } finally { gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, CON9[0], CON9[1]); }
   }
   private sprBakeRun9(jobs: SprJob9[], dprK: number): void {
@@ -1641,11 +1732,10 @@ export class GlUnits9 implements VecSink9 {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(this.prog);
       gl.uniform2f(this.loc.uCanvas, S, S);
-      gl.uniform3f(this.loc.uLight, LIGHT[0], LIGHT[1], LIGHT[2]);
-      gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
+      { const LT9 = LIGHT_OV9 ?? LIGHT; gl.uniform3f(this.loc.uLight, LT9[0], LT9[1], LT9[2]); gl.uniform4f(this.loc.uGlint, LT9[0] * 7, LT9[1] * 7, LT9[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0); }
       gl.uniform1f(this.loc.uPersp, MODEL_PERSP);
       gl.uniform1f(this.loc.uDbg, GL_SHADE9);
-      gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
+      { const SK9 = SHK_OV9 ?? SHADOW_K9; gl.uniform2f(this.loc.uShadowK, SK9[0], SK9[1]); }
       gl.uniform1f(this.loc.uDepthK, 1 / 80);
       gl.uniform1f(this.loc.uEmit, 0); gl.uniform1f(this.loc.uFlat, 0);
       gl.uniform1f(this.loc.uKg, 1 / Math.max(0.01, dprK));
@@ -1678,6 +1768,7 @@ export class GlUnits9 implements VecSink9 {
           const { j } = batch[b]; const m = lt && j.lt ? j.lt : j.mesh;   // 켜짐 켜 찍기(lt)는 마스크 벌로
           if (j.cam !== camNow) { camNow = j.cam; this.camSet9(j.cam); }
           this.bindMesh9(m);
+          const ish9 = ISH9 > 0 && !j.sh && this.ishShadow9(m, b);   // 안 그림자(위 ISH9 ★) — 빛 판을 먼저 찍고 본 패스가 읽는다
           if (j.sh) {
             gl.uniform1f(this.loc.uShZ, 0.996);
             this.drawRec(0, m.n, b, 1);
@@ -1686,6 +1777,7 @@ export class GlUnits9 implements VecSink9 {
             this.drawRec(0, m.nSolid, b, 1);
             if (m.nSolid < m.n) { gl.depthMask(false); this.drawRec(m.nSolid, m.n - m.nSolid, b, 1); gl.depthMask(true); }
           }
+          if (ish9) gl.uniform4f(this.loc.uShP, 0, 0, 0, 0);
           this.stat.draws += 1;
         }
         if (scr.samples > 0) {
@@ -2647,13 +2739,13 @@ export class GlUnits9 implements VecSink9 {
     gl.disable(gl.CULL_FACE);
     gl.useProgram(this.prog);
     gl.uniform2f(this.loc.uCanvas, cw, ch);
-    gl.uniform3f(this.loc.uLight, LIGHT[0], LIGHT[1], LIGHT[2]);
+    { const LT9 = LIGHT_OV9 ?? LIGHT; gl.uniform3f(this.loc.uLight, LT9[0], LT9[1], LT9[2]); }
     /* 전구 반사 얼룩의 중심 — 빛 쪽 7 모형칸에 잡는다(모델 상자가 16칸이라 그 언저리가 낯 위에 앉는다).
        세계 자라 개체마다 안 바뀌고, 셰이더는 요잉을 먹인 자리로 거리를 잰다. */
-    gl.uniform4f(this.loc.uGlint, LIGHT[0] * 7, LIGHT[1] * 7, LIGHT[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0);
+    { const LT9 = LIGHT_OV9 ?? LIGHT; gl.uniform4f(this.loc.uGlint, LT9[0] * 7, LT9[1] * 7, LT9[2] * 7, GL_SHADE9 >= 1 ? 0.8 * GL_SPEC9 : 0); }
     gl.uniform1f(this.loc.uPersp, MODEL_PERSP);
     gl.uniform1f(this.loc.uDbg, GL_SHADE9);
-    gl.uniform2f(this.loc.uShadowK, SHADOW_K9[0], SHADOW_K9[1]);
+    { const SK9 = SHK_OV9 ?? SHADOW_K9; gl.uniform2f(this.loc.uShadowK, SK9[0], SK9[1]); }
     gl.uniform1f(this.loc.uKg, 1);   // 결 배율 몫 — 스프라이트 굽기가 1/DPR 로 바꿔 두므로 장마다 되돌린다
     /* ★ 깊이 칸은 개체 수가 아니라 **겹침**으로 나눈다 — 개체마다 칸을 주면 400기 화면에서 칸이 0.005 라 16비트 깊이 버퍼에서는
        한 개체 안의 부품 앞뒤(지붕 위 원통·벽의 환풍구)가 양자화에 묻혔다(실측: 판에는 있는 부품이 GL 에서 사라짐).
@@ -2788,8 +2880,9 @@ export class GlUnits9 implements VecSink9 {
         const dy9 = sh.dy ?? 0;
         if (sh.ground) {
           const [c, s9] = sprS![i]!; const h9 = sh.h ?? 0;
-          const AX = (it.ax + it.k * h9 * (SHADOW_K9[0] + SHADOW_K9[1] * it.cam.squash * it.cam.shear)) * dprK9;
-          const AY = (it.ay + it.yoff + it.k * h9 * SHADOW_K9[1] * it.cam.squash + dy9) * dprK9;
+          const SK9 = SHK_OV9 ?? SHADOW_K9;
+          const AX = (it.ax + it.k * h9 * (SK9[0] + SK9[1] * it.cam.squash * it.cam.shear)) * dprK9;
+          const AY = (it.ay + it.yoff + it.k * h9 * SK9[1] * it.cam.squash + dy9) * dprK9;
           put(c, s9, AX, AY, sh.alpha, 0.996, 2, false, undefined, null);
         } else {
           const [c, s9] = sprB[i]!;

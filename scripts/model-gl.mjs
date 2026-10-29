@@ -91,11 +91,15 @@ const COLOR = String(flag("--color", "#4aa3ff"));   // 임자 색(변천사는 7
  *  변천사도 보여주고 싶어서"). ⚠ 지도의 기본은 접지 타원이고 이 사영 그림자는 `#glshadow=1` 일 때의 그림이다. `--fit` 이면
  *  상자를 재는 첫 굽기에는 안 얹는다(그림자가 상자를 넓혀 몸이 작아진다). */
 const SHADOW = process.argv.includes("--shadow");
+/** `--bake Q`(2026-10-29) — 지도 붓(flush · 메시) 대신 **2D 판 굽기 길**(sprPrebake9 → sprPreStep9 → 덤프)로 그린다. 서버 아틀라스가 굽는 그 그림이다(Q = 덤프 배수 ·
+ *  spr-atlas 는 2). 굽기만 타는 손잡이(#ishadow 안 그림자 · #bcon 굽는 대비)를 견줄 때 쓴다. 임자색은 칸(P0) + 켜(tint) × 색으로 다시 입힌다. 칸 가운데에 맞춰 늘려 붙인다. */
+const BAKEQ = Number(flag("--bake", 0)) || 0;
 
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, bldBlinkSet9, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
 import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
+const BAKEQ = ${BAKEQ};
 /* --cam 납작비,높이,숙임(2026-10-12) — 입체 카메라를 손으로(옛 입체 0.606,1,0.34 · 새 60도 0.866,0.5,0 견줌). 없으면 평면 CAM_TOP9. */
 const CAM9 = ${JSON.stringify(flag("--cam", null))} ? ((v) => ({ squash: v[0], zk: v[1], lean: v[2], shear: 0, key: "c" + v.join(":") }))(String(${JSON.stringify(flag("--cam", ""))}).split(",").map(Number)) : CAM_TOP9;
 import { SPIN_ANIM9, modelNormOf, bldNormOf } from ${JSON.stringify(join(ROOT, "src/components/replay/engine9"))};
@@ -125,6 +129,40 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         m = isB ? g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color, alpha: 1, rotDeg: rot, lit, spin: spins ? spins[i] : 0, buildStage: stages ? stages[i] : 0, ...(${AIM === null} ? {} : { headDeg: ${AIM === null ? 0 : Number(AIM)} }) }, 3) : g.unitMesh(kind, ${POSE}, 3);
       } catch (e) { errs[kind] = String(e).slice(0, 80); }
       if (!m) return;
+      if (BAKEQ > 0) {
+        /* 굽기 길(위 --bake ★) — 서버 아틀라스와 같은 자(CAM_TOP9 · 실루엣 빛 상자 비 11.312/norm · 건물 gCy −8). */
+        g.sprOn = true; g.sprDumpQ = BAKEQ;
+        const norm9 = isB ? (bldNormOf(kind) ?? 1) : modelNormOf(kind);
+        const yb9 = g.sprYbOf9(-rot, m);
+        g.sprPrebake9(m, CAM_TOP9, 11.312 / Math.max(0.01, norm9), isB ? -8 : 0, color, [yb9], ${SHADOW});
+        let guard9 = 0; while (g.sprPreStep9(40) > 0 && guard9 < 200) guard9 += 1;
+        const cells9 = g.sprDumpCells9().filter((c) => c.key.startsWith(m.key + "|" + CAM_TOP9.key + "|" + yb9 + "|"));
+        const c9 = cells9.find((c) => c.key.endsWith("|0")); const s9 = cells9.find((c) => c.key.endsWith("|1"));
+        if (!c9) { errs[kind] = "굽기 칸 없음"; return; }
+        const tc9 = [parseInt(color.slice(1, 3), 16) / 255, parseInt(color.slice(3, 5), 16) / 255, parseInt(color.slice(5, 7), 16) / 255];
+        /** 칸 → 캔버스(앵커 기준 자리 x0·y0 · 배율 kd) — 몸은 칸 + 임자색 켜 · 그림자는 검정 × 0.26(붙이는 SPR_FS9 와 같게 · 알파 0.35 아래는 버림). */
+        const cvOf9 = (c, shadow) => {
+          const pg9 = g.sprDumpPage9(c.page); const im9 = new ImageData(c.w, c.h);
+          for (let y = 0; y < c.h; y += 1) for (let x = 0; x < c.w; x += 1) {
+            const si = ((pg9.h - 1 - (c.py + y)) * pg9.w + (c.px + x)) * 4; const di = (y * c.w + x) * 4;
+            const a9 = pg9.color[si + 3] / 255;
+            if (shadow) { im9.data[di + 3] = a9 >= 0.35 ? Math.round(255 * 0.26) : 0; continue; }
+            const tn9 = pg9.tint ? pg9.tint[si] / 255 : 0;
+            for (let ch = 0; ch < 3; ch += 1) { const v9 = pg9.color[si + ch] / 255 + tn9 * tc9[ch]; im9.data[di + ch] = a9 > 0.003 ? Math.min(255, Math.round((v9 / a9) * 255)) : 0; }
+            im9.data[di + 3] = pg9.color[si + 3];
+          }
+          const cv = document.createElement("canvas"); cv.width = c.w; cv.height = c.h; cv.getContext("2d").putImageData(im9, 0, 0); return cv;
+        };
+        /* 앵커 자(배율 kd 로 나눠 같은 자로) — 몸 칸과 그림자 칸은 배율이 다를 수 있다(그림자 한 옥타브 낮음). */
+        const parts9 = [s9 ? { c: s9, cv: cvOf9(s9, true) } : null, { c: c9, cv: cvOf9(c9, false) }].filter(Boolean);
+        let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+        for (const p9 of parts9) { const k9 = c9.kd / p9.c.kd; bx0 = Math.min(bx0, p9.c.x0 * k9); by0 = Math.min(by0, p9.c.y0 * k9); bx1 = Math.max(bx1, (p9.c.x0 + p9.c.w) * k9); by1 = Math.max(by1, (p9.c.y0 + p9.c.h) * k9); }
+        const sc9 = Math.min((cell * 0.92) / (bx1 - bx0), (cell * 0.92) / (by1 - by1 + (by1 - by0)));
+        gx.imageSmoothingQuality = "high";
+        const ox9 = i * cell + (cell - (bx1 - bx0) * sc9) / 2 - bx0 * sc9; const oy9 = r * cell + (cell - (by1 - by0) * sc9) / 2 - by0 * sc9;
+        for (const p9 of parts9) { const k9 = (c9.kd / p9.c.kd) * sc9; gx.drawImage(p9.cv, ox9 + p9.c.x0 * k9, oy9 + p9.c.y0 * k9, p9.c.w * k9, p9.c.h * k9); }
+        return;
+      }
       const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
       meshes[i] = { m, kk };
       const sh9 = ${SHADOW} && !fit && !GL_GLOW_KINDS9.has(kind) ? { ground: true, alpha: 0.26 } : undefined;
