@@ -9318,8 +9318,21 @@ const lerpAng9 = (a: number, b: number, u: number): number => {
 
 /** 컷 처방(op.pz)이 있는 op 의 자세를 **그리는 시각**으로 고른다(engine9 UnitDrawOp.pz 의 ★ · 2026-10-28). */
 const posePz9 = (ops: UnitDrawOp[], t: number): void => {
-  for (let i9 = 0; i9 < ops.length; i9 += 1) { const o9 = ops[i9]; if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, t); }
+  for (let i9 = 0; i9 < ops.length; i9 += 1) {
+    const o9 = ops[i9];
+    if (o9.pz) o9.pose = poseOfRx9(o9.kind, o9.pz, t);
+    if (o9.sx) o9.spin = spinOfSx9(o9.sx, t);
+    if (o9.ax) o9.attachRot = (((t * o9.ax[0] + o9.ax[1]) % 360) + 360) % 360;
+  }
 };
+/** ★ 회전 칸을 **그리는 시각**으로(engine9 UnitDrawOp.sx ★ · 2026-10-29 "회전 부품 프레임 · 성큰 혓바닥도") — 워커 장(폰 초당 5장)마다만 바뀌던 칸을 그리기마다 고른다.
+ *  [1, 칸/초, 덧칸] 정수 칸 · [2, …] 소수 칸 · [3, 시작, 쿨다운] 성큰 혀(엔진 sunkenCut9 와 같은 식 — 창 밖이면 0 = 들어감). */
+function spinOfSx9(sx: number[], t: number): number {
+  if (sx[0] === 3) { const cd9 = sx[2] > 0 ? sx[2] : 1; const ph9 = (((t - sx[1]) % cd9) + cd9) % cd9 / cd9; return ph9 < SUNK_OUT9 ? sunkenCut9(ph9) : 0; }
+  const c9 = t * sx[1] + sx[2];
+  const m9 = ((c9 % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9;
+  return sx[0] === 2 ? m9 : Math.floor(m9);
+}
 /** ★ **효과를 그리는 시각으로 잇는다**(2026-10-28 · 폰 장 초당 5장) — 앞 장의 효과 op 를 dt(= 그리는 시각 − 장 시각)만큼 민다:
  *  age·clk 은 dt 그대로 · ph 는 pr(쿨다운 박자 pc 면 감아 돈다 · 아니면 1 을 넘으면 끝난 효과라 뺀다 — 고이는 피(pool)는 1 에서 멈춘다) ·
  *  탄 u 는 죄기 전 값(uw)에서 ur 로 · uc 로 감아 다음 발 · 1.2 넘으면(닿은 뒤) 뺀다. 빠르기가 없는 op 은 장 값 그대로(engine9 FxOp.pr 의 ★).

@@ -2030,6 +2030,13 @@ export type UnitDrawOp = {
    *  박자가 무너진다. 그래서 그 함수의 인자만 싣고 붓이 **그리는 시각**으로 고른다(poseOfRx9). 없으면 pose 그대로.
    *    [1, hz] 걸음 · [2, hz] 날갯짓 · [3, rate] 궤도 굴림 · [4, 시작, 쿨다운, 날갯짓hz] 공격 · [5] 럴커 파기 */
   pz?: number[];
+  /** ★ **회전 칸 처방**(2026-10-29, 실기 지적: "터렛 · 컴셋 위성 · 서플라이 팬 · 코어 디스크 등 회전 부품 프레임 늘려야 할 듯 · 성큰 혓바닥도") — spin 은 시각의 함수인데
+   *  워커가 **장 시각**으로 골라 실었다. 폰 초당 5장이면 칸이 초당 다섯 번만 바뀌어(2.2바퀴/초 × 16칸 = 초당 35칸을 일곱 칸씩 건너뜀) 뚝뚝 돌았다. pz 와 같은 길로
+   *  인자만 싣고 붓이 **그리는 시각**으로 고른다(ReplayMotionPlayer posePz9 · spinOfSx9). 없으면 spin 그대로.
+   *    [1, 칸/초, 덧칸] 정수 칸 · [2, 칸/초, 덧칸] 소수 칸(가스) · [3, 시작, 쿨다운] 성큰 혓바닥(창 안 나옴 → 머묾 → 들어감 · sunkenCut9) */
+  sx?: number[];
+  /** 딸림 부품 회전 처방(sx 와 같은 까닭 · 2026-10-29) — 터렛 포드의 탐지 회전 · 컴샛 접시. [°/초, 위상°] — 붓이 attachRot = t·°/초 + 위상 으로 고른다. 겨눌 때는 안 싣는다. */
+  ax?: number[];
   /** 남은 체력 비율 0~1(요청: 스탯을 지닌 생애주기) — 다쳤을 때만 와서 바가 뜬다. */
   hpFrac?: number;
   /** 체력바를 지금 보일 것인가 — 맞은 지 HP_BAR_SEC 안(요청: 공격당한 뒤 한동안만). 선택된 개체는 붓이 따로 늘 보인다. */
@@ -6849,10 +6856,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          벌어지고 있는지'가 아예 안 보인다 — 성큰·캐논이 조용한 채 유닛만 녹는다. */
       /** 성큰의 사격 박자(0~1) — 혓바닥과 가시가 **같은 시계**를 봐야 한다.
        *  둘이 따로 놀면 혀는 나와 있는데 가시가 없거나 그 반대가 된다. */
-      const sunkenPh = unit === "Sunken Colony"
-        ? firePhase(`s${raw}|${Math.round(x * 4)}|${Math.round(y * 4)}`,
-          Math.max(0.2, (isKnownKind(unit) ? weaponVs(profileOf(unit), false)?.cd : 0) || 1.34))
-        : 0;
+      const sunkCd9 = Math.max(0.2, (unit === "Sunken Colony" && isKnownKind(unit) ? weaponVs(profileOf(unit), false)?.cd : 0) || 1.34);
+      const sunkKey9 = `s${raw}|${Math.round(x * 4)}|${Math.round(y * 4)}`;
+      const sunkenPh = unit === "Sunken Colony" ? firePhase(sunkKey9, sunkCd9) : 0;
+      /** 그 박자의 시작(회전 칸 처방 sx [3] — 붓이 그리는 시각으로 혀를 고른다). */
+      const sunkStart9 = unit === "Sunken Colony" ? (fireStartRef.current.get(sunkKey9)?.start ?? t) : 0;
       const sunkenOut = unit === "Sunken Colony" && !raising && !bldFrozen9
         && (goneEff === 0 || t < goneEff)
         /* 혓바닥은 **들어갔다 나왔다** 한다(지적) — 여태 사거리 안에 적이 있으면
@@ -6964,13 +6972,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           fx: fxF, fy: fyF, z,
           kind: shapeKind === "turret" ? "turretbase" : shapeKind === "comsat" ? "comsatbase" : sunkenOut ? "sunkenrear" : shapeKind,
           ...(shapeKind === "turret"
-            ? { attach: "turrethead", attachRot: headDeg9 ?? buildingYawOf() }
+            ? { attach: "turrethead", attachRot: headDeg9 ?? buildingYawOf(),
+              /* 탐지 회전 중이면(겨눔 아님 — 각이 sweep 식 그대로) 처방(ax ★)을 싣는다. */
+              ...(headDeg9 !== undefined && headDeg9 === ((((t * 96 + centerX * 37 + centerY * 53) % 360) + 360) % 360) ? { ax: [96, centerX * 37 + centerY * 53] } : {}) }
             /* ★ 컴샛 접시도 같은 손이다(2026-09, 요청: "컴셋스테이션 위성 요잉 주기(터렛의 포드처럼)") —
                접시(comsatdish)를 딸림 부품으로 떼고 **탐지 회전**(COMSAT_SWEEP9 °/s · 자리로 위상을 흩는다)을
                attachRot 로 준다. 각이 유니폼이라 메시는 두 벌이고 칸 없이 이어서 돈다. 공사 중에도 돌고
                잔상(bldFrozen9)은 멎는다 — 터렛 탐지 회전과 같은 규약이다. */
             : shapeKind === "comsat"
-              ? { attach: "comsatdish", attachRot: bldFrozen9 ? buildingYawOf() : (((t * COMSAT_SWEEP9 + centerX * 37 + centerY * 53) % 360) + 360) % 360 }
+              ? { attach: "comsatdish", attachRot: bldFrozen9 ? buildingYawOf() : (((t * COMSAT_SWEEP9 + centerX * 37 + centerY * 53) % 360) + 360) % 360,
+                ...(bldFrozen9 ? {} : { ax: [COMSAT_SWEEP9, centerX * 37 + centerY * 53] }) }
             /* ★ 혓바닥도 **제 절대 요잉**을 받아야 표적을 본다(2026-09, 지적: "성큰 …
                혓바닥 나오는 컷들") — 터렛을 딸림 부품으로 가르며 붓이 딸림 부품을
                그릴 때 `headDeg: undefined` 로 굽게 되었는데(각은 attachRot 이 준다),
@@ -7038,6 +7049,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
               : GAS_SPIN_KINDS9.has(shapeKind)
                 ? (t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9
                 : Math.floor(t * spinRateOf9(shapeKind, researching) * SPIN_ANIM9) % SPIN_ANIM9,
+          /* 회전 칸 처방(UnitDrawOp.sx ★) — 위 spin 과 같은 식의 인자. 안 도는 종류(걸음 0)는 안 싣는다. */
+          ...((): { sx?: number[] } => {
+            if (!qAnim || bldFrozen9) return {};
+            if (shapeKind === "sunken") return sunkenOut ? { sx: [3, sunkStart9, sunkCd9] } : {};
+            const r9 = spinRateOf9(shapeKind, researching);
+            return r9 > 0 ? { sx: [GAS_SPIN_KINDS9.has(shapeKind) ? 2 : 1, r9 * SPIN_ANIM9, 0] } : {};
+          })(),
           /* 원작처럼 45도 요잉(지적) — 2D에도 적용(재지적: 2D도 45도 요잉해야지).
              쐐기의 진범은 요잉이 아니라 hover 그림자의 beginPath 누락이었다. */
           rotDeg: buildingYawOf(),
