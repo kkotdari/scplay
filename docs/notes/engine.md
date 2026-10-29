@@ -416,3 +416,6 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
   replayTechNames(업그레이드 줄 이름·기술 횟수 셈) · statsMix · shapeOblique 도우미 넷 · mapTerrain `TILESET_NAME` 등. 🔎 이름을 소스 전체에서 세어 1(정의뿐)인 것만 · `tsc --noUnusedLocals` 의 새 줄 0.
 - 남긴 것: `#gl=0` 2D 폴백 · SHAPE_GALLERY 의 hidden 별본 · 진단 해시 깃발(scripts 가 쓴다).
 - ⚠ perf-check 는 이제 보기 모드 판이 서야 그림이 돈다 — `--ask` 없이는 준비 기다림이, `--ask` 로도 헤드리스에서 판이 안 서 멈춘다(HEAD 에서도 같다 · 이번 손질과 무관).
+
+## 건설 고스트 초록 판 테두리 걷음(2026-10-29)
+요청: "건설 고스트의 초록색 캔버스 표시의 녹색 테두리 없애고" — 붓(ReplayMotionPlayer 의 platePts 판)이 채운 판 위에 긋던 진한 초록 1px 획(알파 판 × 2.2)을 걷었다. 판 채움·모델은 그대로.

@@ -6120,10 +6120,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.globalAlpha = pa9;
             ctx.fillStyle = GHOST_PLATE_COL9;
             ctx.fill();
-            ctx.globalAlpha = Math.min(1, pa9 * 2.2);
-            ctx.strokeStyle = GHOST_PLATE_COL9;
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            // 테두리(진한 초록 1px)는 걷었다(2026-10-29, 요청: "건설 고스트의 초록색 캔버스 표시의 녹색 테두리 없애고") — 판만 깐다.
             ctx.globalAlpha = 1;
             if (!op.kind) continue;
           }
