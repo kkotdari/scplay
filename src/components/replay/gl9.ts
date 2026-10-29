@@ -199,18 +199,10 @@ void main() {
   if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;
   vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);   // 단색 판(잔상)은 제 색을 버린다
   /* 2D 와 같은 두 겹: ① 면마다 얹혀 있던 흰·검 덧칠(aOv — 메시에 접어 둔 값, 요잉 0 에서 굽은 것이라 모델과 함께 돈다)
-     ② 실루엣 빛(silhouetteLight) — 모델 상자 안에서 왼위(흰 0.18) → 오른아래(검 0.42) 기울기.
+     ② 실루엣 빛(silhouetteLight · 2026-10-29 걷음 — 아래 ★).
      여기에 법선 방향광을 아주 옅게(±6%) 얹어 요잉해도 입체가 읽히게 한다. */
-  /* ★★ **실루엣 빛의 부호가 뒤집혀 있었다**(2026-09, 지적: "표시한 부분은 어두울 이유가 없는데 어두워
-     보여" → "아직도 면들의 왼쪽 위가 어두운 느낌") — uGrad.xy 는 **빛이 있는 쪽**의 화면 방향이다
-     (lx = −0.9 · ly = 0.45·납작비 − 1·높이비 = −0.477 → 화면에서 **왼위**). 그런데 t 를 그 방향과의
-     내적 그대로 쓰면 **빛 쪽에서 t 가 커져** 검정(gb 0.42)이 얹히고 반대쪽에 흰(gw 0.18)이 간다 —
-     뜻한 "왼위 흰 → 오른아래 검"의 **정반대**다. 부호를 뒤집는다: t 는 '빛에서 얼마나 멀어졌나'다.
-     ⚠ 기본이 켜져 있는 자다(GL_SHADE9 기본 2) — 그래서 모든 낯의 왼위가 42% 어두웠다. */
-  float t = -((X - uAnchor.x) * uGrad.x + (Y - uAnchor.y - uGrad.w) * uGrad.y) / max(uGrad.z, 1.0);
-  float gw = t < -0.08 ? 0.18 * min(1.0, (-t - 0.08) / 0.92) : 0.0;
-  float gb = t > 0.08 ? 0.42 * min(1.0, (t - 0.08) / 0.92) : 0.0;
-  if (uDbg < 2.0 || uFlat > 0.5) { gw = 0.0; gb = 0.0; }
+  /* ★ **실루엣 빛을 걷었다**(2026-10-29, 요청: "모델 통째로 깔던 음영(그라데이션?)은 제거 좌상이 밝고 우하가 어둡던 것") — 몸 상자 안의
+     화면 자 기울기(왼위 흰 0.18 → 오른아래 검 0.42)는 빛과 무관하게 몸을 통째로 물들였다. 명암은 이제 방향광·낯 명암·안 그림자만 낸다(아래 LIGHT ★). */
   vec2 ov = (uDbg < 1.0 || uFlat > 0.5) ? vec2(0.0) : aOv;   // 2D 와 **같은 세기**로(0.7 배로 눌렀던 것을 걷었다 — 그만큼 납작했다)
   /* ★★ **낯 명암은 여기서 낸다 — 메시에 구우면 몸과 함께 돈다**(2026-09, 지적: "빛의 각도상 지금 포탑
      옆면이 어두우면 안 되는 각도인데 어둡단 말이지") — faceLight(shapeOblique)는 세계 광원과 낯의 각을
@@ -227,11 +219,11 @@ void main() {
     if (dL9 > 0.3) ov.x = min(0.7, ov.x + min(0.2, (dL9 - 0.3) * 0.3 + 0.08) * 1.25);
     else if (dL9 < -0.1) ov.y = min(0.7, ov.y + min(0.38, (-dL9 - 0.1) * 0.45 + 0.12) * 1.25);
   }
-  vec3 col = mix(base, vec3(1.0), clamp(ov.x + gw, 0.0, 1.0));
+  vec3 col = mix(base, vec3(1.0), clamp(ov.x, 0.0, 1.0));
   /* ★ **어두운 몫은 0.7 배로 눅인다**(2026-09, 요청: "모델들 음영의 어두운부분 좀 밝게 되나 — 음(영) 약화") —
-     구운 낯 음영·셰이더 낯 명암(ov.y)과 실루엣 빛의 오른아래 검정(gb)을 함께 누른다. 흰 몫은 그대로라
+     구운 낯 음영·셰이더 낯 명암(ov.y)을 누른다. 흰 몫은 그대로라
      입체의 결은 남고 그늘만 얕아진다. 아래 방향광의 등진 바닥도 0.82 → 0.86 으로 함께 올린다. */
-  col = mix(col, vec3(0.0), clamp((ov.y + gb) * ${SOFT_K9}, 0.0, 1.0));
+  col = mix(col, vec3(0.0), clamp(ov.y * ${SOFT_K9}, 0.0, 1.0));
   /* ★ 방향광(2026-09) — 2D 판에는 없던 몫이다. 법선은 카메라 쪽으로 뒤집혀 있으므로(위) 빛과의 각은 '얼마나 기울었나'를 뜻한다.
      · **반쪽 램버트**(0.5+0.5·n·L): 램버트를 그대로 쓰면 빛에 등진 낯이 통째로 검어져 실루엣만 남는다. 반으로 접으면
        밝은 낯 → 어두운 낯이 부드럽게 이어지고, 돔·관의 결이 살아난다.
@@ -722,10 +714,12 @@ export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 
   }
   return c;
 }
-// 광원 (−0.9, 0.45, 1) → (0, 0.45, 1)(2026-10-23 · 가운데 위 — shapeOblique LIGHT_PLAN 과 한 벌)
-const LIGHT = ((): [number, number, number] => { const v = [0, 0.45, 1.0]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
+/* 광원 (−0.9, 0.45, 1) → (0, 0.45, 1)(2026-10-23 · 가운데 위) → **(−0.5, −0.45, 0.75)**(2026-10-29, 요청: "원작의 빛과 그림자를 잘 살펴봐" → 시안 D "왼쪽에서 빛이 비춘 거" ·
+   "대비 들어간 버전으로") — 왼쪽 · 먼 쪽 · 수직에서 약 42° 누운 빛 하나가 방향광·낯 명암·광택·안 그림자(ISH_L9)·바닥 그림자(SHADOW_K9)를 다 낸다.
+   오른·앞 낯이 어둡고 그림자는 화면 오른아래로 진다. 2D 폴백(shapeOblique LIGHT_PLAN)은 그대로다. */
+const LIGHT = ((): [number, number, number] => { const v = [-0.5, -0.45, 0.75]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
 /** 바닥 그림자의 기울기 — 높이 z 의 꼭짓점이 바닥에서 얼마나 밀리나(= −평면빛/높이빛, shapeOblique 의 LIGHT_PLAN·LIGHT_ELEV 와 같은 자). */
-const SHADOW_K9: [number, number] = [0, -0.25];   // (0.5, −0.25) → (0, −0.25)(2026-10-23 · 광원 가운데 위 — 그림자는 곧장 위로)   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
+const SHADOW_K9: [number, number] = [0.367, 0.33];   // (0, −0.25) → (0.367, 0.33)(2026-10-29 · 위 LIGHT ★ 의 −L.xy/L.z × 0.55 — 오른아래로)   // (0.5, −0.25) → (0, −0.25)(2026-10-23 · 광원 가운데 위 — 그림자는 곧장 위로)   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
 /** ★ 그림자의 **번짐 고리는 걷었다**(2026-09, 지적: "연한 거 진한 거 한 장씩 두 장이 겹친다") ─────────────
  *  같은 실루엣을 1.1 배로 한 번 더 옅게 깔아 가장자리를 무르게 하려던 손이다. 그런데 배수는 **앵커를 축으로**
  *  걸리므로 고리가 실루엣을 감싸는 것이 아니라 **비스듬히 밀린 복사판**이 된다 — 부품마다 진한 타원 옆에
@@ -959,32 +953,41 @@ void main() { vec4 a = textureLod(uT1, v1, 0.0); vec4 b = textureLod(uT0, v0, 0.
  *  칸 색(P0)에만 언샤프(1.5 칸 · 세기 [0])와 광택(4 칸 하이패스의 밝은 면 → 흰 빛 · 세기 [1])을 한 번 얹는다. 붙일 때(SPR_FS9 uLook)와 같은 식이다 —
  *  거리는 굽는 판 텍셀 × 덤프 배수(Q · 폰 h 는 반으로 줄여 실린다). 0 · 0 이면 이 패스를 건너뛴다. 바꾸면 아틀라스를 다시 굽는다(이 상수는 판 해시에 든다). */
 const SPR_LOOK9: [number, number] = [0.5, 0.5];
-/** ★ **안 그림자 견줌**(2026-10-29, 요청: "모델들 대비 살짝 추가 + 내부 그림자 넣어서 구울 거야(내부 부품들 간 그림자 관계 적용) · 시안부터") — 굽기(sprBake9)만 탄다.
- *  칸마다 빛 쪽에서 본 깊이 판(1024² · 정사영 · 모형 반지름에 맞춤)을 먼저 찍고, 본 패스가 그 판을 읽어 다른 부품에 가린 화소의 빛을 깎는다(PCF 3×3).
- *  #ishadow=s(깎는 몫 0~1 · 예 0.35) · #bcon=k(굽는 대비 · 예 1.1). 둘 다 없으면 옛 굽기 그대로. 셰이더는 링크 때 글자로 끼운다(판 해시 안 움직임 — 정하면 템플릿에 넣고 다시 굽는다). */
-const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : 0; })();
-const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : 0; })();
+/** ★ **안 그림자 · 굽는 대비**(2026-10-29, 요청: "모델들 대비 살짝 추가 + 내부 그림자 넣어서 구울 거야(내부 부품들 간 그림자 관계 적용)" → 시안 "안 그림자 0.4" ·
+ *  "대비 들어간 버전으로 할게") — 굽기(sprBake9)만 탄다. 칸마다 빛(LIGHT) 쪽에서 본 깊이 판(ISH_RES9² · 정사영 · 모형 반지름에 맞춤)을 먼저 찍고,
+ *  본 패스가 그 판을 읽어 다른 부품에 가린 화소의 빛을 SPR_ISH9 만큼 깎는다(PCF 3×3 · 셰이더 ISH_FS9). 굽는 대비 SPR_BCON9 는 판에 들고, 메시 길(큰 배율·3D)도
+ *  같은 대비를 탄다(BODY_CON9) — 메시 길에는 안 그림자가 없다(칸마다 깊이 판을 찍는 값이 굽기 몫이다). 바꾸면 아틀라스를 다시 굽는다(SPR_ 줄은 판 해시에 든다).
+ *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
+const SPR_ISH9 = 0.4;
+const SPR_BCON9 = 0.1;
+const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : SPR_ISH9; })();
+const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : SPR_BCON9; })();
+/** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */
+const BODY_CON9: [number, number] = [(1 + CON9[0]) * (1 + BCON9) - 1, CON9[1]];
 const ISH_RES9 = 1024;
-/** ★ **빛 한 벌 견줌**(2026-10-29, 지적: "재생기에서 쏘는 빛과 방향각이 맞아?" · "모델 통째로 깔던 음영(좌상 밝고 우하 어둡던 것) 제거" · "원작의 빛과 그림자를 잘 살펴봐") —
- *  여태 빛이 넷이었다: 방향광 LIGHT(시선 쪽 위) · 바닥 그림자 SHADOW_K9(곧장 위로) · 실루엣 빛 uGrad(화면 왼위 밝음 · 몸 통째 기울기) · 안 그림자 ISH_L9.
- *  #litdir=x,y,z(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 다 그 하나로 낸다. #nograd 는 실루엣 빛을 걷는다.
- *  둘 다 없으면 옛 그림 그대로(이 상수 줄은 판 해시 정규식 밖이다 — 정하면 LIGHT·SHADOW_K9 에 넣고 다시 굽는다). */
+/** 빛 한 벌 견줌 — #litdir=x,y,z(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 그 하나로 낸다. 없으면 LIGHT · SHADOW_K9. */
 const LIGHT_OV9 = ((): [number, number, number] | null => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])litdir=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
   if (!m9) return null;
   const v9 = [Number(m9[1]), Number(m9[2]), Number(m9[3])]; const l9 = Math.hypot(v9[0], v9[1], v9[2]) || 1; return [v9[0] / l9, v9[1] / l9, v9[2] / l9];
 })();
-const NOGRAD9 = typeof location !== "undefined" && /(?:^|[#&,])nograd\b/.test(location.hash);
-/** 빛 한 벌의 바닥 그림자 기울기 — 그림자는 빛 반대쪽으로(높이 1 당 −L.xy/L.z · 옛 자처럼 0.55 배로 줄인다). */
+/** 빛 한 벌의 바닥 그림자 기울기 — 그림자는 빛 반대쪽으로(높이 1 당 −L.xy/L.z · 0.55 배 · SHADOW_K9 와 같은 셈). */
 const SHK_OV9: [number, number] | null = LIGHT_OV9 ? [(-LIGHT_OV9[0] / Math.max(0.2, LIGHT_OV9[2])) * 0.55, (-LIGHT_OV9[1] / Math.max(0.2, LIGHT_OV9[2])) * 0.55] : null;
-/** 안 그림자의 **빛 방향**(세계 자 · 빛 쪽을 가리킨다) — 몸의 방향광(LIGHT · 시선 쪽에서 내리쬔다)으로는 그림자가 몸 **뒤**로 져 화면에 안 보인다.
- *  그래서 실루엣 빛(uGrad · 화면 왼위가 밝다)과 같은 쪽 — 왼쪽(−x) · 먼 쪽(−y) · 위 — 에서 비춘다: 그림자는 화면 오른아래로 진다. #ishl=x,y,z 로 견준다. */
+/** 안 그림자의 빛 방향(세계 자 · 빛 쪽) — 몸의 빛 그대로(#ishl 로만 따로 견준다). */
 const ISH_L9 = ((): [number, number, number] => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishl=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
-  if (!m9 && LIGHT_OV9) return LIGHT_OV9;   // 빛 한 벌(위 LIGHT_OV9 ★)이면 그 빛
-  const v9 = m9 ? [Number(m9[1]), Number(m9[2]), Number(m9[3])] : [-0.55, -0.35, 0.76];
+  if (!m9) return LIGHT_OV9 ?? LIGHT;
+  const v9 = [Number(m9[1]), Number(m9[2]), Number(m9[3])];
   const l9 = Math.hypot(v9[0], v9[1], v9[2]) || 1; return [v9[0] / l9, v9[1] / l9, v9[2] / l9];
 })();
+/* 안 그림자 셰이더 조각(위 SPR_ISH9 ★) — 메시 VS/FS 원본(ES 1.00)에 링크 때 끼운다(WebGL2 만 · 깊이 판·highp). 템플릿이라 판 해시에 든다.
+   FS: 대비보다 먼저(가린 빛을 깎은 뒤 편다) · vLs.xyz = 빛 판 자리(0~1) · vLs.w = 빛을 마주 본 몫(등진 낯은 이미 어둡다 — 두 번 안 깎는다).
+   VS: 빛 판 자리(vLs)와 빛 판 찍기 패스(uShPass · 깊이만 · 등진 낯도 다 찍는다). */
+const ISH_FS9 = `if (uShP.x > 0.5) { highp float sh9 = 0.0; highp float bz9 = vLs.z - uShP.w; for (int i9 = -1; i9 <= 1; i9++) { for (int j9 = -1; j9 <= 1; j9++) { highp float d9 = texture2D(uShTex, vLs.xy + vec2(float(i9), float(j9)) * uShP.z).r; sh9 += bz9 > d9 ? 1.0 : 0.0; } } c *= 1.0 - uShP.y * (sh9 / 9.0) * vLs.w; }`;
+const ISH_VS_POS9 = `  vec3 ls9 = uLsM * vec3(rx, ry, pz);
+  vLs = vec4(ls9.xy * uLsK.x * 0.5 + 0.5, ls9.z * uLsK.y * 0.5 + 0.5, 0.0);
+  if (uShPass > 0.5) { gl_Position = vec4(ls9.xy * uLsK.x, ls9.z * uLsK.y, 1.0); vCol = vec4(1.0); return; }`;
+const ISH_VS_NRM9 = `  vLs.w = clamp(-dot(n, vec3(uLsM[0][2], uLsM[1][2], uLsM[2][2])) * 3.0, 0.0, 1.0);`;
 const FLT_FS9 = `#version 300 es
 precision mediump float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform vec2 uLk; in vec2 v1; in vec2 v0; out vec4 o;
 vec4 tx(vec2 u) { return textureLod(uT1, clamp(u, uR.xy, uR.zw), 0.0); }
@@ -1108,29 +1111,25 @@ export class GlUnits9 implements VecSink9 {
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error("셰이더: " + gl.getShaderInfoLog(s));
       return s;
     };
-    /* 대비 견줌(glTerrain9 CON9 · #con=k) — 메시 FS 의 마지막 색 줄 앞에 글자로 끼운다(FS 원본은 그대로 — 판 해시가 템플릿을 잰다).
-       굽는 동안(sprBake9)은 0 으로 돌린다 — 판에는 대비가 안 들고 붙일 때(SPR_FS9) 얹는다. */
+    /* 몸 대비(BODY_CON9 = 굽는 대비 SPR_BCON9 × 견줌 CON9 · #con=k) — 메시 FS 의 마지막 색 줄 앞에 글자로 끼운다.
+       굽는 동안(sprBake9)은 굽는 대비만 — 판에는 그것이 들고 견줌(CON9)은 붙일 때(SPR_FS9) 얹는다. */
     /* 안 그림자 갈래는 WebGL2 만(깊이 판·highp) — ES 1.00 은 대비만 끼운다. */
     const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;")
       .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
     const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;\nuniform highp sampler2D uShTex; uniform highp vec4 uShP;")
       .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
-      /* 안 그림자(위 ISH9 ★) — 대비보다 먼저(가린 빛을 깎은 뒤 편다). vLs.xyz = 빛 판 자리(0~1) · vLs.w = 빛을 마주 본 몫(등진 낯은 이미 어둡다 — 두 번 안 깎는다). */
-      .replace("gl_FragColor = vec4(c * a9, a9);", "if (uShP.x > 0.5) { highp float sh9 = 0.0; highp float bz9 = vLs.z - uShP.w; for (int i9 = -1; i9 <= 1; i9++) { for (int j9 = -1; j9 <= 1; j9++) { highp float d9 = texture2D(uShTex, vLs.xy + vec2(float(i9), float(j9)) * uShP.z).r; sh9 += bz9 > d9 ? 1.0 : 0.0; } } c *= 1.0 - uShP.y * (sh9 / 9.0) * vLs.w; }\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
-    /* 정점 쪽 — 빛 판 자리(vLs)와 빛 판 찍기 패스(uShPass · 깊이만 · 등진 낯도 다 찍는다). */
+      .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
     const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
-      .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n  vec3 ls9 = uLsM * vec3(rx, ry, pz);\n  vLs = vec4(ls9.xy * uLsK.x * 0.5 + 0.5, ls9.z * uLsK.y * 0.5 + 0.5, 0.0);\n  if (uShPass > 0.5) { gl_Position = vec4(ls9.xy * uLsK.x, ls9.z * uLsK.y, 1.0); vCol = vec4(1.0); return; }")
-      .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n  vLs.w = clamp(-dot(n, vec3(uLsM[0][2], uLsM[1][2], uLsM[2][2])) * 3.0, 0.0, 1.0);");
+      .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
+      .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
     const p = gl.createProgram()!;
-    /* 실루엣 빛 걷기(위 NOGRAD9 ★) — 몸 통째의 왼위 밝음 · 오른아래 어둠 기울기를 0 으로. */
-    const vsUse9 = NOGRAD9 ? vsSh9.replace("if (uDbg < 2.0 || uFlat > 0.5) { gw = 0.0; gb = 0.0; }", "{ gw = 0.0; gb = 0.0; }") : vsSh9;
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsUse9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsCon9)); gl.linkProgram(p);
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsSh9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsCon9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
     for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK"]) this.loc[u] = gl.getUniformLocation(p, u);
-    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, CON9[0], CON9[1]);
+    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -1647,7 +1646,7 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 구운 판 수 · 칸 수 · MB(진단). */
   sprAtlasStat9(): { pages: number; cells: number; mb: number } { return { pages: this.sprFixed.length, cells: this.sprFixedCells.size, mb: this.sprFixedMB }; }
   /** 일감들을 굽는다 — 굽는 판(MSAA)에 지도와 같은 셰이더로 그리고, 풀어서, 칸마다 제 판 자리로 옮긴다. */
-  /** 안 그림자 빛 판(위 ISH9 ★) — 깊이 텍스처 하나(ISH_RES9²) · 못 세우면 null(그림자 없이 굽는다). */
+  /** 안 그림자 빛 판(위 SPR_ISH9 ★) — 깊이 텍스처 하나(ISH_RES9²) · 못 세우면 null(그림자 없이 굽는다). */
   private ishFb9: { fb: WebGLFramebuffer; tex: WebGLTexture } | null | undefined;
   /** 칸 하나의 빛 판을 찍고 본 패스 유니폼을 건다 — 부르는 쪽은 굽는 판(scr.ms)에 메시·칸 기록을 걸어 둔 채다. 끝나면 그 판·뷰포트로 되돌린다. 찍었으면 참. */
   private ishShadow9(m: GlMesh9, inst: number): boolean {
@@ -1700,10 +1699,10 @@ export class GlUnits9 implements VecSink9 {
     return true;
   }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
-    if (CON9[0] === 0 && BCON9 === 0) { this.sprBakeRun9(jobs, dprK); return; }
-    // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 끄고 붙일 때(SPR_FS9) 얹는다. 굽는 대비(BCON9 · 위 ISH9 ★)만 판에 든다.
+    if (BODY_CON9[0] === BCON9) { this.sprBakeRun9(jobs, dprK); return; }
+    // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 굽는 대비(BCON9 · 위 SPR_ISH9 ★)로 돌리고 CON9 는 붙일 때(SPR_FS9) 얹는다.
     const gl = this.gl; gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, BCON9, CON9[1]);
-    try { this.sprBakeRun9(jobs, dprK); } finally { gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, CON9[0], CON9[1]); }
+    try { this.sprBakeRun9(jobs, dprK); } finally { gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); }
   }
   private sprBakeRun9(jobs: SprJob9[], dprK: number): void {
     if (!jobs.length || !this.sprScrEnsure9(this.sprEm)) return;
@@ -1768,7 +1767,7 @@ export class GlUnits9 implements VecSink9 {
           const { j } = batch[b]; const m = lt && j.lt ? j.lt : j.mesh;   // 켜짐 켜 찍기(lt)는 마스크 벌로
           if (j.cam !== camNow) { camNow = j.cam; this.camSet9(j.cam); }
           this.bindMesh9(m);
-          const ish9 = ISH9 > 0 && !j.sh && this.ishShadow9(m, b);   // 안 그림자(위 ISH9 ★) — 빛 판을 먼저 찍고 본 패스가 읽는다
+          const ish9 = ISH9 > 0 && !j.sh && this.ishShadow9(m, b);   // 안 그림자(위 SPR_ISH9 ★) — 빛 판을 먼저 찍고 본 패스가 읽는다
           if (j.sh) {
             gl.uniform1f(this.loc.uShZ, 0.996);
             this.drawRec(0, m.n, b, 1);
