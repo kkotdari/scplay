@@ -12843,7 +12843,12 @@ export default function ReplayMotionPlayer({
         return (
           <div key={`${c9.sec}|${c9.name}|${c9.text}`} className="scr-fs-chat-line">
             {/* 팀챗 · 전체 배지(2026-10-26, 요청: "팀챗은 팀챗, 전체는 전체 배지 달기" · "구분 못 한 건 배지 없이") — scope 는 서버가 저장자로 가른 값(sg-api _chat_scope). */}
-            {c9.scope && <span className={cx("scr-fs-chat-scope", `is-${c9.scope}`)}>{c9.scope === "team" ? "팀챗" : "전체"}</span>}
+            {/* 팀챗 배지는 **말한 사람의 팀색**(2026-10-29, 요청: "팀챗 배지 색을 팀색으로" · 미니맵·전광판과 같은 TEAM_EDGE) — 편을 모르면(관전자·밀리) 옛 녹색(CSS). */}
+            {c9.scope && ((): React.ReactNode => {
+              const tm9 = c9.scope === "team" ? teamOfRaw(c9.name) : undefined;
+              const bg9 = tm9 === 1 || tm9 === 2 ? TEAM_EDGE[tm9] : undefined;
+              return <span className={cx("scr-fs-chat-scope", `is-${c9.scope}`)} style={bg9 ? { background: bg9 } : undefined}>{c9.scope === "team" ? "팀챗" : "전체"}</span>;
+            })()}
             {pl9
               ? <span className="scr-fs-chat-nm" style={{ color: modeColor(c9.name, teamOfRaw(c9.name)) }}>{capName9(c9.name)}</span>
               : <span className="scr-fs-chat-obs">{c9.name}</span>}
