@@ -13176,6 +13176,10 @@ export default function ReplayMotionPlayer({
         else vhHold9.current = { w: window.innerWidth, h: ih9 };
         vhHoldShared9 = { ...vhHold9.current!, t: performance.now() };
       }
+      /* ★ **바 밑 몫**(2026-10-29, 실기 지적: "쇠독 테마일 때 재생기 높이가 더 높아서 안전영역을 넘어감") — 위 예산은 펴진 바 밑까지 반을 더 쓴다(lvh ★). 그 몫(지금 보이는
+         창보다 넘친 px)만큼 조작 줄(.scr-fs-lower > .scr-tb)을 안쪽으로 띄운다 — 판(쇠독 바닥)은 바 밑까지 깔리고 재생 줄·단추는 보이는 자리에 선다. 전체화면은 무대가
+         body 로 옮겨 이 변수를 안 받는다(0). */
+      el.style.setProperty("--scr-bar-under", `${Math.max(0, Math.min(120, Math.round(ih9 - window.innerHeight)))}px`);
       const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
       // 2px 안쪽 흔들림은 무시한다 — 아래 관찰자와 서로 되먹임하지 않게.
       setFrameMaxH((v) => (Math.abs(v - want) > 2 ? want : v));
