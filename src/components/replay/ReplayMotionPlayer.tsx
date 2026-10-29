@@ -12832,7 +12832,7 @@ export default function ReplayMotionPlayer({
   /* ★ **채팅 표시**(2026-10-19, 요청: "채팅 표시 추가 · 왼쪽 자막이랑 안겹치는 아래쪽에 표시 · 표시 시간은 약 5초") — 경기 채팅(chats9 · 자취 받기의 chats)을 무대 **왼아래**에
      [말한 사람 칩] 글 꼴로 띄운다. 한 줄은 그 말을 한 때부터 화면 시간 CHAT_SHOW9 초(게임 초 = × 배속) · 한꺼번에 CHAT_MAX9 줄(새 줄이 아래). 자막과 안 겹치게
      **자막이 맡는 최대 키(--cap-res) 위**(--over-cap)에 선다 — 배속 다이얼도 같은 줄(같은 날 요청: "자막은 폭을 거의 다 사용 · 배속표시와 채팅은 자막 위에 놓이게" · replay.css). */
-  const CHAT_SHOW9 = 10;   // 5 → 10(2026-10-26, 요청: "채팅은 10초간 유지")
+  const CHAT_SHOW9 = 20;   // 5 → 10(2026-10-26, 요청: "채팅은 10초간 유지") → 20(2026-10-29, 요청: "채팅 유지시간 20초로 늘리고 배포")
   const CHAT_MAX9 = 10;   // 4 → 10(2026-10-26, 요청: "채팅 최대 노출 개수 10개")
   const chatsSorted9 = useMemo(() => (chats9 ? [...chats9].sort((a9, b9) => a9.sec - b9.sec) : []), [chats9]);
   const chatNow9 = chatsSorted9.filter((c9) => c9.sec <= t && t < c9.sec + CHAT_SHOW9 * Math.max(1, speed)).slice(-CHAT_MAX9);
