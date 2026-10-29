@@ -39,11 +39,13 @@ const VER_FILES = [
 ];
 export function atlasVer() {
   const h = createHash("sha1");
-  for (const f of VER_FILES) { const p = join(ROOT, f); h.update(f); if (existsSync(p)) h.update(readFileSync(p)); }
+  /* 줄 끝은 LF 로 접어 잰다(2026-10-29 · 윈도 클론은 core.autocrlf 로 CRLF 라 같은 소스가 다른 판으로 읽혔다). */
+  const lf9 = (p) => readFileSync(p, "utf8").replace(/\r\n/g, "\n");
+  for (const f of VER_FILES) { const p = join(ROOT, f); h.update(f); if (existsSync(p)) h.update(lf9(p)); }
   /* gl9 는 셰이더(템플릿 문자열)와 칸·빛 상수만 — 다른 손질마다 다시 굽지 않게. */
   /* ★ 그리기 전용(굽는 그림에 안 든다) 셰이더·상수는 뺀다(2026-10-27) — 스프라이트를 **붙이는** 셰이더(SPR_VS9·SPR_FS9)와 묶음 상수(SPR_K9·SPR_KRUN9)는
      덤프가 읽는 판 픽셀(굽는 셰이더 renderBatch)과 무관하다. 넣어 두면 붙이는 쪽만 고쳐도 다시 굽기(80분)를 부른다. */
-  const gl = readFileSync(join(ROOT, "src/components/replay/gl9.ts"), "utf8").replace(/^const SPR_(VS9|FS9) = `[^`]*`;?$/gm, "");
+  const gl = lf9(join(ROOT, "src/components/replay/gl9.ts")).replace(/^const SPR_(VS9|FS9) = `[^`]*`;?$/gm, "");
   for (const m of gl.match(/`[^`]*`/g) ?? []) h.update(m);
   for (const m of gl.match(/^const (SPR_[A-Z0-9_]+|LIGHT|SHADOW_K9|MODEL_PERSP|GL_SPEC9|GL_SHADE9)\b.*$/gm) ?? []) if (!/^const SPR_(K9|KRUN9)\b/.test(m)) h.update(m);
   return h.digest("hex").slice(0, 12);
