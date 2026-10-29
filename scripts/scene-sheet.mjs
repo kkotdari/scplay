@@ -152,11 +152,15 @@ function makeWorld(race, zFix = 0) {
       [F(0), x * 32, y * 32, 0, 0, type], [F(d9 ?? GAME_SEC), x * 32, y * 32, 0, d9 !== null ? 3 : 0, type]],   // 3 = TRUTH_ST_GONE(죽음)
       hp: d9 !== null ? [[F(0), 5000], [F(d9), 0]] : hurtTicks() });
   };
+  /* --dieunits(2026-10-29 · 프로토스 기계 플라즈마 구체 보기) — 유닛도 --die 차례로 죽는다. */
+  const DIE_U = process.argv.includes("--dieunits") && DIE !== null;
   const unitTrack = (type, x, y) => {
     const keys = [];
+    const d9 = DIE_U ? DIE + DIE_STEP * dieN++ : null;
     // 방향은 정면(남쪽, 화면 아래 = 방향 바이트 128)(요청: "유닛들도 방향은 정면을 향하게").
-    for (let s = 0; s <= GAME_SEC; s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), HB, 0, type]);
-    tracks.push({ tag: tag++, owner: 0, type, keys, hp: null });
+    for (let s = 0; s <= (d9 ?? GAME_SEC); s += 0.75) keys.push([F(s), Math.round(x * 32), Math.round(y * 32), HB, 0, type]);
+    if (d9 !== null) keys.push([F(d9), Math.round(x * 32), Math.round(y * 32), HB, 3, type]);
+    tracks.push({ tag: tag++, owner: 0, type, keys, hp: d9 !== null ? [[F(0), 500], [F(d9), 0]] : null });
   };
   const labels = [];
   // 짧은 이름 — 괄호는 머리글자로(Siege Tank (Siege Mode) → Siege Tank(S)).

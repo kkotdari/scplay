@@ -5474,3 +5474,6 @@
    뿌리(.scr-motion-root · 전체화면 무대 .scr-fs-layer)에 is-asking 이면 보기 모드 판만 누름을 받는다.  키는 JS 가 막는다. */
 .scr-motion.is-asking, .scr-motion.is-asking * { pointer-events: none !important; }
 .scr-motion.is-asking .scr-mode-ask, .scr-motion.is-asking .scr-mode-ask * { pointer-events: auto !important; }
+/* ★ 전광판 닉네임 도로 칩(2026-10-29, 요청: "독 전광판의 닉네임은 시인성이 안 좋아서 전처럼 칩 형태로") — 칩은 임자색 바탕 한 장(chipStyle 인라인)이고 .is-split 은 안 붙는다.
+   폰의 '보여 주는 사람' 표시는 같은 화면 주인 초록 테(칩 바깥 1px) — 바탕은 임자색 그대로. */
+.scr-fs-rosterpanel .scr-dock-row .scr-dock-name.is-picked:not(.is-split) { box-shadow: 0 0 0 1px var(--scr-sc-green); }

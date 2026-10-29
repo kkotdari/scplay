@@ -3398,17 +3398,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const ly9 = 0;
       const kc9 = u9 < 0.18 ? 0.3 + (1 - 0.3) * (u9 / 0.18) : key3v9((u9 - 0.18) / 0.82, 1, 1.5, 1.9, 0.51);
       const ac9 = u9 < 0.18 ? 0.2 + 0.8 * (u9 / 0.18) : key3v9((u9 - 0.18) / 0.82, 1, 0.5, 0, 0.51);
-      if (rk9 === "toss") {
-        blit9(radOf9("clp-toss-core"), kc9, ac9, ly9);
-        const kr9 = u9 < 0.16 ? 0.2 + 0.5 * (u9 / 0.16) : key3v9((u9 - 0.16) / 0.84, 0.7, 1.9, 2.5, 0.52);
-        const ar9 = u9 < 0.16 ? u9 / 0.16 : key3v9((u9 - 0.16) / 0.84, 1, 0.7, 0, 0.52);
-        if (ar9 > 0.01) {
-          ctx.globalAlpha = ar9;
-          ctx.strokeStyle = "rgba(150,200,255,0.85)";
-          ctx.lineWidth = Math.max(0.6, 2 * zoom);
-          ctx.beginPath(); ctx.arc(ax, ay + ly9, (W9 * kr9) / 2, 0, Math.PI * 2); ctx.stroke();
-        }
-      } else {
+      /* 프로토스 고리·심은 걷었다(2026-10-29 · drawBurst9 의 플라즈마 구체 ★ — "원 표현만 제거"). */
+      if (rk9 !== "toss") {
         blit9(radOf9(`clp-${rk9}-smoke`), key3v9(u9, 0.6, 1.1, 1.6, 0.3),
           key3v9(u9, 0, 0.8, 0, 0.3), ly9 + key3v9(u9, 0, -4, -14, 0.3) * zoom);
         blit9(radOf9(`clp-${rk9}-core`), kc9, ac9, ly9);
@@ -3918,15 +3909,14 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     /* (2026-10-19 요청: "가운데 빈공간 없게 선을 구심점부터 채우고 선 밀도 두배로 크기(반지름) 반으로 축소") — 부풂 자를 반으로(RK9 0.5 —
        빛무리·심·빛줄기 끝이 다 이 자를 탄다) · 줄기 수 두 배(건물 336·유닛 224) · 줄기 밑을 **구심점(0)** 에 붙였다(옛: 밑이 W·0.08 + 끝의 85% 로
        뒤따라 나가 가운데가 비었다). */
+    /* ★ **플라즈마 에너지 폭발 구체**(2026-10-29, 요청: "건물 — 현재 효과에서 원 표현만 제거하고 대신 플라즈마 에너지 폭발 구체 · 기계 유닛 — 플라즈마 에너지
+       폭발 구체로 변경 · 기본은 거의 흰색에 가장자리만 푸른색으로 자연스럽게 이어지며 살짝 확대하며 사라지는 효과") — 바탕 빛무리(plasma-glow)·흰 심(plasma-core)
+       원반과 건물 무너짐의 프로토스 고리·심(clp)을 걷고 구체 한 장(plasma-orb · 구운 방사 판)으로. 건물은 빛줄기를 그대로 두고 그 위에 구체 · 기계 유닛은 구체만.
+       반지름 W × (건물 0.42 · 유닛 0.5) × (0.85 → 1.15 · 이즈) · 알파는 앞 6% 에 차오르고 (1 − p)^1.3 으로 스러진다. */
     const RK9 = 0.5;
-    const R9 = W * (0.22 + 0.78 * ease) * RK9;
     const fade = 1 - p;
-    const glow9 = domSpr9("plasma-glow", (c9, S9) => radLay9(c9, S9,
-      [[0, "rgba(150,205,255,0.9)"], [0.3, "rgba(90,160,255,0.45)"], [0.71, "rgba(60,130,255,0)"]]));
-    ctx.globalAlpha = 0.32 * fade;
-    ctx.drawImage(glow9, ax - R9 * 1.15, ay - R9 * 1.15, R9 * 2.3, R9 * 2.3);
-    // 빛줄기 — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
-    const NR9 = bld ? 336 : 224;
+    // 빛줄기(건물만) — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
+    const NR9 = bld ? 336 : 0;
     const tipE9 = 1 - (1 - p) ** 3;
     const RAY_COL9 = ["#2f6fe0", "#6fb8ff", "#eef8ff"];
     const RAY_AL9 = [0.85, 0.9, 1];
@@ -3955,12 +3945,12 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       ctx.globalAlpha = RAY_AL9[c9] * fade ** 0.8; ctx.fillStyle = RAY_COL9[c9];
       ctx.fill();
     }
-    // 심 — 테 없는 흰 빛무리(구운 판). 가운데가 가장 밝고 밖으로 무르게 스러진다(원반을 겹치면 다시 동심원이 된다).
-    const core9 = domSpr9("plasma-core", (c9, S9) => radLay9(c9, S9,
-      [[0, "rgba(255,255,255,1)"], [0.16, "rgba(255,255,255,0.95)"], [0.36, "rgba(200,232,255,0.55)"], [0.71, "rgba(140,200,255,0)"]]));
-    const cr9 = R9 * 0.62 * (1 - p * 0.35);
-    ctx.globalAlpha = Math.min(1, 1.2 * fade) ** 0.6;
-    ctx.drawImage(core9, ax - cr9, ay - cr9, cr9 * 2, cr9 * 2);
+    // 구체 — 속은 거의 흰빛 · 가장자리만 푸르게 무르게 이어진다(판 반지름 = 그린 상자 반 · 방사 자 0.71 이 가장자리).
+    const orb9 = domSpr9("plasma-orb", (c9, S9) => radLay9(c9, S9,
+      [[0, "rgba(255,255,255,1)"], [0.34, "rgba(250,253,255,1)"], [0.48, "rgba(220,239,255,0.96)"], [0.58, "rgba(150,202,255,0.82)"], [0.66, "rgba(80,148,255,0.42)"], [0.71, "rgba(55,115,255,0)"]]), 128);
+    const or9 = W * (bld ? 0.42 : 0.5) * (0.85 + 0.3 * ease);
+    ctx.globalAlpha = Math.min(1, p / 0.06) * fade ** 1.3;
+    ctx.drawImage(orb9, ax - or9, ay - or9, or9 * 2, or9 * 2);
   } else {
     /* ★ 프로토스 **유닛** — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────
        원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
@@ -9372,7 +9362,7 @@ function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>)
   }
   return out9 ?? ops;
 }
-/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 5 · PC 30). */
+/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 10 · PC 30). */
 const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
 /** `#trace9` — 움직이는 몸 하나의 그린 자리를 그리기마다 적는다(window.__trace9 · 진단 · 2026-10-28 "구간 → 구간으로 움직인다"). */
 const TRACE9: { key: string; rows: number[][] } | null = typeof location !== "undefined" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
@@ -16940,7 +16930,7 @@ export default function ReplayMotionPlayer({
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 5 : 30,   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤)
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
       });
     }
   }
@@ -20089,7 +20079,7 @@ export default function ReplayMotionPlayer({
                       <span className="scr-dock-namewrap">
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
-                          className={cx("scr-motion-teamcol-name scr-dock-name is-split", uiPhone9 && shown9 && "is-picked")}
+                          className={cx("scr-motion-teamcol-name scr-dock-name", uiPhone9 && shown9 && "is-picked")} style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
                           role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} aria-pressed={uiPhone9 ? on9 : undefined} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
@@ -20097,11 +20087,11 @@ export default function ReplayMotionPlayer({
                               ★ 임자색 바탕은 **배지 칸까지만**(2026-10-16, 요청: "전광판 유저칩을 종족배지 부분까지만 배경을 넣고 닉네임은 배경 제거하고 칩 밖으로 뺌") —
                               배지를 감싼 칸(.scr-dock-chipbox)이 임자색을 지고 닉네임(.scr-dock-nm)은 바탕 없이 그 옆에 선다.
                               ★ 배지 칸의 임자색 바탕은 걷었다 — 종족 원만 남는다(2026-10-23, 요청: "종족배지 임자색 배경패널 없애기 원만 남겨").
-                              ★ 닉네임 글자는 **임자색**(2026-10-23, 요청: "모든 글씨 흰색은 아니고 잘 살펴봐야 함" — 원작 점수판은 이름만 임자색 · 숫자는 흰색). */}
-                          <span className="scr-dock-chipbox">
-                            {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
-                          </span>
-                          <span className="scr-dock-nm" style={{ color: modeColor(m.key, m.team) }}>{m.name}</span>
+                              ★ 닉네임 글자는 **임자색**(2026-10-23, 요청: "모든 글씨 흰색은 아니고 잘 살펴봐야 함" — 원작 점수판은 이름만 임자색 · 숫자는 흰색).
+                              ★★ **도로 칩**(2026-10-29, 요청: "재생기 독 전광판의 닉네임은 시인성이 안 좋아서 전처럼 칩 형태로 변경") — 임자색 바탕 칩 하나에 배지 + 이름
+                              (글자는 바탕 밝기로 흑/백 · chipStyle) · 10-16 의 배지 칸만 칠하기(.is-split · .scr-dock-chipbox · .scr-dock-nm)를 걷었다(그 CSS 는 안 쓰인 채 남는다). */}
+                          {m.race && raceLetter9(m.race) ? <span className="scr-motion-teamcol-race">{raceLetter9(m.race)}</span> : null}
+                          {m.name}
                         </span>
                         {trophy9 && <span className="scr-dock-trophy" aria-label="승리">🏆</span>}
                       </span>
