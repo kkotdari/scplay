@@ -1825,6 +1825,12 @@ function lowZoomTrim9(zoom9: number, pitched9: boolean): 0 | 1 | 2 {
   return (pitched9 ? c9.k3 : c9.k) < 1 ? 2 : 1;
 }
 /** 1단에서 생략하는 꾸밈 효과(옛 DOM 갈래의 style) — 없어도 상황이 안 읽히지는 않는 것들. */
+/** ★ 판 예산 붙들기(vhHold9)의 **넘김**(2026-10-29, 지적: "모바일에서 게임목록 스크롤 다운하다가 탭 축소된 상황에서 게임상세 들어가면 게임무대가 한번 세로가
+ *  작아짐") — 게임 상세는 자료를 받는 동안 기다리는 재생기(앱 PlayerLoadShell · pending)를 먼저 세우고, 자료가 오면 **새 재생기**가 그 자리를 받는다. 목록을 내려
+ *  사파리 탭바가 접힌 채 들어오면 앞 재생기는 큰 높이를 붙들고, 그사이 페이지가 맨 위로 가며 바가 펴진다 — 뒤 재생기는 제 붙들기가 비어 펴진 작은 높이를 처음 값으로
+ *  잡아 무대가 한 번 줄었다. 그래서 붙든 값을 모듈에 두고, 붙들기가 빈 새 재생기가 **방금(20초 안) 같은 폭에서** 붙든 값을 이어받는다. 전체화면을 들고나면 걷는다. */
+let vhHoldShared9: { w: number; h: number; t: number } | null = null;
+const VH_HOLD_PASS_MS9 = 20000;
 /** 바를 걷은 화면 높이(100lvh · px) — 못 재면 0. 숨은 탐침 하나를 두고 잰다(CSS 단위를 JS 가 바로 못 읽는다). */
 let lvhProbe9: HTMLDivElement | null = null;
 function lvhOf9(): number {
@@ -13086,6 +13092,8 @@ export default function ReplayMotionPlayer({
    *  높이 변화가 35% 미만이면 주소창(또는 그 비슷한 브라우저 UI)으로 보고 **처음 잰 높이를 그대로 쓴다**. 폭이 바뀌면(회전)
    *  다시 잰다. 자판(40~50%)은 넘겨 진짜 변화로 친다. */
   const vhHold9 = useRef<{ w: number; h: number } | null>(null);
+  /** 전체화면 이펙트가 한 번 돌았나(마운트 다음부터가 진짜 전환 — 아래 vhHoldShared9 걷기). */
+  const fsSeen9 = useRef(false);
   useLayoutEffect(() => {
     const el = frameRef.current;
     if (!el || typeof window === "undefined") return undefined;
@@ -13124,12 +13132,16 @@ export default function ReplayMotionPlayer({
            바를 걷은 높이(100lvh)와의 차의 **반**을 더 쓴다 — 다 쓰면 펴진 바 밑으로 독이 들어가고, 안 쓰면 비어 보인다. */
         const lv9 = lvhOf9();
         if (lv9 > ih9) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
+        if (!vhHold9.current && vhHoldShared9 && performance.now() - vhHoldShared9.t < VH_HOLD_PASS_MS9) {
+          vhHold9.current = { w: vhHoldShared9.w, h: vhHoldShared9.h };   // 앞 재생기가 붙든 값을 잇는다(위 vhHoldShared9 ★)
+        }
         const m9 = vhHold9.current;
         /* ★ 붙드는 것은 **줄어드는 쪽**뿐이다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") — 판이 서는 순간 주소창·
            탭바가 펴져 있으면(목록에서 눌러 들어오는 길) 그 작은 높이를 붙든 채 영영 안 놓아, 바가 접힌 뒤에도 아래가 통째로
            비었다. 커지는 쪽은 받아들인다 — 한 번 커지면 다시 펴질 때 안 줄어드므로 들썩임은 처음 한 번뿐이다. */
         if (m9 && m9.w === window.innerWidth && ih9 <= m9.h && m9.h - ih9 < m9.h * 0.35) ih9 = m9.h;
         else vhHold9.current = { w: window.innerWidth, h: ih9 };
+        vhHoldShared9 = { ...vhHold9.current!, t: performance.now() };
       }
       const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
       // 2px 안쪽 흔들림은 무시한다 — 아래 관찰자와 서로 되먹임하지 않게.
@@ -14382,6 +14394,9 @@ export default function ReplayMotionPlayer({
     if (stageHost9) { const to9 = fsOn ? document.body : frameRef.current; if (to9 && stageHost9.parentNode !== to9) to9.appendChild(stageHost9); }
     stageHold9.current = null;
     vhHold9.current = null;
+    /* 넘김(vhHoldShared9 ★)도 걷는다 — 단 **처음 서는 때**는 빼야 한다(이 이펙트는 마운트 때도 돈다 · 그때 걷으면 앞 재생기의 값을 못 잇는다). */
+    if (fsSeen9.current) vhHoldShared9 = null;
+    fsSeen9.current = true;
     const r9 = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     return () => cancelAnimationFrame(r9);
   }, [fsOn, stageHost9]);
