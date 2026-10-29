@@ -9355,13 +9355,15 @@ function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>)
   }
   return out9 ?? ops;
 }
-/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 5 · PC 30). */
+/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 10 · PC 30). */
 const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
 /** `#trace9` — 움직이는 몸 하나의 그린 자리를 그리기마다 적는다(window.__trace9 · 진단 · 2026-10-28 "구간 → 구간으로 움직인다"). */
 const TRACE9: { key: string; rows: number[][] } | null = typeof location !== "undefined" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
 if (TRACE9 && typeof window !== "undefined") (window as unknown as { __trace9?: unknown }).__trace9 = TRACE9;
-/** `#lin` — 곡선 보간을 끄고 옛 직선 보간으로(견줌). */
-const LIN9 = typeof location !== "undefined" && /(^|[#&,])lin\b/.test(location.hash);
+/** ★ **직선 보간이 기본**(2026-10-29, 실기 지적: "모바일 재생기 10~20fps · 1초에 두세 번만 화면이 바뀌는 느낌" → `#wfps=20,lin` "붙이니 좋아짐" →
+ *  `#wfps=10,lin` "10 괜찮아") — 곡선 보간(herm9 · 앞뒤 이웃 장 풀기)·효과 밀기(fxAdvance9)는 폰 메인 스레드에 무거워 그리기가 18fps 로 처지고 장 사이가 끊겨 보였다.
+ *  곡선 갈래는 `#herm` 으로 견준다(옛 `#lin` 은 이제 기본이라 뜻이 없다). */
+const LIN9 = !(typeof location !== "undefined" && /(^|[#&,])herm\b/.test(location.hash));
 /** ★ **곡선 보간**(2026-10-28, 요청: "보간은 부드럽게 해서 티 안 나게") — 두 장 사이를 직선으로 이으면 장이 성길수록(폰 초당 5장 · 8배속이면
  *  장 사이가 게임 1.6초) 꺾는 자리에서 모서리를 깎고 장마다 빠르기가 툭 바뀐다. 앞·뒤 이웃 장(p0·p3)으로 양 끝의 기울기를 잡아 3차 에르미트로 잇는다.
  *  넘침(멈추는 자리에서 지나쳤다 돌아옴)은 축마다 막는다 — 두 장 사이 변화가 0 이면 기울기 0 · 기울기 부호가 변화와 다르면 0 · 크기는 변화 기울기의 3배까지
@@ -16906,9 +16908,9 @@ export default function ReplayMotionPlayer({
       w9.postMessage({
         type: "cmd", playing: playing9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
-        /* 장 간격의 바탕 — 폰 초당 5장(2026-10-28 덜 그리기 · 옛 20 → 10 → 5 — 장 사이는 곡선 보간(herm9)·컷 처방(pz)·효과 밀기(fxAdvance9)가 그리는 시각으로 잇는다 ·
-           워커 일 4분의 1) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 5 : 30,
+        /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
+           그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,
       });
     }
   }
