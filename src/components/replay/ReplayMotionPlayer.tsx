@@ -9276,6 +9276,8 @@ export const sceneLinkOf9 = (src: string | URLSearchParams): SceneLink9 | null =
 const EMPTY_ARR9: never[] = [];
 /** React 상태 t를 올리는 간격(ms) — 유닛 캔버스는 틱이 프레임마다 칠하고, React는 이 박자로만 렌더한다(4번). */
 const REACT_STEP_MS9 = 100;
+/** 미니맵 박자(ms) — 붓 틱이 이 간격마다 미니맵을 다시 칠한다(초당 15장 · 아래 그리기 틱 ★ · 2026-10-29 "미니맵 끊겨"). React 박자(폰 보통 이하 0.2초)와 따로다. */
+const MINI_GAP_MS9 = 66;
 /** 손짓 중 React 박자(ms) — 끄는 동안의 멈칫을 줄인다(틱의 ★ 손짓 중 0.4초). */
 const XF_REACT_MS9 = 400;
 /* (옮김) 핵·스톰 동안의 React 박자 — 기기의 **힘**으로 갈라야 해서 nukeStep9로 갔다(CROWD9 옆 ★). */
@@ -12832,7 +12834,7 @@ export default function ReplayMotionPlayer({
   /* ★ **채팅 표시**(2026-10-19, 요청: "채팅 표시 추가 · 왼쪽 자막이랑 안겹치는 아래쪽에 표시 · 표시 시간은 약 5초") — 경기 채팅(chats9 · 자취 받기의 chats)을 무대 **왼아래**에
      [말한 사람 칩] 글 꼴로 띄운다. 한 줄은 그 말을 한 때부터 화면 시간 CHAT_SHOW9 초(게임 초 = × 배속) · 한꺼번에 CHAT_MAX9 줄(새 줄이 아래). 자막과 안 겹치게
      **자막이 맡는 최대 키(--cap-res) 위**(--over-cap)에 선다 — 배속 다이얼도 같은 줄(같은 날 요청: "자막은 폭을 거의 다 사용 · 배속표시와 채팅은 자막 위에 놓이게" · replay.css). */
-  const CHAT_SHOW9 = 20;   // 5 → 10(2026-10-26, 요청: "채팅은 10초간 유지") → 20(2026-10-29, 요청: "채팅 유지시간 20초로 늘리고 배포")
+  const CHAT_SHOW9 = 15;   // 5 → 10(2026-10-26, 요청: "채팅은 10초간 유지") → 20(2026-10-29, "채팅 유지시간 20초로") → 15(같은 날, "채팅 유지 15초로")
   const CHAT_MAX9 = 10;   // 4 → 10(2026-10-26, 요청: "채팅 최대 노출 개수 10개")
   const chatsSorted9 = useMemo(() => (chats9 ? [...chats9].sort((a9, b9) => a9.sec - b9.sec) : []), [chats9]);
   const chatNow9 = chatsSorted9.filter((c9) => c9.sec <= t && t < c9.sec + CHAT_SHOW9 * Math.max(1, speed)).slice(-CHAT_MAX9);
@@ -19621,6 +19623,9 @@ export default function ReplayMotionPlayer({
         camStepRef9.current?.(performance.now());   // 카메라 한 걸음(위 camTickOwnRef9 ★) — 붓이 그 눈으로 칠한다
         paintFnRef9.current?.(next9);
         const nowR9 = performance.now();
+        /* ★ 미니맵도 붓 틱이 민다(2026-10-29, 실기 지적: "미니맵 너무 프레임이 낮아서 끊겨") — 미니맵은 React 리렌더(tick = t)에만 다시 그렸는데, 폰 보통 이하는
+           React 박자가 0.2초(reactStepRef9 · 2026-10-28 덜 그리기)라 초당 5장이었다. 그리기 틱에서 MINI_GAP_MS9 마다 한 장(점은 붓이 방금 낸 opsRef) — React 몫은 그대로 겹쳐도 같은 그림. */
+        if (nowR9 - miniAtRef9.current >= MINI_GAP_MS9) { miniAtRef9.current = nowR9; miniPaintRef.current?.(zoomRef.current, panRef.current); }
         /* 시계는 메인 하나(frameWorker ClkMsg ★) — 그린 시각을 50ms 마다 워커에 붙인다. */
         { const wk9 = frameWorkerRef.current; if (wk9 && nowR9 - clkAtRef9.current >= 50) { clkAtRef9.current = nowR9; wk9.postMessage({ type: "clk", t: next9 }); } }
         /* ★ 손짓 중엔 React 박자를 **0.4초**로(2026-10-25, 지적: "드래그시 부드러운데 중간중간 좀 멈칫") — React 한 장은 재생기 전체 렌더라 폰에서 15ms 안팎이고,
