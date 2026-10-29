@@ -4,7 +4,7 @@
    (sprAtlasTexture9 → sprAtlasAdd9). 칸 열쇠는 재생기와 같아(같은 셰이더·같은 열쇠 셈으로 구웠다) 붓은 그대로 그 칸을 찾는다 — 없는 칸은 종전대로 재생 중에 굽는다.
    ⚠ 앱이 setReplaySpriteAtlas({ base }) 로 자리를 줘야 켜진다(배경 음악 setReplayBgm 과 같은 꼴). base 아래 basis/basis_transcoder.{js,wasm} 도 둔다. */
 import { SPR_ATLAS_INDEX9 } from "./sprAtlas.gen";
-import type { GlUnits9 } from "./gl9";
+import { SPR_YAW32_9, type GlUnits9 } from "./gl9";
 
 let BASE: string | null = null;
 /** 아틀라스 자리(앱이 준다 · 예: "/spr") — null 이면 끈다. */
@@ -203,7 +203,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       const cells = [];
       for (const [key0, px, py, w, h, x0, y0, kd] of j.ch.cells) {
         let key = key0;
-        if (yaw8) { const p = key0.split("|"); const yb = Number(p[p.length - 6]); if (yb % 2) continue; p[p.length - 6] = String(yb / 2); key = p.join("|"); }
+        if (yaw8 && !SPR_YAW32_9.has(j.kind)) { const p = key0.split("|"); const yb = Number(p[p.length - 6]); if (yb % 2) continue; p[p.length - 6] = String(yb / 2); key = p.join("|"); }
         cells.push({ key, px: px * k, py: py * k, w: w * k, h: h * k, x0: x0 * k, y0: y0 * k, kd: kd * k });
       }
       r.cells += g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells, jt);

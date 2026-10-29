@@ -112,11 +112,13 @@ const pageOf = (i) => {
   return pages.get(i);
 };
 const ybOf = (key) => { const p = key.split("|"); return Number(p[p.length - 6]); };
+/** 32칸 머리(gl9 SPR_YAW32_9 와 같은 목록) — 짝·홀로 안 가르고 다 a 에(요잉 8 기기도 32칸을 다 받는다). */
+const YAW32 = new Set(["turrethead", "comsatdish"]);
 const groups = new Map();
 let untagged = 0;
 for (const c of meta.cells) {
   if (!c.tag) { untagged += 1; continue; }
-  const g = `${c.tag}.${ybOf(c.key) % 2 === 0 ? "a" : "b"}`;
+  const g = `${c.tag}.${YAW32.has(c.tag) || ybOf(c.key) % 2 === 0 ? "a" : "b"}`;
   if (!groups.has(g)) groups.set(g, []);
   groups.get(g).push(c);
 }

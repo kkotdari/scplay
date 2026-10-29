@@ -109,7 +109,7 @@ import {
   GAS_KINDS9, warmShapeFaces9,
 } from "./bake9";
 import { sprAtlasLoad9, sprAtlasOn9 } from "./sprAtlas9";
-import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, SPR_YAW32_9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -719,7 +719,9 @@ const PITCH_HASH9 = typeof location !== "undefined" && /(?:^|[#&,])3d=1/.test(lo
 /* PC 늘림 상한 1.0 → **0.6**(2026-10-24, 지적: "일부 유닛은 아직도 높은 배율에서 선명하지 않음(울트라 등)") — 큰 몸은 칸 상한(160px)에 걸려 낮은 단으로 구워지고, 1.0 이면 그 그림을
    거의 1:1 로 붙여 MSAA 구운 가장자리가 선형 보간에 뭉갰다(작은 몸은 같은 배율에서 이미 상한을 넘어 메시라 또렷). 0.6 이면 판은 **줄여 붙일 때만** 쓰고 그 위는 메시다.
    폰·저사양 PC 는 ∞ 그대로(메시가 더 비싸다). */
-const SPR_UP_PC9 = 0.6;
+/* ★ **PC 도 메시를 안 쓴다**(2026-10-29, 요청: "8배로 하되 메시 미사용") — 0.6 → ∞. 상한 8배에서 서버 아틀라스(2배 칸)의 늘림은 보통 모니터 ≤0.65 ·
+   레티나(dpr 2) 큰 몸 ≤1.3(살짝 무르다 · 실측 scene-sheet --sprprobe 배율 3 × 8/3). 메시 길에는 안 그림자가 없어 판과 그림이 달랐다(gl-renderer.md '빛 D'). */
+const SPR_UP_PC9 = Infinity;
 /** 판 프로필은 **기기 이름**으로(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸" — gl9 glSprTune9 ★): 폰은 어느 단이든 판 14 · 예산 24(높음 32) ·
  *  미리 찍기 6(높음 8) · 굽기 MSAA 0. PC 는 판 36 · 예산 96 · 미리 24 · MSAA 는 붓과 같이.
  *  ★ 폰은 **바이트 상한**(낮음 192 · 보통 256 · 높음 320MB)이 판 수를 정하고 빛 켜를 안 세운다(2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐" —
@@ -9161,7 +9163,7 @@ export const playbackClockOf = new Map<string, number>();
  *  읽는 쪽은 안 따라와, 12배에서 공유한 장면이 받는 쪽에서 8배로 열렸다.
  *  DEEP_MIN_ZOOM이 8에 못 박혀 밀려 있던 것과 **같은 갈래의 흠**이다: 사다리에 매인 수를
  *  두 곳에 적으면 언젠가 한쪽만 고쳐진다. 값을 내보내 자를 하나로 둔다. */
-export const PLAYBACK_ZOOM_MAX = 12;   // 확대 사다리의 맨 위(요청: 1-2-4-8 → 16 칸 추가 → 2026-10-23 "최대 확대를 좀 낮추고 · 12배로" 16 → 12)
+export const PLAYBACK_ZOOM_MAX = 8;   // 확대 사다리의 맨 위(요청: 1-2-4-8 → 16 칸 추가 → 2026-10-23 "최대 확대를 좀 낮추고 · 12배로" 16 → 12 → 2026-10-29 "12배율은 사용하지 말자 … 8배로 하되 메시 미사용" 8)
 /** 경기별 **지금 배속**(요청: 공유 파라미터에 속도 추가) — 시각·자리와 같은 결이다:
  *  받는 쪽이 같은 장면을 보려면 '어디를'과 '언제'뿐 아니라 '얼마나 빠르게'도 같아야 한다.
  *  1배는 안 싣는다(기본값이라 주소만 길어진다 — &t=·&z=와 같은 규약). */
@@ -12454,7 +12456,7 @@ export default function ReplayMotionPlayer({
      '더 크게 보는' 자리를 남기면서도 판이 남는다. */
   /* ★ 확대 상한은 **기기 단**을 본다(2026-10-24, 요청: "성능에 따라 구워놓는 그림 배율을 바꿔야 할 듯 · 그에 맞춰서 확대 배율 제한") — 0단(낮음)은 8배까지(판을 늘려 찍는 자리를 안 연다) ·
      그 위는 PLAYBACK_ZOOM_MAX. 판보다 큰 배율의 선명함은 gl9 의 sprUpMax(판을 1.25~1.6배 넘게 늘려야 하면 그 몸은 메시로)가 맡는다(glSprTune9 · 단이 높을수록 엄격). */
-  const ZOOM_MAX = TIER9.v === 0 ? Math.min(8, PLAYBACK_ZOOM_MAX) : PLAYBACK_ZOOM_MAX;
+  const ZOOM_MAX = PLAYBACK_ZOOM_MAX;   // 2026-10-29 상한 8 — 단과 무관(0단의 8 과 같아졌다)
   /** 휠 한 픽셀이 배율에 더하는 몫 — 100px(보통 휠 한 틱) = 한 칸(위 onWheel 의 ★ 자연수). */
   const WHEEL_STEP_PER_PX9 = 0.01;
   /* 배율을 **다섯 칸**으로 끊는다(제안: "줌 단계를 5개로 줄이고 캐싱하면 좀 덜
@@ -19446,7 +19448,7 @@ export default function ReplayMotionPlayer({
               /* 저그 공사 고치(cocoon·cocoon1·cocoon2)는 **공사 단계** 변종(0~3)도(2026-10-24 8인 실측: 놓침 289 가 전부 `b:cocoon:2`). */
               const vars9: Partial<UnitDrawOp>[] = u9 ? [{}]
                 : SPIN_SPR_KINDS9.has(j9.kind) ? Array.from({ length: SPIN_ANIM9 }, (_v9, sp9) => ({ spin: sp9 }))
-                  : j9.kind === "sunkentongue" ? [0, 1, 2, 3].map((sp9) => ({ spin: sp9 }))
+                  : j9.kind === "sunkentongue" ? Array.from({ length: SPIN_ANIM9 }, (_v9, sp9) => ({ spin: sp9 }))   // 혀 열여섯 컷(2026-10-29 · 옛 넷 — 붓은 sunkenCut9 로 열여섯을 다 쓴다)
                     : /^cocoon/.test(j9.kind) ? [0, 1, 2, 3].map((st9) => ({ buildStage: st9 })) : [{}];
               for (const v9 of vars9) {
                 const opW9 = { kind: j9.kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1, spin: 0, ...v9 } as UnitDrawOp;
@@ -19458,7 +19460,9 @@ export default function ReplayMotionPlayer({
                   const lt9 = !u9 && g9.sprTint && LIT_KINDS.has(j9.kind) ? g9.bldMesh({ ...opW9, litMask: true }) : null;
                   const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
                   g9.sprTag = j9.kind;   // 굽기 덤프의 종류 꼬리표(gl9 sprTag ★ · 재생기에서는 쓰지 않는다)
-                  preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", u9 ? preYaws9(g9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)], DEV9.meshShadow, lt9 ?? undefined);
+                  /* 32칸 머리(gl9 SPR_YAW32_9 · 터렛 머리·컴샛 접시)는 도는 각이 요잉 칸이라 서른둘을 다 굽는다(그림자는 밑동이 진다). */
+                  const yaws9 = u9 ? preYaws9(g9) : SPR_YAW32_9.has(j9.kind) ? Array.from({ length: 32 }, (_v9, i9) => i9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
+                  preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", yaws9, DEV9.meshShadow, lt9 ?? undefined);
                 }
               }
             }
