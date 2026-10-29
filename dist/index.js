@@ -36967,7 +36967,7 @@ function L4(t, s, o) {
 var N4;
 const k4 = typeof location < "u" ? Number(((N4 = /(?:^|[#&,])wfps=(\d+)/.exec(location.hash)) == null ? void 0 : N4[1]) ?? 0) : 0, DI = typeof location < "u" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
 DI && typeof window < "u" && (window.__trace9 = DI);
-const dA = typeof location < "u" && /(^|[#&,])lin\b/.test(location.hash);
+const dA = !(typeof location < "u" && /(^|[#&,])herm\b/.test(location.hash));
 function G4(t, s, o, n, g, e, I, i, r) {
   const a = e - n;
   if (!(a > 0)) return o;
@@ -39869,9 +39869,9 @@ function QE({
         speed: xe,
         aheadSec: pn.aheadSec,
         aheadBytes: pn.aheadMB * 1024 * 1024,
-        /* 장 간격의 바탕 — 폰 초당 5장(2026-10-28 덜 그리기 · 옛 20 → 10 → 5 — 장 사이는 곡선 보간(herm9)·컷 처방(pz)·효과 밀기(fxAdvance9)가 그리는 시각으로 잇는다 ·
-           워커 일 4분의 1) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: k4 > 0 ? k4 : pn.name === "phone" ? 5 : 30
+        /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
+           그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
+        fps: k4 > 0 ? k4 : pn.name === "phone" ? 10 : 30
       });
     }
   }
@@ -41404,7 +41404,7 @@ function QE({
       " · UI ",
       ks.ui,
       " · 판 ",
-      "10-29 14:05",
+      "10-29 16:19",
       ks.ss !== 1 ? ` · 초해상 ×${ks.ss.toFixed(2)}` : "",
       Math.abs(ks.unitScale - ks.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${ks.unitScale.toFixed(4)})` : ks.scale > 0 && Math.abs(ks.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${ks.scale.toFixed(4)})` : "",
       ks.allocOk ? "" : " · ⚠배킹확보 실패"
