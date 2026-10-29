@@ -9357,7 +9357,7 @@ function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>)
   }
   return out9 ?? ops;
 }
-/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 10 · PC 30). */
+/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 5 · PC 30). */
 const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
 /** `#trace9` — 움직이는 몸 하나의 그린 자리를 그리기마다 적는다(window.__trace9 · 진단 · 2026-10-28 "구간 → 구간으로 움직인다"). */
 const TRACE9: { key: string; rows: number[][] } | null = typeof location !== "undefined" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
@@ -16921,7 +16921,7 @@ export default function ReplayMotionPlayer({
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 5 : 30,   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤)
       });
     }
   }
