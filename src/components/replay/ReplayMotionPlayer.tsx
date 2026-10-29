@@ -19307,6 +19307,7 @@ export default function ReplayMotionPlayer({
       drone: ["droneHold", "loadDroneMin", "loadDroneGas"],
       sunken: ["sunkenrear", "sunkentongue"],
       comsat: ["comsatbase", "comsatdish"],
+      turret: ["turretbase", "turrethead"],   // 붓이 그리는 몸·머리(2026-10-29 · 여태 빠져 머리 각마다 재생 중 구웠다)
       geyser: ["geyserdry"],
     };
     const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number; /** 별본(WARM_KIN9)의 본 종류 — 붓은 별본에도 본 종류의 norm 으로 k 를 내므로 실루엣 비도 그걸로. */ baseKind?: string }[] = [];
@@ -19343,7 +19344,8 @@ export default function ReplayMotionPlayer({
       if (GL_ON9 && GL_WARM9) {
         if (isBld) jobs.push({ kind: k9, gl: "b" });
         else for (const pose9 of posesOf9(k9)) jobs.push({ kind: k9, gl: "u", pose: pose9 });   // 자세마다 한 일감(위 posesOf9 ★★)
-        for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) for (const pose9 of posesOf9(v9)) jobs.push({ kind: v9, gl: "u", pose: pose9, baseKind: k9 });
+        /* 건물의 별본(성큰 몸·혀 · 컴샛 밑동·접시 · 터렛 몸·머리 · 마른 간헐천)은 건물 일감으로(2026-10-29 · 여태 "u" 로 올라 혀 컷·머리 각 변종을 하나도 안 구웠다). */
+        for (const v9 of WARM_KIN9[k9] ?? []) if (SHAPE_BUILDERS[v9]) { if (isBld) jobs.push({ kind: v9, gl: "b", baseKind: k9 }); else for (const pose9 of posesOf9(v9)) jobs.push({ kind: v9, gl: "u", pose: pose9, baseKind: k9 }); }
         continue;
       }
       if (isBld) jobs.push({ kind: k9 });
@@ -19461,8 +19463,12 @@ export default function ReplayMotionPlayer({
                   const norm9 = u9 ? modelNormOf(j9.baseKind ?? j9.kind) : (bldNormOf(j9.kind) ?? 1);
                   g9.sprTag = j9.kind;   // 굽기 덤프의 종류 꼬리표(gl9 sprTag ★ · 재생기에서는 쓰지 않는다)
                   /* 32칸 머리(gl9 SPR_YAW32_9 · 터렛 머리·컴샛 접시)는 도는 각이 요잉 칸이라 서른둘을 다 굽는다(그림자는 밑동이 진다). */
-                  const yaws9 = u9 ? preYaws9(g9) : SPR_YAW32_9.has(j9.kind) ? Array.from({ length: 32 }, (_v9, i9) => i9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
-                  preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", yaws9, DEV9.meshShadow, lt9 ?? undefined);
+                  /* 성큰 혀는 표적 쪽으로 도는 딸림 부품이라 컷마다 요잉 칸을 다 굽는다(건물 칸 수 = yawN9). */
+                  const yaws9 = u9 ? preYaws9(g9) : SPR_YAW32_9.has(j9.kind) ? Array.from({ length: 32 }, (_v9, i9) => i9)
+                    : j9.kind === "sunkentongue" ? Array.from({ length: g9.yawN9(m9) }, (_v9, i9) => i9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
+                  /* 딸림 부품(터렛 머리·컴샛 접시·성큰 혀)은 붓이 그림자를 안 깐다(몸이 깐다) — 그림자 칸을 굽지 않는다. */
+                  const attach9 = j9.kind === "turrethead" || j9.kind === "comsatdish" || j9.kind === "sunkentongue";
+                  preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", yaws9, DEV9.meshShadow && !attach9, lt9 ?? undefined);
                 }
               }
             }
