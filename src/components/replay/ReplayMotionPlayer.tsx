@@ -9325,7 +9325,7 @@ const posePz9 = (ops: UnitDrawOp[], t: number): void => {
  *  탄 u 는 죄기 전 값(uw)에서 ur 로 · uc 로 감아 다음 발 · 1.2 넘으면(닿은 뒤) 뺀다. 빠르기가 없는 op 은 장 값 그대로(engine9 FxOp.pr 의 ★).
  *  장 사이에 **새로 나는** 효과는 다음 장이 와야 선다(그 늦음은 한 장 간격 아래다). */
 function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>): FxOp[] {
-  if (!(dt > 1e-4) || LIN9) return ops;
+  if (!(dt > 1e-4) || !FXADV9) return ops;
   const mvOf9 = (k9: string | undefined): [number, number] | undefined => (k9 && mv ? mv.get(k9) : undefined);
   let out9: FxOp[] | null = null;
   for (let i9 = 0; i9 < ops.length; i9 += 1) {
@@ -9366,6 +9366,10 @@ if (TRACE9 && typeof window !== "undefined") (window as unknown as { __trace9?: 
  *  `#wfps=10,lin` "10 괜찮아") — 곡선 보간(herm9 · 앞뒤 이웃 장 풀기)·효과 밀기(fxAdvance9)는 폰 메인 스레드에 무거워 그리기가 18fps 로 처지고 장 사이가 끊겨 보였다.
  *  곡선 갈래는 `#herm` 으로 견준다(옛 `#lin` 은 이제 기본이라 뜻이 없다). */
 const LIN9 = !(typeof location !== "undefined" && /(^|[#&,])herm\b/.test(location.hash));
+/** ★ **효과 밀기는 따로 켠다**(2026-10-29, 실기: "15부터 CSS 특수효과들이 부드러워 보여" — 워커 15장은 "별 효과 없고 발열만 늘 듯") — 직선 보간(LIN9)과 함께 효과 밀기(fxAdvance9)까지
+ *  꺼져 효과가 워커 장마다(10장이면 0.1초) 뛰었다. 무거웠던 것은 곡선 보간(앞뒤 이웃 장 풀기 · 몸마다 에르미트)이고 효과 밀기는 효과 op 마다 덧셈 몇 번이라 따로 켠다.
+ *  `#nofxadv` 로 끈다(견줌). */
+const FXADV9 = !(typeof location !== "undefined" && /(^|[#&,])nofxadv\b/.test(location.hash));
 /** ★ **곡선 보간**(2026-10-28, 요청: "보간은 부드럽게 해서 티 안 나게") — 두 장 사이를 직선으로 이으면 장이 성길수록(폰 초당 5장 · 8배속이면
  *  장 사이가 게임 1.6초) 꺾는 자리에서 모서리를 깎고 장마다 빠르기가 툭 바뀐다. 앞·뒤 이웃 장(p0·p3)으로 양 끝의 기울기를 잡아 3차 에르미트로 잇는다.
  *  넘침(멈추는 자리에서 지나쳤다 돌아옴)은 축마다 막는다 — 두 장 사이 변화가 0 이면 기울기 0 · 기울기 부호가 변화와 다르면 0 · 크기는 변화 기울기의 3배까지
