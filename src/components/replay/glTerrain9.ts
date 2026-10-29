@@ -36,6 +36,15 @@ export const CON9: [number, number] = ((): [number, number] => {
   const k = /(?:^|[#&,])con=([0-9.]+)/.exec(location.hash); const m = /(?:^|[#&,])conm=([0-9.]+)/.exec(location.hash);
   return [k ? Number(k[1]) - 1 : 0, m ? Number(m[1]) : 0.5];
 })();
+/** ★ **지형만 대비 1.2 기본**(2026-10-29, 요청: "지형에만 대비 1.2 넣을 수 있나?") — 몸(CON9)은 그대로 두고 지형(TERR_FS · 같은 캔버스의 안개 켜 포함)만 편다.
+ *  `#tcon=k` 로 견준다(1 = 옛 지형) · 없으면 `#con` 이 있을 때 그 값 · 둘 다 없으면 1.2. 축은 CON9 의 m(`#conm`). 미니맵(캔버스)·옛 벡터층(#glterr=0)은 안 탄다. */
+export const TCON9: [number, number] = ((): [number, number] => {
+  const def9 = 1.2;
+  if (typeof location === "undefined") return [def9 - 1, CON9[1]];
+  const t = /(?:^|[#&,])tcon=([0-9.]+)/.exec(location.hash);
+  const k = t ? Number(t[1]) : /(?:^|[#&,])con=([0-9.]+)/.test(location.hash) ? CON9[0] + 1 : def9;
+  return [k - 1, CON9[1]];
+})();
 
 const TERR_VS = `
 attribute vec2 aP; attribute vec2 aN;
@@ -237,7 +246,7 @@ export class GlTerrain9 {
     gl.uniform1f(this.loc.uHalfW, 0);
     gl.uniform1f(this.loc.uMode, 0);
     gl.uniform1i(this.loc.uTex, 0);
-    gl.uniform2f(this.loc.uCon, CON9[0], CON9[1]);
+    gl.uniform2f(this.loc.uCon, TCON9[0], TCON9[1]);   // 지형 몫(위 TCON9 ★ — 기본 1.2 · 몸은 CON9)
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
     gl.disable(gl.CULL_FACE);
     gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
