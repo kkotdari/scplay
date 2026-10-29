@@ -3550,6 +3550,9 @@
    걷었다. AUTO 알약도 같은 바탕 · 글자·아이콘 깜빡임(scr-cast-blink-well)은 그대로. */
 .scr-roster-cam.is-on { background: rgba(100, 220, 90, 0.32); color: var(--scr-sc-green); }
 .scr-roster-cam.is-on:hover { background: rgba(100, 220, 90, 0.42); }
+/* PC 보여 주는 사람 줄 — 카메라 단추 + 닉네임을 한 덩이 바탕으로(2026-10-29, 요청: "개인화면 선택 시 닉네임까지 통째로 배경 주고 카메라 불 들어오게" ·
+   ReplayMotionPlayer 전광판 줄 is-shown). 바탕은 카메라 켜짐(0.32)보다 옅은 같은 초록 · 둥글기는 카메라 단추와 같게 · 이름 칸 폭(--name-w)은 그대로(여백을 더하면 이름이 더 잘린다). */
+.scr-dock-names .scr-dock-row.is-shown { background: rgba(100, 220, 90, 0.16); border-radius: calc(5px * var(--dk)); }
 .scr-roster-cam-txt { font-size: calc(var(--rp) * 0.42); font-weight: 800; letter-spacing: 0.03em; }
 /* AUTO 알약 — 안 여백 2 → **6**·dk · 둥글기 3 → **6**·dk(2026-10-09, 요청: "자동 중계 버튼 안 패딩 늘리고 래디우스 증가" — PC·폰 다). 아래 갭은 .scr-dock-headrow. */
 .scr-roster-cam-auto, .scr-roster-cam-all { padding: 0 calc(6px * var(--dk)); border-radius: round(nearest, calc(var(--rp) * 0.18), 1px); gap: calc(3px * var(--dk)); }   /* 둥글기 6·dk → 줄 키 × 0.18(2026-10-10, 요청: "자동 중계 버튼 래디우스 줄이기 — 알약 말고 둥근 네모" · PC 의 --dk 가 커서 알약이 됐다) */   /* 전체 알약(PC · 2026-10-09)도 같은 꼴 · 깜빡임은 AUTO 만 */

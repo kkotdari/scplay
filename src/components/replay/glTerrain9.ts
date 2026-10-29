@@ -26,6 +26,16 @@ import type { Loop } from "../../utils/contour";
 /** 진단 `#glterrdbg=N` — N 번째 덮기까지만 그린다(층을 하나씩 켜 보며 어디서 깨지나 본다). */
 const TERR_DBG9 = ((): number => { const m = typeof location !== "undefined" ? /glterrdbg=(\d+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_TERR9 = !(typeof location !== "undefined" && /glterr=0/.test(location.hash));
+/** ★ **대비 견줌 손잡이**(2026-10-29, 요청: "지형과 모델이 많이 선명해져서 좋은데 대비가 좀 약한 거 같아 원작에 비해" → "대비 적용 전에 강한 대비 테스트해 볼 수 있는
+ *  파라미터 추가") — `#con=k`(배수 · 1 그대로 · 예 1.15 · 1.3) · `#conm=m`(축 · 기본 0.5). 미리곱하기 전 색 c 를 (c − m)·k + m 으로 편다.
+ *  지형(TERR_FS)·몸(gl9 의 SPR_FS9 · 메시 FS 글자 주입)이 **켜마다** 같은 식을 얹는다 — 아핀이라 알파 합성을 지나도 '다 그린 화면에 한 번 얹은 것'과 같다
+ *  (맨 밑 켜가 불투명이므로 · 0·1 자르기만 다르다). CSS filter 는 안 쓴다(GL 캔버스에 걸면 맥 크롬이 그 층을 다시 떠 흐려진다 — player-ui.md '#glfilter').
+ *  굽는 판(아틀라스)은 안 탄다(sprBake9 가 굽는 동안 끈다) — 붙일 때 얹으므로 판을 다시 굽지 않고 견준다. 값은 [k − 1, m] — 0 이면 셰이더가 건너뛴다. */
+export const CON9: [number, number] = ((): [number, number] => {
+  if (typeof location === "undefined") return [0, 0.5];
+  const k = /(?:^|[#&,])con=([0-9.]+)/.exec(location.hash); const m = /(?:^|[#&,])conm=([0-9.]+)/.exec(location.hash);
+  return [k ? Number(k[1]) - 1 : 0, m ? Number(m[1]) : 0.5];
+})();
 
 const TERR_VS = `
 attribute vec2 aP; attribute vec2 aN;
@@ -40,11 +50,15 @@ void main() {
 }`;
 const TERR_FS = `
 precision mediump float;
-uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode;
+uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCon;
 varying vec2 vUv;
 void main() {
-  if (uMode > 0.5) { vec4 t = texture2D(uTex, vUv); gl_FragColor = vec4(t.rgb * t.a, t.a) * uCol.a; }
-  else gl_FragColor = uCol;
+  vec4 o;
+  if (uMode > 0.5) { vec4 t = texture2D(uTex, vUv); o = vec4(t.rgb * t.a, t.a) * uCol.a; }
+  else o = uCol;
+  // 대비(CON9) — 미리곱하기 전 색에.
+  if (uCon.x != 0.0 && o.a > 0.0) o.rgb = clamp((o.rgb / o.a - uCon.y) * (1.0 + uCon.x) + uCon.y, 0.0, 1.0) * o.a;
+  gl_FragColor = o;
   //__EMIT0__
 }`;
 
@@ -162,7 +176,7 @@ export class GlTerrain9 {
   constructor(private readonly gl: WebGLRenderingContext | WebGL2RenderingContext, mkProg: (vs: string, fs: string) => WebGLProgram,
     private readonly divisor: (loc: number, d: number) => void = () => {}) {
     this.prog = mkProg(TERR_VS, TERR_FS);
-    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
+    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;
     this.nAttr = Math.max(2, Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 8);
@@ -223,6 +237,7 @@ export class GlTerrain9 {
     gl.uniform1f(this.loc.uHalfW, 0);
     gl.uniform1f(this.loc.uMode, 0);
     gl.uniform1i(this.loc.uTex, 0);
+    gl.uniform2f(this.loc.uCon, CON9[0], CON9[1]);
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
     gl.disable(gl.CULL_FACE);
     gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

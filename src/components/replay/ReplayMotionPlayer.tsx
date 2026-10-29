@@ -20007,7 +20007,9 @@ export default function ReplayMotionPlayer({
                   const shown9 = on9 || shownRaws9.has(m.key);
                   const trophy9 = Boolean(winnerTeam && (m.team === 2 ? 2 : 1) === winnerTeam && t >= total - 0.5 && !fallen9);
                   return (
-                    <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
+                    /* ★ PC 는 보여 주는 사람 줄을 **카메라 + 닉네임 통째로** 바탕을 깐다(2026-10-29, 요청: "PC 에서 개인화면 선택 시 그 사람 카메라만 불 들어오는데
+                       닉네임까지 통째로 배경 주고 카메라 불 들어오게" · replay.css .scr-dock-row.is-shown) — 카메라 단추의 켜짐(is-on)은 그대로. 폰은 칩 테(is-picked). */
+                    <div key={m.key} className={cx("scr-dock-row", fallen9 && "scr-motion-base-ghost", !uiPhone9 && shown9 && "is-shown")} style={{ ["--pcol" as string]: modeColor(m.key, m.team) } as React.CSSProperties}>
                       {/* ★ 폰은 사람 카메라 단추가 없다(2026-10-16, 요청: "모바일에서 개인 카메라 버튼 제거 · 대신 선택 시 종족 칩과 닉네임을 둥근 네모로 감싸기") —
                           칩·닉네임을 누르면 같은 일(pickPerson9)이고, 보여 주는 사람은 칩(.scr-dock-name.is-picked)이 둥근 네모 테를 두른다. PC 는 단추 그대로. */}
                       {!uiPhone9 && (

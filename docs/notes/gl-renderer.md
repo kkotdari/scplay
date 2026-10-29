@@ -1843,3 +1843,11 @@ shadowEllipse9 폰 참) · `PHONE_TIERS9` 높음 단에만 `meshShadow: true`(3�
   앞 이웃(pickPrevFrame9)도 없으면 옛 세대의 바로 앞 장으로 잇는다. 앞 이웃 장은 풀어 둔 채 둔다(놓으면 그리기마다 다시 풀었다).
   🔎 `perf-check --wide --cpu 1 --units 20 --players 2 --hash trace9,wfps=5 --secs 25 --trace9` → `[trace9]` 몸 하나의 (시각 · fx · fy · 앞 장 · 뒤 장 · 앞앞 · 뒤뒤 · 세대 a · 세대 b) —
   중계(카메라가 움직임)에서 세대가 바뀌는 칸(g3 → g4)에도 빠르기가 이어지는지 본다.
+
+## 대비 견줌 손잡이 #con(2026-10-29)
+요청: "지형과 모델이 많이 선명해져서 좋은데 대비가 좀 약한 거 같아 원작에 비해" → "대비 적용 전에 강한 대비 테스트해 볼 수 있는 파라미터 추가".
+- `#con=k`(배수 · 1 그대로) · `#conm=m`(축 · 기본 0.5) — 미리곱하기 전 색 c 를 (c − m)·k + m. 정의는 `glTerrain9.ts CON9`.
+- 켜마다 얹는다: 지형 TERR_FS · 판 붙이기 SPR_FS9(빛 판 emitColor 는 안 탐) · 메시 FS(템플릿은 그대로 · 링크 때 글자 주입 `fsCon9` — 판 해시가 안 움직인다).
+  아핀이라 알파 합성 뒤 '다 그린 화면에 한 번'과 같다(맨 밑 켜 불투명 · 0·1 자르기만 다름). DOM 글자(이름표)는 안 탄다.
+- 굽는 동안(sprBake9)은 메시 FS 대비를 0 으로 — 판(아틀라스)에는 안 든다. CSS filter 는 안 쓴다(맥 크롬 흐림 · player-ui.md '#glfilter').
+- 🔎 견줌: `node scripts/scene-sheet.mjs --race 프로토스 --floor map --zoom 3 --hash con=1.3 --out <dir>`. 정하면 그 값을 기본으로 박는다(굽기 불필요).
