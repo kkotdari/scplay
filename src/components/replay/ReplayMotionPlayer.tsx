@@ -20598,11 +20598,15 @@ export default function ReplayMotionPlayer({
      분할만 없다(칸마다 제 배율). 중계·개인 화면은 종전대로 castZoomFit9 대비 · holdFit9. */
   const zoomFit9 = splitOn9 ? 0 : camLockRef9.current ? castZoomFit9() : 1;
   const zoomK9 = zoomFit9 > 0 ? zoom / zoomFit9 : 1;
+  /* ★ 보이는 값은 **절대 배율**(2026-10-29, 실기 지적: "자유와 중계 모드에서 배율이 다르게 표현됨 — 같은 배율이 자유에서 8배 중계에서 1배로") — 옛: 중계·개인 화면은
+     기본 배율(castZoomFit9) 대비 몫이라 폰 중계 기본(≈6.7)이 ×1.0 으로 읽혔다. 이제 어느 모드든 같은 자(1 = 지도 전체 · 상한 PLAYBACK_ZOOM_MAX).
+     기본 배율이면 옅게(is-base)와 누르면 기본 배율로는 그대로다. */
+  const zoomShow9 = zoom;
   const zoomDial9 = zoomFit9 > 0 ? (
     <button
       type="button"
       className={cx("scr-zoomdial", Math.abs(zoomK9 - 1) < 0.05 && "is-base")}
-      aria-label={`배율 ×${zoomK9.toFixed(1)} — 누르면 기본 배율`}
+      aria-label={`배율 ×${zoomShow9.toFixed(1)} — 누르면 기본 배율`}
       title="배율 — 누르면 기본 배율로"
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
@@ -20610,7 +20614,7 @@ export default function ReplayMotionPlayer({
     >
       {/* 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 배속 다이얼의 "속도"(.scr-speeddial-lab)와 같은 꼴. */}
       <span className="scr-zoomdial-lab" aria-hidden>배율</span>
-      <span className="scr-zoomdial-val">×{zoomK9.toFixed(1)}</span>
+      <span className="scr-zoomdial-val">×{zoomShow9.toFixed(1)}</span>
     </button>
   ) : null;
   const speedDial9 = (

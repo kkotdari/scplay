@@ -2672,3 +2672,8 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 요청: "재생기 독 전광판의 닉네임은 시인성이 안 좋아서 전처럼 칩 형태로 변경" — 10-16 의 '배지 칸만 임자색 + 바탕 없는 닉네임'(.is-split · .scr-dock-chipbox · .scr-dock-nm)과
 10-23 의 '임자색 글자'를 걷고 그 전 칩(임자색 바탕 한 장 · 배지 + 이름 · 글자 흑/백은 chipStyle 의 바탕 밝기)으로. 폰의 보여 주는 사람 표시는 초록 테 1px(.is-picked:not(.is-split)).
 옛 .is-split CSS 는 안 쓰인 채 남는다. 🔎 `perf-check --wide|--ios --warm 0 --atlas spr --castoff --shot x.png`.
+
+## 배율 원은 절대 배율(2026-10-29)
+실기 지적(폰): "자유와 중계 모드에서 배율이 다르게 표현됨 — 같은 배율이 자유에서 8배 중계에서 1배로" — 배율 원(.scr-zoomdial-val)이 중계·개인 화면에서는 기본 배율(castZoomFit9) 대비 몫이었다.
+이제 어느 모드든 절대 배율(1 = 지도 전체 · 상한 8). 기본이면 옅게(is-base)·누르면 기본 배율로는 그대로. 🔎 `perf-check --ios --warm 0 --atlas spr --shot x.png` — 중계 기본이 ×4.8 언저리(폰 390 폭).
+⚠ perf-check 의 단독 중계 확대 검산(--dtapprobe 둘레 '기본 대비 값')은 이제 절대 값을 읽는다.
