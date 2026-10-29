@@ -737,9 +737,12 @@ const CANDIDATES = [process.env.PW_CHROMIUM, "/opt/pw-browsers/chromium",
   join(homedir(), "Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64",
     "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")].filter(Boolean);
 const exe = CANDIDATES.find((p) => existsSync(p));
+/* PW_HEADED=1 — 창을 띄워 돌린다(2026-10-29 · 로컬 아틀라스 굽기: 헤드리스는 GPU 대신 SwiftShader(CPU)로 그리기 쉽다 — 창이면 기기 GPU 다).
+   아래 '[GL]' 줄의 렌더러 이름으로 확인한다(SwiftShader 면 CPU). */
+const HEADED9 = process.env.PW_HEADED === "1";
 const launchOpt = exe
-  ? { executablePath: exe, args: ["--no-proxy-server"] }
-  : { args: ["--no-proxy-server"] };
+  ? { executablePath: exe, args: ["--no-proxy-server"], ...(HEADED9 ? { headless: false } : {}) }
+  : { args: ["--no-proxy-server"], ...(HEADED9 ? { headless: false } : {}) };
 /* 새 크로미엄은 옛 헤드리스(--headless=old)를 아예 걷어냈다 — 플레이라이트가 그 깃발을
    붙이는 판이면 창이 열리자마자 죽는다. 그때는 헤드리스를 끄고(headless:false) 새
    헤드리스 깃발을 손으로 붙인다(model-shot.mjs 등이 쓰는 그 길). */
@@ -771,6 +774,7 @@ const page = await browser.newPage({
   ...(has("--ios") ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", hasTouch: true, isMobile: true } : {}),
 });
 page.on("pageerror", (e) => console.error("페이지 오류:", String(e).slice(0, 400)));
+console.log("[GL] 렌더러:", await page.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); if (!g) return "WebGL2 없음"; const x = g.getExtension("WEBGL_debug_renderer_info"); return String(x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)); }).catch(() => "?"));
 /* WebGL 경고(INVALID_OPERATION 따위)는 호출마다 콘솔로 흘러 GL 호출 자체를 느리게 만든다 — 몇 줄인지 센다. */
 let glWarn9 = 0; let glWarnFirst9 = "";
 page.on("console", (m) => { const t = m.text(); if (/WebGL|GL_|INVALID/.test(t)) { glWarn9 += 1; if (!glWarnFirst9) glWarnFirst9 = t.slice(0, 300); } });
