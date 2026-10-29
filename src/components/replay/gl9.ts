@@ -837,6 +837,8 @@ const SPR_KQ9 = 32;
 /** ★ **도는 머리 둘은 32칸**(2026-10-29, 요청: "회전 부품 건물: 컴셋 위성과 터렛은 32장 필요") — 터렛 머리·컴샛 접시는 딸림 부품이라 도는 각이 곧 요잉 칸이다(yawN9).
  *  기기 단과 무관하게 32칸(폰도 · 작은 부품이라 판 몫이 적다) — 아틀라스는 이 둘의 칸을 다 a 묶음에 싣고(spr-atlas.mjs YAW32) 로더는 요잉 8 기기에서도 칸 번호를 안 접는다(sprAtlas9). */
 export const SPR_YAW32_9 = new Set(["turrethead", "comsatdish"]);
+/** 딸림 부품 → 그 몸(찍는 단을 몸에 맞춘다 · sprLv9 ★). */
+const SPR_ATTACH_BODY9: Record<string, string> = { sunkentongue: "sunkenrear", turrethead: "turretbase", comsatdish: "comsatbase" };
 /** ★ **배율과 무관하게 한 장**(2026-10-23, 요청: "줌과 무관하게 같은 그림을 쓰면 안 되나" → "상위 해상도를 구우면 또 걸릴 텐데" → "그 방식(메시)이 느려서 2D 로
  *  가는 건데") — 몸마다 **정한 해상도 한 단**(옥타브 눈금 · 그 몸의 상자 긴 변이 SPR_CAP 기기 px 안에 드는 가장 큰 단)으로 **한 번만** 찍는다. 그보다 작게 볼 때는
  *  같은 그림을 GPU 가 밉맵으로 줄여 붙이고, 그보다 크게 당겨도 **같은 그림을 늘여** 붙인다(새로 안 찍고 메시로도 안 간다 — 아주 크게 당기면 살짝 무르다).
@@ -1488,6 +1490,13 @@ export class GlUnits9 implements VecSink9 {
   private sprLv9(mesh: GlMesh9, cam: GlCam9, sh: boolean): number {
     const lk = `${mesh.key}|${cam.key}|${sh ? 1 : 0}`;
     const got = this.sprLv.get(lk); if (got !== undefined) return got;
+    /* ★ 딸림 부품은 **몸의 단**으로(2026-10-29 · 로컬 굽기: 성큰 혀 묶음이 basisu 에서 넘어졌다) — 제 상자로 재면 작은 부품이라 상한(512)까지 크게 구워져
+       (혀 128칸 × ~1000px → 묶음 높이가 수만 px) 몸보다 몇 배 고운 칸이 된다. 붓은 몸과 같은 배율(k)로 붙이므로 몸의 단이면 같은 결이다. */
+    const body9 = SPR_ATTACH_BODY9[mesh.key.split(":")[1] ?? ""];
+    if (body9) {
+      const bm9 = this.bldMesh({ kind: body9, fx: 0, fy: 0, z: 0, sizePx: 16, color: "#888", alpha: 1 } as UnitDrawOp);
+      if (bm9) { const lv9 = this.sprLv9(bm9, cam, sh); this.sprLv.set(lk, lv9); return lv9; }
+    }
     let span = 0;
     for (const yw of [0, 45]) { const f = sh ? this.shadowFoot9(mesh, yw, cam) : this.footOf(mesh, yw, cam); span = Math.max(span, f.w, f.bot - f.top); }
     const cap = mesh.key.startsWith("u:") ? SPR_CAP_U9 : SPR_CAP_B9;

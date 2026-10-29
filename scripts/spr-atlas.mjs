@@ -99,7 +99,7 @@ function encode(png, ktx2) {
   /* RDO 는 기본 끔(2026-10-25 실측 2048² 한 판: RDO 0.75 664KB · 6.3s vs 없음 676KB · 3.2s — 칸 둘레가 비어 zstd 가 이미 잘 누른다). --rdo X 로 켠다. */
   const rdo = Number(flag("--rdo", 0));
   execFileSync(BASISU, ["-ktx2", "-uastc", "-uastc_level", String(flag("--uastc-level", 2)), ...(rdo > 0 ? ["-uastc_rdo_l", String(rdo)] : []),
-    "-linear", "-mipmap", "-mip_linear", "-mip_clamp", "-ktx2_zstandard_level", "18", "-file", png, "-output_file", ktx2], { stdio: "ignore" });
+    "-linear", "-mipmap", "-mip_linear", "-mip_clamp", "-ktx2_zstandard_level", "18", "-file", png, "-output_file", ktx2], { stdio: ["ignore", "ignore", "inherit"] });
 }
 
 /* ── 짐 꾸리기 ── */
@@ -168,6 +168,7 @@ let nDone = 0; let bytes = { f: 0, h: 0 };
 for (const [g, cells] of [...groups.entries()].sort()) {
   const [kind, par] = [g.slice(0, g.lastIndexOf(".")), g.slice(g.lastIndexOf(".") + 1)];
   const { W, H, at } = pack(cells);
+  if (H > 16384) { console.error(`[짐] ${g} 묶음 높이 ${H}px — 16384 를 넘는다(basisu·GPU 텍스처 상한 · 칸 ${cells.length}개). 그 종류의 찍는 단(gl9 sprLv9)을 본다.`); process.exit(3); }
   const bufs = { c: Buffer.alloc(W * H * 4), t: Buffer.alloc(W * H * 4), e: Buffer.alloc(W * H * 4) };
   for (const c of cells) { const pg = pageOf(c.page); const [cx, cy] = at.get(c); for (const ly of ["c", "t", "e"]) if (pg[ly]) blit(bufs[ly], W, H, pg[ly], c, cx, cy); }
   for (let i = 3; i < bufs.t.length; i += 4) bufs.t[i] = 255;   // 임자색 켜(R)·켜짐(G) — 알파는 안 쓴다(압축이 알파 채널을 따로 안 먹게)
