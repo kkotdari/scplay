@@ -961,13 +961,13 @@ void main() { vec4 a = textureLod(uT1, v1, 0.0); vec4 b = textureLod(uT0, v0, 0.
 const SPR_LOOK9: [number, number] = [0.5, 0.5];
 /** ★ **안 그림자 견줌**(2026-10-29, 요청: "모델들 대비 살짝 추가 + 내부 그림자 넣어서 구울 거야(내부 부품들 간 그림자 관계 적용) · 시안부터") — 굽기(sprBake9)만 탄다.
  *  칸마다 빛 쪽에서 본 깊이 판(1024² · 정사영 · 모형 반지름에 맞춤)을 먼저 찍고, 본 패스가 그 판을 읽어 다른 부품에 가린 화소의 빛을 깎는다(PCF 3×3).
- *  `#ishadow=s`(깎는 몫 0~1 · 예 0.35) · `#bcon=k`(굽는 대비 · 예 1.1). 둘 다 없으면 옛 굽기 그대로. 셰이더는 링크 때 글자로 끼운다(판 해시 안 움직임 — 정하면 템플릿에 넣고 다시 굽는다). */
+ *  #ishadow=s(깎는 몫 0~1 · 예 0.35) · #bcon=k(굽는 대비 · 예 1.1). 둘 다 없으면 옛 굽기 그대로. 셰이더는 링크 때 글자로 끼운다(판 해시 안 움직임 — 정하면 템플릿에 넣고 다시 굽는다). */
 const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : 0; })();
 const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : 0; })();
 const ISH_RES9 = 1024;
 /** ★ **빛 한 벌 견줌**(2026-10-29, 지적: "재생기에서 쏘는 빛과 방향각이 맞아?" · "모델 통째로 깔던 음영(좌상 밝고 우하 어둡던 것) 제거" · "원작의 빛과 그림자를 잘 살펴봐") —
  *  여태 빛이 넷이었다: 방향광 LIGHT(시선 쪽 위) · 바닥 그림자 SHADOW_K9(곧장 위로) · 실루엣 빛 uGrad(화면 왼위 밝음 · 몸 통째 기울기) · 안 그림자 ISH_L9.
- *  `#litdir=x,y,z`(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 다 그 하나로 낸다. `#nograd` 는 실루엣 빛을 걷는다.
+ *  #litdir=x,y,z(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 다 그 하나로 낸다. #nograd 는 실루엣 빛을 걷는다.
  *  둘 다 없으면 옛 그림 그대로(이 상수 줄은 판 해시 정규식 밖이다 — 정하면 LIGHT·SHADOW_K9 에 넣고 다시 굽는다). */
 const LIGHT_OV9 = ((): [number, number, number] | null => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])litdir=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
@@ -978,7 +978,7 @@ const NOGRAD9 = typeof location !== "undefined" && /(?:^|[#&,])nograd\b/.test(lo
 /** 빛 한 벌의 바닥 그림자 기울기 — 그림자는 빛 반대쪽으로(높이 1 당 −L.xy/L.z · 옛 자처럼 0.55 배로 줄인다). */
 const SHK_OV9: [number, number] | null = LIGHT_OV9 ? [(-LIGHT_OV9[0] / Math.max(0.2, LIGHT_OV9[2])) * 0.55, (-LIGHT_OV9[1] / Math.max(0.2, LIGHT_OV9[2])) * 0.55] : null;
 /** 안 그림자의 **빛 방향**(세계 자 · 빛 쪽을 가리킨다) — 몸의 방향광(LIGHT · 시선 쪽에서 내리쬔다)으로는 그림자가 몸 **뒤**로 져 화면에 안 보인다.
- *  그래서 실루엣 빛(uGrad · 화면 왼위가 밝다)과 같은 쪽 — 왼쪽(−x) · 먼 쪽(−y) · 위 — 에서 비춘다: 그림자는 화면 오른아래로 진다. `#ishl=x,y,z` 로 견준다. */
+ *  그래서 실루엣 빛(uGrad · 화면 왼위가 밝다)과 같은 쪽 — 왼쪽(−x) · 먼 쪽(−y) · 위 — 에서 비춘다: 그림자는 화면 오른아래로 진다. #ishl=x,y,z 로 견준다. */
 const ISH_L9 = ((): [number, number, number] => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishl=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
   if (!m9 && LIGHT_OV9) return LIGHT_OV9;   // 빛 한 벌(위 LIGHT_OV9 ★)이면 그 빛
