@@ -11681,7 +11681,7 @@ export default function ReplayMotionPlayer({
     /* 켜는 순간 **한 번만** 당겨 준다(요청: 배율은 기본 줌인 값, 사다리에서) — 그 뒤로는
        사람이 마음대로 바꾼다(요청: "줌은 변경 가능하게"). 끌 때는 안 되돌린다: 보던
        배율이 갑자기 튀면 추적을 껐다 켜는 것만으로 화면이 요동친다. */
-    if (on9) holdFit9();   // 켤 때 한 번 화면 배율로(castZoomFit9 · 배율 규칙 한 곳) — 그 뒤 수동 변경은 그대로 열려 있다
+    if (on9) holdFitKeep9();   // 지도 전체에서 켤 때만 화면 배율로(위 holdFitKeep9 ★ · 2026-10-30 배율 유지) — 그 뒤 수동 변경은 그대로 열려 있다
   };
   /** 중계를 끈다 — 개인 추적을 끄는 것과 같은 자리에 머문다(위 stopTrack9의 ★). */
   const stopCast9 = (): void => {
@@ -11776,7 +11776,7 @@ export default function ReplayMotionPlayer({
     if (!(castOn || searchSegNow9 !== null) || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다 · 검색 장면도 중계처럼(위 searchSegNow9 ★)
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
-    holdFit9();
+    holdFitKeep9();   // 자유에서 보던 배율은 지킨다(위 holdFitKeep9 ★)
     // setView9·castZoomFit9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castOn, castRaw, spotNow9 !== null, searchSegNow9 !== null]);
@@ -13073,12 +13073,16 @@ export default function ReplayMotionPlayer({
   };
   /** 중계·추적이 쥔 화면의 배율로 맞춘다(자리는 그대로 — 카메라가 다음 장에 잡는다). */
   const holdFit9 = (): void => setView9(castZoomFit9(), panRef.current);
+  /** ★ 자유 ↔ 중계·개인 화면을 오갈 때는 **배율을 지킨다**(2026-10-30, 요청: "중계랑 자유 오갈 때 배율 유지되게") — 옛: 켤 때마다 기본 배율(castZoomFit9)로 당겼다.
+   *  지도 전체(1배 언저리)에서 켤 때만 기본 배율로 당긴다 — 1배는 팬 여유가 0 이라 카메라가 따라갈 데가 없다(아래 castZoomRef9 ★). */
+  const holdFitKeep9 = (): void => { if (zoomRef.current <= 1.05) holdFit9(); };
   /* ★ **단독 중계·개인 화면의 확대·축소**(2026-10-19, 요청: "중계 중 확대 축소" → 답(가운데 기준 · 상한 · 분할은 막음) → "응 그렇게") — 휠·핀치·↑↓ 를 연다(분할만 막는다 ·
      끌기·미니맵 이동·한 손 줌·더블탭은 그대로 잠금). 기준점은 따로 안 고친다 — 카메라가 그 사람·자리를 잡는 동안은 trackView 가 배율이 바뀐 장에서 곧장 다시 가운데로 잡아
      커서 기준의 팬을 덮어쓴다(눈에는 화면 가운데 기준 확대). 상한은 기본 배율(castZoomFit9) × CAST_ZOOM_MAX_K9 — 너무 당기면 교전 자리·드랍 길이 화면 밖으로 나간다. */
-  const CAST_ZOOM_MAX_K9 = 2;
+  // (걷음 2026-10-30) CAST_ZOOM_MAX_K9 = 2 — 단독 화면 상한 = 기본 배율 × 2 였다(아래 ★).
   const zoomCapRef9 = useRef<() => number>(() => ZOOM_MAX);
-  zoomCapRef9.current = (): number => (camLockRef9.current && !splitOnRef9.current ? Math.min(ZOOM_MAX, Math.max(1, castZoomFit9() * CAST_ZOOM_MAX_K9)) : ZOOM_MAX);
+  /* 상한은 모드와 무관하게 ZOOM_MAX(2026-10-30, 요청: "최대 배율도 똑같게 해 줘 · 서로 다르네" — 옛: 단독 중계·개인 화면은 기본 배율 × CAST_ZOOM_MAX_K9). */
+  zoomCapRef9.current = (): number => ZOOM_MAX;
   /** 지도가 무대를 채우는 폭 — 비율은 지킨다.
    *
    *  ★ **전체화면만 덮고(cover), 프레임에서는 높이에 맞춘다**(요청: "모바일 게임상세

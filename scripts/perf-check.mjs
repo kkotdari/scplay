@@ -1171,6 +1171,18 @@ if (VEIL9) {
   const st9 = () => page.evaluate(() => `가림 ${document.querySelectorAll(".scr-motion[data-veil]").length} · 준비 ${window.__veilReadyAt ? Math.round(window.__veilReadyAt) + "ms" : "아직"} · 로딩 글 ${document.querySelector(".scr-motion-simnote.is-in")?.textContent ?? "-"}`);
   console.log(`[가림] 다 뜬 뒤 ${await st9()}`);
 }
+/* --modeprobe(2026-10-30, 요청: "중계랑 자유 오갈 때 배율 유지되게") — 휠로 두 칸 당긴 뒤 자유 ↔ 중계 단추(.scr-modetog-stage)를 두 번 눌러 배율을 찍는다(--diag 와 함께). */
+if (has("--modeprobe")) {
+  const z9 = async () => (await page.evaluate(() => window.__scrDiag?.zoom ?? null))?.toFixed?.(2);
+  const md9 = () => page.evaluate(() => document.querySelector(".scr-modetog-stage .is-on")?.textContent ?? "-");
+  const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
+  await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2);
+  for (let i9 = 0; i9 < 2; i9 += 1) { await page.mouse.wheel(0, -240); await page.waitForTimeout(400); }
+  await page.waitForTimeout(2500);
+  const row9 = [`${await md9()} ${await z9()}`];
+  for (let k9 = 0; k9 < 2; k9 += 1) { await page.click(".scr-modetog-stage"); await page.waitForTimeout(2500); row9.push(`${await md9()} ${await z9()}`); }
+  console.log(`[모드 배율] ${row9.join(" → ")}`);
+}
 /* --zoomminprobe(2026-10-30, 지적: "폰에서는 전체맵 배율이 1인데 피시에서는 기본 배율이 1로 표시되고 최소로 축소한 게 0.몇") — 지도 가운데서 휠로 끝까지 물리며
    배율 원(.scr-zoomdial-val) 글과 붓의 배율(__scrDiag.zoom)을 찍는다(--diag 와 함께 · --castoff 면 손 카메라). */
 if (has("--zoomminprobe")) {   // 옛 이름 --zoomoutprobe 는 아래 2026-10-24 탐침과 겹쳤다
