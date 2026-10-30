@@ -3113,6 +3113,15 @@ if (has("--flingprobe")) {
     console.log(`[관성] 건 속도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.fling) || "(안 걸림)")}`);
   }
 }
+/* --sharpshot <접두>(2026-10-30, 요청: "피시에서도 더 선명하게 필터") — 지형층의 마지막 장을 또렷이 세기 0·0.5·1 로 다시 그려 <접두>_0.png … 로 쓴다
+   (같은 장 · 카메라가 움직여도 같은 그림). glTerrain9 ★ 또렷이. */
+if (has("--sharpshot")) {
+  const pre9 = String(flag("--sharpshot"));
+  // 한 작업 안에서 셋 다 — 사이에 앱이 새 장을 그리면 마지막 인자(카메라)가 바뀐다.
+  const us9 = await page.evaluate(() => window.__terr9 ? [0, 0.5, 1].map((v) => window.__terr9.redrawLast(v)) : null);
+  if (!us9 || us9.some((u) => !u)) console.log("[또렷이] 지형층 없음");
+  else [0, 0.5, 1].forEach((v9, k9) => { writeFileSync(`${pre9}_${v9}.png`, Buffer.from(us9[k9].split(",")[1], "base64")); console.log(`[또렷이] ${pre9}_${v9}.png`); });
+}
 /* --terrprobe(2026-10-23) — 진단판의 '지도판' 줄(구움 수 · 굽기 ms · 최악)을 찍는다 — 지형 판 재사용 연구의 자. --diag 와 함께 · --zoomsweep 뒤에 두면 줌 훑기의 굽기 수가 든다. */
 if (has("--terrprobe")) {
   const t9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag div")].map((d) => d.textContent || "").filter((x) => /지도판|로딩/.test(x)).join(" | "));

@@ -427,11 +427,42 @@ export class GlTerrain9 {
   }
 }
 
+/** ★ 지형 또렷이(2026-10-30, 요청: "피시에서도 더 선명하게 필터 넣을 수 있나 · 조금만 왜곡되지 않게") — 그린 지형을 텍스처로 베껴(다중표본은 베낄 때 풀린다) 3×3 이웃으로
+ *  **대비 맞춤 샤픈**(AMD CAS 꼴)을 한 번 얹어 화면에 붙인다. 이웃 최소·최대로 세기를 그 자리마다 줄여(이미 대비가 큰 등고선 귀는 거의 안 탄다)
+ *  고리·후광이 안 선다. 미리곱한 색 그대로 · 지도 밖(알파 0) 이웃이 있으면 세기 0. 세기 uAmt 는 CAS 결과와 원본의 섞기 몫(0 = 끔 · 1 = CAS 한 벌).
+ *  WebGL2 만(texelFetch) — WebGL1 은 그냥 그린다. 값은 화면 한 장 크기 텍스처 하나(PC 2560×1600 이면 16MB). */
+const SHARP_VS9 = `
+attribute vec2 aQ;
+void main() { gl_Position = vec4(aQ, 0.0, 1.0); }`;
+const SHARP_FS9 = `
+precision mediump float;
+uniform sampler2D uT; uniform float uAmt;
+void main() {
+  ivec2 p = ivec2(gl_FragCoord.xy); ivec2 m = textureSize(uT, 0) - 1;
+  vec4 a = texelFetch(uT, clamp(p + ivec2(-1, -1), ivec2(0), m), 0); vec4 b = texelFetch(uT, clamp(p + ivec2(0, -1), ivec2(0), m), 0);
+  vec4 c = texelFetch(uT, clamp(p + ivec2(1, -1), ivec2(0), m), 0); vec4 d = texelFetch(uT, clamp(p + ivec2(-1, 0), ivec2(0), m), 0);
+  vec4 e = texelFetch(uT, p, 0); vec4 f = texelFetch(uT, clamp(p + ivec2(1, 0), ivec2(0), m), 0);
+  vec4 g = texelFetch(uT, clamp(p + ivec2(-1, 1), ivec2(0), m), 0); vec4 h = texelFetch(uT, clamp(p + ivec2(0, 1), ivec2(0), m), 0);
+  vec4 i = texelFetch(uT, clamp(p + ivec2(1, 1), ivec2(0), m), 0);
+  vec3 mn = min(min(min(d.rgb, e.rgb), min(f.rgb, b.rgb)), h.rgb);
+  vec3 mx = max(max(max(d.rgb, e.rgb), max(f.rgb, b.rgb)), h.rgb);
+  mn += min(mn, min(min(a.rgb, c.rgb), min(g.rgb, i.rgb)));
+  mx += max(mx, max(max(a.rgb, c.rgb), max(g.rgb, i.rgb)));
+  vec3 amp = sqrt(clamp(min(mn, 2.0 - mx) / max(mx, vec3(1e-4)), 0.0, 1.0));
+  float aMin = min(min(min(a.a, b.a), min(c.a, d.a)), min(min(f.a, g.a), min(h.a, i.a)));
+  vec3 w = amp * (-0.125) * step(0.999, aMin);
+  vec3 s = clamp(((b.rgb + d.rgb + f.rgb + h.rgb) * w + e.rgb) / (1.0 + 4.0 * w), 0.0, 1.0);
+  gl_FragColor = vec4(min(mix(e.rgb, s, uAmt), vec3(e.a)), e.a);
+}`;
+
 /** 지형층의 **제 캔버스**(.scr-motion-terr9) — 문맥 하나·프로그램 하나·장마다 지우고 그린다. 분할 칸은 가위(clip · 기기 px)로 칸만. */
 export class GlTerrCanvas9 {
   readonly gl: WebGLRenderingContext | WebGL2RenderingContext;
   readonly terr: GlTerrain9;
   dead = false;
+  /** 위 ★ 또렷이 — 프로그램(WebGL2 만 · 못 지으면 null) · 베낀 판(텍스처) · 판 크기. */
+  private sharp: { prog: WebGLProgram; aQ: number; uT: WebGLUniformLocation | null; uAmt: WebGLUniformLocation | null; quad: WebGLBuffer } | null = null;
+  private ms: { tex: WebGLTexture; w: number; h: number } | null = null;
   constructor(readonly canvas: HTMLCanvasElement) {
     const opts = { alpha: true, premultipliedAlpha: true, antialias: true, depth: false, stencil: true };
     let gl0: WebGLRenderingContext | WebGL2RenderingContext | null = canvas.getContext("webgl2", opts) as WebGL2RenderingContext | null;
@@ -461,11 +492,40 @@ export class GlTerrCanvas9 {
       return p;
     };
     this.terr = new GlTerrain9(gl, mk);
+    if (gl2) {
+      try {
+        const prog = mk(SHARP_VS9, SHARP_FS9); const quad = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        this.sharp = { prog, aQ: gl.getAttribLocation(prog, "aQ"), uT: gl.getUniformLocation(prog, "uT"), uAmt: gl.getUniformLocation(prog, "uAmt"), quad };
+      } catch (e) { console.warn("[glTerrain9] 또렷이", e); this.sharp = null; }
+    }
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.dead = true; });
   }
-  /** 한 장 — bw·bh 배킹(기기 px · 몸 캔버스와 같게) · cw·ch CSS px · quad 지도 네 귀(CSS px) · clip 가위(CSS px 왼위·오른아래 · 분할 칸) */
-  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null): boolean {
+  /** 마지막 장의 인자 — perf-check `--sharpshot` 이 같은 장을 세기만 바꿔 다시 그려 읽는다(카메라가 움직여도 같은 그림으로 견준다). */
+  private last: [TerrainGeom9, number[], number, number, number, number, number, [number, number, number, number] | null, GlFog9 | null] | null = null;
+  /** 진단 — 마지막 장을 세기 sharp 로 다시 그리고 PNG 데이터 URL 을 돌려준다(그린 그 작업 안에서 읽는다). */
+  redrawLast(sharp: number): string | null {
+    const a = this.last;
+    if (!a || !this.draw(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], sharp)) return null;
+    return this.canvas.toDataURL("image/png");
+  }
+  /** 위 ★ 또렷이의 베낀 판(텍스처 한 장 · 4B/화소) — 크기가 바뀌면 다시 짓는다. MSAA 판을 따로 두지 않고 그린 화면을 copyTexSubImage2D 로 베낀다(다중표본은 베낄 때 풀린다). */
+  private texOf(bw: number, bh: number): WebGLTexture {
+    const gl = this.gl as WebGL2RenderingContext;
+    if (this.ms && this.ms.w === bw && this.ms.h === bh) return this.ms.tex;
+    if (this.ms) gl.deleteTexture(this.ms.tex);
+    const tex = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, bw, bh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    this.ms = { tex, w: bw, h: bh };
+    return tex;
+  }
+  /** 한 장 — bw·bh 배킹(기기 px · 몸 캔버스와 같게) · cw·ch CSS px · quad 지도 네 귀(CSS px) · clip 가위(CSS px 왼위·오른아래 · 분할 칸) ·
+   *  sharp 위 ★ 또렷이 세기(0 끔 · 분할 칸(clip)은 늘 끈다). */
+  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null, sharp = 0): boolean {
     if (this.dead) return false;
+    this.last = [G, quad, bw, bh, cw, ch, wallScale, clip, fog];
     const gl = this.gl; const cv = this.canvas;
     if (cv.width !== bw) cv.width = bw;
     if (cv.height !== bh) cv.height = bh;
@@ -481,6 +541,20 @@ export class GlTerrCanvas9 {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog);
     gl.disable(gl.SCISSOR_TEST);
+    if (sharp > 0 && !clip && this.sharp) {
+      const g2 = gl as WebGL2RenderingContext; const sp = this.sharp;
+      g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.texOf(bw, bh));
+      g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
+      g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
+      g2.useProgram(sp.prog);
+      g2.uniform1i(sp.uT, 0); g2.uniform1f(sp.uAmt, Math.min(1, sharp));
+      g2.bindBuffer(g2.ARRAY_BUFFER, sp.quad);
+      g2.enableVertexAttribArray(sp.aQ); g2.vertexAttribPointer(sp.aQ, 2, g2.FLOAT, false, 8, 0);
+      g2.drawArrays(g2.TRIANGLE_STRIP, 0, 4);
+      g2.disableVertexAttribArray(sp.aQ);
+      g2.bindTexture(g2.TEXTURE_2D, null);
+      g2.enable(g2.BLEND);
+    }
     return true;
   }
 }

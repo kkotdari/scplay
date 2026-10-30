@@ -1737,6 +1737,10 @@ const hashNum9 = (k9: string, d9: number): number => {
   return m9 && Number.isFinite(Number(m9[1])) ? Number(m9[1]) : d9;
 };
 const ZCAP_Z9 = hashNum9("zcapz", 0);
+/** 지형층 배킹 상한(아래 ★ 지형층 배킹) — 기본 3(화면 밀도 그대로) · 0 = 몸 캔버스와 같은 배킹(옛길). */
+const TERR_DPR9 = hashNum9("terrdpr", 3);
+/** 지형 또렷이 세기(glTerrain9 ★ 또렷이 · 0 끔 · 1 CAS 한 벌) — `#tsharp=N` 로 견준다. */
+const TERR_SHARP9 = hashNum9("tsharp", 0.5);
 const ZCAP_B9 = hashNum9("zcap", 1.25);
 const DRS_LO9 = hashNum9("drslo", 1);
 const DRS_HI9 = hashNum9("drshi", 1);
@@ -7041,7 +7045,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (tg9 && tcv9 && clipQuad && clipQuad.length === 4) {
           const tc9 = glTerrCanvas9(tcv9);
           const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
-          if (!tc9 || !tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null))) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
+          /* ★ 지형층 배킹은 **화면 밀도 그대로**(2026-10-30, 요청: "지형 좀 더 선명하게 돼?") — 몸 캔버스는 폰 단 상한(backCap9 · 2~2.25)에 묶여 dpr 3 폰에서
+             1.5배 늘여 붙었고, 지형의 곧은 등고선·벽띠가 그만큼 물렀다. 지형은 드로 스무 남짓의 벡터라 화소 몫이 작다 — 손짓 중(배킹 몫 < 1)만 몸과 같이 줄인다.
+             `#terrdpr=0` 옛길(몸과 같은 배킹) · `#terrdpr=N` 상한 N. 분할 칸은 몸 배킹 그대로(가위 자가 몸 자다). */
+          const bk9 = cv.width / Math.max(1, cw);
+          const tk9 = pcl9 || TERR_DPR9 === 0 || xfBackK9.k < 1 ? bk9 : Math.max(bk9, Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, TERR_DPR9));
+          const tbw9 = Math.round(cw * tk9); const tbh9 = Math.round(ch * tk9);
+          if (!tc9 || !tc9.draw(tg9, q9, tbw9, tbh9, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null), TERR_SHARP9)) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
         }
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
@@ -7086,7 +7096,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const tc9 = glTerrCanvas9(tcv9);
       if (!tc9) return false;
       const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
-      if (!tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, null, fog?.current ?? null)) return false;
+      if (!tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, null, fog?.current ?? null, TERR_SHARP9)) return false;
       xfSet9(tcv9, XF_ID9);
       return true;
     };
