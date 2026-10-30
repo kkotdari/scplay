@@ -1163,6 +1163,17 @@ if (has("--zoomlockprobe")) {
     console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
   }
 }
+/* --zoomoutprobe(2026-10-30, 지적: "폰에서는 전체맵 배율이 1인데 피시에서는 기본 배율이 1로 표시되고 최소로 축소한 게 0.몇") — 지도 가운데서 휠로 끝까지 물리며
+   배율 원(.scr-zoomdial-val) 글과 붓의 배율(__scrDiag.zoom)을 찍는다(--diag 와 함께 · --castoff 면 손 카메라). */
+if (has("--zoomoutprobe")) {
+  const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
+  await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2);
+  const rd9 = async () => `원 ${await page.evaluate(() => [...document.querySelectorAll(".scr-zoomdial-val")].map((e) => e.textContent).join("/") || "-")} · 붓 ${(await page.evaluate(() => window.__scrDiag?.zoom ?? null))?.toFixed?.(2)} · 켜진 모드 ${await page.evaluate(() => [...document.querySelectorAll("button[aria-pressed='true'], .is-on")].map((e) => (e.textContent || "").trim().slice(0, 6)).filter(Boolean).join(",") || "-")}`;
+  console.log(`[물림] 처음 ${await rd9()}`);
+  for (let i9 = 0; i9 < 12; i9 += 1) { await page.mouse.wheel(0, 240); await page.waitForTimeout(250); }
+  await page.waitForTimeout(2500);
+  console.log(`[물림] 끝까지 ${await rd9()}`);
+}
 /* --dtapprobe(2026-10-27, 지적: "중계중에 더블탭 확대축소 더블탭끌기로 줌도 안 되는 문제") — 지도 가운데를 두 번 눌러(마우스) 배율이 기본 ↔ 상한을 오가는지,
    --ios 면 터치로 탭 · 재누름 · 위로 120px 끌기(한 손 줌) 뒤 배율을 찍는다(--track '*' · --diag 와 함께). */
 if (has("--dtapprobe")) {
