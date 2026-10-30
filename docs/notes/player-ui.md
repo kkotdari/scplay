@@ -2677,3 +2677,12 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 실기 지적(폰): "자유와 중계 모드에서 배율이 다르게 표현됨 — 같은 배율이 자유에서 8배 중계에서 1배로" — 배율 원(.scr-zoomdial-val)이 중계·개인 화면에서는 기본 배율(castZoomFit9) 대비 몫이었다.
 이제 어느 모드든 절대 배율(1 = 지도 전체 · 상한 8). 기본이면 옅게(is-base)·누르면 기본 배율로는 그대로. 🔎 `perf-check --ios --warm 0 --atlas spr --shot x.png` — 중계 기본이 ×4.8 언저리(폰 390 폭).
 ⚠ perf-check 의 단독 중계 확대 검산(--dtapprobe 둘레 '기본 대비 값')은 이제 절대 값을 읽는다.
+
+## 게임 상세는 다 될 때까지 가림(veil · 2026-10-30)
+요청: "게임 목록에서 재생 트랙 없는 경기 상세 들어가도 잠깐 재생기가 뜨는 문제" → "목록에서는 따로 정보 넘기지 않게 · 상세에 진입하면 타이틀 외의 다른 부분은 그리지 말고 워드마크 로딩바만 ·
+재생 정보가 도착하면 그때 재생기를 띄우든 로스터를 띄우든 결정 · 재생기는 모든 정보가 다 도착하고 화면이 준비되면 그때 그리기(전광판·시간 다)".
+- props `veil`·`onReady`(ReplayModule → ReplayMotionPlayer) — 로딩 단계(loadStage9 = LoadNote9 의 글: 게임 데이터 · 그래픽 소스 · 모델 준비 · 모델 굽기 · 화면 준비)가 **처음** null 이 될 때까지
+  뿌리·무대에 `data-veil`(visibility hidden · 자리는 지킴) · 그 순간 onReady 한 번. 그 뒤의 재예열·굽기 몰림으로 다시 가리지 않는다.
+- 앱(sg-web): GameDetailPage 는 게임을 받는 동안 머리 줄 + DetailLoading(워드마크) · GameResultStory 는 상세(soleView)에서 지도·재생기 준비까지 DetailLoading · 댓글은 onShown 뒤.
+  옛 자료를 기다리는 재생기(PlayerLoadShell · pending)는 sg-web 에서 걷었다(scplay pending 은 남김).
+- 🔎 `perf-check --wide|--ios --ask --warm 0 --atlas spr --veilprobe` — `[가림] 다 뜬 뒤 가림 0 · 준비 N ms`.

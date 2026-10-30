@@ -5477,3 +5477,7 @@
 /* ★ 전광판 닉네임 도로 칩(2026-10-29, 요청: "독 전광판의 닉네임은 시인성이 안 좋아서 전처럼 칩 형태로") — 칩은 임자색 바탕 한 장(chipStyle 인라인)이고 .is-split 은 안 붙는다.
    폰의 '보여 주는 사람' 표시는 같은 화면 주인 초록 테(칩 바깥 1px) — 바탕은 임자색 그대로. */
 .scr-fs-rosterpanel .scr-dock-row .scr-dock-name.is-picked:not(.is-split) { box-shadow: 0 0 0 1px var(--scr-sc-green); }
+/* ★ 다 될 때까지 가림(2026-10-30 · ReplayMotionPlayer props veil ★) — 뿌리·무대(전체화면이면 body 로 나간 판)를 통째로 안 보이게 · 누름도 안 받는다.
+   자리는 그대로 잡아 둔다(걷히는 순간 판이 튀지 않게). 그동안 보일 것(워드마크 로딩)은 앱이 그린다. */
+.scr-motion[data-veil] { visibility: hidden !important; }
+.scr-motion[data-veil] * { visibility: hidden !important; }

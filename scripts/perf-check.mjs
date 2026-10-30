@@ -75,7 +75,8 @@ const capProbe9 = async (page) => {
 const CPU = Number(flag("--cpu", 4));          // CDP CPU 조임 배수 — 중급 폰 흉내
 const SECS = Number(flag("--secs", 8));        // 표본 시간(초)
 const UNITS = Number(flag("--units", 120));    // 한 사람당 유닛 수(일꾼+병력)
-const WIDE = has("--wide");                    // PC 폭으로(기본은 폰 390×844)
+const WIDE = has("--wide");
+const VEIL9 = has("--veilprobe");                    // PC 폭으로(기본은 폰 390×844)
 const PROFILE = !has("--no-profile");
 /** 감싸개 클래스(--wrap) — 예: scr-activity-detail-full · scr-activity-group-page. */
 const WRAP = String(flag("--wrap", ""));
@@ -649,6 +650,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
+    ...(window.__veil ? { veil: true, onReady: () => { window.__veilReadyAt = performance.now(); } } : {}),   // --veilprobe(2026-10-30 · 다 될 때까지 가림)
     ...(window.__ask ? { askMode: true } : {}),   // --ask — 보기 모드 판(링크가 있으면 안 묻는다 → 아래 sceneLink 를 안 싣는다)
     sceneLink: window.__ask ? null : {
       t: window.__t ?? 46,   // --t N 으로 다른 시각에 연다(착지 먼지 1.1초 같은 짧은 효과를 볼 때)
@@ -943,6 +945,7 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   Number(flag("--cx", 0.5)), Number(flag("--cy", 0.5)), flag("--track", "") || null, Number(flag("--t", 46)),
   Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (REAL9) await page.evaluate((e9) => { window.__endSec = e9; }, REAL9.end);   // --real 경기 길이
+if (VEIL9) await page.evaluate(() => { window.__veil = true; });
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
@@ -1163,9 +1166,14 @@ if (has("--zoomlockprobe")) {
     console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
   }
 }
-/* --zoomoutprobe(2026-10-30, 지적: "폰에서는 전체맵 배율이 1인데 피시에서는 기본 배율이 1로 표시되고 최소로 축소한 게 0.몇") — 지도 가운데서 휠로 끝까지 물리며
+/* --veilprobe(2026-10-30, 요청: "재생기는 모든 정보가 다 도착하고 화면이 준비되면 그때 그리기") — veil 로 열어 걷히는 때(onReady)와 가림(data-veil)을 찍는다. */
+if (VEIL9) {
+  const st9 = () => page.evaluate(() => `가림 ${document.querySelectorAll(".scr-motion[data-veil]").length} · 준비 ${window.__veilReadyAt ? Math.round(window.__veilReadyAt) + "ms" : "아직"} · 로딩 글 ${document.querySelector(".scr-motion-simnote.is-in")?.textContent ?? "-"}`);
+  console.log(`[가림] 다 뜬 뒤 ${await st9()}`);
+}
+/* --zoomminprobe(2026-10-30, 지적: "폰에서는 전체맵 배율이 1인데 피시에서는 기본 배율이 1로 표시되고 최소로 축소한 게 0.몇") — 지도 가운데서 휠로 끝까지 물리며
    배율 원(.scr-zoomdial-val) 글과 붓의 배율(__scrDiag.zoom)을 찍는다(--diag 와 함께 · --castoff 면 손 카메라). */
-if (has("--zoomoutprobe")) {
+if (has("--zoomminprobe")) {   // 옛 이름 --zoomoutprobe 는 아래 2026-10-24 탐침과 겹쳤다
   const m9 = await page.$(".scr-motion-map"); const b9 = await m9.boundingBox();
   await page.mouse.move(b9.x + b9.width / 2, b9.y + b9.height / 2);
   const rd9 = async () => `원 ${await page.evaluate(() => [...document.querySelectorAll(".scr-zoomdial-val")].map((e) => e.textContent).join("/") || "-")} · 붓 ${(await page.evaluate(() => window.__scrDiag?.zoom ?? null))?.toFixed?.(2)} · 켜진 모드 ${await page.evaluate(() => [...document.querySelectorAll("button[aria-pressed='true'], .is-on")].map((e) => (e.textContent || "").trim().slice(0, 6)).filter(Boolean).join(",") || "-")}`;

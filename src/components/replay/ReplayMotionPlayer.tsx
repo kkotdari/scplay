@@ -8624,7 +8624,8 @@ type PartGrp9 = { faces: ShapeFace[]; dx: number; dy: number; k: number };
 /** 겹판 무리 하나 — 자리(dx·dy)와 배율(k)은 그 판의 **모델 원점**(16-상자의 8, 12)을 축으로 건다. */
 /** ★ **로딩 알림 문장**(2026-10-25, 요청: "로딩 워드마크를 제거하고 자세히 설명 · 페이드인아웃 · 예: 그래픽 소스 받는 중 · 게임 데이터 받는 중") — 단계(key)가 바뀌면 옛 글이
  *  사라지며(is-out 0.32초) 새 글이 떠오른다(is-in) · 같은 단계 안의 글 바뀜(예열 %)은 그 자리에서 고친다 · null 이면 사라지고 내린다. 옛 띄운 글자 L O A D I N G 은 걷었다. */
-function LoadNote9({ stage }: { stage: { key: string; text: string } | null }) {
+type LoadStage9 = { key: string; text: string };
+function LoadNote9({ stage }: { stage: LoadStage9 | null }) {
   const [shown, setShown] = useState(stage);
   const [out, setOut] = useState<{ key: string; text: string } | null>(null);
   const skey = stage?.key ?? ""; const stext = stage?.text ?? "";
@@ -9538,7 +9539,7 @@ export default function ReplayMotionPlayer({
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
-  onFinish, askMode, pending,
+  onFinish, askMode, pending, veil, onReady,
 }: {
   grid: ReplayMapGrid;
   /** 경기 길이(초) — 경기 메타(durationSeconds)에서 온다. 없으면 트랙의 끝으로 잡는다. */
@@ -9598,6 +9599,11 @@ export default function ReplayMotionPlayer({
    *  빈 지도(PENDING_GRID9)로 먼저 세운다: 틀·독·툴박스는 그대로 서고 무대는 까만 판 + LOADING · 시계는 선다 · 보기 모드는 안 묻는다. 자료가 오면 앱이
    *  진짜 재생기로 갈아 끼운다(같은 자리 · 같은 꼴이라 빈 칸이 채워지는 것으로 보인다). */
   pending?: boolean;
+  /** ★ 다 될 때까지 가린다(2026-10-30, 요청: "재생기는 모든 정보가 다 도착하고 화면이 준비되면 그때 그리기 — 전광판이나 시간 그런 것도 다") — 참이면 로딩 단계
+   *  (게임 데이터 · 그래픽 소스 · 모델 준비 · 모델 굽기 · 화면 준비)가 처음 다 끝날 때까지 재생기 전체(무대·독·재생 줄)를 visibility hidden 으로 두고,
+   *  끝나는 순간 한 번 onReady 를 부른다. 그동안 무엇을 보일지(워드마크 로딩)는 앱이 그린다. */
+  veil?: boolean;
+  onReady?: () => void;
   /** 이 재생기가 화면에 홀로 있나 — 상세 모달이나 게임 페이지처럼 한 판만 보고 있는
    *  화면이다. 갈라진 판 경고는 여기서만 뜬다(목록은 카드마다 재생기가 하나씩이라
    *  경고창이 겹친다). */
@@ -19203,6 +19209,24 @@ export default function ReplayMotionPlayer({
   const askLatch9 = useRef(false);
   if (modeAsk9 && askReady9) askLatch9.current = true;
   const askShow9 = modeAsk9 && (askReady9 || askLatch9.current);
+  /** 지금 하는 로딩 일(LoadNote9 · 아래 ★) — null 이면 다 됐다(보기 모드 판이 뜬 때 포함). */
+  const loadStage9: LoadStage9 | null = (!modeAsk9 || !askShow9) ? (
+    pending || (!simTracks && entLoad === "loading") ? { key: "data", text: "게임 데이터 받는 중" }
+      : atlasLoad9 ? { key: "atlas", text: "그래픽 소스 받는 중" }
+        : warmAt ? { key: "warm", text: `모델 준비 중 ${Math.min(99, Math.round((warmAt.done / Math.max(1, warmAt.total)) * 100))}%` }
+          : bakeHold && !introWarm9 ? { key: "bake", text: "모델 굽는 중" }
+            : modeAsk9 && !askShow9 ? { key: "paint", text: "화면 준비 중" }
+              : null
+  ) : null;
+  /* 가림(props veil ★) — 로딩이 **처음** 다 끝난 순간 걷고 onReady 를 한 번 부른다(그 뒤의 재예열·굽기 몰림으로 다시 가리지 않는다). */
+  const [readyOnce9, setReadyOnce9] = useState(false);
+  const onReadyRef9 = useRef(onReady); onReadyRef9.current = onReady;
+  useEffect(() => {
+    if (readyOnce9 || pending || loadStage9 !== null) return;
+    setReadyOnce9(true);
+    onReadyRef9.current?.();
+  }, [readyOnce9, pending, loadStage9 === null]);
+  const veiled9 = !!veil && !readyOnce9;
   /** 재생 품질 알림(위 QUALITY9) — 값이 있으면 지도 오른쪽 위에 3초. */
   const [qualityNote, setQualityNote] = useState<string | null>(null);
   useEffect(() => {
@@ -21869,14 +21893,7 @@ export default function ReplayMotionPlayer({
               장면 위에 글자가 덮이는 것이 더 거슬린다. 그 뒤로는 못 찍은 몸이 그 장에 메시로 서거나 다음 장에 선다. */}
           {/* ★ 로딩 알림은 **지금 하는 일**을 말한다(2026-10-25 · LoadNote9 ★) — 뜨는 때는 옛 LOADING 과 같다. 차례: 게임 데이터 → 그래픽 소스(서버 아틀라스) → 모델 준비(예열 %) →
               모델 굽기(재생 중 굽기 몰림 · 첫 예열 전만) → 화면 준비(그림이 매끄럽게 돌기 전 · 보기 모드 판 앞). */}
-          <LoadNote9 stage={(!modeAsk9 || !askShow9) ? (
-            pending || (!simTracks && entLoad === "loading") ? { key: "data", text: "게임 데이터 받는 중" }
-              : atlasLoad9 ? { key: "atlas", text: "그래픽 소스 받는 중" }
-                : warmAt ? { key: "warm", text: `모델 준비 중 ${Math.min(99, Math.round((warmAt.done / Math.max(1, warmAt.total)) * 100))}%` }
-                  : bakeHold && !introWarm9 ? { key: "bake", text: "모델 굽는 중" }
-                    : modeAsk9 && !askShow9 ? { key: "paint", text: "화면 준비 중" }
-                      : null
-          ) : null} />
+          <LoadNote9 stage={loadStage9} />
           {/* (걷어냄·요청: "미니맵 연결해주세요는 이제 없애야해") — "미연결 상태에선
              유닛이 벽을 뚫고 다녀요"라는 한 줄이 여기 있었다. 그 말은 지형(벽)을 미니맵
              그림에서 어림하던 시절의 것이다: 그림이 없으면 벽도 없었다.
@@ -22442,7 +22459,7 @@ export default function ReplayMotionPlayer({
             </div>
   );
   const stageNode = (
-    <div
+    <div data-veil={veiled9 ? "" : undefined}
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
@@ -22801,6 +22818,7 @@ export default function ReplayMotionPlayer({
     <div
       ref={setRoot}
       className={cx("scr-motion", "scr-motion-root", wide && "scr-motion-wide", !uiPhone9 && "scr-motion-pc9", modeAsk9 && "is-asking")}
+      data-veil={veiled9 ? "" : undefined}
       style={{ margin: "0 auto", ...uiVars9 }}
     >
       <div className="scr-motion-frame" ref={frameRefCb9}>

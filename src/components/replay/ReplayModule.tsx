@@ -62,6 +62,9 @@ export interface ReplayModuleProps {
   askMode?: boolean;
   /** 자료(게임·지도)를 기다리는 동안 먼저 세우는 재생기 — 빈 지도(PENDING_GRID9)와 함께(ReplayMotionPlayer pending). */
   pending?: boolean;
+  /** 로딩이 처음 다 끝날 때까지 재생기 전체를 가린다 · 끝나면 onReady(ReplayMotionPlayer veil ★). */
+  veil?: boolean;
+  onReady?: () => void;
 }
 
 export default function ReplayModule({
@@ -69,7 +72,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, shareNode, onShare, shareLabel,
-  onGuide, guide, side, menu, avatars, askMode, pending,
+  onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady,
 }: ReplayModuleProps) {
   return (
     <div className="scr-story-map">
@@ -94,6 +97,8 @@ export default function ReplayModule({
         avatars={avatars}
         askMode={askMode}
         pending={pending}
+        veil={veil}
+        onReady={onReady}
       />
     </div>
   );
