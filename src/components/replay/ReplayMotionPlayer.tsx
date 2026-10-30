@@ -3931,7 +3931,6 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     const boom9 = bld && TOSS_BOOM9 > 0;
     /* (같은 날 되요청: "빛줄기가 폭발구보다 작다니까 서로 크기 바뀌어야 돼") — 뭉치를 키우고(× BOOM_K9 · 끝 ≈1.2W) 빛줄기는 옛 자(0.5 · 끝 0.25~0.77W)로 뭉치 **안**에
        둔다. 빛줄기는 뭉치 **위**에 그린다(아래 깔면 큰 뭉치가 다 덮는다). */
-    const BOOM_K9 = 1.45;
     const RK9 = 0.5;
     const fade = 1 - p;
     /* (같은 날 되요청: "원작에서 빛줄기가 폭발구보다 반경이 살짝만 10% 정도 커 · 중요한 게 타이밍인데 폭발 먼저 나고 페이드아웃하면서 빛이 팍 확장") — 뭉치(boom9)일 때
@@ -3979,22 +3978,31 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     const orb9 = domSpr9("plasma-orb", (c9, S9) => radLay9(c9, S9,
       [[0, "rgba(255,255,255,1)"], [0.34, "rgba(250,253,255,1)"], [0.48, "rgba(220,239,255,0.96)"], [0.58, "rgba(150,202,255,0.82)"], [0.66, "rgba(80,148,255,0.42)"], [0.71, "rgba(55,115,255,0)"]]), 128);
     if (boom9) {
-      // 뭉치 — 가운데 큰 덩이 + 둘레 아홉. 덩이마다 각·거리·크기·늦음을 씨앗으로 고정하고(프레임마다 같은 꼴), 늦게 뜬 것일수록 바깥에서 부푼다.
-      const NP9 = 10;
-      for (let i9 = 0; i9 < NP9; i9 += 1) {
-        const a9 = i9 === 0 ? 0 : ((i9 - 1 + (rnd() - 0.5) * 0.7) / (NP9 - 1)) * Math.PI * 2;
-        const d9 = i9 === 0 ? 0 : W * (0.2 + rnd() * 0.22) * BOOM_K9;
-        const r9 = W * (i9 === 0 ? 0.42 : 0.2 + rnd() * 0.12) * BOOM_K9;
-        const dl9 = i9 === 0 ? 0 : rnd() * 0.16;
-        Rc9 = Math.max(Rc9, d9 + r9 * 1.3 * 0.62);   // 다 부푼 덩이의 보이는 바깥 끝(판 방사 0.62 ≈ 푸른 테)
+      /* ★ **구체 + 뭉게뭉게 가장자리**(같은 날 되요청: "뭉게뭉게가 저런 느낌이 아니라 전체적으로 구체이면서 가장자리가 뭉게 느낌") — 덩이를 흩던 뭉치를 걷고
+         큰 구체 하나(V9 = 0.7W · 빛무리 끝 0.9V)에 **테 혹** 열여섯(같은 판 · 중심 0.8~0.86V · 끝 반지름 0.22~0.34V)을 둘러 겉만 울퉁불퉁하다.
+         혹을 먼저 깔고 구체를 위에 얹어 속은 매끈한 한 덩이로 읽힌다. 혹마다 각 흔들림·크기·조금 늦음은 씨앗으로 고정 · 모두 구체와 함께 부푼다. */
+      const V9 = W * 0.7;
+      const NB9 = 16;
+      const pk9 = (q9: number): number => Math.min(1, q9 / 0.06) * Math.max(0, q9 < RAY_P09 ? 1 : 1 - (q9 - RAY_P09) / 0.6) ** 1.4;
+      const grow9 = (q9: number): number => 0.55 + 0.45 * (1 - (1 - Math.min(1, q9 / 0.45)) ** 2.2);
+      const cy9 = ay - W * 0.04;
+      for (let i9 = 0; i9 < NB9; i9 += 1) {
+        const a9 = ((i9 + (rnd() - 0.5) * 0.6) / NB9) * Math.PI * 2;
+        const v9 = V9 * (0.22 + rnd() * 0.12);
+        const dl9 = rnd() * 0.06;
+        const d9 = V9 * (0.8 + rnd() * 0.06);
+        Rc9 = Math.max(Rc9, d9 + v9);
         const q9 = Math.max(0, (p - dl9) / (1 - dl9));
         if (q9 <= 0) continue;
-        const e9 = 1 - (1 - Math.min(1, q9 / 0.45)) ** 2.2;
-        const pr9 = r9 * (0.55 + 0.75 * e9);
-        const px9 = ax + Math.cos(a9) * d9 * (0.35 + 0.65 * e9);
-        const py9 = ay + Math.sin(a9) * d9 * (0.35 + 0.65 * e9) * 0.8 - W * 0.12 * BOOM_K9 * e9;   // 살짝 위로 피어오른다
-        ctx.globalAlpha = Math.min(1, q9 / 0.06) * Math.max(0, q9 < RAY_P09 ? 1 : 1 - (q9 - RAY_P09) / 0.6) ** 1.4 * (i9 === 0 ? 1 : 0.92);
-        ctx.drawImage(orb9, px9 - pr9, py9 - pr9, pr9 * 2, pr9 * 2);
+        const g9 = grow9(q9);
+        const pr9 = (v9 / 0.71) * g9;   // 판 방사 0.71 = 빛무리 끝 — 혹의 끝이 그 자리
+        ctx.globalAlpha = pk9(q9) * 0.95;
+        ctx.drawImage(orb9, ax + Math.cos(a9) * d9 * g9 - pr9, cy9 + Math.sin(a9) * d9 * g9 - pr9, pr9 * 2, pr9 * 2);
+      }
+      {
+        const pr9 = ((V9 * 0.9) / 0.71) * grow9(p);   // 구체 빛무리 끝(0.9V)이 혹(0.8V + 0.22~0.34V)보다 안이라 혹이 겉으로 드러난다
+        ctx.globalAlpha = pk9(p);
+        ctx.drawImage(orb9, ax - pr9, cy9 - pr9, pr9 * 2, pr9 * 2);
       }
       rays9();
     } else {
