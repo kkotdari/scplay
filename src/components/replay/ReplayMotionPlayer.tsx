@@ -12605,7 +12605,8 @@ export default function ReplayMotionPlayer({
      그래서 입체에서는 안개를 통째로 끈다 — 걷힌 지도를 보여 주는 편이 끊기는 안개보다 낫다.
      사람에게는 **토스트로 한 번** 알린다(아래): 화면이 갑자기 밝아지는 것은 설명 없이 두면
      고장으로 읽힌다. */
-  const fogOn = fogReady9 && !pitched;
+  /* `#nofog`(2026-10-30 · scripts/showcase-shot 의 진열 사진 — 안개 없이 지도 전체가 밝다). */
+  const fogOn = fogReady9 && !pitched && !(typeof location !== "undefined" && /(?:^|[#&,])nofog(?:$|[&,])/.test(location.hash));
   /** 이 진입에서 이미 알렸나 — 3D에 머무는 동안 각도 칸을 옮겨도 다시 안 띄운다. */
   const fog3dToldRef9 = useRef(false);
   useEffect(() => {
