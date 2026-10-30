@@ -1075,6 +1075,14 @@ if (has("--fold")) {
   const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /인포창 접기$/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
   await page.waitForTimeout(600);
   console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}`);
+  /* --foldhit(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌이 안 되고 페이지 드래그가 됨") — 접힌 독 자리·지도 자리의 맨 위 요소와
+     그 사슬(touch-action · 손짓 받는 판 .scr-motion-map 안인가)을 적는다. */
+  if (has("--foldhit")) console.log("[접기 맞힘]", await page.evaluate(() => {
+    const m = document.querySelector(".scr-motion-map"); const mb = m?.getBoundingClientRect();
+    const row = document.querySelector(".scr-fs-dockrow"); const rb = row?.getBoundingClientRect();
+    const at = (x, y) => { const e = document.elementFromPoint(x, y); if (!e) return "없음"; const ch = []; for (let n = e; n && ch.length < 6; n = n.parentElement) ch.push(`${n.tagName.toLowerCase()}.${String(n.className?.baseVal ?? n.className).split(" ").slice(0, 2).join(".")}[${getComputedStyle(n).touchAction}]`); return `${m?.contains(e) ? "지도안" : "지도밖"} ${ch.join(" < ")}`; };
+    return `지도 ${mb ? `${mb.top.toFixed(0)}~${mb.bottom.toFixed(0)}` : "-"} · 독줄 ${rb ? `${rb.top.toFixed(0)}~${rb.bottom.toFixed(0)}` : "-"}\n  지도 가운데: ${mb ? at(mb.left + mb.width / 2, mb.top + mb.height / 2) : "-"}\n  독 자리: ${rb ? at(rb.left + rb.width / 2, rb.top + rb.height / 2) : "-"}`;
+  }));
 }
 if (has("--press")) {
   const b9 = await page.locator(String(flag("--press"))).first().boundingBox();

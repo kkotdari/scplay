@@ -3341,6 +3341,11 @@
    무대(rowsH · --map-ext · 덮는 판)가 다시 서고 캔버스가 통째로 다시 그려졌다. 이제 줄은 자리를 지킨 채 보이지만 않고(visibility), 쇠판 켜는 툴박스 위끝으로 내려간다
    (--plate-top · dockFit read9 가 적는다) — 독이 서던 자리엔 뒤에 그려진 지도가 보인다. 옛 `.is-fold + .scr-tb` 위 여백 보정은 줄이 남아 필요 없다. */
 .scr-fs-dockrow.is-fold { visibility: hidden; pointer-events: none; }
+/* ★ 접힌 독 자리는 **무대가 받는다**(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌 안 되고 페이지 드래그가 됨") — 독 줄은 숨어도
+   그 자리를 아래 판(.scr-fs-lower · touch-action auto)이 덮고 있어 손짓이 페이지 끌기로 샜다. 손짓은 무대(.scr-fs-stage · inset 0 · touch-action none)가 받으므로
+   접힌 동안 아래 판만 누름을 흘리고 그 안의 툴박스 따위(독 줄 말고)는 그대로 받는다. 🔎 `perf-check --ios --castoff --fold --foldhit`. */
+.scr-fs-lower.is-fold { pointer-events: none; }
+.scr-fs-lower.is-fold > :not(.scr-fs-dockrow) { pointer-events: auto; }
 .scr-fs-dockframe > .scr-fs-dockmain { grid-column: 1; grid-row: 1; }
 .scr-fs-dockmain > .scr-fs-rosterpanel,
 .scr-fs-dockmain > .scr-fs-minipanel,

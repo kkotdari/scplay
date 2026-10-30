@@ -22765,7 +22765,7 @@ export default function ReplayMotionPlayer({
             프레임모드에선 툴박스만 지도 내부. 툴박스는 안쓰면 몇초뒤 아이콘 하나로 최소화(우측에 배치)") — 한 감싸개
             (.scr-fs-lower)가 두 배치를 다 낸다: 전체화면은 화면 아래에 겹쳐 뜨는 세로 줄이고, 프레임은 `display: contents` 라
             툴박스는 무대 칸(격자 1행)의 아래에 겹쳐 서고 독 줄은 지도 밖 2행에 선다(replay.css 의 같은 ★★). */}
-        <div className="scr-fs-lower">
+        <div className={cx("scr-fs-lower", dockFoldOn9 && "is-fold")}>
           {/* ★ 독 줄이 **위**, 툴박스(재생부)가 **아래**다(2026-10, 요청: "재생기 독 수정 — 재생부를 아래로 미니맵과 인포창을
               위로 바꿈"). 옛 판은 [툴박스 / 독 줄]이었다. 접기(독 줄을 통째로 걷는다)는 재생 줄의 시계 옆이라 그대로 남는다. */}
           <div className={cx("scr-fs-dockrow", dockFoldOn9 && "is-fold")} ref={dockRowRef9}>

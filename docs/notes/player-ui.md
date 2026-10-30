@@ -2695,3 +2695,11 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   숨은 받침 셋(가장 긴 글의 숫자를 0·4·8 로 채운 것 · `.scr-motion-clock.is-sizer`)과 한 칸에 겹쳐 가장 넓은 폭으로 못 박았다(글자는 오른쪽 붙임).
   받침은 시계 **뒤**에 둔다(perf-check 들이 `querySelector(".scr-motion-clock")` 로 첫째를 읽는다).
 - 🔎 `perf-check --ios --warm 0 --atlas spr --castoff --seekwidth x.png` → 자리마다 `[탐색 폭]` 판·바·시계 폭 + 0.6 자리에서 끄는 중 곡선 판 그림.
+
+## 접힌 독 자리도 무대가 받는다(2026-10-30)
+실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌 같은 거 안 되고 페이지 드래그가 됨".
+- 까닭: 접기는 독 줄만 숨긴다(visibility · 10-24 깜빡임 고침) — 그 자리를 아래 판 `.scr-fs-lower`(touch-action auto)가 덮고 있어 누름이 무대에 안 닿고 페이지 끌기로 샜다.
+  손짓은 무대(.scr-fs-stage · inset 0 · touch-action none · onPointer*)가 받는다.
+- 고침: 접힌 동안 `.scr-fs-lower.is-fold { pointer-events: none }` · 그 안의 독 줄 말고(툴박스 등)는 auto.
+- 🔎 `perf-check --ios --warm 0 --atlas spr --castoff --fold --foldhit` → `[접기 맞힘]` 독 자리: 옛 `지도밖 div.scr-fs-lower[auto]` → 새 `지도안 … scr-motion-map[none] < scr-fs-stage[none]`.
+  PC(--wide)는 하네스 15분 제한에 걸려 못 봤다.
