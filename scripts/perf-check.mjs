@@ -3074,6 +3074,24 @@ if (flag("--seekgraph", null)) {
     await page.screenshot({ path: `${base9}_off.png`, clip: clip9 });
   }
 }
+/* --seekwidth(2026-10-30, 지적: "탐색바 이동 시 우세창 폭이 왜 달라지지") — 진행바를 눌러 끌며 자리마다 곡선 판·진행바·시계의 폭과 시계 글자를 적는다. */
+if (has("--seekwidth")) {
+  const r9 = await page.evaluate(() => { const e = document.querySelector(".scr-motion-range"); const b = e?.getBoundingClientRect(); return b ? { x: b.x, y: b.y, w: b.width, h: b.height } : null; });
+  if (r9) {
+    const py9 = r9.y + r9.h / 2;
+    await page.mouse.move(r9.x + r9.w * 0.05, py9); await page.mouse.down();
+    for (const f9 of [0.05, 0.2, 0.4, 0.6, 0.8, 0.95]) {
+      await page.mouse.move(r9.x + r9.w * f9, py9, { steps: 3 }); await page.waitForTimeout(300);
+      if (f9 === 0.6 && /\.png$/.test(String(flag("--seekwidth")))) await page.screenshot({ path: String(flag("--seekwidth")), clip: { x: Math.max(0, r9.x - 20), y: Math.max(0, r9.y - 300), width: r9.w + 40, height: 330 } });   // --seekwidth x.png — 끄는 중 곡선 판(점선)
+      console.log(`[탐색 폭] ${f9}`, await page.evaluate(() => {
+        const w = (q) => { const e = document.querySelector(q); return e ? e.getBoundingClientRect().width.toFixed(1) : "-"; };
+        const c = [...document.querySelectorAll(".scr-motion-clock")].map((e) => `${e.textContent}=${e.getBoundingClientRect().width.toFixed(1)}`).join(",");
+        return `판 ${w(".scr-motion-combat")} · 이름 ${w(".scr-motion-adv-tags")} · 바 ${w(".scr-motion-range")} · 감싸개 ${w(".scr-motion-rangewrap")} · 시계 ${c}`;
+      }));
+    }
+    await page.mouse.up();
+  }
+}
 /* --pinchtrace(2026-10-25, 지적: "중계모드 또는 개인화면 줌인하면 한번 깜빡이고 제자리로 이동") — 지도 가운데서 두 손가락을 벌려(CDP 터치) 확대하고, 손짓 시작부터 1.5초
    동안 붓이 칠한 장마다 [출처 · 배율 · 팬]을 적는다(__brushLog9 · --diag 필요). 배율이 올랐다 옛 값으로 한 장 돌아가면 그 장이 깜빡임이다. */
 if (has("--pinchtrace")) {

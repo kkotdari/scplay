@@ -1675,6 +1675,10 @@
 .scr-motion-clock {
   font-size: var(--fs-9); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* 시계 폭 받침(2026-10-30 · ReplayMotionPlayer 'scr-motion-clockbox' ★) — 시계와 숨은 받침 셋을 한 칸에 겹쳐 가장 넓은 폭으로 상자를 못 박는다. */
+.scr-motion-clockbox { display: inline-grid; justify-items: end; }
+.scr-motion-clockbox > .scr-motion-clock { grid-area: 1 / 1; }
+.scr-motion-clockbox > .scr-motion-clock.is-sizer { visibility: hidden; pointer-events: none; }
 /* 범례의 일꾼 점 — 지도의 ●와 같은 기호를 부대 항목보다 한 단 작게(지적: •는 너무 작음). */
 .scr-motion-legend-worker { font-style: normal; font-size: 0.8em; }
 /* 태움·드랍 광선(요청: 우주선처럼 노란 광선) — 위(수송선)에서 좁게 시작해 유닛 자리로
@@ -5467,6 +5471,14 @@
   color: #fff; font-size: calc(11px * var(--ui, 1)); font-weight: 700; line-height: calc(14px * var(--ui, 1)); white-space: nowrap;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45); box-shadow: 0 0 0 1px rgba(8, 10, 16, 0.6);   /* 바탕 = 선 색(JSX 인라인) */
 }
+/* 우세 곡선 위 시각 점선(2026-10-30, 요청: "탐색바 이동 시(피시 마우스 오버 포함) 얇은 점선으로 우세 그래프에 시각 나타내기" · ReplayMotionPlayer advCurRef9) —
+   말풍선과 같은 --sp 자리 · 판 위아래 끝까지 · 1px 흰 점선(검은 그림자로 밝은 선 위에서도 보인다). 이름 칩 아래(먼저 그린다). */
+.scr-motion-adv-cur {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--sp, 0) * 100%); width: 0; transform: translateX(-0.5px);
+  border-left: 1px dashed rgba(255, 255, 255, 0.75); filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+  opacity: 0; visibility: hidden;
+}
+.scr-motion-adv-cur.is-on { opacity: 1; visibility: visible; }
 /* 우세 곡선(2026-10-26, 요청: "전투량 말고 팀(또는 개인) 우세 정도로" → "각각을 곡선으로" · ReplayMotionPlayer advLines9) — 편마다 유닛 몸값 한 줄 · 색은 편 색. */
 .scr-motion-adv-line { fill: none; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)); }
 

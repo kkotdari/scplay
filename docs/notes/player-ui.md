@@ -2686,3 +2686,12 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 앱(sg-web): GameDetailPage 는 게임을 받는 동안 머리 줄 + DetailLoading(워드마크) · GameResultStory 는 상세(soleView)에서 지도·재생기 준비까지 DetailLoading · 댓글은 onShown 뒤.
   옛 자료를 기다리는 재생기(PlayerLoadShell · pending)는 sg-web 에서 걷었다(scplay pending 은 남김).
 - 🔎 `perf-check --wide|--ios --ask --warm 0 --atlas spr --veilprobe` — `[가림] 다 뜬 뒤 가림 0 · 준비 N ms`.
+
+## 우세 곡선 시각 점선 · 시계 폭 받침(2026-10-30)
+- 요청: "탐색바 이동 시(피시 마우스 오버 포함) 얇은 점선으로 우세 그래프에 시각 나타내기" — `.scr-motion-adv-cur`(이름 상자 안 · 판 위아래 끝까지 · 1px 흰 점선 + 검은 그림자).
+  말풍선(seekTipShow9)과 같은 때·같은 `--sp`(이름 상자가 곡선 판·말풍선 판과 같은 자 — 손잡이 폭의 반씩 양끝 비움). 판이 숨으면 함께 숨는다.
+- 지적: "탐색바 이동 시 우세창 폭이 왜 달라지지" — 진행바(곡선 판)는 시계가 남긴 자리를 받는다. 헤드리스는 끄는 동안 판 폭이 ±0.1px 로 안 흔들렸다
+  (글꼴이 tabular-nums 를 받는다) → 기기 글꼴이 고정폭 숫자를 안 받아 시계 폭이 흔들린 것으로 본다. 시계를 `.scr-motion-clockbox`(inline-grid)에 넣고
+  숨은 받침 셋(가장 긴 글의 숫자를 0·4·8 로 채운 것 · `.scr-motion-clock.is-sizer`)과 한 칸에 겹쳐 가장 넓은 폭으로 못 박았다(글자는 오른쪽 붙임).
+  받침은 시계 **뒤**에 둔다(perf-check 들이 `querySelector(".scr-motion-clock")` 로 첫째를 읽는다).
+- 🔎 `perf-check --ios --warm 0 --atlas spr --castoff --seekwidth x.png` → 자리마다 `[탐색 폭]` 판·바·시계 폭 + 0.6 자리에서 끄는 중 곡선 판 그림.

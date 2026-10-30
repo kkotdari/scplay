@@ -12219,14 +12219,18 @@ export default function ReplayMotionPlayer({
    *  PC 마우스는 얹은 자리(누르지 않아도) · 끌기(마우스·손가락)는 손잡이 위. 리렌더 없이 DOM 에 바로 쓴다(끌기 이벤트마다 setT 를 안 놓는 까닭과 같다 — 위 onInput ★★).
    *  자리는 손잡이 가운데 자(.scr-motion-seektips 가 손잡이 폭의 반씩 양끝을 비운다 · 검색 태그와 같은 자)의 비율 --sp. 꼴은 replay.css(테마별). */
   const seekTipRef9 = useRef<HTMLSpanElement | null>(null);
+  /** ★ 우세 곡선 위 시각 점선(2026-10-30, 요청: "탐색바 이동 시(피시 마우스 오버 포함) 얇은 점선으로 우세 그래프에 시각 나타내기") — 말풍선과 같은 때·같은 비율 자리.
+   *  이름 상자(.scr-motion-adv-tags)가 곡선 판과 같은 자(손잡이 폭의 반씩 양끝을 비움)라 --sp 그대로 맞는다. */
+  const advCurRef9 = useRef<HTMLElement | null>(null);
   const seekTipShow9 = (frac: number | null): void => {
-    const el9 = seekTipRef9.current;
+    const el9 = seekTipRef9.current; const cur9 = advCurRef9.current;
     if (!el9) return;
-    if (frac === null || !(total > 0)) { el9.classList.remove("is-on"); return; }
+    if (frac === null || !(total > 0)) { el9.classList.remove("is-on"); cur9?.classList.remove("is-on"); return; }
     const f9 = Math.min(1, Math.max(0, frac));
     el9.style.setProperty("--sp", String(f9));
     el9.textContent = fmtClock(f9 * total);
     el9.classList.add("is-on");
+    if (cur9) { cur9.style.setProperty("--sp", String(f9)); cur9.classList.add("is-on"); }
   };
   /** 얹은 마우스의 비율 — 말풍선 판(손잡이 가운데 자)의 상자로 잰다. */
   const seekTipFracAt9 = (clientX: number): number | null => {
@@ -20226,6 +20230,7 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-adv-tags" aria-hidden>
               {/* 제목(2026-10-26, 요청: "탐색바 우세도 그래프에 타이틀 붙이기(좌상단) 우세도라고") */}
               <b className="scr-motion-adv-title">우세도</b>
+              <i className="scr-motion-adv-cur" ref={advCurRef9} />
               {((): React.ReactNode => {
                 const sep9 = (14 / (uiPhone9 ? 60 : 120)) * 100;
                 const ord9 = advLines9.map((l9, i9) => ({ i: i9, y: l9.endY })).sort((a9, b9) => a9.y - b9.y);
@@ -20308,8 +20313,16 @@ export default function ReplayMotionPlayer({
               (한 번이라도 끌고 나면 시계가 그 자리에 멈췄다 · 지적: "시간표시부분이 안바뀌는 문제").
               문자열 하나면 React 도 이 요소의 textContent 로 고치므로 두 손이 같은 자리를 쓴다. */}
           {/* 자료 기다림(pending)은 길이를 아직 모른다 — 자식은 늘 문자열 하나(손으로 textContent 를 쓰는 자리 · CLAUDE.md). */}
-          <span className="scr-motion-clock" ref={clockElRef9}>
-            {pending ? "0:00 / --:--" : `${fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`}
+          {/* ★ 폭 받침(2026-10-30, 지적: "탐색바 이동 시 우세창 폭이 왜 달라지지") — 진행바(·우세 곡선 판)는 시계가 남긴 자리를 받는다. 기기 글꼴이 tabular-nums 를
+              안 받으면 숫자마다 폭이 달라 끄는 동안 시계 폭이 흔들리고 판 폭이 따라 흔들렸다(헤드리스 글꼴은 고정폭이라 안 보였다 · 실측 ±0.1px).
+              숨은 받침 셋(숫자를 0·4·8 로 채운 가장 긴 글)과 한 칸에 겹쳐 시계 상자를 그중 가장 넓은 폭으로 못 박는다 · 글자는 오른쪽에 붙인다. */}
+          <span className="scr-motion-clockbox">
+            <span className="scr-motion-clock" ref={clockElRef9}>
+              {pending ? "0:00 / --:--" : `${fmtClock(t).padStart(fmtClock(total).length, "\u2007")} / ${fmtClock(total)}`}
+            </span>
+            {["0", "4", "8"].map((d9) => (
+              <span key={d9} className="scr-motion-clock is-sizer" aria-hidden>{`${(pending ? "0:00" : fmtClock(total)).replace(/\d/g, d9)} / ${pending ? "--:--" : fmtClock(total)}`}</span>
+            ))}
           </span>
         </span>
       </div>
