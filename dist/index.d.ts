@@ -374,7 +374,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, onGuide, guide, side, menu, avatars, askMode, pending, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -434,6 +434,9 @@ export declare interface ReplayModuleProps {
     askMode?: boolean;
     /** 자료(게임·지도)를 기다리는 동안 먼저 세우는 재생기 — 빈 지도(PENDING_GRID9)와 함께(ReplayMotionPlayer pending). */
     pending?: boolean;
+    /** 로딩이 처음 다 끝날 때까지 재생기 전체를 가린다 · 끝나면 onReady(ReplayMotionPlayer veil ★). */
+    veil?: boolean;
+    onReady?: () => void;
 }
 
 declare interface ReplayPlayerSignals {
