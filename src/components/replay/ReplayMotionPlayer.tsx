@@ -1742,6 +1742,8 @@ const ZCAP_Z9 = hashNum9("zcapz", 0);
    기본 캔버스 antialias(다중표본)라 dpr 3 화소 2.25배 + 베끼기·샤픈 한 패스가 그대로 GPU 몫이었다. 폰은 옛길(몸 배킹 · 샤픈 없음) · PC 만 켠다.
    폰에서 견주려면 `#terrdpr=3` · `#tsharp=0.5` 를 붙인다. */
 const TERR_DPR9 = hashNum9("terrdpr", DEV9.name === "phone" ? 0 : 3);
+/** 프로토스 건물 폭발 꼴(drawBurst9 ★ 뭉게뭉게) — 1 뭉치·큰 빛줄기 · 0 옛 구체 한 장. `#tossboom=N` 로 견준다. */
+const TOSS_BOOM9 = hashNum9("tossboom", 1);
 /** ★ 몸 배킹 상한 시험 손잡이(2026-10-30, 요청: 폰 유닛도 원래 해상도로 — 실기 발열·fps 를 보고 정한다) — `#backcap=N` 이면 단별 상한(backCap9)과
  *  폰 6배 이상 2 누름(capSmall9)을 N 으로 갈음한다(예 3 = dpr 3 폰 원래 해상도). 0·없음 = 그대로. 프레임이 떨어지면 실측 조절(DRS9)은 그대로 내린다 · `?dpr=` 이 더 낮으면 그쪽. */
 const BACKCAP9 = hashNum9("backcap", 0);
@@ -3923,7 +3925,11 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
        폭발 구체로 변경 · 기본은 거의 흰색에 가장자리만 푸른색으로 자연스럽게 이어지며 살짝 확대하며 사라지는 효과") — 바탕 빛무리(plasma-glow)·흰 심(plasma-core)
        원반과 건물 무너짐의 프로토스 고리·심(clp)을 걷고 구체 한 장(plasma-orb · 구운 방사 판)으로. 건물은 빛줄기를 그대로 두고 그 위에 구체 · 기계 유닛은 구체만.
        반지름 W × (건물 0.42 · 유닛 0.5) × (0.85 → 1.15 · 이즈) · 알파는 앞 6% 에 차오르고 (1 − p)^1.3 으로 스러진다. */
-    const RK9 = 0.5;
+    /* ★ **건물은 뭉게뭉게 · 더 크게**(2026-10-30, 요청: "프로토스 건물 폭발 시 좀 더 연기처럼 뭉게뭉게 터지고 · 빛줄기가 연기보다 작네 · 원작을 자세히 보니 폭발이
+       더 커") — 구체 한 장 대신 **구체 뭉치**(같은 plasma-orb 판 여럿이 어긋나게 늦게 떠 밖·위로 부풀며 번진다 · 가운데 큰 덩이 하나) · 빛줄기 자 RK9 0.5 → 1
+       (끝 0.5~1.5W — 뭉치(≈0.75W)보다 멀리 뻗는다). `#tossboom=0` 옛 그림(구체 한 장 · 빛줄기 0.5). 기계 유닛은 그대로. */
+    const boom9 = bld && TOSS_BOOM9 > 0;
+    const RK9 = boom9 ? 1 : 0.5;
     const fade = 1 - p;
     // 빛줄기(건물만) — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
     const NR9 = bld ? 336 : 0;
@@ -3958,9 +3964,28 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     // 구체 — 속은 거의 흰빛 · 가장자리만 푸르게 무르게 이어진다(판 반지름 = 그린 상자 반 · 방사 자 0.71 이 가장자리).
     const orb9 = domSpr9("plasma-orb", (c9, S9) => radLay9(c9, S9,
       [[0, "rgba(255,255,255,1)"], [0.34, "rgba(250,253,255,1)"], [0.48, "rgba(220,239,255,0.96)"], [0.58, "rgba(150,202,255,0.82)"], [0.66, "rgba(80,148,255,0.42)"], [0.71, "rgba(55,115,255,0)"]]), 128);
+    if (boom9) {
+      // 뭉치 — 가운데 큰 덩이 + 둘레 아홉. 덩이마다 각·거리·크기·늦음을 씨앗으로 고정하고(프레임마다 같은 꼴), 늦게 뜬 것일수록 바깥에서 부푼다.
+      const NP9 = 10;
+      for (let i9 = 0; i9 < NP9; i9 += 1) {
+        const a9 = i9 === 0 ? 0 : ((i9 - 1 + (rnd() - 0.5) * 0.7) / (NP9 - 1)) * Math.PI * 2;
+        const d9 = i9 === 0 ? 0 : W * (0.2 + rnd() * 0.22);
+        const r9 = W * (i9 === 0 ? 0.42 : 0.2 + rnd() * 0.12);
+        const dl9 = i9 === 0 ? 0 : rnd() * 0.16;
+        const q9 = Math.max(0, (p - dl9) / (1 - dl9));
+        if (q9 <= 0) continue;
+        const e9 = 1 - (1 - q9) ** 2.2;
+        const pr9 = r9 * (0.55 + 0.75 * e9);
+        const px9 = ax + Math.cos(a9) * d9 * (0.35 + 0.65 * e9);
+        const py9 = ay + Math.sin(a9) * d9 * (0.35 + 0.65 * e9) * 0.8 - W * 0.12 * e9;   // 살짝 위로 피어오른다
+        ctx.globalAlpha = Math.min(1, q9 / 0.08) * (1 - q9) ** 1.25 * (i9 === 0 ? 1 : 0.92);
+        ctx.drawImage(orb9, px9 - pr9, py9 - pr9, pr9 * 2, pr9 * 2);
+      }
+    } else {
     const or9 = W * (bld ? 0.42 : 0.5) * (0.85 + 0.3 * ease);
     ctx.globalAlpha = Math.min(1, p / 0.06) * fade ** 1.3;
     ctx.drawImage(orb9, ax - or9, ay - or9, or9 * 2, or9 * 2);
+    }
   } else {
     /* ★ 프로토스 **유닛** — **사이오닉 연기로 사라진다**(요청: "원작과 유사하게") ────────────────────────────
        원작의 프로토스는 터져 흩어지지 않는다. 몸이 푸른 기운으로 풀리면서 그 자리에 연기가 피어올라 스러진다.
