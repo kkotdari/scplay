@@ -1693,7 +1693,7 @@ const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
 const PHONE_DPR9 = 2;
 /** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2 · 보통·낮음 1.75(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25·26 발열로 한 칸씩 내림 · 옛 2.5/2.25/2 → 2.25/2/1.75) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
-const backCap9 = (): number => (DEV9.name === "phone"
+const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
   ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.25 : PHONE_DPR9)
   : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
@@ -1739,6 +1739,9 @@ const hashNum9 = (k9: string, d9: number): number => {
 const ZCAP_Z9 = hashNum9("zcapz", 0);
 /** 지형층 배킹 상한(아래 ★ 지형층 배킹) — 기본 3(화면 밀도 그대로) · 0 = 몸 캔버스와 같은 배킹(옛길). */
 const TERR_DPR9 = hashNum9("terrdpr", 3);
+/** ★ 몸 배킹 상한 시험 손잡이(2026-10-30, 요청: 폰 유닛도 원래 해상도로 — 실기 발열·fps 를 보고 정한다) — `#backcap=N` 이면 단별 상한(backCap9)과
+ *  폰 6배 이상 2 누름(capSmall9)을 N 으로 갈음한다(예 3 = dpr 3 폰 원래 해상도). 0·없음 = 그대로. 프레임이 떨어지면 실측 조절(DRS9)은 그대로 내린다 · `?dpr=` 이 더 낮으면 그쪽. */
+const BACKCAP9 = hashNum9("backcap", 0);
 /** 지형 또렷이 세기(glTerrain9 ★ 또렷이 · 0 끔 · 1 CAS 한 벌) — `#tsharp=N` 로 견준다. */
 const TERR_SHARP9 = hashNum9("tsharp", 0.5);
 const ZCAP_B9 = hashNum9("zcap", 1.25);
@@ -5623,7 +5626,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
          우선이다(더 낮은 쪽). */
       if (gesture?.current !== true || BZ9.z <= 0) BZ9.z = zoom;   // 손짓 중엔 손짓 앞 배율(위 BZ9 ★)
-      const capSmall9 = DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
+      const capSmall9 = BACKCAP9 > 0 ? BACKCAP9 : DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
       const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥)
