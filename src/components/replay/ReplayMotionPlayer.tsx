@@ -1738,12 +1738,15 @@ const hashNum9 = (k9: string, d9: number): number => {
 };
 const ZCAP_Z9 = hashNum9("zcapz", 0);
 /** 지형층 배킹 상한(아래 ★ 지형층 배킹) — 기본 3(화면 밀도 그대로) · 0 = 몸 캔버스와 같은 배킹(옛길). */
-const TERR_DPR9 = hashNum9("terrdpr", 3);
+/* ★ 폰은 지형 배킹·또렷이 둘 다 끈다(2026-10-30 · 배포 직후 실기 지적: "폰에서 프레임이 눈에 띄게 떨어졌어"(#backcap 없이)) — 지형층은 장마다 다시 그리고
+   기본 캔버스 antialias(다중표본)라 dpr 3 화소 2.25배 + 베끼기·샤픈 한 패스가 그대로 GPU 몫이었다. 폰은 옛길(몸 배킹 · 샤픈 없음) · PC 만 켠다.
+   폰에서 견주려면 `#terrdpr=3` · `#tsharp=0.5` 를 붙인다. */
+const TERR_DPR9 = hashNum9("terrdpr", DEV9.name === "phone" ? 0 : 3);
 /** ★ 몸 배킹 상한 시험 손잡이(2026-10-30, 요청: 폰 유닛도 원래 해상도로 — 실기 발열·fps 를 보고 정한다) — `#backcap=N` 이면 단별 상한(backCap9)과
  *  폰 6배 이상 2 누름(capSmall9)을 N 으로 갈음한다(예 3 = dpr 3 폰 원래 해상도). 0·없음 = 그대로. 프레임이 떨어지면 실측 조절(DRS9)은 그대로 내린다 · `?dpr=` 이 더 낮으면 그쪽. */
 const BACKCAP9 = hashNum9("backcap", 0);
 /** 지형 또렷이 세기(glTerrain9 ★ 또렷이 · 0 끔 · 1 CAS 한 벌) — `#tsharp=N` 로 견준다. */
-const TERR_SHARP9 = hashNum9("tsharp", 0.5);
+const TERR_SHARP9 = hashNum9("tsharp", DEV9.name === "phone" ? 0 : 0.5);   // 폰 기본 0(위 ★)
 const ZCAP_B9 = hashNum9("zcap", 1.25);
 const DRS_LO9 = hashNum9("drslo", 1);
 const DRS_HI9 = hashNum9("drshi", 1);
