@@ -710,6 +710,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
        명령을 받고 쫓겨 죽은 몸을 **제 본진**(물러날 자리)에서 죽은 것으로 읽어, 막아 낸 사람이 그 본진에 쳐들어간 공격자가 됐다. */
     if (!e9.bld && e9.endX !== undefined && e9.endY !== undefined && e9.died !== null && Math.abs(e9.died - sec9) <= 1) return { x: e9.endX, y: e9.endY };
     if (e9.bld) {
+      /* 떠 있는 채 죽은 건물(마지막 이륙이 마지막 착륙보다 뒤)은 마지막 키 자리가 죽은 자리다(2026-10-30 · truthLives 사라짐 줄 ★ — 격추 자리를 착륙 자리로 더는 안 세운다). */
+      const lastSite9 = e9.sites.length ? e9.sites[e9.sites.length - 1][0] : -Infinity;
+      if (e9.endX !== undefined && e9.endY !== undefined && e9.lifts.some((l9) => l9 > lastSite9)) return { x: e9.endX, y: e9.endY };
       const s9 = e9.sites.length > 1 ? e9.sites[e9.sites.length - 1] : null;
       return s9 ? { x: s9[1] + 1, y: s9[2] + 1 } : { x: e9.bornX, y: e9.bornY };
     }

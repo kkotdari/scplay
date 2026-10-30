@@ -8019,8 +8019,17 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          ② 가로 — 그리는 몸은 겹침 해소(bldNudge)로 밀린 자리인데 폭발은 밀리기 전 자리였다 — 밀린 건물의 폭발은 몸 곁에서 났다.
             실드 막(centerX = 밀린 자리)과도 그래서 어긋났다. 같은 밀림을 먹인다. */
     const nud9 = bldNudge.get(i);
-    const dX9 = x + (nud9 ? nud9[0] : 0) + footDx(unit);
-    const dY9 = y + (nud9 ? nud9[1] : 0) + footDy(unit);
+    let dX9 = x + (nud9 ? nud9[0] : 0) + footDx(unit);
+    let dY9 = y + (nud9 ? nud9[1] : 0) + footDy(unit);
+    /* ★ 격추는 **맞은 자리**에서 터진다(2026-10-30, 실기 지적: "배럭 공중에서 터졌는데 폭발 효과 안 나옴") — 이 줄의 x·y 는 **떠난 자리**다.
+       몸은 비행 중 참값 자취의 자리로 옮겨 그리는데(위 ftr9 · 그 ★) 폭발만 떠난 자리에서 나서, 멀리 날아가 맞으면 화면 밖(떠난 기지)에서 터졌다.
+       몸과 같은 길로 죽은 순간의 자취 자리를 찾는다(자취가 없는 옛 기록은 종전대로 떠난 자리). */
+    if (liftAt !== undefined && goneAt > liftAt) {
+      const ftag9 = bldTagAt.get(`${raw}|${unit}|${Math.round(x + footDx(unit))}|${Math.round(y + footDy(unit))}`);
+      const ftr9 = ftag9 !== undefined ? simTracks?.get(ftag9) : undefined;
+      const fp9 = ftr9 ? posAtSim(ftr9, goneAt) : null;
+      if (fp9) { dX9 = fp9.x; dY9 = fp9.y; }
+    }
     if (t >= goneAt && t - goneAt <= BLD_FX_SEC) {
       const [bfx9, bfy9] = posFrac(dX9, dY9);
       fxOps.push({

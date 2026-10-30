@@ -295,6 +295,10 @@ function livesOfTrack(
           && onTile(kY(tr, i) - foot[1] / 2)));
       let flying = false;
       for (let i = segStart + 1; i < end; i += 1) {
+        /* ★ **사라짐 줄은 착륙이 아니다**(2026-10-30, 실기 지적: 공중에서 터진 건물에 자막 "기지 안에 엔지니어링 베이 랜딩") — 덤퍼가 개체를 걷으며 찍는
+           마지막 줄(상태 3)에는 뜸 깃발이 안 실린다(위 완성 비트의 ★와 같은 꼴 — 기본값 0). 그 줄을 '앉음'으로 읽어 격추된 자리를 착륙 자리(sites)로
+           한 줄 더 세웠다 — 중계(cast9 침투 건물)가 그것을 "적 기지 안에 … 랜딩"으로 말했다. 화면 쪽은 그 길이 0 줄을 격추로 가려 왔다(engine9 landsAt9). */
+        if (kS(tr, i) === TRUTH_ST_GONE) break;
         /* 깃발이 있으면 '떴다/앉았다'를 그대로 읽고, 없으면 예전처럼 '움직이기 시작한
            순간'을 이륙으로 본다 — 옛 판에는 뜬 채 가만히 있는 구간을 알 길이 없다. */
         const up = air ? aloft(i) : (kS(tr, i) === TRUTH_ST_MOVE || (flying && aloft(i)));

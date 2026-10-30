@@ -157,6 +157,13 @@ function makeWorld() {
       keys.push([F(bornSec), buildingAt[0] * 32, buildingAt[1] * 32, 0, (wip ? 0x80 : 0), type]);
       if (lifted) keys.push([F(bornSec + 20), buildingAt[0] * 32, buildingAt[1] * 32, 0, st9, type]);
       /* --landed — 떠서 6타일 옆으로 날아가 26초에 앉는다(2026-09, "랜딩 시 떠난 자리에서 폭발" 검산 · 살아서 앉은 건물). */
+      /* --airdie(2026-10-30, 실기 지적: "배럭 공중에서 터졌는데 폭발 효과 안 나옴" · 자막 "기지 안에 … 랜딩") — 떠서 6타일 날아가다 30초에 **떠 있는 채** 죽는다.
+         덤퍼의 사라짐 줄(상태 3)에는 뜸 깃발이 안 실린다(완성 비트와 같은 꼴) — 그대로 재현한다. */
+      if (lifted && has("--airdie")) {
+        keys.push([F(bornSec + 24), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, st9, type]);
+        keys.push([F(bornSec + 30), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, st9, type]);
+        keys.push([F(bornSec + 30) + 1, (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, 3, type]);
+      } else
       if (lifted && has("--landed")) {
         keys.push([F(bornSec + 24), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, st9, type]);
         keys.push([F(bornSec + 26), (buildingAt[0] + 6) * 32, buildingAt[1] * 32, 0, 0, type]);
