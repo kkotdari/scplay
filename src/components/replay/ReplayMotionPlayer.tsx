@@ -3934,10 +3934,18 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     const BOOM_K9 = 1.45;
     const RK9 = 0.5;
     const fade = 1 - p;
+    /* (같은 날 되요청: "원작에서 빛줄기가 폭발구보다 반경이 살짝만 10% 정도 커 · 중요한 게 타이밍인데 폭발 먼저 나고 페이드아웃하면서 빛이 팍 확장") — 뭉치(boom9)일 때
+       빛줄기는 `RAY_P09`(0.35)부터 뜬다: 끝이 (1 − r)^4 로 팍 뻗고 r 내내 스러진다. 끝은 뭉치가 다 부푼 때의 바깥 끝(Rc9 · 아래 뭉치 고리가 잰다) × 1.1 ×
+       (0.8~1) — 줄기 길이에 조금만 편차. 뭉치는 앞 45% 에 다 부풀고 35% 부터 스러진다. */
+    const RAY_P09 = 0.35;
+    let Rc9 = 0;
     const rays9 = (): void => {
     // 빛줄기(건물만) — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
     const NR9 = bld ? 336 : 0;
-    const tipE9 = 1 - (1 - p) ** 3;
+    const rp9 = boom9 ? (p - RAY_P09) / (1 - RAY_P09) : p;
+    if (rp9 <= 0) return;
+    const tipE9 = boom9 ? 1 - (1 - rp9) ** 4 : 1 - (1 - p) ** 3;
+    const rayA9 = boom9 ? Math.min(1, rp9 / 0.05) * (1 - rp9) ** 1.1 : fade ** 0.8;
     const RAY_COL9 = ["#2f6fe0", "#6fb8ff", "#eef8ff"];
     const RAY_AL9 = [0.85, 0.9, 1];
     const sd09 = sd;
@@ -3951,18 +3959,18 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
         const cr9 = rnd();
         const col9 = cr9 < 0.36 ? 0 : cr9 < 0.76 ? 1 : 2;
         if (col9 !== c9) continue;
-        const reach9 = W * (0.5 + 1.05 * lf9) * RK9;
+        const reach9 = boom9 ? Rc9 * 1.1 * (0.8 + 0.2 * (lf9 - 0.4) / 0.95) : W * (0.5 + 1.05 * lf9) * RK9;
         const r19 = reach9 * tipE9;
         const r09 = 0;
         if (r19 < 0.6) continue;
-        const hw9 = Math.max(0.45, W * 0.016 * wf9) * (1 - 0.4 * p);
+        const hw9 = Math.max(0.45, W * 0.016 * wf9) * (1 - 0.4 * rp9);
         const ca9 = Math.cos(a9), sa9 = Math.sin(a9);
         ctx.moveTo(ax + ca9 * r09 - sa9 * hw9, ay + sa9 * r09 + ca9 * hw9);
         ctx.lineTo(ax + ca9 * r19, ay + sa9 * r19);
         ctx.lineTo(ax + ca9 * r09 + sa9 * hw9, ay + sa9 * r09 - ca9 * hw9);
         ctx.closePath();
       }
-      ctx.globalAlpha = RAY_AL9[c9] * fade ** 0.8; ctx.fillStyle = RAY_COL9[c9];
+      ctx.globalAlpha = RAY_AL9[c9] * rayA9; ctx.fillStyle = RAY_COL9[c9];
       ctx.fill();
     }
     };
@@ -3978,13 +3986,14 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
         const d9 = i9 === 0 ? 0 : W * (0.2 + rnd() * 0.22) * BOOM_K9;
         const r9 = W * (i9 === 0 ? 0.42 : 0.2 + rnd() * 0.12) * BOOM_K9;
         const dl9 = i9 === 0 ? 0 : rnd() * 0.16;
+        Rc9 = Math.max(Rc9, d9 + r9 * 1.3 * 0.62);   // 다 부푼 덩이의 보이는 바깥 끝(판 방사 0.62 ≈ 푸른 테)
         const q9 = Math.max(0, (p - dl9) / (1 - dl9));
         if (q9 <= 0) continue;
-        const e9 = 1 - (1 - q9) ** 2.2;
+        const e9 = 1 - (1 - Math.min(1, q9 / 0.45)) ** 2.2;
         const pr9 = r9 * (0.55 + 0.75 * e9);
         const px9 = ax + Math.cos(a9) * d9 * (0.35 + 0.65 * e9);
         const py9 = ay + Math.sin(a9) * d9 * (0.35 + 0.65 * e9) * 0.8 - W * 0.12 * BOOM_K9 * e9;   // 살짝 위로 피어오른다
-        ctx.globalAlpha = Math.min(1, q9 / 0.08) * (1 - q9) ** 1.25 * (i9 === 0 ? 1 : 0.92);
+        ctx.globalAlpha = Math.min(1, q9 / 0.06) * Math.max(0, q9 < RAY_P09 ? 1 : 1 - (q9 - RAY_P09) / 0.6) ** 1.4 * (i9 === 0 ? 1 : 0.92);
         ctx.drawImage(orb9, px9 - pr9, py9 - pr9, pr9 * 2, pr9 * 2);
       }
       rays9();
