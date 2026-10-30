@@ -20,9 +20,9 @@ const has = (f) => argv.includes(f);
 const flag = (f, d) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
 const GEN = join(ROOT, "src/components/replay/sprLift.gen.ts");
 /** 맞출 늘림 — 유닛 중간값의 몇 배까지 두나(요청 "중간으로" = 1.3 · 옛 최악 3.5). */
-const TARGET = 1.3;
-/** 올림 상한(¼ 옥타브 칸) — 유닛 6(2.83배 · 160 → 452px) · 건물 4(2배 · 512 → 1024px = 재생기 굽는 판 SPR_SCR9). */
-const MAX_U = 6; const MAX_B = 4;
+const TARGET = 1.0;   // 1.3 → 1.0(2026-10-30, 지적: "선명도를 유닛 크기에 비례해서 구워야 하는데 · 최대로 확대하면 작은 유닛·건물은 선명하고 큰 유닛·건물은 흐려" — 큰 몸도 보통 유닛만큼)
+/** 올림 상한(¼ 옥타브 칸) — 유닛 8(4배 · 160 → 640px · 옛 6) · 건물 4(2배 · 512 → 1024px = 재생기 굽는 판 SPR_SCR9). */
+const MAX_U = 8; const MAX_B = 4;   // 유닛 6 → 8(2026-10-30 · 배틀·캐리어가 목표에 닿게 · 160 → 640px · 덤프 판 2048 · 재생 중 굽기는 1 배라 SPR_SCR9 1024 안)
 
 let probe;
 if (flag("--probe", "")) probe = JSON.parse(readFileSync(flag("--probe", ""), "utf8"));

@@ -131,8 +131,18 @@ const GAP = 16; const AL = 4; const HAL = 128;
 const al = (v, a) => Math.ceil(v / a) * a;
 /** 선반 쌓기 — 키 큰 칸부터 · 폭 W · 칸마다 GAP 둘레 · 자리는 AL 맞춤. */
 function pack(cells) {
+  /* 폭은 1024 · 2048 · 4096 중 묶음이 판에 들고(키 ≤ 폭의 두 배) 칸이 가로로 드는 가장 좁은 것(2026-10-30 · 큰 몸 단 올림 TARGET 1.0 으로 칸이 커져
+     2048 폭에 쌓으면 키가 basisu·GPU 상한 16384 를 넘는 묶음이 생긴다 — 뮤탈 자세 아홉 × 요잉 여덟 등). 폰은 반 해상도(h)라 4096 묶음도 2048 이다. */
   const area = cells.reduce((s, c) => s + (c.w + GAP) * (c.h + GAP), 0);
-  const W = area > 1024 * 1024 * 0.55 || cells.some((c) => c.w + GAP > 1024) ? 2048 : 1024;
+  const fitW = [1024, 2048, 4096].filter((w) => !cells.some((c) => c.w + GAP > w));
+  for (const W of fitW) {
+    if (W < 4096 && area > W * W * 1.6) continue;
+    const r = packAt(cells, W);
+    if (W === 4096 || r.H <= W * 2) return r;
+  }
+  return packAt(cells, 4096);
+}
+function packAt(cells, W) {
   const order = [...cells].sort((a, b) => b.h - a.h || b.w - a.w);
   let x = GAP / 2, y = GAP / 2, rowH = 0;
   const at = new Map();
