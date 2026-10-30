@@ -963,7 +963,7 @@ const SPR_LOOK9: [number, number] = [0.5, 0.5];
  *  본 패스가 그 판을 읽어 다른 부품에 가린 화소의 빛을 SPR_ISH9 만큼 깎는다(PCF 3×3 · 셰이더 ISH_FS9). 굽는 대비 SPR_BCON9 는 판에 들고, 메시 길(큰 배율·3D)도
  *  같은 대비를 탄다(BODY_CON9) — 메시 길에는 안 그림자가 없다(칸마다 깊이 판을 찍는 값이 굽기 몫이다). 바꾸면 아틀라스를 다시 굽는다(SPR_ 줄은 판 해시에 든다).
  *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
-const SPR_ISH9 = 0.4;
+const SPR_ISH9 = 0.7;   // 0.4 → 0.7(2026-10-30, 요청: 시안 "그림자 0.7 광택 1.5" — 대비 대신 부품 그늘로 입체감)
 const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
 const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : SPR_ISH9; })();
 const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : SPR_BCON9; })();
@@ -3174,10 +3174,12 @@ export const GL_LOD9 = ((): number => { const m = typeof location !== "undefined
 export const GL_WARM9 = !(typeof location !== "undefined" && /glwarm=0/.test(location.hash));
 /** 진단 `#glbloom=0|1` — 번짐(블룸)을 끄거나(0) 못 박아 켠다(1). 안 주면 **기기 표**가 정한다(DEV9.glBloom: PC 켬 · 폰 끔 —
  *  번짐은 화면 한 겹을 더 칠하는 일이라 폰 GPU 에서 값을 실기로 재기 전까지는 안 켠다). */
-/** 광택 세기 손잡이 — `#glspec=0` 끔 · `#glspec=1` 기본 · 사이 값으로 눌러 본다(표 값에 곱한다). */
+/** 광택 세기 기본(2026-10-30, 요청: 시안 "그림자 0.7 광택 1.5" · 옛 1) — 판에 구워지므로 SPR_ 이름(판 해시에 든다). */
+const SPR_SPEC9 = 1.5;
+/** 광택 세기 손잡이 — `#glspec=0` 끔 · `#glspec=1` 옛 세기 · 사이 값으로 눌러 본다(표 값에 곱한다 · 없으면 SPR_SPEC9). */
 export const GL_SPEC9 = ((): number => {
   const m = typeof location !== "undefined" ? /glspec=([\d.]+)/.exec(location.hash) : null;
-  const v = m ? Number(m[1]) : 1;
+  const v = m ? Number(m[1]) : SPR_SPEC9;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
 })();
 /** 메시 보관함 상한 손잡이 — `#glmesh=N`(기기 표를 덮는다). 보관함이 좁을 때의 굽기 되풀이를 재현할 때 쓴다. */
