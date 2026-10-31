@@ -19401,8 +19401,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     {
       /* (같은 날 원작 사진) 손은 머리 바로 앞에 붙어 작고 오므린다 — 팔을 줄여(손바닥 머리 앞 0.55 · 높이 0.34) · 손가락도 짧게 갈고리로(아래). */
       /* (같은 날 되요청: "리버 팔 길이도 살짝 더 길게 복귀 · 손가락은 앞 양옆으로 직각으로 나가게 · 7개 앞 3 좌우 2") — 손바닥 0.55 → 0.8 · 손가락 일곱(아래 FING9). */
-      const PY9 = hy9 + 0.8; const PZ9 = 0.34;
-      const A0 = [0, hy9 + 0.05, hz9 - 0.18] as const; const A1 = [0, hy9 + 0.6, hz9 - 0.12] as const;
+      // (같은 날 되요청: "리버 팔 길이 원래 수준으로 늘리기") — 손바닥 0.8 → 1.1(처음 보인 판).
+      const PY9 = hy9 + 1.1; const PZ9 = 0.34;
+      const A0 = [0, hy9 + 0.15, hz9 - 0.18] as const; const A1 = [0, hy9 + 0.85, hz9 - 0.08] as const;
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] => {
@@ -19417,7 +19418,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (): number => 0.19,
       }), GOLD_D), depthNow(0, PY9) * 1.6 + 3.05));
       /** 손가락 각(도 · 0 = 앞 · ±90 = 옆) — 앞 셋 · 왼 둘 · 오른 둘(옆은 몸에 직각). */
-      const FING9 = [-18, 0, 18, -102, -78, 78, 102];
+      const FING9 = [-28, 0, 28, -114, -66, 66, 114];   // 사이 넓힘(같은 날 "손가락 사이사이 간격 넓히기") — 앞 ±18 → ±28 · 옆 78·102 → 66·114
       for (const fd9 of FING9) {
         const a9 = fd9 * (Math.PI / 180);
         const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);

@@ -3815,7 +3815,7 @@ const CLOUD_HALF9 = 1.3;
 /** 빛줄기 끝의 자(W 몫) — 구름은 0.39W 로 줄였어도 빛줄기는 그 앞 자 0.46W 를 쓴다(2026-10-31 되요청). */
 const RAY_V9 = 0.46;
 const CLOUD9 = new Map<number, { cv: HTMLCanvasElement; ext: number }>();
-/** ★ 플라즈마 구름 판(2026-10-31 · drawBurst9 프로토스 건물) — 구체(빛무리 끝 0.82V) + 혹 여섯(각 사이 0.4~1.6 몫 누적 · 끝 반지름 0.18~0.40V · 거리 0.6~0.84V ·
+/** ★ 플라즈마 구름 판(2026-10-31 · drawBurst9 프로토스 건물) — (가운데 구체는 같은 날 걷었다 · 속 덩이 셋) + 혹 여섯(각 사이 0.4~1.6 몫 누적 · 끝 반지름 0.18~0.40V · 거리 0.6~0.84V ·
  *  세로 0.92)을 plasma-orb 판으로 **불투명하게** 겹쳐 한 장으로 굽는다(갈래 k 넷 · 씨앗 고정). ext = 혹 바깥 끝(V 자) — 빛줄기 끝(× 1.1)의 자. */
 function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement; ext: number } {
   const hit9 = CLOUD9.get(k9);
@@ -3826,20 +3826,28 @@ function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement
   const bumps9: [number, number, number][] = [];
   const gaps9: number[] = []; let gs9 = 0;
   for (let i9 = 0; i9 < NB9; i9 += 1) { const g9 = 0.4 + rn9() * 1.2; gaps9.push(g9); gs9 += g9; }
-  let acc9 = rn9() * Math.PI * 2; let ext9 = 0.82;
+  let acc9 = rn9() * Math.PI * 2; let ext9 = 0.5;
   for (let i9 = 0; i9 < NB9; i9 += 1) {
     acc9 += (gaps9[i9] / gs9) * Math.PI * 2;
     const v9 = 0.18 + rn9() * 0.22; const d9 = 0.6 + rn9() * 0.24;
     bumps9.push([acc9, d9, v9]); ext9 = Math.max(ext9, d9 + v9);
   }
+  const inner9: [number, number, number][] = [];
+  const a09 = rn9() * Math.PI * 2;
+  for (let i9 = 0; i9 < 3; i9 += 1) {
+    const v9 = 0.4 + rn9() * 0.12; const d9 = 0.12 + rn9() * 0.24;
+    inner9.push([a09 + (i9 * Math.PI * 2) / 3 + (rn9() - 0.5) * 0.6, d9, v9]); ext9 = Math.max(ext9, d9 + v9);
+  }
   const S9 = 256;
-  const cv9 = domSpr9(`plasma-cloud2-${k9}`, (c9) => {
+  const cv9 = domSpr9(`plasma-cloud3-${k9}`, (c9) => {
     const u9 = S9 / 2 / CLOUD_HALF9;   // V 한 자의 판 화소
     /* 덩이마다 알파 0.8 로 겹친다(2026-10-31, 요청: "너무 매끈하니 이상해 · 내부 구 실루엣이 조금 비쳐 보여도 괜찮을 듯") — 겹친 자리가 조금 더 짙어 속의 동그라미가 옅게 드러난다. */
     c9.globalAlpha = 0.8;
     const put9 = (x9: number, y9: number, r9: number): void => { const pr9 = (r9 / 0.71) * u9; c9.drawImage(orb9, S9 / 2 + x9 * u9 - pr9, S9 / 2 + y9 * u9 - pr9, pr9 * 2, pr9 * 2); };
     for (const [a9, d9, v9] of bumps9) put9(Math.cos(a9) * d9, Math.sin(a9) * d9 * 0.92, v9);
-    put9(0, 0, 0.82);
+    /* (2026-10-31 되요청: "폭발구에 원형 바탕을 없애고 구름덩이들로만 이루어지게") — 가운데 구체를 걷고 속 덩이 셋(각 120° 간격 + 흔들림 · 거리 0.12~0.36V ·
+       끝 반지름 0.4~0.52V)으로 속을 채운다 — 구름이 덩이들만으로 선다. */
+    for (const [a9, d9, v9] of inner9) put9(Math.cos(a9) * d9, Math.sin(a9) * d9 * 0.92, v9);
   }, S9);
   const out9 = { cv: cv9, ext: ext9 };
   CLOUD9.set(k9, out9);
