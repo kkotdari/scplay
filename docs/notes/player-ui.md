@@ -2703,3 +2703,13 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 고침: 접힌 동안 `.scr-fs-lower.is-fold { pointer-events: none }` · 그 안의 독 줄 말고(툴박스 등)는 auto.
 - 🔎 `perf-check --ios --warm 0 --atlas spr --castoff --fold --foldhit` → `[접기 맞힘]` 독 자리: 옛 `지도밖 div.scr-fs-lower[auto]` → 새 `지도안 … scr-motion-map[none] < scr-fs-stage[none]`.
   PC(--wide)는 하네스 15분 제한에 걸려 못 봤다.
+
+## 핑 팔 굵기는 늘 크기의 20% · 손짓 변환 기준점은 렌즈 가운데(2026-10-31)
+- 지적: "핑마커가 배율에 따라 그 모양(막대기 두께)가 달라지는 문제 · 타일에 대한 배율로 고정돼야함" — 크기(`--pgw`)는 4배 바닥(타일 × max(4, 배율) × 1.4)인데
+  팔(`--pgt`)만 타일 × 배율 × 0.28 이라 4배 아래에서 꼴이 가늘어졌다. 인라인 `--pgt` 를 걷어 CSS 기본 20%(크기 비례)로 — 2026-10-14 '굵기만 배율 따라'(아래 uiLineW9 절) 되물림.
+  크기 규칙은 안 건드렸다.
+- 지적: "피시 줌할 때 유닛층이 자리가 흔들리는 현상" — 몸·GL·효과 캔버스(.scr-motion-unitlayer)는 위 띠(--scr-mapband)·아래 독 뒤(--map-ext)만큼 늘어나
+  제 가운데가 렌즈 가운데보다 (ext − band)/2 아래다. 손짓 변환(translate(p − s·p0) scale(s))은 렌즈와 같은 가운데 축을 전제하는데 `xfSet9` 가 origin "center" 를 걸어
+  다시 그리기 전까지 (s − 1) × 그 차만큼 밀렸다가 다시 그리면 돌아왔다(PC 창 1280 실측 ext 6~9px → 3~4.5px 차). 이제 `XF_ORIGIN9` = `50% calc(50% + (band − ext)/2)`.
+  전체화면은 ext 0 이라 이 갈래로는 안 났다 — 전체화면에서도 흔들리면 다른 까닭(손짓 중 몸 다시 그리기 박자 `XF_PC_GAP9`·paintMs×1.2 사이의 멈춤 등)을 볼 것.
+- 🔎 `perf-check --wide [--fs] --warm 0 --glblit --wheel -3 --centerprobe --shot x.png` → `[가운데]` 의 lens cy 와 units·gl 의 o(기준점 y + 캔버스 위끝)가 같아야 한다.

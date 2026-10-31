@@ -2976,6 +2976,13 @@ if (SHOT) {
   }
   /* --rects(2026-10-25) — 판·무대·지도 상자·우주 층·독의 화면 상자(지도 밖 빈자리 가르기). */
   if (has("--rects")) console.log("[상자] " + await page.evaluate(() => [".scr-fs-layer", ".scr-fs-root", ".scr-fs-stage", ".scr-fs-space", ".scr-motion-map", ".scr-motion-unitlayer", ".scr-fs-dockframe", ".scr-tb"].map((q) => { const e = document.querySelector(q); if (!e) return `${q} 없음`; const r = e.getBoundingClientRect(); return `${q} ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} bg ${getComputedStyle(e).backgroundColor}`; }).join("\n  ")));
+  /* --centerprobe(2026-10-31, 지적: "피시 줌할 때 유닛층이 자리가 흔들림") — 렌즈(지도 그림 · 가운데 축 배율)와 몸·GL·효과·지형·안개 캔버스의 **변환 없는 상자 가운데**를 견준다.
+     손짓 중 몸 캔버스는 transform-origin center 로 translate(p − s·p0) scale(s) 를 타므로 두 가운데가 다르면 (s − 1) × 차 만큼 밀렸다가 다시 그릴 때 제자리로 돈다(흔들림). */
+  if (has("--centerprobe")) console.log("[가운데] " + await page.evaluate(() => {
+    const box = (e) => { if (!e) return null; const p = e.offsetParent; let x = e.offsetLeft, y = e.offsetTop; return { cx: +(x + e.offsetWidth / 2).toFixed(2), cy: +(y + e.offsetHeight / 2).toFixed(2), w: e.offsetWidth, h: e.offsetHeight, par: p ? p.className.split(" ")[0] : "-", o: getComputedStyle(e).transformOrigin }; };
+    const q = (s) => document.querySelector(s);
+    return JSON.stringify({ lens: box(q(".scr-motion-lens")), map: box(q(".scr-motion-map")), units: box(q(".scr-motion-unitlayer:not(.scr-motion-gl9):not(.scr-motion-fx9):not(.scr-motion-terr9)")), gl: box(q(".scr-motion-gl9")), fx: box(q(".scr-motion-fx9")), terr: box(q(".scr-motion-terr9")), fog: box(q(".scr-motion-fog")), ext: getComputedStyle(q(".scr-motion-map")).getPropertyValue("--map-ext"), band: getComputedStyle(q(".scr-motion-map")).getPropertyValue("--scr-mapband") });
+  }));
   if (has("--zoomoutprobe")) {
     const pt9 = await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); if (!m) return null; const r = m.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
     if (pt9) {

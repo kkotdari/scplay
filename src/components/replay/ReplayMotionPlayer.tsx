@@ -1082,9 +1082,13 @@ const NO_STAGE_OV9 = typeof location !== "undefined" && /nostageov/.test(locatio
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
 function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
   if (NO_XF9) { if (cv9.style.transform) { cv9.style.transform = ""; cv9.style.transformOrigin = ""; } return; }
-  cv9.style.transformOrigin = "center";
+  /* ★ 기준점은 **렌즈(지도 상자)의 가운데**다(2026-10-31, 지적: "피시 줌할 때 유닛층이 자리가 흔들리는 현상") — 몸 캔버스는 위로 띠(--scr-mapband)·아래로
+     독 뒤(--map-ext)만큼 늘어나 제 가운데가 상자 가운데에서 (ext − band)/2 내려가 있다. 옛 "center" 로는 손짓 중 배율 s 를 걸면 (s − 1) × 그 차만큼
+     밀렸다가 다시 그릴 때 제자리로 돌아왔다(실측 PC 창 1280: ext 9px → 4.5px 차 · 2배 당김이면 4.5px 튐). 전체화면은 ext 0 이라 안 났다. */
+  if (cv9.style.transformOrigin !== XF_ORIGIN9) cv9.style.transformOrigin = XF_ORIGIN9;
   if (cv9.style.transform !== xf9) cv9.style.transform = xf9;
 }
+const XF_ORIGIN9 = "50% calc(50% + (var(--scr-mapband, 0px) - var(--map-ext, 0px)) / 2)";
 /** 이 프레임의 효과 DOM 수와 이제까지의 최대 — 층 폭발이 값인지 수로 가른다. */
 /** ★ **주 실마리가 막혔나, 화면만 굶었나**(조사: 10초 멎었다 풀림 · 메모리는 55MB로 멀쩡) ─────────────
  *  여태 잰 '최장 프레임'은 rAF 사이의 틈이다. 그 틈이 길다고 곧 주 실마리가 막힌 것은 아니다 — rAF는
@@ -22320,8 +22324,8 @@ export default function ReplayMotionPlayer({
                 style={{
                   ...posStyle(px, py), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인 제 핑은 원작 초록 · 같은 편은 제 색
                   "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
-                  /* 팔 굵기 — 4배부터는 종전 그대로(크기의 20%) · 그 아래는 크기가 4배 바닥에 서 있어도 굵기는 배율을 따라 준다(2026-10-14 · 바닥 1.5px). */
-                  "--pgt": `${Math.max(1.5, ((mapRef.current?.clientWidth ?? 320) / grid.width) * zoom * 1.4 * 0.2 * pitchK(py)).toFixed(1)}px`,
+                  /* 팔 굵기는 늘 크기의 20%(CSS 기본 --pgt 20%) — 2026-10-14 의 '4배 아래는 굵기만 배율 따라' 를 되물렸다(2026-10-31, 지적: "핑마커가 배율에 따라
+                     그 모양(막대기 두께)가 달라지는 문제 · 타일에 대한 배율로 고정돼야") — 크기는 4배 바닥에 서는데 굵기만 가늘어져 꼴이 바뀌었다. */
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
               />
