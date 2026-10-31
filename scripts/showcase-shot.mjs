@@ -18,7 +18,7 @@ const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const ROOT = resolve(String(flag("--root", HERE)));
 const OUT = String(flag("--out", join(tmpdir(), "showcase")));
-const RACES = flag("--race", null) ? [String(flag("--race"))] : ["테란", "저그", "프로토스"];
+const RACES = flag("--race", null) ? [String(flag("--race"))] : ["합동"];
 const ZOOM = Number(flag("--zoom", 5.5));
 const DPR = Number(flag("--dpr", 1.6));
 const VIEW = Number(flag("--view", 1900));
@@ -26,7 +26,7 @@ const T_SHOT = Number(flag("--t", 46));
 const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
 const GAME_SEC = 120;
-const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg" };
+const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합동: "siege" };
 
 /* ── 이름 → 번호(bwUnitNames 는 그 트리의 것) ── */
 const ebin = join(HERE, "node_modules", "esbuild", "bin", "esbuild");
@@ -123,6 +123,48 @@ const SCENES = {
     ],
   },
 };
+/* ★ 한 컷(2026-10-31, 요청: "한 장면에 저그 기지와 세 들어 사는 플토 기지 · 거기 쳐들어온 테란으로 한 컷으로 재구성") — 왼위 저그 본진 · 왼아래 같은 기지에
+   세 든 프로토스(넥서스·게이트·스타게이트·캐논 · 게이트·캐논 폭발) · 가운데 지키는 두 편 병력 · 오른쪽에서 밀고 들어온 테란(마린·메딕 뭉치에 다크아콘의
+   마엘스트롬 · 시즈 탱크 · 배틀 뭉치 · 전진 배럭·팩토리 · 떠서 오는 커맨드). 임자 0 저그 · 1 프로토스(같은 편) · 2 테란. */
+const ALLY = (o = {}) => ({ own: 1, ...o });
+const TER = (o = {}) => ({ own: 2, hb: 200, st: 4, fight: true, ...o });
+SCENES.합동 = {
+  pl: [0, 2, 1], force: [1, 1, 2],
+  zoom: 4.6,
+  frame: { x0: -15.5, x1: 12, y0: -14.5, y1: 9.5 },
+  res: [[-14.5, -11.5, 0], [-15, -10, 0], [-15.5, -8.5, 0], [-15.5, -7, 0], [-15, -5.5, 0], [-5.5, -13, 1],
+    [-15, 0, 0], [-15.5, 1.5, 0], [-15.5, 3, 0], [-15, 4.5, 0]],
+  put: [
+    // 저그 본진(왼위)
+    ["Hatchery", -9.5, -8.5], ["Extractor", -5.5, -13], ["Spawning Pool", -2.5, -11.5], ["Hydralisk Den", -2.5, -8.3], ["Spire", 2, -11.5],
+    ["Sunken Colony", 0.8, -6.2], ["Sunken Colony", 3.4, -3.6], ["Spore Colony", -6, -5],
+    ["Larva", -10.6, -6.3, { hb: 128 }], ["Larva", -9.6, -6.1, { hb: 140 }], ["Larva", -8.6, -6.4, { hb: 120 }],
+    ["Drone", -13, -10, { st: 5, hb: 192 }], ["Drone", -12.8, -8, { st: 5, hb: 200 }], ["Drone", -13, -6.2, { st: 5, hb: 180 }],
+    ["Overlord", -12.5, -13.5, { hb: 110 }], ["Overlord", -3, -4, { hb: 70 }],
+    // 세 든 프로토스(왼아래)
+    ["Nexus", -9.5, 1.5, ALLY()], ["Pylon", -12.5, 5.2, ALLY()], ["Pylon", -6, -1.6, ALLY()], ["Gateway", -4, 2.2, ALLY()],
+    ["Gateway", -4, 5.6, ALLY({ die: -0.42 })], ["Stargate", -9.5, 5.8, ALLY()], ["Photon Cannon", -0.8, 0.4, ALLY()], ["Photon Cannon", -1, 3.8, ALLY({ die: -0.14 })],
+    ["Probe", -13, 0.6, ALLY({ st: 5, hb: 192 })], ["Probe", -13.1, 2.6, ALLY({ st: 5, hb: 200 })], ["Probe", -12.6, 4, ALLY({ st: 5, hb: 170 })],
+    // 지키는 병력(가운데)
+    ...clump("Hydralisk", 10, 2.6, -1, 1.6, 0.62, F4),
+    ...clump("Zergling", 8, 4.6, 1.6, 1.3, 0.5, F4),
+    ...clump("Ultralisk", 2, 5, -3.6, 0.9, 1.4, F4),
+    ...clump("Zealot", 5, 3, 3.6, 1.1, 0.75, ALLY(F4)),
+    ...clump("Dragoon", 3, 1, 5.6, 1, 1.05, ALLY(F4)),
+    ["Dark Archon", 1.4, 1.6, ALLY({ hb: 64 })],
+    ...clump("Mutalisk", 8, 4.2, -6.4, 1.6, 0.9, { ...F4, hb: 64 }),
+    ...clump("Carrier", 4, 2.6, 7.2, 1.8, 1.9, ALLY({ ...F4, hb: 64 })),
+    // 쳐들어온 테란(오른쪽)
+    ...clump("Marine", 14, 8.2, 0.6, 1.6, 0.6, TER()),
+    ...clump("Medic", 3, 9.9, 2.2, 0.8, 0.7, TER({ st: 0, fight: false })),
+    ["Siege Tank (Siege Mode)", 10.4, -2.8, TER()], ["Siege Tank (Siege Mode)", 10.6, 4.4, TER()],
+    ...clump("Goliath", 2, 8.6, 5.8, 0.8, 0.95, TER()),
+    ...clump("Battlecruiser", 4, 8.8, -5.6, 1.6, 1.55, TER()),
+    ["Barracks", 9.5, -10, { own: 2 }], ["Factory", 10, 8.2, { own: 2 }], ["Command Center", 6.2, -9, { own: 2, lift: true, hb: 0 }],
+  ],
+  // 마엘스트롬(기술 31) — 다크아콘(임자 1)이 마린 뭉치 가운데로 · 7.4초 · 사각 ±1.5타일(생체만).
+  casts: [[-1.2, 7.8, 0.6, 31, 1]],
+};
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
 const FRAME = { x0: -15.5, x1: 9.5, y0: -13.5, y1: 5.8 };
 /** 자원 — 본진 왼쪽 미네랄 줄 · 위 간헐천(가운데에서 잰 타일 · [dx, dy, 0 미네랄 | 1 간헐천]). */
@@ -133,16 +175,17 @@ const CX = 64; const CY = 64;
 
 function makeWorld(race) {
   const sc = SCENES[race];
-  const PLAYERS = sc.pl.map((r, i) => ({ owner: i, race: r, force: i + 1, name: i === 0 ? "아군" : "상대", color: i === 0 ? 0x2b62e8 : 0xd8303a, home: [64, 64] }));
+  const PLAYERS = sc.pl.map((r, i) => ({ owner: i, race: r, force: sc.force ? sc.force[i] : i + 1, name: ["저그", "프로토스", "테란"][r === 0 ? 0 : r === 2 ? 1 : 2] + i, color: [0x2b62e8, 0xd8303a, 0xe8c040][i] ?? 0x888888, home: [64, 64] }));
   const tracks = [];
   let tag = 100;
-  const rows = sc.put.map(([n, dx, dy, o = {}]) => ({ n, x: CX + dx, y: CY + dy, hb: o.hb ?? 72, own: o.own ?? 0, die: o.die === undefined ? null : T_SHOT + o.die, st: o.st ?? 0, fight: !!o.fight, tag: 0 }));
+  const rows = sc.put.map(([n, dx, dy, o = {}]) => ({ n, x: CX + dx, y: CY + dy, hb: o.hb ?? 72, own: o.own ?? 0, die: o.die === undefined ? null : T_SHOT + o.die, st: o.st ?? 0, fight: !!o.fight, lift: !!o.lift, tag: 0 }));
   for (const r of rows) r.tag = tag++;
-  // 표적 — 싸우는 몸은 가장 가까운 적(산 몸)을 겨눈다.
+  // 표적 — 싸우는 몸은 가장 가까운 적(다른 편 · 산 몸)을 겨눈다.
+  const forceOf = (o) => PLAYERS[o]?.force ?? o;
   for (const r of rows) {
     if (!r.fight) continue;
     let best = null; let bd = Infinity;
-    for (const q of rows) { if (q.own === r.own || q.die !== null || ID[q.n] === undefined) continue; const d = Math.hypot(q.x - r.x, q.y - r.y); if (d < bd) { bd = d; best = q; } }
+    for (const q of rows) { if (forceOf(q.own) === forceOf(r.own) || q.die !== null || ID[q.n] === undefined) continue; const d = Math.hypot(q.x - r.x, q.y - r.y); if (d < bd) { bd = d; best = q; } }
     r.tgtTag = best ? best.tag : 0;
   }
   for (const r of rows) {
@@ -150,7 +193,8 @@ function makeWorld(race) {
     if (type === undefined) { console.warn(`  ⚠ 번호 없음: ${r.n}`); continue; }
     const keys = [];
     const end = r.die ?? GAME_SEC;
-    for (let s9 = BORN; s9 <= end; s9 += 0.75) keys.push([F(s9), Math.round(r.x * 32), Math.round(r.y * 32), r.hb, s9 >= T_SHOT - 5 ? r.st : (r.st === 4 ? 0 : r.st), type]);
+    // 뜬 건물(lift) — 첫 키는 앉고 둘째부터 뜸 깃발(0x40 · truthLives 는 둘째 키부터 '앉음 → 뜸'을 이륙으로 적는다).
+    for (let s9 = BORN; s9 <= end; s9 += 0.75) keys.push([F(s9), Math.round(r.x * 32), Math.round(r.y * 32), r.hb, (s9 >= T_SHOT - 5 ? r.st : (r.st === 4 ? 0 : r.st)) | (r.lift && s9 > BORN ? 0x40 : 0), type]);
     if (r.die !== null) keys.push([F(r.die), Math.round(r.x * 32), Math.round(r.y * 32), r.hb, 3, type]);
     const tgt = r.tgtTag ? [[F(T_SHOT - 5), r.tgtTag]] : null;
     tracks.push({ tag: r.tag, owner: r.own, type, keys, hp: r.die !== null ? [[F(BORN), 5000], [F(r.die), 0]] : null, tgt });
@@ -230,6 +274,7 @@ const browser = await chromium.launch(launchOpt);
 mkdirSync(OUT, { recursive: true });
 for (const race of RACES) {
   const world = makeWorld(race);
+  const FR = SCENES[race].frame ?? FRAME; const ZM = SCENES[race].zoom ?? ZOOM; const RS = SCENES[race].res ?? RES;
   const page = await browser.newPage({ viewport: { width: VIEW, height: Math.round(VIEW * 1.3) }, deviceScaleFactor: DPR });
   page.on("pageerror", (e) => console.error("페이지 오류:", e.message));
   await page.route("http://showcase.local/*", (r) => r.fulfill({ contentType: "text/html",
@@ -237,11 +282,11 @@ for (const race of RACES) {
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
   // 크립은 저그만(기지 바닥) · 두리번 끔 · 사영 그림자 켬(배율 ≥ 4 에서만 실제로 선다).
-  await page.goto(`http://showcase.local/#${race === "저그" ? "" : "nocreep,"}noscan,nofog,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
+  await page.goto(`http://showcase.local/#${race === "저그" || race === "합동" ? "" : "nocreep,"}noscan,nofog,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
-    [world.motion, world.players, walkFixture, makeTerrain(), { res: RES.map(([dx, dy, g]) => [CX + dx, CY + dy, g]), t: T_SHOT, z: ZOOM, cx: (CX + (FRAME.x0 + FRAME.x1) / 2) / 128, cy: (CY + (FRAME.y0 + FRAME.y1) / 2) / 128 }]);
+    [world.motion, world.players, walkFixture, makeTerrain(), { res: RS.map(([dx, dy, g]) => [CX + dx, CY + dy, g]), t: T_SHOT, z: ZM, cx: (CX + (FR.x0 + FR.x1) / 2) / 128, cy: (CY + (FR.y0 + FR.y1) / 2) / 128 }]);
   await page.waitForFunction("(window.__glInst9 > 0) || (window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0)", null, { timeout: 120000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   // 보기 모드 판(중계/자유)이 서 있으면 [자유] · 재생을 멈추고 탐색바로 T_SHOT 에 세운다.
@@ -284,7 +329,7 @@ for (const race of RACES) {
     const st = document.querySelector(".scr-fs-stage")?.getBoundingClientRect() ?? r;
     const x0 = Math.max(st.left, a[0]); const y0 = Math.max(st.top, a[1]); const x1 = Math.min(st.right, a[2]); const y1 = Math.min(st.bottom, a[3]);
     return { x: x0, y: y0, width: x1 - x0, height: y1 - y0, cut: a.map((v, i) => Math.round(v - [x0, y0, x1, y1][i])).join(",") };
-  }, [FRAME, (CX + (FRAME.x0 + FRAME.x1) / 2) / 128, (CY + (FRAME.y0 + FRAME.y1) / 2) / 128, ZOOM, CX, CY]);
+  }, [FR, (CX + (FR.x0 + FR.x1) / 2) / 128, (CY + (FR.y0 + FR.y1) / 2) / 128, ZM, CX, CY]);
   const file = join(OUT, `show_${RACE_EN[race]}.png`);
   if (clip.cut !== "0,0,0,0") console.warn(`  ⚠ 틀이 무대 밖으로 잘림(왼·위·오른·아래 px): ${clip.cut}`);
   await page.screenshot({ path: file, clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height }, timeout: 180000 });
