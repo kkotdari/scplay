@@ -19351,6 +19351,33 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
     }
 
+    /* ①c **늘어진 꼬리 마디**(2026-10-31, 요청: "꼬리 끝에 마디 하나 추가해서 땅을 덮으면서 늘어뜨리게") — 꽁무니(u 0.97 · 판 속에서 시작해 이음이 안 보인다)에서
+       뒤로 `DRAPE_L9` 뻗으며 내려앉아 끝은 땅에 납작하게 눕는다: 높이 z = 끝 + (시작 − 끝)(1 − t)² (처음은 가파르고 끝은 땅과 나란) · 단면 위아래 반두께
+       0.42 → 0.12(끝이 땅에 닿는다) · 옆 몫은 ovalOf 로 반폭 0.66 → 0.9(납작하게 퍼져 땅을 덮는다). 판과 같은 초타원 단면 · 판 차례대로 금(GOLD) 한 장. */
+    {
+      /* 다른 마디처럼 **틈을 두고** 선다 — 마지막 판(u 0.938 끝)과 0.03 떨어진 u 0.968 의 등뼈에서 시작하고, 속막(어두운 금)을 그 틈까지 한 토막 이어 깐다.
+         끝 20% 는 둥글게 오므린다(사각으로 잘린 끝이 판처럼 안 읽혔다). */
+      const DRAPE_L9 = 1.5;
+      const [, ty9, tz9] = SP9(0.968);
+      const ZE9 = 0.13;
+      const rnd9 = (t9: number): number => (t9 < 0.8 ? 1 : Math.max(0.12, Math.sqrt(1 - ((t9 - 0.8) / 0.2) ** 2)));
+      const hOf9 = (t9: number): number => (0.42 + (0.12 - 0.42) * t9) * (0.6 + 0.4 * rnd9(t9));
+      const sideOf9 = (t9: number): number => (0.7 + (0.95 - 0.7) * t9) * rnd9(t9);
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 24, radOf: SQ9, caps: "both", trueNormal: true,
+        path: (t9: number): [number, number, number] => [0, ty9 - DRAPE_L9 * t9, ZE9 + (tz9 - ZE9) * (1 - t9) ** 2],
+        widthOf: hOf9,
+        ovalOf: (t9: number): number => sideOf9(t9) / hOf9(t9),
+      }), GOLD), depthNow(0, ty9 - DRAPE_L9 * 0.5) * 1.6 + 2 + 7 * 0.02));
+      // 틈 속막 — 꽁무니에서 늘어진 마디 머리까지(어두운 금 · 판보다 가늘게).
+      const [, my9, mz9] = SP9(0.94);
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 12, radOf: SQ9, caps: "none", oval: 1.5,
+        path: (t9: number): [number, number, number] => [0, my9 + (ty9 - 0.15 - my9) * t9, mz9 + (tz9 - 0.05 - mz9) * t9],
+        widthOf: (): number => 0.36,
+      }), GOLD_D), depthNow(0, ty9) * 1.6 + 1.9));
+    }
+
     /* ③ **발 — 반 고리 세 쌍**(2026-10-14, 요청: "발밑의 바퀴 통나무 제거하고 사진처럼 반 고리를 세 개") — 옛 판은 옆구리 아래로 가로 누운 짧은 통(tubeFaces ·
        바퀴 통나무)이었다. 이제 옆구리 아래에 몸과 나란한 면(y-z)에 선 **아래 반원** 고리 — 두 끝이 몸 옆구리 속에 박히고 활이 바닥(z 0.05)까지 내려온다.
        반원은 설계 자로 셈하고 z 몫에 Z8 을 곱한다(굽은 관 규약). 자리는 그 마디 옆 몫의 0.66(초타원 옆구리 안 · 아래 활은 밖으로 드러난다). */
