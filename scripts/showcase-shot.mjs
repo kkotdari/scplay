@@ -18,7 +18,7 @@ const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
 const ROOT = resolve(String(flag("--root", HERE)));
 const OUT = String(flag("--out", join(tmpdir(), "showcase")));
-const RACES = flag("--race", null) ? [String(flag("--race"))] : ["합동"];
+const RACES = flag("--race", null) ? [String(flag("--race"))] : ["플토본진"];
 const ZOOM = Number(flag("--zoom", 5.5));
 const DPR = Number(flag("--dpr", 1.6));
 const VIEW = Number(flag("--view", 1900));
@@ -26,7 +26,7 @@ const T_SHOT = Number(flag("--t", 46));
 const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
 const GAME_SEC = 120;
-const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합동: "siege" };
+const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합동: "siege", 플토본진: "tossmain" };
 
 /* ── 이름 → 번호(bwUnitNames 는 그 트리의 것) ── */
 const ebin = join(HERE, "node_modules", "esbuild", "bin", "esbuild");
@@ -164,6 +164,51 @@ SCENES.합동 = {
   ],
   // 마엘스트롬(기술 31) — 다크아콘(임자 1)이 마린 뭉치 가운데로 · 7.4초 · 사각 ±1.5타일(생체만).
   casts: [[-1.2, 7.8, 0.6, 31, 1]],
+};
+/* ★ 프로토스 본진(2026-10-31, 요청: "좀 과한 듯 · 플토 본진으로 · 건물들과 파일런 포톤캐논 배치 · 거기에 저그랑 테란이 쳐들어간 그림") — 왼쪽 2/3 가 프로토스 본진
+   (넥서스·미네랄·캐는 프로브 · 파일런 여섯 · 게이트 둘·코어·포지·스타게이트·시타델·아카이브 · 앞줄 캐논 넷 · 게이트 하나·캐논 하나 폭발) · 지키는 병력(질럿·드라군·
+   템플러·아콘·캐리어 뭉치 · 다크아콘이 히드라 뭉치에 마엘스트롬) · 오른위 저그(히드라·저글링·울트라·뮤탈·오버로드) · 오른아래 테란(마린·메딕·시즈 탱크·배틀 뭉치).
+   임자 0 프로토스 · 1 저그 · 2 테란(1·2 같은 편). */
+const ZG = (o = {}) => ({ own: 1, hb: 200, st: 4, fight: true, ...o });
+const TR = (o = {}) => ({ own: 2, hb: 200, st: 4, fight: true, ...o });
+/* (같은 날 되요청: "건물들을 더 모으고 유닛 수 늘리기") — 건물은 실제 본진처럼 발자국 사이 0.5타일 남짓으로 붙이고(게이트 셋·스타게이트 둘·코어·포지·시타델·아카이브·
+   플릿 비컨 · 파일런 다섯 · 앞줄 캐논 다섯) · 병력은 두 배 가까이(질럿 10 · 드라군 6 · 템플러 3 · 아콘 2 · 캐리어 6 / 히드라 16 · 저글링 16 · 울트라 3 · 뮤탈 11 /
+   마린 20 · 메딕 5 · 탱크 3 · 골리앗 3 · 배틀 6). */
+SCENES.플토본진 = {
+  pl: [2, 0, 1], force: [1, 2, 2],
+  zoom: 5,
+  frame: { x0: -14, x1: 11, y0: -13.5, y1: 9.8 },
+  res: [[-13, -10, 0], [-13.5, -8.5, 0], [-14, -7, 0], [-14, -5.5, 0], [-13.5, -4, 0], [-13, -2.5, 0], [-5, -11, 1]],
+  put: [
+    ["Nexus", -8.5, -6], ["Assimilator", -5, -11],
+    ["Probe", -11.8, -8.6, { st: 5, hb: 192 }], ["Probe", -11.6, -6.8, { st: 5, hb: 200 }], ["Probe", -11.8, -5, { st: 5, hb: 180 }], ["Probe", -11.2, -3.4, { st: 5, hb: 170 }],
+    ["Pylon", -10, -10.6], ["Gateway", -1.5, -10.5], ["Pylon", 2, -10.6],
+    ["Gateway", -3.5, -6.4], ["Gateway", 1, -6.4, { die: -0.42 }],
+    ["Cybernetics Core", -9, -1.8], ["Forge", -5.5, -2], ["Pylon", -2.4, -2.4],
+    ["Stargate", -8.5, 2.2], ["Stargate", -4, 2.2], ["Pylon", -0.8, 1.8],
+    ["Citadel of Adun", -9, 6.2], ["Templar Archives", -5.5, 6.2], ["Fleet Beacon", -2, 6.2], ["Pylon", 1, 5.6],
+    ["Photon Cannon", 4, -9.2], ["Photon Cannon", 4.2, -5.4, { die: -0.14 }], ["Photon Cannon", 3.4, -1.8], ["Photon Cannon", 3, 1.8], ["Photon Cannon", 3.6, 5.4],
+    // 지키는 병력
+    ...clump("Zealot", 10, 5.4, -1.8, 1.4, 0.72, F4),
+    ...clump("Dragoon", 6, 5.2, 3, 1.3, 1.02, F4),
+    ...clump("Archon", 2, 6.4, 0.6, 0.6, 1.1, F4),
+    ["High Templar", 1.6, -0.6, { hb: 64 }], ["High Templar", 1.2, 0.6, { hb: 64 }], ["High Templar", 1.8, 3.4, { hb: 64 }], ["Dark Archon", 4.8, -4, { hb: 40 }],
+    ...clump("Carrier", 6, 2.4, 6.4, 2, 1.8, { ...F4, hb: 64 }),
+    // 쳐들어온 저그(오른위)
+    ...clump("Hydralisk", 16, 7.8, -4.8, 1.8, 0.6, ZG()),
+    ...clump("Zergling", 16, 7.6, -1.2, 1.6, 0.48, ZG()),
+    ...clump("Ultralisk", 3, 9.7, -2.6, 1.2, 1.35, ZG()),
+    ...clump("Mutalisk", 11, 7.2, -8.8, 1.8, 0.85, ZG()),
+    ["Overlord", 9.6, -11, { own: 1, hb: 200 }], ["Overlord", 10.4, -7, { own: 1, hb: 200 }],
+    // 쳐들어온 테란(오른아래)
+    ...clump("Marine", 20, 8.2, 3.2, 1.8, 0.56, TR()),
+    ...clump("Medic", 5, 9.9, 4.8, 1, 0.66, TR({ st: 0, fight: false })),
+    ["Siege Tank (Siege Mode)", 10.3, 0.8, TR()], ["Siege Tank (Siege Mode)", 10.4, 6.8, TR()], ["Siege Tank (Siege Mode)", 9.2, 8.6, TR()],
+    ...clump("Goliath", 3, 8.2, 6.8, 1, 0.95, TR()),
+    ...clump("Battlecruiser", 6, 8.4, 5.6, 2, 1.5, TR()),
+  ],
+  // 마엘스트롬(기술 31) — 다크아콘(임자 0)이 히드라 뭉치 가운데로 · 7.4초 · 사각 ±1.5타일(생체만).
+  casts: [[-1.2, 7.6, -4.8, 31, 0]],
 };
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
 const FRAME = { x0: -15.5, x1: 9.5, y0: -13.5, y1: 5.8 };
