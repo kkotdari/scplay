@@ -19393,20 +19393,43 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }), GOLD_D), depthNow(m9 * (lx9 + BX9 * 0.5), ly9) * 1.6 + 1.2));
       }
     }
-    /* ④ 집게 한 쌍 — 앞끝 아래에서 앞·아래로 뻗어 안으로 말린다. 사진2의 그 갈고리다. */
+    /* ④ **가는 팔 + 땅 짚는 기계 손가락 여섯**(2026-10-31, 요청: "리버 머리의 더듬이 제거하고 가는 팔이 나오고 그 앞에 땅을 짚고 당기는 용도의 기계 손가락 6개") —
+       옛 집게 한 쌍(앞·아래로 뻗어 안으로 말린 갈고리)을 걷었다. 머리 밑에서 가는 팔(반폭 0.11 → 0.08)이 앞·아래로 굽어 나와 손바닥(어두운 금 짧은 통)에 닿고,
+       손가락 여섯이 앞 ±75° 부채로 벌어진다 — 손가락마다 2차 베지에(손바닥 → 마디(바깥 0.32 · 위 0.32) → 끝(바깥 0.72 · 땅 0.04))라 위로 꺾였다 땅을 찍는다.
+       반폭 0.085 → 0.05(게임 배율에서도 읽히게) · 손바닥 반폭 0.19 · 손바닥은 머리 앞 1.1. 땅을 짚고 몸을 끌어당기는 손이다. */
     const [, hy9, hz9] = SP9(0);
-    for (const m9 of [-1, 1] as const) {
+    {
+      const PY9 = hy9 + 1.1; const PZ9 = 0.3;
+      const A0 = [0, hy9 + 0.25, hz9 - 0.2] as const; const A1 = [0, hy9 + 0.95, hz9 - 0.05] as const;
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 6, sides: 5, caps: "none",
-        path: (t9: number): [number, number, number] => [
-          m9 * (0.42 + 0.16 * t9 - 0.3 * t9 * t9),
-          hy9 + 0.35 + 1.05 * t9,
-          hz9 - 0.12 - 0.6 * t9 + 0.16 * t9 * t9,
-        ],
-        widthOf: (t9: number): number => 0.26 - 0.18 * t9,
-      }), GOLD_L), depthNow(m9 * 0.4, hy9 + 0.9) * 1.6 + 3));
+        x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "none",
+        path: (t9: number): [number, number, number] => {
+          const q9 = 1 - t9;
+          return [0, q9 * q9 * A0[1] + 2 * t9 * q9 * A1[1] + t9 * t9 * PY9, q9 * q9 * A0[2] + 2 * t9 * q9 * A1[2] + t9 * t9 * PZ9];
+        },
+        widthOf: (t9: number): number => 0.11 - 0.03 * t9,
+      }), GOLD_L), depthNow(0, hy9 + 0.7) * 1.6 + 3));
+      out.push(...tagKey(paintBase(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 8, caps: "both",
+        path: (t9: number): [number, number, number] => [0, PY9 - 0.08 + 0.16 * t9, PZ9],
+        widthOf: (): number => 0.19,
+      }), GOLD_D), depthNow(0, PY9) * 1.6 + 3.05));
+      for (let k9 = 0; k9 < 6; k9 += 1) {
+        const a9 = (-75 + (150 * k9) / 5) * (Math.PI / 180);
+        const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);
+        const K9: [number, number, number] = [dx9 * 0.32, PY9 + dy9 * 0.32, PZ9 + 0.32];
+        const T9: [number, number, number] = [dx9 * 0.72, PY9 + dy9 * 0.72, 0.04];
+        out.push(...tagKey(paintBase(spirePillar({
+          x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 5, caps: "none",
+          path: (t9: number): [number, number, number] => {
+            const q9 = 1 - t9;
+            return [2 * t9 * q9 * K9[0] + t9 * t9 * T9[0], q9 * q9 * PY9 + 2 * t9 * q9 * K9[1] + t9 * t9 * T9[1], q9 * q9 * PZ9 + 2 * t9 * q9 * K9[2] + t9 * t9 * T9[2]];
+          },
+          widthOf: (t9: number): number => 0.085 - 0.035 * t9,
+        }), GOLD), depthNow(dx9 * 0.5, PY9 + dy9 * 0.5) * 1.6 + 3.1));
+      }
     }
-    /* 눈 렌즈 — 집게 위 이마에 박힌 작은 등. 앞을 볼 때만 뜬다. */
+    /* 눈 렌즈 — 팔 위 이마에 박힌 작은 등. 앞을 볼 때만 뜬다. */
     out.push(...lensFaces({
       x: 0, y: hy9 + 0.28, z: hz9 + 0.4, nx: 0, ny: 1, r: 0.3, bulge: 0.22, lift: 3.2,
       rim: "#5c4a12", fill: "#a4f6eb", core: "#e0fffb", glint: "#ffffff",
