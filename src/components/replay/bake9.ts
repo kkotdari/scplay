@@ -19399,8 +19399,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        반폭 0.085 → 0.05(게임 배율에서도 읽히게) · 손바닥 반폭 0.19 · 손바닥은 머리 앞 1.1. 땅을 짚고 몸을 끌어당기는 손이다. */
     const [, hy9, hz9] = SP9(0);
     {
-      const PY9 = hy9 + 1.1; const PZ9 = 0.3;
-      const A0 = [0, hy9 + 0.25, hz9 - 0.2] as const; const A1 = [0, hy9 + 0.95, hz9 - 0.05] as const;
+      /* (같은 날 원작 사진) 손은 머리 바로 앞에 붙어 작고 오므린다 — 팔을 줄여(손바닥 머리 앞 0.55 · 높이 0.34) · 손가락도 짧게 갈고리로(아래). */
+      const PY9 = hy9 + 0.55; const PZ9 = 0.34;
+      const A0 = [0, hy9 + 0.05, hz9 - 0.18] as const; const A1 = [0, hy9 + 0.42, hz9 - 0.12] as const;
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] => {
@@ -19417,15 +19418,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       for (let k9 = 0; k9 < 6; k9 += 1) {
         const a9 = (-75 + (150 * k9) / 5) * (Math.PI / 180);
         const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);
-        const K9: [number, number, number] = [dx9 * 0.32, PY9 + dy9 * 0.32, PZ9 + 0.32];
-        const T9: [number, number, number] = [dx9 * 0.72, PY9 + dy9 * 0.72, 0.04];
+        const K9: [number, number, number] = [dx9 * 0.24, PY9 + dy9 * 0.26, PZ9 + 0.2];
+        const T9: [number, number, number] = [dx9 * 0.4, PY9 + dy9 * 0.46, 0.04];
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 5, caps: "none",
           path: (t9: number): [number, number, number] => {
             const q9 = 1 - t9;
             return [2 * t9 * q9 * K9[0] + t9 * t9 * T9[0], q9 * q9 * PY9 + 2 * t9 * q9 * K9[1] + t9 * t9 * T9[1], q9 * q9 * PZ9 + 2 * t9 * q9 * K9[2] + t9 * t9 * T9[2]];
           },
-          widthOf: (t9: number): number => 0.085 - 0.035 * t9,
+          widthOf: (t9: number): number => 0.09 - 0.04 * t9,
         }), GOLD), depthNow(dx9 * 0.5, PY9 + dy9 * 0.5) * 1.6 + 3.1));
       }
     }
