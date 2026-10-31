@@ -19262,22 +19262,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     /** 구부림 몫 — 컷 1은 +1(구부림), 컷 3은 −1(폄). 기본 자세는 0이다. */
     const bd9 = walkDir();
-    /* ★ **초밥처럼 꼬리를 늘어뜨린다**(2026-10-31, 요청: "리버가 옆에서 보면 거의 완전 반원인데 살짝 초밥처럼 꼬리를 늘어뜨리게 · 살짝만") — 뒤 1/3 을
-       `TAIL_DROP9` 만큼 부드럽게 내리고(smoothstep 0.6 → 1) · 길이를 `TAIL_LEN9` 배 늘려 뒤로 끌리게 · 옆선도 그 구간에서 `TAIL_THIN9` 몫 가늘어진다(아래 W9).
-       앞(집게·눈·총구 u 0.03)과 발 고리(u ≤ 0.62)는 거의 안 움직인다. */
-    const TAIL_DROP9 = 0.34; const TAIL_LEN9 = 1.07; const TAIL_THIN9 = 0.22;
-    const tail9 = (u9: number): number => { const q9 = Math.min(1, Math.max(0, (u9 - 0.6) / 0.4)); return q9 * q9 * (3 - 2 * q9); };
-    const LEN9 = 6.4 * TAIL_LEN9 * (1 - bd9 * 0.07);   // 오므리면 짧아진다
-    const Y09 = 3.0 + 6.4 * (TAIL_LEN9 - 1) * 0.35 + bd9 * 0.12;   // 늘린 몫의 1/3 남짓을 앞으로 — 몸 가운데가 제자리 언저리
-    /** 등뼈 — u 0(앞·집게 쪽) → 1(꽁무니). 구부리면 등이 더 솟는다. */
-    const SP9 = (u9: number): [number, number, number] => [
-      0, Y09 - LEN9 * u9,
-      0.576 + (1.68 + bd9 * 0.4) * Math.sin(Math.PI * Math.min(1, u9 ** 0.85)) + 0.32 * u9 - TAIL_DROP9 * tail9(u9),
-    ];
-    markMuzzle9(...SP9(0.03));   // 앞 집게 — 스캐럽이 나는 자리
-    /** 그 자리의 반폭 — 앞이 좁고 한가운데가 가장 넓으며 꽁무니는 둥글게 닫힌다. */
+    /* ★ **꼬리는 몸의 곡선을 따라 땅까지 내려와 둥글고 좁게 닫힌다**(2026-10-31, 요청: "살짝 초밥처럼 꼬리를 늘어뜨리게" → "꼬리 끝에 마디 하나 추가해서 땅을 덮으면서" →
+       (원작 사진) "끝은 둥글면서도 좁아져야 해 · 몸의 곡선을 따라서 해치지 않게") — 따로 붙인 판(늘어진 마디)을 걷고, 등뼈를 u `UE9`(1.08)까지 늘려 여덟째 판을 같은 결로 잇는다.
+       뒤 구간(smoothstep u 0.6 → UE9 · tail9)에서 등뼈 높이를 '그 자리 반폭 × 1.08 + 0.03'(몸이 땅에 얹히는 높이)으로 섞어 내려 몸 곡선이 끊기지 않고 땅까지 내려오고,
+       옆선은 u 0.9 부터 원호로 오므라(rc9) 끝이 둥글고 좁다. 늘린 몫의 0.35 를 앞으로(Y09) — 몸 가운데 제자리 언저리. 앞(집게·눈·총구)·발 고리(u ≤ 0.62)는 그대로. */
+    const UE9 = 1.1;
+    /** 등 꼭대기의 앞쏠림 — sin(π·u^HUMP9) 꼭대기 u = 0.5^(1/HUMP9) · 0.85(0.44) → 0.72(0.38) — 앞은 가파르고 뒤는 길게 비탈진다(원작 옆모습). */
+    const HUMP9 = 0.72;
+    const tail9 = (u9: number): number => { const q9 = Math.min(1, Math.max(0, (u9 - 0.6) / (UE9 - 0.6))); return q9 * q9 * (3 - 2 * q9); };
+    // 끝 오므림 — 원호로 줄되 끝에서 0.5 남짓 남겨 뾰족하지 않고 둥글게 닫힌다(끝 뚜껑은 속막의 caps).
+    const rc9 = (u9: number): number => (u9 <= 0.88 ? 1 : Math.sqrt(Math.max(0.25, 1 - ((u9 - 0.88) / (UE9 - 0.84)) ** 2)));
+    const LEN9 = 6.4 * (1 - bd9 * 0.07);   // 오므리면 짧아진다
+    const Y09 = 3.0 + 6.4 * (UE9 - 1) * 0.35 + bd9 * 0.12;
+    /** 그 자리의 반폭 — 앞이 좁고 한가운데가 가장 넓으며 꽁무니는 땅 가까이 둥글게 오므라 닫힌다. */
     // 앞뒤로 갈수록 더 좁아진다(재요청) — 앞 1.68 → 1.14, 꽁무니 1.36 → 0.95, 허리 2.15 그대로.
-    const W9 = (u9: number): number => (0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9))) * (1 - TAIL_THIN9 * tail9(u9));
+    const W9 = (u9: number): number => (0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * Math.min(1, u9)))) * (1 - 0.15 * tail9(u9)) * rc9(u9);
+    /** 등뼈 — u 0(앞·집게 쪽) → UE9(꽁무니). 구부리면 등이 더 솟는다. 뒤는 몸이 땅에 얹히는 높이로 내려온다. */
+    const SP9 = (u9: number): [number, number, number] => {
+      const z09 = 0.576 + (1.68 + bd9 * 0.4) * Math.sin(Math.PI * Math.min(1, Math.max(0, u9) ** HUMP9)) + 0.32 * u9;
+      const k9 = tail9(u9);
+      return [0, Y09 - LEN9 * u9, z09 * (1 - k9) + (W9(u9) * 1.08 + 0.03) * k9];
+    };
+    markMuzzle9(...SP9(0.03));   // 앞 집게 — 스캐럽이 나는 자리
     /* ★ **좌우를 좁히고 옆을 절벽으로**(2026-10-14, 요청: "리버 좌우 폭을 좀 줄여야 해 · 너무 뚱뚱 · 폭 줄일 때 좌우가 절벽처럼 좀 뚝 떨어지게") — 단면의 옆 몫(oval ·
        spirePillar 의 sin 축이 옆이다)을 판 1.18 → 0.9 · 속막 1.12 → 0.85 로(폭 0.76 배 · 키는 그대로), 단면을 **초타원**(|c|ⁿ + |s|ⁿ = 1 · n 2.8)으로 둬
        등이 넓고 평평하다가 옆이 뚝 떨어진다. 판·무늬·속막이 같은 단면을 탄다(무늬는 판과 같은 살이어야 한다). */
@@ -19289,7 +19295,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        판(밝은 금 · 금)과 갈리게 어두운 금(GOLD_D)이다. 임자 색은 이제 등판 위 무늬(아래 ①b)가 든다. */
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, segs: 18, sides: 12, oval: 0.85, radOf: SQ9, caps: "both",
-      path: SP9, widthOf: (u9: number): number => W9(u9) * 0.93,
+      path: (t9: number): [number, number, number] => SP9(t9 * UE9), widthOf: (t9: number): number => W9(t9 * UE9) * 0.93,
     }), GOLD_D), 0));
 
     /* ① 등판 일곱 — 저마다 짧은 마디라, 판 사이에 속막이 드러나는 띠가 남는다.
@@ -19300,7 +19306,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        무늬는 판 앞쪽(판 길이의 6% ~ 70%) · 등마루(x 0)에서 0.13 떨어져 옆으로 반폭의 60% · 뒤 두 모서리 반지름 0.2 · 위 반쪽(축보다 위)만. 색을 안 줘 임자 색이다.
        판의 낯 수는 12 → 24 — 둥근 모서리가 판 낯 안에서 베어지려면 낯이 잘아야 한다(한 낯을 경계가 두 번 넘으면 cutFace 가 못 벤다). */
     const PAT_F9 = 0.06; const PAT_R9 = 0.7; const PAT_B09 = 0.13; const PAT_BW9 = 0.6; const PAT_RR9 = 0.2;
-    for (let i9 = 0; i9 < 7; i9 += 1) {
+    for (let i9 = 0; i9 < 8; i9 += 1) {   // 여덟째 판(u 0.958 → 1.07)은 늘린 꽁무니(위 ★ UE9) — 오므라드는 끝이라 무늬는 안 넣는다
       const u0 = 0.02 + i9 * 0.134;
       const u1 = u0 + 0.112;
       const [, my9] = SP9((u0 + u1) / 2);
@@ -19348,34 +19354,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return d9;
       };
-      for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
-    }
-
-    /* ①c **늘어진 꼬리 마디**(2026-10-31, 요청: "꼬리 끝에 마디 하나 추가해서 땅을 덮으면서 늘어뜨리게") — 꽁무니(u 0.97 · 판 속에서 시작해 이음이 안 보인다)에서
-       뒤로 `DRAPE_L9` 뻗으며 내려앉아 끝은 땅에 납작하게 눕는다: 높이 z = 끝 + (시작 − 끝)(1 − t)² (처음은 가파르고 끝은 땅과 나란) · 단면 위아래 반두께
-       0.42 → 0.12(끝이 땅에 닿는다) · 옆 몫은 ovalOf 로 반폭 0.66 → 0.9(납작하게 퍼져 땅을 덮는다). 판과 같은 초타원 단면 · 판 차례대로 금(GOLD) 한 장. */
-    {
-      /* 다른 마디처럼 **틈을 두고** 선다 — 마지막 판(u 0.938 끝)과 0.03 떨어진 u 0.968 의 등뼈에서 시작하고, 속막(어두운 금)을 그 틈까지 한 토막 이어 깐다.
-         끝 20% 는 둥글게 오므린다(사각으로 잘린 끝이 판처럼 안 읽혔다). */
-      const DRAPE_L9 = 1.5;
-      const [, ty9, tz9] = SP9(0.968);
-      const ZE9 = 0.13;
-      const rnd9 = (t9: number): number => (t9 < 0.8 ? 1 : Math.max(0.12, Math.sqrt(1 - ((t9 - 0.8) / 0.2) ** 2)));
-      const hOf9 = (t9: number): number => (0.42 + (0.12 - 0.42) * t9) * (0.6 + 0.4 * rnd9(t9));
-      const sideOf9 = (t9: number): number => (0.7 + (0.95 - 0.7) * t9) * rnd9(t9);
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 10, sides: 24, radOf: SQ9, caps: "both", trueNormal: true,
-        path: (t9: number): [number, number, number] => [0, ty9 - DRAPE_L9 * t9, ZE9 + (tz9 - ZE9) * (1 - t9) ** 2],
-        widthOf: hOf9,
-        ovalOf: (t9: number): number => sideOf9(t9) / hOf9(t9),
-      }), GOLD), depthNow(0, ty9 - DRAPE_L9 * 0.5) * 1.6 + 2 + 7 * 0.02));
-      // 틈 속막 — 꽁무니에서 늘어진 마디 머리까지(어두운 금 · 판보다 가늘게).
-      const [, my9, mz9] = SP9(0.94);
-      out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 3, sides: 12, radOf: SQ9, caps: "none", oval: 1.5,
-        path: (t9: number): [number, number, number] => [0, my9 + (ty9 - 0.15 - my9) * t9, mz9 + (tz9 - 0.05 - mz9) * t9],
-        widthOf: (): number => 0.36,
-      }), GOLD_D), depthNow(0, ty9) * 1.6 + 1.9));
+      if (i9 < 7) for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
     }
 
     /* ③ **발 — 반 고리 세 쌍**(2026-10-14, 요청: "발밑의 바퀴 통나무 제거하고 사진처럼 반 고리를 세 개") — 옛 판은 옆구리 아래로 가로 누운 짧은 통(tubeFaces ·

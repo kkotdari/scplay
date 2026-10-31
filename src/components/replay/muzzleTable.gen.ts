@@ -29,7 +29,7 @@ export const MUZZLE_GEN9: Record<string, [number, number, number]> = {
   probeHold: [0, 0.53, 2.35],
   probeMin: [0, 0.53, 2.35],
   queen: [0, 3.19, 6.89],
-  reaver: [0, 2.95, 0.85],
+  reaver: [0, 3.03, 1],
   scout: [0, 5.9, 5.46],
   scv: [-2.73, 3.97, 5.77],
   scvGas: [-2.37, 3.96, 5.77],
