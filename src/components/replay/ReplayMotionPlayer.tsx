@@ -3810,6 +3810,37 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
  *  자는 f.size(보이는 몸 폭·발자국 폭, 렌즈 px)이고 p는 0~1 진행이다. 낱개는 씨앗(seed)으로
  *  개체마다 다르게 흩되 프레임마다는 같다(무작위면 지지직거린다). save/restore 없이 네 점을
  *  손으로 돌려 채운다(계측: save 하나가 CPU 8%였다). */
+/** 프로토스 건물 폭발 구름 판의 반폭(V 자 · 아래 cloudSpr9) — 혹 바깥 끝(≤ 1.24V)보다 조금 크게. */
+const CLOUD_HALF9 = 1.3;
+const CLOUD9 = new Map<number, { cv: HTMLCanvasElement; ext: number }>();
+/** ★ 플라즈마 구름 판(2026-10-31 · drawBurst9 프로토스 건물) — 구체(빛무리 끝 0.82V) + 혹 여섯(각 사이 0.4~1.6 몫 누적 · 끝 반지름 0.18~0.40V · 거리 0.6~0.84V ·
+ *  세로 0.92)을 plasma-orb 판으로 **불투명하게** 겹쳐 한 장으로 굽는다(갈래 k 넷 · 씨앗 고정). ext = 혹 바깥 끝(V 자) — 빛줄기 끝(× 1.1)의 자. */
+function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement; ext: number } {
+  const hit9 = CLOUD9.get(k9);
+  if (hit9) return hit9;
+  let sd9 = ((k9 + 7) * 2654435761) >>> 0;
+  const rn9 = (): number => { sd9 = (sd9 * 1664525 + 1013904223) >>> 0; return sd9 / 4294967296; };
+  const NB9 = 6;
+  const bumps9: [number, number, number][] = [];
+  const gaps9: number[] = []; let gs9 = 0;
+  for (let i9 = 0; i9 < NB9; i9 += 1) { const g9 = 0.4 + rn9() * 1.2; gaps9.push(g9); gs9 += g9; }
+  let acc9 = rn9() * Math.PI * 2; let ext9 = 0.82;
+  for (let i9 = 0; i9 < NB9; i9 += 1) {
+    acc9 += (gaps9[i9] / gs9) * Math.PI * 2;
+    const v9 = 0.18 + rn9() * 0.22; const d9 = 0.6 + rn9() * 0.24;
+    bumps9.push([acc9, d9, v9]); ext9 = Math.max(ext9, d9 + v9);
+  }
+  const S9 = 256;
+  const cv9 = domSpr9(`plasma-cloud-${k9}`, (c9) => {
+    const u9 = S9 / 2 / CLOUD_HALF9;   // V 한 자의 판 화소
+    const put9 = (x9: number, y9: number, r9: number): void => { const pr9 = (r9 / 0.71) * u9; c9.drawImage(orb9, S9 / 2 + x9 * u9 - pr9, S9 / 2 + y9 * u9 - pr9, pr9 * 2, pr9 * 2); };
+    for (const [a9, d9, v9] of bumps9) put9(Math.cos(a9) * d9, Math.sin(a9) * d9 * 0.92, v9);
+    put9(0, 0, 0.82);
+  }, S9);
+  const out9 = { cv: cv9, ext: ext9 };
+  CLOUD9.set(k9, out9);
+  return out9;
+}
 function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number, tz9 = zoom): void {
   const W = Math.max(3, (f.size ?? 4) * zoom);
   /* ★ 파편의 **수는 몸집 단으로, 크기는 조금만**(요청: "유닛간 크기 차이에 따라 파편 크기를 배율로 키우기보다는 크기는
@@ -3936,7 +3967,10 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
     /* (같은 날 되요청: "원작에서 빛줄기가 폭발구보다 반경이 살짝만 10% 정도 커 · 중요한 게 타이밍인데 폭발 먼저 나고 페이드아웃하면서 빛이 팍 확장") — 뭉치(boom9)일 때
        빛줄기는 `RAY_P09`(0.35)부터 뜬다: 끝이 (1 − r)^4 로 팍 뻗고 r 내내 스러진다. 끝은 뭉치가 다 부푼 때의 바깥 끝(Rc9 · 아래 뭉치 고리가 잰다) × 1.1 ×
        (0.8~1) — 줄기 길이에 조금만 편차. 뭉치는 앞 45% 에 다 부풀고 35% 부터 스러진다. */
-    const RAY_P09 = 0.35;
+    /* (2026-10-31 되요청: "타이밍은 폭발 후 빛줄기 사이를 좀 더 벌리기") — 빛줄기 0.35 → 0.52 · 구름이 스러지기 시작하는 때(CLOUD_FADE9)는 0.35 그대로라
+       구름이 한참 스러지는 동안 빛이 늦게 팍 뻗는다. */
+    const RAY_P09 = 0.52;
+    const CLOUD_FADE9 = 0.35;
     let Rc9 = 0;
     const rays9 = (): void => {
     // 빛줄기(건물만) — 색 셋(짙은·밝은·흰)마다 한 경로. 세 번 돌며 같은 씨앗열을 다시 밟아 줄기마다 색을 고른다.
@@ -3984,33 +4018,19 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       /* (2026-10-31 되요청: "프로토스 건물 폭발 크기가 너무 커서 줄여야 해 · 폭발구가 연기구름이 아닌 꽃처럼 보임") — 고른 칸 열여섯 혹이 꽃잎으로 읽혔다.
          V9 0.7W → 0.46W(바깥 끝 ≈0.55W · 옛 0.84W 의 2/3) · 혹은 아홉 개를 **고르지 않게**: 각 사이를 0.4~1.6 몫으로 흩고(누적해 한 바퀴로 맞춘다) ·
          크기 0.18~0.40V · 거리 0.6~0.84V(안으로 묻히는 것과 겉으로 나오는 것이 섞인다) · 뜨는 때 0~0.1 늦음 — 구름처럼 울퉁불퉁하다. */
-      const V9 = W * 0.46;
-      const NB9 = 9;
-      const pk9 = (q9: number): number => Math.min(1, q9 / 0.06) * Math.max(0, q9 < RAY_P09 ? 1 : 1 - (q9 - RAY_P09) / 0.6) ** 1.4;
+      /* (2026-10-31 되요청: "구름 다 커졌을 때 크게 15% 줄이고 · 그 안의 구름들 숫자 줄이고 · 다 커져도 완전 불투명해지지 않게 반투명하게") — V9 0.46 → 0.39W ·
+         혹 아홉 → 여섯 · 알파 상한 구체 0.62 · 혹 0.5(겹친 자리도 1 − 0.38·0.5 ≈ 0.81 — 바닥이 비친다). */
+      const V9 = W * 0.39;
+      const pk9 = (q9: number): number => Math.min(1, q9 / 0.06) * Math.max(0, q9 < CLOUD_FADE9 ? 1 : 1 - (q9 - CLOUD_FADE9) / 0.6) ** 1.4;
       const grow9 = (q9: number): number => 0.55 + 0.45 * (1 - (1 - Math.min(1, q9 / 0.45)) ** 2.2);
       const cy9 = ay - W * 0.04;
-      const gaps9: number[] = []; let gsum9 = 0;
-      for (let i9 = 0; i9 < NB9; i9 += 1) { const g9 = 0.4 + rnd() * 1.2; gaps9.push(g9); gsum9 += g9; }
-      let acc9 = rnd() * Math.PI * 2;
-      for (let i9 = 0; i9 < NB9; i9 += 1) {
-        acc9 += (gaps9[i9] / gsum9) * Math.PI * 2;
-        const a9 = acc9;
-        const v9 = V9 * (0.18 + rnd() * 0.22);
-        const dl9 = rnd() * 0.1;
-        const d9 = V9 * (0.6 + rnd() * 0.24);
-        Rc9 = Math.max(Rc9, d9 + v9);
-        const q9 = Math.max(0, (p - dl9) / (1 - dl9));
-        if (q9 <= 0) continue;
-        const g9 = grow9(q9);
-        const pr9 = (v9 / 0.71) * g9;   // 판 방사 0.71 = 빛무리 끝 — 혹의 끝이 그 자리
-        ctx.globalAlpha = pk9(q9) * 0.95;
-        ctx.drawImage(orb9, ax + Math.cos(a9) * d9 * g9 - pr9, cy9 + Math.sin(a9) * d9 * g9 * 0.92 - pr9, pr9 * 2, pr9 * 2);
-      }
-      {
-        const pr9 = ((V9 * 0.82) / 0.71) * grow9(p);   // 구체 빛무리 끝(0.82V)이 겉으로 나온 혹보다 안이라 혹이 겉으로 드러난다
-        ctx.globalAlpha = pk9(p);
-        ctx.drawImage(orb9, ax - pr9, cy9 - pr9, pr9 * 2, pr9 * 2);
-      }
+      /* ★ 구름 한 장(2026-10-31 · 반투명) — 구체와 혹을 따로 반투명하게 겹치면 혹의 동그라미가 구름 속에 비쳐 물방울 무늬가 됐다. 구름 꼴을 **판 한 장**(cloudSpr9 ·
+         불투명하게 미리 구워 씨앗 갈래 넷)으로 굽고 그 판을 한 번에 알파 0.72 로 얹는다 — 속은 매끈하게 반투명하고 겉만 울퉁불퉁하다. */
+      const cl9 = cloudSpr9((f.seed ?? 1) & 3, orb9);
+      Rc9 = cl9.ext * V9;
+      const half9 = CLOUD_HALF9 * V9 * grow9(p);
+      ctx.globalAlpha = pk9(p) * 0.72;
+      ctx.drawImage(cl9.cv, ax - half9, cy9 - half9, half9 * 2, half9 * 2);
       rays9();
     } else {
     const or9 = W * (bld ? 0.42 : 0.5) * (0.85 + 0.3 * ease);
