@@ -3812,6 +3812,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
  *  손으로 돌려 채운다(계측: save 하나가 CPU 8%였다). */
 /** 프로토스 건물 폭발 구름 판의 반폭(V 자 · 아래 cloudSpr9) — 혹 바깥 끝(≤ 1.24V)보다 조금 크게. */
 const CLOUD_HALF9 = 1.3;
+/** 빛줄기 끝의 자(W 몫) — 구름은 0.39W 로 줄였어도 빛줄기는 그 앞 자 0.46W 를 쓴다(2026-10-31 되요청). */
+const RAY_V9 = 0.46;
 const CLOUD9 = new Map<number, { cv: HTMLCanvasElement; ext: number }>();
 /** ★ 플라즈마 구름 판(2026-10-31 · drawBurst9 프로토스 건물) — 구체(빛무리 끝 0.82V) + 혹 여섯(각 사이 0.4~1.6 몫 누적 · 끝 반지름 0.18~0.40V · 거리 0.6~0.84V ·
  *  세로 0.92)을 plasma-orb 판으로 **불투명하게** 겹쳐 한 장으로 굽는다(갈래 k 넷 · 씨앗 고정). ext = 혹 바깥 끝(V 자) — 빛줄기 끝(× 1.1)의 자. */
@@ -3831,8 +3833,10 @@ function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement
     bumps9.push([acc9, d9, v9]); ext9 = Math.max(ext9, d9 + v9);
   }
   const S9 = 256;
-  const cv9 = domSpr9(`plasma-cloud-${k9}`, (c9) => {
+  const cv9 = domSpr9(`plasma-cloud2-${k9}`, (c9) => {
     const u9 = S9 / 2 / CLOUD_HALF9;   // V 한 자의 판 화소
+    /* 덩이마다 알파 0.8 로 겹친다(2026-10-31, 요청: "너무 매끈하니 이상해 · 내부 구 실루엣이 조금 비쳐 보여도 괜찮을 듯") — 겹친 자리가 조금 더 짙어 속의 동그라미가 옅게 드러난다. */
+    c9.globalAlpha = 0.8;
     const put9 = (x9: number, y9: number, r9: number): void => { const pr9 = (r9 / 0.71) * u9; c9.drawImage(orb9, S9 / 2 + x9 * u9 - pr9, S9 / 2 + y9 * u9 - pr9, pr9 * 2, pr9 * 2); };
     for (const [a9, d9, v9] of bumps9) put9(Math.cos(a9) * d9, Math.sin(a9) * d9 * 0.92, v9);
     put9(0, 0, 0.82);
@@ -4027,9 +4031,9 @@ function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: numb
       /* ★ 구름 한 장(2026-10-31 · 반투명) — 구체와 혹을 따로 반투명하게 겹치면 혹의 동그라미가 구름 속에 비쳐 물방울 무늬가 됐다. 구름 꼴을 **판 한 장**(cloudSpr9 ·
          불투명하게 미리 구워 씨앗 갈래 넷)으로 굽고 그 판을 한 번에 알파 0.72 로 얹는다 — 속은 매끈하게 반투명하고 겉만 울퉁불퉁하다. */
       const cl9 = cloudSpr9((f.seed ?? 1) & 3, orb9);
-      Rc9 = cl9.ext * V9;
+      Rc9 = cl9.ext * W * RAY_V9;   // 빛줄기는 구름을 줄이기 전 자(0.46W)로 — "빛줄기 크기는 줄이면 안 됐어 다시 늘리기"
       const half9 = CLOUD_HALF9 * V9 * grow9(p);
-      ctx.globalAlpha = pk9(p) * 0.72;
+      ctx.globalAlpha = pk9(p) * 0.8;
       ctx.drawImage(cl9.cv, ax - half9, cy9 - half9, half9 * 2, half9 * 2);
       rays9();
     } else {

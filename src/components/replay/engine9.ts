@@ -597,6 +597,8 @@ export const POSE_KINDS: Record<string, { move?: boolean; atk?: boolean; flap?: 
      여전히 1/hz 초에 한 바퀴다. 붙어 있는 같은 컷 둘은 그림이 안 바뀌므로 실제로
      갈아 끼우는 횟수도 예전과 같은 네 번이다(2.4Hz면 초당 9.6번). */
 export const FLAP_CYCLE: readonly (1 | 3 | 4)[] = [1, 1, POSE_ATK_L, 3, 3, POSE_ATK_L];
+/** 나는 저그가 움직이는 동안의 날갯짓 배수(engine9 자세 고르기 ★). */
+const FLAP_MOVE_K9 = 2;
 export function flapCutOf(hz: number, t: number): 1 | 3 | 4 {
   const n9 = FLAP_CYCLE.length;
   return FLAP_CYCLE[Math.floor(t * hz * n9) % n9];
@@ -9401,9 +9403,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         }
         /* 날갯짓은 **자취가 멈춰 있어도** 돈다(요청) — 공중에 뜬 몸은 늘
            날개를 쳐야 떠 있는 것으로 읽힌다. */
+        /* ★ 움직이는 동안은 **두 배 빠르게** 친다(2026-10-31, 요청: "저그 공중유닛 날개짓 이동 시 2배 빨라지게") — 멈춰 떠 있을 때는 제 박자 그대로. */
         if (pk9.flap) {
-          poseRx9 = [2, pk9.flap];
-          return flapCut();
+          const hz9 = pk9.flap * (movingNow ? FLAP_MOVE_K9 : 1);
+          poseRx9 = [2, hz9];
+          return flapCutOf(hz9, t);
         }
         if (pk9.move && movingNow) {
           const sp9 = speedOf(drawUnit || "Marine", t, e.ups);

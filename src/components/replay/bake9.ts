@@ -19400,8 +19400,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const [, hy9, hz9] = SP9(0);
     {
       /* (같은 날 원작 사진) 손은 머리 바로 앞에 붙어 작고 오므린다 — 팔을 줄여(손바닥 머리 앞 0.55 · 높이 0.34) · 손가락도 짧게 갈고리로(아래). */
-      const PY9 = hy9 + 0.55; const PZ9 = 0.34;
-      const A0 = [0, hy9 + 0.05, hz9 - 0.18] as const; const A1 = [0, hy9 + 0.42, hz9 - 0.12] as const;
+      /* (같은 날 되요청: "리버 팔 길이도 살짝 더 길게 복귀 · 손가락은 앞 양옆으로 직각으로 나가게 · 7개 앞 3 좌우 2") — 손바닥 0.55 → 0.8 · 손가락 일곱(아래 FING9). */
+      const PY9 = hy9 + 0.8; const PZ9 = 0.34;
+      const A0 = [0, hy9 + 0.05, hz9 - 0.18] as const; const A1 = [0, hy9 + 0.6, hz9 - 0.12] as const;
       out.push(...tagKey(paintBase(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 6, caps: "none",
         path: (t9: number): [number, number, number] => {
@@ -19415,8 +19416,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         path: (t9: number): [number, number, number] => [0, PY9 - 0.08 + 0.16 * t9, PZ9],
         widthOf: (): number => 0.19,
       }), GOLD_D), depthNow(0, PY9) * 1.6 + 3.05));
-      for (let k9 = 0; k9 < 6; k9 += 1) {
-        const a9 = (-75 + (150 * k9) / 5) * (Math.PI / 180);
+      /** 손가락 각(도 · 0 = 앞 · ±90 = 옆) — 앞 셋 · 왼 둘 · 오른 둘(옆은 몸에 직각). */
+      const FING9 = [-18, 0, 18, -102, -78, 78, 102];
+      for (const fd9 of FING9) {
+        const a9 = fd9 * (Math.PI / 180);
         const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);
         const K9: [number, number, number] = [dx9 * 0.24, PY9 + dy9 * 0.26, PZ9 + 0.2];
         const T9: [number, number, number] = [dx9 * 0.4, PY9 + dy9 * 0.46, 0.04];
@@ -29221,7 +29224,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        번쩍임의 대비(어두운 바탕 위의 흰 몇 면)는 오히려 또렷해진다. */
     return lit9(paintBase(
       // 초록기를 빼고 파랑 쪽으로(요청: "미네랄 모델 초록색톤 줄이고 더 청색톤에 가깝게") — 205° → 215°, 밝기·채도 그대로.
-      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#a6cbef"));   /* 2026-10-29: #86b4e4 → **#a6cbef**(요청: "미네랄 덩이 색 밝게" → 시안 B · 색상 그대로 밝기만) · 2026-09: #689df3 → **#86b4e4**(요청: "검정기 빼서 밝게 · 따뜻쪽으로 조금" → "좀더 따뜻한 톤쪽으로" → 지적: "반대로 가고 있어 — 노란색 쪽으로 이동하라는 뜻인데 보라로 가네") — 노랑을 섞는다: 색상 217 → 211도(하늘 쪽) · 채도 78 → 63% · 밝기 68 → 71%. 보라(#9694f4)로 갔던 것은 되물렸다. */   /* #3f8ecf → #6cb6ea → #6aa2ee → #a6c2f0 → **#689df3**(요청: "미네랄 색 더 진하게(채도 높임)")
+      order.filter((gi) => gi < keepN).flatMap((gi) => gems[gi]), "#b2e4ff"));   /* 2026-10-31: #a6cbef → **#b2e4ff**(요청: "미네랄 더 밝게 하고 네온색톤에 살짝만 더 가깝게" — 색상 211 → 202° · 채도 69 → 100% · 밝기 79 → 85% · 첫 판 #aad8fa 는 눈에 거의 안 띄었다) · 2026-10-29: #86b4e4 → **#a6cbef**(요청: "미네랄 덩이 색 밝게" → 시안 B · 색상 그대로 밝기만) · 2026-09: #689df3 → **#86b4e4**(요청: "검정기 빼서 밝게 · 따뜻쪽으로 조금" → "좀더 따뜻한 톤쪽으로" → 지적: "반대로 가고 있어 — 노란색 쪽으로 이동하라는 뜻인데 보라로 가네") — 노랑을 섞는다: 색상 217 → 211도(하늘 쪽) · 채도 78 → 63% · 밝기 68 → 71%. 보라(#9694f4)로 갔던 것은 되물렸다. */   /* #3f8ecf → #6cb6ea → #6aa2ee → #a6c2f0 → **#689df3**(요청: "미네랄 색 더 진하게(채도 높임)")
        — 색상(217도)은 그대로 두고 채도 71 → 85%, 밝기 80 → 68%다. 흰 몫을 덜어내면 같은
        파랑이 짙어지고, 위에 얹히는 반사 곡선(gloss9)은 그대로라 번쩍이는 몇 면과의 대비가
        도리어 또렷해진다. 일꾼이 들고 가는 덩이도 같은 값을 쓴다(그 자리 주석). */
@@ -29725,7 +29728,7 @@ SHAPE_BUILDERS.scarab = () => {
 SHAPE_BUILDERS.gaspuff = () => {
   const [sx, sy] = project(0, 0, 0);
   const d = screenCircle(sx, sy, 1);
-  if (MESH9.on) meshPut9(d, meshSphere9(0, 0, 0, 1, 1, 4, 8));
+  if (MESH9.on) meshPut9(d, meshSphere9(0, 0, 0, 1, 1, 8, 16));   // 4·8 → 8·16(2026-10-31, 요청: "가스 연기 더 둥글게 구 형태로" — 낯이 각져 보였다)
   return tagKey([[d, 1, "#8cff86"] as ShapeFace], partKey(0, 0, 0));
 };
 
@@ -29846,7 +29849,7 @@ export function mineralLoad(cx: number, cy: number, cz: number, s = 1): ShapeFac
     ...shard(-0.5, -0.16, 0.62, 0.688),
     ...shard(0.48, 0.14, 0.56, 0.576),
     ...shard(0, 0, 0.92, 1.024),
-  ], "#a6cbef"), depthNow(cx, cy) * 1.6 + 2);   // 미네랄 밭과 같은 색(요청: "일꾼들이 들고 있는 미네랄 색을 실제 미네랄 덩이 색과 통일")
+  ], "#b2e4ff"), depthNow(cx, cy) * 1.6 + 2);   // 미네랄 밭과 같은 색(요청: "일꾼들이 들고 있는 미네랄 색을 실제 미네랄 덩이 색과 통일")
 }
 
 /** 가스통(테란·프로토스) — 정육면체 상자다. 앞·윗면에 베스핀 초록 창이 난다.
