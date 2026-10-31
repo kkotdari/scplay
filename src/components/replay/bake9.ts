@@ -19289,7 +19289,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        등이 넓고 평평하다가 옆이 뚝 떨어진다. 판·무늬·속막이 같은 단면을 탄다(무늬는 판과 같은 살이어야 한다). */
     const OVL9 = 0.9;
     const SQN9 = 2.8;
-    const SQ9 = (a9: number): number => (Math.abs(Math.cos(a9)) ** SQN9 + Math.abs(Math.sin(a9)) ** SQN9) ** (-1 / SQN9);
+    /* ★ **등마루가 뾰족하게 솟는다**(2026-10-31, 요청: "리버 등마루가 더 뾰족하게 솟게 · 지금은 좀 역 U 자로 평평한 느낌") — 초타원 단면의 위쪽(각 0 = 위 · cos 축)
+       반지름을 `RIDGE9`·cos⁴ 만큼 키운다(꼭대기 ×1.24 · 45° ×1.06 · 옆 이하 그대로) — 등이 마루로 모인다. 판·무늬·속막이 같은 단면을 탄다. */
+    const RIDGE9 = 0.24;
+    const SQ9 = (a9: number): number => (Math.abs(Math.cos(a9)) ** SQN9 + Math.abs(Math.sin(a9)) ** SQN9) ** (-1 / SQN9) * (1 + RIDGE9 * Math.max(0, Math.cos(a9)) ** 4);
 
     /* ② 속막 — 판 사이 틈으로만 드러난다. ★ 금색(2026-10-14, 요청: "리버 안의 임자색 금색으로") — 옛 판은 색을 안 줘 임자 색이었다.
        판(밝은 금 · 금)과 갈리게 어두운 금(GOLD_D)이다. 임자 색은 이제 등판 위 무늬(아래 ①b)가 든다. */
@@ -19308,16 +19311,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const PAT_F9 = 0.06; const PAT_R9 = 0.7; const PAT_B09 = 0.13; const PAT_BW9 = 0.6; const PAT_RR9 = 0.2;
     for (let i9 = 0; i9 < 8; i9 += 1) {   // 여덟째 판(u 0.958 → 1.07)은 늘린 꽁무니(위 ★ UE9) — 오므라드는 끝이라 무늬는 안 넣는다
       const u0 = 0.02 + i9 * 0.134;
-      const u1 = u0 + 0.112;
+      /* ★ **앞판이 뒷판을 덮는다**(2026-10-31, 요청: "껍질을 앞껍질이 뒤로 갈수록 법선 기준 살짝 들려서 뒷껍질의 10~20% 정도를 덮는 반복으로") — 판 길이 0.112(틈 0.022) →
+         0.154(다음 판 앞 0.02 = 판 사이 0.134 의 15% 를 덮는다) · 반지름은 앞 0.96 → 뒤 1.13 배로 **뒤가 들린다**(옛 앞 1.07 → 뒤 1.0 은 반대로 앞이 두꺼웠다) —
+         뒤끝이 다음 판의 앞(0.96)보다 바깥이라 그 위로 턱지게 얹힌다. 덮는 쪽이 앞판이라 깊이 키도 앞판이 높다(7 − i). 마지막 판은 UE9 에서 끝난다. */
+      const u1 = Math.min(UE9, u0 + 0.154);
       const [, my9] = SP9((u0 + u1) / 2);
       const plate9 = (grow9: number, segs9: number, cut9?: (x: number, y: number, z: number) => number): ShapeFace[] => spirePillar({
         // 등진 벽은 걷는다 — 뚫린 관이라 안쪽 벽이 겉면 위로 비쳐 판이 검게 얼룩졌다.
         x: 0, y: 0, h: 0.8, w: 1, segs: segs9, sides: 24, oval: OVL9, radOf: SQ9, caps: "none", trueNormal: true,
         path: (t9: number): [number, number, number] => SP9(u0 + (u1 - u0) * t9),
-        widthOf: (t9: number): number => W9(u0 + (u1 - u0) * t9) * (1.07 - 0.07 * t9) + grow9,
+        widthOf: (t9: number): number => W9(u0 + (u1 - u0) * t9) * (0.96 + 0.17 * t9) + grow9,   // 앞 0.96 → 뒤 1.13(턱이 읽히게 · 첫 판 1.02 → 1.10 은 한 껍질로 녹았다)
         ...(cut9 ? { cutFace: cut9 } : {}),
       });
-      out.push(...tagKey(paintBase(plate9(0, 3), i9 % 2 === 0 ? GOLD_L : GOLD), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02));
+      out.push(...tagKey(paintBase(plate9(0, 3), i9 % 2 === 0 ? GOLD_L : GOLD), depthNow(0, my9) * 1.6 + 2 + (7 - i9) * 0.02));
       /* 무늬의 부호 있는 거리(양수 = 무늬 안) — 길이 자 s(모형 칸 · 판 앞끝 0) · 옆 자 b = |x|.
          ⚠ s 를 꼭짓점의 y 로 재면 틀린다 — 앞쪽 판은 등뼈가 35° 넘게 비탈져 단면이 기울어, 윗면 꼭짓점의 y 가 축보다 판 길이 넘게 어긋났다(첫 굽기: 무늬가
            거의 다 베어졌다). 꼭짓점을 **등뼈에 수직으로 내린 발**의 u(이분법 · dot(P − SP9(u), T(u)) = 0)로 잰다. 위아래도 그 자리의 등뼈 법선(위)으로 가른다. */
@@ -19354,7 +19360,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         return d9;
       };
-      if (i9 < 7) for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + i9 * 0.02 + 0.01));
+      if (i9 < 7) for (const m9 of [-1, 1] as const) out.push(...tagKey(plate9(0.03, 8, pat9(m9)), depthNow(0, my9) * 1.6 + 2 + (7 - i9) * 0.02 + 0.01));
     }
 
     /* ③ **발 — 반 고리 세 쌍**(2026-10-14, 요청: "발밑의 바퀴 통나무 제거하고 사진처럼 반 고리를 세 개") — 옛 판은 옆구리 아래로 가로 누운 짧은 통(tubeFaces ·
@@ -19412,26 +19418,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         },
         widthOf: (t9: number): number => 0.11 - 0.03 * t9,
       }), GOLD_L), depthNow(0, hy9 + 0.7) * 1.6 + 3));
+      /* ★ **정사각 손바닥 + 변에서 곧게 뻗는 두 마디 손가락**(2026-10-31, 요청: "팔 끝에 정사각 손바닥 추가하고 손바닥 변에서 각 손가락이 수직으로 뻗게 · 손가락도
+         마디 2개로 구부러지게") — 손바닥은 납작한 정사각 판(반변 `PH9` 0.22 · 두께 0.1 · 어두운 금) · 손가락은 변에 수직으로: 앞 변에서 셋(앞으로 · x −0.13·0·0.13) ·
+         왼·오른 변에서 둘씩(옆으로 · y ∓0.09). 손가락마다 두 마디 — 첫 마디는 변에서 바깥으로 0.26 · 조금 들려(+0.08) 마디에 닿고, 둘째 마디는 바깥 0.16 더 가며
+         땅(0.04)으로 꺾여 내린다(관절 한 점 · 꺾인 관). */
+      const PH9 = 0.22;
       out.push(...tagKey(paintBase(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 1, segs: 2, sides: 8, caps: "both",
-        path: (t9: number): [number, number, number] => [0, PY9 - 0.08 + 0.16 * t9, PZ9],
-        widthOf: (): number => 0.19,
+        x: 0, y: 0, h: 0.8, w: 1, segs: 1, sides: 4, caps: "both",
+        path: (t9: number): [number, number, number] => [0, PY9, PZ9 - 0.05 + 0.1 * t9],
+        widthOf: (): number => PH9 / Math.cos(Math.PI / 4),
       }), GOLD_D), depthNow(0, PY9) * 1.6 + 3.05));
-      /** 손가락 각(도 · 0 = 앞 · ±90 = 옆) — 앞 셋 · 왼 둘 · 오른 둘(옆은 몸에 직각). */
-      const FING9 = [-28, 0, 28, -114, -66, 66, 114];   // 사이 넓힘(같은 날 "손가락 사이사이 간격 넓히기") — 앞 ±18 → ±28 · 옆 78·102 → 66·114
-      for (const fd9 of FING9) {
-        const a9 = fd9 * (Math.PI / 180);
-        const dx9 = Math.sin(a9); const dy9 = Math.cos(a9);
-        const K9: [number, number, number] = [dx9 * 0.24, PY9 + dy9 * 0.26, PZ9 + 0.2];
-        const T9: [number, number, number] = [dx9 * 0.4, PY9 + dy9 * 0.46, 0.04];
+      /** [바닥 점 x, y · 바깥 방향 dx, dy] — 손바닥 변 위의 손가락 뿌리. */
+      const ROOTS9: [number, number, number, number][] = [
+        [-0.13, PY9 + PH9, 0, 1], [0, PY9 + PH9, 0, 1], [0.13, PY9 + PH9, 0, 1],
+        [-PH9, PY9 - 0.09, -1, 0], [-PH9, PY9 + 0.09, -1, 0], [PH9, PY9 - 0.09, 1, 0], [PH9, PY9 + 0.09, 1, 0],
+      ];
+      for (const [rx9, ry9, dx9, dy9] of ROOTS9) {
+        const A9: [number, number, number] = [rx9, ry9, PZ9];
+        const K9: [number, number, number] = [rx9 + dx9 * 0.26, ry9 + dy9 * 0.26, PZ9 + 0.08];
+        const T9: [number, number, number] = [rx9 + dx9 * 0.42, ry9 + dy9 * 0.42, 0.04];
+        const lerp9 = (p9: [number, number, number], q9: [number, number, number], v9: number): [number, number, number] =>
+          [p9[0] + (q9[0] - p9[0]) * v9, p9[1] + (q9[1] - p9[1]) * v9, p9[2] + (q9[2] - p9[2]) * v9];
         out.push(...tagKey(paintBase(spirePillar({
           x: 0, y: 0, h: 0.8, w: 1, segs: 8, sides: 5, caps: "none",
-          path: (t9: number): [number, number, number] => {
-            const q9 = 1 - t9;
-            return [2 * t9 * q9 * K9[0] + t9 * t9 * T9[0], q9 * q9 * PY9 + 2 * t9 * q9 * K9[1] + t9 * t9 * T9[1], q9 * q9 * PZ9 + 2 * t9 * q9 * K9[2] + t9 * t9 * T9[2]];
-          },
-          widthOf: (t9: number): number => 0.09 - 0.04 * t9,
-        }), GOLD), depthNow(dx9 * 0.5, PY9 + dy9 * 0.5) * 1.6 + 3.1));
+          path: (t9: number): [number, number, number] => (t9 <= 0.5 ? lerp9(A9, K9, t9 / 0.5) : lerp9(K9, T9, (t9 - 0.5) / 0.5)),
+          widthOf: (t9: number): number => 0.075 - 0.03 * t9,
+        }), GOLD), depthNow(rx9 + dx9 * 0.3, ry9 + dy9 * 0.3) * 1.6 + 3.1));
       }
     }
     /* 눈 렌즈 — 팔 위 이마에 박힌 작은 등. 앞을 볼 때만 뜬다. */
