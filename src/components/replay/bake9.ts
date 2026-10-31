@@ -19262,17 +19262,22 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const out: ShapeFace[] = [];
     /** 구부림 몫 — 컷 1은 +1(구부림), 컷 3은 −1(폄). 기본 자세는 0이다. */
     const bd9 = walkDir();
-    const LEN9 = 6.4 * (1 - bd9 * 0.07);   // 오므리면 짧아진다
-    const Y09 = 3.0 + bd9 * 0.12;
+    /* ★ **초밥처럼 꼬리를 늘어뜨린다**(2026-10-31, 요청: "리버가 옆에서 보면 거의 완전 반원인데 살짝 초밥처럼 꼬리를 늘어뜨리게 · 살짝만") — 뒤 1/3 을
+       `TAIL_DROP9` 만큼 부드럽게 내리고(smoothstep 0.6 → 1) · 길이를 `TAIL_LEN9` 배 늘려 뒤로 끌리게 · 옆선도 그 구간에서 `TAIL_THIN9` 몫 가늘어진다(아래 W9).
+       앞(집게·눈·총구 u 0.03)과 발 고리(u ≤ 0.62)는 거의 안 움직인다. */
+    const TAIL_DROP9 = 0.34; const TAIL_LEN9 = 1.07; const TAIL_THIN9 = 0.22;
+    const tail9 = (u9: number): number => { const q9 = Math.min(1, Math.max(0, (u9 - 0.6) / 0.4)); return q9 * q9 * (3 - 2 * q9); };
+    const LEN9 = 6.4 * TAIL_LEN9 * (1 - bd9 * 0.07);   // 오므리면 짧아진다
+    const Y09 = 3.0 + 6.4 * (TAIL_LEN9 - 1) * 0.35 + bd9 * 0.12;   // 늘린 몫의 1/3 남짓을 앞으로 — 몸 가운데가 제자리 언저리
     /** 등뼈 — u 0(앞·집게 쪽) → 1(꽁무니). 구부리면 등이 더 솟는다. */
     const SP9 = (u9: number): [number, number, number] => [
       0, Y09 - LEN9 * u9,
-      0.576 + (1.68 + bd9 * 0.4) * Math.sin(Math.PI * Math.min(1, u9 ** 0.85)) + 0.32 * u9,
+      0.576 + (1.68 + bd9 * 0.4) * Math.sin(Math.PI * Math.min(1, u9 ** 0.85)) + 0.32 * u9 - TAIL_DROP9 * tail9(u9),
     ];
     markMuzzle9(...SP9(0.03));   // 앞 집게 — 스캐럽이 나는 자리
     /** 그 자리의 반폭 — 앞이 좁고 한가운데가 가장 넓으며 꽁무니는 둥글게 닫힌다. */
     // 앞뒤로 갈수록 더 좁아진다(재요청) — 앞 1.68 → 1.14, 꽁무니 1.36 → 0.95, 허리 2.15 그대로.
-    const W9 = (u9: number): number => 0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9));
+    const W9 = (u9: number): number => (0.55 + 1.6 * Math.sin(Math.PI * (0.12 + 0.8 * u9))) * (1 - TAIL_THIN9 * tail9(u9));
     /* ★ **좌우를 좁히고 옆을 절벽으로**(2026-10-14, 요청: "리버 좌우 폭을 좀 줄여야 해 · 너무 뚱뚱 · 폭 줄일 때 좌우가 절벽처럼 좀 뚝 떨어지게") — 단면의 옆 몫(oval ·
        spirePillar 의 sin 축이 옆이다)을 판 1.18 → 0.9 · 속막 1.12 → 0.85 로(폭 0.76 배 · 키는 그대로), 단면을 **초타원**(|c|ⁿ + |s|ⁿ = 1 · n 2.8)으로 둬
        등이 넓고 평평하다가 옆이 뚝 떨어진다. 판·무늬·속막이 같은 단면을 탄다(무늬는 판과 같은 살이어야 한다). */
