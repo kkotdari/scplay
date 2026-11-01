@@ -4922,6 +4922,8 @@ export function hatcheryMoundFaces(
   legK = 0.5,
   /** 옥상 뚜껑을 두르는 도넛 링의 색 — 해처리·레어 검회색 · 하이브 갈색(요청). */
   ringColor = "#3a3f46",
+  /** 옆 갈비(삼각 단면 옆기둥 여섯)의 크기 배수 — 굵기·끝 굵기·드러난 등 높이·아가리 테를 함께 곱한다. 하이브 1.5(2026-11-01, 요청: "하이브 옆등을 따라 삼각 튀어나온 것들 6개 레어보다 1.5배 정도 커야 함"). */
+  seamK = 1,
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5123,11 +5125,11 @@ export function hatcheryMoundFaces(
            `SEAM_LIFT9 + SEAM_W` 라 반지름을 줄이면 그만큼 내려온다(2.10 → 1.62 · −23%). 다만 반지름을 줄이면
            밑변(= 옆폭)도 함께 줄므로 옆 죔 `oval` 을 그 역수만큼 늦춰 **옆폭은 한 톨도 안 바뀌게** 둔다
            (0.7 × 1.45 = 0.91 × 1.12). 등 높이와 옆폭은 이 두 값이 한 벌로 쥔다. */
-        const SEAM_W = 1.12;
+        const SEAM_W = 1.12 * seamK;
         /* ★ 갈비는 살보다 **한 뼘 더 밖에** 선다(2026-09, 요청: "옆기둥이 본체보다 좀더 바깥으로
            나와야 자연스러울 거 같아 조금만 더") — 축의 반지름을 그만큼 늘린다(밑동 5.9 → 6.17). */
         const SEAM_OUT9 = 1.045;
-        const SEAM_TIP = 0.42;
+        const SEAM_TIP = 0.42 * seamK;
         const SEAM_HOLD = 0.08;
         /* ★ 옆선을 둔덕 **겉으로 한 뼘 내민다**(지적: "해처리 45도 요잉해서 보여지잖아
            왼쪽 능선 경계에 있는 옆선 기둥이 잘 안 보이는 문제가 있네") ─────────────────
@@ -5177,8 +5179,8 @@ export function hatcheryMoundFaces(
         };
         /** 단면이 `+u` 로 가장 멀리 나간 몫(등마루 = 삼각 꼭짓점 자리 · 섞어도 1 그대로) — 등 높이를 그 자리에 맞춘다. */
         const SEAM_UMAX9 = 1;
-        const SEAM_H_BOT9 = 1.62;
-        const SEAM_H_TOP9 = 0.22;
+        const SEAM_H_BOT9 = 1.62 * seamK;
+        const SEAM_H_TOP9 = 0.22 * seamK;
         const seamH9 = (t9: number): number => SEAM_H_TOP9
           + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** 1.4;
         /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
@@ -5289,7 +5291,7 @@ export function hatcheryMoundFaces(
           /* ⓑ 테두리 — 아가리 둘레를 한 바퀴 도는 닫힌 관(커널·캐번 입구의 그 문틀과 같은 자).
              등뼈가 곧 단면 윤곽이라 t 0 과 1 이 같은 점이어서 저절로 닫힌다. */
           out.push(...tagKey(spirePillar({
-            x: 0, y: 0, h: 0.8, w: 0.22, tipW: 0.22,
+            x: 0, y: 0, h: 0.8, w: 0.22 * seamK, tipW: 0.22 * seamK,
             segs: 24, sides: 6, caps: "none", fill: seamColor,
             path: (t9: number): [number, number, number] => mouthAt9(t9 * Math.PI * 2, 1),
             cutFace: seamCut9,
@@ -18082,7 +18084,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const HIVE_IVORY = "#7a5733";
     /* 갈색 #7d5c31 → 상아 → **황토**(2026-11-01, 요청: "하이브 뿔기둥 색이 너무 진해짐 원래 상아색" → 원작 그림을 보이며 "상아색이 아니고 황토?") —
        재질 결(#matx)이 저그 색을 휘도·채도로 살/뼈로 가르는데(휘도 > 0.5 · 채도 < 0.4 = 뼈) 진한 황토는 살로 쳐 붉은 속살 비침이 얹힌다. 뼈 문턱 안의 황토(휘도 0.59 · 채도 0.37)라 뿔 결(줄결·구멍)을 탄다. */
-    const HIVE_HORN = "#a8946a";
+    const HIVE_HORN = "#9a5f3e";   // 황토 #a8946a → 붉은 갈색(같은 날 "색은 더 붉은 갈색 · 뿔기둥 색") — 살로 쳐 속살 비침을 탄다
     const HIVE_SPIKE9 = "#e0c85a";   // 뿔 안쪽 가시 — 노란 상아(요청)
     const HIVE_GOO9 = "#3f8f28";     // 뿔 안쪽 초록 물질 — 바닥 연못(zergPond9)의 초록(아래 ★)
     /* ★ 뿔 셋은 레어와 같은 자다 — 기둥 **사이**(−175·−55·65)의 구멍에서 ㄴ자로 나와 오른다(`mouthHorn9`).
@@ -18108,7 +18110,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c"));
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5));   // 옆 갈비 1.5배(seamK ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.

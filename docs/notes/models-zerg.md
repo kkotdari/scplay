@@ -862,3 +862,6 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
 - (같은 날 "뿔의 안쪽은 녹색 물질임 · 하이브 바닥에 깔린 물질의 재질") — 뿔 셋의 **안쪽(본진 쪽) 낯을 바닥 연못 초록 #3f8f28**(HIVE_GOO9)로. spirePillar `fillAt` 에
   셋째 인자 `out`(낯 가운데의 수평 바깥 방향 · 단위)을 더했고 mouthHorn9 가 그 훅을 넘긴다 — 팔꿈치 위(t 0.3~0.97)에서 out·(−dxh, −dyh) > 0.45 인 낯(여섯 중 안쪽 둘 남짓).
   🔎 `model-gl --kinds hive --rots 45,135,225,315 --cell 460 --lit` · `model-mesh --check --kinds hive,lair,geyser`(fillAt 쓰는 간헐천도).
+- (같은 날 "색은 더 붉은 갈색 · 뿔기둥 색 · 하이브 옆등을 따라 삼각 튀어나온 것들 6개 레어보다 1.5배 정도 커야 함") — 뿔 황토 → **붉은 갈색 #9a5f3e**(살로 쳐 속살 비침을 탄다) ·
+  hatcheryMoundFaces 에 `seamK`(옆 갈비 크기 배수 — SEAM_W·SEAM_TIP·드러난 등 높이 SEAM_H_BOT9/TOP9·아가리 테 굵기를 함께 곱함 · 기본 1) · 하이브만 **1.5**.
+  개인색 마디·굴 속은 seamW 를 읽어 저절로 따라온다. 🔎 `model-gl --kinds lair,hive --rots 45,225 --cell 460 --lit`.
