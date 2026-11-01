@@ -48,7 +48,8 @@ export function atlasVer() {
   /* (2026-11-01) 재질 결(MATX_VS9·FS9·FN9)은 시안 동안 이 해시에서 뺐다가 기본 굽기가 되며 도로 넣었다 — 그것을 고치면 다시 굽는다. */
   const gl = lf9(join(ROOT, "src/components/replay/gl9.ts")).replace(/^const SPR_(VS9|FS9) = `[^`]*`;?$/gm, "");
   for (const m of gl.match(/`[^`]*`/g) ?? []) h.update(m);
-  for (const m of gl.match(/^const (SPR_[A-Z0-9_]+|LIGHT|SHADOW_K9|MODEL_PERSP|GL_SPEC9|GL_SHADE9)\b.*$/gm) ?? []) if (!/^const SPR_(K9|KRUN9)\b/.test(m)) h.update(m);
+  /* (2026-11-01) 종족 광택 표(GLOSS_*)도 굽는 그림을 바꾼다 — 넣는다(프로토스 광택을 올리며 해시가 그것을 못 보던 것을 찾았다). */
+  for (const m of gl.match(/^const (SPR_[A-Z0-9_]+|LIGHT|SHADOW_K9|MODEL_PERSP|GL_SPEC9|GL_SHADE9|GLOSS_[A-Z0-9_]+)\b.*$/gm) ?? []) if (!/^const SPR_(K9|KRUN9)\b/.test(m)) h.update(m);
   return h.digest("hex").slice(0, 12);
 }
 const GEN = join(ROOT, "src/components/replay/sprAtlas.gen.ts");
