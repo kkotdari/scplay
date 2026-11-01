@@ -15,7 +15,7 @@ const VOICES9 = 6;
 /** 급한 차례 — 죽음·폭발 > 주문 > 공격 > 일상(채집·용접). */
 const PRIO9: Record<SfxKind9, number> = {
   boomBig: 9, boom: 7, bioBoom: 8, screamM: 7, screamF: 7, squeal: 7, thunder: 8, warp: 6,
-  missile: 5, photon: 5, cannon: 6, glaive: 4, zap: 4, flame: 4, puff: 4, slash: 3, gun: 3, blade: 3, claw: 3, spine: 3,
+  missile: 5, photon: 5, photonC: 5, cannon: 6, glaive: 4, zap: 4, flame: 4, puff: 4, slash: 3, gun: 3, blade: 3, claw: 3, spine: 3,
   liftOff: 5, landing: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2, warpHum: 1, heart: 1, warpEnd: 6, mineScv: 1, mineProbe: 1, eggPop: 3,
 };
 /** 종류마다 동시에 나는 수. */
@@ -25,7 +25,7 @@ const MAX9: Partial<Record<SfxKind9, number>> = {
 };
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
-  warpHum: 1450, warpEnd: 400, heart: 880, mineScv: 900, mineProbe: 900, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, missile: 150, cannon: 120,
+  warpHum: 1450, warpEnd: 400, heart: 880, mineScv: 900, mineProbe: 900, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, photonC: 120, missile: 150, cannon: 120,
   mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, liftOff: 700, landing: 700, load: 250, unload: 250, burrow: 300, unburrow: 300, eggPop: 220,
 };

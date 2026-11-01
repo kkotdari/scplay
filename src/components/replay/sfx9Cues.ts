@@ -29,7 +29,7 @@ const MELEE9: Record<string, SfxKind9> = {
 const GATH9: Record<"SCV" | "Probe" | "Drone", SfxKind9> = { SCV: "mineScv", Probe: "mineProbe", Drone: "mine" };
 /** 발사체 → 쏠 때 나는 소리(shot op 이 막 나갈 때). */
 const LAUNCH9: Record<string, SfxKind9> = {
-  missile: "missile", missileG: "missile", plasma: "photon", photon: "photon", venom: "puff", acid: "puff", spit: "puff",
+  missile: "missile", missileG: "missile", plasma: "photon", photon: "photonC", venom: "puff",   // photon = 포톤 캐넌 → 퉁(photonC · 2026-11-01) · plasma(드라군·스카우트·아비터)는 옛 뿅 acid: "puff", spit: "puff",
 };
 /** 마법(dom cast 의 sub) → 소리. */
 const CAST9: Record<string, SfxKind9> = {

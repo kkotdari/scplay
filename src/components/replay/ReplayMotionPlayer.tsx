@@ -5630,7 +5630,7 @@ export function paintFxList9(
 
 /** 판을 넘어 사는 GL 캔버스(UnitLayer 의 GL 캔버스 물려주기 ★) — 처음 선 GL 층의 캔버스. */
 let glKeepCv9: HTMLCanvasElement | null = null;
-function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog, terrPainter }: {
+function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, pickedKeys, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog, terrPainter }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
    *  번갈아 찍혔다). 틱·도착 붓은 부모의 zoomRef·panRef를 읽는데 이 effect는 상태 zoom·pan을 읽어, 렌더 사이에 ref만 바뀌면
@@ -5647,6 +5647,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   tilePx?: number;
   /** 선택(집기)된 개체의 pickKey — 체력바를 늘 보인다(요청). */
   pickedKey?: string | null;
+  /** 상자 선택으로 고른 몸들(RMP boxSel9 ★) — 고른 몸처럼 링·체력바를 단다. */
+  pickedKeys?: ReadonlySet<string> | null;
   /** 크립 차단 마스크(요청: 벽·램프·다리는 크립이 못 뚫는다) — 칸 하나가 픽셀 하나인
    *  지형 캔버스. clipWalk 판들을 깐 직후 destination-out으로 파낸다. */
   wallMask?: HTMLCanvasElement | null;
@@ -5694,6 +5696,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
    *  부모(xfPaintNow)가 이것만 부른다. 유닛·GL 캔버스는 안 건드리고 지형 캔버스의 임시 변환만 걷는다(부모가 제 기준 terrXfRef9 를 갈아 끼운다). */
   terrPainter?: { current: ((zoom: number, pan: { x: number; y: number }) => boolean) | null };
 }) {
+  /** 고른 몸인가 — 누른 몸(pickedKey) · 상자 선택(pickedKeys). */
+  const isPk9 = (k9: string | undefined): boolean => k9 != null && (k9 === pickedKey || !!pickedKeys?.has(k9));
   const ref = useRef<HTMLCanvasElement>(null);
   /** GL 캔버스 — JSX 의 자리표(glHoldRef)를 판을 넘어 산 캔버스(glKeepCv9)로 갈아 끼운 것(아래 ★). */
   const glRef = useRef<HTMLCanvasElement | null>(null);
@@ -6094,7 +6098,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const drawList9 = ((): UnitDrawOp[] => {
         if (!THIN_ON9 || trim9 < 1 || sorted.length < 64) { THIN9.n = 0; THIN9.drew = 0; return sorted; }
         const thin9 = (o9: UnitDrawOp): boolean => UNIT_KIND_SET.has(o9.kind)
-          && !(pickedKey != null && o9.pickKey === pickedKey);
+          && !isPk9(o9.pickKey);
         /* 칸은 그린 유닛 폭 언저리 — 이보다 잘면 덮이지 않은 것까지 빼고, 굵으면 서로
            떨어져 선 것을 뺀다. 타일 폭의 0.7이 한 유닛의 몸 폭에 가깝다. */
         const cell9 = Math.max(2, (tilePx ?? 8) * zoom * 0.7);
@@ -6226,12 +6230,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, selRingCol9(op) ?? op.color, op.alpha, 1);
+              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, selRingCol9(op) ?? op.color, op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
-              if (op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) {
+              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) {
                 ctx.strokeStyle = selRingCol9(op) ?? op.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -6513,7 +6517,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              GL 이면 prim(유닛 쪽과 같은 네모), 폴백이면 캔버스다. */
           const bldHpBar9 = (byTop: number): void => {
             if (!(showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
-              && (op.hpShow || ownSel9(op) || (pickedKey != null && op.pickKey === pickedKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
+              && (op.hpShow || ownSel9(op) || isPk9(op.pickKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
             const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
             const bh3 = Math.max(hpBarH9(zoom), 5 * (bw3 / (op.hpBarW ?? 19)));
             const bx3 = sx - bw3 / 2;
@@ -6577,7 +6581,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const rx9 = wPx * 0.62 * rk9;
             /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
             const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + uiLineW9((tilePx ?? 8) * zoom, Bd) / 2;
-            if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && gl9.primOk && op.mkFrac === undefined) {
+            if ((op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) && gl9.primOk && op.mkFrac === undefined) {
               const bRingCol9 = selRingCol9(op) ?? op.color;
               const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: uiLineW9((tilePx ?? 8) * zoom, Bd), shear: 0 };
               ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
@@ -6818,7 +6822,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ringY = (groundY ?? groundOy9) - lift;
           return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * pitchGroundK9(op) + ringW / 2 };
         };
-        if ((op.selRing || atkFlashOn9(op) || (pickedKey != null && op.pickKey === pickedKey)) && !op.ghost) {
+        if ((op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
           /* ★ 굵기를 되돌린다(지적: "유닛 선택링이 안나와") — 두 번의 "더 가늘게"가
@@ -6888,7 +6892,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 체력바(요청: 체력을 지니고 다니는 생애주기) — 다친 유닛 머리 위에 원작풍
            바: 초록(>66%)·노랑(>33%)·빨강. 성한 유닛에는 안 띄워 화면을 아낀다. */
         if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
-              && (op.hpShow || ownSel9(op) || (pickedKey != null && op.pickKey === pickedKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
+              && (op.hpShow || ownSel9(op) || isPk9(op.pickKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
           // 원작 폭(요청) — 건물 쪽(bw3)과 같은 자. 옛 잉크 폭·체력 보정 자는 걷었다.
           const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
           const bh2 = Math.max(hpBarH9(zoom), 5 * (bw2 / (op.hpBarW ?? 19)));
@@ -12746,6 +12750,13 @@ export default function ReplayMotionPlayer({
   }, [pitchFlat]);
   /** 정보 팝업으로 집어 둔 몸의 열쇠(요청) — null이면 닫힘. */
   const [picked, setPicked] = useState<string | null>(null);
+  /** ★ 상자 선택(2026-11-01, 요청: "마우스 드래그로도 유닛 건물 선택 가능하게" → "왼쪽 끌기 = 선택(원작식)") — 마우스 왼쪽 끌기로 고른 몸 열쇠들.
+   *  둘 이상일 때만 선다(하나면 picked) · picked 가 서면 걷힌다 · 인포창은 picked → 이것 → 화면 주인의 선택 차례로 든다. 끄는 상자는 boxElRef9(무대 위 DOM). */
+  const [boxSel9, setBoxSel9] = useState<string[] | null>(null);
+  const boxDragRef9 = useRef<{ id: number; sx: number; sy: number; x: number; y: number; live: boolean } | null>(null);
+  const boxElRef9 = useRef<HTMLDivElement | null>(null);
+  const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
+  useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
   /** 하단 인포창을 접었나(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
   const [dockFold9, setDockFold9] = useState(false);
   /** 실제로 접혔나 — ★ 분할보기도 **안 접는다**(2026-10, 요청: "분할화면에서 자동으로 독 접지 않기. 계산하느라 버벅임") — 접고
@@ -12754,7 +12765,7 @@ export default function ReplayMotionPlayer({
   const dockFoldOn9 = dockFold9;
   /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
   const closePicked9 = useCallback((): void => {
-    if (pickedRef.current !== null) setPicked(null);
+    if (pickedRef.current !== null) { setPicked(null); setBoxSel9(null); }
   }, []);
   /* ★ 화면이 갈리면 팝업은 닫는다(2026-09, 요청: "건물 선택시 인포팝업 노출하기(화면 전환되거나 다른거 선택시
      닫혀야하는거 알지?)") — 중계·추적이 사람을 갈아타거나(camRaw9) 시점(viewRaw)이 바뀌면 카메라·안개가 통째로
@@ -12798,7 +12809,7 @@ export default function ReplayMotionPlayer({
   useEffect(() => {
     const prev9 = ownerSelPrev9.current;
     ownerSelPrev9.current = ownerSelAt9;
-    if (ownerSelAt9 !== null && prev9 !== null && ownerSelAt9 !== prev9) setPicked(null);
+    if (ownerSelAt9 !== null && prev9 !== null && ownerSelAt9 !== prev9) { setPicked(null); setBoxSel9(null); }
   }, [ownerSelAt9]);
   /** 태그 → 생애들(메인의 개체 표 — 태그·종류·임자·생애 경계만 남아 있다). */
   const livesByTag9 = useMemo(() => {
@@ -18676,9 +18687,20 @@ export default function ReplayMotionPlayer({
       holdTimerRef.current = window.setTimeout(() => startHold(dir), HOLD_MS);
     }
     if (quickZoomRef.current) return;
+    /* ★ 마우스 왼쪽 끌기 = 상자 선택(위 boxSel9 ★ · 원작식) — 지도 이동은 오른쪽·가운데 버튼 끌기 · 가장자리 밀기 · WASD 로 옮겼다. 손가락은 종전대로 끌면 이동.
+       분할보기는 칸마다 카메라가 달라 상자를 안 쓴다(종전 길). 안 움직이고 떼면 클릭(아래 onMapPointerUp 의 몸 집기)이다. */
+    if (e.pointerType === "mouse" && e.button === 0 && !splitOnRef9.current) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false };
+      return;
+    }
+    if (e.pointerType === "mouse" && e.button !== 0) {
+      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손)
+      if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
+    }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || e.button !== 0) return;
+    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 오른쪽·가운데 버튼이 끈다(왼쪽은 위 상자 선택)
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -18693,6 +18715,22 @@ export default function ReplayMotionPlayer({
   const dragRafRef = useRef(0);
   const dragPendRef = useRef<{ x: number; y: number } | null>(null);
   const onMapPointerMove = (e: React.PointerEvent) => {
+    const bx9 = boxDragRef9.current;
+    if (bx9 && bx9.id === e.pointerId) {
+      bx9.x = e.clientX; bx9.y = e.clientY;
+      if (!bx9.live && Math.hypot(bx9.x - bx9.sx, bx9.y - bx9.sy) > DRAG_SLOP) {
+        bx9.live = true;
+        const tpX9 = tapRef.current; if (tpX9 && tpX9.id === e.pointerId) tpX9.moved = true;
+      }
+      const el9 = boxElRef9.current; const st9 = stageRef.current;
+      if (bx9.live && el9 && st9) {
+        const r9 = st9.getBoundingClientRect();
+        el9.style.display = "block";
+        el9.style.left = `${Math.min(bx9.sx, bx9.x) - r9.left}px`; el9.style.top = `${Math.min(bx9.sy, bx9.y) - r9.top}px`;
+        el9.style.width = `${Math.abs(bx9.x - bx9.sx)}px`; el9.style.height = `${Math.abs(bx9.y - bx9.sy)}px`;
+      }
+      return;
+    }
     /* 핀치 중엔 드래그 팬 봉인(지적: 확대축소 때 전혀 다른 곳이 깜빡) — 두 손가락이
        닿아 있는 동안엔 각 손가락의 pointermove가 저마다 팬으로 처리돼, 핀치가 계산한
        pan과 엉뚱한 pan이 번갈아 이기며 화면이 다른 자리로 튀었다. */
@@ -18867,6 +18905,16 @@ export default function ReplayMotionPlayer({
     });
   };
   const onMapPointerUp = (e: React.PointerEvent) => {
+    const bxU9 = boxDragRef9.current;
+    if (bxU9 && bxU9.id === e.pointerId) {
+      boxDragRef9.current = null;
+      if (boxElRef9.current) boxElRef9.current.style.display = "none";
+      if (bxU9.live) {
+        if (e.type !== "pointercancel") boxPick9(bxU9.sx, bxU9.sy, bxU9.x, bxU9.y);
+        tapRef.current = null; lastTapRef.current = null;
+        return;
+      }
+    }
     /* 손짓 끝내기는 **맨 앞**이다(수리: 손짓 표시가 켜진 채 남는 길들) — 아래에는
        감기(holdSeeked)로 먼저 빠져나가는 갈래가 있고, 드래그 도중 감기·핀치가 끼어들면
        dragRef가 지워져 'dragged'가 거짓이 된다. 그 길로 나가면 xfGesture가 켜진 채
@@ -18965,17 +19013,8 @@ export default function ReplayMotionPlayer({
   /* 정보 팝업(요청: 유닛·건물 클릭하면 정보 툴팁, 딴 데 누르면 닫힘, 다른 몸을 누르면
      새 툴팁) — 집는 것은 '열쇠' 하나뿐이고, 내용은 프레임마다 지금 그린 op에서 다시
      읽는다. 그래서 체력·생산·업그레이드가 저절로 실시간이다. */
-  const pickAt = (clientX: number, clientY: number, bldOnly9 = false): boolean => {
-    const el = mapRef.current;
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    const px = clientX - r.left;
-    const py = clientY - r.top;
-    let best: string | null = null;
-    let bestD = Infinity;
-    for (const o of opsRef.current) {
-      if (!o.pickKey || o.ghost) continue;   // 잔상 판은 집지 않는다
-      if (bldOnly9 && !o.pickBld) continue;  // 1배 — 건물만(위 onMapPointerUp 의 ★)
+  /** 그린 몸의 화면 자리(지도 상자 기준 px) · 집는 반지름 — 클릭(pickAt)·상자 선택(boxPick9)이 함께 쓴다. */
+  const pickPos9 = (o: UnitDrawOp, r: DOMRect): { ox: number; oy: number; rad: number } => {
       // UnitLayer의 분수→화면 사상과 같은 식(zx/zy 주석 참고).
       const ox = (o.fx - 0.5) * r.width * zoom + r.width / 2 + pan.x;
       const oy0 = (o.fy - 0.5) * r.height * zoom + r.height / 2 + pan.y;
@@ -19004,11 +19043,58 @@ export default function ReplayMotionPlayer({
       const oy = oy0 - liftU;
       // 작은 유닛도 손가락으로 집을 수 있게 최소 반경을 준다.
       const rad = Math.max(14, box * zoom * 0.5);
+      return { ox, oy, rad };
+  };
+  const pickAt = (clientX: number, clientY: number, bldOnly9 = false): boolean => {
+    const el = mapRef.current;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const px = clientX - r.left;
+    const py = clientY - r.top;
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const o of opsRef.current) {
+      if (!o.pickKey || o.ghost) continue;   // 잔상 판은 집지 않는다
+      if (bldOnly9 && !o.pickBld) continue;  // 1배 — 건물만(위 onMapPointerUp 의 ★)
+      const { ox, oy, rad } = pickPos9(o, r);
       const d = Math.hypot(px - ox, py - oy);
       if (d <= rad && d < bestD) { bestD = d; best = o.pickKey; }
     }
+    setBoxSel9(null);
     setPicked(best);
     return best !== null;
+  };
+  /** 상자 선택(위 boxSel9 ★) — 상자 안(몸 가운데)의 몸을 고른다. 원작처럼 **유닛이 먼저**: 유닛이 하나라도 들면 유닛만 · 가장 많이 든 임자 한 사람의 것 ·
+   *  상자 가운데에서 가까운 차례로 열둘까지(인포창 6×2 격자). 유닛이 없으면 가운데에서 가장 가까운 건물 하나. 자원·잔상은 안 집는다. 하나면 picked. */
+  const boxPick9 = (x0: number, y0: number, x1: number, y1: number): void => {
+    const el = mapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const bx0 = Math.min(x0, x1) - r.left; const bx1 = Math.max(x0, x1) - r.left;
+    const by0 = Math.min(y0, y1) - r.top; const by1 = Math.max(y0, y1) - r.top;
+    const cx9 = (bx0 + bx1) / 2; const cy9 = (by0 + by1) / 2;
+    const units9: [UnitDrawOp, number][] = []; const blds9: [UnitDrawOp, number][] = [];
+    const seen9 = new Set<string>();
+    for (const o of opsRef.current) {
+      if (!o.pickKey || o.ghost || o.pickKey.startsWith("r") || seen9.has(o.pickKey)) continue;
+      const { ox, oy } = pickPos9(o, r);
+      if (ox < bx0 || ox > bx1 || oy < by0 || oy > by1) continue;
+      seen9.add(o.pickKey);
+      (o.pickBld ? blds9 : units9).push([o, Math.hypot(ox - cx9, oy - cy9)]);
+    }
+    let keys9: string[] = [];
+    if (units9.length > 0) {
+      const byRaw9 = new Map<string, number>();
+      for (const [o] of units9) byRaw9.set(o.pickRaw ?? "", (byRaw9.get(o.pickRaw ?? "") ?? 0) + 1);
+      let top9 = ""; let topN9 = -1;
+      for (const [raw9, n9] of byRaw9) if (n9 > topN9) { top9 = raw9; topN9 = n9; }
+      keys9 = units9.filter(([o]) => (o.pickRaw ?? "") === top9).sort((a9, b9) => a9[1] - b9[1]).slice(0, 12).map(([o]) => o.pickKey as string);
+    } else if (blds9.length > 0) {
+      keys9 = [blds9.sort((a9, b9) => a9[1] - b9[1])[0][0].pickKey as string];
+    }
+    if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).box = `유닛${units9.length}·건물${blds9.length}·그림${opsRef.current.length}·고름${keys9.length}`;   // perf-check --boxprobe
+    if (keys9.length >= 2) { setPicked(null); setBoxSel9(keys9); }
+    else { setBoxSel9(null); setPicked(keys9[0] ?? null); }
   };
 
   /* 키보드(요청: PC) — ↑↓ 배속, ←→ 5초 뒤/앞. 댓글 입력 중에는 건드리지 않는다.
@@ -19044,7 +19130,7 @@ export default function ReplayMotionPlayer({
   bgmToggleRef.current = bgm.toggle;
   /** 인포 팝업이 열려 있나 — ESC가 무엇을 닫을지 가른다(두 ESC 판이 함께 읽는다). */
   const pickedRef = useRef<string | null>(null);
-  pickedRef.current = picked;
+  pickedRef.current = picked ?? (boxSel9 ? "box" : null);   // 상자 선택도 '고른 것'이다 — ESC 가 그것부터 닫는다(위 boxSel9 ★)
 
   /* ★ 자격은 **홀로 있는가**다(지적: "피시 프레임모드에서 원래 키보드가 먹었는데 갑자기
      안 먹어") — 여기 있던 것은 `wide`였다 ─────────────────────────────────────────
@@ -19190,7 +19276,7 @@ export default function ReplayMotionPlayer({
            읽어, 팝업이 열려 있으면 손을 뗀다). */
         if (pickedRef.current === null) return;
         e.preventDefault();
-        setPicked(null);
+        setPicked(null); setBoxSel9(null);
         /* ★ (걷어냄) 좁은 배치를 통째로 삼키던 빈 분기(지시: "키보드 조작을 PC뿐 아니라
            모바일에도 일단 물려 놓기") ─────────────────────────────────────────────────
            여기 `} else if (!wide) {`가 서서, 폰·태블릿에서는 아래 키들(−/= 확대축소 ·
@@ -21314,6 +21400,16 @@ export default function ReplayMotionPlayer({
       const f9 = tg9 ? offOp9(Number(tg9[1])) : null;
       return f9 ? [f9] : [];
     }
+    if (boxSel9 && boxSel9.length > 0) {   // 상자 선택(위 boxSel9 ★) — 죽은 몸은 빠진다
+      const outB9: UnitDrawOp[] = [];
+      for (const k9 of boxSel9) {
+        const o9 = unitOps.find((o) => o.pickKey === k9 && !o.ghost);
+        const tg9 = o9 ? null : /^[ut](\d+)$/.exec(k9);
+        const f9 = o9 ?? (tg9 ? offOp9(Number(tg9[1])) : null);
+        if (f9) outB9.push(f9);
+      }
+      return outB9;
+    }
     if (!ownerSel9 || ownerSel9.length === 0) return [];
     const byKey9 = new Map<string, UnitDrawOp>();
     const byTag9 = new Map<number, UnitDrawOp>();
@@ -22268,7 +22364,7 @@ export default function ReplayMotionPlayer({
                늦지 않게) — 여기 boolean은 사양 라디오 몫만 진다. */
             showShadows={qShadows}
             showOverlap={qOverlap}
-            showHp={qHp && hpShow} pickedKey={picked}
+            showHp={qHp && hpShow} pickedKey={picked} pickedKeys={boxSet9}
             showCreep={qCreep}
             marker={markerView}
             /* 0 = 마커가 어느 칸에도 안 선다(위 markerView) — 배치를 안 가린다.
@@ -22724,6 +22820,7 @@ export default function ReplayMotionPlayer({
           onPointerMove={onMapPointerMove}
           onPointerUp={onMapPointerUp}
           onPointerCancel={onMapPointerUp}
+          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 지도를 끄는 손(위 상자 선택 ★) — 차림표를 안 띄운다 */
         >
           {/* ★ 밤하늘은 **무대의 빈자리**를 채운다 — 처음엔 눕힌 보기 전용이었다(요청: "우주
               배경 만든 건 기존 3D 보기에서 남는 빈 공간 채우는 용으로 쓰고(맵에 병합 X)"):
@@ -22754,6 +22851,8 @@ export default function ReplayMotionPlayer({
             </div>
           )}
           {mapNode}
+          {/* 상자 선택의 끄는 상자(위 boxSel9 ★) — 자리·크기는 onMapPointerMove 가 손으로 적는다(자식 없음). */}
+          <div className="scr-boxsel" ref={boxElRef9} aria-hidden />
           {/* ★★ 단독 화면의 머리·미니맵 — **분할 칸과 같은 꼴**(2026-10-09, 요청 2·5: "단독화면의 경우도 분할화면과 똑같은 미니맵, 헤더 적용(PC/모바일
               각각의 특성도 그대로)" · "독의 미니맵은 필요가 없어(중계 꺼져도 단독화면 미니맵 위치 그대로 사용)") — 칸 머리(이름 칩 · 중계 중일 때만)는 왼위,
               미니맵은 왼아래(.scr-split-mini 와 같은 자 — 중계 중엔 그 화면의 6×6 타일 상한(--split-tile) · 꺼지면 상한 없음). 미니맵은 옛 독 미니맵

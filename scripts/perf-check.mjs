@@ -1390,6 +1390,36 @@ if (has("--dockprobe")) {
     const blur9 = await page.evaluate(() => Array.from(document.querySelectorAll(".scr-motion-diag div")).map((d) => d.textContent ?? "").find((t) => t.startsWith("흐림:")) ?? null);
     if (blur9) console.log("[흐림]", blur9);
 }
+/* --boxprobe <png>(2026-11-01 · 상자 선택 — 마우스 왼쪽 끌기) — [자유] 로 연 뒤 무대 가운데 넓은 상자를 끌고(끄는 중 한 장 · <png> 의 -drag) 떼어
+   인포창 격자 칸 수·글을 찍는다. 이어 오른쪽 버튼 끌기가 지도를 옮기나(팬 전후 진단 배율·팬)를 본다. */
+if (has("--boxprobe")) {
+  await page.waitForTimeout(1500);
+  if (await page.locator(".scr-mode-ask-btn").count()) await page.locator(".scr-mode-ask-btn").nth(0).click();
+  await page.waitForTimeout(800);
+  const st9 = await page.evaluate(() => { const r = document.querySelector(".scr-fs-stage").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  const out9 = String(flag("--boxprobe", "box.png"));
+  await page.mouse.move(st9.x + st9.w * 0.15, st9.y + st9.h * 0.15);
+  await page.mouse.down();
+  await page.mouse.move(st9.x + st9.w * 0.85, st9.y + st9.h * 0.7, { steps: 10 });
+  await page.waitForTimeout(200);
+  const bxs9 = await page.evaluate(() => { const e = document.querySelector(".scr-boxsel"); return e ? `${e.style.display} ${e.style.left},${e.style.top} ${e.style.width}x${e.style.height}` : "없음"; });
+  await page.screenshot({ path: out9.replace(/\.png$/, "-drag.png"), timeout: 120000 });
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  const dk9 = await page.evaluate(() => ({ cells: document.querySelectorAll(".scr-motion-infodock-cell").length,
+    text: document.querySelector(".scr-motion-infodock")?.textContent?.replace(/\s+/g, " ").slice(0, 120) ?? null,
+    box: document.querySelector(".scr-boxsel")?.style.display ?? "없음" }));
+  console.log("[상자] 진단", await page.evaluate(() => window.__scrDiag?.box ?? null));
+  console.log(`[상자] 끄는 중 ${bxs9} · 뗀 뒤 상자 ${dk9.box} · 인포 칸 ${dk9.cells} · 글 ${dk9.text}`);
+  await page.screenshot({ path: out9, timeout: 120000 });
+  const pan0 = await page.evaluate(() => window.__scrDiag?.pan ?? null);
+  await page.mouse.move(st9.x + st9.w * 0.5, st9.y + st9.h * 0.5);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(st9.x + st9.w * 0.35, st9.y + st9.h * 0.4, { steps: 6 });
+  await page.mouse.up({ button: "right" });
+  await page.waitForTimeout(600);
+  console.log(`[상자] 오른쪽 끌기 팬 ${JSON.stringify(pan0)} → ${JSON.stringify(await page.evaluate(() => window.__scrDiag?.pan ?? null))} · 인포 칸 ${await page.evaluate(() => document.querySelectorAll(".scr-motion-infodock-cell").length)}`);
+}
 /* 목록 자(--pickshot <png>): TV 단추의 목록을 **연 채** 찍는다(2026-09, 지적: "버튼줄의 버튼 셀렉트 목록이
    화면캡션(~화면)에 가려져") — 자막(.scr-motion-castbar)과 목록(.scr-motion-pickmenu)의 겹 무게는 정지 그림에서만
    보인다. 중계가 켜진 채(기본값) 목록을 열면 둘이 한 자리에 겹치므로, 목록이 온전히 위에 서야 한다. 상자도 찍는다. */

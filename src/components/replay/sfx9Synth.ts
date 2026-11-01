@@ -247,6 +247,22 @@ function photon9(v: number): Float32Array {
   return finish9(echo9(raw, 0.06, 0.35), 0.5);
 }
 
+/** ★ 포톤 캐넌 — **퉁**(2026-11-01, 요청: "포토 소리 퉁퉁 느낌으로") — 옛 판(photon9 · 1.7kHz 에서 꺾이는 뿅)은 드라군·스카우트(plasma)가 그대로 쓰고,
+ *  캐넌만 낮은 북 울림으로 가른다: 170 → 80Hz 로 떨어지는 사인 몸(빠른 감쇠) + 2배음 옅게 + 앞 4ms 의 막힌 잡음 톡(900Hz 아래) + 짧은 메아리 하나. */
+function photonC9(v: number): Float32Array {
+  let ph = 0;
+  const r = rng9(1951 + v);
+  const lp = new Biquad9("lp", 900, 0.7);
+  const raw = render9(0.32, (t) => {
+    const f = 80 + (90 + v * 12) * exp9(t, 22);
+    ph += f / SFX_RATE9;
+    const body = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.22) * ad9(t, 0.004, 13);
+    const click = lp.run(r() * 2 - 1) * exp9(t, 160) * 0.9;
+    return sat9(body + click, 1.4);
+  });
+  return finish9(echo9(raw, 0.085, 0.22), 0.62);
+}
+
 /** 채집 — 낮고 부드러운 사각임 두 번 + 아주 옅은 낮은 툭.
  *  ★ 부드럽게(2026-10-22, 요청: "자원캐는 소리 좀더 부드러운 소리로") — 옛 판은 3.2kHz 좁은 띠(Q 6) 잡음에 쇠 울림(빗살 되먹임 0.55)을 얹은 '칼 가는' 소리였다.
  *  ★ 많이 낮게(같은 날, 되요청: "너무 높아 많이 낮춰야 해 부드럽게") — 1.1~1.5kHz 띠 + 2.4kHz 저역 + 1.2kHz 수정 울림도 높게 들렸다. 갈색 잡음을
@@ -553,14 +569,14 @@ function spine9(v: number): Float32Array {
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
-  | "liftOff" | "landing" | "photon" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
+  | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
   gun: [3, gun9], cannon: [2, cannon9], boom: [3, (v) => boom9(v, false)], boomBig: [2, (v) => boom9(v, true)],
   bioBoom: [2, bioBoom9], squeal: [3, squeal9], screamM: [3, (v) => scream9(v, false)], screamF: [2, (v) => scream9(v, true)],
-  zap: [3, zap9], missile: [2, missile9], liftOff: [2, liftOff9], landing: [2, landing9], photon: [2, photon9], mine: [3, mine9],
+  zap: [3, zap9], missile: [2, missile9], liftOff: [2, liftOff9], landing: [2, landing9], photon: [2, photon9], photonC: [3, photonC9], mine: [3, mine9],
   thunder: [2, thunder9], puff: [2, puff9], glaive: [2, glaive9], weld: [2, weld9],
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
