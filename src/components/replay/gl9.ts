@@ -769,10 +769,10 @@ vec3 goldPol9(vec3 c, highp vec3 p9, float px9, float k9, float lt9, vec3 nm9) {
   float env9 = sin(p9.z * 1.15 + (p9.x + p9.y) * 0.22 + 0.7);
   c *= 1.0 + k9 * 0.16 * wall9 * env9;
   highp vec2 th9 = normalize(nm9.xy + vec2(0.0001, 0.0));
-  highp float hu9 = (p9.x * -th9.y + p9.y * th9.x) * 9.0;   // 낯의 가로 자 — 결이 세로로 선다(촘촘함 9/칸 · 46 은 늘 화소 아래라 녹았다)
+  highp float hu9 = (p9.x * -th9.y + p9.y * th9.x) * 16.0;   // 낯의 가로 자 — 결이 세로로 선다(촘촘함 16/칸 · 46 은 늘 화소 아래라 녹았다 · 9 → 16 "더 얇고 촘촘하게")
   float hl9 = vn9(vec3(hu9, p9.z * 0.45, 3.3));
-  float hf9 = smoothstep(2.0, 4.0, px9 / 9.0) * wall9;
-  c *= 1.0 + k9 * 0.07 * hf9 * (smoothstep(0.55, 0.85, hl9) - 0.25);
+  float hf9 = smoothstep(1.6, 3.2, px9 / 16.0) * wall9;
+  c *= 1.0 + k9 * 0.07 * hf9 * (smoothstep(0.64, 0.80, hl9) - 0.2);   // 문턱을 좁혀 줄이 얇다(0.55~0.85 → 0.64~0.80)
   return c;
 }
 /** ★ 모서리 광택(2026-11-01, 요청: "프로토스는 마모가 아니라 모서리 광택으로 변경") — 닦은 금의 날이 빛을 받아 **끊김 없이 가늘게** 반짝인다:
