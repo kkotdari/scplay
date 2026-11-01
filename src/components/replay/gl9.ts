@@ -79,11 +79,11 @@ export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: nu
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
-/** ★ 재질 결 시안 #matx · #matx=N(세기 · 기본 1) — 굽는 판에 쇠·살·뼈의 결을 얹는 변형 셰이더(2026-11-01, 요청: "미리 굽는 김에 모델에 좀 더 디테일감 —
- *  쇠의 질감 살의 질감 뼈의 질감 등" → "비교샷 만들어줘"). 없으면 옛 셰이더 그대로(한 글자도 안 바뀐다). 아래 MATX_VS9·MATX_FS9 ★. */
+/** ★ 재질 결 #matx=N(세기 · 기본 1 켬 · 0 끔) — 굽는 판에 쇠·살·뼈의 결을 얹는 변형 셰이더(2026-11-01, 요청: "미리 굽는 김에 모델에 좀 더 디테일감 —
+ *  쇠의 질감 살의 질감 뼈의 질감 등" → "비교샷 만들어줘" → "기본 굽기로"). #matx=0 이면 옛 셰이더 그대로. 아래 MATX_VS9·MATX_FS9 ★. */
 export const MATX9 = ((): number => {
   const m = typeof location !== "undefined" ? /(?:^|[#&,])matx(?:=([\d.]+))?(?=$|[&,])/.exec(location.hash) : null;
-  if (!m) return 0;
+  if (!m) return 1;   // ★ 기본 굽기(2026-11-01, 요청: "기본 굽기로 바꿔줘 로컬에서 구울게") — 기본 켬 · #matx=0 이 옛 그림
   const v = m[1] ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(3, v)) : 1;
 })();

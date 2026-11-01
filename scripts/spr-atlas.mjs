@@ -45,9 +45,8 @@ export function atlasVer() {
   /* gl9 는 셰이더(템플릿 문자열)와 칸·빛 상수만 — 다른 손질마다 다시 굽지 않게. */
   /* ★ 그리기 전용(굽는 그림에 안 든다) 셰이더·상수는 뺀다(2026-10-27) — 스프라이트를 **붙이는** 셰이더(SPR_VS9·SPR_FS9)와 묶음 상수(SPR_K9·SPR_KRUN9)는
      덤프가 읽는 판 픽셀(굽는 셰이더 renderBatch)과 무관하다. 넣어 두면 붙이는 쪽만 고쳐도 다시 굽기(80분)를 부른다. */
-  /* 재질 결 시안(#matx · MATX_VS9·FS9·FN9 · 2026-11-01)도 뺀다 — 손잡이를 켤 때만 쓰이는 변형이라 끈 판(기본 굽기)의 그림은 한 화소도 안 바뀐다.
-     ⚠ 시안을 기본 굽기에 넣기로 하면 이 줄에서 MATX 를 지운다(그래야 다시 굽기를 부른다). */
-  const gl = lf9(join(ROOT, "src/components/replay/gl9.ts")).replace(/^const SPR_(VS9|FS9) = `[^`]*`;?$/gm, "").replace(/^const MATX_(VS9|FS9|FN9) = `[^`]*`;?$/gm, "");
+  /* (2026-11-01) 재질 결(MATX_VS9·FS9·FN9)은 시안 동안 이 해시에서 뺐다가 기본 굽기가 되며 도로 넣었다 — 그것을 고치면 다시 굽는다. */
+  const gl = lf9(join(ROOT, "src/components/replay/gl9.ts")).replace(/^const SPR_(VS9|FS9) = `[^`]*`;?$/gm, "");
   for (const m of gl.match(/`[^`]*`/g) ?? []) h.update(m);
   for (const m of gl.match(/^const (SPR_[A-Z0-9_]+|LIGHT|SHADOW_K9|MODEL_PERSP|GL_SPEC9|GL_SHADE9)\b.*$/gm) ?? []) if (!/^const SPR_(K9|KRUN9)\b/.test(m)) h.update(m);
   return h.digest("hex").slice(0, 12);
