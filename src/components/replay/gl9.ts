@@ -740,7 +740,8 @@ float edgePx9() {
   if (mod(floor(m9 / 4.0), 2.0) > 0.5) e9 = min(e9, d9.z);
   return e9;
 }
-/** 금 질감 — 망치 자국 · 두 방향 상처 · 광택 얼룩(닦인 자리 밝게 · 무딘 자리 구릿빛). 프로토스 건물·유닛·넥서스가 함께 쓴다. */
+/** 금 질감 — 망치 자국 · 두 방향 상처 · 광택 얼룩(닦인 자리 밝게 · 무딘 자리 어둡게). 프로토스 건물·유닛·넥서스가 함께 쓴다.
+ *  (2026-11-01 "구리빛 얼룩 제거" — 무딘 자리를 구릿빛(0.92, 0.74, 0.55)으로 물들이던 0.45 를 걷었다 · 밝기 얼룩 0.22 는 그대로.) */
 vec3 goldTex9(vec3 c, highp vec3 p9, float px9, float k9, vec3 an9, float lc9) {
   highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
   float ham9 = vn9(p9 * 5.0) * smoothstep(2.0, 4.0, px9 / 5.0);
@@ -751,7 +752,6 @@ vec3 goldTex9(vec3 c, highp vec3 p9, float px9, float k9, vec3 an9, float lc9) {
     * smoothstep(0.45, 0.65, vn9(p9 * 0.6 + 8.0));
   float pol9 = fbm9(p9 * 0.75, px9);
   c *= 1.0 + k9 * (0.07 * (ham9 - 0.5) + 0.22 * (pol9 - 0.5));
-  c = mix(c, c * vec3(0.92, 0.74, 0.55), clamp(k9 * 0.45 * smoothstep(0.55, 0.20, pol9), 0.0, 1.0));
   return c + k9 * 0.16 * scr9 * (0.35 + 0.65 * lc9);
 }
 /** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
