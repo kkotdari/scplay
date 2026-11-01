@@ -598,6 +598,7 @@ const MATX_VS9 = `
   }
 `;
 const MATX_FS9 = `
+  float glA9 = 1.0;
   if (vMn.w > 0.5) {
     highp vec3 p9 = vMx.xyz;
     float px9 = vMx.w;   // 모형 한 칸의 화소
@@ -672,8 +673,8 @@ const MATX_FS9 = `
       pat9 *= in9 * det9;
       float groove9 = max(gr9 * smoothstep(4.0, 8.0, px9 * B9), pat9);
       float alt9 = step(0.5, h3_9(vec3(bi9, 5.1, 2.3)));
-      c *= mix(vec3(1.0), vec3(1.0, 0.80, 0.52), k9 * 0.38 * alt9);   // 짙은 호박 띠
-      c *= 1.0 - k9 * 0.32 * groove9;
+      c *= mix(vec3(1.0), vec3(1.0, 0.80, 0.52), k9 * 0.22 * alt9);   // 짙은 호박 띠(0.38 → 0.22 · 2026-11-01 "넥서스 줄무늬 더 연하게")
+      c *= 1.0 - k9 * 0.18 * groove9;   // 새긴 홈(0.32 → 0.18 · 같은 요청)
       float lip9 = (1.0 - smoothstep(wd9 * 1.8, wd9 * 3.2, bd9)) * (1.0 - gr9) * step(0.5, t9);   // 경계 홈 위쪽 밝은 날
       c += k9 * 0.06 * lip9 * lc9 * det9;
       /* 넥서스도 다른 건물처럼 질감·상처·광택 얼룩 + 모서리 마모(2026-11-01 되요청: "넥서스도 다른 건물처럼 광택 얼룩 등은 다 있어야지 모서리 마모 등도"). */
@@ -702,7 +703,13 @@ const MATX_FS9 = `
       /* 보석·유리 — 낯마다 밝음·어둠을 세게(각진 깎은 면) · 날카로운 반짝임 · 낯 모서리 흰 빛줄 · 속 잔 반짝임 · 비스듬한 낯 가장자리 빛. */
       float face9 = vMn.y;
       c *= mix(1.0, 0.94 + 0.34 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
-      c = mix(c, vec3(1.0), k9 * 0.30);   // 밝고 연하게(2026-11-01 "보석 유리류 색 더 밝고 연하게" — 낯 밝기 0.86 → 0.94 · 흰빛 30% 섞음)
+      /* 밝게(2026-11-01 "보석 유리류 색 더 밝고 연하게" — 낯 밝기 0.86 → 0.94) · 흰빛 섞음(연하게 0.30)은 걷고 **투명하게**(같은 날 "연하다기보다 투명하게") —
+         반투명 부품(aAlpha < 0.95 · 파일런 수정 등)은 낯 가운데를 더 비치게(알파 × 0.5) 하고 모서리·반짝임 자리는 짙게 남긴다(유리 테). 불투명 유리(넥서스 창 — 몸에 붙은 판)는
+         뒤가 제 몸이라 알파를 안 건드린다. */
+      if (vCol.a < 0.95) {
+        float edA9 = 1.0 - smoothstep(0.6, 2.4, edgePx9());
+        glA9 = mix(1.0, 0.5 + 0.5 * max(edA9, clamp(vMn.x * 2.0, 0.0, 1.0)), k9);
+      }
       c += k9 * vec3(1.0, 1.0, 1.0) * vMn.x * 1.4;
       c += k9 * vec3(0.55, 0.85, 1.0) * 0.18 * vMn.z * vMn.z;
       float ed9 = 1.0 - smoothstep(0.6, 1.8, edgePx9());
@@ -1356,7 +1363,7 @@ export class GlUnits9 implements VecSink9 {
     const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; uniform vec2 uMat; attribute vec4 aEdg;\n")
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg;\n" + MATX_VS9);
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd;\n" + MATX_FN9)
-      .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a;");
+      .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;");   // glA9 — 유리 투명(MATX_FS9 cl 7)
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
