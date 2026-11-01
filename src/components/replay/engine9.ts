@@ -2345,6 +2345,8 @@ export type FxOp = {
   seed?: number; bld?: boolean;
   /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22). */
   by?: string;
+  /** hit: 소총(마린·고스트)에 맞음 — 맞은 자리에 주황 불꽃 별이 터진다(RIFLE_HIT9 · 2026-11-01). */
+  rifle?: boolean;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
   /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
@@ -2729,6 +2731,9 @@ export const st9Span = (name: string | undefined): boolean => !!(name && FX_BEAM
  *  갈래끼리의 크기 차(가시 0.68 · 화염 1 · 미사일 1.1)가 그 무기의 성질이라 그 비는
  *  지키고 전체만 줄여야 하기 때문이다. 더 줄이려면 이 수 하나만 내리면 된다. */
 export const HIT_FX_K = 0.72;
+/** ★ 소총 피격 불꽃(2026-11-01, 요청: "마린 등 소총 공격 효과를 (맞는 사람 쪽) 이렇게" · 원작 화면 — 맞은 몸에 주황·노랑 불꽃 별이 터지고 불티가 튄다) —
+ *  이 몸들이 때린 피격(hit)에 rifle 깃발을 단다 · 그리기는 RMP paintFxList9 의 hit 갈래(파편 앞 · 결과 무관). 벙커는 안의 마린이 쏜다. */
+export const RIFLE_HIT9 = new Set(["Marine", "Ghost", "Bunker"]);
 /* ★ 효과는 **그려진 몸의 한가운데**에서 난다(지적: "유닛·건물 피격·사망·파괴 효과를 중앙에 내는데 발바닥이 아니라
    그려진 것의 중앙이어야 하는데 캔버스 발바닥의 중앙으로 그리는 듯") ─────────────────────────────────────────
    여태 유닛은 발 원점에서 (0.24 + 0.02)·상자 위 — 곧 **판(상자)의 한가운데**였고, 건물 파괴는 발자국 한가운데(높이 0)
@@ -9717,7 +9722,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
         ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, ok: `u${e.tag}`, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
         ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
-        ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}) }) : null;
+        ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}),
+        ...(hitSrc9?.uk && RIFLE_HIT9.has(hitSrc9.uk) ? { rifle: true } : {}) }) : null;
     if (hitFx9 && !fighting) {
       fxOps.push(hitFx9);
       return null;

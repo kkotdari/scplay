@@ -4543,6 +4543,71 @@ export function paintFxList9(
          프로토스 사별의 푸른 구와 같은 색·같은 자로 읽혔다. 스커지 자체는 저그 재질(engine9의
          dk)로 터지므로 이 부채가 곧 '프로토스가 죽었다'로 보인 것이다. 결 표(FX_MAT)의 n
          (5·6)이 피격 낱개 수다 — 죽음(burst)은 따로 dieShards를 쓴다. */
+      /* ★ **소총 피격 불꽃**(2026-11-01, 요청: "마린 등 소총 공격 효과를 (맞는 사람 쪽) 이렇게" · 원작 화면 — 맞은 몸에 주황·노랑 불꽃 별이 터지고
+         불티가 튄다 · engine9 RIFLE_HIT9 가 hit 에 rifle 깃발) — 결 파편(피·불티) 앞에 더하기 합성으로 셋: ① 둥근 불빛(흰 속 → 노랑 → 주황 → 투명)
+         ② 가시 별(뾰족 열여섯 · 가시마다 길이 흔들림 · 맞은 몸 씨앗으로 돌림) ③ 밖으로 튀는 불티 아홉. 자 = 파편 반지름의 2.4배(몸 폭의 ≈0.6) · 진행에 따라 0.75 → 1.2배로
+         부풀고 뒤 40% 에서 사그라든다. 덜어내기 2단은 ①만. */
+      if (f.rifle) {
+        const R9 = r9 * 3.1 * (0.7 + 0.5 * p9);
+        const fa9 = a9 * (p9 < 0.6 ? 1 : Math.max(0, (1 - p9) / 0.4));
+        const lite9 = CROWD9.lv >= 2 || FQ9.lv >= 2;
+        const sd9 = f.seed ?? 7;
+        const rot9 = (sd9 * 0.618) % 1;
+        /** 가시 별 한 겹 — 뾰족 n · 바깥 반지름 ro(가시마다 0.6~1.1 흔들림) · 안 반지름 ri. */
+        const star9 = (n9: number, ro9: number, ri9: number, sh9: number): void => {
+          ctx.beginPath();
+          for (let i9 = 0; i9 < n9 * 2; i9 += 1) {
+            const an9 = (i9 / (n9 * 2) + rot9 + sh9) * Math.PI * 2;
+            const h9 = ((i9 * 37 + sd9 * 11 + Math.round(sh9 * 100)) % 17) / 17;
+            const rr9 = i9 % 2 === 0 ? ro9 * (0.6 + 0.5 * h9) : ri9 * (0.85 + 0.3 * h9);
+            if (i9 === 0) ctx.moveTo(Math.cos(an9) * rr9, Math.sin(an9) * rr9); else ctx.lineTo(Math.cos(an9) * rr9, Math.sin(an9) * rr9);
+          }
+          ctx.closePath();
+        };
+        ctx.save();
+        ctx.translate(hx9, hy9);
+        ctx.scale(1, 0.9);
+        ctx.globalAlpha = fa9 * 0.85;
+        const gg9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 1.15);
+        gg9.addColorStop(0, "rgba(255,214,110,0.85)"); gg9.addColorStop(0.35, "rgba(255,150,40,0.6)");
+        gg9.addColorStop(0.7, "rgba(210,70,12,0.28)"); gg9.addColorStop(1, "rgba(160,40,8,0)");
+        ctx.fillStyle = gg9;
+        ctx.beginPath(); ctx.arc(0, 0, R9 * 1.15, 0, Math.PI * 2); ctx.fill();
+        if (!lite9) {
+          // 바깥 불 별(주황 · 그냥 칠함 — 더하기로 얹으면 바닥에서 하얗게 바랜다) → 안 불 별(노랑) → 흰 속(더하기)
+          ctx.globalAlpha = fa9;
+          const go9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9);
+          go9.addColorStop(0, "rgba(255,206,84,1)"); go9.addColorStop(0.5, "rgba(250,132,30,0.95)"); go9.addColorStop(1, "rgba(200,60,10,0)");
+          ctx.fillStyle = go9; star9(15, R9, R9 * 0.42, 0); ctx.fill();
+          const gi9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 0.62);
+          gi9.addColorStop(0, "rgba(255,250,210,1)"); gi9.addColorStop(0.55, "rgba(255,214,90,0.95)"); gi9.addColorStop(1, "rgba(255,160,40,0)");
+          ctx.fillStyle = gi9; star9(11, R9 * 0.62, R9 * 0.3, 0.37); ctx.fill();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = fa9 * (1 - p9 * 0.7);
+          const gw9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 0.3);
+          gw9.addColorStop(0, "rgba(255,255,240,1)"); gw9.addColorStop(1, "rgba(255,230,160,0)");
+          ctx.fillStyle = gw9; ctx.beginPath(); ctx.arc(0, 0, R9 * 0.3, 0, Math.PI * 2); ctx.fill();
+          // 튀는 불티 열넷 — 노랑 · 주황 두 빛
+          for (let ci9 = 0; ci9 < 2; ci9 += 1) {
+            ctx.fillStyle = ci9 ? "rgba(255,150,40,1)" : "rgba(255,236,150,1)";
+            ctx.globalAlpha = fa9 * (1 - p9 * 0.5);
+            ctx.beginPath();
+            for (let i9 = ci9; i9 < 14; i9 += 2) {
+              const h9 = ((i9 * 29 + sd9 * 7) % 13) / 13;
+              const an9 = (i9 / 14 + rot9 * 0.5) * Math.PI * 2 + h9 * 0.4;
+              const d9 = R9 * (0.45 + p9 * (0.9 + 0.7 * h9));
+              const sr9 = Math.max(0.6, R9 * (0.04 + 0.035 * h9));
+              const sx9 = Math.cos(an9) * d9; const sy9 = Math.sin(an9) * d9;
+              ctx.moveTo(sx9 + sr9, sy9);
+              for (let k9 = 1; k9 < 6; k9 += 1) ctx.lineTo(sx9 + Math.cos((k9 / 6) * Math.PI * 2) * sr9, sy9 + Math.sin((k9 / 6) * Math.PI * 2) * sr9);
+              ctx.closePath();
+            }
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+        ctx.globalCompositeOperation = "source-over";
+      }
       if (CROWD9.lv >= 2 || FQ9.lv >= 2) continue;   // 덜어내기 2단 · 프레임 사다리 2단(FQ9 ★): 피격 불티는 통째로 생략(섬광·죽음 burst만 남는다)
       const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
       /* ★ **파편은 알약이 아니다**(2026-09, 지적: "이 효과들 형태가 알약 형태라 부자연스럽지? 실제 효과는 안 그럴 거 아니야

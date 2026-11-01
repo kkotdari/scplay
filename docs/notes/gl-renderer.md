@@ -2046,3 +2046,10 @@ shadowEllipse9 폰 참) · `PHONE_TIERS9` 높음 단에만 `meshShadow: true`(3�
   다시 구우면 저절로 새로 받고, 다 실은 4초 뒤 지금 표에 없는 열쇠(옛 해시 · 다른 형식)를 걷는다(탭마다 한 번). 쓰기는 `opt.cacheMB`(RMP 폰 400 · PC 1500)와
   저장소 몫의 40%(navigator.storage.estimate · 보안 문맥이 아니면 상한의 절반) 안에서만 · 한 번 실패하면 그 판은 안 쓴다. `#sprcache=0` 이면 끈다.
   🔎 `[진단] 아틀라스[… 캐시 n/m켜 xMB]` · 시험은 `PW_PROFILE=<dir> node scripts/perf-check.mjs … --atlas spr --diag` 를 두 번(둘째 판이 캐시를 쓴다).
+
+## 소총 피격 불꽃(2026-11-01)
+요청: "마린 등 소총 공격 효과를 (맞는 사람 쪽) 이렇게"(원작 화면 — 맞은 몸에 주황·노랑 불꽃 별 + 불티). engine9 `RIFLE_HIT9`(Marine·Ghost·Bunker)가 때린 hit 에
+`rifle` 깃발 → RMP paintFxList9 hit 갈래가 결 파편 앞에 그린다: 둥근 주황 빛(0.85) · 바깥 불 별 15가시(주황 · 그냥 칠함 — 더하기면 바닥에서 하얗게 바랜다) ·
+안 불 별 11가시(노랑) · 흰 속(더하기) · 불티 열넷(노랑·주황). 자 = 파편 반지름 r9 × 3.1(몸 폭 ≈0.8) × (0.7 + 0.5·진행) · 뒤 40% 사그라듦 · 덜어내기 2단은 둥근 빛만.
+처음 판(2.4배 · 흰 속 더하기 위주)은 작고 하얗게 바랬다.
+🔎 효과 붓만 띄우는 시험 판: `$S/fxh/run.mjs`(entry.ts 가 paintFxList9 에 hit op 를 단계 0.06~0.9 로 넣는다 · 결 bio/mech · rifle 켬/끔).
