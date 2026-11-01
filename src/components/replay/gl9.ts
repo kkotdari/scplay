@@ -648,7 +648,7 @@ const MATX_FS9 = `
       highp float rq9 = max(abs(p9.x), abs(p9.y));
       highp float v9 = wall9 ? p9.z : rq9;
       highp float u9 = wall9 ? (p9.x * -tn9.y + p9.y * tn9.x) : (abs(p9.x) > abs(p9.y) ? p9.y : p9.x);
-      float B9 = 1.25;
+      float B9 = 0.8;   // 띠 폭 1.25 → 0.8칸(2026-11-01 "넥서스 줄무늬 더 가늘게" · 무늬 가로 주기도 같은 비 0.64 로)
       highp float bi9 = floor(v9 / B9);
       float t9 = fract(v9 / B9);
       float ty9 = floor(h3_9(vec3(bi9, 1.3, 7.7)) * 4.0);
@@ -660,13 +660,13 @@ const MATX_FS9 = `
       float in9 = step(0.2, t9) * step(t9, 0.8);
       float pat9 = 0.0;
       if (ty9 < 0.5) {   // 지그재그
-        float zg9 = abs(fract(u9 / 0.9) - 0.5) * 2.0;
+        float zg9 = abs(fract(u9 / 0.58) - 0.5) * 2.0;
         pat9 = 1.0 - smoothstep(wd9, wd9 * 1.8, abs(tt9 - zg9) * B9 * 0.6);
       } else if (ty9 < 1.5) {   // 겹친 갈매기
-        float sv9 = fract(tt9 * 2.0 + abs(fract(u9 / 0.8) - 0.5) * 1.6);
+        float sv9 = fract(tt9 * 2.0 + abs(fract(u9 / 0.51) - 0.5) * 1.6);
         pat9 = 1.0 - smoothstep(wd9, wd9 * 1.8, min(sv9, 1.0 - sv9) * B9 * 0.3);
       } else if (ty9 < 2.5) {   // 빗살 홈(짧은 세로 홈 줄)
-        float fr9 = fract(u9 / 0.42);
+        float fr9 = fract(u9 / 0.27);
         pat9 = (1.0 - smoothstep(0.30, 0.30 + wd9 * 2.4, fr9)) * step(0.12, tt9) * step(tt9, 0.88) * 0.9;
       }
       pat9 *= in9 * det9;
@@ -701,7 +701,8 @@ const MATX_FS9 = `
     } else if (cl9 == 7) {
       /* 보석·유리 — 낯마다 밝음·어둠을 세게(각진 깎은 면) · 날카로운 반짝임 · 낯 모서리 흰 빛줄 · 속 잔 반짝임 · 비스듬한 낯 가장자리 빛. */
       float face9 = vMn.y;
-      c *= mix(1.0, 0.86 + 0.40 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
+      c *= mix(1.0, 0.94 + 0.34 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
+      c = mix(c, vec3(1.0), k9 * 0.30);   // 밝고 연하게(2026-11-01 "보석 유리류 색 더 밝고 연하게" — 낯 밝기 0.86 → 0.94 · 흰빛 30% 섞음)
       c += k9 * vec3(1.0, 1.0, 1.0) * vMn.x * 1.4;
       c += k9 * vec3(0.55, 0.85, 1.0) * 0.18 * vMn.z * vMn.z;
       float ed9 = 1.0 - smoothstep(0.6, 1.8, edgePx9());
