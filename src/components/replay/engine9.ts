@@ -4613,7 +4613,8 @@ export function startHallClear9<R extends [number, number, 0 | 1]>(res: readonly
 /** ★ 이벤트 플래카드(2026-10-24, 요청: "이벤트성 기능 추가 — 재생기에 메인홀(스타팅만) 위에 플래카드 부착 · 좌우에 막대 세워져 있고 가운데 흰 천에
  *  '고고&단우님 환영합니다!' 적혀 있는 거 꽂기" → "막대 말고 풍선으로") — 임자마다 **시작 본진**(START_HALL_SEC9 안에 선 가장 이른 본진 · startHallClear9 와 같은 자) 한 채에만.
  *  그림은 효과 층(dom "placard" · RMP drawDomFx9 — GL 위라 글자가 산다). 끄려면 EVENT_PLACARD9 를 false 로. */
-export const EVENT_PLACARD9 = true;
+/* (2026-11-01, 요청: "메인홀 플래카드 제거") — 끈다. 그림·자리 셈은 남겨 둔다(다시 켤 때 true 한 글자). */
+export const EVENT_PLACARD9 = false;
 const START_HALL_BY_RAW9 = new WeakMap<object, Map<string, string>>();
 /** 임자(raw) → 시작 본진 줄의 열쇠 `${sec}|${unit}|${x}|${y}` — 배열이 같은 동안 한 번만 센다. */
 function startHallKeys9(rows: readonly (readonly [number, number, number, string, string, ...unknown[]])[]): Map<string, string> {
