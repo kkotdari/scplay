@@ -1590,8 +1590,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const sight9 = sightTiles(e9.kind) || 7;
           for (let s9 = ot9; s9 <= end9; s9 += 0.5) {
             const q9 = posAtTruth(tr9, s9);
-            /* (2026-11-01) 기지에 들어선 것만으로는 아니다 — **적의 몸을 실제로 본 때**만(요청: "실제 적 유닛이나 건물을 본 순간이 정찰"). */
-            if (q9 && seesFoe9(foe9, q9.x, q9.y, sight9, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
+            /* (2026-11-01) **상대 기지 안에 들어선 채로 적의 몸을 본 때**(요청: "상대 기지에 들어간 건 필수고 들어가서 유닛이나 건물을 본 거") — 둘 다여야 한다.
+               옛(10-26): 기지 안 · 또는 길목에서 본 것 어느 하나(길목의 파일런을 본 것도 정찰이 됐다). */
+            if (q9 && inFoe9(foe9, q9.x, q9.y, s9) && seesFoe9(foe9, q9.x, q9.y, sight9, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
           }
         } else if (foe9) {
           const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
