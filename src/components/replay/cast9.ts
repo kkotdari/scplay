@@ -395,7 +395,9 @@ const RUSH_BLD9: Record<string, string> = { "Photon Cannon": "포토러시", "Su
  *  싸움 장면에 러시 이름을 붙이는 거리(타일 · 장면 가운데 ~ 그 판 건물) · 첫 착공 사건의 무게(MIN_SCENE9 — 홀로 장면이 선다) · 마지막 건물 뒤 머묾(초). */
 const RUSH9 = { gap: 90, join: 16, pylonLead: 90, near: 16, w: 450, tail: 10, fightStep: 3, fightW: 60 };
 /** ★★ 정찰의 자(2026-10-21 · 아래 scouts9 ★★) — 일꾼 정찰은 이 초 앞만 · 같은 사람·상대·수단은 이 초에 한 번 · 사건 무게(MIN_SCENE9) · 머묾(초). */
-const SCOUT9 = { early: 300, dedup: 180, w: 450, tail: 8 };
+/* (2026-11-01, 요청: "정찰 사건은 실제 적 유닛이나 건물을 본 순간이 정찰이고 보여줄 땐 그 전후 2/4초") — lead 2(장면이 본 순간 2초 앞에 선다 · 옛 CAST_LEAD9 3) ·
+   tail 8 → 6(장면 끝 = 마지막 사건 + tail − GAP9 + END_PAD9 = 본 순간 + 4초 · 옛 + 6초). */
+const SCOUT9 = { early: 300, dedup: 180, w: 450, tail: 6, lead: 2 };
 const SCOUT_UNIT9: Record<string, string> = { SCV: "일꾼", Probe: "일꾼", Drone: "일꾼", Overlord: "오버로드", Observer: "옵저버" };
 /** 한 사건 — 시각·사람·무게 · `tail` 은 이 사건 뒤 장면을 열어 두는 초(없으면 GAP9). */
 type Ev9 = { sec: number; raw: string; w: number; why: string; tail?: number;
@@ -1588,7 +1590,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
           const sight9 = sightTiles(e9.kind) || 7;
           for (let s9 = ot9; s9 <= end9; s9 += 0.5) {
             const q9 = posAtTruth(tr9, s9);
-            if (q9 && (inFoe9(foe9, q9.x, q9.y, s9) || seesFoe9(foe9, q9.x, q9.y, sight9, s9))) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
+            /* (2026-11-01) 기지에 들어선 것만으로는 아니다 — **적의 몸을 실제로 본 때**만(요청: "실제 적 유닛이나 건물을 본 순간이 정찰"). */
+            if (q9 && seesFoe9(foe9, q9.x, q9.y, sight9, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
           }
         } else if (foe9) {
           const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
@@ -3522,7 +3525,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     /* 카메라도 **싸움이 붙은 때**에 간다(위 emitScene9 ★ · 2026-10-11) — 장면 첫 CAP_WIN9 초 사건들의 eng 가운데 가장 이른 때 − CAST_LEAD9. */
     let eng9 = sc9.t0;
     for (const e9 of sc9.evs) if (e9.sec < sc9.t0 + CAP_WIN9) eng9 = Math.min(eng9, e9.eng ?? e9.sec);
-    let at9 = Math.max(0, eng9 - CAST_LEAD9);
+    /* 정찰만 든 장면은 본 순간 SCOUT9.lead(2) 초 앞에 선다(2026-11-01 · 위 SCOUT9 ★) — 딴 사건은 CAST_LEAD9. */
+    const lead9 = sc9.evs.length > 0 && sc9.evs.every((e9) => e9.why === "정찰") ? SCOUT9.lead : CAST_LEAD9;
+    let at9 = Math.max(0, eng9 - lead9);
     const bid9 = bidOf9.get(sc9)!;
     /* ★ **폭탄드랍은 내리기 5초 앞부터 · 수송선 → 내린 유닛을 따라간다**(위 dropFollow9 ★ · 2026-10-13) — 그 기지 임자를 상대로 드랍한 사람을 찾는다(무게 차례). */
     const scEnd9 = sc9.t1 + (sc9.tail - GAP9) + END_PAD9;

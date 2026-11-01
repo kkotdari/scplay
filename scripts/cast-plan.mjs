@@ -1794,5 +1794,7 @@ rmSync(tmp, { recursive: true, force: true });
   for (const [name, pass] of [
     ["드론 정찰은 R 의 파일런을 본 때(55~70초) — 기지에 들어선 때(90초 넘어)가 아니다", !!wk && wk.at >= 55 && wk.at <= 70],
     ["그 토막의 카메라는 드론을 따라간다(follow 에 드론 태그)", !!wk?.follow?.some((f) => f.tags.includes(dr.tag) && f.t0 <= wk.at + 1 && f.t1 > wk.at + 5)],
+    /* (2026-11-01, 요청: "보여줄 땐 그 전후 2/4초") — 장면은 본 순간 2초 앞에 서서 4초 뒤에 끝난다(합 6초). */
+    ["정찰 장면은 본 순간 2초 앞 ~ 4초 뒤(6초)", !!wk?.follow?.[0] && Math.abs(wk.follow[0].t1 - wk.at - 6) < 0.6],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
