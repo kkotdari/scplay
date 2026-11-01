@@ -1216,7 +1216,7 @@ export function spirePillar(o: {
    *  t 하나로 자르는 곧은 층이라 얼룩을 못 낸다. 옆 낯마다 그 마디의 t(0~1 · 가운데)와 둘레 자리 u(0~1 · 낯 가운데)를
    *  주고 색을 받는다. undefined 면 종전 규칙(fillTop → fillFront/Back → 몸 색). 마디·낯을 잘게(segs·sides) 나눌수록
    *  경계가 곡선에 가깝다. */
-  fillAt?: (t: number, u: number) => string | undefined;
+  fillAt?: (t: number, u: number, out?: [number, number]) => string | undefined;   // out — 낯 가운데의 수평 바깥 방향(축에서 · 단위 · 2026-11-01 하이브 뿔 안쪽)
   /** 축을 직접 그리는 경로(요청: 관절 없이 L자로 구부리기) — t 0~1로 [x,y,z]를 낸다.
    *  주면 x·y·z0·h·lean·curve는 무시되고 이 곡선이 기둥의 등뼈가 된다. */
   path?: (t: number) => [number, number, number];
@@ -1486,7 +1486,7 @@ export function spirePillar(o: {
         nx, ny, nz, dep: depthNow(fx, fy) + fz9,
         top: o.fillTop !== undefined && t0 >= (o.topFrom ?? 0)
           && fzc9 > (c0[2] + c1[2]) / 2 + 1e-6,
-        at: o.fillAt ? o.fillAt((t0 + t1) / 2, (i + 0.5) / sides) : undefined,
+        at: o.fillAt ? o.fillAt((t0 + t1) / 2, (i + 0.5) / sides, [mx / ml, my / ml]) : undefined,
       });
     }
   }
@@ -4726,6 +4726,8 @@ export function mouthHorn9(o: {
   ang: number; tipZ: number; w: number; fill?: string; sides?: number; elbow?: number;
   /** 끝 굵기·가늘어지는 급함 — 머리(물방울·집게발)가 앉는 뿔은 바늘로 끝내면 머리가 공중에 뜬 풍선으로 읽힌다. */
   tipW?: number; taper?: number;
+  /** 낯마다 색(spirePillar fillAt 그대로 · out = 낯의 수평 바깥 방향) — 하이브 뿔의 안쪽 초록(2026-11-01). */
+  fillAt?: (t: number, u: number, out?: [number, number]) => string | undefined;
 }): { faces: ShapeFace[]; at: (t9: number) => [number, number, number]; tip: [number, number, number] } {
   const R0 = 5.3; const Z0 = 0.5;
   const a9 = (o.ang * Math.PI) / 180;
@@ -4757,6 +4759,7 @@ export function mouthHorn9(o: {
     faces: spirePillar({
       x: 0, y: 0, h: 0.8, w: o.w * 0.62, tipW: o.tipW ?? 0.02,
       segs: 14, sides: o.sides ?? 6, hold: 0, taper: o.taper ?? 1.5, caps: "none", fill: o.fill, path: at,
+      ...(o.fillAt ? { fillAt: o.fillAt } : {}),
     }),
     at,
     tip: [(e1[0] - e0[0]) / el, (e1[1] - e0[1]) / el, (e1[2] - e0[2]) / el],
@@ -18081,6 +18084,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        재질 결(#matx)이 저그 색을 휘도·채도로 살/뼈로 가르는데(휘도 > 0.5 · 채도 < 0.4 = 뼈) 진한 황토는 살로 쳐 붉은 속살 비침이 얹힌다. 뼈 문턱 안의 황토(휘도 0.59 · 채도 0.37)라 뿔 결(줄결·구멍)을 탄다. */
     const HIVE_HORN = "#a8946a";
     const HIVE_SPIKE9 = "#e0c85a";   // 뿔 안쪽 가시 — 노란 상아(요청)
+    const HIVE_GOO9 = "#3f8f28";     // 뿔 안쪽 초록 물질 — 바닥 연못(zergPond9)의 초록(아래 ★)
     /* ★ 뿔 셋은 레어와 같은 자다 — 기둥 **사이**(−175·−55·65)의 구멍에서 ㄴ자로 나와 오른다(`mouthHorn9`).
        굵기는 옛 값으로 되물렸고(되지적: "뿔 굵기 되돌리고"), 높이는 **1.1배**(재요청: 1.25배 → 1.1배)에서
        다시 **0.9배**(2026-09, 요청: "하이브 뿔기둥 높이 10프로 줄이기") — 11.44·12.67·13.55 → 10.30·11.40·12.20.
@@ -18096,7 +18100,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     for (const [hang, htz, hw] of horns) {
       const ha9 = (hang * Math.PI) / 180;
       const dxh = Math.sin(ha9); const dyh = Math.cos(ha9);
-      const h9 = mouthHorn9({ ang: hang, tipZ: htz, w: hw, fill: HIVE_HORN, tipW: 0.4, taper: 1.15 });
+      /* ★ 뿔의 **안쪽(본진 쪽) 낯은 초록 물질**(2026-11-01, 요청: "뿔의 안쪽은 녹색 물질임 · 하이브 바닥에 깔린 물질의 재질") — 바닥 연못(zergPond9)의
+         초록 #3f8f28. 팔꿈치 위(t 0.3~0.97)에서 낯의 수평 바깥 방향이 본진 쪽(−dxh, −dyh)과 0.45 넘게 맞는 낯(여섯 낯 중 안쪽 둘 남짓)만. */
+      const h9 = mouthHorn9({ ang: hang, tipZ: htz, w: hw, fill: HIVE_HORN, tipW: 0.4, taper: 1.15,
+        fillAt: (t9, _u9, o9) => (t9 > 0.3 && t9 < 0.97 && o9 && o9[0] * -dxh + o9[1] * -dyh > 0.45 ? HIVE_GOO9 : undefined) });
       const bx = dxh * 6.6; const by = dyh * 6.6;
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
