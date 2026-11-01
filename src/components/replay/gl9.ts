@@ -1678,11 +1678,10 @@ export class GlUnits9 implements VecSink9 {
     gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
     gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
     if (MATX9 > 0 && this.att.aEdg !== undefined && this.att.aEdg >= 0) { gl.enableVertexAttribArray(this.att.aEdg); gl.vertexAttribPointer(this.att.aEdg, 4, U, true, STRIDE_B, 36); }
-    /* 재질 결(#matx)을 켠 판은 광택을 더 세게(2026-11-01, 요청: "얼룩은 원래대로 복구하되 광택을 더 높이기") — 봉우리·윤기 ×1.4 · 전구 얼룩 ×1.3. */
-    const gk = (GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9) * (MATX9 > 0 && this.gl2 ? 1.4 : 1);
+    const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;   // (2026-11-01 #matx 광택 ×1.4 · 전구 얼룩 ×1.3 은 같은 날 취소 — 요청: "광택만 더 높인 거 취소")
     gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
-    gl.uniform1f(this.loc.uGlintK, mesh.gloss[6] * (MATX9 > 0 && this.gl2 ? 1.3 : 1));
+    gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
       const g = mesh.gloss;
       gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
