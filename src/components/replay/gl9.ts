@@ -79,7 +79,17 @@ export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: nu
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
-const STRIDE_B = 36;
+/** ★ 재질 결 시안 #matx · #matx=N(세기 · 기본 1) — 굽는 판에 쇠·살·뼈의 결을 얹는 변형 셰이더(2026-11-01, 요청: "미리 굽는 김에 모델에 좀 더 디테일감 —
+ *  쇠의 질감 살의 질감 뼈의 질감 등" → "비교샷 만들어줘"). 없으면 옛 셰이더 그대로(한 글자도 안 바뀐다). 아래 MATX_VS9·MATX_FS9 ★. */
+export const MATX9 = ((): number => {
+  const m = typeof location !== "undefined" ? /(?:^|[#&,])matx(?:=([\d.]+))?(?=$|[&,])/.exec(location.hash) : null;
+  if (!m) return 0;
+  const v = m[1] ? Number(m[1]) : 1;
+  return Number.isFinite(v) ? Math.max(0, Math.min(3, v)) : 1;
+})();
+/* 재질 결 시안(#matx)을 켜면 정점 끝에 4바이트(aEdg — 삼각형 꼭짓점 표식 3 + 날카로운 모서리 비트 1)를 더 싣는다 — 끄면 옛 36 그대로. */
+const STRIDE_B = MATX9 > 0 ? 40 : 36;
+const STRIDE_F9 = STRIDE_B / 4;
 /** 인스턴스 기록 — 22 float(88바이트): aInA·aInB·aInC(vec4 셋) · aTeamC·aSolidC(vec3 둘) · aShad(vec4). */
 const INST_F9 = 22; const INST_B9 = INST_F9 * 4;
 const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 변종) — 넘으면 오래된 것부터. 기기 표(DEV9.glMeshMax)가 덮는다(폰 240).
@@ -542,7 +552,7 @@ void main() {
 
 
 /* ★★ **재질 결 시안**(#matx · 위 MATX9 ★) — 낯마다 재질을 적지 않고(빌더 154종) **종족 + 바탕색**으로 가른다(결 vGr.z 와 같은 손):
-     1 강철(테란 · 가운데 밝기 무채색) · 2 금(프로토스 · 노란 계열) · 3 살(저그 · 붉은~보라 · 채도) · 4 뼈(저그 · 밝고 채도 낮음) · 5 껍질(저그 · 어두움).
+     1 강철(테란 · 가운데 밝기 무채색) · 2 금 질감(프로토스 · 노란 계열) · 6 금 띠 무늬(넥서스만) · 3 살(저그 · 붉은~보라 · 채도) · 4 뼈(저그 · 밝고 채도 낮음) · 5 껍질(저그 · 어두움) · 7 보석·유리(종족 무관 · 청록~파랑 밝은 낯).
    임자색 낯(aTeam)·효과(uFlat)·그림자(uShade)는 안 탄다. 결의 자리는 **모형 자리(aPos · 요잉 전)** — 몸에 붙어 같이 돈다.
    vMx.w = 모형 한 칸의 화소(uScale.x) — 화소 셰이더가 2화소보다 잘아지는 결을 끈다. */
 const MATX_VS9 = `
@@ -560,7 +570,7 @@ const MATX_VS9 = `
     float cls9 = 0.0;
     if (uMat.x > 0.5 && aTeam < 0.5 && uFlat < 0.5 && uShade.a <= 0.0 && uEmit < 0.5) {
       if (uMat.x < 1.5) { if (st9 < 0.30 && lm9 > 0.16 && lm9 < 0.80) cls9 = 1.0; }
-      else if (uMat.x < 2.5) { if (hu9 > 25.0 && hu9 < 65.0 && st9 > 0.25 && lm9 > 0.30) cls9 = 2.0; else if (st9 < 0.25 && lm9 > 0.18 && lm9 < 0.80) cls9 = 1.0; }
+      else if (uMat.x < 2.5) { if (hu9 > 25.0 && hu9 < 65.0 && st9 > 0.25 && lm9 > 0.30) cls9 = uMat.y > 1.5 ? 6.0 : 2.0; else if (st9 < 0.25 && lm9 > 0.18 && lm9 < 0.80) cls9 = 1.0; }
       else {
         if (lm9 > 0.50 && st9 < 0.40) cls9 = 4.0;
         else if (st9 > 0.28 && (hu9 > 250.0 || hu9 < 45.0) && lm9 > 0.10) cls9 = 3.0;
@@ -568,8 +578,16 @@ const MATX_VS9 = `
         else cls9 = 3.0;
       }
     }
+    /* 보석·유리(2026-11-01, 물음: "보석이나 유리 종류에 광택 줬어?") — 청록~파랑 · 채도 · 밝은 낯(수정 · 창 · 렌즈)은 종족과 무관하게 7.
+       이 재질은 투영이 필요 없어 vMn.xyz 에 **세계 자**의 빛 몫을 싣는다: x 날카로운 반짝임(반각과 낯) · y 빛을 마주 본 정도 · z 시선과 비스듬함(가장자리 빛). */
+    if (uMat.x > 0.5 && aTeam < 0.5 && uFlat < 0.5 && uShade.a <= 0.0 && uEmit < 0.5 && ((hu9 > 150.0 && hu9 < 228.0 && st9 > 0.30 && lm9 > 0.33) || (aAlpha < 0.95 && lm9 > 0.30))) cls9 = 7.0;   // 반투명 밝은 낯(파일런 수정 · 창)은 색과 무관하게 유리
     vMx = vec4(aPos, uScale.x);
     vMn = vec4(aNrm, cls9);
+    if (cls9 > 6.5) {
+      float hh9 = max(dot(n, uHalf), 0.0);
+      float sp9 = hh9 * hh9; sp9 *= sp9; sp9 *= sp9; sp9 *= sp9; sp9 *= sp9;   // ^32
+      vMn.xyz = vec3(sp9, max(dot(n, uLight), 0.0), 1.0 - abs(dot(n, vec3(0.0, uCam.y, uCam.x))));
+    }
   }
 `;
 const MATX_FS9 = `
@@ -580,28 +598,80 @@ const MATX_FS9 = `
     float lc9 = dot(c, vec3(0.299, 0.587, 0.114));
     int cl9 = int(vMn.w + 0.5);
     if (cl9 == 1) {
-      /* 강철 — 판 이음 홈(1.6칸 격자 · 낯의 큰 축으로 투영) · 바닥 쪽 때 · 거칠기 얼룩. */
+      /* 강철 — 판 이음(가늘고 옅게 · 줄마다 엇갈려 판 크기가 고르지 않다) · 바닥 쪽 때 · 거칠기 얼룩.
+         (2026-11-01 되요청: "판 이음 홈이 좀 두껍고 부자연스러운 느낌" — 옛 폭 0.025칸·0.9화소 · 어둡기 0.38 · 곧은 격자.) */
       vec3 an9 = abs(vMn.xyz);
       highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
-      highp vec2 g9 = fract(uv9 / 1.6 + 0.5);
-      float d9 = min(min(g9.x, 1.0 - g9.x), min(g9.y, 1.0 - g9.y)) * 1.6;
-      float wd9 = max(0.025, 0.9 / px9);
-      float seam9 = (1.0 - smoothstep(wd9, wd9 * 2.0, d9)) * smoothstep(1.5, 3.0, px9 * 0.08);
-      float hl9 = (1.0 - smoothstep(wd9 * 2.0, wd9 * 3.5, d9)) - seam9;   // 홈 바로 곁의 밝은 날
-      float dirt9 = (1.0 - smoothstep(0.0, 1.6, p9.z)) * fbm9(p9 * 1.3, px9);
+      highp float row9 = floor(uv9.y / 1.7 + 0.5);
+      highp float gy9 = fract(uv9.y / 1.7 + 0.5);
+      highp float gx9 = fract((uv9.x + h3_9(vec3(row9, 3.7, 1.1)) * 2.3) / (1.3 + 1.1 * h3_9(vec3(row9, 8.1, 2.9))));
+      float dY9 = min(gy9, 1.0 - gy9) * 1.7;
+      float dX9 = min(gx9, 1.0 - gx9) * 1.3;
+      float wd9 = max(0.012, 0.55 / px9);
+      float seam9 = max(1.0 - smoothstep(wd9 * 0.5, wd9 * 1.6, dY9), (1.0 - smoothstep(wd9 * 0.5, wd9 * 1.6, dX9)) * 0.8)
+        * smoothstep(1.5, 3.0, px9 * 0.08) * (0.65 + 0.35 * vn9(p9 * 0.9));
+      float dirt9 = (1.0 - smoothstep(0.0, 1.8, p9.z)) * fbm9(p9 * 1.3, px9);
       float blot9 = fbm9(p9 * 0.7 + 3.1, px9);
-      c *= 1.0 - k9 * (0.38 * seam9 + 0.22 * dirt9 + 0.10 * (blot9 - 0.5));
-      c += k9 * 0.05 * max(hl9, 0.0) * lc9;
+      /* 마모·얼룩(2026-11-01 되요청: "쇠의 마모감 얼룩 등도 더 표현") — ① 벗겨진 자리(칠이 닳아 드러난 밝은 맨 쇠 · 문턱 얼룩)
+         ② 흘러내린 자국(세운 낯에 높이로 길게 늘인 노이즈 · 갈색) ③ 녹·때 큰 얼룩(누렇게) — 홈에도 때가 낀다(seam × 0.3 더 어둡게). */
+      float wear9 = smoothstep(0.64, 0.80, fbm9(p9 * 1.15 + 9.3, px9));
+      float vert9 = 1.0 - smoothstep(0.55, 0.90, an9.z);
+      float stk9 = vn9(vec3(p9.x * 2.6, p9.y * 2.6, p9.z * 0.22) + 4.4) * smoothstep(2.0, 4.0, px9 / 2.6);
+      float stain9 = smoothstep(0.58, 0.86, stk9) * vert9 * (0.55 + 0.45 * vn9(p9 * 0.4 + 2.0));
+      float rust9 = smoothstep(0.60, 0.86, fbm9(p9 * 0.45 + 13.0, px9));
+      c *= 1.0 - k9 * (0.20 * seam9 + 0.30 * dirt9 + 0.16 * (blot9 - 0.5));
+      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.50 * stain9, 0.0, 1.0));
+      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.40 * rust9, 0.0, 1.0));
+      c += k9 * 0.11 * wear9 * (0.55 + 0.45 * lc9) * vec3(0.95, 1.0, 1.06);
+      c = edgeWear9(c, p9, px9, k9, mix(c, vec3(0.86, 0.90, 0.96), 0.6) * 1.2);   // 모서리 마모 — 칠 벗겨진 맨 쇠
     } else if (cl9 == 2) {
-      /* 금 — 얕게 새긴 사선 홈(마름모 격자 1.3칸 · 낯의 큰 축으로 투영) + 닦인 결의 얼룩. */
+      /* 금 — **무늬 없이 질감·상처·광택**(2026-11-01, 요청: "넥서스 이외의 프로토스 건물은 무늬보단 질감과 상처 광택 등") + 모서리 마모(옅은 금 · 같은 날 "모서리 마모 등도"). */
       vec3 an9 = abs(vMn.xyz);
-      highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
-      highp vec2 dg9 = fract(vec2(uv9.x + uv9.y, uv9.x - uv9.y) / 1.3 + 0.5);
-      float dd9 = min(min(dg9.x, 1.0 - dg9.x), min(dg9.y, 1.0 - dg9.y)) * 1.3;
-      float wd9 = max(0.02, 0.8 / px9);
-      float eng9 = (1.0 - smoothstep(wd9, wd9 * 2.0, dd9)) * smoothstep(1.5, 3.0, px9 * 0.08);
-      float pol9 = fbm9(p9 * 0.8, px9);
-      c *= 1.0 - k9 * (0.16 * eng9 - 0.14 * (pol9 - 0.5));
+      c = goldTex9(c, p9, px9, k9, an9, lc9);
+      c = edgeWear9(c, p9, px9, k9, mix(c, vec3(1.0, 0.95, 0.78), 0.55) * 1.15);
+    } else if (cl9 == 6) {
+      /* 프로토스 건물 금 — **띠 무늬**(2026-11-01, 요청: "프로토스 건물은 사진 참고해서 결(무늬)로 대체" · 사진: 넥서스 원작 판) — 높이 방향으로 띠(1.25칸)를
+         두르고 띠마다 무늬 하나(지그재그 · 겹친 갈매기 · 빗살 홈 · 민 띠) · 띠 사이 경계 홈 · 띠마다 밝은 금 ↔ 짙은 호박 엇갈림 · 새긴 홈은 어둡게 + 위 가장자리 밝게(양각 느낌). 띠 하나가 화면에서 10화소 아래면 무늬는 녹이고 색 띠만 남는다. */
+      vec3 an9 = abs(vMn.xyz);
+      /* ★ 띠는 **가운데를 둘러싼다**(2026-11-01 되요청: "넥서스 띠무늬가 방사형으로 · 지금은 정면 기준으로 다 방향이 잡힌 듯") — 누운·기운 낯은 모형 가운데에서의
+         네모 거리(max(|x|, |y|) · 피라미드 바닥 네모와 같은 꼴)로 띠를 두르고(피라미드 면 = 감싸는 고리 · 뻗은 팔 = 팔을 가로지르는 띠), 띠를 따라가는 자는 그 고리의 변.
+         세운 낯만 높이로 두른다(옛: 누운 낯은 대각 한 축 · 기운 낯은 높이 — 띠가 정면 한 방향으로 섰다). */
+      bool wall9 = an9.z < 0.30;
+      highp vec2 tn9 = normalize(vMn.xy + vec2(0.0001, 0.0));
+      highp float rq9 = max(abs(p9.x), abs(p9.y));
+      highp float v9 = wall9 ? p9.z : rq9;
+      highp float u9 = wall9 ? (p9.x * -tn9.y + p9.y * tn9.x) : (abs(p9.x) > abs(p9.y) ? p9.y : p9.x);
+      float B9 = 1.25;
+      highp float bi9 = floor(v9 / B9);
+      float t9 = fract(v9 / B9);
+      float ty9 = floor(h3_9(vec3(bi9, 1.3, 7.7)) * 4.0);
+      float wd9 = max(0.022, 0.7 / px9);
+      float det9 = smoothstep(8.0, 16.0, px9 * B9);
+      float bd9 = min(t9, 1.0 - t9) * B9;
+      float gr9 = 1.0 - smoothstep(wd9, wd9 * 1.8, bd9);   // 띠 경계 홈
+      float tt9 = clamp((t9 - 0.2) / 0.6, 0.0, 1.0);
+      float in9 = step(0.2, t9) * step(t9, 0.8);
+      float pat9 = 0.0;
+      if (ty9 < 0.5) {   // 지그재그
+        float zg9 = abs(fract(u9 / 0.9) - 0.5) * 2.0;
+        pat9 = 1.0 - smoothstep(wd9, wd9 * 1.8, abs(tt9 - zg9) * B9 * 0.6);
+      } else if (ty9 < 1.5) {   // 겹친 갈매기
+        float sv9 = fract(tt9 * 2.0 + abs(fract(u9 / 0.8) - 0.5) * 1.6);
+        pat9 = 1.0 - smoothstep(wd9, wd9 * 1.8, min(sv9, 1.0 - sv9) * B9 * 0.3);
+      } else if (ty9 < 2.5) {   // 빗살 홈(짧은 세로 홈 줄)
+        float fr9 = fract(u9 / 0.42);
+        pat9 = (1.0 - smoothstep(0.30, 0.30 + wd9 * 2.4, fr9)) * step(0.12, tt9) * step(tt9, 0.88) * 0.9;
+      }
+      pat9 *= in9 * det9;
+      float groove9 = max(gr9 * smoothstep(4.0, 8.0, px9 * B9), pat9);
+      float alt9 = step(0.5, h3_9(vec3(bi9, 5.1, 2.3)));
+      c *= mix(vec3(1.0), vec3(1.0, 0.80, 0.52), k9 * 0.38 * alt9);   // 짙은 호박 띠
+      c *= 1.0 - k9 * 0.32 * groove9;
+      float lip9 = (1.0 - smoothstep(wd9 * 1.8, wd9 * 3.2, bd9)) * (1.0 - gr9) * step(0.5, t9);   // 경계 홈 위쪽 밝은 날
+      c += k9 * 0.06 * lip9 * lc9 * det9;
+      /* 넥서스도 다른 건물처럼 질감·상처·광택 얼룩 + 모서리 마모(2026-11-01 되요청: "넥서스도 다른 건물처럼 광택 얼룩 등은 다 있어야지 모서리 마모 등도"). */
+      c = goldTex9(c, p9, px9, k9, an9, lc9);
+      c = edgeWear9(c, p9, px9, k9, mix(c, vec3(1.0, 0.95, 0.78), 0.55) * 1.15);
     } else if (cl9 == 3) {
       /* 살 — 반점(어두운 얼룩) · 드문 혈관(가는 꼬인 줄 · 따로 고른 자리에만) · 그늘 쪽 붉은 비침. */
       float m9 = fbm9(p9 * 1.4, px9);
@@ -621,6 +691,16 @@ const MATX_FS9 = `
       float yel9 = fbm9(p9 * 0.8 + 7.7, px9);
       c *= 1.0 - k9 * (0.10 * str9 + 0.30 * pit9);
       c = mix(c, c * vec3(1.0, 0.93, 0.78), k9 * 0.5 * smoothstep(0.45, 0.80, yel9));
+    } else if (cl9 == 7) {
+      /* 보석·유리 — 낯마다 밝음·어둠을 세게(각진 깎은 면) · 날카로운 반짝임 · 낯 모서리 흰 빛줄 · 속 잔 반짝임 · 비스듬한 낯 가장자리 빛. */
+      float face9 = vMn.y;
+      c *= mix(1.0, 0.86 + 0.40 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
+      c += k9 * vec3(1.0, 1.0, 1.0) * vMn.x * 1.4;
+      c += k9 * vec3(0.55, 0.85, 1.0) * 0.18 * vMn.z * vMn.z;
+      float ed9 = 1.0 - smoothstep(0.6, 1.8, edgePx9());
+      c = mix(c, vec3(1.0), clamp(k9 * 0.55 * ed9 * (0.4 + 0.6 * face9), 0.0, 1.0));
+      float tw9 = smoothstep(0.93, 0.99, vn9(p9 * 9.0)) * smoothstep(2.0, 4.0, px9 / 9.0);
+      c += k9 * 0.5 * tw9 * (0.3 + 0.7 * face9);
     } else {
       /* 껍질 — 잔 점 + 마디 얼룩. */
       float sp9 = vn9(p9 * 6.0) * smoothstep(2.0, 4.0, px9 / 6.0);
@@ -641,6 +721,39 @@ float vn9(highp vec3 p) {
 float fbm9(highp vec3 p, float px) {
   float w0 = smoothstep(2.0, 4.0, px), w1 = smoothstep(4.0, 8.0, px), w2 = smoothstep(8.0, 16.0, px);
   return 0.5 + 0.5 * (w0 * (vn9(p) - 0.5) + 0.5 * w1 * (vn9(p * 2.03 + 1.7) - 0.5) + 0.25 * w2 * (vn9(p * 4.01 + 3.3) - 0.5)) / 0.875 * 1.6;
+}
+/** 날카로운 모서리까지의 화소 거리(정점 aEdg · 메시 지을 때 고른 35° 넘게 꺾인 변) — 없으면 99. fwidth 는 가지 밖에서 먼저 잰다. */
+float edgePx9() {
+  vec3 fw9 = max(fwidth(vEd.xyz), vec3(0.0001));
+  vec3 d9 = vEd.xyz / fw9;
+  float m9 = floor(vEd.w * 255.0 + 0.5);
+  float e9 = 99.0;
+  if (mod(m9, 2.0) > 0.5) e9 = min(e9, d9.x);
+  if (mod(floor(m9 / 2.0), 2.0) > 0.5) e9 = min(e9, d9.y);
+  if (mod(floor(m9 / 4.0), 2.0) > 0.5) e9 = min(e9, d9.z);
+  return e9;
+}
+/** 금 질감 — 망치 자국 · 두 방향 상처 · 광택 얼룩(닦인 자리 밝게 · 무딘 자리 구릿빛). 프로토스 건물·유닛·넥서스가 함께 쓴다. */
+vec3 goldTex9(vec3 c, highp vec3 p9, float px9, float k9, vec3 an9, float lc9) {
+  highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
+  float ham9 = vn9(p9 * 5.0) * smoothstep(2.0, 4.0, px9 / 5.0);
+  highp vec2 d19 = vec2(0.86, 0.51); highp vec2 d29 = vec2(-0.34, 0.94);
+  float s19 = vn9(vec3(dot(uv9, d19) * 1.4, dot(uv9, vec2(-d19.y, d19.x)) * 22.0, 1.7));
+  float s29 = vn9(vec3(dot(uv9, d29) * 1.1, dot(uv9, vec2(-d29.y, d29.x)) * 26.0, 6.2));
+  float scr9 = max(smoothstep(0.80, 0.90, s19), smoothstep(0.82, 0.92, s29)) * smoothstep(2.0, 4.0, px9 / 24.0)
+    * smoothstep(0.45, 0.65, vn9(p9 * 0.6 + 8.0));
+  float pol9 = fbm9(p9 * 0.75, px9);
+  c *= 1.0 + k9 * (0.07 * (ham9 - 0.5) + 0.22 * (pol9 - 0.5));
+  c = mix(c, c * vec3(0.92, 0.74, 0.55), clamp(k9 * 0.45 * smoothstep(0.55, 0.20, pol9), 0.0, 1.0));
+  return c + k9 * 0.16 * scr9 * (0.35 + 0.65 * lc9);
+}
+/** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
+vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
+  float w9 = clamp(0.05 * px9, 1.0, 3.5);
+  float e9 = edgePx9();
+  float chip9 = smoothstep(0.30, 0.55, vn9(p9 * 3.2 + 2.2));
+  float wear9 = (1.0 - smoothstep(0.35 * w9, w9, e9)) * chip9;
+  return mix(c, max(c, bare), clamp(k9 * 0.75 * wear9, 0.0, 1.0));
 }
 `;
 const hexRgb = (s: string): [number, number, number] => {
@@ -1231,9 +1344,10 @@ export class GlUnits9 implements VecSink9 {
       .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
     /* 재질 결 시안(#matx · 위 MATX_VS9 ★) — 켰을 때만 varying 둘·유니폼 둘을 더한 변형으로 짓는다. */
-    const vsM9 = MATX9 <= 0 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; uniform vec2 uMat;\n")
-      .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0);\n" + MATX_VS9);
-    const fsM9 = MATX9 <= 0 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn;\n" + MATX_FN9)
+    const mx9 = MATX9 > 0 && this.gl2;   // 모서리 마모가 fwidth(ES 3.00)를 쓴다 — WebGL1 은 시안 없이
+    const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; uniform vec2 uMat; attribute vec4 aEdg;\n")
+      .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg;\n" + MATX_VS9);
+    const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a;");
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
@@ -1243,7 +1357,7 @@ export class GlUnits9 implements VecSink9 {
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
     for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]);
-    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
+    for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
       const q = gl.createProgram()!;
@@ -1563,13 +1677,14 @@ export class GlUnits9 implements VecSink9 {
     gl.enableVertexAttribArray(this.att.aOv); gl.vertexAttribPointer(this.att.aOv, 2, U, true, STRIDE_B, 29);
     gl.enableVertexAttribArray(this.att.aBb); gl.vertexAttribPointer(this.att.aBb, 1, U, true, STRIDE_B, 31);
     gl.enableVertexAttribArray(this.att.aOrd); gl.vertexAttribPointer(this.att.aOrd, 1, gl.FLOAT, false, STRIDE_B, 32);
+    if (MATX9 > 0 && this.att.aEdg !== undefined && this.att.aEdg >= 0) { gl.enableVertexAttribArray(this.att.aEdg); gl.vertexAttribPointer(this.att.aEdg, 4, U, true, STRIDE_B, 36); }
     const gk = GL_SHADE9 < 1 || !this.specOn ? 0 : GL_SPEC9;
     gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
     gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
       const g = mesh.gloss;
-      gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, MATX9);
+      gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
       gl.uniform1f(this.loc.uMatK, MATX9);
     }
   }
@@ -2544,6 +2659,28 @@ export class GlUnits9 implements VecSink9 {
       const cols = new Set<string>();
       let vi = 0;
       let nSolid = 0;
+      /* 재질 결 시안 — **날카로운 모서리**(이웃 낯과 35° 넘게 꺾이거나 이웃이 없는 변)를 고른다. 원통 같은 잘게 나눈 매끈한 낯 사이는 안 친다. */
+      const edgeN9 = new Map<string, number[]>();
+      const qk9 = (x: number, y: number, z: number): string => Math.round(x * 500) + "," + Math.round(y * 500) + "," + Math.round(z * 500);   // 역따옴표 금지 — 아틀라스 판 해시가 gl9 의 역따옴표를 셰이더로 읽는다
+      const ek9 = (poly: number[], a: number, b: number): string => { const ka = qk9(poly[a * 3], poly[a * 3 + 1], poly[a * 3 + 2]); const kb = qk9(poly[b * 3], poly[b * 3 + 1], poly[b * 3 + 2]); return ka < kb ? ka + "|" + kb : kb + "|" + ka; };
+      const polyN9 = (poly: number[], n: number): [number, number, number] => {
+        let nx = 0, ny = 0, nz = 0;
+        for (let i = 0; i < n; i += 1) { const j = (i + 1) % n; nx += (poly[i * 3 + 1] - poly[j * 3 + 1]) * (poly[i * 3 + 2] + poly[j * 3 + 2]); ny += (poly[i * 3 + 2] - poly[j * 3 + 2]) * (poly[i * 3] + poly[j * 3]); nz += (poly[i * 3] - poly[j * 3]) * (poly[i * 3 + 1] + poly[j * 3 + 1]); }
+        const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+      };
+      if (MATX9 > 0) {
+        for (const part of parts) for (const poly of part.polys) {
+          const n = poly.length / 3; if (n < 3) continue;
+          const pn = polyN9(poly, n);
+          for (let i = 0; i < n; i += 1) { const k = ek9(poly, i, (i + 1) % n); const a = edgeN9.get(k); if (a) a.push(pn[0], pn[1], pn[2]); else edgeN9.set(k, [pn[0], pn[1], pn[2]]); }
+        }
+      }
+      const sharp9 = (poly: number[], n: number, a: number, b: number, pn: [number, number, number]): boolean => {
+        if (!((b === (a + 1) % n) || (a === (b + 1) % n))) return false;   // 삼각화가 낸 속 변
+        const v = edgeN9.get(ek9(poly, a, b)); if (!v || v.length <= 3) return true;   // 이웃 낯이 없다 — 열린 판의 끝
+        for (let i = 0; i < v.length; i += 3) { if (Math.abs(v[i] * pn[0] + v[i + 1] * pn[1] + v[i + 2] * pn[2]) < 0.82) return true; }
+        return false;
+      };
       for (let pi = 0; pi < parts.length; pi += 1) {
         const part = parts[pi];
         if (pi === solids.length) nSolid = vi;
@@ -2576,7 +2713,7 @@ export class GlUnits9 implements VecSink9 {
             const k = `${x},${y},${z}`; if (!ptKeys.has(k)) { ptKeys.add(k); pts.push(x, y, z); }
           }
           const put = (i: number): void => {
-            const o = vi * 9; const ob = vi * STRIDE_B;
+            const o = vi * STRIDE_F9; const ob = vi * STRIDE_B;
             f32[o] = poly[i * 3]; f32[o + 1] = poly[i * 3 + 1]; f32[o + 2] = poly[i * 3 + 2];
             f32[o + 3] = nx; f32[o + 4] = ny; f32[o + 5] = nz;
             u8[ob + 24] = cr; u8[ob + 25] = cg; u8[ob + 26] = cb; u8[ob + 27] = ct;
@@ -2585,7 +2722,15 @@ export class GlUnits9 implements VecSink9 {
             vi += 1;
           };
           const tri9 = triIdx9(poly, n, nx, ny, nz);
-          for (let i = 0; i + 2 < tri9.length; i += 3) { put(tri9[i]); put(tri9[i + 1]); put(tri9[i + 2]); }
+          const pn9 = MATX9 > 0 ? polyN9(poly, n) : null;
+          for (let i = 0; i + 2 < tri9.length; i += 3) {
+            const a9 = tri9[i], b9 = tri9[i + 1], c9 = tri9[i + 2];
+            put(a9); put(b9); put(c9);
+            if (pn9) {   // 꼭짓점 표식(맞은편 변까지의 무게중심 좌표) + 비트(맞은편 변이 날카로운가) — 세 꼭짓점이 같은 비트를 든다
+              const m9 = (sharp9(poly, n, b9, c9, pn9) ? 1 : 0) | (sharp9(poly, n, c9, a9, pn9) ? 2 : 0) | (sharp9(poly, n, a9, b9, pn9) ? 4 : 0);
+              for (let t = 0; t < 3; t += 1) { const ob9 = (vi - 3 + t) * STRIDE_B; u8[ob9 + 36] = t === 0 ? 255 : 0; u8[ob9 + 37] = t === 1 ? 255 : 0; u8[ob9 + 38] = t === 2 ? 255 : 0; u8[ob9 + 39] = m9; }
+            }
+          }
         }
       }
       if (vi) {
@@ -3306,14 +3451,6 @@ export const GL_GRAIN9 = ((): number => {
   const m = typeof location !== "undefined" ? /glgrain=([\d.]+)/.exec(location.hash) : null;
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
-})();
-/** ★ 재질 결 시안 #matx · #matx=N(세기 · 기본 1) — 굽는 판에 쇠·살·뼈의 결을 얹는 변형 셰이더(2026-11-01, 요청: "미리 굽는 김에 모델에 좀 더 디테일감 —
- *  쇠의 질감 살의 질감 뼈의 질감 등" → "비교샷 만들어줘"). 없으면 옛 셰이더 그대로(한 글자도 안 바뀐다). 아래 MATX_VS9·MATX_FS9 ★. */
-export const MATX9 = ((): number => {
-  const m = typeof location !== "undefined" ? /(?:^|[#&,])matx(?:=([\d.]+))?(?=$|[&,])/.exec(location.hash) : null;
-  if (!m) return 0;
-  const v = m[1] ? Number(m[1]) : 1;
-  return Number.isFinite(v) ? Math.max(0, Math.min(3, v)) : 1;
 })();
 /** 진단 `#glvec=0` — 효과(트레이서·피격·캐스트)를 GL 심(glctx9)이 아니라 옛 효과 캔버스에 그린다(견줌용). */
 export const GL_VEC9 = ((): number => { const m = typeof location !== "undefined" ? /glvec=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
