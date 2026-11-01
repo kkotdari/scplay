@@ -26,7 +26,7 @@ const T_SHOT = Number(flag("--t", 46));
 const FPS = 23.81;
 const F = (sec) => Math.round(sec * FPS);
 const GAME_SEC = 120;
-const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합동: "siege", 플토본진: "tossmain" };
+const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합동: "siege", 플토본진: "tossmain", 테란8: "t8", 토스8: "p8", 저그8: "z8" };
 
 /* ── 이름 → 번호(bwUnitNames 는 그 트리의 것) ── */
 const ebin = join(HERE, "node_modules", "esbuild", "bin", "esbuild");
@@ -212,6 +212,38 @@ SCENES.플토본진 = {
     ["Science Vessel", 6.4, 2.6, { own: 2, hb: 200 }],
   ],
 };
+/* ★ 종족별 기지 클로즈업(2026-11-01, 요청: "비교샷은 전투샷을 취소하고 각 종족별 비포 애프터로 · 배율은 8배 · 테란 커맨드에 컴샛 달림, 미네랄 scv 배럭 마린 탱크 ·
+   프로토스 넥서스 파일런 어시밀레이터 프로브 게이트웨이 질럿 · 저그 하이브 드론 미네랄 스포닝풀 저글링 성큰 · 충분히 집약해서 그리기") —
+   싸움 없이 한 사람의 본진만(적 없음) · 미네랄 줄 왼쪽 · 본진 · 캐는 일꾼 · 오른쪽 위 생산 건물 · 오른쪽 아래 병력. 배율 8 이면 무대가 ≈16타일이라 틀은 15 × 12 안. */
+const BASE8 = { zoom: 8, frame: { x0: -8.3, x1: 6.5, y0: -7.3, y1: 4.4 },
+  res: [[-7.2, -5, 0], [-7.5, -3.5, 0], [-7.7, -2, 0], [-7.7, -0.5, 0], [-7.5, 1, 0], [-7.2, 2.5, 0]] };
+const MINERS8 = (n) => [["@", -5.7, -3.4, { st: 5, hb: 192 }], ["@", -5.9, -1.7, { st: 5, hb: 200 }], ["@", -5.8, 0, { st: 5, hb: 186 }], ["@", -5.6, 1.6, { st: 5, hb: 176 }]].map(([, x, y, o]) => [n, x, y, o]);
+SCENES.테란8 = { ...BASE8, pl: [1, 2],
+  put: [
+    ["Command Center", -3, -1.5], ["Comsat Station", 0.25, -1],
+    ...MINERS8("SCV"),
+    ["Barracks", 3.6, -4.6],
+    ...clump("Marine", 9, 2.6, 2.2, 1.3, 0.62, { hb: 96 }),
+    ["Siege Tank (Siege Mode)", 4.9, 1.2, { hb: 100 }],
+  ],
+};
+SCENES.토스8 = { ...BASE8, pl: [2, 1],
+  res: [...BASE8.res, [-2.2, -5.9, 1]],
+  put: [
+    ["Nexus", -3, -1.5], ["Assimilator", -2.2, -5.9],
+    ...MINERS8("Probe"),
+    ["Pylon", 1.8, -4.8], ["Gateway", 4.1, -1.4],
+    ...clump("Zealot", 6, 2.4, 2.4, 1.2, 0.8, { hb: 96 }),
+  ],
+};
+SCENES.저그8 = { ...BASE8, pl: [0, 2],
+  put: [
+    ["Hive", -3, -1.5],
+    ...MINERS8("Drone"),
+    ["Spawning Pool", 3.4, -4.6], ["Sunken Colony", 4.6, -1.2],
+    ...clump("Zergling", 10, 2.4, 2.3, 1.3, 0.5, { hb: 96 }),
+  ],
+};
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
 const FRAME = { x0: -15.5, x1: 9.5, y0: -13.5, y1: 5.8 };
 /** 자원 — 본진 왼쪽 미네랄 줄 · 위 간헐천(가운데에서 잰 타일 · [dx, dy, 0 미네랄 | 1 간헐천]). */
@@ -341,7 +373,7 @@ for (const race of RACES) {
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
   // 크립은 저그만(기지 바닥) · 두리번 끔 · 사영 그림자 켬(배율 ≥ 4 에서만 실제로 선다).
-  await page.goto(`http://showcase.local/#${race === "저그" || race === "합동" ? "" : "nocreep,"}noscan,nofog,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
+  await page.goto(`http://showcase.local/#${race === "저그" || race === "합동" || race === "저그8" ? "" : "nocreep,"}noscan,nofog,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
