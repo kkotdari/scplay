@@ -708,7 +708,7 @@ const MATX_FS9 = `
          뒤가 제 몸이라 알파를 안 건드린다. */
       if (vCol.a < 0.95) {
         float edA9 = 1.0 - smoothstep(0.6, 2.4, edgePx9());
-        glA9 = mix(1.0, 0.5 + 0.5 * max(edA9, clamp(vMn.x * 2.0, 0.0, 1.0)), k9);
+        glA9 = mix(1.0, 0.75 + 0.25 * max(edA9, clamp(vMn.x * 2.0, 0.0, 1.0)), k9);   // 가운데 × 0.5 → 0.75(같은 날 "너무 투명")
       }
       c += k9 * vec3(1.0, 1.0, 1.0) * vMn.x * 1.4;
       c += k9 * vec3(0.55, 0.85, 1.0) * 0.18 * vMn.z * vMn.z;
