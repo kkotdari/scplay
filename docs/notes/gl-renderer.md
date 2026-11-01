@@ -2074,3 +2074,7 @@ shadowEllipse9 폰 참) · `PHONE_TIERS9` 높음 단에만 `meshShadow: true`(3�
   광택은 GLOSS_TOSS9 봉우리 0.20 → **0.26** · 윤기 0.18 → **0.21**(G1 0.30/0.24 · G2 0.40/0.30/얼룩 0.90 은 빛 받는 낯이 허옇게).
   ⚠ 광택 표(GLOSS_*)는 판 해시가 안 봤다 — spr-atlas.mjs atlasVer 의 상수 줄 정규식에 `GLOSS_[A-Z0-9_]+` 를 넣었다(이제 광택만 고쳐도 --check 가 다시 구우라고 한다).
   🔎 `model-gl --kinds pyramidWide,forge,goon,diamond --rots 45 --cell 420 --lit` · 시안 굽기는 gl9 사본을 고쳐 차례로 굽고 되돌린다($S/gl9.orig.ts).
+- (같은 날 "모서리 마모는 모든 건물에 다 들어갔지?" → "프로토스는 마모가 아니라 모서리 광택으로 변경") — 금(cl 2)·넥서스(cl 6)의 edgeWear9 를 **edgeShine9** 로:
+  날카로운 모서리 곁 0.6~1.3화소(0.022·px)를 끊김 없이(마모의 chip 노이즈 없음) 따뜻한 흰빛(1, 0.96, 0.84)으로 **더한다** · 세기 0.65 × (0.25 + 0.75·휘도).
+  첫 판 0.32 · 0.5~1.1화소는 거의 안 보였다. 프로토스의 회색 금속 낯(cl 1)과 테란 강철은 종전 마모 그대로 · 저그는 마모 없음.
+  🔎 `model-gl --kinds pyramidWide,gate,goon --rots 45 --cell 560 --lit` 를 두 배로 잘라 견준다(넥서스 능선 · 게이트 기둥 모서리).
