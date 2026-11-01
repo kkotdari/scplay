@@ -9647,7 +9647,7 @@ export default function ReplayMotionPlayer({
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
-  onFinish, askMode, pending, veil, onReady,
+  onFinish, askMode, pending, veil, onReady, onLoadProgress,
 }: {
   grid: ReplayMapGrid;
   /** 경기 길이(초) — 경기 메타(durationSeconds)에서 온다. 없으면 트랙의 끝으로 잡는다. */
@@ -9712,6 +9712,9 @@ export default function ReplayMotionPlayer({
    *  끝나는 순간 한 번 onReady 를 부른다. 그동안 무엇을 보일지(워드마크 로딩)는 앱이 그린다. */
   veil?: boolean;
   onReady?: () => void;
+  /** ★ 로딩 진행도(2026-11-01, 요청: "상세 로딩 화면 워드마크 아랫줄에 단색으로 로딩 퍼센티지") — 0~1 · 뒤로 안 간다 · 다 되면 1. 단계마다 구간:
+   *  게임 데이터 0~0.15 · 그래픽 소스 0.15~0.5(앞 종류 묶음 수) · 모델 준비 0.5~0.9(예열 수) · 모델 굽기 0.92 · 화면 준비 0.97. */
+  onLoadProgress?: (p: number) => void;
   /** 이 재생기가 화면에 홀로 있나 — 상세 모달이나 게임 페이지처럼 한 판만 보고 있는
    *  화면이다. 갈라진 판 경고는 여기서만 뜬다(목록은 카드마다 재생기가 하나씩이라
    *  경고창이 겹친다). */
@@ -19266,6 +19269,8 @@ export default function ReplayMotionPlayer({
   const [warmAt, setWarmAt] = useState<{ done: number; total: number } | null>(null);
   /** 서버 아틀라스를 받는 중인가(로딩 알림 '그래픽 소스 받는 중' · 예열 effect 가 놓는다). */
   const [atlasLoad9, setAtlasLoad9] = useState(false);
+  /** 그래픽 소스 받기의 진행(앞 종류 묶음 · 0~1) — 로딩 진행도(onLoadProgress)의 몫. */
+  const [atlasProg9, setAtlasProg9] = useState(0);
   /** 장면을 보여도 되나 — 자취가 자리 잡고(받았거나 없는 것으로 판명) 모델 굽기가 끝났나.
    *  ★ `entLoad`만 보면 안 된다: 처음 한 박자는 "idle"(아직 안 물어봄)이라 그때 보여
    *    버리면 빈 지도가 한 번 번쩍인 뒤 다시 숨는다. **자취를 실제로 손에 쥐었나**
@@ -19343,6 +19348,27 @@ export default function ReplayMotionPlayer({
     setReadyOnce9(true);
     onReadyRef9.current?.();
   }, [readyOnce9, pending, loadStage9 === null]);
+  /* 로딩 진행도(위 onLoadProgress ★) — 단계와 그 단계의 몫으로 0~1 · 뒤로 안 간다 · 처음 다 된 뒤로는 1. */
+  const progMax9 = useRef(0);
+  const onProgRef9 = useRef(onLoadProgress); onProgRef9.current = onLoadProgress;
+  /* 앞 단계를 **실제로 지났나** — 뜨자마자 아틀라스·예열이 붙기 전 한순간 '화면 준비'로 보여 97% 로 튀고(뒤로 안 가니) 그대로 머물렀다(실측 perf-check --veilprobe).
+     그래서 높은 몫(굽기 0.92 · 화면 준비 0.97)은 예열이 한 번 끝난 뒤에만 준다. */
+  const atlasSeen9 = useRef(false); const atlasDone9 = useRef(false); const warmSeen9 = useRef(false); const warmDone9 = useRef(false);
+  if (atlasLoad9) atlasSeen9.current = true; else if (atlasSeen9.current) atlasDone9.current = true;
+  if (warmAt) warmSeen9.current = true; else if (warmSeen9.current) warmDone9.current = true;
+  const prog9 = readyOnce9 || (!pending && loadStage9 === null) ? 1
+    : !loadStage9 ? 0.05
+      : loadStage9.key === "data" ? 0.05
+        : loadStage9.key === "atlas" ? 0.15 + 0.35 * Math.min(1, atlasProg9)
+          : loadStage9.key === "warm" ? 0.5 + 0.4 * (warmAt ? Math.min(1, warmAt.done / Math.max(1, warmAt.total)) : 0)
+            : warmDone9.current ? (loadStage9.key === "bake" ? 0.92 : 0.97)
+              : atlasDone9.current ? 0.5 : 0.12;
+  useEffect(() => {
+    const p9 = Math.max(progMax9.current, prog9);
+    if (p9 === progMax9.current && p9 !== 0) return;
+    progMax9.current = p9;
+    onProgRef9.current?.(p9);
+  }, [prog9]);
   const veiled9 = !!veil && !readyOnce9;
   /** 재생 품질 알림(위 QUALITY9) — 값이 있으면 지도 오른쪽 위에 3초. */
   const [qualityNote, setQualityNote] = useState<string | null>(null);
@@ -19536,7 +19562,8 @@ export default function ReplayMotionPlayer({
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
         const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
         sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024,
-          core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
+          core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined,
+          onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB)${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리

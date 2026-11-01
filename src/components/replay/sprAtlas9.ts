@@ -126,7 +126,9 @@ export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: str
  *  ★ `core` 개 종류(앞에서부터)의 묶음이 다 실리면(또는 실을 것이 없으면) `onCore` 를 한 번 부른다(2026-10-26 · 요청 2 — 많이 쓰는 종류만 먼저 싣고 재생을 시작 · 나머지는 뒤에서).
  *  `pending` 은 아직 안 실린 종류를 담고 실릴 때마다 뺀다(예열이 그 종류의 동적 미리 굽기를 건너뛰는 자) — 다 끝나면 비운다. */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; odd: boolean; em: boolean; mbCap: number;
-  core?: number; onCore?: () => void; pending?: Set<string>; workers?: number }): Promise<SprAtlasLoad9> {
+  core?: number; onCore?: () => void; pending?: Set<string>; workers?: number;
+  /** 앞 종류(core) 묶음의 처리 수 / 전체 — 로딩 진행도(RMP onLoadProgress)의 몫(2026-11-01). */
+  onProgress?: (done: number, total: number) => void }): Promise<SprAtlasLoad9> {
   let cored9 = false;
   const core9 = (): void => { if (!cored9) { cored9 = true; opt.onCore?.(); } };
   const t0 = performance.now();
@@ -159,12 +161,14 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     if (opt.pending) { opt.pending.clear(); for (const kd of left9.keys()) opt.pending.add(kd); }
     const coreSet9 = new Set(kinds.slice(0, Math.max(0, opt.core ?? kinds.length)));
     let coreLeft9 = jobs.filter((j) => coreSet9.has(j.kind)).length;
+    const coreTot9 = coreLeft9;
+    opt.onProgress?.(0, coreTot9);
     const coreDone9 = (): void => { if (!cored9) { r.coreMs = Math.round(performance.now() - t0); core9(); } };
     if (coreLeft9 === 0) coreDone9();
     const settle9 = (j: (typeof jobs)[number]): void => {
       const n = (left9.get(j.kind) ?? 1) - 1; left9.set(j.kind, n);
       if (n <= 0) opt.pending?.delete(j.kind);
-      if (coreSet9.has(j.kind) && --coreLeft9 <= 0) coreDone9();
+      if (coreSet9.has(j.kind)) { coreLeft9 -= 1; opt.onProgress?.(coreTot9 - Math.max(0, coreLeft9), coreTot9); if (coreLeft9 <= 0) coreDone9(); }
     };
     /* 받기 + 풀기는 겹쳐서(워커가 있으면 워커 수 × 2 · 없으면 여섯) · 싣기는 차례대로(GL) — 바이트 상한에 닿으면 그만. */
     const url = (j: (typeof jobs)[number], ly: string): string => `${BASE}/k/${j.ch.files[opt.res][ly]}`;

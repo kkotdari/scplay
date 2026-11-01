@@ -657,7 +657,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 링크 한 벌(sceneLink) — 앱이 넘기는 그 꼴 그대로: t 46(고스트 검산 시각) · --track <아이디|*>(&tr= · * 는 자동 중계) ·
        --zoom/--cx/--cy/--deg(&z=·&cx=·&cy=·&a= — 난전이 (64,64) = 분수 0.5라 화면 한가운데 온다 · 본진을 확대해 재려면
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
-    ...(window.__veil ? { veil: true, onReady: () => { window.__veilReadyAt = performance.now(); } } : {}),   // --veilprobe(2026-10-30 · 다 될 때까지 가림)
+    ...(window.__veil ? { veil: true, onReady: () => { window.__veilReadyAt = performance.now(); }, onLoadProgress: (p) => { (window.__veilProg ??= []).push([Math.round(performance.now()), Math.round(p * 100)]); } } : {}),   // --veilprobe(2026-10-30 · 다 될 때까지 가림)
     ...(window.__ask ? { askMode: true } : {}),   // --ask — 보기 모드 판(링크가 있으면 안 묻는다 → 아래 sceneLink 를 안 싣는다)
     sceneLink: window.__ask ? null : {
       t: window.__t ?? 46,   // --t N 으로 다른 시각에 연다(착지 먼지 1.1초 같은 짧은 효과를 볼 때)
@@ -1185,6 +1185,10 @@ if (has("--zoomlockprobe")) {
 if (VEIL9) {
   const st9 = () => page.evaluate(() => `가림 ${document.querySelectorAll(".scr-motion[data-veil]").length} · 준비 ${window.__veilReadyAt ? Math.round(window.__veilReadyAt) + "ms" : "아직"} · 로딩 글 ${document.querySelector(".scr-motion-simnote.is-in")?.textContent ?? "-"}`);
   console.log(`[가림] 다 뜬 뒤 ${await st9()}`);
+  /* 로딩 진행도(onLoadProgress · 2026-11-01) — 받은 (ms, %) 차례 · 뒤로 가면 안 된다 · 끝은 100. */
+  const pg9 = await page.evaluate(() => window.__veilProg ?? []);
+  const back9 = pg9.some((q, i) => i > 0 && q[1] < pg9[i - 1][1]);
+  console.log(`[진행도] ${pg9.map((q) => q[1] + "%").join(" → ")} · ${pg9.length}번 · 뒤로 ${back9 ? "감 ✘" : "안 감 ✔"} · 끝 ${pg9.length ? pg9[pg9.length - 1][1] : "-"}%`);
 }
 /* --modeprobe(2026-10-30, 요청: "중계랑 자유 오갈 때 배율 유지되게") — 휠로 두 칸 당긴 뒤 자유 ↔ 중계 단추(.scr-modetog-stage)를 두 번 눌러 배율을 찍는다(--diag 와 함께). */
 if (has("--modeprobe")) {

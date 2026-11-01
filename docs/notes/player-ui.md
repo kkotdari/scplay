@@ -2721,3 +2721,10 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   이름 칩(--rf 12)은 그대로. 폭 상한의 30.4 = 49.1ch × 숫자 0.62em(옛 --rf 셈은 0.7em · 34.4 — 판 586 이면 그 셈으론 10 으로 내려간다).
 - 굵기: 값 칸 600 → **400** · 머리(라벨) 700 → **500**. 쪽 꼴(좁은 창 is-paged)은 종전.
 - 🔎 `perf-check --wide --vw 1920 --vh 1080 --warm 0 --glblit --players 8 --rosterprobe` → `로스터 판 폭 586` · headrow `.scr-dock-data fs12px` · `[로스터 끝]` 넘침 0.
+
+## 로딩 진행도 onLoadProgress(2026-11-01)
+요청: "상세 들어가면 로딩 화면 — 워드마크 아랫줄에 단색으로 로딩 퍼센티지". RMP·ReplayModule props `onLoadProgress(p)`(0~1 · 뒤로 안 간다 · 다 되면 1).
+- 단계 몫: 게임 데이터 0.05 · 그래픽 소스 0.15~0.5(sprAtlasLoad9 `onProgress` — 앞 종류(core) 묶음 처리 수/전체) · 모델 준비 0.5~0.9(warmAt done/total) ·
+  모델 굽기 0.92 · 화면 준비 0.97 — 높은 둘은 예열이 **한 번 끝난 뒤에만**(뜨자마자 한순간 '화면 준비'로 보여 97% 로 튀고 머물렀다 · 그 전엔 0.12 · 아틀라스 뒤면 0.5).
+- 앱(sg-web): GameDetailPage 게임 받기 3% → GameResultStory 지도 10% → 재생기 20 + 79·p → 다 되면 걷힘. `LoadingMark pct`(워드마크 아래 12px · --muted · 숫자 폭 고정).
+- 🔎 `perf-check --wide --dpr 1 --ask --atlas spr --veilprobe` → `[진행도] 12% → … → 100% · 뒤로 안 감 ✔`.
