@@ -277,6 +277,9 @@ const ENTRY = `
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ReplayMotionPlayer from ${JSON.stringify(join(ROOT, "src/components/replay/ReplayMotionPlayer"))};
+/* --atlas DIR(2026-11-01) — 미리 구운 서버 아틀라스(spr/)로 그린다(사이트가 그리는 그림 · 실시간 굽기 없이 빠르다). */
+import { setReplaySpriteAtlas } from ${JSON.stringify(join(ROOT, "src/components/replay/sprAtlas9"))};
+if (${JSON.stringify(process.argv.includes("--atlas"))}) setReplaySpriteAtlas({ base: "http://showcase.local/spr" });
 window.__mount = (motion, players, walkJson, terrainB64, view) => {
   const el = document.getElementById("root");
   const tiles = btoa(String.fromCharCode(...new Uint8Array(128 * 128)));
@@ -322,7 +325,16 @@ for (const race of RACES) {
   const FR = SCENES[race].frame ?? FRAME; const ZM = SCENES[race].zoom ?? ZOOM; const RS = SCENES[race].res ?? RES;
   const page = await browser.newPage({ viewport: { width: VIEW, height: Math.round(VIEW * 1.3) }, deviceScaleFactor: DPR });
   page.on("pageerror", (e) => console.error("페이지 오류:", e.message));
-  await page.route("http://showcase.local/*", (r) => r.fulfill({ contentType: "text/html",
+  if (flag("--atlas", null)) {
+    const AD9 = resolve(String(flag("--atlas")));
+    await page.route("http://showcase.local/spr/**", (r) => {
+      const f9 = join(AD9, decodeURIComponent(new URL(r.request().url()).pathname.replace(/^\/spr\//, "")));
+      if (!existsSync(f9)) return r.fulfill({ status: 404, body: "" });
+      const ct9 = f9.endsWith(".json") ? "application/json" : f9.endsWith(".js") ? "text/javascript" : f9.endsWith(".wasm") ? "application/wasm" : "application/octet-stream";
+      return r.fulfill({ status: 200, contentType: ct9, body: readFileSync(f9) });
+    });
+  }
+  await page.route("http://showcase.local/", (r) => r.fulfill({ contentType: "text/html",
     body: `<!doctype html><html><head><meta charset="utf-8"><style>${css}
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
