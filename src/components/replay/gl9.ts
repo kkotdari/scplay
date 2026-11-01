@@ -590,6 +590,7 @@ const MATX_VS9 = `
     if (uMat.x > 0.5 && aTeam < 0.5 && uFlat < 0.5 && uShade.a <= 0.0 && uEmit < 0.5 && ((hu9 > 150.0 && hu9 < 228.0 && st9 > 0.30 && lm9 > 0.33) || (aAlpha < 0.95 && lm9 > 0.30))) cls9 = 7.0;   // 반투명 밝은 낯(파일런 수정 · 창)은 색과 무관하게 유리
     vMx = vec4(aPos, uScale.x);
     vMn = vec4(aNrm, cls9);
+    vLt = max(dot(n, uLight), 0.0);   // 빛을 마주 본 정도(세계 자) — 모서리 광택이 빛 받는 낯에만(edgeShine9 ★)
     if (cls9 > 6.5) {
       float hh9 = max(dot(n, uHalf), 0.0);
       float sp9 = hh9 * hh9; sp9 *= sp9; sp9 *= sp9; sp9 *= sp9; sp9 *= sp9;   // ^32
@@ -636,7 +637,7 @@ const MATX_FS9 = `
       /* 금 — **무늬 없이 질감·상처·광택**(2026-11-01, 요청: "넥서스 이외의 프로토스 건물은 무늬보단 질감과 상처 광택 등") + 모서리 마모(옅은 금 · 같은 날 "모서리 마모 등도"). */
       vec3 an9 = abs(vMn.xyz);
       /* 금 질감(goldTex9 — 망치 자국·광택 얼룩·상처)은 걷었다(2026-11-01 "프로토스 얼룩이 아직도 남는 것 같아" → 시안 E · "금 질감은 빼도 광택은 더") — 광택은 GLOSS_TOSS9 가 올린다. */
-      c = edgeShine9(c, px9, k9, lc9);   // 모서리 광택(마모 대신 · 아래 edgeShine9 ★)
+      c = edgeShine9(c, px9, k9, vLt);   // 모서리 광택(마모 대신 · 아래 edgeShine9 ★)
     } else if (cl9 == 6) {
       /* 프로토스 건물 금 — **띠 무늬**(2026-11-01, 요청: "프로토스 건물은 사진 참고해서 결(무늬)로 대체" · 사진: 넥서스 원작 판) — 높이 방향으로 띠(1.25칸)를
          두르고 띠마다 무늬 하나(지그재그 · 겹친 갈매기 · 빗살 홈 · 민 띠) · 띠 사이 경계 홈 · 띠마다 밝은 금 ↔ 짙은 호박 엇갈림 · 새긴 홈은 어둡게 + 위 가장자리 밝게(양각 느낌). 띠 하나가 화면에서 10화소 아래면 무늬는 녹이고 색 띠만 남는다. */
@@ -679,7 +680,7 @@ const MATX_FS9 = `
       c += k9 * 0.06 * lip9 * lc9 * det9;
       /* 넥서스도 다른 건물처럼 질감·상처·광택 얼룩 + 모서리 마모(2026-11-01 되요청: "넥서스도 다른 건물처럼 광택 얼룩 등은 다 있어야지 모서리 마모 등도"). */
       /* 금 질감(goldTex9 — 망치 자국·광택 얼룩·상처)은 걷었다(2026-11-01 "프로토스 얼룩이 아직도 남는 것 같아" → 시안 E · "금 질감은 빼도 광택은 더") — 광택은 GLOSS_TOSS9 가 올린다. */
-      c = edgeShine9(c, px9, k9, lc9);   // 모서리 광택(마모 대신 · 아래 edgeShine9 ★)
+      c = edgeShine9(c, px9, k9, vLt);   // 모서리 광택(마모 대신 · 아래 edgeShine9 ★)
     } else if (cl9 == 3) {
       /* 살 — 반점(어두운 얼룩) · 드문 혈관(가는 꼬인 줄 · 따로 고른 자리에만) · 그늘 쪽 붉은 비침. */
       float m9 = fbm9(p9 * 1.4, px9);
@@ -752,11 +753,12 @@ float edgePx9() {
   return e9;
 }
 /** ★ 모서리 광택(2026-11-01, 요청: "프로토스는 마모가 아니라 모서리 광택으로 변경") — 닦은 금의 날이 빛을 받아 **끊김 없이 가늘게** 반짝인다:
- *  날카로운 모서리(edgePx9) 곁 0.6~1.3화소를 따뜻한 흰빛으로 더한다 · 밝은 낯(lc 휘도 = 빛 받음)일수록 세다. 마모(edgeWear9)의 군데군데 끊김(chip)·벗겨진 쇠 색은 없다. */
-vec3 edgeShine9(vec3 c, float px9, float k9, float lc9) {
+ *  날카로운 모서리(edgePx9) 곁 0.6~1.3화소를 따뜻한 흰빛으로 더한다 · 빛을 마주 본 낯(vLt)일수록 세고 그늘 낯엔 없다. 마모(edgeWear9)의 군데군데 끊김(chip)·벗겨진 쇠 색은 없다. */
+vec3 edgeShine9(vec3 c, float px9, float k9, float lt9) {
   float w9 = clamp(0.022 * px9, 0.6, 1.3);
   float e9 = 1.0 - smoothstep(0.25 * w9, w9, edgePx9());
-  return c + k9 * 0.65 * e9 * (0.25 + 0.75 * lc9) * vec3(1.0, 0.96, 0.84);
+  /* (같은 날 "모서리 광택이 명암부 상관없이 붙어서 어색") — 세기를 낯 휘도(금은 그늘에서도 밝다)가 아니라 **빛을 마주 본 정도**(vLt = N·L · 정점)로 — 그늘 낯은 0. */
+  return c + k9 * 0.70 * e9 * smoothstep(0.20, 0.70, lt9) * vec3(1.0, 0.96, 0.84);
 }
 /** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
 vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
@@ -1358,9 +1360,9 @@ export class GlUnits9 implements VecSink9 {
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
     /* 재질 결 시안(#matx · 위 MATX_VS9 ★) — 켰을 때만 varying 둘·유니폼 둘을 더한 변형으로 짓는다. */
     const mx9 = MATX9 > 0 && this.gl2;   // 모서리 마모가 fwidth(ES 3.00)를 쓴다 — WebGL1 은 시안 없이
-    const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; uniform vec2 uMat; attribute vec4 aEdg;\n")
-      .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg;\n" + MATX_VS9);
-    const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd;\n" + MATX_FN9)
+    const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt; uniform vec2 uMat; attribute vec4 aEdg;\n")
+      .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
+    const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;");   // glA9 — 유리 투명(MATX_FS9 cl 7)
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
