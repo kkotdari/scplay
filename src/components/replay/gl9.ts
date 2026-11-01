@@ -75,7 +75,10 @@ export interface GlMesh9 { vbo: WebGLBuffer; n: number; nSolid: number; bias: nu
   /** 임자색 낯이 있나 — 없으면 스프라이트 열쇠가 색을 안 가른다(자원·중립·간헐천이 한 벌). */
   team: boolean;
   /** 켜짐 마스크 벌(op.litMask)이 처음 지난 켜짐 색(0~1) — 붙일 때 켜 × 이 색을 더한다(켜짐 켜 ★). */
-  litColor?: [number, number, number] }
+  litColor?: [number, number, number];
+  /** ★ 나중에 지을 메시(2026-11-01, 요청: "아틀라스로 다 그릴 수 있는 종류는 메시를 짓지 않거나 나중에 짓기" — "너무 당연한 거다 꼭 해줘") — 아틀라스에 칸이 있는 메시는
+   *  이름표(key·임자색·빛 켜·광택)만 들고 꼭짓점·VBO 는 비운다. 꼭짓점이 처음 필요할 때(발자국 · 메시 길 · 굽기 · 안 그림자) ensureGeo9 가 짓고 이 자리를 지운다. */
+  lazy?: { run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }; bias0: number; glow: boolean; after?: (m: GlMesh9) => void } }
 
 /* 정점 36바이트(예전 float 15개 60바이트): pos3·nrm3(빌보드면 원반 가운데) float · rgb3+team1 바이트(정규화) · alpha·덧칠 흰·검·빌보드 바이트(정규화) ·
    부품 차례 float. 0~1 값은 바이트 정규화로 충분하다(색 자체가 8비트, 알파·덧칠 1/255). 폰에서 메시 표(상한 240벌)가 메모리의 큰 몫이라 줄였다. */
@@ -87,6 +90,10 @@ export const MATX9 = ((): number => {
   const v = m[1] ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(3, v)) : 1;
 })();
+/** 굴뚝표(gas)를 빌더가 돌 때 내는 종류 — 나중에 지을 메시(GlMesh9.lazy)에서 뺀다(붓이 프레임마다 mesh.gas 를 본다). */
+const GAS_KINDS9 = new Set(["refinery", "assim", "extract", "geyser"]);
+/** 나중에 지을 메시 손잡이 — #lazymesh=0 이면 끈다(견줌용 · 2026-11-01). */
+const LAZY_MESH9 = !(typeof location !== "undefined" && /(?:^|[#&,])lazymesh=0(?=$|[&,])/.test(location.hash));
 /* 재질 결 시안(#matx)을 켜면 정점 끝에 4바이트(aEdg — 삼각형 꼭짓점 표식 3 + 날카로운 모서리 비트 1)를 더 싣는다 — 끄면 옛 36 그대로. */
 const STRIDE_B = MATX9 > 0 ? 40 : 36;
 const STRIDE_F9 = STRIDE_B / 4;
@@ -1267,7 +1274,7 @@ export class GlUnits9 implements VecSink9 {
   /** evict: 상한에 걸려 버린 메시 수(누적) — **0 이 아니면 보관함이 좁다**. 늘 굽고 있다는 뜻이라 진단에 낸다. */
   stat = {
     /** 바닥 도형(링·타원·체력바 네모) 수 — 한 드로 콜. */ prims: 0,
-    /** 효과 삼각형 수(glctx9 심). */ fxTris: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, draws: 0, swarm: 0,
+    /** 효과 삼각형 수(glctx9 심). */ fxTris: 0, inst: 0, tris: 0, bakeMs: 0, frameBakeMs: 0, meshes: 0, slots: 0, depthBits: 0, bytes: 0, bloom: 0, evict: 0, scrubSkip: 0, lazy: 0, lazyBuilt: 0, draws: 0, swarm: 0,
     /** 드로 콜 갈래(2026-10-27 · 아래 '드로 콜 갈래 세기') — 바닥(p)·판(s)·효과(v)·스웜(w)·번짐 사각(f). 나머지가 메시다. */ dp: { p: 0, s: 0, v: 0, w: 0, f: 0 } };
   /** 이번 flush 안에서 지은 ms — 끌기 예산의 자(flush 마다 0). frameBakeMs 는 시계가 따로 읽어 비우므로 못 쓴다. */
   private scrubMs = 0;
@@ -1498,6 +1505,10 @@ export class GlUnits9 implements VecSink9 {
   private sprPages: SprPage9[] = [];
   /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
   private sprFixed: SprPage9[] = [];
+  /** 아틀라스 칸 열쇠에서 뽑은 메시 이름표(2026-11-01 · 위 GlMesh9.lazy ★) — 실린 메시 · 메시·카메라·그림자 → 찍는 단(qk · sprLv9 가 꼭짓점 없이 쓴다) · 빛 켜가 있는 메시. */
+  private sprFixedMesh = new Set<string>();
+  private sprFixedLv = new Map<string, number>();
+  private sprFixedEmit = new Set<string>();
   private sprFixedCells = new Map<string, SprCell9>();
   /** 고정 판의 GPU 바이트 합(MB) — 동적 판 바이트 상한(sprBytesMax)에서 뺀다. */
   sprFixedMB = 0;
@@ -1648,6 +1659,7 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 땅에 눕힌 그림자의 상자(모형 자 · 앵커 기준) — 정점 셰이더의 그림자 식 그대로(빛 방향으로 밀고 z 를 0 으로). */
   private shadowFoot9(mesh: GlMesh9, yawDeg: number, cam: GlCam9): GlFoot9 {
+    if (mesh.lazy) this.ensureGeo9(mesh);
     const yk = Math.round(yawDeg); const key = `s${yk}|${cam.key}`;
     const got = mesh.foot.get(key); if (got) return got;
     const th = (yk * Math.PI) / 180; const c = Math.cos(th); const sn = Math.sin(th);
@@ -1666,6 +1678,7 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 메시의 정점 속성 여덟 + 메시마다의 광택 유니폼(지도 패스·스프라이트 굽기가 같이 쓴다). */
   private bindMesh9(mesh: GlMesh9): void {
+    if (mesh.lazy) this.ensureGeo9(mesh);
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
     const U = gl.UNSIGNED_BYTE;
@@ -1718,6 +1731,7 @@ export class GlUnits9 implements VecSink9 {
   private sprLv9(mesh: GlMesh9, cam: GlCam9, sh: boolean): number {
     const lk = `${mesh.key}|${cam.key}|${sh ? 1 : 0}`;
     const got = this.sprLv.get(lk); if (got !== undefined) return got;
+    const fx9 = this.sprFixedLv.get(lk); if (fx9 !== undefined) { this.sprLv.set(lk, fx9); return fx9; }   // 아틀라스가 적어 둔 단(꼭짓점 없이 · 위 GlMesh9.lazy ★)
     /* ★ 딸림 부품은 **몸의 단**으로(2026-10-29 · 로컬 굽기: 성큰 혀 묶음이 basisu 에서 넘어졌다) — 제 상자로 재면 작은 부품이라 상한(512)까지 크게 구워져
        (혀 128칸 × ~1000px → 묶음 높이가 수만 px) 몸보다 몇 배 고운 칸이 된다. 붓은 몸과 같은 배율(k)로 붙이므로 몸의 단이면 같은 결이다. */
     const body9 = SPR_ATTACH_BODY9[mesh.key.split(":")[1] ?? ""];
@@ -1861,6 +1875,13 @@ export class GlUnits9 implements VecSink9 {
     for (const c of cells) {
       const cell: SprCell9 = { page: pg, px: c.px, py: c.py, w: c.w, h: c.h, x0: c.x0, y0: c.y0, kd: c.kd };
       this.sprFixedCells.set(c.key, cell); this.sprMap.set(c.key, cell); pg.keys.push(c.key); n += 1;
+      /* 메시 이름표(위 sprFixedMesh ★) — 열쇠 = 메시|카메라|요잉칸|단|색|빛상자r|빛상자cy|그림자. */
+      const p9 = c.key.split("|");
+      if (p9.length >= 8) {
+        this.sprFixedMesh.add(p9[0]);
+        this.sprFixedLv.set(p9[0] + "|" + p9[1] + "|" + p9[p9.length - 1], Number(p9[3]));   // 이어 붙임(역따옴표는 아틀라스 판 해시가 잰다)
+        if (em) this.sprFixedEmit.add(p9[0]);
+      }
     }
     return n;
   }
@@ -1908,6 +1929,7 @@ export class GlUnits9 implements VecSink9 {
     if (!sb9 || !scr9) return false;
     /* 모형 반지름(겹치지 않는 꼭짓점 · 요잉과 무관) — 빛 판의 정사영 상자. 메시마다 한 번. */
     const mm9 = m as GlMesh9 & { ishR9?: number };
+    if (m.lazy) this.ensureGeo9(m);
     if (mm9.ishR9 === undefined) { let r9 = 0.5; const v9 = m.pts; for (let i9 = 0; i9 + 2 < v9.length; i9 += 3) r9 = Math.max(r9, Math.hypot(v9[i9], v9[i9 + 1], v9[i9 + 2])); mm9.ishR9 = r9 * 1.02; }
     const R9 = mm9.ishR9;
     /* 빛 축 — 안 그림자 빛(ISH_L9 · 세계 자 · 요잉 뒤의 꼭짓점과 같은 자). U·V 는 빛에 수직인 판 · 깊이 = −L(빛에 가까울수록 작다 → LESS 가 가장 가까운 낯을 남긴다). */
@@ -2595,7 +2617,7 @@ export class GlUnits9 implements VecSink9 {
     gl.disableVertexAttribArray(fx.aXY);
   }
   /** 열쇠별 메시 — 처음 볼 때 run()(빌더를 요잉 0 으로 한 번 돌리는 일, 1~7ms)으로 짓는다. 못 지으면 null 로 굳는다. */
-  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.18, glow = false): GlMesh9 | null {
+  private meshFor(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.18, glow = false, after?: (m: GlMesh9) => void): GlMesh9 | null {
     const got = this.meshes.get(key);
     /* ★ 찾았으면 **맨 뒤로 옮긴다**(2026-09, 지적: "모바일에서 화면 이동도 안 하고 유닛 변화도 거의 없는데
        모델 굽는 중이 계속 나오는 현상") ───────────────────────────────────────────────────────────
@@ -2607,6 +2629,43 @@ export class GlUnits9 implements VecSink9 {
     if (got !== undefined) { this.meshes.delete(key); this.meshes.set(key, got); return got; }
     // 끌기 중 예산 초과 — 굳히지 않고 이번 프레임만 건너뛴다(위 glScrubSet9 의 ★★).
     if (GL_SCRUB9 && this.scrubMs >= SCRUB_BAKE_MS9) { this.stat.scrubSkip += 1; return null; }
+    /* ★ **아틀라스에 칸이 있는 메시는 나중에 짓는다**(위 GlMesh9.lazy ★) — 이름표만 든 벌을 돌려주고 꼭짓점이 처음 필요할 때(ensureGeo9) 짓는다.
+       빌더를 안 돌리므로 굴뚝표(gas)를 모르는 종류(가스 건물·간헐천)와 발광 종류(glow · 메시 길)는 바로 짓는다. 덤프(sprDumpQ) 중에도 바로. */
+    const kind9 = key.split(":")[1] ?? "";
+    let mesh: GlMesh9 | null;
+    if (!glow && this.sprDumpQ === 0 && this.sprFixedMesh.has(key) && !GAS_KINDS9.has(kind9) && LAZY_MESH9) {
+      mesh = { vbo: null as unknown as WebGLBuffer, n: 0, nSolid: 0, bias: GL_BIAS9 >= 0 ? GL_BIAS9 : bias0, pts: new Float32Array(0), bytes: 0, cols: 0, foot: new Map(),
+        gloss: glossOfKey9(key), emit: this.sprFixedEmit.has(key), key, team: true, lazy: { run, bias0, glow, after } };
+      this.stat.lazy += 1;
+    } else {
+      mesh = this.buildMesh9(key, run, bias0, glow);
+      if (mesh) after?.(mesh);
+    }
+    /* 가장 **안 쓴** 것부터 버린다(Map 차례가 곧 쓴 차례다) — 포탑 각·건설 단계처럼 열쇠가 잘게 갈리는 건물이 쌓이지 않게. while 인 까닭은 단이 상한을 **내릴** 수도 있기 때문이다. */
+    while (this.meshes.size >= this.meshMax) {
+      const first = this.meshes.keys().next();
+      if (first.done) break;
+      const m = this.meshes.get(first.value);
+      if (m) { if (m.vbo) this.gl.deleteBuffer(m.vbo); this.stat.bytes -= m.bytes; }
+      this.meshes.delete(first.value);
+      this.stat.evict += 1;
+    }
+    this.meshes.set(key, mesh);
+    return mesh;
+  }
+  /** 나중에 지을 메시(위 GlMesh9.lazy ★)를 지금 짓는다 — 같은 객체에 꼭짓점·VBO 를 채운다(붓·큐가 이 객체를 들고 있다). 못 지으면 빈 벌(n 0)로 굳는다. */
+  ensureGeo9(m: GlMesh9): void {
+    const lz = m.lazy; if (!lz) return;
+    m.lazy = undefined;
+    const full = this.buildMesh9(m.key, lz.run, lz.bias0, lz.glow);
+    this.stat.lazyBuilt += 1;
+    if (!full) return;
+    m.vbo = full.vbo; m.n = full.n; m.nSolid = full.nSolid; m.bias = full.bias; m.pts = full.pts; m.bytes = full.bytes; m.cols = full.cols;
+    m.emit = full.emit; m.team = full.team; m.gloss = full.gloss;
+    lz.after?.(m);
+  }
+  /** 메시를 짓는다(빌더 → 삼각화 → VBO) — meshFor·ensureGeo9 가 부른다. */
+  private buildMesh9(key: string, run: () => { parts: { polys: number[][]; fill: string; alpha: number; team: boolean; ow: number; ob: number; bb?: boolean; solid?: boolean; flip?: boolean; flips?: boolean[]; emit?: boolean }[] }, bias0 = 0.18, glow = false): GlMesh9 | null {
     const t0 = performance.now();
     let mesh: GlMesh9 | null = null;
     try {
@@ -2745,17 +2804,6 @@ export class GlUnits9 implements VecSink9 {
     } catch (e) { console.warn("[gl9] 메시", key, e); }
     const ms0 = performance.now() - t0;
     this.stat.bakeMs += ms0; this.stat.frameBakeMs += ms0; this.scrubMs += ms0;
-    /* 가장 **안 쓴** 것부터 버린다(위 ★ 로 Map 차례가 곧 쓴 차례다) — 포탑 각·건설 단계처럼 열쇠가 잘게
-       갈리는 건물이 쌓이지 않게. while 인 까닭은 단이 상한을 **내릴** 수도 있기 때문이다(그때 한 번에 줄인다). */
-    while (this.meshes.size >= this.meshMax) {
-      const first = this.meshes.keys().next();
-      if (first.done) break;
-      const m = this.meshes.get(first.value);
-      if (m) { this.gl.deleteBuffer(m.vbo); this.stat.bytes -= m.bytes; }
-      this.meshes.delete(first.value);
-      this.stat.evict += 1;
-    }
-    this.meshes.set(key, mesh);
     return mesh;
   }
   /** 유닛 메시 — 종류·자세(머리 요잉 0). */
@@ -2768,8 +2816,7 @@ export class GlUnits9 implements VecSink9 {
       poseSet9(pose); headYawSet(0); gasEmitTake9();
       // 판(rasterUnit9)과 같은 등급 걸러내기: 자동 등급표(autoTier — 부품 크기로 등급을 다시 매긴다) 뒤에 lodFilter.
       try { const r = collectMesh9(b, lod >= 3 ? undefined : (f: ShapeFace[]) => lodFilter(autoTier(kind, `gl|u|${kind}|${pose}`, f), lod), GL_GLOW_KINDS9.has(kind)); gas9 = gasEmitTake9(); return r; } finally { poseSet9(prevPose); }
-    }, GL_GLOW_KINDS9.has(kind) ? 0 : undefined, GL_GLOW_KINDS9.has(kind));
-    if (m && gas9 && (gas9 as GasEmit9[]).length) m.gas = gas9;
+    }, GL_GLOW_KINDS9.has(kind) ? 0 : undefined, GL_GLOW_KINDS9.has(kind), (mm) => { if (gas9 && (gas9 as GasEmit9[]).length) mm.gas = gas9; });
     return m;
   }
   /** 건물 메시 — 종류 · 건설 단계 · 불빛 · 회전 칸 · 포탑 각(rasterBld9 와 같은 깃발·같은 열쇠 조각). */
@@ -2802,10 +2849,21 @@ export class GlUnits9 implements VecSink9 {
          보이고, 더 밀면 벽 앞으로 튀어나온 부품(보급고 임자색 상자, 0.5칸)을 거꾸로 덮는다. 좁은 창의 가운데 값이다. */
       /* ★ 굴뚝은 메시가 아니라 **표**로 나온다(bake9 gasPuffs9 의 ★★) — 빌더가 돌며 적은 것을 걷어 그 벌에 붙인다. */
       let gas9: GasEmit9[] | null = null;
-      const m = this.meshFor(key, () => { set(); gasEmitTake9(); const r = collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg, op.kind), GL_GLOW_KINDS9.has(op.kind)); gas9 = gasEmitTake9(); return r; }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 0.25, GL_GLOW_KINDS9.has(op.kind));
-      if (m && gas9 && (gas9 as GasEmit9[]).length) m.gas = gas9;
-      /* 켜짐 마스크 벌(op.litMask)이 처음 지난 켜짐 색 — 지금 막 지었을 때만 값이 있다(캐시된 벌은 이미 들고 있다). */
-      if (m && op.litMask && !m.litColor) { const lc9 = litColorTake9(); if (lc9) m.litColor = hexRgb(lc9); }
+      /* 나중에 지을 때(ensureGeo9)도 빌더 전역(포탑 각·불빛·회전 칸·자세)을 이 벌의 값으로 놓고 되돌린다 — 그때는 아래 finally 밖이다. */
+      let lc9: string | null = null;
+      const m = this.meshFor(key, () => {
+        const qH = headYawNow; const qA = headAimNow; const qL = bldLitNow; const qS = bldSpinNow; const qP = poseNow;
+        try {
+          set(); gasEmitTake9();
+          const r = collectMesh9(b, (f: ShapeFace[]) => stageFaces(lod >= 3 ? f : lodFilter(autoTier(op.kind, `gl|${key}`, f), lod), stg, op.kind), GL_GLOW_KINDS9.has(op.kind));
+          gas9 = gasEmitTake9(); lc9 = op.litMask ? litColorTake9() : null;
+          return r;
+        } finally { headYawSet(qH, qA); bldLitSet(qL); bldLitMaskSet9(false); bldSpinRawSet9(qS); poseSet9(qP); }
+      }, GL_GLOW_KINDS9.has(op.kind) ? 0 : 0.25, GL_GLOW_KINDS9.has(op.kind), (mm) => {
+        if (gas9 && (gas9 as GasEmit9[]).length) mm.gas = gas9;
+        /* 켜짐 마스크 벌(op.litMask)이 처음 지난 켜짐 색 — 지었을 때만 값이 있다(캐시된 벌은 이미 들고 있다). */
+        if (op.litMask && !mm.litColor && lc9) mm.litColor = hexRgb(lc9);
+      });
       return m;
     } finally { headYawSet(pH, pA); bldLitSet(pL); bldLitMaskSet9(false); bldSpinRawSet9(pS); poseSet9(pP); }
   }
@@ -2844,6 +2902,7 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 요잉의 화면 상자 — 모델 16-상자 자. 정점 셰이더와 같은 식으로 모든 꼭짓점을 돌려 재고(메시·각도당 한 번) 기억한다. */
   footOf(mesh: GlMesh9, yawDeg: number, cam: GlCam9 = CAM_TOP9): GlFoot9 {
+    if (mesh.lazy) this.ensureGeo9(mesh);
     const yk = Math.round(yawDeg);
     const key = cam === CAM_TOP9 ? `${yk}` : `${yk}|${cam.key}`;
     const got = mesh.foot.get(key);
@@ -3101,6 +3160,13 @@ export class GlUnits9 implements VecSink9 {
     /* 스프라이트로 그리는 몸·그림자는 메시 무리에서 뺀다 — 땅에 눕는 그림자는 제 칸이, 떠서 밀리는 그림자는 몸 칸이 있어야 빠진다. */
     const sprBody = (i: number): boolean => !!(sprB && sprB[i]);
     const sprShad = (it: GlInst9, i: number): boolean => !!it.shadow && (it.shadow.ground ? !!(sprS && sprS[i]) : sprBody(i));
+    /* 나중에 지을 메시(GlMesh9.lazy ★) — 판(아틀라스 칸)으로 못 그리는 몸·그림자만 **지금** 짓는다. 무리 그리기가 꼭짓점 수(n·nSolid)를 묶기 전에 읽으므로 여기서 먼저. */
+    for (let i = 0; i < q.length; i += 1) {
+      const it = q[i];
+      if (sprBody(i) && !(it.shadow && !sprShad(it, i))) continue;
+      if (it.mesh.lazy) this.ensureGeo9(it.mesh);
+      if (it.meshLt?.lazy) this.ensureGeo9(it.meshLt);
+    }
     const shG = groupsOf((it, i) => !!it.shadow && !sprShad(it, i));
     const opG = groupsOf((it, i) => isOpq(it) && !sprBody(i));
     /* ★ 불투명 개체의 **반투명 꼬리**(nSolid 뒤의 부품 — 유리·빛무리·옅은 그늘)도 메시 무리로 그린다. 큐 차례를 지키면 개체마다

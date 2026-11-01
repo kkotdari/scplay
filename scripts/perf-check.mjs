@@ -755,7 +755,16 @@ const launchOpt = exe
 /* 새 크로미엄은 옛 헤드리스(--headless=old)를 아예 걷어냈다 — 플레이라이트가 그 깃발을
    붙이는 판이면 창이 열리자마자 죽는다. 그때는 헤드리스를 끄고(headless:false) 새
    헤드리스 깃발을 손으로 붙인다(model-shot.mjs 등이 쓰는 그 길). */
-const browser = ENGINE === "webkit"
+/* PW_PROFILE=DIR(2026-11-01) — 브라우저 저장소(IndexedDB 등)를 그 폴더에 이어 쓴다: 두 번 돌려 둘째 판이 푼 아틀라스 캐시(sprAtlas9 ★)를 쓰는지 본다
+   ([진단] 아틀라스 줄의 '캐시 n/m켜'). 크로미엄만 · 창 꼴은 아래 newPage 와 같은 값을 맥락에 준다. */
+const PROFILE9 = process.env.PW_PROFILE || "";
+let persist9 = null;
+if (PROFILE9 && ENGINE !== "webkit") {
+  const vw9 = Number(flag("--vw", WIDE ? 1280 : 390)); const vh9 = Number(flag("--vh", WIDE ? 900 : 844));
+  persist9 = await chromium.launchPersistentContext(PROFILE9, { ...launchOpt, viewport: { width: vw9, height: vh9 }, screen: { width: vw9, height: vh9 }, deviceScaleFactor: Number(flag("--dpr", 2)) });
+}
+const browser = persist9 ? { newPage: async () => persist9.pages()[0] ?? persist9.newPage(), close: () => persist9.close(), startTracing: () => {}, stopTracing: () => {} }
+  : ENGINE === "webkit"
   ? await webkit.launch()
   : await chromium.launch(launchOpt).catch((e) => {
     if (!/headless/i.test(String(e))) throw e;

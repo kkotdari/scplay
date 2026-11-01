@@ -112,6 +112,69 @@ function poolRun9(pl9: Pool9, buf: ArrayBuffer, tf: number, maxLv: number): Prom
     pl9.ws[k9].postMessage({ id: id9, buf, tf, maxLv }, [buf]);
   });
 }
+/* ★ **푼 단 캐시**(IndexedDB · 2026-11-01, 요청: "그래픽 소스를 유저스토리지에 캐시해서 빠르게" → "둘 다 진행") ──
+   KTX2 를 기기 형식으로 푸는 일이 첫 판의 큰 몫이다(PC 실측 7.1초 중 풀기 5.0초 · 폰은 워커 1). 푼 단들을 켜 파일 이름(내용 해시가 든다) · 기기 형식(tf) · 단 수로 열쇠 삼아
+   담아 두고 다음에 오면 받기·풀기를 건너뛴다. 다시 구운 파일은 이름이 바뀌어 저절로 새로 받고, 지금 판에 없는 열쇠(옛 해시 · 다른 형식)는 다 실은 뒤 걷는다(cachePrune9).
+   쓰기는 저장소 몫(navigator.storage.estimate)의 40% · 부른 쪽 상한(opt.cacheMB · RMP 폰 400MB · PC 1500MB) 안에서만 — 넘거나 쓰기가 한 번 실패하면 그 판은 더 안 쓴다. #sprcache=0 이면 끈다. */
+const IDB9 = "scplay-spr"; const IDB_ST9 = "lv";
+let dbP9: Promise<IDBDatabase | null> | null = null;
+function db9(): Promise<IDBDatabase | null> {
+  if (dbP9) return dbP9;
+  if (typeof indexedDB === "undefined" || (typeof location !== "undefined" && /(?:^|[#&,])sprcache=0(?=$|[&,])/.test(location.hash))) return (dbP9 = Promise.resolve(null));
+  dbP9 = new Promise<IDBDatabase | null>((res) => {
+    let rq: IDBOpenDBRequest;
+    try { rq = indexedDB.open(IDB9, 1); } catch { res(null); return; }
+    const to9 = setTimeout(() => res(null), 3000);   // 열기가 막히면(다른 탭의 옛 판 · 사생활 창) 캐시 없이 간다
+    rq.onupgradeneeded = () => { try { rq.result.createObjectStore(IDB_ST9); } catch { /* 이미 있다 */ } };
+    rq.onsuccess = () => { clearTimeout(to9); res(rq.result); };
+    rq.onerror = () => { clearTimeout(to9); res(null); };
+    rq.onblocked = () => { clearTimeout(to9); res(null); };
+  });
+  return dbP9;
+}
+function cacheGet9(db: IDBDatabase, key: string): Promise<Levels9 | null> {
+  return new Promise<Levels9 | null>((res) => {
+    try {
+      const rq = db.transaction(IDB_ST9, "readonly").objectStore(IDB_ST9).get(key);
+      rq.onsuccess = () => {
+        const v9 = rq.result as Levels9 | undefined;
+        res(Array.isArray(v9) && v9.length > 0 && v9.every((x) => x && x.data instanceof Uint8Array && x.w > 0 && x.h > 0) ? v9 : null);
+      };
+      rq.onerror = () => res(null);
+    } catch { res(null); }
+  });
+}
+/** 쓰기 몫(MB) — 첫 쓰기 때 한 번 잰다 · 음수면 그 판은 더 안 쓴다. */
+let cacheRoom9: Promise<number> | null = null;
+function cachePut9(db: IDBDatabase, key: string, lv: Levels9, cap9: number): void {
+  const mb9 = lv.reduce((s9, x) => s9 + x.data.byteLength, 0) / 1048576;
+  cacheRoom9 ??= (async () => {
+    try { const e9 = await navigator.storage?.estimate?.(); if (e9 && e9.quota) return Math.min(cap9, (e9.quota * 0.4 - (e9.usage ?? 0)) / 1048576); } catch { /* 모른다 */ }
+    return cap9 / 2;
+  })();
+  void cacheRoom9.then((room9) => {
+    if (room9 < mb9) return;
+    cacheRoom9 = Promise.resolve(room9 - mb9);
+    try {
+      const tx9 = db.transaction(IDB_ST9, "readwrite");
+      tx9.objectStore(IDB_ST9).put(lv.map((x) => ({ w: x.w, h: x.h, data: x.data })), key);
+      tx9.onerror = () => { cacheRoom9 = Promise.resolve(-1); };
+      tx9.onabort = () => { cacheRoom9 = Promise.resolve(-1); };   // 몫 넘침(QuotaExceededError)
+    } catch { cacheRoom9 = Promise.resolve(-1); }
+  });
+}
+/** 지금 판(표)의 켜 파일에 없는 열쇠를 걷는다 — 옛 해시 · 다른 기기 형식. 한 탭에서 한 번. */
+let pruned9 = false;
+function cachePrune9(db: IDBDatabase, idx: Index9, tf: number): void {
+  if (pruned9) return; pruned9 = true;
+  const live9 = new Set<string>();
+  for (const e of Object.values(idx.kinds)) for (const ch of [e.a, e.b]) if (ch) for (const fs of [ch.files.f, ch.files.h]) for (const f of Object.values(fs ?? {})) live9.add(f + "|" + tf);
+  try {
+    const st9 = db.transaction(IDB_ST9, "readwrite").objectStore(IDB_ST9);
+    const rq = st9.getAllKeys();
+    rq.onsuccess = () => { for (const k of rq.result as string[]) { const p9 = String(k).split("|"); if (!live9.has(p9[0] + "|" + p9[1])) st9.delete(k); } };
+  } catch { /* 걷기는 다음 판에 */ }
+}
 /** 이 GL 벌에 이미 실은 묶음(종류.a/b.f/h) — 예열이 다시 돌아도 두 번 안 싣는다. */
 const loaded9 = new WeakMap<GlUnits9, Set<string>>();
 /** 이 벌에서 싣기에 실패한 묶음(풀기 실패 · 텍스처 상한 초과 등) — 벌이 판을 넘어 살므로 판마다 다시 받지 않게 적어 둔다(2026-10-26). */
@@ -120,6 +183,8 @@ const failed9 = new WeakMap<GlUnits9, Set<string>>();
 export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: string; chunks: number; miss: number; kept: number; dropped: number;
   /** 받기를 기다린 ms(풀기가 다음 묶음을 기다리며 선 때) · 풀고 올린 ms · 받은 바이트(MB) — 오래 걸리는 몫이 망인지 풀기인지 가르는 자(2026-10-26). */
   waitMs: number; workMs: number; netMB: number;
+  /** 푼 단 캐시(위 ★)에서 꺼낸 켜 수 / 이번에 다룬 켜 수 · 꺼낸 MB. */
+  hit: number; layers: number; hitMB: number;
   /** 풀기 워커 수(0 = 메인 스레드) · 앞 종류(core)가 다 실린 ms(재생이 시작할 수 있는 때). */
   workers: number; coreMs: number; err?: string }
 /** 경기 종류들의 아틀라스를 싣는다 — kinds 는 많이 쓰는 차례 · mbCap 을 넘으면 거기서 멈춘다(나머지는 재생 중 굽기).
@@ -127,17 +192,19 @@ export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: str
  *  `pending` 은 아직 안 실린 종류를 담고 실릴 때마다 뺀다(예열이 그 종류의 동적 미리 굽기를 건너뛰는 자) — 다 끝나면 비운다. */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; odd: boolean; em: boolean; mbCap: number;
   core?: number; onCore?: () => void; pending?: Set<string>; workers?: number;
+  /** 푼 단 캐시(위 ★)에 쓸 상한 MB(저장소 몫의 40% 와 작은 쪽). */
+  cacheMB?: number;
   /** 앞 종류(core) 묶음의 처리 수 / 전체 — 로딩 진행도(RMP onLoadProgress)의 몫(2026-11-01). */
   onProgress?: (done: number, total: number) => void }): Promise<SprAtlasLoad9> {
   let cored9 = false;
   const core9 = (): void => { if (!cored9) { cored9 = true; opt.onCore?.(); } };
   const t0 = performance.now();
-  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0, kept: 0, dropped: 0, waitMs: 0, workMs: 0, netMB: 0, workers: 0, coreMs: 0 };
+  const r: SprAtlasLoad9 = { cells: 0, mb: 0, ms: 0, fmt: "-", chunks: 0, miss: 0, kept: 0, dropped: 0, waitMs: 0, workMs: 0, netMB: 0, hit: 0, layers: 0, hitMB: 0, workers: 0, coreMs: 0 };
   if (!sprAtlasOn9() || !g9.sprTint || !g9.gl2) { r.err = !g9.sprTint ? "임자색 분리 없음" : "꺼짐"; core9(); opt.pending?.clear(); return r; }
   try {
     const idx = await index9();
     if (!idx) { r.err = "판 없음"; return r; }
-    const [M, pl9] = await Promise.all([basis9(), pool9(opt.workers)]);
+    const [M, pl9, db] = await Promise.all([basis9(), pool9(opt.workers), db9()]);
     r.workers = pl9 ? pl9.ws.length : 0;
     const fmt = g9.sprAtlasFmt9(); r.fmt = fmt.name;
     /* 압축 확장이 하나도 없으면(RGBA 로 푼다) 화소당 4 바이트라 — 반 해상도로 내리고 상한을 죈다. */
@@ -175,14 +242,27 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     type Prep9 = { ok: boolean; c: Levels9 | null; t: Levels9 | null; e: Levels9 | null };
     const lv9 = (b: ArrayBuffer | null | undefined): Promise<Levels9 | null> => (!b ? Promise.resolve(null)
       : pl9 ? poolRun9(pl9, b, fmt.tf, 6) : Promise.resolve(transcode9(M, b, fmt.tf, 6)));
+    const cap9 = opt.cacheMB ?? 400;
+    /** 켜 하나 — 캐시(위 푼 단 캐시 ★)에 있으면 그것 · 없으면 받아 풀고 담는다. got 거짓 = 받기 실패(망 · 다음 판에 다시) · lv null = 풀기 실패. */
+    const layer9 = (j: (typeof jobs)[number], ly: string): Promise<{ got: boolean; lv: Levels9 | null }> => {
+      const ck9 = j.ch.files[opt.res][ly] + "|" + fmt.tf + "|6";
+      r.layers += 1;
+      return (db ? cacheGet9(db, ck9) : Promise.resolve(null)).then((hit9) => {
+        if (hit9) { r.hit += 1; r.hitMB += hit9.reduce((s9, x) => s9 + x.data.byteLength, 0) / 1048576; return { got: true, lv: hit9 }; }
+        return fetch(url(j, ly)).then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null).then((b) => {
+          if (!b) return { got: false, lv: null };
+          r.netMB += b.byteLength / 1048576;
+          return lv9(b).then((lv) => { if (lv && db) cachePut9(db, ck9, lv, cap9); return { got: true, lv }; });
+        });
+      });
+    };
     const prep9 = (j: (typeof jobs)[number]): Promise<Prep9> => {
       const lys = j.ch.layers.filter((ly) => (ly !== "e" || opt.em) && !!j.ch.files[opt.res][ly]);
-      return Promise.all(lys.map((ly) => fetch(url(j, ly)).then((x) => (x.ok ? x.arrayBuffer() : null)).then((b) => { if (b) r.netMB += b.byteLength / 1048576; return b; }).catch(() => null)))
-        .then((bs) => {
-          const by = Object.fromEntries(lys.map((ly, i) => [ly, bs[i]])) as Record<string, ArrayBuffer | null>;
-          if (!by.c) return { ok: false, c: null, t: null, e: null };   // 받기 실패(망) — 다음 판에 다시 받는다
-          return Promise.all([lv9(by.c), lv9(by.t), lv9(by.e)]).then(([c, t, e]) => ({ ok: true, c, t, e }));
-        });
+      return Promise.all(lys.map((ly) => layer9(j, ly))).then((xs) => {
+        const by = Object.fromEntries(lys.map((ly, i) => [ly, xs[i]])) as Record<string, { got: boolean; lv: Levels9 | null } | undefined>;
+        if (!by.c?.got) return { ok: false, c: null, t: null, e: null };   // 받기 실패(망) — 다음 판에 다시 받는다
+        return { ok: true, c: by.c.lv, t: by.t?.lv ?? null, e: by.e?.lv ?? null };
+      });
     };
     const win9 = pl9 ? pl9.ws.length * 2 : 6;
     const pend: Promise<Prep9>[] = [];
@@ -219,6 +299,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       await new Promise((res) => setTimeout(res, 0));
     }
     /* 상한에 닿아 멈췄으면 남은 묶음의 풀기 결과는 버린다(워커 일은 이미 돌았다 — 기다리지만 않는다). */
+    if (db) setTimeout(() => cachePrune9(db, idx, fmt.tf), 4000);   // 옛 판 열쇠 걷기(위 푼 단 캐시 ★) — 다 실은 뒤 한숨 돌리고
   } catch (e) { r.err = String((e as Error)?.message ?? e); }
   if (!cored9) r.coreMs = Math.round(performance.now() - t0);
   core9(); opt.pending?.clear();
