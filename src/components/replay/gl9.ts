@@ -619,10 +619,10 @@ const MATX_FS9 = `
       float stk9 = vn9(vec3(p9.x * 2.6, p9.y * 2.6, p9.z * 0.22) + 4.4) * smoothstep(2.0, 4.0, px9 / 2.6);
       float stain9 = smoothstep(0.58, 0.86, stk9) * vert9 * (0.55 + 0.45 * vn9(p9 * 0.4 + 2.0));
       float rust9 = smoothstep(0.60, 0.86, fbm9(p9 * 0.45 + 13.0, px9));
-      c *= 1.0 - k9 * (0.20 * seam9 + 0.30 * dirt9 + 0.16 * (blot9 - 0.5));
-      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.50 * stain9, 0.0, 1.0));
-      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.40 * rust9, 0.0, 1.0));
-      c += k9 * 0.11 * wear9 * (0.55 + 0.45 * lc9) * vec3(0.95, 1.0, 1.06);
+      c *= 1.0 - k9 * (0.18 * seam9 + 0.16 * dirt9 + 0.05 * (blot9 - 0.5));
+      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.22 * stain9, 0.0, 1.0));
+      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.12 * rust9, 0.0, 1.0));
+      c += k9 * 0.05 * wear9 * (0.55 + 0.45 * lc9) * vec3(0.95, 1.0, 1.06);
       c = edgeWear9(c, p9, px9, k9, mix(c, vec3(0.86, 0.90, 0.96), 0.6) * 1.2);   // 모서리 마모 — 칠 벗겨진 맨 쇠
     } else if (cl9 == 2) {
       /* 금 — **무늬 없이 질감·상처·광택**(2026-11-01, 요청: "넥서스 이외의 프로토스 건물은 무늬보단 질감과 상처 광택 등") + 모서리 마모(옅은 금 · 같은 날 "모서리 마모 등도"). */
@@ -680,9 +680,9 @@ const MATX_FS9 = `
       float v9 = abs(vn9(q9) - 0.5);
       float zone9 = smoothstep(0.52, 0.70, vn9(p9 * 0.55 + 5.3));   // 혈관이 지나는 자리만(온몸 그물 막기)
       float vein9 = (1.0 - smoothstep(0.0, 0.035, v9)) * zone9 * smoothstep(2.0, 4.0, px9 / 1.9);
-      c *= 1.0 - k9 * 0.26 * blo9;
-      c = mix(c, c * vec3(0.55, 0.22, 0.32), k9 * 0.50 * vein9);
-      c += k9 * vec3(0.09, 0.015, 0.03) * (1.0 - smoothstep(0.05, 0.45, lc9));
+      c *= 1.0 - k9 * 0.12 * blo9;
+      c = mix(c, c * vec3(0.55, 0.22, 0.32), k9 * 0.35 * vein9);
+      c += k9 * vec3(0.05, 0.01, 0.02) * (1.0 - smoothstep(0.05, 0.45, lc9));
     } else if (cl9 == 4) {
       /* 뼈 — 길이(높이) 방향 줄결 · 작은 구멍 · 누런 얼룩. */
       float st9 = sin(p9.z * 13.0 + vn9(p9 * vec3(2.0, 2.0, 0.6)) * 5.0);
@@ -690,7 +690,7 @@ const MATX_FS9 = `
       float pit9 = smoothstep(0.80, 0.90, vn9(p9 * 7.0)) * smoothstep(2.0, 4.0, px9 / 7.0);
       float yel9 = fbm9(p9 * 0.8 + 7.7, px9);
       c *= 1.0 - k9 * (0.10 * str9 + 0.30 * pit9);
-      c = mix(c, c * vec3(1.0, 0.93, 0.78), k9 * 0.5 * smoothstep(0.45, 0.80, yel9));
+      c = mix(c, c * vec3(1.0, 0.93, 0.78), k9 * 0.2 * smoothstep(0.45, 0.80, yel9));
     } else if (cl9 == 7) {
       /* 보석·유리 — 낯마다 밝음·어둠을 세게(각진 깎은 면) · 날카로운 반짝임 · 낯 모서리 흰 빛줄 · 속 잔 반짝임 · 비스듬한 낯 가장자리 빛. */
       float face9 = vMn.y;
@@ -705,7 +705,7 @@ const MATX_FS9 = `
       /* 껍질 — 잔 점 + 마디 얼룩. */
       float sp9 = vn9(p9 * 6.0) * smoothstep(2.0, 4.0, px9 / 6.0);
       float cel9 = fbm9(p9 * 1.6 + 1.7, px9);
-      c *= 1.0 - k9 * (0.18 * (sp9 - 0.5) + 0.16 * (cel9 - 0.5));
+      c *= 1.0 - k9 * (0.14 * (sp9 - 0.5) + 0.07 * (cel9 - 0.5));
     }
   }
 `;
@@ -743,17 +743,17 @@ vec3 goldTex9(vec3 c, highp vec3 p9, float px9, float k9, vec3 an9, float lc9) {
   float scr9 = max(smoothstep(0.80, 0.90, s19), smoothstep(0.82, 0.92, s29)) * smoothstep(2.0, 4.0, px9 / 24.0)
     * smoothstep(0.45, 0.65, vn9(p9 * 0.6 + 8.0));
   float pol9 = fbm9(p9 * 0.75, px9);
-  c *= 1.0 + k9 * (0.07 * (ham9 - 0.5) + 0.22 * (pol9 - 0.5));
-  c = mix(c, c * vec3(0.92, 0.74, 0.55), clamp(k9 * 0.45 * smoothstep(0.55, 0.20, pol9), 0.0, 1.0));
-  return c + k9 * 0.16 * scr9 * (0.35 + 0.65 * lc9);
+  c *= 1.0 + k9 * (0.05 * (ham9 - 0.5) + 0.07 * (pol9 - 0.5));
+  c = mix(c, c * vec3(0.92, 0.74, 0.55), clamp(k9 * 0.12 * smoothstep(0.55, 0.20, pol9), 0.0, 1.0));
+  return c + k9 * 0.12 * scr9 * (0.35 + 0.65 * lc9);
 }
 /** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
 vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
-  float w9 = clamp(0.05 * px9, 1.0, 3.5);
+  float w9 = clamp(0.03 * px9, 0.8, 2.0);
   float e9 = edgePx9();
   float chip9 = smoothstep(0.30, 0.55, vn9(p9 * 3.2 + 2.2));
   float wear9 = (1.0 - smoothstep(0.35 * w9, w9, e9)) * chip9;
-  return mix(c, max(c, bare), clamp(k9 * 0.75 * wear9, 0.0, 1.0));
+  return mix(c, max(c, bare), clamp(k9 * 0.35 * wear9, 0.0, 1.0));
 }
 `;
 const hexRgb = (s: string): [number, number, number] => {
