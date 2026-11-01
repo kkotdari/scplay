@@ -179,43 +179,38 @@ const TR = (o = {}) => ({ own: 2, hb: 200, st: 4, fight: true, ...o });
    침공은 저그 히드라 20 · 저글링 20 · 울트라 4 · 럴커 4 · 뮤탈 14 / 테란 마린 24 · 파이어뱃 6 · 메딕 7 · 탱크 4 · 레이스 6 · 베슬 2 · 배틀 6(골리앗 뺌). */
 SCENES.플토본진 = {
   pl: [2, 0, 1], force: [1, 2, 2],
-  zoom: 5,
-  /* (같은 날 둘째 손질: 첫 판이 덜 모였고 틀(26타일)이 무대(≈25.4타일)보다 넓어 오른 끝 럴커가 잘렸다) — 건물은 발자국 사이 0.2~0.3타일로 붙이고 틀은 25.2타일 · 아래를 줄였다. */
-  frame: { x0: -14.4, x1: 10.8, y0: -13.2, y1: 7.6 },
+  /* (같은 날 셋째 되요청: "스타게이트 캐리어 뮤탈 제거하고 더 클로즈업 · 다크아칸 기술도 · 다크아칸도 · 배틀크루저도 제거") — 배율 5 → 6.2(틀 ≈20타일 · 무대 폭 안) ·
+     스타게이트 줄을 걷고 시타델 줄을 그 자리로 올림 · 마엘스트롬·다크아콘·캐리어·뮤탈·배틀 뺌 · 미네랄 줄은 왼 끝에 걸친다. */
+  zoom: 6.2,
+  frame: { x0: -12.4, x1: 7.9, y0: -12.6, y1: 3.3 },
   res: [[-13, -10, 0], [-13.5, -8.5, 0], [-14, -7, 0], [-14, -5.5, 0], [-13.5, -4, 0], [-13, -2.5, 0], [-5.5, -10.5, 1]],
   put: [
     ["Nexus", -8.5, -6], ["Assimilator", -5.5, -10.5],
-    ["Probe", -11.8, -8.6, { st: 5, hb: 192 }], ["Probe", -11.6, -6.8, { st: 5, hb: 200 }], ["Probe", -11.8, -5, { st: 5, hb: 180 }], ["Probe", -11.2, -3.4, { st: 5, hb: 170 }],
+    ["Probe", -11.4, -8.6, { st: 5, hb: 192 }], ["Probe", -11.2, -6.8, { st: 5, hb: 200 }], ["Probe", -11.4, -5, { st: 5, hb: 180 }], ["Probe", -10.9, -3.4, { st: 5, hb: 170 }],
     ["Pylon", -10, -10.4], ["Gateway", -1.2, -10.5], ["Pylon", 2.4, -10.4],
     ["Gateway", -4.3, -6], ["Gateway", -0.1, -6, { die: -0.42 }],
     ["Cybernetics Core", -9, -3.3], ["Forge", -5.8, -3.3], ["Pylon", -3, -3.2],
-    ["Stargate", -8.5, -0.4], ["Stargate", -4.3, -0.4], ["Pylon", -1.3, -0.6],
-    ["Citadel of Adun", -9, 2.5], ["Templar Archives", -5.9, 2.5], ["Fleet Beacon", -2.8, 2.5], ["Pylon", 0.1, 2.4],
-    ["Photon Cannon", 2.4, -8.2], ["Photon Cannon", 3, -5.6, { die: -0.14 }], ["Photon Cannon", 1.2, -3.2], ["Photon Cannon", 1.6, -0.4], ["Photon Cannon", 2.4, 2.4],
+    ["Citadel of Adun", -9, -0.4], ["Templar Archives", -5.9, -0.4], ["Fleet Beacon", -2.8, -0.4], ["Pylon", 0.1, -0.5],
+    ["Photon Cannon", 2.4, -8.2], ["Photon Cannon", 3, -5.6, { die: -0.14 }], ["Photon Cannon", 1.6, -3.2], ["Photon Cannon", 2, 0], ["Photon Cannon", 1, 2.2],
     // 지키는 병력
-    ...clump("Zealot", 10, 4.9, -3.4, 1.2, 0.72, F4),
-    ...clump("Dragoon", 6, 4.5, 1, 1.2, 1.02, F4),
-    ...clump("Archon", 2, 5.4, -1.1, 0.5, 1.1, F4),
-    ["High Templar", 3.4, -1.7, { hb: 64 }], ["High Templar", 3.5, 3.8, { hb: 64 }], ["High Templar", 0.8, 4.6, { hb: 64 }], ["Dark Archon", 4.6, -7.6, { hb: 40 }],
-    ...clump("Carrier", 6, -1, 5.6, 2.2, 1.8, { ...F4, hb: 64 }),
+    ...clump("Zealot", 8, 3.9, -4, 1, 0.72, F4),
+    ...clump("Dragoon", 5, 3.7, 1, 0.9, 1.02, F4),
+    ...clump("Archon", 2, 4.6, -1.8, 0.4, 1.1, F4),
+    ["High Templar", 3, -1.8, { hb: 64 }], ["High Templar", 2.6, 2.4, { hb: 64 }],
     // 쳐들어온 저그(오른위)
-    ...clump("Hydralisk", 20, 8.2, -6.6, 1.7, 0.6, ZG()),
-    ...clump("Zergling", 20, 7.3, -3.2, 1.5, 0.48, ZG()),
-    ...clump("Ultralisk", 4, 9.5, -3.6, 1.1, 1.3, ZG()),
-    ...clump("Lurker", 4, 9.6, -9.4, 0.9, 1.05, ZG()),
-    ...clump("Mutalisk", 14, 6.8, -10.8, 2, 0.85, ZG()),
-    ["Overlord", 9.8, -12.2, { own: 1, hb: 200 }], ["Overlord", 9.9, -6.6, { own: 1, hb: 200 }],
+    ...clump("Lurker", 3, 6.8, -10.4, 0.8, 1.05, ZG()),
+    ...clump("Hydralisk", 14, 6.4, -7.4, 1.3, 0.6, ZG()),
+    ...clump("Zergling", 14, 5.9, -4.4, 1.1, 0.48, ZG()),
+    ...clump("Ultralisk", 3, 7.2, -4.4, 0.8, 1.3, ZG()),
+    ["Overlord", 7.2, -12, { own: 1, hb: 200 }],
     // 쳐들어온 테란(오른아래)
-    ...clump("Marine", 24, 8.2, 1.5, 1.7, 0.56, TR()),
-    ...clump("Firebat", 6, 6.6, 0, 0.9, 0.62, TR()),
-    ...clump("Medic", 7, 9.6, 3.4, 1, 0.66, TR({ st: 0, fight: false })),
-    ["Siege Tank (Siege Mode)", 9.9, -0.8, TR()], ["Siege Tank (Siege Mode)", 9.9, 6.2, TR()], ["Siege Tank (Siege Mode)", 7.6, 6.6, TR()], ["Siege Tank (Siege Mode)", 10, 1.8, TR()],
-    ...clump("Wraith", 6, 6.2, 5.4, 1.2, 0.95, TR()),
-    ["Science Vessel", 8.4, -0.9, { own: 2, hb: 200 }], ["Science Vessel", 9.6, 4.9, { own: 2, hb: 200 }],
-    ...clump("Battlecruiser", 6, 8.4, 4.2, 1.8, 1.5, TR()),
+    ...clump("Firebat", 5, 5.4, -0.6, 0.7, 0.62, TR()),
+    ...clump("Marine", 18, 6.6, 0.7, 1.2, 0.56, TR()),
+    ...clump("Medic", 5, 7.4, 2.3, 0.7, 0.66, TR({ st: 0, fight: false })),
+    ["Siege Tank (Siege Mode)", 7.4, -1.7, TR()], ["Siege Tank (Siege Mode)", 5.6, 2.7, TR()],
+    ...clump("Wraith", 4, 4.8, 2.4, 0.7, 0.95, TR()),
+    ["Science Vessel", 6.8, 2.4, { own: 2, hb: 200 }],
   ],
-  // 마엘스트롬(기술 31) — 다크아콘(임자 0)이 히드라 뭉치 가운데로 · 7.4초 · 사각 ±1.5타일(생체만).
-  casts: [[-1.2, 8.2, -6.6, 31, 0]],
 };
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
 const FRAME = { x0: -15.5, x1: 9.5, y0: -13.5, y1: 5.8 };
