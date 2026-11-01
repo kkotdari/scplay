@@ -540,6 +540,109 @@ void main() {
   //__EMIT__
 }`;
 
+
+/* ★★ **재질 결 시안**(#matx · 위 MATX9 ★) — 낯마다 재질을 적지 않고(빌더 154종) **종족 + 바탕색**으로 가른다(결 vGr.z 와 같은 손):
+     1 강철(테란 · 가운데 밝기 무채색) · 2 금(프로토스 · 노란 계열) · 3 살(저그 · 붉은~보라 · 채도) · 4 뼈(저그 · 밝고 채도 낮음) · 5 껍질(저그 · 어두움).
+   임자색 낯(aTeam)·효과(uFlat)·그림자(uShade)는 안 탄다. 결의 자리는 **모형 자리(aPos · 요잉 전)** — 몸에 붙어 같이 돈다.
+   vMx.w = 모형 한 칸의 화소(uScale.x) — 화소 셰이더가 2화소보다 잘아지는 결을 끈다. */
+const MATX_VS9 = `
+  {
+    float lm9 = dot(base, vec3(0.299, 0.587, 0.114));
+    float mx9 = max(base.r, max(base.g, base.b)); float mn9 = min(base.r, min(base.g, base.b));
+    float st9 = mx9 > 0.001 ? (mx9 - mn9) / mx9 : 0.0;
+    float hu9 = 0.0;
+    if (mx9 - mn9 > 0.001) {
+      if (mx9 == base.r) hu9 = mod((base.g - base.b) / (mx9 - mn9), 6.0);
+      else if (mx9 == base.g) hu9 = (base.b - base.r) / (mx9 - mn9) + 2.0;
+      else hu9 = (base.r - base.g) / (mx9 - mn9) + 4.0;
+    }
+    hu9 *= 60.0;
+    float cls9 = 0.0;
+    if (uMat.x > 0.5 && aTeam < 0.5 && uFlat < 0.5 && uShade.a <= 0.0 && uEmit < 0.5) {
+      if (uMat.x < 1.5) { if (st9 < 0.30 && lm9 > 0.16 && lm9 < 0.80) cls9 = 1.0; }
+      else if (uMat.x < 2.5) { if (hu9 > 25.0 && hu9 < 65.0 && st9 > 0.25 && lm9 > 0.30) cls9 = 2.0; else if (st9 < 0.25 && lm9 > 0.18 && lm9 < 0.80) cls9 = 1.0; }
+      else {
+        if (lm9 > 0.50 && st9 < 0.40) cls9 = 4.0;
+        else if (st9 > 0.28 && (hu9 > 250.0 || hu9 < 45.0) && lm9 > 0.10) cls9 = 3.0;
+        else if (lm9 <= 0.30) cls9 = 5.0;
+        else cls9 = 3.0;
+      }
+    }
+    vMx = vec4(aPos, uScale.x);
+    vMn = vec4(aNrm, cls9);
+  }
+`;
+const MATX_FS9 = `
+  if (vMn.w > 0.5) {
+    highp vec3 p9 = vMx.xyz;
+    float px9 = vMx.w;   // 모형 한 칸의 화소
+    float k9 = uMatK;
+    float lc9 = dot(c, vec3(0.299, 0.587, 0.114));
+    int cl9 = int(vMn.w + 0.5);
+    if (cl9 == 1) {
+      /* 강철 — 판 이음 홈(1.6칸 격자 · 낯의 큰 축으로 투영) · 바닥 쪽 때 · 거칠기 얼룩. */
+      vec3 an9 = abs(vMn.xyz);
+      highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
+      highp vec2 g9 = fract(uv9 / 1.6 + 0.5);
+      float d9 = min(min(g9.x, 1.0 - g9.x), min(g9.y, 1.0 - g9.y)) * 1.6;
+      float wd9 = max(0.025, 0.9 / px9);
+      float seam9 = (1.0 - smoothstep(wd9, wd9 * 2.0, d9)) * smoothstep(1.5, 3.0, px9 * 0.08);
+      float hl9 = (1.0 - smoothstep(wd9 * 2.0, wd9 * 3.5, d9)) - seam9;   // 홈 바로 곁의 밝은 날
+      float dirt9 = (1.0 - smoothstep(0.0, 1.6, p9.z)) * fbm9(p9 * 1.3, px9);
+      float blot9 = fbm9(p9 * 0.7 + 3.1, px9);
+      c *= 1.0 - k9 * (0.38 * seam9 + 0.22 * dirt9 + 0.10 * (blot9 - 0.5));
+      c += k9 * 0.05 * max(hl9, 0.0) * lc9;
+    } else if (cl9 == 2) {
+      /* 금 — 얕게 새긴 사선 홈(마름모 격자 1.3칸 · 낯의 큰 축으로 투영) + 닦인 결의 얼룩. */
+      vec3 an9 = abs(vMn.xyz);
+      highp vec2 uv9 = an9.z > max(an9.x, an9.y) ? p9.xy : (an9.x > an9.y ? p9.yz : p9.xz);
+      highp vec2 dg9 = fract(vec2(uv9.x + uv9.y, uv9.x - uv9.y) / 1.3 + 0.5);
+      float dd9 = min(min(dg9.x, 1.0 - dg9.x), min(dg9.y, 1.0 - dg9.y)) * 1.3;
+      float wd9 = max(0.02, 0.8 / px9);
+      float eng9 = (1.0 - smoothstep(wd9, wd9 * 2.0, dd9)) * smoothstep(1.5, 3.0, px9 * 0.08);
+      float pol9 = fbm9(p9 * 0.8, px9);
+      c *= 1.0 - k9 * (0.16 * eng9 - 0.14 * (pol9 - 0.5));
+    } else if (cl9 == 3) {
+      /* 살 — 반점(어두운 얼룩) · 드문 혈관(가는 꼬인 줄 · 따로 고른 자리에만) · 그늘 쪽 붉은 비침. */
+      float m9 = fbm9(p9 * 1.4, px9);
+      float blo9 = smoothstep(0.40, 0.80, m9);
+      highp vec3 q9 = p9 * 1.9 + vec3(m9 * 1.6, m9 * 1.1, 0.0);
+      float v9 = abs(vn9(q9) - 0.5);
+      float zone9 = smoothstep(0.52, 0.70, vn9(p9 * 0.55 + 5.3));   // 혈관이 지나는 자리만(온몸 그물 막기)
+      float vein9 = (1.0 - smoothstep(0.0, 0.035, v9)) * zone9 * smoothstep(2.0, 4.0, px9 / 1.9);
+      c *= 1.0 - k9 * 0.26 * blo9;
+      c = mix(c, c * vec3(0.55, 0.22, 0.32), k9 * 0.50 * vein9);
+      c += k9 * vec3(0.09, 0.015, 0.03) * (1.0 - smoothstep(0.05, 0.45, lc9));
+    } else if (cl9 == 4) {
+      /* 뼈 — 길이(높이) 방향 줄결 · 작은 구멍 · 누런 얼룩. */
+      float st9 = sin(p9.z * 13.0 + vn9(p9 * vec3(2.0, 2.0, 0.6)) * 5.0);
+      float str9 = (1.0 - smoothstep(0.0, 0.35, abs(st9))) * smoothstep(2.0, 4.0, px9 / 13.0 * 6.28);
+      float pit9 = smoothstep(0.80, 0.90, vn9(p9 * 7.0)) * smoothstep(2.0, 4.0, px9 / 7.0);
+      float yel9 = fbm9(p9 * 0.8 + 7.7, px9);
+      c *= 1.0 - k9 * (0.10 * str9 + 0.30 * pit9);
+      c = mix(c, c * vec3(1.0, 0.93, 0.78), k9 * 0.5 * smoothstep(0.45, 0.80, yel9));
+    } else {
+      /* 껍질 — 잔 점 + 마디 얼룩. */
+      float sp9 = vn9(p9 * 6.0) * smoothstep(2.0, 4.0, px9 / 6.0);
+      float cel9 = fbm9(p9 * 1.6 + 1.7, px9);
+      c *= 1.0 - k9 * (0.18 * (sp9 - 0.5) + 0.16 * (cel9 - 0.5));
+    }
+  }
+`;
+const MATX_FN9 = `
+uniform float uMatK;
+highp float h3_9(highp vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
+float vn9(highp vec3 p) {
+  highp vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h3_9(i), h3_9(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3_9(i + vec3(0.0, 1.0, 0.0)), h3_9(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+             mix(mix(h3_9(i + vec3(0.0, 0.0, 1.0)), h3_9(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3_9(i + vec3(0.0, 1.0, 1.0)), h3_9(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+/** 세 옥타브 — 화소 주기 2 아래인 옥타브는 0.5(평균)로 녹인다(물결무늬 막기). p 는 이미 주파수를 곱한 자리라 px 는 모형 칸의 화소. */
+float fbm9(highp vec3 p, float px) {
+  float w0 = smoothstep(2.0, 4.0, px), w1 = smoothstep(4.0, 8.0, px), w2 = smoothstep(8.0, 16.0, px);
+  return 0.5 + 0.5 * (w0 * (vn9(p) - 0.5) + 0.5 * w1 * (vn9(p * 2.03 + 1.7) - 0.5) + 0.25 * w2 * (vn9(p * 4.01 + 3.3) - 0.5)) / 0.875 * 1.6;
+}
+`;
 const hexRgb = (s: string): [number, number, number] => {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
   if (!m) return [0.5, 0.5, 0.5];
@@ -1127,13 +1230,18 @@ export class GlUnits9 implements VecSink9 {
     const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
       .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
+    /* 재질 결 시안(#matx · 위 MATX_VS9 ★) — 켰을 때만 varying 둘·유니폼 둘을 더한 변형으로 짓는다. */
+    const vsM9 = MATX9 <= 0 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; uniform vec2 uMat;\n")
+      .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0);\n" + MATX_VS9);
+    const fsM9 = MATX9 <= 0 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn;\n" + MATX_FN9)
+      .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a;");
     const p = gl.createProgram()!;
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsSh9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsCon9)); gl.linkProgram(p);
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -1459,6 +1567,11 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
     gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
+    if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
+      const g = mesh.gloss;
+      gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, MATX9);
+      gl.uniform1f(this.loc.uMatK, MATX9);
+    }
   }
   /** 카메라 유니폼 — 납작비·높이·숙임·밀림과 반각 H(시선이 카메라의 것이라 카메라가 바뀔 때만). */
   private camSet9(cam: GlCam9): void {
@@ -3193,6 +3306,14 @@ export const GL_GRAIN9 = ((): number => {
   const m = typeof location !== "undefined" ? /glgrain=([\d.]+)/.exec(location.hash) : null;
   const v = m ? Number(m[1]) : 1;
   return Number.isFinite(v) ? Math.max(0, Math.min(4, v)) : 1;
+})();
+/** ★ 재질 결 시안 #matx · #matx=N(세기 · 기본 1) — 굽는 판에 쇠·살·뼈의 결을 얹는 변형 셰이더(2026-11-01, 요청: "미리 굽는 김에 모델에 좀 더 디테일감 —
+ *  쇠의 질감 살의 질감 뼈의 질감 등" → "비교샷 만들어줘"). 없으면 옛 셰이더 그대로(한 글자도 안 바뀐다). 아래 MATX_VS9·MATX_FS9 ★. */
+export const MATX9 = ((): number => {
+  const m = typeof location !== "undefined" ? /(?:^|[#&,])matx(?:=([\d.]+))?(?=$|[&,])/.exec(location.hash) : null;
+  if (!m) return 0;
+  const v = m[1] ? Number(m[1]) : 1;
+  return Number.isFinite(v) ? Math.max(0, Math.min(3, v)) : 1;
 })();
 /** 진단 `#glvec=0` — 효과(트레이서·피격·캐스트)를 GL 심(glctx9)이 아니라 옛 효과 캔버스에 그린다(견줌용). */
 export const GL_VEC9 = ((): number => { const m = typeof location !== "undefined" ? /glvec=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
