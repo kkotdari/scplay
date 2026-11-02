@@ -5567,10 +5567,18 @@
 }
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster { background: transparent !important; box-shadow: none !important; }
 .scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-fs-rosterpanel { display: none; }
+/* ★ PC 인포창 — 미니맵 오른쪽(2026-11-02, 요청: "피시 전체화면은 미니맵 인포창 재생부 로스터 순으로") · dockFit9 wide 갈래가 is-wide-info · --winfo-w(= 설계 폭 × --info-k) ·
+   틀의 --dock-h·--info-k 를 적는다. 몸은 평소 독과 같이 설계 폭 × --info-h 로 짜고 transform 배율(아래 공통 규칙 · .scr-motion-infodock-body). 폰은 이 꼴을 안 쓴다. */
+.scr-fs-layer.is-wide.is-wide-info { --winfo-gap: var(--wgap); }
+.scr-fs-layer.is-wide.is-wide-info .scr-fs-dockmain > .scr-motion-infodock {
+  display: flex; grid-area: 1 / 1; align-self: end; justify-self: start; z-index: 14;
+  width: var(--winfo-w, 0px); height: var(--info-h); margin: 0 0 var(--wbot) calc(var(--wl) + var(--wmini-w, 0px) + var(--wgap));
+  background: rgba(6, 8, 12, 0.52) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important; pointer-events: auto;
+}
 /* 재생바 — 미니맵과 로스터 사이 폭 전부(맨 아래). */
 .scr-fs-layer.is-wide .scr-fs-lower > .scr-tb {
   grid-area: 1 / 1; align-self: end; z-index: 13; position: relative; box-sizing: border-box;
-  margin: 0 calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap)) var(--wbot) calc(var(--wmini-w, 0px) + var(--wl) + var(--wgap));
+  margin: 0 calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap)) var(--wbot) calc(var(--wmini-w, 0px) + var(--wl) + var(--wgap) + var(--winfo-w, 0px) + var(--winfo-gap, 0px));   /* PC 는 인포창 몫까지(위 ★) */
   padding-left: 8px; padding-right: 8px; padding-bottom: 0; pointer-events: auto;
 }
 /* 오버레이 — 원래 자리 + 좌우 안전영역. 배속 다이얼은 로스터 위(--dock-lift-r · CSS --over-cap 이 아니라 로스터 키로). 자막은 미니맵~로스터 사이 가운데. */
@@ -5578,7 +5586,7 @@
 .scr-fs-layer.is-wide .scr-zoomdial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); }
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + var(--wbot) + var(--sd-gap)); }
-.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wmini-w, 0px) + var(--wl)); right: calc(var(--wroster-w, 0px) + var(--wr)); bottom: calc(3px * var(--dk) + var(--dock-lift, 0px) + var(--wbot)); }
+.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wmini-w, 0px) + var(--wl) + var(--winfo-w, 0px) + var(--winfo-gap, 0px)); right: calc(var(--wroster-w, 0px) + var(--wr)); bottom: calc(3px * var(--dk) + var(--dock-lift, 0px) + var(--wbot)); }
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }

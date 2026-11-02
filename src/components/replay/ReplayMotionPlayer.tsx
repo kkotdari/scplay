@@ -22258,6 +22258,17 @@ export default function ReplayMotionPlayer({
         const maxMW9 = W9 * 0.3;
         if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
         if (!miniOn9) { miniW9 = 0; miniH9 = 0; }
+        /* ★ PC 는 **미니맵 · 인포창 · 재생부 · 로스터** 순(2026-11-02, 요청: "피시 전체화면은 미니맵 인포창 재생부 로스터 순으로 배치") — 폰은 종전(인포창 없음).
+           인포창은 평소 독과 같은 자: 몸은 설계 폭(--dock-w) × 판 키(--info-h = --dock-h × --info-down)로 짜고 --info-k 배(INFO_STEPS9)로 줄인다 —
+           재생부가 최소 폭(설계 인포창 폭의 1.2배)을 지키는 가장 큰 단 · 하나도 안 들면 인포창 없음. */
+        const infoDW9 = parseFloat(cs9.width) || 0;
+        const gap9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6;
+        const sideL9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wl")) || gap9;
+        const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2;
+        const kI9 = uiPhone9 || infoDW9 <= 0 ? 0 : (INFO_STEPS9.find((k) => usedW9 + infoDW9 * k + gap9 + infoDW9 * 1.2 <= W9) ?? 0);
+        const infoW9 = kI9 > 0 ? ev9(infoDW9 * kI9) : 0;
+        lay9.style.setProperty("--winfo-w", `${infoW9}px`);
+        lay9.classList.toggle("is-wide-info", kI9 > 0);
         lay9.style.setProperty("--wcol", "0px");
         lay9.style.setProperty("--wmini-w", `${miniW9}px`);
         lay9.style.setProperty("--wmini-h", `${miniH9}px`);
@@ -22268,7 +22279,7 @@ export default function ReplayMotionPlayer({
         const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
-        setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && p9.ki === 0 && p9.lift === 0 ? p9 : { h: rh9, ki: 0, k: kp9, lift: 0 }));
+        setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
         setRosterPaged9(true);
         return;
       }
