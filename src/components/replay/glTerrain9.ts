@@ -189,8 +189,17 @@ export class GlTerrain9 {
   /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
   private fogFan: WebGLBuffer | null = null; private nFogFan = 0; private fogKey = -1;
   private eyeFan: WebGLBuffer | null = null; private nEyeFan = 0; private eyeSrc: Float32Array | null = null; private eyePpt = 0;
+  /* ★ 눈 원 인스턴싱(2026-11-02, 요청: 안개 결 다음 — "그것도 해줘" · 매 장 눈 원을 통째로 다시 짓던 것) — 눈 배열은 워커가 장마다 새로 보내므로 옛 길은
+     장마다 눈 수 × 조각 × 3 정점(합성 눈 731 · 40조각 = 88k · 685KB)을 cos/sin 으로 짓고 올렸다(실측 2.4ms + 업로드). 이제 **조각 수마다 단위 원 부채꼴**을 한 번
+     짓고(eyeUnit) 장마다는 눈 중심만(눈 수 × 8B ≒ 6KB) 올려, 반지름이 같은 눈끼리 한 번에 그린다(인스턴스 · 반지름 = uHalfW · 중심 = aP 인스턴스 속성 · 단위 점 = aN).
+     인스턴싱이 없는 문맥(WebGL1 + ANGLE_instanced_arrays 없음)은 옛 길. */
+  private eyeUnit = new Map<number, { buf: WebGLBuffer; n: number }>();
+  private eyeCtr: WebGLBuffer | null = null;
+  private eyeGroups: { r: number; seg: number; off: number; cnt: number }[] = [];
   constructor(private readonly gl: WebGLRenderingContext | WebGL2RenderingContext, mkProg: (vs: string, fs: string) => WebGLProgram,
-    private readonly divisor: (loc: number, d: number) => void = () => {}) {
+    private readonly divisor: (loc: number, d: number) => void = () => {},
+    /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
+    private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
     this.prog = mkProg(TERR_VS, TERR_FS);
     for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
@@ -385,7 +394,38 @@ export class GlTerrain9 {
         this.nFogFan = f.length / 2; this.fogKey = fog.key;
       }
       const pptQ = Math.max(1, Math.round(cssPerTile * dprK / 16) * 16);   // 배율 칸(16 기기 px · 옛 8 — 2026-10-24 줌 손짓마다 눈 원 88k 정점을 다시 짓는 횟수 반) — 그 안에서는 눈 원의 조각 수가 같다
-      if (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt || FOG_EYE_Q9.ver !== this.eyeQv) {
+      if (this.drawInst && (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt || FOG_EYE_Q9.ver !== this.eyeQv)) {
+        /* 인스턴싱 길(위 eyeUnit ★) — 반지름마다 묶고 중심만 올린다. */
+        this.eyeQv = FOG_EYE_Q9.ver;
+        const e = fog.eyes;
+        const segOf = (r: number): number => Math.max(8, Math.min(FOG_EYE_Q9.max, Math.round((2 * Math.PI * r * pptQ) / FOG_EYE_Q9.px)));
+        const byR = new Map<number, number[]>();
+        if (e) for (let i = 0; i + 2 < e.length; i += 4) {
+          const r = e[i + 2]; if (!(r > 0)) continue;
+          const g = byR.get(r); if (g) g.push(e[i], e[i + 1]); else byR.set(r, [e[i], e[i + 1]]);
+        }
+        let tot = 0; for (const g of byR.values()) tot += g.length;
+        const ctr = new Float32Array(tot); let o = 0; let nv = 0;
+        this.eyeGroups = [];
+        for (const [r, g] of byR) {
+          const seg = segOf(r);
+          if (!this.eyeUnit.has(seg)) {
+            const u = new Float32Array(seg * 6);
+            for (let k = 0; k < seg; k += 1) {
+              const a0 = (k / seg) * Math.PI * 2; const a1 = ((k + 1) / seg) * Math.PI * 2;
+              u.set([0, 0, Math.cos(a0), Math.sin(a0), Math.cos(a1), Math.sin(a1)], k * 6);
+            }
+            const b = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, u, gl.STATIC_DRAW);
+            this.eyeUnit.set(seg, { buf: b, n: seg * 3 });
+          }
+          this.eyeGroups.push({ r, seg, off: o / 2, cnt: g.length / 2 });
+          ctr.set(g, o); o += g.length; nv += seg * 3 * (g.length / 2);
+        }
+        if (!this.eyeCtr) this.eyeCtr = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.eyeCtr!); gl.bufferData(gl.ARRAY_BUFFER, ctr, gl.DYNAMIC_DRAW);
+        this.nEyeFan = 0; this.eyeSrc = fog.eyes; this.eyePpt = pptQ;
+        this.stat.fogEyes = e ? e.length >> 2 : 0; this.stat.fogVerts = nv;
+      } else if (!this.drawInst && (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt || FOG_EYE_Q9.ver !== this.eyeQv)) {
         this.eyeQv = FOG_EYE_Q9.ver;
         const e = fog.eyes; let nv = 0; const segOf = (r: number): number => Math.max(8, Math.min(FOG_EYE_Q9.max, Math.round((2 * Math.PI * r * pptQ) / FOG_EYE_Q9.px)));
         if (e) for (let i = 0; i + 2 < e.length; i += 4) if (e[i + 2] > 0) nv += segOf(e[i + 2]) * 3;
@@ -416,7 +456,21 @@ export class GlTerrain9 {
       gl.uniform1f(this.loc.uMode, 0); gl.uniform2f(this.loc.uOff, 0, 0); gl.uniform1f(this.loc.uHalfW, 0);
       gl.colorMask(false, false, false, false);
       fanRaw(this.fogFan, this.nFogFan, 0x01, true);
-      fanRaw(this.eyeFan, this.nEyeFan, 0x02, false);
+      if (this.drawInst) {
+        /* 눈 원 인스턴스(위 eyeUnit ★) — 단위 점(aN · 정점마다) × 반지름(uHalfW) + 중심(aP · 인스턴스마다). 끝나면 aP 를 정점마다로 되돌린다(뒤 rect 가 쓴다). */
+        gl.stencilMask(0x02); gl.stencilFunc(gl.ALWAYS, 0x02, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.enableVertexAttribArray(this.aN);
+        for (const g of this.eyeGroups) {
+          const u = this.eyeUnit.get(g.seg); if (!u || g.cnt <= 0) continue;
+          gl.bindBuffer(gl.ARRAY_BUFFER, u.buf); gl.vertexAttribPointer(this.aN, 2, gl.FLOAT, false, 8, 0); this.divisor(this.aN, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.eyeCtr); gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, g.off * 8); this.divisor(this.aP, 1);
+          gl.uniform1f(this.loc.uHalfW, g.r);
+          this.drawInst(gl.TRIANGLES, 0, u.n, g.cnt); this.stat.draws += 1;
+        }
+        this.divisor(this.aP, 0);
+        gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+        gl.uniform1f(this.loc.uHalfW, 0);
+      } else fanRaw(this.eyeFan, this.nEyeFan, 0x02, false);
       gl.colorMask(true, true, true, true);
       gl.stencilMask(0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
       gl.stencilFunc(gl.EQUAL, 0, 0x03); col(fog.rgb, 1); rect(0, 0, W, H);
@@ -498,7 +552,14 @@ export class GlTerrCanvas9 {
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("지형 링크: " + gl.getProgramInfoLog(p));
       return p;
     };
-    this.terr = new GlTerrain9(gl, mk);
+    /* 인스턴싱(눈 원 · GlTerrain9 eyeUnit ★) — WebGL2 는 그대로 · WebGL1 은 ANGLE_instanced_arrays 가 있으면. */
+    const g2 = gl as WebGL2RenderingContext;
+    const ext9 = gl2 ? null : (gl.getExtension("ANGLE_instanced_arrays") as ANGLE_instanced_arrays | null);
+    const div9 = gl2 ? (l: number, d: number): void => g2.vertexAttribDivisor(l, d) : ext9 ? (l: number, d: number): void => ext9.vertexAttribDivisorANGLE(l, d) : (): void => {};
+    const instOff9 = typeof location !== "undefined" && /(?:^|[#&,])foginst=0(?=$|[&,])/.test(location.hash);   // #foginst=0 — 옛 길(견줌)
+    const inst9 = instOff9 ? null : gl2 ? (m: number, f: number, c: number, n: number): void => g2.drawArraysInstanced(m, f, c, n)
+      : ext9 ? (m: number, f: number, c: number, n: number): void => ext9.drawArraysInstancedANGLE(m, f, c, n) : null;
+    this.terr = new GlTerrain9(gl, mk, div9, inst9);
     if (gl2) {
       try {
         const prog = mk(SHARP_VS9, SHARP_FS9); const quad = gl.createBuffer()!;

@@ -438,3 +438,7 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
   보통·높음·매우 높음 **줄마다** 적는다(0 → 2 로 건너뛰면 그 줄만 덮인다). 사영 그림자는 전 단 그대로.
 - 안개 눈 원(glTerrain9 `FOG_EYE_Q9` px·max · ver 가 바뀌면 다시 지음 · BenchTier9.fogEye): PC 낮음 12·24 / 보통+ 6·40 · 폰 낮음 14·20 / 보통 10·28 / 높음 7·36.
   실측(perf-check 합성 · 눈 731): PC 0단 88k → **53k** 정점 · 폰 0단 **44k**. 🔎 `[진단 gl] … 안개 눈N·Mk정점` · `--hash tier=0`.
+- (같은 날 "그것도 해줘" — 안개 눈 원을 장마다 통째로 다시 짓던 것) — glTerrain9 **눈 원 인스턴싱**: 조각 수마다 단위 원 부채꼴(eyeUnit · 한 번) + 장마다 눈 중심만
+  (eyeCtr · 눈 수 × 8B ≒ 6KB · 옛 685KB · cos/sin 2.4ms 없음) · 반지름이 같은 눈끼리 한 번에(uHalfW = r · aP 인스턴스 · aN 단위 점). 끝나면 aP divisor 0 으로.
+  WebGL2 drawArraysInstanced · WebGL1 은 ANGLE_instanced_arrays · 둘 다 없으면 옛 길 · `#foginst=0` 견줌(그림 같음 — 실측 차는 촬영 1초 차의 유닛 움직임뿐).
+  진단 `안개 … M k정점` 은 같은 몫으로 센 값(실제로 올리는 것은 중심뿐).
