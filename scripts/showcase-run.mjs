@@ -11,7 +11,7 @@
  *   결과는 --out(기본 docs/portfolio/showcase-<오늘>) 에 before_*.png · after_*.png · compare_*.png — 커밋해 두면 포트폴리오 자리다.
  *
  * 크롬은 showcase-shot 이 찾는다(PW_CHROMIUM 환경 변수 → /opt/pw-browsers → 맥 Chrome for Testing → playwright 기본).
- * 맥에서 창이 뜨게 하려면(소프트웨어 GL 이 느리면) 그대로 두고, 헤드리스가 느리면 PW_CHROMIUM 에 설치된 크롬 경로를 준다. */
+ * PW_HEADED=1 이면 창을 띄워 기기 GPU 로 그린다(헤드리스는 CPU 그림이라 느리다) — 자세한 실행법은 docs/local-run-guide.md. */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, symlinkSync, readFileSync, writeFileSync, copyFileSync, rmSync, lstatSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -90,7 +90,7 @@ if (pairs.length) {
   const { chromium } = await import("playwright-core");
   const exe = [process.env.PW_CHROMIUM, "/opt/pw-browsers/chromium",
     join(homedir(), "Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64", "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")].filter(Boolean).find((p) => existsSync(p));
-  const browser = await chromium.launch(exe ? { executablePath: exe } : {});
+  const browser = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), ...(process.env.PW_HEADED === "1" ? { headless: false } : {}) });
   const page = await browser.newPage();
   for (const r of pairs) {
     const a = readFileSync(join(OUT, `before_${RACE_EN[r]}.png`)).toString("base64");

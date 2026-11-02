@@ -399,7 +399,9 @@ const css = readFileSync(join(ROOT, "dist", "styles.css"), "utf8");
 const { chromium } = await import("playwright-core");
 const exe = [process.env.PW_CHROMIUM, "/opt/pw-browsers/chromium",
   join(homedir(), "Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64", "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")].filter(Boolean).find((p) => existsSync(p));
-const launchOpt = exe ? { executablePath: exe, args: ["--no-proxy-server"] } : { args: ["--no-proxy-server"] };
+/* PW_HEADED=1 — 창을 띄워 기기 GPU 로 그린다(2026-11-02 · 로컬 촬영: 헤드리스는 SwiftShader(CPU)라 느리다 · perf-check 와 같은 깃발). */
+const HEADED9 = process.env.PW_HEADED === "1";
+const launchOpt = { ...(exe ? { executablePath: exe } : {}), args: ["--no-proxy-server"], ...(HEADED9 ? { headless: false } : {}) };
 const browser = await chromium.launch(launchOpt);
 mkdirSync(OUT, { recursive: true });
 for (const race of RACES) {
