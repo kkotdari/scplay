@@ -2316,8 +2316,10 @@ const CREEP_TEX_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])creeptex=0
  *  안 바뀐다(크립 색도 한 가지다). 그래서 한 번 구우면 살려 두고, 임자색 마스크도 **구울 때 한 번** 물들여 한 장으로 합친다. */
 type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number };
 /** ★ **크립 질감**(2026-11-02, 요청: "저그 크립 질감 추가" → "끈적한 액체생체물질이 덮고 덮는 느낌") — 이어 붙는 무늬 한 장(256²)을 한 번 짓는다:
- *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑을 흐려(번진 높이 + 두께) 덮으므로 밑 겹의 턱은 묻히고
- *  맨 위 가장자리만 산다 · 가장자리 안쪽에 메니스커스(액체 입술) 불룩 → 왼위 빛 돋을새김 + 젖은 반사(거듭제곱 24 · 세기 0.3 — 1.0·40 은 "광택이 좀 심한듯" 으로 눌렀다) · 가장자리는 좁게(6px · 입술 2.6px · 밑 흐림 반경 4) — 넓은 턱은 "너무 흐릿해서 눈아파".
+ *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑을 흐려(번진 높이 + 얇은 두께) 덮으므로 밑 겹의 턱은 묻히고
+ *  맨 위 가장자리만 산다 · 겹마다 살짝 다른 톤(±0.18)이라 턱 대신 톤으로 겹이 읽힌다 → 왼위 빛 + 옅은 젖은 반사(거듭제곱 24 · 세기 0.3).
+ *  되물린 값: 반사 1.0·40 은 "광택이 좀 심한듯" · 넓은 턱(16px)+두꺼운 겹은 "너무 흐릿해서 눈아파" · 좁은 턱(6px)+입술은
+ *  "엠보싱처럼 하지말고 자연스럽게" — 그래서 입술 없이 턱 15px · 겹 두께 0.3~0.55 · 기울기 1.9.
  *  첫 시안(세포 워리 · 주름 골)은 "저런 느낌이 아니라" 로 걷었다. 값 < 0 은 검보라 · > 0 은 흰분홍(알파 = 세기).
  *  크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 판은 경기 내내 살아 있으니 비용(≈0.3초)은 그때 한 번. */
 let CREEP_TEX9: HTMLCanvasElement | null | undefined;
@@ -2354,21 +2356,21 @@ function creepTex9(): HTMLCanvasElement | null {
     const blur9 = (a: Float32Array, out: Float32Array): void => { box9(a, tmp9, 4, true); box9(tmp9, out, 4, false); box9(out, tmp9, 4, true); box9(tmp9, out, 4, false); box9(out, tmp9, 4, true); box9(tmp9, out, 4, false); };
     const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const b4 = vn9(4, 9); const f16 = vn9(32, 7);
     const h9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
-    const bl9 = new Float32Array(N9);
+    const bl9 = new Float32Array(N9); const tn9 = new Float32Array(N9);
     let rs9 = 1;
     const rnd9 = (): number => hh9(1000 + (rs9 += 1));
     for (let k = 0; k < 16; k += 1) {
-      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4;
+      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.3 + rnd9() * 0.25; const tk = (rnd9() - 0.5) * 0.36;
       blur9(h9, bl9);
       for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
         const i = y * S9 + x;
         const dx = ((x + 0.5 - cx + S9 * 1.5) % S9) - S9 / 2; const dy = ((y + 0.5 - cy + S9 * 1.5) % S9) - S9 / 2;
         const d = Math.hypot(dx, dy); const an = Math.atan2(dy, dx);
         const rr = r * (1 + 0.22 * Math.sin(an * 3 + k * 1.7) + 0.12 * Math.sin(an * 5 + 2.3 * k) + 0.06 * Math.sin(an * 9 + k)) + (wn9[i] - 0.5) * 30 + (wm9[i] - 0.5) * 12;
-        const c = sm9(rr + 1, rr - 5, d);
+        const c = sm9(rr + 3, rr - 12, d);
         if (c <= 0) continue;
-        const lp = Math.exp(-(((d - (rr - 3.5)) / 2.6) ** 2)) * 0.3;
-        h9[i] = h9[i] * (1 - c) + (bl9[i] + th) * c + lp * c * th;
+          h9[i] = h9[i] * (1 - c) + (bl9[i] + th) * c;
+      tn9[i] = tn9[i] * (1 - c) + tk * c;
       }
     }
     for (let i = 0; i < N9; i += 1) h9[i] += (f16[i] - 0.5) * 0.08;
@@ -2377,12 +2379,12 @@ function creepTex9(): HTMLCanvasElement | null {
     const v9 = new Float32Array(N9);
     for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
       const i = y * S9 + x;
-      const gx = (h9[y * S9 + ((x + 1) % S9)] - h9[y * S9 + ((x - 1 + S9) % S9)]) * 2;
-      const gy = (h9[((y + 1) % S9) * S9 + x] - h9[((y - 1 + S9) % S9) * S9 + x]) * 2;
+      const gx = (h9[y * S9 + ((x + 1) % S9)] - h9[y * S9 + ((x - 1 + S9) % S9)]) * 1.9;
+      const gy = (h9[((y + 1) % S9) * S9 + x] - h9[((y - 1 + S9) % S9) * S9 + x]) * 1.9;
       const nl = Math.hypot(gx, gy, 1); const nx = -gx / nl; const ny = -gy / nl; const nz = 1 / nl;
       const dif = nx * Lx + ny * Ly + nz * Lz - Lz;
       const sp = Math.max(0, nx * Hx + ny * Hy + nz * Hz) ** 24;
-      v9[i] = Math.max(-1, Math.min(1, dif * 0.85 + sp * 0.3 - 0.04));
+      v9[i] = Math.max(-1, Math.min(1, dif * 0.85 + sp * 0.3 + tn9[i] - 0.04));
     }
     const img9 = c9.createImageData(S9, S9);
     for (let i = 0; i < N9; i += 1) {
