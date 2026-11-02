@@ -2745,3 +2745,11 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 요청: "포토 소리 퉁퉁 느낌으로". sfx9Synth `photonC9`(새 갈래 photonC · 셋) — 170 → 80Hz 로 떨어지는 사인 몸 + 2배음 0.22 + 앞 막힌 잡음 톡(900Hz 아래) +
 메아리 0.085초 0.22 · 봉우리 0.62. sfx9Cues LAUNCH9 `photon`(포톤 캐넌) → photonC · `plasma`(드라군·스카우트·아비터)는 옛 뿅(photon9) 그대로.
 🔎 견본 굽기: `$S/sfxh/e.ts`(esbuild 로 sfx9Synth 를 묶어 WAV — 퉁 여섯 · 옛 뿅 셋).
+
+## 상자 선택 빠르게 · PC 커서 · 전체화면 커서 숨김(2026-11-02)
+- 지적 "피시 드래그 선택이 너무 느려 · 시작 타이밍도 지연" — 문턱 10 → **3px**(마우스) · 무대 자리는 누를 때 한 번 잼(boxDragRef9.ox/oy) · 쓰기는 rAF 한 장 한 번 ·
+  `transform` 이동(.scr-boxsel will-change·contain) · 끄는 동안 가장자리 밀기 쉼(edge step 의 문에 boxDragRef9).
+- 요청 "피시에서 커서도 화살표로 · 우클릭에만 손으로" — 지도 cursor grab/grabbing 은 손가락 기기(coarse)만 · PC 는 화살표 · 오른쪽·가운데 누름에서 무대 style.cursor
+  grabbing, 뗄 때 걷음.
+- 요청 "전체화면에서는 일정 시간 마우스 입력 없으면 마우스 숨기기" — fsOn 동안 마우스가 2.5초 쉬면 .scr-fs-root 에 scr-cursor-idle(cursor none !important · 자식까지) ·
+  움직임·누름·휠에 되살림. 손가락 입력은 안 본다.

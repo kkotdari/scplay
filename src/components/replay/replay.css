@@ -5509,4 +5509,7 @@
 .scr-motion[data-veil] { visibility: hidden !important; }
 .scr-motion[data-veil] * { visibility: hidden !important; }
 /* 상자 선택의 끄는 상자(2026-11-01, 요청: "마우스 드래그로도 유닛 건물 선택 가능하게" — 원작식 왼쪽 끌기) — 원작의 초록 테 · 자리·크기는 RMP onMapPointerMove 가 적는다. */
-.scr-boxsel { position: absolute; display: none; z-index: 30; pointer-events: none; box-sizing: border-box; border: 1px solid #48f060; background: rgba(72, 240, 96, 0.07); }
+.scr-boxsel { position: absolute; left: 0; top: 0; display: none; z-index: 30; pointer-events: none; box-sizing: border-box; border: 1px solid #48f060; background: rgba(72, 240, 96, 0.07); will-change: transform; contain: strict; }   /* 자리는 transform(합성만 · 2026-11-02 빠르게) */
+
+/* 전체화면 커서 숨김(2026-11-02 · RMP scr-cursor-idle — 마우스가 2.5초 쉬면) — 자식의 cursor(단추 pointer 등)까지 이긴다. */
+.scr-fs-root.scr-cursor-idle, .scr-fs-root.scr-cursor-idle * { cursor: none !important; }

@@ -23,6 +23,10 @@
 import type { TerrainGeom9, TerrLayer9 } from "../../utils/terrainGeom";
 import type { Loop } from "../../utils/contour";
 
+/** ★ 안개 눈 원의 결(2026-11-02, 요청: "피시 낮음에서 덜어낼 요소 덜어내줘" · "안개각 줄이기도 효과 있는 듯?") — 눈 원 하나를 둘레 px 마다 한 조각(px)으로, 많아야 max 조각.
+ *  눈이 수백(전투 화면 700+)이고 눈 배열이 바뀔 때마다 통째로 다시 지으므로(88k 정점) 조각 수가 곧 CPU·업로드 몫이다. RMP 가 기기 단으로 놓는다(낮음 12px·24 · 그 위 6px·40). */
+export const FOG_EYE_Q9 = { px: 6, max: 40, ver: 0 };
+
 /** 진단 `#glterrdbg=N` — N 번째 덮기까지만 그린다(층을 하나씩 켜 보며 어디서 깨지나 본다). */
 const TERR_DBG9 = ((): number => { const m = typeof location !== "undefined" ? /glterrdbg=(\d+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_TERR9 = !(typeof location !== "undefined" && /glterr=0/.test(location.hash));
@@ -180,6 +184,8 @@ export class GlTerrain9 {
   private bufs: WebGLBuffer[] = [];
   /** 진단 — 올린 정점 수 · 올리는 데 든 ms · 지난 장의 드로 콜. */
   stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0 };
+  /** 눈 원 결을 바꾼 횟수(FOG_EYE_Q9.ver) — 바뀌면 다음 장에 다시 짓는다. */
+  private eyeQv = -1;
   /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
   private fogFan: WebGLBuffer | null = null; private nFogFan = 0; private fogKey = -1;
   private eyeFan: WebGLBuffer | null = null; private nEyeFan = 0; private eyeSrc: Float32Array | null = null; private eyePpt = 0;
@@ -379,8 +385,9 @@ export class GlTerrain9 {
         this.nFogFan = f.length / 2; this.fogKey = fog.key;
       }
       const pptQ = Math.max(1, Math.round(cssPerTile * dprK / 16) * 16);   // 배율 칸(16 기기 px · 옛 8 — 2026-10-24 줌 손짓마다 눈 원 88k 정점을 다시 짓는 횟수 반) — 그 안에서는 눈 원의 조각 수가 같다
-      if (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt) {
-        const e = fog.eyes; let nv = 0; const segOf = (r: number): number => Math.max(8, Math.min(40, Math.round((2 * Math.PI * r * pptQ) / 6)));
+      if (fog.eyes !== this.eyeSrc || pptQ !== this.eyePpt || FOG_EYE_Q9.ver !== this.eyeQv) {
+        this.eyeQv = FOG_EYE_Q9.ver;
+        const e = fog.eyes; let nv = 0; const segOf = (r: number): number => Math.max(8, Math.min(FOG_EYE_Q9.max, Math.round((2 * Math.PI * r * pptQ) / FOG_EYE_Q9.px)));
         if (e) for (let i = 0; i + 2 < e.length; i += 4) if (e[i + 2] > 0) nv += segOf(e[i + 2]) * 3;
         const a = new Float32Array(nv * 2); let o = 0;
         if (e) for (let i = 0; i + 2 < e.length; i += 4) {

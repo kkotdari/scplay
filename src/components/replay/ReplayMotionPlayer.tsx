@@ -60,7 +60,7 @@ import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { GL_TERR9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -1404,6 +1404,8 @@ type BenchTier9 = {
   meshShadow?: boolean; meshShadowMinZoom?: number;
   /** MRT 판의 MSAA 표본 수 · 효과 심의 곡선 마디 몫(gl9.msaa · glctx9.qual) — 아래 '사양이 올라간 듯'의 ★. */
   glMsaa?: number; fxQual?: number;
+  /** 안개 눈 원 결(glTerrain9 FOG_EYE_Q9) — [둘레 px 당 조각 · 최대 조각]. */
+  fogEye?: [number, number];
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
    ★ **판 굽기 시절 자를 GL 몫만큼 늦춘다**(2026-09, 지적: "폰이나 PC 매우낮음인데 여유가 있어보여서 혹시
@@ -1414,18 +1416,24 @@ type BenchTier9 = {
      그래서 두 문턱을 GL 이 번 몫의 보수적인 값(1.45배)만큼 늦춘다: 16.8 → 24 · 8.4 → 12.
      ⚠ 벤치 자체를 GL 로 바꾸지는 않았다 — 벤치는 '기기가 얼마나 빠른가'의 눈금이고, GL 은 헤드리스에서
        소프트웨어라 진입에서 재면 값이 기기가 아니라 드라이버를 잰다. */
+/** PC 보통 이상의 제값(아래 '낮음은 덜어낸다' ★) — 0단(낮음)은 DEV9 pc 프로필의 가벼운 값이다. */
+const PC_FULL9: Partial<BenchTier9> = { glBloom: true, glMsaa: 4, fxQual: 1, glMeshMax: 600, dieShards: 24, hitShardK: 1, fogEye: [6, 40] };
 const PC_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 3, aheadMB: 48 },   // 앞 짓기 바이트 두 배(2026-10-25 · 지도 전체 장 2.5배 — 실측 보통 48MB 에 5인 합성 1.3초뿐 · NO_CULL9 ★)
   /* (걷어냄) 단마다 켜던 `meshShadow: true` — 사영 그림자는 이제 PC **프로필 기본**이다(아래 DEV9 · 2026-09, 요청:
      "PC에서 그림자는 보통이 아니라 전 티어에서 모두 표시해도 될듯하고 타원 대체하지 않기"). 그 앞 판(요청: "pc 3티어에서
      그림자를 동그라미 말고 실제 사영 그림자로 · 4배부터" → "그렇게 무리 가는 기능 아니면 높음부터" → "pc 보통은?")은
      1단(보통)부터 4배 위에서만 켰다 — 그 아래는 접지 타원이 대타였다. */
-  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 96 },
-  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 160 },
+  /* ★ **PC 낮음은 덜어낸다**(2026-11-02, 요청: "피시 낮음에서 덜어낼 요소 덜어내줘 · 버벅인다기보다 느린 느낌이 조금씩" · "안개각 줄이기도 효과 있는 듯?") —
+     단 표는 오를 때만 값을 덮으므로 0단(낮음)은 **프로필 기본값**이다. 여태 PC 프로필이 곧 최고 품질(번짐 · MSAA 4 · 효과 마디 1 · 메시 600 · 파편 24 · 안개 눈 6px)이라
+     낮음도 그대로 돌았다. 이제 프로필(아래 DEV9 pc)을 가볍게(번짐 끔 · MSAA 2 · 효과 0.8 · 메시 480 · 파편 16·0.8 · 안개 눈 12px·24조각) 두고 보통부터 옛 값으로 올린다.
+     사영 그림자는 전 단 그대로(옛 요청 "PC에서 그림자는 전 티어에서"). */
+  { name: "보통", upMs: 24, aheadSec: 5, aheadMB: 96, ...PC_FULL9 },
+  { name: "높음", upMs: 12, aheadSec: 8, aheadMB: 160, ...PC_FULL9 },   // 단은 0 → 2 로 건너뛰기도 하므로(그 줄만 덮는다) 위 줄마다 같은 몫을 적는다
   /* 3단 **매우 높음** — 메모리 8GB(deviceMemory, 크로뮴만 낸다)가 확인되는 기기에서만 오른다. 앞 한도는 2단과 같고,
      이 단이 따로 뜻을 갖는 자리는 결(긁힌 광택)·품질 알림, 그리고 **손짓 중 실시간 원근**(live3d)이다
      (2026-09, 요청: "PC 매우높음에서 3D 제스쳐중 모델도 시점 변화 가능하려나 지금은 지도만 실시간인데"). */
-  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 160, live3d: true },
+  { name: "매우 높음", upMs: 12, minMem: 8, aheadSec: 8, aheadMB: 160, live3d: true, ...PC_FULL9 },
 ];
 /* ★ **폰도 세 단이다**(2026-09, 요청: "요즘 폰도 성능차이가 심해서 모바일용 벤치를 별도로 분리하되 3단계로 나누고
    적절히 기능을 넣고 빼야할거 같아. 최고단계에선 광택 글로우도 넣고") ─────────────────────────────────────
@@ -1458,10 +1466,10 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 12 },   // 앞 짓기 바이트 6 → 12 · 10 → 20 · 16 → 32(2026-10-25 · 지도 전체 장은 2.5배 · NO_CULL9 ★)
   { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 20,
-    glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8 },
+    glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8, fogEye: [10, 28] },
   { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 32,
     glMeshMax: 360, yaw8Always: false, meshShadow: true,   // 사영 그림자는 높음부터(위 폰 프로필 ★ · 3배 아래는 그대로 걷는다)
-    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1 },
+    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1, fogEye: [7, 36] },
 ];
 /** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
  *  사영 그림자·MSAA·앞 한도가 다 PC 값이고, 단은 N 에 못 박는다(오르기만 하는 규칙 그대로 · 벤치는 재야 단이 선다). 화면 배치(폰 UI)는 그대로다 — 그리는 예산만 PC.
@@ -1501,12 +1509,12 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   name: "pc",
   decalBakeMax: 768,   // 크립 굽기 상한 384 → 768(지적: PC에서 화질 낮은 게 보임)
   bakeOneMB: 68, bakePoolMB: 80, bakeSideMax: 4096,
-  hitShardK: 1, dieShards: 24, fxRasterMB: 24, shadowGroundMinZoom: 0,
+  hitShardK: 0.8, dieShards: 16, fxRasterMB: 24, shadowGroundMinZoom: 0,   // 1 · 24 → 0.8 · 16(0단 낮음 · 보통부터 1 · 24 — PC_TIERS9 '낮음은 덜어낸다' ★)
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다). */
   cullMargin: 1, aheadSec: 3, aheadMB: 48, yaw8Always: false,
   tiers: PC_TIERS9,
-  glMeshMax: 600,
-  glBloom: true,
+  glMeshMax: 480,   // 600 → 480(0단 낮음 · 보통부터 600 — 위 PC_TIERS9 '낮음은 덜어낸다' ★)
+  glBloom: false,   // true → false(같은 ★ · 보통부터 켠다)
   glSpec: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다
   /** ★ 사영 그림자 — PC 는 **전 티어·전 배율**이다(2026-09, 요청: "PC에서 그림자는 보통이 아니라 전 티어에서 모두 표시해도
@@ -1517,7 +1525,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
    *  타원으로 물러나지 않는다. 그래서 그 프레임들에서도 사영을 그대로 깐다(아래 bodyShadow 의 crowd 문이 이 값을 본다) —
    *  '없거나 타원'이 아니라 '늘 사영'이다. */
   shadowEllipse: false,
-  glMsaa: 4, fxQual: 1,
+  glMsaa: 2, fxQual: 0.8,   // 4 · 1 → 2 · 0.8(0단 낮음 · 보통부터 4 · 1 — 위 '낮음은 덜어낸다' ★)
 };
 /* ★ **PC는 벤치 단으로 예산을 올린다**(요청: "윈도우 크롬에서 CPU·GPU를 최대한 쓸 수 없을까" → 계획 1번) ────
    위 PC 표는 한 값이라 벤치 7ms짜리 기기도 19ms짜리와 같은 예산(프레임당 굽기 3장·12ms, 앞 3초·24MB)으로
@@ -1531,6 +1539,10 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
      오르기만 한다(내려가지 않는다 — 부풀린 첫 값이 내린 단은 짐이지 기기가 아니다). `#tier=N`으로 못 박는다.
    굽기 ms가 한 장(16.7ms)을 넘는 단은 전투 중 프레임을 먹을 수 있다 — 그 몫은 기존 문(bakeOk9의 프레임당
    시계·bakeSprint9의 대기표 길이)이 그대로 다스린다. 예산은 상한이지 강제가 아니다. */
+/* 0단(낮음)의 안개 눈 결(glTerrain9 FOG_EYE_Q9 ★) — PC 12px·24조각(PC_TIERS9 '낮음은 덜어낸다' ★ · 보통부터 6·40) ·
+   폰 14px·20조각(2026-11-02, 요청: "안개 퀄리티는 모바일 쪽에도 적용해 볼까 · 티어별로 격차" — 보통 10·28 · 높음 7·36 · PHONE_TIERS9). 폰은 기기 px 가 촘촘해(DPR 3) 대개 최대 조각에 닿는다. */
+if (DEV9.name === "pc") { FOG_EYE_Q9.px = 12; FOG_EYE_Q9.max = 24; } else { FOG_EYE_Q9.px = 14; FOG_EYE_Q9.max = 20; }
+FOG_EYE_Q9.ver += 1;
 /* 메인의 굽기 환경 — DOM 캔버스(계수기 newCanvas9·창고 takeStored9)와 기기 한도(DEV9). 위 BAKE_ENV9 참고. */
 BAKE_ENV9.mk = newCanvas9;
 BAKE_ENV9.out = (w9, h9, tag9) => {
@@ -1631,6 +1643,7 @@ function applyBenchTier9(bench: number): void {
   if (t9.meshShadowMinZoom !== undefined) DEV9.meshShadowMinZoom = t9.meshShadowMinZoom;
   if (t9.glMsaa !== undefined) DEV9.glMsaa = t9.glMsaa;
   if (t9.fxQual !== undefined) DEV9.fxQual = t9.fxQual;
+  if (t9.fogEye) { FOG_EYE_Q9.px = t9.fogEye[0]; FOG_EYE_Q9.max = t9.fogEye[1]; FOG_EYE_Q9.ver += 1; }
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
 }
@@ -12753,7 +12766,7 @@ export default function ReplayMotionPlayer({
   /** ★ 상자 선택(2026-11-01, 요청: "마우스 드래그로도 유닛 건물 선택 가능하게" → "왼쪽 끌기 = 선택(원작식)") — 마우스 왼쪽 끌기로 고른 몸 열쇠들.
    *  둘 이상일 때만 선다(하나면 picked) · picked 가 서면 걷힌다 · 인포창은 picked → 이것 → 화면 주인의 선택 차례로 든다. 끄는 상자는 boxElRef9(무대 위 DOM). */
   const [boxSel9, setBoxSel9] = useState<string[] | null>(null);
-  const boxDragRef9 = useRef<{ id: number; sx: number; sy: number; x: number; y: number; live: boolean } | null>(null);
+  const boxDragRef9 = useRef<{ id: number; sx: number; sy: number; x: number; y: number; live: boolean; ox: number; oy: number; raf: number } | null>(null);
   const boxElRef9 = useRef<HTMLDivElement | null>(null);
   const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
   useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
@@ -16017,7 +16030,7 @@ export default function ReplayMotionPlayer({
       const el9 = mapRef.current;
       if (!el9 || mx9 < 0 || dt9 <= 0) return;
       /* 추적 중에는 가장자리로도 안 민다(요청) — 밀던 중이었으면 그 손짓을 접는다. */
-      if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) {   // 분할보기·카메라 잠금도 가장자리로 안 민다
+      if (trackLockRef.current || splitOnRef9.current || camLockRef9.current || boxDragRef9.current) {   // 분할보기·카메라 잠금·상자 끌기(boxDragRef9 ★)도 가장자리로 안 민다
         if (edgeOn) { edgeOn = false; vx9 = 0; vy9 = 0; endGestureXf(); }
         return;
       }
@@ -18650,6 +18663,30 @@ export default function ReplayMotionPlayer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* ★ 전체화면에서 마우스가 쉬면 커서를 숨긴다(2026-11-02, 요청: "전체화면에서는 일정 시간 마우스 입력 없으면 마우스 숨기기") — 마우스가 2.5초 안 움직이면
+     뿌리에 scr-cursor-idle(replay.css · cursor none) · 움직이거나 누르거나 굴리면 곧장 되살린다. 손가락 입력은 안 본다(커서가 없다). */
+  useEffect(() => {
+    if (!fsOn) return undefined;
+    let t9 = 0;
+    const root9 = (): HTMLElement | null => fsRootRef.current;
+    const wake9 = (e: Event): void => {
+      if ((e as PointerEvent).pointerType && (e as PointerEvent).pointerType !== "mouse") return;
+      root9()?.classList.remove("scr-cursor-idle");
+      window.clearTimeout(t9);
+      t9 = window.setTimeout(() => root9()?.classList.add("scr-cursor-idle"), 2500);
+    };
+    window.addEventListener("pointermove", wake9, { passive: true });
+    window.addEventListener("pointerdown", wake9, { passive: true });
+    window.addEventListener("wheel", wake9, { passive: true });
+    t9 = window.setTimeout(() => root9()?.classList.add("scr-cursor-idle"), 2500);
+    return () => {
+      window.clearTimeout(t9);
+      window.removeEventListener("pointermove", wake9);
+      window.removeEventListener("pointerdown", wake9);
+      window.removeEventListener("wheel", wake9);
+      root9()?.classList.remove("scr-cursor-idle");
+    };
+  }, [fsOn]);
   const onMapPointerDown = (e: React.PointerEvent) => {
     /* 미끄러지던 관성을 붙잡는다 — 그 누름은 멈춤이지 클릭이 아니다(떼도 몸을 안 집는다 · 위 관성 ★). */
     const flung9 = flingRef9.current.raf !== 0;
@@ -18691,12 +18728,14 @@ export default function ReplayMotionPlayer({
        분할보기는 칸마다 카메라가 달라 상자를 안 쓴다(종전 길). 안 움직이고 떼면 클릭(아래 onMapPointerUp 의 몸 집기)이다. */
     if (e.pointerType === "mouse" && e.button === 0 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false };
+      const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
+      boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false, ox: sr9?.left ?? 0, oy: sr9?.top ?? 0, raf: 0 };
       return;
     }
     if (e.pointerType === "mouse" && e.button !== 0) {
       const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손)
       if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
+      (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
     }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
@@ -18717,17 +18756,24 @@ export default function ReplayMotionPlayer({
   const onMapPointerMove = (e: React.PointerEvent) => {
     const bx9 = boxDragRef9.current;
     if (bx9 && bx9.id === e.pointerId) {
+      /* ★ 빠르게(2026-11-02, 지적: "피시 드래그 선택이 너무 느려 · 시작 타이밍도 지연된 것 같고") — ① 문턱 10 → **3px**(마우스는 손 떨림이 없다 · 옛 문턱은 손가락 끌기 몫)
+         ② 무대 자리는 누를 때 한 번만 잼(옛: 움직일 때마다 getBoundingClientRect — 그리는 중이면 강제 배치를 부른다) ③ 쓰기는 한 장에 한 번(rAF) · transform 이동(배치 없이 합성만)
+         ④ 끄는 동안 가장자리 밀기를 쉰다(끝으로 끌면 지도가 미끄러져 상자와 땅이 어긋나고 손짓 붓까지 돌았다). */
       bx9.x = e.clientX; bx9.y = e.clientY;
-      if (!bx9.live && Math.hypot(bx9.x - bx9.sx, bx9.y - bx9.sy) > DRAG_SLOP) {
+      if (!bx9.live && Math.hypot(bx9.x - bx9.sx, bx9.y - bx9.sy) > 3) {
         bx9.live = true;
         const tpX9 = tapRef.current; if (tpX9 && tpX9.id === e.pointerId) tpX9.moved = true;
       }
-      const el9 = boxElRef9.current; const st9 = stageRef.current;
-      if (bx9.live && el9 && st9) {
-        const r9 = st9.getBoundingClientRect();
-        el9.style.display = "block";
-        el9.style.left = `${Math.min(bx9.sx, bx9.x) - r9.left}px`; el9.style.top = `${Math.min(bx9.sy, bx9.y) - r9.top}px`;
-        el9.style.width = `${Math.abs(bx9.x - bx9.sx)}px`; el9.style.height = `${Math.abs(bx9.y - bx9.sy)}px`;
+      if (bx9.live && !bx9.raf) {
+        bx9.raf = requestAnimationFrame(() => {
+          const b9 = boxDragRef9.current; const el9 = boxElRef9.current;
+          if (!b9) return;
+          b9.raf = 0;
+          if (!el9) return;
+          el9.style.display = "block";
+          el9.style.transform = `translate(${Math.min(b9.sx, b9.x) - b9.ox}px, ${Math.min(b9.sy, b9.y) - b9.oy}px)`;
+          el9.style.width = `${Math.abs(b9.x - b9.sx)}px`; el9.style.height = `${Math.abs(b9.y - b9.sy)}px`;
+        });
       }
       return;
     }
@@ -18905,9 +18951,11 @@ export default function ReplayMotionPlayer({
     });
   };
   const onMapPointerUp = (e: React.PointerEvent) => {
+    if ((e.currentTarget as HTMLElement).style.cursor) (e.currentTarget as HTMLElement).style.cursor = "";   // 오른쪽·가운데 끌기의 손 걷기(onMapPointerDown ★)
     const bxU9 = boxDragRef9.current;
     if (bxU9 && bxU9.id === e.pointerId) {
       boxDragRef9.current = null;
+      if (bxU9.raf) cancelAnimationFrame(bxU9.raf);
       if (boxElRef9.current) boxElRef9.current.style.display = "none";
       if (bxU9.live) {
         if (e.type !== "pointercancel") boxPick9(bxU9.sx, bxU9.sy, bxU9.x, bxU9.y);
@@ -22135,7 +22183,9 @@ export default function ReplayMotionPlayer({
                overflow:hidden으로 따로 자르고, 안개도 상자 크기 그대로다. 위로 나가는 것은
                유닛 캔버스 하나뿐이고, 그쪽은 발자리로 창 밖을 가른다(inView0 주석). */
             ...(zoom > 1 || pitched ? { overflow: "hidden" as const } : {}),
-            ...(zoom > 1 || fsOn ? { cursor: dragRef.current ? "grabbing" : "grab" } : {}),
+            /* PC(마우스)는 **화살표**가 기본(2026-11-02, 요청: "피시에서 커서도 화살표로 · 우클릭에만 손으로") — 왼쪽 끌기가 상자 선택이 됐으니 손 모양이 거짓말이다.
+               오른쪽·가운데 끌기(지도 이동) 동안만 무대가 grabbing(onMapPointerDown ★). 손가락 기기는 커서가 없어 종전 그대로. */
+            ...(coarse && (zoom > 1 || fsOn) ? { cursor: dragRef.current ? "grabbing" : "grab" } : {}),
             /* 전체화면 — 지도를 화면보다 **크게**(cover) 깔고, 자르는 일은 무대에
                맡긴다(요청: "지도비율과 화면이 안맞으니 화면비율에 맞게끔 최대 크롭한
                부분이 비춰지며 드래그로 나머지 부분을 보는식"). 여기서 자르면(overflow
