@@ -623,13 +623,33 @@ function scanHum9(v: number): Float32Array {
   return finish9(echo9(echo9(raw, 0.17, 0.35), 0.37, 0.25), 0.42);
 }
 
+/** ★ 소환구 착공 — 에너지가 모이는 낮은 소리(2026-11-02, 요청: "소환구 착공 시도 에너지가 집약되는 듯한 낮은 소리로") — 옛: 마법 공용 warp.
+ *  낮은 웅(55 → 98Hz 로 오르며 커진다 · 2·3배음) + 빨려 드는 숨(띠 거르개 잡음이 250 → 1100Hz 로 좁혀 오름) + 끝의 부드러운 '툭'(모임). 1.3초 · 끝이 가장 크다. */
+function warpCharge9(v: number): Float32Array {
+  const r = rng9(1451 + v);
+  const bp = new Biquad9("bp", 250, 2.2);
+  const lp = new Biquad9("lp", 900, 0.7);
+  const D9 = 1.3; const f0 = 55 * [1, 1.06, 0.94][v % 3];
+  let ph = 0;
+  return finish9(render9(D9, (t) => {
+    const u = Math.min(1, t / 1.1);
+    ph += (f0 * (1 + 0.78 * u * u)) / SFX_RATE9;
+    const swell = u * u * (t < 1.1 ? 1 : Math.max(0, 1 - (t - 1.1) / 0.2));
+    const drone = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.4 + Math.sin(6 * Math.PI * ph) * 0.15) * swell;
+    const suck = bp.run(r() * 2 - 1) * swell * 0.9;
+    const tk = t - 1.08;
+    const tock = tk > 0 ? Math.sin(2 * Math.PI * 140 * tk) * Math.exp(-tk * 30) * 0.8 : 0;
+    return sat9(lp.run(drone + suck) + tock, 1.4);
+  }, (t) => bp.set(250 + 850 * Math.min(1, t / 1.1))), 0.6);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -644,4 +664,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   eggPop: [2, eggPop9],
   screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
+  warpCharge: [2, warpCharge9],
 };

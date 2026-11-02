@@ -147,7 +147,7 @@ export class SfxCues9 {
       if (!inView(u.fx, u.fy)) continue;
       /* 채집은 일꾼 종류마다 따로(드론 mine · SCV mineScv · 프로브 mineProbe — 2026-10-22, 요청: "프로브랑 SCV 는 소리가 달라야"). */
       if (u.gath) mine.set(GATH9[u.gath], [u.fx, u.fy]);
-      if (orb) play("warp", u.fx, u.fy);
+      if (orb) play("warpCharge", u.fx, u.fy);   // 소환구 착공 — 에너지가 모이는 낮은 소리(2026-11-02 · 옛: 마법 공용 warp)
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }

@@ -2834,3 +2834,5 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - sfx9Cues: 유닛 죽음 burst 에 `by`(죽은 몸 · engine9) → Medic screamHi · Firebat screamLow · Dragoon springBreak · 그 밖 생체 screamM(옛 30% 무작위 여자 비명 걷음) ·
   HIT9 spike(럴커) → spikeEarth · 성큰 가시(erupt op 가 새로 서면) → spikeEarth · LAUNCH9 venom(가디언) puff → guardHum · CAST9 scan → scanHum(옛: 소리 없음).
   sfx9 PRIO/MAX/GAP 에 새 갈래. 🔎 견본 `$S/sfxh/new7.ts <out.wav> <갈래…>`.
+- (같은 날) "소환구 착공 시도 에너지가 집약되는 듯한 낮은 소리로" — 새 `warpCharge9`(55 → 98Hz 로 오르며 커지는 낮은 웅 + 250 → 1100Hz 로 빨려 드는 숨 + 끝의 툭 · 1.3초).
+  sfx9Cues 소환구가 나타날 때 warp(마법 공용) → warpCharge. 마엘·리콜의 warp 는 그대로.
