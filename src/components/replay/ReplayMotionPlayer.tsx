@@ -16873,7 +16873,8 @@ export default function ReplayMotionPlayer({
     if (!want) return;
     holdRef.current = want;
     if (fsOn && fsCoverW <= 0) return;   // 전체화면은 무대 크기가 재져야 지도 폭이 정해진다 — 그 전 커밋에서는 미룬다
-    /* ★ 전체화면을 오갈 때 **타일 한 칸의 화면 크기를 지킨다**(2026-11-02, 지적: "전체화면일 때 타일 수 기준이 안 바뀐 듯 · 창 모드는 얼마 전에 넓게 보이게 바꿨는데") —
+    /* ★ 전체화면을 오갈 때 **창과 같은 타일 수 기준으로 다시 맞춘다**(2026-11-02, 지적: "전체화면일 때 타일 수 기준이 안 바뀐 듯 · 창 모드는 얼마 전에 넓게 보이게 바꿨는데" →
+       첫 판(칸 크기 지키기)은 "그게 아니라 타일수 기준은 같아야지"로 되물림 — 아래 z19 = castZoomFit9) —
        배율은 덮는 판 폭(fsCoverW)에 곱하는 값이라, 창(판 = 무대 키 · 좌우 필러) → 전체화면(판이 화면을 덮음 · 세로 폰은 2.8배 넓다)에서 배율을 그대로 두면 타일이
        그만큼 커져 훨씬 좁게 보였다. 중계·추적은 위 ③ 이 타일 수(castZoomFit9)로 다시 맞추는데 자유 보기만 배율을 그대로 들고 갔다. 이제 판 폭 비만큼 배율을 나눠
        칸 크기를 지키고(1배 바닥) — 넓어진 무대만큼 더 보인다 — 한가운데 타일은 아래가 다시 앉힌다. */
@@ -16882,7 +16883,8 @@ export default function ReplayMotionPlayer({
     const fp9 = fsZoomPend9.current;
     if (fp9 && fsCoverW > 0 && performance.now() - fp9.at < 2000 && Math.abs(fsCoverW - fp9.cw) > 1) {
       fsZoomPend9.current = null;
-      const z19 = Math.max(1, (fp9.z * fp9.cw) / fsCoverW);
+      /* ⚠ 되물림(같은 날, "그게 아니라 타일수 기준은 같아야지") — 칸 크기를 지키는 대신 창과 **같은 타일 수 기준**(castZoomFit9 · 폰 가로 20·세로 12 · PC 32·18)으로 맞춘다. */
+      const z19 = castZoomFit9();
       const k9 = p9.cw > 0 && z09 > 0 ? (fsCoverW * z19) / (p9.cw * z09) : 1;
       if (Math.abs(z19 - z09) > 1e-3) setView9(z19, { x: p09.x * k9, y: p09.y * k9 });
     }
