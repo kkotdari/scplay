@@ -20029,9 +20029,10 @@ export default function ReplayMotionPlayer({
     /* ★ **폰 보통·낮음도 60fps**(2026-11-02, 요청: "괜찮네 프레임 제한 좀 풀어도 될 듯" → '폰 보통·낮음 30→60') — 지형 겹칠하기 줄이기·지형 판 재사용으로 장당 GPU 몫이
        크게 줄어(맥북 배율 8 줌 11~13 → 30fps 이상) 30fps 바탕을 걷는다. 과열 사다리 3단(FQ9)의 덜어내기(높음 30 · 그 밖 20fps)와 '매우 낮음'(phoneWeak9 · 벤치 미달 30fps)은
        안전장치라 그대로. 옛: 높음만 60 · 보통 이하 30. */
-    const phoneGap9 = (): number => (FQ9.lv >= 3
-      ? (TIER9.v >= 2 && !phoneWeak9() ? PHONE_GAP9 : PHONE_GAP_LO9)
-      : (phoneWeak9() ? PHONE_GAP9 : MOBILE_GAP_MS));
+    /* ⚠ 되물림(같은 날, 실기: "폰 발열 확인됨 · 30프레임으로 복구") — 위 ★ 폰 보통·낮음 60fps 를 걷고 옛 박자(높음만 60 · 보통 이하 30)로. */
+    const phoneGap9 = (): number => (TIER9.v >= 2 && !phoneWeak9()
+      ? (FQ9.lv >= 3 ? PHONE_GAP9 : MOBILE_GAP_MS)
+      : (FQ9.lv >= 3 ? PHONE_GAP_LO9 : PHONE_GAP9));
     const drawGapMs = (): number => (
       GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16)
         : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
@@ -22097,6 +22098,10 @@ export default function ReplayMotionPlayer({
         const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
         lay9.style.setProperty("--dock-lift", `${tbH9}px`); lay9.style.setProperty("--dock-lift-r", `${tbH9}px`);
         lay9.classList.toggle("is-wide-noroster", !showRoster9);
+        /* 배율 원은 중계 토글 오른쪽 · 배속 다이얼은 토글 아래(같은 날 요청) — 토글 크기를 뿌리에 적는다(replay.css 가로가 긴 화면 ★). */
+        const tog9 = lay9.querySelector<HTMLElement>(".scr-modetog-stage");
+        lay9.style.setProperty("--wtog-w", `${tog9?.offsetWidth ?? 0}px`);
+        lay9.style.setProperty("--wtog-h", `${tog9?.offsetHeight ?? 0}px`);
         const ki9 = showInfo9 ? kc9 : 0;
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h0) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && p9.lift === 0 ? p9 : { h: h0, ki: ki9, k: kc9, lift: 0 }));
         setRosterPaged9(true);

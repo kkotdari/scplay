@@ -5572,7 +5572,10 @@
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { background: transparent !important; box-shadow: none !important; }
 .scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-fs-rosterpanel,
 .scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-motion-infodock { display: none; }
-/* 무대 오른쪽에 붙던 것(배율 원 · fps · 배속 다이얼)과 바닥 가운데 자막은 기둥만큼 왼쪽으로 비킨다. */
-.scr-fs-layer.is-wide .scr-zoomdial, .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--wcol, 0px) + var(--sd-gap)); }
-.scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--wcol, 0px) + var(--sd-gap) + var(--sd-w) + 6px * var(--sdk)); }
+/* ★ 배율 원은 **중계 토글 오른쪽** · 배속 다이얼은 **토글 아래 지도 위**(같은 날 요청: "배율원은 중계토글 오른쪽 · 배속다이얼을 중계토글 아래 맵 위") — 토글 크기(--wtog-w/h)는
+   dockFit9 wide 갈래가 잰다. fps 글자는 배율 원 오른쪽. 바닥 가운데 자막은 기둥만큼 왼쪽으로 비킨다. */
+.scr-fs-layer.is-wide { --wtog-x: max(var(--wtog-w, 0px), calc(var(--sd-w) * 2.2)); --wtog-y: max(var(--wtog-h, 0px), var(--sd-w)); }   /* 토글이 아직 안 섰을 때(잰 값 0)의 바닥 */
+.scr-fs-layer.is-wide .scr-zoomdial { right: auto; left: calc(var(--sd-gap) + var(--wtog-x) + 8px); }
+.scr-fs-layer.is-wide .scr-zoomfps { right: auto; left: calc(var(--sd-gap) + var(--wtog-x) + 8px + var(--sd-w) + 6px * var(--sdk)); }
+.scr-fs-layer.is-wide .scr-speeddial { right: auto; bottom: auto; left: var(--sd-gap); top: calc(var(--safe-top, 0px) + var(--sd-gap) + var(--wtog-y) + 8px); }
 .scr-fs-layer.is-wide .scr-cast-caption { right: var(--wcol, 0px); }
