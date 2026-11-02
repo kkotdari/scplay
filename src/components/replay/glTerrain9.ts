@@ -27,6 +27,15 @@ import type { Loop } from "../../utils/contour";
  *  눈이 수백(전투 화면 700+)이고 눈 배열이 바뀔 때마다 통째로 다시 지으므로(88k 정점) 조각 수가 곧 CPU·업로드 몫이다. RMP 가 기기 단으로 놓는다(낮음 12px·24 · 그 위 6px·40). */
 export const FOG_EYE_Q9 = { px: 6, max: 40, ver: 0 };
 
+/** ★ **지형 질감 결**(2026-11-02, 요청: "지형이 너무 단순하게 타일별 색만 뽑는데 더 섬세하고 원작처럼 보일 수 없을까" → '질감 결') — 타일 실색 위에
+ *  **절차 무늬**를 곱으로 한 겹 얹는다(타일결 ⑥ 다음 · 안개 앞). 칸마다 색으로 갈래를 갈라(ensure 의 갈래 판 · 걷는 칸은 타일 실색 · 못 걷는 칸은 절벽=바위 · 물)
+ *  풀은 잔 반점·포기 그늘, 흙은 얼룩·잔 자갈(빛 받는 둥근 돌 · 오른아래 그늘), 바위는 얼룩·금, 금속 타일셋(플랫폼·설치)은 칸 이음매·리벳, 물은 가로 물결.
+ *  갈래 판은 LINEAR 라 갈래 사이가 번지듯 갈린다(칸 네모가 안 선다). 곱은 (DST_COLOR, SRC_COLOR) — 2배 곱이라 밝힘(자갈 빛)도 된다 · 알파는 그대로.
+ *  잔 무늬는 한 타일의 기기 px(uGr.y)로 옥타브마다 끈다(무늬 한 알이 2px 아래면 자글거리므로). `k` 세기(0 = 끔 · 패스째 건너뛴다) — RMP 가 기기 단으로 놓는다
+ *  (PC 전 단 1 · 폰 낮음 0 · 보통부터 1). `#tgrain=k` 로 견준다(0 끔). 셰이더는 highp 가 있어야 돈다(타일 자 × 23 이 mediump 를 넘는다) — 없으면 끈다. */
+export const TERR_GRAIN9 = { k: 1 };
+const TGRAIN_HASH9 = ((): number => { const m = typeof location !== "undefined" ? /(?:^|[#&,])tgrain=([0-9.]+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
+
 /** 진단 `#glterrdbg=N` — N 번째 덮기까지만 그린다(층을 하나씩 켜 보며 어디서 깨지나 본다). */
 const TERR_DBG9 = ((): number => { const m = typeof location !== "undefined" ? /glterrdbg=(\d+)/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })();
 export const GL_TERR9 = !(typeof location !== "undefined" && /glterr=0/.test(location.hash));
@@ -54,20 +63,76 @@ export const TCON9: [number, number] = ((): [number, number] => {
 const TERR_VS = `
 attribute vec2 aP; attribute vec2 aN;
 uniform mat3 uH; uniform vec2 uCanvas; uniform vec2 uOff; uniform float uHalfW; uniform vec2 uWH;
-varying vec2 vUv;
+varying vec2 vUv; varying vec2 vTc;
 void main() {
   vec2 t = aP + aN * uHalfW + uOff;
-  vUv = aP / uWH;
+  vUv = aP / uWH; vTc = aP;
   vec3 p = uH * vec3(t, 1.0);
   // 분모(p.z)를 w 에 싣는다 — 원근 보정 보간(타일결 텍셀이 입체에서 휘지 않게).
   gl_Position = vec4((p.x / uCanvas.x * 2.0 - p.z), (p.z - p.y / uCanvas.y * 2.0), 0.0, p.z);
 }`;
 const TERR_FS = `
 precision mediump float;
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#endif
 uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCon;
-varying vec2 vUv;
+uniform vec4 uGr;
+varying vec2 vUv; varying vec2 vTc;
+float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec2 h22(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
+float vn(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h12(i), h12(i + vec2(1.0, 0.0)), f.x), mix(h12(i + vec2(0.0, 1.0)), h12(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+vec4 wor(vec2 p, out float id) {
+  vec2 i = floor(p); vec2 f = fract(p); float d1 = 8.0; float d2 = 8.0; vec2 o1 = vec2(0.0); id = 0.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 g = vec2(float(x), float(y)); vec2 r = g + h22(i + g) * 0.8 + 0.1 - f; float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; o1 = r; id = h12(i + g + 17.17); } else if (d < d2) d2 = d;
+  }
+  return vec4(sqrt(d1), sqrt(d2), o1);
+}
+float fd(float f) { return clamp((uGr.y / f - 1.6) * 0.5, 0.0, 1.0); }
+float grain() {
+  vec2 tc = vTc; vec4 w = texture2D(uTex, vUv);
+  float m1 = vn(tc * 0.9 + 3.1) - 0.5; float m2 = vn(tc * 2.7 + 5.3) - 0.5; float m3 = vn(tc * 8.0 + 1.7) - 0.5;
+  float d = 0.0; float pid;
+  if (w.r > 0.02) {
+    float g = m1 * 0.16 + m2 * 0.10 * fd(2.7) + m3 * 0.14 * fd(8.0) + (vn(tc * 19.0) - 0.5) * 0.14 * fd(19.0);
+    g -= smoothstep(0.62, 0.78, vn(tc * 6.0 + 9.0) * 0.6 + vn(tc * 15.0) * 0.4) * 0.09 * fd(10.0);
+    d += w.r * g;
+  }
+  if (w.g > 0.02) {
+    float g = m1 * 0.14 + m2 * 0.10 * fd(2.7) + m3 * 0.07 * fd(8.0) + (vn(tc * 21.0) - 0.5) * 0.10 * fd(21.0);
+    float fl = vn(tc * 7.0 + 4.0) * 0.55 + vn(tc * 17.0 + 2.0) * 0.45;
+    g -= smoothstep(0.64, 0.80, fl) * 0.08 * fd(12.0);
+    g += smoothstep(0.30, 0.18, fl) * 0.04 * fd(12.0);
+    d += w.g * g;
+  }
+  if (w.b > 0.02) {
+    float g = m1 * 0.13 + m2 * 0.09 * fd(2.7) + m3 * 0.05 * fd(8.0) + (vn(tc * 23.0) - 0.5) * 0.07 * fd(23.0);
+    if (uGr.z > 0.5) {
+      vec2 f = fract(tc); vec2 e = min(f, 1.0 - f); float edge = min(e.x, e.y);
+      g -= smoothstep(0.04, 0.012, edge) * 0.17 * fd(14.0);
+      g += smoothstep(0.09, 0.05, min(f.x, f.y)) * smoothstep(0.02, 0.05, min(f.x, f.y)) * 0.08 * fd(14.0);
+      vec2 rv = abs(f - 0.5) - 0.38; g += smoothstep(0.035, 0.015, length(max(rv, 0.0)) + 0.0) * step(0.0, min(rv.x, rv.y)) * 0.12 * fd(20.0);
+    } else {
+      vec4 q = wor(tc * 1.3 + 7.0, pid);
+      float c = smoothstep(0.045, 0.012, q.y - q.x) * smoothstep(0.58, 0.70, vn(tc * 0.6 + 11.0));
+      g -= c * 0.18 * fd(12.0);
+    }
+    d += w.b * g;
+  }
+  if (w.a > 0.02) {
+    float g = (vn(tc * vec2(0.7, 2.2) + 2.0) - 0.5) * 0.14 + (vn(tc * vec2(2.5, 7.0)) - 0.5) * 0.10 * fd(7.0);
+    d += w.a * g;
+  }
+  return clamp(1.0 + d * uGr.x, 0.45, 1.6);
+}
 void main() {
   vec4 o;
+  if (uMode > 1.5) { gl_FragColor = vec4(vec3(grain() * 0.5), 1.0); return; }
   if (uMode > 0.5) { vec4 t = texture2D(uTex, vUv); o = vec4(t.rgb * t.a, t.a) * uCol.a; }
   else o = uCol;
   // 대비(CON9) — 미리곱하기 전 색에.
@@ -179,6 +244,10 @@ export class GlTerrain9 {
   private ramps: (Bufs9 | null)[] = [];
   private ramp: Bufs9 | null = null;
   private tex: WebGLTexture | null = null;
+  /** 질감 결 갈래 판(위 TERR_GRAIN9 ★) — w×h RGBA · r 풀 · g 흙 · b 바위 · a 물(LINEAR). */
+  private cls: WebGLTexture | null = null;
+  private panel9 = false;
+  private highp9: boolean;
   private quad: WebGLBuffer;
   private nAttr = 8;
   private bufs: WebGLBuffer[] = [];
@@ -201,10 +270,12 @@ export class GlTerrain9 {
     /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
     private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
     this.prog = mkProg(TERR_VS, TERR_FS);
-    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
+    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;
     this.nAttr = Math.max(2, Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 8);
+    const hp9 = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+    this.highp9 = !!hp9 && hp9.precision >= 16;
   }
   /** 지도가 갈리면 GPU 몫을 다시 짓는다(기하는 지도마다 한 번 · 여기도 한 번). */
   private ensure(G: TerrainGeom9): void {
@@ -230,6 +301,43 @@ export class GlTerrain9 {
     this.ramps = G.ramps.map((l) => ly(l, false));
     this.ramp = G.rampLoops ? mk(G.rampLoops, true) : null;
     if (this.tex) { gl.deleteTexture(this.tex); this.tex = null; }
+    if (this.cls) { gl.deleteTexture(this.cls); this.cls = null; }
+    {   // 질감 결 갈래 판(위 TERR_GRAIN9 ★)
+      const n9 = G.w * G.h; const c9 = new Uint8Array(n9 * 4);
+      const band9 = (h: number, a: number, b: number, c: number, d: number): number => Math.max(0, Math.min(1, Math.min((h - a) / (b - a), (d - h) / (d - c))));
+      const metal9 = G.tileset === 1 || G.tileset === 2;
+      for (let i = 0; i < n9; i += 1) {
+        let r = 0; let g = 0; let b = 0;
+        const L = G.lvl[i];
+        if (G.walk[i] === 1) {
+          const rgb = G.tileRGBA && G.tileRGBA[i * 4 + 3] ? [G.tileRGBA[i * 4], G.tileRGBA[i * 4 + 1], G.tileRGBA[i * 4 + 2]]
+            : (L > 0 ? G.levels[L - 1]?.rgb : null) ?? G.land.rgb;
+          const mx = Math.max(rgb[0], rgb[1], rgb[2]); const mn = Math.min(rgb[0], rgb[1], rgb[2]);
+          const sat = mx > 0 ? (mx - mn) / mx : 0;
+          let hue = 0;
+          if (mx > mn) {
+            hue = mx === rgb[0] ? 60 * (((rgb[1] - rgb[2]) / (mx - mn)) % 6) : mx === rgb[1] ? 60 * ((rgb[2] - rgb[0]) / (mx - mn) + 2) : 60 * ((rgb[0] - rgb[1]) / (mx - mn) + 4);
+            if (hue < 0) hue += 360;
+          }
+          if (hue > 330) hue -= 360;
+          const sk = Math.max(0, Math.min(1, (sat - 0.08) / 0.12));
+          const gr = metal9 ? 0 : band9(hue, 52, 72, 170, 195) * sk;
+          const dt = metal9 ? 0 : band9(hue, -30, -10, 52, 72) * sk;
+          r = gr; g = dt; b = Math.max(0, 1 - gr - dt);
+          c9[i * 4] = Math.round(r * 255); c9[i * 4 + 1] = Math.round(g * 255); c9[i * 4 + 2] = Math.round(b * 255);
+        } else if (L > 0) c9[i * 4 + 2] = 255;
+        else if (!metal9) c9[i * 4 + 3] = 255;
+      }
+      this.panel9 = metal9;
+      this.cls = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.cls);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, G.w, G.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, c9);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
     if (G.tileRGBA) {
       this.tex = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D, this.tex);
@@ -382,6 +490,19 @@ export class GlTerrain9 {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex);
       cover(this.land, false, () => { gl.uniform1f(this.loc.uMode, 1); gl.uniform4f(this.loc.uCol, 0, 0, 0, 0.62); });
       gl.uniform1f(this.loc.uMode, 0);
+    }
+    // ⑦ 질감 결(위 TERR_GRAIN9 ★) — 지도 사각 전체에 2배 곱 한 겹(물·절벽도 제 갈래로). 알파는 그대로.
+    const grainK9 = TGRAIN_HASH9 >= 0 ? TGRAIN_HASH9 : TERR_GRAIN9.k;
+    if (grainK9 > 0 && this.cls && this.highp9 && TERR_DBG9 < 0) {
+      gl.disable(gl.STENCIL_TEST);
+      gl.blendFuncSeparate(gl.DST_COLOR, gl.SRC_COLOR, gl.ZERO, gl.ONE);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.cls);
+      gl.uniform1f(this.loc.uMode, 2);
+      gl.uniform4f(this.loc.uGr, grainK9, cssPerTile * dprK, this.panel9 ? 1 : 0, 0);
+      rect(0, 0, W, H);
+      gl.uniform1f(this.loc.uMode, 0);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.STENCIL_TEST);
     }
     /* ══ 안개(2026-10-24, 요청: "안개도 지형처럼") — 지형 위 · 같은 장 · 같은 카메라. 캔버스 안개와 같은 뜻: 지도 전체 = 안개 1 → 밝힌 고리 안 = DIM →
        시야 원 안 = 0. 스텐실 두 비트로 가른다 — bit0 = 밝힘 홀짝(부채꼴 INVERT) · bit1 = 시야 원(REPLACE). 덮기 둘: (0,0) 짙게 · (1,0) 옅게. 시야 원은

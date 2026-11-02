@@ -60,7 +60,7 @@ import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { FOG_EYE_Q9, GL_TERR9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -1406,6 +1406,8 @@ type BenchTier9 = {
   glMsaa?: number; fxQual?: number;
   /** 안개 눈 원 결(glTerrain9 FOG_EYE_Q9) — [둘레 px 당 조각 · 최대 조각]. */
   fogEye?: [number, number];
+  /** 지형 질감 결 세기(glTerrain9 TERR_GRAIN9 · 0 끔). */
+  terrGrain?: number;
 };
 /* ⚠ 문턱은 **숫자로 적는다** — CROWD_BENCH_MS9(24)는 이 표보다 아래에 선언되므로 여기서 부르면 TDZ 다.
    ★ **판 굽기 시절 자를 GL 몫만큼 늦춘다**(2026-09, 지적: "폰이나 PC 매우낮음인데 여유가 있어보여서 혹시
@@ -1466,10 +1468,10 @@ const PC_TIERS9: readonly BenchTier9[] = [
 const PHONE_TIERS9: readonly BenchTier9[] = [
   { name: "낮음", upMs: Infinity, aheadSec: 1.5, aheadMB: 12 },   // 앞 짓기 바이트 6 → 12 · 10 → 20 · 16 → 32(2026-10-25 · 지도 전체 장은 2.5배 · NO_CULL9 ★)
   { name: "보통", upMs: 18, aheadSec: 2.5, aheadMB: 20,
-    glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8, fogEye: [10, 28] },
+    glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8, fogEye: [10, 28], terrGrain: 1 },
   { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 32,
     glMeshMax: 360, yaw8Always: false, meshShadow: true,   // 사영 그림자는 높음부터(위 폰 프로필 ★ · 3배 아래는 그대로 걷는다)
-    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1, fogEye: [7, 36] },
+    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1, fogEye: [7, 36], terrGrain: 1 },
 ];
 /** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
  *  사영 그림자·MSAA·앞 한도가 다 PC 값이고, 단은 N 에 못 박는다(오르기만 하는 규칙 그대로 · 벤치는 재야 단이 선다). 화면 배치(폰 UI)는 그대로다 — 그리는 예산만 PC.
@@ -1543,6 +1545,8 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
    폰 14px·20조각(2026-11-02, 요청: "안개 퀄리티는 모바일 쪽에도 적용해 볼까 · 티어별로 격차" — 보통 10·28 · 높음 7·36 · PHONE_TIERS9). 폰은 기기 px 가 촘촘해(DPR 3) 대개 최대 조각에 닿는다. */
 if (DEV9.name === "pc") { FOG_EYE_Q9.px = 12; FOG_EYE_Q9.max = 24; } else { FOG_EYE_Q9.px = 14; FOG_EYE_Q9.max = 20; }
 FOG_EYE_Q9.ver += 1;
+/* 지형 질감 결(glTerrain9 TERR_GRAIN9 ★) — PC 는 전 단 켬 · 폰은 낮음 끔(지도 화면 전체를 한 겹 더 칠하는 패스 · 위 폰 발열 ★) · 보통부터 켬(PHONE_TIERS9 terrGrain). */
+TERR_GRAIN9.k = DEV9.name === "pc" ? 1 : 0;
 /* 메인의 굽기 환경 — DOM 캔버스(계수기 newCanvas9·창고 takeStored9)와 기기 한도(DEV9). 위 BAKE_ENV9 참고. */
 BAKE_ENV9.mk = newCanvas9;
 BAKE_ENV9.out = (w9, h9, tag9) => {
@@ -1643,6 +1647,7 @@ function applyBenchTier9(bench: number): void {
   if (t9.meshShadowMinZoom !== undefined) DEV9.meshShadowMinZoom = t9.meshShadowMinZoom;
   if (t9.glMsaa !== undefined) DEV9.glMsaa = t9.glMsaa;
   if (t9.fxQual !== undefined) DEV9.fxQual = t9.fxQual;
+  if (t9.terrGrain !== undefined) TERR_GRAIN9.k = t9.terrGrain;
   if (t9.fogEye) { FOG_EYE_Q9.px = t9.fogEye[0]; FOG_EYE_Q9.max = t9.fogEye[1]; FOG_EYE_Q9.ver += 1; }
   DEV9_DIRTY9.v = true;
   qualityNote9();   // 단이 올랐다 — 재생 품질 알림(위 QUALITY9)
