@@ -95,37 +95,48 @@ vec4 wor(vec2 p, out float id) {
 }
 float fd(float f) { return clamp((uGr.y / f - 1.6) * 0.5, 0.0, 1.0); }
 float grain() {
-  vec2 tc = vTc; vec4 w = texture2D(uTex, vUv);
-  float m1 = vn(tc * 0.9 + 3.1) - 0.5; float m2 = vn(tc * 2.7 + 5.3) - 0.5; float m3 = vn(tc * 8.0 + 1.7) - 0.5;
+  // 옥타브는 fd(f) > 0 일 때만 잰다(uGr.y > 1.6·f) — 멀리 본 화면에서 잔 무늬·금(worley 아홉 칸)을 아예 안 센다. 유니폼 갈림이라 화소마다 같은 길이다.
+  vec2 tc = vTc; vec4 w = texture2D(uTex, vUv); float P = uGr.y;
+  float m1 = vn(tc * 0.9 + 3.1) - 0.5; float m2 = vn(tc * 2.7 + 5.3) - 0.5;
+  float m3 = P > 12.8 ? vn(tc * 8.0 + 1.7) - 0.5 : 0.0;
   float d = 0.0; float pid;
   if (w.r > 0.02) {
-    float g = m1 * 0.16 + m2 * 0.10 * fd(2.7) + m3 * 0.14 * fd(8.0) + (vn(tc * 19.0) - 0.5) * 0.14 * fd(19.0);
-    g -= smoothstep(0.62, 0.78, vn(tc * 6.0 + 9.0) * 0.6 + vn(tc * 15.0) * 0.4) * 0.09 * fd(10.0);
+    float g = m1 * 0.16 + m2 * 0.10 * fd(2.7) + m3 * 0.14 * fd(8.0);
+    if (P > 16.0) g -= smoothstep(0.62, 0.78, vn(tc * 6.0 + 9.0) * 0.6 + vn(tc * 15.0) * 0.4) * 0.09 * fd(10.0);
+    if (P > 30.4) g += (vn(tc * 19.0) - 0.5) * 0.14 * fd(19.0);
     d += w.r * g;
   }
   if (w.g > 0.02) {
-    float g = m1 * 0.14 + m2 * 0.10 * fd(2.7) + m3 * 0.07 * fd(8.0) + (vn(tc * 21.0) - 0.5) * 0.10 * fd(21.0);
-    float fl = vn(tc * 7.0 + 4.0) * 0.55 + vn(tc * 17.0 + 2.0) * 0.45;
-    g -= smoothstep(0.64, 0.80, fl) * 0.08 * fd(12.0);
-    g += smoothstep(0.30, 0.18, fl) * 0.04 * fd(12.0);
+    float g = m1 * 0.14 + m2 * 0.10 * fd(2.7) + m3 * 0.07 * fd(8.0);
+    if (P > 19.2) {
+      float fl = vn(tc * 7.0 + 4.0) * 0.55 + vn(tc * 17.0 + 2.0) * 0.45;
+      g += (smoothstep(0.30, 0.18, fl) * 0.04 - smoothstep(0.64, 0.80, fl) * 0.08) * fd(12.0);
+    }
+    if (P > 33.6) g += (vn(tc * 21.0) - 0.5) * 0.10 * fd(21.0);
     d += w.g * g;
   }
   if (w.b > 0.02) {
-    float g = m1 * 0.13 + m2 * 0.09 * fd(2.7) + m3 * 0.05 * fd(8.0) + (vn(tc * 23.0) - 0.5) * 0.07 * fd(23.0);
+    float g = m1 * 0.13 + m2 * 0.09 * fd(2.7) + m3 * 0.05 * fd(8.0);
+    if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.07 * fd(23.0);
     if (uGr.z > 0.5) {
-      vec2 f = fract(tc); vec2 e = min(f, 1.0 - f); float edge = min(e.x, e.y);
-      g -= smoothstep(0.04, 0.012, edge) * 0.17 * fd(14.0);
-      g += smoothstep(0.09, 0.05, min(f.x, f.y)) * smoothstep(0.02, 0.05, min(f.x, f.y)) * 0.08 * fd(14.0);
-      vec2 rv = abs(f - 0.5) - 0.38; g += smoothstep(0.035, 0.015, length(max(rv, 0.0)) + 0.0) * step(0.0, min(rv.x, rv.y)) * 0.12 * fd(20.0);
-    } else {
-      vec4 q = wor(tc * 1.3 + 7.0, pid);
-      float c = smoothstep(0.045, 0.012, q.y - q.x) * smoothstep(0.58, 0.70, vn(tc * 0.6 + 11.0));
-      g -= c * 0.18 * fd(12.0);
+      if (P > 22.4) {
+        vec2 f = fract(tc); vec2 e = min(f, 1.0 - f); float edge = min(e.x, e.y);
+        g -= smoothstep(0.04, 0.012, edge) * 0.17 * fd(14.0);
+        g += smoothstep(0.09, 0.05, min(f.x, f.y)) * smoothstep(0.02, 0.05, min(f.x, f.y)) * 0.08 * fd(14.0);
+        vec2 rv = abs(f - 0.5) - 0.38; g += smoothstep(0.035, 0.015, length(max(rv, 0.0))) * step(0.0, min(rv.x, rv.y)) * 0.12 * fd(20.0);
+      }
+    } else if (P > 19.2) {
+      float mk = smoothstep(0.58, 0.70, vn(tc * 0.6 + 11.0));
+      if (mk > 0.0) {
+        vec4 q = wor(tc * 1.3 + 7.0, pid);
+        g -= smoothstep(0.045, 0.012, q.y - q.x) * mk * 0.18 * fd(12.0);
+      }
     }
     d += w.b * g;
   }
   if (w.a > 0.02) {
-    float g = (vn(tc * vec2(0.7, 2.2) + 2.0) - 0.5) * 0.14 + (vn(tc * vec2(2.5, 7.0)) - 0.5) * 0.10 * fd(7.0);
+    float g = (vn(tc * vec2(0.7, 2.2) + 2.0) - 0.5) * 0.14;
+    if (P > 11.2) g += (vn(tc * vec2(2.5, 7.0)) - 0.5) * 0.10 * fd(7.0);
     d += w.a * g;
   }
   return clamp(1.0 + d * uGr.x, 0.45, 1.6);
