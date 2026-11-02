@@ -217,41 +217,63 @@ SCENES.플토본진 = {
    싸움 없이 한 사람의 본진만(적 없음) · 미네랄 줄 왼쪽 · 본진 · 캐는 일꾼 · 오른쪽 위 생산 건물 · 오른쪽 아래 병력. 배율 8 이면 무대가 ≈16타일이라 틀은 15 × 12 안. */
 /* (같은 날 되요청: "마린 4 메딕 2 파뱃 2 탱크 1 · 질럿 4 리버 1 다크 1 · 저글링 4 히드라 4 럴커(버로우 2) · 가스 건물 모두 포함 미네랄 4덩이 · 오버로드 1(하이브 주변) ·
    뮤탈 2 · 드랍십 2 · 캐리어 대신 커세어 2인데 스러스터 켜진 상태") — 커세어는 상태 1(이동 · 추진 불꽃 자세) · 럴커는 상태 6(버로우). */
-const BASE8 = { zoom: 8, frame: { x0: -8.3, x1: 6.5, y0: -8.8, y1: 3.8 },   // 위 1.5 올림(첫 판: 가스 건물·오버로드 윗부분이 잘렸다)
-  res: [[-7.4, -3.6, 0], [-7.7, -2.1, 0], [-7.7, -0.6, 0], [-7.4, 0.9, 0], [-2.2, -5.9, 1]] };
-const MINERS8 = (n) => [[-5.7, -3, 192], [-5.9, -1.4, 200], [-5.7, 0.2, 180]].map(([x, y, hb]) => [n, x, y, { st: 5, hb }]);
-SCENES.테란8 = { ...BASE8, pl: [1, 2],
+/* (11-02 되요청: "각 종족에 적 두세마리 추가하고 교전상태로 촬영 · 프로토스 탱크 벌처 골리앗 합쳐서 7기정도 · 테란 탱크레이스 대신 베슬 발키리 넣고
+   적으로는 울트라 저글링 오버로드 · 저그 적으로 드라군 하템 캐리어" · "테란에 엔지니어링 베이 떠있는거") — 병력은 상태 4 + 표적(가장 가까운 적)으로 싸우고
+   적은 오른쪽 끝에 붙는다(틀 오른쪽을 0.9 늘림). 테란의 탱크 → 베슬 · 드랍십 둘 → 발키리 둘(오버로드를 친다) · 뜬 엔베는 오른위. */
+/* (같은 날 되요청: "너무 유닛이 오른쪽에 치우친듯 · 건물을 더 촘촘히 모으고 유닛을 왼쪽까지 펼치기") — 건물은 위 띠(y −7.2 ~ −1.8)에 붙여 모으고
+   (미네랄 넷 · 일꾼 · 본진 · 가스 · 옆 건물 · 생산 건물 · 뜬 엔베) 병력은 아래 띠 전체(x −7 ~ 6.6)에 펼친다 — 아군은 왼쪽~가운데 · 적은 가운데~오른쪽에서 맞붙는다. */
+const BASE8 = { zoom: 8, frame: { x0: -8.3, x1: 7.5, y0: -8.8, y1: 3.8 },
+  res: [[-7.5, -5.6, 0], [-7.7, -4.1, 0], [-7.7, -2.6, 0], [-7.5, -1.1, 0], [-3.4, -6.2, 1]] };
+const MINERS8 = (n) => [[-6.1, -4.6, 192], [-6.2, -3.2, 200], [-6.1, -1.8, 180]].map(([x, y, hb]) => [n, x, y, { st: 5, hb }]);
+const ME8 = (hb = 64) => ({ st: 4, fight: true, hb });
+/* (같은 날: "프로토스는 흙에 풀밭 타일에 코발트 임자색 · 저그는 사막 타일에 붉은색 임자색 · 테란은 우주 타일에 흰색 임자색") — 장면마다 타일셋(tileset ·
+   OBWM 머리 9번째 바이트) · 땅 색 층(ground — 판 3 의 타일 RGB: grass = 흙 바탕에 풀 얼룩 · sand = 모래 바탕에 짙은 모래 얼룩 · 없으면 타일셋 색) ·
+   임자색(colors[임자]). 적은 그 종족 장면의 임자색을 빌린다(테란 장면의 저그 = 빨강 · 토스 장면의 테란 = 흰색 · 저그 장면의 토스 = 코발트). */
+SCENES.테란8 = { ...BASE8, pl: [1, 0], tileset: 1, colors: [0xf2f2f2, 0xd8303a],
   put: [
-    ["Command Center", -3, -1.5], ["Comsat Station", 0.25, -1], ["Refinery", -2.2, -5.9],
+    ["Command Center", -3.8, -3.3], ["Comsat Station", -0.8, -2.8], ["Refinery", -3.4, -6.2],
     ...MINERS8("SCV"),
-    ["Barracks", 3.6, -4.6],
-    ...clump("Marine", 4, 2.2, 1.9, 0.8, 0.62, { hb: 96 }),
-    ...clump("Medic", 2, 1, 2.9, 0.5, 0.66, { hb: 96 }),
-    ...clump("Firebat", 2, 3.3, 2.9, 0.5, 0.66, { hb: 96 }),
-    ["Siege Tank (Siege Mode)", 5, 1.1, { hb: 100 }],
-    ["Dropship", -3.6, 2.7, { hb: 64 }], ["Dropship", -1.6, 3.4, { hb: 64 }],
+    ["Barracks", 1.6, -5.3], ["Engineering Bay", 5.5, -3.2, { lift: true, hb: 0 }],
+    ...clump("Medic", 2, -6.2, 1.9, 0.6, 0.66, { hb: 64 }),
+    ...clump("Marine", 4, -4.4, 1.3, 1.0, 0.62, ME8()),
+    ...clump("Firebat", 2, -1.8, 2.0, 0.6, 0.66, ME8()),
+    ["Science Vessel", -3.0, -0.6, { hb: 64 }],
+    ["Valkyrie", 0.6, -0.9, ME8(40)], ["Valkyrie", 2.2, -1.6, ME8(40)],
+    // 적 저그(가운데~오른쪽)
+    ...clump("Zergling", 4, 0.6, 2.4, 1.0, 0.5, FOE({ hb: 192 })),
+    ["Ultralisk", 3.6, 1.2, FOE({ hb: 192 })],
+    ["Overlord", 5.6, -0.2, { own: 1, hb: 192 }],
   ],
 };
-SCENES.토스8 = { ...BASE8, pl: [2, 1],
+SCENES.토스8 = { ...BASE8, pl: [2, 1], tileset: 4, ground: "grass", colors: [0x1d4fc0, 0xf2f2f2],
   put: [
-    ["Nexus", -3, -1.5], ["Assimilator", -2.2, -5.9],
+    ["Nexus", -3.8, -3.3], ["Assimilator", -3.4, -6.2],
     ...MINERS8("Probe"),
-    ["Pylon", 1.8, -4.8], ["Gateway", 4.1, -1.4],
-    ...clump("Zealot", 4, 2, 2.1, 0.8, 0.8, { hb: 96 }),
-    ["Reaver", 4.3, 2.6, { hb: 100 }], ["Dark Templar", 0.4, 2.9, { hb: 90 }],
-    ["Corsair", -3.6, 2.7, { st: 1, hb: 64 }], ["Corsair", -1.7, 3.4, { st: 1, hb: 64 }],
+    ["Pylon", -0.7, -2.8], ["Gateway", 2.2, -4.8],
+    ["Reaver", -5.8, 1.2, ME8(64)], ["Dark Templar", -3.8, 2.4, ME8(64)],
+    ...clump("Zealot", 4, -1.4, 1.5, 1.0, 0.8, ME8()),
+    ["Corsair", -5.4, -0.6, { st: 1, hb: 64 }], ["Corsair", -3.6, -0.9, { st: 1, hb: 64 }],
+    // 적 테란(가운데~오른쪽) — 탱크 둘 · 벌처 셋 · 골리앗 둘
+    ...clump("Vulture", 3, 1.6, 2.6, 0.9, 0.9, FOE({ hb: 192 })),
+    ["Goliath", 2.4, 0.4, FOE({ hb: 192 })], ["Goliath", 4.4, 2.2, FOE({ hb: 192 })],
+    ["Siege Tank (Tank Mode)", 4.4, -0.6, FOE({ hb: 192 })], ["Siege Tank (Siege Mode)", 5.8, -3.8, FOE({ hb: 192 })],
   ],
 };
-SCENES.저그8 = { ...BASE8, pl: [0, 2],
+SCENES.저그8 = { ...BASE8, pl: [0, 2], tileset: 5, ground: "sand", colors: [0xd8303a, 0x1d4fc0],
   put: [
-    ["Hive", -3, -1.5], ["Extractor", -2.2, -5.9],
+    ["Hive", -3.8, -3.3], ["Extractor", -3.4, -6.2],
     ...MINERS8("Drone"),
-    ["Overlord", 0.2, -2.8, { hb: 100 }],
-    ["Spawning Pool", 3.4, -4.6], ["Sunken Colony", 4.6, -1.2],
-    ...clump("Zergling", 4, 1.5, 1.6, 0.7, 0.5, { hb: 96 }),
-    ...clump("Hydralisk", 4, 3.4, 2.2, 0.8, 0.62, { hb: 96 }),
-    ["Lurker", 5.3, 3.5, { st: 6, hb: 96 }], ["Lurker", 0.5, 3.2, { st: 6, hb: 96 }],
-    ["Mutalisk", -3.6, 2.7, { hb: 64 }], ["Mutalisk", -1.7, 3.4, { hb: 64 }],
+    ["Spawning Pool", -0.2, -2.8], ["Sunken Colony", 2.2, -2.4, ME8(64)],
+    ["Overlord", 1.4, -5.6, { hb: 100 }],
+    ["Lurker", -6.2, 2.0, { st: 6, hb: 96 }],
+    ...clump("Hydralisk", 4, -4.2, 1.2, 1.0, 0.62, ME8()),
+    ...clump("Zergling", 4, -1.4, 2.0, 0.8, 0.5, ME8()),
+    ["Lurker", 0.6, 0.4, { st: 6, hb: 96 }],
+    ["Mutalisk", 2.6, -4.6, ME8(40)], ["Mutalisk", 3.8, -3.4, ME8(40)],
+    // 적 프로토스(가운데~오른쪽) — 드라군 둘 · 하이 템플러 · 캐리어
+    ["Dragoon", 2.6, 1.4, FOE({ hb: 192 })], ["Dragoon", 4.4, 2.6, FOE({ hb: 192 })],
+    ["High Templar", 5.0, 0.4, { own: 1, hb: 192 }],
+    ["Carrier", 5.6, -4.8, FOE({ hb: 192 })],
   ],
 };
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
@@ -264,7 +286,7 @@ const CX = 64; const CY = 64;
 
 function makeWorld(race) {
   const sc = SCENES[race];
-  const PLAYERS = sc.pl.map((r, i) => ({ owner: i, race: r, force: sc.force ? sc.force[i] : i + 1, name: ["저그", "프로토스", "테란"][r === 0 ? 0 : r === 2 ? 1 : 2] + i, color: [0x2b62e8, 0xd8303a, 0xe8c040][i] ?? 0x888888, home: [64, 64] }));
+  const PLAYERS = sc.pl.map((r, i) => ({ owner: i, race: r, force: sc.force ? sc.force[i] : i + 1, name: ["저그", "프로토스", "테란"][r === 0 ? 0 : r === 2 ? 1 : 2] + i, color: (sc.colors ?? [0x2b62e8, 0xd8303a, 0xe8c040])[i] ?? 0x888888, home: [64, 64] }));
   const tracks = [];
   let tag = 100;
   const rows = sc.put.map(([n, dx, dy, o = {}]) => ({ n, x: CX + dx, y: CY + dy, hb: o.hb ?? 72, own: o.own ?? 0, die: o.die === undefined ? null : T_SHOT + o.die, st: o.st ?? 0, fight: !!o.fight, lift: !!o.lift, tag: 0 }));
@@ -309,12 +331,28 @@ function makeWorld(race) {
 }
 
 const walkFixture = readFileSync(join(HERE, "scripts/fixtures/walk-fastest.json"), "utf8");
-const makeTerrain = () => {
+const makeTerrain = (race) => {
+  const sc = SCENES[race] ?? {};
   const f = JSON.parse(walkFixture); const Wd = f.w; const H = f.h;
   const tile = Buffer.alloc(Wd * H, 1);
   const mw = Wd * 4; const mh = H * 4; const wb = Buffer.alloc((mw * mh + 7) >> 3, 0xff);
-  const hd = Buffer.alloc(11); hd.write("OBWM", 0, "ascii"); hd[4] = 1; hd.writeUInt16LE(Wd, 5); hd.writeUInt16LE(H, 7); hd[9] = 2;
-  return deflateSync(Buffer.concat([hd, tile, wb])).toString("base64");
+  const ground = sc.ground ?? null;
+  const hd = Buffer.alloc(11); hd.write("OBWM", 0, "ascii"); hd[4] = ground ? 3 : 1; hd.writeUInt16LE(Wd, 5); hd.writeUInt16LE(H, 7); hd[9] = sc.tileset ?? 2;
+  if (!ground) return deflateSync(Buffer.concat([hd, tile, wb])).toString("base64");
+  /* 땅 색 층(판 3) — 이어 붙는 값 노이즈 두 켜(8 · 3 타일 격자)로 얼룩을 짓는다. */
+  const hh = (a) => { let x = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return (x >>> 0) / 4294967296; };
+  const vn = (x, y, c, sd) => { const gx = x / c; const gy = y / c; const x0 = Math.floor(gx); const y0 = Math.floor(gy); let fx = gx - x0; let fy = gy - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const g = (i, j) => hh(sd * 7919 + j * 1031 + i); const a = g(x0, y0); const b = g(x0 + 1, y0); const cc = g(x0, y0 + 1); const d = g(x0 + 1, y0 + 1);
+    return a + (b - a) * fx + (cc - a) * fy + (a - b - cc + d) * fx * fy; };
+  const rgb = Buffer.alloc(Wd * H * 3);
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < Wd; x += 1) {
+    const n = vn(x, y, 7, 1) * 0.7 + vn(x, y, 2.5, 2) * 0.3; const m = vn(x, y, 3, 3);
+    let c;
+    if (ground === "grass") c = n > 0.56 ? [88 + m * 18, 112 + m * 20, 58 + m * 10] : [132 + m * 16, 108 + m * 14, 82 + m * 12];   // 풀 · 흙
+    else c = n > 0.6 ? [176 + m * 14, 146 + m * 12, 98 + m * 10] : [204 + m * 16, 176 + m * 14, 124 + m * 12];                     // 짙은 모래 · 모래
+    const o = (y * Wd + x) * 3; rgb[o] = Math.round(c[0]); rgb[o + 1] = Math.round(c[1]); rgb[o + 2] = Math.round(c[2]);
+  }
+  return deflateSync(Buffer.concat([hd, tile, wb, rgb])).toString("base64");
 };
 
 const ENTRY = `
@@ -387,7 +425,7 @@ for (const race of RACES) {
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
-    [world.motion, world.players, walkFixture, makeTerrain(), { res: RS.map(([dx, dy, g]) => [CX + dx, CY + dy, g]), t: T_SHOT, z: ZM, cx: (CX + (FR.x0 + FR.x1) / 2) / 128, cy: (CY + (FR.y0 + FR.y1) / 2) / 128 }]);
+    [world.motion, world.players, walkFixture, makeTerrain(race), { res: RS.map(([dx, dy, g]) => [CX + dx, CY + dy, g]), t: T_SHOT, z: ZM, cx: (CX + (FR.x0 + FR.x1) / 2) / 128, cy: (CY + (FR.y0 + FR.y1) / 2) / 128 }]);
   await page.waitForFunction("(window.__glInst9 > 0) || (window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0)", null, { timeout: 120000 })
     .catch(() => console.warn("⚠ 그리기 신호를 못 받았다 — 그래도 찍는다"));
   // 보기 모드 판(중계/자유)이 서 있으면 [자유] · 재생을 멈추고 탐색바로 T_SHOT 에 세운다.
