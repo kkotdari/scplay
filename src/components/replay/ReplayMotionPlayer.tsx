@@ -18717,7 +18717,7 @@ export default function ReplayMotionPlayer({
     endGestureXf();
     setPlaying(false);
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
-    const rate = Math.max(8, total / 30);
+    const rate = 20;   // 20배(2026-11-02, 요청: "빨리감기 속도 20배로 줄이기") — 옛: max(8, 판 길이/30)(25분 판이면 52배)
     setHoldFf9(dir * Math.round(rate));
     let last = performance.now();
     let mirrorAt9 = 0;
