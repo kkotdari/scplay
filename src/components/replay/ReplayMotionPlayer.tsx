@@ -12982,6 +12982,22 @@ export default function ReplayMotionPlayer({
      옛 식으로 되돌아온다. 전체화면에서는 지도를 화면보다 크게(cover) 깔아 두므로
      배율 1에서도 그 차이만큼 드래그 여유가 생긴다 — 그것이 곧 '크롭한 나머지 보기'다. */
   const [fsOn, setFsOn] = useState(false);
+  /* ★ **가로가 긴 화면 배치**(2026-11-02, 요청: "재생기 가로가 16:9 비율 초과 긴 화면용 레이아웃 필요(폰 가로모드 등) · 인포창·로스터는 오른쪽에 세로로 쌓고 화면 높이에 따라
+     인포창 → 로스터 순으로 숨김" → 시안 손질 "좌하단 구석에 미니맵 · 오른쪽은 인포창과 로스터 쌓기 · 그 사이 재생바") — 전체화면에서 창 비가 16:9 를 넘으면 뿌리에 is-wide:
+     [무대(왼쪽 · 위아래 다) | 오른쪽 기둥(인포창 / 로스터)] · 미니맵은 무대 왼아래 구석 · 재생바(툴박스)는 미니맵과 기둥 사이 맨 아래. 치수는 독 맞춤(dockFit9)의 wide 갈래.
+     `#wide=1` 은 프레임에서도 켠다(견줌) · `#wide=0` 끈다. */
+  const [wide9, setWide9] = useState(false);
+  useEffect(() => {
+    const f9 = typeof location !== "undefined" ? /(?:^|[#&,])wide=([01])(?=$|[&,])/.exec(location.hash)?.[1] : undefined;
+    const read9 = (): void => {
+      const w9 = window.innerWidth; const h9 = Math.max(1, window.innerHeight);
+      setWide9(f9 === "1" ? true : f9 === "0" ? false : fsOn && w9 / h9 > 16 / 9 + 0.02);
+    };
+    read9();
+    window.addEventListener("resize", read9);
+    window.addEventListener("orientationchange", read9);
+    return () => { window.removeEventListener("resize", read9); window.removeEventListener("orientationchange", read9); };
+  }, [fsOn]);
   /* ★ 무대를 담는 **한 벌의 자리**(2026-10-25, 지적: "전체화면 전환하면 그래픽 소스 다시 받는 문제") — 옛: 전체화면이면 무대를 body 로 포털하고 아니면 프레임 안에
      그대로 그려, 그 둘이 React 나무의 **딴 자리**라 전환마다 무대를 통째로 다시 세웠다 → GL 캔버스가 새로 서서 GL 벌(gl9)이 새로 열리고 아틀라스를 다시 받고 메시를
      다시 데웠다. 이제 무대는 **늘 이 div 로 포털**하고, 전체화면 전환은 이 div 하나를 프레임 ↔ body 로 옮기는 일이다(DOM 을 옮겨도 WebGL 문맥은 산다).
@@ -22048,6 +22064,44 @@ export default function ReplayMotionPlayer({
     const fit9 = (): void => {
       const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
       if (!pr9) return;
+      /* ★ 가로가 긴 화면(위 wide9 ★) — 오른쪽 기둥 폭 = 인포창 설계 폭 × 기둥 배수(창 폭의 34% 안) · 인포창 키 = 설계 키 × 그 배수 · 로스터 = 기둥의 나머지 키(최소 설계 키 0.8).
+         창 키가 모자라면 인포창 → 로스터 순으로 숨긴다(로스터까지 숨으면 기둥 폭 0 · 무대가 오른끝까지). 미니맵 = 창 키의 40% · 무대 폭의 35% 안. */
+      if (wide9) {
+        const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
+        if (!lay9) return;
+        const cs9 = getComputedStyle(pr9);
+        const h0 = parseFloat(cs9.height) || 0; const infoW9 = parseFloat(cs9.width) || 0;
+        if (h0 <= 0 || infoW9 <= 0) return;
+        const ev9 = (v9: number): number => Math.round(v9 / 2) * 2;
+        const W9 = lay9.clientWidth; const H9 = lay9.clientHeight;
+        const kc9 = [1, 0.9, 0.8, 0.7, 0.6].find((k) => infoW9 * k <= W9 * 0.34) ?? 0.6;
+        const colW9 = ev9(infoW9 * kc9);
+        const down9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--info-down")) || 1;
+        const infoH9 = ev9(h0 * down9 * kc9);
+        /* 차례 [로스터(위) · 틈 · 인포창(아래)](같은 날 되요청: "로스터랑 인포창 순서 바꾸고 사이 띄울 수 있으면 띄우기 · 높이에 따라 다름") — 로스터는 제 설계 키(h0)까지,
+           창이 낮으면 인포창 몫을 뺀 만큼 줄고(최소 0.8·h0) 그것도 안 되면 인포창이 숨는다. 남는 키는 둘 사이 틈(지도가 비친다). */
+        const rMin9 = ev9(h0 * 0.8);
+        const showInfo9 = H9 - infoH9 >= rMin9;
+        const showRoster9 = H9 >= rMin9;
+        const rosterH9 = Math.max(0, Math.min(ev9(h0), H9 - (showInfo9 ? infoH9 : 0)));
+        const up9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--mini-up")) || 1;
+        let miniH9 = ev9(Math.min(H9 * 0.4, h0 * up9)); let miniW9 = ev9(miniH9 * ar9);
+        const maxMW9 = (W9 - (showRoster9 ? colW9 : 0)) * 0.35;
+        if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
+        if (!miniOn9) { miniW9 = 0; miniH9 = 0; }
+        lay9.style.setProperty("--wcol", `${showRoster9 ? colW9 : 0}px`);
+        lay9.style.setProperty("--wmini-w", `${miniW9}px`);
+        lay9.style.setProperty("--wmini-h", `${miniH9}px`);
+        lay9.style.setProperty("--wroster-h", `${rosterH9}px`);
+        /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막·배속 다이얼이 재생바 키만큼 비킨다(--dock-lift · --dock-lift-r). */
+        const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
+        lay9.style.setProperty("--dock-lift", `${tbH9}px`); lay9.style.setProperty("--dock-lift-r", `${tbH9}px`);
+        lay9.classList.toggle("is-wide-noroster", !showRoster9);
+        const ki9 = showInfo9 ? kc9 : 0;
+        setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h0) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && p9.lift === 0 ? p9 : { h: h0, ki: ki9, k: kc9, lift: 0 }));
+        setRosterPaged9(true);
+        return;
+      }
       /* ★ 접힌 독(is-fold · display none)은 폭이 0 이라 셈이 헛돈다 — 마지막 맞춤은 그대로 두고 받침 솟음만 0 으로(2026-10-09, 지적: "독 접었다 펼 때 재생기가 잠깐
          안전영역까지 내려갔다 다시 올라옴" — 접힌 동안 0 폭으로 셈한 작은 키가 펼 때 한 프레임 보였다). 펼치면 의존성(dockFoldOn9)으로 이 effect 가 칠하기 전에 다시 돈다. */
       if (row9.clientWidth === 0) {
@@ -22095,6 +22149,7 @@ export default function ReplayMotionPlayer({
     };
     const read9 = (): void => {
       fit9();
+      if (wide9) return;   // 가로가 긴 화면은 쇠판·구멍·접기 셈이 없다(위 ★)
       /* ★ 접힌 독(is-fold · display none)은 줄·틀 폭이 0 이라 --dock-side 가 0 으로 떨어져 툴박스가 화면 폭으로 **넓어졌다**(2026-10-23, 요청: "접었을 때 넓어지지 않고
          원래 폭 유지하기") — 마지막 값을 그대로 둔다(펼치면 의존성으로 다시 돈다). */
       if (row9.clientWidth === 0) {
@@ -22133,11 +22188,12 @@ export default function ReplayMotionPlayer({
     const ro9 = new ResizeObserver(read9);
     ro9.observe(row9);
     ro9.observe(fr9);
+    { const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer"); if (lay9) ro9.observe(lay9); }   // 가로가 긴 화면은 줄·틀이 상자가 없다(display contents) — 뿌리 크기로 다시 잰다
     const lowO9 = fr9.closest<HTMLElement>(".scr-fs-lower");
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9, wide9]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -22912,7 +22968,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock", modeAsk9 && "is-asking")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", wide9 && "is-wide", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock", modeAsk9 && "is-asking")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
