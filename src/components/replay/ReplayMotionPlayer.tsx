@@ -60,7 +60,7 @@ import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, glTerrCanvas9, glTerrLast9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -109,7 +109,7 @@ import {
   GAS_KINDS9, warmShapeFaces9,
 } from "./bake9";
 import { sprAtlasLoad9, sprAtlasOn9 } from "./sprAtlas9";
-import { glUnits9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, SPR_YAW32_9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
+import { glUnits9, glLostCv9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, SPR_YAW32_9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
 
@@ -5820,6 +5820,8 @@ export function paintFxList9(
 
 /** 판을 넘어 사는 GL 캔버스(UnitLayer 의 GL 캔버스 물려주기 ★) — 처음 선 GL 층의 캔버스. */
 let glKeepCv9: HTMLCanvasElement | null = null;
+/** 잃은 GL 캔버스를 마지막으로 갈아 끼운 때(ms · 붓의 ★ 문맥 잃음). */
+let glSwapAt9 = -1e9;
 function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx, pickedKey, pickedKeys, wallMask, maskRects, clipQuad, showShadows, showOverlap, showHp, showCreep, marker: markerProp, markerAt, detailAt, yawAt, moveAt, pitched: pitchedProp, painter, live, gesture, onPainted, terrain, terrainOff, fog, terrPainter }: {
   ops: UnitDrawOp[]; zoom: number; pan: { x: number; y: number };
   /** ★ 붓의 보기 원천(실측: 감기 중 React 붓 팬 (−645.8,−821.7) vs 도착 붓 panRef (−646.2,−822.7)로 1px 어긋난 두 그림이
@@ -5904,10 +5906,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       ph9.replaceWith(glKeepCv9); cv9 = glKeepCv9;
     }
     glKeepCv9 = cv9; glRef.current = cv9;
-    return () => { if (cv9 !== ph9 && cv9.parentNode) cv9.replaceWith(ph9); glRef.current = null; };
+    /* 되돌릴 것은 **지금** 선 캔버스다 — 문맥을 잃어 갈아 끼웠으면(아래 glSwap9 ★) cv9 는 이미 DOM 밖이다. */
+    return () => { const cur9 = glRef.current ?? cv9; if (cur9 !== ph9 && cur9.parentNode) cur9.replaceWith(ph9); glRef.current = null; };
   }, []);
   /** GL 지형층의 캔버스(glTerrain9 · 안개 아래) — 유닛 캔버스들과 같은 상자·같은 손짓 변환(unitCanvases9 선택자)을 받는다. */
   const terrRef = useRef<HTMLCanvasElement>(null);
+  /* 닫힐 때 지형층 문맥을 곧장 놓는다(glTerrRelease9 ★ · 2026-11-02 아이폰 모델 사라짐). 한 박자 뒤 캔버스가 DOM 밖일 때만 — StrictMode 의 되붙이기는 캔버스를 그대로 둔다. */
+  useEffect(() => {
+    const c9 = terrRef.current; if (!c9) return undefined;
+    return () => { setTimeout(() => { if (!c9.isConnected) glTerrRelease9(c9); }, 0); };
+  }, []);
   const fxRef = useRef<HTMLCanvasElement>(null);
   /** 효과 캔버스를 세울지 — GL 심(glctx9)이 효과를 맡으면 이 층은 늘 비어 있어 **안 세운다**(폰 DPR 3 이면 캔버스 한 장이 수 MB 다).
    *  붓이 첫 장에서 `gl9.vecOk` 가 거짓인 것을 보면 켠다(그 한 장은 유닛 캔버스에 그린다). */
@@ -6074,6 +6082,19 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       /* 효과는 **위 캔버스**에 그린다(GL 층 위 — UnitLayer 의 ★★). GL 이 없으면(#gl=0) 종전대로 유닛 캔버스다. */
+      /* ★ **문맥을 잃었으면 캔버스를 갈아 끼운다**(2026-11-02, 지적: "앱(아이폰 pwa)로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") —
+         iOS 가 메모리 압박에 GL 문맥을 거두면 그 캔버스는 판을 넘어 물려지므로(glKeepCv9) 다음 경기에도 죽은 채였다. 새 캔버스(꼴은 그대로)로 바꾸면 glUnits9 가 벌을 새로 열고
+         세대(glGen9)가 올라 예열이 조용히 메시·아틀라스를 다시 싣는다. 새 문맥도 곧장 잃는 경우를 막아 2초에 한 번까지. */
+      {
+        const o9 = glRef.current;
+        if (o9 && o9.parentNode && glLostCv9(o9) && performance.now() - glSwapAt9 > 2000) {
+          glSwapAt9 = performance.now();
+          const n9 = document.createElement("canvas");
+          n9.className = o9.className; n9.style.cssText = o9.style.cssText; n9.setAttribute("aria-hidden", "true");
+          o9.replaceWith(n9); glRef.current = n9; glKeepCv9 = n9;
+          console.warn("[gl9] 문맥 잃음 — 캔버스 갈아 끼움");
+        }
+      }
       const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★)
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해

@@ -2201,6 +2201,22 @@ if (SHOT) {
     console.log(`[다시 열기] 뒤에 받은 것: ${(globalThis.__atlasUrls ?? []).slice(an0).join(" ") || "없음"}`);
     console.log(`[다시 열기] 아틀라스 뒤: ${at1}`);
   }
+  /* --losegl [ms](2026-11-02, 지적: "아이폰 pwa 로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — GL 문맥을 일부러 잃게 하고
+     (WEBGL_lose_context) 붓이 캔버스를 갈아 끼워 벌을 새로 여는지 · 그린 수가 다시 오르는지 · 다시 열기(다음 경기)에도 사는지 찍는다. 기다림 ms 기본 6000. */
+  if (has("--losegl")) {
+    const wait9 = Number(flag("--losegl", 6000)) || 6000;
+    const st9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "GL 없음"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7);
+      const d0 = g.stat.draws; return new Promise((ok) => setTimeout(() => ok(`벌 ${g.__mark9} · 잃음 ${g.lost || g.gl.isContextLost()} · 캔버스 ${document.querySelectorAll("canvas.scr-motion-gl9").length}(붙음 ${g.canvas.isConnected}) · 그린 수 +${g.stat.draws - d0}/0.5초`), 500)); });
+    console.log("[문맥 잃기] 앞: " + await st9());
+    await page.evaluate(() => window.__gl9.gl.getExtension("WEBGL_lose_context").loseContext());
+    await page.waitForTimeout(wait9);
+    console.log("[문맥 잃기] 뒤: " + await st9());
+    await page.evaluate(() => { window.__root9.unmount(); document.getElementById("root").innerHTML = ""; });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.__mount(...window.__remountArgs9));
+    await page.waitForTimeout(wait9);
+    console.log("[문맥 잃기] 다시 열기: " + await st9());
+  }
   if (has("--fs")) {
     /* GL 벌·아틀라스 받기 수를 전환 앞뒤로 견준다(2026-10-25, 지적: "전체화면 전환하면 그래픽 소스 다시 받는 문제") — 벌에 표식을 달고, 끈 뒤에도 같은 벌이면 '같음'. */
     const glMark9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "-"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7); return g.__mark9; });

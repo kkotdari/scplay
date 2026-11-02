@@ -1086,6 +1086,14 @@ export class GlTerrCanvas9 {
 const TERR_CV9 = new WeakMap<HTMLCanvasElement, GlTerrCanvas9 | null>();
 /** 진단·perf-check 가 읽는 마지막 지형층. */
 export let glTerrLast9: GlTerrCanvas9 | null = null;
+/** 지형층을 놓는다(2026-11-02, 위 gl9 lost ★) — 재생기가 닫힐 때 그 캔버스의 문맥을 곧장 놓는다. 판마다 새 캔버스·새 문맥이 서는데 옛 것은 GC 까지
+ *  GPU 메모리(배킹 dpr 3 · 지형 판)를 쥐고 있었다 — iOS 가 문맥을 거두는 까닭이 된다. */
+export function glTerrRelease9(cv: HTMLCanvasElement): void {
+  const t = TERR_CV9.get(cv); if (!t) return;
+  TERR_CV9.delete(cv);
+  if (glTerrLast9 === t) glTerrLast9 = null;
+  try { t.gl.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* 이미 잃음 */ }
+}
 /** 캔버스마다 하나 — 못 열면(GL 없음·스텐실 없음) null 로 굳는다(부르는 쪽이 옛 벡터층으로 물러난다). */
 export function glTerrCanvas9(cv: HTMLCanvasElement): GlTerrCanvas9 | null {
   let t = TERR_CV9.get(cv);

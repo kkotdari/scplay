@@ -1356,8 +1356,13 @@ export class GlUnits9 implements VecSink9 {
    *  MSAA 는 색·깊이·빛 판 셋이 다 표본 수만큼 커진다(4 표본이면 한 장에 100MB 남짓의 판을 매 장 지우고 채우고 푼다). 단 표
    *  (`DEV9.glMsaa`)가 폰 0·1단은 2, 2단·PC 는 4 를 준다. `#glmsaa=N` 으로 못 박는다. 바뀌면 판을 다시 짓는다(mrtEnsure). */
   public msaa = 4;
+  /** 문맥을 잃었나(2026-11-02, 지적: "앱(아이폰 pwa)로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — iOS 는 메모리가 달리면 WebGL 문맥을
+   *  거둔다. 이 벌은 판을 넘어 같은 캔버스(RMP glKeepCv9)에 살아 있어 죽은 문맥에 계속 그렸다. 잃으면 재생기가 캔버스를 새로 갈아 끼우고(RMP glLostCv9 ★) 벌을 새로 연다.
+   *  preventDefault 는 안 한다 — 옛 캔버스는 버리므로 브라우저가 되살릴 까닭이 없다. */
+  lost = false;
   constructor(readonly canvas: HTMLCanvasElement, public meshMax = MESH_MAX9, public bloomOn = true, public specOn = true, mrtOk = true) {
     this.mrtOk = mrtOk;
+    canvas.addEventListener("webglcontextlost", () => { this.lost = true; console.warn("[gl9] 문맥 잃음"); });
     const opts9 = { alpha: true, premultipliedAlpha: true, antialias: true, depth: true, stencil: true };   // 스텐실은 다크 스웜 마스크(swarmPlate)의 자다   // 미리곱한 알파 — 셰이더 출력·합성 함수(ONE, 1−a)와 한 벌
     /* ★ WebGL2 는 캔버스의 AA 를 **끈다** — 본 패스를 우리 MSAA FBO(색 + 빛 판, 아래 mrtEnsure)에 그리고 화면으로 옮기므로(blit)
        AA 는 그 FBO 가 낸다. 캔버스까지 MSAA 면 MSAA → MSAA 옮기기가 막힌다(같은 표본 수·크기라야 한다). */
@@ -3654,6 +3659,8 @@ export const glBakeMsTake9 = (): number => {
   const g = glInst9; if (!g) return 0;
   const v = g.stat.frameBakeMs; g.stat.frameBakeMs = 0; return v;
 };
+/** 이 캔버스의 GL 벌이 문맥을 잃었나(위 GlUnits9.lost ★) — 재생기가 보고 캔버스를 갈아 끼운다. */
+export const glLostCv9 = (cv: HTMLCanvasElement): boolean => !!glInst9 && glInst9.canvas === cv && (glInst9.lost || glInst9.gl.isContextLost());
 /** 유닛 층의 GL 붓 — 캔버스가 있을 때 한 번 만든다. 못 만들면(WebGL 없음) null 로 굳어 캔버스 길로 돈다. */
 /** GL 붓이 살아 있나 — 아직 안 열었으면(undefined) 참, 열다 실패했으면(null) 거짓. 지형층(RMP glTerrOn9)이 옛 벡터층으로 물러날지 가르는 자. */
 export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
@@ -3678,6 +3685,9 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
     if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = meshMax <= 300 ? 14 : 36; }
     return glInst9;
   }
+  /* 캔버스가 바뀌어 벌을 새로 열 때 옛 벌이 화면 밖(떼어 낸 캔버스)이면 그 문맥을 곧장 놓는다 — iOS 는 떼어 낸 캔버스의 GPU 메모리를 늦게 거둔다(위 lost ★). */
+  const old9 = glInst9;
+  if (old9 && !old9.canvas.isConnected) { try { old9.gl.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* 이미 잃음 */ } }
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
     glGen9N += 1;
