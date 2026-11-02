@@ -643,18 +643,20 @@ function warpCharge9(v: number): Float32Array {
   }, (t) => bp.set(250 + 850 * Math.min(1, t / 1.1))), 0.6);
 }
 
-/** ★ 저글링 타격 — 둥(2026-11-02, 요청: "저글링 둥둥둥 치는 소리") — 낮은 북 한 번: 130 → 78Hz 로 떨어지는 사인 몸 + 짧은 딱 잡음. 0.13초 · 휘두를 때마다(sfx9Cues 박자). */
+/** ★ 저글링 타격 — 통(2026-11-02, 요청: "저글링 둥둥둥 치는 소리" → 되요청 "좀 더 울림 있는 통통 소리로") — 울리는 북통: 230 → 175Hz 로 살짝 내리는 몸이
+ *  천천히(0.3초) 잦아들고 그 1.48배 둘째 울림 · 짧은 딱 · 작은 메아리 하나(통 안의 울림). 휘두를 때마다(sfx9Cues 박자). */
 function zlingHit9(v: number): Float32Array {
   const r = rng9(1501 + v);
-  const bp = new Biquad9("bp", 1800, 1.2);
-  const f0 = 130 * [1, 1.08, 0.93][v % 3];
+  const bp = new Biquad9("bp", 2200, 1.2);
+  const f0 = 230 * [1, 1.06, 0.94][v % 3];
   let ph = 0;
-  return finish9(render9(0.13, (t) => {
-    ph += (f0 - (f0 - 78) * Math.min(1, t / 0.08)) / SFX_RATE9;
-    const body = Math.sin(2 * Math.PI * ph) * ad9(t, 0.002, 26);
-    const tick = bp.run(r() * 2 - 1) * exp9(t, 140) * 0.5;
-    return sat9(body + tick, 1.5);
-  }), 0.62);
+  const raw = render9(0.32, (t) => {
+    ph += (f0 - (f0 - 175) * Math.min(1, t / 0.06)) / SFX_RATE9;
+    const body = Math.sin(2 * Math.PI * ph) * ad9(t, 0.002, 11) + Math.sin(2 * Math.PI * ph * 1.48) * ad9(t, 0.002, 19) * 0.35;
+    const tick = bp.run(r() * 2 - 1) * exp9(t, 160) * 0.35;
+    return sat9(body + tick, 1.3);
+  });
+  return finish9(echo9(raw, 0.045, 0.22), 0.6);
 }
 /** ★ 울트라 타격 — 팍(2026-11-02, 요청: "울트라 팍팍 치는 소리") — 날 선 때림: 1.4kHz 띠 잡음이 확 터졌다 바로 끊기고 밑에 무거운 90Hz 퍽. 0.17초. */
 function ultraHit9(v: number): Float32Array {
@@ -698,13 +700,32 @@ function missileHi9(v: number): Float32Array {
   }, (t) => thin.set(2400 + 1000 * Math.min(1, t / 0.35))), 0.5);
 }
 
+/** ★ 저그 공사 고치가 펼쳐짐(2026-11-02, 요청: "공사 고치 펼 때 생체조직 펼치는 소리") — 옛: 알 깨짐 공용 뽁(eggPop). 끈적한 살이 늘어나며 벌어진다:
+ *  낮게 떨며 오르는 늘어남(70 → 140Hz · 느린 떨림) + 질척임(띠 잡음 400 → 900Hz 가 출렁) + 끈적한 뜯김 톡톡(흩어진 짧은 잡음) + 끝의 축축한 철퍽. 0.9초. */
+function fleshUnfold9(v: number): Float32Array {
+  const r = rng9(1701 + v); const br = brown9(r);
+  const bp = new Biquad9("bp", 400, 2.4);
+  const lp = new Biquad9("lp", 600, 0.7);
+  let ph = 0;
+  return finish9(render9(0.9, (t) => {
+    const u = Math.min(1, t / 0.7);
+    ph += (70 + 70 * u) * (1 + 0.08 * Math.sin(2 * Math.PI * 7 * t)) / SFX_RATE9;
+    const stretch = Math.sin(2 * Math.PI * ph) * ad9(t, 0.12, 2.6) * 0.55;
+    const squelch = bp.run(br() * 1.2 + (r() * 2 - 1) * 0.3) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 5 * t)) * ad9(t, 0.08, 2.8);
+    const tear = t > 0.1 && t < 0.75 && r() < 0.0025 ? (r() * 2 - 1) * 0.9 : 0;
+    const sk = t - 0.68;
+    const splat = sk > 0 ? lp.run(br() * 2) * Math.exp(-sk * 18) * 1.1 : 0;
+    return sat9(stretch + squelch + tear + splat, 1.6);
+  }, (t) => bp.set(400 + 500 * Math.min(1, t / 0.6))), 0.58);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -721,4 +742,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
   warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
+  fleshUnfold: [2, fleshUnfold9],
 };

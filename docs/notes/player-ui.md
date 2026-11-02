@@ -2850,3 +2850,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - engine9: shot op 에 `by`(쏜 몸 fxUnit · 방어 건물이면 unit) — 갈래 이름(missile·missileG)만으로는 발키리·레이스와 골리앗이 안 갈린다.
 - sfx9Synth `missileLow9`(점화 퍽 85Hz + 낮은 연기 분사 갈색 잡음 700→380Hz + 일렁이는 60Hz 웅 · 0.75초) · `missileHi9`(좁은 띠 쉬익 2.4→3.4kHz + 옅은 연기 1.1kHz + 작은 톡 · 0.5초).
 - sfx9Cues shot: missile·missileG 이면 by ∈ {Scout, Valkyrie, Wraith} → missileLow · {Goliath, Missile Turret} → missileHi · 모르면 옛 missile.
+- (같은 날) "저글링 소리 좀 더 울림 있는 통통 소리로" — zlingHit9: 둥(130→78Hz · 0.13초) → **통**(230→175Hz 몸이 0.3초에 걸쳐 잦아듦 + 1.48배 둘째 울림 + 작은 메아리 45ms) · 간격 45 → 60ms.
+- (같은 날) "공사 고치 펼 때 생체조직 펼치는 소리" — 새 `fleshUnfold9`(낮게 떨며 오르는 늘어남 70→140Hz + 출렁이는 질척임 + 끈적한 뜯김 톡톡 + 끝의 철퍽 · 0.9초) ·
+  sfx9Cues 건물 burst 의 cocoon(공사 고치가 펼쳐짐) eggPop → fleshUnfold. 알·번데기(유닛 cocoon)는 eggPop 그대로.

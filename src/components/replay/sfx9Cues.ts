@@ -94,7 +94,7 @@ export class SfxCues9 {
           let k: SfxKind9;
           // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다)
           // → 부드러운 전용 '뽁'(eggPop · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게").
-          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggPop" : "boomBig";
+          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "fleshUnfold" : "boomBig";   // 공사 고치가 펼쳐짐 → 생체조직 펼침(2026-11-02 · 옛 eggPop) · 알·번데기(유닛)는 eggPop 그대로
           /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
