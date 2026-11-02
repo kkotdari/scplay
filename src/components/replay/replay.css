@@ -5525,15 +5525,12 @@
 /* 전체화면 커서 숨김(2026-11-02 · RMP scr-cursor-idle — 마우스가 2.5초 쉬면) — 자식의 cursor(단추 pointer 등)까지 이긴다. */
 .scr-fs-root.scr-cursor-idle, .scr-fs-root.scr-cursor-idle * { cursor: none !important; }
 
-/* ★★ 가로가 긴 화면 배치(2026-11-02 · ReplayMotionPlayer wide9 ★ · player-ui.md '가로가 긴 화면') — 무대는 화면 전체(오른쪽 기둥 뒤까지 · 지도가 비친다) ·
-   오른쪽 기둥 [로스터(위) · 틈 · 인포창(아래)] 반투명 판 · 미니맵은 왼아래 구석 · 재생바는 미니맵과 기둥 사이 맨 아래. 쇠판·독 줄·틀·우물 묶음은 상자를 안 낸다(display contents) —
-   우물 셋과 툴박스가 뿌리 격자에 바로 선다. 치수는 dockFit9 의 wide 갈래가 뿌리에 적는다(--wcol 기둥 폭 · --wmini-w/h 미니맵 · --wroster-h 로스터 키 · --dock-lift 재생바 키).
-   쇠판 장식(받침·구멍·글귀)은 이 배치에 없다. 파일 끝에 둔다(같은 세기의 프레임·전체화면 규칙을 이긴다). */
-.scr-fs-layer.is-wide > .scr-fs-root {
-  display: grid; grid-template-columns: minmax(0, 1fr) var(--wcol, 0px); grid-template-rows: auto minmax(0, 1fr) auto;
-  padding: 0;
-}
-.scr-fs-layer.is-wide .scr-fs-stage { position: relative; inset: auto; grid-column: 1 / 3; grid-row: 1 / 4; min-height: 0; min-width: 0; width: auto; height: auto; }
+/* ★★ 가로가 긴 화면 배치(2026-11-02 · ReplayMotionPlayer wide9 ★ · player-ui.md '가로가 긴 화면') — 무대는 화면 전체 · 미니맵 왼아래 · 로스터(세로 화면 크기) 오른아래 ·
+   재생바는 그 사이 폭 전부 · 인포창 없음. 오버레이(배율 원·배속 다이얼·모드 토글)는 원래 자리에 좌우 안전영역(노치)만 더 비킨다. 쇠판·독 줄·틀·우물 묶음은 상자를 안 낸다
+   (display contents) — 우물 둘과 툴박스가 뿌리 격자 한 칸에 겹쳐 선다. 치수는 dockFit9 wide 갈래(--wmini-w/h · --wroster-w/h · --dock-lift 재생바 키 · --dock-lift-r 로스터 키).
+   (되요청: "레이아웃 겹치는 것도 많고 좌우 안전영역에 가려짐 · 가로모드에서 인포창 없애고 로스터 세로모드 크기로 우하단 · 배속·배율 오버레이 원위치 · 재생부는 사이 폭을 다 쓰든지") */
+.scr-fs-layer.is-wide > .scr-fs-root { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); padding: 0; }
+.scr-fs-layer.is-wide .scr-fs-stage { position: relative; inset: auto; grid-area: 1 / 1; min-height: 0; min-width: 0; width: auto; height: auto; }
 .scr-fs-layer.is-wide .scr-fs-lower,
 .scr-fs-layer.is-wide .scr-fs-dockrow,
 .scr-fs-layer.is-wide .scr-fs-dockframe,
@@ -5543,39 +5540,31 @@
 .scr-fs-layer.is-wide .scr-fs-dockframe::before, .scr-fs-layer.is-wide .scr-fs-dockframe::after,
 .scr-fs-layer.is-wide .scr-fs-dockmain::before, .scr-fs-layer.is-wide .scr-fs-dockmain::after,
 .scr-fs-layer.is-wide .scr-fs-dockmain > *::before, .scr-fs-layer.is-wide .scr-fs-dockmain > *::after { display: none; }
-.scr-fs-layer.is-wide .scr-fs-dockmark { display: none; }
-/* 미니맵 — 무대 왼아래 구석(무대 위에 겹침). */
+.scr-fs-layer.is-wide .scr-fs-dockmark,
+.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock { display: none; }
+/* 미니맵 — 왼아래(노치 안쪽). */
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-minipanel {
-  grid-column: 1; grid-row: 1 / 4; align-self: end; justify-self: start; z-index: 14;
+  grid-area: 1 / 1; align-self: end; justify-self: start; z-index: 14;
   width: var(--wmini-w, 0px); height: var(--wmini-h, 0px); margin: 0 0 env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   background: #05070a; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14); pointer-events: auto;
 }
-/* 재생바 — 미니맵과 기둥 사이 맨 아래(무대 위에 겹침). */
-.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb {
-  grid-column: 1; grid-row: 1 / 4; align-self: end; z-index: 13; position: relative;
-  margin: 0 0 0 var(--wmini-w, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); pointer-events: auto;
-}
-/* 오른쪽 기둥 — 로스터(위) · 틈(지도) · 인포창(아래). 둘 다 반투명 판이라 뒤 지도가 비친다(되요청: "둘 다 뒤에 맵 비쳐야 함"). */
+/* 로스터 — 오른아래(노치 안쪽) · 세로 화면 크기(--dock-h = 그 키 · 폭은 종전 식 키 × --roster-r) · 반투명(뒤 지도가 비친다). */
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel {
-  grid-column: 2; grid-row: 1; align-self: start; width: var(--wcol, 0px); max-width: none; height: var(--wroster-h, 0px); flex: none;
-  --dock-h: var(--wroster-h, 0px); margin: 0; z-index: 14; padding-top: env(safe-area-inset-top, 0px);
+  grid-area: 1 / 1; align-self: end; justify-self: end; z-index: 14; flex: none;
+  width: var(--wroster-w, 0px); max-width: none; height: var(--wroster-h, 0px); margin: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) 0;
+  background: rgba(6, 8, 12, 0.52) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
 }
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock {
-  grid-column: 2; grid-row: 3; align-self: end; justify-self: stretch;
-  width: var(--wcol, 0px); height: round(nearest, calc(var(--info-h) * var(--info-k, 1)), 2px); overflow: visible; margin: 0 0 env(safe-area-inset-bottom, 0px);
-  display: flex; align-items: center; justify-content: center; z-index: 14;
+.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster { background: transparent !important; box-shadow: none !important; }
+.scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-fs-rosterpanel { display: none; }
+/* 재생바 — 미니맵과 로스터 사이 폭 전부(맨 아래). */
+.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb {
+  grid-area: 1 / 1; align-self: end; z-index: 13; position: relative; box-sizing: border-box;
+  margin: 0 calc(var(--wroster-w, 0px) + env(safe-area-inset-right, 0px)) 0 calc(var(--wmini-w, 0px) + env(safe-area-inset-left, 0px));
+  padding-left: 8px; padding-right: 8px; padding-bottom: env(safe-area-inset-bottom, 0px); pointer-events: auto;
 }
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { transform-origin: center center; }
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel,
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock { background: rgba(6, 8, 12, 0.52) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important; }
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster,
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-motion-infodock > .scr-motion-infodock-body { background: transparent !important; box-shadow: none !important; }
-.scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-fs-rosterpanel,
-.scr-fs-layer.is-wide.is-wide-noroster .scr-fs-dockmain > .scr-motion-infodock { display: none; }
-/* ★ 배율 원은 **중계 토글 오른쪽** · 배속 다이얼은 **토글 아래 지도 위**(같은 날 요청: "배율원은 중계토글 오른쪽 · 배속다이얼을 중계토글 아래 맵 위") — 토글 크기(--wtog-w/h)는
-   dockFit9 wide 갈래가 잰다. fps 글자는 배율 원 오른쪽. 바닥 가운데 자막은 기둥만큼 왼쪽으로 비킨다. */
-.scr-fs-layer.is-wide { --wtog-x: max(var(--wtog-w, 0px), calc(var(--sd-w) * 2.2)); --wtog-y: max(var(--wtog-h, 0px), var(--sd-w)); }   /* 토글이 아직 안 섰을 때(잰 값 0)의 바닥 */
-.scr-fs-layer.is-wide .scr-zoomdial { right: auto; left: calc(var(--sd-gap) + var(--wtog-x) + 8px); }
-.scr-fs-layer.is-wide .scr-zoomfps { right: auto; left: calc(var(--sd-gap) + var(--wtog-x) + 8px + var(--sd-w) + 6px * var(--sdk)); }
-.scr-fs-layer.is-wide .scr-speeddial { right: auto; bottom: auto; left: var(--sd-gap); top: calc(var(--safe-top, 0px) + var(--sd-gap) + var(--wtog-y) + 8px); }
-.scr-fs-layer.is-wide .scr-cast-caption { right: var(--wcol, 0px); }
+/* 오버레이 — 원래 자리 + 좌우 안전영역. 배속 다이얼은 로스터 위(--dock-lift-r · CSS --over-cap 이 아니라 로스터 키로). 자막은 미니맵~로스터 사이 가운데. */
+.scr-fs-layer.is-wide .scr-modetog-stage { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }
+.scr-fs-layer.is-wide .scr-zoomdial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); }
+.scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
+.scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + env(safe-area-inset-bottom, 0px) + var(--sd-gap)); }
+.scr-fs-layer.is-wide .scr-cast-caption { left: var(--wmini-w, 0px); right: var(--wroster-w, 0px); }

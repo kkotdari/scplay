@@ -22068,42 +22068,39 @@ export default function ReplayMotionPlayer({
       /* ★ 가로가 긴 화면(위 wide9 ★) — 오른쪽 기둥 폭 = 인포창 설계 폭 × 기둥 배수(창 폭의 34% 안) · 인포창 키 = 설계 키 × 그 배수 · 로스터 = 기둥의 나머지 키(최소 설계 키 0.8).
          창 키가 모자라면 인포창 → 로스터 순으로 숨긴다(로스터까지 숨으면 기둥 폭 0 · 무대가 오른끝까지). 미니맵 = 창 키의 40% · 무대 폭의 35% 안. */
       if (wide9) {
+        /* ★ 되요청(같은 날, 실기 폰 가로 스샷: "레이아웃 겹치는 것도 많고 좌우 안전영역에 가려짐 · 가로모드에서 인포창 없애고 로스터 세로모드 크기로 우하단으로 · 배속·배율 오버레이
+           원위치 · 재생부는 사이 폭을 다 쓰든지") — 인포창 없음 · 로스터 = **세로 화면에서 서던 크기**(짧은 변을 세로 화면 폭으로 보고 독 맞춤 사다리 k 를 다시 셈) 오른아래 ·
+           미니맵 왼아래(창 키 40% · 무대 폭 35% 안) · 재생바 = 그 사이 폭 전부. 오버레이는 원래 자리(CSS 가 안전영역만 더 비킨다). */
         const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
         if (!lay9) return;
         const cs9 = getComputedStyle(pr9);
-        const h0 = parseFloat(cs9.height) || 0; const infoW9 = parseFloat(cs9.width) || 0;
-        if (h0 <= 0 || infoW9 <= 0) return;
+        const h0 = parseFloat(cs9.height) || 0;
+        const sep9 = parseFloat(cs9.marginLeft) || 0; const out9 = parseFloat(cs9.marginRight) || 0;
+        if (h0 <= 0) return;
         const ev9 = (v9: number): number => Math.round(v9 / 2) * 2;
         const W9 = lay9.clientWidth; const H9 = lay9.clientHeight;
-        const kc9 = [1, 0.9, 0.8, 0.7, 0.6].find((k) => infoW9 * k <= W9 * 0.34) ?? 0.6;
-        const colW9 = ev9(infoW9 * kc9);
-        const down9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--info-down")) || 1;
-        const infoH9 = ev9(h0 * down9 * kc9);
-        /* 차례 [로스터(위) · 틈 · 인포창(아래)](같은 날 되요청: "로스터랑 인포창 순서 바꾸고 사이 띄울 수 있으면 띄우기 · 높이에 따라 다름") — 로스터는 제 설계 키(h0)까지,
-           창이 낮으면 인포창 몫을 뺀 만큼 줄고(최소 0.8·h0) 그것도 안 되면 인포창이 숨는다. 남는 키는 둘 사이 틈(지도가 비친다). */
-        const rMin9 = ev9(h0 * 0.8);
-        const showInfo9 = H9 - infoH9 >= rMin9;
-        const showRoster9 = H9 >= rMin9;
-        const rosterH9 = Math.max(0, Math.min(ev9(h0), H9 - (showInfo9 ? infoH9 : 0)));
+        const rr9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--roster-r")) || 2.58;
         const up9 = parseFloat(getComputedStyle(fr9).getPropertyValue("--mini-up")) || 1;
+        const Wp9 = Math.min(window.innerWidth, window.innerHeight) - 2 * out9 - 2;   // 세로로 들면 독 줄 폭(짧은 변)
+        const pairP9 = (k: number): number => h0 * k * (rr9 + (miniOn9 ? ar9 * up9 : 0)) + (miniOn9 ? sep9 : 0);
+        const kp9 = DOCK_STEPS9.find((k) => pairP9(k) <= Wp9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
+        const rh9 = ev9(h0 * kp9); const rw9 = ev9(rh9 * rr9);
+        const showRoster9 = H9 >= rh9 + 24;
         let miniH9 = ev9(Math.min(H9 * 0.4, h0 * up9)); let miniW9 = ev9(miniH9 * ar9);
-        const maxMW9 = (W9 - (showRoster9 ? colW9 : 0)) * 0.35;
+        const maxMW9 = W9 * 0.3;
         if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
         if (!miniOn9) { miniW9 = 0; miniH9 = 0; }
-        lay9.style.setProperty("--wcol", `${showRoster9 ? colW9 : 0}px`);
+        lay9.style.setProperty("--wcol", "0px");
         lay9.style.setProperty("--wmini-w", `${miniW9}px`);
         lay9.style.setProperty("--wmini-h", `${miniH9}px`);
-        lay9.style.setProperty("--wroster-h", `${rosterH9}px`);
-        /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막·배속 다이얼이 재생바 키만큼 비킨다(--dock-lift · --dock-lift-r). */
-        const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
-        lay9.style.setProperty("--dock-lift", `${tbH9}px`); lay9.style.setProperty("--dock-lift-r", `${tbH9}px`);
+        lay9.style.setProperty("--wroster-w", `${showRoster9 ? rw9 : 0}px`);
+        lay9.style.setProperty("--wroster-h", `${showRoster9 ? rh9 : 0}px`);
         lay9.classList.toggle("is-wide-noroster", !showRoster9);
-        /* 배율 원은 중계 토글 오른쪽 · 배속 다이얼은 토글 아래(같은 날 요청) — 토글 크기를 뿌리에 적는다(replay.css 가로가 긴 화면 ★). */
-        const tog9 = lay9.querySelector<HTMLElement>(".scr-modetog-stage");
-        lay9.style.setProperty("--wtog-w", `${tog9?.offsetWidth ?? 0}px`);
-        lay9.style.setProperty("--wtog-h", `${tog9?.offsetHeight ?? 0}px`);
-        const ki9 = showInfo9 ? kc9 : 0;
-        setDockFit9((p9) => (Math.abs((p9.h ?? -1) - h0) < 0.5 && Math.abs(p9.ki - ki9) < 0.005 && p9.lift === 0 ? p9 : { h: h0, ki: ki9, k: kc9, lift: 0 }));
+        /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막이 재생바 키만큼 비킨다(--dock-lift). 배속 다이얼은 로스터 위(--dock-lift-r). */
+        const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
+        lay9.style.setProperty("--dock-lift", `${tbH9}px`);
+        lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
+        setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && p9.ki === 0 && p9.lift === 0 ? p9 : { h: rh9, ki: 0, k: kp9, lift: 0 }));
         setRosterPaged9(true);
         return;
       }
