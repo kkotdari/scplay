@@ -116,7 +116,7 @@ float grain() {
     d += w.g * g;
   }
   if (w.b > 0.02 && uGr.z > 0.5) {
-    /* ★ 우주 판(플랫폼·설치) — 얼룩 대신 **원작 판 무늬**(2026-11-02, 요청: "우주 타일에 얼룩 대신 사진을 참고해서 반복 무늬") — 사진: 2칸 정사각 바둑판(밝은 판·어두운 판 ·
+    /* ★ 우주 판(플랫폼·설치) — 얼룩 대신 **원작 판 무늬**(2026-11-02, 요청: "우주 타일에 얼룩 대신 사진을 참고해서 반복 무늬") — 사진: 2칸 정사각 바둑판(밝은 판·어두운 판 · 그 위 철판은 아래 ★ 철판 ·
        주기 4칸 — 앞서 "격자가 4칸 단위") 위에 비스듬한 마름모 판. 긴 홈은 오른쪽으로 내려가는 사선(기울기 0.5 · 0.55칸 간격), 그 사이를 짧은 홈(기울기 −0.45 · 가로 1칸)이
        판마다 반씩 엇갈려 잇는다. 홈은 어둡고 아래쪽에 빛 테. 홈은 한 화소 아래로 가늘어지면 켜는 몫을 줄인다(타일 14~30 기기 px 사이에서 켜진다). */
     float chk = mod(floor(tc.x * 0.5) + floor(tc.y * 0.5), 2.0);
@@ -124,16 +124,28 @@ float grain() {
     if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.06 * fd(23.0);
     float gk = clamp((P - 14.0) / 16.0, 0.0, 1.0);
     if (gk > 0.0) {
+      /* ★ 철판(2026-11-02, 지적: "벽돌보다는 철판 느낌 · 마름모 홈은 더 얇고 주변에 음영 · 마름모 판들이 똑같은 폭이 아니고 좀 다른 것 같아") —
+         홈은 가늘게(0.010칸 · 한 화소 아래면 화소 폭), 판은 도드라진 철판: 위·왼쪽 테는 밝게, 아래·오른쪽 테는 어둡게(홈에서 0.09칸에 걸쳐 잦아든다).
+         짧은 홈 자리는 판마다 ±0.28칸 흔들어 폭이 제각각. 표면은 판 결(긴 홈 방향)로 늘인 잔결 + 판마다 밝기. */
       float px = 1.0 / P;
-      float v = (tc.y - 0.5 * tc.x) / 0.55; float k = floor(v); float fv = fract(v);   // 긴 홈 0.55칸 간격(사진 실측)
-      float dl = min(fv, 1.0 - fv) * 0.55 / 1.118;
-      float ww = (tc.y + 0.45 * tc.x + 0.475 * k) / 0.95; float fw = fract(ww);       // 짧은 홈 — 긴 홈의 거울 기울기 · 가로 1칸 간격 · 줄마다 반 칸 엇갈림 → 마름모꼴
-      float ds = min(fw, 1.0 - fw) * 0.95 / 1.097;
-      float d0 = min(dl, ds);
-      float gw = max(0.018, px * 0.6);
+      float v = (tc.y - 0.5 * tc.x) / 0.55; float k = floor(v); float fv = fract(v);   // 긴 홈 0.55칸 간격(사진 실측) · fv 0 = 위 홈 · 1 = 아래 홈
+      float dT = fv * 0.55 / 1.118; float dB = (1.0 - fv) * 0.55 / 1.118;
+      float ww = (tc.y + 0.45 * tc.x + 0.475 * k) / 0.95; float c = floor(ww); float f = fract(ww);   // 짧은 홈 — 긴 홈의 거울 기울기 · 가로 1칸 · 줄마다 반 칸 엇갈림
+      float b0 = (h12(vec2(k, c) + 1.3) - 0.5) * 0.56; float b1 = 1.0 + (h12(vec2(k, c + 1.0) + 1.3) - 0.5) * 0.56;
+      float bm = -1.0 + (h12(vec2(k, c - 1.0) + 1.3) - 0.5) * 0.56; float bp = 2.0 + (h12(vec2(k, c + 2.0) + 1.3) - 0.5) * 0.56;
+      float pid = c; float lo = b0; float hi = b1;
+      if (f < b0) { pid = c - 1.0; lo = bm; hi = b0; } else if (f > b1) { pid = c + 1.0; lo = b1; hi = bp; }
+      float dL = (f - lo) * 0.95 / 1.097; float dR = (hi - f) * 0.95 / 1.097;
+      float d0 = min(min(dT, dB), min(dL, dR));
+      float gw = max(0.010, px * 0.5);
       float groove = 1.0 - smoothstep(gw, gw + px, d0);
-      float lit = (fv < 0.5 ? 1.0 : 0.0) * smoothstep(gw + 0.045, gw + px * 0.5, dl) * (1.0 - groove);
-      g += (lit * 0.07 - groove * 0.26 + (h12(vec2(k, floor(ww)) + 3.7) - 0.5) * 0.07 + (vn(tc * 12.0 + 5.0) - 0.5) * 0.07 * fd(12.0)) * gk;   // 판마다 밝기가 조금씩 다르다(사진)
+      float bev = 0.09;
+      float hiE = (1.0 - smoothstep(gw, gw + bev, min(dT, dL)));    // 위·왼쪽 테(빛)
+      float shE = (1.0 - smoothstep(gw, gw + bev, min(dB, dR)));    // 아래·오른쪽 테(그늘)
+      vec2 ax = vec2(0.894, 0.447); vec2 ay = vec2(-0.447, 0.894);
+      float brush = vn(vec2(dot(tc, ax) * 3.0, dot(tc, ay) * 40.0) + pid * 7.1) - 0.5;
+      float plate = (h12(vec2(k, pid) + 3.7) - 0.5) * 0.08;
+      g += ((hiE * 0.09 - shE * 0.10) * (1.0 - groove) - groove * 0.24 + plate + brush * 0.05 * fd(40.0)) * gk;
     }
     d += w.b * g;
   } else if (w.b > 0.02) {
