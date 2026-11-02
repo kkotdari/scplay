@@ -9605,7 +9605,7 @@ function fxAdvance9(ops: FxOp[], dt: number, mv?: Map<string, [number, number]>)
   }
   return out9 ?? ops;
 }
-/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 15 · PC 30). */
+/** `#wfps=N` — 워커 장 박자(초당 장 수)를 못 박는다(견줌 · 기본 폰 10 · PC 30). */
 const WFPS9 = typeof location !== "undefined" ? Number(/(?:^|[#&,])wfps=(\d+)/.exec(location.hash)?.[1] ?? 0) : 0;
 /** `#trace9` — 움직이는 몸 하나의 그린 자리를 그리기마다 적는다(window.__trace9 · 진단 · 2026-10-28 "구간 → 구간으로 움직인다"). */
 const TRACE9: { key: string; rows: number[][] } | null = typeof location !== "undefined" && /trace9/.test(location.hash) ? { key: "", rows: [] } : null;
@@ -17216,7 +17216,7 @@ export default function ReplayMotionPlayer({
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 15 : 30,   // 폰 10 → 15(2026-11-02, 실기: "폰 워커 wfps 좀 늘려야 할 듯 · 건물 랜딩·리프팅에서 확 체감 · 끊기는 느낌")   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,   // 폰 10 → 15 → 10(2026-11-02 — 끊김의 뿌리인 뜬 높이를 장 사이 보간에 넣고 되돌림 · lerpFrame9 ★ 뜬 높이)   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
       });
     }
   }
@@ -17621,6 +17621,12 @@ export default function ReplayMotionPlayer({
         if (s9.rotDeg !== undefined && n9.rotDeg !== undefined) o9.rotDeg = lerpAng9(s9.rotDeg, n9.rotDeg, u9);
         if (s9.headDeg !== undefined && n9.headDeg !== undefined) o9.headDeg = lerpAng9(s9.headDeg, n9.headDeg, u9);
         if (s9.rise !== undefined && n9.rise !== undefined) o9.rise = s9.rise + (n9.rise - s9.rise) * u9;
+        /* ★ **뜬 높이도 잇는다**(2026-11-02, 실기: "폰 워커 wfps 늘려야 할 듯 · 건물 랜딩·리프팅에서 끊기는 느낌" → "10으로 내리고 높이나 동작도 이어야겠네") — 건물 이륙·착륙은 airPx(뜬 높이 ·
+           hover9 오르내림까지)가 장마다 굳은 값이라 폰 장 박자(10)로 계단처럼 올랐다. 한쪽 장에 없으면(앉은 장) 0 으로 보고 잇는다 — 앉는 마지막 몫도 매끄럽다. */
+        if (s9.airPx !== undefined || n9.airPx !== undefined) {
+          const ap9 = (s9.airPx ?? 0) + ((n9.airPx ?? 0) - (s9.airPx ?? 0)) * u9;
+          if (ap9 > 0.01) o9.airPx = ap9; else delete o9.airPx;
+        }
         /* 들썩임(고치의 liftK)도 잇는다(지적: "고치 바운스 잔떨림 심해짐") — 높은 배속에서는 장 하나가 경기 시간
            반 초를 덮어, 장마다 굳은 사인값이 그대로 튀었다. 두 장 사이를 이으면 배속과 무관하게 매끄럽다. */
         if (s9.liftK !== undefined && n9.liftK !== undefined) o9.liftK = s9.liftK + (n9.liftK - s9.liftK) * u9;
