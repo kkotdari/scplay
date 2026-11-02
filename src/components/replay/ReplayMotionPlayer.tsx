@@ -1560,7 +1560,8 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
   /* 앞 한도 10 → 24MB(진단: PC 3배에서 장당 220KB라 10MB가 0.7초 만에 차, 3초 예산이 있어도 앞이 0.7초뿐이었다). */
   cullMargin: 1, aheadSec: 3, aheadMB: 48, yaw8Always: false,
   tiers: PC_TIERS9,
-  glMeshMax: 480,   // 600 → 480(0단 낮음 · 보통부터 600 — 위 PC_TIERS9 '낮음은 덜어낸다' ★)
+  glMeshMax: 600,   // 600 → 480(0단 낮음 · '낮음은 덜어낸다' ★) → **600 되돌림**(같은 날, 지적: "재생 초반과 시간 점프 시에 줌 드래그가 무거워짐 · 이후엔 괜찮고" — 맥북 0단 진단 메시 409/480 · 나중 271:
+                    //   점프하면 새 종류·자세가 몰려 상한 근처에서 버리고 다시 짓기를 되풀이했다. 상한은 메모리 몫(600벌 ≈ 40MB)이지 장마다의 값이 아니다)
   glBloom: false,   // true → false(같은 ★ · 보통부터 켠다)
   glSpec: true,
   live3d: false,   // 3단(매우 높음)에서 표가 켠다

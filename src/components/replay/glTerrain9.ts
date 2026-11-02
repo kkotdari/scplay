@@ -120,7 +120,7 @@ float grain() {
        주기 4칸 — 앞서 "격자가 4칸 단위") 위에 비스듬한 마름모 판. 긴 홈은 오른쪽으로 내려가는 사선(기울기 0.5 · 0.55칸 간격), 그 사이를 짧은 홈(기울기 −0.45 · 가로 1칸)이
        판마다 반씩 엇갈려 잇는다. 홈은 어둡고 아래쪽에 빛 테. 홈은 한 화소 아래로 가늘어지면 켜는 몫을 줄인다(타일 14~30 기기 px 사이에서 켜진다). */
     float chk = mod(floor(tc.x * 0.5) + floor(tc.y * 0.5), 2.0);
-    float g = (chk - 0.5) * 0.17 + m3 * 0.04 * fd(8.0);
+    float g = (chk - 0.5) * 0.17 * uGr.w + m3 * 0.04 * fd(8.0);   // 바둑판은 타일 실색이 없을 때만(uGr.w · 실색엔 원작 2×2 판 색이 이미 있다 — 겹치면 어긋난다)
     if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.06 * fd(23.0);
     float gk = clamp((P - 14.0) / 16.0, 0.0, 1.0);
     if (gk > 0.0) {
@@ -535,7 +535,7 @@ export class GlTerrain9 {
       gl.blendFuncSeparate(gl.DST_COLOR, gl.SRC_COLOR, gl.ZERO, gl.ONE);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.cls);
       gl.uniform1f(this.loc.uMode, 2);
-      gl.uniform4f(this.loc.uGr, grainK9, cssPerTile * dprK, this.panel9 ? 1 : 0, 0);
+      gl.uniform4f(this.loc.uGr, grainK9, cssPerTile * dprK, this.panel9 ? 1 : 0, G.tileRGBA ? 0 : 1);   // w: 셰이더 바둑판(실색 없는 지도만 · 아래 ★ 우주 판)
       rect(0, 0, W, H);
       gl.uniform1f(this.loc.uMode, 0);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
