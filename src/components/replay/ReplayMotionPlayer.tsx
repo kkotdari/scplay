@@ -18942,21 +18942,23 @@ export default function ReplayMotionPlayer({
        분할보기는 칸마다 카메라가 달라 상자를 안 쓴다(종전 길). 안 움직이고 떼면 클릭(아래 onMapPointerUp 의 몸 집기)이다. */
     /* ★ **Alt·Ctrl(맥 ⌥·⌃·⌘) + 왼쪽 끌기 = 지도 이동**(2026-11-02, 요청: "피시에서 드래그를 우클릭 가운데클릭 드래그 말고 알트나 컨트롤 같은 거 누르고 드래그로") —
        오른쪽·가운데 끌기도 그대로 둔다. 맥의 ⌃+누름은 차림표를 부르지만 지도는 contextmenu 를 막는다(아래 onContextMenu). */
-    const panMod9 = e.pointerType === "mouse" && e.button === 0 && (e.altKey || e.ctrlKey || e.metaKey);
-    if (e.pointerType === "mouse" && e.button === 0 && !panMod9 && !splitOnRef9.current) {
+    /* ★★ **되바꿈**(2026-11-02, 요청: "좌클릭드래그 다시 드래그로 변경하고 선택을 알트 드래그로 · 즉시 드래그") — 그냥 왼쪽 끌기 = 지도 이동(문턱 없이 곧장 · 아래 move 의
+       '곧장 끈다' ★) · **Alt(⌥) + 왼쪽 끌기 = 상자 선택**. 오른쪽·가운데 끌기도 이동 그대로. 위 두 ★(왼쪽 = 상자 · Alt/Ctrl = 이동)는 이것으로 뒤집혔다. */
+    const selMod9 = e.pointerType === "mouse" && e.button === 0 && e.altKey;
+    if (selMod9 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
       boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false, ox: sr9?.left ?? 0, oy: sr9?.top ?? 0, raf: 0 };
       return;
     }
-    if (e.pointerType === "mouse" && (e.button !== 0 || panMod9)) {
-      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데·수식키 누름은 몸을 안 집는다(끌어 옮기는 손)
+    if (e.pointerType === "mouse" && e.button !== 0) {
+      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손) · 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
       if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
       (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
     }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 오른쪽·가운데 버튼 · 수식키+왼쪽이 끈다(그냥 왼쪽은 위 상자 선택)
+    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 왼쪽·오른쪽·가운데 버튼 모두 끈다(Alt+왼쪽은 위 상자 선택)
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

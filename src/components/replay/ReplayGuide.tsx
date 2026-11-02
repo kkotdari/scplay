@@ -59,7 +59,7 @@ export default function ReplayGuide({ onClose }: {
 
         <h3 className="scr-guide-h3">지도</h3>
         <ul className="scr-guide-legend">
-          <Row ic={<T s="↔"/>} name="움직이기" keys={<Keys k={["W", "A", "S", "D"]}/>}>끌기 · PC 는 오른쪽·가운데 버튼 끌기 · Alt / Ctrl 누른 채 끌기.</Row>
+          <Row ic={<T s="↔"/>} name="움직이기" keys={<Keys k={["W", "A", "S", "D"]}/>}>끌기(PC 는 왼쪽·오른쪽·가운데 버튼) · PC 에서 Alt 누른 채 끌면 상자 선택.</Row>
           <Row ic={<T s="휠"/>} name="확대 / 축소">휠 · 핀치 · 두 번 누르기.</Row>
           <Row ic={<MapIcon size={15}/>} name="미니맵">누르면 그 자리로(중계 중에는 잠김).</Row>
         </ul>
