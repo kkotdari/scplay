@@ -396,12 +396,27 @@ export class GlTerrain9 {
       const n9 = G.w * G.h; const c9 = new Uint8Array(n9 * 4);
       const band9 = (h: number, a: number, b: number, c: number, d: number): number => Math.max(0, Math.min(1, Math.min((h - a) / (b - a), (d - h) / (d - c))));
       const metal9 = G.tileset === 1 || G.tileset === 2;
+      /* ★ 고원 판정(2026-11-02, 요청: "무조건 고도가 아니라 고도별로 너비가 충분하면 마름모 무늬 넣고(고원이 아닌 벽으로 판단되면 안 넣기)") — 같은 고도·걷는 칸으로 3×3 이
+         꽉 차는 자리(깎기)와 그 둘레(다시 불리기 · 열림 연산)만 고원이다. 두 칸 이하 폭의 띠·못 걷는 칸(절벽면·벽)은 아니다 → 얼룩(a 갈래). 낮은 땅(0단)은 종전대로 무늬. */
+      const plat9 = new Uint8Array(n9);
+      if (metal9) {
+        const Wt = G.w; const Ht = G.h;
+        const same9 = (i0: number, x: number, y: number): boolean => x >= 0 && y >= 0 && x < Wt && y < Ht && G.lvl[y * Wt + x] === G.lvl[i0] && G.walk[y * Wt + x] === 1;
+        for (let y = 0; y < Ht; y += 1) for (let x = 0; x < Wt; x += 1) {
+          const i0 = y * Wt + x;
+          if (G.lvl[i0] === 0 || G.walk[i0] !== 1) continue;
+          let all9 = true;
+          for (let dy = -1; dy <= 1 && all9; dy += 1) for (let dx = -1; dx <= 1; dx += 1) if (!same9(i0, x + dx, y + dy)) { all9 = false; break; }
+          if (!all9) continue;
+          for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) plat9[(y + dy) * Wt + (x + dx)] = 1;
+        }
+      }
       for (let i = 0; i < n9; i += 1) {
         let r = 0; let g = 0; let b = 0;
         const L = G.lvl[i];
         /* ★ 우주 판의 **언덕은 얼룩**(2026-11-02, 실기 지적: "같은 색 타일도 언덕이냐에 따라 질감 표현 유무가 달라짐 · 언덕은 얼룩 처리가 나을 듯") — 고도 1단 이상(걷든 못 걷든)은
            a 갈래(우주 판엔 물이 없어 비어 있다)로 가르고 셰이더가 uGr.z(금속)일 때 a 를 얼룩으로 칠한다. 낮은 땅만 마름모 판 무늬. */
-        if (metal9 && L > 0) { c9[i * 4 + 3] = 255; continue; }
+        if (metal9 && L > 0 && !plat9[i]) { c9[i * 4 + 3] = 255; continue; }   // 고원(위 plat9)은 아래 걷는 칸 갈래로 → 마름모 판 무늬
         if (G.walk[i] === 1) {
           const rgb = G.tileRGBA && G.tileRGBA[i * 4 + 3] ? [G.tileRGBA[i * 4], G.tileRGBA[i * 4 + 1], G.tileRGBA[i * 4 + 2]]
             : (L > 0 ? G.levels[L - 1]?.rgb : null) ?? G.land.rgb;
