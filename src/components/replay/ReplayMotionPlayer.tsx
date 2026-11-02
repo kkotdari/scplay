@@ -2323,6 +2323,8 @@ type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number;
  *  뿌연 유령 둔덕으로 비쳤다 → 평평한 한 높이로 덮는다. 모양·턱(16px)·입술은 고른 판("이때가 적당했는데") 그대로.
  *  ③ "아직도 눈아픈 부분들이 많이 있어" — 턱이 16px 매끈한 S 경사(smoothstep)라 겹 둘레가 넓고 뿌연 띠였다 → 방울 단면(바깥 선은 칼같이 · 안은 둥글게)
  *  · 입술(메니스커스 띠)도 걷었다(두 줄 띠가 엠보싱처럼 겹쳐 보였다).
+ *  ④ "밝은 얼룩이 좀 필요" — 겹 셋 중 하나 남짓(35%)이 밝은 겹(+0.12~0.2)이다 · 겹째로 덮으니 얼룩 가장자리도 겹 윤곽 그대로 선명하다
+ *  (노이즈 문턱 얼룩은 겹과 따로 놀아 얼룩무늬 군복처럼 보여 걷었다).
  *  되물린 길: 반사 0.3·24 는 "너무 흐릿" · 좁은 턱+입술은 "엠보싱처럼" · 빛 없는 그림자 판은 "경사선이 흐릿하고 퍼져서".
  *  첫 시안(세포 워리)은 "저런 느낌이 아니라". 값 < 0 은 검보라 · > 0 은 흰분홍(알파 = 세기).
  *  크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 판은 경기 내내 살아 있으니 비용(≈0.3초)은 그때 한 번. */
@@ -2349,12 +2351,12 @@ function creepTex9(): HTMLCanvasElement | null {
       return o;
     };
     const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const b4 = vn9(4, 9);
-    const h9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
+    const h9 = new Float32Array(N9); const tn9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
  
     let rs9 = 1;
     const rnd9 = (): number => hh9(1000 + (rs9 += 1));
     for (let k = 0; k < 16; k += 1) {
-      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4;
+      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4; const tq = rnd9(); const tk = tq < 0.35 ? 0.2 * (0.6 + 0.4 * tq / 0.35) : 0;
       const cc = new Float32Array(N9); const lpA = new Float32Array(N9); let hm = -1e9;
       for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
         const i = y * S9 + x;
@@ -2366,7 +2368,7 @@ function creepTex9(): HTMLCanvasElement | null {
         if (c > 0.5 && h9[i] > hm) hm = h9[i];
       }
       const top = (hm > -1e8 ? hm : 0) + th * 0.6;
-      for (let i = 0; i < N9; i += 1) { const c = cc[i]; if (c > 0) h9[i] = h9[i] * (1 - c) + top * c + lpA[i] * c * th; }
+      for (let i = 0; i < N9; i += 1) { const c = cc[i]; if (c > 0) { h9[i] = h9[i] * (1 - c) + top * c + lpA[i] * c * th; tn9[i] = tn9[i] * (1 - c) + tk * c; } }
     }
     let Lx = -0.5; let Ly = -0.6; let Lz = 0.62; const Ln = Math.hypot(Lx, Ly, Lz); Lx /= Ln; Ly /= Ln; Lz /= Ln;
     let Hx = Lx; let Hy = Ly; let Hz = Lz + 1; const Hn = Math.hypot(Hx, Hy, Hz); Hx /= Hn; Hy /= Hn; Hz /= Hn;
@@ -2378,7 +2380,7 @@ function creepTex9(): HTMLCanvasElement | null {
       const nl = Math.hypot(gx, gy, 1); const nx = -gx / nl; const ny = -gy / nl; const nz = 1 / nl;
       const dif = nx * Lx + ny * Ly + nz * Lz - Lz;
       const sp = Math.max(0, nx * Hx + ny * Hy + nz * Hz) ** 110 * 1.1;
-      v9[i] = Math.max(-1, Math.min(1, dif + sp - 0.06));
+      v9[i] = Math.max(-1, Math.min(1, dif + sp + tn9[i] - 0.06));
     }
     const img9 = c9.createImageData(S9, S9);
     for (let i = 0; i < N9; i += 1) {
