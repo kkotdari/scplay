@@ -1,14 +1,15 @@
 /* 비교샷(비포·애프터) 한 줄 — 로컬에서 찍는다(2026-11-02, 요청: "이거는 스크립트로 짜서 저장해서 푸시까지 · 내가 로컬에서 찍을수 있게").
  *
- *   node scripts/showcase-run.mjs [--races 테란8,토스8,저그8] [--jobs 2] [--out docs/portfolio/showcase-YYYYMMDD] [--old <옛 트리 자리>] [--skip-before] [--skip-after]
+ *   node scripts/showcase-run.mjs [--races 테란8,토스8,저그8] [--jobs 2] [--out <폴더>] [--old <옛 트리 자리>] [--skip-before] [--skip-after]
  *
  * 하는 일:
  *   ① 옛 트리(비포 = scplay 0641c408 · 재질·그림자 손질 전)를 git worktree 로 세운다(없을 때만) — `#nofog` 패치(scripts/showcase/old0641-nofog.patch)를
  *      얹고 node_modules 를 이 트리 것으로 잇고(맥·리눅스 심볼릭 · 윈도 junction) `vite build` 로 dist/styles.css 를 굽는다.
  *   ② 이 트리(애프터)의 dist/styles.css 가 없으면 굽는다.
  *   ③ 종족마다 scripts/showcase-shot.mjs 를 애프터·비포로 돌린다(장면·타일셋·임자색은 그 파일의 SCENES.테란8/토스8/저그8 — 밑그림 그대로).
- *   ④ 비포|애프터를 좌우로 붙인 compare_<종족>.png 를 브라우저 캔버스로 짓는다(파이썬 없이).
- *   결과는 --out(기본 docs/portfolio/showcase-<오늘>) 에 before_*.png · after_*.png · compare_*.png — 커밋해 두면 포트폴리오 자리다.
+ *   ④ 비포|애프터를 좌우로 붙인 compare 그림을 브라우저 캔버스로 짓는다(파이썬 없이).
+ *   이름은 **버전 날짜**(찍은 날이 아니라 그 코드의 커밋 날짜 · scripts/showcase/verTag.mjs — YYYYMMDD-해시7 · 커밋 안 한 src 손질이 있으면 끝에 +):
+ *     폴더 docs/portfolio/showcase-<애프터 버전>/ · before_<종족>_<비포 버전>.png · after_<종족>_<애프터 버전>.png · compare_<종족>_<비포 날짜>_vs_<애프터 날짜>.png
  *
  * 크롬은 showcase-shot 이 찾는다(PW_CHROMIUM 환경 변수 → /opt/pw-browsers → 맥 Chrome for Testing → playwright 기본).
  * PW_HEADED=1 이면 창을 띄워 기기 GPU 로 그린다(헤드리스는 CPU 그림이라 느리다) — 자세한 실행법은 docs/local-run-guide.md. */
@@ -17,6 +18,7 @@ import { existsSync, mkdirSync, symlinkSync, readFileSync, writeFileSync, copyFi
 import { join, dirname, resolve } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { verTag } from "./showcase/verTag.mjs";
 
 const HERE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -27,8 +29,10 @@ const RACES = String(flag("--races", "테란8,토스8,저그8")).split(",");
 const RACE_EN = { 테란8: "terran", 토스8: "protoss", 저그8: "zerg" };
 const RACE_KO = { 테란8: "테란", 토스8: "프로토스", 저그8: "저그" };
 const JOBS = Math.max(1, Number(flag("--jobs", 2)));
-const day = new Date(); const ymd = `${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, "0")}${String(day.getDate()).padStart(2, "0")}`;
-const OUT = resolve(String(flag("--out", join(HERE, "docs", "portfolio", `showcase-${ymd}`))));
+const NEW_V = verTag(HERE);
+const OLD_V = (() => { try { return verTag(HERE, OLD_REV); } catch { execFileSync("git", ["fetch", "-q", "origin", OLD_REV], { cwd: HERE, stdio: "inherit" }); return verTag(HERE, OLD_REV); } })();
+const OUT = resolve(String(flag("--out", join(HERE, "docs", "portfolio", `showcase-${NEW_V.tag}`))));
+const fileOf = (side, r) => join(OUT, side === "before" ? `before_${RACE_EN[r]}_${OLD_V.tag}.png` : `after_${RACE_EN[r]}_${NEW_V.tag}.png`);
 const OLD = resolve(String(flag("--old", join(tmpdir(), "scplay-old0641"))));
 const node = process.execPath;
 const vite = join(HERE, "node_modules", "vite", "bin", "vite.js");
@@ -71,7 +75,7 @@ const shoot = ({ r, side, root }) => new Promise((ok) => {
   p.stdout.on("data", (d) => { txt += d; }); p.stderr.on("data", (d) => { txt += d; });
   p.on("close", (code) => {
     const src = join(tmp, `show_${{ 테란8: "t8", 토스8: "p8", 저그8: "z8" }[r]}.png`);
-    const dst = join(OUT, `${side}_${RACE_EN[r]}.png`);
+    const dst = fileOf(side, r);
     if (existsSync(src)) { copyFileSync(src, dst); log(`${RACE_KO[r]} ${side} 끝(${((Date.now() - t0) / 1000).toFixed(0)}초) → ${dst}`); }
     else { log(`${RACE_KO[r]} ${side} 실패(코드 ${code})\n${txt.split("\n").slice(-15).join("\n")}`); }
     for (const l of txt.split("\n")) if (/⚠|오류/.test(l)) log(`  ${RACE_KO[r]} ${side}: ${l.trim()}`);
@@ -85,7 +89,7 @@ const shoot = ({ r, side, root }) => new Promise((ok) => {
 }
 
 /* ④ 붙이기 — 비포|애프터 좌우 · 위에 이름 띠 */
-const pairs = RACES.filter((r) => existsSync(join(OUT, `before_${RACE_EN[r]}.png`)) && existsSync(join(OUT, `after_${RACE_EN[r]}.png`)));
+const pairs = RACES.filter((r) => existsSync(fileOf("before", r)) && existsSync(fileOf("after", r)));
 if (pairs.length) {
   const { chromium } = await import("playwright-core");
   const exe = [process.env.PW_CHROMIUM, "/opt/pw-browsers/chromium",
@@ -93,9 +97,9 @@ if (pairs.length) {
   const browser = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), ...(process.env.PW_HEADED === "1" ? { headless: false } : {}) });
   const page = await browser.newPage();
   for (const r of pairs) {
-    const a = readFileSync(join(OUT, `before_${RACE_EN[r]}.png`)).toString("base64");
-    const b = readFileSync(join(OUT, `after_${RACE_EN[r]}.png`)).toString("base64");
-    const png = await page.evaluate(async ([a, b, title]) => {
+    const a = readFileSync(fileOf("before", r)).toString("base64");
+    const b = readFileSync(fileOf("after", r)).toString("base64");
+    const png = await page.evaluate(async ([a, b, title, va, vb]) => {
       const load = (s) => new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.src = `data:image/png;base64,${s}`; });
       const [A, B] = await Promise.all([load(a), load(b)]);
       const w = Math.min(A.width, B.width); const h = Math.min(A.height, B.height); const gap = Math.round(w * 0.012); const band = Math.round(h * 0.07);
@@ -104,14 +108,14 @@ if (pairs.length) {
       c.fillStyle = "#14161b"; c.fillRect(0, 0, cv.width, cv.height);
       c.drawImage(A, 0, 0, w, h, 0, band, w, h); c.drawImage(B, 0, 0, w, h, w + gap, band, w, h);
       c.fillStyle = "#e8e8ea"; c.font = `600 ${Math.round(band * 0.46)}px sans-serif`; c.textBaseline = "middle";
-      c.fillText(`${title} · BEFORE`, Math.round(band * 0.35), band / 2); c.fillText(`${title} · AFTER`, w + gap + Math.round(band * 0.35), band / 2);
+      c.fillText(`${title} · BEFORE (${va})`, Math.round(band * 0.35), band / 2); c.fillText(`${title} · AFTER (${vb})`, w + gap + Math.round(band * 0.35), band / 2);
       return cv.toDataURL("image/png").split(",")[1];
-    }, [a, b, RACE_KO[r]]);
-    const dst = join(OUT, `compare_${RACE_EN[r]}.png`);
+    }, [a, b, RACE_KO[r], OLD_V.pretty, NEW_V.pretty]);
+    const dst = join(OUT, `compare_${RACE_EN[r]}_${OLD_V.date}_vs_${NEW_V.date}.png`);
     writeFileSync(dst, Buffer.from(png, "base64"));
     log(`붙임 → ${dst}`);
   }
   await browser.close();
 }
-log(`끝 — ${OUT}`);
+log(`끝 — ${OUT}  (비포 ${OLD_V.tag} · 애프터 ${NEW_V.tag})`);
 log("커밋: git add docs/portfolio && git commit -m '비교샷' && git push");

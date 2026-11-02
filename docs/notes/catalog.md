@@ -463,3 +463,6 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
 - 🔎 밑그림부터 보여 주기(요청: "찍기전에 유닛 배치를 … 도화지에 밑그림처럼") — SCENES 를 뽑아 PIL 로 위에서 본 배치(건물 실제 칸 · 유닛 원 · 공중 점선)를 그려 보였다.
 - 🔎 로컬 한 줄: `node scripts/showcase-run.mjs [--races 테란8,토스8,저그8] [--jobs 2]` → `docs/portfolio/showcase-<날짜>/` 에 before_* · after_* · compare_*(좌우 붙임).
   비포 트리는 `0641c408` 을 git worktree(기본 `$TMPDIR/scplay-old0641`)로 세우고 `scripts/showcase/old0641-nofog.patch`(`#nofog`)를 얹어 굽는다.
+- (같은 날 · "비교샷 장면샷은 이름이나 폴더에 날짜(찍은 날짜 말고 버전날짜)") — `scripts/showcase/verTag.mjs`(찍는 트리의 HEAD 커밋 날짜 서울 시각 YYYYMMDD + 해시 7 · src 미커밋이면 +).
+  showcase-run: `docs/portfolio/showcase-<애프터 버전>/before_<종족>_<비포 버전>.png · after_<종족>_<애프터 버전>.png · compare_<종족>_<비포 날짜>_vs_<애프터 날짜>.png`(띠에도 날짜) ·
+  scene-sheet: `--out` 없으면 `docs/portfolio/scene-<버전>/`. 실행법 `docs/local-run-guide.md`.

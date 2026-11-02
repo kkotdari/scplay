@@ -6,8 +6,11 @@
 | 할 일 | 명령(요지) | 걸리는 때 | 결과 |
 |---|---|---|---|
 | 아틀라스 굽기 | `node scripts/spr-atlas.mjs --bake --prune --basisu <basisu>` | 셰이더(gl9)·모델(bake9)을 고친 뒤 · 배포 전 | `spr/` · `src/components/replay/sprAtlas.gen.ts` |
-| 비교샷(비포·애프터) | `node scripts/showcase-run.mjs` | 포트폴리오·업데이트 안내용 | `docs/portfolio/showcase-<날짜>/` |
-| 장면 시트(크기 비교) | `node scripts/scene-sheet.mjs --out <폴더>` | 모델 크기 확인 | `scene_terran.png` · `scene_protoss.png` · `scene_zerg.png` |
+| 비교샷(비포·애프터) | `node scripts/showcase-run.mjs` | 포트폴리오·업데이트 안내용 | `docs/portfolio/showcase-<버전>/` |
+| 장면 시트(크기 비교) | `node scripts/scene-sheet.mjs` | 모델 크기 확인 | `docs/portfolio/scene-<버전>/` |
+
+> **<버전>** = 찍은 날이 아니라 **찍은 코드의 버전**이다 — 그 코드의 마지막 커밋 날짜(서울 시각)와 짧은 해시 7자리, 예 `20261102-cfc6969`.
+> 같은 코드면 언제 찍어도 같은 이름이라 덮어쓰고, 코드가 바뀌면 새 폴더가 선다. 커밋하지 않은 `src` 손질이 있으면 끝에 `+`가 붙는다(`20261102-cfc6969+` — 그 그림은 커밋에 없는 코드다).
 
 ---
 
@@ -150,10 +153,14 @@ $env:PW_HEADED="1"; node scripts/showcase-run.mjs
 4. **붙이기** — 비포|애프터를 좌우로 붙이고 위에 `테란 · BEFORE` / `AFTER` 띠를 단다.
 
 ### 2-2. 결과
-`docs/portfolio/showcase-<오늘날짜>/`
-- `before_terran.png` · `after_terran.png` · `compare_terran.png`
-- `before_protoss.png` · `after_protoss.png` · `compare_protoss.png`
-- `before_zerg.png` · `after_zerg.png` · `compare_zerg.png`
+폴더는 **애프터(지금 코드)의 버전**, 파일은 각자의 버전을 단다. 예(애프터 `20261102-cfc6969` · 비포 `20261029-0641c40`):
+```
+docs/portfolio/showcase-20261102-cfc6969/
+  before_terran_20261029-0641c40.png    after_terran_20261102-cfc6969.png    compare_terran_20261029_vs_20261102.png
+  before_protoss_20261029-0641c40.png   after_protoss_20261102-cfc6969.png   compare_protoss_20261029_vs_20261102.png
+  before_zerg_20261029-0641c40.png      after_zerg_20261102-cfc6969.png      compare_zerg_20261029_vs_20261102.png
+```
+compare 그림 위 띠에도 `프로토스 · BEFORE (2026-10-29)` / `AFTER (2026-11-02)` 로 버전 날짜가 찍힌다.
 
 포트폴리오로 남기려면:
 ```bash
@@ -168,7 +175,7 @@ git push
 | `--races 토스8` | 한 종족만(쉼표로 여럿: `테란8,저그8`) |
 | `--jobs 1` | 한 장씩 찍기(PC 가 버거우면) · `--jobs 3` 이면 셋씩 |
 | `--skip-before` / `--skip-after` | 애프터만 / 비포만 다시 찍기(붙이기는 폴더에 둘 다 있으면 한다) |
-| `--out <폴더>` | 결과 자리 바꾸기 |
+| `--out <폴더>` | 결과 폴더 바꾸기(파일 이름의 버전은 그대로 붙는다) |
 | `--old <폴더>` | 옛 트리 자리 바꾸기 |
 
 한 장만 따로 찍을 때(붙이기 없이):
@@ -195,13 +202,15 @@ node scripts/showcase-shot.mjs --race 토스8 --root <옛 트리 폴더> --out <
 
 **맥**
 ```bash
-PW_HEADED=1 node scripts/scene-sheet.mjs --out ~/Desktop/scene
+PW_HEADED=1 node scripts/scene-sheet.mjs
 ```
 **윈도(PowerShell)**
 ```powershell
-$env:PW_HEADED="1"; node scripts/scene-sheet.mjs --out "$env:USERPROFILE\Desktop\scene"
+$env:PW_HEADED="1"; node scripts/scene-sheet.mjs
 ```
-결과: `scene_terran.png` · `scene_protoss.png` · `scene_zerg.png`(기본 화소 배수 4 — 4096px 판).
+결과: `docs/portfolio/scene-<버전>/` 에 `scene_terran.png` · `scene_protoss.png` · `scene_zerg.png`(기본 화소 배수 4 — 4096px 판).
+딴 자리에 두려면 `--out <폴더>`(그때는 그 폴더 그대로 · 버전 이름이 안 붙는다).
+남기려면 `git add docs/portfolio && git commit -m "장면 시트" && git push`.
 
 | 옵션 | 뜻 |
 |---|---|

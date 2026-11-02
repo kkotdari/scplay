@@ -1,7 +1,7 @@
 /* 종족별 **크기 비교 장면**(요청: "모든 종족의 모든 유닛과 건물을 모아서 실제 재생기의 장면처럼 보여주는 스크린샷 —
  * 크기 비교를 위해서, 종족별로") ────────────────────────────────────────────────
  *
- *   node scripts/scene-sheet.mjs --out <dir>            → scene_terran.png · scene_protoss.png · scene_zerg.png
+ *   node scripts/scene-sheet.mjs [--out <dir>]          → scene_terran.png · scene_protoss.png · scene_zerg.png(--out 없으면 docs/portfolio/scene-<버전 날짜-해시>/)
  *   --deg N — 3D 시점각(기본 90 평면 · 이름표·격자는 평면 자리 그대로라 어긋난다 · 모델 각만 본다)
  *   node scripts/scene-sheet.mjs --race 테란 --zoom 2
  *
@@ -18,7 +18,9 @@ import { deflateSync } from "node:zlib";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const flag = (n, d = null) => { const i = argv.indexOf(n); return i < 0 ? d : (argv[i + 1] ?? true); };
-const OUT = String(flag("--out", join(tmpdir(), "scene-sheet")));
+/* --out 을 안 주면 docs/portfolio/scene-<버전>/ (2026-11-02, 요청: "이름이나 폴더에 날짜(찍은 날짜 말고 버전날짜)" — 그 코드의 커밋 날짜-해시 · scripts/showcase/verTag.mjs). */
+const { verTag } = await import(pathToFileURL(join(ROOT, "scripts", "showcase", "verTag.mjs")).href);
+const OUT = String(flag("--out", join(ROOT, "docs", "portfolio", `scene-${verTag(ROOT).tag}`)));
 const RACES = flag("--race", null) ? [String(flag("--race"))] : ["테란", "프로토스", "저그"];
 /* 배율은 **짜임에서 난다**(2026-09) — `--zoom` 을 주면 그 값으로 못 박고, 안 주면 span 에서 낸다:
    모아 놓은 만큼 크게 보이고, 사영 그림자가 켜지는 문턱(`DEV9.meshShadowMinZoom` PC 4배)을 저절로 넘는다. */
