@@ -852,15 +852,15 @@ function vesselBoom9(v: number): Float32Array {
   const r = rng9(2051 + v);
   const lp = new Biquad9("lp", 2200, 0.7);
   const k = [1, 1.06, 0.94][v % 3];
-  const hits: [number, number][] = [[0, 523.25], [0.15, 587.33], [0.3, 659.25]];
+  const hits: [number, number][] = [[0, 587.33], [0.22, 566], [0.44, 546]];   // 되요청("뒤로 갈수록 살짝만 낮아지고 · 한 음이 좀 더 길게") — 3.6%씩 내려가고 0.22초 간격
   const ph = [0, 0, 0];
-  const raw = render9(1.0, (t) => {
+  const raw = render9(1.6, (t) => {
     let o = 0;
     for (let i = 0; i < 3; i += 1) {
       const u = t - hits[i][0];
       if (u < 0) continue;
       ph[i] += hits[i][1] * k * (1 + 0.12 * Math.exp(-u * 40)) / SFX_RATE9;
-      o += (Math.sin(2 * Math.PI * ph[i]) + Math.sin(4 * Math.PI * ph[i]) * 0.18) * ad9(u, 0.003, 7);
+      o += (Math.sin(2 * Math.PI * ph[i]) + Math.sin(4 * Math.PI * ph[i]) * 0.18) * ad9(u, 0.003, 3.4);   // 울림 0.45 → 0.9초 남짓
     }
     const pop = lp.run(r() * 2 - 1) * ad9(t, 0.004, 30) * 0.25;
     return o * 0.55 + pop;
