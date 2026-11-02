@@ -2307,12 +2307,94 @@ const crowdShardK9 = (): number => (CROWD9.lv >= 2 || FQ9.lv >= 2 ? 0.34 : CROWD
    왜 지금 보니 타원형으로 바뀌었지?" — 2단의 접지 그림자 2배율이 그래서 안 걸렸다).
    규약대로 **자리에서 DEV9 를 읽는다**(CLAUDE.md: "자리에서는 다들 DEV9.x 를 프레임마다 읽는다"). */
 const decalBakeMax9 = (): number => DEV9.decalBakeMax;
+/** `#creeptex=0` — 크립 질감(creepTex9)을 끈다(옛 단색 판). */
+const CREEP_TEX_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])creeptex=0(?=$|[&,])/.test(location.hash);
 /** ★ **크립 얼룩 판** — 지도에서 판(캔버스 그림)으로 남은 **유일한** 것이다(2026-09, 판 굽기 길을 걷으며) ────────────
  *  크립은 모델이 아니라 **땅**이다: 지형 마스크로 파내고(붓의 destination-out) 이웃 얼룩과 이음매 없이 이어져야 하는데,
  *  그 두 가지가 2D 캔버스의 일이라 GL 로 옮기지 않았다. 대신 옛 판 기계(예산·LRU·대타·굽기 일꾼·색별 물들이기)는
  *  통째로 걷고 여기 한 함수만 남긴다 — 열쇠가 무늬 셋 × 보기 둘 × 크기 하나라 **여섯 장**이고, 그 여섯은 경기 내내
  *  안 바뀐다(크립 색도 한 가지다). 그래서 한 번 구우면 살려 두고, 임자색 마스크도 **구울 때 한 번** 물들여 한 장으로 합친다. */
 type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number };
+/** ★ **크립 질감**(2026-11-02, 요청: "저그 크립 질감 추가" → "끈적한 액체생체물질이 덮고 덮는 느낌") — 이어 붙는 무늬 한 장(256²)을 한 번 짓는다:
+ *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑을 흐려(번진 높이 + 두께) 덮으므로 밑 겹의 턱은 묻히고
+ *  맨 위 가장자리만 산다 · 가장자리 안쪽에 메니스커스(액체 입술) 불룩 → 왼위 빛 돋을새김 + 젖은 반사(거듭제곱 24 · 세기 0.3 — 1.0·40 은 "광택이 좀 심한듯" 으로 눌렀다) · 가장자리는 좁게(6px · 입술 2.6px · 밑 흐림 반경 4) — 넓은 턱은 "너무 흐릿해서 눈아파".
+ *  첫 시안(세포 워리 · 주름 골)은 "저런 느낌이 아니라" 로 걷었다. 값 < 0 은 검보라 · > 0 은 흰분홍(알파 = 세기).
+ *  크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 판은 경기 내내 살아 있으니 비용(≈0.3초)은 그때 한 번. */
+let CREEP_TEX9: HTMLCanvasElement | null | undefined;
+function creepTex9(): HTMLCanvasElement | null {
+  if (CREEP_TEX9 !== undefined) return CREEP_TEX9;
+  CREEP_TEX9 = null;
+  try {
+    const S9 = 256;
+    const cv9 = newCanvas9("크립결"); cv9.width = S9; cv9.height = S9;
+    const c9 = cv9.getContext("2d"); if (!c9) return null;
+    const N9 = S9 * S9;
+    const hh9 = (a: number): number => { let x = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return (x >>> 0) / 4294967296; };
+    const sm9 = (a: number, b: number, v: number): number => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const vn9 = (n: number, sd: number): Float32Array => {
+      const o = new Float32Array(N9);
+      for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
+        const gx = ((x + 0.5) / S9) * n; const gy = ((y + 0.5) / S9) * n; const x0 = Math.floor(gx); const y0 = Math.floor(gy);
+        let fx = gx - x0; let fy = gy - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+        const g = (cx: number, cy: number): number => hh9(sd * 7919 + ((cy % n) * n + (cx % n)));
+        const a = g(x0, y0); const b = g(x0 + 1, y0); const c = g(x0, y0 + 1); const d = g(x0 + 1, y0 + 1);
+        o[y * S9 + x] = a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+      }
+      return o;
+    };
+    const tmp9 = new Float32Array(N9);
+    const box9 = (src: Float32Array, dst: Float32Array, r: number, horiz: boolean): void => {
+      const w = 2 * r + 1;
+      for (let l = 0; l < S9; l += 1) {
+        const at = (k: number): number => (horiz ? l * S9 + (((k % S9) + S9) % S9) : (((k % S9) + S9) % S9) * S9 + l);
+        let s = 0; for (let k = -r; k <= r; k += 1) s += src[at(k)];
+        for (let k = 0; k < S9; k += 1) { dst[at(k)] = s / w; s += src[at(k + r + 1)] - src[at(k - r)]; }
+      }
+    };
+    const blur9 = (a: Float32Array, out: Float32Array): void => { box9(a, tmp9, 4, true); box9(tmp9, out, 4, false); box9(out, tmp9, 4, true); box9(tmp9, out, 4, false); box9(out, tmp9, 4, true); box9(tmp9, out, 4, false); };
+    const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const b4 = vn9(4, 9); const f16 = vn9(32, 7);
+    const h9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
+    const bl9 = new Float32Array(N9);
+    let rs9 = 1;
+    const rnd9 = (): number => hh9(1000 + (rs9 += 1));
+    for (let k = 0; k < 16; k += 1) {
+      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4;
+      blur9(h9, bl9);
+      for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
+        const i = y * S9 + x;
+        const dx = ((x + 0.5 - cx + S9 * 1.5) % S9) - S9 / 2; const dy = ((y + 0.5 - cy + S9 * 1.5) % S9) - S9 / 2;
+        const d = Math.hypot(dx, dy); const an = Math.atan2(dy, dx);
+        const rr = r * (1 + 0.22 * Math.sin(an * 3 + k * 1.7) + 0.12 * Math.sin(an * 5 + 2.3 * k) + 0.06 * Math.sin(an * 9 + k)) + (wn9[i] - 0.5) * 30 + (wm9[i] - 0.5) * 12;
+        const c = sm9(rr + 1, rr - 5, d);
+        if (c <= 0) continue;
+        const lp = Math.exp(-(((d - (rr - 3.5)) / 2.6) ** 2)) * 0.3;
+        h9[i] = h9[i] * (1 - c) + (bl9[i] + th) * c + lp * c * th;
+      }
+    }
+    for (let i = 0; i < N9; i += 1) h9[i] += (f16[i] - 0.5) * 0.08;
+    let Lx = -0.5; let Ly = -0.6; let Lz = 0.62; const Ln = Math.hypot(Lx, Ly, Lz); Lx /= Ln; Ly /= Ln; Lz /= Ln;
+    let Hx = Lx; let Hy = Ly; let Hz = Lz + 1; const Hn = Math.hypot(Hx, Hy, Hz); Hx /= Hn; Hy /= Hn; Hz /= Hn;
+    const v9 = new Float32Array(N9);
+    for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
+      const i = y * S9 + x;
+      const gx = (h9[y * S9 + ((x + 1) % S9)] - h9[y * S9 + ((x - 1 + S9) % S9)]) * 2;
+      const gy = (h9[((y + 1) % S9) * S9 + x] - h9[((y - 1 + S9) % S9) * S9 + x]) * 2;
+      const nl = Math.hypot(gx, gy, 1); const nx = -gx / nl; const ny = -gy / nl; const nz = 1 / nl;
+      const dif = nx * Lx + ny * Ly + nz * Lz - Lz;
+      const sp = Math.max(0, nx * Hx + ny * Hy + nz * Hz) ** 24;
+      v9[i] = Math.max(-1, Math.min(1, dif * 0.85 + sp * 0.3 - 0.04));
+    }
+    const img9 = c9.createImageData(S9, S9);
+    for (let i = 0; i < N9; i += 1) {
+      const v = v9[i]; const o = i * 4;
+      if (v < 0) { img9.data[o] = 18; img9.data[o + 1] = 4; img9.data[o + 2] = 24; img9.data[o + 3] = Math.round(Math.min(1, -v) * 255); }
+      else { img9.data[o] = 235; img9.data[o + 1] = 205; img9.data[o + 2] = 235; img9.data[o + 3] = Math.round(Math.min(1, v * 0.8) * 255); }
+    }
+    c9.putImageData(img9, 0, 0);
+    CREEP_TEX9 = cv9;
+  } catch (e9) { console.warn("[크립결]", e9); CREEP_TEX9 = null; }
+  return CREEP_TEX9;
+}
 const CREEP_PLATES9 = new Map<string, CreepPlate9 | null>();
 function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
   /* 굽는 크기는 못 박는다(DEV9.decalBakeMax) — 얼룩은 단색 한 겹이라 늘려 찍어도 결이 안 보이고, 배율을 따라가면
@@ -2355,6 +2437,20 @@ function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
           releaseCanvas(tn9.cv);
         }
         c29.drawImage(body9, r9.ox - x09, r9.oy - y09);
+        /* 크립 질감(위 creepTex9 ★) — 판 안(source-atop)에 무늬를 깐다 · 판 한 변(잉크 ≈ l / 2.56)에 무늬 한 장 반(덮인 판 스무 남짓)이 들게. `#creeptex=0` 옛길. */
+        const tx9 = CREEP_TEX_OFF9 ? null : creepTex9();
+        if (tx9) {
+          const pat9 = c29.createPattern(tx9, "repeat");
+          if (pat9) {
+            const sc9 = Math.max(0.05, (cv9.width / 2.56) / (1.5 * tx9.width));
+            c29.save();
+            c29.globalCompositeOperation = "source-atop";
+            c29.scale(sc9, sc9);
+            c29.fillStyle = pat9;
+            c29.fillRect(0, 0, cv9.width / sc9, cv9.height / sc9);
+            c29.restore();
+          }
+        }
         out9 = { cv: cv9, ox: x09, oy: y09, pad: r9.pad, l: r9.l, side: side9, bot: r9.box.bot, top: r9.box.top };
       }
       releaseCanvas(body9);
