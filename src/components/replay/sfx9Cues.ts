@@ -30,6 +30,8 @@ const MELEE9: Record<string, SfxKind9> = {
  *  몇 번째 휘두름인지 세어 바뀔 때마다 낸다(장 간격과 무관). 몸 종류(model kind) → 소리. */
 const SWING9: Record<string, SfxKind9> = { Zergling: "zlingHit", Ultralisk: "ultraHit" };
 const SWING_KIND9: Record<string, SfxKind9> = { zling: "zlingHit", ultra: "ultraHit" };
+/** 알 몸(model kind) — 변태 시작 소리(아래 ★ 알 변태 시작). */
+const EGG_KINDS9 = new Set(["egg", "lurkeregg", "mutacocoon"]);
 /** 미사일 쏜 몸 → 소리 갈래(아래 shot 의 ★). */
 const MISSILE_LOW9 = new Set(["Scout", "Valkyrie", "Wraith"]);
 const MISSILE_HI9 = new Set(["Goliath", "Missile Turret"]);
@@ -54,6 +56,8 @@ export class SfxCues9 {
   private swingN = new Map<string, number>();
   /** 건물 열쇠마다 앞 장에 공사 고치였나(위 ★ 저그 건물 완성). */
   private cocWas = new Map<string, [boolean, number]>();
+  /** 유닛 열쇠마다 앞 장에 알이었나(위 ★ 알 변태 시작). */
+  private eggWas = new Map<string, [boolean, number]>();
   private lastT = Number.NaN;
 
   /** 한 장을 본다. 소리를 내도 되는 때가 아니면 열쇠만 적는다(prime). */
@@ -101,7 +105,7 @@ export class SfxCues9 {
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
           else if (mat === "zerg") k = "squeal";
-          else if (mat === "cocoon") k = "eggPop";
+          else if (mat === "cocoon") k = "eggHatch";   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop)
           else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.tmech ? "boom" : "zap";
           else k = "boom";
           play(k, op.fx, op.fy);
@@ -165,6 +169,15 @@ export class SfxCues9 {
       const unfold = u.kind.startsWith("cocoon") && u.pickKey ? fresh(`c${u.pickKey}`) : false;
       /* ★ 저그 **건물 완성**(2026-11-02, 요청: "완성 시도 알보다 낮고 크고 복잡한 소리로 별도") — 공사 중과 완성 건물은 같은 pickKey(b임자|종류|자리)라, 앞 장에
          고치(cocoon*)였던 열쇠가 고치가 아닌 몸으로 선 장에 낸다(레어·하이브 변태 끝도 같다). 상태는 보이든 말든 적는다. */
+      /* ★ 알 변태 시작(2026-11-02, 요청: "알 변태 시작과 깨짐도 낮고 생체 소리로") — 같은 몸(pickKey u태그)이 알 아닌 몸에서 알(egg·lurkeregg·mutacocoon)로 바뀐 장.
+         앞 기록이 막 전 장일 때만(화면 밖에서 바뀐 것은 안 울린다 · 아래 완성과 같은 문). */
+      let eggGo = false;
+      if (u.pickKey && u.pickKey.charCodeAt(0) === 117) {   // 'u' — 유닛
+        const isE9 = EGG_KINDS9.has(u.kind);
+        const we9 = this.eggWas.get(u.pickKey);
+        if (we9 && !we9[0] && isE9 && fr.t - we9[1] <= 2 + o.speed * 0.5) eggGo = true;
+        this.eggWas.set(u.pickKey, [isE9, fr.t]);
+      }
       let ripe = false;
       if (u.pickKey && u.pickKey.charCodeAt(0) === 98) {   // 'b' — 건물
         const isC9 = u.kind.startsWith("cocoon");
@@ -187,6 +200,7 @@ export class SfxCues9 {
       if (done) play("warpEnd", u.fx, u.fy);
       if (unfold) play("fleshUnfold", u.fx, u.fy);
       if (ripe) play("zergDone", u.fx, u.fy);
+      if (eggGo) play("eggStart", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");
@@ -205,5 +219,6 @@ export class SfxCues9 {
     if (this.buried.size > 4000) this.buried.clear();
     if (this.swingN.size > 4000) this.swingN.clear();
     if (this.cocWas.size > 4000) this.cocWas.clear();
+    if (this.eggWas.size > 6000) this.eggWas.clear();
   }
 }

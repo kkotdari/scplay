@@ -743,13 +743,55 @@ function zergDone9(v: number): Float32Array {
   }, (t) => { sq1.set(900 - 600 * Math.min(1, t / 0.5)); sq2.set(700 - 400 * Math.min(1, Math.max(0, t - 0.22) / 0.5)); }), 0.85);
 }
 
+/** ★ 알 변태 시작(라바 → 알 · 히드라 → 럴커 알 · 뮤탈 → 고치 · 2026-11-02, 요청: "알 변태 시작과 깨짐도 낮고 생체 소리로") — 끈적한 살이 오므라들며 굳는다:
+ *  낮게 출렁이며 내려가는 웅(78 → 52Hz · 느린 떨림) + 저역 질척임이 부풀었다 가라앉음 + 낮은 방울 둘. 0.75초. */
+function eggStart9(v: number): Float32Array {
+  const r = rng9(1801 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 520, 0.8);
+  const k = [1, 1.08, 0.93][v % 3];
+  let ph = 0; let b1 = 0; let b2 = 0;
+  return finish9(render9(0.75, (t) => {
+    ph += (78 - 26 * Math.min(1, t / 0.5)) * k * (1 + 0.1 * Math.sin(2 * Math.PI * 6 * t)) / SFX_RATE9;
+    const hum = Math.sin(2 * Math.PI * ph) * ad9(t, 0.06, 3.4) * 0.8;
+    const goo = lp.run(br() * 1.6) * ad9(t, 0.1, 3.8) * (0.7 + 0.3 * Math.sin(2 * Math.PI * 4 * t));
+    const u1 = t - 0.2; const u2 = t - 0.42;
+    if (u1 > 0) b1 += (120 * k + u1 * 160) / SFX_RATE9;
+    if (u2 > 0) b2 += (100 * k + u2 * 140) / SFX_RATE9;
+    const bub = (u1 > 0 ? Math.sin(2 * Math.PI * b1) * Math.exp(-u1 * 22) * 0.35 : 0) + (u2 > 0 ? Math.sin(2 * Math.PI * b2) * Math.exp(-u2 * 22) * 0.28 : 0);
+    return sat9(hum + goo + bub, 1.5);
+  }), 0.6);
+}
+/** ★ 알 깨짐(부화) — 옛 eggPop(부드러운 뽁)보다 **낮은 생체**(2026-11-02, 같은 요청): 깊은 퍽(72 → 36Hz) + 축축한 철퍽(저역 600Hz) + 껍질 찢김 바스락 + 낮은 방울 셋. 0.6초. */
+function eggHatch9(v: number): Float32Array {
+  const r = rng9(1851 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 600, 0.7);
+  const k = [1, 1.07, 0.92][v % 3];
+  let ph = 0;
+  const bub = [[0.12, 135], [0.2, 115], [0.3, 98]].map(([s0, f]) => [s0 + r() * 0.03, f * k]);
+  const bph = [0, 0, 0];
+  return finish9(render9(0.6, (t) => {
+    ph += (72 - 36 * Math.min(1, t / 0.15)) * k / SFX_RATE9;
+    const thump = Math.sin(2 * Math.PI * ph) * ad9(t, 0.006, 9) * 1.1;
+    const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.2) * ad9(t, 0.008, 7) * 1.2;
+    const rip = t < 0.25 && r() < 0.02 * exp9(t, 8) ? (r() * 2 - 1) * 0.7 : 0;
+    let gl = 0;
+    for (let i = 0; i < 3; i += 1) {
+      const u = t - bub[i][0];
+      if (u < 0) continue;
+      bph[i] += (bub[i][1] + u * 220) / SFX_RATE9;
+      gl += Math.sin(2 * Math.PI * bph[i]) * Math.exp(-u * 26) * (0.32 - i * 0.07);
+    }
+    return sat9(thump + splat + rip + gl, 1.6);
+  }), 0.68);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -767,4 +809,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
+  eggStart: [3, eggStart9], eggHatch: [3, eggHatch9],
 };

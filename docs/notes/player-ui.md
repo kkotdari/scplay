@@ -2858,3 +2858,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - (같은 날) "완성 시도 알보다 낮고 크고 복잡한 소리로 별도" — 새 `zergDone9`(깊은 쿵 58→32Hz + 살덩이 몸 + 엇박 질척임 둘(900→300 · 700→300Hz) + 껍질 찢김 바스락 +
   42Hz 그르렁 + 끝 거품 · 1.4초). sfx9Cues: 건물 pickKey(공사 중·완성이 같다)가 앞 장에 cocoon* 이었고 지금 아니면 zergDone(cocWas · 앞 기록이 2초 + 배속 몫 안일 때만 —
   화면 밖에서 다 지어진 것을 들어올 때 안 울리게).
+- (같은 날) "알 변태 시작과 깨짐도 낮고 생체 소리로" — 새 `eggStart9`(78→52Hz 출렁이는 웅 + 저역 질척임 + 낮은 방울 둘 · 0.75초) · `eggHatch9`(깊은 퍽 72→36Hz +
+  축축한 철퍽 + 찢김 바스락 + 낮은 방울 셋 · 0.6초). sfx9Cues: 유닛 pickKey(u태그 — 라바·히드라·뮤탈이 알이 돼도 같은 몸)가 알 아닌 몸 → egg·lurkeregg·mutacocoon 으로
+  바뀐 장에 eggStart(eggWas · 앞 기록 2초 + 배속 몫 안) · 유닛 cocoon burst(알 깨짐) eggPop → eggHatch. eggPop 조리법은 남겨 둔다(건물 cocoon burst).
