@@ -2316,11 +2316,12 @@ const CREEP_TEX_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])creeptex=0
  *  안 바뀐다(크립 색도 한 가지다). 그래서 한 번 구우면 살려 두고, 임자색 마스크도 **구울 때 한 번** 물들여 한 장으로 합친다. */
 type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number };
 /** ★ **크립 질감**(2026-11-02, 요청: "저그 크립 질감 추가" → "끈적한 액체생체물질이 덮고 덮는 느낌") — 이어 붙는 무늬 한 장(256²)을 한 번 짓는다:
- *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑을 흐려(번진 높이 + 두께) 덮으므로 밑 겹의 턱은 묻히고
- *  맨 위 가장자리만 산다 · 가장자리 안쪽에 메니스커스(액체 입술) 불룩 → 왼위 빛 돋을새김 + 젖은 반사(거듭제곱 110 · 세기 1.1).
- *  ★ 번짐 걷기("이때가 적당했는데 좀 번지는 느낌만 제거하면 될듯" — 거듭제곱 40 판): 반사 거듭제곱 40 → 110(빛점 꼬리의 무리가 번져 보였다) ·
- *  높이에 얹던 잔 얼룩 노이즈(16칸 · 0.12)를 걷었다(겹 안의 뿌연 밝은 얼룩). 모양·턱(16px)·입술은 그 판 그대로.
- *  되물린 길: 반사 0.3·24 는 "너무 흐릿" · 좁은 턱+입술은 "엠보싱처럼" · 빛 없는 그림자 판은 "경사선이 흐릿하고 퍼져서" — 결국 이 판으로 돌아왔다.
+ *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑을 **평평하게 묻는다**(덮이는 자리 가장 높은 곳 + 두께 0.6 배 한 높이)
+ *  · 가장자리 안쪽에 메니스커스(액체 입술) 불룩 → 왼위 빛 돋을새김 + 젖은 반사(거듭제곱 110 · 세기 1.1).
+ *  ★ 번짐 걷기: ① "좀 번지는 느낌만 제거" — 반사 거듭제곱 40 → 110(빛점 꼬리 무리) · 잔 얼룩 노이즈(16칸 · 0.12) 걷음.
+ *  ② "동그라미친 부분들이 눈이 아픈 부분 선명하지 않아서" — 새 겹이 밑을 **흐린 높이**(박스 흐림 반경 7 세 번)로 덮던 것이라 묻힌 턱이
+ *  뿌연 유령 둔덕으로 비쳤다 → 평평한 한 높이로 덮는다. 모양·턱(16px)·입술은 고른 판("이때가 적당했는데") 그대로.
+ *  되물린 길: 반사 0.3·24 는 "너무 흐릿" · 좁은 턱+입술은 "엠보싱처럼" · 빛 없는 그림자 판은 "경사선이 흐릿하고 퍼져서".
  *  첫 시안(세포 워리)은 "저런 느낌이 아니라". 값 < 0 은 검보라 · > 0 은 흰분홍(알파 = 세기).
  *  크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 판은 경기 내내 살아 있으니 비용(≈0.3초)은 그때 한 번. */
 let CREEP_TEX9: HTMLCanvasElement | null | undefined;
@@ -2345,34 +2346,25 @@ function creepTex9(): HTMLCanvasElement | null {
       }
       return o;
     };
-    const tmp9 = new Float32Array(N9);
-    const box9 = (src: Float32Array, dst: Float32Array, r: number, horiz: boolean): void => {
-      const w = 2 * r + 1;
-      for (let l = 0; l < S9; l += 1) {
-        const at = (k: number): number => (horiz ? l * S9 + (((k % S9) + S9) % S9) : (((k % S9) + S9) % S9) * S9 + l);
-        let s = 0; for (let k = -r; k <= r; k += 1) s += src[at(k)];
-        for (let k = 0; k < S9; k += 1) { dst[at(k)] = s / w; s += src[at(k + r + 1)] - src[at(k - r)]; }
-      }
-    };
-    const blur9 = (a: Float32Array, out: Float32Array): void => { box9(a, tmp9, 7, true); box9(tmp9, out, 7, false); box9(out, tmp9, 7, true); box9(tmp9, out, 7, false); box9(out, tmp9, 7, true); box9(tmp9, out, 7, false); };
     const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const b4 = vn9(4, 9);
     const h9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
-    const bl9 = new Float32Array(N9);
+ 
     let rs9 = 1;
     const rnd9 = (): number => hh9(1000 + (rs9 += 1));
     for (let k = 0; k < 16; k += 1) {
       const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4;
-      blur9(h9, bl9);
+      const cc = new Float32Array(N9); const lpA = new Float32Array(N9); let hm = -1e9;
       for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
         const i = y * S9 + x;
         const dx = ((x + 0.5 - cx + S9 * 1.5) % S9) - S9 / 2; const dy = ((y + 0.5 - cy + S9 * 1.5) % S9) - S9 / 2;
         const d = Math.hypot(dx, dy); const an = Math.atan2(dy, dx);
         const rr = r * (1 + 0.22 * Math.sin(an * 3 + k * 1.7) + 0.12 * Math.sin(an * 5 + 2.3 * k) + 0.06 * Math.sin(an * 9 + k)) + (wn9[i] - 0.5) * 30 + (wm9[i] - 0.5) * 12;
         const c = sm9(rr + 2, rr - 14, d);
-        if (c <= 0) continue;
-        const lp = Math.exp(-(((d - (rr - 7)) / 5) ** 2)) * 0.35;
-        h9[i] = h9[i] * (1 - c) + (bl9[i] + th) * c + lp * c * th;
+        cc[i] = c; lpA[i] = Math.exp(-(((d - (rr - 7)) / 5) ** 2)) * 0.35;
+        if (c > 0.5 && h9[i] > hm) hm = h9[i];
       }
+      const top = (hm > -1e8 ? hm : 0) + th * 0.6;
+      for (let i = 0; i < N9; i += 1) { const c = cc[i]; if (c > 0) h9[i] = h9[i] * (1 - c) + top * c + lpA[i] * c * th; }
     }
     let Lx = -0.5; let Ly = -0.6; let Lz = 0.62; const Ln = Math.hypot(Lx, Ly, Lz); Lx /= Ln; Ly /= Ln; Lz /= Ln;
     let Hx = Lx; let Hy = Ly; let Hz = Lz + 1; const Hn = Math.hypot(Hx, Hy, Hz); Hx /= Hn; Hy /= Hn; Hz /= Hn;
