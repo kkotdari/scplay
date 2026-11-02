@@ -13131,7 +13131,7 @@ export default function ReplayMotionPlayer({
     const read9 = (): void => {
       const w9 = window.innerWidth; const h9 = Math.max(1, window.innerHeight);
       /* 문턱 "16:9 초과" → **16:9 이상**(2026-11-02, 요청: "전체화면 16:9 이상이면 가로모드 켜지게") — PC 16:9 모니터(1920×1080 = 1.778)도 켠다 · 반올림 몫 0.02 아래까지. */
-      setWide9(f9 === "1" ? true : f9 === "0" ? false : fsOn && w9 / h9 >= 16 / 9 - 0.02);
+      setWide9(f9 === "1" ? true : f9 === "0" ? false : fsOn && w9 / h9 >= 16 / 10 - 0.02);   // 16:9 → **16:10 이상**(같은 날 "16:9 말고 16:10부터 적용" · 1920×1200 = 1.6)
     };
     read9();
     window.addEventListener("resize", read9);
