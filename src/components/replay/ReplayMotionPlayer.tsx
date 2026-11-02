@@ -18789,20 +18789,23 @@ export default function ReplayMotionPlayer({
     if (quickZoomRef.current) return;
     /* ★ 마우스 왼쪽 끌기 = 상자 선택(위 boxSel9 ★ · 원작식) — 지도 이동은 오른쪽·가운데 버튼 끌기 · 가장자리 밀기 · WASD 로 옮겼다. 손가락은 종전대로 끌면 이동.
        분할보기는 칸마다 카메라가 달라 상자를 안 쓴다(종전 길). 안 움직이고 떼면 클릭(아래 onMapPointerUp 의 몸 집기)이다. */
-    if (e.pointerType === "mouse" && e.button === 0 && !splitOnRef9.current) {
+    /* ★ **Alt·Ctrl(맥 ⌥·⌃·⌘) + 왼쪽 끌기 = 지도 이동**(2026-11-02, 요청: "피시에서 드래그를 우클릭 가운데클릭 드래그 말고 알트나 컨트롤 같은 거 누르고 드래그로") —
+       오른쪽·가운데 끌기도 그대로 둔다. 맥의 ⌃+누름은 차림표를 부르지만 지도는 contextmenu 를 막는다(아래 onContextMenu). */
+    const panMod9 = e.pointerType === "mouse" && e.button === 0 && (e.altKey || e.ctrlKey || e.metaKey);
+    if (e.pointerType === "mouse" && e.button === 0 && !panMod9 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
       boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false, ox: sr9?.left ?? 0, oy: sr9?.top ?? 0, raf: 0 };
       return;
     }
-    if (e.pointerType === "mouse" && e.button !== 0) {
-      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손)
+    if (e.pointerType === "mouse" && (e.button !== 0 || panMod9)) {
+      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데·수식키 누름은 몸을 안 집는다(끌어 옮기는 손)
       if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
       (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
     }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 오른쪽·가운데 버튼이 끈다(왼쪽은 위 상자 선택)
+    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 오른쪽·가운데 버튼 · 수식키+왼쪽이 끈다(그냥 왼쪽은 위 상자 선택)
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -18827,16 +18830,14 @@ export default function ReplayMotionPlayer({
         bx9.live = true;
         const tpX9 = tapRef.current; if (tpX9 && tpX9.id === e.pointerId) tpX9.moved = true;
       }
-      if (bx9.live && !bx9.raf) {
-        bx9.raf = requestAnimationFrame(() => {
-          const b9 = boxDragRef9.current; const el9 = boxElRef9.current;
-          if (!b9) return;
-          b9.raf = 0;
-          if (!el9) return;
-          el9.style.display = "block";
-          el9.style.transform = `translate(${Math.min(b9.sx, b9.x) - b9.ox}px, ${Math.min(b9.sy, b9.y) - b9.oy}px)`;
-          el9.style.width = `${Math.abs(b9.x - b9.sx)}px`; el9.style.height = `${Math.abs(b9.y - b9.sy)}px`;
-        });
+      /* ★ **움직이자마자 그린다**(2026-11-02, 요청: "마우스 드래그 시 클릭 순간부터 그리지 않는 이유가 뭐야?") — 옛: 3px 문턱을 넘은 뒤 다음 rAF 에 그렸다(첫 3px +
+         한 장 늦음). 이제 첫 움직임부터 이 이벤트 안에서 바로 쓴다(쓰기만 · 읽기 없음 · 크롬은 pointermove 를 장마다 모아 보낸다). 클릭/상자의 갈림은 그대로 3px
+         (bx9.live) — 3px 안에서 떼면 상자는 걷히고 클릭(몸 집기)이다. */
+      const el9 = boxElRef9.current;
+      if (el9 && (bx9.x !== bx9.sx || bx9.y !== bx9.sy)) {
+        el9.style.display = "block";
+        el9.style.transform = `translate(${Math.min(bx9.sx, bx9.x) - bx9.ox}px, ${Math.min(bx9.sy, bx9.y) - bx9.oy}px)`;
+        el9.style.width = `${Math.abs(bx9.x - bx9.sx)}px`; el9.style.height = `${Math.abs(bx9.y - bx9.sy)}px`;
       }
       return;
     }
