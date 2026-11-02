@@ -16838,6 +16838,8 @@ export default function ReplayMotionPlayer({
      ★ (옛 · 보던 자리 지키기) 링크가 준 자리를 아직 쥐고 있으면 재중심은 물러난다(지적: PC에서 공유 링크가 늘 정가운데) — PC는 첫 몇 초에 무대가 일곱 번
        다시 서는데, 그때마다 기억한 자리(링크가 앉기 전 = 지도 한가운데)로 걷어찼다. */
   const geomRef9 = useRef({ fold: dockFoldOn9, fs: fsOn, pitch: pitchDeg, w: 0, h: 0, cw: 0, foldAt: 0 });
+  /** 전체화면 갈림 때 판 폭·배율(아래 ⑤ 의 ★ 타일 크기 지키기) — 판 폭이 바뀐 커밋에 쓰고 걷는다. */
+  const fsZoomPend9 = useRef<{ cw: number; z: number; at: number } | null>(null);
   useLayoutEffect(() => {
     const g9 = geomRef9.current;
     if (g9.fold !== dockFoldOn9) { g9.fold = dockFoldOn9; g9.foldAt = performance.now(); }   // 무대는 다음 잼에 바뀐다 — 그때 옛 자를 쓴다
@@ -16871,6 +16873,19 @@ export default function ReplayMotionPlayer({
     if (!want) return;
     holdRef.current = want;
     if (fsOn && fsCoverW <= 0) return;   // 전체화면은 무대 크기가 재져야 지도 폭이 정해진다 — 그 전 커밋에서는 미룬다
+    /* ★ 전체화면을 오갈 때 **타일 한 칸의 화면 크기를 지킨다**(2026-11-02, 지적: "전체화면일 때 타일 수 기준이 안 바뀐 듯 · 창 모드는 얼마 전에 넓게 보이게 바꿨는데") —
+       배율은 덮는 판 폭(fsCoverW)에 곱하는 값이라, 창(판 = 무대 키 · 좌우 필러) → 전체화면(판이 화면을 덮음 · 세로 폰은 2.8배 넓다)에서 배율을 그대로 두면 타일이
+       그만큼 커져 훨씬 좁게 보였다. 중계·추적은 위 ③ 이 타일 수(castZoomFit9)로 다시 맞추는데 자유 보기만 배율을 그대로 들고 갔다. 이제 판 폭 비만큼 배율을 나눠
+       칸 크기를 지키고(1배 바닥) — 넓어진 무대만큼 더 보인다 — 한가운데 타일은 아래가 다시 앉힌다. */
+    /* 전체화면은 커밋이 두 번 난다(판 폭 fsCoverW 는 무대가 재진 다음 커밋에 바뀐다) — 갈린 순간의 판 폭·배율을 적어 두고, 판 폭이 실제로 바뀐 커밋(2초 안)에 한 번 맞춘다. */
+    if (p9.fs !== fsOn && p9.cw > 0) fsZoomPend9.current = { cw: p9.cw, z: z09, at: performance.now() };
+    const fp9 = fsZoomPend9.current;
+    if (fp9 && fsCoverW > 0 && performance.now() - fp9.at < 2000 && Math.abs(fsCoverW - fp9.cw) > 1) {
+      fsZoomPend9.current = null;
+      const z19 = Math.max(1, (fp9.z * fp9.cw) / fsCoverW);
+      const k9 = p9.cw > 0 && z09 > 0 ? (fsCoverW * z19) / (p9.cw * z09) : 1;
+      if (Math.abs(z19 - z09) > 1e-3) setView9(z19, { x: p09.x * k9, y: p09.y * k9 });
+    }
     if (centerOnTile(want.x, want.y)) holdRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fsOn, pitchDeg, stage.w, stage.h, fsCoverW, dockFoldOn9]);
