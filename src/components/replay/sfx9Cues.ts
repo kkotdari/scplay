@@ -30,6 +30,8 @@ const MELEE9: Record<string, SfxKind9> = {
  *  몇 번째 휘두름인지 세어 바뀔 때마다 낸다(장 간격과 무관). 몸 종류(model kind) → 소리. */
 const SWING9: Record<string, SfxKind9> = { Zergling: "zlingHit", Ultralisk: "ultraHit" };
 const SWING_KIND9: Record<string, SfxKind9> = { zling: "zlingHit", ultra: "ultraHit" };
+/** 소형 저그(죽음 울음이 조금 높다 · squealHi) — "지금 뮤탈을 저글링 같은 소형용으로 쓰고"(2026-11-02). */
+const ZERG_SMALL9 = new Set(["Zergling", "Drone", "Broodling", "Scourge", "Infested Terran", "Larva"]);
 /** 알 몸(model kind) — 변태 시작 소리(아래 ★ 알 변태 시작). */
 const EGG_KINDS9 = new Set(["egg", "lurkeregg", "mutacocoon"]);
 /** 미사일 쏜 몸 → 소리 갈래(아래 shot 의 ★). */
@@ -104,7 +106,7 @@ export class SfxCues9 {
           /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
-          else if (mat === "zerg") k = op.by === "Lurker" ? "lurkerDie" : op.by === "Mutalisk" ? "squealHi" : "squeal";   // 럴커 — 낮은 비명 + 폭발(2026-11-02)
+          else if (mat === "zerg") k = op.by === "Lurker" ? "lurkerDie" : op.by === "Mutalisk" ? "squealMuta" : op.by && ZERG_SMALL9.has(op.by) ? "squealHi" : "squeal";   // 뮤탈 훨씬 높게 · 소형 조금 높게(2026-11-02)   // 럴커 — 낮은 비명 + 폭발(2026-11-02)
           else if (mat === "cocoon") { if (op.sub === "done") break; k = "eggHatch"; }   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
           else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.by === "Reaver" ? "reaverBreak" : op.by === "Observer" ? "obsBoom" : op.tmech ? "boom" : "zap";   // 리버 — 드라군보다 울림 있게(2026-11-02)
           else k = op.by === "Science Vessel" ? "vesselBoom" : "boom";   // 베슬 — 둥둥둥 세 번(2026-11-02)

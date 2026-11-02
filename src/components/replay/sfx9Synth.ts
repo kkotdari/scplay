@@ -157,7 +157,7 @@ function bioBoom9(v: number): Float32Array {
 
 /** ★ 저그 유닛 죽음 — **생체 조직 폭발 + 저그 울음**(2026-11-02, 요청: "저그 죽음 소리 저거 말고 생체 조직 폭발과 저그 울음소리여야 · 다 변경") — 옛: 꾸웩 하나(톱니 성대만).
  *  ① 울음 — 톱니 성대 340 → 150Hz 로 꺾이며 떨고(느린 떨림 + 빠른 그르렁) · 꼭지 셋 620·1350·2500Hz · 거친 숨 · 0.7초
- *  ② 폭발 — 살이 터지는 철퍽(저역 갈색 잡음 · 900 → 300Hz 로 닫힘) + 깊은 쿵(80 → 45Hz) + 흩어지는 질척 알갱이. pk = 높낮이 배수(뮤탈 1.35 · 꼭지는 √pk). */
+ *  ② 폭발 — 살이 터지는 철퍽(저역 갈색 잡음 · 900 → 300Hz 로 닫힘) + 깊은 쿵(80 → 45Hz) + 흩어지는 질척 알갱이. pk = 높낮이 배수(소형 저글링·드론·브루들링·스커지 1.35 · 뮤탈 2.2 — "진짜 뮤탈 건 훨씬 높아야" · 꼭지는 √pk). */
 function squeal9(v: number, pk = 1): Float32Array {
   const r = rng9(401 + v + (pk !== 1 ? 53 : 0)); const br = brown9(r);
   const fk = Math.sqrt(pk);
@@ -933,7 +933,7 @@ export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -954,5 +954,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
   mineArm: [3, mineArm9], reaverBreak: [2, reaverBreak9], vesselBoom: [2, vesselBoom9],
   bioLoad: [2, (v) => bioHold9(v, true)], bioUnload: [2, (v) => bioHold9(v, false)],
-  obsBoom: [2, obsBoom9], lurkerDie: [3, lurkerDie9], squealHi: [3, (v) => squeal9(v, 1.35)],
+  obsBoom: [2, obsBoom9], lurkerDie: [3, lurkerDie9], squealHi: [3, (v) => squeal9(v, 1.35)], squealMuta: [3, (v) => squeal9(v, 2.2)],
 };
