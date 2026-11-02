@@ -137,7 +137,10 @@ export class SfxCues9 {
           break;
         }
         case "tether":
-          if (fresh(`t${op.stag}${op.sub}`)) play(op.sub === "out" ? "unload" : "load", op.fx, op.fy);
+          if (fresh(`t${op.stag}${op.sub}`)) {
+            const ov9 = op.by === "Overlord";   // 오버로드 — 생체조직 소리(2026-11-02 · op.by = 태운 배)
+            play(op.sub === "out" ? (ov9 ? "bioUnload" : "unload") : (ov9 ? "bioLoad" : "load"), op.fx, op.fy);
+          }
           break;
         case "dom": {
           const st = op.style;

@@ -217,32 +217,38 @@ function missile9(v: number): Float32Array {
   }, (t) => bp.set(500 + t * 3200)), 0.7);
 }
 
-/** 건물 이륙(테란 건물 리프트 · 2026-10-22, 요청: "건물 리프트 랜딩 소리 추가") — 낮은 엔진 우르릉이 차오르며 분사음이 위로 올라간다. */
+/** 건물 이륙(테란 건물 리프트) — ★ **공기를 내뿜는다**(2026-11-02, 요청: "테란 건물 띄울 때 공기 내뿜는 소리") — 압축 공기가 터져 나오는 푸슉(넓은 띠 잡음이 확 터졌다
+ *  1.4kHz → 600Hz 로 내려가며 잦아듦) + 밑에서 차오르는 낮은 분사 웅(70 → 95Hz) + 끝의 짧은 쉬익 꼬리. 1.1초. 옛: 엔진 우르릉 + 위로 올라가는 분사음. */
 function liftOff9(v: number): Float32Array {
   const r = rng9(801 + v); const br = brown9(r);
-  const lp = new Biquad9("lp", 420, 0.9);
-  const bp = new Biquad9("bp", 700, 1.6);
+  const bp = new Biquad9("bp", 1400, 0.9);
+  const lp = new Biquad9("lp", 380, 0.8);
+  const hp = new Biquad9("hp", 3000, 0.7);
+  let ph = 0;
   return finish9(render9(1.1, (t) => {
-    const env = t < 0.45 ? t / 0.45 : Math.exp(-(t - 0.45) * 3.6);
-    const rumble = lp.run(br()) * 1.3;
-    const jet = bp.run(r() * 2 - 1) * 0.55 * (1 + 0.25 * Math.sin(2 * Math.PI * (17 + v * 3) * t));
-    const motor = Math.sin(2 * Math.PI * (70 + 60 * Math.min(1, t / 0.8)) * t) * 0.25;
-    return sat9((rumble + jet + motor) * env, 1.3);
-  }, (t) => bp.set(600 + Math.min(1, t / 0.8) * 900)), 0.4);
+    const puff = bp.run(r() * 2 - 1) * ad9(t, 0.012, 3.4) * 1.6;
+    ph += (70 + 25 * Math.min(1, t / 0.6)) / SFX_RATE9;
+    const thrust = (Math.sin(2 * Math.PI * ph) * 0.5 + lp.run(br()) * 0.9) * (t < 0.35 ? t / 0.35 : Math.exp(-(t - 0.35) * 2.4)) * 0.8;
+    const tail = hp.run(r() * 2 - 1) * ad9(Math.max(0, t - 0.05), 0.05, 5) * 0.35;
+    return sat9(puff + thrust + tail, 1.4);
+  }, (t) => bp.set(1400 - 800 * Math.min(1, t / 0.5) + 80)), 0.62);
 }
 
-/** 건물 착륙 — 분사음이 아래로 잦아들다 마지막에 묵직한 쿵(받침이 땅에 닿음). */
+/** 건물 착륙 — ★ **땅에 내려앉는다**(2026-11-02, 요청: "내릴 때 땅에 내리는 소리") — 무거운 쿵(62 → 38Hz) + 다리 받침 두 번 탁탁(엇박 · 쇠) + 흙먼지 쓸림(갈색 잡음 저역) + 끝의 짧은 유압 칙. 0.9초. */
 function landing9(v: number): Float32Array {
   const r = rng9(851 + v); const br = brown9(r);
-  const lp = new Biquad9("lp", 420, 0.9);
-  const bp = new Biquad9("bp", 1300, 1.6);
-  return finish9(render9(1.0, (t) => {
-    const jetEnv = t < 0.1 ? t / 0.1 : t < 0.55 ? 1 : Math.exp(-(t - 0.55) * 9);
-    const jet = (bp.run(r() * 2 - 1) * 0.5 + lp.run(br()) * 0.9) * jetEnv;
-    const thudT = t - 0.55;
-    const thud = thudT < 0 ? 0 : Math.sin(2 * Math.PI * (62 - thudT * 40) * thudT) * Math.exp(-thudT * 9) * 1.3;
-    return sat9(jet + thud, 1.3);
-  }, (t) => bp.set(1300 - Math.min(1, t / 0.55) * 800)), 0.42);
+  const lp = new Biquad9("lp", 700, 0.7);
+  const hp = new Biquad9("hp", 2600, 0.8);
+  const k = [1, 1.06, 0.94][v % 3];
+  const foot = (u: number): number => (u < 0 ? 0 : (Math.sin(2 * Math.PI * 310 * k * u) + Math.sin(2 * Math.PI * 820 * k * u) * 0.4) * exp9(u, 40));
+  return finish9(render9(0.9, (t) => {
+    const thump = Math.sin(2 * Math.PI * (62 * k - t * 30) * t) * exp9(t, 7) * 1.1;
+    const legs = foot(t - 0.005) * 0.5 + foot(t - 0.06) * 0.4;
+    const dust = lp.run(br() * 1.6) * ad9(t, 0.02, 4.5) * 0.8;
+    const t2 = t - 0.32;
+    const hiss = t2 > 0 ? hp.run(r() * 2 - 1) * ad9(t2, 0.01, 9) * 0.3 : 0;
+    return sat9(thump + legs + dust + hiss, 1.6);
+  }), 0.78);
 }
 
 /** 광자포 — 뿅 하고 아래로 꺾이는 빛 + 반짝 잔향. */
@@ -861,13 +867,31 @@ function vesselBoom9(v: number): Float32Array {
   return finish9(echo9(raw, 0.12, 0.25), 0.8);
 }
 
+/** ★ 오버로드 태우기·내리기 — 생체조직(2026-11-02, 요청: "오버로드 수송 탑승 내리기 시 생체조직 소리로") — 옛: 기계 해치(hatch9). 살 주머니가 열려 삼키고 뱉는다:
+ *  탈 때(in) 낮게 꿀꺽(110 → 70Hz 미끄럼) + 질척 · 내릴 때(out) 축축한 퉤(80 → 130Hz 오름) + 철퍽. 0.5초. */
+function bioHold9(v: number, inn: boolean): Float32Array {
+  const r = rng9((inn ? 2101 : 2151) + v); const br = brown9(r);
+  const bp = new Biquad9("bp", inn ? 500 : 700, 2.2);
+  const lp = new Biquad9("lp", 650, 0.7);
+  const k = [1, 1.07, 0.93][v % 3];
+  let ph = 0;
+  return finish9(render9(0.5, (t) => {
+    const u = Math.min(1, t / 0.3);
+    ph += (inn ? 110 - 40 * u : 80 + 50 * u) * k / SFX_RATE9;
+    const gulp = Math.sin(2 * Math.PI * ph) * ad9(t, inn ? 0.04 : 0.015, 6) * 0.8;
+    const squish = bp.run(br() * 1.3 + (r() * 2 - 1) * 0.25) * ad9(t, 0.02, 7) * 1.0;
+    const splat = lp.run(br() * 1.5) * ad9(t, 0.006, 11) * (inn ? 0.5 : 0.9);
+    return sat9(gulp + squish + splat, 1.5);
+  }, (t) => bp.set((inn ? 500 + 300 * Math.min(1, t / 0.3) : 700 - 300 * Math.min(1, t / 0.3)))), 0.6);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -887,4 +911,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
   mineArm: [3, mineArm9], reaverBreak: [2, reaverBreak9], vesselBoom: [2, vesselBoom9],
+  bioLoad: [2, (v) => bioHold9(v, true)], bioUnload: [2, (v) => bioHold9(v, false)],
 };

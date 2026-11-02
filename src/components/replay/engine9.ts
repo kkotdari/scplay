@@ -5890,7 +5890,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           : 0;
         fxOps.push({
           kind: "tether", fx: ufx9, fy: ufy9, tx: sfx9, ty: sfy9,
-          lift: ubody9, tlift: slift9, stag: ship9.tag,
+          lift: ubody9, tlift: slift9, stag: ship9.tag, by: ship9.unit,   // by = 태운 배(효과음이 오버로드를 생체 소리로 가른다 · 2026-11-02)
           ph: ((inW9 ? t - r9.a : t - r9.b) / RIDE_TETHER_SEC), pr: 1 / RIDE_TETHER_SEC,
           sub: inW9 ? "in" : "out",   // 탑승·내림 — 효과음(sfx9Cues)이 가른다(2026-10-22)
         });
