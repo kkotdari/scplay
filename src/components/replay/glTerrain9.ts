@@ -488,6 +488,45 @@ export class GlTerrain9 {
         gl.colorMask(true, true, true, true);
       }
     };
+    /** 띠 모양 그대로 다시 그린다(스텐실 설정은 부른 쪽 · 아래 coverStrip). */
+    const stripGeom = (b: Bufs9, halfW: number): void => {
+      if (!b.strip) return;
+      gl.uniform1f(this.loc.uHalfW, halfW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, b.strip);
+      gl.enableVertexAttribArray(this.aN);
+      gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 16, 0);
+      gl.vertexAttribPointer(this.aN, 2, gl.FLOAT, false, 16, 8);
+      gl.drawArrays(gl.TRIANGLES, 0, b.nStrip); this.stat.draws += 1;
+      gl.uniform1f(this.loc.uHalfW, 0);
+      gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+    };
+    const fanGeom = (b: Bufs9): void => {
+      if (!b.fill) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, b.fill);
+      gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+      gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, b.nFill); this.stat.draws += 1;
+    };
+    /* ★ **띠 덮기는 띠 모양으로**(2026-11-02, 실측 맥북 '#glterr=0 30~50 vs 11~13fps' → 요청: "겹쳐 칠하는 횟수 줄이기 1단계") — 물가 그늘·마루 테는 가는 띠인데
+       덮기(cover)가 그 갈래의 상자(배율 8 이면 화면 전체)를 한 장 다 칠했고, 램프 파냄이 있으면 상자를 한 번 더 비웠다. 이제 띠 기하를 그대로 다시 그려
+       색을 입힌다(스텐실 통과 화소만 · 통과하면 0 으로 되돌려 겹친 삼각형이 두 번 안 칠한다). 램프 파냄 뒤 남은 비트는 띠·램프 기하로 비운다(상자 대신). */
+    const coverStrip = (b: Bufs9, cut: boolean, paint: () => void, halfW: number): void => {
+      nCover9 += 1;
+      const skip9 = TERR_DBG9 >= 0 && nCover9 > TERR_DBG9;
+      gl.colorMask(!skip9, !skip9, !skip9, !skip9);
+      gl.stencilMask(0xff);
+      if (cut) gl.stencilFunc(gl.EQUAL, 0x01, 0x03); else gl.stencilFunc(gl.NOTEQUAL, 0, 0x01);
+      gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO);
+      paint();
+      stripGeom(b, halfW);
+      if (cut) {
+        gl.colorMask(false, false, false, false);
+        gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO);
+        stripGeom(b, halfW);
+        if (this.ramp) { fanGeom(this.ramp); stripGeom(this.ramp, 0.35); }
+        gl.colorMask(true, true, true, true);
+      }
+    };
     const begin = (): void => { gl.colorMask(false, false, false, false); };
 
     gl.enable(gl.STENCIL_TEST);
@@ -506,7 +545,7 @@ export class GlTerrain9 {
     const lip = Math.max(minW, 0.22);
     if (this.land) {
       begin(); stripStencil(this.land, 0x01, 0x01, lip);
-      cover(this.land, false, () => col([0, 0, 0], 0.30));
+      coverStrip(this.land, false, () => col([0, 0, 0], 0.30), lip);
       begin(); fanStencil(this.land, 0x01, 0, 0);
       cover(this.land, false, () => col(G.land.rgb, 1));
     }
@@ -524,7 +563,7 @@ export class GlTerrain9 {
       begin(); fanStencil(b, 0x01, 0, 0);
       cover(b, false, () => col(lay.rgb, 1));
       begin(); stripStencil(b, 0x01, 0x01, rim); rampCut();
-      cover(b, !!this.ramp, () => col([255, 255, 255], 0.34));
+      coverStrip(b, !!this.ramp, () => col([255, 255, 255], 0.34), rim);
     }
     // ④ 절벽면 · ⑤ 램프.
     for (let L = 1; L <= 3; L += 1) {
