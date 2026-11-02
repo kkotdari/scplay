@@ -717,22 +717,32 @@ const VIEW_CLIP_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])viewclip=0
 const VIS9 = new WeakMap<HTMLCanvasElement, { at: number; gen: number; r: [number, number, number, number] | null }>();
 const VIS_GEN9 = { v: 0 };
 /** 죄는 중인 재생기의 '한 장 다시' — 스크롤·크기가 바뀌면 rAF 한 번에 모아 부른다. */
-const VIS_KICK9: { fns: Set<() => void>; raf: number } = { fns: new Set(), raf: 0 };
+const VIS_KICK9: { fns: Set<() => void>; raf: number; clipped: number; paintAt: number; n: number } = { fns: new Set(), raf: 0, clipped: 0, paintAt: 0, n: 0 };
 if (typeof window !== "undefined") {
+  /* ★ **문서 스크롤·창 크기만** 본다(2026-11-02, 지적: "재생 초반과 시간 점프 시 줌·드래그 무거움 · 10프레임도 안 나와" — tgrain=0·lazymesh=0 둘 다 그대로) —
+     첫 판은 capture 로 **모든 요소의 스크롤**을 받아, 재생기 안 목록(전광판·로그·차림표)이 스크롤할 때마다 네모를 다시 재고(getBoundingClientRect · 강제 배치)
+     멈춘 화면용 '한 장 다시'까지 불렀다 — 점프 직후·초반처럼 목록이 몰아 움직일 때 칠하기가 두 배였다. 그리고 그 '한 장 다시'는 #viewclip=0 이어도 돌았다.
+     이제 ① 문서(창) 스크롤과 창 크기만 ② 지난 칠하기가 실제로 죄었을 때만(clipped) ③ 120ms 안에 붓이 돌았으면(재생 중) 안 부른다 — 다음 장이 새 네모로 칠한다. */
   const visDirty9 = (): void => {
     VIS_GEN9.v += 1;
-    if (VIS_KICK9.fns.size && !VIS_KICK9.raf) VIS_KICK9.raf = requestAnimationFrame(() => { VIS_KICK9.raf = 0; for (const f9 of VIS_KICK9.fns) f9(); });
+    if (VIS_KICK9.clipped > 0 && VIS_KICK9.fns.size && !VIS_KICK9.raf) VIS_KICK9.raf = requestAnimationFrame(() => {
+      VIS_KICK9.raf = 0;
+      if (performance.now() - VIS_KICK9.paintAt < 120) return;
+      VIS_KICK9.n += 1;
+      for (const f9 of VIS_KICK9.fns) f9();
+    });
   };
-  window.addEventListener("scroll", visDirty9, { passive: true, capture: true });
+  window.addEventListener("scroll", visDirty9, { passive: true });
   window.addEventListener("resize", visDirty9, { passive: true });
 }
 /** 캔버스(CSS px) 안의 칠할 네모 — null 이면 통째로(위 ★). */
 function visRect9(cv: HTMLCanvasElement, cw: number, ch: number): [number, number, number, number] | null {
-  if (VIEW_CLIP_OFF9 || xfGest9.on) { VIS9.delete(cv); return null; }
   const now9 = performance.now();
+  VIS_KICK9.paintAt = now9;
+  if (VIEW_CLIP_OFF9 || xfGest9.on) { VIS9.delete(cv); VIS_KICK9.clipped = 0; return null; }
   const e9 = VIS9.get(cv);
-  if (e9 && e9.gen === VIS_GEN9.v && now9 - e9.at < 150) return e9.r;
-  const put9 = (r: [number, number, number, number] | null): [number, number, number, number] | null => { VIS9.set(cv, { at: now9, gen: VIS_GEN9.v, r }); return r; };
+  if (e9 && e9.gen === VIS_GEN9.v && now9 - e9.at < 150) { VIS_KICK9.clipped = e9.r ? 1 : 0; return e9.r; }
+  const put9 = (r: [number, number, number, number] | null): [number, number, number, number] | null => { VIS9.set(cv, { at: now9, gen: VIS_GEN9.v, r }); VIS_KICK9.clipped = r ? 1 : 0; return r; };
   const r9 = cv.getBoundingClientRect();
   if (!(r9.width > 0 && r9.height > 0)) return put9(null);
   let x0 = Math.max(r9.left, 0); let y0 = Math.max(r9.top, 0);
@@ -7300,7 +7310,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}${gl9.stat.lazy ? `·나중${gl9.stat.lazy}·지음${gl9.stat.lazyBuilt}` : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 죄기${gl9.view ? "켬" : "끔"}·다시${VIS_KICK9.n} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}${gl9.stat.lazy ? `·나중${gl9.stat.lazy}·지음${gl9.stat.lazyBuilt}` : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm})·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
