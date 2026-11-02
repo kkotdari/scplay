@@ -886,21 +886,18 @@ function bioHold9(v: number, inn: boolean): Float32Array {
   }, (t) => bp.set((inn ? 500 + 300 * Math.min(1, t / 0.3) : 700 - 300 * Math.min(1, t / 0.3)))), 0.6);
 }
 
-/** ★ 옵저버 폭발(2026-11-02, 요청: "옵저버 폭발 시 작은 폭발 소리 + 살짝 높은 징 소리") — 작은 퍽(짧은 잡음 터짐 + 110Hz 쿵 · 0.25초) 위에 살짝 높은 징:
- *  어긋난 울림 다섯(420Hz × 1·1.52·2.03·2.76·3.4 — 높을수록 빨리 잦아듦) · 느린 떨림(징의 일렁임) · 1.6초 꼬리. */
+/** ★ 옵저버 폭발(2026-11-02, 요청: "옵저버 폭발 시 작은 폭발 소리 + 살짝 높은 징 소리" → 되요청 "그 징 소리가 아니라 삐~ 하는 소리") — 작은 퍽(짧은 잡음 터짐 + 110Hz 쿵 · 0.25초)
+ *  위에 맑은 '삐~': 1.4kHz 사인 한 음(아주 옅은 2배음) · 들어옴 15ms · 0.45초 고르게 · 0.7초에 걸쳐 잦아듦. 1.2초. 옛 판의 징(어긋난 울림 다섯)은 걷었다. */
 function obsBoom9(v: number): Float32Array {
   const r = rng9(2201 + v); const br = brown9(r);
   const lp = new Biquad9("lp", 2000, 0.7);
-  const f0 = 420 * [1, 1.05, 0.95][v % 3];
-  const modes: [number, number, number][] = [[1, 1, 1.6], [1.52, 0.55, 2.2], [2.03, 0.35, 3], [2.76, 0.22, 4.2], [3.4, 0.14, 5.5]];
-  return finish9(render9(1.7, (t) => {
+  const f0 = 1400 * [1, 1.04, 0.96][v % 3];
+  return finish9(render9(1.2, (t) => {
     const pop = lp.run(br() * 1.3 + (r() * 2 - 1) * 0.6) * ad9(t, 0.004, 14) * 0.9 + Math.sin(2 * Math.PI * (110 - t * 140) * t) * exp9(t, 22) * 0.6;
-    let gong = 0;
-    const wob = 1 + 0.003 * Math.sin(2 * Math.PI * 2.2 * t);
-    for (const [m, g, d] of modes) gong += Math.sin(2 * Math.PI * f0 * m * wob * t) * g * Math.exp(-t * d);
-    const gIn = t < 0.03 ? t / 0.03 : 1;
-    return sat9(pop + gong * gIn * 0.42, 1.3);
-  }), 0.62);
+    const env = t < 0.015 ? t / 0.015 : t < 0.46 ? 1 : Math.exp(-(t - 0.46) * 4.5);
+    const beep = (Math.sin(2 * Math.PI * f0 * t) + Math.sin(4 * Math.PI * f0 * t) * 0.06) * env * 0.28;
+    return sat9(pop, 1.3) + beep;
+  }), 0.6);
 }
 
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
