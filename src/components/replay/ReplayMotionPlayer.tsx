@@ -20010,9 +20010,12 @@ export default function ReplayMotionPlayer({
        31·48ms 인 까닭: 60Hz 화면의 두·세 박(33.3·50ms)에 rAF 떨림이 끼어도 한 박 늦게 걸리지 않게. 손짓 중은 종전대로(XF_PHONE_GAP9). */
     const PHONE_GAP9 = 31;
     const PHONE_GAP_LO9 = 48;
-    const phoneGap9 = (): number => (TIER9.v >= 2 && !phoneWeak9()
-      ? (FQ9.lv >= 3 ? PHONE_GAP9 : MOBILE_GAP_MS)
-      : (FQ9.lv >= 3 ? PHONE_GAP_LO9 : PHONE_GAP9));
+    /* ★ **폰 보통·낮음도 60fps**(2026-11-02, 요청: "괜찮네 프레임 제한 좀 풀어도 될 듯" → '폰 보통·낮음 30→60') — 지형 겹칠하기 줄이기·지형 판 재사용으로 장당 GPU 몫이
+       크게 줄어(맥북 배율 8 줌 11~13 → 30fps 이상) 30fps 바탕을 걷는다. 과열 사다리 3단(FQ9)의 덜어내기(높음 30 · 그 밖 20fps)와 '매우 낮음'(phoneWeak9 · 벤치 미달 30fps)은
+       안전장치라 그대로. 옛: 높음만 60 · 보통 이하 30. */
+    const phoneGap9 = (): number => (FQ9.lv >= 3
+      ? (TIER9.v >= 2 && !phoneWeak9() ? PHONE_GAP9 : PHONE_GAP_LO9)
+      : (phoneWeak9() ? PHONE_GAP9 : MOBILE_GAP_MS));
     const drawGapMs = (): number => (
       GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16)
         : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
