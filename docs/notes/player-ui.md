@@ -2824,3 +2824,13 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 요청: "소총류 소리를 더 빠른 두두두두 소리로". sfx9Synth `gun9` — 한 방(0.11초) → 딱 소리 한 방을 **48ms 간격 네 번**(뒤로 0.82배씩 작게 · 방마다 높이·길이 흔들림 · 0.21초).
   거르개(hp)는 한 표본에 한 번만 돌린다(겹친 방마다 돌리면 상태가 깨진다). 🔎 견본 `$S/sfxh/gun.ts`(esbuild → WAV · 갈래 셋 × 세 번).
 - 덤 고침: 사수 박자 소총 불티 op(engine9 · ro)에 style 이 없어 효과음(sfx9Cues HIT9)이 근접 칼질(slash)로 울렸다 — style = 쏜 무기(fxName9).
+
+## 효과음 일곱 — 토스 완공·메딕·파뱃·드라군·가시·가디언·스캔(2026-11-02)
+- 요청: "프로토스 완공 소리는 단음의 길게 끄는 소리 · 메딕은 여자라 좀 고음 죽는 소리 · 성큰 럴커 가시가 땅을 뚫고 솟는 소리 · 가디언 낮은 공격 웅~ 소리 ·
+  파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리 · 스캔 신비한 울림 소리".
+- sfx9Synth: `warpEnd9` 아르페지오 → **한 음(C5·D5·E5) 2.2초 끌기**(옅은 배음 · 4.5Hz 떨림 · 메아리 둘) · `scream9(v, female, pk)` 높낮이 배수 —
+  screamHi(여자 × 1.15 · 메딕) · screamLow(남자 × 0.72 · 파뱃) · 새 `spikeEarth9`(흙 깨짐 + 300→2600Hz 치솟는 쑥 + 쿵) · `guardHum9`(68Hz 웅 0.7초) ·
+  `springBreak9`(떨리며 내려가는 보잉 + 금속 쨍 둘 + 퍽) · `scanHum9`(맥놀이 두 음 + 5도 + 종 · 긴 메아리).
+- sfx9Cues: 유닛 죽음 burst 에 `by`(죽은 몸 · engine9) → Medic screamHi · Firebat screamLow · Dragoon springBreak · 그 밖 생체 screamM(옛 30% 무작위 여자 비명 걷음) ·
+  HIT9 spike(럴커) → spikeEarth · 성큰 가시(erupt op 가 새로 서면) → spikeEarth · LAUNCH9 venom(가디언) puff → guardHum · CAST9 scan → scanHum(옛: 소리 없음).
+  sfx9 PRIO/MAX/GAP 에 새 갈래. 🔎 견본 `$S/sfxh/new7.ts <out.wav> <갈래…>`.

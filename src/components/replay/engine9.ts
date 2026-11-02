@@ -2343,7 +2343,8 @@ export type FxOp = {
   /** warp(프로토스 소환 완료의 섬광): 자리·크기(size)·진행(ph)만 쓴다. 원작은 워프가 끝나는 순간 한 번 친다. */
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
-  /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22). */
+  /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22).
+   *  burst(유닛): 죽은 몸의 종류 — 효과음이 메딕·파뱃·드라군 소리를 가른다(2026-11-02). */
   by?: string;
   /** hit: 소총(마린·고스트)에 맞음 — 맞은 자리에 주황 불꽃 별이 터진다(RIFLE_HIT9 · 2026-11-01). */
   rifle?: number;
@@ -8827,7 +8828,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         fxOps.push({
           kind: "burst", fx: bfx9, fy: bfy9, lift: dieLift,
           size: diePx9 * (modelInkOf(UNIT_3D[drawUnit] ?? "") / 16), ph: (t - dieAt) / DIE_FX_SEC, pr: 1 / DIE_FX_SEC,
-          mat: dk, seed: e.tag > 0 ? e.tag : ei + 7,
+          mat: dk, seed: e.tag > 0 ? e.tag : ei + 7, by: drawUnit,   // by = 죽은 몸(효과음이 메딕·파뱃·드라군을 가른다 · 2026-11-02)
           ...(dk === "toss" && !TOSS_FLESH9.has(drawUnit) ? { tmech: true } : {}),
           ...(pool9 && (dk === "zerg" || dk === "bio") ? { pool: true, age: t - dieAt } : {}),
           // 몸집 단(요청: 파편은 크기 대신 수로) — 보이는 몸 폭을 타일로 재서 셋으로 가른다.

@@ -17,7 +17,7 @@ type Rect9 = { x0: number; x1: number; y0: number; y1: number } | null;
 /** 때린 무기(style) → 맞을 때 나는 소리. null 이면 맞을 때는 조용하다(쏠 때 난다 — LAUNCH9). 없는 style(근접)은 칼질. */
 const HIT9: Record<string, SfxKind9 | null> = {
   gun: "gun", burst: "gun", frag: "cannon", cannon: "cannon", siege: "cannon", laserBC: "cannon",
-  laser: "zap", flame: "flame", spine: "spine", spike: "spine", glave: "glaive", zap: "zap", flare: "zap",
+  laser: "zap", flame: "flame", spine: "spine", spike: "spikeEarth",   // 럴커 가시 → 땅 뚫고 솟는 소리(2026-11-02) glave: "glaive", zap: "zap", flare: "zap",
   spark: "weld", weld: "zap", tankboom: "boom", heal: null,
   missile: null, missileG: null, plasma: null, photon: null, venom: null, acid: null, spit: null,
 };
@@ -29,11 +29,12 @@ const MELEE9: Record<string, SfxKind9> = {
 const GATH9: Record<"SCV" | "Probe" | "Drone", SfxKind9> = { SCV: "mineScv", Probe: "mineProbe", Drone: "mine" };
 /** 발사체 → 쏠 때 나는 소리(shot op 이 막 나갈 때). */
 const LAUNCH9: Record<string, SfxKind9> = {
-  missile: "missile", missileG: "missile", plasma: "photon", photon: "photonC", venom: "puff",   // photon = 포톤 캐넌 → 퉁(photonC · 2026-11-01) · plasma(드라군·스카우트·아비터)는 옛 뿅 acid: "puff", spit: "puff",
+  missile: "missile", missileG: "missile", plasma: "photon", photon: "photonC", venom: "guardHum",   // venom = 가디언 → 낮은 웅~(2026-11-02 · 옛 puff)   // photon = 포톤 캐넌 → 퉁(photonC · 2026-11-01) · plasma(드라군·스카우트·아비터)는 옛 뿅 acid: "puff", spit: "puff",
 };
 /** 마법(dom cast 의 sub) → 소리. */
 const CAST9: Record<string, SfxKind9> = {
   emp: "zap", plague: "puff", ensnare: "puff", dweb: "puff", mael: "warp", recall: "warp", recallU: "warp", yamato: "cannon",
+  scan: "scanHum",   // 스캔 — 신비한 울림(2026-11-02 · 옛: 소리 없음)
 };
 
 export class SfxCues9 {
@@ -84,10 +85,12 @@ export class SfxCues9 {
           // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다)
           // → 부드러운 전용 '뽁'(eggPop · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게").
           if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggPop" : "boomBig";
-          else if (mat === "bio") k = Math.random() < 0.3 ? "screamF" : "screamM";
+          /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
+             옛: 생체는 30% 여자 비명(무작위). */
+          else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
           else if (mat === "zerg") k = "squeal";
           else if (mat === "cocoon") k = "eggPop";
-          else if (mat === "toss") k = op.tmech ? "boom" : "zap";
+          else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.tmech ? "boom" : "zap";
           else k = "boom";
           play(k, op.fx, op.fy);
           break;
@@ -106,6 +109,11 @@ export class SfxCues9 {
         case "shot": {
           const k = op.style ? LAUNCH9[op.style] : undefined;
           if (k && (op.u ?? 1) < 0.15) play(k, op.fx, op.fy);
+          break;
+        }
+        case "erupt": {
+          /* 성큰 가시(2026-11-02, 요청: "성큰 럴커 가시가 땅을 뚫고 솟는 소리") — 가시 op 는 솟는 동안만 선다 · 자리 열쇠가 새로 나면 한 번. */
+          if (fresh(`r${Math.round(op.fx * 4096)}:${Math.round(op.fy * 4096)}`)) play("spikeEarth", op.fx, op.fy);
           break;
         }
         case "tether":
