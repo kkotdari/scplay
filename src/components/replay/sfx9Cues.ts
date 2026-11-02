@@ -94,7 +94,7 @@ export class SfxCues9 {
           let k: SfxKind9;
           // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다)
           // → 부드러운 전용 '뽁'(eggPop · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게").
-          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "fleshUnfold" : "boomBig";   // 공사 고치가 펼쳐짐 → 생체조직 펼침(2026-11-02 · 옛 eggPop) · 알·번데기(유닛)는 eggPop 그대로
+          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggPop" : "boomBig";
           /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
@@ -158,6 +158,9 @@ export class SfxCues9 {
       const orb = u.kind === "warpin" && u.pickKey ? fresh(`w${u.pickKey}`) : false;
       /* 끝 소리는 물마루가 흐르기 시작할 때(warpK 가 생김 · 건물이 드러남) — 처음(warp)·가운데(웅웅)와 갈린다(같은 날 "처음·끝 소리와 중간 웅웅 구분"). */
       const done = u.warpK !== undefined && u.pickKey ? fresh(`e${u.pickKey}`) : false;
+      /* ★ 저그 **공사 고치 착공**(2026-11-02, 요청: "공사 고치 펼 때 생체조직 펼치는 소리" → "공사고치 착공소리 맞지?") — 드론이 고치로 펼쳐지는 순간 = 공사 고치 op(cocoon*)가
+         처음 서는 장. 열쇠는 보이든 말든 적는다(소환구와 같은 까닭 — 짓는 내내 서 있으니 화면을 옮겨 들어올 때 다시 울리면 안 된다). */
+      const unfold = u.kind.startsWith("cocoon") && u.pickKey ? fresh(`c${u.pickKey}`) : false;
       if (!inView(u.fx, u.fy)) continue;
       /* 채집은 일꾼 종류마다 따로(드론 mine · SCV mineScv · 프로브 mineProbe — 2026-10-22, 요청: "프로브랑 SCV 는 소리가 달라야"). */
       if (u.gath) mine.set(GATH9[u.gath], [u.fx, u.fy]);
@@ -170,6 +173,7 @@ export class SfxCues9 {
       if (orb) play("warpCharge", u.fx, u.fy);   // 소환구 착공 — 에너지가 모이는 낮은 소리(2026-11-02 · 옛: 마법 공용 warp)
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
+      if (unfold) play("fleshUnfold", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");

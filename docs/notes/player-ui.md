@@ -2852,4 +2852,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - sfx9Cues shot: missile·missileG 이면 by ∈ {Scout, Valkyrie, Wraith} → missileLow · {Goliath, Missile Turret} → missileHi · 모르면 옛 missile.
 - (같은 날) "저글링 소리 좀 더 울림 있는 통통 소리로" — zlingHit9: 둥(130→78Hz · 0.13초) → **통**(230→175Hz 몸이 0.3초에 걸쳐 잦아듦 + 1.48배 둘째 울림 + 작은 메아리 45ms) · 간격 45 → 60ms.
 - (같은 날) "공사 고치 펼 때 생체조직 펼치는 소리" — 새 `fleshUnfold9`(낮게 떨며 오르는 늘어남 70→140Hz + 출렁이는 질척임 + 끈적한 뜯김 톡톡 + 끝의 철퍽 · 0.9초) ·
-  sfx9Cues 건물 burst 의 cocoon(공사 고치가 펼쳐짐) eggPop → fleshUnfold. 알·번데기(유닛 cocoon)는 eggPop 그대로.
+  ⚠ 첫 판은 건물 burst 의 cocoon 에 걸었는데 그 갈래는 **완성 전 파괴된 고치**(cocoonB9 · bld 거짓이라 실제로는 안 걸린다)였다 — "공사고치 착공소리 맞지?" 로 바로잡음:
+  sfx9Cues 유닛 op 의 공사 고치(kind cocoon1·cocoon2·cocoon · 같은 pickKey)가 **처음 서는 장**(fresh `c<pickKey>` · 보이든 말든 열쇠를 적는다)에 fleshUnfold.
+  레어·하이브 변태(BLD_FROM_BLD — 바로 cocoon)도 같이 울린다.
