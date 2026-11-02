@@ -24,3 +24,4 @@ src/**/*.d.ts
 src/**/*.d.ts.map
 !src/vite-env.d.ts
 vite.config.ts.timestamp-*.mjs
+scripts/.showcase-*.tmp.ts

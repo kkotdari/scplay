@@ -31,7 +31,7 @@ const RACE_EN = { 테란: "terran", 프로토스: "protoss", 저그: "zerg", 합
 /* ── 이름 → 번호(bwUnitNames 는 그 트리의 것) ── */
 const ebin = join(HERE, "node_modules", "esbuild", "bin", "esbuild");
 const tdir = mkdtempSync(join(tmpdir(), "showcase-tables-"));
-const tsrc = join(ROOT, "scripts", ".showcase-tables.tmp.ts");
+const tsrc = join(ROOT, "scripts", `.showcase-tables.${process.pid}.tmp.ts`);   // 실행마다 다른 이름(동시에 여럿 돌려도 안 겹친다 · 2026-11-02)
 writeFileSync(tsrc, `export { BW_UNIT_NAME } from ${JSON.stringify(join(ROOT, "src/utils/bwUnitNames"))};\n`);
 execFileSync(process.execPath, [ebin, tsrc, "--bundle", "--format=esm", "--platform=node", "--log-level=error", `--outfile=${join(tdir, "t.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
 rmSync(tsrc, { force: true });
@@ -217,7 +217,7 @@ SCENES.플토본진 = {
    싸움 없이 한 사람의 본진만(적 없음) · 미네랄 줄 왼쪽 · 본진 · 캐는 일꾼 · 오른쪽 위 생산 건물 · 오른쪽 아래 병력. 배율 8 이면 무대가 ≈16타일이라 틀은 15 × 12 안. */
 /* (같은 날 되요청: "마린 4 메딕 2 파뱃 2 탱크 1 · 질럿 4 리버 1 다크 1 · 저글링 4 히드라 4 럴커(버로우 2) · 가스 건물 모두 포함 미네랄 4덩이 · 오버로드 1(하이브 주변) ·
    뮤탈 2 · 드랍십 2 · 캐리어 대신 커세어 2인데 스러스터 켜진 상태") — 커세어는 상태 1(이동 · 추진 불꽃 자세) · 럴커는 상태 6(버로우). */
-const BASE8 = { zoom: 8, frame: { x0: -8.3, x1: 6.5, y0: -7.3, y1: 4.4 },
+const BASE8 = { zoom: 8, frame: { x0: -8.3, x1: 6.5, y0: -8.8, y1: 3.8 },   // 위 1.5 올림(첫 판: 가스 건물·오버로드 윗부분이 잘렸다)
   res: [[-7.4, -3.6, 0], [-7.7, -2.1, 0], [-7.7, -0.6, 0], [-7.4, 0.9, 0], [-2.2, -5.9, 1]] };
 const MINERS8 = (n) => [[-5.7, -3, 192], [-5.9, -1.4, 200], [-5.7, 0.2, 180]].map(([x, y, hb]) => [n, x, y, { st: 5, hb }]);
 SCENES.테란8 = { ...BASE8, pl: [1, 2],
@@ -246,7 +246,7 @@ SCENES.저그8 = { ...BASE8, pl: [0, 2],
   put: [
     ["Hive", -3, -1.5], ["Extractor", -2.2, -5.9],
     ...MINERS8("Drone"),
-    ["Overlord", -0.4, -4.3, { hb: 100 }],
+    ["Overlord", 0.2, -2.8, { hb: 100 }],
     ["Spawning Pool", 3.4, -4.6], ["Sunken Colony", 4.6, -1.2],
     ...clump("Zergling", 4, 1.5, 1.6, 0.7, 0.5, { hb: 96 }),
     ...clump("Hydralisk", 4, 3.4, 2.2, 0.8, 0.62, { hb: 96 }),
@@ -340,7 +340,7 @@ window.__mount = (motion, players, walkJson, terrainB64, view) => {
 };
 `;
 const bdir = mkdtempSync(join(tmpdir(), "showcase-bundle-"));
-const bsrc = join(ROOT, "scripts", ".showcase-entry.tmp.ts");
+const bsrc = join(ROOT, "scripts", `.showcase-entry.${process.pid}.tmp.ts`);
 writeFileSync(bsrc, ENTRY);
 {
   const { build } = await import(pathToFileURL(join(HERE, "node_modules/vite/dist/node/index.js")).href);
