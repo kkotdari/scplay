@@ -6,6 +6,7 @@ export function verTag(dir, rev = "HEAD") {
   const date = git("log", "-1", "--date=format-local:%Y%m%d", "--format=%cd", rev);
   const hash = git("rev-parse", "--short=7", rev);
   let dirty = false;
-  if (rev === "HEAD") { try { dirty = git("status", "--porcelain", "--untracked-files=no", "--", "src").length > 0; } catch { dirty = false; } }
+  /* 굽는 표(*.gen.ts — 아틀라스 굽기가 sprAtlas.gen.ts 를 고친다)는 셈에서 뺀다(2026-11-02 · 구운 뒤 커밋 전에 찍으면 늘 + 가 붙었다 · 촬영은 실시간 굽기라 그 표를 안 쓴다). */
+  if (rev === "HEAD") { try { dirty = git("status", "--porcelain", "--untracked-files=no", "--", "src").split("\n").some((l) => l.trim() && !/\.gen\.ts$/.test(l)); } catch { dirty = false; } }
   return { date, hash, dirty, tag: `${date}-${hash}${dirty ? "+" : ""}`, pretty: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}` };
 }
