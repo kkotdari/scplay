@@ -2487,6 +2487,17 @@
    비어 보인다. 되고 있다고 알려 줄 자리다. 맵 좌상단, 맵연결 알약 자리 위. */
 /* 재생 품질 알림(요청: 진입·벤치 변경 때 맵 오른쪽 위에 3초) — 무대(.scr-fs-stage)의 직계 자식이라 지도의 배율·팬·입체
    변환을 안 받는다(지적: "잘 안 보이고 움직여" — 지도 상자 안에 있던 첫 판은 끌면 따라갔다). 지도(z 1)·도구 위에 선다. */
+/* ★ 빨리감기 배지(2026-11-02, 요청: "빨리감기 시 유튜브 화면처럼 빨리감기 오버레이 배지") — 무대 위 가운데 알약 · 품질 알림과 같은 겹(무대 직계 · 변환 안 받음). */
+.scr-motion-ffbadge {
+  position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+  z-index: 30000; display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 18px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62); color: #fff;
+  font-size: 17px; font-weight: 700; line-height: 1.3; letter-spacing: 0.3px;
+  pointer-events: none; white-space: nowrap;
+}
+.scr-motion-ffbadge-ic { font-size: 13px; letter-spacing: -3px; padding-right: 3px; }
+.scr-motion-ffbadge-ic.is-back { transform: scaleX(-1); }
 .scr-motion-qualitynote {
   position: absolute; right: 14px; top: 14px;
   z-index: 30000;

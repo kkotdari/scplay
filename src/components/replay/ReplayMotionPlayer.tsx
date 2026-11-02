@@ -18669,6 +18669,8 @@ export default function ReplayMotionPlayer({
   /** 감기 전에 재생 중이었나 — 놓으면 그대로 되돌린다. */
   const holdWasPlaying = useRef(false);
   const holdAtRef = useRef(0);
+  /** ★ 빨리감기 배지(2026-11-02, 요청: "빨리감기 시 유튜브 화면처럼 빨리감기 오버레이 배지 표시") — 눌러 감는 중의 배수(앞 +N · 뒤 −N · 0 아님). */
+  const [holdFf9, setHoldFf9] = useState(0);
   const stopHold = (): void => {
     if (holdTimerRef.current) { window.clearTimeout(holdTimerRef.current); holdTimerRef.current = 0; }
     if (holdRafRef.current) { cancelAnimationFrame(holdRafRef.current); holdRafRef.current = 0; }
@@ -18686,6 +18688,7 @@ export default function ReplayMotionPlayer({
     setPlaying(false);
     /** 감기 속도(게임초 / 실초) — 20분 판이면 40초/초라 끝에서 끝까지 30초다. */
     const rate = Math.max(8, total / 30);
+    setHoldFf9(dir * Math.round(rate));
     let last = performance.now();
     let mirrorAt9 = 0;
     const step = (now: number): void => {
@@ -18714,6 +18717,7 @@ export default function ReplayMotionPlayer({
       stopHold();
       if (!holdOnRef.current) return;
       holdOnRef.current = false;
+      setHoldFf9(0);
       { const tl9 = tLiveRef9.current; tFromTickRef9.current = tl9; setT(tl9); }   // 거울을 감긴 시각에 맞춘다
       if (holdWasPlaying.current) setPlaying(true);
     };
@@ -23204,6 +23208,14 @@ export default function ReplayMotionPlayer({
             같이 받아 끌 때 따라 움직였다(지적: "잘 안 보이고 움직여") — 무대는 변환을 안 받는다. */}
         {qualityNote && (
           <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
+        )}
+        {/* ★ 빨리감기 배지(위 holdFf9) — 무대 위 가운데 알약(유튜브 2배속 꼴). 눌러 감는 중이면 그 배수(뒤로면 ◀◀), 아니면 재생 중 배속이 1 넘을 때. 지도 변환을 안 받는다. */}
+        {(holdFf9 !== 0 || (playing && speed > 1)) && (
+          <span className="scr-motion-ffbadge" aria-hidden>
+            {holdFf9 < 0
+              ? <><b className="scr-motion-ffbadge-ic is-back">▶▶</b>{-holdFf9}배</>
+              : <>{holdFf9 > 0 ? holdFf9 : spdTxt9(speed)}배<b className="scr-motion-ffbadge-ic">▶▶</b></>}
+          </span>
         )}
       </div>
     </div>
