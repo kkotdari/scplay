@@ -7912,7 +7912,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       boxFit: "meet", fitWidth: true,
       // 자리는 상자가 아니라 잉크가 정한다(위 inkCenter 주석).
       inkCenter: true,
-      color: "#544659",
+      color: "#6b5a72",   // #544659 → 연하게(2026-11-02, 요청: "크립 색 좀 연하게")
       alpha: (goneAt > 0 && t >= goneAt ? Math.max(0, 1 - (t - goneAt) / 1.2) : 1)
         * (cSeen9 === 1 ? 0.5 : 1),
       noShadow: true,

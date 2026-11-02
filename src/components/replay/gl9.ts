@@ -793,12 +793,12 @@ vec3 steelMet9(vec3 c, highp vec3 p9, float px9, float k9, float lt9, vec3 nm9) 
   float lm9 = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(c, vec3(lm9) * vec3(0.94, 0.98, 1.05), k9 * 0.35);
   float lit9 = smoothstep(0.15, 0.95, lt9);
-  c *= mix(1.0 - k9 * 0.22, 1.0 + k9 * 0.12, lit9);
+  c *= mix(1.0 - k9 * 0.08, 1.0 + k9 * 0.12, lit9);   // 그늘 −22% → −8%(같은 날 "마린도 그렇고 건물도 너무 검정색이 심해")
   float up9 = clamp(nm9.z, -1.0, 1.0);
   float wall9 = 1.0 - smoothstep(0.45, 0.90, abs(up9));
   float bW9 = sin(p9.z * 1.6 + (p9.x - p9.y) * 0.35 + 1.3);
   float bT9 = sin((p9.x + p9.y) * 0.55 + 0.4);
-  c *= 1.0 + k9 * (0.28 * wall9 * bW9 + 0.12 * (1.0 - wall9) * bT9);
+  c *= 1.0 + k9 * (0.12 * wall9 * bW9 + 0.12 * (1.0 - wall9) * bT9);   // 세운 낯 반사 띠 ±28% → ±12%(같은 까닭 — 어두운 띠가 벽을 검게 했다)
   highp vec2 th9 = normalize(nm9.xy + vec2(0.0001, 0.0));
   highp float al9 = wall9 > 0.5 ? (p9.x * -th9.y + p9.y * th9.x) : p9.x;
   highp float ac9 = wall9 > 0.5 ? p9.z : p9.y;

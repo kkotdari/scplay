@@ -228,12 +228,12 @@ const MINERS8 = (n) => [[-6.1, -4.6, 192], [-6.2, -3.2, 200], [-6.1, -1.8, 180]]
 const ME8 = (hb = 64) => ({ st: 4, fight: true, hb });
 /* (같은 날: "프로토스는 흙에 풀밭 타일에 코발트 임자색 · 저그는 사막 타일에 붉은색 임자색 · 테란은 우주 타일에 흰색 임자색") — 장면마다 타일셋(tileset ·
    OBWM 머리 9번째 바이트) · 땅 색 층(ground — 판 3 의 타일 RGB: grass = 흙 바탕에 풀 얼룩 · sand = 모래 바탕에 짙은 모래 얼룩 · 없으면 타일셋 색) ·
-   임자색(colors[임자]). 적은 그 종족 장면의 임자색을 빌린다(테란 장면의 저그 = 빨강 · 토스 장면의 테란 = 흰색 · 저그 장면의 토스 = 코발트). */
+   임자색(colors[임자]) · 저그는 사막 → 진한 흙(같은 날 되요청 · tileset 0 + ground "dirt"). 적은 그 종족 장면의 임자색을 빌린다(테란 장면의 저그 = 빨강 · 토스 장면의 테란 = 흰색 · 저그 장면의 토스 = 코발트). */
 SCENES.테란8 = { ...BASE8, pl: [1, 0], tileset: 1, colors: [0xf2f2f2, 0xd8303a],
   put: [
     ["Command Center", -3.8, -3.3], ["Comsat Station", -0.8, -2.8], ["Refinery", -3.4, -6.2],
     ...MINERS8("SCV"),
-    ["Barracks", 1.6, -5.3], ["Engineering Bay", 5.5, -3.2, { lift: true, hb: 0 }],
+    ["Barracks", 1.6, -5.3, { hurt: 300 }], ["Engineering Bay", 5.5, -3.2, { lift: true, hb: 0 }],
     ...clump("Medic", 2, -6.2, 1.9, 0.6, 0.66, { hb: 64 }),
     ...clump("Marine", 4, -4.4, 1.3, 1.0, 0.62, ME8()),
     ...clump("Firebat", 2, -1.8, 2.0, 0.6, 0.66, ME8()),
@@ -241,7 +241,7 @@ SCENES.테란8 = { ...BASE8, pl: [1, 0], tileset: 1, colors: [0xf2f2f2, 0xd8303a
     ["Valkyrie", 0.6, -0.9, ME8(40)], ["Valkyrie", 2.2, -1.6, ME8(40)],
     // 적 저그(가운데~오른쪽)
     ...clump("Zergling", 4, 0.6, 2.4, 1.0, 0.5, FOE({ hb: 192 })),
-    ["Ultralisk", 3.6, 1.2, FOE({ hb: 192 })],
+    ["Ultralisk", 3.6, 1.2, FOE({ hb: 192 })], ["Ultralisk", 5.6, 2.8, FOE({ hb: 192 })],
     ["Overlord", 5.6, -0.2, { own: 1, hb: 192 }],
   ],
 };
@@ -249,31 +249,31 @@ SCENES.토스8 = { ...BASE8, pl: [2, 1], tileset: 4, ground: "grass", colors: [0
   put: [
     ["Nexus", -3.8, -3.3], ["Assimilator", -3.4, -6.2],
     ...MINERS8("Probe"),
-    ["Pylon", -0.7, -2.8], ["Gateway", 2.2, -4.8],
+    ["Pylon", -0.7, -2.8], ["Gateway", 2.2, -4.8, { hurt: 260 }],
     ["Reaver", -5.8, 1.2, ME8(64)], ["Dark Templar", -3.8, 2.4, ME8(64)],
     ...clump("Zealot", 4, -1.4, 1.5, 1.0, 0.8, ME8()),
-    ["Corsair", -5.4, -0.6, { st: 1, hb: 64 }], ["Corsair", -3.6, -0.9, { st: 1, hb: 64 }],
+    ["Corsair", -6.6, 3.0, { st: 1, hb: 64 }], ["Corsair", -4.8, 3.4, { st: 1, hb: 64 }],   // 아래로(같은 날 "커세어 아래쪽으로 이동")
     // 적 테란(가운데~오른쪽) — 탱크 둘 · 벌처 셋 · 골리앗 둘
     ...clump("Vulture", 3, 1.6, 2.6, 0.9, 0.9, FOE({ hb: 192 })),
     ["Goliath", 2.4, 0.4, FOE({ hb: 192 })], ["Goliath", 4.4, 2.2, FOE({ hb: 192 })],
     ["Siege Tank (Tank Mode)", 4.4, -0.6, FOE({ hb: 192 })], ["Siege Tank (Siege Mode)", 5.8, -3.8, FOE({ hb: 192 })],
   ],
 };
-SCENES.저그8 = { ...BASE8, pl: [0, 2], tileset: 5, ground: "sand", colors: [0xd8303a, 0x1d4fc0],
+SCENES.저그8 = { ...BASE8, pl: [0, 2], tileset: 0, ground: "dirt", colors: [0xd8303a, 0x1d4fc0],
   put: [
     ["Hive", -3.8, -3.3], ["Extractor", -3.4, -6.2],
     ...MINERS8("Drone"),
-    ["Spawning Pool", -0.2, -2.8], ["Sunken Colony", 2.2, -2.4, ME8(64)],
-    ["Overlord", 1.4, -5.6, { hb: 100 }],
+    ["Spawning Pool", -0.2, -2.8, { hurt: 220 }], ["Sunken Colony", 2.2, -2.4, ME8(64)],
+    ["Overlord", 0.8, -3.0, { hb: 100 }],
     ["Lurker", -6.2, 2.0, { st: 6, hb: 96 }],
     ...clump("Hydralisk", 4, -4.2, 1.2, 1.0, 0.62, ME8()),
     ...clump("Zergling", 4, -1.4, 2.0, 0.8, 0.5, ME8()),
     ["Lurker", 0.6, 0.4, { st: 6, hb: 96 }],
-    ["Mutalisk", 2.6, -4.6, ME8(40)], ["Mutalisk", 3.8, -3.4, ME8(40)],
+    ["Mutalisk", 2.4, -2.0, ME8(40)], ["Mutalisk", 3.8, -1.2, ME8(40)],
     // 적 프로토스(가운데~오른쪽) — 드라군 둘 · 하이 템플러 · 캐리어
     ["Dragoon", 2.6, 1.4, FOE({ hb: 192 })], ["Dragoon", 4.4, 2.6, FOE({ hb: 192 })],
     ["High Templar", 5.0, 0.4, { own: 1, hb: 192 }],
-    ["Carrier", 5.6, -4.8, FOE({ hb: 192 })],
+    ["Carrier", 5.0, -4.2, FOE({ hb: 192 })], ["Carrier", 6.6, -2.8, FOE({ hb: 192 })], ["Carrier", 4.4, -2.0, FOE({ hb: 192 })],
   ],
 };
 /** 사진 틀(가운데에서 잰 타일) — 진열 둘레 + 키 큰 몸이 솟는 몫. */
@@ -289,7 +289,7 @@ function makeWorld(race) {
   const PLAYERS = sc.pl.map((r, i) => ({ owner: i, race: r, force: sc.force ? sc.force[i] : i + 1, name: ["저그", "프로토스", "테란"][r === 0 ? 0 : r === 2 ? 1 : 2] + i, color: (sc.colors ?? [0x2b62e8, 0xd8303a, 0xe8c040])[i] ?? 0x888888, home: [64, 64] }));
   const tracks = [];
   let tag = 100;
-  const rows = sc.put.map(([n, dx, dy, o = {}]) => ({ n, x: CX + dx, y: CY + dy, hb: o.hb ?? 72, own: o.own ?? 0, die: o.die === undefined ? null : T_SHOT + o.die, st: o.st ?? 0, fight: !!o.fight, lift: !!o.lift, tag: 0 }));
+  const rows = sc.put.map(([n, dx, dy, o = {}]) => ({ n, x: CX + dx, y: CY + dy, hb: o.hb ?? 72, own: o.own ?? 0, die: o.die === undefined ? null : T_SHOT + o.die, hurt: o.hurt ?? 0, st: o.st ?? 0, fight: !!o.fight, lift: !!o.lift, tag: 0 }));
   for (const r of rows) r.tag = tag++;
   // 표적 — 싸우는 몸은 가장 가까운 적(다른 편 · 산 몸)을 겨눈다.
   const forceOf = (o) => PLAYERS[o]?.force ?? o;
@@ -308,7 +308,9 @@ function makeWorld(race) {
     for (let s9 = BORN; s9 <= end; s9 += 0.75) keys.push([F(s9), Math.round(r.x * 32), Math.round(r.y * 32), r.hb, (s9 >= T_SHOT - 5 ? r.st : (r.st === 4 ? 0 : r.st)) | (r.lift && s9 > BORN ? 0x40 : 0), type]);
     if (r.die !== null) keys.push([F(r.die), Math.round(r.x * 32), Math.round(r.y * 32), r.hb, 3, type]);
     const tgt = r.tgtTag ? [[F(T_SHOT - 5), r.tgtTag]] : null;
-    tracks.push({ tag: r.tag, owner: r.own, type, keys, hp: r.die !== null ? [[F(BORN), 5000], [F(r.die), 0]] : null, tgt });
+    /* 파손(hurt · 같은 날 "건물들 한개씩은 파손 효과 보이게") — scene-sheet --hurt 와 같은 꼴: 태어나 0.5초에 그 체력으로 떨어지고 2.5초마다 1씩 더 깎인다(맞는 중). */
+    const hurtHp = r.hurt ? (() => { const t9 = [[F(BORN), 5000], [F(BORN + 0.5), r.hurt]]; for (let s9 = BORN + 3; s9 <= GAME_SEC; s9 += 2.5) t9.push([F(s9), r.hurt - Math.round((s9 - BORN) / 2.5)]); return t9; })() : null;
+    tracks.push({ tag: r.tag, owner: r.own, type, keys, hp: r.die !== null ? [[F(BORN), 5000], [F(r.die), 0]] : hurtHp, tgt });
   }
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54); w.u8(11); w.f32(FPS); w.i32(-1);
@@ -348,7 +350,9 @@ const makeTerrain = (race) => {
   for (let y = 0; y < H; y += 1) for (let x = 0; x < Wd; x += 1) {
     const n = vn(x, y, 7, 1) * 0.7 + vn(x, y, 2.5, 2) * 0.3; const m = vn(x, y, 3, 3);
     let c;
-    if (ground === "grass") c = n > 0.56 ? [88 + m * 18, 112 + m * 20, 58 + m * 10] : [132 + m * 16, 108 + m * 14, 82 + m * 12];   // 풀 · 흙
+    /* grass 는 대부분 풀(같은 날 "프로토스 대부분을 풀밭으로" — 풀 문턱 0.56 → 0.30 · 흙은 군데군데) · dirt 는 진한 흙("저그 진한 흙타일로") · sand 는 모래. */
+    if (ground === "grass") c = n > 0.30 ? [84 + m * 18, 112 + m * 22, 54 + m * 10] : [132 + m * 16, 108 + m * 14, 82 + m * 12];   // 풀 · 흙
+    else if (ground === "dirt") c = n > 0.58 ? [70 + m * 10, 52 + m * 8, 38 + m * 6] : [94 + m * 14, 72 + m * 11, 52 + m * 8];      // 짙은 흙 얼룩 · 진한 흙
     else c = n > 0.6 ? [176 + m * 14, 146 + m * 12, 98 + m * 10] : [204 + m * 16, 176 + m * 14, 124 + m * 12];                     // 짙은 모래 · 모래
     const o = (y * Wd + x) * 3; rgb[o] = Math.round(c[0]); rgb[o + 1] = Math.round(c[1]); rgb[o + 2] = Math.round(c[2]);
   }
@@ -435,14 +439,20 @@ for (const race of RACES) {
   await page.waitForTimeout(3000);
   await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement && b.getAttribute("aria-label") === "일시정지") b.click(); });
   await page.waitForTimeout(400);
-  await page.evaluate((t) => {
+  const seek = (t) => page.evaluate((t) => {
     const r = document.querySelector(".scr-motion-range");
     if (!(r instanceof HTMLInputElement)) return;
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     set.call(r, String(t));
     r.dispatchEvent(new Event("input", { bubbles: true }));
     r.dispatchEvent(new Event("change", { bubbles: true }));
-  }, T_SHOT);
+  }, t);
+  /* ★ 트레이서가 다 나오게(2026-11-02, 요청: "다들 트레이서 나오게") — 사격 박자(engine9 firePhase)는 시계가 튀면 그 시각을 0으로 잡는다(되감기·2초 넘는 점프).
+     T_SHOT 에 바로 서면 모두가 위상 0(막 쏘기 시작 · 선 길이 0)이라 거의 안 보였다. 그래서 T_SHOT − 리드에 먼저 서서 박자를 새로 잡고(그림 한 장을 받을 때까지 기다림)
+     T_SHOT 으로 리드만큼 앞으로 가면(잇는 사격) 모든 사수가 같은 '쏜 지 리드 초' 자리에 선다 — 트레이서 창(쿨다운 앞 35% · 날아가는 탄은 날 시간 안) 안이다. 옛 트리도 같은 길이라 비포에도 먹는다. */
+  const LEAD = Number(flag("--lead", 0.12));
+  if (LEAD > 0) { await seek(T_SHOT - LEAD); await page.waitForTimeout(2500); }
+  await seek(T_SHOT);
   await page.waitForTimeout(6000);
   /* 전체화면 판(무대가 창을 덮는다 — 창 모드 무대는 폭 × 0.45 남짓이라 배율 5.5 에서 세로 10타일뿐이다). 배율이 다시 맞춰지면 적는다. */
   if (!flag("--nofs", false)) {

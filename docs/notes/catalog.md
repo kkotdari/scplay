@@ -466,3 +466,9 @@ replay.css 끝으로 옮겼고, 규칙 없던 이름표 셋(`scr-doc-calitem`·`
 - (같은 날 · "비교샷 장면샷은 이름이나 폴더에 날짜(찍은 날짜 말고 버전날짜)") — `scripts/showcase/verTag.mjs`(찍는 트리의 HEAD 커밋 날짜 서울 시각 YYYYMMDD + 해시 7 · src 미커밋이면 +).
   showcase-run: `docs/portfolio/showcase-<애프터 버전>/before_<종족>_<비포 버전>.png · after_<종족>_<애프터 버전>.png · compare_<종족>_<비포 날짜>_vs_<애프터 날짜>.png`(띠에도 날짜) ·
   scene-sheet: `--out` 없으면 `docs/portfolio/scene-<버전>/`. 실행법 `docs/local-run-guide.md`.
+- (같은 날 셋째 · 로컬 첫 촬영을 보고) "프로토스 대부분 풀밭 · 커세어 아래로 · 저그 진한 흙 · 다들 트레이서 · 오버로드 뮤탈 잘림 · 캐리어 3 · 울트라 2 ·
+  크립 색 좀 연하게 · 건물들 한개씩은 파손 효과" — grass 풀 문턱 0.56 → 0.30 · 저그 tileset 0 + ground "dirt" · 공중은 위로 ≈3타일 떠 그려지니 y ≥ −3.5 에 둔다
+  (오버로드 −5.6 → −3.0 · 뮤탈 −4.6/−3.4 → −2.0/−1.2) · 캐리어 셋 · 울트라 둘 · 파손 `hurt: <체력>`(배럭 300 · 게이트 260 · 풀 220 — scene-sheet --hurt 와 같은 꼴) ·
+  크립 색 #544659 → #6b5a72(engine9 크립 판).
+- 🔎 트레이서: 사격 박자(engine9 firePhase)는 시계가 튀면 그 시각이 0 — T_SHOT 에 바로 서면 모두 위상 0(선 길이 0)이라 거의 안 보였다.
+  showcase-shot 이 T_SHOT − 0.12 에 먼저 서고(2.5초) T_SHOT 으로 간다(`--lead` · 0 이면 옛길) — 모든 사수가 '쏜 지 0.12초'에 선다. 옛 트리도 같은 길이라 비포에도 먹는다.
