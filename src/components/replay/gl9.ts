@@ -620,19 +620,23 @@ const MATX_FS9 = `
       float seam9 = max(1.0 - smoothstep(wd9 * 0.5, wd9 * 1.6, dY9), (1.0 - smoothstep(wd9 * 0.5, wd9 * 1.6, dX9)) * 0.8)
         * smoothstep(1.5, 3.0, px9 * 0.08) * (0.65 + 0.35 * vn9(p9 * 0.9));
       float dirt9 = (1.0 - smoothstep(0.0, 1.8, p9.z)) * fbm9(p9 * 1.3, px9);
-      float blot9 = fbm9(p9 * 0.7 + 3.1, px9);
       /* 마모·얼룩(2026-11-01 되요청: "쇠의 마모감 얼룩 등도 더 표현") — ① 벗겨진 자리(칠이 닳아 드러난 밝은 맨 쇠 · 문턱 얼룩)
          ② 흘러내린 자국(세운 낯에 높이로 길게 늘인 노이즈 · 갈색) ③ 녹·때 큰 얼룩(누렇게) — 홈에도 때가 낀다(seam × 0.3 더 어둡게). */
       float wear9 = smoothstep(0.64, 0.80, fbm9(p9 * 1.15 + 9.3, px9));
       float vert9 = 1.0 - smoothstep(0.55, 0.90, an9.z);
       float stk9 = vn9(vec3(p9.x * 2.6, p9.y * 2.6, p9.z * 0.22) + 4.4) * smoothstep(2.0, 4.0, px9 / 2.6);
       float stain9 = smoothstep(0.58, 0.86, stk9) * vert9 * (0.55 + 0.45 * vn9(p9 * 0.4 + 2.0));
-      float rust9 = smoothstep(0.60, 0.86, fbm9(p9 * 0.45 + 13.0, px9));
       /* 쇠 느낌(같은 날 "너무 페인트칠 같아") — 칠 위의 때(흘러내림 0.50 → 0.22 · 녹 0.40 → 0.14 · 큰 얼룩 0.16 → 0.07)를 줄이고 쇠의 반사(steelMet9)를 먼저 깐다. */
       c = steelMet9(c, p9, px9, k9, vLt, vMn.xyz);
-      c *= 1.0 - k9 * (0.20 * seam9 + 0.24 * dirt9 + 0.07 * (blot9 - 0.5));
-      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.22 * stain9, 0.0, 1.0));
-      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.14 * rust9, 0.0, 1.0));
+      /* ★ 얼룩 대신 **흙·녹 조금**(같은 날 되요청: "얼룩보다는 흙이나 녹슨 느낌 조금만 넣는 게 좋을 것 같기도") — 큰 얼룩(blot9)은 걷고:
+         ① 흙 — 바닥 쪽(z 낮을수록)에 흙빛으로 물듦(어둡게만 하던 때 → 갈색 · 0.26) ② 녹 — 판 이음·모서리 곁에만(이음 0.3칸 안 · 모서리 3화소 안) 군데군데 적갈색(0.30) ·
+         ③ 흘러내린 자국은 녹물 빛으로 옅게(0.18). */
+      c *= 1.0 - k9 * 0.18 * seam9;
+      c = mix(c, c * vec3(0.80, 0.70, 0.55), clamp(k9 * 0.26 * dirt9, 0.0, 1.0));
+      float near9 = max(1.0 - smoothstep(0.05, 0.30, min(dY9, dX9)), 1.0 - smoothstep(1.0, 3.0, edgePx9()));
+      float rk9 = smoothstep(0.55, 0.78, fbm9(p9 * 1.9 + 21.0, px9)) * near9;
+      c = mix(c, c * vec3(0.78, 0.50, 0.32), clamp(k9 * 0.30 * rk9, 0.0, 1.0));
+      c = mix(c, c * vec3(0.80, 0.62, 0.48), clamp(k9 * 0.18 * stain9, 0.0, 1.0));
       c += k9 * 0.11 * wear9 * (0.55 + 0.45 * lc9) * vec3(0.95, 1.0, 1.06);
       c = edgeWear9(c, p9, px9, k9, mix(c, vec3(0.86, 0.90, 0.96), 0.6) * 1.2);   // 모서리 마모 — 칠 벗겨진 맨 쇠
     } else if (cl9 == 2) {
