@@ -403,7 +403,9 @@ export class GlTerrain9 {
    *  `dprK` 기기 px/CSS px(최소 선 굵기 1 기기 px 의 자). 호출자가 판·가위·뷰포트를 걸어 둔 채 부른다. 끝나면 블렌드(ONE, 1−a)·깊이 켬 상태로 돌려 둔다. */
   draw(G: TerrainGeom9, quad: number[], cw: number, ch: number, wallScale: number, dprK: number, fog: GlFog9 | null = null,
     /** 칠할 네모(CSS px · 가위와 같은 것) — 안개 눈 원이 이 네모를 통째로 덮나 볼 때 쓴다(아래 ★ 안개 눈 덮음). 없으면 캔버스 전체. */
-    view: [number, number, number, number] | null = null): void {
+    view: [number, number, number, number] | null = null,
+    /** 0 = 다 · 1 = 지형만(①~⑦) · 2 = 안개만 — GlTerrCanvas9 의 지형 판 재사용(★ 지형 판) 이 가른다. */
+    part = 0): void {
     const gl = this.gl;
     this.ensure(G);
     this.stat.draws = 0;
@@ -493,6 +495,7 @@ export class GlTerrain9 {
     gl.clearStencil(0);
     gl.clear(gl.STENCIL_BUFFER_BIT);
 
+    if (part !== 2) {   // ①~⑦ 지형(안개만 칠할 때는 건너뛴다 — GlTerrCanvas9 ★ 지형 판)
     // ① 바탕 — 물·우주. 지도 사각 전체.
     gl.disable(gl.STENCIL_TEST);
     col(G.water.rgb, 1);
@@ -554,10 +557,11 @@ export class GlTerrain9 {
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.STENCIL_TEST);
     }
+    }   // part !== 2
     /* ══ 안개(2026-10-24, 요청: "안개도 지형처럼") — 지형 위 · 같은 장 · 같은 카메라. 캔버스 안개와 같은 뜻: 지도 전체 = 안개 1 → 밝힌 고리 안 = DIM →
        시야 원 안 = 0. 스텐실 두 비트로 가른다 — bit0 = 밝힘 홀짝(부채꼴 INVERT) · bit1 = 시야 원(REPLACE). 덮기 둘: (0,0) 짙게 · (1,0) 옅게. 시야 원은
        타일 자의 진짜 원이라 입체(호모그래피)에서도 바닥에 눕는다. 밝힘 고리는 FogGeom9 가 뜸하게 다시 뽑고(key), 눈 원은 눈 배열이 갈릴 때 다시 짓는다. */
-    if (fog) {
+    if (fog && part !== 1) {
       if (fog.key !== this.fogKey) {
         const f = fanOf(fog.loops);
         if (!this.fogFan) this.fogFan = gl.createBuffer();
@@ -703,6 +707,13 @@ export class GlTerrain9 {
 const SHARP_VS9 = `
 attribute vec2 aQ;
 void main() { gl_Position = vec4(aQ, 0.0, 1.0); }`;
+/** 지형 판 붙이기(GlTerrCanvas9 ★ 지형 판) — 베껴 둔 판을 화소 그대로(미리곱한 색 · 블렌드 끔). */
+const COPY_FS9 = `
+precision mediump float;
+uniform sampler2D uT;
+void main() { gl_FragColor = texelFetch(uT, ivec2(gl_FragCoord.xy), 0); }`;
+/** `#terrcache=0` — 지형 판 재사용을 끈다(견줌 · GlTerrCanvas9 ★ 지형 판). */
+const TERR_CACHE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrcache=0(?=$|[&,])/.test(location.hash);
 const SHARP_FS9 = `
 precision mediump float;
 uniform sampler2D uT; uniform float uAmt;
@@ -774,6 +785,10 @@ export class GlTerrCanvas9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
         this.sharp = { prog, aQ: gl.getAttribLocation(prog, "aQ"), uT: gl.getUniformLocation(prog, "uT"), uAmt: gl.getUniformLocation(prog, "uAmt"), quad };
       } catch (e) { console.warn("[glTerrain9] 또렷이", e); this.sharp = null; }
+      try {
+        const prog = mk(SHARP_VS9, COPY_FS9);
+        this.copy = { prog, aQ: gl.getAttribLocation(prog, "aQ"), uT: gl.getUniformLocation(prog, "uT") };
+      } catch (e) { console.warn("[glTerrain9] 지형 판", e); this.copy = null; }
     }
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.dead = true; });
   }
@@ -786,6 +801,27 @@ export class GlTerrCanvas9 {
     return this.canvas.toDataURL("image/png");
   }
   /** 위 ★ 또렷이의 베낀 판(텍스처 한 장 · 4B/화소) — 크기가 바뀌면 다시 짓는다. MSAA 판을 따로 두지 않고 그린 화면을 copyTexSubImage2D 로 베낀다(다중표본은 베낄 때 풀린다). */
+  /* ★ **지형 판 재사용**(2026-11-02, 실기 측정: 맥북 PC 0단 기준 11~13fps · #nofog 그대로 · **#glterr=0 30~50fps**) — 지형은 경기 내내 안 변하는데 GL 지형층은
+     장마다 지도 전체 벡터(등고선 정점 38만 · 스텐실 부채꼴 겹 · 다중표본 · 결 · 또렷이)를 처음부터 다시 그렸다. 장마다 바뀌는 것은 안개뿐이다.
+     이제 카메라·크기·가위가 **두 장 내리 같으면** 그린 지형(또렷이까지)을 텍스처에 베껴 두고, 같은 열쇠의 다음 장부터는 그 판을 한 번 붙이고 안개만 칠한다.
+     카메라가 움직이는 장(손짓·추적)은 종전대로 다 그린다(베끼기도 안 한다 — 열쇠가 장마다 바뀌면 베낄 까닭이 없다). WebGL2 만 · 분할 칸(clip)은 종전 길.
+     또렷이는 이제 안개 **앞**(지형에만)에 걸린다 — 안개는 부드러운 막이라 차이가 안 보인다. `#terrcache=0` 옛길. */
+  private copy: { prog: WebGLProgram; aQ: number; uT: WebGLUniformLocation | null } | null = null;
+  private cache: { tex: WebGLTexture; w: number; h: number } | null = null;
+  private cacheKey = ""; private prevKey = ""; private gId = 0; private gLast: TerrainGeom9 | null = null;
+  /** 진단 — 지난 장이 판을 붙였나(1) · 그렸나(0) · 베낀 횟수. */
+  cacheStat = { hit: 0, copies: 0 };
+  private cacheTexOf(bw: number, bh: number): WebGLTexture {
+    const gl = this.gl as WebGL2RenderingContext;
+    if (this.cache && this.cache.w === bw && this.cache.h === bh) return this.cache.tex;
+    if (this.cache) gl.deleteTexture(this.cache.tex);
+    const tex = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, bw, bh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    this.cache = { tex, w: bw, h: bh }; this.cacheKey = "";
+    return tex;
+  }
   private texOf(bw: number, bh: number): WebGLTexture {
     const gl = this.gl as WebGL2RenderingContext;
     if (this.ms && this.ms.w === bw && this.ms.h === bh) return this.ms.tex;
@@ -826,25 +862,64 @@ export class GlTerrCanvas9 {
     }
     gl.clearColor(0, 0, 0, 0); gl.clearStencil(0); gl.stencilMask(0xff);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog, clip ?? fogView ?? (vs ? view : null));
-    if (!vs) gl.disable(gl.SCISSOR_TEST);
-    if (sharp > 0 && !clip && this.sharp) {
-      const g2 = gl as WebGL2RenderingContext; const sp = this.sharp;
-      g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.texOf(bw, bh));
-      if (vs) g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, vs[0], vs[1], vs[0], vs[1], vs[2], vs[3]);   // 보이는 네모만 베끼고 그 안만 샤픈(가위 그대로)
-      else g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
-      g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
-      g2.useProgram(sp.prog);
-      g2.uniform1i(sp.uT, 0); g2.uniform1f(sp.uAmt, Math.min(1, sharp));
-      g2.bindBuffer(g2.ARRAY_BUFFER, sp.quad);
-      g2.enableVertexAttribArray(sp.aQ); g2.vertexAttribPointer(sp.aQ, 2, g2.FLOAT, false, 8, 0);
-      g2.drawArrays(g2.TRIANGLE_STRIP, 0, 4);
-      g2.disableVertexAttribArray(sp.aQ);
-      g2.bindTexture(g2.TEXTURE_2D, null);
-      g2.enable(g2.BLEND);
+    const fv9 = clip ?? fogView ?? (vs ? view : null);
+    /* 지형 판 재사용(위 ★) — 열쇠: 지도 · 카메라(quad) · 배킹 · 가위 · 또렷이 · 결 세기. */
+    if (G !== this.gLast) { this.gLast = G; this.gId += 1; }
+    const canCache9 = !clip && !!this.copy && !TERR_CACHE_OFF9;
+    if (canCache9) {
+      const key9 = `${this.gId}|${quad.map((v) => v.toFixed(2)).join(",")}|${bw}x${bh}|${cw}x${ch}|${wallScale}|${vs ? vs.join(",") : "-"}|${sharp}|${TGRAIN_HASH9 >= 0 ? TGRAIN_HASH9 : TERR_GRAIN9.k}`;
+      const g2 = gl as WebGL2RenderingContext;
+      if (this.cache && key9 === this.cacheKey) {
+        const cp = this.copy!;
+        g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
+        g2.useProgram(cp.prog); g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.cache.tex); g2.uniform1i(cp.uT, 0);
+        g2.bindBuffer(g2.ARRAY_BUFFER, this.sharp!.quad);
+        for (let i = 0; i < 8; i += 1) g2.disableVertexAttribArray(i);
+        g2.enableVertexAttribArray(cp.aQ); g2.vertexAttribPointer(cp.aQ, 2, g2.FLOAT, false, 8, 0);
+        g2.drawArrays(g2.TRIANGLE_STRIP, 0, 4);
+        g2.disableVertexAttribArray(cp.aQ); g2.bindTexture(g2.TEXTURE_2D, null); g2.enable(g2.BLEND);
+        this.cacheStat.hit = 1;
+      } else {
+        this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), null, fv9, 1);
+        if (sharp > 0 && this.sharp) this.sharpen(bw, bh, vs, sharp);
+        if (key9 === this.prevKey) {   // 두 장 내리 같은 보기 — 베껴 둔다
+          g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.cacheTexOf(bw, bh));
+          if (vs) g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, vs[0], vs[1], vs[0], vs[1], vs[2], vs[3]);
+          else g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
+          g2.bindTexture(g2.TEXTURE_2D, null);
+          this.cacheKey = key9; this.cacheStat.copies += 1;
+        }
+        this.cacheStat.hit = 0;
+      }
+      this.prevKey = key9;
+      if (fog) {
+        gl.clearStencil(0); gl.stencilMask(0xff); gl.clear(gl.STENCIL_BUFFER_BIT);
+        this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog, fv9, 2);
+      }
+      gl.disable(gl.SCISSOR_TEST);
+      return true;
     }
+    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog, fv9);
+    if (!vs) gl.disable(gl.SCISSOR_TEST);
+    if (sharp > 0 && !clip && this.sharp) this.sharpen(bw, bh, vs, sharp);
     gl.disable(gl.SCISSOR_TEST);
     return true;
+  }
+  /** 위 ★ 또렷이 한 번 — 그린 화면을 베껴(보이는 네모만) 그 안에 CAS 를 얹는다(가위는 부른 쪽 그대로). */
+  private sharpen(bw: number, bh: number, vs: [number, number, number, number] | null, sharp: number): void {
+    const g2 = this.gl as WebGL2RenderingContext; const sp = this.sharp; if (!sp) return;
+    g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.texOf(bw, bh));
+    if (vs) g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, vs[0], vs[1], vs[0], vs[1], vs[2], vs[3]);   // 보이는 네모만 베끼고 그 안만 샤픈(가위 그대로)
+    else g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
+    g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
+    g2.useProgram(sp.prog);
+    g2.uniform1i(sp.uT, 0); g2.uniform1f(sp.uAmt, Math.min(1, sharp));
+    g2.bindBuffer(g2.ARRAY_BUFFER, sp.quad);
+    g2.enableVertexAttribArray(sp.aQ); g2.vertexAttribPointer(sp.aQ, 2, g2.FLOAT, false, 8, 0);
+    g2.drawArrays(g2.TRIANGLE_STRIP, 0, 4);
+    g2.disableVertexAttribArray(sp.aQ);
+    g2.bindTexture(g2.TEXTURE_2D, null);
+    g2.enable(g2.BLEND);
   }
 }
 const TERR_CV9 = new WeakMap<HTMLCanvasElement, GlTerrCanvas9 | null>();
