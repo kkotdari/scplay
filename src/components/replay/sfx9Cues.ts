@@ -178,6 +178,12 @@ export class SfxCues9 {
         if (we9 && !we9[0] && isE9 && fr.t - we9[1] <= 2 + o.speed * 0.5) eggGo = true;
         this.eggWas.set(u.pickKey, [isE9, fr.t]);
       }
+      /* ★ 테란 건물 착공(애드온 포함 · 2026-11-02, 요청: "테란 건물 착공 시 낮은 쇠울림 소리 · 텅") — 공사 중 테란 건물 op 의 pickState 는 "건설 중 N%"(engine9 ·
+         프로토스는 같은 글이지만 몸이 warpin 이라 가른다). 열쇠가 **처음 보인 장의 진행률이 5% 이하**일 때만 착공으로 친다 — 화면을 옮겨 이미 짓던 것을 만나면 안 울린다. */
+      let clang = false;
+      if (u.pickKey && u.pickKey.charCodeAt(0) === 98 && u.kind !== "warpin" && u.pickState && u.pickState.startsWith("건설 중 ")) {
+        if (fresh(`n${u.pickKey}`)) { const pc9 = parseFloat(u.pickState.slice(5)); if (Number.isFinite(pc9) && pc9 <= 5) clang = true; }
+      }
       let ripe = false;
       if (u.pickKey && u.pickKey.charCodeAt(0) === 98) {   // 'b' — 건물
         const isC9 = u.kind.startsWith("cocoon");
@@ -201,6 +207,7 @@ export class SfxCues9 {
       if (unfold) play("fleshUnfold", u.fx, u.fy);
       if (ripe) play("zergDone", u.fx, u.fy);
       if (eggGo) play("eggStart", u.fx, u.fy);
+      if (clang) play("metalClang", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");

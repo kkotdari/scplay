@@ -785,13 +785,29 @@ function eggHatch9(v: number): Float32Array {
   }), 0.68);
 }
 
+/** ★ 테란 건물 착공(애드온 포함) — 낮은 쇠 울림 "텅"(2026-11-02, 요청: "테란 건물 착공 시(애드온 포함) 낮은 쇠울림 소리 · 텅") — 두꺼운 쇠판을 친 꼴:
+ *  어긋난 판 울림 넷(98Hz × 1 · 2.76 · 5.40 · 8.93 — 높을수록 빨리 잦아든다) + 때린 순간의 짧은 쇠 딱 + 밑의 둔한 쿵. 1.3초. */
+function metalClang9(v: number): Float32Array {
+  const r = rng9(1901 + v);
+  const hp = new Biquad9("hp", 1500, 0.8);
+  const f0 = 98 * [1, 1.06, 0.94][v % 3];
+  const modes: [number, number, number][] = [[1, 1, 2.6], [2.76, 0.55, 4.2], [5.4, 0.3, 7], [8.93, 0.16, 11]];
+  return finish9(render9(1.3, (t) => {
+    let ring = 0;
+    for (const [m, g, d] of modes) ring += Math.sin(2 * Math.PI * f0 * m * t * (1 + 0.0015 * Math.sin(2 * Math.PI * 3 * t))) * g * Math.exp(-t * d);
+    const tick = hp.run(r() * 2 - 1) * exp9(t, 90) * 0.6;
+    const thud = Math.sin(2 * Math.PI * (70 - t * 40) * t) * exp9(t, 18) * 0.5;
+    return sat9(ring * ad9(t, 0.002, 0) + tick + thud, 1.3);
+  }), 0.7);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -809,5 +825,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
-  eggStart: [3, eggStart9], eggHatch: [3, eggHatch9],
+  eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
 };

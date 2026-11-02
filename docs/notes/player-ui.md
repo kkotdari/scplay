@@ -2861,3 +2861,5 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - (같은 날) "알 변태 시작과 깨짐도 낮고 생체 소리로" — 새 `eggStart9`(78→52Hz 출렁이는 웅 + 저역 질척임 + 낮은 방울 둘 · 0.75초) · `eggHatch9`(깊은 퍽 72→36Hz +
   축축한 철퍽 + 찢김 바스락 + 낮은 방울 셋 · 0.6초). sfx9Cues: 유닛 pickKey(u태그 — 라바·히드라·뮤탈이 알이 돼도 같은 몸)가 알 아닌 몸 → egg·lurkeregg·mutacocoon 으로
   바뀐 장에 eggStart(eggWas · 앞 기록 2초 + 배속 몫 안) · 유닛 cocoon burst(알 깨짐) eggPop → eggHatch. eggPop 조리법은 남겨 둔다(건물 cocoon burst).
+- (같은 날) "테란 건물 착공 시(애드온 포함) 낮은 쇠울림 소리 · 텅" — 새 `metalClang9`(어긋난 판 울림 넷 98Hz × 1·2.76·5.40·8.93 + 쇠 딱 + 둔한 쿵 · 1.3초).
+  sfx9Cues: 건물 op(pickKey 'b' · 몸 ≠ warpin) 의 pickState "건설 중 N%" 열쇠가 **처음 보인 장의 N ≤ 5** 일 때만(화면을 옮겨 짓던 것을 만나면 안 울림).
