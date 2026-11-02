@@ -7315,8 +7315,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* ★ **크립 질감은 땅에 붙인다**(2026-11-02, 지적: "해처리의 크립과 성큰의 크립이 판 하나하나의 크기가 다름 · 똑같아야 해") — 여태 질감은 크립 판(creepPlate9)에
            구울 때 판 한 변에 무늬 1.5장으로 깔렸다. 판은 크기와 무관하게 셋(무늬) × 보기 둘이라 같은 판이 16타일 해처리 크립에도 7타일 발판에도 늘려 찍혀, 겹(판)
            하나의 크기가 크립 크기를 따라 갔다. 이제 이 캔버스엔 아직 크립뿐이니(위 주석) **한 번에** 지도 자리에 못 박은 무늬를 source-atop 으로 덮는다 — 겹 하나가
-           늘 CREEP_TEX_TILES9 타일이고, 겹쳐 깔린 크립끼리도 이음매 없이 이어진다. 입체(clipQuad · 원근)는 이 아핀 무늬가 안 맞아 종전대로 판에 구운 질감을 쓴다. */
-        if (!(clipQuad && clipQuad.length >= 3) && !CREEP_TEX_OFF9) {
+           늘 CREEP_TEX_TILES9 타일이고, 겹쳐 깔린 크립끼리도 이음매 없이 이어진다. 입체(pitched · 원근)는 이 아핀 무늬가 안 맞아 종전대로 판에 구운 질감을 쓴다. */
+        if (!pitchedProp && !CREEP_TEX_OFF9) {   // ⚠ clipQuad 는 평면에도 늘 온다(단위 사각형) — 입체 가름은 pitchedProp(첫 배포는 clipQuad 로 갈라 평면에서도 늘 건너뛰어 결이 사라졌다)
           const tx9 = creepTex9();
           const pat9 = tx9 ? creepPatOf9(ctx, tx9) : null;
           if (tx9 && pat9) {
