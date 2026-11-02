@@ -712,6 +712,13 @@ const COPY_FS9 = `
 precision mediump float;
 uniform sampler2D uT;
 void main() { gl_FragColor = texelFetch(uT, ivec2(gl_FragCoord.xy), 0); }`;
+/** 손짓 반 해상도 늘여 붙이기(GlTerrCanvas9 ★ 손짓 반 해상도) — 반 크기 판을 화면 크기로(LINEAR). */
+const UP_FS9 = `
+precision mediump float;
+uniform sampler2D uT; uniform vec2 uSz;
+void main() { gl_FragColor = texture2D(uT, gl_FragCoord.xy / uSz); }`;
+/** `#terrlow=0` — 손짓 반 해상도를 끈다. */
+const TERR_LOW_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrlow=0(?=$|[&,])/.test(location.hash);
 /** `#terrcache=0` — 지형 판 재사용을 끈다(견줌 · GlTerrCanvas9 ★ 지형 판). */
 const TERR_CACHE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrcache=0(?=$|[&,])/.test(location.hash);
 const SHARP_FS9 = `
@@ -788,7 +795,9 @@ export class GlTerrCanvas9 {
       try {
         const prog = mk(SHARP_VS9, COPY_FS9);
         this.copy = { prog, aQ: gl.getAttribLocation(prog, "aQ"), uT: gl.getUniformLocation(prog, "uT") };
-      } catch (e) { console.warn("[glTerrain9] 지형 판", e); this.copy = null; }
+        const prog2 = mk(SHARP_VS9, UP_FS9);
+        this.up = { prog: prog2, aQ: gl.getAttribLocation(prog2, "aQ"), uT: gl.getUniformLocation(prog2, "uT"), uSz: gl.getUniformLocation(prog2, "uSz") };
+      } catch (e) { console.warn("[glTerrain9] 지형 판", e); this.copy = null; this.up = null; }
     }
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.dead = true; });
   }
@@ -808,6 +817,19 @@ export class GlTerrCanvas9 {
      또렷이는 이제 안개 **앞**(지형에만)에 걸린다 — 안개는 부드러운 막이라 차이가 안 보인다. `#terrcache=0` 옛길. */
   private copy: { prog: WebGLProgram; aQ: number; uT: WebGLUniformLocation | null } | null = null;
   private cache: { tex: WebGLTexture; w: number; h: number } | null = null;
+  private up: { prog: WebGLProgram; aQ: number; uT: WebGLUniformLocation | null; uSz: WebGLUniformLocation | null } | null = null;
+  private low: { tex: WebGLTexture; w: number; h: number } | null = null;
+  private lowTexOf(w: number, h: number): WebGLTexture {
+    const gl = this.gl as WebGL2RenderingContext;
+    if (this.low && this.low.w === w && this.low.h === h) return this.low.tex;
+    if (this.low) gl.deleteTexture(this.low.tex);
+    const tex = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    this.low = { tex, w, h };
+    return tex;
+  }
   private cacheKey = ""; private prevKey = ""; private gId = 0; private gLast: TerrainGeom9 | null = null;
   /** 진단 — 지난 장이 판을 붙였나(1) · 그렸나(0) · 베낀 횟수. */
   cacheStat = { hit: 0, copies: 0 };
@@ -839,7 +861,9 @@ export class GlTerrCanvas9 {
     /** 보이는 네모(CSS px · gl9 view 와 같은 ★) — clip 이 없을 때 가위로 죈다(안개·또렷이는 그대로 · 또렷이는 그 네모만 베낀다). */
     view: [number, number, number, number] | null = null,
     /** 안개 눈 덮음 판정 네모(CSS px · 손짓 중에도 · RMP visFog9) — 없으면 view·clip 으로. */
-    fogView: [number, number, number, number] | null = null): boolean {
+    fogView: [number, number, number, number] | null = null,
+    /** 손짓 중(RMP xfGest9) — 반 해상도로 그려 늘여 붙인다(아래 ★ 손짓 반 해상도). */
+    lowRes = false): boolean {
     if (this.dead) return false;
     this.last = [G, quad, bw, bh, cw, ch, wallScale, clip, fog, view];
     const gl = this.gl; const cv = this.canvas;
@@ -863,6 +887,35 @@ export class GlTerrCanvas9 {
     gl.clearColor(0, 0, 0, 0); gl.clearStencil(0); gl.stencilMask(0xff);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     const fv9 = clip ?? fogView ?? (vs ? view : null);
+    /* ★ **손짓 반 해상도**(2026-11-02, 지적: "나는 줌에서 느리다고 했는데 분명" — 실측 #glterr=0 30~50 vs 11~13fps) — 줌·끌기 중엔 카메라가 장마다 바뀌어 지형 판을
+       못 쓴다. 지형 그리기는 지도 전체 벡터의 덮기 스무 남짓(다중표본)이라 화소 몫이 곧 값이다 → 손짓 동안만 뷰포트를 반(가로·세로)으로 줄여 같은 그림을 왼아래
+       모서리에 그리고(화소 1/4), 그 몫을 베껴 화면 크기로 늘여 붙인다(LINEAR · 블렌드 끔). 안개도 같이 반 해상도 · 또렷이는 건너뛴다. 손을 떼면(커밋 붓) 제 해상도로
+       다시 그리고 다음 장부터 판을 쓴다. `#terrlow=0` 옛길. */
+    if (lowRes && !clip && this.copy && !TERR_LOW_OFF9) {
+      const g2 = gl as WebGL2RenderingContext;
+      const hw = Math.max(1, Math.round(bw * 0.5)); const hh = Math.max(1, Math.round(bh * 0.5));
+      g2.viewport(0, 0, hw, hh);
+      g2.enable(g2.SCISSOR_TEST);
+      if (vs) g2.scissor(Math.floor(vs[0] * 0.5), Math.floor(vs[1] * 0.5), Math.ceil(vs[2] * 0.5) + 1, Math.ceil(vs[3] * 0.5) + 1);
+      else g2.scissor(0, 0, hw, hh);
+      g2.clearColor(0, 0, 0, 0); g2.clearStencil(0); g2.stencilMask(0xff); g2.clear(g2.COLOR_BUFFER_BIT | g2.STENCIL_BUFFER_BIT);
+      this.terr.draw(G, quad, cw, ch, wallScale, (bw / Math.max(1, cw)) * 0.5, fog, fv9, 0);
+      g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.lowTexOf(hw, hh));
+      g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, hw, hh);
+      g2.viewport(0, 0, bw, bh);
+      if (vs) g2.scissor(vs[0], vs[1], vs[2], vs[3]); else g2.disable(g2.SCISSOR_TEST);
+      const up = this.up!;
+      g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
+      g2.useProgram(up.prog); g2.uniform1i(up.uT, 0); g2.uniform2f(up.uSz, bw, bh);
+      g2.bindBuffer(g2.ARRAY_BUFFER, this.sharp!.quad);
+      for (let i = 0; i < 8; i += 1) g2.disableVertexAttribArray(i);
+      g2.enableVertexAttribArray(up.aQ); g2.vertexAttribPointer(up.aQ, 2, g2.FLOAT, false, 8, 0);
+      g2.drawArrays(g2.TRIANGLE_STRIP, 0, 4);
+      g2.disableVertexAttribArray(up.aQ); g2.bindTexture(g2.TEXTURE_2D, null); g2.enable(g2.BLEND);
+      g2.disable(g2.SCISSOR_TEST);
+      this.prevKey = ""; this.cacheStat.hit = 2;
+      return true;
+    }
     /* 지형 판 재사용(위 ★) — 열쇠: 지도 · 카메라(quad) · 배킹 · 가위 · 또렷이 · 결 세기. */
     if (G !== this.gLast) { this.gLast = G; this.gId += 1; }
     const canCache9 = !clip && !!this.copy && !TERR_CACHE_OFF9;
