@@ -719,13 +719,37 @@ function fleshUnfold9(v: number): Float32Array {
   }, (t) => bp.set(400 + 500 * Math.min(1, t / 0.6))), 0.58);
 }
 
+/** ★ 저그 건물 완성 — 고치가 벗겨지며 건물이 섬(2026-11-02, 요청: "완성 시도 알보다 낮고 크고 복잡한 소리로 별도") — 알 깨짐(eggPop)보다 낮고 크고 겹이 많다:
+ *  깊은 쿵(58 → 32Hz) + 두꺼운 살덩이 몸(갈색 잡음 저역) + 아래로 미끄러지는 질척임 둘(띠 900 → 300Hz · 엇박) + 껍질 찢어지는 바스락(듬성한 알갱이)
+ *  + 낮게 그르렁(42Hz 떨림) · 끝의 거품 방울 몇. 1.4초. */
+function zergDone9(v: number): Float32Array {
+  const r = rng9(1751 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 500, 0.7);
+  const sq1 = new Biquad9("bp", 900, 2.2); const sq2 = new Biquad9("bp", 700, 2.6);
+  const k = [1, 1.07, 0.93][v % 3];
+  let ph = 0;
+  return finish9(render9(1.4, (t) => {
+    const thump = Math.sin(2 * Math.PI * (58 * k - t * 26) * t) * exp9(t, 5.5) * 1.1;
+    const flesh = lp.run(br() * 1.8) * ad9(t, 0.01, 3.4);
+    const s1 = sq1.run(br() + (r() * 2 - 1) * 0.3) * ad9(t, 0.03, 4.5) * 1.1;
+    const t2 = t - 0.22;
+    const s2 = t2 > 0 ? sq2.run(br() + (r() * 2 - 1) * 0.3) * ad9(t2, 0.03, 5) * 0.9 : 0;
+    const rip = t < 0.6 && r() < 0.012 * exp9(t, 4) ? (r() * 2 - 1) * 0.8 : 0;
+    ph += 42 * k * (1 + 0.2 * Math.sin(2 * Math.PI * 9 * t)) / SFX_RATE9;
+    const growl = Math.sin(2 * Math.PI * ph) * ad9(t, 0.15, 2.4) * 0.45;
+    const tb = t - 0.75;
+    const bub = tb > 0 && r() < 0.0018 ? Math.sin(2 * Math.PI * (300 + r() * 500) * tb) * 0.5 : 0;
+    return sat9(thump + flesh + s1 + s2 + rip + growl + bub, 1.7);
+  }, (t) => { sq1.set(900 - 600 * Math.min(1, t / 0.5)); sq2.set(700 - 400 * Math.min(1, Math.max(0, t - 0.22) / 0.5)); }), 0.85);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -742,5 +766,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
   warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
-  fleshUnfold: [2, fleshUnfold9],
+  fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
 };

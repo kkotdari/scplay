@@ -52,6 +52,8 @@ export class SfxCues9 {
   private hitPh = new Map<number, number>();
   /** 몸마다 마지막으로 소리 낸 휘두름 번호(위 SWING9 ★). */
   private swingN = new Map<string, number>();
+  /** 건물 열쇠마다 앞 장에 공사 고치였나(위 ★ 저그 건물 완성). */
+  private cocWas = new Map<string, [boolean, number]>();
   private lastT = Number.NaN;
 
   /** 한 장을 본다. 소리를 내도 되는 때가 아니면 열쇠만 적는다(prime). */
@@ -161,6 +163,16 @@ export class SfxCues9 {
       /* ★ 저그 **공사 고치 착공**(2026-11-02, 요청: "공사 고치 펼 때 생체조직 펼치는 소리" → "공사고치 착공소리 맞지?") — 드론이 고치로 펼쳐지는 순간 = 공사 고치 op(cocoon*)가
          처음 서는 장. 열쇠는 보이든 말든 적는다(소환구와 같은 까닭 — 짓는 내내 서 있으니 화면을 옮겨 들어올 때 다시 울리면 안 된다). */
       const unfold = u.kind.startsWith("cocoon") && u.pickKey ? fresh(`c${u.pickKey}`) : false;
+      /* ★ 저그 **건물 완성**(2026-11-02, 요청: "완성 시도 알보다 낮고 크고 복잡한 소리로 별도") — 공사 중과 완성 건물은 같은 pickKey(b임자|종류|자리)라, 앞 장에
+         고치(cocoon*)였던 열쇠가 고치가 아닌 몸으로 선 장에 낸다(레어·하이브 변태 끝도 같다). 상태는 보이든 말든 적는다. */
+      let ripe = false;
+      if (u.pickKey && u.pickKey.charCodeAt(0) === 98) {   // 'b' — 건물
+        const isC9 = u.kind.startsWith("cocoon");
+        const w9 = this.cocWas.get(u.pickKey);
+        // 앞 기록이 막 전 장(경기 2초 + 배속 몫 안)일 때만 — 화면 밖(워커가 안 보낸 몸)에서 다 지어진 것을 화면에 들어올 때 울리지 않게.
+        if (w9 && w9[0] && !isC9 && fr.t - w9[1] <= 2 + o.speed * 0.5) ripe = true;
+        this.cocWas.set(u.pickKey, [isC9, fr.t]);
+      }
       if (!inView(u.fx, u.fy)) continue;
       /* 채집은 일꾼 종류마다 따로(드론 mine · SCV mineScv · 프로브 mineProbe — 2026-10-22, 요청: "프로브랑 SCV 는 소리가 달라야"). */
       if (u.gath) mine.set(GATH9[u.gath], [u.fx, u.fy]);
@@ -174,6 +186,7 @@ export class SfxCues9 {
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
       if (unfold) play("fleshUnfold", u.fx, u.fy);
+      if (ripe) play("zergDone", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");
@@ -191,5 +204,6 @@ export class SfxCues9 {
     this.hitPh = hitPh;
     if (this.buried.size > 4000) this.buried.clear();
     if (this.swingN.size > 4000) this.swingN.clear();
+    if (this.cocWas.size > 4000) this.cocWas.clear();
   }
 }

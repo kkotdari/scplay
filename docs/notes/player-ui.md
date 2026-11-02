@@ -2855,3 +2855,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   ⚠ 첫 판은 건물 burst 의 cocoon 에 걸었는데 그 갈래는 **완성 전 파괴된 고치**(cocoonB9 · bld 거짓이라 실제로는 안 걸린다)였다 — "공사고치 착공소리 맞지?" 로 바로잡음:
   sfx9Cues 유닛 op 의 공사 고치(kind cocoon1·cocoon2·cocoon · 같은 pickKey)가 **처음 서는 장**(fresh `c<pickKey>` · 보이든 말든 열쇠를 적는다)에 fleshUnfold.
   레어·하이브 변태(BLD_FROM_BLD — 바로 cocoon)도 같이 울린다.
+- (같은 날) "완성 시도 알보다 낮고 크고 복잡한 소리로 별도" — 새 `zergDone9`(깊은 쿵 58→32Hz + 살덩이 몸 + 엇박 질척임 둘(900→300 · 700→300Hz) + 껍질 찢김 바스락 +
+  42Hz 그르렁 + 끝 거품 · 1.4초). sfx9Cues: 건물 pickKey(공사 중·완성이 같다)가 앞 장에 cocoon* 이었고 지금 아니면 zergDone(cocWas · 앞 기록이 2초 + 배속 몫 안일 때만 —
+  화면 밖에서 다 지어진 것을 들어올 때 안 울리게).
