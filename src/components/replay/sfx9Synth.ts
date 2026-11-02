@@ -846,25 +846,26 @@ function reaverBreak9(v: number): Float32Array {
   });
   return finish9(echo9(echo9(raw, 0.09, 0.32), 0.21, 0.24), 0.66);
 }
-/** ★ 사이언스 베슬 폭발(2026-11-02, 요청: "베슬 폭발 시 둥둥둥 세 번 중간음 울리는 소리") — 중간 높이로 울리는 '둥' 셋(0.17초 간격 · 175 → 160 → 147Hz 로 한 단씩 내려간다 ·
- *  2배음 · 0.5초에 걸쳐 잦아드는 울림) + 얹힌 폭발 잡음 · 메아리 하나. 1.4초. */
+/** ★ 사이언스 베슬 폭발(2026-11-02, 요청: "베슬 폭발 시 둥둥둥 세 번 중간음 울리는 소리" → 되요청 "좀 더 귀여운 동동동 울림 있는 소리 세 번") — 높고 동글동글한 '동' 셋:
+ *  0.15초 간격으로 523 → 587 → 659Hz(도·레·미 · 한 단씩 오른다) · 때리는 순간 살짝 내려앉는 높이(통통 튀는 맛) · 2배음 옅게 · 0.45초 울림 · 메아리 둘 · 아주 옅은 터짐. 1.3초. */
 function vesselBoom9(v: number): Float32Array {
-  const r = rng9(2051 + v); const br = brown9(r);
-  const lp = new Biquad9("lp", 1500, 0.7);
+  const r = rng9(2051 + v);
+  const lp = new Biquad9("lp", 2200, 0.7);
   const k = [1, 1.06, 0.94][v % 3];
-  const hits: [number, number][] = [[0, 175], [0.17, 160], [0.34, 147]];
-  const raw = render9(1.4, (t) => {
+  const hits: [number, number][] = [[0, 523.25], [0.15, 587.33], [0.3, 659.25]];
+  const ph = [0, 0, 0];
+  const raw = render9(1.0, (t) => {
     let o = 0;
     for (let i = 0; i < 3; i += 1) {
       const u = t - hits[i][0];
       if (u < 0) continue;
-      const f = hits[i][1] * k * (1 - 0.06 * Math.min(1, u / 0.1));
-      o += (Math.sin(2 * Math.PI * f * u) + Math.sin(2 * Math.PI * f * 2 * u) * 0.3) * ad9(u, 0.004, 5.5) * (1 - i * 0.12);
+      ph[i] += hits[i][1] * k * (1 + 0.12 * Math.exp(-u * 40)) / SFX_RATE9;
+      o += (Math.sin(2 * Math.PI * ph[i]) + Math.sin(4 * Math.PI * ph[i]) * 0.18) * ad9(u, 0.003, 7);
     }
-    const blast = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.3) * ad9(t, 0.01, 3.2) * 0.8;
-    return sat9(o * 0.8 + blast, 1.6);
+    const pop = lp.run(r() * 2 - 1) * ad9(t, 0.004, 30) * 0.25;
+    return o * 0.55 + pop;
   });
-  return finish9(echo9(raw, 0.12, 0.25), 0.8);
+  return finish9(echo9(echo9(raw, 0.11, 0.3), 0.23, 0.2), 0.5);
 }
 
 /** ★ 오버로드 태우기·내리기 — 생체조직(2026-11-02, 요청: "오버로드 수송 탑승 내리기 시 생체조직 소리로") — 옛: 기계 해치(hatch9). 살 주머니가 열려 삼키고 뱉는다:
