@@ -470,7 +470,8 @@ function warpEnd9(v: number): Float32Array {
   const r = rng9(1951 + 37 * v);
   const lp = new Biquad9("lp", 600, 1.4);
   const hp = new Biquad9("hp", 3500, 0.8);
-  const f0 = [329.63, 349.23, 311.13][v % 3];
+  /* 갈래는 **장3화음**(되요청: "두 갈래가 장조 차이 나게") — 미(E4) · 솔#(G#4 · 장3도) · 시(B4 · 완전5도). 옛: ±반음 언저리라 갈래가 거의 같게 들렸다. */
+  const f0 = [329.63, 415.3, 493.88][v % 3];
   let pa = 0; let pb = 0;
   const HOLD9 = 1.0; const REL9 = 0.4;
   return finish9(render9(HOLD9 + REL9, (t) => {
@@ -480,8 +481,8 @@ function warpEnd9(v: number): Float32Array {
     const shimmer = Math.sin(2 * Math.PI * f0 * 2 * up * t) * 0.25;
     const env = t < 0.05 ? t / 0.05 : t < HOLD9 ? 1 : Math.max(0, 1 - (t - HOLD9) / REL9);
     const zap = r() < 0.004 ? hp.run(r() * 2 - 1) * 0.6 : hp.run(0) * 0;
-    return sat9(lp.run(buzz * 0.5) + shimmer * env, 1.2) * env + zap * env;
-  }, (t) => lp.set(600 + 2600 * Math.min(1, t / 0.35))), 0.4);
+    return sat9(lp.run(buzz * 0.4) + shimmer * env, 1.0) * env + zap * env * 0.6;
+  }, (t) => lp.set(600 + 1600 * Math.min(1, t / 0.35))), 0.3);   // 되요청 "좀 약하게" — 봉우리 0.4 → 0.3 · 거르개 위끝 3200 → 2200Hz · 웅웅·지직 덜
 }
 
 /** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
