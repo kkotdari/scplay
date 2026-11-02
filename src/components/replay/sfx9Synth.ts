@@ -91,15 +91,26 @@ function finish9(buf: Float32Array, peak: number): Float32Array {
 
 /* ── 소리 조리법 ───────────────────────────────────────────────────────────── */
 
-/** 총(마린·골리앗 기관포·고스트) — 딱 하는 잡음 터짐 + 짧은 몸. */
+/** 총(마린·골리앗 기관포·고스트) — **빠른 연발 두두두두**(2026-11-02, 요청: "소총류 소리를 더 빠른 두두두두 소리로") — 딱 하는 잡음 터짐 + 짧은 몸 한 방을
+ *  48ms 간격으로 네 번(뒤로 갈수록 0.82배씩 작게 · 한 방마다 높이·길이 살짝 흔들림). 옛: 한 방(0.11초). */
 function gun9(v: number): Float32Array {
   const r = rng9(101 + v);
   const hp = new Biquad9("hp", 900 + v * 150, 0.8);
   const lp = new Biquad9("lp", 5200, 0.7);
-  return finish9(render9(0.11, (t) => {
-    const n = r() * 2 - 1;
-    const body = Math.sin(2 * Math.PI * (140 - t * 600) * t) * exp9(t, 60) * 0.6;
-    return sat9(lp.run(hp.run(n)) * exp9(t, 38 + v * 6) + body, 1.6);
+  const N9 = 4; const GAP9 = 0.048; const ONE9 = 0.07;
+  const jit9 = Array.from({ length: N9 }, () => r());
+  return finish9(render9(GAP9 * (N9 - 1) + ONE9, (t) => {
+    const fn9 = hp.run(r() * 2 - 1);   // 거르개는 한 표본에 한 번(겹친 방마다 돌리면 상태가 깨진다)
+    let o = 0;
+    for (let k = 0; k < N9; k += 1) {
+      const tk = t - k * GAP9;
+      if (tk < 0 || tk > ONE9) continue;
+      const g = Math.pow(0.82, k);
+      const f0 = 150 - jit9[k] * 30;
+      const body = Math.sin(2 * Math.PI * (f0 - tk * 700) * tk) * exp9(tk, 75) * 0.6;
+      o += (fn9 * exp9(tk, 55 + v * 6 + jit9[k] * 10) + body) * g;
+    }
+    return sat9(lp.run(o), 1.6);
   }), 0.55);
 }
 

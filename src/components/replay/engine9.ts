@@ -10416,7 +10416,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           const vk9 = foe.uk && isKnownKind(foe.uk) ? foe.uk : null;
           const vPx9 = vk9 ? unitPxOf(vk9, foe.by) : fxPx;
           fxOps.push({
-            kind: "hit", fx: tfx9, fy: tfy9, ok: `u${tgtTag9}`,
+            kind: "hit", style: fxName9, fx: tfx9, fy: tfy9, ok: `u${tgtTag9}`,   // style = 쏜 무기(효과음 HIT9 가 총소리를 고른다 — 없으면 근접 칼질로 울렸다)
             lift: foe.air ? foeLift9 : vPx9 * 0.34,
             size: vPx9 * ((vk9 ? modelInkOf(UNIT_3D[vk9] ?? vk9) : 16) / 16) * 0.69, dist: 0, dx: 0, dy: 0,
             ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
