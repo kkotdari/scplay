@@ -2347,6 +2347,8 @@ export type FxOp = {
   by?: string;
   /** hit: 소총(마린·고스트)에 맞음 — 맞은 자리에 주황 불꽃 별이 터진다(RIFLE_HIT9 · 2026-11-01). */
   rifle?: number;
+  /** rifle 만 그리고 결 파편은 안 긋는다(쏘는 쪽 박자로 표적에 얹는 소총 불티 · 2026-11-02). */
+  ro?: boolean;
   /** 소총 피격의 때 소금(맞은 시각) — 연달아 맞을 때 불티 자리가 매번 갈린다. */
   rs?: number;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
@@ -9738,9 +9740,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         ...((): Partial<FxOp> => {
           /* 소총류 피격 — 지금 이 몸을 겨눈 소총류 수(지상 표적이면 골리앗·레이스·스카웃도) · 그 수를 못 셌어도 때린 쪽이 소총류면 하나. */
           const air9 = airLift9 > 0;
-          let n9 = (rifleN9.get(e.tag) ?? 0) + (air9 ? 0 : rifleGndN9.get(e.tag) ?? 0);
-          if (n9 === 0 && hitSrc9?.uk && (RIFLE_HIT9.has(hitSrc9.uk) || (!air9 && RIFLE_GROUND9.has(hitSrc9.uk)))) n9 = 1;
-          return n9 > 0 ? { rifle: n9, rs: Math.floor(hurtAt * 13) } : {};
+          /* (2026-11-02) 소총 불티는 이제 쏘는 쪽 박자로 표적에 낸다(아래 ★ 소총 불티) — 맞은 순간 창은 체력이 띄엄띄엄이라 거의 안 걸렸다. 겹치지 않게 여기선 안 낸다. */
+          void air9; void rifleN9; void rifleGndN9;
+          return {};
         })() }) : null;
     if (hitFx9 && !fighting) {
       fxOps.push(hitFx9);
@@ -10403,6 +10405,23 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           : beamLen,
         ph: ph9, pr: 1 / fxCd, pc: true,
       });
+      }
+      /* ★ **소총 불티는 쏘는 쪽 박자로 표적에**(2026-11-02, 지적: "마린 등 피격불꽃 안나오는데?") — 여태 불티는 맞은 몸의 체력이 실제로 준 순간(hurtAt · 0.15초 창)에만
+         떴다. 참값의 체력은 띄엄띄엄 적히고(위 TARGET_FX 주석과 같은 병) 폰 워커는 0.1초 간격이라 거의 안 걸렸다. 이제 소총류(RIFLE_HIT9 · 지상 표적이면 RIFLE_GROUND9)가
+         번쩍일 때마다 **그 사수 몫 한 벌**을 표적 가슴에 얹는다 — 공격자가 늘면 벌도 저절로 는다(요청: "공격자 수에 비례해서 겹쳐 생김"). 0.25초 동안 튀고 사라진다. */
+      if (fxUnit && (RIFLE_HIT9.has(fxUnit) || (!foe.air && RIFLE_GROUND9.has(fxUnit)))) {
+        const rp9 = (ph9 * fxCd) / 0.25;
+        if (rp9 < 1) {
+          const [tfx9, tfy9] = posFrac(foe.bx, foe.by);
+          const vk9 = foe.uk && isKnownKind(foe.uk) ? foe.uk : null;
+          const vPx9 = vk9 ? unitPxOf(vk9, foe.by) : fxPx;
+          fxOps.push({
+            kind: "hit", fx: tfx9, fy: tfy9, ok: `u${tgtTag9}`,
+            lift: foe.air ? foeLift9 : vPx9 * 0.34,
+            size: vPx9 * ((vk9 ? modelInkOf(UNIT_3D[vk9] ?? vk9) : 16) / 16) * 0.69, dist: 0, dx: 0, dy: 0,
+            ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
+          });
+        }
       }
       /* ★ 치료는 **낫는 쪽에도** 보인다(지적: "메딕이 힐 동작을 해도 타겟 피가
          안 차고") ─────────────────────────────────────────────────────────

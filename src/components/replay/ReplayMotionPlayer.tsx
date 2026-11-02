@@ -4788,6 +4788,7 @@ export function paintFxList9(
         ctx.restore();
         ctx.globalCompositeOperation = "source-over";
       }
+      if (f.ro) continue;   // 쏘는 쪽 박자로 얹은 소총 불티 — 결 파편은 맞은 몸의 체력 피격(hurtAt)이 따로 낸다
       if (CROWD9.lv >= 2 || FQ9.lv >= 2) continue;   // 덜어내기 2단 · 프레임 사다리 2단(FQ9 ★): 피격 불티는 통째로 생략(섬광·죽음 burst만 남는다)
       const N9 = Math.max(2, Math.ceil(mt9.n * crowdShardK9()));
       /* ★ **파편은 알약이 아니다**(2026-09, 지적: "이 효과들 형태가 알약 형태라 부자연스럽지? 실제 효과는 안 그럴 거 아니야
