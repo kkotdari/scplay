@@ -2399,7 +2399,7 @@ function creepTex9(): HTMLCanvasElement | null {
     for (let i = 0; i < N9; i += 1) {
       /* 그늘/빛(v) 위에 연주황 타원(og9)을 덮어(over) 한 화소로 — 알파 섞기. */
       const v = v9[i]; const o = i * 4;
-      const a1 = v < 0 ? Math.min(1, -v) : Math.min(1, v * 0.8);
+      const a1 = v < 0 ? Math.min(1, -v) * 0.5 : Math.min(1, v * 0.8);   // 그늘 ×0.5(2026-11-02 "크립의 그림자가 너무 진해")
       const r1 = v < 0 ? 18 : 235; const g1 = v < 0 ? 4 : 205; const b1 = v < 0 ? 24 : 235;
       const ao = og9[i]; const A = ao + a1 * (1 - ao);
       if (A <= 0) continue;
@@ -2412,6 +2412,15 @@ function creepTex9(): HTMLCanvasElement | null {
     CREEP_TEX9 = cv9;
   } catch (e9) { console.warn("[크립결]", e9); CREEP_TEX9 = null; }
   return CREEP_TEX9;
+}
+/** 크립 무늬 한 장(256²)이 덮는 지도 타일 — 옛 판 굽기(16타일 해처리 크립 = 판 한 변에 1.5장)의 겹 크기를 그대로 땅 자로 옮겼다. */
+const CREEP_TEX_TILES9 = 10.7;
+/** 캔버스마다 크립 무늬 하나(패턴은 만든 맥락에 묶인다). */
+const CREEP_PAT9 = new WeakMap<CanvasRenderingContext2D, CanvasPattern>();
+function creepPatOf9(ctx: CanvasRenderingContext2D, tx: HTMLCanvasElement): CanvasPattern | null {
+  let p9 = CREEP_PAT9.get(ctx);
+  if (!p9) { p9 = ctx.createPattern(tx, "repeat") ?? undefined; if (p9) CREEP_PAT9.set(ctx, p9); }
+  return p9 ?? null;
 }
 const CREEP_PLATES9 = new Map<string, CreepPlate9 | null>();
 function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
@@ -2456,7 +2465,7 @@ function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
         }
         c29.drawImage(body9, r9.ox - x09, r9.oy - y09);
         /* 크립 질감(위 creepTex9 ★) — 판 안(source-atop)에 무늬를 깐다 · 판 한 변(잉크 ≈ l / 2.56)에 무늬 한 장 반(덮인 판 스무 남짓)이 들게. `#creeptex=0` 옛길. */
-        const tx9 = CREEP_TEX_OFF9 ? null : creepTex9();
+        const tx9 = CREEP_TEX_OFF9 || !op.pitch ? null : creepTex9();   // 평면은 땅에 붙인 무늬(붓의 ★ 크립 질감은 땅에 붙인다)로 · 입체만 판에 굽는다
         if (tx9) {
           const pat9 = c29.createPattern(tx9, "repeat");
           if (pat9) {
@@ -7302,6 +7311,26 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.drawImage(wallMask, 0, sy0, wallMask.width, sh, dx9, dy9, dw9, dh9);
           }
           ctx.restore();
+        }
+        /* ★ **크립 질감은 땅에 붙인다**(2026-11-02, 지적: "해처리의 크립과 성큰의 크립이 판 하나하나의 크기가 다름 · 똑같아야 해") — 여태 질감은 크립 판(creepPlate9)에
+           구울 때 판 한 변에 무늬 1.5장으로 깔렸다. 판은 크기와 무관하게 셋(무늬) × 보기 둘이라 같은 판이 16타일 해처리 크립에도 7타일 발판에도 늘려 찍혀, 겹(판)
+           하나의 크기가 크립 크기를 따라 갔다. 이제 이 캔버스엔 아직 크립뿐이니(위 주석) **한 번에** 지도 자리에 못 박은 무늬를 source-atop 으로 덮는다 — 겹 하나가
+           늘 CREEP_TEX_TILES9 타일이고, 겹쳐 깔린 크립끼리도 이음매 없이 이어진다. 입체(clipQuad · 원근)는 이 아핀 무늬가 안 맞아 종전대로 판에 구운 질감을 쓴다. */
+        if (!(clipQuad && clipQuad.length >= 3) && !CREEP_TEX_OFF9) {
+          const tx9 = creepTex9();
+          const pat9 = tx9 ? creepPatOf9(ctx, tx9) : null;
+          if (tx9 && pat9) {
+            const tp9 = tilePx ?? (cw / 128);
+            const sx9 = (tp9 * zoom * CREEP_TEX_TILES9) / tx9.width;   // tilePx = 지도 폭 / 타일 수(배율 1) — 평면은 정사각 타일
+            const sy9 = (tp9 * zoom * CREEP_TEX_TILES9) / tx9.height;
+            pat9.setTransform(new DOMMatrix([sx9, 0, 0, sy9, zx(0), zy(0)]));
+            ctx.save();
+            ctx.globalCompositeOperation = "source-atop";
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = pat9;
+            ctx.fillRect(zx(0), zy(0), cw * zoom, mh9 * zoom);
+            ctx.restore();
+          }
         }
         ctx.restore();
         paintOps(drawList9.filter((o) => !o.clipWalk));
@@ -22820,10 +22849,11 @@ export default function ReplayMotionPlayer({
                 key={`ping-${i}`}
                 className="scr-motion-pingfx"
                 // 핑도 같은 사정 — 캔버스 위로 올린다(크립·유닛 위에서도 보인다).
-                /* 크기도 배율을 따른다(요청: 마커처럼) — 4배 기준 아래서는 강제 확대, 위로는 타일 1.4배. */
+                /* 크기도 배율을 따른다(요청: 마커처럼) — 타일 1.4배(옛 4배 바닥은 2026-11-02 걷음 · 12px 바닥). */
                 style={{
                   ...posStyle(px, py), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인 제 핑은 원작 초록 · 같은 편은 제 색
-                  "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
+                  /* 배율을 그대로 탄다(2026-11-02, 지적: "핑마커 크기가 배율을 안탐.. 일정함") — 옛 4배 바닥(max(4, 배율))을 걷었다 · 너무 작아 안 보이지 않게 12px 바닥만. */
+                  "--pgw": `${Math.max(12, ((mapRef.current?.clientWidth ?? 320) / grid.width) * zoom * 1.4 * pitchK(py)).toFixed(1)}px`,
                   /* 팔 굵기는 늘 크기의 10%(CSS 기본 --pgt 10% · 2026-11-02 "핑 마커 두께 반으로" — 20% → 10%) — 2026-10-14 의 '4배 아래는 굵기만 배율 따라' 를 되물렸다(2026-10-31, 지적: "핑마커가 배율에 따라
                      그 모양(막대기 두께)가 달라지는 문제 · 타일에 대한 배율로 고정돼야") — 크기는 4배 바닥에 서는데 굵기만 가늘어져 꼴이 바뀌었다. */
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
