@@ -2413,8 +2413,8 @@ function creepTex9(): HTMLCanvasElement | null {
   } catch (e9) { console.warn("[크립결]", e9); CREEP_TEX9 = null; }
   return CREEP_TEX9;
 }
-/** 크립 무늬 한 장(256²)이 덮는 지도 타일 — 옛 판 굽기(16타일 해처리 크립 = 판 한 변에 1.5장)의 겹 크기를 그대로 땅 자로 옮겼다. */
-const CREEP_TEX_TILES9 = 10.7;
+/** 크립 무늬 한 장(256²)이 덮는 지도 타일 — 옛 판 굽기(16타일 해처리 크립 = 판 한 변에 1.5장)의 겹 크기 10.7 에서 **4**로(2026-11-02, 지적: "크립 조각 크기가 크고 너무 커" · 폰 8배 스샷). */
+const CREEP_TEX_TILES9 = 4;
 /** 캔버스마다 크립 무늬 하나(패턴은 만든 맥락에 묶인다). */
 const CREEP_PAT9 = new WeakMap<CanvasRenderingContext2D, CanvasPattern>();
 function creepPatOf9(ctx: CanvasRenderingContext2D, tx: HTMLCanvasElement): CanvasPattern | null {
