@@ -2866,3 +2866,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - (같은 날) "마인 발동 소리 중간 높이의 기계음" — engine9 마인 유닛 op 에 `arm`(터지기 `MINE_ARM_SEC9` 0.45초 앞부터) · 새 `mineArm9`(걸쇠 딸깍 둘 + 모터 윙 톱니 520→780Hz + 쉭 · 0.42초) ·
   sfx9Cues 마인 op 의 arm 이 선 첫 장에 mineArm(터질 때는 종전 boom).
 - 덤 고침: 저그 건물 **완공 부화** burst(engine9 · mat cocoon · tier 3)가 알 깨짐(eggHatch)으로 울려 새 zergDone 과 겹쳤다 — 그 op 에 `sub: "done"` · 효과음은 건너뛴다.
+- (같은 날) "테란 착공은 텅이라기보다 턱" — metalClang9 울림 잦음 2.6~11 → 22~60 · 둔한 쿵 · 0.28초(옛 1.3초).
+  "리버 사망 시 드라군하고 비슷하되 더 울림 있게" — 새 `reaverBreak9`(springBreak 를 ×0.8 낮게·1.3초 길게 + 쇠통 울림 140·377Hz + 메아리 둘) · by Reaver.
+  "베슬 폭발 시 둥둥둥 세 번 중간음 울리는 소리" — 새 `vesselBoom9`(175·160·147Hz '둥' 셋 0.17초 간격 + 폭발 잡음 + 메아리) · by Science Vessel(기계 burst).

@@ -785,22 +785,22 @@ function eggHatch9(v: number): Float32Array {
   }), 0.68);
 }
 
-/** ★ 테란 건물 착공(애드온 포함) — 낮은 쇠 울림 "텅"(2026-11-02, 요청: "테란 건물 착공 시(애드온 포함) 낮은 쇠울림 소리 · 텅") — 두꺼운 쇠판을 친 꼴:
- *  어긋난 판 울림 넷(98Hz × 1 · 2.76 · 5.40 · 8.93 — 높을수록 빨리 잦아든다) + 때린 순간의 짧은 쇠 딱 + 밑의 둔한 쿵. 1.3초. */
+/** ★ 테란 건물 착공(애드온 포함) — 낮은 쇠 "턱"(2026-11-02, 요청: "테란 건물 착공 시 낮은 쇠울림 소리 · 텅" → 되요청 "텅이라기보다 턱 소리") — 울림을 눌러 짧게 끊었다:
+ *  두꺼운 쇠판 울림 넷(98Hz × 1·2.76·5.40·8.93)이 0.1초 안에 잦아들고 + 둔한 쿵(무게) + 때린 딱. 0.28초. 옛 '텅'은 1.3초 울렸다. */
 function metalClang9(v: number): Float32Array {
   const r = rng9(1901 + v);
   const hp = new Biquad9("hp", 1500, 0.8);
+  const lp = new Biquad9("lp", 1600, 0.7);
   const f0 = 98 * [1, 1.06, 0.94][v % 3];
-  const modes: [number, number, number][] = [[1, 1, 2.6], [2.76, 0.55, 4.2], [5.4, 0.3, 7], [8.93, 0.16, 11]];
-  return finish9(render9(1.3, (t) => {
+  const modes: [number, number, number][] = [[1, 1, 22], [2.76, 0.5, 34], [5.4, 0.25, 48], [8.93, 0.12, 60]];
+  return finish9(render9(0.28, (t) => {
     let ring = 0;
-    for (const [m, g, d] of modes) ring += Math.sin(2 * Math.PI * f0 * m * t * (1 + 0.0015 * Math.sin(2 * Math.PI * 3 * t))) * g * Math.exp(-t * d);
-    const tick = hp.run(r() * 2 - 1) * exp9(t, 90) * 0.6;
-    const thud = Math.sin(2 * Math.PI * (70 - t * 40) * t) * exp9(t, 18) * 0.5;
-    return sat9(ring * ad9(t, 0.002, 0) + tick + thud, 1.3);
-  }), 0.7);
+    for (const [m, g, d] of modes) ring += Math.sin(2 * Math.PI * f0 * m * t) * g * Math.exp(-t * d);
+    const tick = hp.run(r() * 2 - 1) * exp9(t, 120) * 0.5;
+    const thud = Math.sin(2 * Math.PI * (82 - t * 90) * t) * exp9(t, 20) * 0.9;
+    return sat9(lp.run(ring * 0.8 + thud) + tick, 1.5);
+  }), 0.72);
 }
-
 /** ★ 스파이더 마인 발동 — 중간 높이 기계음(2026-11-02, 요청: "마인 발동 소리 중간 높이의 기계음") — 딸깍 둘(걸쇠) + 모터 윙(톱니파 520 → 780Hz 로 오르며 거른 소리 ·
  *  빠른 떨림) + 다리 펴지는 짧은 쉭. 0.42초 · 터지기 직전(engine9 MINE_ARM_SEC9). */
 function mineArm9(v: number): Float32Array {
@@ -822,13 +822,52 @@ function mineArm9(v: number): Float32Array {
   }, (t) => bp.set((900 + 400 * Math.min(1, t / 0.3)) * k)), 0.55);
 }
 
+/** ★ 리버 사망(2026-11-02, 요청: "리버 사망 시 드라군하고 비슷하되 더 울림 있는 소리") — 드라군의 용수철 망가짐(springBreak9)을 낮게(×0.8) · 길게 떨게(1.3초) 하고
+ *  쇠통이 울리는 몸(낮은 판 울림 둘)과 메아리 둘을 더했다. */
+function reaverBreak9(v: number): Float32Array {
+  const r = rng9(2001 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 800, 0.7);
+  let ph = 0;
+  const clank = (u: number, k: number): number => (u < 0 ? 0 : (Math.sin(2 * Math.PI * 980 * k * u) + Math.sin(2 * Math.PI * 2170 * k * u) * 0.6 + Math.sin(2 * Math.PI * 3170 * k * u) * 0.35) * exp9(u, 12));
+  const raw = render9(1.3, (t) => {
+    const f = (720 - 520 * Math.min(1, t / 1.0)) * (1 + 0.2 * Math.sin(2 * Math.PI * (28 - t * 14) * t) * exp9(t, 2));
+    ph += (f * (1 + v * 0.05)) / SFX_RATE9;
+    const boing = Math.sin(2 * Math.PI * ph) * ad9(t, 0.005, 2.1) * 0.7;
+    const hit = clank(t - 0.01, 1) * 0.5 + clank(t - 0.24, 0.9) * 0.35;
+    const shell = (Math.sin(2 * Math.PI * 140 * t) + Math.sin(2 * Math.PI * 377 * t) * 0.5) * ad9(t, 0.004, 2.6) * 0.4;
+    const thud = lp.run(br()) * exp9(t, 7) * 0.9;
+    return sat9(boing + hit + shell + thud, 1.5);
+  });
+  return finish9(echo9(echo9(raw, 0.09, 0.32), 0.21, 0.24), 0.66);
+}
+/** ★ 사이언스 베슬 폭발(2026-11-02, 요청: "베슬 폭발 시 둥둥둥 세 번 중간음 울리는 소리") — 중간 높이로 울리는 '둥' 셋(0.17초 간격 · 175 → 160 → 147Hz 로 한 단씩 내려간다 ·
+ *  2배음 · 0.5초에 걸쳐 잦아드는 울림) + 얹힌 폭발 잡음 · 메아리 하나. 1.4초. */
+function vesselBoom9(v: number): Float32Array {
+  const r = rng9(2051 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 1500, 0.7);
+  const k = [1, 1.06, 0.94][v % 3];
+  const hits: [number, number][] = [[0, 175], [0.17, 160], [0.34, 147]];
+  const raw = render9(1.4, (t) => {
+    let o = 0;
+    for (let i = 0; i < 3; i += 1) {
+      const u = t - hits[i][0];
+      if (u < 0) continue;
+      const f = hits[i][1] * k * (1 - 0.06 * Math.min(1, u / 0.1));
+      o += (Math.sin(2 * Math.PI * f * u) + Math.sin(2 * Math.PI * f * 2 * u) * 0.3) * ad9(u, 0.004, 5.5) * (1 - i * 0.12);
+    }
+    const blast = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.3) * ad9(t, 0.01, 3.2) * 0.8;
+    return sat9(o * 0.8 + blast, 1.6);
+  });
+  return finish9(echo9(raw, 0.12, 0.25), 0.8);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -847,5 +886,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
-  mineArm: [3, mineArm9],
+  mineArm: [3, mineArm9], reaverBreak: [2, reaverBreak9], vesselBoom: [2, vesselBoom9],
 };
