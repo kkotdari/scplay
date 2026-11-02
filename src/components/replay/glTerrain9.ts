@@ -22,7 +22,7 @@
    미니맵·내려받는 PNG·썸네일은 종전대로 캔버스(mapTiles.drawMapGrid)다 — **같은 기하**를 쓰므로 선이 같다. `#glterr=0` 으로 끈다(옛 벡터층). */
 import type { TerrainGeom9, TerrLayer9 } from "../../utils/terrainGeom";
 import type { Loop } from "../../utils/contour";
-import { trianglesOfLoops9 } from "../../utils/earcut9";
+import { simplifyLoop9, trianglesOfLoops9 } from "../../utils/earcut9";
 
 /** ★ 안개 눈 원의 결(2026-11-02, 요청: "피시 낮음에서 덜어낼 요소 덜어내줘" · "안개각 줄이기도 효과 있는 듯?") — 눈 원 하나를 둘레 px 마다 한 조각(px)으로, 많아야 max 조각.
  *  눈이 수백(전투 화면 700+)이고 눈 배열이 바뀔 때마다 통째로 다시 지으므로(88k 정점) 조각 수가 곧 CPU·업로드 몫이다. RMP 가 기기 단으로 놓는다(낮음 12px·24 · 그 위 6px·40). */
@@ -348,7 +348,7 @@ export class GlTerrain9 {
       if (gen !== this.triGen || this.geom !== G) return;   // 지도가 바뀌었다 — 버린다
       const b = jobs.shift(); if (!b) return;
       const t0 = performance.now();
-      const r = trianglesOfLoops9(b.loops!, 0.003);
+      const r = trianglesOfLoops9(b.loops!, TERR_THIN_OFF9 ? 0.003 : 0);   // 고리는 이미 솎았다(위 ★ 고리 솎기)
       if (r.ok && r.idx.length > 0) {
         const vb = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, r.pos, gl.STATIC_DRAW);
         const ib = gl.createBuffer()!; gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, r.idx, gl.STATIC_DRAW);
@@ -370,8 +370,11 @@ export class GlTerrain9 {
       const b = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
       this.bufs.push(b); this.stat.bytes += arr.byteLength; return b;
     };
-    const mk = (loops: Loop[], strip: boolean): Bufs9 | null => {
-      if (loops.length === 0) return null;
+    const mk = (loops0: Loop[], strip: boolean): Bufs9 | null => {
+      if (loops0.length === 0) return null;
+      /* ★ 고리 솎기(2026-11-02, 요청: "띠·안개 점 솎기 적용" — 지형 삼각 ★ 와 같은 0.003칸 · 배율 8 에서 1화소 아래) — 띠·부채꼴·삼각이 다 같은 솎은 고리를 쓴다
+         (면과 띠의 가장자리가 어긋나지 않게). 매끈한 등고선(Chaikin ×3)은 거의 곧은 점이 많아 몇 배 준다. `#terrthin=0` 옛길. */
+      const loops = TERR_THIN_OFF9 ? loops0 : loops0.map((lp) => simplifyLoop9(lp, 0.003) as unknown as Loop);
       const f = fanOf(loops); const s = strip ? stripOf(loops) : new Float32Array(0);
       this.stat.verts += f.length / 2 + s.length / 4;
       return { fill: up(f), nFill: f.length / 2, strip: up(s), nStrip: s.length / 4, box: boxOf(loops, 1.5), tri: null, loops };
@@ -680,7 +683,7 @@ export class GlTerrain9 {
        타일 자의 진짜 원이라 입체(호모그래피)에서도 바닥에 눕는다. 밝힘 고리는 FogGeom9 가 뜸하게 다시 뽑고(key), 눈 원은 눈 배열이 갈릴 때 다시 짓는다. */
     if (fog && part !== 1) {
       if (fog.key !== this.fogKey) {
-        const f = fanOf(fog.loops);
+        const f = fanOf(TERR_THIN_OFF9 ? fog.loops : fog.loops.map((lp) => simplifyLoop9(lp, 0.003) as unknown as Loop));   // 밝힘 고리도 솎는다(위 ★ 고리 솎기)
         if (!this.fogFan) this.fogFan = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.fogFan!); gl.bufferData(gl.ARRAY_BUFFER, f, gl.DYNAMIC_DRAW);
         this.nFogFan = f.length / 2; this.fogKey = fog.key;
@@ -829,6 +832,8 @@ const COPY_FS9 = `
 precision mediump float;
 uniform sampler2D uT;
 void main() { gl_FragColor = texelFetch(uT, ivec2(gl_FragCoord.xy), 0); }`;
+/** `#terrthin=0` — 고리 솎기(GlTerrain9 ensure ★ 고리 솎기)를 끈다. */
+const TERR_THIN_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrthin=0(?=$|[&,])/.test(location.hash);
 /** `#terrtri=0` — 지형 삼각(GlTerrain9 ★ 지형 삼각)을 끈다(옛 부채꼴+덮기). */
 const TERR_TRI_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrtri=0(?=$|[&,])/.test(location.hash);
 /** `#terrcache=0` — 지형 판 재사용을 끈다(견줌 · GlTerrCanvas9 ★ 지형 판). */

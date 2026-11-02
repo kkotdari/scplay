@@ -1605,7 +1605,7 @@ const DEV9 = smallDevice9 && PC_TIER_HASH9 < 0 ? {
 if (DEV9.name === "pc") { FOG_EYE_Q9.px = 12; FOG_EYE_Q9.max = 24; } else { FOG_EYE_Q9.px = 14; FOG_EYE_Q9.max = 20; }
 FOG_EYE_Q9.ver += 1;
 /* 지형 질감 결(glTerrain9 TERR_GRAIN9 ★) — PC 는 전 단 켬 · 폰은 낮음 끔(지도 화면 전체를 한 겹 더 칠하는 패스 · 위 폰 발열 ★) · 보통부터 켬(PHONE_TIERS9 terrGrain). */
-TERR_GRAIN9.k = DEV9.name === "pc" ? 1 : 0;
+TERR_GRAIN9.k = 1;   // ★ 폰 낮음도 켬(2026-11-02, 요청: "폰도 타일 질감 넣으면 성능적으로?" → "ㅇㅇ 진행해" — 지형 판 재사용으로 카메라가 멈춘 장은 결 몫이 0 · 움직일 때만 한 겹. 옛: 폰 낮음 0)
 /* 메인의 굽기 환경 — DOM 캔버스(계수기 newCanvas9·창고 takeStored9)와 기기 한도(DEV9). 위 BAKE_ENV9 참고. */
 BAKE_ENV9.mk = newCanvas9;
 BAKE_ENV9.out = (w9, h9, tag9) => {
