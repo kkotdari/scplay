@@ -155,21 +155,26 @@ function bioBoom9(v: number): Float32Array {
   }), 0.85);
 }
 
-/** 괴물 꾸웩(저그 유닛 죽음) — 성대 톱니파가 아래로 꺾이며 떨고, 거친 숨이 섞인다. */
-function squeal9(v: number, pk = 1): Float32Array {   // pk — 높낮이 배수(뮤탈 1.35 · 2026-11-02 "뮤탈 사망은 일반 저그 죽음소리보다 좀 높게")
-  const r = rng9(401 + v + (pk !== 1 ? 53 : 0));
+/** ★ 저그 유닛 죽음 — **생체 조직 폭발 + 저그 울음**(2026-11-02, 요청: "저그 죽음 소리 저거 말고 생체 조직 폭발과 저그 울음소리여야 · 다 변경") — 옛: 꾸웩 하나(톱니 성대만).
+ *  ① 울음 — 톱니 성대 340 → 150Hz 로 꺾이며 떨고(느린 떨림 + 빠른 그르렁) · 꼭지 셋 620·1350·2500Hz · 거친 숨 · 0.7초
+ *  ② 폭발 — 살이 터지는 철퍽(저역 갈색 잡음 · 900 → 300Hz 로 닫힘) + 깊은 쿵(80 → 45Hz) + 흩어지는 질척 알갱이. pk = 높낮이 배수(뮤탈 1.35 · 꼭지는 √pk). */
+function squeal9(v: number, pk = 1): Float32Array {
+  const r = rng9(401 + v + (pk !== 1 ? 53 : 0)); const br = brown9(r);
   const fk = Math.sqrt(pk);
-  const f1 = new Biquad9("bp", 700 * fk, 3); const f2 = new Biquad9("bp", 1500 * fk, 4); const f3 = new Biquad9("bp", 2600 * fk, 5);
+  const f1 = new Biquad9("bp", 620 * fk, 3); const f2 = new Biquad9("bp", 1350 * fk, 4); const f3 = new Biquad9("bp", 2500 * fk, 5);
+  const lp = new Biquad9("lp", 900, 0.7);
+  const base = [340, 300, 380][v % 3] * pk;
   let ph = 0;
-  const base = [520, 380, 640][v % 3] * pk;
-  return finish9(render9(0.55, (t) => {
-    const f0 = base * (1.15 - t * 1.2) * (1 + 0.06 * Math.sin(2 * Math.PI * 23 * t));
-    ph += Math.max(60, f0) / SFX_RATE9;
-    const saw = (ph % 1) * 2 - 1;
-    const src = saw * 0.8 + (r() * 2 - 1) * 0.45;
-    const voc = f1.run(src) * 1.2 + f2.run(src) * 0.9 + f3.run(src) * 0.5;
-    return sat9(voc * ad9(t, 0.02, 4.5) * 2.2, 2.2);
-  }, (t) => { f1.set((700 - t * 500) * fk); f2.set((1500 - t * 700) * fk); }), 0.55);
+  return finish9(render9(0.8, (t) => {
+    const f0 = base * Math.max(0.44, 1.08 - t * 1.0) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.03 * Math.sin(2 * Math.PI * 31 * t));
+    ph += f0 / SFX_RATE9;
+    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.4;
+    const cry = (f1.run(src) * 1.2 + f2.run(src) * 0.85 + f3.run(src) * 0.4) * ad9(t, 0.03, 3.4) * 1.6;
+    const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.2) * ad9(t, 0.005, 6.5) * 1.0;
+    const thump = Math.sin(2 * Math.PI * (80 - t * 50) * t) * exp9(t, 9) * 0.8;
+    const goo = t > 0.04 && t < 0.5 && r() < 0.005 ? (r() * 2 - 1) * 0.6 : 0;
+    return sat9(cry * 0.75 + splat + thump + goo, 1.8);
+  }, (t) => { f1.set((620 - t * 260) * fk); f2.set((1350 - t * 450) * fk); lp.set(900 - 600 * Math.min(1, t / 0.5)); }), 0.62);
 }
 
 /** 사람 비명(테란 보병) — 성대 펄스 + 'ㅏ' 세 꼭지(F1 800 · F2 1200 · F3 2500) · 떨림 · 끝이 꺾인다. female 이면 높다. */
