@@ -2968,6 +2968,9 @@ export class GlUnits9 implements VecSink9 {
   /** 칠할 네모(배킹 px · 위가 0 · [x0, y0, x1, y1]) — 분할보기 칸이 판의 일부만 쓸 때 그 밖은 안 지우고 안 칠하고 안 옮긴다
    *  (2026-09, 분할 성능). 가위로 걸고 MSAA 풀기(blit)도 그 네모만이다. 번짐은 이 동안 끈다(칸 크기에서는 안 읽힌다). null 이면 판 전체. */
   clip: [number, number, number, number] | null = null;
+  /** ★ 보이는 네모(기기 px · x0 y0 x1 y1 · 2026-11-02, 요청: "보이는 부분만 칠하게") — 분할 칸(clip)과 달리 번짐·마무리는 그대로 두고 지우기·몸 패스만 가위로 죈다.
+   *  가위 밖은 지난 그림이 남지만 무대 밖이라 안 보인다(손짓 중에는 붓이 null 로 둬 통째로 칠한다 — RMP visRect9 ★). */
+  view: [number, number, number, number] | null = null;
   private swarmTex: WebGLTexture | null = null;
   private stencilBits = 0;
   /** 연기 판을 스텐실로 파서 얹는다 — `mark` 가 건물·공중 유닛을 스텐실에 1 로 찍는다(없으면 안 판다). */
@@ -3079,7 +3082,16 @@ export class GlUnits9 implements VecSink9 {
       const y09 = Math.max(0, Math.floor(bh - this.clip[3])); const y19 = Math.min(bh, Math.ceil(bh - this.clip[1]));
       if (x19 > x09 && y19 > y09) sc9 = [x09, y09, x19 - x09, y19 - y09];
     }
-    if (sc9) { gl.enable(gl.SCISSOR_TEST); gl.scissor(sc9[0], sc9[1], sc9[2], sc9[3]); } else gl.disable(gl.SCISSOR_TEST);
+    let vs9: [number, number, number, number] | null = null;
+    if (!sc9 && this.view) {
+      const v = this.view;
+      const x09 = Math.max(0, Math.floor(v[0])); const x19 = Math.min(bw, Math.ceil(v[2]));
+      const y09 = Math.max(0, Math.floor(bh - v[3])); const y19 = Math.min(bh, Math.ceil(bh - v[1]));
+      if (x19 > x09 && y19 > y09) vs9 = [x09, y09, x19 - x09, y19 - y09];
+    }
+    if (sc9) { gl.enable(gl.SCISSOR_TEST); gl.scissor(sc9[0], sc9[1], sc9[2], sc9[3]); }
+    else if (vs9) { gl.enable(gl.SCISSOR_TEST); gl.scissor(vs9[0], vs9[1], vs9[2], vs9[3]); }
+    else gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const q = this.queue; this.queue = [];

@@ -702,6 +702,51 @@ const XF_PC_GAP9 = typeof location !== "undefined" && /xfgap=(\d+)/.test(locatio
 /** 이 손짓에서 **실시간 원근이 살아 있나**(liveViewOkRef9 의 거울) — 붓이 배킹을 내릴지 가리는 데 쓴다.
  *  모듈 전역인 까닭은 xfMsRef9 와 같다(붓은 React 밖에서 불려 부모의 ref 를 못 본다). */
 const xfLive9 = { on: false };
+/** 손짓(끌기·핀치·휠·관성)이 도는 중인가 — xfGestureRef 의 모듈 거울(붓이 읽는다 · 아래 visRect9 ★). */
+const xfGest9 = { on: false };
+/* ★ **보이는 몫만 칠한다**(2026-11-02, 요청: "지도 상자가 정사각이라 창 아래로 벗어난 부분까지 칠합니다 — 이거까지 하자" → "드래그나 줌 때문에 미리 그리고 있던 건?" →
+   "ㅇㅇ 진행해") — 지도 상자는 정사각(PC 2151²)인데 무대(.scr-fs-stage · overflow hidden)·창은 그보다 낮아(실측 맥북 무대 2151×884) 칠한 화소의 반 넘게 버렸다.
+   그 몫은 손짓 중에는 쓰인다 — 손짓 사이 캔버스를 CSS 로 밀고 당기는 동안 무대 밖이 들어온다. 그래서
+     · 손짓 중(xfGest9)·분할 칸·`#viewclip=0` → null(통째로 칠한다 · 옛길).
+     · 가만히 볼 때 → 캔버스·무대·창의 겹친 네모 + 여유 띠(긴 변의 15% + 24px — 손짓이 막 설 때 첫 장 몫)를 GL 몸(gl9.view)·지형(draw view)이 가위로 죈다.
+       겹친 네모가 캔버스의 85% 를 넘으면 안 죈다(이득 없음).
+   네모는 150ms 마다 · 스크롤·창 크기가 바뀌면 곧장 다시 잰다(getBoundingClientRect). 죄고 있는데 스크롤·크기가 바뀌면 멈춘 화면도 한 장 다시 칠한다(VIS_KICK9 — 새로 드러난
+   몫이 지난 그림으로 남지 않게). */
+const VIEW_CLIP_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])viewclip=0(?=$|[&,])/.test(location.hash);
+/** 캔버스마다 잰 네모(재생기가 여럿일 수 있다) · gen = 스크롤·창 크기 바뀜 세대. */
+const VIS9 = new WeakMap<HTMLCanvasElement, { at: number; gen: number; r: [number, number, number, number] | null }>();
+const VIS_GEN9 = { v: 0 };
+/** 죄는 중인 재생기의 '한 장 다시' — 스크롤·크기가 바뀌면 rAF 한 번에 모아 부른다. */
+const VIS_KICK9: { fns: Set<() => void>; raf: number } = { fns: new Set(), raf: 0 };
+if (typeof window !== "undefined") {
+  const visDirty9 = (): void => {
+    VIS_GEN9.v += 1;
+    if (VIS_KICK9.fns.size && !VIS_KICK9.raf) VIS_KICK9.raf = requestAnimationFrame(() => { VIS_KICK9.raf = 0; for (const f9 of VIS_KICK9.fns) f9(); });
+  };
+  window.addEventListener("scroll", visDirty9, { passive: true, capture: true });
+  window.addEventListener("resize", visDirty9, { passive: true });
+}
+/** 캔버스(CSS px) 안의 칠할 네모 — null 이면 통째로(위 ★). */
+function visRect9(cv: HTMLCanvasElement, cw: number, ch: number): [number, number, number, number] | null {
+  if (VIEW_CLIP_OFF9 || xfGest9.on) { VIS9.delete(cv); return null; }
+  const now9 = performance.now();
+  const e9 = VIS9.get(cv);
+  if (e9 && e9.gen === VIS_GEN9.v && now9 - e9.at < 150) return e9.r;
+  const put9 = (r: [number, number, number, number] | null): [number, number, number, number] | null => { VIS9.set(cv, { at: now9, gen: VIS_GEN9.v, r }); return r; };
+  const r9 = cv.getBoundingClientRect();
+  if (!(r9.width > 0 && r9.height > 0)) return put9(null);
+  let x0 = Math.max(r9.left, 0); let y0 = Math.max(r9.top, 0);
+  let x1 = Math.min(r9.right, window.innerWidth); let y1 = Math.min(r9.bottom, window.innerHeight);
+  const st9 = cv.closest(".scr-fs-stage");
+  if (st9) { const s9 = st9.getBoundingClientRect(); x0 = Math.max(x0, s9.left); y0 = Math.max(y0, s9.top); x1 = Math.min(x1, s9.right); y1 = Math.min(y1, s9.bottom); }
+  if (x1 <= x0 || y1 <= y0) return put9(null);
+  const kx9 = cw / r9.width; const ky9 = ch / r9.height;
+  let lx0 = (x0 - r9.left) * kx9; let ly0 = (y0 - r9.top) * ky9; let lx1 = (x1 - r9.left) * kx9; let ly1 = (y1 - r9.top) * ky9;
+  const m9 = Math.max(lx1 - lx0, ly1 - ly0) * 0.15 + 24;
+  lx0 = Math.max(0, lx0 - m9); ly0 = Math.max(0, ly0 - m9); lx1 = Math.min(cw, lx1 + m9); ly1 = Math.min(ch, ly1 + m9);
+  if ((lx1 - lx0) * (ly1 - ly0) >= cw * ch * 0.85) return put9(null);
+  return put9([lx0, ly0, lx1, ly1]);
+}
 /** GL 안개 기하가 새로 먹였나(2026-10-24 · terrLive9) — 보기가 그대로여도 안개만 바뀐 장을 지형 캔버스에 다시 그리게 하는 표식. */
 const fogGlDirty9 = { v: false };
 /** 요약 시작 소개의 한 사람 몫(경기 초 · 2배속이면 1.5초 · 2026-10-24) — cast9 opts.introCycle · 요약 창 맨 앞. */
@@ -7226,6 +7271,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         /* 분할 칸이면 그 오림 네모만 지우고·칠하고·옮긴다(gl9 clip — 판의 나머지는 버리는 화소다). */
         const pcl9 = PAINT_CLIP9;
         gl9.clip = pcl9 ? [pcl9[0] * Bd, pcl9[1] * Bd, pcl9[2] * Bd, pcl9[3] * Bd] : null;
+        const vis9 = pcl9 ? null : visRect9(cv, cw, ch);   // 보이는 몫만(위 visRect9 ★ · 손짓 중엔 통째로)
+        gl9.view = vis9 ? [vis9[0] * Bd, vis9[1] * Bd, vis9[2] * Bd, vis9[3] * Bd] : null;
         /* ★ GL 지형층(2026-10-23, glTerrain9) — **제 캔버스**(terrRef · 안개 아래 z 5400)에 지도 네 귀(posFrac 의 clipQuad · 유닛과 같은 사상)를 이 장의
            zx·zy 로 옮겨 호모그래피로 그린다(입체면 사변형). 벽띠 배수는 옛 벡터층과 같다(평면 2 · 입체 4). 분할 칸은 같은 가위(pcl9). 기하가 없거나
            (옛 지도 · #glterr=0) 문맥을 못 열면 안 그리고 옛 벡터층으로 물러난다(terrainOff). 배킹은 몸 캔버스와 같은 크기다. */
@@ -7239,7 +7286,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const bk9 = cv.width / Math.max(1, cw);
           const tk9 = pcl9 || TERR_DPR9 === 0 || xfBackK9.k < 1 ? bk9 : Math.max(bk9, Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, TERR_DPR9));
           const tbw9 = Math.round(cw * tk9); const tbh9 = Math.round(ch * tk9);
-          if (!tc9 || !tc9.draw(tg9, q9, tbw9, tbh9, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null), TERR_SHARP9)) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
+          if (!tc9 || !tc9.draw(tg9, q9, tbw9, tbh9, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null), TERR_SHARP9, vis9)) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
         }
         gl9.flush(cv.width, cv.height, cw, ch);   // GL 캔버스가 곧 화면 층이다 — 베끼지 않는다(UnitLayer 의 ★★)
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
@@ -7284,7 +7331,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const tc9 = glTerrCanvas9(tcv9);
       if (!tc9) return false;
       const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];
-      if (!tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, null, fog?.current ?? null, TERR_SHARP9)) return false;
+      if (!tc9.draw(tg9, q9, cv.width, cv.height, cw, ch, pitchedProp ? 4 : 2, null, fog?.current ?? null, TERR_SHARP9, visRect9(cv, cw, ch))) return false;
       xfSet9(tcv9, XF_ID9);
       return true;
     };
@@ -15875,6 +15922,7 @@ export default function ReplayMotionPlayer({
     // 사람의 손짓이다 — 링크가 쥐고 있던 자리를 여기서 놓는다(위 linkHoldRef9).
     linkHoldRef9.current = null;
     xfGestureRef.current = true;
+    xfGest9.on = true;   // 붓은 통째로 칠한다(visRect9 ★)
     glSprHold9(true);   // 2D 스프라이트 판 — 손짓 동안 굽기를 줄이고 미리 찍기를 쉰다(그림은 배율과 무관한 한 장 · gl9 SPR_CAP ★)
     xfApplyAtRef9.current = performance.now();
     xfBackK9.k = 1;   // 새 손짓은 제 배킹에서 시작한다 — 무거우면 그 안에서 내려간다(위 ★)
@@ -15932,6 +15980,7 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(zoomRef.current, panRef.current);
     miniPaintRef.current?.(zoomRef.current, panRef.current);
     xfGestureRef.current = false;
+    xfGest9.on = false;
     glSprHold9(false);   // 놓았다 — 굽기 예산·미리 찍기를 되돌린다
     if (mapRef.current) fogBandSet9(mapRef.current, null);   // 손을 뗐다 — 막 띠를 걷는다(위 ★)
     viewDiagPush9("commit", `z${zoomRef.current.toFixed(2)} ${panRef.current.x.toFixed(1)},${panRef.current.y.toFixed(1)}`);
@@ -18335,6 +18384,12 @@ export default function ReplayMotionPlayer({
       }
     }
   };
+  /* 보이는 몫 죄기(visRect9 ★) — 스크롤·창 크기가 바뀌면 멈춘 화면도 한 장 다시(새로 드러난 몫이 지난 그림으로 남지 않게). */
+  useEffect(() => {
+    const f9 = (): void => { if (!xfGest9.on) paintFnRef9.current?.(tLiveRef9.current); };
+    VIS_KICK9.fns.add(f9);
+    return () => { VIS_KICK9.fns.delete(f9); };
+  }, []);
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
     const bw09 = pNow();

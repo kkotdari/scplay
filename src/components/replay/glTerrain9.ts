@@ -695,11 +695,11 @@ export class GlTerrCanvas9 {
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.dead = true; });
   }
   /** 마지막 장의 인자 — perf-check `--sharpshot` 이 같은 장을 세기만 바꿔 다시 그려 읽는다(카메라가 움직여도 같은 그림으로 견준다). */
-  private last: [TerrainGeom9, number[], number, number, number, number, number, [number, number, number, number] | null, GlFog9 | null] | null = null;
+  private last: [TerrainGeom9, number[], number, number, number, number, number, [number, number, number, number] | null, GlFog9 | null, [number, number, number, number] | null] | null = null;
   /** 진단 — 마지막 장을 세기 sharp 로 다시 그리고 PNG 데이터 URL 을 돌려준다(그린 그 작업 안에서 읽는다). */
   redrawLast(sharp: number): string | null {
     const a = this.last;
-    if (!a || !this.draw(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], sharp)) return null;
+    if (!a || !this.draw(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], sharp, null)) return null;   // 진단 베끼기는 통째로(보이는 네모 없이)
     return this.canvas.toDataURL("image/png");
   }
   /** 위 ★ 또렷이의 베낀 판(텍스처 한 장 · 4B/화소) — 크기가 바뀌면 다시 짓는다. MSAA 판을 따로 두지 않고 그린 화면을 copyTexSubImage2D 로 베낀다(다중표본은 베낄 때 풀린다). */
@@ -716,9 +716,11 @@ export class GlTerrCanvas9 {
   }
   /** 한 장 — bw·bh 배킹(기기 px · 몸 캔버스와 같게) · cw·ch CSS px · quad 지도 네 귀(CSS px) · clip 가위(CSS px 왼위·오른아래 · 분할 칸) ·
    *  sharp 위 ★ 또렷이 세기(0 끔 · 분할 칸(clip)은 늘 끈다). */
-  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null, sharp = 0): boolean {
+  draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null, sharp = 0,
+    /** 보이는 네모(CSS px · gl9 view 와 같은 ★) — clip 이 없을 때 가위로 죈다(안개·또렷이는 그대로 · 또렷이는 그 네모만 베낀다). */
+    view: [number, number, number, number] | null = null): boolean {
     if (this.dead) return false;
-    this.last = [G, quad, bw, bh, cw, ch, wallScale, clip, fog];
+    this.last = [G, quad, bw, bh, cw, ch, wallScale, clip, fog, view];
     const gl = this.gl; const cv = this.canvas;
     if (cv.width !== bw) cv.width = bw;
     if (cv.height !== bh) cv.height = bh;
@@ -730,14 +732,22 @@ export class GlTerrCanvas9 {
       if (x1 <= x0 || y1 <= y0) return true;
       gl.enable(gl.SCISSOR_TEST); gl.scissor(x0, y0, x1 - x0, y1 - y0);
     } else gl.disable(gl.SCISSOR_TEST);
+    let vs: [number, number, number, number] | null = null;
+    if (!clip && view) {
+      const k = bw / Math.max(1, cw);
+      const x0 = Math.max(0, Math.floor(view[0] * k)); const x1 = Math.min(bw, Math.ceil(view[2] * k));
+      const y0 = Math.max(0, Math.floor(bh - view[3] * k)); const y1 = Math.min(bh, Math.ceil(bh - view[1] * k));
+      if (x1 > x0 && y1 > y0) { vs = [x0, y0, x1 - x0, y1 - y0]; gl.enable(gl.SCISSOR_TEST); gl.scissor(vs[0], vs[1], vs[2], vs[3]); }
+    }
     gl.clearColor(0, 0, 0, 0); gl.clearStencil(0); gl.stencilMask(0xff);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog);
-    gl.disable(gl.SCISSOR_TEST);
+    if (!vs) gl.disable(gl.SCISSOR_TEST);
     if (sharp > 0 && !clip && this.sharp) {
       const g2 = gl as WebGL2RenderingContext; const sp = this.sharp;
       g2.activeTexture(g2.TEXTURE0); g2.bindTexture(g2.TEXTURE_2D, this.texOf(bw, bh));
-      g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
+      if (vs) g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, vs[0], vs[1], vs[0], vs[1], vs[2], vs[3]);   // 보이는 네모만 베끼고 그 안만 샤픈(가위 그대로)
+      else g2.copyTexSubImage2D(g2.TEXTURE_2D, 0, 0, 0, 0, 0, bw, bh);
       g2.disable(g2.BLEND); g2.disable(g2.STENCIL_TEST); g2.disable(g2.DEPTH_TEST);
       g2.useProgram(sp.prog);
       g2.uniform1i(sp.uT, 0); g2.uniform1f(sp.uAmt, Math.min(1, sharp));
@@ -748,6 +758,7 @@ export class GlTerrCanvas9 {
       g2.bindTexture(g2.TEXTURE_2D, null);
       g2.enable(g2.BLEND);
     }
+    gl.disable(gl.SCISSOR_TEST);
     return true;
   }
 }
