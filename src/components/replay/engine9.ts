@@ -213,6 +213,8 @@ export const DEFAULT_SPEED = 3.2;
 
 /** ★ 공격 속도 업그레이드(2026-11-02, 요청: "공속업글 아드레날린에 따라 속도 빨라져야함") — 원작은 저글링의 Adrenal Glands 하나뿐이다:
  *  쿨다운 8 → 6 프레임(× 0.75). 배운 시각부터 휘두르는 박자(자세 · 효과음)가 빨라진다. */
+/** 스파이더 마인 발동 — 터지기 이만큼(초) 앞부터 유닛 op 에 arm(효과음이 발동 기계음을 낸다 · 2026-11-02 "마인 발동 소리 중간 높이의 기계음"). */
+export const MINE_ARM_SEC9 = 0.45;
 export function atkCdK9(unit: string, atSec: number, ups: [number, string, number][] | undefined): number {
   if (unit !== "Zergling" || !ups) return 1;
   return ups.some(([sec, name]) => name === "Adrenal Glands" && sec <= atSec) ? 0.75 : 1;
@@ -2109,6 +2111,8 @@ export type UnitDrawOp = {
   pickTag?: number;
   /** 지금 무슨 상태인가(요청: 건설·변태 등 모든 상태 노출) — 툴팁 첫 줄에 그대로 뜬다. */
   pickState?: string;
+  /** 스파이더 마인이 발동 중(터지기 MINE_ARM_SEC9 앞부터) — 효과음 sfx9Cues 가 기계음을 낸다(2026-11-02). */
+  arm?: boolean;
   /** 광물을 캐는 일꾼(ST_GATHER)의 종류 — 효과음 '채집'(sfx9Cues · 2026-10-22 · 같은 날 "프로브랑 SCV 는 소리가 달라야" → 참/거짓에서 종류로). */
   gath?: "SCV" | "Probe" | "Drone";
   /** 걸려 있는 마법(키) — 팝업이 그 효과와 색까지 적는다. */
@@ -7787,7 +7791,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         kind: "burst", fx: hfx9, fy: hfy9, lift: 0, bld: false,
         size: (FOOTPRINT[unit] ?? [3, 2])[0] * (mapW9 / grid.width) * 0.5,
         ph: (t - d9) / (BLD_FX_SEC * 0.6), pr: 1 / (BLD_FX_SEC * 0.6),
-        mat: "cocoon", seed: i + 29, tier: 3,
+        mat: "cocoon", seed: i + 29, tier: 3, sub: "done",   // 완공 부화 — 효과음은 sfx9Cues 의 zergDone(고치 → 건물)이 내므로 이 터짐은 소리를 안 낸다
       });
     });
     mines.forEach((m, mi) => {
@@ -7796,6 +7800,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       if (m.boom === 0 || t < m.boom) {
         unitOps.push({
           fx: mfx, fy: mfy, z: 960 + mi, kind: "mine",
+          ...(m.boom > 0 && t >= m.boom - MINE_ARM_SEC9 ? { arm: true } : {}),   // 발동(터지기 직전 — 효과음 sfx9Cues 의 ★ 마인 발동)
           viewYaw: viewYawOf(m.x, m.y), flat: !pitched, pitch: pitched,
           // 스파이더 마인은 원작 분류대로 소형(전수조사: dot 눈금 0.8배였다).
           sizePx: unitGlyphPx("mine", "mine", 0, m.y),

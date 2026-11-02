@@ -2863,3 +2863,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   바뀐 장에 eggStart(eggWas · 앞 기록 2초 + 배속 몫 안) · 유닛 cocoon burst(알 깨짐) eggPop → eggHatch. eggPop 조리법은 남겨 둔다(건물 cocoon burst).
 - (같은 날) "테란 건물 착공 시(애드온 포함) 낮은 쇠울림 소리 · 텅" — 새 `metalClang9`(어긋난 판 울림 넷 98Hz × 1·2.76·5.40·8.93 + 쇠 딱 + 둔한 쿵 · 1.3초).
   sfx9Cues: 건물 op(pickKey 'b' · 몸 ≠ warpin) 의 pickState "건설 중 N%" 열쇠가 **처음 보인 장의 N ≤ 5** 일 때만(화면을 옮겨 짓던 것을 만나면 안 울림).
+- (같은 날) "마인 발동 소리 중간 높이의 기계음" — engine9 마인 유닛 op 에 `arm`(터지기 `MINE_ARM_SEC9` 0.45초 앞부터) · 새 `mineArm9`(걸쇠 딸깍 둘 + 모터 윙 톱니 520→780Hz + 쉭 · 0.42초) ·
+  sfx9Cues 마인 op 의 arm 이 선 첫 장에 mineArm(터질 때는 종전 boom).
+- 덤 고침: 저그 건물 **완공 부화** burst(engine9 · mat cocoon · tier 3)가 알 깨짐(eggHatch)으로 울려 새 zergDone 과 겹쳤다 — 그 op 에 `sub: "done"` · 효과음은 건너뛴다.

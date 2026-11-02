@@ -105,7 +105,7 @@ export class SfxCues9 {
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
           else if (mat === "zerg") k = "squeal";
-          else if (mat === "cocoon") k = "eggHatch";   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop)
+          else if (mat === "cocoon") { if (op.sub === "done") break; k = "eggHatch"; }   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
           else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.tmech ? "boom" : "zap";
           else k = "boom";
           play(k, op.fx, op.fy);
@@ -208,6 +208,8 @@ export class SfxCues9 {
       if (ripe) play("zergDone", u.fx, u.fy);
       if (eggGo) play("eggStart", u.fx, u.fy);
       if (clang) play("metalClang", u.fx, u.fy);
+      /* ★ 마인 발동(2026-11-02, 요청: "마인 발동 소리 중간 높이의 기계음") — 유닛 op 의 arm(engine9 · 터지기 0.45초 앞)이 선 첫 장. 터질 때는 종전대로 boom(dom mine). */
+      if (u.kind === "mine" && u.arm && fresh(`a${Math.round(u.fx * 4096)}:${Math.round(u.fy * 4096)}`)) play("mineArm", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
         const down = !!u.pickState && u.pickState.includes("땅속");

@@ -801,13 +801,34 @@ function metalClang9(v: number): Float32Array {
   }), 0.7);
 }
 
+/** ★ 스파이더 마인 발동 — 중간 높이 기계음(2026-11-02, 요청: "마인 발동 소리 중간 높이의 기계음") — 딸깍 둘(걸쇠) + 모터 윙(톱니파 520 → 780Hz 로 오르며 거른 소리 ·
+ *  빠른 떨림) + 다리 펴지는 짧은 쉭. 0.42초 · 터지기 직전(engine9 MINE_ARM_SEC9). */
+function mineArm9(v: number): Float32Array {
+  const r = rng9(1951 + v);
+  const bp = new Biquad9("bp", 900, 2);
+  const hp = new Biquad9("hp", 2500, 0.8);
+  const k = [1, 1.07, 0.94][v % 3];
+  let ph = 0;
+  return finish9(render9(0.42, (t) => {
+    ph += (520 + 260 * Math.min(1, t / 0.3)) * k * (1 + 0.04 * Math.sin(2 * Math.PI * 45 * t)) / SFX_RATE9;
+    const saw = ((ph % 1) * 2 - 1);
+    const motor = bp.run(saw) * ad9(t, 0.03, 4.5) * 1.2;
+    const c1 = t < 0.012 ? hp.run(r() * 2 - 1) * (1 - t / 0.012) : 0;
+    const t2 = t - 0.06;
+    const c2 = t2 > 0 && t2 < 0.01 ? (r() * 2 - 1) * (1 - t2 / 0.01) * 0.8 : 0;
+    const t3 = t - 0.28;
+    const shk = t3 > 0 ? hp.run(r() * 2 - 1) * Math.exp(-t3 * 30) * 0.4 : 0;
+    return sat9(motor + c1 + c2 + shk, 1.4);
+  }, (t) => bp.set((900 + 400 * Math.min(1, t / 0.3)) * k)), 0.55);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -826,4 +847,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
+  mineArm: [3, mineArm9],
 };
