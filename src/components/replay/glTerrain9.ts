@@ -22,6 +22,7 @@
    미니맵·내려받는 PNG·썸네일은 종전대로 캔버스(mapTiles.drawMapGrid)다 — **같은 기하**를 쓰므로 선이 같다. `#glterr=0` 으로 끈다(옛 벡터층). */
 import type { TerrainGeom9, TerrLayer9 } from "../../utils/terrainGeom";
 import type { Loop } from "../../utils/contour";
+import { trianglesOfLoops9 } from "../../utils/earcut9";
 
 /** ★ 안개 눈 원의 결(2026-11-02, 요청: "피시 낮음에서 덜어낼 요소 덜어내줘" · "안개각 줄이기도 효과 있는 듯?") — 눈 원 하나를 둘레 px 마다 한 조각(px)으로, 많아야 max 조각.
  *  눈이 수백(전투 화면 700+)이고 눈 배열이 바뀔 때마다 통째로 다시 지으므로(88k 정점) 조각 수가 곧 CPU·업로드 몫이다. RMP 가 기기 단으로 놓는다(낮음 12px·24 · 그 위 6px·40). */
@@ -182,7 +183,12 @@ void main() {
 export interface GlFog9 { loops: Loop[]; key: number; eyes: Float32Array | null; rgb: [number, number, number]; dim: number }
 
 /** 한 갈래의 GPU 몫 — 채우기 부채꼴(정점 수) · 띠(정점 수) · 타일 자 상자. */
-interface Bufs9 { fill: WebGLBuffer | null; nFill: number; strip: WebGLBuffer | null; nStrip: number; box: [number, number, number, number] }
+interface Bufs9 {
+  fill: WebGLBuffer | null; nFill: number; strip: WebGLBuffer | null; nStrip: number; box: [number, number, number, number];
+  /** 미리 나눈 삼각형(아래 ★ 지형 삼각) — 지어지기 전·못 지으면 null(옛 부채꼴+덮기). */
+  tri?: { vb: WebGLBuffer; ib: WebGLBuffer; n: number } | null;
+  loops?: Loop[];
+}
 
 /** 고리들 → 부채꼴 삼각형 정점(x,y). 고리마다 첫 점을 꼭짓점으로 (p0, pi, pi+1). 홀짝 스텐실에 찍으므로 방향·오목은 상관없다. */
 function fanOf(loops: Loop[]): Float32Array {
@@ -300,7 +306,7 @@ export class GlTerrain9 {
   private nAttr = 8;
   private bufs: WebGLBuffer[] = [];
   /** 진단 — 올린 정점 수 · 올리는 데 든 ms · 지난 장의 드로 콜. */
-  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0, fogFull: 0 };
+  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0, fogFull: 0, triMs: 0, triN: 0 };
   /** 눈 원 결을 바꾼 횟수(FOG_EYE_Q9.ver) — 바뀌면 다음 장에 다시 짓는다. */
   private eyeQv = -1;
   /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
@@ -326,6 +332,34 @@ export class GlTerrain9 {
     this.highp9 = !!hp9 && hp9.precision >= 16;
   }
   /** 지도가 갈리면 GPU 몫을 다시 짓는다(기하는 지도마다 한 번 · 여기도 한 번). */
+  /* ★ **지형 삼각**(2026-11-02, 요청: "겹쳐 칠하기 줄이기 2단계") — 면(땅·고도 단·벽띠·절벽·램프·타일결)을 부채꼴 스텐실 + 상자 덮기(배율 8 이면 화면 전체 한 장씩)
+     대신 **미리 나눈 삼각형**으로 한 번에 칠한다(겹침 없음 · 그 면의 넓이만큼만). 고리는 홀짝으로 바깥·구멍을 묶어 earcut(utils/earcut9) — 나누기 전에 0.003칸
+     (배율 8 에서 1화소 아래)로 솎는다(매끈한 등고선 10만 점 → 1,273점 · 36ms). 지도를 받은 뒤 **한 층씩 틈틈이**(setTimeout) 짓고, 다 짓기 전의 층은 옛 길로 그린다.
+     인덱스는 Uint32(WebGL2 · WebGL1 은 OES_element_index_uint 있을 때만). `#terrtri=0` 옛길. 띠(물가 그늘·마루 테)와 램프 파냄은 스텐실 그대로(1단계 coverStrip). */
+  private triGen = 0;
+  private triQueue(G: TerrainGeom9): void {
+    if (TERR_TRI_OFF9) return;
+    const gl = this.gl;
+    const u32 = typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext ? true : !!gl.getExtension("OES_element_index_uint");
+    if (!u32) return;
+    const gen = (this.triGen += 1);
+    const jobs: Bufs9[] = [this.land, ...this.levels, ...this.cliffs, ...this.ramps].filter((b): b is Bufs9 => !!b && !!b.loops && b.loops.length > 0);
+    const step = (): void => {
+      if (gen !== this.triGen || this.geom !== G) return;   // 지도가 바뀌었다 — 버린다
+      const b = jobs.shift(); if (!b) return;
+      const t0 = performance.now();
+      const r = trianglesOfLoops9(b.loops!, 0.003);
+      if (r.ok && r.idx.length > 0) {
+        const vb = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, r.pos, gl.STATIC_DRAW);
+        const ib = gl.createBuffer()!; gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, r.idx, gl.STATIC_DRAW);
+        this.bufs.push(vb, ib); this.stat.bytes += r.pos.byteLength + r.idx.byteLength;
+        b.tri = { vb, ib, n: r.idx.length };
+      }
+      this.stat.triMs += performance.now() - t0; this.stat.triN += 1;
+      if (jobs.length) setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
+  }
   private ensure(G: TerrainGeom9): void {
     if (this.geom === G) return;
     const gl = this.gl; const t0 = performance.now();
@@ -340,7 +374,7 @@ export class GlTerrain9 {
       if (loops.length === 0) return null;
       const f = fanOf(loops); const s = strip ? stripOf(loops) : new Float32Array(0);
       this.stat.verts += f.length / 2 + s.length / 4;
-      return { fill: up(f), nFill: f.length / 2, strip: up(s), nStrip: s.length / 4, box: boxOf(loops, 1.5) };
+      return { fill: up(f), nFill: f.length / 2, strip: up(s), nStrip: s.length / 4, box: boxOf(loops, 1.5), tri: null, loops };
     };
     const ly = (l: TerrLayer9, strip: boolean): Bufs9 | null => mk(l.loops, strip);
     this.land = ly(G.land, true);
@@ -348,6 +382,7 @@ export class GlTerrain9 {
     this.cliffs = G.cliffs.map((l) => ly(l, false));
     this.ramps = G.ramps.map((l) => ly(l, false));
     this.ramp = G.rampLoops ? mk(G.rampLoops, true) : null;
+    this.triQueue(G);
     if (this.tex) { gl.deleteTexture(this.tex); this.tex = null; }
     if (this.cls) { gl.deleteTexture(this.cls); this.cls = null; }
     {   // 질감 결 갈래 판(위 TERR_GRAIN9 ★)
@@ -528,6 +563,38 @@ export class GlTerrain9 {
       }
     };
     const begin = (): void => { gl.colorMask(false, false, false, false); };
+    /** 나눈 삼각형 그대로(위 ★ 지형 삼각) — 스텐실은 부른 쪽이 건다. */
+    const triGeom = (b: Bufs9, ox: number, oy: number): void => {
+      const t = b.tri!;
+      gl.uniform2f(this.loc.uOff, ox, oy);
+      gl.bindBuffer(gl.ARRAY_BUFFER, t.vb);
+      gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+      gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, t.ib);
+      gl.drawElements(gl.TRIANGLES, t.n, gl.UNSIGNED_INT, 0); this.stat.draws += 1;
+      gl.uniform2f(this.loc.uOff, 0, 0);
+    };
+    /** 면 바로 칠하기(스텐실 안 건드림 · 램프 파냄이면 그 비트 0 인 자리만). */
+    const triFill = (b: Bufs9, paint: () => void, ox = 0, oy = 0, cut = false): void => {
+      nCover9 += 1;
+      const skip9 = TERR_DBG9 >= 0 && nCover9 > TERR_DBG9;
+      gl.colorMask(!skip9, !skip9, !skip9, !skip9);
+      gl.stencilMask(0x00);
+      if (cut) gl.stencilFunc(gl.EQUAL, 0, 0x02); else gl.stencilFunc(gl.ALWAYS, 0, 0xff);
+      gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+      paint();
+      triGeom(b, ox, oy);
+      gl.stencilMask(0xff); gl.colorMask(true, true, true, true);
+    };
+    const tri = (b: Bufs9 | null): boolean => !!b && !!b.tri && !TERR_TRI_OFF9;
+    /** 램프 비트(0x02) 비우기 — 램프 기하로(상자 대신). */
+    const rampClear = (): void => {
+      if (!this.ramp) return;
+      gl.colorMask(false, false, false, false);
+      gl.stencilMask(0x02); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO);
+      fanGeom(this.ramp); stripGeom(this.ramp, 0.35);
+      gl.stencilMask(0xff); gl.colorMask(true, true, true, true);
+    };
 
     gl.enable(gl.STENCIL_TEST);
     gl.stencilMask(0xff);
@@ -546,8 +613,8 @@ export class GlTerrain9 {
     if (this.land) {
       begin(); stripStencil(this.land, 0x01, 0x01, lip);
       coverStrip(this.land, false, () => col([0, 0, 0], 0.30), lip);
-      begin(); fanStencil(this.land, 0x01, 0, 0);
-      cover(this.land, false, () => col(G.land.rgb, 1));
+      if (tri(this.land)) triFill(this.land, () => col(G.land.rgb, 1));
+      else { begin(); fanStencil(this.land, 0x01, 0, 0); cover(this.land, false, () => col(G.land.rgb, 1)); }
     }
 
     // ③ 고도 단 — 벽띠 두 겹(램프 둘레 파냄) → 제 단 색 → 마루 테(램프 둘레 파냄).
@@ -556,12 +623,20 @@ export class GlTerrain9 {
     for (let L = 1; L <= 3; L += 1) {
       const b = this.levels[L - 1]; const lay = G.levels[L - 1];
       if (!b || !lay || lay.loops.length === 0) continue;
-      begin(); fanStencil(b, 0x01, 0, wallUnit * 0.45); rampCut();
-      cover(b, !!this.ramp, () => col([6, 10, 20], 0.30));
-      begin(); fanStencil(b, 0x01, 0, wallUnit); rampCut();
-      cover(b, !!this.ramp, () => col([6, 10, 20], 0.14));
-      begin(); fanStencil(b, 0x01, 0, 0);
-      cover(b, false, () => col(lay.rgb, 1));
+      if (tri(b)) {
+        if (this.ramp) { begin(); rampCut(); }
+        triFill(b, () => col([6, 10, 20], 0.30), 0, wallUnit * 0.45, !!this.ramp);
+        triFill(b, () => col([6, 10, 20], 0.14), 0, wallUnit, !!this.ramp);
+        rampClear();
+        triFill(b, () => col(lay.rgb, 1));
+      } else {
+        begin(); fanStencil(b, 0x01, 0, wallUnit * 0.45); rampCut();
+        cover(b, !!this.ramp, () => col([6, 10, 20], 0.30));
+        begin(); fanStencil(b, 0x01, 0, wallUnit); rampCut();
+        cover(b, !!this.ramp, () => col([6, 10, 20], 0.14));
+        begin(); fanStencil(b, 0x01, 0, 0);
+        cover(b, false, () => col(lay.rgb, 1));
+      }
       begin(); stripStencil(b, 0x01, 0x01, rim); rampCut();
       coverStrip(b, !!this.ramp, () => col([255, 255, 255], 0.34), rim);
     }
@@ -569,18 +644,21 @@ export class GlTerrain9 {
     for (let L = 1; L <= 3; L += 1) {
       const b = this.cliffs[L - 1]; const lay = G.cliffs[L - 1];
       if (!b || !lay || lay.loops.length === 0) continue;
-      begin(); fanStencil(b, 0x01, 0, 0); cover(b, false, () => col(lay.rgb, 1));
+      if (tri(b)) triFill(b, () => col(lay.rgb, 1));
+      else { begin(); fanStencil(b, 0x01, 0, 0); cover(b, false, () => col(lay.rgb, 1)); }
     }
     for (let L = 0; L <= 3; L += 1) {
       const b = this.ramps[L]; const lay = G.ramps[L];
       if (!b || !lay || lay.loops.length === 0) continue;
-      begin(); fanStencil(b, 0x01, 0, 0); cover(b, false, () => col(lay.rgb, 1));
+      if (tri(b)) triFill(b, () => col(lay.rgb, 1));
+      else { begin(); fanStencil(b, 0x01, 0, 0); cover(b, false, () => col(lay.rgb, 1)); }
     }
     // ⑥ 타일결 — 땅 안에만 0.62.
     if (this.tex && this.land) {
-      begin(); fanStencil(this.land, 0x01, 0, 0);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex);
-      cover(this.land, false, () => { gl.uniform1f(this.loc.uMode, 1); gl.uniform4f(this.loc.uCol, 0, 0, 0, 0.62); });
+      const paint9 = (): void => { gl.uniform1f(this.loc.uMode, 1); gl.uniform4f(this.loc.uCol, 0, 0, 0, 0.62); };
+      if (tri(this.land)) triFill(this.land, paint9);
+      else { begin(); fanStencil(this.land, 0x01, 0, 0); cover(this.land, false, paint9); }
       gl.uniform1f(this.loc.uMode, 0);
     }
     // ⑦ 질감 결(위 TERR_GRAIN9 ★) — 지도 사각 전체에 2배 곱 한 겹(물·절벽도 제 갈래로). 알파는 그대로.
@@ -751,6 +829,8 @@ const COPY_FS9 = `
 precision mediump float;
 uniform sampler2D uT;
 void main() { gl_FragColor = texelFetch(uT, ivec2(gl_FragCoord.xy), 0); }`;
+/** `#terrtri=0` — 지형 삼각(GlTerrain9 ★ 지형 삼각)을 끈다(옛 부채꼴+덮기). */
+const TERR_TRI_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrtri=0(?=$|[&,])/.test(location.hash);
 /** `#terrcache=0` — 지형 판 재사용을 끈다(견줌 · GlTerrCanvas9 ★ 지형 판). */
 const TERR_CACHE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrcache=0(?=$|[&,])/.test(location.hash);
 const SHARP_FS9 = `
