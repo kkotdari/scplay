@@ -2497,6 +2497,9 @@
   pointer-events: none; white-space: nowrap;
 }
 .scr-motion-ffbadge-ic { font-size: 13px; letter-spacing: -3px; padding-right: 3px; }
+/* 세로 전체화면(2026-11-02, 지적: "배속 배지가 세로 전체화면에선 안 나오고") — 무대 위끝은 노치(--safe-top)와 위에 붙은 전광판(.scr-fs-roster-fixed) 밑이라 18px 자리가 가려졌다.
+   전광판 아래 지도 위쪽(무대의 30%)에 띄운다 · 가로(넓은 꼴 is-wide)는 전광판이 오른아래라 종전 자리. */
+.scr-fs-layer.is-fs:not(.is-wide) .scr-motion-ffbadge { top: 30%; }
 .scr-motion-ffbadge-ic.is-back { transform: scaleX(-1); }
 .scr-motion-qualitynote {
   position: absolute; right: 14px; top: 14px;

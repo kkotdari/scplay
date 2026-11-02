@@ -19244,6 +19244,7 @@ export default function ReplayMotionPlayer({
     if (holdSeekedRef.current) {
       if (holdOnRef.current) {
         holdOnRef.current = false;
+        setHoldFf9(0);   // 배지도 여기서 걷는다(2026-11-02, 지적: "윈도우모드랑 가로 전체화면에서는 안 없어져" — 이 손이 먼저 holdOnRef 를 내리면 창의 pointerup 안전망이 일찍 빠져 배지가 남았다)
         if (holdWasPlaying.current) setPlaying(true);
       }
       dragRef.current = null;
@@ -19487,6 +19488,7 @@ export default function ReplayMotionPlayer({
       holdApiRef.current.stop();
       if (!holdOnRef.current) return;
       holdOnRef.current = false;
+      setHoldFf9(0);   // 키 감기의 배지도 걷는다(같은 지적)
       if (holdWasPlaying.current) setPlaying(true);
     };
     const onKey = (e: KeyboardEvent) => {
