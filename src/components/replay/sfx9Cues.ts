@@ -104,7 +104,7 @@ export class SfxCues9 {
           /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
-          else if (mat === "zerg") k = "squeal";
+          else if (mat === "zerg") k = op.by === "Lurker" ? "lurkerDie" : "squeal";   // 럴커 — 낮은 비명 + 폭발(2026-11-02)
           else if (mat === "cocoon") { if (op.sub === "done") break; k = "eggHatch"; }   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
           else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.by === "Reaver" ? "reaverBreak" : op.by === "Observer" ? "obsBoom" : op.tmech ? "boom" : "zap";   // 리버 — 드라군보다 울림 있게(2026-11-02)
           else k = op.by === "Science Vessel" ? "vesselBoom" : "boom";   // 베슬 — 둥둥둥 세 번(2026-11-02)

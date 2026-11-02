@@ -901,13 +901,33 @@ function obsBoom9(v: number): Float32Array {
   }, (t) => lp.set(3000 * Math.exp(-t * 5) + 400)), 0.66);
 }
 
+/** ★ 럴커 사망(2026-11-02, 요청: "럴커 사망 소리는 낮은 비명과 폭발") — 낮은 괴물 비명(톱니 성대 210 → 90Hz 로 꺾이며 떨고 · 낮은 꼭지 셋 450·950·1900Hz · 거친 숨)
+ *  + 생체 폭발(깊은 쿵 60 → 35Hz + 저역 살덩이 터짐 + 흩어지는 철퍽). 0.9초. */
+function lurkerDie9(v: number): Float32Array {
+  const r = rng9(2251 + v); const br = brown9(r);
+  const f1 = new Biquad9("bp", 450, 3); const f2 = new Biquad9("bp", 950, 4); const f3 = new Biquad9("bp", 1900, 5);
+  const lp = new Biquad9("lp", 700, 0.7);
+  const base = [210, 185, 235][v % 3];
+  let ph = 0;
+  return finish9(render9(0.9, (t) => {
+    const f0 = base * Math.max(0.43, 1.05 - t * 1.1) * (1 + 0.08 * Math.sin(2 * Math.PI * 17 * t));
+    ph += f0 / SFX_RATE9;
+    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.4;
+    const howl = (f1.run(src) * 1.2 + f2.run(src) * 0.8 + f3.run(src) * 0.35) * ad9(t, 0.03, 2.8) * 1.7;
+    const thump = Math.sin(2 * Math.PI * (60 - t * 28) * t) * exp9(t, 6) * 1.0;
+    const blast = lp.run(br() * 1.8) * ad9(t, 0.006, 5) * 0.9;
+    const splat = t > 0.08 && t < 0.6 && r() < 0.004 ? (r() * 2 - 1) * 0.7 : 0;
+    return sat9(howl * 0.8 + thump + blast + splat, 1.8);
+  }, (t) => { f1.set(450 - t * 160); f2.set(950 - t * 300); }), 0.82);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -928,5 +948,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
   mineArm: [3, mineArm9], reaverBreak: [2, reaverBreak9], vesselBoom: [2, vesselBoom9],
   bioLoad: [2, (v) => bioHold9(v, true)], bioUnload: [2, (v) => bioHold9(v, false)],
-  obsBoom: [2, obsBoom9],
+  obsBoom: [2, obsBoom9], lurkerDie: [3, lurkerDie9],
 };
