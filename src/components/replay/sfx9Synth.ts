@@ -893,11 +893,12 @@ function obsBoom9(v: number): Float32Array {
   const lp = new Biquad9("lp", 2000, 0.7);
   const f0 = 1400 * [1, 1.04, 0.96][v % 3];
   return finish9(render9(1.2, (t) => {
-    const pop = lp.run(br() * 1.3 + (r() * 2 - 1) * 0.6) * ad9(t, 0.004, 14) * 0.9 + Math.sin(2 * Math.PI * (110 - t * 140) * t) * exp9(t, 22) * 0.6;
+    /* "퍽보다는 펑"(같은 날 되요청) — 터짐이 둥글게 퍼지도록 몸을 늘렸다: 잡음 터짐 잦음 14 → 6 · 저역 3kHz → 400Hz 로 닫히며 · 쿵 95 → 50Hz 잦음 22 → 7. */
+    const pop = lp.run(br() * 1.6 + (r() * 2 - 1) * 0.5) * ad9(t, 0.005, 6) * 1.0 + Math.sin(2 * Math.PI * (95 - t * 55) * t) * exp9(t, 7) * 0.8;
     const env = t < 0.015 ? t / 0.015 : t < 0.46 ? 1 : Math.exp(-(t - 0.46) * 4.5);
     const beep = (Math.sin(2 * Math.PI * f0 * t) + Math.sin(4 * Math.PI * f0 * t) * 0.06) * env * 0.28;
     return sat9(pop, 1.3) + beep;
-  }), 0.6);
+  }, (t) => lp.set(3000 * Math.exp(-t * 5) + 400)), 0.66);
 }
 
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
