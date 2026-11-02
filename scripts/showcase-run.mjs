@@ -48,6 +48,16 @@ if (!has("--skip-before")) {
     run("git", ["worktree", "add", "-f", "--detach", OLD, OLD_REV], HERE);
     run("git", ["apply", join(HERE, "scripts", "showcase", "old0641-nofog.patch")], OLD);
   }
+  /* 패치가 바뀌었으면(2026-11-02 · terrsoft 를 더했다) 이미 선 옛 트리에도 새로 얹는다 — 옛 트리의 diff 와 패치 파일을 견준다(줄 끝 LF 로 접어). */
+  {
+    const want = readFileSync(join(HERE, "scripts", "showcase", "old0641-nofog.patch"), "utf8").replace(/\r\n/g, "\n").trim();
+    const have = execFileSync("git", ["diff", "--", "src"], { cwd: OLD, encoding: "utf8" }).replace(/\r\n/g, "\n").trim();
+    if (want !== have) {
+      log("옛 트리 패치 갱신");
+      run("git", ["checkout", "--", "src"], OLD);
+      run("git", ["apply", join(HERE, "scripts", "showcase", "old0641-nofog.patch")], OLD);
+    }
+  }
   const nm = join(OLD, "node_modules");
   let linked = false; try { linked = lstatSync(nm).isSymbolicLink() || existsSync(join(nm, "react")); } catch { linked = false; }
   if (!linked) symlinkSync(join(HERE, "node_modules"), nm, process.platform === "win32" ? "junction" : "dir");

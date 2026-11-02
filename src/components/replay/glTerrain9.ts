@@ -72,6 +72,21 @@ void main() {
   // 분모(p.z)를 w 에 싣는다 — 원근 보정 보간(타일결 텍셀이 입체에서 휘지 않게).
   gl_Position = vec4((p.x / uCanvas.x * 2.0 - p.z), (p.z - p.y / uCanvas.y * 2.0), 0.0, p.z);
 }`;
+/** ★ `#terrsoft`(2026-11-02 · scripts/showcase-shot 의 진열 바닥 — 요청: "프로토스 타일의 풀이 너무 사각형으로 잘려있어 자연스럽게") — 타일결(⑥ 타일 색 켜 ·
+ *  한 타일 한 텍셀 · NEAREST)을 읽는 자리를 노이즈로 휘어(굵게 ±0.8 · 중간 ±0.3 · 잔 ±0.1 타일) 풀·흙 경계가 네모 대신 굽은 물결이 되게 한다. 기본 꺼짐(진짜 지도는 그대로). */
+const TERR_SOFT9 = typeof location !== "undefined" && /(?:^|[#&,])terrsoft(?=$|[&,=])/.test(location.hash);
+const TERR_SOFT_FN9 = `
+varying highp vec2 vSt9; varying highp vec2 vIw9;
+highp float sh9(highp vec2 p) { highp vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+highp float sn9(highp vec2 p) { highp vec2 i = floor(p); highp vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(sh9(i), sh9(i + vec2(1.0, 0.0)), f.x), mix(sh9(i + vec2(0.0, 1.0)), sh9(i + vec2(1.0, 1.0)), f.x), f.y); }
+highp vec2 sw9() { highp vec2 p = vSt9;
+  highp vec2 w = (vec2(sn9(p * 0.55), sn9(p * 0.55 + 9.1)) - 0.5) * 1.6 + (vec2(sn9(p * 1.7 + 3.3), sn9(p * 1.7 + 6.6)) - 0.5) * 0.6
+    + (vec2(sn9(p * 4.3 + 1.1), sn9(p * 4.3 + 2.2)) - 0.5) * 0.2;
+  return (p + w) * vIw9; }
+`;
+const terrSoftVS9 = (v: string): string => v.replace("void main() {", "varying highp vec2 vSt9; varying highp vec2 vIw9;\nvoid main() {").replace("vUv = aP / uWH;", "vUv = aP / uWH; vSt9 = aP; vIw9 = 1.0 / uWH;");
+const terrSoftFS9 = (f: string): string => f.replace("void main() {", TERR_SOFT_FN9 + "void main() {").replace("vec4 t = texture2D(uTex, vUv);", "vec4 t = texture2D(uTex, sw9());");
 const TERR_FS = `
 precision mediump float;
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -327,7 +342,7 @@ export class GlTerrain9 {
     private readonly divisor: (loc: number, d: number) => void = () => {},
     /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
     private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
-    this.prog = mkProg(TERR_VS, TERR_FS);
+    this.prog = TERR_SOFT9 ? mkProg(terrSoftVS9(TERR_VS), terrSoftFS9(TERR_FS)) : mkProg(TERR_VS, TERR_FS);
     for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;

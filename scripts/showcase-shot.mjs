@@ -426,8 +426,8 @@ for (const race of RACES) {
     body: `<!doctype html><html><head><meta charset="utf-8"><style>${css}
     html,body{margin:0;background:#1b1e24;} #root{width:${VIEW}px;}
     .scr-motion-fog{display:none!important}</style></head><body><div id="root"></div></body></html>` }));
-  // 크립은 저그만(기지 바닥) · 두리번 끔 · 사영 그림자 켬(배율 ≥ 4 에서만 실제로 선다).
-  await page.goto(`http://showcase.local/#${race === "저그" || race === "합동" || race === "저그8" ? "" : "nocreep,"}noscan,nofog,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
+  // 크립은 저그만(기지 바닥) · 두리번 끔 · 사영 그림자 켬(배율 ≥ 4 에서만 실제로 선다) · terrsoft(땅 색 켜 경계를 물결로 — glTerrain9 TERR_SOFT9 · 옛 트리는 패치로).
+  await page.goto(`http://showcase.local/#${race === "저그" || race === "합동" || race === "저그8" ? "" : "nocreep,"}noscan,nofog,terrsoft,glshadow=1,glshadowz=0${flag("--hash", "") ? "," + String(flag("--hash")) : ""}`);
   await page.addScriptTag({ content: js, type: "module" });
   await page.waitForFunction("!!window.__mount");
   await page.evaluate(([m, pl, wj, tb, v]) => window.__mount(m, pl, wj, tb, v),
