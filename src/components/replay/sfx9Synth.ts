@@ -453,15 +453,15 @@ function warpHum9(v: number): Float32Array {
  *  그 아래 같은 화음이 부풀었다 사라지며, 맨 끝에 높은 별빛 하나. 종 = 사인 셋(1 · 2.01 · 3.98배 · 위로 갈수록 빨리 사그라짐). 메아리 둘(짧게 · 길게)로 여운. */
 function warpEnd9(v: number): Float32Array {
   /* ★ **단음을 길게 끈다**(2026-11-02, 요청: "프로토스 완공 소리는 단음의 길게 끄는 소리") — 옛: 올라가는 아르페지오 여섯 + 패드 + 반짝(1.6초).
-     이제 한 음(갈래마다 C5 · D5 · E5 언저리)을 맑게 울리고 2.2초에 걸쳐 끈다 — 옅은 2·3배음 · 느린 떨림(4.5Hz) · 메아리 둘. */
-  const f0 = [523.25, 587.33, 659.25][v % 3];
-  const raw = render9(2.2, (t) => {
-    const vib = 1 + 0.004 * Math.sin(2 * Math.PI * 4.5 * t) * Math.min(1, t * 2);
-    const ph = 2 * Math.PI * f0 * vib * t;
-    const tone = Math.sin(ph) + Math.sin(ph * 2) * 0.22 * Math.exp(-t * 2.5) + Math.sin(ph * 3) * 0.08 * Math.exp(-t * 4);
-    return tone * ad9(t, 0.04, 1.35) * 0.6;
-  });
-  return finish9(echo9(echo9(raw, 0.13, 0.3), 0.29, 0.22), 0.4);
+     되요청("울림이 아니라 단음으로 길게 끄는 소리고 살짝 더 낮게") — 메아리·떨림·사그라드는 배음(= 울림)을 걷고 **한 높이를 고르게 붙든다**:
+     A4(440 · 갈래마다 ±반음) 사인 + 고정 2배음 0.15 · 들어옴 25ms · 1.3초 그대로 · 0.45초에 걸쳐 놓는다. */
+  const f0 = [440, 466.16, 415.3][v % 3];
+  const HOLD9 = 1.3; const REL9 = 0.45;
+  return finish9(render9(HOLD9 + REL9, (t) => {
+    const env = t < 0.025 ? t / 0.025 : t < HOLD9 ? 1 : Math.max(0, 1 - (t - HOLD9) / REL9);
+    const ph = 2 * Math.PI * f0 * t;
+    return (Math.sin(ph) + Math.sin(ph * 2) * 0.15) * env * 0.6;
+  }), 0.36);
 }
 
 /** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
