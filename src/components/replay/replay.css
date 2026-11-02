@@ -2129,9 +2129,9 @@
     linear-gradient(currentColor, currentColor),
     linear-gradient(currentColor, currentColor);
   background-repeat: no-repeat;
-  /* 굵기 20%(요청: 40% → 반으로) · 팔 길이 32% = 반지름 50% − 가운데 구멍 18%. */
-  /* 팔 굵기는 재생 쪽이 배율 따라 준다(--pgt · 2026-10-14 · 4배부터는 크기의 20% 그대로) — 못 받으면 20%. */
-  background-size: var(--pgt, 20%) 32%, var(--pgt, 20%) 32%, 32% var(--pgt, 20%), 32% var(--pgt, 20%);
+  /* 굵기 10%(요청: 40% → 반으로 20% → 2026-11-02 "핑 마커 두께 반으로 줄이기" 10%) · 팔 길이 32% = 반지름 50% − 가운데 구멍 18%. */
+  /* 팔 굵기는 늘 크기의 10%(--pgt 를 주는 쪽은 없다 · 2026-10-31 되물림) — 크기(--pgw)는 그대로. */
+  background-size: var(--pgt, 10%) 32%, var(--pgt, 10%) 32%, 32% var(--pgt, 10%), 32% var(--pgt, 10%);
   background-position: 50% 0, 50% 100%, 0 50%, 100% 50%;
   animation: scr-pingfx 1s ease-out infinite;
 }

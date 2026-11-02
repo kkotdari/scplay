@@ -10618,12 +10618,13 @@ export default function ReplayMotionPlayer({
                · 그보다 오래된 것은 0.25초에 한 장만 남긴다(되감기 몫엔 그 눈금이면 넉넉하다)
                · 그래도 여든 장을 넘으면 오래된 것부터 버린다(어떤 경우에도 상한이 있게)
              이러면 6초 창이 팔백 장이 아니라 예순 장 안팎, 곧 45MB가 3MB가 된다. */
-          const keepT9 = pf9.t - 1.5;
+          const spK9 = Math.max(1, cmdNowRef9.current.speed);   // 촘촘한 창·성긴 눈금도 배속에 맞춘다(아래 뒤 창 6초 → 배속 × 3 과 한 벌 · 장 수가 배속에 안 불게)
+          const keepT9 = pf9.t - Math.max(1.5, spK9 * 0.3);
           let wr9 = 0;
           let lastKept9 = -Infinity;
           for (let i9 = 0; i9 < snaps9.length; i9 += 1) {
             const sn9 = snaps9[i9];
-            const dense9 = sn9.t >= keepT9 || sn9.t - lastKept9 >= 0.25 || i9 === snaps9.length - 1;
+            const dense9 = sn9.t >= keepT9 || sn9.t - lastKept9 >= Math.max(0.25, spK9 * 0.1) || i9 === snaps9.length - 1;
             if (!dense9) continue;
             if (sn9.t < keepT9) lastKept9 = sn9.t;
             snaps9[wr9] = sn9;
@@ -10665,7 +10666,11 @@ export default function ReplayMotionPlayer({
              한 장이 밝힘 시각표(w·h·2바이트)라 128² 지도면 32KB, 큰 지도면 그 네 배다. 이 판을 드는 까닭은
              '조금 되감아도 안개가 안 튀게'인데, 6초면 그 몫을 다 한다(되감기는 어차피 워커가 다시 짓는다).
              배킹 손실(위 LOST9)은 기기 전체의 메모리 압박에서 오므로, 우리 봉우리를 낮추는 것이 곧 덜 잃는 길이다. */
-          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - 6 && sn9.t <= tNow9 + aheadMax9 + 2);
+          /* ★ 뒤 창도 **배속만큼**(2026-11-02, 지적: 고배속 안개 깜빡임 · "아무것도 없는 곳에 시야가 밝혀지기도") — 6초는 경기 시간이라 16배속이면 벽시계 0.4초다.
+             그리는 장(워커가 밀리면 산 시계보다 뒤)이 그보다 오래되면 제 시각 이하의 판이 없어 fogSnapFor9 가 **앞선 시각의 판**(later9)을 빌렸다 —
+             아직 안 밝힌 땅이 밝힌 땅으로 칠해졌다 돌아왔다. 벽시계 3초 몫(배속 × 3)을 남긴다 · 장 수는 아래 성기게 들기가 배속에 맞춰 누른다. */
+          const back6 = Math.max(6, Math.max(1, cmdNowRef9.current.speed) * 3);
+          const keep9 = snaps9.filter((sn9) => sn9.t >= tNow9 - back6 && sn9.t <= tNow9 + aheadMax9 + 2);
           if (keep9.length !== snaps9.length) fogSnapsRef9.current = keep9.length > 0 ? keep9 : snaps9.slice(-1);
         }
       } else if (m9.type === "worldui" && m9.ui) {
@@ -22817,7 +22822,7 @@ export default function ReplayMotionPlayer({
                 style={{
                   ...posStyle(px, py), color: ownCol9(raw) ?? modeColor(raw, teamOfRaw(raw)), zIndex: 25,   // 화면 주인 제 핑은 원작 초록 · 같은 편은 제 색
                   "--pgw": `${(((mapRef.current?.clientWidth ?? 320) / grid.width) * Math.max(4, zoom) * 1.4 * pitchK(py)).toFixed(1)}px`,
-                  /* 팔 굵기는 늘 크기의 20%(CSS 기본 --pgt 20%) — 2026-10-14 의 '4배 아래는 굵기만 배율 따라' 를 되물렸다(2026-10-31, 지적: "핑마커가 배율에 따라
+                  /* 팔 굵기는 늘 크기의 10%(CSS 기본 --pgt 10% · 2026-11-02 "핑 마커 두께 반으로" — 20% → 10%) — 2026-10-14 의 '4배 아래는 굵기만 배율 따라' 를 되물렸다(2026-10-31, 지적: "핑마커가 배율에 따라
                      그 모양(막대기 두께)가 달라지는 문제 · 타일에 대한 배율로 고정돼야") — 크기는 4배 바닥에 서는데 굵기만 가늘어져 꼴이 바뀌었다. */
                   ...groundXfAt9(px, py),   // 입체: 눕히기 + 시점 밀림(요청)
                 } as React.CSSProperties}
