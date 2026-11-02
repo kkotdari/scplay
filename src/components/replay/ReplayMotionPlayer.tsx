@@ -17379,6 +17379,12 @@ export default function ReplayMotionPlayer({
       DEV9_DIRTY9.v = false;   // 단이 바뀐 뒤 첫 cmd가 새 앞 한도를 싣는다(위 applyBenchTier9)
       /* t0 는 틱의 살아 있는 시각(tLiveRef9 — 바로 위에서 탐색이면 t 로 맞췄다) — React t 는 100ms 박자라 그만큼 늦어 워커가 뒤처졌다(ClkMsg ★). */
       const t09 = tLiveRef9.current;
+      /* ★ 배속을 내리면 지금 뒤로 받아 둔 성긴 장(옛 배속 간격)을 버린다(2026-11-02, 지적: "배속 높였다가 낮출 때 뚝뚝 끊김") — 워커는 지금부터 새 간격으로 다시 짓는다
+         (frameWorker cmd 의 ★). 남겨 두면 새 촘촘한 장 사이에 옛 장이 끼어 '같은 세대 먼저' 보간이 옛 장끼리 0.5초를 잇는 순간이 났다. 지금 시각 이하는 지킨다(그리는 장). */
+      if (c9 && playing9 && speed < c9.speed - 1e-6) {
+        const fm9 = wFramesRef.current;
+        for (const [k9, f9] of fm9) if (f9.t > t09 + 1e-3) fm9.delete(k9);
+      }
       cmdSentRef9.current = { playing: playing9, t0: t09, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.

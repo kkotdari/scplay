@@ -401,10 +401,16 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       if (lastCur > m.t) lastCur = m.t;   // 살짝 뒤로 붙인 것은 되감기가 아니다(pump 의 되감기 판정)
     } else if (m.type === "cmd") {
       gen += 1;
+      const slower9 = m.playing && m.speed < clock.speed - 1e-6;
       clock = {
         playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs(),
         aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES, fps: m.fps,
       };
+      /* ★ 배속을 **내리면** 지금 시각부터 새 간격으로 다시 짓는다(2026-11-02, 지적: "배속 높였다가 낮출 때 뚝뚝 끊기는 현상 · 아마 이전 배속에서 짓던 간격으로 지어서?") —
+         맞다: 장 간격은 speed / fps(stepNow)라 16배속이면 경기 0.53초 · 앞으로 aheadSec × 16초까지 그 간격으로 지어 둔 채(built · nextT) 1배로 내려오면,
+         그 성긴 장을 다 쓸 때까지(벽시계로 수 초) 0.5초씩 건너뛰었다. 기억(안개·사격 위상)은 지킨다(forget 거짓 — 시간은 그대로 앞으로 흐른다). 올릴 때는 성긴 장이
+         모자랄 뿐이라 그대로 둔다. */
+      if (slower9 && engine) restartFrom(clockT(), false);
       pump();
     }
   } catch (e) {
