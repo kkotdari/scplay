@@ -25,6 +25,11 @@ const HIT9: Record<string, SfxKind9 | null> = {
 const MELEE9: Record<string, SfxKind9> = {
   Zealot: "blade", "Dark Templar": "blade", Zergling: "claw", Ultralisk: "claw", Broodling: "claw",
 };
+/** ★ **휘두르는 박자마다** 내는 근접(2026-11-02, 요청: "저글링 둥둥둥 치는 소리 · 울트라 팍팍 치는 소리 · 공속업글(아드레날린)에 따라 속도 빨라져야") —
+ *  맞은 몸의 체력 키는 띄엄띄엄이라 그 순간에만 내면 박자가 안 산다. 유닛 op 의 자세 박자(pz = [4, 시작, 쿨다운] · engine9 — 쿨다운에 아드레날린이 들었다)로
+ *  몇 번째 휘두름인지 세어 바뀔 때마다 낸다(장 간격과 무관). 몸 종류(model kind) → 소리. */
+const SWING9: Record<string, SfxKind9> = { Zergling: "zlingHit", Ultralisk: "ultraHit" };
+const SWING_KIND9: Record<string, SfxKind9> = { zling: "zlingHit", ultra: "ultraHit" };
 /** 캐는 일꾼 → 채집 소리. */
 const GATH9: Record<"SCV" | "Probe" | "Drone", SfxKind9> = { SCV: "mineScv", Probe: "mineProbe", Drone: "mine" };
 /** 발사체 → 쏠 때 나는 소리(shot op 이 막 나갈 때). */
@@ -42,6 +47,8 @@ export class SfxCues9 {
   private buried = new Map<string, boolean>();
   /** 맞은 몸마다 앞 장의 피격 위상 — 같은 몸이 잇달아 맞으면 열쇠가 그대로라 위상이 0 으로 돌아온 것으로 새 타를 가른다. */
   private hitPh = new Map<number, number>();
+  /** 몸마다 마지막으로 소리 낸 휘두름 번호(위 SWING9 ★). */
+  private swingN = new Map<string, number>();
   private lastT = Number.NaN;
 
   /** 한 장을 본다. 소리를 내도 되는 때가 아니면 열쇠만 적는다(prime). */
@@ -103,6 +110,7 @@ export class SfxCues9 {
           /* 새로 맞음 = 새 열쇠, 또는 같은 몸의 위상이 처음으로 돌아옴(여럿이 한 몸을 잇달아 칠 때 · 옛 판은 첫 타만 울렸다). */
           if (!fresh(`h${op.seed}`) && !(was !== undefined && ph < was - 0.05)) break;
           const s = op.style;
+          if (s === undefined && op.by && SWING9[op.by]) break;   // 저글링·울트라는 휘두르는 박자로 낸다(아래 SWING9 ★) — 맞은 순간에 또 내면 겹친다
           play(s === undefined ? (op.by ? MELEE9[op.by] : undefined) ?? "slash" : HIT9[s] === undefined ? "gun" : HIT9[s], op.fx, op.fy);
           break;
         }
@@ -147,6 +155,12 @@ export class SfxCues9 {
       if (!inView(u.fx, u.fy)) continue;
       /* 채집은 일꾼 종류마다 따로(드론 mine · SCV mineScv · 프로브 mineProbe — 2026-10-22, 요청: "프로브랑 SCV 는 소리가 달라야"). */
       if (u.gath) mine.set(GATH9[u.gath], [u.fx, u.fy]);
+      const swK9 = SWING_KIND9[u.kind];
+      if (swK9 && u.pickKey && u.pz && u.pz[0] === 4 && u.pz[2] > 0) {
+        const n9 = Math.floor((fr.t - u.pz[1]) / u.pz[2]);
+        const was9 = this.swingN.get(u.pickKey);
+        if (was9 === undefined || n9 !== was9) { this.swingN.set(u.pickKey, n9); if (was9 !== undefined && n9 > was9) play(swK9, u.fx, u.fy); }
+      }
       if (orb) play("warpCharge", u.fx, u.fy);   // 소환구 착공 — 에너지가 모이는 낮은 소리(2026-11-02 · 옛: 마법 공용 warp)
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
@@ -166,5 +180,6 @@ export class SfxCues9 {
     this.prev = now;
     this.hitPh = hitPh;
     if (this.buried.size > 4000) this.buried.clear();
+    if (this.swingN.size > 4000) this.swingN.clear();
   }
 }

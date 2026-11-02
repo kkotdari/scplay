@@ -643,13 +643,38 @@ function warpCharge9(v: number): Float32Array {
   }, (t) => bp.set(250 + 850 * Math.min(1, t / 1.1))), 0.6);
 }
 
+/** ★ 저글링 타격 — 둥(2026-11-02, 요청: "저글링 둥둥둥 치는 소리") — 낮은 북 한 번: 130 → 78Hz 로 떨어지는 사인 몸 + 짧은 딱 잡음. 0.13초 · 휘두를 때마다(sfx9Cues 박자). */
+function zlingHit9(v: number): Float32Array {
+  const r = rng9(1501 + v);
+  const bp = new Biquad9("bp", 1800, 1.2);
+  const f0 = 130 * [1, 1.08, 0.93][v % 3];
+  let ph = 0;
+  return finish9(render9(0.13, (t) => {
+    ph += (f0 - (f0 - 78) * Math.min(1, t / 0.08)) / SFX_RATE9;
+    const body = Math.sin(2 * Math.PI * ph) * ad9(t, 0.002, 26);
+    const tick = bp.run(r() * 2 - 1) * exp9(t, 140) * 0.5;
+    return sat9(body + tick, 1.5);
+  }), 0.62);
+}
+/** ★ 울트라 타격 — 팍(2026-11-02, 요청: "울트라 팍팍 치는 소리") — 날 선 때림: 1.4kHz 띠 잡음이 확 터졌다 바로 끊기고 밑에 무거운 90Hz 퍽. 0.17초. */
+function ultraHit9(v: number): Float32Array {
+  const r = rng9(1551 + v); const br = brown9(r);
+  const bp = new Biquad9("bp", 1400 * [1, 1.12, 0.9][v % 3], 1.6);
+  const lp = new Biquad9("lp", 500, 0.7);
+  return finish9(render9(0.17, (t) => {
+    const smack = bp.run(r() * 2 - 1) * ad9(t, 0.0015, 34) * 1.6;
+    const thud = (Math.sin(2 * Math.PI * (95 - t * 120) * t) * 0.8 + lp.run(br()) * 0.6) * exp9(t, 22);
+    return sat9(smack + thud, 1.8);
+  }), 0.7);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -664,5 +689,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   eggPop: [2, eggPop9],
   screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
-  warpCharge: [2, warpCharge9],
+  warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
 };

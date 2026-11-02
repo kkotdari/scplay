@@ -211,6 +211,12 @@ export const SPEED_UP_OF: Record<string, string> = {
 };
 export const DEFAULT_SPEED = 3.2;
 
+/** ★ 공격 속도 업그레이드(2026-11-02, 요청: "공속업글 아드레날린에 따라 속도 빨라져야함") — 원작은 저글링의 Adrenal Glands 하나뿐이다:
+ *  쿨다운 8 → 6 프레임(× 0.75). 배운 시각부터 휘두르는 박자(자세 · 효과음)가 빨라진다. */
+export function atkCdK9(unit: string, atSec: number, ups: [number, string, number][] | undefined): number {
+  if (unit !== "Zergling" || !ups) return 1;
+  return ups.some(([sec, name]) => name === "Adrenal Glands" && sec <= atSec) ? 0.75 : 1;
+}
 export function speedOf(
   unit: string, atSec: number, ups: [number, string, number][] | undefined,
 ): number {
@@ -9409,7 +9415,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (pk9.atk && fighting && kindMain !== "lurker") {
           const pf9 = isKnownKind(drawUnit) ? profileOf(drawUnit) : null;
           const w9 = pf9 ? weaponVs(pf9, !!foe?.air) : null;
-          const cd9 = Math.max(0.2, w9 ? w9.cd : 0.6);
+          const cd9 = Math.max(0.2, (w9 ? w9.cd : 0.6) * atkCdK9(drawUnit, t, e.ups));   // 아드레날린(위 atkCdK9)
           const ph0 = firePhase(`p${holdKey}`, cd9);
           /* ★ 쉬는 위상에는 **날갯짓으로 되돌아간다**(지적: "뮤탈 이동 시 날개짓
              안 함") — 뮤탈·디바우러는 flap과 atk를 둘 다 갖는데, 사거리 안에
