@@ -2317,10 +2317,10 @@ const CREEP_TEX_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])creeptex=0
 type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number; l: number; side: number; bot: number; top: number };
 /** ★ **크립 질감**(2026-11-02, 요청: "저그 크립 질감 추가" → "끈적한 액체생체물질이 덮고 덮는 느낌") — 이어 붙는 무늬 한 장(256²)을 한 번 짓는다:
  *  물렁한 판(가장자리가 흔들리는 둥근 얼룩) 열여섯 겹을 차례로 **덮는다** — 새 겹은 밑의 무늬·그림자를 지우고 제 톤(0 ~ −0.14)을 깔고,
- *  겹 밖으로 **그림자만** 드리운다(왼위 빛 → 오른아래 (4,5)px 밀림 · 반그늘 8px · 0.30 + 가장자리 바깥 맞닿은 어둠 9px · 0.12).
+ *  겹 밖으로 **그림자만** 드리운다(왼위 빛 → 오른아래 (3,4)px 밀림 · 0.28 + 가장자리 바깥 맞닿은 선 1.3px · 0.14) — 그림자 끝도 1.6px 로 딱 끊는다.
  *  가장자리는 1.4px 로 선명하고 **밝은 값이 없다**(≤ 0.05) — 돋을새김·하이라이트·반사가 없으니 번짐도 없다.
  *  되물린 값: 높이장 돋을새김 + 젖은 반사 → "광택이 좀 심한듯" · 넓은 턱 "너무 흐릿해서 눈아파" · 좁은 턱 + 입술 "엠보싱처럼 하지말고" ·
- *  넓은 턱 + 톤 차 → "빛번짐이 눈을 아프게 해 / 각은 선명하되 엠보싱 없게 / 그림자는 충분히 활용하기". 첫 시안(세포 워리)은 "저런 느낌이 아니라".
+ *  넓은 턱 + 톤 차 → "빛번짐이 눈을 아프게 해 / 각은 선명하되 엠보싱 없게 / 그림자는 충분히 활용하기" · 반그늘 8px 그림자 + 맞닿은 어둠 9px + 잔 얼룩 노이즈 → "경사선이 더 흐릿하고 퍼져서 눈이 아파". 첫 시안(세포 워리)은 "저런 느낌이 아니라".
  *  값 < 0 은 검보라(알파 = 세기). 크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 비용(≈0.4초)은 그때 한 번. */
 let CREEP_TEX9: HTMLCanvasElement | null | undefined;
 function creepTex9(): HTMLCanvasElement | null {
@@ -2344,12 +2344,12 @@ function creepTex9(): HTMLCanvasElement | null {
       }
       return o;
     };
-    const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const f32 = vn9(32, 7);
+    const wn9 = vn9(5, 1); const wm9 = vn9(9, 2);
     const v9 = new Float32Array(N9);
     for (let i = 0; i < N9; i += 1) v9[i] = -0.08;
     let rs9 = 1;
     const rnd9 = (): number => hh9(1000 + (rs9 += 1));
-    const OX = 4; const OY = 5;   // 그림자 밀림(빛 왼위 → 오른아래)
+    const OX = 3; const OY = 4;
     for (let k = 0; k < 16; k += 1) {
       const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const tk = -rnd9() * 0.14;
       const rad = (px: number, py: number, i: number): [number, number] => {
@@ -2363,13 +2363,13 @@ function creepTex9(): HTMLCanvasElement | null {
         const c = sm9(rr + 0.7, rr - 0.7, d);
         const xs = (x - OX + S9) % S9; const ys = (y - OY + S9) % S9; const j = ys * S9 + xs;
         const [d2, r2] = rad(xs + 0.5, ys + 0.5, j);
-        const sh = sm9(r2 + 5, r2 - 3, d2);                       // 그림자(반그늘 8px)
-        const cs = sm9(rr + 9, rr, d) * (1 - c);                   // 맞닿은 어둠(가장자리 바깥 9px)
-        const out = v9[i] - (sh * 0.30 + cs * 0.12) * (1 - c);
+        const sh = sm9(r2 + 0.8, r2 - 0.8, d2);
+        const cs = sm9(rr + 2, rr + 0.7, d) * (1 - c);
+        const out = v9[i] - (sh * 0.28 + cs * 0.14) * (1 - c);
         v9[i] = out * (1 - c) + tk * c;
       }
     }
-    for (let i = 0; i < N9; i += 1) v9[i] = Math.max(-1, Math.min(0.05, v9[i] - (f32[i] - 0.5) * 0.08));
+    for (let i = 0; i < N9; i += 1) v9[i] = Math.max(-1, Math.min(0.05, v9[i]));
     const img9 = c9.createImageData(S9, S9);
     for (let i = 0; i < N9; i += 1) {
       const v = v9[i]; const o = i * 4;
