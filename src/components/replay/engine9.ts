@@ -2346,7 +2346,9 @@ export type FxOp = {
   /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22). */
   by?: string;
   /** hit: 소총(마린·고스트)에 맞음 — 맞은 자리에 주황 불꽃 별이 터진다(RIFLE_HIT9 · 2026-11-01). */
-  rifle?: boolean;
+  rifle?: number;
+  /** 소총 피격의 때 소금(맞은 시각) — 연달아 맞을 때 불티 자리가 매번 갈린다. */
+  rs?: number;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
   /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
@@ -2733,7 +2735,9 @@ export const st9Span = (name: string | undefined): boolean => !!(name && FX_BEAM
 export const HIT_FX_K = 0.72;
 /** ★ 소총 피격 불꽃(2026-11-01, 요청: "마린 등 소총 공격 효과를 (맞는 사람 쪽) 이렇게" · 원작 화면 — 맞은 몸에 주황·노랑 불꽃 별이 터지고 불티가 튄다) —
  *  이 몸들이 때린 피격(hit)에 rifle 깃발을 단다 · 그리기는 RMP paintFxList9 의 hit 갈래(파편 앞 · 결과 무관). 벙커는 안의 마린이 쏜다. */
-export const RIFLE_HIT9 = new Set(["Marine", "Ghost", "Bunker"]);
+export const RIFLE_HIT9 = new Set(["Marine", "Ghost", "Bunker", "Interceptor"]);
+/** ★ 지상 표적에만 소총 불티(2026-11-02, 요청: "마린 골리앗 레이스 스카웃 지상 등등 트레이서가 시작부에만 나오는 건 피격자에도 불꽃 튐") — 이 셋은 공중엔 미사일이라 땅 표적일 때만. */
+export const RIFLE_GROUND9 = new Set(["Goliath", "Wraith", "Scout"]);
 /* ★ 효과는 **그려진 몸의 한가운데**에서 난다(지적: "유닛·건물 피격·사망·파괴 효과를 중앙에 내는데 발바닥이 아니라
    그려진 것의 중앙이어야 하는데 캔버스 발바닥의 중앙으로 그리는 듯") ─────────────────────────────────────────
    여태 유닛은 발 원점에서 (0.24 + 0.02)·상자 위 — 곧 **판(상자)의 한가운데**였고, 건물 파괴는 발자국 한가운데(높이 0)
@@ -5127,6 +5131,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
      *  겨누나"가 **그대로** 나온다 — 추정이 아니다.
      *  여럿이 한 몸을 겨누면 먼저 담긴 하나를 쓴다(피격 그림은 한 겹이라 하나면 된다). */
     const foeByTarget = new Map<number, FoeRow>();
+    /** 표적마다 지금 겨누는 소총류 수(위 RIFLE_HIT9 · RIFLE_GROUND9) — 맞은 쪽 불티가 그 수만큼 겹친다(2026-11-02, 요청: "공격자 수에 비례해서 겹쳐 생김"). */
+    const rifleN9 = new Map<number, number>(); const rifleGndN9 = new Map<number, number>();
     /** 은신 판정을 뒤로 미루려고 잡아 두는 짝 — 아비터·디텍터 명단이 다 찬 뒤에 매긴다. */
     const pPrep9 = PERF9 ? pNow() : 0;
     const foeEnts: { row: FoeRow; e: (typeof entWalks)[number]; q: TrackPos;
@@ -5216,6 +5222,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         if (e.tgt) {
           const tv9 = tkLast(e.tgt, t);
           if (tv9 && !foeByTarget.has(tv9)) foeByTarget.set(tv9, row);
+          const rk9 = row.uk ?? row.k;
+          if (tv9 && rk9) {
+            if (RIFLE_HIT9.has(rk9)) rifleN9.set(tv9, (rifleN9.get(tv9) ?? 0) + 1);
+            else if (RIFLE_GROUND9.has(rk9)) rifleGndN9.set(tv9, (rifleGndN9.get(tv9) ?? 0) + 1);
+          }
         }
         // 아비터 은신장·디텍터(전수조사) — 이번 프레임 위치를 명단에 올린다.
         if (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") {
@@ -9724,7 +9735,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, ok: `u${e.tag}`, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
         ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}),
-        ...(hitSrc9?.uk && RIFLE_HIT9.has(hitSrc9.uk) ? { rifle: true } : {}) }) : null;
+        ...((): Partial<FxOp> => {
+          /* 소총류 피격 — 지금 이 몸을 겨눈 소총류 수(지상 표적이면 골리앗·레이스·스카웃도) · 그 수를 못 셌어도 때린 쪽이 소총류면 하나. */
+          const air9 = airLift9 > 0;
+          let n9 = (rifleN9.get(e.tag) ?? 0) + (air9 ? 0 : rifleGndN9.get(e.tag) ?? 0);
+          if (n9 === 0 && hitSrc9?.uk && (RIFLE_HIT9.has(hitSrc9.uk) || (!air9 && RIFLE_GROUND9.has(hitSrc9.uk)))) n9 = 1;
+          return n9 > 0 ? { rifle: n9, rs: Math.floor(hurtAt * 13) } : {};
+        })() }) : null;
     if (hitFx9 && !fighting) {
       fxOps.push(hitFx9);
       return null;

@@ -4627,62 +4627,48 @@ export function paintFxList9(
          불티가 튄다 · engine9 RIFLE_HIT9 가 hit 에 rifle 깃발) — 결 파편(피·불티) 앞에 더하기 합성으로 셋: ① 둥근 불빛(흰 속 → 노랑 → 주황 → 투명)
          ② 가시 별(뾰족 열여섯 · 가시마다 길이 흔들림 · 맞은 몸 씨앗으로 돌림) ③ 밖으로 튀는 불티 아홉. 자 = 파편 반지름의 2.4배(몸 폭의 ≈0.6) · 진행에 따라 0.75 → 1.2배로
          부풀고 뒤 40% 에서 사그라든다. 덜어내기 2단은 ①만. */
+      /* ★ 되요청(2026-11-02, 요청: "마린·골리앗·레이스·스카웃 지상 등등 트레이서가 시작부에만 나오는 건 피격자에도 불꽃 튐 · 지금은 공격자 수에 비례하지 않고 다 똑같이 채워져
+         나옴 · 그게 아니라 방사형으로 튀는 불티가(중심에서의 위치·길이 다양) 공격자 수에 비례해서 겹쳐 생김") — 꽉 찬 별·둥근 불빛을 걷고, **공격자 하나마다 불티 한 벌**:
+         작은 섬광 점(몸 가운데 근처 흔들린 자리) + 방사형 바늘 여섯(각·시작 거리·길이 제각각 · 진행에 따라 밖으로 밀리며 짧아짐). f.rifle = 지금 이 몸을 겨눈 소총류 수(engine9) ·
+         f.rs = 맞은 시각 소금(연달아 맞을 때 자리가 갈린다). 더하기 합성 · 두 색(노랑·주황)으로 몰아 긋는다. 덜어내기 2단은 한 벌에 셋. */
       if (f.rifle) {
-        const R9 = r9 * 3.1 * (0.7 + 0.5 * p9);
-        const fa9 = a9 * (p9 < 0.6 ? 1 : Math.max(0, (1 - p9) / 0.4));
+        const n9 = Math.min(8, Math.max(1, Math.round(Number(f.rifle))));
+        const R9 = r9 * 3.1;
+        const fa9 = a9 * (p9 < 0.45 ? 1 : Math.max(0, (1 - p9) / 0.55));
         const lite9 = CROWD9.lv >= 2 || FQ9.lv >= 2;
-        const sd9 = f.seed ?? 7;
-        const rot9 = (sd9 * 0.618) % 1;
-        /** 가시 별 한 겹 — 뾰족 n · 바깥 반지름 ro(가시마다 0.6~1.1 흔들림) · 안 반지름 ri. */
-        const star9 = (n9: number, ro9: number, ri9: number, sh9: number): void => {
-          ctx.beginPath();
-          for (let i9 = 0; i9 < n9 * 2; i9 += 1) {
-            const an9 = (i9 / (n9 * 2) + rot9 + sh9) * Math.PI * 2;
-            const h9 = ((i9 * 37 + sd9 * 11 + Math.round(sh9 * 100)) % 17) / 17;
-            const rr9 = i9 % 2 === 0 ? ro9 * (0.6 + 0.5 * h9) : ri9 * (0.85 + 0.3 * h9);
-            if (i9 === 0) ctx.moveTo(Math.cos(an9) * rr9, Math.sin(an9) * rr9); else ctx.lineTo(Math.cos(an9) * rr9, Math.sin(an9) * rr9);
-          }
-          ctx.closePath();
-        };
+        const per9 = lite9 ? 3 : 6;
+        const sd9 = ((f.seed ?? 7) * 131 + (f.rs ?? 0) * 977) | 0;
+        const hh9 = (a: number): number => { let x = Math.imul((a | 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return x / 4294967296; };
         ctx.save();
         ctx.translate(hx9, hy9);
         ctx.scale(1, 0.9);
-        ctx.globalAlpha = fa9 * 0.85;
-        const gg9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 1.15);
-        gg9.addColorStop(0, "rgba(255,214,110,0.85)"); gg9.addColorStop(0.35, "rgba(255,150,40,0.6)");
-        gg9.addColorStop(0.7, "rgba(210,70,12,0.28)"); gg9.addColorStop(1, "rgba(160,40,8,0)");
-        ctx.fillStyle = gg9;
-        ctx.beginPath(); ctx.arc(0, 0, R9 * 1.15, 0, Math.PI * 2); ctx.fill();
-        if (!lite9) {
-          // 바깥 불 별(주황 · 그냥 칠함 — 더하기로 얹으면 바닥에서 하얗게 바랜다) → 안 불 별(노랑) → 흰 속(더하기)
-          ctx.globalAlpha = fa9;
-          const go9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9);
-          go9.addColorStop(0, "rgba(255,206,84,1)"); go9.addColorStop(0.5, "rgba(250,132,30,0.95)"); go9.addColorStop(1, "rgba(200,60,10,0)");
-          ctx.fillStyle = go9; star9(15, R9, R9 * 0.42, 0); ctx.fill();
-          const gi9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 0.62);
-          gi9.addColorStop(0, "rgba(255,250,210,1)"); gi9.addColorStop(0.55, "rgba(255,214,90,0.95)"); gi9.addColorStop(1, "rgba(255,160,40,0)");
-          ctx.fillStyle = gi9; star9(11, R9 * 0.62, R9 * 0.3, 0.37); ctx.fill();
-          ctx.globalCompositeOperation = "lighter";
-          ctx.globalAlpha = fa9 * (1 - p9 * 0.7);
-          const gw9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9 * 0.3);
-          gw9.addColorStop(0, "rgba(255,255,240,1)"); gw9.addColorStop(1, "rgba(255,230,160,0)");
-          ctx.fillStyle = gw9; ctx.beginPath(); ctx.arc(0, 0, R9 * 0.3, 0, Math.PI * 2); ctx.fill();
-          // 튀는 불티 열넷 — 노랑 · 주황 두 빛
-          for (let ci9 = 0; ci9 < 2; ci9 += 1) {
-            ctx.fillStyle = ci9 ? "rgba(255,150,40,1)" : "rgba(255,236,150,1)";
-            ctx.globalAlpha = fa9 * (1 - p9 * 0.5);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+        for (let j9 = 0; j9 < n9; j9 += 1) {
+          const b9 = sd9 + j9 * 7919;
+          const ox9 = (hh9(b9 + 1) - 0.5) * R9 * 0.55; const oy9 = (hh9(b9 + 2) - 0.5) * R9 * 0.45;
+          // 섬광 점 — 흰 속 → 노랑 → 투명(작게 · 앞 40% 에서 사그라든다)
+          const fr9 = R9 * (0.16 + 0.08 * hh9(b9 + 3));
+          ctx.globalAlpha = fa9 * Math.max(0, 1 - p9 * 1.6);
+          const gf9 = ctx.createRadialGradient(ox9, oy9, 0, ox9, oy9, fr9);
+          gf9.addColorStop(0, "rgba(255,252,225,1)"); gf9.addColorStop(0.45, "rgba(255,212,100,0.8)"); gf9.addColorStop(1, "rgba(255,140,30,0)");
+          ctx.fillStyle = gf9; ctx.beginPath(); ctx.arc(ox9, oy9, fr9, 0, Math.PI * 2); ctx.fill();
+          // 방사형 바늘 — 색 둘로 몰아 긋는다
+          for (let c9 = 0; c9 < 2; c9 += 1) {
+            ctx.strokeStyle = c9 ? "rgba(255,150,45,1)" : "rgba(255,238,160,1)";
+            ctx.lineWidth = Math.max(0.8, R9 * (c9 ? 0.055 : 0.045));
+            ctx.globalAlpha = fa9 * (c9 ? 0.9 : 1);
             ctx.beginPath();
-            for (let i9 = ci9; i9 < 14; i9 += 2) {
-              const h9 = ((i9 * 29 + sd9 * 7) % 13) / 13;
-              const an9 = (i9 / 14 + rot9 * 0.5) * Math.PI * 2 + h9 * 0.4;
-              const d9 = R9 * (0.45 + p9 * (0.9 + 0.7 * h9));
-              const sr9 = Math.max(0.6, R9 * (0.04 + 0.035 * h9));
-              const sx9 = Math.cos(an9) * d9; const sy9 = Math.sin(an9) * d9;
-              ctx.moveTo(sx9 + sr9, sy9);
-              for (let k9 = 1; k9 < 6; k9 += 1) ctx.lineTo(sx9 + Math.cos((k9 / 6) * Math.PI * 2) * sr9, sy9 + Math.sin((k9 / 6) * Math.PI * 2) * sr9);
-              ctx.closePath();
+            for (let k9 = c9; k9 < per9; k9 += 2) {
+              const q9 = b9 + 11 + k9 * 37;
+              const an9 = hh9(q9) * Math.PI * 2;
+              const d09 = R9 * (0.08 + 0.42 * hh9(q9 + 1)) + p9 * R9 * (0.35 + 0.5 * hh9(q9 + 2));
+              const ln9 = R9 * (0.18 + 0.55 * hh9(q9 + 3)) * (1 - p9 * 0.6);
+              const cx9 = Math.cos(an9); const sy9 = Math.sin(an9);
+              ctx.moveTo(ox9 + cx9 * d09, oy9 + sy9 * d09);
+              ctx.lineTo(ox9 + cx9 * (d09 + ln9), oy9 + sy9 * (d09 + ln9));
             }
-            ctx.fill();
+            ctx.stroke();
           }
         }
         ctx.restore();
