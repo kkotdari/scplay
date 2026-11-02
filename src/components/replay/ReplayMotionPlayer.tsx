@@ -23209,12 +23209,13 @@ export default function ReplayMotionPlayer({
         {qualityNote && (
           <span className="scr-motion-qualitynote">재생품질 {qualityNote}</span>
         )}
-        {/* ★ 빨리감기 배지(위 holdFf9) — 무대 위 가운데 알약(유튜브 2배속 꼴). 눌러 감는 중이면 그 배수(뒤로면 ◀◀), 아니면 재생 중 배속이 1 넘을 때. 지도 변환을 안 받는다. */}
-        {(holdFf9 !== 0 || (playing && speed > 1)) && (
+        {/* ★ 빨리감기 배지(위 holdFf9) — 무대 위 가운데 알약(유튜브 2배속 꼴) · 눌러 감는 중에만(뒤로면 ◀◀). 지도 변환을 안 받는다.
+            (되물림 · 같은 날, 요청: "배속 다이얼로 바꿀 때는 안 뜨고 빨리감기에만 뜨게") — 옛: 재생 중 배속이 1 넘을 때도 떴다. */}
+        {holdFf9 !== 0 && (
           <span className="scr-motion-ffbadge" aria-hidden>
             {holdFf9 < 0
               ? <><b className="scr-motion-ffbadge-ic is-back">▶▶</b>{-holdFf9}배</>
-              : <>{holdFf9 > 0 ? holdFf9 : spdTxt9(speed)}배<b className="scr-motion-ffbadge-ic">▶▶</b></>}
+              : <>{holdFf9}배<b className="scr-motion-ffbadge-ic">▶▶</b></>}
           </span>
         )}
       </div>
