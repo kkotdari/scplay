@@ -10591,7 +10591,11 @@ export default function ReplayMotionPlayer({
           es9.splice(ke9, 0, { t: pf9.t, fseq: pf9.fseq, vis: pf9.eyes });
           FOGT9.set(pf9.eyes, pf9.t);
           // 뒤로 2초만 — 그 앞은 붓이 다시 볼 일이 없다(되감으면 워커가 새로 짓고 세대가 바뀐다).
-          const cutT9 = tLiveRef9.current - 2;
+          /* ★ **배속만큼 늘린다**(2026-11-02, 지적: "고배속에서 안개가 깜빡거리는 현상(꺼졌다 켜졌다) 여기저기 산발적으로") — 2초는 경기 시간이라
+             16배속이면 벽시계 0.12초뿐이다. 붓이 그리는 장(워커가 늦으면 산 시계보다 뒤)이 그보다 오래되면 제 눈 목록이 벌써 버려져 fogPairFor9 가
+             성긴 안개 판의 눈(visSrc · 판을 다시 쌓을 때만 난다)으로 물러나고, 새 눈 목록이 오면 도로 넘어간다 — 두 눈 목록 사이를 오가니
+             시야 원이 군데군데 꺼졌다 켜졌다. 벽시계 3초 몫(배속 × 3 · 워커가 밀려도 넉넉히)은 남긴다(상한 400장은 그대로 · 눈 목록은 장마다 몇 KB). */
+          const cutT9 = tLiveRef9.current - Math.max(2, speedRef9.current * 3);
           let drop9 = 0;
           while (drop9 < es9.length - 1 && es9[drop9].t < cutT9) drop9 += 1;
           if (drop9 > 0) es9.splice(0, drop9);
