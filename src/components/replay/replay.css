@@ -5568,3 +5568,6 @@
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + env(safe-area-inset-bottom, 0px) + var(--sd-gap)); }
 .scr-fs-layer.is-wide .scr-cast-caption { left: var(--wmini-w, 0px); right: var(--wroster-w, 0px); }
+/* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
+   PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
+.scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }
