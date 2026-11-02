@@ -161,7 +161,11 @@ float grain() {
     }
     d += w.b * g;
   }
-  if (w.a > 0.02) {
+  if (w.a > 0.02 && uGr.z > 0.5) {   // 우주 판 언덕 — 얼룩(위 ensure ★ 우주 판의 언덕은 얼룩)
+    float g = m1 * 0.13 + m2 * 0.09 * fd(2.7) + m3 * 0.05 * fd(8.0);
+    if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.07 * fd(23.0);
+    d += w.a * g;
+  } else if (w.a > 0.02) {
     float g = (vn(tc * vec2(0.7, 2.2) + 2.0) - 0.5) * 0.14;
     if (P > 11.2) g += (vn(tc * vec2(2.5, 7.0)) - 0.5) * 0.10 * fd(7.0);
     d += w.a * g;
@@ -395,6 +399,9 @@ export class GlTerrain9 {
       for (let i = 0; i < n9; i += 1) {
         let r = 0; let g = 0; let b = 0;
         const L = G.lvl[i];
+        /* ★ 우주 판의 **언덕은 얼룩**(2026-11-02, 실기 지적: "같은 색 타일도 언덕이냐에 따라 질감 표현 유무가 달라짐 · 언덕은 얼룩 처리가 나을 듯") — 고도 1단 이상(걷든 못 걷든)은
+           a 갈래(우주 판엔 물이 없어 비어 있다)로 가르고 셰이더가 uGr.z(금속)일 때 a 를 얼룩으로 칠한다. 낮은 땅만 마름모 판 무늬. */
+        if (metal9 && L > 0) { c9[i * 4 + 3] = 255; continue; }
         if (G.walk[i] === 1) {
           const rgb = G.tileRGBA && G.tileRGBA[i * 4 + 3] ? [G.tileRGBA[i * 4], G.tileRGBA[i * 4 + 1], G.tileRGBA[i * 4 + 2]]
             : (L > 0 ? G.levels[L - 1]?.rgb : null) ?? G.land.rgb;
