@@ -30,6 +30,9 @@ const MELEE9: Record<string, SfxKind9> = {
  *  몇 번째 휘두름인지 세어 바뀔 때마다 낸다(장 간격과 무관). 몸 종류(model kind) → 소리. */
 const SWING9: Record<string, SfxKind9> = { Zergling: "zlingHit", Ultralisk: "ultraHit" };
 const SWING_KIND9: Record<string, SfxKind9> = { zling: "zlingHit", ultra: "ultraHit" };
+/** 미사일 쏜 몸 → 소리 갈래(아래 shot 의 ★). */
+const MISSILE_LOW9 = new Set(["Scout", "Valkyrie", "Wraith"]);
+const MISSILE_HI9 = new Set(["Goliath", "Missile Turret"]);
 /** 캐는 일꾼 → 채집 소리. */
 const GATH9: Record<"SCV" | "Probe" | "Drone", SfxKind9> = { SCV: "mineScv", Probe: "mineProbe", Drone: "mine" };
 /** 발사체 → 쏠 때 나는 소리(shot op 이 막 나갈 때). */
@@ -115,7 +118,10 @@ export class SfxCues9 {
           break;
         }
         case "shot": {
-          const k = op.style ? LAUNCH9[op.style] : undefined;
+          /* 미사일은 쏜 몸으로 가른다(2026-11-02, 요청: "스카웃·발키리·레이스 대공 낮은 연기 추진 · 터렛·골리앗 대공 살짝 높고 가는 추진 + 연기") — op.by(engine9). 모르면 옛 missile. */
+          const msl9 = op.style === "missile" || op.style === "missileG"
+            ? (op.by && MISSILE_LOW9.has(op.by) ? "missileLow" : op.by && MISSILE_HI9.has(op.by) ? "missileHi" : undefined) : undefined;
+          const k = msl9 ?? (op.style ? LAUNCH9[op.style] : undefined);
           if (k && (op.u ?? 1) < 0.15) play(k, op.fx, op.fy);
           break;
         }

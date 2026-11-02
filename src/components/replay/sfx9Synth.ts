@@ -668,13 +668,43 @@ function ultraHit9(v: number): Float32Array {
   }), 0.7);
 }
 
+/** ★ 대공 미사일 — 낮은 연기 추진(2026-11-02, 요청: "스카웃 발키리 레이스 대공 낮은 연기추진 소리") — 점화 퍽(85Hz) + 낮게 깔린 연기 분사(갈색 잡음 · 저역 700Hz → 380Hz)
+ *  + 떨리는 낮은 추진 웅(60Hz 언저리 · 연기가 터지듯 일렁임). 0.75초 · 천천히 사그라든다. */
+function missileLow9(v: number): Float32Array {
+  const r = rng9(1601 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 700, 0.8);
+  const f0 = 60 * [1, 1.1, 0.92][v % 3];
+  let ph = 0;
+  return finish9(render9(0.75, (t) => {
+    ph += f0 * (1 + 0.15 * Math.sin(2 * Math.PI * 13 * t)) / SFX_RATE9;
+    const ign = Math.sin(2 * Math.PI * (85 - t * 60) * t) * exp9(t, 28) * 0.8;
+    const smoke = lp.run(br() * 1.5 + (r() * 2 - 1) * 0.25) * ad9(t, 0.04, 3.2) * (1 + 0.3 * Math.sin(2 * Math.PI * 17 * t));
+    const hum = Math.sin(2 * Math.PI * ph) * ad9(t, 0.05, 4) * 0.45;
+    return sat9(ign + smoke + hum, 1.5);
+  }, (t) => lp.set(700 - 320 * Math.min(1, t / 0.6))), 0.62);
+}
+/** ★ 터렛·골리앗 대공 미사일 — 살짝 높고 가는 추진 + 연기(2026-11-02, 요청: "터렛 골리앗 대공 살짝 높고 가는 추진소리 + 연기소리") — 좁은 띠 쉬익(2.4kHz → 3.4kHz · 가늘다)
+ *  위에 옅은 연기 잡음(1.1kHz 넓은 띠)과 작은 점화 톡. 0.5초. */
+function missileHi9(v: number): Float32Array {
+  const r = rng9(1651 + v);
+  const thin = new Biquad9("bp", 2400 * [1, 1.08, 0.94][v % 3], 7);
+  const smoke = new Biquad9("bp", 1100, 0.9);
+  return finish9(render9(0.5, (t) => {
+    const n = r() * 2 - 1;
+    const hiss = thin.run(n) * ad9(t, 0.02, 4.6) * 2.2;
+    const puff = smoke.run(r() * 2 - 1) * ad9(t, 0.03, 6) * 0.7;
+    const ign = Math.sin(2 * Math.PI * (170 - t * 200) * t) * exp9(t, 40) * 0.45;
+    return sat9(hiss + puff + ign, 1.4);
+  }, (t) => thin.set(2400 + 1000 * Math.min(1, t / 0.35))), 0.5);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi";
 
 /** 종류 → [갈래 수, 굽는 함수]. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -690,4 +720,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
   warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
+  missileLow: [3, missileLow9], missileHi: [3, missileHi9],
 };

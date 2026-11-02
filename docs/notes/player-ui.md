@@ -2844,3 +2844,9 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   맞은 순간(hurtAt) 근접 소리는 이 둘에 한해 건너뛴다(겹침).
 - engine9 `atkCdK9` — 저글링이 Adrenal Glands 를 배운 시각부터 쿨다운 × 0.75(원작 8 → 6 프레임). 공격 자세 박자(pz)에 들어가 자세·소리가 함께 빨라진다.
   🔎 견본 `$S/sfxh/swing.ts <out.wav> '[[갈래, 간격초, 횟수], …]'`.
+
+## 미사일 소리 둘(2026-11-02)
+- 요청: "미사일류 소리 변경 · 스카웃 발키리 레이스 대공 낮은 연기추진 소리 · 터렛 골리앗 대공 살짝 높고 가는 추진소리 + 연기소리".
+- engine9: shot op 에 `by`(쏜 몸 fxUnit · 방어 건물이면 unit) — 갈래 이름(missile·missileG)만으로는 발키리·레이스와 골리앗이 안 갈린다.
+- sfx9Synth `missileLow9`(점화 퍽 85Hz + 낮은 연기 분사 갈색 잡음 700→380Hz + 일렁이는 60Hz 웅 · 0.75초) · `missileHi9`(좁은 띠 쉬익 2.4→3.4kHz + 옅은 연기 1.1kHz + 작은 톡 · 0.5초).
+- sfx9Cues shot: missile·missileG 이면 by ∈ {Scout, Valkyrie, Wraith} → missileLow · {Goliath, Missile Turret} → missileHi · 모르면 옛 missile.

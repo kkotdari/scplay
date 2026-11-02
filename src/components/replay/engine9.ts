@@ -2350,7 +2350,8 @@ export type FxOp = {
   /** burst(죽음·파괴 폭발): 낱개 흩뿌림의 씨앗(개체마다 다르게) · 건물이면 bld. */
   seed?: number; bld?: boolean;
   /** hit·shield: 때린 몸의 종류 — **근접**(무기 갈래 style 이 없는 질럿·저글링·울트라 …)만. 효과음이 타격 소리를 고른다(sfx9Cues MELEE9 · 2026-10-22).
-   *  burst(유닛): 죽은 몸의 종류 — 효과음이 메딕·파뱃·드라군 소리를 가른다(2026-11-02). */
+   *  burst(유닛): 죽은 몸의 종류 — 효과음이 메딕·파뱃·드라군 소리를 가른다(2026-11-02).
+   *  shot: 쏜 몸·건물 — 효과음이 미사일(낮은 연기 추진 · 높고 가는 추진)을 가른다(2026-11-02). */
   by?: string;
   /** hit: 소총(마린·고스트)에 맞음 — 맞은 자리에 주황 불꽃 별이 터진다(RIFLE_HIT9 · 2026-11-01). */
   rifle?: number;
@@ -7453,7 +7454,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             for (const [qx9, qy9] of mzPair9) {
               if (shotB !== null) {
                 fxOps.push({
-                  kind: "shot", style: style9, fx: dffx9, fy: dffy9, lift: 0,
+                  kind: "shot", style: style9, fx: dffx9, fy: dffy9, lift: 0, by: unit,   // by = 쏜 건물(효과음이 터렛 미사일을 가른다 · 2026-11-02)
                   mx: qx9, my: qy9, deg: degB, len: lenB, u: shotB, ...(shotBr9 ?? {}),
                 });
               } else {
@@ -10333,7 +10334,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         : lanes9.map((s9): [number, number] => [mzx9 + perp9[0] * s9, mzy9 + perp9[1] * s9]);
       for (const [lx9, ly9] of laneAt9) {
         fxOps.push({
-          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9,
+          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9, ...(fxUnit ? { by: fxUnit } : {}),   // by = 쏜 몸(효과음이 미사일 둘을 가른다 · 2026-11-02)
           ...tgtFields9(0),
           mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
