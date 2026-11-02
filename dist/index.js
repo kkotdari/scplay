@@ -37444,7 +37444,7 @@ function vN({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
           }
           bt.restore();
         }
-        if (!(A && A.length >= 3) && !JB) {
+        if (!m && !JB) {
           const es = FB(), Es = es ? $W(bt, es) : null;
           if (es && Es) {
             const fs = i ?? j / 128, pt = fs * _ * MO / es.width, us = fs * _ * MO / es.height;
@@ -43111,7 +43111,7 @@ function SJ({
       " · UI ",
       ks.ui,
       " · 판 ",
-      "11-03 01:47",
+      "11-03 01:54",
       ks.ss !== 1 ? ` · 초해상 ×${ks.ss.toFixed(2)}` : "",
       Math.abs(ks.unitScale - ks.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${ks.unitScale.toFixed(4)})` : ks.scale > 0 && Math.abs(ks.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${ks.scale.toFixed(4)})` : "",
       ks.allocOk ? "" : " · ⚠배킹확보 실패"
