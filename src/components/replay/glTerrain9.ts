@@ -270,6 +270,17 @@ function homography9(q: number[], W: number, H: number): Float32Array {
   return new Float32Array([a / W, d / W, g / W, b / H, e / H, h / H, c, f, 1]);
 }
 
+/** 3×3 역행렬(열 우선 · homography9 의 꼴) — 화면 → 타일. 못 풀면 null. */
+function inv3x3(m: Float32Array): number[] | null {
+  const a = m[0], b = m[3], c = m[6], d = m[1], e = m[4], f = m[7], g = m[2], h = m[5], i = m[8];
+  const A = e * i - f * h; const B = -(d * i - f * g); const C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return null;
+  const k = 1 / det;
+  // 행 우선으로 돌려준다: [r0c0 r0c1 r0c2 r1c0 … ]
+  return [A * k, -(b * i - c * h) * k, (b * f - c * e) * k, B * k, (a * i - c * g) * k, -(a * f - c * d) * k, C * k, -(a * h - b * g) * k, (a * e - b * d) * k];
+}
+
 export class GlTerrain9 {
   private prog: WebGLProgram;
   private loc: Record<string, WebGLUniformLocation | null> = {};
@@ -289,7 +300,7 @@ export class GlTerrain9 {
   private nAttr = 8;
   private bufs: WebGLBuffer[] = [];
   /** 진단 — 올린 정점 수 · 올리는 데 든 ms · 지난 장의 드로 콜. */
-  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0 };
+  stat = { verts: 0, buildMs: 0, draws: 0, bytes: 0, err: 0, stencil: -1, fb: 0, fogEyes: 0, fogVerts: 0, fogFull: 0 };
   /** 눈 원 결을 바꾼 횟수(FOG_EYE_Q9.ver) — 바뀌면 다음 장에 다시 짓는다. */
   private eyeQv = -1;
   /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
@@ -390,7 +401,9 @@ export class GlTerrain9 {
   }
   /** 지형 한 장 — 몸보다 먼저, 깊이 없이. `quad` 는 지도 네 귀 (0,0)(W,0)(W,H)(0,H) 의 화면 CSS px(x,y 여덟 수) · `wallScale` 벽띠 배수(평면 2 · 입체 4) ·
    *  `dprK` 기기 px/CSS px(최소 선 굵기 1 기기 px 의 자). 호출자가 판·가위·뷰포트를 걸어 둔 채 부른다. 끝나면 블렌드(ONE, 1−a)·깊이 켬 상태로 돌려 둔다. */
-  draw(G: TerrainGeom9, quad: number[], cw: number, ch: number, wallScale: number, dprK: number, fog: GlFog9 | null = null): void {
+  draw(G: TerrainGeom9, quad: number[], cw: number, ch: number, wallScale: number, dprK: number, fog: GlFog9 | null = null,
+    /** 칠할 네모(CSS px · 가위와 같은 것) — 안개 눈 원이 이 네모를 통째로 덮나 볼 때 쓴다(아래 ★ 안개 눈 덮음). 없으면 캔버스 전체. */
+    view: [number, number, number, number] | null = null): void {
     const gl = this.gl;
     this.ensure(G);
     this.stat.draws = 0;
@@ -614,9 +627,40 @@ export class GlTerrain9 {
       gl.uniform1f(this.loc.uMode, 0); gl.uniform2f(this.loc.uOff, 0, 0); gl.uniform1f(this.loc.uHalfW, 0);
       gl.colorMask(false, false, false, false);
       fanRaw(this.fogFan, this.nFogFan, 0x01, true);
-      if (this.drawInst) {
-        /* 눈 원 인스턴스(위 eyeUnit ★) — 단위 점(aN · 정점마다) × 반지름(uHalfW) + 중심(aP · 인스턴스마다). 끝나면 aP 를 정점마다로 되돌린다(뒤 rect 가 쓴다). */
+      /* ★ **안개 눈 덮음**(2026-11-02, 실기 지적: "재생 초반·시간 점프 시 줌·드래그 무거움 · 아직도 10프레임도 안 나와" → 진단: 배율 8 · 안개 눈 860 · GL 몸 65·메시 0) —
+         눈 원은 스텐실에 겹쳐 찍는(REPLACE) 합집합이라, 크게 당기면(배율 8 · 시야 7칸 ≈ 반지름 1400 기기 px) 화면 가까운 눈 수십~백 개가 **저마다 화면 전체를**
+         다시 찍었다(채우기 몫 = 눈 수 × 화면 · MSAA 표본까지). 둘을 한다:
+           ① 칠할 네모(view · 가위)의 네 귀가 다 한 눈 안에 들면 → 그 네모는 다 밝다: 눈 수백 개 대신 사각 하나만 찍는다(this.stat.fogFull).
+           ② 아니면 이미 찍힌 자리는 스텐실 검사로 건너뛴다(NOTEQUAL · 이른 거름 — 겹친 몫의 쓰기를 안 한다). */
+      let fogFull9 = false;
+      {
+        const e9 = fog.eyes; const iv9 = e9 && e9.length >= 4 ? inv3x3(Hm) : null;
+        if (iv9 && e9) {
+          const vr9 = view ?? [0, 0, cw, ch];
+          const cx9: number[] = []; let ok9 = true;
+          for (const [sx9, sy9] of [[vr9[0], vr9[1]], [vr9[2], vr9[1]], [vr9[0], vr9[3]], [vr9[2], vr9[3]]]) {
+            const X = iv9[0] * sx9 + iv9[1] * sy9 + iv9[2]; const Y = iv9[3] * sx9 + iv9[4] * sy9 + iv9[5]; const Z = iv9[6] * sx9 + iv9[7] * sy9 + iv9[8];
+            if (!(Z > 1e-9)) { ok9 = false; break; }
+            cx9.push(X / Z, Y / Z);
+          }
+          if (ok9) {
+            for (let i = 0; i + 2 < e9.length && !fogFull9; i += 4) {
+              const r = e9[i + 2]; if (!(r > 0)) continue;
+              const ex = e9[i]; const ey = e9[i + 1]; const r2 = r * r * 0.995;
+              let all9 = true;
+              for (let k = 0; k < 8; k += 2) { const dx = cx9[k] - ex; const dy = cx9[k + 1] - ey; if (dx * dx + dy * dy > r2) { all9 = false; break; } }
+              if (all9) fogFull9 = true;
+            }
+          }
+        }
+      }
+      this.stat.fogFull = fogFull9 ? 1 : 0;
+      if (fogFull9) {
         gl.stencilMask(0x02); gl.stencilFunc(gl.ALWAYS, 0x02, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        rect(0, 0, W, H);
+      } else if (this.drawInst) {
+        /* 눈 원 인스턴스(위 eyeUnit ★) — 단위 점(aN · 정점마다) × 반지름(uHalfW) + 중심(aP · 인스턴스마다). 끝나면 aP 를 정점마다로 되돌린다(뒤 rect 가 쓴다). */
+        gl.stencilMask(0x02); gl.stencilFunc(gl.NOTEQUAL, 0x02, 0x02); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);   // 이미 찍힌 자리는 건너뛴다(위 ★ ②)
         gl.enableVertexAttribArray(this.aN);
         for (const g of this.eyeGroups) {
           const u = this.eyeUnit.get(g.seg); if (!u || g.cnt <= 0) continue;
@@ -628,7 +672,13 @@ export class GlTerrain9 {
         this.divisor(this.aP, 0);
         gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
         gl.uniform1f(this.loc.uHalfW, 0);
-      } else fanRaw(this.eyeFan, this.nEyeFan, 0x02, false);
+      } else if (this.eyeFan && this.nEyeFan > 0) {   // 옛 길(인스턴싱 없음) — 같은 이른 거름
+        gl.stencilMask(0x02); gl.stencilFunc(gl.NOTEQUAL, 0x02, 0x02); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.eyeFan);
+        gl.disableVertexAttribArray(this.aN); gl.vertexAttrib2f(this.aN, 0, 0);
+        gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, this.nEyeFan); this.stat.draws += 1;
+      }
       gl.colorMask(true, true, true, true);
       gl.stencilMask(0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
       gl.stencilFunc(gl.EQUAL, 0, 0x03); col(fog.rgb, 1); rect(0, 0, W, H);
@@ -751,7 +801,9 @@ export class GlTerrCanvas9 {
    *  sharp 위 ★ 또렷이 세기(0 끔 · 분할 칸(clip)은 늘 끈다). */
   draw(G: TerrainGeom9, quad: number[], bw: number, bh: number, cw: number, ch: number, wallScale: number, clip: [number, number, number, number] | null, fog: GlFog9 | null = null, sharp = 0,
     /** 보이는 네모(CSS px · gl9 view 와 같은 ★) — clip 이 없을 때 가위로 죈다(안개·또렷이는 그대로 · 또렷이는 그 네모만 베낀다). */
-    view: [number, number, number, number] | null = null): boolean {
+    view: [number, number, number, number] | null = null,
+    /** 안개 눈 덮음 판정 네모(CSS px · 손짓 중에도 · RMP visFog9) — 없으면 view·clip 으로. */
+    fogView: [number, number, number, number] | null = null): boolean {
     if (this.dead) return false;
     this.last = [G, quad, bw, bh, cw, ch, wallScale, clip, fog, view];
     const gl = this.gl; const cv = this.canvas;
@@ -774,7 +826,7 @@ export class GlTerrCanvas9 {
     }
     gl.clearColor(0, 0, 0, 0); gl.clearStencil(0); gl.stencilMask(0xff);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog);
+    this.terr.draw(G, quad, cw, ch, wallScale, bw / Math.max(1, cw), fog, clip ?? fogView ?? (vs ? view : null));
     if (!vs) gl.disable(gl.SCISSOR_TEST);
     if (sharp > 0 && !clip && this.sharp) {
       const g2 = gl as WebGL2RenderingContext; const sp = this.sharp;
