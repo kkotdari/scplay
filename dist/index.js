@@ -7689,7 +7689,7 @@ float grain() {
        주기 4칸 — 앞서 "격자가 4칸 단위") 위에 비스듬한 마름모 판. 긴 홈은 오른쪽으로 내려가는 사선(기울기 0.5 · 0.55칸 간격), 그 사이를 짧은 홈(기울기 −0.45 · 가로 1칸)이
        판마다 반씩 엇갈려 잇는다. 홈은 어둡고 아래쪽에 빛 테. 홈은 한 화소 아래로 가늘어지면 켜는 몫을 줄인다(타일 14~30 기기 px 사이에서 켜진다). */
     float chk = mod(floor(tc.x * 0.5) + floor(tc.y * 0.5), 2.0);
-    float g = (chk - 0.5) * 0.17 + m3 * 0.04 * fd(8.0);
+    float g = (chk - 0.5) * 0.17 * uGr.w + m3 * 0.04 * fd(8.0);   // 바둑판은 타일 실색이 없을 때만(uGr.w · 실색엔 원작 2×2 판 색이 이미 있다 — 겹치면 어긋난다)
     if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.06 * fd(23.0);
     float gk = clamp((P - 14.0) / 16.0, 0.0, 1.0);
     if (gk > 0.0) {
@@ -7908,7 +7908,7 @@ class VG {
       I.uniform1f(this.loc.uMode, 1), I.uniform4f(this.loc.uCol, 0, 0, 0, 0.62);
     }), I.uniform1f(this.loc.uMode, 0));
     const D = o5 >= 0 ? o5 : Yy.k;
-    if (D > 0 && this.cls && this.highp9 && Y1 < 0 && (I.disable(I.STENCIL_TEST), I.blendFuncSeparate(I.DST_COLOR, I.SRC_COLOR, I.ZERO, I.ONE), I.activeTexture(I.TEXTURE0), I.bindTexture(I.TEXTURE_2D, this.cls), I.uniform1f(this.loc.uMode, 2), I.uniform4f(this.loc.uGr, D, C * i, this.panel9 ? 1 : 0, 0), h(0, 0, a, c), I.uniform1f(this.loc.uMode, 0), I.blendFunc(I.ONE, I.ONE_MINUS_SRC_ALPHA), I.enable(I.STENCIL_TEST)), r) {
+    if (D > 0 && this.cls && this.highp9 && Y1 < 0 && (I.disable(I.STENCIL_TEST), I.blendFuncSeparate(I.DST_COLOR, I.SRC_COLOR, I.ZERO, I.ONE), I.activeTexture(I.TEXTURE0), I.bindTexture(I.TEXTURE_2D, this.cls), I.uniform1f(this.loc.uMode, 2), I.uniform4f(this.loc.uGr, D, C * i, this.panel9 ? 1 : 0, s.tileRGBA ? 0 : 1), h(0, 0, a, c), I.uniform1f(this.loc.uMode, 0), I.blendFunc(I.ONE, I.ONE_MINUS_SRC_ALPHA), I.enable(I.STENCIL_TEST)), r) {
       if (r.key !== this.fogKey) {
         const L = g5(r.loops);
         this.fogFan || (this.fogFan = I.createBuffer()), I.bindBuffer(I.ARRAY_BUFFER, this.fogFan), I.bufferData(I.ARRAY_BUFFER, L, I.DYNAMIC_DRAW), this.nFogFan = L.length / 2, this.fogKey = r.key;
@@ -34741,8 +34741,9 @@ const bW = typeof navigator > "u" ? 0 : navigator.deviceMemory ?? 0, lp = { glBl
   aheadMB: 48,
   yaw8Always: !1,
   tiers: MW,
-  glMeshMax: 480,
-  // 600 → 480(0단 낮음 · 보통부터 600 — 위 PC_TIERS9 '낮음은 덜어낸다' ★)
+  glMeshMax: 600,
+  // 600 → 480(0단 낮음 · '낮음은 덜어낸다' ★) → **600 되돌림**(같은 날, 지적: "재생 초반과 시간 점프 시에 줌 드래그가 무거워짐 · 이후엔 괜찮고" — 맥북 0단 진단 메시 409/480 · 나중 271:
+  //   점프하면 새 종류·자세가 몰려 상한 근처에서 버리고 다시 짓기를 되풀이했다. 상한은 메모리 몫(600벌 ≈ 40MB)이지 장마다의 값이 아니다)
   glBloom: !1,
   // true → false(같은 ★ · 보통부터 켠다)
   glSpec: !0,
@@ -42473,7 +42474,7 @@ function KN({
       " · UI ",
       ks.ui,
       " · 판 ",
-      "11-02 15:37",
+      "11-02 16:07",
       ks.ss !== 1 ? ` · 초해상 ×${ks.ss.toFixed(2)}` : "",
       Math.abs(ks.unitScale - ks.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${ks.unitScale.toFixed(4)})` : ks.scale > 0 && Math.abs(ks.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${ks.scale.toFixed(4)})` : "",
       ks.allocOk ? "" : " · ⚠배킹확보 실패"
