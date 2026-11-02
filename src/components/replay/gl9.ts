@@ -628,9 +628,11 @@ const MATX_FS9 = `
       float stk9 = vn9(vec3(p9.x * 2.6, p9.y * 2.6, p9.z * 0.22) + 4.4) * smoothstep(2.0, 4.0, px9 / 2.6);
       float stain9 = smoothstep(0.58, 0.86, stk9) * vert9 * (0.55 + 0.45 * vn9(p9 * 0.4 + 2.0));
       float rust9 = smoothstep(0.60, 0.86, fbm9(p9 * 0.45 + 13.0, px9));
-      c *= 1.0 - k9 * (0.20 * seam9 + 0.30 * dirt9 + 0.16 * (blot9 - 0.5));
-      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.50 * stain9, 0.0, 1.0));
-      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.40 * rust9, 0.0, 1.0));
+      /* 쇠 느낌(같은 날 "너무 페인트칠 같아") — 칠 위의 때(흘러내림 0.50 → 0.22 · 녹 0.40 → 0.14 · 큰 얼룩 0.16 → 0.07)를 줄이고 쇠의 반사(steelMet9)를 먼저 깐다. */
+      c = steelMet9(c, p9, px9, k9, vLt, vMn.xyz);
+      c *= 1.0 - k9 * (0.20 * seam9 + 0.24 * dirt9 + 0.07 * (blot9 - 0.5));
+      c = mix(c, c * vec3(0.74, 0.66, 0.56), clamp(k9 * 0.22 * stain9, 0.0, 1.0));
+      c = mix(c, c * vec3(0.86, 0.78, 0.66), clamp(k9 * 0.14 * rust9, 0.0, 1.0));
       c += k9 * 0.11 * wear9 * (0.55 + 0.45 * lc9) * vec3(0.95, 1.0, 1.06);
       c = edgeWear9(c, p9, px9, k9, mix(c, vec3(0.86, 0.90, 0.96), 0.6) * 1.2);   // 모서리 마모 — 칠 벗겨진 맨 쇠
     } else if (cl9 == 2) {
@@ -780,6 +782,28 @@ vec3 goldPol9(vec3 c, highp vec3 p9, float px9, float k9, float lt9, vec3 nm9) {
   float hl9 = vn9(vec3(hu9, p9.z * 0.45, 3.3));
   float hf9 = smoothstep(1.6, 3.2, px9 / 16.0) * wall9;
   c *= 1.0 + k9 * 0.07 * hf9 * (smoothstep(0.64, 0.80, hl9) - 0.2);   // 문턱을 좁혀 줄이 얇다(0.55~0.85 → 0.64~0.80)
+  return c;
+}
+/** ★ **쇠 느낌**(2026-11-02, 요청: "쇠 질감 특히 테란에서 너무 페인트칠같이 보여 · 쇠 느낌으로 수정 필요") — 페인트는 빛을 고르게 흩고, 쇠는 확산이 약하고 반사가 세다.
+ *  얼룩 노이즈가 아니라 각·자리의 함수로: ① 찬 무채 쇠빛으로 조금 당김 ② 명암 대비(빛 받는 낯 +12% · 그늘 낯 −22%) ③ 반사 띠(세운 낯은 높이를 따라 지평선 띠 ±28% ·
+ *  누운 낯은 비스듬한 하늘빛 ±12%) ④ 솔질 결(낯마다 한 방향 가는 줄 · 가로질러 28/칸 · 화소 주기 2 아래면 녹음) ⑤ 빛을 정면으로 받는 낯의 쨍한 찬 하이라이트. */
+vec3 steelMet9(vec3 c, highp vec3 p9, float px9, float k9, float lt9, vec3 nm9) {
+  float lm9 = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(c, vec3(lm9) * vec3(0.94, 0.98, 1.05), k9 * 0.35);
+  float lit9 = smoothstep(0.15, 0.95, lt9);
+  c *= mix(1.0 - k9 * 0.22, 1.0 + k9 * 0.12, lit9);
+  float up9 = clamp(nm9.z, -1.0, 1.0);
+  float wall9 = 1.0 - smoothstep(0.45, 0.90, abs(up9));
+  float bW9 = sin(p9.z * 1.6 + (p9.x - p9.y) * 0.35 + 1.3);
+  float bT9 = sin((p9.x + p9.y) * 0.55 + 0.4);
+  c *= 1.0 + k9 * (0.28 * wall9 * bW9 + 0.12 * (1.0 - wall9) * bT9);
+  highp vec2 th9 = normalize(nm9.xy + vec2(0.0001, 0.0));
+  highp float al9 = wall9 > 0.5 ? (p9.x * -th9.y + p9.y * th9.x) : p9.x;
+  highp float ac9 = wall9 > 0.5 ? p9.z : p9.y;
+  float br9 = vn9(vec3(al9 * 1.2, ac9 * 28.0, 5.1));
+  float bf9 = smoothstep(1.6, 3.2, px9 / 28.0);
+  c *= 1.0 + k9 * 0.10 * bf9 * (br9 - 0.5);
+  c += k9 * 0.16 * smoothstep(0.80, 0.98, lt9) * vec3(0.92, 0.96, 1.0);
   return c;
 }
 /** ★ 모서리 광택(2026-11-01, 요청: "프로토스는 마모가 아니라 모서리 광택으로 변경") — 닦은 금의 날이 빛을 받아 **끊김 없이 가늘게** 반짝인다:
