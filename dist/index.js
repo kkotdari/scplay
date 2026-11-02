@@ -39999,7 +39999,7 @@ function dJ({
   }, []), Ya = (f, v) => {
     const N = Math.max(0, Math.min(1, (tf - v) / tf));
     return f.yTop - f.band * (1 - N);
-  }, JK = 18, FK = te ? 16 : 32, PK = te ? 10 : 18, lm = () => W4 * 128 / (Y4 * JK), fl = () => {
+  }, JK = 18, FK = te ? 20 : 32, PK = te ? 12 : 18, lm = () => W4 * 128 / (Y4 * JK), fl = () => {
     const f = lm(), v = SI.current, N = Gg.current;
     if (!(v.w > 0) || !(v.h > 0)) return f;
     const J = N.w > 0 ? Math.min(N.w, v.w) : v.w, Q = Wa.current > 0 ? Wa.current : v.h, U = N.h > 0 ? Math.min(N.h, Q) : Q, It = Math.max(1, R.width), ct = Math.max(1, R.height), ht = J * It / (v.w * FK), at = U * ct / (v.h * PK);
@@ -42085,7 +42085,7 @@ function dJ({
     b1.current && (window.clearTimeout(b1.current), b1.current = 0), Rl.current && (cancelAnimationFrame(Rl.current), Rl.current = 0);
   }, f6 = (f) => {
     vI.current = !0, Vf.current = !0, qf.current = E, ri.current = null, f0(), W(!1);
-    const v = Math.max(8, x / 30);
+    const v = 20;
     d6(f * Math.round(v));
     let N = performance.now(), J = 0;
     const Q = (U) => {
@@ -42981,7 +42981,7 @@ function dJ({
       " · UI ",
       ks.ui,
       " · 판 ",
-      "11-02 19:33",
+      "11-02 19:50",
       ks.ss !== 1 ? ` · 초해상 ×${ks.ss.toFixed(2)}` : "",
       Math.abs(ks.unitScale - ks.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${ks.unitScale.toFixed(4)})` : ks.scale > 0 && Math.abs(ks.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${ks.scale.toFixed(4)})` : "",
       ks.allocOk ? "" : " · ⚠배킹확보 실패"
