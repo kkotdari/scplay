@@ -2829,7 +2829,7 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 요청: "프로토스 완공 소리는 단음의 길게 끄는 소리 · 메딕은 여자라 좀 고음 죽는 소리 · 성큰 럴커 가시가 땅을 뚫고 솟는 소리 · 가디언 낮은 공격 웅~ 소리 ·
   파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리 · 스캔 신비한 울림 소리".
 - sfx9Synth: `warpEnd9` 아르페지오 → **한 음(C5·D5·E5) 2.2초 끌기**(옅은 배음 · 4.5Hz 떨림 · 메아리 둘) · `scream9(v, female, pk)` 높낮이 배수 —
-  screamHi(여자 × 1.15 · 메딕) · screamLow(남자 × 0.72 · 파뱃) · 새 `spikeEarth9`(흙 깨짐 + 300→2600Hz 치솟는 쑥 + 쿵) · `guardHum9`(68Hz 웅 0.7초) ·
+  screamHi(여자 × 1.15 → "메딕 더 높게" × 1.45 · 메딕) · screamLow(남자 × 0.72 · 파뱃) · 새 `spikeEarth9`(흙 깨짐 + 300→2600Hz 치솟는 쑥 + 쿵) · `guardHum9`(68Hz 웅 0.7초) ·
   `springBreak9`(떨리며 내려가는 보잉 + 금속 쨍 둘 + 퍽) · `scanHum9`(맥놀이 두 음 + 5도 + 종 · 긴 메아리).
 - sfx9Cues: 유닛 죽음 burst 에 `by`(죽은 몸 · engine9) → Medic screamHi · Firebat screamLow · Dragoon springBreak · 그 밖 생체 screamM(옛 30% 무작위 여자 비명 걷음) ·
   HIT9 spike(럴커) → spikeEarth · 성큰 가시(erupt op 가 새로 서면) → spikeEarth · LAUNCH9 venom(가디언) puff → guardHum · CAST9 scan → scanHum(옛: 소리 없음).

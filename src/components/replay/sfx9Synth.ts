@@ -174,7 +174,7 @@ function squeal9(v: number): Float32Array {
 /** 사람 비명(테란 보병) — 성대 펄스 + 'ㅏ' 세 꼭지(F1 800 · F2 1200 · F3 2500) · 떨림 · 끝이 꺾인다. female 이면 높다. */
 function scream9(v: number, female: boolean, pk = 1): Float32Array {
   const r = rng9((female ? 551 : 501) + v + (pk !== 1 ? 37 : 0));
-  const f0b = (female ? 520 + v * 30 : 260 + v * 25) * pk;   // pk — 높낮이 배수(메딕 1.15 · 파뱃 0.72 · 2026-11-02)
+  const f0b = (female ? 520 + v * 30 : 260 + v * 25) * pk;   // pk — 높낮이 배수(메딕 1.15 → 1.45 "메딕 더 높게" · 파뱃 0.72 · 2026-11-02)
   const s = (female ? 1.18 : 1) * Math.sqrt(pk);
   const f1 = new Biquad9("bp", 800 * s, 6); const f2 = new Biquad9("bp", 1250 * s, 8); const f3 = new Biquad9("bp", 2600 * s, 10);
   let ph = 0;
@@ -642,6 +642,6 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
   warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
   eggPop: [2, eggPop9],
-  screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.15)],
+  screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
 };
