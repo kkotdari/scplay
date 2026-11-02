@@ -106,7 +106,7 @@ export class SfxCues9 {
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
           else if (mat === "zerg") k = "squeal";
           else if (mat === "cocoon") { if (op.sub === "done") break; k = "eggHatch"; }   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
-          else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.by === "Reaver" ? "reaverBreak" : op.tmech ? "boom" : "zap";   // 리버 — 드라군보다 울림 있게(2026-11-02)
+          else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.by === "Reaver" ? "reaverBreak" : op.by === "Observer" ? "obsBoom" : op.tmech ? "boom" : "zap";   // 리버 — 드라군보다 울림 있게(2026-11-02)
           else k = op.by === "Science Vessel" ? "vesselBoom" : "boom";   // 베슬 — 둥둥둥 세 번(2026-11-02)
           play(k, op.fx, op.fy);
           break;
