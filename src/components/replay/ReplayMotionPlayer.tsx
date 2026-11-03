@@ -954,6 +954,13 @@ const UI_OWN9 = "#10fc18";
  *  명령을 받은 유닛 몸에서 명령 자리까지 ORD_LINE_SEC9 초 동안 줄(스러짐). 꼴: 이동 = 실선 + 끝 화살촉 · 공격 = 실선 + 끝 ✕ · 패트롤 = 점선 + 양 끝 화살촉.
  *  색: 추적(화면 주인 있음) = 원작 초록(UI_OWN9) · 주인 것만 · 자유·중계 = 그 임자 색 · 모두. 붓이 도는 동안만 ORD_NOW9 가 선다(태그 → [x 분수, y 분수, 꼴 0·1·2, 지난 초]). */
 const ORD_LINE_SEC9 = 1.0;
+/** 점선 한 줄(명령 줄 · 랠리 줄) — 굵기 lw 에 맞춘 마디 · 틈. */
+function dashLine9(g9: { prim: (k: 0 | 1 | 2 | 3, a: number, b: number, c: number, d: number, col: string, al: number, lw?: number) => void }, x0: number, y0: number, x1: number, y1: number, col: string, al: number, lw: number): void {
+  const L9 = Math.hypot(x1 - x0, y1 - y0); if (L9 < 1) return;
+  const ux9 = (x1 - x0) / L9; const uy9 = (y1 - y0) / L9;
+  const dash9 = Math.max(4, lw * 5); const gap9 = Math.max(3, lw * 3.5);
+  for (let s9 = 0; s9 < L9; s9 += dash9 + gap9) { const e9 = Math.min(L9, s9 + dash9); g9.prim(3, x0 + ux9 * s9, y0 + uy9 * s9, x0 + ux9 * e9, y0 + uy9 * e9, col, al, lw); }
+}
 let ORD_NOW9: Map<number, [number, number, number, number]> | null = null;
 /** 추적 화면에서 랠리를 찍은 뒤 줄을 보이는 초(2026-11-03 · 원작의 랠리 깃발이 잠깐 서는 꼴). */
 const RALLY_FLASH9 = 1.5;
@@ -6961,7 +6968,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
               const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
               const col9r = ringColOf9(op);
-              gl9.prim(3, sx, cy9, rx9r, ry9r, col9r, op.alpha * 0.8, lw9r);
+              dashLine9(gl9, sx, cy9, rx9r, ry9r, col9r, op.alpha * 0.8, lw9r);   // 점선(2026-11-03 "랠리도 점선")
               gl9.prim(2, rx9r, ry9r, Math.max(3, (tilePx ?? 8) * zoom * 0.35), Math.max(2, (tilePx ?? 8) * zoom * 0.2), col9r, op.alpha, lw9r);
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(glBlt9 ? { lit: litOn9, meshLt: glBlt9 } : {}), ...(op.aura && sprFlatB9 ? { aura: true } : {}), ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
@@ -7211,21 +7218,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               const ux9 = dx9 / L9; const uy9 = dy9 / L9;
               const ah9 = Math.max(5, lw9 * 6);
               const seg9 = (x0: number, y0: number, x1: number, y1: number): void => gl9.prim(3, x0, y0, x1, y1, col9o, al9, lw9);
-              if (od9[2] === 2) {   // 패트롤 — 점선 + 양 끝 화살촉
-                const dash9 = Math.max(4, lw9 * 5); const gap9 = Math.max(3, lw9 * 3.5);
-                for (let s9 = 0; s9 < L9; s9 += dash9 + gap9) { const e9 = Math.min(L9, s9 + dash9); seg9(sx + ux9 * s9, oy9 + uy9 * s9, sx + ux9 * e9, oy9 + uy9 * e9); }
-              } else seg9(sx, oy9, tx9, ty9);
+              /* (같은 날 되요청: "화살촉 X 가 구분 안 됨 · 빨간 임자색은 구분이 안 되네 · 공격은 실선 이동은 점선 · 랠리도 점선") — 줄 결로 가른다: 공격 = 실선 · 이동 = 점선 ·
+                 패트롤 = 점선 + 양 끝 화살촉. 끝은 다 화살촉(✕ 는 걷었다). */
+              if (od9[2] === 1) seg9(sx, oy9, tx9, ty9);
+              else dashLine9(gl9, sx, oy9, tx9, ty9, col9o, al9, lw9);
               const head9 = (hx: number, hy: number, vx: number, vy: number): void => {   // (hx,hy) 끝 · (vx,vy) 끝으로 향하는 단위
                 seg9(hx, hy, hx - vx * ah9 - vy * ah9 * 0.55, hy - vy * ah9 + vx * ah9 * 0.55);
                 seg9(hx, hy, hx - vx * ah9 + vy * ah9 * 0.55, hy - vy * ah9 - vx * ah9 * 0.55);
               };
-              if (od9[2] === 1) {   // 공격 — 끝 ✕
-                const k9 = ah9 * 0.6;
-                seg9(tx9 - k9, ty9 - k9, tx9 + k9, ty9 + k9); seg9(tx9 - k9, ty9 + k9, tx9 + k9, ty9 - k9);
-              } else {
-                head9(tx9, ty9, ux9, uy9);
-                if (od9[2] === 2) head9(sx, oy9, -ux9, -uy9);
-              }
+              head9(tx9, ty9, ux9, uy9);
+              if (od9[2] === 2) head9(sx, oy9, -ux9, -uy9);
             }
           }
         }
