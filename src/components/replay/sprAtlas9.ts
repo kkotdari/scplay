@@ -127,7 +127,11 @@ function db9(): Promise<IDBDatabase | null> {
     try { rq = indexedDB.open(IDB9, 1); } catch { res(null); return; }
     const to9 = setTimeout(() => res(null), 3000);   // 열기가 막히면(다른 탭의 옛 판 · 사생활 창) 캐시 없이 간다
     rq.onupgradeneeded = () => { try { rq.result.createObjectStore(IDB_ST9); } catch { /* 이미 있다 */ } };
-    rq.onsuccess = () => { clearTimeout(to9); res(rq.result); };
+    rq.onsuccess = () => {
+      clearTimeout(to9); res(rq.result);
+      /* ★ 저장소를 '지우지 마' 로(2026-11-03, 요청: "배포 때 같이 넣어줘") — 저장공간이 빠듯할 때 브라우저·WebView 가 이 캐시를 먼저 비우지 않게 한 번 청한다(거절돼도 그대로 간다). */
+      try { void navigator.storage?.persist?.().catch(() => false); } catch { /* 모른다 */ }
+    };
     rq.onerror = () => { clearTimeout(to9); res(null); };
     rq.onblocked = () => { clearTimeout(to9); res(null); };
   });

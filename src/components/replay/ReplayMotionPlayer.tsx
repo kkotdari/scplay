@@ -20138,6 +20138,10 @@ export default function ReplayMotionPlayer({
     }
     /* 굽기 덤프(위 SPR_DUMP9 ★)는 경기 종류가 아니라 **이름표에 든 모든 종류**(유닛 UNIT_3D · 건물 SHAPE_KIND). */
     if (SPR_DUMP9 > 0) for (const k9 of [...Object.values(UNIT_3D), ...Object.values(SHAPE_KIND)]) if (SHAPE_BUILDERS[k9]) kinds.add(k9);
+    /* ★ 이름표 밖에서 그리는 몸도 굽는다(2026-11-03, 물음 "아틀라스에 없는 종류가 뭐야?" → "다음부터 넣을게") — 자원(미네랄 16종·간헐천 둘) · 공사 모습(저그 고치 셋 · 테란 발판) ·
+       애드온 연결관. 매 경기 화면에 나오는데 재생 중에 굽던 것들이다. RMP 는 아틀라스 판 해시(atlasVer) 밖이라 이 줄은 다음 굽기부터 먹는다. */
+    if (SPR_DUMP9 > 0) for (const k9 of ["mineral", "mineral0", "mineral1", "mineral2", "mineral3", "mineralb", "mineralb0", "mineralb1", "mineralb2", "mineralb3",
+      "mineralc", "mineralc0", "mineralc1", "mineralc2", "mineralc3", "geyser", "geyserdry", "cocoon", "cocoon1", "cocoon2", "scaffold", "addonlink"]) if (SHAPE_BUILDERS[k9]) kinds.add(k9);
     if (kinds.size === 0) { setIntroWarm9(true); return undefined; }
     /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
        ★ **등급표를 여기서 짓는다**(실기 계측: "굽기 7장 314ms · 최악판 devourer 270ms",
