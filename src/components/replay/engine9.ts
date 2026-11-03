@@ -6575,7 +6575,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
            그레이터스파이어 변태는 고치가 가장 큰 상태로 바로 시작해야지") — 옛 판은 3단 모델이되 배수 1 이라 드론 고치가 다 자란 크기(1.5)의 3분의 2였다. 자라지는 않는다(grow9 문). */
         const stage = 1.5;
         /** 드론 고치의 시작 껍질 지름(타일 · 모든 건물 같음 — 드론 몸의 1.5~2배) · 단 모델(cocoon1·2·cocoon)의 제 껍질 몫(bake9 cocoonBuild9 rk9). 아래 grow9. */
-        const COCOON_D0_9 = 1.5;
+        const COCOON_D0_9 = 1.875;   // 1.5 → 1.875(2026-11-03, 요청: "저그 공사고치 첫 크기가 너무 작음 25프로 확대") — 다 자란 크기(발자국 × 0.9)보다 크면 그것에 묶는다(작은 건물이 줄어들지 않게)
         /** 다 자란 고치의 껍질 몫(발자국 폭 대비) — 1 → **0.9**(2026-10-15, 요청: "코쿤 최대 크기 10% 정도 축소") · 시작(COCOON_D0_9)은 그대로 · 선 건물 변태도 이 크기로 선다. */
         const COCOON_MAX9 = 0.9;
         const COCOON_RK9 = [0.75, 0.82, 1] as const;
@@ -6606,7 +6606,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           : ((): number => {
             const fw9 = FOOTPRINT[unit]?.[0] ?? 3;
             const st9 = prog >= 2 / 3 ? 2 : prog >= 1 / 3 ? 1 : 0;
-            const d9 = COCOON_D0_9 + (fw9 * COCOON_MAX9 - COCOON_D0_9) * Math.min(1, Math.max(0, prog));
+            const d0_9 = Math.min(COCOON_D0_9, fw9 * COCOON_MAX9);
+            const d9 = d0_9 + (fw9 * COCOON_MAX9 - d0_9) * Math.min(1, Math.max(0, prog));
             return d9 / (fw9 * COCOON_RK9[st9]);
           })();
         const pulse9 = race2 === "저그" ? grow9 * (1 + COCOON_PULSE_K9 * 4 * hopQ9 * (1 - hopQ9))
