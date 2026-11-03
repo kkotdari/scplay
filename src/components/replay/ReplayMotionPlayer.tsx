@@ -2380,6 +2380,10 @@ let CREEP_TEX9: HTMLCanvasElement | null | undefined;
 /** ★ 판 17 크립 한 장(2026-11-03, 요청: "크립을 지형처럼 한 장으로 미리 그려 두고 바뀔 때만" → "둘 다 ㅅㄱ") — 원작 타일 크립(0x40)을 지도 크기 캔버스 하나에
  *  칸마다 둥근 얼룩(반지름 0.72 타일)으로 칠해 두고, 크립·시야가 바뀔 때만(TileTL17.at · 편 mask) 다시 칠한다. 붓은 크립 패스에서 이 한 장을 지도 상자에 붙이고
  *  벽 파내기·땅 질감은 종전 그대로 탄다. 안개: 못 밝힌 칸은 안 칠하고 · 밝혔지만 지금 안 보이는 칸은 반 알파(옛 크립 판의 cSeen 1 과 같은 자). 평면만(입체는 엔진의 판). */
+/** 판 17 칸 안개의 칸 판(위 GlFog9.tile ★ · 붓의 안개 블록이 채운다) — 칸마다 RGBA(앞 보임 · 지금 보임 · 밝힘 · 255) · 감은 자리(at) · 지금 찍힘 시각(t0) · 섞는 길이(fade 초). */
+/** 진단 — 칸 안개를 안 탄 까닭(GL 줄 · 위 FOG17_9). */
+const FOG17_WHY9 = { v: "" };
+const FOG17_9: { data: Uint8Array | null; at: number; mask: number; t0: number; fade: number; ver: number } = { data: null, at: -1, mask: -1, t0: -Infinity, fade: 0, ver: 0 };
 const CREEP17_9: { tiles: TileTL17 | null; mask: number; visAll: boolean; t: number; key: string; cv: HTMLCanvasElement | null; dim: HTMLCanvasElement | null } = { tiles: null, mask: 0, visAll: true, t: 0, key: "", cv: null, dim: null };
 const CREEP17_PX9 = 8;
 function creep17Layer9(t9: number): HTMLCanvasElement | null {
@@ -7622,7 +7626,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
-          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 죄기${gl9.view ? "켬" : "끔"}·다시${VIS_KICK9.n} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}${gl9.stat.lazy ? `·나중${gl9.stat.lazy}·지음${gl9.stat.lazyBuilt}` : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형${glTerrLast9.cacheStat.hit ? "(판)" : ""}·베낌${glTerrLast9.cacheStat.copies}·삼각${glTerrLast9.terr.stat.triN}(${glTerrLast9.terr.stat.triMs.toFixed(0)}ms) 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 안개 눈${glTerrLast9.terr.stat.fogEyes}${glTerrLast9.terr.stat.fogFull ? "(덮음)" : ""}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm}·채움${gl9.sprStat.fill})·교체대기${gl9.sprStat.swapWait}${((sw9) => (sw9 ? `·교체${sw9.n}/내림${sw9.drop}` : ""))(sprSwapStat9(gl9))}·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
+          SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 죄기${gl9.view ? "켬" : "끔"}·다시${VIS_KICK9.n} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}${gl9.stat.lazy ? `·나중${gl9.stat.lazy}·지음${gl9.stat.lazyBuilt}` : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형${glTerrLast9.cacheStat.hit ? "(판)" : ""}·베낌${glTerrLast9.cacheStat.copies}·삼각${glTerrLast9.terr.stat.triN}(${glTerrLast9.terr.stat.triMs.toFixed(0)}ms) 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 칸안개[${FOG17_WHY9.v || "v" + FOG17_9.ver}] 안개 눈${glTerrLast9.terr.stat.fogEyes}${glTerrLast9.terr.stat.fogFull ? "(덮음)" : ""}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm}·채움${gl9.sprStat.fill})·교체대기${gl9.sprStat.swapWait}${((sw9) => (sw9 ? `·교체${sw9.n}/내림${sw9.drop}` : ""))(sprSwapStat9(gl9))}·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
         }
       }
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
@@ -18939,6 +18943,36 @@ export default function ReplayMotionPlayer({
         fogBin9().paint += 1;
       } else fogBin9().same += 1;
     }
+    /* ★ 판 17 칸 안개(glTerrain9 GlFog9.tile ★ · 2026-11-03, 지적: "안개 모양이 좀 바뀌고 · 프레임마다가 아니라 뚝뚝 바뀐다" → "1, 2, 3 ㄱㄱ") — 원작 시야 칸(TileTL17)을
+       칸 텍스처로: 지금 찍힘(G)과 앞 찍힘(R)을 찍힘 사이 간격(≤ 0.5초) 동안 서서히 섞는다(f) · 밝힘(B). 앞으로 흐를 때만 섞고, 시각을 건너뛰면 곧장 선다.
+       장마다 f 만 바뀌어도 지형 캔버스가 다시 칠하게 fogGlDirty9 를 세운다. 분할보기·전체 시야는 안 탄다(눈 원 길). */
+    FOG17_WHY9.v = !glFog9 ? "GL안개꺼짐" : !fogGlRef9.current ? "안개없음" : splitOnRef9.current ? "분할" : !CREEP17_9.tiles ? "타일없음" : CREEP17_9.visAll ? "전체시야" : "";
+    if (glFog9 && fogGlRef9.current && !splitOnRef9.current && CREEP17_9.tiles && !CREEP17_9.visAll) {
+      const tl9 = CREEP17_9.tiles; const ft9 = FOG17_9;
+      const st9 = tl9.stateAt(tNow9);
+      const at9 = tl9.at; const m9 = CREEP17_9.mask;
+      const n9 = tl9.w * tl9.h;
+      if (!ft9.data || ft9.data.length !== n9 * 4) { ft9.data = new Uint8Array(n9 * 4); ft9.at = -1; }
+      if (at9 !== ft9.at || m9 !== ft9.mask) {
+        const t09 = at9 > 0 ? tl9.ts[at9 - 1] : 0;
+        const fwd9 = m9 === ft9.mask && at9 > ft9.at && t09 - ft9.t0 > 0 && t09 - ft9.t0 <= 1.0;
+        const d9 = ft9.data;
+        for (let i9 = 0; i9 < n9; i9 += 1) {
+          const v9 = st9[i9];
+          const vis9 = (~v9 >>> 8 & 0xff & m9) !== 0 ? 255 : 0;
+          const o9 = i9 * 4;
+          d9[o9] = fwd9 ? d9[o9 + 1] : vis9; d9[o9 + 1] = vis9; d9[o9 + 2] = (~v9 & 0xff & m9) !== 0 ? 255 : 0; d9[o9 + 3] = 255;
+        }
+        ft9.fade = fwd9 ? Math.max(0.05, Math.min(0.5, t09 - ft9.t0)) : 0;
+        ft9.t0 = t09; ft9.at = at9; ft9.mask = m9; ft9.ver += 1;
+      }
+      const f9 = ft9.fade > 0 ? Math.max(0, Math.min(1, (tNow9 - ft9.t0) / ft9.fade)) : 1;
+      const cur9 = fogGlRef9.current;
+      if (!cur9.tile || cur9.tile.ver !== ft9.ver || cur9.tile.f !== f9) {
+        fogGlRef9.current = { ...cur9, tile: { w: tl9.w, h: tl9.h, data: ft9.data, ver: ft9.ver, f: f9 } };
+        fogGlDirty9.v = true;
+      }
+    } else if (fogGlRef9.current?.tile) fogGlRef9.current = { ...fogGlRef9.current, tile: undefined };
     /* 창 넘김은 **블록 끝**에서 — 위에서 넘기면 붓은 이 창, 칠은 다음 창에 들어가 '칠 > 붓'이 난다. */
     /* ★ 분할보기는 큰 지도 안개를 안 칠하지만 **독 미니맵의 안개는 이 붓이 대 준다**(2026-10, 지적: "분할시 화면 클릭해도
        인포창과 미니맵이 그사람걸로 안바뀜") — 위 블록을 통째로 건너뛰면 miniFogLiveRef9 가 분할 전 사람의 눈에 멈춰 있고

@@ -190,6 +190,17 @@ float grain() {
 }
 void main() {
   vec4 o;
+  /* 판 17 칸 안개(GlFog9.tile ★) — uGr = (섞기 f, 밝힌 자리 어둑함, 1/칸 수 w, 1/칸 수 h) · uCol.rgb = 안개 색. 다섯 점 흐림 + 문턱으로 둥근 가장자리. */
+  if (uMode > 2.5) {
+    vec2 d9 = uGr.zw * 0.55;
+    vec3 s9 = texture2D(uTex, vUv).rgb * 0.36
+      + (texture2D(uTex, vUv + vec2(d9.x, 0.0)).rgb + texture2D(uTex, vUv - vec2(d9.x, 0.0)).rgb
+       + texture2D(uTex, vUv + vec2(0.0, d9.y)).rgb + texture2D(uTex, vUv - vec2(0.0, d9.y)).rgb) * 0.16;
+    float v9 = smoothstep(0.22, 0.78, mix(s9.r, s9.g, uGr.x));
+    float e9 = smoothstep(0.22, 0.78, s9.b);
+    float a9 = (1.0 - v9) * mix(1.0, uGr.y, e9);
+    gl_FragColor = vec4(uCol.rgb * a9, a9); return;
+  }
   if (uMode > 1.5) { gl_FragColor = vec4(vec3(grain() * 0.5), 1.0); return; }
   if (uMode > 0.5) { vec4 t = texture2D(uTex, vUv); o = vec4(t.rgb * t.a, t.a) * uCol.a; }
   else o = uCol;
@@ -200,7 +211,11 @@ void main() {
 }`;
 
 /** GL 안개 한 벌(2026-10-24 · ReplayFogLayer.FogGeom9 가 짓는다) — 밝힘 고리(타일 자 · key 가 바뀌면 다시 올린다) · 눈 목록(x,y,r,id 넷씩 · 타일 자 · 같은 배열이면 안 다시 짓는다) · 색·어둑함. */
-export interface GlFog9 { loops: Loop[]; key: number; eyes: Float32Array | null; rgb: [number, number, number]; dim: number }
+export interface GlFog9 { loops: Loop[]; key: number; eyes: Float32Array | null; rgb: [number, number, number]; dim: number;
+  /** ★ 판 17 칸 안개(2026-11-03, 지적: "안개 모양이 좀 바뀌고 · 프레임마다가 아니라 뚝뚝 바뀐다" → "1, 2, 3 ㄱㄱ") — 있으면 눈 원·밝힘 고리 대신 칸 텍스처 한 장으로 그린다:
+   *  RGBA 칸마다 R = 앞 찍힘의 보임 · G = 지금 찍힘의 보임 · B = 밝힘(0/255). f = 앞 → 지금 섞기 몫(0~1 · 찍힘 사이를 서서히) · ver 가 바뀌면 다시 올린다.
+   *  셰이더가 칸 사이를 선형으로 잇고 다섯 점을 흐려 문턱(smoothstep)으로 둥근 가장자리를 낸다. */
+  tile?: { w: number; h: number; data: Uint8Array; ver: number; f: number } }
 
 /** 한 갈래의 GPU 몫 — 채우기 부채꼴(정점 수) · 띠(정점 수) · 타일 자 상자. */
 interface Bufs9 {
@@ -331,6 +346,7 @@ export class GlTerrain9 {
   private eyeQv = -1;
   /* 안개 — 밝힘 고리 부채꼴(key 마다) · 눈 원 부채꼴(눈 배열·배율 칸마다). 둘 다 동적 VBO. */
   private fogFan: WebGLBuffer | null = null; private nFogFan = 0; private fogKey = -1;
+  private fogTileTex: WebGLTexture | null = null; private fogTileVer = -1;
   private eyeFan: WebGLBuffer | null = null; private nEyeFan = 0; private eyeSrc: Float32Array | null = null; private eyePpt = 0;
   /* ★ 눈 원 인스턴싱(2026-11-02, 요청: 안개 결 다음 — "그것도 해줘" · 매 장 눈 원을 통째로 다시 짓던 것) — 눈 배열은 워커가 장마다 새로 보내므로 옛 길은
      장마다 눈 수 × 조각 × 3 정점(합성 눈 731 · 40조각 = 88k · 685KB)을 cos/sin 으로 짓고 올렸다(실측 2.4ms + 업로드). 이제 **조각 수마다 단위 원 부채꼴**을 한 번
@@ -742,7 +758,24 @@ export class GlTerrain9 {
     /* ══ 안개(2026-10-24, 요청: "안개도 지형처럼") — 지형 위 · 같은 장 · 같은 카메라. 캔버스 안개와 같은 뜻: 지도 전체 = 안개 1 → 밝힌 고리 안 = DIM →
        시야 원 안 = 0. 스텐실 두 비트로 가른다 — bit0 = 밝힘 홀짝(부채꼴 INVERT) · bit1 = 시야 원(REPLACE). 덮기 둘: (0,0) 짙게 · (1,0) 옅게. 시야 원은
        타일 자의 진짜 원이라 입체(호모그래피)에서도 바닥에 눕는다. 밝힘 고리는 FogGeom9 가 뜸하게 다시 뽑고(key), 눈 원은 눈 배열이 갈릴 때 다시 짓는다. */
-    if (fog && part !== 1) {
+    if (fog && part !== 1 && fog.tile) {
+      /* ★ 판 17 칸 안개(GlFog9.tile ★) — 스텐실 없이 지도 사각 한 장. */
+      const tl9 = fog.tile;
+      gl.disable(gl.STENCIL_TEST);
+      if (!this.fogTileTex) this.fogTileTex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.fogTileTex);
+      if (tl9.ver !== this.fogTileVer) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tl9.w, tl9.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, tl9.data);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        this.fogTileVer = tl9.ver;
+      }
+      gl.uniform1f(this.loc.uMode, 3);
+      gl.uniform4f(this.loc.uGr, Math.max(0, Math.min(1, tl9.f)), fog.dim, 1 / Math.max(1, tl9.w), 1 / Math.max(1, tl9.h));
+      col(fog.rgb, 1); rect(0, 0, W, H);
+      gl.uniform1f(this.loc.uMode, 0);
+      this.stat.fogEyes = 0; this.stat.fogVerts = 4; this.stat.fogFull = 0;
+    } else if (fog && part !== 1) {
       if (fog.key !== this.fogKey) {
         const f = fanOf(TERR_THIN_OFF9 ? fog.loops : fog.loops.map((lp) => simplifyLoop9(lp, 0.003) as unknown as Loop));   // 밝힘 고리도 솎는다(위 ★ 고리 솎기)
         if (!this.fogFan) this.fogFan = gl.createBuffer();
