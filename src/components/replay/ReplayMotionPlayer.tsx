@@ -22332,7 +22332,9 @@ export default function ReplayMotionPlayer({
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
-        setRosterPaged9(true);
+        /* 쪽(is-paged)은 평소 독과 같은 자 — 폰이거나 전광판이 제 설계 폭을 못 받아 줄었을 때만(2026-11-03, 지적: "전체화면에서만 왜 로스터가 접힘(한 컬럼씩 슬라이드)? 그렇게
+           좁지 않은 것 같은데" — 가로 배치 갈래가 늘 쪽(true)으로 못 박아 PC 16:10 이상 전체화면에서 넓은데도 한 칸씩 넘겼다). */
+        setRosterPaged9(uiPhone9 || kp9 < 0.999);
         return;
       }
       /* ★ 접힌 독(is-fold · display none)은 폭이 0 이라 셈이 헛돈다 — 마지막 맞춤은 그대로 두고 받침 솟음만 0 으로(2026-10-09, 지적: "독 접었다 펼 때 재생기가 잠깐
