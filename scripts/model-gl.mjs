@@ -94,6 +94,8 @@ const SHADOW = process.argv.includes("--shadow");
 /** `--bake Q`(2026-10-29) — 지도 붓(flush · 메시) 대신 **2D 판 굽기 길**(sprPrebake9 → sprPreStep9 → 덤프)로 그린다. 서버 아틀라스가 굽는 그 그림이다(Q = 덤프 배수 ·
  *  spr-atlas 는 2). 굽기만 타는 손잡이(#ishadow 안 그림자 · #bcon 굽는 대비)를 견줄 때 쓴다. 임자색은 칸(P0) + 켜(tint) × 색으로 다시 입힌다. 칸 가운데에 맞춰 늘려 붙인다. */
 const BAKEQ = Number(flag("--bake", 0)) || 0;
+/** \`--glow [K]\`(2026-11-03 · 광택 번짐 시안) — --bake 길에서 빛 켜(em)를 흐려 몸 위에 더한다(지도 번짐의 흉내 · 반지름 칸 폭의 1.2% · 세기 K 기본 1). 헤드리스 메시 길은 번짐이 안 선다. */
+const GLOW = argv.includes("--glow") ? (Number(flag("--glow", 1)) || 1) : 0;
 
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, bldBlinkSet9, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
@@ -161,6 +163,20 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         gx.imageSmoothingQuality = "high";
         const ox9 = i * cell + (cell - (bx1 - bx0) * sc9) / 2 - bx0 * sc9; const oy9 = r * cell + (cell - (by1 - by0) * sc9) / 2 - by0 * sc9;
         for (const p9 of parts9) { const k9 = (c9.kd / p9.c.kd) * sc9; gx.drawImage(p9.cv, ox9 + p9.c.x0 * k9, oy9 + p9.c.y0 * k9, p9.c.w * k9, p9.c.h * k9); }
+        if (${GLOW} > 0) {
+          const pg9 = g.sprDumpPage9(c9.page);
+          if (pg9 && pg9.em) {
+            const im9 = new ImageData(c9.w, c9.h);
+            for (let y = 0; y < c9.h; y += 1) for (let x = 0; x < c9.w; x += 1) {
+              const si = ((pg9.h - 1 - (c9.py + y)) * pg9.w + (c9.px + x)) * 4; const di = (y * c9.w + x) * 4;
+              for (let ch = 0; ch < 3; ch += 1) im9.data[di + ch] = Math.min(255, Math.round(pg9.em[si + ch] * ${GLOW}));
+              im9.data[di + 3] = 255;
+            }
+            const ecv = document.createElement("canvas"); ecv.width = c9.w; ecv.height = c9.h; ecv.getContext("2d").putImageData(im9, 0, 0);
+            gx.save(); gx.globalCompositeOperation = "lighter"; gx.filter = "blur(" + (cell * 0.012).toFixed(1) + "px)";
+            gx.drawImage(ecv, ox9 + c9.x0 * sc9, oy9 + c9.y0 * sc9, c9.w * sc9, c9.h * sc9); gx.restore();
+          } else errs[kind] = "빛 켜 없음";
+        }
         return;
       }
       const kk = (normZ ? k * (isB ? bldNormOf(kind) : modelNormOf(kind) * normZ) : k) * (fit ? 0.5 : 1);   // --fit: 재는 굽기는 반으로(안 잘리게)
