@@ -257,6 +257,8 @@ export type TruthTracks = {
   fires: Map<number, Float64Array>;
   /** 판 16 이상인가 — 상태·사격 절이 있다(빈 표여도 '안 일어났다'는 뜻이다). */
   has16: boolean;
+  /** 초당 프레임(머리). */
+  fps: number;
 };
 /** 판 16 상태 갈래(덤퍼 bwdump.cpp 판 16 블록과 같은 번호). 타이머 = 켜짐·늘어남·꺼짐만 적힌 갈래. */
 export const ST16 = {
@@ -428,6 +430,44 @@ class Cursor {
     return (z >>> 1) ^ -(z & 1);
   }
   get left(): number { return this.b.length - this.p; }
+  /** n 바이트를 떼어 낸다(복사 — 큰 풀린 판을 붙잡지 않게). */
+  take(n: number): Uint8Array { const v = this.b.slice(this.p, this.p + n); this.p += n; return v; }
+}
+/** 판 17 원본 절 하나 — 줄 수 · 몸 바이트(해독은 쓸 때 아래 raw17* 로). */
+export type Raw17Sec = { n: number; b: Uint8Array };
+/** 판 17 명령 원본 줄 [초, 바이트(사람 번호 · 명령 번호 · 몸 — 리플레이 그대로)]. */
+export function raw17Cmds(sec: Raw17Sec, fps: number): [number, Uint8Array][] {
+  const c = new Cursor(sec.b); const out: [number, Uint8Array][] = []; let pf = 0;
+  for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); const n = c.u8(); out.push([pf / fps, c.take(n)]); }
+  return out;
+}
+/** 판 17 정밀 자리 줄 [초, 태그, x 픽셀, y 픽셀, 방향(0~255), 속력(fp8 raw), 이동 방향(0~255)] — 표본 간격마다 바뀐 몸만. */
+export function raw17Pos(sec: Raw17Sec, fps: number): [number, number, number, number, number, number, number][] {
+  const c = new Cursor(sec.b); const out: [number, number, number, number, number, number, number][] = []; let pf = 0;
+  for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); out.push([pf / fps, c.u32(), c.u16(), c.u16(), c.u8(), c.varint(), c.u8()]); }
+  return out;
+}
+/** 판 17 탄 줄 — 생김 {초, 번호, 무기, 임자, 쏜 태그, 표적 태그, x, y, 표적 x, 표적 y} · 사라짐 {초, 번호, gone}. */
+export function raw17Bullets(sec: Raw17Sec, fps: number): ({ t: number; id: number; gone: true } | { t: number; id: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number })[] {
+  const c = new Cursor(sec.b); const out: ReturnType<typeof raw17Bullets> = []; let pf = 0;
+  for (let i = 0; i < sec.n; i += 1) {
+    const k = c.u8(); pf += c.varint(); const id = c.u32();
+    if (k === 1) { out.push({ t: pf / fps, id, gone: true }); continue; }
+    out.push({ t: pf / fps, id, wpn: c.u16(), owner: c.u8(), src: c.u32(), tgt: c.u32(), x: c.u16(), y: c.u16(), tx: c.u16(), ty: c.u16() });
+  }
+  return out;
+}
+/** 판 17 사람 줄 [초, 사람, 갈래, 값] — 갈래표는 덤퍼 bwdump.cpp 판 17 '사람' 주석(0~2 보급 쓴 몫 · 3~5 상한 · 6·7 점수 · 8 동맹 · 9 시야 공유 · … · 1000+종류 수 · 2000+완성 수). */
+export function raw17Players(sec: Raw17Sec, fps: number): [number, number, number, number][] {
+  const c = new Cursor(sec.b); const out: [number, number, number, number][] = []; let pf = 0;
+  for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); out.push([pf / fps, c.u8(), c.u16(), c.u32()]); }
+  return out;
+}
+/** 판 17 타일 줄 [초, 타일 번호(y × 폭 + x), 깃발(크립 0x40 · 크립 물러남 0x1000 · 차지됨 0x800 …), 보임 비트, 밝힘 비트] — 24 프레임마다 바뀐 칸. */
+export function raw17Tiles(sec: Raw17Sec & { w: number; h: number }, fps: number): [number, number, number, number, number][] {
+  const c = new Cursor(sec.b); const out: [number, number, number, number, number][] = []; let pf = 0;
+  for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); const ti = c.u32(); const v = c.u32(); out.push([pf / fps, ti, v >>> 16, (v >>> 8) & 0xff, v & 0xff]); }
+  return out;
 }
 
 /**
@@ -452,6 +492,7 @@ export const TRUTH_VER_MIN9 = 11;
 /* 판 14 = 판 13 + 맨 뒤 **채집 절**(사람마다 캔 자원 누적 · 아래 gath) — 옛 판은 빈 표다(2026-10-22). */
 /* 판 15 = 판 14 + 상태 바이트 0x10 '스팀팩 중'(2026-11-03, 요청: "스팀팩을 데이터에 싣는 방법으로 근본적 해결") — 꼴은 같고 깃발 하나가 는다(옛 판은 0). */
 /* 판 16 = 판 15 + 맨 뒤 **상태 절**(마법 타이머·매트릭스·실드·연구 중… 아래 ST16) · **사격 절**(실제 발사 프레임) + 체력 솎기 없음(2026-11-03, 요청: "하나도 빠짐없이 다"). */
+/* (판 17 은 만들지 않았다 — 큰 원본은 재생용 참값을 무겁게 하지 않게 **곁 꾸러미 OBWX**(아래 decodeTruthExtra)로 갈랐다 · 2026-11-03.) */
 export const TRUTH_VER_MAX9 = 16;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
@@ -482,6 +523,40 @@ export async function peekTruthHead(
   }
 }
 
+/** ★ 참값 곁 꾸러미 OBWX(2026-11-03, 요청: "절대 하나도 빼놓지 마 · 다 나중에 필요해") — 서버 `GET /game-results/{id}/truth-extras` 의 data(base64).
+ *  덤퍼가 재생용 참값(OBWT)과 따로 낸 큰 원본: ① 상태 나머지(갈래 40~89 — 명령·표적·이동 표적·상태 비트·운반·대기열·건설 남은 시간·포탑 방향·
+ *  보임 비트·정확한 체력·에너지·…) ② 명령 원본 ③ 정밀 자리 ④ 탄 ⑤ 사람 ⑥ 타일. ①은 OBWT 의 stat 과 같은 꼴(태그마다 평평한 [초, 갈래, 값])로 풀고
+ *  나머지는 바이트로 들고 있다가 raw17* 로 푼다(정밀 자리만 수백만 줄일 수 있다). 꼴은 덤퍼 bwdump.cpp 'OBWX' 주석. */
+export type TruthExtra = {
+  fps: number;
+  stat: Map<number, Float64Array>;
+  cmds: Raw17Sec; pos: Raw17Sec; bullets: Raw17Sec; players: Raw17Sec; tiles: Raw17Sec & { w: number; h: number };
+};
+export async function decodeTruthExtra(b64: string): Promise<TruthExtra | null> {
+  try {
+    const c = new Cursor(await inflate(fromBase64(b64)));
+    if (c.u8() !== 0x4f || c.u8() !== 0x42 || c.u8() !== 0x57 || c.u8() !== 0x58) return null; // "OBWX"
+    if (c.u8() !== 1) return null;
+    const fps = c.f32();
+    const sec9 = (head9 = 0): Raw17Sec & { w: number; h: number } => {
+      const len9 = c.u32(); const n9 = c.u32();
+      const w9 = head9 ? c.u16() : 0; const h9 = head9 ? c.u16() : 0;
+      return { n: n9, b: c.take(len9 - 4 - head9), w: w9, h: h9 };
+    };
+    const st9 = sec9();
+    const stat = new Map<number, Float64Array>();
+    { const sc = new Cursor(st9.b); const acc9 = new Map<number, number[]>(); let pf = 0;
+      for (let i = 0; i < st9.n; i += 1) {
+        pf += sc.varint(); const tag = sc.u32(); const kind = sc.u8(); const v = sc.u32();
+        const a9 = acc9.get(tag); if (a9) a9.push(pf / fps, kind, v); else acc9.set(tag, [pf / fps, kind, v]);
+      }
+      for (const [tg9, a9] of acc9) stat.set(tg9, Float64Array.from(a9)); }
+    const cmds = sec9(); const pos = sec9(); const bullets = sec9(); const players = sec9(); const tiles = sec9(4);
+    return { fps, stat, cmds, pos, bullets, players, tiles };
+  } catch {
+    return null;
+  }
+}
 export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null> {
   try {
     const raw = await inflate(fromBase64(b64));
@@ -870,11 +945,10 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         } }
       for (const [tg9, a9] of acc9) fires.set(tg9, Float64Array.from(a9));
     }
-
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
-      energy, loads, amounts, kills, dmg, dmgBucketSec, gath, stat, fires, has16 };
+      energy, loads, amounts, kills, dmg, dmgBucketSec, gath, stat, fires, has16, fps };
   } catch {
     return null;
   }

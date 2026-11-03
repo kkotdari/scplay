@@ -286,11 +286,14 @@ function expect(ver, r, fail) {
   eq("상태 77", r.stat?.get(77) ? [...r.stat.get(77)] : [], ver >= 16 ? [48 / FPS, 1, 131, 96 / FPS, 1, 0] : []);
   eq("상태 78", r.stat?.get(78) ? [...r.stat.get(78)] : [], ver >= 16 ? [72 / FPS, 26, 60] : []);
   eq("사격 77", r.fires?.get(77) ? [...r.fires.get(77)] : [], ver >= 16 ? [48 / FPS, 0, 78, 63 / FPS, 1, 0] : []);
+
 }
 
 // ── 해독기 불러오기 ────────────────────────────────────────────────────────────
 /* 해독기는 TS라 그대로 못 부른다 — esbuild로 한 벌 묶어 임시 파일에서 읽는다.
    esbuild는 vite가 끌고 오므로 npm i만 돼 있으면 있다. */
+/** 판 17 원본 절 푸는 함수들(loadDecoder 가 채운다). */
+let R17 = null;
 async function loadDecoder() {
   const dir = mkdtempSync(join(tmpdir(), "obwt-"));
   const src = join(dir, "entry.ts");
@@ -298,7 +301,7 @@ async function loadDecoder() {
   /* 업그레이드 이름표도 함께 낸다 — 글자 쪽을 거를 때 **해독기와 똑같은 자**를 써야
      한다(둘 다 ""를 '이름 없음'으로 본다). 베낀 표로 거르면 자물쇠가 안 된다. */
   writeFileSync(src,
-    `export { decodeTruthTracks } from ${JSON.stringify(join(ROOT, "src/utils/openbwTracks"))};
+    `export { decodeTruthTracks, decodeTruthExtra, raw17Cmds, raw17Pos, raw17Bullets, raw17Players, raw17Tiles } from ${JSON.stringify(join(ROOT, "src/utils/openbwTracks"))};
 `
     + `export { bwUpgradeName } from ${JSON.stringify(join(ROOT, "src/utils/bwUpgradeNames"))};
 `);
@@ -315,6 +318,7 @@ async function loadDecoder() {
     process.exit(2);
   }
   const mod = await import(pathToFileURL(out).href);
+  R17 = mod;
   return { decode: mod.decodeTruthTracks, upName: mod.bwUpgradeName,
     cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
@@ -616,6 +620,30 @@ for (let ver = VER_MIN; ver <= VER_MAX; ver += 1) {
   if (!r) fail(`판 ${ver}: 해독기가 null을 냈다 (받아 주어야 하는 판이다)`);
   else expect(ver, r, (m) => fail(`판 ${ver} — ${m}`));
   if (bad === before) console.log(`   ✔ 판 ${ver}`);
+}
+/* 곁 꾸러미 OBWX(2026-11-03) — 상태 나머지 · 명령 원본 · 정밀 자리 · 탄 · 사람 · 타일 절을 짓고 풀어 견준다. */
+{
+  const before = bad;
+  const fpsX = 24; const xb = [Buffer.from("OBWX"), u8(1)]; { const f = Buffer.alloc(4); f.writeFloatLE(fpsX); xb.push(f); }
+  const sec = (n, body, head = Buffer.alloc(0)) => { const bb = Buffer.concat(body); xb.push(u32(4 + head.length + bb.length), u32(n), head, bb); };
+  sec(1, [varint(24), u32(77), u8(40), u32(10)]);                                                 // 상태 나머지: 태그 77 명령 10
+  sec(1, [varint(48), u8(3), Buffer.from([0, 0x1a, 0x00])]);
+  sec(1, [varint(24), u32(77), u16(320), u16(640), u8(64), varint(512), u8(70)]);
+  sec(2, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(1), varint(12), u32(1)]);
+  sec(1, [varint(24), u8(3), u16(0), u32(18)]);
+  sec(1, [varint(24), u32(5), u32((0x40 << 16) | (1 << 8) | 1)], Buffer.concat([u16(128), u16(96)]));
+  const x = await R17.decodeTruthExtra(zlib.deflateSync(Buffer.concat(xb)).toString("base64"));
+  const ok = (name, a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) fail(`곁 꾸러미 ${name}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`); };
+  if (!x) fail("곁 꾸러미: 해독기가 null");
+  else {
+    ok("상태", [...(x.stat.get(77) ?? [])], [24 / fpsX, 40, 10]);
+    ok("명령", R17.raw17Cmds(x.cmds, fpsX).map(([t, b]) => [t, [...b]]), [[48 / fpsX, [0, 0x1a, 0]]]);
+    ok("자리", R17.raw17Pos(x.pos, fpsX), [[24 / fpsX, 77, 320, 640, 64, 512, 70]]);
+    ok("탄", R17.raw17Bullets(x.bullets, fpsX), [{ t: 48 / fpsX, id: 1, wpn: 0, owner: 3, src: 77, tgt: 78, x: 10, y: 20, tx: 30, ty: 40 }, { t: 60 / fpsX, id: 1, gone: true }]);
+    ok("사람", R17.raw17Players(x.players, fpsX), [[24 / fpsX, 3, 0, 18]]);
+    ok("타일", [x.tiles.w, x.tiles.h, ...R17.raw17Tiles(x.tiles, fpsX)], [128, 96, [24 / fpsX, 5, 0x40, 1, 1]]);
+  }
+  if (bad === before) console.log("   ✔ 곁 꾸러미 OBWX");
 }
 /* 범위 밖은 **물리쳐야** 한다 — 덤퍼가 판만 올리고 여기를 안 고쳤을 때, 조용히 옛 꼴로
    읽어 버리는 것보다 못 읽는다고 말하는 편이 낫다(그래야 '재분석 필요'로 드러난다). */
