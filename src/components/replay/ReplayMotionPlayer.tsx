@@ -821,14 +821,7 @@ const SPR_UP_PC9 = Infinity;
 /** 아틀라스를 기다리는 앞 종류의 몫(많이 쓰는 차례 · 적어도 6 종류 · 예열 effect 의 ★ '많이 쓰는 종류만 기다린다' · 2026-10-26). */
 const ATLAS_CORE9 = 0.3;
 const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = /sprdump=([\d.]+)/.exec(location.hash); return m9 ? Math.max(1, Math.min(3, Number(m9[1]) || 1)) : 0; })() : 0;
-/** ★ **안드로이드 앱은 폰도 16방향**(2026-11-03, 요청: "안드로이드 apk 에는 아틀라스를 미리 넣을 수 있잖아 · 앱에서 재생할 땐 16방향 버전으로" → "1만 하자 우선") — 앱(Capacitor
- *  웹뷰 · 브리지가 window.Capacitor 를 세운다)은 아틀라스 폰 판(h)의 짝·홀(a+b)이 이미 APK 에 들어 있어 받는 값이 없다. 그래서 앱이면 폰 단 어디서나 요잉 칸 16 · 아틀라스 홀 묶음(b)도 싣고
- *  GPU 상한을 홀 몫(실측 짝:홀 ≈ 45:34MB → ×1.75)만큼 올린다(아틀라스 200/160/128 → 350/280/224 · 판 전체 320/256/224 → 470/376/320). 상한에 닿으면 덜 쓰는 종류의 홀 묶음부터 빠지고
- *  (sprAtlas9 묶음 차례) 그 칸은 재생 중에 굽는다. 고해상도(f)는 아직(GPU 4배 · 별도 요청). `#app=1` 억지로 · `#app=0` 끔. */
-const APP16_9 = (): boolean => {
-  if (typeof location !== "undefined") { const m9 = /(?:^|[#&,])app=([01])/.exec(location.hash); if (m9) return m9[1] === "1"; }
-  try { return !!(globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.(); } catch { return false; }
-};
+/* (걷음 · 2026-11-03 "셋 다 같은 상한으로 통일") 옛 APP16_9 — Capacitor 앱만 16방·상한 ×1.75 로 가르던 자. 이제 폰은 웹·PWA·앱 모두 같다(아래 sprTune9 · ATLAS_WANT9). */
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
@@ -836,19 +829,20 @@ const sprTune9 = (): void => {
     return;
   }
   const phone9 = DEV9.name === "phone";
-  const app9 = phone9 && APP16_9();   // 위 APP16_9 ★ — 앱 폰은 16칸 · 판 전체 상한에 아틀라스 홀 몫을 더한다
   /* ★ **요잉 32 칸 · 모든 기기**(2026-11-03, 요청: "피시 유닛 굽기 각을 32방 · 32방을 모두 적용" → "모바일도 메모리가 다 올리기엔 부족하지만 32방을 필요한 걸 백그라운드에서
      구우면서 채우면 괜찮지 않음?") — 칸 열쇠는 32칸이고, 아틀라스는 기기 몫(ATLAS_WANT9 — PC 32 · 낮은 PC·앱 폰 16 · 폰 8)만 받는다. 없는 칸은 **가까운 칸(16·8방)으로 그리며**
      남는 예산으로 조금씩 굽는다(gl9 sprFill ★ — fill 이 한 장 상한 · 판이 상한이면 안 굽고 가까운 칸 그대로). */
   glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, 32,
     phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0,
       /* (2026-11-03, 요청: "폰웹 16 앱 32로 변경") — 판 전체 상한에 아틀라스 몫(아래 mbCap — 웹 ×1.75 · 앱 ×2.5)의 늘어난 만큼을 더한다 · 미리 찍기 걸음 웹 2 · 앱 1. */
-      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96) * (app9 ? 2 : 1), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: app9 ? 1 : 2 }
+      /* ★ (같은 날 "PWA 나 캐퍼시터 앱이라고 메모리 이점은 없지? → 셋 다 같은 상한으로 통일하고 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 같은 상한(성능 단별) ·
+         판 전체 = 기본 + 아틀라스 몫(아래 mbCap ×1.75 의 늘어난 몫) · 미리 찍기 걸음 2(16방 · 사이는 교체가 채운다). */
+      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: 2 }
       : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1, fill: 8, warmStep: TIER9.v === 0 ? 2 : 1 });
 };
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
 const ATLAS_WANT9 = (): 8 | 16 | 32 => {
-  if (DEV9.name === "phone") return APP16_9() ? 32 : 16;   // (2026-11-03 "폰웹 16 앱 32로 변경") 옛: 앱 16 · 웹 8
+  if (DEV9.name === "phone") return 32;   // (2026-11-03 "셋 다 같은 상한 · 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 32방을 상한까지 올리고 넘친 묶음은 교체 · 옛: 앱 32 · 웹 16 ← 앱 16 · 웹 8
   return TIER9.v === 0 ? 16 : 32;
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
@@ -958,9 +952,11 @@ function suitFist(
 const UI_OWN9 = "#10fc18";
 const UI_ATK9 = "#f40404";
 let UI_SCREEN9: string | null = null;
+/** 화면 주인의 원작 초록·적 빨강·동맹 노랑 링을 칠하나 — 개인 추적·분할 칸만(2026-11-03 "중계는 화면 주인이 없어" · 자동 중계는 거름만 하고 색은 임자색). */
+let UI_GREEN9 = true;
 /** raw9 가 화면 주인이면 초록(공격 클릭 atk9 면 빨강) · 아니면 null(부르는 쪽이 색 모드 색으로 물러난다). */
 function ownUiCol9(raw9: string | undefined, atk9 = false): string | null {
-  if (UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
+  if (!UI_GREEN9 || UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
   return atk9 ? UI_ATK9 : UI_OWN9;
 }
 /** 동맹(적도 나도 아닌 사람 · 중립)을 고른 링 — 원작 노랑(2026-10-09, 요청: "동맹 선택시 … 빨간색은 아닌듯 노란색이 적당"). */
@@ -1023,7 +1019,7 @@ function selRingCol9(op: UnitDrawOp): string | null {
   if (own9) return own9;
   /* 주인이 고른 남의 몸 — 적은 빨강 · 동맹(같은 편)과 중립(임자 없음)은 **노랑**(2026-10-09, 요청) · 원작 선택 원색 셋(초록·노랑·빨강). 옛 판은 적만 빨강이고
      동맹은 제 몸 색(개인색이 빨강이면 빨강으로 읽혔다). */
-  if (UI_SCREEN9 !== null && !!op.selBy?.includes(UI_SCREEN9)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : UI_ALLY9;
+  if (UI_GREEN9 && UI_SCREEN9 !== null && !!op.selBy?.includes(UI_SCREEN9)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : UI_ALLY9;
   return null;
 }
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
@@ -6034,6 +6030,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
 }) {
   /** 고른 몸인가 — 누른 몸(pickedKey) · 상자 선택(pickedKeys). */
   const isPk9 = (k9: string | undefined): boolean => k9 != null && (k9 === pickedKey || !!pickedKeys?.has(k9));
+  /** ★ 링 색(2026-11-03, 요청: "자유·중계 모드에서 선택 유닛은 주인공색 녹색으로 링 변경") — 보는 사람이 고른 몸(isPk9)은 HERO_COL9.me(#2cb494) · 자원은 원작대로 노랑 ·
+   *  **경기 속 선택(op.selRing)·우클릭 표적 깜빡임보다 앞선다**(같은 날 "원래 유저가 선택한 거보다 우선해서 녹색") · 그 밖은 selRingCol9(화면 주인 초록·적 빨강·동맹 노랑) → 몸 색.
+   *  유닛·건물·마커·랠리가 같이 쓴다. */
+  const ringColOf9 = (op: UnitDrawOp): string => (isPk9(op.pickKey) && !op.pickKey?.startsWith("r") ? HERO_COL9.me : selRingCol9(op) ?? op.color);
   const ref = useRef<HTMLCanvasElement>(null);
   /** GL 캔버스 — JSX 의 자리표(glHoldRef)를 판을 넘어 산 캔버스(glKeepCv9)로 갈아 끼운 것(아래 ★). */
   const glRef = useRef<HTMLCanvasElement | null>(null);
@@ -6585,13 +6585,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, selRingCol9(op) ?? op.color, op.alpha, 1);
+              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, ringColOf9(op), op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
               if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) {
-                ctx.strokeStyle = selRingCol9(op) ?? op.color;
+                ctx.strokeStyle = ringColOf9(op);
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
@@ -6937,7 +6937,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
             const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + uiLineW9((tilePx ?? 8) * zoom, Bd) / 2;
             if ((op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) && gl9.primOk && op.mkFrac === undefined) {
-              const bRingCol9 = selRingCol9(op) ?? op.color;
+              const bRingCol9 = ringColOf9(op);
               const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: uiLineW9((tilePx ?? 8) * zoom, Bd), shear: 0 };
               ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
@@ -6947,7 +6947,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             if (isPk9(op.pickKey) && op.rally && gl9.primOk) {
               const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
               const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
-              const col9r = selRingCol9(op) ?? op.color;
+              const col9r = ringColOf9(op);
               gl9.prim(3, sx, cy9, rx9r, ry9r, col9r, op.alpha * 0.8, lw9r);
               gl9.prim(2, rx9r, ry9r, Math.max(3, (tilePx ?? 8) * zoom * 0.35), Math.max(2, (tilePx ?? 8) * zoom * 0.2), col9r, op.alpha, lw9r);
             }
@@ -7202,7 +7202,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              요잉의 상자 폭 평균(ringWidth9 — 요잉과 무관 · 자세 0에서 잰 값이라 모션과도 무관). 2D 폴백(inkK)은 원래 요잉을 안 탄다.
              (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
           const ringX = sx;
-          const ringCol9 = selRingCol9(op) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
+          /* ★ **보는 사람이 고른 몸은 주인공색 녹색 링**(2026-11-03, 요청: "자유·중계 모드에서 선택 유닛은 주인공색 녹색으로 링 변경") — 클릭·상자로 고른 몸(isPk9)은
+             HERO_COL9.me(#2cb494). 우클릭 표적 깜빡임은 그대로 앞선다. */
+          const ringCol9 = ringColOf9(op);   // 고른 몸은 주인공색 녹색(위 ringColOf9 ★) · 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
           ringDiagPush9(op, ringCol9, ringWd9, ringW);
           const ringPath = (): void => {
             ctx.beginPath();
@@ -13319,10 +13321,16 @@ export default function ReplayMotionPlayer({
   /** 원작 초록의 기준이 되는 화면 주인(렌더마다 채움 · 붓은 UI_SCREEN9 로 받는다 · 위 UI_OWN9 주석). */
   const uiOwnerRef9 = useRef<string | null>(null);
   /* ★ 원작 초록의 기준 — **화면 주인**(개인 추적 · 중계 자동 · 위 UI_OWN9). 그리기 틱이 붓을 부를 때 UI_SCREEN9 에 옮겨 놓는다(분할은 칸마다). */
+  /* ★ **중계는 화면 주인이 없다**(2026-11-03, 지적: "중계에선 원작처럼 초록 아닌데" → "중계는 화면 주인이 없어") — 원작 초록(링·마커·핑의 UI_OWN9)과 적 빨강·동맹 노랑 링은
+     **개인 추적(trackRaw)** 에만 선다(uiGreenRef9 → 붓의 UI_GREEN9). 자동 중계(castRaw)는 링·마커·핑이 색 모드 그대로(임자색). '주인 것만' 거르는 자(링·고스트·클릭 마커 ·
+     공격 표적 깜빡임)는 종전대로 카메라 임자(camRaw9 · "중계 개인 화면에 왜 동맹 마우스 마커가 보이지?" 의 거름). 분할 칸은 종전대로 칸 사람 초록. */
   uiOwnerRef9.current = camRaw9 !== null && !splitOn9 ? camRaw9 : null;
-  /** 렌더 안(DOM 마커·핑·미니맵 핑)에서 쓰는 제 인스턴스의 원작 초록 — raw9 가 화면 주인이면 초록(공격이면 빨강) · 아니면 null. */
+  /** 원작 초록을 칠하나 — 개인 추적(trackRaw)만(위 ★). 붓은 UI_GREEN9 로 받는다. */
+  const uiGreenRef9 = useRef(false);
+  uiGreenRef9.current = trackRaw !== null && !splitOn9;
+  /** 렌더 안(DOM 마커·핑·미니맵 핑)에서 쓰는 제 인스턴스의 원작 초록 — raw9 가 화면 주인이고 개인 추적이면 초록(공격이면 빨강) · 아니면 null. */
   const ownCol9 = (raw9: string, atk9 = false): string | null =>
-    (uiOwnerRef9.current !== null && raw9 === uiOwnerRef9.current ? (atk9 ? UI_ATK9 : UI_OWN9) : null);
+    (uiGreenRef9.current && uiOwnerRef9.current !== null && raw9 === uiOwnerRef9.current ? (atk9 ? UI_ATK9 : UI_OWN9) : null);
   /* 미니맵 핑 목록(2026-10, 요청: "미니맵 내 색 포함" — 원작처럼 미니맵에도 번진다) — 큰 지도 핑(아래 JSX)과 같은 거름(관전자 제외 ·
      시점 보기에선 상대편 제외)과 같은 색(주인 제 핑 초록 · 나머지 색 모드). age 는 3초 창의 0~1. 핑은 몇 개 안 되어 렌더마다 다시 센다. */
   miniPingsRef9.current = qPing && entData?.pings
@@ -18973,7 +18981,7 @@ export default function ReplayMotionPlayer({
     if (splitOnRef9.current && splitLayRef9.current) splitPaint9(tNow9);   // 분할보기 — 칸마다 칠해 베낀다
     else {
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
-      UI_SCREEN9 = uiOwnerRef9.current;
+      UI_SCREEN9 = uiOwnerRef9.current; UI_GREEN9 = uiGreenRef9.current;
       UI_ENEMY9 = enemyOf9(UI_SCREEN9); ATK_FLASH9 = atkFlashFor9(UI_SCREEN9, tNow9); ATK_T9 = tNow9;   // 적 판정 · 공격 표적 창(위 ★)
       RING_DIAG9.length = 0;
       /* ★ 주인이 있으면 선택 링·건설 고스트도 **주인 것만**(2026-10, 같은 지적 — 동맹의 선택 링·고스트는 분할 칸처럼 걷는다 · splitOwnOps9). */
@@ -18982,7 +18990,7 @@ export default function ReplayMotionPlayer({
       try { unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current); } finally {
         if (scrDiagOn()) SCR_DIAG.ring = `주인 ${UI_SCREEN9 ?? "없음"} · 몸 ${frameOpsRef9.current?.length ?? -1} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`;
         frameOpsRef9.current = keepOps9;
-        UI_SCREEN9 = null; UI_ENEMY9 = null; ATK_FLASH9 = null;
+        UI_SCREEN9 = null; UI_GREEN9 = true; UI_ENEMY9 = null; ATK_FLASH9 = null;
       }
     }
     xfCvXfRef.current = XF_ID9;
@@ -19229,21 +19237,29 @@ export default function ReplayMotionPlayer({
        오른쪽·가운데 끌기도 그대로 둔다. 맥의 ⌃+누름은 차림표를 부르지만 지도는 contextmenu 를 막는다(아래 onContextMenu). */
     /* ★★ **되바꿈**(2026-11-02, 요청: "좌클릭드래그 다시 드래그로 변경하고 선택을 알트 드래그로 · 즉시 드래그") — 그냥 왼쪽 끌기 = 지도 이동(문턱 없이 곧장 · 아래 move 의
        '곧장 끈다' ★) · **Alt(⌥) + 왼쪽 끌기 = 상자 선택**. 오른쪽·가운데 끌기도 이동 그대로. 위 두 ★(왼쪽 = 상자 · Alt/Ctrl = 이동)는 이것으로 뒤집혔다. */
-    const selMod9 = e.pointerType === "mouse" && e.button === 0 && e.altKey;
+    /* (되물림 · 2026-11-03 "자유시점이랑 똑같이 · 중계 추적 중에도 알트 드래그로만 선택 · 그냥 드래그는 이동 시도로 막기") — 잠긴 동안 Alt 없는 상자 선택을 걷었다. */
+    /* ★★★ **최종**(2026-11-03, 요청: "진짜 최최종 — 좌클릭 드래그 = 선택 · 우클릭 드래그 또는 알트 드래그 = 이동") — 마우스 왼쪽 끌기(Alt 없음) = 상자 선택 ·
+       오른쪽 끌기 · Alt+왼쪽 끌기 = 지도 이동(잠긴 카메라에선 이동 시도 → 토스트) · 가운데는 아무것도 안 한다. 중계·추적 중에도 같다 · 분할보기는 상자를 안 쓴다 · 손가락은 끌면 이동. */
+    const selMod9 = e.pointerType === "mouse" && e.button === 0 && !e.altKey;
+    /* ★ **추적 모드(trackRaw · 개인 추적)는 상자 선택을 안 쓴다**(2026-11-03, 요청: "추적모드에서 선택 사용 X") — 왼쪽 끌기는 이동 시도(잠김 토스트)로 친다. 클릭은 그대로. */
+    if (selMod9 && trackRaw !== null) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }
     if (selMod9 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
       boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false, ox: sr9?.left ?? 0, oy: sr9?.top ?? 0, raf: 0 };
       return;
     }
-    if (e.pointerType === "mouse" && e.button !== 0) {
-      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손) · 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
-      if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
+    /* ★ 가운데 버튼은 **아무것도 안 한다**(2026-11-03, 요청: "중간 클릭 드래그는 아무기능 없이 제거") — 자동 굴림만 막고 끝(옛: 오른쪽처럼 지도 이동). */
+    if (e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); const tpM9 = tapRef.current; if (tpM9) tpM9.moved = true; return; }
+    /** 지도를 끄는 누름 — 마우스 오른쪽 · Alt+왼쪽 · 손가락(위 ★★★). */
+    const panBtn9 = e.pointerType === "mouse" ? e.button === 2 || (e.button === 0 && e.altKey) : e.button === 0;
+    if (e.pointerType === "mouse" && panBtn9) {
+      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 끄는 누름은 몸을 안 집는다 · Alt 없는 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
       (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
     }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 왼쪽·오른쪽·가운데 버튼 모두 끈다(Alt+왼쪽은 위 상자 선택)
+    if (!panRoom || !panBtn9) return;   // 지도 이동은 오른쪽·Alt+왼쪽(손가락은 끌기) — 왼쪽은 위 상자 선택 · 가운데는 위에서 끝
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -20238,7 +20254,9 @@ export default function ReplayMotionPlayer({
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
     /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
     /* (2026-11-03 요잉 32) 기기 몫(ATLAS_WANT9)의 칸만 — 32칸 기기라도 폰은 8방(4칸 걸음)만 미리 굽고 나머지는 재생 중 채움(gl9 sprFill ★). */
-    const preYaws9 = (g9: GlUnits9): number[] => { const st9 = Math.max(1, Math.round(g9.sprYaw / ATLAS_WANT9())); return Array.from({ length: Math.ceil(g9.sprYaw / st9) }, (_, i9) => i9 * st9); };
+    /** 미리 굽기 방향 수 — 폰은 16(32 를 다 미리 굽기엔 무겁다 · 사이는 교체·채우기). */
+    const preWant9 = (): number => (DEV9.name === "phone" ? 16 : ATLAS_WANT9());
+    const preYaws9 = (g9: GlUnits9): number[] => { const st9 = Math.max(1, Math.round(g9.sprYaw / preWant9())); return Array.from({ length: Math.ceil(g9.sprYaw / st9) }, (_, i9) => i9 * st9); };
     const preStep9 = DEV9.name === "phone" ? 8 : 24;
     /* ★ 걸음은 **장 길이에 맞춘다**(2026-10-24, 지적: "팝업 뜬 상태에서 화면 멈춤 · 처음 로딩 애니메이션 멈추지 않게") — 한 장에 preStep9 장을 못 박으면 무거운 장(GPU 굽기 몰림)에
        LOADING 글자 애니메이션이 함께 멎는다. 지난 장이 34ms 를 넘으면 반으로, 20ms 안이면 둘씩 되올린다(상한 preStep9 · 하한 2). */
@@ -20265,11 +20283,10 @@ export default function ReplayMotionPlayer({
            실리면 고정 칸이 이긴다(sprAtlasAdd9 — 같은 열쇠) · 그 종류의 동적 미리 굽기는 건너뛴다(atlasPend9). */
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
         const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
-        const app9 = ph9 && APP16_9();   // 앱 폰은 홀 묶음(b)도 · 상한 ×1.75(위 APP16_9 ★)
         sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
           /* (2026-11-03 요잉 32 · "고성능 피시는 교체 없이 쭉") — PC 높은 단은 32방 묶음(o)까지 다 GPU 에 올리게 2048MB · 그 아래는 1024MB 에서 넘치면 교체(sprAtlas9 교체 ★).
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
-          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (app9 ? 2.5 : 1.75) : TIER9.v >= 2 ? 2048 : 1024,   // 폰 웹 16방 ×1.75 · 앱 32방 ×2.5(넘치면 교체)
+          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * 1.75 : TIER9.v >= 2 ? 2048 : 1024,   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 800 : 3000,   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
@@ -20328,7 +20345,7 @@ export default function ReplayMotionPlayer({
                   /* 32칸 머리(gl9 SPR_YAW32_9 · 터렛 머리·컴샛 접시)는 도는 각이 요잉 칸이라 서른둘을 다 굽는다(그림자는 밑동이 진다). */
                   /* 성큰 혀는 표적 쪽으로 도는 딸림 부품이라 컷마다 요잉 칸을 다 굽는다(건물 칸 수 = yawN9). */
                   const yaws9 = u9 ? preYaws9(g9) : SPR_YAW32_9.has(j9.kind) ? Array.from({ length: 32 }, (_v9, i9) => i9)
-                    : j9.kind === "sunkentongue" ? ((): number[] => { const n9 = g9.yawN9(m9); const st9 = Math.max(1, Math.round(n9 / Math.max(8, ATLAS_WANT9()))); return Array.from({ length: Math.ceil(n9 / st9) }, (_v9, i9) => i9 * st9); })() : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
+                    : j9.kind === "sunkentongue" ? ((): number[] => { const n9 = g9.yawN9(m9); const st9 = Math.max(1, Math.round(n9 / Math.max(8, preWant9()))); return Array.from({ length: Math.ceil(n9 / st9) }, (_v9, i9) => i9 * st9); })() : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
                   /* 딸림 부품(터렛 머리·컴샛 접시·성큰 혀)은 붓이 그림자를 안 깐다(몸이 깐다) — 그림자 칸을 굽지 않는다. */
                   const attach9 = j9.kind === "turrethead" || j9.kind === "comsatdish" || j9.kind === "sunkentongue";
                   preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", yaws9, DEV9.meshShadow && !attach9, lt9 ?? undefined);
@@ -23504,7 +23521,7 @@ export default function ReplayMotionPlayer({
           onPointerMove={onMapPointerMove}
           onPointerUp={onMapPointerUp}
           onPointerCancel={onMapPointerUp}
-          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 지도를 끄는 손(위 상자 선택 ★) — 차림표를 안 띄운다 */
+          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 지도를 끄는 손(onMapPointerDown 의 ★★★) — 차림표를 안 띄운다 */
         >
           {/* ★ 밤하늘은 **무대의 빈자리**를 채운다 — 처음엔 눕힌 보기 전용이었다(요청: "우주
               배경 만든 건 기존 3D 보기에서 남는 빈 공간 채우는 용으로 쓰고(맵에 병합 X)"):
@@ -23786,7 +23803,7 @@ export default function ReplayMotionPlayer({
                       ? (() => castSel9.flatMap((r9) => { const v9 = splitViewRef9.current.get(r9); return v9 ? [{ ...v9, color: modeColor(r9, teamOfRaw(r9)) }] : []; }))
                       : undefined}
                     zoom={zoom} pan={pan}
-                    ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
+                    ownRaw={splitOn9 ? splitPick9 : uiGreenRef9.current ? uiOwnerRef9.current : null}
                     ownColor={UI_OWN9}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
