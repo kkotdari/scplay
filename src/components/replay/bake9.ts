@@ -3578,12 +3578,16 @@ export function creepBlobFaces(seed: number): ShapeFace[] {
     }
     meshPut9(d, [blob9]);
   }
+  /* ★ 어두운 얼룩 반점 일곱(#3d3244)은 **크립 제 색**(engine9 크립 op.color #6b5a72)으로 칠한다(2026-11-03, 요청: "크립에 동그란 어두운 얼룩 제거") — 판 안에선 바탕과 같은 색이라 안 보인다.
+     통째로 걷지 않는 까닭: 몇 개는 얼룩 테두리 밖으로 삐져나와 **잉크 상자**(contentBox · 알파 > 10)를 넓히고, 크립 판은 그 잉크 가운데에 앉는다(RMP creepPlate9 · inkCenter) —
+     걷으니 크립이 1타일 남짓 아래로 밀렸다(헤드리스 실측). 같은 색이어도 몸 판에만 실루엣 빛이 걸려 14~22% 에선 둥근 얼룩이 그대로 보여 알파를 0.06 으로 —
+     삐져나온 몫은 6% 크립 색으로 남는다(눈에 안 띈다). */
   const faces: ShapeFace[] = [bodyFace(d)];
   for (let i = 0; i < 7; i += 1) {
     const a = seed * 3.1 + i * 2.4;
     const rr = 2 + ((Math.sin(a * 17.7) * 0.5 + 0.5) * 4);
     faces.push([discPath3(Math.sin(a) * rr, Math.cos(a) * rr, 0.04, 0.55 + (i % 3) * 0.2),
-      i % 2 ? 0.22 : 0.14, "#3d3244"] as ShapeFace);
+      0.06, "#6b5a72"] as ShapeFace);   // 알파 0.14/0.22 → 0.06(잉크 문턱 알파 > 10/255 는 넘고 판의 실루엣 빛(silhouetteLight — 이 면만 탄다)으로 생기는 얼룩은 안 보이게)
   }
   return faces;
 }

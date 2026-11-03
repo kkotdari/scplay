@@ -1814,8 +1814,11 @@ const PHONE_DPR9 = 2;
 /** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2 · 보통·낮음 1.75(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25·26 발열로 한 칸씩 내림 · 옛 2.5/2.25/2 → 2.25/2/1.75) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
 const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
-  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 2.25 : PHONE_DPR9)
+  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 3 : TIER9.v === 1 ? 2.5 : PHONE_DPR9)   // ★ 아래 '폰 배킹 상한 올림'(2026-11-03)
   : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
+/* ★ **폰 배킹 상한 올림**(2026-11-03, 분석: "폰에서 8배라도 뭉개진다" → 헤드리스 dpr 3 실측 — 몸 배킹 2(높음 2.25)라 합성기가 1.5배 늘려 흐렸다(라플라시안 4~7배 차) ·
+   아틀라스는 늘 줄여 붙어 범인이 아니었다 → 요청 "상한 올리기") — 폰 높음 2.25 → **3** · 보통 2 → **2.5** · 낮음 2 그대로 · 매우 낮음(WEAK_DPR9) 그대로.
+   배율 6 이상 2 누름(capSmall9)도 걷었다. 프레임이 떨어지면 실측 조절(DRS9)이 내린다. 견줌 `#backcap=N`. */
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
  *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
  *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다). */
@@ -6053,7 +6056,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          담긴다. 3배 이하는 판이 작아 예산에 여유가 있으니 화면 픽셀(dpr 3) 그대로 둔다. `?dpr=`이 있으면 그것이
          우선이다(더 낮은 쪽). */
       if (gesture?.current !== true || BZ9.z <= 0) BZ9.z = zoom;   // 손짓 중엔 손짓 앞 배율(위 BZ9 ★)
-      const capSmall9 = BACKCAP9 > 0 ? BACKCAP9 : DEV9.name === "phone" && zoom >= 6 ? 2 : Infinity;   // #pctier 면 PC 처럼 안 누른다
+      const capSmall9 = BACKCAP9 > 0 ? BACKCAP9 : Infinity;   // 폰 배율 6 이상 2 누름은 걷었다(위 ★ '폰 배킹 상한 올림' · 2026-11-03)
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
       const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥)

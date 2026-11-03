@@ -2948,3 +2948,4 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 시험 손잡이: `#backcap=N`(몸 배킹 상한 · 있던 것) · `#sprlod=X`(gl9 STICK_LOD9 · 붙임 셰이더 치우침 · 링크 때 글자) · `#edgeshine=0`(gl9 EDGE_OFF9) ·
   model-gl `--half`(f 칸 2×2 줄임 = h)·`--scale S`. ⚠ gl9 에 `const SPR_…` 이름을 새로 쓰면 아틀라스 판 해시(spr-atlas atlasVer)가 잰다 — 시험 상수는 다른 이름으로.
 - 🔎 `perf-check.mjs --ios --dpr 3 --warm 4000 --glblit --atlas spr --zoom 6 --cx 0.15 --cy 0.82 --t 60 --pause --castoff --readyms 200000 [--hash backcap=3] --shot x.png`
+- (같은 날 결정 "상한 올리기") — 폰 몸 배킹 상한 높음 2.25 → **3** · 보통 2 → **2.5** · 낮음 2 · 매우 낮음 그대로 · 배율 6 이상 2 누름(capSmall9) 걷음(RMP backCap9 ★ '폰 배킹 상한 올림').
