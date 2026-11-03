@@ -87,6 +87,15 @@ export type TruthLife = {
   cloaks: [number, number][];
   /** ★ 스팀팩 구간들 [켠 초, 끈 초](2026-11-03 · 참값 판 15 상태 깃발 0x10 — 원작 stim_timer > 0 인 창). 옛 판은 빈 배열(모른다). */
   stims: [number, number][];
+  /** ★ 판 16 상태 구간 [시작, 끝, 갈래 이름](마법 타이머·매트릭스·산성 포자·눈멂·패러사이트·환영 …) — 원작 값 그대로(어림 없음).
+   *  없으면(판 15 이하) 화면이 종전대로 시전 자리로 어림한다. 이름은 engine9 STATUS_TINT 의 열쇠. */
+  stv?: [number, number, string][];
+  /** ★ 판 16 실드 변곡점 [초, 실드](정수) — 체력 자국(hp)은 여전히 체력 + 실드 합이다. 옛 판은 없음. */
+  sh?: Ticks;
+  /** ★ 판 16 실제 사격 시각들(초 · 시각 차례) — 무기 쿨다운이 다시 찬 프레임. 없으면(판 15 이하) 화면이 박자를 지어낸다. */
+  fires?: Float64Array;
+  /** ★ 판 16 그 태그의 상태 줄 전부(openbwTracks stat 그대로 · 평평한 [초, 갈래, 값, …]) — 연구 중·생산 대기열·킬 수·랠리 등 팝업이 읽는다. */
+  st16?: Float64Array;
   /** 자세 바뀜 [초, 박혔나] — 시즈탱크만 갖는다. */
   sieges: [number, boolean][];
   /** 떨어진 명령들 — 마우스 자국과 선택 링이 이것으로 선다. */
@@ -134,9 +143,39 @@ const RACE_OF: Record<number, "" | "테란" | "저그" | "프로토스"> =
   { 0: "저그", 1: "테란", 2: "프로토스" };
 
 /** 트랙 하나를 생애들로 가른다 — 종류가 바뀌는 자리가 곧 경계다(시즈는 빼고). */
+/** 판 16 상태 갈래 → 화면 상태 이름(engine9 STATUS_TINT 열쇠). 타이머 갈래는 켠·늘어남·꺼짐 줄로 구간을 짓고, 값 갈래는 값 ≠ 0 인 동안이 구간이다. */
+const ST16_NAME9: Record<number, string> = {
+  1: "lock", 2: "irr", 3: "ensnare", 4: "plague", 5: "stasis", 6: "mael", 8: "matrix",   // 10 스톰(맞는 중)은 판 자체가 그린다 — 오라를 겹쳐 안 단다(st16 에는 남는다)
+  11: "acid", 12: "parasite", 13: "blind", 14: "halluc",
+};
+function stv16Of9(st: Float64Array, a: number, b: number): [number, number, string][] {
+  const on9 = new Map<number, number>();
+  const out9: [number, number, string][] = [];
+  for (let i = 0; i + 2 < st.length; i += 3) {
+    const t9 = st[i]; const k9 = st[i + 1]; const v9 = st[i + 2];
+    const nm9 = ST16_NAME9[k9]; if (!nm9) continue;
+    if (t9 > b) break;
+    const was9 = on9.get(k9);
+    if (v9 !== 0 && was9 === undefined) on9.set(k9, t9);
+    else if (v9 === 0 && was9 !== undefined) { if (t9 >= a) out9.push([Math.max(a, was9), t9, nm9]); on9.delete(k9); }
+  }
+  for (const [k9, s9] of on9) out9.push([Math.max(a, s9), b, ST16_NAME9[k9]]);
+  return out9.sort((x, y) => x[0] - y[0]);
+}
+function shOf9(st: Float64Array, a: number, b: number): Ticks {
+  const v9: number[] = [];
+  for (let i = 0; i + 2 < st.length; i += 3) {
+    if (st[i + 1] !== 26) continue;
+    if (st[i] > b) break;
+    if (st[i] < a && v9.length >= 2) { v9[0] = st[i]; v9[1] = st[i + 2]; continue; }
+    if (st[i] < a) { v9.push(st[i], st[i + 2]); continue; }
+    v9.push(st[i], st[i + 2]);
+  }
+  return Float32Array.from(v9);
+}
 function livesOfTrack(
   tr: TruthTrack, orders: Map<number, [number, number, number, number][]>,
-  buildSecOf: BuildSecOf,
+  buildSecOf: BuildSecOf, t16?: { stat: Map<number, Float64Array>; fires: Map<number, Float64Array> },
 ): TruthLife[] {
   const n = tr.types.length;
   if (n === 0) return [];
@@ -383,6 +422,18 @@ function livesOfTrack(
       hp: tr.hp ? tkSlice(tr.hp, born, lifeEnd) : undefined,
       ic: tr.ic ? tkSlice(tr.ic, born, lifeEnd) : undefined,
       tgt: tr.tgt ? tkSlice(tr.tgt, born, lifeEnd) : undefined,
+      /* 판 16(위 stv·sh·fires·st16 ★) — 태그 하나의 줄을 이 생애의 시각 창으로. */
+      ...(t16 ? ((): Partial<TruthLife> => {
+        const st9 = t16.stat.get(tr.tag); const fr9 = t16.fires.get(tr.tag);
+        const end9 = Number.isFinite(lifeEnd) ? lifeEnd : Infinity;
+        const fs9: number[] = [];
+        if (fr9) for (let i = 0; i + 2 < fr9.length; i += 3) { if (fr9[i] >= born && fr9[i] <= end9) fs9.push(fr9[i]); }
+        return {
+          stv: st9 ? stv16Of9(st9, born, end9) : [],
+          ...(st9 ? { sh: shOf9(st9, born, end9), st16: st9 } : {}),
+          fires: Float64Array.from(fs9),
+        };
+      })() : {}),
     });
     segStart = end;
   }
@@ -436,7 +487,7 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
   const lives: TruthLife[] = [];
   for (const tr of truth.tracks) {
     const tr9 = leaveOwn9.size > 0 && tr.own?.some((o9) => leaveOwn9.has(o9)) ? { ...tr, own: tr.own.filter((o9) => !leaveOwn9.has(o9)) } : tr;
-    lives.push(...livesOfTrack(tr9, truth.orders, buildSecOf));
+    lives.push(...livesOfTrack(tr9, truth.orders, buildSecOf, truth.has16 ? { stat: truth.stat, fires: truth.fires } : undefined));
   }
   /* ★ 드론 → 익스트랙터는 **변태**다(지적: "가끔 가스 지을 때 한 번 폭파되면서 짓기 시작하는 거 왜 그래?") ──
      원작은 저그 건물 가운데 익스트랙터 **하나만** 다르게 짓는다: 다른 건물은 드론 자신이 건물로 바뀌지만(같은

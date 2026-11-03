@@ -4547,8 +4547,9 @@ function hpBarRects9(
   const f = Math.max(0, Math.min(1, op.hpFrac ?? 0));
   const sh = Math.max(0, Math.min(0.95, op.shFrac ?? 0));
   const hpCap = 1 - sh;
-  const hpNow = hpCap > 0 ? Math.min(f, hpCap) / hpCap : 1;
-  const shNow = sh > 0 ? Math.max(0, f - hpCap) / sh : 0;
+  /* 판 16(2026-11-03) — 참값 실드가 오면 그 값 그대로(op.shV · op.hpV). 아니면 합산에서 '실드부터 깎였다'고 어림한다. */
+  const hpNow = op.hpV !== undefined ? op.hpV : hpCap > 0 ? Math.min(f, hpCap) / hpCap : 1;
+  const shNow = op.shV !== undefined ? op.shV : sh > 0 ? Math.max(0, f - hpCap) / sh : 0;
   const hasSh = sh > 0;
   const rowPx = Math.max(uPx, bh / 5);
   const fillW = (part: number): number => {
@@ -9380,6 +9381,12 @@ const STATUS_FX: Record<string, { fx: string; col: string }> = {
   stasis: { fx: "무적·행동 불가", col: "#69b7e8" },
   mael: { fx: "행동 불가(생체)", col: "#a86ae0" },
   lock: { fx: "행동 불가(기계)", col: "#c8c8d2" },
+  /* 판 16 이 싣는 몸 상태(2026-11-03) */
+  matrix: { fx: "보호막(250 흡수)", col: "#7fd6ff" },
+  acid: { fx: "방어 −1·공격 늦춤(포자마다)", col: "#b07ae0" },
+  parasite: { fx: "시야 공유(적에게)", col: "#d870c8" },
+  blind: { fx: "시야 1칸", col: "#9aa0a8" },
+  halluc: { fx: "환영(피해 없음)", col: "#8fc8ff" },
 };
 /* 스캔 별가루의 자리(%) — 황금각 나선으로 원 안에 고르게 흩고, 반짝임 박자만 어긋낸다.
    한 번 셈해 두는 상수라 프레임마다 자리가 안 바뀐다. */

@@ -2070,6 +2070,8 @@ export type UnitDrawOp = {
    *  체력바가 이 몫만큼을 흰 칸으로 따로 그린다(요청: "프로토스 체력바중 실드는
    *  흰색으로 표현?"). 실드는 체력보다 먼저 깎이므로 바의 **오른쪽 끝**이 실드다. */
   shFrac?: number;
+  /** 판 16 — 지금 실드 ÷ 최대 실드 · 지금 체력(실드 뺌) ÷ 최대 체력. 있으면 체력바가 합산 어림(shFrac) 대신 이 둘을 그린다(2026-11-03). */
+  shV?: number; hpV?: number;
   /** 상태 오라 색(전수조사: 인스네어·플레이그·빙결…) — 몸 밑에 색빛이 밴다. */
   tint?: string;
   /** 이 판을 통째로 한 색으로 굽는다(면의 제 색을 무시) — 잔상처럼 '몸이 아니라 자국'
@@ -3069,11 +3071,14 @@ export const GAS_LIT_HOLD = 12;
 export const STATUS_TINT: Record<string, string> = {
   ensnare: "#79c74c", plague: "#b4452e", stasis: "#69b7e8",
   mael: "#a86ae0", lock: "#c8c8d2", irr: "#e8c84a",
+  /* 판 16 이 싣는 몸 상태(2026-11-03) — 시전 자리 어림으로는 못 그리던 것들. */
+  matrix: "#7fd6ff", acid: "#b07ae0", parasite: "#d870c8", blind: "#9aa0a8", halluc: "#8fc8ff",
 };
 /** 상태의 한국어 이름(요청: 건설·변태 등 모든 상태 노출) — 정보 팝업이 쓴다. */
 export const STATUS_KO: Record<string, string> = {
   ensnare: "인스네어", plague: "플레이그", stasis: "스테이시스",
   mael: "마엘스트롬", lock: "락다운", irr: "이레디에이트",
+  matrix: "디펜시브 매트릭스", acid: "산성 포자", parasite: "패러사이트", blind: "옵티컬 플레어(눈멂)", halluc: "환영",
 };
 /** 디텍터(전수조사: 투명화 카운터) — 이들이 곁에 있으면 은신이 벗겨진다. */
 export const DETECTOR_UNITS = new Set(["Overlord", "Observer", "Science Vessel"]);
@@ -3883,6 +3888,10 @@ export function deriveWorld9(inp: {
       cloaks: [number, number][];
       /** 스팀팩 구간 [시작, 끝](마린·파이어뱃 · 참값 판 15 · truthLives stims). */
       stims: [number, number][];
+      /** 판 16 실제 사격 시각(초) — 없으면 박자를 지어낸다(firePhase). */
+      fires?: Float64Array;
+      /** 판 16 실드 변곡점 [초, 실드] — 없으면 체력바가 합산에서 어림한다. */
+      sh?: Ticks;
       /** 명령(이동·공격·정지) 시각들 — 선택 링(지적: 드래그 선택 구분)의 재료. */
       orders: number[];
       /** 그 사람의 연구 기록 — 걸음 속도 상한(요청)이 속업을 반영하는 재료. */
@@ -4050,7 +4059,9 @@ export function deriveWorld9(inp: {
       /* 상태(전수조사) — 시전 순간 그 자리에 있었으면 걸린다. 적이 건 것만(스태시스는
          아군 오폭도 언다). */
       const statuses: [number, number, string][] = [];
-      for (const c5 of castsV2) {
+      /* ★ 판 16 이면 **참값의 상태 구간 그대로**(2026-11-03, 요청: "상태 마법 타이머 판 16에 싣기") — 아래 시전 자리 어림(반지름·고정 지속)을 안 탄다. */
+      if (e.stv) statuses.push(...e.stv);
+      for (const c5 of (e.stv ? [] : castsV2)) {
         const [cs5, cx9, cy9, tech5, craw5] = c5;
         const cfg = STATUS_CASTS[tech5];
         if (!cfg) continue;
@@ -4128,6 +4139,8 @@ export function deriveWorld9(inp: {
         statuses,
         cloaks,
         stims: e.stims ?? [],   // 참값 판 15 의 스팀 깃발(truthLives stims ★ · 옛 판은 빈 배열)
+        ...(e.fires ? { fires: e.fires } : {}),
+        ...(e.sh ? { sh: e.sh } : {}),
       });
     }
     return out;
@@ -4966,8 +4979,23 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       for (const c9 of cull9) if (fx9 >= c9.x0 && fx9 <= c9.x1 && fy9 >= c9.y0 && fy9 <= c9.y1) { in9 = true; break; }
       return [in9, fx9, fy9];
     };
-    /** 그 열쇠의 사격 박자 위상(0~1) — 사거리에 든 순간이 0이다. */
+    /** ★ 판 16 실제 사격(2026-11-03, 요청: "실제 사격 … 다") — 개체 열쇠(holdKey) → 사격 시각들. 개체마다 붓 고리 머리에서 채운다. */
+    const FIRES9 = new Map<string, Float64Array>();
+    /** 그 사격 시각들에서 t 와 같거나 앞선 마지막 발(없으면 −∞). */
+    const lastFire9 = (fa: Float64Array, tt: number): number => {
+      let lo = 0; let hi = fa.length - 1; let at = -Infinity;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (fa[m] <= tt) { at = fa[m]; lo = m + 1; } else hi = m - 1; }
+      return at;
+    };
+    /** 실제 사격으로 본 위상 — 마지막 발에서 win 초 안이면 0~1, 넘었으면 0.999(쏘는 중 아님) · 자료가 없으면 null(지어낸다). */
+    const realPh9 = (hk: string, win: number): number | null => {
+      const fa9 = FIRES9.get(hk); if (!fa9) return null;
+      const d9 = t - lastFire9(fa9, t);
+      return d9 < win ? d9 / win : 0.999;
+    };
+    /** 그 열쇠의 사격 박자 위상(0~1) — 사거리에 든 순간이 0이다. 판 16 이면 마지막 실제 발에서 잰다(위 realPh9). */
     const firePhase = (key: string, cd: number): number => {
+      if (key[0] === "u" || key[0] === "p") { const r9 = realPh9(key.slice(1), cd); if (r9 !== null) return r9; }
       const m9 = fireStartRef.current;
       const prev = m9.get(key);
       /* 이어지는 사격인가 — 앞 프레임에도 쏘고 있었고 시계가 앞으로만 갔으면 잇는다.
@@ -8309,6 +8337,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        건물이 시야 안이면 싸움이다: 그 자리에 멈춰 서고(engageHoldRef), 트레이서·
        불꽃이 인다. 일꾼·수송·옵저버는 안 싸운다(도망 대상일 뿐). */
     const holdKey = `${e.raw}-v2e${ei}`;
+    if (e.fires) FIRES9.set(holdKey, e.fires); else FIRES9.delete(holdKey);   // 판 16 실제 사격(위 FIRES9 ★)
     /* ★ **공중 유닛도 싸운다**(지적: "미사일 류 효과 안보임") ────────────────
        `!uAir`가 여기 있던 까닭은 옛 '교전 붙기'다 — 적이 시야에 들면 그 자리에
        멈춰 서게 하던 장치인데, 나는 것은 멈춰 서지 않고 지나가므로 뺐다.
@@ -9285,6 +9314,14 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         const st1 = UNIT_STATS[drawUnit2] ?? UNIT_STATS[drawUnit];
         return st1 && st1.sh ? st1.sh / (st1.hp + st1.sh) : 0;
       })(),
+      /* 판 16 실드(참값) — 합산에서 '실드부터 깎였다'고 어림하지 않는다(실드는 다시 차고 체력은 안 찬다). */
+      ...((): { shV?: number; hpV?: number } => {
+        const st1 = UNIT_STATS[drawUnit2] ?? UNIT_STATS[drawUnit];
+        if (!e.sh || !st1 || !st1.sh) return {};
+        const i9 = tkAt(e.sh, t); if (i9 < 0) return {};
+        const shN9 = tkV(e.sh, i9);
+        return { shV: Math.max(0, Math.min(1, shN9 / st1.sh)), hpV: Math.max(0, Math.min(1, (hpNow - shN9) / Math.max(1, st1.hp))) };
+      })(),
       // 정보 팝업 신원(요청) — 개체 태그가 프레임을 건너 같은 몸을 가리킨다.
       pickKey: `u${e.tag}`, pickName: e.unit, pickRaw: e.raw,
       // 광물 캐는 일꾼(효과음 '채집' · 2026-10-22).
@@ -10243,7 +10280,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       } else if (beamLen > 1) {
         const [tfx9, tfy9] = posFrac(foe.bx, foe.by);
         const dly9 = ((ei * 7) % 5) / 10;
-        const tph9 = (((t - dly9) % fxCd) + fxCd) % fxCd / fxCd;
+        const tph9 = realPh9(holdKey, fxCd) ?? (((t - dly9) % fxCd) + fxCd) % fxCd / fxCd;   // 판 16: 실제 발마다(위 realPh9)
         fxOps.push({
           kind: "hit", style: fxName9, fx: tfx9, fy: tfy9,
           /* ★ 지상 표적도 **몸 위**에 앉힌다(지시: "스플래시가 유닛보다 위에
@@ -10376,7 +10413,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* 제자리 번쩍 — 주기는 그 무기의 쿨다운(35%, 0.08~0.32초로 죔), 위상은
          개체마다 어긋난다(ei) — 부대 전체가 한 박자로 쏘지 않게. */
       const delay9 = ((ei * 7) % 5) / 10;
-      const ph9 = (((t - delay9) % fxCd) + fxCd) % fxCd / fxCd;
+      const ph9 = realPh9(holdKey, fxCd) ?? (((t - delay9) % fxCd) + fxCd) % fxCd / fxCd;   // 판 16: 실제 발마다 한 번 번쩍(위 realPh9)
       /* ★ 선은 **제 사거리를 안 넘는다**(지적: "원래 이렇게 사거리가 길어?") ──────
          표적은 참값이 말해 주는 것이 아니라 '가장 가까운 적'이라는 어림이다(위
          fighting 주석: 참값에는 누구를 쏘는지가 없다). 잘못 고르면 그 거리가

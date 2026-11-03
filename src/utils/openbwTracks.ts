@@ -250,7 +250,22 @@ export type TruthTracks = {
   /** 캔 자원 누적 [초, 임자, 캔 미네랄, 캔 가스] — 원작 total_minerals_gathered · total_gas_gathered 가 바뀐 순간 · **판 14부터**
    *  (2026-10-22, 데이터 창 "자원 누적" — 서버 곡선이 쓴다 · 재생기 화면은 아직 안 쓴다). 옛 판은 빈 배열. */
   gath: [number, number, number, number][];
+  /** ★ 판 16 상태(2026-11-03 · 덤퍼 매 프레임 · 갈래표는 아래 ST16) — 태그마다 평평한 [초, 갈래, 값, 초, 갈래, 값, …](시각 차례).
+   *  타이머 갈래는 켜짐·늘어남·꺼짐만(값 = 남은 틱 · 8프레임마다 1씩 준다) · 값 갈래는 바뀔 때마다. 옛 판은 빈 표. */
+  stat: Map<number, Float64Array>;
+  /** ★ 판 16 실제 사격 — 태그마다 평평한 [초, 공중 무기면 1, 표적 태그, …](무기 쿨다운이 다시 찬 프레임). 옛 판은 빈 표. */
+  fires: Map<number, Float64Array>;
+  /** 판 16 이상인가 — 상태·사격 절이 있다(빈 표여도 '안 일어났다'는 뜻이다). */
+  has16: boolean;
 };
+/** 판 16 상태 갈래(덤퍼 bwdump.cpp 판 16 블록과 같은 번호). 타이머 = 켜짐·늘어남·꺼짐만 적힌 갈래. */
+export const ST16 = {
+  lockdown: 1, irradiate: 2, ensnare: 3, plague: 4, stasis: 5, maelstrom: 6, stim: 7, matrix: 8, matrixHp: 9, storm: 10,
+  acid: 11, parasite: 12, blind: 13, halluc: 14, disabled: 15, invincible: 16, irrOwner: 17, detected: 18,
+  research: 19, upgrade: 20, upgradeLv: 21, queue: 22, kills: 23, speedUp: 24, cdUp: 25, shield: 26, healed: 27,
+  building: 28, nydusExit: 29, rally: 30, nukeReady: 31, scarabs: 32, spellCd: 33,
+} as const;
+export const ST16_TIMERS = new Set<number>([1, 2, 3, 4, 5, 6, 7, 8, 10]);
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른
    색이 float 넷으로 거기 들어 있다. 헤더의 색 칸은 색표 번호가 아니라 딴 것이었다:
@@ -436,7 +451,8 @@ export const TRUTH_VER_MIN9 = 11;
 /* 판 13 = 판 12 + 맨 뒤 **데미지 절**(통마다 임자별 준·입은 데미지 · 아래 dmg) — 옛 판은 빈 표다(2026-10). */
 /* 판 14 = 판 13 + 맨 뒤 **채집 절**(사람마다 캔 자원 누적 · 아래 gath) — 옛 판은 빈 표다(2026-10-22). */
 /* 판 15 = 판 14 + 상태 바이트 0x10 '스팀팩 중'(2026-11-03, 요청: "스팀팩을 데이터에 싣는 방법으로 근본적 해결") — 꼴은 같고 깃발 하나가 는다(옛 판은 0). */
-export const TRUTH_VER_MAX9 = 15;
+/* 판 16 = 판 15 + 맨 뒤 **상태 절**(마법 타이머·매트릭스·실드·연구 중… 아래 ST16) · **사격 절**(실제 발사 프레임) + 체력 솎기 없음(2026-11-03, 요청: "하나도 빠짐없이 다"). */
+export const TRUTH_VER_MAX9 = 16;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
   /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
@@ -482,6 +498,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasDmg = version >= 13;
     /** 채집 절(판 14) — 데미지 절 뒤, 맨 뒤다. */
     const hasGath = version >= 14;
+    /** 상태·사격 절(판 16) — 채집 절 뒤. */
+    const has16 = version >= 16;
     const fps = c.f32();
     const trustFrame = c.i32();
     if (!Number.isFinite(fps) || fps <= 0) return null;
@@ -833,10 +851,30 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       }
     }
 
+    /* 판 16 — 상태 절(줄마다 varint 프레임차 · u32 태그 · u8 갈래 · u32 값) · 사격 절(varint 프레임차 · u32 태그 · u8 공중 · u32 표적). 태그마다 평평한 배열로 묶는다. */
+    const stat = new Map<number, Float64Array>();
+    const fires = new Map<number, Float64Array>();
+    if (has16) {
+      const acc9 = new Map<number, number[]>();
+      { let pf = 0; const cnt = c.u32();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint(); const tag = c.u32(); const kind = c.u8(); const v = c.u32();
+          const a9 = acc9.get(tag); if (a9) a9.push(pf / fps, kind, v); else acc9.set(tag, [pf / fps, kind, v]);
+        } }
+      for (const [tg9, a9] of acc9) stat.set(tg9, Float64Array.from(a9));
+      acc9.clear();
+      { let pf = 0; const cnt = c.u32();
+        for (let i = 0; i < cnt; i += 1) {
+          pf += c.varint(); const tag = c.u32(); const air = c.u8(); const tt = c.u32();
+          const a9 = acc9.get(tag); if (a9) a9.push(pf / fps, air, tt); else acc9.set(tag, [pf / fps, air, tt]);
+        } }
+      for (const [tg9, a9] of acc9) fires.set(tg9, Float64Array.from(a9));
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
-      energy, loads, amounts, kills, dmg, dmgBucketSec, gath };
+      energy, loads, amounts, kills, dmg, dmgBucketSec, gath, stat, fires, has16 };
   } catch {
     return null;
   }
