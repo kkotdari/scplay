@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+import { sizeHash, sizeHashOfGen } from "./sizeHash.mjs";
 const argv = process.argv.slice(2);
 const has = (f) => argv.includes(f);
 const flag = (f, d) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
@@ -68,6 +69,7 @@ if (has("--check")) {
     if (miss.length) { console.log(`[아틀라스] 표가 가리키는 파일 ${miss.length} 개가 없다(예: ${miss[0]})`); bad += 1; }
     for (const f of ["basis_transcoder.js", "basis_transcoder.wasm"]) if (!existsSync(join(OUT, "basis", f))) { console.log(`[아틀라스] basis/${f} 가 없다`); bad += 1; }
   }
+  { const sw = sizeHash(ROOT); const sg = sizeHashOfGen(ROOT); if (sw !== sg) { console.log(`[아틀라스] 크기표가 단 올림표와 다르다(${sg || "(없음)"} → ${sw}) — --bake 가 spr-lift 를 먼저 돌린다`); bad += 1; } }
   if (v !== g) { console.log(`[아틀라스] 판이 다르다: 소스 ${v} · gen ${g || "(없음)"} — 모델을 고쳤으면 다시 굽는다: node scripts/spr-atlas.mjs --bake --prune`); bad += 1; }
   if (!bad) console.log(`[아틀라스] 판 ${v} — 소스와 같다 · 표 ${genIdx()} 의 파일 다 있음`);
   process.exit(bad ? 1 : 0);
@@ -75,6 +77,9 @@ if (has("--check")) {
 
 let DUMP = flag("--dump", null);
 if (has("--bake")) {
+  /* ★ 크기표가 바뀌었으면 단 올림표부터 다시 잰다(2026-11-03, 요청: "다음부터는 크기 변경 시 표도 스크립트로 로컬에서 재생성하게") — 그대로면 바로 건너뛴다.
+     표가 바뀌면 판 해시(atlasVer · sprLift.gen.ts 포함)도 바뀌므로 아래 굽기·표 쓰기가 새 표로 돈다. 커밋할 때 sprLift.gen.ts 도 함께. */
+  execFileSync("node", [join(ROOT, "scripts/spr-lift.mjs"), "--if-stale"], { stdio: "inherit" });
   DUMP = join(WORK, "_dump");
   rmSync(DUMP, { recursive: true, force: true });
   console.log("[아틀라스] 굽기(perf-check --sprdump) …");

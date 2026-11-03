@@ -2,6 +2,7 @@
  *
  *   node scripts/spr-lift.mjs            장면 시트(세 종족 · 배율 3 · 올림 끔)에서 몸마다 늘림을 재서 src/components/replay/sprLift.gen.ts 를 쓴다
  *   node scripts/spr-lift.mjs --check    다시 재서 표와 같은가(다르면 1)
+ *   node scripts/spr-lift.mjs --if-stale 크기표 해시(scripts/sizeHash.mjs)가 표에 적힌 것과 같으면 건너뛴다 — spr-atlas --bake 가 굽기 전에 부른다(로컬 · 2026-11-03)
  *   (--probe <json> 이미 잰 실측으로 표만 · --keep <dir> 장면 시트 그림을 남길 자리)
  *
  * 늘림 = 화면 배율(kd) ÷ 찍은 단의 배율 — 클수록 같은 배율에서 흐리다. 기준은 **유닛 늘림의 중간값**이고, 그 TARGET 배를 넘는 종류(유닛·건물)마다
@@ -13,6 +14,7 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sizeHash, sizeHashOfGen } from "./sizeHash.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -24,6 +26,11 @@ const TARGET = 1.0;   // 1.3 → 1.0(2026-10-30, 지적: "선명도를 유닛 �
 /** 올림 상한(¼ 옥타브 칸) — 유닛 8(4배 · 160 → 640px · 옛 6) · 건물 4(2배 · 512 → 1024px = 재생기 굽는 판 SPR_SCR9). */
 const MAX_U = 8; const MAX_B = 4;   // 유닛 6 → 8(2026-10-30 · 배틀·캐리어가 목표에 닿게 · 160 → 640px · 덤프 판 2048 · 재생 중 굽기는 1 배라 SPR_SCR9 1024 안)
 
+if (has("--if-stale")) {
+  const want = sizeHash(ROOT); const got = sizeHashOfGen(ROOT);
+  if (want === got) { console.log(`[올림] 크기표 그대로(${want}) — 표를 다시 안 잰다`); process.exit(0); }
+  console.log(`[올림] 크기표가 바뀌었다(${got || "(없음)"} → ${want}) — 장면 시트로 다시 잰다(PW_HEADED=1 이면 기기 GPU)`);
+}
 let probe;
 if (flag("--probe", "")) probe = JSON.parse(readFileSync(flag("--probe", ""), "utf8"));
 else {
@@ -56,6 +63,8 @@ const src = `/* 2D 판 단 올림표 — **미리 구운 것**(자동 생성) �
 export const SPR_LIFT9: Record<string, number> = {
 ${body}
 };
+/** 이 표를 잰 크기표의 해시(scripts/sizeHash.mjs) — spr-atlas --bake 가 견주어 다르면 다시 잰다. */
+export const SPR_LIFT_SRC9 = "${sizeHash(ROOT)}";
 `;
 const cur = existsSync(GEN) ? readFileSync(GEN, "utf8") : "";
 const pick = (s) => JSON.stringify([...s.matchAll(/^\s+"([^"]+)": (\d+),/gm)].map((m) => [m[1], m[2]]));

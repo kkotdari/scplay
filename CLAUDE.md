@@ -32,6 +32,7 @@
 - 붓·UI·재생기: `ReplayMotionPlayer.tsx` · CSS `replay.css` · 중계 편성표 `cast9.ts` · 참값 해독 `src/utils/openbwTracks.ts`(판 11~13)
 - 분석기(노드 · 서버가 부른다): `src/analysis/`(읽기 replayParse · 곡선 curves · 썸네일 thumb · 명령줄 cli → `dist/analyzer.mjs`) — engine.md '분석기'
 - 굽는 표(빌드 시각): `tierTable.gen.ts`·`muzzleTable.gen.ts`·`addonWall.gen.ts`·`sprLift.gen.ts`(2D 판 큰 몸 단 올림 · `scripts/spr-lift.mjs`) — 모델·크기표를 고치면 다시 뽑는다
+  · ⚠ **`sprLift.gen.ts` 는 클라우드에서 안 뽑는다**(2026-11-03 요청 · 장면 시트라 헤드리스로 수십 분) — 크기표 해시(`scripts/sizeHash.mjs`)가 다르면 로컬 `spr-atlas --bake` 가 먼저 뽑는다
 - 서버 아틀라스(미리 구운 2D 판 · `sprAtlas9.ts`·`sprAtlas.gen.ts` · 원본 `spr/` 커밋 · dist 에 실린다 · 앱은 `bin/spr-copy.mjs` 로 베낀다): 모델·셰이더를 고치면 `node scripts/spr-atlas.mjs --check` → 다르면 `--bake --prune`(gl-renderer.md '서버 아틀라스')
 - 기기 프로필 `DEV9` 한 표(폰/PC · 벤치 단 PC_TIERS9/PHONE_TIERS9). 기기 판정은 `smallDevice9` 하나 · 해상도 단(UI 배수 `--ui`·`--dk`)은 `uiStep9`(player-ui.md).
 

@@ -88,6 +88,8 @@ node scripts/spr-atlas.mjs --check
 ```
 - `판 … — 소스와 같다` → 굽지 않아도 된다.
 - `판이 다르다: 소스 xxxx · gen yyyy` → 굽는다.
+- `크기표가 단 올림표와 다르다` → 크기표(모델·건물 정규화·그리기 배수 — `engine9.ts` 의 MODEL_NORM · BLD_NORM · UNIT_SIZE_TUNE · BLD_DRAW_TUNE · BLD_DRAW_K)가
+  바뀌었다는 뜻이다. 따로 할 일은 없다 — 아래 굽기가 **먼저 단 올림표(`spr-lift`)를 다시 잰다**.
 
 ### 1-2. 굽기
 **맥**
@@ -100,6 +102,8 @@ $env:PW_HEADED="1"; node scripts/spr-atlas.mjs --bake --prune --basisu "$env:TEM
 ```
 
 하는 일과 걸리는 때:
+0. **단 올림표**(2026-11-03~) — 크기표가 바뀌었으면 `node scripts/spr-lift.mjs` 를 먼저 돌려 `src/components/replay/sprLift.gen.ts` 를 다시 쓴다
+   (장면 시트 세 장을 창에 띄워 잰다 · 몇 분). 안 바뀌었으면 `크기표 그대로` 한 줄 찍고 건너뛴다. 따로 돌리려면 `node scripts/spr-lift.mjs`(맥은 앞에 `PW_HEADED=1`).
 1. **덤프** — 재생기를 `#sprdump=2` 로 열어 모든 모델·자세·요잉 16칸을 굽는다(창이 뜬다 · 수십 분 · 작업 자리 `scratchpad/spr-work/_dump` 에 5GB 남짓).
 2. **짐 꾸리기** — 종류마다 PNG → basisu 로 KTX2 압축 → `spr/k/…ktx2` · `spr/index.<해시>.json` · `src/components/replay/sprAtlas.gen.ts` 갱신.
    안 바뀐 종류는 같은 이름이라 다시 안 누른다. `--prune` 은 새 표가 안 가리키는 옛 파일을 지운다.
@@ -107,7 +111,7 @@ $env:PW_HEADED="1"; node scripts/spr-atlas.mjs --bake --prune --basisu "$env:TEM
 ### 1-3. 끝난 뒤
 ```bash
 node scripts/spr-atlas.mjs --check
-git add spr src/components/replay/sprAtlas.gen.ts
+git add spr src/components/replay/sprAtlas.gen.ts src/components/replay/sprLift.gen.ts
 git commit -m "아틀라스 다시 구움"
 git push
 ```
