@@ -412,19 +412,42 @@ export class GlTerrain9 {
       const n9 = G.w * G.h; const c9 = new Uint8Array(n9 * 4);
       const band9 = (h: number, a: number, b: number, c: number, d: number): number => Math.max(0, Math.min(1, Math.min((h - a) / (b - a), (d - h) / (d - c))));
       const metal9 = G.tileset === 1 || G.tileset === 2;
-      /* ★ 고원 판정(2026-11-02, 요청: "무조건 고도가 아니라 고도별로 너비가 충분하면 마름모 무늬 넣고(고원이 아닌 벽으로 판단되면 안 넣기)") — 같은 고도·걷는 칸으로 3×3 이
+      /* (옛 · 아래 ★ '갈 수 있는 땅'으로 갈음) 고원 판정(2026-11-02, 요청: "무조건 고도가 아니라 고도별로 너비가 충분하면 마름모 무늬 넣고(고원이 아닌 벽으로 판단되면 안 넣기)") — 같은 고도·걷는 칸으로 3×3 이
          꽉 차는 자리(깎기)와 그 둘레(다시 불리기 · 열림 연산)만 고원이다. 두 칸 이하 폭의 띠·못 걷는 칸(절벽면·벽)은 아니다 → 얼룩(a 갈래). 낮은 땅(0단)은 종전대로 무늬. */
+      /* ★ 고원은 **갈 수 있는 땅**이다(2026-11-03, 지적: "패턴 넣는 기준 3×3 으로 구분했잖아 · 근데 벽 위인데 무늬 들어가는 곳이 있어 · 3×3 으론 안 되고 높은 데 막히고
+         램프 등 출입구 없는 걸 파악해서 땅인지 단순 벽인지 갈라야 해") — 옛 3×3 열림 연산은 걷는 칸이 넓기만 하면 벽 위(출입구 없는 높은 판)에도 무늬를 깔았다.
+         이제 걷는 칸을 네 이웃으로 잇되 **고도가 바뀌는 걸음은 램프 칸을 지날 때만**(같은 고도끼리는 그냥) 이어서, 낮은 땅(0단 걷는 칸)에서 닿는 칸만 땅이다.
+         낮은 땅과 안 이어진 덩이는 넓고 뚱뚱할 때만(PLAT_ISLAND9 칸 넘고 상자 짧은 변 PLAT_FAT9 칸 넘게 — 섬 본진) 땅이고 나머지는 벽 위 → 얼룩(a 갈래).
+         긴 벽 위는 칸 수가 많아도 상자가 가늘어 안 걸린다. 낮은 땅(0단)은 종전대로 무늬. */
       const plat9 = new Uint8Array(n9);
       if (metal9) {
-        const Wt = G.w; const Ht = G.h;
-        const same9 = (i0: number, x: number, y: number): boolean => x >= 0 && y >= 0 && x < Wt && y < Ht && G.lvl[y * Wt + x] === G.lvl[i0] && G.walk[y * Wt + x] === 1;
-        for (let y = 0; y < Ht; y += 1) for (let x = 0; x < Wt; x += 1) {
-          const i0 = y * Wt + x;
-          if (G.lvl[i0] === 0 || G.walk[i0] !== 1) continue;
-          let all9 = true;
-          for (let dy = -1; dy <= 1 && all9; dy += 1) for (let dx = -1; dx <= 1; dx += 1) if (!same9(i0, x + dx, y + dy)) { all9 = false; break; }
-          if (!all9) continue;
-          for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) plat9[(y + dy) * Wt + (x + dx)] = 1;
+        const Wt = G.w; const Ht = G.h; const PLAT_ISLAND9 = 300; const PLAT_FAT9 = 12;
+        const q9 = new Int32Array(n9); const seen9 = new Uint8Array(n9);
+        const step9 = (a: number, b: number): boolean => G.walk[b] === 1 && (G.lvl[a] === G.lvl[b] || G.ramp[a] === 1 || G.ramp[b] === 1);
+        /** a 칸들에서 번진다 — 닿은 칸 수(들른 칸은 q9[0..n) 에 남는다). */
+        const fill9 = (seeds: number[]): number => {
+          let qh = 0; let qt = 0;
+          for (const s9 of seeds) { if (!seen9[s9]) { seen9[s9] = 1; q9[qt++] = s9; } }
+          while (qh < qt) {
+            const a = q9[qh++]; const x = a % Wt; const y = (a - x) / Wt;
+            if (x > 0 && !seen9[a - 1] && step9(a, a - 1)) { seen9[a - 1] = 1; q9[qt++] = a - 1; }
+            if (x < Wt - 1 && !seen9[a + 1] && step9(a, a + 1)) { seen9[a + 1] = 1; q9[qt++] = a + 1; }
+            if (y > 0 && !seen9[a - Wt] && step9(a, a - Wt)) { seen9[a - Wt] = 1; q9[qt++] = a - Wt; }
+            if (y < Ht - 1 && !seen9[a + Wt] && step9(a, a + Wt)) { seen9[a + Wt] = 1; q9[qt++] = a + Wt; }
+          }
+          return qt;
+        };
+        const low9: number[] = [];
+        for (let i = 0; i < n9; i += 1) if (G.walk[i] === 1 && G.lvl[i] === 0) low9.push(i);
+        const nLow9 = fill9(low9);
+        for (let t = 0; t < nLow9; t += 1) plat9[q9[t]] = 1;
+        for (let i = 0; i < n9; i += 1) {   // 낮은 땅과 안 이어진 덩이 — 넓으면 섬(땅)
+          if (seen9[i] || G.walk[i] !== 1) continue;
+          const nn9 = fill9([i]);
+          if (nn9 < PLAT_ISLAND9) continue;
+          let x0 = Wt; let x1 = 0; let y0 = Ht; let y1 = 0;
+          for (let t = 0; t < nn9; t += 1) { const x = q9[t] % Wt; const y = (q9[t] - x) / Wt; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+          if (Math.min(x1 - x0, y1 - y0) + 1 >= PLAT_FAT9) for (let t = 0; t < nn9; t += 1) plat9[q9[t]] = 1;
         }
       }
       for (let i = 0; i < n9; i += 1) {
