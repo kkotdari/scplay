@@ -687,7 +687,13 @@ const TEST_FLAGS9: readonly [string, string][] = [
   ["3d=1", "3D 보기 켜기"], ["nofog", "안개 끄기"], ["nocreep", "크립 끄기"], ["creeptex=0", "크립 질감 끄기"], ["glshadow=0", "그림자 끄기"],
   ["glbloom=0", "번짐(블룸) 끄기"], ["spratlas=0", "아틀라스 끄기(실시간 굽기)"], ["glspr=0", "2D 판 끄기(메시로 그리기)"], ["glterr=0", "GL 지형 끄기"],
   ["terrcache=0", "지형 판 재사용 끄기"], ["viewclip=0", "보이는 곳만 칠하기 끄기"], ["drs=0", "해상도 자동 조절 끄기"], ["gl=0", "GL 끄기(2D 폴백)"],
+  /* (2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 상한 낮춰도 그대로" — 범인 좁히기) */
+  ["yaw16", "32방 끄기(16방)"], ["fog17=0", "칸 안개 끄기(옛 눈 원)"], ["sprcache=0", "아틀라스 캐시 끄기"],
 ];
+/** `#yaw16` — 요잉 칸·아틀라스 몫을 16 으로(32방 전 꼴 · 시험용 · 위 TEST_FLAGS9). */
+const YAW16_9 = typeof location !== "undefined" && /(?:^|[#&,])yaw16(?=$|[&,])/.test(location.hash);
+/** `#fog17=0` — 판 17 칸 안개(FOG17_9)를 끄고 옛 눈 원 길로(시험용). */
+const FOG17_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])fog17=0(?=$|[&,])/.test(location.hash);
 /** 주소 해시의 낱말(#·&·, 로 가른다). */
 const hashToks9 = (): string[] => (typeof location === "undefined" ? [] : location.hash.replace(/^#/, "").split(/[&,]/).filter(Boolean));
 /** 진단 고르기 칸 — 값(engine9 SCR_DIAG_SEL) · 이름. "" = 끔 · "sum" = 요약 한 줄. */
@@ -834,7 +840,7 @@ const sprTune9 = (): void => {
   /* ★ **요잉 32 칸 · 모든 기기**(2026-11-03, 요청: "피시 유닛 굽기 각을 32방 · 32방을 모두 적용" → "모바일도 메모리가 다 올리기엔 부족하지만 32방을 필요한 걸 백그라운드에서
      구우면서 채우면 괜찮지 않음?") — 칸 열쇠는 32칸이고, 아틀라스는 기기 몫(ATLAS_WANT9 — PC 32 · 낮은 PC·앱 폰 16 · 폰 8)만 받는다. 없는 칸은 **가까운 칸(16·8방)으로 그리며**
      남는 예산으로 조금씩 굽는다(gl9 sprFill ★ — fill 이 한 장 상한 · 판이 상한이면 안 굽고 가까운 칸 그대로). */
-  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, 32,
+  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, YAW16_9 ? 16 : 32,
     phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0,
       /* (2026-11-03, 요청: "폰웹 16 앱 32로 변경") — 판 전체 상한에 아틀라스 몫(아래 mbCap — 웹 ×1.75 · 앱 ×2.5)의 늘어난 만큼을 더한다 · 미리 찍기 걸음 웹 2 · 앱 1. */
       /* ★ (같은 날 "PWA 나 캐퍼시터 앱이라고 메모리 이점은 없지? → 셋 다 같은 상한으로 통일하고 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 같은 상한(성능 단별) ·
@@ -845,6 +851,7 @@ const sprTune9 = (): void => {
 };
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
 const ATLAS_WANT9 = (): 8 | 16 | 32 => {
+  if (YAW16_9) return 16;
   if (DEV9.name === "phone") return 32;   // (2026-11-03 "셋 다 같은 상한 · 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 32방을 상한까지 올리고 넘친 묶음은 교체 · 옛: 앱 32 · 웹 16 ← 앱 16 · 웹 8
   return TIER9.v === 0 ? 16 : 32;
 };
@@ -19026,7 +19033,7 @@ export default function ReplayMotionPlayer({
        칸 텍스처로: 지금 찍힘(G)과 앞 찍힘(R)을 찍힘 사이 간격(≤ 0.5초) 동안 서서히 섞는다(f) · 밝힘(B). 앞으로 흐를 때만 섞고, 시각을 건너뛰면 곧장 선다.
        장마다 f 만 바뀌어도 지형 캔버스가 다시 칠하게 fogGlDirty9 를 세운다. 분할보기·전체 시야는 안 탄다(눈 원 길). */
     FOG17_WHY9.v = !glFog9 ? "GL안개꺼짐" : !fogGlRef9.current ? "안개없음" : splitOnRef9.current ? "분할" : !CREEP17_9.tiles ? "타일없음" : !FOG17_9.on ? "안개꺼짐" : FOG17_9.want === 0 ? "편없음" : "";
-    if (glFog9 && fogGlRef9.current && !splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0) {
+    if (glFog9 && fogGlRef9.current && !splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0 && !FOG17_OFF9) {
       const tl9 = CREEP17_9.tiles; const ft9 = FOG17_9;
       const st9 = tl9.stateAt(tNow9);
       const at9 = tl9.at; const m9 = FOG17_9.want;
