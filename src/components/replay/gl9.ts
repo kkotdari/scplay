@@ -20,6 +20,8 @@ export interface GlInst9 {
   /** ★ 켜짐 켜(2026-10-24 · 임자색 분리와 같은 꼴) — 2D 판 길에서 건물은 **꺼진 벌**(mesh)을 칸으로 쓰고, 켜짐 마스크 벌(meshLt · op.litMask)과의 차를 판의 켜짐 켜에
    *  적어 둔 뒤 lit 인 개체에만 켜 × 켜짐 색(meshLt.litColor)을 더한다. 입체·메시 길은 종전대로 켜진 벌을 쓴다. */
   lit?: boolean; meshLt?: GlMesh9;
+  /** 가스 기운을 켜나(저그 건물 연구 중 · 엔진 op.aura) — 판 길에서 켜짐 켜 G 에 구운 기운 × 녹색(AURA9 ★). */
+  aura?: boolean;
   /** 앵커(CSS px) — 유닛: 판 블릿의 setTransform 자리 (sx, sy − px·0.24 − lift) · 건물: (sx, 바닥선 − 띄움). */
   ax: number; ay: number;
   /** 화면 배수 = (상자 px/16)·종류 배수(MODEL_NORM/BLD_NORM). */
@@ -1231,7 +1233,7 @@ void main() {
     if (c.a < 0.35) discard;
     fragColor = vec4(0.0, 0.0, 0.0, vC.x * c.a); emitColor = vec4(0.0, 0.0, 0.0, fragColor.a); return;
   }
-  if (c.a < 0.004) discard;
+  if (c.a < 0.004 && lt9 < 0.004) discard;   // 가스 기운(켜짐 켜 G · 실루엣 밖)은 더하는 빛으로 남는다
   vec4 o = vC.z > 0.5 ? vec4(vS * c.a, c.a) * vC.x : c * vC.x;
   /* 대비 견줌(glTerrain9 CON9 · #con=k) — 미리곱하기 전 색에. 빛 판(emitColor)은 안 탄다. */
   if (uCon.x != 0.0 && o.a > 0.0) o.rgb = clamp((o.rgb / o.a - uCon.y) * (1.0 + uCon.x) + uCon.y, 0.0, 1.0) * o.a;
@@ -1330,18 +1332,30 @@ const GLOW_SIG9 = 0.012;
 /* 갈래(같은 날 되요청: "해처리류 붉은 기운으로 · 스파이어류는 아래쪽에만 가스 · 스포어는 굴뚝 쪽에만 좀 더 많이 · 디파일러는 주황갈색 다크스웜색으로") —
    [r, g, b, 세기, 높이 꼴(0 땅 쪽 짙게 · 1 아래만 · 2 위만), 높이 문턱 둘(칸 아래 0 ~ 위 1)]. 옛 보라(해처리류)·붉은 보라(디파일러)는 걷었다. */
 type Aura9 = [number, number, number, number, number, number, number];
-const AURA_RED9: Aura9 = [0.92, 0.22, 0.20, 0.9, 1, 0.15, 0.38];   // (같은 날 "해처리류 바닥 쪽에만 기운 20% 강하게") 0.75 → 0.9 · 아래만
-const AURA_GREEN9: Aura9 = [0.38, 0.95, 0.30, 0.75, 0, 0, 0];
-const AURA_GREEN_LOW9: Aura9 = [0.38, 0.95, 0.30, 1.02, 1, 0.22, 0.42];   // (같은 날 "스파이어류 기운 20% 강하게") 0.85 → 1.02
-const AURA_GREEN_TOP9: Aura9 = [0.38, 0.95, 0.30, 1.0, 2, 0.52, 0.72];
-const AURA_SWARM9: Aura9 = [0.80, 0.45, 0.16, 0.95, 3, 0, 0];   // 다크 스웜 판 두 색(236,146,56 · 128,62,18)의 가운데 · 꼴 3 = 빌더가 적은 원(auraFocus9 · 구멍 둘레)에만
-const AURA_GREEN_FOCUS9: Aura9 = [0.38, 0.95, 0.30, 0.9, 3, 0, 0];   // 히드라덴 — 뒤쪽 막 둘레(auraFocus9)에만
+/* ★ **연구 중에만 · 다 녹색 · 고른 세기**(2026-11-03, 요청: "업그레이드 진행중일때만 · 스포어 빼고 에볼루션챔버·퀸즈·울트라덴 등 다른 업그레이드 가능 건물에 추가 · 색을 다 녹색으로
+   통일 · 기운 강도 균일하게(히드라덴은 센데 해처리는 거의 안 보임)") — 기운은 이제 색판이 아니라 **켜짐 켜(tn 판 G)** 에 세기 1 로 굽고(GLOW_FS9 uAuraOut), 붙일 때
+   연구 중인 개체(GlInst9.aura · 엔진 op.aura)에만 G × AURA_RGB9 × AURA_GAIN9[종류] 를 더한다(SPR_FS9 의 켜짐 켜 길 그대로). 세기는 재생 표(AURA_GAIN9)라 다시 굽지 않고 고친다.
+   표의 rgb·세기 칸(0~3)은 굽기에서 안 쓴다 — 높이 꼴·문턱(4~6)만 쓴다. 옛 붉은(해처리류)·주황(디파일러)·스포어(굴뚝 위)는 걷었다. */
+const AURA_LOW9: Aura9 = [0, 0, 0, 1, 1, 0.34, 0.62];   // 아래 쪽(해처리류 · 옛 0.15~0.38 은 기운 넓이 2% 로 거의 안 보였다)
+const AURA_LOW_SP9: Aura9 = [0, 0, 0, 1, 1, 0.30, 0.55];   // 아래 쪽(스파이어류)
+const AURA_GROUND9: Aura9 = [0, 0, 0, 1, 0, 0, 0];   // 땅 쪽 짙게
+const AURA_FOCUS9: Aura9 = [0, 0, 0, 1, 3, 0, 0];   // 빌더가 적은 원(auraFocus9 · 히드라덴 막 · 디파일러 구멍)에만
 const AURA9: Record<string, Aura9> = {
-  hatchery: AURA_RED9, lair: AURA_RED9, hive: AURA_RED9,
-  pool: AURA_GREEN9, hydraden: AURA_GREEN_FOCUS9,
-  spire: AURA_GREEN_LOW9, gspire: AURA_GREEN_LOW9,
-  spore: AURA_GREEN_TOP9,
-  dmound: AURA_SWARM9,
+  hatchery: AURA_LOW9, lair: AURA_LOW9, hive: AURA_LOW9,
+  pool: AURA_GROUND9, evo: AURA_GROUND9, queensnest: AURA_GROUND9, cavern: AURA_GROUND9,
+  hydraden: AURA_FOCUS9, dmound: AURA_FOCUS9,
+  spire: AURA_LOW_SP9, gspire: AURA_LOW_SP9,
+};
+/** 기운 색(녹색 하나) · 종류별 세기(재생 때 곱한다) — `model-gl --bake 2 --aura` 가 재는 '0.05 넘는 화소의 평균'을 ≈0.155 로 맞춘 값(옛 히드라덴 0.31 · 해처리 넓이 2%). */
+export const AURA_RGB9: [number, number, number] = [0.38, 0.95, 0.30];
+export const AURA_GAIN9: Record<string, number> = {
+  hatchery: 0.92, lair: 1.08, hive: 0.84, pool: 0.88, evo: 0.84, queensnest: 0.84, cavern: 0.88, hydraden: 0.56, dmound: 0.68, spire: 0.8, gspire: 1.08,
+};
+/** 연구 중인 이 몸의 기운 빛(없으면 null) — 판 길 붙이기(put)의 켜짐 색 자리로 간다. */
+const auraLit9 = (key: string): [number, number, number] | null => {
+  if (!auraOf9(key)) return null;
+  const g = AURA_GAIN9[key.split(":")[1]] ?? 1;
+  return [AURA_RGB9[0] * g, AURA_RGB9[1] * g, AURA_RGB9[2] * g];
 };
 const AURA_SIG9 = 0.05;
 const AURA_MARGIN9 = 0.18;
@@ -1366,22 +1380,26 @@ const auraOf9 = (key: string): Aura9 | null => {
 };
 const GLOW_K9 = 0.9;   // 1.6 → 0.9(같은 날 "쇠 발광효과는 너무 강해 좀 낮추기")
 const GLOW_FS9 = `#version 300 es
-precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; uniform vec4 uAura; uniform float uASig; uniform vec3 uAuraY; uniform vec4 uAuraF[8]; uniform float uAuraFN; in vec2 v1; in vec2 v0; out vec4 o;
+precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; uniform vec4 uAura; uniform float uASig; uniform vec3 uAuraY; uniform vec4 uAuraF[8]; uniform float uAuraFN; uniform float uAuraOut; in vec2 v1; in vec2 v0; out vec4 o;
 float hA9(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
 float nA9(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hA9(i), hA9(i + vec2(1.0, 0.0)), f.x), mix(hA9(i + vec2(0.0, 1.0)), hA9(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
-  vec3 s9 = vec3(0.0); float w9 = 0.0;
-  for (int i = -6; i <= 6; i++) {
-    for (int j = -6; j <= 6; j++) {
-      vec2 d = vec2(float(i), float(j)) * (uSig * 0.5);
-      float w = exp(-dot(d, d) / (2.0 * uSig * uSig));
-      vec2 u = v1 + d * uPx;
-      vec3 t = (u.x < uR.x || u.y < uR.y || u.x > uR.z || u.y > uR.w) ? vec3(0.0) : textureLod(uT1, u, 0.0).rgb;
-      s9 += t * w; w9 += w;
+  vec3 s9 = vec3(0.0); float w9 = 1.0;
+  if (uAuraOut < 0.5) {
+    w9 = 0.0;
+    for (int i = -6; i <= 6; i++) {
+      for (int j = -6; j <= 6; j++) {
+        vec2 d = vec2(float(i), float(j)) * (uSig * 0.5);
+        float w = exp(-dot(d, d) / (2.0 * uSig * uSig));
+        vec2 u = v1 + d * uPx;
+        vec3 t = (u.x < uR.x || u.y < uR.y || u.x > uR.z || u.y > uR.w) ? vec3(0.0) : textureLod(uT1, u, 0.0).rgb;
+        s9 += t * w; w9 += w;
+      }
     }
   }
   vec3 g = s9 / w9 * uK;
+  float ak9 = 0.0;
   float ga9 = clamp(dot(g, vec3(0.299, 0.587, 0.114)) * 0.5, 0.0, 1.0);
   /* 가스 기운(위 AURA9 ★) — 원천 판의 알파(몸 실루엣)를 넓게 흐린 가면 × (1 − 0.8·제 자리 몸) × 잔 결. */
   if (uAura.a > 0.0) {
@@ -1416,9 +1434,10 @@ void main() {
       float blobF9 = smoothstep(0.38, 0.78, 0.7 * nA9(q9 * 0.7 + 3.3) + 0.3 * nA9(q9 * 1.9 + 11.7));
       k9 = f9 * (1.0 - 0.35 * c9) * blobF9 * wisp9 * uAura.a;
     }
-    g += uAura.rgb * k9;
-    ga9 = max(ga9, k9 * 0.6);
+    ak9 = k9;
   }
+  /* 기운은 켜짐 켜(판 tn 의 G)에만 적는다(uAuraOut · 아래 AURA9 의 ★ 연구 중에만) — 색판에는 안 든다. */
+  if (uAuraOut > 0.5) { o = vec4(0.0, clamp(ak9, 0.0, 1.0), 0.0, 0.0); return; }
   o = vec4(g, ga9);
 }`;
 /** 미리 찍기(돌기) — 한 번 본 몸(메시·배율·색)의 **다른 요잉 칸**을 남는 예산으로 차례로 찍어 둔다. 둘 이상의 요잉을 본 것만(도는 몸) 연다. */
@@ -1656,7 +1675,7 @@ export class GlUnits9 implements VecSink9 {
             this.glw = { prog: w9, aQ: gl.getAttribLocation(w9, "aQ"), uDst: gl.getUniformLocation(w9, "uDst"), uUv1: gl.getUniformLocation(w9, "uUv1"), uT1: gl.getUniformLocation(w9, "uT1"),
               uR: gl.getUniformLocation(w9, "uR"), uPx: gl.getUniformLocation(w9, "uPx"), uSig: gl.getUniformLocation(w9, "uSig"), uK: gl.getUniformLocation(w9, "uK"),
               uAura: gl.getUniformLocation(w9, "uAura"), uASig: gl.getUniformLocation(w9, "uASig"), uAuraY: gl.getUniformLocation(w9, "uAuraY"),
-              uAuraF: gl.getUniformLocation(w9, "uAuraF"), uAuraFN: gl.getUniformLocation(w9, "uAuraFN") };
+              uAuraF: gl.getUniformLocation(w9, "uAuraF"), uAuraFN: gl.getUniformLocation(w9, "uAuraFN"), uAuraOut: gl.getUniformLocation(w9, "uAuraOut") };
           } catch (e) { console.warn("[gl9] 굽는 빛무리", e); this.glw = null; }
         }
       } catch (e) { console.warn("[gl9] 스프라이트", e); this.spr = null; }
@@ -1703,7 +1722,7 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 굽는 선명·광택 프로그램(위 SPR_LOOK9 ★) — 못 세우면 null(옛 그림). */
   /** 굽는 빛무리 프로그램(GLOW_FS9 ★). */
-  private glw: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uSig: WebGLUniformLocation | null; uK: WebGLUniformLocation | null; uAura: WebGLUniformLocation | null; uASig: WebGLUniformLocation | null; uAuraY: WebGLUniformLocation | null; uAuraF: WebGLUniformLocation | null; uAuraFN: WebGLUniformLocation | null } | null = null;
+  private glw: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uSig: WebGLUniformLocation | null; uK: WebGLUniformLocation | null; uAura: WebGLUniformLocation | null; uASig: WebGLUniformLocation | null; uAuraY: WebGLUniformLocation | null; uAuraF: WebGLUniformLocation | null; uAuraFN: WebGLUniformLocation | null; uAuraOut: WebGLUniformLocation | null } | null = null;
   private flt: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uLk: WebGLUniformLocation | null } | null = null;
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
@@ -2419,8 +2438,14 @@ export class GlUnits9 implements VecSink9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.spr.qvbo);
         gl.enableVertexAttribArray(glw.aQ); gl.vertexAttribPointer(glw.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(glw.aQ, 0);
         let pgG: SprPage9 | null = null;
-        for (const { j, sx, sy, cell } of glows) {
-          if (cell.page !== pgG) { pgG = cell.page; gl.bindFramebuffer(gl.FRAMEBUFFER, pgG.fb); gl.viewport(0, 0, P, P); }
+        /* 두 차례 — ① 빛무리(색판 · 기운 없음) ② 가스 기운만 켜짐 켜(tn 판 G · 블렌드 없이 칸 통째로 덮는다 — 묵은 칸의 G 도 지운다). 기운은 연구 중인 건물에만 켜 × 녹색으로 더한다(AURA9 ★). */
+        const auras9 = glows.filter((e) => !!e.cell.page.tnFb && !!auraOf9(e.j.mesh.key));
+        gl.uniform1f(glw.uAuraOut, 0);
+        for (let pass9 = 0; pass9 < 2; pass9 += 1) {
+        const list9 = pass9 === 0 ? glows : auras9;
+        if (pass9 === 1) { if (!list9.length) break; gl.uniform1f(glw.uAuraOut, 1); gl.disable(gl.BLEND); gl.colorMask(false, true, false, false); pgG = null; }
+        for (const { j, sx, sy, cell } of list9) {
+          if (cell.page !== pgG) { pgG = cell.page; gl.bindFramebuffer(gl.FRAMEBUFFER, pass9 === 0 ? pgG.fb : pgG.tnFb); gl.viewport(0, 0, P, P); }
           const dx0 = cell.px / P * 2 - 1; const dx1 = (cell.px + cell.w) / P * 2 - 1;
           const dy0 = (P - cell.py - cell.h) / P * 2 - 1; const dy1 = (P - cell.py) / P * 2 - 1;
           const u0 = sx / S; const v0 = (S - sy - cell.h) / S; const u1 = (sx + cell.w) / S; const v1 = (S - sy) / S;
@@ -2428,8 +2453,8 @@ export class GlUnits9 implements VecSink9 {
           gl.uniform4f(glw.uUv1, u0, v0, u1, v1);
           gl.uniform4f(glw.uR, u0 + 0.5 / S, v0 + 0.5 / S, u1 - 0.5 / S, v1 - 0.5 / S);
           gl.uniform1f(glw.uSig, Math.max(1.2, GLOW_SIG9 * Math.max(cell.w, cell.h)));
-          const au9 = auraOf9(j.mesh.key);
-          if (au9) { gl.uniform4f(glw.uAura, au9[0], au9[1], au9[2], au9[3]); gl.uniform1f(glw.uASig, Math.max(2, AURA_SIG9 * Math.max(cell.w, cell.h))); gl.uniform3f(glw.uAuraY, au9[4], au9[5], au9[6]);
+          const au9 = pass9 === 1 ? auraOf9(j.mesh.key) : null;
+          if (au9) { gl.uniform4f(glw.uAura, 1, 1, 1, 1); gl.uniform1f(glw.uASig, Math.max(2, AURA_SIG9 * Math.max(cell.w, cell.h))); gl.uniform3f(glw.uAuraY, au9[4], au9[5], au9[6]);
             if (au9[4] > 2.5) {
               /* 꼴 3 — 원(모형 자)을 이 칸의 요잉·카메라로 옮긴다: 칸 px = −x0 + modelXY9 × kd(앵커가 칸의 (−x0, −y0)) → 판 uv. */
               const fs9 = auraFocusOf9(j.mesh.key.split(":")[1]); const fa9 = new Float32Array(AURA_FOCUS_MAX9 * 4);
@@ -2444,6 +2469,8 @@ export class GlUnits9 implements VecSink9 {
           gl.drawArrays(gl.TRIANGLES, 0, 6);
           this.stat.draws += 1;
         }
+        }
+        gl.uniform1f(glw.uAuraOut, 0); gl.colorMask(true, true, true, true); gl.enable(gl.BLEND);
         gl.disableVertexAttribArray(glw.aQ);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.useProgram(this.prog);
@@ -3546,7 +3573,7 @@ export class GlUnits9 implements VecSink9 {
         const b9 = sprB[i]; if (!b9) continue;
         const it = q[i];
         put(b9[0], b9[1], it.ax * dprK9, (it.ay + it.yoff) * dprK9, it.alpha, 1 - slot * (slotOf[i] + 1), it.solid ? 1 : 0, !!it.over, it.solid, it.mesh.team && !it.solid ? it.color : null,
-          it.lit && !it.solid && it.meshLt?.litColor ? it.meshLt.litColor : null);
+          it.lit && !it.solid && it.meshLt?.litColor ? it.meshLt.litColor : it.aura && !it.solid ? auraLit9(it.mesh.key) : null);
       }
       nSpr = o9 - nSprSh;
       this.sprStat.body = nSpr; this.sprStat.shadow = nSprSh;

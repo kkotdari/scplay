@@ -100,11 +100,14 @@ const HALF = argv.includes("--half");
 const DSCALE = Number(flag("--scale", 0)) || 0;
 /** \`--glow [K]\`(2026-11-03 · 광택 번짐 시안) — --bake 길에서 빛 켜(em)를 흐려 몸 위에 더한다(지도 번짐의 흉내 · 반지름 칸 폭의 1.2% · 세기 K 기본 1). 헤드리스 메시 길은 번짐이 안 선다. */
 const GLOW = argv.includes("--glow") ? (Number(flag("--glow", 1)) || 1) : 0;
+/** \`--aura\`(2026-11-03) — --bake 길에서 저그 가스 기운(켜짐 켜 G × AURA_RGB9 × AURA_GAIN9 · 연구 중 모습)을 더해 그리고, 종류마다 기운 세기를 잰다
+ *  (켜짐 G 의 합 · 0.05 넘는 화소의 평균 · 상위 5% — 고른 세기 맞추기용). */
+const AURA = argv.includes("--aura");
 
 const ENTRY = `
 import { SHAPE_BUILDERS, SHAPE_GALLERY, bldBlinkSet9, poseSet9, bldLitSet, headYawSet, bldSpinRawSet9, tone9, silhouetteLight, DECAL_KINDS, SPIN_KINDS } from ${JSON.stringify(join(ROOT, "src/components/replay/bake9"))};
 import { withTopView, withViewShear, withYaw, bake, zsorted } from ${JSON.stringify(join(ROOT, "src/utils/shapeOblique"))};
-import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
+import { GlUnits9, CAM_TOP9, GL_CANVAS_KINDS9, GL_GLOW_KINDS9, AURA_RGB9, AURA_GAIN9 } from ${JSON.stringify(join(ROOT, "src/components/replay/gl9"))};
 const BAKEQ = ${BAKEQ};
 /* --cam 납작비,높이,숙임(2026-10-12) — 입체 카메라를 손으로(옛 입체 0.606,1,0.34 · 새 60도 0.866,0.5,0 견줌). 없으면 평면 CAM_TOP9. */
 const CAM9 = ${JSON.stringify(flag("--cam", null))} ? ((v) => ({ squash: v[0], zk: v[1], lean: v[2], shear: 0, key: "c" + v.join(":") }))(String(${JSON.stringify(flag("--cam", ""))}).split(",").map(Number)) : CAM_TOP9;
@@ -176,6 +179,22 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
         gx.imageSmoothingQuality = "high";
         const ox9 = i * cell + (cell - (bx1 - bx0) * sc9) / 2 - bx0 * sc9; const oy9 = r * cell + (cell - (by1 - by0) * sc9) / 2 - by0 * sc9;
         for (const p9 of parts9) { const k9 = (c9.kd / p9.c.kd) * sc9; gx.drawImage(p9.cv, ox9 + p9.c.x0 * k9, oy9 + p9.c.y0 * k9, p9.c.w * k9, p9.c.h * k9); }
+        if (${AURA}) {
+          const pg9 = g.sprDumpPage9(c9.page);
+          if (pg9 && pg9.tint) {
+            const gn9 = AURA_GAIN9[kind] ?? 1; const im9 = new ImageData(c9.w, c9.h); const vs9 = [];
+            for (let y = 0; y < c9.h; y += 1) for (let x = 0; x < c9.w; x += 1) {
+              const si = ((pg9.h - 1 - (c9.py + y)) * pg9.w + (c9.px + x)) * 4; const di = (y * c9.w + x) * 4;
+              const v9 = pg9.tint[si + 1] / 255; if (v9 > 0.05) vs9.push(v9 * gn9);
+              for (let ch = 0; ch < 3; ch += 1) im9.data[di + ch] = Math.min(255, Math.round(v9 * gn9 * AURA_RGB9[ch] * 255));
+              im9.data[di + 3] = 255;
+            }
+            vs9.sort((p, q) => q - p);
+            (window.__auraStat ??= {})[kind] = { n: vs9.length, mean: vs9.length ? vs9.reduce((p, q) => p + q, 0) / vs9.length : 0, top5: vs9.length ? vs9.slice(0, Math.max(1, Math.round(vs9.length * 0.05))).reduce((p, q) => p + q, 0) / Math.max(1, Math.round(vs9.length * 0.05)) : 0, area: vs9.length / (c9.w * c9.h) };
+            const acv = document.createElement("canvas"); acv.width = c9.w; acv.height = c9.h; acv.getContext("2d").putImageData(im9, 0, 0);
+            gx.save(); gx.globalCompositeOperation = "lighter"; gx.drawImage(acv, ox9 + c9.x0 * sc9, oy9 + c9.y0 * sc9, c9.w * sc9, c9.h * sc9); gx.restore();
+          }
+        }
         if (${GLOW} > 0) {
           const pg9 = g.sprDumpPage9(c9.page);
           if (pg9 && pg9.em) {
@@ -351,6 +370,7 @@ for (let i = 0; i < kinds.length; i += CHUNK) {
   sheets.push({ a: r.a, b: r.b });
 }
 let bad9 = 0;
+if (AURA) { const st9 = await page.evaluate(() => window.__auraStat ?? {}); for (const [k, v] of Object.entries(st9)) console.log(`기운 ${k.padEnd(12)} 화소 ${String(v.n).padStart(6)} 넓이 ${(v.area * 100).toFixed(1)}%  평균 ${v.mean.toFixed(3)}  상위5% ${v.top5.toFixed(3)}  합 ${(v.mean * v.n).toFixed(0)}`); }
 if (VS2D) {
   /* 2D 폴백 감사 — 이 수는 '**2D 폴백과의 차이**'다(나쁨이 아니다). 방향광·광택·결·푸른빛은
      2D 에 없는 몫이라 GL 이 좋아질수록 오른다 — 낮추려 들지 마라. */

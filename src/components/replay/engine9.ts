@@ -1984,6 +1984,8 @@ export type UnitDrawOp = {
   /** 찍을 때만 곱하는 배율(고치의 두근거림) — 판은 그대로 두고 바닥 가운데를 축으로 블릿만 키우고 줄인다.
    *  drawK와 달리 굽는 크기에 안 실린다(굽는 크기가 흔들리면 판이 칸마다 새로 구워져 덜덜 떨린다). */
   pulseK?: number;
+  /** 가스 기운(저그 건물이 연구·업그레이드 중 · gl9 AURA9 ★ — 기운이 있는 종류만 그린다). */
+  aura?: boolean;
   /** pulseK 를 **몸 가운데** 축으로(기본은 바닥 가운데) — 뜬 소환구가 작은 공에서 부푸는 자리(2026-10-15). */
   pulseMid?: boolean;
   /** ★ 프로토스 **소환 드러남**의 진행(0~1 · 2026-10-14) — 있으면 GL 붓이 몸을 푸른 반물질로 그리고, 굵은 빛 띠가 화면 대각선 좌상 → 우하로 쓸며
@@ -7218,6 +7220,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           // 코어(LIT_STEADY_KINDS9)는 깜빡이지 않고 연구 중 내내 켜 둔다(2026-10-06 요청).
           lit: !bldFrozen9 && ((producing || researching || scanLit9 || nukeBuild9 || shapeKind === "nydus")
             && (!qAnim || LIT_STEADY_KINDS9.has(shapeKind) || ((((t + i * 0.17) % 0.9) + 0.9) % 0.9) < 0.6) || nukeArmed9),
+          /* ★ 저그 가스 기운은 **연구·업그레이드 중에만**(2026-11-03 요청) — 해처리류의 라바 생산은 안 든다(깜빡임 없이 켜 둔다). */
+          ...(race2 === "저그" && !bldFrozen9 && !raising && researching ? { aura: true } : {}),
           ...((): { pulseK?: number } => {
             /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다. */
             if (race2 !== "저그" || bldFrozen9 || raising) return {};
