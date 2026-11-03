@@ -655,21 +655,24 @@ function scanHum9(v: number): Float32Array {
 /** ★ 소환구 착공 — 에너지가 모이는 낮은 소리(2026-11-02, 요청: "소환구 착공 시도 에너지가 집약되는 듯한 낮은 소리로") — 옛: 마법 공용 warp.
  *  낮은 웅(55 → 98Hz 로 오르며 커진다 · 2·3배음) + 빨려 드는 숨(띠 거르개 잡음이 250 → 1100Hz 로 좁혀 오름) + 끝의 부드러운 '툭'(모임). 1.3초 · 끝이 가장 크다. */
 function warpCharge9(v: number): Float32Array {
-  const r = rng9(1451 + v);
-  const bp = new Biquad9("bp", 250, 2.2);
-  const lp = new Biquad9("lp", 900, 0.7);
-  const D9 = 1.3; const f0 = 55 * [1, 1.06, 0.94][v % 3];
+  /* ★ **부드럽게**(2026-11-03, 요청: "착공음도 좀 부드럽게") — 끝의 '툭'(140Hz 딱)을 걷고 · 빨려 드는 숨(잡음)을 0.9 → 0.35 · 거르개 900 → 600Hz · 포화 1.4 → 0.7 ·
+     부풂을 둥근 곡선(smoothstep)으로 · 끝은 0.2초 뚝 대신 0.45초 cos² 로 놓는다. 한 갈래(v 안 씀). */
+  void v;
+  const r = rng9(1451);
+  const bp = new Biquad9("bp", 250, 1.8);
+  const lp = new Biquad9("lp", 600, 0.7);
+  const UP9 = 1.1; const REL9 = 0.45; const f0 = 55;
   let ph = 0;
-  return finish9(render9(D9, (t) => {
-    const u = Math.min(1, t / 1.1);
+  return finish9(render9(UP9 + REL9, (t) => {
+    const u = Math.min(1, t / UP9);
     ph += (f0 * (1 + 0.78 * u * u)) / SFX_RATE9;
-    const swell = u * u * (t < 1.1 ? 1 : Math.max(0, 1 - (t - 1.1) / 0.2));
-    const drone = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.4 + Math.sin(6 * Math.PI * ph) * 0.15) * swell;
-    const suck = bp.run(r() * 2 - 1) * swell * 0.9;
-    const tk = t - 1.08;
-    const tock = tk > 0 ? Math.sin(2 * Math.PI * 140 * tk) * Math.exp(-tk * 30) * 0.8 : 0;
-    return sat9(lp.run(drone + suck) + tock, 1.4);
-  }, (t) => bp.set(250 + 850 * Math.min(1, t / 1.1))), 0.6);
+    const sw = u * u * (3 - 2 * u);
+    const rel = t < UP9 ? 1 : Math.cos((Math.PI / 2) * Math.min(1, (t - UP9) / REL9)) ** 2;
+    const env = sw * rel;
+    const drone = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.3 + Math.sin(6 * Math.PI * ph) * 0.08) * env;
+    const suck = bp.run(r() * 2 - 1) * env * 0.35;
+    return sat9(lp.run(drone + suck), 0.7);
+  }, (t) => bp.set(250 + 650 * Math.min(1, t / UP9))), 0.5);
 }
 
 /** ★ 저글링 타격 — 통(2026-11-02, 요청: "저글링 둥둥둥 치는 소리" → 되요청 "좀 더 울림 있는 통통 소리로") — 울리는 북통: 230 → 175Hz 로 살짝 내리는 몸이
