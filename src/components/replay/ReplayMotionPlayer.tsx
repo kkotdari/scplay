@@ -674,6 +674,15 @@ const FPS_CAP9: { on: boolean; v: number; flashUntil: number } = {
   v: ((): number => { try { const n9 = Number(localStorage.getItem("scr-fpscap") ?? "0"); return (FPS_CAP_STEPS9 as readonly number[]).includes(n9) ? n9 : 0; } catch { return 0; } })(),
 };
 const fpsCapLabel9 = (v9: number): string => (v9 === 0 ? "자동" : v9 < 0 ? "무제한" : `최대 ${v9}`);
+/** ★ **테스트 모드 — 기능 끄기·켜기**(2026-11-03, 요청: "diag 왼쪽에 테스트 모드 버튼 추가 · 기능 끄기나 켜기 토글 버튼들(성능 영향도 파악용) · 3D 안개 이런 거") —
+ *  스위치 대부분이 모듈 적재 때 주소(#…)를 읽으므로 고른 것을 주소 해시에 적고 **새로고침**해서 건다(적용 단추). [해시 낱말, 이름]. 같은 주소로 다시 들어오면 그대로 켜져 있다. */
+const TEST_FLAGS9: readonly [string, string][] = [
+  ["3d=1", "3D 보기 켜기"], ["nofog", "안개 끄기"], ["nocreep", "크립 끄기"], ["creeptex=0", "크립 질감 끄기"], ["glshadow=0", "그림자 끄기"],
+  ["glbloom=0", "번짐(블룸) 끄기"], ["spratlas=0", "아틀라스 끄기(실시간 굽기)"], ["glspr=0", "2D 판 끄기(메시로 그리기)"], ["glterr=0", "GL 지형 끄기"],
+  ["terrcache=0", "지형 판 재사용 끄기"], ["viewclip=0", "보이는 곳만 칠하기 끄기"], ["drs=0", "해상도 자동 조절 끄기"], ["gl=0", "GL 끄기(2D 폴백)"],
+];
+/** 주소 해시의 낱말(#·&·, 로 가른다). */
+const hashToks9 = (): string[] => (typeof location === "undefined" ? [] : location.hash.replace(/^#/, "").split(/[&,]/).filter(Boolean));
 /** 진단 고르기 칸 — 값(engine9 SCR_DIAG_SEL) · 이름. "" = 끔 · "sum" = 요약 한 줄. */
 const DIAG_PICKS9: readonly [string, string][] = [["", "diag 끔"], ["sum", "요약"], ["all", "all"], ["draw", "draw"], ["bake", "bake"], ["fog", "fog"], ["load", "load"],
   ["gest", "gest"], ["mem", "mem"], ["worker", "worker"], ["truth", "truth"], ["brush", "brush"], ["view", "view"], ["fps", "fps"]];
@@ -12945,6 +12954,10 @@ export default function ReplayMotionPlayer({
        또렷하게 보는' 자리가 아니다. */
   /** 진단 오버레이(#diag) — 주소로 켠다. 한 번만 읽는다(주소가 바뀌면 새로고침). */
   const [diagOn, setDiagOn9] = useState(scrDiagOn);
+  /* 테스트 모드(위 TEST_FLAGS9 ★) — 판 열림 · 고른 낱말(주소에서 시작). */
+  const [testOpen9, setTestOpen9] = useState(false);
+  const [testSel9, setTestSel9] = useState<Set<string>>(() => new Set(hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9))));
+  const testOnN9 = useMemo(() => hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9)).length, []);
   const [diagSel9, setDiagSel9] = useState<string>(() => {
     if (SCR_DIAG_SEL.v !== null) return SCR_DIAG_SEL.v;
     if (!scrDiagOn()) return "";
@@ -23329,6 +23342,30 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9 && FPS_TAG9 && isTester ? (
             /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
             <div className="scr-zoomfps is-tester">
+              <button type="button" className={cx("scr-zoomfps-btn", testOnN9 > 0 && "is-on")} aria-expanded={testOpen9} onClick={() => setTestOpen9((o9) => !o9)}>
+                {testOnN9 > 0 ? `테스트 ${testOnN9}` : "테스트"}
+              </button>
+              {testOpen9 ? (
+                <div className="scr-testmode" role="dialog" aria-label="테스트 모드 — 기능 끄기·켜기">
+                  {TEST_FLAGS9.map(([k9, n9]) => (
+                    <label key={k9} className="scr-testmode-row">
+                      <input type="checkbox" checked={testSel9.has(k9)}
+                        onChange={(e) => { const on9 = e.currentTarget.checked; setTestSel9((p9) => { const n = new Set(p9); if (on9) n.add(k9); else n.delete(k9); return n; }); }} />
+                      <span>{n9}</span>
+                    </label>
+                  ))}
+                  <div className="scr-testmode-act">
+                    <button type="button" onClick={() => setTestSel9(new Set())}>모두 해제</button>
+                    <button type="button" className="is-main" onClick={() => {
+                      /* 주소 해시에서 테스트 낱말을 빼고 고른 것을 더한 뒤 새로고침(스위치가 모듈 적재 때 읽는다). 다른 낱말(진단·창 등)은 그대로. */
+                      const keep9 = hashToks9().filter((t9) => !TEST_FLAGS9.some(([k9]) => k9 === t9));
+                      const next9 = [...keep9, ...TEST_FLAGS9.map(([k9]) => k9).filter((k9) => testSel9.has(k9))];
+                      location.hash = next9.join("&");
+                      location.reload();
+                    }}>적용(새로고침)</button>
+                  </div>
+                </div>
+              ) : null}
               <select className="scr-zoomfps-diag" value={diagSel9} aria-label="진단(diag) 고르기"
                 onChange={(e) => { const v9 = e.currentTarget.value; SCR_DIAG_SEL.v = v9; setDiagSel9(v9); setDiagOn9(v9 !== ""); }}>
                 {DIAG_PICKS9.map(([v9, n9]) => <option key={v9 || "off"} value={v9}>{n9}</option>)}

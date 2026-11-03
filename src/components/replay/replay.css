@@ -4542,7 +4542,7 @@
 }
 .scr-fs-layer.is-fs .scr-zoomfps { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
 /* 테스터 손잡이(2026-11-03 · RMP FPS_CAP9) — 진단 고르기 + 최대 프레임 단추. 바탕 없는 글자 꼴 그대로 누를 수 있게. */
-.scr-zoomfps.is-tester { pointer-events: auto; gap: calc(6px * var(--sdk)); opacity: 1; }
+.scr-zoomfps.is-tester { pointer-events: auto; gap: calc(6px * var(--sdk)); opacity: 1; }   /* 판(.scr-testmode)이 이 묶음 기준으로 선다 — position 은 원래 absolute */
 .scr-zoomfps-btn, .scr-zoomfps-diag {
   pointer-events: auto; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 999px; background: rgba(10, 14, 20, 0.45);
   color: #fff; font: inherit; font-size: calc(10px * var(--sdk)); font-weight: 800; line-height: 1; padding: calc(3px * var(--sdk)) calc(7px * var(--sdk));
@@ -4550,6 +4550,22 @@
 }
 .scr-zoomfps-diag { -webkit-appearance: none; appearance: none; }
 .scr-zoomfps-diag option { color: #10151a; text-shadow: none; }
+.scr-zoomfps-btn.is-on { background: rgba(255, 196, 64, 0.9); color: #10151a; text-shadow: none; }
+/* 테스트 모드 판(2026-11-03 · RMP TEST_FLAGS9) — 단추 줄 아래 오른쪽에 붙는 고르기 판. */
+.scr-testmode {
+  position: absolute; top: calc(100% + 6px * var(--sdk)); right: 0; z-index: 2; pointer-events: auto; min-width: calc(190px * var(--sdk));
+  display: flex; flex-direction: column; gap: calc(2px * var(--sdk)); padding: calc(8px * var(--sdk)); border-radius: calc(10px * var(--sdk));
+  background: rgba(10, 14, 20, 0.92); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  text-shadow: none; font-size: calc(11px * var(--sdk)); font-weight: 600;
+}
+.scr-testmode-row { display: flex; align-items: center; gap: calc(6px * var(--sdk)); padding: calc(3px * var(--sdk)) calc(2px * var(--sdk)); cursor: pointer; color: #e8edf3; }
+.scr-testmode-row input { margin: 0; width: calc(13px * var(--sdk)); height: calc(13px * var(--sdk)); }
+.scr-testmode-act { display: flex; justify-content: flex-end; gap: calc(6px * var(--sdk)); margin-top: calc(6px * var(--sdk)); }
+.scr-testmode-act button {
+  cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 999px; background: transparent; color: #fff; font: inherit;
+  padding: calc(4px * var(--sdk)) calc(10px * var(--sdk));
+}
+.scr-testmode-act button.is-main { background: #2b62e8; border-color: #2b62e8; }
 .scr-zoomdial-val { font-size: calc(10px * var(--sdk)); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.02em; }
 .scr-zoomdial.is-base .scr-zoomdial-val { opacity: 0.6; }
 /* 맨 위 라벨 "속도"(2026-10-12, 요청: "배속창에 맨 위에 라벨 속도 넣기") — 값보다 한 단 작고 옅게. 그 몫(줄 키 + 틈)만큼 다이얼 키(--sd-h)를 늘려 눈금 선 길이는 그대로. */

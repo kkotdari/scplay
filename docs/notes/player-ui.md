@@ -2917,3 +2917,7 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   (null 이면 주소 #diag 를 따른다)을 scrDiagOn·scrDiagModes 가 먼저 본다 · RMP diagOn 을 상태로. `diag=pix`·`grid` 처럼 모듈 적재 때 읽는 특수 모드는 주소로만.
 - (같은 날 "diag가 버튼을 가리지 않게" → "버튼이 계속 늘어날 거 같으니까 패널은 폭은 다 쓰되 버튼 아랫줄에서 시작하게") — RMP `diagPanelRef9` + 렌더마다 layout effect:
   테스터 단추 줄(.scr-zoomfps.is-tester)의 아래끝 + 6px 를 진단 판 top 으로(판 부모 기준 · 단추 없으면 CSS 6px 그대로) · 폭은 그대로.
+- (같은 날 "diag 왼쪽에 테스트 모드 버튼 추가 · 기능 끄기나 켜기 토글 버튼들(성능 영향도 파악용) · 3D 안개 이런 거") — 단추 줄 맨 왼쪽 `테스트`(켠 수 · 노랑) → 판(.scr-testmode)에
+  체크 칸 열셋(TEST_FLAGS9: 3d=1 · nofog · nocreep · creeptex=0 · glshadow=0 · glbloom=0 · spratlas=0 · glspr=0 · glterr=0 · terrcache=0 · viewclip=0 · drs=0 · gl=0) ·
+  `적용(새로고침)` = 주소 해시에서 이 낱말들을 빼고 고른 것을 더해(다른 낱말은 그대로 · & 로 잇는다) 새로고침 — 스위치 대부분이 모듈 적재 때 주소를 읽어서다.
+  같은 주소면 켠 채로 다시 들어온다 · `모두 해제` → 적용 = 원래대로. 스위치를 더하려면 TEST_FLAGS9 한 줄.
