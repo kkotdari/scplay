@@ -1060,7 +1060,10 @@ function uiLineW9(tilePx: number, bd: number): number {
   return ringLineW9(tilePx * 0.65, bd);
 }
 function ringLineW9(diamPx: number, bd: number): number {
-  return Math.min(RING_LW_MAX9, Math.max(RING_LW_MIN9, 0.7 / Math.max(1, bd), diamPx * RING_LW_K9));   // dpr 1 은 0.7px(테 AA 가 70% 로 칠한다 · 0.32 처럼 안 사라진다)
+  /* ★ 폰은 1.6배(2026-11-03, 지적: "명령 선 · 모바일에서 잘 안 보이는 단점 · 마커 선택 링과 함께 선 굵기 조절") — 화면이 작고 손에 들고 보니 같은 CSS px 이 더 가늘게 읽힌다.
+     선택 링·클릭 마커·랠리·명령 줄이 다 이 자(uiLineW9)를 쓴다. 상한·하한도 같은 비로. */
+  const k9 = smallDevice9 ? 1.6 : 1;
+  return Math.min(RING_LW_MAX9 * k9, Math.max(RING_LW_MIN9 * k9, 0.7 / Math.max(1, bd), diamPx * RING_LW_K9 * k9));   // dpr 1 은 0.7px(테 AA 가 70% 로 칠한다 · 0.32 처럼 안 사라진다)
 }
 function ringWidth9(gl: GlUnits9, kind: string, meshNow: Parameters<GlUnits9["footOf"]>[0], lod: number, cam: Parameters<GlUnits9["footOf"]>[2]): number {
   const key9 = `${kind}|${cam === undefined || cam === CAM_TOP9 ? "" : cam.key}`;

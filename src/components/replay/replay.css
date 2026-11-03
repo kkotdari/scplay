@@ -5651,3 +5651,5 @@
 .scr-fs-ownstat-c { display: flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1.15; }
 .scr-fs-ownstat-l { font-size: calc(9px * var(--ui, 1)); color: rgba(255, 255, 255, 0.62); letter-spacing: 0.02em; }
 .scr-fs-ownstat-v { font-size: calc(13px * var(--ui, 1)); font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ★ 폰 클릭 마커 테 1.6배(2026-11-03, 지적: "명령 선 · 모바일에서 잘 안 보임 · 마커 선택 링과 함께 선 굵기 조절") — 선택 링·명령 줄(ringLineW9 폰 ×1.6)과 같은 비. 폰 = 재생기 뿌리에 .scr-motion-pc9 가 없음. */
+.scr-motion-root:not(.scr-motion-pc9) .scr-motion-clickfx { --ckline: max(1.6px, calc(var(--ckw, 9px) * 0.064)); --ckdot: max(2.4px, calc(var(--ckw, 9px) * 0.16)); }
