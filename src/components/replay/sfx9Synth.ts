@@ -950,30 +950,14 @@ function lurkerDie9(v: number): Float32Array {
 /** ★ 스팀팩(2026-11-03, 요청: "스팀팩 소리 스와이어~~~ 하는 느낌 · 남자 목소리 추가") — 주사기 압축 가스가 '스와이~' 하고 솟았다 내려앉는 쉭(띠 잡음 1.6 → 4.4 → 2.4kHz)
  *  + 0.12초 뒤 남자의 짧은 '아~'(성대 펄스 120Hz 언저리가 살짝 떨며 내려앉음 · 모음 '아' 포먼트 730·1090·2440Hz · 숨소리 섞음) · 작은 방 메아리. 1.1초. */
 function stim9(v: number): Float32Array {
+  /* (2026-11-03, 요청: "스팀팩에서 솨~ 소리만 남기고 음성은 제거") — 남자 '아~'(성대 펄스 + 모음 거르개 셋)를 걷고 솨~(띠 잡음이 솟았다 내려앉음)만 남긴다. */
   const r = rng9(2311 + v);
   const hb = new Biquad9("bp", 1600, 2.2); const hh = new Biquad9("hp", 900, 0.7);
-  const f1 = new Biquad9("bp", 730, 5); const f2 = new Biquad9("bp", 1090, 7); const f3 = new Biquad9("bp", 2440, 9);
-  const vlp = new Biquad9("lp", 3600, 0.7);
-  const base9 = [118, 106, 128][v % 3];
-  let ph = 0;
   const raw9 = render9(1.1, (t) => {
-    const n9 = r() * 2 - 1;
-    const hiss = hh.run(hb.run(n9)) * ad9(t, 0.035, 3.6) * 1.15;
-    let voice = 0;
-    const tv = t - 0.12;
-    if (tv > 0) {
-      const f0 = base9 * (1.1 - Math.min(0.24, tv * 0.32)) * (1 + 0.025 * Math.sin(2 * Math.PI * 5.5 * tv));
-      ph += f0 / SFX_RATE9;
-      const p9 = ph % 1;
-      const glot = (p9 < 0.6 ? Math.sin(Math.PI * p9 / 0.6) : 0) * 1.6 - 0.55 + n9 * 0.18;   // 성대 펄스(열린 몫 60%) + 숨
-      const vEnv = ad9(tv, 0.07, 0) * (tv < 0.45 ? 1 : Math.exp(-(tv - 0.45) * 5.5));
-      voice = vlp.run(f1.run(glot) * 1.0 + f2.run(glot) * 0.55 + f3.run(glot) * 0.22) * vEnv * 2.2;
-    }
-    return sat9(hiss * 0.55 + voice, 1.4);
+    const hiss = hh.run(hb.run(r() * 2 - 1)) * ad9(t, 0.035, 3.6) * 1.15;
+    return sat9(hiss * 0.55, 1.4);
   }, (t) => {
     hb.set(t < 0.22 ? 1600 + (t / 0.22) * 2800 : Math.max(2400, 4400 - (t - 0.22) * 4000));   // 스와이~ : 솟고 내려앉음
-    const tv = Math.max(0, t - 0.12);
-    f1.set(730 - Math.min(120, tv * 160)); f2.set(1090 - Math.min(160, tv * 220));   // '아~' → 끝이 살짝 '어'로 닫힘
   });
   return finish9(echo9(raw9, 0.07, 0.22), 0.6);
 }
@@ -986,25 +970,25 @@ export type SfxKind9 =
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
   | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim";
 
-/** 종류 → [갈래 수, 굽는 함수]. */
+/** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
-  gun: [3, gun9], cannon: [2, cannon9], boom: [3, (v) => boom9(v, false)], boomBig: [2, (v) => boom9(v, true)],
-  bioBoom: [2, bioBoom9], squeal: [3, (v) => squeal9(v)], screamM: [3, (v) => scream9(v, false)], screamF: [2, (v) => scream9(v, true)],
-  zap: [3, zap9], missile: [2, missile9], liftOff: [2, liftOff9], landing: [2, landing9], photon: [2, photon9], photonC: [3, photonC9], mine: [3, mine9],
-  thunder: [2, thunder9], puff: [2, puff9], glaive: [2, glaive9], weld: [2, weld9],
-  load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
-  burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
-  flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
-  warpHum: [2, warpHum9], warpEnd: [1, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
-  eggPop: [2, eggPop9],
-  screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
-  spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
-  warpCharge: [1, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
-  missileLow: [3, missileLow9], missileHi: [3, missileHi9],
-  fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
-  eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
-  mineArm: [3, mineArm9], reaverBreak: [2, reaverBreak9], vesselBoom: [2, vesselBoom9],
-  bioLoad: [2, (v) => bioHold9(v, true)], bioUnload: [2, (v) => bioHold9(v, false)],
-  obsBoom: [2, obsBoom9], lurkerDie: [3, lurkerDie9], squealHi: [3, (v) => squeal9(v, 1.35)], squealMuta: [3, (v) => squeal9(v, 2.2)],
-  stim: [2, stim9],
+  gun: [1, gun9], cannon: [1, cannon9], boom: [1, (v) => boom9(v, false)], boomBig: [1, (v) => boom9(v, true)],
+  bioBoom: [1, bioBoom9], squeal: [1, (v) => squeal9(v)], screamM: [1, (v) => scream9(v, false)], screamF: [1, (v) => scream9(v, true)],
+  zap: [1, zap9], missile: [1, missile9], liftOff: [1, liftOff9], landing: [1, landing9], photon: [1, photon9], photonC: [1, photonC9], mine: [1, mine9],
+  thunder: [1, thunder9], puff: [1, puff9], glaive: [1, glaive9], weld: [1, weld9],
+  load: [1, (v) => hatch9(v, true)], unload: [1, (v) => hatch9(v, false)],
+  burrow: [1, (v) => burrow9(v, true)], unburrow: [1, (v) => burrow9(v, false)], warp: [1, warp9],
+  flame: [1, flame9], slash: [1, slash9], blade: [1, blade9], claw: [1, claw9], spine: [1, spine9],
+  warpHum: [1, warpHum9], warpEnd: [1, warpEnd9], heart: [1, heart9], mineScv: [1, mineScv9], mineProbe: [1, mineProbe9],
+  eggPop: [1, eggPop9],
+  screamLow: [1, (v) => scream9(v, false, 0.72)], screamHi: [1, (v) => scream9(v, true, 1.45)],
+  spikeEarth: [1, spikeEarth9], guardHum: [1, guardHum9], springBreak: [1, springBreak9], scanHum: [1, scanHum9],
+  warpCharge: [1, warpCharge9], zlingHit: [1, zlingHit9], ultraHit: [1, ultraHit9],
+  missileLow: [1, missileLow9], missileHi: [1, missileHi9],
+  fleshUnfold: [1, fleshUnfold9], zergDone: [1, zergDone9],
+  eggStart: [1, eggStart9], eggHatch: [1, eggHatch9], metalClang: [1, metalClang9],
+  mineArm: [1, mineArm9], reaverBreak: [1, reaverBreak9], vesselBoom: [1, vesselBoom9],
+  bioLoad: [1, (v) => bioHold9(v, true)], bioUnload: [1, (v) => bioHold9(v, false)],
+  obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
+  stim: [1, stim9],
 };
