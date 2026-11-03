@@ -6028,6 +6028,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
 }) {
   /** 고른 몸인가 — 누른 몸(pickedKey) · 상자 선택(pickedKeys). */
   const isPk9 = (k9: string | undefined): boolean => k9 != null && (k9 === pickedKey || !!pickedKeys?.has(k9));
+  /** ★ 링 색(2026-11-03, 요청: "자유·중계 모드에서 선택 유닛은 주인공색 녹색으로 링 변경") — 보는 사람이 고른 몸(isPk9)은 HERO_COL9.me(#2cb494) · 자원은 원작대로 노랑 ·
+   *  **경기 속 선택(op.selRing)·우클릭 표적 깜빡임보다 앞선다**(같은 날 "원래 유저가 선택한 거보다 우선해서 녹색") · 그 밖은 selRingCol9(화면 주인 초록·적 빨강·동맹 노랑) → 몸 색.
+   *  유닛·건물·마커·랠리가 같이 쓴다. */
+  const ringColOf9 = (op: UnitDrawOp): string => (isPk9(op.pickKey) && !op.pickKey?.startsWith("r") ? HERO_COL9.me : selRingCol9(op) ?? op.color);
   const ref = useRef<HTMLCanvasElement>(null);
   /** GL 캔버스 — JSX 의 자리표(glHoldRef)를 판을 넘어 산 캔버스(glKeepCv9)로 갈아 끼운 것(아래 ★). */
   const glRef = useRef<HTMLCanvasElement | null>(null);
@@ -6579,13 +6583,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const my9 = sy - (op.air ? px9 * 0.45 : 0);
             if (gl9 && gl9.primOk) {
               gl9.prim(1, sx, my9, mw9 / 2, mw9 / 2, op.color, op.alpha);
-              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, selRingCol9(op) ?? op.color, op.alpha, 1);
+              if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) gl9.prim(2, sx, my9, mw9 / 2 + 1.5, mw9 / 2 + 1.5, ringColOf9(op), op.alpha, 1);
             } else {
               ctx.beginPath();
               ctx.arc(sx, my9, mw9 / 2, 0, Math.PI * 2);
               ctx.fill();
               if (op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) {
-                ctx.strokeStyle = selRingCol9(op) ?? op.color;
+                ctx.strokeStyle = ringColOf9(op);
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(sx, my9, mw9 / 2 + 1.5, 0, Math.PI * 2);
@@ -6931,7 +6935,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* 링 밑단은 고르지 않아도 잰다 — 체력바가 그 밑단 아래에 선다(2026-10-10, 지적: "선택링이 체력바에 가려지는 경우"). */
             const bRingBot9 = cy9 + Math.max(3, rx9 * ryK9) + uiLineW9((tilePx ?? 8) * zoom, Bd) / 2;
             if ((op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) && gl9.primOk && op.mkFrac === undefined) {
-              const bRingCol9 = selRingCol9(op) ?? op.color;
+              const bRingCol9 = ringColOf9(op);
               const rg9: GlRing9 = { kind: 2, x: sx, y: cy9, rx: rx9, ry: Math.max(3, rx9 * ryK9), color: bRingCol9, alpha: op.alpha, lineW: uiLineW9((tilePx ?? 8) * zoom, Bd), shear: 0 };
               ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
@@ -6941,7 +6945,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             if (isPk9(op.pickKey) && op.rally && gl9.primOk) {
               const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
               const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
-              const col9r = selRingCol9(op) ?? op.color;
+              const col9r = ringColOf9(op);
               gl9.prim(3, sx, cy9, rx9r, ry9r, col9r, op.alpha * 0.8, lw9r);
               gl9.prim(2, rx9r, ry9r, Math.max(3, (tilePx ?? 8) * zoom * 0.35), Math.max(2, (tilePx ?? 8) * zoom * 0.2), col9r, op.alpha, lw9r);
             }
@@ -7196,7 +7200,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              요잉의 상자 폭 평균(ringWidth9 — 요잉과 무관 · 자세 0에서 잰 값이라 모션과도 무관). 2D 폴백(inkK)은 원래 요잉을 안 탄다.
              (옛 "링도 내용물 발끝에"는 되물렸다 — 발끝은 요잉 상자의 바닥이라 그것이 곧 흔들림이었다.) */
           const ringX = sx;
-          const ringCol9 = selRingCol9(op) ?? op.color;   // 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
+          /* ★ **보는 사람이 고른 몸은 주인공색 녹색 링**(2026-11-03, 요청: "자유·중계 모드에서 선택 유닛은 주인공색 녹색으로 링 변경") — 클릭·상자로 고른 몸(isPk9)은
+             HERO_COL9.me(#2cb494). 우클릭 표적 깜빡임은 그대로 앞선다. */
+          const ringCol9 = ringColOf9(op);   // 고른 몸은 주인공색 녹색(위 ringColOf9 ★) · 화면 주인 제 몸은 원작 초록 · 나머지는 색 모드(위 UI_OWN9)
           ringDiagPush9(op, ringCol9, ringWd9, ringW);
           const ringPath = (): void => {
             ctx.beginPath();
@@ -19227,6 +19233,8 @@ export default function ReplayMotionPlayer({
     /* ★★★ **최종**(2026-11-03, 요청: "진짜 최최종 — 좌클릭 드래그 = 선택 · 우클릭 드래그 또는 알트 드래그 = 이동") — 마우스 왼쪽 끌기(Alt 없음) = 상자 선택 ·
        오른쪽 끌기 · Alt+왼쪽 끌기 = 지도 이동(잠긴 카메라에선 이동 시도 → 토스트) · 가운데는 아무것도 안 한다. 중계·추적 중에도 같다 · 분할보기는 상자를 안 쓴다 · 손가락은 끌면 이동. */
     const selMod9 = e.pointerType === "mouse" && e.button === 0 && !e.altKey;
+    /* ★ **추적 모드(trackRaw · 개인 추적)는 상자 선택을 안 쓴다**(2026-11-03, 요청: "추적모드에서 선택 사용 X") — 왼쪽 끌기는 이동 시도(잠김 토스트)로 친다. 클릭은 그대로. */
+    if (selMod9 && trackRaw !== null) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }
     if (selMod9 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
