@@ -831,16 +831,24 @@ const APP16_9 = (): boolean => {
 };
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
-    glSprTune9(Infinity, 16, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });
+    glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·o 로 가른다)
     const g9 = glNow9(); if (g9) g9.sprDumpQ = SPR_DUMP9;
     return;
   }
   const phone9 = DEV9.name === "phone";
   const app9 = phone9 && APP16_9();   // 위 APP16_9 ★ — 앱 폰은 16칸 · 판 전체 상한에 아틀라스 홀 몫을 더한다
-  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? (app9 ? 16 : 8) : (TIER9.v === 0 ? 8 : 16),
+  /* ★ **요잉 32 칸 · 모든 기기**(2026-11-03, 요청: "피시 유닛 굽기 각을 32방 · 32방을 모두 적용" → "모바일도 메모리가 다 올리기엔 부족하지만 32방을 필요한 걸 백그라운드에서
+     구우면서 채우면 괜찮지 않음?") — 칸 열쇠는 32칸이고, 아틀라스는 기기 몫(ATLAS_WANT9 — PC 32 · 낮은 PC·앱 폰 16 · 폰 8)만 받는다. 없는 칸은 **가까운 칸(16·8방)으로 그리며**
+     남는 예산으로 조금씩 굽는다(gl9 sprFill ★ — fill 이 한 장 상한 · 판이 상한이면 안 굽고 가까운 칸 그대로). */
+  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, 32,
     phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0,
-      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (app9 ? (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96) : 0), em: false }
-      : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1 });
+      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (app9 ? (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96) : 0), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: app9 ? 2 : 4 }
+      : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1, fill: 8, warmStep: TIER9.v === 0 ? 2 : 1 });
+};
+/** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
+const ATLAS_WANT9 = (): 8 | 16 | 32 => {
+  if (DEV9.name === "phone") return APP16_9() ? 16 : 8;
+  return TIER9.v === 0 ? 16 : 32;
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
@@ -20228,7 +20236,8 @@ export default function ReplayMotionPlayer({
        임자색은 열쇠에서 빠졌으므로 임자가 몇이든 한 벌이다. 입체(3D)는 스프라이트를 안 쓰므로 안 굽는다. `#glpre=0` 으로 끈다. 진행률은 예열 띠에 함께 든다. */
     const pre9 = GL_ON9 && GL_SPR9 && GL_PRE9 && flat9;
     /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
-    const preYaws9 = (g9: GlUnits9): number[] => Array.from({ length: g9.sprYaw }, (_, i9) => i9);
+    /* (2026-11-03 요잉 32) 기기 몫(ATLAS_WANT9)의 칸만 — 32칸 기기라도 폰은 8방(4칸 걸음)만 미리 굽고 나머지는 재생 중 채움(gl9 sprFill ★). */
+    const preYaws9 = (g9: GlUnits9): number[] => { const st9 = Math.max(1, Math.round(g9.sprYaw / ATLAS_WANT9())); return Array.from({ length: Math.ceil(g9.sprYaw / st9) }, (_, i9) => i9 * st9); };
     const preStep9 = DEV9.name === "phone" ? 8 : 24;
     /* ★ 걸음은 **장 길이에 맞춘다**(2026-10-24, 지적: "팝업 뜬 상태에서 화면 멈춤 · 처음 로딩 애니메이션 멈추지 않게") — 한 장에 preStep9 장을 못 박으면 무거운 장(GPU 굽기 몰림)에
        LOADING 글자 애니메이션이 함께 멎는다. 지난 장이 34ms 를 넘으면 반으로, 20ms 안이면 둘씩 되올린다(상한 preStep9 · 하한 2). */
@@ -20256,7 +20265,7 @@ export default function ReplayMotionPlayer({
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
         const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
         const app9 = ph9 && APP16_9();   // 앱 폰은 홀 묶음(b)도 · 상한 ×1.75(위 APP16_9 ★)
-        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9 || app9, em: ph9 ? DEV9.glBloom : true,
+        sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
           mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (app9 ? 1.75 : 1) : 1024,
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 400 : 1500,   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
@@ -20316,7 +20325,7 @@ export default function ReplayMotionPlayer({
                   /* 32칸 머리(gl9 SPR_YAW32_9 · 터렛 머리·컴샛 접시)는 도는 각이 요잉 칸이라 서른둘을 다 굽는다(그림자는 밑동이 진다). */
                   /* 성큰 혀는 표적 쪽으로 도는 딸림 부품이라 컷마다 요잉 칸을 다 굽는다(건물 칸 수 = yawN9). */
                   const yaws9 = u9 ? preYaws9(g9) : SPR_YAW32_9.has(j9.kind) ? Array.from({ length: 32 }, (_v9, i9) => i9)
-                    : j9.kind === "sunkentongue" ? Array.from({ length: g9.yawN9(m9) }, (_v9, i9) => i9) : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
+                    : j9.kind === "sunkentongue" ? ((): number[] => { const n9 = g9.yawN9(m9); const st9 = Math.max(1, Math.round(n9 / Math.max(8, ATLAS_WANT9()))); return Array.from({ length: Math.ceil(n9 / st9) }, (_v9, i9) => i9 * st9); })() : [g9.sprYbOf9(-BUILDING_BASE_YAW, m9)];
                   /* 딸림 부품(터렛 머리·컴샛 접시·성큰 혀)은 붓이 그림자를 안 깐다(몸이 깐다) — 그림자 칸을 굽지 않는다. */
                   const attach9 = j9.kind === "turrethead" || j9.kind === "comsatdish" || j9.kind === "sunkentongue";
                   preN9 += g9.sprPrebake9(m9, CAM_TOP9, 11.312 / Math.max(0.01, norm9), u9 ? 0 : -8, "#888", yaws9, DEV9.meshShadow && !attach9, lt9 ?? undefined);

@@ -12,7 +12,7 @@
  *
  * 굽기: 재생기를 `#sprdump=2` 로 열면(perf-check --sprdump) 모든 종류(UNIT_3D · SHAPE_KIND)·모든 자세·요잉 16 · 그림자 · 건물 변종의 2D 판 칸을 재생기와 **같은 셰이더**로
  *   2 배 해상도에 굽는다(gl9 sprDumpQ ★). 판 픽셀(색 · 임자색/켜짐 · 빛 — GL 행 차례)과 칸 표(열쇠 · 자리 · 배율 · 종류 꼬리표)가 덤프로 나온다.
- * 짐: 칸을 **종류 × 요잉 짝수(a)/홀수(b)** 묶음으로 다시 싣는다 — 요잉 8 칸 기기(폰 · PC 낮음)는 a 만(짝수 칸 = 8 칸 각) 받는다. 묶음마다 켜 셋(c 색 · t 임자색·켜짐 · e 빛)을
+ * 짐: 칸을 **종류 × 요잉 묶음**(32칸: a 8방 · b 16방 몫 · o 홀 — 아래 parOf ★ · 옛 16칸: 짝 a · 홀 b)으로 다시 싣는다 — 요잉 8 칸 기기(폰 · PC 낮음)는 a 만(짝수 칸 = 8 칸 각) 받는다. 묶음마다 켜 셋(c 색 · t 임자색·켜짐 · e 빛)을
  *   PNG 로 쓰고 basisu 로 KTX2(UASTC · 밉 · zstd)로 누른다. 해상도는 둘 — f(2 배 그대로) · h(반 · 상자 줄임 = 1 배 칸을 2 배로 굽고 줄인 것).
  *   기기가 받을 것: PC 높음 이상 a+b f · PC 낮음 a f · 폰 a h(sprAtlas9.ts).
  * 이름은 **그림 내용의 해시**다 — <out>/k/<종류>.<a|b>.<f|h>.<c|t|e>.<해시8>.ktx2 · 표는 <out>/index.<해시>.json. 안 바뀐 종류는 같은 이름이라 다시 안 누르고(있으면 건너뜀)
@@ -123,11 +123,16 @@ const pageOf = (i) => {
 const ybOf = (key) => { const p = key.split("|"); return Number(p[p.length - 6]); };
 /** 32칸 머리(gl9 SPR_YAW32_9 와 같은 목록) — 짝·홀로 안 가르고 다 a 에(요잉 8 기기도 32칸을 다 받는다). */
 const YAW32 = new Set(["turrethead", "comsatdish"]);
+/* ★ **요잉 32**(2026-11-03, 요청: "피시의 경우 유닛 굽기 각을 32방으로 · 32방을 모두 적용 · 캐시를 어떻게 활용할지(다운로드 및 풀기 줄이기)") — 덤프가 32칸이면 묶음을 셋으로:
+   a = 칸 % 4 == 0(8방 · 폰 웹) · b = 칸 % 4 == 2(a 와 합쳐 16방 · 앱 폰 · 낮은 PC) · o = 홀 칸(셋 다 32방 · PC). 기기는 쓰는 묶음만 받고(sprAtlas9 pars) 빠진 칸은
+   가까운 칸으로 그리며 뒤에서 굽는다(gl9 sprFill ★). 옛 16칸 덤프는 a(짝)·b(홀) 그대로. */
+const YAWN = Number(meta.yaw) || 16;
+const parOf = (yb) => (YAWN >= 32 ? (yb % 2 ? "o" : yb % 4 ? "b" : "a") : yb % 2 ? "b" : "a");
 const groups = new Map();
 let untagged = 0;
 for (const c of meta.cells) {
   if (!c.tag) { untagged += 1; continue; }
-  const g = `${c.tag}.${YAW32.has(c.tag) || ybOf(c.key) % 2 === 0 ? "a" : "b"}`;
+  const g = `${c.tag}.${YAW32.has(c.tag) ? "a" : parOf(ybOf(c.key))}`;
   if (!groups.has(g)) groups.set(g, []);
   groups.get(g).push(c);
 }
@@ -178,7 +183,7 @@ function half(buf, W, H) {
   return out;
 }
 const nonzero = (b) => { for (let i = 0; i < b.length; i += 4) if (b[i] | b[i + 1] | b[i + 2] | b[i + 3]) return true; return false; };
-const index = { src: ver, q: meta.q, yaw: 16, kinds: {} };
+const index = { src: ver, q: meta.q, yaw: YAWN, kinds: {} };
 let nEnc = 0; let nSkip = 0;
 const tmp = join(WORK, "_png"); mkdirSync(tmp, { recursive: true });
 let nDone = 0; let bytes = { f: 0, h: 0 };

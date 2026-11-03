@@ -1693,6 +1693,10 @@ export class GlUnits9 implements VecSink9 {
   /** 미리 찍기(다른 요잉) 한 프레임 상한 — 폰 6 · PC 24(2026-10-23, 지적: "모바일에서 드래그 줌에서 지도 모델 나오는 게 엄청 느리고 렉" — 옛 예산 절반(24)이 폰에서
    *  프레임마다 MSAA 굽기 24장 + 밉맵 재생성을 불렀다). */
   sprWarmMax = 24;
+  /** ★ **채우기**(2026-11-03 · 요잉 32 — "32방을 필요한 걸 백그라운드에서 구우면서 채우면") — 칸이 없는 몸은 **가까운 칸**(같은 몸의 16·8방 칸)으로 그리고, 한 장에 이 수만큼만
+   *  제 칸을 굽는다(손짓 중·판이 상한이면 안 굽고 가까운 칸 그대로). PC 8 · 폰 1~2. 미리 찍기(돌기)도 sprWarmStep 칸 걸음만 — 폰은 8방(4칸 걸음)만 미리 찍고 사이는 채우기가. */
+  sprFillMax = 8;
+  sprWarmStep = 1;
   /** ★ 판 전체 GPU 바이트 상한(MB) — 판 수 상한(sprPageMax)과 함께 **더 작은 쪽**이 선다(sprPageCap9 · 2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐").
    *  폰 '보통' 은 번짐이 켜져 판마다 빛 켜(22MB)가 더 서고 요잉 칸이 4 → 8 로 곱이라, 판 14 장이 차면 색·빛·임자색 켜가 ≈780MB — 탭이 죽었다. 폰은 192/256/320MB(단) · PC ∞. */
   sprBytesMax = Infinity;
@@ -1776,7 +1780,7 @@ export class GlUnits9 implements VecSink9 {
     }
     this.sprEmSet = true;
   }
-  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0, fixed: 0, resets: 0,
+  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0, fill: 0, fixed: 0, resets: 0,
     /** 진단 — 재생 중 **새로 보여 구운** 칸의 열쇠(미리 찍기 아님 · 최근 12) · 그 누계. 미리 굽기가 놓친 것이 무엇인지 가리는 자(perf-check [GL] 놓침). */
     missLog: [] as string[], missN: 0,
     /** 판이 가득 차 LRU 판을 **통째로 비운** 횟수(누계) — 0 이 아니면 판 상한(sprPageMax)이 경기의 칸 수를 못 담는다(2026-10-24). */
@@ -2514,12 +2518,13 @@ export class GlUnits9 implements VecSink9 {
     const N = q.length;
     const B: ([SprCell9, number] | null)[] = new Array(N).fill(null);
     const S: ([SprCell9, number] | null)[] = new Array(N).fill(null);
-    const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0;
+    const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0; st.fill = 0;
     const jobs: SprJob9[] = []; const jobOf = new Map<string, SprJob9>();
     const waitB: [number, SprJob9][] = []; const waitS: [number, SprJob9][] = [];
     /* 손짓 중 예산 1/4 → 1/2(2026-10-23, 지적: 폰 "줌 아웃 아직 딜레이와 모델 늦게 뜸") — 못 찍은 몸은 그 장을 **메시 길**로 그리는데 폰에서는 그쪽이 더 무겁다(MSAA 없는 굽기 한 장 < 메시 한 벌). */
     let budget = SPR_HOLD9 ? Math.ceil(this.sprBudget / 2) : this.sprBudget;   // 손짓 중엔 새로 보인 몸만(배율이 열쇠에 없어 줌으로는 안 찍는다) · 미리 찍기는 쉰다
     const keyOf = (mesh: GlMesh9, cam: GlCam9, yb: number, qk: number, color: string, gRq: number, gCyq: number, sh: boolean): string => this.sprKey9(mesh, cam, yb, qk, color, gRq, gCyq, sh);
+    let fill9 = SPR_HOLD9 ? 0 : this.sprFillMax;   // 채우기(위 sprFillMax ★) — 이 장에 굽는 '가까운 칸으로 그린 몸'의 제 칸 수
     const lvOf = (mesh: GlMesh9, cam: GlCam9, sh: boolean): number => this.sprLv9(mesh, cam, sh);
     const want = (it: GlInst9, sh: boolean): { cell: [SprCell9, number] | null; job: SprJob9 | null } => {
       const kd = it.k * dprK;
@@ -2539,11 +2544,31 @@ export class GlUnits9 implements VecSink9 {
           const r9 = kd / fx9.kd; const o9 = pf9[pk9]; pf9[pk9] = o9 ? [Math.min(o9[0], r9), Math.max(o9[1], r9)] : [r9, r9];
         }
       }
-      let over = kd / (fx9 ? fx9.kd : kq0) > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
+      const hit = this.sprMap.get(key);
+      /* ★ 가까운 칸(위 sprFillMax ★) — 제 칸이 없으면 같은 몸의 굵은 칸(2·4칸 걸음 = 16·8방)에서 실제 각에 가장 가까운 것. */
+      let near9: SprCell9 | undefined;
+      if (!hit) {
+        const n9 = this.yawN9(it.mesh); const a9 = (it.yawDeg / 360) * n9;
+        for (let st9 = 2; st9 * 8 <= n9 && !near9; st9 *= 2) {
+          const yb2 = (((Math.round(a9 / st9) * st9) % n9) + n9) % n9;
+          if (yb2 !== yb) near9 = this.sprMap.get(keyOf(it.mesh, it.cam, yb2, qk, it.color, gRq, gCyq, sh));
+        }
+      }
+      const ref9 = fx9 ?? near9;
+      let over = kd / (ref9 ? ref9.kd : kq0) > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
       if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)
       if (over) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
-      const hit = this.sprMap.get(key);
       if (hit) { hit.page.last = this.frameNo; if (Math.abs(kd / hit.kd - 1) > 0.004) st.scaled += 1; return { cell: [hit, kd / hit.kd], job: null }; }
+      if (near9) {
+        near9.page.last = this.frameNo;
+        if (fill9 > 0 && budget > 0 && this.sprDumpQ === 0 && !jobOf.has(key) && this.sprPages.length < this.sprPageCap9()) {
+          fill9 -= 1; budget -= 1;
+          const kq = 2 ** (qk / SPR_KQ9);
+          const j = this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, it.meshLt);
+          jobs.push(j); jobOf.set(key, j); st.fill += 1;
+        }
+        return { cell: [near9, kd / near9.kd], job: null };
+      }
       const pend = jobOf.get(key); if (pend) return { cell: null, job: pend };
       if (budget > 0 && this.sprDumpQ === 0) {   // 덤프 중엔 재생 붓이 안 굽는다(미리 굽기가 Q 배로 굽는다 · 위 sprDumpQ ★)
         budget -= 1;
@@ -2590,6 +2615,7 @@ export class GlUnits9 implements VecSink9 {
           const off = w9.step % 2 ? (w9.step + 1) / 2 : -(w9.step / 2);
           w9.step += 1;
           const yb = (((w9.yb0 + off) % n9) + n9) % n9;
+          if (this.sprWarmStep > 1 && n9 >= 16 && yb % this.sprWarmStep) continue;   // 굵은 칸만 미리 찍는다 — 사이는 채우기(sprFillMax ★)
           const J = w9.job;
           const key = keyOf(J.mesh, J.cam, yb, w9.qk, J.color, w9.gRq, w9.gCyq, J.sh);
           if (this.sprMap.has(key) || jobOf.has(key)) continue;
@@ -3927,7 +3953,8 @@ export function glAlive9(): boolean { return GL_ON9 && glInst9 !== null; }
 /** 판 프로필 — 판 수 상한 · 한 장 굽기 예산 · 미리 찍기 상한 · 굽기 MSAA(-1 = 붓과 같이). */
 export interface SprProfile9 { pageMax: number; budget: number; warmMax: number; msaa: number;
   /** 판 전체의 GPU 바이트 상한(MB · 색·빛·임자색 켜와 밉 포함 — 폰은 이걸로 판 수가 선다 · 없으면 pageMax 만) · 빛 켜(번짐용 두 번째 판)를 세울지(폰 false). */
-  bytesMB?: number; em?: boolean }
+  bytesMB?: number; em?: boolean;
+  /** 채우기 한 장 상한(위 sprFillMax ★) · 미리 찍기 요잉 걸음(sprWarmStep). */ fill?: number; warmStep?: number }
 /** 스프라이트 판의 늘려 찍기 상한(위 sprUpMax ★) — 재생기가 기기 단으로 준다(단이 오르면 다시).
  *  ★ 판 프로필도 여기서(2026-10-24, 지적: "모바일 재생기에서 프레임이 너무 낮고 모델도 늦게 뜸") — glUnits9 는 메시 상한(≤300)으로 폰/PC 를 갈랐는데 폰 '높음' 단은
  *  메시 상한이 360 이라 **PC 판 프로필**(판 36 · 예산 96 · MSAA 굽기)을 탔다: 판 36 장이면 GPU 텍스처가 1.4GB 를 넘고 한 장에 96칸을 MSAA 로 굽는다 — 폰이 버틸 수 없다.
@@ -3936,7 +3963,7 @@ export function glSprTune9(upMax: number, yawN?: number, prof?: SprProfile9): vo
   if (!glInst9) return;
   glInst9.sprUpMax = upMax;
   if (yawN) glInst9.sprYawSet9(yawN);
-  if (prof) { glInst9.sprPageMax = prof.pageMax; glInst9.sprBudget = prof.budget; glInst9.sprWarmMax = prof.warmMax; glInst9.sprMsaa = prof.msaa; glInst9.sprBytesMax = prof.bytesMB ?? Infinity; glInst9.sprEmOn = prof.em ?? true; }
+  if (prof) { glInst9.sprPageMax = prof.pageMax; glInst9.sprBudget = prof.budget; glInst9.sprWarmMax = prof.warmMax; glInst9.sprMsaa = prof.msaa; glInst9.sprBytesMax = prof.bytesMB ?? Infinity; glInst9.sprEmOn = prof.em ?? true; glInst9.sprFillMax = prof.fill ?? 8; glInst9.sprWarmStep = prof.warmStep ?? 1; }
 }
 export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloom = true, spec = true, msaa = 4): GlUnits9 | null {
   if (!GL_ON9 || !cv) return null;

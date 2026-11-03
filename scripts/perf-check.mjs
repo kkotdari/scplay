@@ -1038,7 +1038,8 @@ if (has("--sprdump")) {
   console.log("  [덤프 끝]", await page.evaluate(() => `${window.__sprDumpDone} · 판 비움 ${globalThis.__gl9.sprStat.resets} · 칸 ${globalThis.__gl9.sprStat.cells} · 큐 ${globalThis.__gl9.sprPreLeft9()} · 빛 켜 ${globalThis.__gl9.sprStat.pages}`));
   const nP9 = await page.evaluate(() => globalThis.__gl9.sprDumpPages9());
   const cells9 = await page.evaluate(() => globalThis.__gl9.sprDumpCells9());
-  writeFileSync(join(outD9, "cells.json"), JSON.stringify({ pages: nP9, q: Number(/sprdump=([\d.]+)/.exec(String(flag("--hash", "")))?.[1] ?? 1), cells: cells9 }));
+  const yaw9 = await page.evaluate(() => globalThis.__gl9.sprYaw);   // 요잉 칸 수(2026-11-03 · 32 — spr-atlas 가 묶음을 a·b·o 로 가른다)
+  writeFileSync(join(outD9, "cells.json"), JSON.stringify({ pages: nP9, q: Number(/sprdump=([\d.]+)/.exec(String(flag("--hash", "")))?.[1] ?? 1), yaw: yaw9, cells: cells9 }));
   for (let i9 = 0; i9 < nP9; i9 += 1) {
     for (const [ly9, fld9] of [["c", "color"], ["t", "tint"], ["e", "em"]]) {
       const b64 = await page.evaluate(([i, f]) => {
