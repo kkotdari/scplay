@@ -2921,3 +2921,13 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
   체크 칸 열셋(TEST_FLAGS9: 3d=1 · nofog · nocreep · creeptex=0 · glshadow=0 · glbloom=0 · spratlas=0 · glspr=0 · glterr=0 · terrcache=0 · viewclip=0 · drs=0 · gl=0) ·
   `적용(새로고침)` = 주소 해시에서 이 낱말들을 빼고 고른 것을 더해(다른 낱말은 그대로 · & 로 잇는다) 새로고침 — 스위치 대부분이 모듈 적재 때 주소를 읽어서다.
   같은 주소면 켠 채로 다시 들어온다 · `모두 해제` → 적용 = 원래대로. 스위치를 더하려면 TEST_FLAGS9 한 줄.
+
+## 테스터 손잡이 — 커스텀 목록 셋 · PC 에서 판이 안 뜨던 까닭(2026-11-03)
+- 지적: "테스트 눌러도 아무것도 안 뜬다 — 모바일에선 뜨고 PC 에서 안 뜬다". 까닭: 진단 판 `.scr-motion-diag` 가 z 99000 이고 테스트 판은 `.scr-zoomfps`(z 30001) 안이라
+  diag 를 켜 두면 덮였다. 목록이 열린 동안 묶음에 `.is-open`(z 99100).
+- 요청: "fps 선택창도 커스텀 목록으로 · diag 도 테스트 목록처럼 커스텀 목록으로" — 테스트·diag·최대 프레임 셋 다 `.scr-testmode` 꼴 목록(RMP `tMenu9` · 하나만 열림 ·
+  바깥 누름·Esc 로 닫힘). `<select>`·차례 돌리기 단추는 걷었다.
+- "프레임 120을 최대로" — `FPS_CAP_STEPS9` 에서 무제한(−1)을 걷었다(옛 저장값은 자동으로).
+- "60 이상은 안 된다" — 붓은 rAF 마다 한 번 칠하므로 화면 주사율(60Hz 모니터 · 아이폰 사파리 60 고정)을 못 넘는다. 목록 머리에 `RAF_HZ9`(tick 이 센 rAF 박자)를 적는다.
+- 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --atlas spr --readyms 200000 --testerprobe --shot x.png` — 셋을 차례로 열어 서는지·덮였는지 · 바깥 누름 닫힘.
+  (`--atlas spr` 없이 열면 헤드리스가 미리 굽기 수천 칸에서 준비를 못 마친다.)

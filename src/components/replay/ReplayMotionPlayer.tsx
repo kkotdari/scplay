@@ -668,12 +668,16 @@ const FPS_TAG9 = !(typeof location !== "undefined" && /(?:^|[#&,])fps=0/.test(lo
    서고(그 밖은 숨김 · `#fps=1` 로 억지로) 누르면 최대 프레임이 자동 → 15 → 30 → … → 120 → 무제한 → 자동으로 돈다(누른 뒤 1.4초는 고른 값을 보여 준다). 고른 값은 이 기기에 남는다
    (localStorage · 테스터 편의). 자동 = 종전 기기 박자(PC 60 · 폰 단 표) · 무제한 = 박자 없이 rAF 마다(화면 주사율까지). 옆의 diag 고르기는 engine9 SCR_DIAG_SEL 을 바꾼다. */
 const FPS_FORCE9 = typeof location !== "undefined" && /(?:^|[#&,])fps=1/.test(location.hash);
-const FPS_CAP_STEPS9 = [0, 15, 30, 45, 60, 75, 90, 105, 120, -1] as const;
+/* 무제한(−1)은 걷었다(같은 날, 요청: "프레임 120을 최대로 할게") — 옛 저장값 −1 은 읽을 때 자동(0)으로 돌아간다. */
+const FPS_CAP_STEPS9 = [0, 15, 30, 45, 60, 75, 90, 105, 120] as const;
 const FPS_CAP9: { on: boolean; v: number; flashUntil: number } = {
   on: false, flashUntil: 0,
   v: ((): number => { try { const n9 = Number(localStorage.getItem("scr-fpscap") ?? "0"); return (FPS_CAP_STEPS9 as readonly number[]).includes(n9) ? n9 : 0; } catch { return 0; } })(),
 };
-const fpsCapLabel9 = (v9: number): string => (v9 === 0 ? "자동" : v9 < 0 ? "무제한" : `최대 ${v9}`);
+const fpsCapLabel9 = (v9: number): string => (v9 === 0 ? "자동" : `최대 ${v9}`);
+/** rAF 박자(화면 주사율 · 2026-11-03, 지적: "실제로 프레임이 제한이 걸려서 60 이상은 안 되는 듯") — 붓은 rAF 마다 한 번 칠할 수 있어 최대 프레임이 이 값을 못 넘는다
+ *  (60Hz 모니터 · 아이폰 사파리는 60 고정). 최대 프레임 목록 머리에 적어 '막힌 것이 화면인지 붓인지'를 가른다. tick 이 0.5초마다 센다. */
+const RAF_HZ9: { n: number; at: number; hz: number } = { n: 0, at: 0, hz: 0 };
 /** ★ **테스트 모드 — 기능 끄기·켜기**(2026-11-03, 요청: "diag 왼쪽에 테스트 모드 버튼 추가 · 기능 끄기나 켜기 토글 버튼들(성능 영향도 파악용) · 3D 안개 이런 거") —
  *  스위치 대부분이 모듈 적재 때 주소(#…)를 읽으므로 고른 것을 주소 해시에 적고 **새로고침**해서 건다(적용 단추). [해시 낱말, 이름]. 같은 주소로 다시 들어오면 그대로 켜져 있다. */
 const TEST_FLAGS9: readonly [string, string][] = [
@@ -12954,8 +12958,18 @@ export default function ReplayMotionPlayer({
        또렷하게 보는' 자리가 아니다. */
   /** 진단 오버레이(#diag) — 주소로 켠다. 한 번만 읽는다(주소가 바뀌면 새로고침). */
   const [diagOn, setDiagOn9] = useState(scrDiagOn);
-  /* 테스트 모드(위 TEST_FLAGS9 ★) — 판 열림 · 고른 낱말(주소에서 시작). */
-  const [testOpen9, setTestOpen9] = useState(false);
+  /* 테스터 손잡이 목록(위 TEST_FLAGS9 ★ · 2026-11-03, 요청: "fps 선택창도 커스텀 목록으로 · diag도 테스트 목록처럼 커스텀 목록으로") — 셋 가운데 열린 것 하나.
+     "" 닫힘. 바깥을 누르거나 Esc 면 닫힌다(아래 효과). 테스트 모드의 고른 낱말은 주소에서 시작한다. */
+  const [tMenu9, setTMenu9] = useState<"" | "test" | "diag" | "fps">("");
+  const tRowRef9 = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!tMenu9) return undefined;
+    const dn9 = (e: PointerEvent): void => { if (!tRowRef9.current?.contains(e.target as Node)) setTMenu9(""); };
+    const key9 = (e: KeyboardEvent): void => { if (e.key === "Escape") setTMenu9(""); };
+    document.addEventListener("pointerdown", dn9, true); document.addEventListener("keydown", key9);
+    return () => { document.removeEventListener("pointerdown", dn9, true); document.removeEventListener("keydown", key9); };
+  }, [tMenu9]);
+  const [fpsCapV9, setFpsCapV9] = useState(FPS_CAP9.v);
   const [testSel9, setTestSel9] = useState<Set<string>>(() => new Set(hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9))));
   const testOnN9 = useMemo(() => hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9)).length, []);
   const [diagSel9, setDiagSel9] = useState<string>(() => {
@@ -20292,7 +20306,7 @@ export default function ReplayMotionPlayer({
       ? (FQ9.lv >= 3 ? PHONE_GAP9 : MOBILE_GAP_MS)
       : (FQ9.lv >= 3 ? PHONE_GAP_LO9 : PHONE_GAP9));
     const drawGapMs = (): number => (
-      GAP9 || (FPS_CAP9.on && FPS_CAP9.v !== 0 ? (FPS_CAP9.v < 0 ? 0 : 1000 / FPS_CAP9.v - 1.5)   // 테스터 최대 프레임(위 FPS_CAP9 ★ · rAF 떨림 여유 1.5ms)
+      GAP9 || (FPS_CAP9.on && FPS_CAP9.v > 0 ? 1000 / FPS_CAP9.v - 1.5   // 테스터 최대 프레임(위 FPS_CAP9 ★ · rAF 떨림 여유 1.5ms)
         : pcView ? (xfGestureRef.current ? 33 : 16)
         : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
     const tick = (now: number) => {
@@ -20302,6 +20316,7 @@ export default function ReplayMotionPlayer({
          blur가 안 오는 경우(다른 모니터로 시선만 이동)를 위한 이중 잠금이다. */
       const dt = c ? Math.min((now - c.last) / 1000, 0.5) : 0;
       if (c) { perfFrame(now - c.last); lodNoteFrame(now - c.last); }
+      RAF_HZ9.n += 1; if (now - RAF_HZ9.at >= 500) { if (RAF_HZ9.at > 0) RAF_HZ9.hz = Math.round((RAF_HZ9.n * 1000) / (now - RAF_HZ9.at)); RAF_HZ9.n = 0; RAF_HZ9.at = now; }   // 위 RAF_HZ9
       /* ★ **굽는 프레임에는 시간을 안 보낸다**(제안: "저사양에서는 굽기 버벅임이 생길
          수밖에 없잖아, 차라리 로딩중을 띄우는 게 어때") ─────────────────────────────
          굽기 자체를 0으로 만들 수는 없다. 시간바를 크게 옮기거나 화면을 끌어 새 건물·
@@ -23341,18 +23356,26 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
           {!pending && zoomDial9 && FPS_TAG9 && isTester ? (
             /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
-            <div className="scr-zoomfps is-tester">
-              <button type="button" className={cx("scr-zoomfps-btn", testOnN9 > 0 && "is-on")} aria-expanded={testOpen9} onClick={() => setTestOpen9((o9) => !o9)}>
+            <div className={cx("scr-zoomfps is-tester", tMenu9 && "is-open")} ref={tRowRef9}>
+              <button type="button" className={cx("scr-zoomfps-btn", testOnN9 > 0 && "is-on", tMenu9 === "test" && "is-open")} aria-expanded={tMenu9 === "test"}
+                onClick={() => setTMenu9((m9) => (m9 === "test" ? "" : "test"))}>
                 {testOnN9 > 0 ? `테스트 ${testOnN9}` : "테스트"}
               </button>
-              {testOpen9 ? (
+              <button type="button" className={cx("scr-zoomfps-btn", diagSel9 !== "" && "is-on", tMenu9 === "diag" && "is-open")} aria-expanded={tMenu9 === "diag"} aria-label="진단(diag) 고르기"
+                onClick={() => setTMenu9((m9) => (m9 === "diag" ? "" : "diag"))}>
+                {diagSel9 === "" ? "diag" : `diag ${DIAG_PICKS9.find(([v9]) => v9 === diagSel9)?.[1] ?? diagSel9}`}
+              </button>
+              <button type="button" className={cx("scr-zoomfps-btn", fpsCapV9 > 0 && "is-on", tMenu9 === "fps" && "is-open")} title={`최대 프레임: ${fpsCapLabel9(fpsCapV9)}`} aria-label="최대 프레임 고르기"
+                aria-expanded={tMenu9 === "fps"} ref={(el) => { fpsTagEl9.el = el; }}
+                onClick={() => setTMenu9((m9) => (m9 === "fps" ? "" : "fps"))} />
+              {tMenu9 === "test" ? (
                 <div className="scr-testmode" role="dialog" aria-label="테스트 모드 — 기능 끄기·켜기">
+                  <div className="scr-testmode-head">테스트 모드 · 적용하면 새로고침</div>
                   {TEST_FLAGS9.map(([k9, n9]) => (
-                    <label key={k9} className="scr-testmode-row">
-                      <input type="checkbox" checked={testSel9.has(k9)}
-                        onChange={(e) => { const on9 = e.currentTarget.checked; setTestSel9((p9) => { const n = new Set(p9); if (on9) n.add(k9); else n.delete(k9); return n; }); }} />
-                      <span>{n9}</span>
-                    </label>
+                    <button type="button" key={k9} className={cx("scr-testmode-row", testSel9.has(k9) && "is-sel")} aria-pressed={testSel9.has(k9)}
+                      onClick={() => setTestSel9((p9) => { const n = new Set(p9); if (n.has(k9)) n.delete(k9); else n.add(k9); return n; })}>
+                      <span className="scr-testmode-chk" aria-hidden>{testSel9.has(k9) ? "✓" : ""}</span><span>{n9}</span>
+                    </button>
                   ))}
                   <div className="scr-testmode-act">
                     <button type="button" onClick={() => setTestSel9(new Set())}>모두 해제</button>
@@ -23365,21 +23388,34 @@ export default function ReplayMotionPlayer({
                     }}>적용(새로고침)</button>
                   </div>
                 </div>
+              ) : tMenu9 === "diag" ? (
+                <div className="scr-testmode" role="listbox" aria-label="진단(diag) 고르기">
+                  <div className="scr-testmode-head">진단(diag)</div>
+                  {DIAG_PICKS9.map(([v9, n9]) => (
+                    <button type="button" key={v9 || "off"} role="option" aria-selected={diagSel9 === v9} className={cx("scr-testmode-row", diagSel9 === v9 && "is-sel")}
+                      onClick={() => { SCR_DIAG_SEL.v = v9; setDiagSel9(v9); setDiagOn9(v9 !== ""); setTMenu9(""); }}>
+                      <span className="scr-testmode-chk" aria-hidden>{diagSel9 === v9 ? "●" : ""}</span><span>{n9}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : tMenu9 === "fps" ? (
+                <div className="scr-testmode" role="listbox" aria-label="최대 프레임 고르기">
+                  <div className="scr-testmode-head">최대 프레임{RAF_HZ9.hz > 0 ? ` · 화면 ${RAF_HZ9.hz}Hz` : ""}</div>
+                  {(FPS_CAP_STEPS9 as readonly number[]).map((v9) => (
+                    <button type="button" key={v9} role="option" aria-selected={fpsCapV9 === v9}
+                      className={cx("scr-testmode-row", fpsCapV9 === v9 && "is-sel", RAF_HZ9.hz > 0 && v9 > RAF_HZ9.hz + 3 && "is-dim")}
+                      onClick={() => {
+                        FPS_CAP9.v = v9; setFpsCapV9(v9); setTMenu9("");
+                        try { localStorage.setItem("scr-fpscap", String(v9)); } catch { /* 저장 못 해도 이번 판은 먹는다 */ }
+                        FPS_CAP9.flashUntil = pNow() + 1400;
+                        if (fpsTagEl9.el) fpsTagEl9.el.textContent = fpsCapLabel9(v9);
+                      }}>
+                      <span className="scr-testmode-chk" aria-hidden>{fpsCapV9 === v9 ? "●" : ""}</span><span>{v9 === 0 ? "자동(기기 박자)" : `${v9}`}</span>
+                    </button>
+                  ))}
+                  {RAF_HZ9.hz > 0 && RAF_HZ9.hz < 100 ? <div className="scr-testmode-note">화면이 {RAF_HZ9.hz}Hz 라 그 위로는 안 오른다(모니터 주사율 · 사파리 60 고정)</div> : null}
+                </div>
               ) : null}
-              <select className="scr-zoomfps-diag" value={diagSel9} aria-label="진단(diag) 고르기"
-                onChange={(e) => { const v9 = e.currentTarget.value; SCR_DIAG_SEL.v = v9; setDiagSel9(v9); setDiagOn9(v9 !== ""); }}>
-                {DIAG_PICKS9.map(([v9, n9]) => <option key={v9 || "off"} value={v9}>{n9}</option>)}
-              </select>
-              <button type="button" className="scr-zoomfps-btn" title={`최대 프레임: ${fpsCapLabel9(FPS_CAP9.v)} — 누르면 바뀐다`} aria-label="최대 프레임 바꾸기"
-                ref={(el) => { fpsTagEl9.el = el; }}
-                onClick={(e) => {
-                  const st9 = FPS_CAP_STEPS9 as readonly number[];
-                  FPS_CAP9.v = st9[(st9.indexOf(FPS_CAP9.v) + 1) % st9.length];
-                  try { localStorage.setItem("scr-fpscap", String(FPS_CAP9.v)); } catch { /* 저장 못 해도 이번 판은 먹는다 */ }
-                  FPS_CAP9.flashUntil = pNow() + 1400;
-                  e.currentTarget.textContent = fpsCapLabel9(FPS_CAP9.v);
-                  e.currentTarget.title = `최대 프레임: ${fpsCapLabel9(FPS_CAP9.v)} — 누르면 바뀐다`;
-                }} />
             </div>
           ) : !pending && zoomDial9 && FPS_TAG9 && FPS_FORCE9 ? <span className="scr-zoomfps" aria-hidden ref={(el) => { fpsTagEl9.el = el; }} /> : null}   {/* 위 FPS_TAG9 — 자식 없음(글자는 계측이 쓴다) */}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}

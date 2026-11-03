@@ -659,6 +659,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
        --cx/--cy 로 옮긴다(가운데는 빈 땅이라 아무것도 안 그려진다)). */
     ...(window.__veil ? { veil: true, onReady: () => { window.__veilReadyAt = performance.now(); }, onLoadProgress: (p) => { (window.__veilProg ??= []).push([Math.round(performance.now()), Math.round(p * 100)]); } } : {}),   // --veilprobe(2026-10-30 · 다 될 때까지 가림)
     ...(window.__ask ? { askMode: true } : {}),   // --ask — 보기 모드 판(링크가 있으면 안 묻는다 → 아래 sceneLink 를 안 싣는다)
+    ...(window.__tester ? { isTester: true } : {}),   // --tester
     sceneLink: window.__ask ? null : {
       t: window.__t ?? 46,   // --t N 으로 다른 시각에 연다(착지 먼지 1.1초 같은 짧은 효과를 볼 때)
       ...(window.__track ? { tr: window.__track } : {}),
@@ -953,6 +954,8 @@ else console.warn("⚠ dist CSS 없음 — npm run build 먼저. 화면 배치�
 }
 await page.addScriptTag({ content: js, type: "module" });
 await page.waitForFunction("!!window.__mount");
+/* --tester(2026-11-03) — 재생기를 테스터로 연다(isTester · 최대 프레임 단추 · diag 고르기 · 테스트 모드). --testerprobe 는 테스트 단추를 눌러 판을 찍는다. */
+if (has("--tester") || has("--testerprobe")) await page.evaluate(() => { window.__tester = true; });
 await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   window.__zoom = z; window.__deg = d; window.__mapw = mw; window.__maph = mh;
   window.__cx = cx; window.__cy = cy; window.__track = tr; window.__t = t0; window.__winner = w9; window.__speed = sp9; window.__chat = ch9; window.__ask = ask9;
@@ -2203,6 +2206,26 @@ if (SHOT) {
   }
   /* --losegl [ms](2026-11-02, 지적: "아이폰 pwa 로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — GL 문맥을 일부러 잃게 하고
      (WEBGL_lose_context) 붓이 캔버스를 갈아 끼워 벌을 새로 여는지 · 그린 수가 다시 오르는지 · 다시 열기(다음 경기)에도 사는지 찍는다. 기다림 ms 기본 6000. */
+  if (has("--testerprobe")) {   // 테스터 손잡이 셋(테스트·diag·최대 프레임) 목록을 차례로 열어 서는지 · 위가 덮이지 않았는지(가운데 점의 맨 위 요소가 판 안인지) 찍는다
+    const btns9 = await page.evaluate(() => [...document.querySelectorAll(".scr-zoomfps.is-tester > button")].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent, r.left + r.width / 2, r.top + r.height / 2]; }));
+    console.log("[테스터] 단추:", JSON.stringify(btns9.map((b) => b[0])));
+    const probe9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 줄 ${p.querySelectorAll(".scr-testmode-row").length} · ${p.contains(top) ? "위에 보인다" : "덮였다(" + (top?.className || top?.tagName) + ")"}`; });
+    const SHOTB9 = String(flag("--shot", "x.png")).replace(/\.png$/, "");
+    for (const [k9, n9] of [[1, "diag"], [0, "테스트"], [2, "fps"]]) {
+      const b9 = btns9[k9]; if (!b9) continue;
+      await page.mouse.click(b9[1], b9[2]); await page.waitForTimeout(400);
+      console.log(`[테스터] ${n9} 목록:`, await probe9());
+      if (n9 === "diag") {   // all 을 골라 진단 판을 띄운 채로 다음 목록이 그 위에 서는지 본다
+        const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("all"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+        if (row9) { await page.mouse.click(row9[0], row9[1]); await page.waitForTimeout(600); console.log("[테스터] diag all 고름 · 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
+      } else {
+        await page.screenshot({ path: `${SHOTB9}-${n9}.png`, timeout: 30000 }).catch(() => console.log("[테스터] 찍기 건너뜀"));
+        await page.mouse.click(5, 300); await page.waitForTimeout(300);   // 바깥 누름 — 닫힌다
+        console.log(`[테스터] 바깥 누른 뒤:`, await probe9());
+      }
+    }
+  }
   if (has("--losegl")) {
     const wait9 = Number(flag("--losegl", 6000)) || 6000;
     const st9 = () => page.evaluate(() => { const g = window.__gl9; if (!g) return "GL 없음"; if (!g.__mark9) g.__mark9 = Math.random().toString(36).slice(2, 7);
