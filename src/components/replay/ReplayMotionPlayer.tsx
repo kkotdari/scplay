@@ -19231,14 +19231,15 @@ export default function ReplayMotionPlayer({
       boxDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, live: false, ox: sr9?.left ?? 0, oy: sr9?.top ?? 0, raf: 0 };
       return;
     }
+    /* ★ 가운데 버튼은 **아무것도 안 한다**(2026-11-03, 요청: "중간 클릭 드래그는 아무기능 없이 제거") — 자동 굴림만 막고 끝(옛: 오른쪽처럼 지도 이동). */
+    if (e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); const tpM9 = tapRef.current; if (tpM9) tpM9.moved = true; return; }
     if (e.pointerType === "mouse" && e.button !== 0) {
-      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽·가운데 누름은 몸을 안 집는다(끌어 옮기는 손) · 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
-      if (e.button === 1) e.preventDefault();                     // 가운데 버튼 자동 굴림 끔
+      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 오른쪽 누름은 몸을 안 집는다(끌어 옮기는 손) · 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
       (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
     }
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 왼쪽·오른쪽·가운데 버튼 모두 끈다(Alt+왼쪽은 위 상자 선택)
+    if (!panRoom || (e.pointerType !== "mouse" && e.button !== 0)) return;   // 마우스는 왼쪽·오른쪽 버튼으로 끈다(Alt+왼쪽은 위 상자 선택 · 가운데는 위에서 끝)
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
