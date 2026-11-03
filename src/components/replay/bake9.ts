@@ -23640,11 +23640,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const cap9 = polyPath3(Array.from({ length: 8 }, (_, k) => { const [y9, z9] = vtx9(k); return [ex9, y9, z9] as [number, number, number]; }));
       oct9.push(bodyFace(cap9), sideFace(cap9, 0.5));
     }
-    const XM9 = X0 + (X1 - X0) * 0.4;   // 두 고리의 경계 — 2/5 · 3/5
+    /* (같은 날 바로잡음: "한 바퀴를 포장지 통으로 감싼다고 생각해야 해" → (물음에) "폭이 좁은 띠 둘") — 통 전체가 아니라 **좁은 띠 둘**이 한 바퀴씩 감는다.
+       띠 폭 = 통 두께(지름 2·R8)의 2/5 · 3/5 · 자리는 길이의 1/3 · 2/3 가운데(자리는 안 받아 고른 값 — 되물릴 값) · 빗금 기울기는 서로 반대. */
+    const D9 = 2 * R8;
+    const ringAt9 = (fx9: number, w9: number, dir9: 1 | -1): ShapeFace[] => {
+      const c9 = X0 + (X1 - X0) * fx9;
+      return ringFaces9(Math.max(X0, c9 - w9 / 2), Math.min(X1, c9 + w9 / 2), dir9);
+    };
     return [
       ...raceBase(oct9, "terran"),
-      ...ringFaces9(X0, XM9, 1),
-      ...ringFaces9(XM9, X1, -1),
+      ...ringAt9(1 / 3, D9 * 0.4, 1),
+      ...ringAt9(2 / 3, D9 * 0.6, -1),
     ];
   },
   /* 버로우 구멍(요청) — 버로우 중엔 유닛 대신 이 구멍만: 흙 둔덕 테 + 어두운 구멍.

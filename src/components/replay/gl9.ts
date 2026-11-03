@@ -939,6 +939,8 @@ const GLOSS_TOSS9: Gloss9 = [5.0, 0.26, 0.35, 0.21, 0.35, LIT_WHITE9, 0.70];
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
 const GLOSS_ZERG9: Gloss9 = [3.5, 0.08, 0.15, 0.08, 0, LIT_WHITE9, 0.60];
 const GLOSS_NONE9: Gloss9 = [4.0, 0.04, 0.30, 0.06, 0.15, LIT_WHITE9, 0.50];
+/** 애드온 연결관(2026-11-03) — 테란 광택의 ⅓ 남짓(봉우리 0.24 → 0.08 · 윤기 0.55 → 0.35 · 얼룩 0.16 → 0.06). 해저드 띠(노랑·검정)가 테란 광택에 하얗게·푸르게 바랬다. 재질 종족은 테란(uMat.x 1). */
+const GLOSS_LINK9: Gloss9 = [4.0, 0.08, 0.35, 0.06, 0.5, LIT_STEEL9, 1.0];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
@@ -948,8 +950,7 @@ const glossOf9 = (kind: string): Gloss9 => {
           : g.race === "테란" ? GLOSS_TERRAN9 : GLOSS_NONE9);
     }
   }
-  /* 애드온 연결관은 광택 없음(2026-11-03) — 해저드 고리가 통 전체(윗낯 포함)를 덮자 테란 광택이 윗낯 노랑을 하얗게 날리고 검정을 푸르게 비췄다. */
-  if (kind === "addonlink") return GLOSS_NONE9;
+  if (kind === "addonlink") return GLOSS_LINK9;
   return GLOSS_BY_KIND9.get(kind) ?? GLOSS_NONE9;
 };
 /** 메시 열쇠(`u:종류:…` · `b:종류:…` · `f:종류:…`)에서 종류를 떼어 광택 자를 고른다. */
@@ -1907,7 +1908,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
     if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
       const g = mesh.gloss;
-      gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
+      gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
       gl.uniform1f(this.loc.uMatK, MATX9);
     }
   }
