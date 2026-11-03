@@ -1316,23 +1316,23 @@ const GLOW_SIG9 = 0.012;
 /** ★ **저그 가스 기운**(2026-11-03, 요청: "저그도 약간 보라색이나 붉은색 가스기운 · 녹색이나 · 몇몇 건물에" → "성큰은 빼고 스포어 스파이어 그레이터 스파이어에 녹색기운") —
  *  같은 굽는 빛무리 패스가 몸 실루엣(원천 판의 알파)을 넓게 흐린 가면으로 **둘레에 색 기운**을 더한다(실루엣 바로 밖이 가장 짙고 몸 안은 옅게 · 잔 결로 가스처럼 고르지 않게).
  *  종류 → [r, g, b, 세기]. 다 지은 몸(단계 0)만 · 그림자 칸은 안 탄다. 칸 여백을 AURA_MARGIN9 만큼 넓힌다(sprJob9). σ = 칸 긴 변 × AURA_SIG9. */
-const AURA_PURPLE9: [number, number, number, number] = [0.62, 0.30, 0.95, 0.55];
-const AURA_GREEN9: [number, number, number, number] = [0.38, 0.95, 0.30, 0.55];
-const AURA_RED9: [number, number, number, number] = [0.88, 0.24, 0.55, 0.55];
+const AURA_PURPLE9: [number, number, number, number] = [0.62, 0.30, 0.95, 0.75];
+const AURA_GREEN9: [number, number, number, number] = [0.38, 0.95, 0.30, 0.75];
+const AURA_RED9: [number, number, number, number] = [0.88, 0.24, 0.55, 0.75];
 const AURA9: Record<string, [number, number, number, number]> = {
   hatchery: AURA_PURPLE9, lair: AURA_PURPLE9, hive: AURA_PURPLE9,
   pool: AURA_GREEN9, hydraden: AURA_GREEN9, spore: AURA_GREEN9, spire: AURA_GREEN9, gspire: AURA_GREEN9,
   dmound: AURA_RED9,
 };
-const AURA_SIG9 = 0.035;
-const AURA_MARGIN9 = 0.13;
+const AURA_SIG9 = 0.05;
+const AURA_MARGIN9 = 0.18;
 /** 이 메시의 가스 기운(없으면 null) — 건물 열쇠 b:종류:단계:… 의 다 지은 몸만. */
 const auraOf9 = (key: string): [number, number, number, number] | null => {
   if (!key.startsWith("b:")) return null;
   const p9 = key.split(":"); if (p9[2] !== "0") return null;
   return AURA9[p9[1]] ?? null;
 };
-const GLOW_K9 = 1.6;
+const GLOW_K9 = 0.9;   // 1.6 → 0.9(같은 날 "쇠 발광효과는 너무 강해 좀 낮추기")
 const GLOW_FS9 = `#version 300 es
 precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; uniform vec4 uAura; uniform float uASig; in vec2 v1; in vec2 v0; out vec4 o;
 float hA9(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
@@ -1365,9 +1365,14 @@ void main() {
     }
     m9 /= mw9;
     float c9 = textureLod(uT1, clamp(v1, uR.xy, uR.zw), 0.0).a;
+    /* (같은 날 되요청: "저런 느낌이 아니라 가스가 주변에 좀 퍼져 있는? 전체를 감싸는 게 아니라") — 테를 두르던 가면을 넓게 풀고(σ 0.035 → 0.05 · 낮은 문턱) **군데군데 덩이**만 남긴다:
+       큰 결(덩이 크기 ≈ σ)의 문턱 0.5~0.8 · 잔 결로 가장자리를 흩고 · 아래(땅 쪽)일수록 짙게 깔린다 · 몸 위는 거의 없음. */
     vec2 q9 = v1 / uPx / max(uASig, 1.0);
-    float gas9 = 0.55 + 0.45 * (0.65 * nA9(q9 * 0.9) + 0.35 * nA9(q9 * 2.3 + 7.1));
-    float k9 = smoothstep(0.02, 0.55, m9) * (1.0 - 0.8 * c9) * gas9 * uAura.a;
+    float blob9 = smoothstep(0.50, 0.80, 0.7 * nA9(q9 * 0.7 + 3.3) + 0.3 * nA9(q9 * 1.9 + 11.7));
+    float wisp9 = 0.6 + 0.4 * nA9(q9 * 3.1 + 5.5);
+    float ty9 = clamp((v1.y - uR.y) / max(uR.w - uR.y, 1e-4), 0.0, 1.0);   // 0 = 칸 아래(땅 쪽)
+    float low9 = 1.0 - 0.6 * smoothstep(0.35, 0.85, ty9);
+    float k9 = smoothstep(0.0, 0.30, m9) * (1.0 - 0.9 * c9) * blob9 * wisp9 * low9 * uAura.a;
     g += uAura.rgb * k9;
     ga9 = max(ga9, k9 * 0.6);
   }
