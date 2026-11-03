@@ -710,8 +710,11 @@ export function atkCutOf(
     if (ph < 0.36) return POSE_ATK_R;
     return 0;
   }
+  /* ★ 나는 저그(뮤탈·디바우러 · flapHz)는 던지는 순간만(쿨다운 앞 12%) 컷 2 · 나머지는 날갯짓(2026-11-03, 지적: "공격 중인 뮤탈이 왜 날갯짓을 안 하지?") —
+     옛 35% 는 쉬지 않고 쏘면(뮤탈 쿨다운 ≈ 1.25초 · 0.44초 동안 굳음) 날개가 내내 멎은 것처럼 보였다. */
+  if (flapHz) return ph < 0.12 ? 2 : flapCutOf(flapHz, t);
   if (ph < 0.35) return 2;
-  return flapHz ? flapCutOf(flapHz, t) : 0;
+  return 0;
 }
 /** 컷 처방(UnitDrawOp.pz)을 그 시각의 컷으로 — 붓이 그릴 때마다 부른다(위 pz 의 ★). 엔진의 고르기와 같은 함수를 지난다. */
 /** 사격 위상을 앞 장에서 잇는 한도(게임 초) — 옛 0.6초는 장 간격 20Hz·8배속(0.4초)을 덮었는데, 폰 장이 초당 5장이 되며(2026-10-28)
