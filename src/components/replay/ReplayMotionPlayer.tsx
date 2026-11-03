@@ -21020,6 +21020,18 @@ export default function ReplayMotionPlayer({
      막힌 것인지, 배킹은 멀쩡한데 합성이 버린 것인지. 안 켜면 아무것도 안 그린다.
      버튼 줄과 같이 배치마다 붙는 자리가 달라서 변수로 둔다. */
   const diagModes9 = scrDiagModes();
+  /* ★ 진단 판이 테스터 단추를 안 가린다(2026-11-03, 요청: "diag가 버튼을 가리지 않게" → "버튼이 계속 늘어날 거 같으니까 패널은 폭은 다 쓰되 버튼 아랫줄에서 시작하게") —
+     그리고 난 뒤 단추 줄(.scr-zoomfps.is-tester · 배율판과 한 줄)의 아래끝을 재어 판의 top 을 그 6px 아래로 내린다(배치마다 자리가 달라 CSS 하나로 못 박지 않는다 ·
+     단추가 없으면 CSS 그대로 6px). 폭은 종전대로 판 상자 전부. */
+  const diagPanelRef9 = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const pn9 = diagPanelRef9.current; if (!pn9) return;
+    const bt9 = fpsTagEl9.el?.closest<HTMLElement>(".scr-zoomfps.is-tester") ?? null;
+    const par9 = pn9.offsetParent as HTMLElement | null;
+    if (!bt9 || !bt9.offsetParent || !par9) { pn9.style.top = ""; return; }
+    const top9 = Math.ceil(bt9.getBoundingClientRect().bottom - par9.getBoundingClientRect().top + 6);
+    pn9.style.top = `${Math.max(6, top9)}px`;
+  });
   const memMain9 = useMemo(() => {
     if (!diagOn) return { truth: 0, ent: 0, ui: 0, walks: 0 };
     const seen9 = new Set<object>();
@@ -21037,7 +21049,7 @@ export default function ReplayMotionPlayer({
       {" · 워커 "}{wStatRef.current.buildMs.toFixed(0)}ms
     </div>
   ) : diagOn ? (
-  <div className="scr-motion-diag">
+  <div className="scr-motion-diag" ref={diagPanelRef9}>
                 {/* 머리 — 늘 보인다: 배킹(dpr)·배율·어느 판인가. */}
                 <div>
                   dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}
