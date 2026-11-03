@@ -822,6 +822,8 @@ const SPR_UP_PC9 = Infinity;
 const ATLAS_CORE9 = 0.3;
 const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = /sprdump=([\d.]+)/.exec(location.hash); return m9 ? Math.max(1, Math.min(3, Number(m9[1]) || 1)) : 0; })() : 0;
 /* (걷음 · 2026-11-03 "셋 다 같은 상한으로 통일") 옛 APP16_9 — Capacitor 앱만 16방·상한 ×1.75 로 가르던 자. 이제 폰은 웹·PWA·앱 모두 같다(아래 sprTune9 · ATLAS_WANT9). */
+/** 아이폰·아이패드(웹킷 — 탭 메모리 한도가 빡빡하다 · 2026-11-03, 지적: "아이폰 PWA 에서 세로 → 가로로 돌리면 페이지가 리로드 · 32방 이후"). */
+const IOS9 = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1));
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
@@ -837,7 +839,8 @@ const sprTune9 = (): void => {
       /* (2026-11-03, 요청: "폰웹 16 앱 32로 변경") — 판 전체 상한에 아틀라스 몫(아래 mbCap — 웹 ×1.75 · 앱 ×2.5)의 늘어난 만큼을 더한다 · 미리 찍기 걸음 웹 2 · 앱 1. */
       /* ★ (같은 날 "PWA 나 캐퍼시터 앱이라고 메모리 이점은 없지? → 셋 다 같은 상한으로 통일하고 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 같은 상한(성능 단별) ·
          판 전체 = 기본 + 아틀라스 몫(아래 mbCap ×1.75 의 늘어난 몫) · 미리 찍기 걸음 2(16방 · 사이는 교체가 채운다). */
-      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: 2 }
+      /* ★ 아이폰은 아틀라스 몫을 안 더한다(IOS9 · 회전 때 캔버스를 새 크기로 다시 잡는 순간 옛·새가 겹쳐 웹킷이 탭을 죽이고 다시 띄웠다) — 넘치는 방향은 교체·가까운 칸이 채운다. */
+      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (IOS9 ? 0 : TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: 2 }
       : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1, fill: 8, warmStep: TIER9.v === 0 ? 2 : 1 });
 };
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
@@ -20409,7 +20412,7 @@ export default function ReplayMotionPlayer({
         sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
           /* (2026-11-03 요잉 32 · "고성능 피시는 교체 없이 쭉") — PC 높은 단은 32방 묶음(o)까지 다 GPU 에 올리게 2048MB · 그 아래는 1024MB 에서 넘치면 교체(sprAtlas9 교체 ★).
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
-          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * 1.75 : TIER9.v >= 2 ? 2048 : 1024,   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
+          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (IOS9 ? 1 : 1.75) : TIER9.v >= 2 ? 2048 : 1024,   // 아이폰은 ×1(위 IOS9 ★ · 200/160/128MB)   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 800 : 3000,   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
