@@ -301,7 +301,7 @@ async function loadDecoder() {
   /* 업그레이드 이름표도 함께 낸다 — 글자 쪽을 거를 때 **해독기와 똑같은 자**를 써야
      한다(둘 다 ""를 '이름 없음'으로 본다). 베낀 표로 거르면 자물쇠가 안 된다. */
   writeFileSync(src,
-    `export { decodeTruthTracks, decodeTruthExtra, raw17Cmds, raw17Pos, raw17Bullets, raw17Players, raw17Tiles } from ${JSON.stringify(join(ROOT, "src/utils/openbwTracks"))};
+    `export { decodeTruthTracks, decodeTruthExtra, raw17Pos, raw17Bullets, raw17Players, raw17Tiles } from ${JSON.stringify(join(ROOT, "src/utils/openbwTracks"))};
 `
     + `export { bwUpgradeName } from ${JSON.stringify(join(ROOT, "src/utils/bwUpgradeNames"))};
 `);
@@ -621,13 +621,12 @@ for (let ver = VER_MIN; ver <= VER_MAX; ver += 1) {
   else expect(ver, r, (m) => fail(`판 ${ver} — ${m}`));
   if (bad === before) console.log(`   ✔ 판 ${ver}`);
 }
-/* 곁 꾸러미 OBWX(2026-11-03) — 상태 나머지 · 명령 원본 · 정밀 자리 · 탄 · 사람 · 타일 절을 짓고 풀어 견준다. */
+/* 곁 꾸러미 OBWX(2026-11-03) — 상태 나머지 · 정밀 자리 · 탄 · 사람 · 타일 절을 짓고 풀어 견준다. */
 {
   const before = bad;
   const fpsX = 24; const xb = [Buffer.from("OBWX"), u8(1)]; { const f = Buffer.alloc(4); f.writeFloatLE(fpsX); xb.push(f); }
   const sec = (n, body, head = Buffer.alloc(0)) => { const bb = Buffer.concat(body); xb.push(u32(4 + head.length + bb.length), u32(n), head, bb); };
   sec(1, [varint(24), u32(77), u8(40), u32(10)]);                                                 // 상태 나머지: 태그 77 명령 10
-  sec(1, [varint(48), u8(3), Buffer.from([0, 0x1a, 0x00])]);
   sec(1, [varint(24), u32(77), u16(320), u16(640), u8(64), varint(512), u8(70)]);
   sec(2, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(1), varint(12), u32(1)]);
   sec(1, [varint(24), u8(3), u16(0), u32(18)]);
@@ -637,7 +636,6 @@ for (let ver = VER_MIN; ver <= VER_MAX; ver += 1) {
   if (!x) fail("곁 꾸러미: 해독기가 null");
   else {
     ok("상태", [...(x.stat.get(77) ?? [])], [24 / fpsX, 40, 10]);
-    ok("명령", R17.raw17Cmds(x.cmds, fpsX).map(([t, b]) => [t, [...b]]), [[48 / fpsX, [0, 0x1a, 0]]]);
     ok("자리", R17.raw17Pos(x.pos, fpsX), [[24 / fpsX, 77, 320, 640, 64, 512, 70]]);
     ok("탄", R17.raw17Bullets(x.bullets, fpsX), [{ t: 48 / fpsX, id: 1, wpn: 0, owner: 3, src: 77, tgt: 78, x: 10, y: 20, tx: 30, ty: 40 }, { t: 60 / fpsX, id: 1, gone: true }]);
     ok("사람", R17.raw17Players(x.players, fpsX), [[24 / fpsX, 3, 0, 18]]);

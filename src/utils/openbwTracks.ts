@@ -433,21 +433,15 @@ class Cursor {
   /** n 바이트를 떼어 낸다(복사 — 큰 풀린 판을 붙잡지 않게). */
   take(n: number): Uint8Array { const v = this.b.slice(this.p, this.p + n); this.p += n; return v; }
 }
-/** 판 17 원본 절 하나 — 줄 수 · 몸 바이트(해독은 쓸 때 아래 raw17* 로). */
+/** 곁 꾸러미 절 하나 — 줄 수 · 몸 바이트(해독은 쓸 때 아래 raw17* 로). */
 export type Raw17Sec = { n: number; b: Uint8Array };
-/** 판 17 명령 원본 줄 [초, 바이트(사람 번호 · 명령 번호 · 몸 — 리플레이 그대로)]. */
-export function raw17Cmds(sec: Raw17Sec, fps: number): [number, Uint8Array][] {
-  const c = new Cursor(sec.b); const out: [number, Uint8Array][] = []; let pf = 0;
-  for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); const n = c.u8(); out.push([pf / fps, c.take(n)]); }
-  return out;
-}
-/** 판 17 정밀 자리 줄 [초, 태그, x 픽셀, y 픽셀, 방향(0~255), 속력(fp8 raw), 이동 방향(0~255)] — 표본 간격마다 바뀐 몸만. */
+/** 곁 꾸러미 정밀 자리 줄 [초, 태그, x 픽셀, y 픽셀, 방향(0~255), 속력(fp8 raw), 이동 방향(0~255)] — 표본 간격마다 바뀐 몸만. */
 export function raw17Pos(sec: Raw17Sec, fps: number): [number, number, number, number, number, number, number][] {
   const c = new Cursor(sec.b); const out: [number, number, number, number, number, number, number][] = []; let pf = 0;
   for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); out.push([pf / fps, c.u32(), c.u16(), c.u16(), c.u8(), c.varint(), c.u8()]); }
   return out;
 }
-/** 판 17 탄 줄 — 생김 {초, 번호, 무기, 임자, 쏜 태그, 표적 태그, x, y, 표적 x, 표적 y} · 사라짐 {초, 번호, gone}. */
+/** 곁 꾸러미 탄 줄 — 생김 {초, 번호, 무기, 임자, 쏜 태그, 표적 태그, x, y, 표적 x, 표적 y} · 사라짐 {초, 번호, gone}. */
 export function raw17Bullets(sec: Raw17Sec, fps: number): ({ t: number; id: number; gone: true } | { t: number; id: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number })[] {
   const c = new Cursor(sec.b); const out: ReturnType<typeof raw17Bullets> = []; let pf = 0;
   for (let i = 0; i < sec.n; i += 1) {
@@ -457,13 +451,13 @@ export function raw17Bullets(sec: Raw17Sec, fps: number): ({ t: number; id: numb
   }
   return out;
 }
-/** 판 17 사람 줄 [초, 사람, 갈래, 값] — 갈래표는 덤퍼 bwdump.cpp 판 17 '사람' 주석(0~2 보급 쓴 몫 · 3~5 상한 · 6·7 점수 · 8 동맹 · 9 시야 공유 · … · 1000+종류 수 · 2000+완성 수). */
+/** 곁 꾸러미 사람 줄 [초, 사람, 갈래, 값] — 갈래표는 덤퍼 bwdump.cpp 판 17 '사람' 주석(0~2 보급 쓴 몫 · 3~5 상한 · 6·7 점수 · 8 동맹 · 9 시야 공유 · … · 1000+종류 수 · 2000+완성 수). */
 export function raw17Players(sec: Raw17Sec, fps: number): [number, number, number, number][] {
   const c = new Cursor(sec.b); const out: [number, number, number, number][] = []; let pf = 0;
   for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); out.push([pf / fps, c.u8(), c.u16(), c.u32()]); }
   return out;
 }
-/** 판 17 타일 줄 [초, 타일 번호(y × 폭 + x), 깃발(크립 0x40 · 크립 물러남 0x1000 · 차지됨 0x800 …), 보임 비트, 밝힘 비트] — 24 프레임마다 바뀐 칸. */
+/** 곁 꾸러미 타일 줄 [초, 타일 번호(y × 폭 + x), 깃발(크립 0x40 · 크립 물러남 0x1000 · 차지됨 0x800 …), 보임 비트, 밝힘 비트] — 24 프레임마다 바뀐 칸. */
 export function raw17Tiles(sec: Raw17Sec & { w: number; h: number }, fps: number): [number, number, number, number, number][] {
   const c = new Cursor(sec.b); const out: [number, number, number, number, number][] = []; let pf = 0;
   for (let i = 0; i < sec.n; i += 1) { pf += c.varint(); const ti = c.u32(); const v = c.u32(); out.push([pf / fps, ti, v >>> 16, (v >>> 8) & 0xff, v & 0xff]); }
@@ -524,13 +518,14 @@ export async function peekTruthHead(
 }
 
 /** ★ 참값 곁 꾸러미 OBWX(2026-11-03, 요청: "절대 하나도 빼놓지 마 · 다 나중에 필요해") — 서버 `GET /game-results/{id}/truth-extras` 의 data(base64).
- *  덤퍼가 재생용 참값(OBWT)과 따로 낸 큰 원본: ① 상태 나머지(갈래 40~89 — 명령·표적·이동 표적·상태 비트·운반·대기열·건설 남은 시간·포탑 방향·
- *  보임 비트·정확한 체력·에너지·…) ② 명령 원본 ③ 정밀 자리 ④ 탄 ⑤ 사람 ⑥ 타일. ①은 OBWT 의 stat 과 같은 꼴(태그마다 평평한 [초, 갈래, 값])로 풀고
+ *  ("원본을 저장하라는 게 아니라 원본이 더 이상 필요 없게 게임 상태를") — 덤퍼가 재생용 참값(OBWT)과 따로 낸 게임 상태: ① 상태 나머지(갈래 40~89 — 명령·표적·
+ *  이동 표적·상태 비트·운반·대기열·건설 남은 시간·포탑 방향·보임 비트·정확한 체력·에너지·…) ② 정밀 자리 ③ 탄 ④ 사람 ⑤ 타일. 리플레이 명령 바이트는 없다.
+ *  ①은 OBWT 의 stat 과 같은 꼴(태그마다 평평한 [초, 갈래, 값])로 풀고
  *  나머지는 바이트로 들고 있다가 raw17* 로 푼다(정밀 자리만 수백만 줄일 수 있다). 꼴은 덤퍼 bwdump.cpp 'OBWX' 주석. */
 export type TruthExtra = {
   fps: number;
   stat: Map<number, Float64Array>;
-  cmds: Raw17Sec; pos: Raw17Sec; bullets: Raw17Sec; players: Raw17Sec; tiles: Raw17Sec & { w: number; h: number };
+  pos: Raw17Sec; bullets: Raw17Sec; players: Raw17Sec; tiles: Raw17Sec & { w: number; h: number };
 };
 export async function decodeTruthExtra(b64: string): Promise<TruthExtra | null> {
   try {
@@ -551,8 +546,8 @@ export async function decodeTruthExtra(b64: string): Promise<TruthExtra | null> 
         const a9 = acc9.get(tag); if (a9) a9.push(pf / fps, kind, v); else acc9.set(tag, [pf / fps, kind, v]);
       }
       for (const [tg9, a9] of acc9) stat.set(tg9, Float64Array.from(a9)); }
-    const cmds = sec9(); const pos = sec9(); const bullets = sec9(); const players = sec9(); const tiles = sec9(4);
-    return { fps, stat, cmds, pos, bullets, players, tiles };
+    const pos = sec9(); const bullets = sec9(); const players = sec9(); const tiles = sec9(4);
+    return { fps, stat, pos, bullets, players, tiles };
   } catch {
     return null;
   }
