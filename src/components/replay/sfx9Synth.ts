@@ -955,20 +955,23 @@ function stim9(v: number): Float32Array {
      (같은 날 "스팀팩 소리 길이 1.5배") — 시간 자 L9 = 1.5: 길이 1.1 → 1.65초 · 오름 0.2 → 0.3 · 잦아듦 3.2 → 3.2/1.5 · 띠 솟음 0.22 → 0.33초 · 내려앉음 기울기 ÷1.5. */
   /* (같은 날 "좀 더 굵은 톤이어야 함 · 남성적") — 띠 높이 ×0.65 → ×0.45 · 띠 폭 넓게(Q 2.2 → 1.2) · 고역 거르개 600 → 220Hz · 그 아래 갈색 잡음 저역(320Hz)의 '훅' 몸통 0.5 를 깔고
      포화 1.4 → 1.8 로 두께를 더한다. 길이·오름·솟음은 그대로. */
+  /* (같은 날 되요청: "몸통 소리 필요 없고 솨~ 하는 소리를 좀 더 크면서 남성적") — 몸통(갈색 잡음 저역)을 걷고, 솨~ 띠에 그 한 옥타브 아래 띠(×0.5 · Q 1.0)를 겹쳐 가슴 울림을 더한다 ·
+     포화 1.8 → 1.5 · 끝 크기 0.6 → 0.85(더 크게). */
   const K9 = 0.45; const L9 = 1.5;
-  const r = rng9(2311 + v); const br9 = brown9(r);
+  const r = rng9(2311 + v);
   const hb = new Biquad9("bp", 1600 * K9, 1.2); const hh = new Biquad9("hp", 220, 0.7);
-  const lpB9 = new Biquad9("lp", 320, 0.8);
+  const hb2 = new Biquad9("bp", 800 * K9, 1.0);
   const A9 = 0.2 * L9; const UP9 = 0.22 * L9;
   const raw9 = render9(1.1 * L9, (t) => {
     const u9 = Math.min(1, t / A9); const env9 = t < A9 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - A9) * (3.2 / L9));
-    const hiss = hh.run(hb.run(r() * 2 - 1)) * env9 * 1.15;
-    const body9 = lpB9.run(br9()) * env9 * 1.6;
-    return sat9(hiss * 0.55 + body9 * 0.5, 1.8);
+    const n9 = r() * 2 - 1;
+    const hiss = (hh.run(hb.run(n9)) * 1.15 + hb2.run(n9) * 0.9) * env9;
+    return sat9(hiss * 0.6, 1.5);
   }, (t) => {
-    hb.set(K9 * (t < UP9 ? 1600 + (t / UP9) * 2800 : Math.max(2400, 4400 - (t - UP9) * (4000 / L9))));   // 스와이~ : 솟고 내려앉음
+    const f9 = K9 * (t < UP9 ? 1600 + (t / UP9) * 2800 : Math.max(2400, 4400 - (t - UP9) * (4000 / L9)));   // 스와이~ : 솟고 내려앉음
+    hb.set(f9); hb2.set(f9 * 0.5);
   });
-  return finish9(echo9(raw9, 0.07, 0.22), 0.6);
+  return finish9(echo9(raw9, 0.07, 0.22), 0.85);
 }
 
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
