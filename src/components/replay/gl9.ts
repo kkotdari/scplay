@@ -1697,6 +1697,14 @@ export class GlUnits9 implements VecSink9 {
    *  제 칸을 굽는다(손짓 중·판이 상한이면 안 굽고 가까운 칸 그대로). PC 8 · 폰 1~2. 미리 찍기(돌기)도 sprWarmStep 칸 걸음만 — 폰은 8방(4칸 걸음)만 미리 찍고 사이는 채우기가. */
   sprFillMax = 8;
   sprWarmStep = 1;
+  /** ★ **교체**(2026-11-03, 요청: "뒤에서 굽는다는 게 메시를 말한 게 아니었어 · 다운은 다 받고 메모리에 올리는 걸 교체한다는 거야") — 아틀라스 묶음(종류.a/b/o) 가운데
+   *  GPU 에 안 올린 것(받아 풀어 IndexedDB 에 둔 대기 묶음)이면 sprSwapOf 가 그 이름을 준다. 붓은 그 몸을 가까운 칸으로 그리고 메시로 굽지 않으며 이름을 sprSwapReq 에 적는다 —
+   *  sprAtlas9 의 교체 고리가 올리고(안 쓴 지 오래된 b·o 묶음을 내리고) 칸이 선다. */
+  sprSwapOf: ((kind: string, yb: number, n: number) => string | null) | null = null;
+  sprSwapReq = new Set<string>();
+  /** 고정 판 묶음별 마지막 쓴 장(교체 고리가 내릴 것을 고른다) · 지금 장 번호. */
+  sprFixedUse9(): { tag: string; last: number; mb: number }[] { return this.sprFixed.filter((pg) => !!pg.tag).map((pg) => ({ tag: pg.tag!, last: pg.last, mb: pg.mb ?? 0 })); }
+  sprFrameNo9(): number { return this.frameNo; }
   /** ★ 판 전체 GPU 바이트 상한(MB) — 판 수 상한(sprPageMax)과 함께 **더 작은 쪽**이 선다(sprPageCap9 · 2026-10-24, 지적: "탭 메모리 터짐 — 보통일 때 터지고 낮음일 때 안 터짐").
    *  폰 '보통' 은 번짐이 켜져 판마다 빛 켜(22MB)가 더 서고 요잉 칸이 4 → 8 로 곱이라, 판 14 장이 차면 색·빛·임자색 켜가 ≈780MB — 탭이 죽었다. 폰은 192/256/320MB(단) · PC ∞. */
   sprBytesMax = Infinity;
@@ -1780,7 +1788,7 @@ export class GlUnits9 implements VecSink9 {
     }
     this.sprEmSet = true;
   }
-  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0, fill: 0, fixed: 0, resets: 0,
+  sprStat = { body: 0, shadow: 0, bake: 0, scaled: 0, mesh: 0, pages: 0, cells: 0, warm: 0, fill: 0, swapWait: 0, fixed: 0, resets: 0,
     /** 진단 — 재생 중 **새로 보여 구운** 칸의 열쇠(미리 찍기 아님 · 최근 12) · 그 누계. 미리 굽기가 놓친 것이 무엇인지 가리는 자(perf-check [GL] 놓침). */
     missLog: [] as string[], missN: 0,
     /** 판이 가득 차 LRU 판을 **통째로 비운** 횟수(누계) — 0 이 아니면 판 상한(sprPageMax)이 경기의 칸 수를 못 담는다(2026-10-24). */
@@ -2518,7 +2526,7 @@ export class GlUnits9 implements VecSink9 {
     const N = q.length;
     const B: ([SprCell9, number] | null)[] = new Array(N).fill(null);
     const S: ([SprCell9, number] | null)[] = new Array(N).fill(null);
-    const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0; st.fill = 0;
+    const st = this.sprStat; st.body = 0; st.shadow = 0; st.bake = 0; st.scaled = 0; st.mesh = 0; st.warm = 0; st.fill = 0; st.swapWait = 0;
     const jobs: SprJob9[] = []; const jobOf = new Map<string, SprJob9>();
     const waitB: [number, SprJob9][] = []; const waitS: [number, SprJob9][] = [];
     /* 손짓 중 예산 1/4 → 1/2(2026-10-23, 지적: 폰 "줌 아웃 아직 딜레이와 모델 늦게 뜸") — 못 찍은 몸은 그 장을 **메시 길**로 그리는데 폰에서는 그쪽이 더 무겁다(MSAA 없는 굽기 한 장 < 메시 한 벌). */
@@ -2559,6 +2567,9 @@ export class GlUnits9 implements VecSink9 {
       if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)
       if (over) { st.mesh += 1; return { cell: null, job: null }; }   // 판을 너무 늘려야 한다 — 이 몸은 메시로(위 sprUpMax ★)
       if (hit) { hit.page.last = this.frameNo; if (Math.abs(kd / hit.kd - 1) > 0.004) st.scaled += 1; return { cell: [hit, kd / hit.kd], job: null }; }
+      /* 교체(위 sprSwapOf ★) — 대기 묶음에 든 칸이면 올려 달라고 적고, 가까운 칸이 있으면 그것으로(굽지 않는다). */
+      const swp9 = this.sprSwapOf ? this.sprSwapOf(it.mesh.key.split(":")[1] ?? "", yb, this.yawN9(it.mesh)) : null;
+      if (swp9) { this.sprSwapReq.add(swp9); if (near9) { near9.page.last = this.frameNo; st.swapWait += 1; return { cell: [near9, kd / near9.kd], job: null }; } }
       if (near9) {
         near9.page.last = this.frameNo;
         if (fill9 > 0 && budget > 0 && this.sprDumpQ === 0 && !jobOf.has(key) && this.sprPages.length < this.sprPageCap9()) {

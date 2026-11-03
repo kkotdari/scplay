@@ -145,6 +145,17 @@ function cacheGet9(db: IDBDatabase, key: string): Promise<Levels9 | null> {
     } catch { res(null); }
   });
 }
+/** 열쇠가 캐시에 있나(값은 안 읽는다 · 뒤에서 담기가 이미 담은 켜를 건너뛴다). */
+function cacheHas9(db: IDBDatabase, key: string): Promise<boolean> {
+  return new Promise<boolean>((res) => {
+    try { const rq = db.transaction(IDB_ST9, "readonly").objectStore(IDB_ST9).count(key); rq.onsuccess = () => res(rq.result > 0); rq.onerror = () => res(false); } catch { res(false); }
+  });
+}
+/** 교체 고리의 상태(위 sprAtlasLoad9 교체 ★) — 벌마다 하나 · 새 싣기가 옛 고리를 멈춘다. n 올린 수 · drop 내린 수. */
+interface SwapSt9 { tick: ReturnType<typeof setInterval> | null; busy: boolean; n: number; drop: number }
+const swapSt9 = new WeakMap<GlUnits9, SwapSt9>();
+/** 교체 진단 — 올린 수 · 내린 수(없으면 null). */
+export function sprSwapStat9(g9: GlUnits9): { n: number; drop: number } | null { const s9 = swapSt9.get(g9); return s9 ? { n: s9.n, drop: s9.drop } : null; }
 /** 쓰기 몫(MB) — 첫 쓰기 때 한 번 잰다 · 음수면 그 판은 더 안 쓴다. */
 let cacheRoom9: Promise<number> | null = null;
 function cachePut9(db: IDBDatabase, key: string, lv: Levels9, cap9: number): void {
@@ -169,7 +180,7 @@ let pruned9 = false;
 function cachePrune9(db: IDBDatabase, idx: Index9, tf: number): void {
   if (pruned9) return; pruned9 = true;
   const live9 = new Set<string>();
-  for (const e of Object.values(idx.kinds)) for (const ch of [e.a, e.b]) if (ch) for (const fs of [ch.files.f, ch.files.h]) for (const f of Object.values(fs ?? {})) live9.add(f + "|" + tf);
+  for (const e of Object.values(idx.kinds)) for (const ch of [e.a, e.b, e.o]) if (ch) for (const fs of [ch.files.f, ch.files.h]) for (const f of Object.values(fs ?? {})) live9.add(f + "|" + tf);
   try {
     const st9 = db.transaction(IDB_ST9, "readwrite").objectStore(IDB_ST9);
     const rq = st9.getAllKeys();
@@ -284,6 +295,41 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         return { ok: true, c: by.c.lv, t: by.t?.lv ?? null, e: by.e?.lv ?? null };
       });
     };
+    /** 묶음 하나를 GPU 에 올린다(칸 열쇠를 기기 칸으로 옮겨) — 실은 칸 수 · 텍스처 실패면 −1. 본 싣기와 교체 고리(아래 ★)가 함께 쓴다. */
+    const put9 = (j: (typeof jobs)[number], c: Levels9, t: Levels9 | null, e: Levels9 | null, mb: number): number => {
+      const tc = g9.sprAtlasTexture9(c, fmt.gl); if (!tc) return -1;
+      const tt = t ? g9.sprAtlasTexture9(t, fmt.gl) : null; const te = e ? g9.sprAtlasTexture9(e, fmt.gl) : null;
+      const cells = [];
+      for (const [key0, px, py, w, h, x0, y0, kd] of j.ch.cells) {
+        const key = ybMap9(key0, j.kind); if (key === null) continue;
+        cells.push({ key, px: px * k, py: py * k, w: w * k, h: h * k, x0: x0 * k, y0: y0 * k, kd: kd * k });
+      }
+      return g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells, `${j.kind}.${j.par}.${opt.res}`);
+    };
+    /* 대기 묶음 표(아래 교체 ★) — 본 싣기 **전에** 세운다: 싣는 동안 붓이 그 종류를 메시로 굽지 않고 가까운 칸으로 기다리게(올리면 뺀다). */
+    const old9 = swapSt9.get(g9); if (old9?.tick) clearInterval(old9.tick);
+    const want9 = new Set(kinds);
+    const all9 = new Map<string, (typeof jobs)[number]>();
+    const by9 = new Map<string, (typeof jobs)[number]>();
+    for (const kind of kinds) {
+      const e9 = idx.kinds[kind]; if (!e9) continue;
+      for (const par of ["a", "b", "o"] as Par9[]) {
+        const ch = e9[par]; if (!ch) continue;
+        const jb9 = { kind, par, ch }; all9.set(`${kind}.${par}`, jb9);
+        const tg9 = `${kind}.${par}.${opt.res}`;
+        if (!done.has(tg9) && !bad.has(tg9)) by9.set(`${kind}.${par}`, jb9);   // 본 싣기가 올리면 뺀다(put9 뒤)
+      }
+    }
+    const A9 = idx.yaw || 16;
+    g9.sprSwapReq.clear();
+    g9.sprSwapOf = (kind: string, yb: number, n: number): string | null => {
+      if (by9.size === 0) return null;
+      const a9 = SPR_YAW32_9.has(kind) ? 32 : A9;
+      const yA9 = (yb * a9) / n; if (yA9 !== Math.floor(yA9)) return null;
+      const par9: Par9 = SPR_YAW32_9.has(kind) ? "a" : a9 >= 32 ? (yA9 % 2 ? "o" : yA9 % 4 ? "b" : "a") : yA9 % 2 ? "b" : "a";
+      const kp9 = `${kind}.${par9}`;
+      return by9.has(kp9) ? kp9 : null;
+    };
     const win9 = pl9 ? pl9.ws.length * 2 : 6;
     const pend: Promise<Prep9>[] = [];
     for (let i = 0; i < Math.min(win9, jobs.length); i += 1) pend.push(prep9(jobs[i]));
@@ -302,20 +348,62 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       let tg: string | undefined;
       while (g9.sprFixedMB + mb > opt.mbCap && (tg = spare()) !== undefined) { g9.sprAtlasDrop9(tg); done.delete(tg); r.dropped += 1; }
       if (g9.sprFixedMB + mb > opt.mbCap) break;
-      const tc = g9.sprAtlasTexture9(c, fmt.gl); if (!tc) { bad.add(jt); settle9(j); continue; }
-      const tt = t ? g9.sprAtlasTexture9(t, fmt.gl) : null; const te = e ? g9.sprAtlasTexture9(e, fmt.gl) : null;
-      const cells = [];
-      for (const [key0, px, py, w, h, x0, y0, kd] of j.ch.cells) {
-        const key = ybMap9(key0, j.kind); if (key === null) continue;
-        cells.push({ key, px: px * k, py: py * k, w: w * k, h: h * k, x0: x0 * k, y0: y0 * k, kd: kd * k });
-      }
-      r.cells += g9.sprAtlasAdd9(tc, tt, te, j.ch.w * k, j.ch.h * k, mb, cells, jt);
+      const nc9 = put9(j, c, t, e, mb); if (nc9 < 0) { bad.add(jt); settle9(j); continue; }
+      r.cells += nc9; by9.delete(`${j.kind}.${j.par}`);
       r.mb += mb; r.chunks += 1;
       done.add(jt);
       settle9(j);
       r.workMs += performance.now() - tk;
       /* 한 묶음마다 한 박자 쉰다 — 로딩 글자 애니메이션·재생(뒤에서 싣는 동안)이 서지 않게. */
       await new Promise((res) => setTimeout(res, 0));
+    }
+    /* ★ **교체**(2026-11-03, 요청: "다운은 다 받고 메모리에 올리는 걸 교체한다는 거야") ──
+       이 경기 종류의 묶음 가운데 GPU 에 못 올린 것(기기 몫 밖의 b·o · 상한에 닿아 빠진 것)은 **대기 묶음**이다: ① 뒤에서 차례로 받아 풀어 IndexedDB 에 담아 두고(받기·풀기는
+       한 번 · 캐시가 없으면 HTTP 캐시만 데운다) ② 붓이 그 칸을 찾으면(gl9 sprSwapOf → sprSwapReq) 가까운 칸으로 그리는 동안 ③ 고리가 한 묶음씩 캐시에서 꺼내 올린다 —
+       자리가 모자라면 **안 쓴 지 90장 넘은** 묶음(이 경기 종류의 a 는 빼고)을 내리고 대기로 돌린다. 메시로 굽지 않는다. */
+    {
+      const lys9 = (j: (typeof jobs)[number]): string[] => j.ch.layers.filter((ly) => (ly !== "e" || opt.em) && !!j.ch.files[opt.res][ly]);
+      const st9: SwapSt9 = { tick: null, busy: false, n: 0, drop: 0 };
+      swapSt9.set(g9, st9);
+      /* ① 뒤에서 받아 풀어 담기 — 하나씩(재생과 다투지 않게 · 폰 워커 1). */
+      if (by9.size > 0) {
+        void (async () => {
+          for (const j of [...by9.values()]) {
+            if (swapSt9.get(g9) !== st9) return;
+            for (const ly of lys9(j)) {
+              if (db) { const ck9 = j.ch.files[opt.res][ly] + "|" + fmt.tf + "|6"; if (await cacheHas9(db, ck9)) continue; await layer9(j, ly); }
+              else await fetch(url(j, ly)).then((x) => x.arrayBuffer()).catch(() => null);
+            }
+            await new Promise((res) => setTimeout(res, 50));
+          }
+        })();
+      }
+      /* ②③ 교체 고리 — 150ms 마다 요청 하나. */
+      st9.tick = setInterval(() => {
+        if (st9.busy || g9.sprSwapReq.size === 0) return;
+        const kp9 = g9.sprSwapReq.values().next().value as string; g9.sprSwapReq.clear();
+        const j = by9.get(kp9); if (!j) return;
+        st9.busy = true;
+        void Promise.all(lys9(j).map((ly) => layer9(j, ly))).then((xs) => {
+          const lv: Record<string, Levels9 | null> = {}; lys9(j).forEach((ly, i) => { lv[ly] = xs[i].lv; });
+          const c = lv.c; if (!c) return;
+          const t = lv.t ?? null; const e = lv.e ?? null;
+          const mbOf = (ls: Levels9 | null): number => (ls ? ls.reduce((s9, x) => s9 + x.data.length, 0) / 1048576 : 0);
+          const mb = mbOf(c) + mbOf(t) + mbOf(e);
+          const now9 = g9.sprFrameNo9();
+          const cand9 = g9.sprFixedUse9().filter((u) => {
+            const p9 = u.tag.split("."); const kd9 = p9.slice(0, -2).join("."); const pr9 = p9[p9.length - 2];
+            return now9 - u.last > 90 && (pr9 !== "a" || !want9.has(kd9));
+          }).sort((x, y) => x.last - y.last);
+          while (g9.sprFixedMB + mb > opt.mbCap && cand9.length) {
+            const u = cand9.shift()!; g9.sprAtlasDrop9(u.tag); done.delete(u.tag); st9.drop += 1;
+            const p9 = u.tag.split("."); const kpD9 = p9.slice(0, -1).join("."); const jb9 = all9.get(kpD9); if (jb9) by9.set(kpD9, jb9);
+          }
+          if (g9.sprFixedMB + mb > opt.mbCap) return;
+          if (put9(j, c, t, e, mb) < 0) { by9.delete(kp9); return; }
+          by9.delete(kp9); done.add(`${j.kind}.${j.par}.${opt.res}`); st9.n += 1;
+        }).finally(() => { st9.busy = false; });
+      }, 150);
     }
     /* 상한에 닿아 멈췄으면 남은 묶음의 풀기 결과는 버린다(워커 일은 이미 돌았다 — 기다리지만 않는다). */
     if (db) setTimeout(() => cachePrune9(db, idx, fmt.tf), 4000);   // 옛 판 열쇠 걷기(위 푼 단 캐시 ★) — 다 실은 뒤 한숨 돌리고
