@@ -2934,3 +2934,6 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - (같은 날) "독에 가려지면 안 돼 개발 버튼 목록은" — 폰은 독(`.scr-fs-lower`)이 판 아래를 덮고 판 상자가 목록을 자른다. 열릴 때 목록 위끝에서 판 아래끝·가로로 겹치는 독 위끝 가운데
   가까운 것까지를 `max-height` 로(RMP `tMenu9` 레이아웃 효과 · 넘치면 목록 안에서 굴림). diag·최대 프레임 목록은 두 칸(`.is-grid`)이라 높이가 반쯤이다.
   🔎 위 `--testerprobe` 가 `아래끝 / 독 위끝 · 굴림` 을 찍는다(perf-check 는 dist CSS 를 쓰니 `npx vite build` 먼저).
+- (같은 날) "진단 패널 열리면 버튼들이 안 눌리거나 눌려도 뒤에 뜸" — 진단 판(`.scr-motion-diag` z 99000)은 무대 상자 밖의 형제라 무대 안 목록의 z(99100)가 쌓임 맥락을 못 넘는다
+  (헤드리스 `--testerprobe` 의 '위에 보인다'는 elementFromPoint 라 pointer-events:none 판을 못 봐 놓쳤다). 목록이 열린 동안 진단 판을 숨긴다(`.is-hide`).
+  "진단 패널에 내용 복사 버튼" — 판 머리 오른쪽 `.scr-diag-copy`(판 innerText · 클립보드 · 안 되면 textarea+execCommand).

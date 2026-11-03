@@ -12970,6 +12970,7 @@ export default function ReplayMotionPlayer({
     return () => { document.removeEventListener("pointerdown", dn9, true); document.removeEventListener("keydown", key9); };
   }, [tMenu9]);
   const [fpsCapV9, setFpsCapV9] = useState(FPS_CAP9.v);
+  const [diagCopied9, setDiagCopied9] = useState(false);   // 진단 판 복사 단추(아래 diagNode)
   /* ★ 목록은 독에 안 가린다(2026-11-03, 지적: "독에 가려지면 안 돼 개발 버튼 목록은") — 폰은 독(.scr-fs-lower · 미니맵·로스터·조작 줄)이 판 아래를 덮고 판 상자가 목록을 자른다.
      열릴 때 목록 위끝에서 '판 상자 아래끝'과 '가로로 겹치는 독의 위끝' 가운데 가까운 것까지를 max-height 로 주고 넘치는 줄은 목록 안에서 굴린다. */
   useLayoutEffect(() => {
@@ -21091,7 +21092,20 @@ export default function ReplayMotionPlayer({
       {" · 워커 "}{wStatRef.current.buildMs.toFixed(0)}ms
     </div>
   ) : diagOn ? (
-  <div className="scr-motion-diag" ref={diagPanelRef9}>
+  /* ★ 테스터 목록이 열린 동안 진단 판은 숨긴다(2026-11-03, 지적: "진단 패널 열리면 버튼들이 안 눌리거나 눌려도 뒤에 뜸") — 판(z 99000)은 무대 상자 밖의 형제라
+     무대 안 목록의 z(99100)가 쌓임 맥락을 못 넘는다. 목록을 닫으면 다시 선다.
+     ★ 복사 단추(같은 날, 요청: "진단 패널에 내용 복사 버튼 추가") — 판 글 전부(innerText · 단추 글 뺌)를 클립보드로. 판은 못 누르는 판이라 단추만 누를 수 있다. */
+  <div className={cx("scr-motion-diag", tMenu9 && "is-hide")} ref={diagPanelRef9}>
+                <button type="button" className="scr-diag-copy" onClick={(e) => {
+                  const pn9 = e.currentTarget.parentElement; if (!pn9) return;
+                  const txt9 = [...pn9.childNodes].filter((n9) => n9 !== e.currentTarget).map((n9) => (n9 as HTMLElement).innerText ?? n9.textContent ?? "").join("\n").trim();
+                  const done9 = (): void => { setDiagCopied9(true); window.setTimeout(() => setDiagCopied9(false), 1200); };
+                  const old9 = (): void => {
+                    const ta9 = document.createElement("textarea"); ta9.value = txt9; ta9.setAttribute("readonly", ""); ta9.style.position = "fixed"; ta9.style.opacity = "0";
+                    document.body.appendChild(ta9); ta9.select(); try { document.execCommand("copy"); done9(); } catch { /* 못 베끼면 그대로 */ } ta9.remove();
+                  };
+                  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(txt9).then(done9, old9); else old9();
+                }}>{diagCopied9 ? "복사됨" : "복사"}</button>
                 {/* 머리 — 늘 보인다: 배킹(dpr)·배율·어느 판인가. */}
                 <div>
                   dpr {SCR_DIAG.dpr} · 배율 {SCR_DIAG.zoom.toFixed(2)}
