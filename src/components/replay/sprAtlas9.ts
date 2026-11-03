@@ -227,6 +227,12 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     for (const j of jobs) left9.set(j.kind, (left9.get(j.kind) ?? 0) + 1);
     if (opt.pending) { opt.pending.clear(); for (const kd of left9.keys()) opt.pending.add(kd); }
     const coreSet9 = new Set(kinds.slice(0, Math.max(0, opt.core ?? kinds.length)));
+    /* ★ 묶음 차례: 앞 종류 짝 → 앞 종류 홀 → 나머지 짝 → 나머지 홀(2026-11-03 · 앱 폰 16방향 — RMP APP16_9 ★). 상한에 닿아 멈추면 덜 쓰는 종류의 **홀 칸만** 빠지고
+       (재생 중에 굽는다) 종류가 통째로 빠지지 않는다. 짝만 싣는 기기(폰 웹)는 그대로. */
+    if (jobs.some((j) => j.par === "b")) {
+      const rank9 = (j: (typeof jobs)[number]): number => (coreSet9.has(j.kind) ? 0 : 2) + (j.par === "b" ? 1 : 0);
+      jobs.sort((x, y) => rank9(x) - rank9(y));   // 안정 정렬 — 같은 칸 안은 많이 쓰는 차례 그대로
+    }
     let coreLeft9 = jobs.filter((j) => coreSet9.has(j.kind)).length;
     const coreTot9 = coreLeft9;
     opt.onProgress?.(0, coreTot9);

@@ -818,6 +818,14 @@ const SPR_UP_PC9 = Infinity;
 /** 아틀라스를 기다리는 앞 종류의 몫(많이 쓰는 차례 · 적어도 6 종류 · 예열 effect 의 ★ '많이 쓰는 종류만 기다린다' · 2026-10-26). */
 const ATLAS_CORE9 = 0.3;
 const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = /sprdump=([\d.]+)/.exec(location.hash); return m9 ? Math.max(1, Math.min(3, Number(m9[1]) || 1)) : 0; })() : 0;
+/** ★ **안드로이드 앱은 폰도 16방향**(2026-11-03, 요청: "안드로이드 apk 에는 아틀라스를 미리 넣을 수 있잖아 · 앱에서 재생할 땐 16방향 버전으로" → "1만 하자 우선") — 앱(Capacitor
+ *  웹뷰 · 브리지가 window.Capacitor 를 세운다)은 아틀라스 폰 판(h)의 짝·홀(a+b)이 이미 APK 에 들어 있어 받는 값이 없다. 그래서 앱이면 폰 단 어디서나 요잉 칸 16 · 아틀라스 홀 묶음(b)도 싣고
+ *  GPU 상한을 홀 몫(실측 짝:홀 ≈ 45:34MB → ×1.75)만큼 올린다(아틀라스 200/160/128 → 350/280/224 · 판 전체 320/256/224 → 470/376/320). 상한에 닿으면 덜 쓰는 종류의 홀 묶음부터 빠지고
+ *  (sprAtlas9 묶음 차례) 그 칸은 재생 중에 굽는다. 고해상도(f)는 아직(GPU 4배 · 별도 요청). `#app=1` 억지로 · `#app=0` 끔. */
+const APP16_9 = (): boolean => {
+  if (typeof location !== "undefined") { const m9 = /(?:^|[#&,])app=([01])/.exec(location.hash); if (m9) return m9[1] === "1"; }
+  try { return !!(globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.(); } catch { return false; }
+};
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 16, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });
@@ -825,8 +833,10 @@ const sprTune9 = (): void => {
     return;
   }
   const phone9 = DEV9.name === "phone";
-  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? 8 : (TIER9.v === 0 ? 8 : 16),
-    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0, bytesMB: TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224, em: false }
+  const app9 = phone9 && APP16_9();   // 위 APP16_9 ★ — 앱 폰은 16칸 · 판 전체 상한에 아틀라스 홀 몫을 더한다
+  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, phone9 ? (app9 ? 16 : 8) : (TIER9.v === 0 ? 8 : 16),
+    phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0,
+      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (app9 ? (TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96) : 0), em: false }
       : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1 });
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
@@ -20145,11 +20155,13 @@ export default function ReplayMotionPlayer({
            실리면 고정 칸이 이긴다(sprAtlasAdd9 — 같은 열쇠) · 그 종류의 동적 미리 굽기는 건너뛴다(atlasPend9). */
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
         const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
-        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9, em: ph9 ? DEV9.glBloom : true, mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) : 1024,
+        const app9 = ph9 && APP16_9();   // 앱 폰은 홀 묶음(b)도 · 상한 ×1.75(위 APP16_9 ★)
+        sprAtlasLoad9(g09, kinds9, { res: res9, odd: !ph9 || app9, em: ph9 ? DEV9.glBloom : true,
+          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (app9 ? 1.75 : 1) : 1024,
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 400 : 1500,   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
-            SCR_DIAG.atlas = `칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
+            SCR_DIAG.atlas = `${app9 ? "앱16·" : ""}칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
           .finally(release9);
