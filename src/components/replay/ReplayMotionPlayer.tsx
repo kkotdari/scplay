@@ -19605,6 +19605,9 @@ export default function ReplayMotionPlayer({
       return { ox, oy, rad };
   };
   const pickAt = (clientX: number, clientY: number, bldOnly9 = false): boolean => {
+    /* ★ **개인 추적은 보는 사람이 안 고른다**(2026-11-03, 요청: "개인 추적에서는 보는 사람이 선택 불가하면 좋겠어") — 클릭·상자(onMapPointerDown 의 추적 ★)·인포창 칸 누르기 모두.
+       인포창·링은 화면 주인(추적 대상)의 선택만 따른다. */
+    if (trackRaw !== null) return false;
     const el = mapRef.current;
     if (!el) return false;
     const r = el.getBoundingClientRect();
@@ -22746,7 +22749,7 @@ export default function ReplayMotionPlayer({
                       key={o9.pickKey ?? k} type="button" className="scr-motion-infodock-cell"
                       title={o9.pickBld ? BUILDING_KO[o9.pickName ?? ""] ?? o9.pickName : UNIT_KO[o9.pickName ?? ""] ?? o9.pickName}
                       style={{ borderColor: hpCol9(r9) }}
-                      onClick={() => { if (o9.pickKey) setPicked(o9.pickKey); }}
+                      onClick={() => { if (o9.pickKey && trackRaw === null) setPicked(o9.pickKey); }}   // 개인 추적은 보는 사람이 안 고른다(pickAt ★)
                     >
                       {silIcon9(o9.pickName ?? "", !!o9.pickBld, hpCol9(r9), "scr-motion-infodock-gico")}
                     </button>
