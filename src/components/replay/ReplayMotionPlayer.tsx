@@ -952,11 +952,9 @@ function suitFist(
 const UI_OWN9 = "#10fc18";
 const UI_ATK9 = "#f40404";
 let UI_SCREEN9: string | null = null;
-/** 화면 주인의 원작 초록·적 빨강·동맹 노랑 링을 칠하나 — 개인 추적·분할 칸만(2026-11-03 "중계는 화면 주인이 없어" · 자동 중계는 거름만 하고 색은 임자색). */
-let UI_GREEN9 = true;
 /** raw9 가 화면 주인이면 초록(공격 클릭 atk9 면 빨강) · 아니면 null(부르는 쪽이 색 모드 색으로 물러난다). */
 function ownUiCol9(raw9: string | undefined, atk9 = false): string | null {
-  if (!UI_GREEN9 || UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
+  if (UI_SCREEN9 === null || raw9 === undefined || raw9 !== UI_SCREEN9) return null;
   return atk9 ? UI_ATK9 : UI_OWN9;
 }
 /** 동맹(적도 나도 아닌 사람 · 중립)을 고른 링 — 원작 노랑(2026-10-09, 요청: "동맹 선택시 … 빨간색은 아닌듯 노란색이 적당"). */
@@ -1019,7 +1017,7 @@ function selRingCol9(op: UnitDrawOp): string | null {
   if (own9) return own9;
   /* 주인이 고른 남의 몸 — 적은 빨강 · 동맹(같은 편)과 중립(임자 없음)은 **노랑**(2026-10-09, 요청) · 원작 선택 원색 셋(초록·노랑·빨강). 옛 판은 적만 빨강이고
      동맹은 제 몸 색(개인색이 빨강이면 빨강으로 읽혔다). */
-  if (UI_GREEN9 && UI_SCREEN9 !== null && !!op.selBy?.includes(UI_SCREEN9)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : UI_ALLY9;
+  if (UI_SCREEN9 !== null && !!op.selBy?.includes(UI_SCREEN9)) return op.pickRaw && UI_ENEMY9?.(op.pickRaw) ? UI_ATK9 : UI_ALLY9;
   return null;
 }
 /** 진단(#diag)용 — 본 장에서 칠한 선택 링(종류:임자:고른이:색 · 여덟까지). 그리기 틱이 비우고 SCR_DIAG.ring 으로 적는다. */
@@ -13321,16 +13319,10 @@ export default function ReplayMotionPlayer({
   /** 원작 초록의 기준이 되는 화면 주인(렌더마다 채움 · 붓은 UI_SCREEN9 로 받는다 · 위 UI_OWN9 주석). */
   const uiOwnerRef9 = useRef<string | null>(null);
   /* ★ 원작 초록의 기준 — **화면 주인**(개인 추적 · 중계 자동 · 위 UI_OWN9). 그리기 틱이 붓을 부를 때 UI_SCREEN9 에 옮겨 놓는다(분할은 칸마다). */
-  /* ★ **중계는 화면 주인이 없다**(2026-11-03, 지적: "중계에선 원작처럼 초록 아닌데" → "중계는 화면 주인이 없어") — 원작 초록(링·마커·핑의 UI_OWN9)과 적 빨강·동맹 노랑 링은
-     **개인 추적(trackRaw)** 에만 선다(uiGreenRef9 → 붓의 UI_GREEN9). 자동 중계(castRaw)는 링·마커·핑이 색 모드 그대로(임자색). '주인 것만' 거르는 자(링·고스트·클릭 마커 ·
-     공격 표적 깜빡임)는 종전대로 카메라 임자(camRaw9 · "중계 개인 화면에 왜 동맹 마우스 마커가 보이지?" 의 거름). 분할 칸은 종전대로 칸 사람 초록. */
   uiOwnerRef9.current = camRaw9 !== null && !splitOn9 ? camRaw9 : null;
-  /** 원작 초록을 칠하나 — 개인 추적(trackRaw)만(위 ★). 붓은 UI_GREEN9 로 받는다. */
-  const uiGreenRef9 = useRef(false);
-  uiGreenRef9.current = trackRaw !== null && !splitOn9;
-  /** 렌더 안(DOM 마커·핑·미니맵 핑)에서 쓰는 제 인스턴스의 원작 초록 — raw9 가 화면 주인이고 개인 추적이면 초록(공격이면 빨강) · 아니면 null. */
+  /** 렌더 안(DOM 마커·핑·미니맵 핑)에서 쓰는 제 인스턴스의 원작 초록 — raw9 가 화면 주인이면 초록(공격이면 빨강) · 아니면 null. */
   const ownCol9 = (raw9: string, atk9 = false): string | null =>
-    (uiGreenRef9.current && uiOwnerRef9.current !== null && raw9 === uiOwnerRef9.current ? (atk9 ? UI_ATK9 : UI_OWN9) : null);
+    (uiOwnerRef9.current !== null && raw9 === uiOwnerRef9.current ? (atk9 ? UI_ATK9 : UI_OWN9) : null);
   /* 미니맵 핑 목록(2026-10, 요청: "미니맵 내 색 포함" — 원작처럼 미니맵에도 번진다) — 큰 지도 핑(아래 JSX)과 같은 거름(관전자 제외 ·
      시점 보기에선 상대편 제외)과 같은 색(주인 제 핑 초록 · 나머지 색 모드). age 는 3초 창의 0~1. 핑은 몇 개 안 되어 렌더마다 다시 센다. */
   miniPingsRef9.current = qPing && entData?.pings
@@ -18981,7 +18973,7 @@ export default function ReplayMotionPlayer({
     if (splitOnRef9.current && splitLayRef9.current) splitPaint9(tNow9);   // 분할보기 — 칸마다 칠해 베낀다
     else {
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
-      UI_SCREEN9 = uiOwnerRef9.current; UI_GREEN9 = uiGreenRef9.current;
+      UI_SCREEN9 = uiOwnerRef9.current;
       UI_ENEMY9 = enemyOf9(UI_SCREEN9); ATK_FLASH9 = atkFlashFor9(UI_SCREEN9, tNow9); ATK_T9 = tNow9;   // 적 판정 · 공격 표적 창(위 ★)
       RING_DIAG9.length = 0;
       /* ★ 주인이 있으면 선택 링·건설 고스트도 **주인 것만**(2026-10, 같은 지적 — 동맹의 선택 링·고스트는 분할 칸처럼 걷는다 · splitOwnOps9). */
@@ -18990,7 +18982,7 @@ export default function ReplayMotionPlayer({
       try { unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current); } finally {
         if (scrDiagOn()) SCR_DIAG.ring = `주인 ${UI_SCREEN9 ?? "없음"} · 몸 ${frameOpsRef9.current?.length ?? -1} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`;
         frameOpsRef9.current = keepOps9;
-        UI_SCREEN9 = null; UI_GREEN9 = true; UI_ENEMY9 = null; ATK_FLASH9 = null;
+        UI_SCREEN9 = null; UI_ENEMY9 = null; ATK_FLASH9 = null;
       }
     }
     xfCvXfRef.current = XF_ID9;
@@ -23803,7 +23795,7 @@ export default function ReplayMotionPlayer({
                       ? (() => castSel9.flatMap((r9) => { const v9 = splitViewRef9.current.get(r9); return v9 ? [{ ...v9, color: modeColor(r9, teamOfRaw(r9)) }] : []; }))
                       : undefined}
                     zoom={zoom} pan={pan}
-                    ownRaw={splitOn9 ? splitPick9 : uiGreenRef9.current ? uiOwnerRef9.current : null}
+                    ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
                     ownColor={UI_OWN9}
                     painter={miniPaintRef} live={viewLive9}
                     onSeek={fsSeek}
