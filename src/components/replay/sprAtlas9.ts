@@ -155,6 +155,13 @@ function cacheHas9(db: IDBDatabase, key: string): Promise<boolean> {
     try { const rq = db.transaction(IDB_ST9, "readonly").objectStore(IDB_ST9).count(key); rq.onsuccess = () => res(rq.result > 0); rq.onerror = () => res(false); } catch { res(false); }
   });
 }
+/** 화면 크기·방향이 마지막으로 바뀐 때(performance.now · 위 ★ 천천히) — 창 resize·orientationchange 가 적는다. */
+const resizeAt9 = { t: -1e9 };
+if (typeof window !== "undefined") {
+  const mark9 = (): void => { resizeAt9.t = performance.now(); };
+  window.addEventListener("resize", mark9, { passive: true });
+  window.addEventListener("orientationchange", mark9, { passive: true });
+}
 /** 교체 고리의 상태(위 sprAtlasLoad9 교체 ★) — 벌마다 하나 · 새 싣기가 옛 고리를 멈춘다. n 올린 수 · drop 내린 수. */
 interface SwapSt9 { tick: ReturnType<typeof setInterval> | null; busy: boolean; n: number; drop: number }
 const swapSt9 = new WeakMap<GlUnits9, SwapSt9>();
@@ -209,6 +216,8 @@ export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: str
 /** opt.want — 받을 요잉 방향 수(8 = a · 16 = a+b · 32 = a+b+c+d · 2026-11-03 요잉 32 ★ spr-atlas parOf). 옛 16칸 표는 a(짝)·b(홀)뿐이라 32 를 줘도 16 까지만 온다. */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; want: 8 | 16 | 32; em: boolean; mbCap: number;
   core?: number; onCore?: () => void; pending?: Set<string>; workers?: number;
+  /** 뒤에서 받아 풀기를 천천히(2026-11-03 · 아이폰 회전 리로드 — 아래 ★ 천천히) — 시작을 이만큼(ms) 늦추고 · 켜 사이를 쉰다. 없으면 종전대로. */
+  slowPrefetchMs?: number;
   /** 푼 단 캐시(위 ★)에 쓸 상한 MB(저장소 몫의 40% 와 작은 쪽). */
   cacheMB?: number;
   /** 앞 종류(core) 묶음의 처리 수 / 전체 — 로딩 진행도(RMP onLoadProgress)의 몫(2026-11-01). */
@@ -369,12 +378,22 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       const lys9 = (j: (typeof jobs)[number]): string[] => j.ch.layers.filter((ly) => (ly !== "e" || opt.em) && !!j.ch.files[opt.res][ly]);
       const st9: SwapSt9 = { tick: null, busy: false, n: 0, drop: 0 };
       swapSt9.set(g9, st9);
-      /* ① 뒤에서 받아 풀어 담기 — 하나씩(재생과 다투지 않게 · 폰 워커 1). */
+      /* ① 뒤에서 받아 풀어 담기 — 하나씩(재생과 다투지 않게 · 폰 워커 1).
+         ★ 천천히(2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 어쩔 땐 되고 어쩔 땐 안 되고 · 32방 끄니 괜찮고 다시 켜도 그 뒤론 잘 됨") — 처음 보는 묶음을 받아 풀고 담는 동안
+         회전하면 캔버스를 새로 잡는 몫과 겹쳐 웹킷이 탭을 죽였다(캐시가 다 차면 안 난다). slowPrefetchMs 가 있으면 그만큼 늦게 시작하고 · 화면 크기가 바뀐 뒤 4초는 쉬고 ·
+         켜 사이를 400ms 쉰다. 교체 고리(②③)도 크기가 바뀐 뒤 2초는 안 올린다(모든 기기). */
       if (by9.size > 0) {
         void (async () => {
+          const slow9 = opt.slowPrefetchMs ?? 0;
+          if (slow9 > 0) await new Promise((res) => setTimeout(res, slow9));
           for (const j of [...by9.values()]) {
             if (swapSt9.get(g9) !== st9) return;
             for (const ly of lys9(j)) {
+              if (slow9 > 0) {
+                while (performance.now() - resizeAt9.t < 4000) await new Promise((res) => setTimeout(res, 500));
+                await new Promise((res) => setTimeout(res, 400));
+                if (swapSt9.get(g9) !== st9) return;
+              }
               if (db) { const ck9 = j.ch.files[opt.res][ly] + "|" + fmt.tf + "|6"; if (await cacheHas9(db, ck9)) continue; await layer9(j, ly); }
               else await fetch(url(j, ly)).then((x) => x.arrayBuffer()).catch(() => null);
             }
@@ -385,10 +404,15 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       /* ②③ 교체 고리 — 150ms 마다 요청 하나. */
       st9.tick = setInterval(() => {
         if (st9.busy || g9.sprSwapReq.size === 0) return;
+        if (performance.now() - resizeAt9.t < 2000) return;   // 화면 크기가 막 바뀌었다(위 ★ 천천히) — 캔버스를 새로 잡는 동안 텍스처를 안 올린다
         const kp9 = g9.sprSwapReq.values().next().value as string; g9.sprSwapReq.clear();
         const j = by9.get(kp9); if (!j) return;
         st9.busy = true;
-        void Promise.all(lys9(j).map((ly) => layer9(j, ly))).then((xs) => {
+        /* 천천히(위 ★) 기기는 **캐시에 담긴 묶음만** 올린다 — 그 자리에서 받아 풀지 않는다(가까운 칸으로 그리는 동안 뒤에서 담기가 채운다). */
+        const ready9 = opt.slowPrefetchMs && db
+          ? Promise.all(lys9(j).map((ly) => cacheHas9(db, j.ch.files[opt.res][ly] + "|" + fmt.tf + "|6"))).then((hs) => hs.every(Boolean))
+          : Promise.resolve(true);
+        void ready9.then((ok9) => { if (!ok9) throw new Error("skip"); return Promise.all(lys9(j).map((ly) => layer9(j, ly))); }).then((xs) => {
           const lv: Record<string, Levels9 | null> = {}; lys9(j).forEach((ly, i) => { lv[ly] = xs[i].lv; });
           const c = lv.c; if (!c) return;
           const t = lv.t ?? null; const e = lv.e ?? null;
@@ -406,7 +430,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
           if (g9.sprFixedMB + mb > opt.mbCap) return;
           if (put9(j, c, t, e, mb) < 0) { by9.delete(kp9); return; }
           by9.delete(kp9); done.add(`${j.kind}.${j.par}.${opt.res}`); st9.n += 1;
-        }).finally(() => { st9.busy = false; });
+        }).catch(() => { /* 아직 안 담김(위 천천히) — 다음 요청 때 */ }).finally(() => { st9.busy = false; });
       }, 150);
     }
     /* 상한에 닿아 멈췄으면 남은 묶음의 풀기 결과는 버린다(워커 일은 이미 돌았다 — 기다리지만 않는다). */
