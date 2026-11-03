@@ -23576,10 +23576,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const ny9 = Math.cos(an9); const nz9 = Math.sin(an9);
         if (nz9 < -0.05) continue;
         if (Math.abs(nz9) < 0.3 && facingRatio(0, ny9) < 0.05) continue;
-        const [ya9, za9] = vtx9(k); const [yb9, zb9] = vtx9(k + 1);
-        /** 낯 위 자리(축 x · 낯 안 s 0~1) → 모형 자(바깥으로 off 만큼). */
-        const P9 = (x9: number, s9: number, off9: number): [number, number, number] =>
-          [x9, ya9 + (yb9 - ya9) * s9 + ny9 * off9, za9 + (zb9 - za9) * s9 + nz9 * off9];
+        /** 낯 위 자리(축 x · 낯 안 s 0~1) → 모형 자(바깥으로 off 만큼) — 반지름은 그 x 의 절두체 반지름(rAt9). */
+        const P9 = (x9: number, s9: number, off9: number): [number, number, number] => {
+          const r9 = rAt9(x9); const [ya9, za9] = vtx9(k, r9); const [yb9, zb9] = vtx9(k + 1, r9);
+          return [x9, ya9 + (yb9 - ya9) * s9 + ny9 * off9, za9 + (zb9 - za9) * s9 + nz9 * off9];
+        };
         out9.push([polyPath3([P9(xa9, 0, 0.02), P9(xb9, 0, 0.02), P9(xb9, 1, 0.02), P9(xa9, 1, 0.02)]), 1, "#d9ae35"] as ShapeFace);
         /* 빗금 — u = x + dir·(둘레 자리) 가 [p, p + HZ_W9] 인 띠를 이 낯의 네모(x ∈ [xa, xb] · s ∈ [0, 1])로 자른다(볼록 다각형 자르기). */
         const a0 = k * side9;
@@ -23607,9 +23608,15 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     };
     void CX; void LEN;
     const oct9: ShapeFace[] = [];
-    const vtx9 = (k: number): [number, number] => {
+    /* ★ **약한 절두체 둘**(2026-11-03, 요청: "길이를 본체 쪽에서 2/5 지점을 구분으로 해서 그 부분이 좀 좁게 · 양끝이 넓게 · 약한 절두체 모양") — 본체 쪽 끝(X0)에서
+       길이 2/5(XW9)까지 반지름이 R8 → R8·WAIST9 로 좁아지고, 거기서 X1 까지 도로 R8 로 넓어진다(좁히는 몫 0.85 는 안 받아 고른 값 — 되물릴 값). */
+    const WAIST9 = 0.85;
+    const XW9 = X0 + (X1 - X0) * 0.4;
+    const rAt9 = (x9: number): number => R8 * (x9 <= XW9 ? 1 - (1 - WAIST9) * ((x9 - X0) / Math.max(1e-6, XW9 - X0)) : WAIST9 + (1 - WAIST9) * ((x9 - XW9) / Math.max(1e-6, X1 - XW9)));
+    /** 팔각 꼭짓점 k 의 (y, z) — 반지름 r(안 주면 R8). */
+    const vtx9 = (k: number, r9: number = R8): [number, number] => {
       const a9 = (Math.PI / 8) + (k * Math.PI) / 4;
-      return [CY8 + R8 * Math.cos(a9), CZ8 + R8 * Math.sin(a9)];
+      return [CY8 + r9 * Math.cos(a9), CZ8 + r9 * Math.sin(a9)];
     };
     const sides9: { d: string; ny: number; nz: number }[] = [];
     for (let k = 0; k < 8; k += 1) {
@@ -23621,7 +23628,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 보이는 면만: 위를 보거나(nz) 이쪽을 보는(facingRatio) 면. 아래를 보는 면은 없다.
       if (nz9 < -0.05) continue;
       if (Math.abs(nz9) < 0.3 && facingRatio(0, ny9) < 0.05) continue;
-      sides9.push({ d: polyPath3([[X0, y0, z0], [X1, y0, z0], [X1, y1, z1], [X0, y1, z1]]), ny: ny9, nz: nz9 });
+      void y0; void z0; void y1; void z1;
+      for (const [xa9, xb9] of [[X0, XW9], [XW9, X1]] as [number, number][]) {   // 허리에서 가른 두 절두체 낯
+        const [ya0, za0] = vtx9(k, rAt9(xa9)); const [ya1, za1] = vtx9(k + 1, rAt9(xa9));
+        const [yb0, zb0] = vtx9(k, rAt9(xb9)); const [yb1, zb1] = vtx9(k + 1, rAt9(xb9));
+        sides9.push({ d: polyPath3([[xa9, ya0, za0], [xb9, yb0, zb0], [xb9, yb1, zb1], [xa9, ya1, za1]]), ny: ny9, nz: nz9 });
+      }
     }
     // 뒤(안 보이는 쪽)부터 앞으로 — 앞을 보는 면이 마지막에 덮는다.
     sides9.sort((a9, b9) => (a9.nz + facingRatio(0, a9.ny)) - (b9.nz + facingRatio(0, b9.ny)));
@@ -23637,20 +23649,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     for (const [ex9, sx9] of [[X0, -1], [X1, 1]] as [number, 1 | -1][]) {
       if (facingRatio(sx9, 0) < 0.05) continue;
-      const cap9 = polyPath3(Array.from({ length: 8 }, (_, k) => { const [y9, z9] = vtx9(k); return [ex9, y9, z9] as [number, number, number]; }));
+      const cap9 = polyPath3(Array.from({ length: 8 }, (_, k) => { const [y9, z9] = vtx9(k, rAt9(ex9)); return [ex9, y9, z9] as [number, number, number]; }));
       oct9.push(bodyFace(cap9), sideFace(cap9, 0.5));
     }
     /* (같은 날 바로잡음: "한 바퀴를 포장지 통으로 감싼다고 생각해야 해" → (물음에) "폭이 좁은 띠 둘") — 통 전체가 아니라 **좁은 띠 둘**이 한 바퀴씩 감는다.
        띠 폭 = 통 두께(지름 2·R8)의 2/5 · 3/5 · 자리는 길이의 1/3 · 2/3 가운데(자리는 안 받아 고른 값 — 되물릴 값) · 빗금 기울기는 서로 반대. */
-    const D9 = 2 * R8;
-    const ringAt9 = (fx9: number, w9: number, dir9: 1 | -1): ShapeFace[] => {
-      const c9 = X0 + (X1 - X0) * fx9;
-      return ringFaces9(Math.max(X0, c9 - w9 / 2), Math.min(X1, c9 + w9 / 2), dir9);
-    };
+    /* (같은 날 되요청: "띠 두께를 양쪽 다 똑같이 2/5 지름으로 하고 연결관 양끝으로 이동") — 두 띠 다 폭 = 끝 지름(2·R8)의 2/5 · 양끝에 붙인다(본체 쪽 X0~ · 부속 쪽 ~X1). */
+    const BW9 = 2 * R8 * 0.4;
     return [
       ...raceBase(oct9, "terran"),
-      ...ringAt9(1 / 3, D9 * 0.4, 1),
-      ...ringAt9(2 / 3, D9 * 0.6, -1),
+      ...ringFaces9(X0, Math.min(XW9, X0 + BW9), 1),
+      ...ringFaces9(Math.max(XW9, X1 - BW9), X1, -1),
     ];
   },
   /* 버로우 구멍(요청) — 버로우 중엔 유닛 대신 이 구멍만: 흙 둔덕 테 + 어두운 구멍.
