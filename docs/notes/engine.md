@@ -525,3 +525,7 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
      재료는 메인의 entData.tiles(워커에 넘길 때 transfer 하지 않는 배열이라 메인에도 산다) · 시각은 붓(paintFnRef9)이 CREEP17_9.t 에 적는다.
   ② 안개 눈: 보이는 칸을 사분 나무로 — 8·4·2 칸 정사각이 둘레 띠(0.21·크기 + 0.05 올림)까지 다 보이면 원 하나(반지름 0.71·크기 + 0.05) · 남은 칸은 칸마다 0.75.
      실측(--v17 · 사람 여덟 본진 반지름 14): 보이는 칸 ≈ 4,900 → 눈 1,040.
+
+## publish-dist — 디스크를 안 거친다(2026-11-03)
+- 지적 "배포하려다가 자꾸 멈춤" — 옛 판은 dist 브랜치를 worktree 로 꺼내(spr/ 494MB) 지우고 다시 베끼고 다시 해시해 2~3분. 이제 임시 인덱스에 spr/·bin/ 은 HEAD 나무 그대로(read-tree --prefix),
+  dist/ 만 add, package.json·README 는 hash-object → write-tree → commit-tree → push. `PUBLISH_DRY=1` 은 커밋만 짓고 안 민다(나무 해시를 옛 dist 와 견줌 — 같은 HEAD 면 같은 나무 · 실측 일치 · 25초).
