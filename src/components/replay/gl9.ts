@@ -743,6 +743,8 @@ const MATX_FS9 = `
       float cel9 = fbm9(p9 * 1.6 + 1.7, px9);
       c *= 1.0 - k9 * (0.18 * (sp9 - 0.5) + 0.16 * (cel9 - 0.5));
     }
+    /* ★ 면 광택 구운 번짐(2026-11-03, 시안 B 정함 · 위 edgeShine9 ★) — 쇠·금 낯(cl 1·2·6)의 센 광택 자리를 한 번 더 밝혀 빛이 번진 듯이(빛 판이 아니라 그림에). */
+    if (cl9 == 1 || cl9 == 2 || cl9 == 6) c += k9 * 0.16 * spec9 * smoothstep(0.10, 0.35, amt9);
   }
 `;
 const MATX_FN9 = `
@@ -823,7 +825,11 @@ vec3 edgeShine9(vec3 c, float px9, float k9, float lt9, vec3 col9) {
   float w9 = clamp(0.014 * px9, 0.45, 0.85);
   float e9 = 1.0 - smoothstep(0.25 * w9, w9, edgePx9());
   /* (같은 날 "모서리 광택이 명암부 상관없이 붙어서 어색") — 세기를 낯 휘도(금은 그늘에서도 밝다)가 아니라 **빛을 마주 본 정도**(vLt = N·L · 정점)로 — 그늘 낯은 0. */
-  return c + k9 * 0.70 * e9 * smoothstep(0.20, 0.70, lt9) * col9;
+  /* ★ 구운 번짐(2026-11-03, 시안 B 정함: "B로 기본 적용 · 어차피 미리 굽는 거면 폰에도 전 티어") — 화면 번짐(빛 판 · 폰은 발열로 끔)이 아니라 **그림에 굽는다**:
+     날 곁 R(1.5~4화소)에 걸친 부드러운 빛무리를 같은 색으로 더한다(가우스 꼴 · 세기 SHN_HALO9). 판에 들어 있으니 폰·PC 어느 단이든 같고 재생 비용이 없다. */
+  float R9 = clamp(0.05 * px9, 1.5, 4.0);
+  float h9 = exp(-(edgePx9() * edgePx9()) / (R9 * R9));
+  return c + k9 * 0.70 * (e9 + 0.45 * h9) * smoothstep(0.20, 0.70, lt9) * col9;
 }
 /** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
 vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
@@ -1261,14 +1267,6 @@ const SPR_LOOK9: [number, number] = [0.5, 0.5];
  *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
 const SPR_ISH9 = 0.7;   // 0.4 → 0.7(2026-10-30, 요청: 시안 "그림자 0.7 광택 1.5" — 대비 대신 부품 그늘로 입체감)
 const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
-/** ★ 광택 번짐 시안(2026-11-03, 요청: "시안 · 모서리 광택과 면 광택 모두 번짐효과 필요한데 · 피시에서만이라도") — #shinebloom 으로 켠다(기본 끔 · 판 해시 안 움직임).
- *  모서리 광택(edgeShine9 이 더한 몫) × E 와 쇠·금 낯(cl 1·2·6)의 면 광택(spec9 의 센 자리) × F 를 **빛 판(emitColor)** 에도 적어 번짐을 태운다 — 링크 때 글자로 끼운다.
- *  빛 판은 번짐 켠 단만 쓰고 아틀라스의 빛 켜(e)는 PC·번짐 단만 싣는다 → 폰 낮은 단에는 저절로 없다. 세기 #shbe=E(기본 1) · #shbf=F(기본 0.6). WebGL2·#matx 만. */
-const SHB9 = ((): [number, number] | null => {
-  if (typeof location === "undefined" || !/(?:^|[#&,])shinebloom(?=$|[&,])/.test(location.hash)) return null;
-  const n9 = (k: string, d: number): number => { const m9 = new RegExp("(?:^|[#&,])" + k + "=([0-9.]+)").exec(location.hash); return m9 ? Number(m9[1]) : d; };
-  return [n9("shbe", 1), n9("shbf", 0.6)];
-})();
 const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : SPR_ISH9; })();
 const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : SPR_BCON9; })();
 /** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */
@@ -1442,13 +1440,8 @@ export class GlUnits9 implements VecSink9 {
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;");   // glA9 — 유리 투명(MATX_FS9 cl 7)
-    /* 광택 번짐 시안(위 SHB9 ★) — 모서리 광택이 더한 몫을 전역 gEm9 에 모으고 · 쇠·금 낯의 면 광택 센 자리와 함께 빛 판에 더한다(//__EMIT__ 줄 뒤 · es3 가 그 줄을 emitColor 로 바꾼다). */
-    const fsB9 = !(mx9 && SHB9) ? fsM9 : fsM9
-      .replace("uniform float uMatK;", "uniform float uMatK;\nvec3 gEm9 = vec3(0.0);")
-      .replace("  return c + k9 * 0.70 * e9 * smoothstep(0.20, 0.70, lt9) * col9;", "  vec3 sh9 = k9 * 0.70 * e9 * smoothstep(0.20, 0.70, lt9) * col9;\n  gEm9 += sh9 * " + SHB9[0].toFixed(3) + ";\n  return c + sh9;")
-      .replace("//__EMIT__", "//__EMIT__\n  { float cw9 = vMn.w; float mt9 = ((cw9 > 0.5 && cw9 < 2.5) || (cw9 > 5.5 && cw9 < 6.5)) ? 1.0 : 0.0;\n    emitColor.rgb += (gEm9 + mt9 * spec9 * smoothstep(0.10, 0.35, amt9) * " + SHB9[1].toFixed(3) + ") * a9; }");
     const p = gl.createProgram()!;
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsB9)); gl.linkProgram(p);
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
