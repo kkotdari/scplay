@@ -532,6 +532,18 @@ export interface GasEmit9 { x: number; y: number; z: number; r: number; h: numbe
 /** 지금 굽는 빌더가 적은 굴뚝들 — collectMesh9 한 벌마다 gl9 가 `gasEmitTake9` 로 걷어 메시에 붙인다. */
 let GAS_EMIT9: GasEmit9[] = [];
 export function gasEmitTake9(): GasEmit9[] { const g = GAS_EMIT9; GAS_EMIT9 = []; return g; }
+/** ★ **가스 기운 모으는 자리**(2026-11-03, 요청: "디파일러는 알쪽 가운데 구멍 주변에만 기운 모으기 · 히드라덴은 뒤쪽 막 주변에만") — 빌더가 모형 자로
+ *  원(중심·반지름)을 적으면 gl9 굽는 빛무리(AURA9 ★)가 그 원 안에만 가스를 모은다. 굴뚝표처럼 감싸개를 다 먹인 자(modelPoint9)로 적고, 읽는 동안(AURA_REC9)만 쌓는다. */
+export interface AuraFocus9 { x: number; y: number; z: number; r: number }
+let AURA_FOCUS9: AuraFocus9[] = [];
+let AURA_REC9 = false;
+/** gl9 auraFocusOf9 가 빌더를 한 번 돌리며 켜고 끈다. */
+export function auraFocusRec9(on: boolean): AuraFocus9[] { const g = AURA_FOCUS9; AURA_FOCUS9 = []; AURA_REC9 = on; return g; }
+export function auraFocus9(x: number, y: number, z: number, r: number): void {
+  if (!AURA_REC9 || !MESH9.on) return;
+  const [bx, by, bz] = modelPoint9(x, y, z); const [rx, ry] = modelPoint9(x + r, y, z);
+  AURA_FOCUS9.push({ x: bx, y: by, z: bz, r: Math.hypot(rx - bx, ry - by) });
+}
 /** 시각 u0(바퀴의 몫 0~1)에 살아 있는 덩이들 — 자리·반지름·짙기. 2D 굽기(gasPuffs9)와 붓(gl9 gasPush9)이 **같은 식**을 본다. */
 export function gasPuffFrames9(o: GasEmit9, u0: number): { x: number; y: number; z: number; rr: number; a: number }[] {
   const out: { x: number; y: number; z: number; rr: number; a: number }[] = [];
@@ -1303,6 +1315,10 @@ export function spirePillar(o: {
    *  다각형으로 남긴다. 다 파낼 쪽이면 낯을 빼고, 다 남는 쪽이면 그대로다. 경계는 변마다 한 점씩 곧게 잇는 현이라
    *  낯이 작을수록 곡선에 가깝다. ⚠ 한 낯을 경계가 두 번 넘게 지나면(낯이 경계의 굽이보다 클 때) 그 낯은 그대로 둔다. */
   cutFace?: (x: number, y: number, z: number) => number;
+  /** ★ **꺾인 마디의 마이터**(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데") — 축이 마디 고리에서 각지게 꺾이면(폴리라인 path) 그 고리의 단면은
+   *  두 방향의 평균 접선에 수직이라 꺾이는 쪽 두께가 cos(꺾임/2) 만큼 **조여** 앞뒤 낯이 그 자리에서 접혀 들어갔다. 참이면 꺾임이 11° 넘는 고리에서
+   *  꺾이는 방향(b) 성분만 1/cos(꺾임/2) 로 늘려 두 낯이 한 모서리에서 만나게 한다. 매끈한 굽이(꺾임 작음)는 손대지 않는다 — 켠 쪽만 탄다. */
+  mitre?: boolean;
 }): ShapeFace[] {
   const z0 = o.z0 ?? 0;
   const segs = Math.max(1, o.segs ?? 3);
@@ -1387,6 +1403,21 @@ export function spirePillar(o: {
       const vx = T[1] * uz - T[2] * uy;
       const vy = T[2] * ux - T[0] * uz;
       const vz = T[0] * uy - T[1] * ux;
+      /* 마이터(위 mitre ★) — 앞뒤 마디 방향(d_in·d_out)으로 꺾임을 재고, 꺾이는 방향 b(접선에 수직)의 성분만 늘린다. */
+      let mb: [number, number, number] | null = null; let mk = 1;
+      if (o.mitre && s3 > 0 && s3 < segs) {
+        const pa9 = axis((s3 - 1) / segs); const pb9 = axis((s3 + 1) / segs);
+        const di9 = [ax - pa9[0], ay - pa9[1], az - pa9[2]]; const do9 = [pb9[0] - ax, pb9[1] - ay, pb9[2] - az];
+        const li9 = Math.hypot(di9[0], di9[1], di9[2]) || 1; const lo9 = Math.hypot(do9[0], do9[1], do9[2]) || 1;
+        const cosB9 = (di9[0] * do9[0] + di9[1] * do9[1] + di9[2] * do9[2]) / (li9 * lo9);   // 꺾임 각의 cos
+        if (cosB9 < 0.98) {
+          const half9 = Math.sqrt(Math.max(0.05, (1 + cosB9) / 2));   // cos(꺾임/2)
+          let bx = do9[0] / lo9 - di9[0] / li9; let by = do9[1] / lo9 - di9[1] / li9; let bz = do9[2] / lo9 - di9[2] / li9;
+          const bd9 = bx * T[0] + by * T[1] + bz * T[2]; bx -= T[0] * bd9; by -= T[1] * bd9; bz -= T[2] * bd9;
+          const bl9 = Math.hypot(bx, by, bz);
+          if (bl9 > 1e-6) { mb = [bx / bl9, by / bl9, bz / bl9]; mk = 1 / half9; }
+        }
+      }
       frames.push(Array.from({ length: sides }, (_, i) => {
         const a = (i / sides) * Math.PI * 2 + (o.phase ?? Math.PI / sides);
         const rk = o.radOf ? o.radOf(a) : 1;
@@ -1395,7 +1426,9 @@ export function spirePillar(o: {
         let sn = Math.sin(a) * r * rk * (o.ovalOf ? o.ovalOf(t) : ovalK)
           + (o.skewV ? o.skewV(cu, t) : 0);
         if (o.flatV) sn = o.flatV > 0 ? Math.min(0, sn) : Math.max(0, sn);
-        return [ax + ux * cs + vx * sn, ay + uy * cs + vy * sn, az + uz * cs + vz * sn] as [number, number, number];
+        let ox = ux * cs + vx * sn; let oy = uy * cs + vy * sn; let oz = uz * cs + vz * sn;
+        if (mb) { const kb9 = (ox * mb[0] + oy * mb[1] + oz * mb[2]) * (mk - 1); ox += mb[0] * kb9; oy += mb[1] * kb9; oz += mb[2] * kb9; }
+        return [ax + ox, ay + oy, az + oz] as [number, number, number];
       }));
     }
   }
@@ -10423,7 +10456,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         /* ⚠ `tipW` 를 줘야 **위 뚜껑이 난다**(2026-09, 지적: "게이트 기둥 윗면이 뚫려 보임") — 굵기는 widthOf 가
            그리지만 뚜껑의 문은 여전히 `tipW > 0.01` 을 본다(프로브에서 적어 둔 그 함정). 안 주면 끝이 열린 관이라
            GL 에서 속(어두운 안쪽 낯)이 내려다보인다. */
-        x: 0, y: 0, h: 0.8, w: 1, tipW: W1_9, segs: 20, sides: 4, ref: [0, 1, 0],
+        x: 0, y: 0, h: 0.8, w: 1, tipW: W1_9, segs: 20, sides: 4, ref: [0, 1, 0], mitre: true,   // 꺾인 두 고리(t 0.35 · 0.9)에서 낯이 조여 어긋나던 것(2026-11-03)
         /* 끝끼리 모으되 붙지는 않게(재지적: 너무 붙었다) — 안쪽으로 눕는 몫 2.25 →
            1.85. 두 끝 사이에 문틈이 남는다. */
         path: (t9: number): [number, number, number] => [
@@ -10452,26 +10485,32 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          ★ 한 띠를 **한 부품으로** 묶는다 — 조각마다 tagKey 를 부르면 조각 하나하나가 '한 장짜리 작은 부품'이라
            붓이 데칼로 보고 깊이 편향(1.3 모델칸)을 얹는데, 기둥 두께가 1.3 쯤이라 등진 쪽 띠가 기둥을 뚫고
            비쳤다. 여섯 조각을 한 부품으로 묶으면 편향이 안 걸리고 깊이가 제대로 가린다. */
+      /* ★ 데칼은 **바깥 낯의 참 법선**으로 띄운다(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데") — 옛 판은 축에서 x 로만 hw 를 밀어, 기둥이 기운 마디
+         (밑 0~0.35 바깥으로 13° · 가운데 안쪽으로 27°)에서 띠가 낯과 거의 겹치거나 낯 속에 묻혀 z 싸움으로 조각조각 어긋나 보였다. 낯 중심은 축 + v·hw 이고
+         v 는 접선(x–z 평면)에 수직인 바깥 방향 = sign·(tz, −tx) 다(spirePillar 의 v 와 같은 자 · z 쌍둥이 공간). */
+      const axis9 = (t9: number): [number, number] => [mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9)), hz9 - 0.28 + AXIS9z9 * t9];
       const face9 = (t9: number): { x: number; y: number; z: number; hw: number } => {
         const w9 = base9(t9) * (1 - CUT_K9 * cut9(t9));
         const hw9 = w9 * Math.SQRT1_2;
-        return {
-          x: mx9 + Math.sign(mx9) * (xoff9(t9) + (W0_9 * 0.5 * CUT_K9) * cut9(t9) + hw9 + 0.03),
-          y: 0,
-          /* ⚠ z 는 **z 쌍둥이**로 센다(hz9·AXIS9z9) — 첫 판은 화면 자(h·AXIS9)를 그대로 써서
-             띠가 기둥보다 1.25배 높이 올라가, GL 에서 기둥 위 허공에 금색 조각으로 떴다. */
-          z: hz9 - 0.28 + AXIS9z9 * t9,
-          hw: hw9,
-        };
+        const [ax9, az9] = axis9(t9);
+        const pa9 = axis9(Math.max(0, t9 - 0.004)); const pb9 = axis9(Math.min(1, t9 + 0.004));
+        const tx9 = pb9[0] - pa9[0]; const tz9 = pb9[1] - pa9[1]; const tl9 = Math.hypot(tx9, tz9) || 1;
+        const sg9 = Math.sign(mx9);
+        const nx9 = sg9 * (tz9 / tl9); const nz9 = -sg9 * (tx9 / tl9);
+        return { x: ax9 + nx9 * (hw9 + 0.03), y: 0, z: az9 + nz9 * (hw9 + 0.03), hw: hw9 };
       };
       const strip9 = (t0: number, t1: number, taperTop: boolean): void => {
         // 바깥 옆낯이 카메라를 향할 때만(2D). GL 은 깊이가 가린다.
         if (facingRatio(Math.sign(mx9), 0) <= 0.05) return;
         const N9 = 6;
         const q9: ShapeFace[] = [];
-        for (let i9 = 0; i9 < N9; i9 += 1) {
-          const ta9 = t0 + ((t1 - t0) * i9) / N9;
-          const tb9 = t0 + ((t1 - t0) * (i9 + 1)) / N9;
+        /* 조각 끝을 꺾인 자리(K1_9 · K2_9)에도 둔다(2026-11-03) — 꺾임을 가로지르는 조각은 모서리를 질러 낯 속에 묻혔다. */
+        const ts9 = Array.from({ length: N9 + 1 }, (_, i9) => t0 + ((t1 - t0) * i9) / N9);
+        for (const kk9 of [K1_9, K2_9]) if ((kk9 - t0) * (kk9 - t1) < 0) ts9.push(kk9);
+        ts9.sort((p9, q9b) => (t1 > t0 ? p9 - q9b : q9b - p9));
+        for (let i9 = 0; i9 + 1 < ts9.length; i9 += 1) {
+          const ta9 = ts9[i9];
+          const tb9 = ts9[i9 + 1];
           const kOf9 = (tq9: number): number => {
             if (!taperTop) return 1;
             const u9 = (tq9 - t0) / (t1 - t0);          // 0 밑동 → 1 위끝
@@ -16995,6 +17034,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const my9 = (MA[k9][1] + MA[k9 + 1][1] + MC[k9][1] + MC[k9 + 1][1]) / 4;
       return 12 + depthNow(mx9, my9) * 1.6;
     };
+    /* 가스 기운은 막 둘레에만(2026-11-03 · gl9 AURA9 ★) — 칸마다 윗변·아랫변 가운데의 한가운데 높이에 원 하나. */
+    for (let k9 = 0; k9 + 1 < MA.length; k9 += 1) {
+      const c9 = MC[Math.min(k9, MC.length - 1)]; const c9b = MC[Math.min(k9 + 1, MC.length - 1)];
+      const fx9 = (MA[k9][0] + MA[k9 + 1][0] + c9[0] + c9b[0]) / 4;
+      const fy9 = (MA[k9][1] + MA[k9 + 1][1] + c9[1] + c9b[1]) / 4;
+      const fz9 = (MA[k9][2] + MA[k9 + 1][2]) / 4;
+      auraFocus9(fx9, fy9, fz9, 2.2);
+    }
     for (let k9 = 0; k9 + 1 < MA.length; k9 += 1) {
       out.push(...membraneFaces(
         [MA[k9], MA[k9 + 1]], [MC[k9], MC[k9 + 1]], RACE_BASE_TONE.zerg,
@@ -17572,6 +17619,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     /* 두 갈래 사이의 바닥 절벽 구멍 — 판 앞 땅 위에 살 테를 두르고 속을 역돔으로 판다(바닥 z 0.15 라 크립 판이 안 덮는다). */
     const PX = 0; const PY = 3.7; const PR = 0.95; const PZ = 1.0;
+    auraFocus9(PX, PY, PZ, 2.4);   // 가스 기운은 이 구멍 둘레에만(gl9 AURA9 ★ · 2026-11-03)
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, h: 0.8, w: 0.36, tipW: 0.36, segs: 18, sides: 6, hold: 1, caps: "none",
       path: (t9: number): [number, number, number] => {
