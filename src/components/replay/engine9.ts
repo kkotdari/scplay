@@ -5589,14 +5589,36 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     })() : null;
     const eyes9 = ((): Float32Array => {
       if (!fogOn) return EMPTY_FRAME9.eyes;
-      if (tileVis9) {   // 판 17 — 보이는 칸마다 작은 눈 하나(반지름 0.75 타일 · 신원 = 칸 번호) — GL 안개가 그 합집합을 밝힌다
-        let n9 = 0; for (let i9 = 0; i9 < tileVis9.length; i9 += 1) if (tileVis9[i9]) n9 += 1;
-        const o9 = new Float32Array(n9 * 4); let j9 = 0;
-        for (let i9 = 0; i9 < tileVis9.length; i9 += 1) {
-          if (!tileVis9[i9]) continue;
-          o9[j9] = (i9 % gw9) + 0.5; o9[j9 + 1] = Math.floor(i9 / gw9) + 0.5; o9[j9 + 2] = 0.75; o9[j9 + 3] = i9; j9 += 4;
+      if (tileVis9) {
+        /* ★ 판 17 — 보이는 칸을 **사분 나무로 묶어** 눈으로(2026-11-03, 요청: "눈 목록을 묶어 개수 줄이기" → "둘 다 ㅅㄱ") — 8·4·2 칸 정사각이 다 보이고
+           그 둘레(덩이 크기에 맞춘 띠 — 원이 덩이 밖으로 삐져나가는 몫 0.21·크기 + 0.05 이상)까지 보이면 그 덩이를 감싸는 원 하나(반지름 0.71·크기 + 0.05),
+           남은 보이는 칸은 칸마다 반지름 0.75. 넓게 보이는 자리는 수십분의 일로 준다. 신원 = (단 << 20) | 덩이 왼위 칸. */
+        const W9 = gw9; const H9 = gh9;
+        const S9 = new Int32Array((W9 + 1) * (H9 + 1));   // 적분 판(보이는 칸 수)
+        for (let y9 = 0; y9 < H9; y9 += 1) { let r9 = 0; for (let x9 = 0; x9 < W9; x9 += 1) { r9 += tileVis9[y9 * W9 + x9] ? 1 : 0; S9[(y9 + 1) * (W9 + 1) + x9 + 1] = S9[y9 * (W9 + 1) + x9 + 1] + r9; } }
+        /** [x0,x1)×[y0,y1) 가 다 보이나 — 지도 밖은 보이는 것으로 친다(안개가 지도 밖을 안 칠한다). */
+        const allVis9 = (x0: number, y0: number, x1: number, y1: number): boolean => {
+          const a0 = Math.max(0, x0); const b0 = Math.max(0, y0); const a1 = Math.min(W9, x1); const b1 = Math.min(H9, y1);
+          if (a1 <= a0 || b1 <= b0) return true;
+          const n9 = S9[b1 * (W9 + 1) + a1] - S9[b0 * (W9 + 1) + a1] - S9[b1 * (W9 + 1) + a0] + S9[b0 * (W9 + 1) + a0];
+          return n9 === (a1 - a0) * (b1 - b0);
+        };
+        const cov9 = new Uint8Array(W9 * H9);
+        const out9: number[] = [];
+        for (const [sz9, lv9] of [[8, 3], [4, 2], [2, 1]] as const) {
+          const mg9 = Math.ceil(0.2071 * sz9 + 0.05);
+          for (let by9 = 0; by9 < H9; by9 += sz9) for (let bx9 = 0; bx9 < W9; bx9 += sz9) {
+            if (cov9[by9 * W9 + bx9]) continue;
+            if (!allVis9(bx9, by9, bx9 + sz9, by9 + sz9) || !allVis9(bx9 - mg9, by9 - mg9, bx9 + sz9 + mg9, by9 + sz9 + mg9)) continue;
+            out9.push(bx9 + sz9 / 2, by9 + sz9 / 2, 0.7071 * sz9 + 0.05, (lv9 << 20) | (by9 * W9 + bx9));
+            for (let y9 = by9; y9 < Math.min(H9, by9 + sz9); y9 += 1) cov9.fill(1, y9 * W9 + bx9, y9 * W9 + Math.min(W9, bx9 + sz9));
+          }
         }
-        return o9;
+        for (let i9 = 0; i9 < tileVis9.length; i9 += 1) {
+          if (!tileVis9[i9] || cov9[i9]) continue;
+          out9.push((i9 % W9) + 0.5, Math.floor(i9 / W9) + 0.5, 0.75, i9);
+        }
+        return Float32Array.from(out9);
       }
       /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다.
        *  ★ 한 눈은 **네 칸**이다: x · y · 반지름 · **신원(eid)**(지적: "안개 뒤로 돌림은
@@ -8112,7 +8134,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     }
     /* ★ 판 17 타일 크립(2026-11-03, 요청: "크립 … 연결") — 원작 타일의 크립 깃발(0x40) 그대로. 4×4 타일 칸마다 크립 칸 수·무게중심으로 크립 판 하나를 깐다
        (건물 둘레 어림·확산 시계를 걷는다 · 퍼짐·물러남이 원작대로 따라온다). 판 그림·질감은 종전 크립 판(creeppatch)을 그대로 쓴다. */
-    if (tiles17) {
+    if (tiles17 && pitched) {   // 평면은 화면이 타일 크립을 한 장으로 그린다(RMP creep17Layer9) — 여기는 입체(원근)만
       const st9 = tiles17.stateAt(t);
       /* 칸은 가로 4 × 세로 2 — 크립 판은 땅에 눕혀 그려 세로가 가로의 4할 남짓이라, 정사각 칸이면 줄 사이가 빈다(헤드리스 --v17 실측). */
       const C9 = 4; const R9 = 2;

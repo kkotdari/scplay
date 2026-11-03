@@ -77,6 +77,7 @@ import {
   TRUTH_ST_INSIDE as ST_INSIDE,
   TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks, st16At, ST16 } from "../../utils/openbwTracks";
 import { BW_UNIT_NAME } from "../../utils/bwUnitNames";
+import type { TileTL17 } from "../../utils/openbwTracks";
 import { bwUpgradeName, BW_TECH_NAME } from "../../utils/bwUpgradeNames";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
@@ -2373,6 +2374,41 @@ type CreepPlate9 = { cv: HTMLCanvasElement; ox: number; oy: number; pad: number;
  *  첫 시안(세포 워리)은 "저런 느낌이 아니라". 값 < 0 은 검보라 · > 0 은 흰분홍(알파 = 세기).
  *  크립 판(creepPlate9)이 구울 때 한 번 판 위에(source-atop) 깐다 — 판은 경기 내내 살아 있으니 비용(≈0.3초)은 그때 한 번. */
 let CREEP_TEX9: HTMLCanvasElement | null | undefined;
+/** ★ 판 17 크립 한 장(2026-11-03, 요청: "크립을 지형처럼 한 장으로 미리 그려 두고 바뀔 때만" → "둘 다 ㅅㄱ") — 원작 타일 크립(0x40)을 지도 크기 캔버스 하나에
+ *  칸마다 둥근 얼룩(반지름 0.72 타일)으로 칠해 두고, 크립·시야가 바뀔 때만(TileTL17.at · 편 mask) 다시 칠한다. 붓은 크립 패스에서 이 한 장을 지도 상자에 붙이고
+ *  벽 파내기·땅 질감은 종전 그대로 탄다. 안개: 못 밝힌 칸은 안 칠하고 · 밝혔지만 지금 안 보이는 칸은 반 알파(옛 크립 판의 cSeen 1 과 같은 자). 평면만(입체는 엔진의 판). */
+const CREEP17_9: { tiles: TileTL17 | null; mask: number; visAll: boolean; t: number; key: string; cv: HTMLCanvasElement | null; dim: HTMLCanvasElement | null } = { tiles: null, mask: 0, visAll: true, t: 0, key: "", cv: null, dim: null };
+const CREEP17_PX9 = 8;
+function creep17Layer9(t9: number): HTMLCanvasElement | null {
+  const tl9 = CREEP17_9.tiles; if (!tl9 || typeof document === "undefined") return null;
+  const st9 = tl9.stateAt(t9);
+  const key9 = `${tl9.at}|${CREEP17_9.mask}|${CREEP17_9.visAll ? 1 : 0}`;
+  if (CREEP17_9.cv && CREEP17_9.key === key9) return CREEP17_9.cv;
+  const W9 = tl9.w; const H9 = tl9.h; const K9 = CREEP17_PX9;
+  const mk9 = (): HTMLCanvasElement => { const c9 = document.createElement("canvas"); c9.width = W9 * K9; c9.height = H9 * K9; return c9; };
+  const cv9 = CREEP17_9.cv ?? mk9(); const dim9 = CREEP17_9.dim ?? mk9();
+  const c9 = cv9.getContext("2d"); const d9 = dim9.getContext("2d"); if (!c9 || !d9) return null;
+  c9.clearRect(0, 0, cv9.width, cv9.height); d9.clearRect(0, 0, dim9.width, dim9.height);
+  const col9 = tone9("#6b5a72"); c9.fillStyle = col9; d9.fillStyle = col9;
+  const m9 = CREEP17_9.mask; const all9 = CREEP17_9.visAll;
+  const r9 = K9 * 0.72;
+  c9.beginPath(); d9.beginPath();
+  let nd9 = 0;
+  for (let i9 = 0; i9 < st9.length; i9 += 1) {
+    const v9 = st9[i9];
+    if (!((v9 >>> 16) & 0x40)) continue;
+    const vis9 = all9 || ((~v9 >>> 8) & 0xff & m9) !== 0;
+    const exp9 = all9 || (~v9 & 0xff & m9) !== 0;
+    if (!vis9 && !exp9) continue;
+    const x9 = ((i9 % W9) + 0.5) * K9; const y9 = (Math.floor(i9 / W9) + 0.5) * K9;
+    const g9 = vis9 ? c9 : d9; if (!vis9) nd9 += 1;
+    g9.moveTo(x9 + r9, y9); g9.arc(x9, y9, r9, 0, Math.PI * 2);
+  }
+  d9.fill(); c9.fill();
+  if (nd9 > 0) { c9.save(); c9.globalCompositeOperation = "destination-over"; c9.globalAlpha = 0.5; c9.drawImage(dim9, 0, 0); c9.restore(); }   // 반 알파 몫은 아래에(보이는 칸이 덮는다)
+  CREEP17_9.cv = cv9; CREEP17_9.dim = dim9; CREEP17_9.key = key9;
+  return cv9;
+}
 function creepTex9(): HTMLCanvasElement | null {
   if (CREEP_TEX9 !== undefined) return CREEP_TEX9;
   CREEP_TEX9 = null;
@@ -7360,7 +7396,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 클립은 벽 마스크와 무관하다(재지적: 3D에서 아직도 미니맵을 벗어남) — 전에는
          마스크가 있을 때만 이 갈래로 들어와, 마스크가 아직 안 구워진 판에서는 클립
          자체가 안 걸려 크립이 맵 밖으로 샜다. 이제 크립이 있으면 늘 가둔다. */
-      if (creepList.length > 0) {
+      const creep17cv9 = !pitchedProp && showCreep !== false && CREEP17_9.tiles ? creep17Layer9(CREEP17_9.t) : null;   // 판 17 크립 한 장(위 creep17Layer9 ★)
+      if (creepList.length > 0 || creep17cv9) {
         /* 크립은 맵 밖으로 못 나간다(지적: 미니맵 밖까지 나옴) — 컨테이너가 overflow:
            hidden이 아니라(모서리 마커를 안 자르려고) 가장자리 해처리의 크립 원이 그림
            밖까지 그려졌다. 크립 판만 맵 영역으로 클립한다 — 평면은 사각형, 입체는
@@ -7389,6 +7426,11 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         ctx.clip();
         paintOps(creepList);
+        if (creep17cv9) {   // 판 17 — 지도 상자에 한 장(벽 파내기·땅 질감은 아래 그대로 탄다)
+          ctx.save(); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(creep17cv9, zx(0), zy(0), cw * zoom, mh9 * zoom);
+          ctx.restore();
+        }
         // 지형 차단은 마스크가 구워졌을 때만 파낸다.
         if (wallMask && maskRects && maskRects.length > 0) {
           ctx.save();
@@ -12609,6 +12651,7 @@ export default function ReplayMotionPlayer({
     };
   }, [splitOn9, splitTall9, splitBases9, splitStart9, grid.width, grid.height]);
   const visAll = viewTeam !== 1 && viewTeam !== 2;
+
   /** 안개를 셈할 재료가 있나 — 자취가 없는 옛 기록은 종전대로 통째로 보인다. */
   // 안개는 개체 트랙이 있을 때만(옛 경기는 없다) — 걷기(entWalks)는 이제 추적을 켤 때만 받으므로 그 길이로 가리면 안 된다.
   /* ★ worldEnts9 문을 걷었다(재지적: "처음에 안개 깜빡임 여전") — 참값(entData)이 있으면 안개는 켜진 것이다. 워커의
@@ -13087,6 +13130,10 @@ export default function ReplayMotionPlayer({
      고장으로 읽힌다. */
   /* `#nofog`(2026-10-30 · scripts/showcase-shot 의 진열 사진 — 안개 없이 지도 전체가 밝다). */
   const fogOn = fogReady9 && !pitched && !(typeof location !== "undefined" && /(?:^|[#&,])nofog(?:$|[&,])/.test(location.hash));
+  /* 판 17 크립 한 장(creep17Layer9 ★)의 재료 — 타일 시간축 · 보는 편의 사람 비트(안개가 꺼졌거나 전체 보기면 다 보임). */
+  CREEP17_9.tiles = entData?.tiles ?? null;
+  CREEP17_9.visAll = visAll || !fogOn;
+  CREEP17_9.mask = ((): number => { let m9 = 0; for (const pl of entData?.players ?? []) if (pl.owner >= 0 && pl.owner < 8 && pl.team === viewTeam) m9 |= 1 << pl.owner; return m9; })();
   /** 이 진입에서 이미 알렸나 — 3D에 머무는 동안 각도 칸을 옮겨도 다시 안 띄운다. */
   const fog3dToldRef9 = useRef(false);
   useEffect(() => {
@@ -18738,6 +18785,7 @@ export default function ReplayMotionPlayer({
     return () => { VIS_KICK9.fns.delete(f9); };
   }, []);
   paintFnRef9.current = (tNow9: number, rebase9 = false, fogOnly9 = false): void => {
+    CREEP17_9.t = tNow9;   // 판 17 크립 한 장(creep17Layer9)이 이 장의 시각으로 칠한다
     /* 이 붓 한 장이 든 시간(위 WORK9) — 프레임 틈을 누구 몫인지로 가르는 자다. */
     const bw09 = pNow();
     /* GL 벌이 예열이 본 벌과 다른가(위 warmGenRef9 ★) — 예열 뒤에 처음 선 벌(0 → 1)도, 새로 지어진 벌(n → n+1)도 예열을 다시 부른다. 예열이 아직 한 번도 안 돌았으면(−1) 안 건드린다. */

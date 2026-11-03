@@ -289,6 +289,8 @@ export class TileTL17 {
     return new TileTL17(o.w, o.h, o.ts, o.ix, o.vs);
   }
   get n(): number { return this.ts.length; }
+  /** 지금 감아 둔 자리(stateAt 이 적용한 줄 수) — 판이 바뀌었나를 값싸게 보는 열쇠. */
+  get at(): number { return this.curI; }
   /** 줄 수 · 끝 시각(진단). */
   get lastT(): number { return this.ts.length ? this.ts[this.ts.length - 1] : 0; }
   stateAt(t: number): Uint32Array {
