@@ -952,12 +952,14 @@ function lurkerDie9(v: number): Float32Array {
 function stim9(v: number): Float32Array {
   /* (2026-11-03, 요청: "스팀팩에서 솨~ 소리만 남기고 음성은 제거") — 남자 '아~'(성대 펄스 + 모음 거르개 셋)를 걷고 솨~(띠 잡음이 솟았다 내려앉음)만 남긴다. */
   const r = rng9(2311 + v);
-  const hb = new Biquad9("bp", 1600, 2.2); const hh = new Biquad9("hp", 900, 0.7);
+  /* (같은 날 "스팀팩 음 낮추기") — 띠 높이를 ×0.65(1600→4400 → 1040→2860Hz · 바닥 2400 → 1560) · 고역 거르개 900 → 600Hz. */
+  const K9 = 0.65;
+  const hb = new Biquad9("bp", 1600 * K9, 2.2); const hh = new Biquad9("hp", 600, 0.7);
   const raw9 = render9(1.1, (t) => {
     const hiss = hh.run(hb.run(r() * 2 - 1)) * ad9(t, 0.035, 3.6) * 1.15;
     return sat9(hiss * 0.55, 1.4);
   }, (t) => {
-    hb.set(t < 0.22 ? 1600 + (t / 0.22) * 2800 : Math.max(2400, 4400 - (t - 0.22) * 4000));   // 스와이~ : 솟고 내려앉음
+    hb.set(K9 * (t < 0.22 ? 1600 + (t / 0.22) * 2800 : Math.max(2400, 4400 - (t - 0.22) * 4000)));   // 스와이~ : 솟고 내려앉음
   });
   return finish9(echo9(raw9, 0.07, 0.22), 0.6);
 }
