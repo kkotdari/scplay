@@ -4892,7 +4892,7 @@ export function paintFxList9(
         const R9 = r9 * 3.1;
         const fa9 = a9 * (p9 < 0.45 ? 1 : Math.max(0, (1 - p9) / 0.55));
         const lite9 = CROWD9.lv >= 2 || FQ9.lv >= 2;
-        const per9 = lite9 ? 3 : 6;
+        const per9 = lite9 ? 6 : 12;   // 6 → 12(2026-11-03, 요청: "소총 피격 효과 불티수 두배정도로 늘리고 동그랗게 폭죽처럼 배치") · 덜어내기 3 → 6
         const sd9 = ((f.seed ?? 7) * 131 + (f.rs ?? 0) * 977) | 0;
         const hh9 = (a: number): number => { let x = Math.imul((a | 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return x / 4294967296; };
         ctx.save();
@@ -4915,11 +4915,13 @@ export function paintFxList9(
             ctx.lineWidth = Math.max(0.8, R9 * (c9 ? 0.055 : 0.045));
             ctx.globalAlpha = fa9 * (c9 ? 0.9 : 1);
             ctx.beginPath();
+            /* ★ 폭죽 꼴(같은 요청) — 각은 **고르게 한 바퀴**(벌마다 돌림 · ±0.12 흔들림) · 시작 거리·길이는 좁은 폭으로 고르게 해 둥근 테로 함께 밀려 나간다. */
+            const rot9 = hh9(b9 + 4) * Math.PI * 2;
             for (let k9 = c9; k9 < per9; k9 += 2) {
               const q9 = b9 + 11 + k9 * 37;
-              const an9 = hh9(q9) * Math.PI * 2;
-              const d09 = R9 * (0.08 + 0.42 * hh9(q9 + 1)) + p9 * R9 * (0.35 + 0.5 * hh9(q9 + 2));
-              const ln9 = R9 * (0.18 + 0.55 * hh9(q9 + 3)) * (1 - p9 * 0.6);
+              const an9 = rot9 + (k9 / per9) * Math.PI * 2 + (hh9(q9) - 0.5) * 0.24;
+              const d09 = R9 * (0.10 + 0.10 * hh9(q9 + 1)) + p9 * R9 * (0.55 + 0.2 * hh9(q9 + 2));
+              const ln9 = R9 * (0.28 + 0.16 * hh9(q9 + 3)) * (1 - p9 * 0.6);
               const cx9 = Math.cos(an9); const sy9 = Math.sin(an9);
               ctx.moveTo(ox9 + cx9 * d09, oy9 + sy9 * d09);
               ctx.lineTo(ox9 + cx9 * (d09 + ln9), oy9 + sy9 * (d09 + ln9));
