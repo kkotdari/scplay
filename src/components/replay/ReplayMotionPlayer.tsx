@@ -6031,7 +6031,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
   /** ★ 링 색(2026-11-03, 요청: "자유·중계 모드에서 선택 유닛은 주인공색 녹색으로 링 변경") — 보는 사람이 고른 몸(isPk9)은 HERO_COL9.me(#2cb494) · 자원은 원작대로 노랑 ·
    *  **경기 속 선택(op.selRing)·우클릭 표적 깜빡임보다 앞선다**(같은 날 "원래 유저가 선택한 거보다 우선해서 녹색") · 그 밖은 selRingCol9(화면 주인 초록·적 빨강·동맹 노랑) → 몸 색.
    *  유닛·건물·마커·랠리가 같이 쓴다. */
-  const ringColOf9 = (op: UnitDrawOp): string => (isPk9(op.pickKey) && !op.pickKey?.startsWith("r") ? HERO_COL9.me : selRingCol9(op) ?? op.color);
+  const ringColOf9 = (op: UnitDrawOp): string => (isPk9(op.pickKey) && !op.pickKey?.startsWith("r") ? UI_OWN9 : selRingCol9(op) ?? op.color);   // 추적 모드 링과 같은 원작 초록(같은 날 "추적모드의 녹색과 다른데?" · 옛 HERO_COL9.me 청록)
   const ref = useRef<HTMLCanvasElement>(null);
   /** GL 캔버스 — JSX 의 자리표(glHoldRef)를 판을 넘어 산 캔버스(glKeepCv9)로 갈아 끼운 것(아래 ★). */
   const glRef = useRef<HTMLCanvasElement | null>(null);
