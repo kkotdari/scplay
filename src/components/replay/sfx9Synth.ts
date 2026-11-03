@@ -953,14 +953,18 @@ function stim9(v: number): Float32Array {
   /* (2026-11-03, 요청: "스팀팩에서 솨~ 소리만 남기고 음성은 제거") — 남자 '아~'(성대 펄스 + 모음 거르개 셋)를 걷고 솨~(띠 잡음이 솟았다 내려앉음)만 남긴다.
      (같은 날 "스팀팩 음 낮추기") 띠 높이 ×0.65 · 고역 거르개 900 → 600Hz · ("처음에 좀 부드럽게") 0.2초 둥근 오름.
      (같은 날 "스팀팩 소리 길이 1.5배") — 시간 자 L9 = 1.5: 길이 1.1 → 1.65초 · 오름 0.2 → 0.3 · 잦아듦 3.2 → 3.2/1.5 · 띠 솟음 0.22 → 0.33초 · 내려앉음 기울기 ÷1.5. */
-  const K9 = 0.65; const L9 = 1.5;
-  const r = rng9(2311 + v);
-  const hb = new Biquad9("bp", 1600 * K9, 2.2); const hh = new Biquad9("hp", 600, 0.7);
+  /* (같은 날 "좀 더 굵은 톤이어야 함 · 남성적") — 띠 높이 ×0.65 → ×0.45 · 띠 폭 넓게(Q 2.2 → 1.2) · 고역 거르개 600 → 220Hz · 그 아래 갈색 잡음 저역(320Hz)의 '훅' 몸통 0.5 를 깔고
+     포화 1.4 → 1.8 로 두께를 더한다. 길이·오름·솟음은 그대로. */
+  const K9 = 0.45; const L9 = 1.5;
+  const r = rng9(2311 + v); const br9 = brown9(r);
+  const hb = new Biquad9("bp", 1600 * K9, 1.2); const hh = new Biquad9("hp", 220, 0.7);
+  const lpB9 = new Biquad9("lp", 320, 0.8);
   const A9 = 0.2 * L9; const UP9 = 0.22 * L9;
   const raw9 = render9(1.1 * L9, (t) => {
     const u9 = Math.min(1, t / A9); const env9 = t < A9 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - A9) * (3.2 / L9));
     const hiss = hh.run(hb.run(r() * 2 - 1)) * env9 * 1.15;
-    return sat9(hiss * 0.55, 1.4);
+    const body9 = lpB9.run(br9()) * env9 * 1.6;
+    return sat9(hiss * 0.55 + body9 * 0.5, 1.8);
   }, (t) => {
     hb.set(K9 * (t < UP9 ? 1600 + (t / UP9) * 2800 : Math.max(2400, 4400 - (t - UP9) * (4000 / L9))));   // 스와이~ : 솟고 내려앉음
   });
