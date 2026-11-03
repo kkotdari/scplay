@@ -962,7 +962,7 @@ function stim9(v: number): Float32Array {
   const hb = new Biquad9("bp", 1600 * K9, 1.2); const hh = new Biquad9("hp", 220, 0.7);
   const hb2 = new Biquad9("bp", 800 * K9, 1.0);
   /* (같은 날 "처음이 스~ 하는 느낌이면 좋겠는데") — 앞머리 '스~': 가는 높은 띠(5.2kHz · Q 3)가 0.06초에 들어와 0.15~0.5초에 걸쳐 빠지고, 그동안 솨~ 띠가 0.35 → 1 로 차오른다. */
-  const sb9 = new Biquad9("bp", 4400, 1.4); const shp9 = new Biquad9("hp", 2200, 0.7); const slp9 = new Biquad9("lp", 6500, 0.7);
+  const sb9 = new Biquad9("bp", 3200, 1.4); const shp9 = new Biquad9("hp", 1600, 0.7); const slp9 = new Biquad9("lp", 5000, 0.7);   // (같은 날 "앞머리 스만 음정 더 낮추기") 4.4 → 3.2kHz · 거르개도 같은 비
   const A9 = 0.2 * L9; const UP9 = 0.22 * L9;
   const raw9 = render9(1.1 * L9, (t) => {
     const u9 = Math.min(1, t / A9); const env9 = t < A9 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - A9) * (3.2 / L9));
