@@ -2950,3 +2950,4 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - 🔎 `perf-check.mjs --ios --dpr 3 --warm 4000 --glblit --atlas spr --zoom 6 --cx 0.15 --cy 0.82 --t 60 --pause --castoff --readyms 200000 [--hash backcap=3] --shot x.png`
 - (같은 날 결정 "상한 올리기") — 폰 몸 배킹 상한 높음 2.25 → **3** · 보통 2 → **2.5** · 낮음 2 · 매우 낮음 그대로 · 배율 6 이상 2 누름(capSmall9) 걷음(RMP backCap9 ★ '폰 배킹 상한 올림').
 - (같은 날) "모바일 배율 12배로 증가" — 컴포넌트 ZOOM_MAX 폰 12 · PC 8(사다리 1·2·4·8·12 · 더블탭 8) · 주소 자 PLAYBACK_ZOOM_MAX 12.
+- (같은 날) "폰 최대 배율 16" — ZOOM_MAX 폰 16 · PLAYBACK_ZOOM_MAX 16(사다리 1·2·4·8·16).
