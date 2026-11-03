@@ -19232,7 +19232,9 @@ export default function ReplayMotionPlayer({
     /* (되물림 · 2026-11-03 "자유시점이랑 똑같이 · 중계 추적 중에도 알트 드래그로만 선택 · 그냥 드래그는 이동 시도로 막기") — 잠긴 동안 Alt 없는 상자 선택을 걷었다. */
     /* ★★★ **최종**(2026-11-03, 요청: "진짜 최최종 — 좌클릭 드래그 = 선택 · 우클릭 드래그 또는 알트 드래그 = 이동") — 마우스 왼쪽 끌기(Alt 없음) = 상자 선택 ·
        오른쪽 끌기 · Alt+왼쪽 끌기 = 지도 이동(잠긴 카메라에선 이동 시도 → 토스트) · 가운데는 아무것도 안 한다. 중계·추적 중에도 같다 · 분할보기는 상자를 안 쓴다 · 손가락은 끌면 이동. */
-    const selMod9 = e.pointerType === "mouse" && e.button === 0 && !e.altKey;
+    /* ★ **마우스 확정**(2026-11-03, 요청: "마우스 좌클릭 드래그는 이동이 맞는 거 같아 · 박스 선택 = 우클릭 드래그 또는 쉬프트 드래그(알트 말고)") — 위 ★★★ 를 뒤집는다:
+       왼쪽 끌기 = 지도 이동 · 오른쪽 끌기 · Shift+왼쪽 끌기 = 상자 선택 · 가운데 = 없음. */
+    const selMod9 = e.pointerType === "mouse" && (e.button === 2 || (e.button === 0 && e.shiftKey));
     /* ★ **추적 모드(trackRaw · 개인 추적)는 상자 선택을 안 쓴다**(2026-11-03, 요청: "추적모드에서 선택 사용 X") — 왼쪽 끌기는 이동 시도(잠김 토스트)로 친다. 클릭은 그대로. */
     if (selMod9 && trackRaw !== null) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }
     if (selMod9 && !splitOnRef9.current) {
@@ -19243,15 +19245,12 @@ export default function ReplayMotionPlayer({
     }
     /* ★ 가운데 버튼은 **아무것도 안 한다**(2026-11-03, 요청: "중간 클릭 드래그는 아무기능 없이 제거") — 자동 굴림만 막고 끝(옛: 오른쪽처럼 지도 이동). */
     if (e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); const tpM9 = tapRef.current; if (tpM9) tpM9.moved = true; return; }
-    /** 지도를 끄는 누름 — 마우스 오른쪽 · Alt+왼쪽 · 손가락(위 ★★★). */
-    const panBtn9 = e.pointerType === "mouse" ? e.button === 2 || (e.button === 0 && e.altKey) : e.button === 0;
-    if (e.pointerType === "mouse" && panBtn9) {
-      const tpB9 = tapRef.current; if (tpB9) tpB9.moved = true;   // 끄는 누름은 몸을 안 집는다 · Alt 없는 왼쪽은 안 움직이고 떼면 클릭(몸 집기)
-      (e.currentTarget as HTMLElement).style.cursor = "grabbing";   // 끄는 동안만 손(위 지도 cursor ★) — 뗄 때 onMapPointerUp 이 걷는다
-    }
+    /** 지도를 끄는 누름 — 마우스 왼쪽(Alt 없음) · 손가락. */
+    const panBtn9 = e.pointerType === "mouse" ? e.button === 0 && !e.shiftKey : e.button === 0;
+    /* 왼쪽 누름은 안 움직이고 떼면 클릭(몸 집기 · onMapPointerUp) — 끌면 tapRef.moved 가 선다(아래 move). 분할보기의 오른쪽·Shift 누름은 위 상자 갈래를 안 타고 아래에서 끝난다. */
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || !panBtn9) return;   // 지도 이동은 오른쪽·Alt+왼쪽(손가락은 끌기) — 왼쪽은 위 상자 선택 · 가운데는 위에서 끝
+    if (!panRoom || !panBtn9) return;   // 지도 이동은 왼쪽 끌기(손가락 포함) — 오른쪽·Shift+왼쪽은 위 상자 선택 · 가운데는 위에서 끝
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -23520,7 +23519,7 @@ export default function ReplayMotionPlayer({
           onPointerMove={onMapPointerMove}
           onPointerUp={onMapPointerUp}
           onPointerCancel={onMapPointerUp}
-          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 지도를 끄는 손(onMapPointerDown 의 ★★★) — 차림표를 안 띄운다 */
+          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 상자 선택(onMapPointerDown) — 차림표를 안 띄운다 */
         >
           {/* ★ 밤하늘은 **무대의 빈자리**를 채운다 — 처음엔 눕힌 보기 전용이었다(요청: "우주
               배경 만든 건 기존 3D 보기에서 남는 빈 공간 채우는 용으로 쓰고(맵에 병합 X)"):
