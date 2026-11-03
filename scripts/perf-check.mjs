@@ -2206,25 +2206,27 @@ if (SHOT) {
   }
   /* --losegl [ms](2026-11-02, 지적: "아이폰 pwa 로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — GL 문맥을 일부러 잃게 하고
      (WEBGL_lose_context) 붓이 캔버스를 갈아 끼워 벌을 새로 여는지 · 그린 수가 다시 오르는지 · 다시 열기(다음 경기)에도 사는지 찍는다. 기다림 ms 기본 6000. */
-  if (has("--testerprobe")) {   // 테스터 손잡이 셋(테스트·diag·최대 프레임) 목록을 차례로 열어 서는지 · 위가 덮이지 않았는지(가운데 점의 맨 위 요소가 판 안인지) 찍는다
-    const btns9 = await page.evaluate(() => [...document.querySelectorAll(".scr-zoomfps.is-tester > button")].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent, r.left + r.width / 2, r.top + r.height / 2]; }));
-    console.log("[테스터] 단추:", JSON.stringify(btns9.map((b) => b[0])));
-    const probe9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 줄 ${p.querySelectorAll(".scr-testmode-row").length} · ${p.contains(top) ? "위에 보인다" : "덮였다(" + (top?.className || top?.tagName) + ")"} · 아래끝 ${Math.round(r.bottom)} / 독 위끝 ${Math.round(document.querySelector(".scr-fs-lower")?.getBoundingClientRect().top ?? -1)} · 굴림 ${p.scrollHeight > p.clientHeight + 1 ? "있음" : "없음"}`; });
-    const SHOTB9 = String(flag("--shot", "x.png")).replace(/\.png$/, "");
-    for (const [k9, n9] of [[1, "diag"], [0, "테스트"], [2, "fps"]]) {
-      const b9 = btns9[k9]; if (!b9) continue;
-      await page.mouse.click(b9[1], b9[2]); await page.waitForTimeout(400);
-      console.log(`[테스터] ${n9} 목록:`, await probe9());
-      if (n9 === "diag") {   // all 을 골라 진단 판을 띄운 채로 다음 목록이 그 위에 서는지 본다
-        const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("all"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
-        if (row9) { await page.mouse.click(row9[0], row9[1]); await page.waitForTimeout(600); console.log("[테스터] diag all 고름 · 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
-      } else {
-        await page.screenshot({ path: `${SHOTB9}-${n9}.png`, timeout: 30000 }).catch(() => console.log("[테스터] 찍기 건너뜀"));
-        await page.mouse.click(5, 300); await page.waitForTimeout(300);   // 바깥 누름 — 닫힌다
-        console.log(`[테스터] 바깥 누른 뒤:`, await probe9());
-      }
+  if (has("--testerprobe")) {   // 테스터 손잡이 셋(테스트·diag·최대 프레임) — diag 를 켠 채로 단추·목록 줄을 눌러(폰은 손가락) 먹는지 · 그 점의 맨 위 '보이는' 요소(pointer-events 무관)를 찍는다
+    const tap9 = async (x, y) => { if (has("--ios")) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); await page.waitForTimeout(500); };
+    const btns9 = () => page.evaluate(() => [...document.querySelectorAll(".scr-zoomfps.is-tester > button")].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent, r.left + r.width / 2, r.top + r.height / 2]; }));
+    /* 그 점에 그려진 맨 위 요소 — elementsFromPoint 는 pointer-events:none 을 건너뛰므로 잠깐 다 auto 로 켜고 잰다. */
+    const topAt9 = (x, y) => page.evaluate(([x, y]) => { const st = document.createElement("style"); st.textContent = "*{pointer-events:auto!important}"; document.head.appendChild(st);
+      const e = document.elementFromPoint(x, y); st.remove(); return e ? (e.className || e.tagName) + "" : "-"; }, [x, y]);
+    const menu9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 진단 판 ${document.querySelector(".scr-motion-diag:not(.is-hide)") ? "보임" : "숨김/없음"}`; });
+    let b9 = await btns9(); console.log("[테스터] 단추:", JSON.stringify(b9.map((b) => b[0])));
+    await tap9(b9[1][1], b9[1][2]); console.log("[테스터] diag 누름 →", await menu9());
+    const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("all"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+    if (row9) { await tap9(row9[0], row9[1]); console.log("[테스터] all 고름 → 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
+    b9 = await btns9();
+    for (const [k9, n9] of [[0, "테스트"], [2, "fps"], [1, "diag"]]) {
+      console.log(`[테스터] ${n9} 단추 자리 맨 위: ${await topAt9(b9[k9][1], b9[k9][2])}`);
+      await tap9(b9[k9][1], b9[k9][2]); console.log(`[테스터] ${n9} 누름 →`, await menu9());
+      const r9 = await page.evaluate(() => { const r = document.querySelectorAll(".scr-testmode-row")[1]?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+      if (r9) console.log(`[테스터] ${n9} 둘째 줄 맨 위: ${await topAt9(r9[0], r9[1])}`);
+      if (n9 === "테스트" && r9) { await tap9(r9[0], r9[1]); console.log("[테스터] 둘째 줄 누름 → 고름", await page.evaluate(() => document.querySelectorAll(".scr-testmode-row.is-sel").length)); }
+      await tap9(b9[k9][1], b9[k9][2]); console.log(`[테스터] ${n9} 다시 누름(닫기) →`, await menu9());
     }
+    await page.screenshot({ path: String(flag("--shot", "x.png")).replace(/\.png$/, "-tester.png"), timeout: 30000 }).catch(() => console.log("[테스터] 찍기 건너뜀"));
   }
   if (has("--losegl")) {
     const wait9 = Number(flag("--losegl", 6000)) || 6000;
