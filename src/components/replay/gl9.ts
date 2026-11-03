@@ -1269,6 +1269,9 @@ const SPR_LOOK9: [number, number] = [0.5, 0.5];
  *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
 const SPR_ISH9 = 0.7;   // 0.4 → 0.7(2026-10-30, 요청: 시안 "그림자 0.7 광택 1.5" — 대비 대신 부품 그늘로 입체감)
 const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
+/** 안 그림자 깊이 치우침(빛 판 깊이 자 0~1) — 0.006 → 0.028(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데" — 기둥 위 마디 낯에 그림자 여드름(빛 판 텍셀 계단 톱니).
+ *  ishadow=0 이면 톱니가 사라짐을 확인 · 치우침을 올려 텍셀 계단이 제 낯을 가리지 않게). */
+const ISH_BIAS9 = 0.028;
 const ISH9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])ishadow=([0-9.]+)/.exec(location.hash) : null; return m9 ? Math.min(1, Number(m9[1])) : SPR_ISH9; })();
 const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bcon=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) - 1 : SPR_BCON9; })();
 /** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */
@@ -2158,7 +2161,7 @@ export class GlUnits9 implements VecSink9 {
     gl.colorMask(true, true, true, true); gl.enable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, sb9.tex); gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.loc.uShTex, 7);
-    gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, 0.006);
+    gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, ISH_BIAS9);
     return true;
   }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
@@ -3035,8 +3038,46 @@ export class GlUnits9 implements VecSink9 {
             const a9 = tri9[i], b9 = tri9[i + 1], c9 = tri9[i + 2];
             put(a9); put(b9); put(c9);
             if (pn9) {   // 꼭짓점 표식(맞은편 변까지의 무게중심 좌표) + 비트(맞은편 변이 날카로운가) — 세 꼭짓점이 같은 비트를 든다
-              const m9 = (sharp9(poly, n, b9, c9, pn9) ? 1 : 0) | (sharp9(poly, n, c9, a9, pn9) ? 2 : 0) | (sharp9(poly, n, a9, b9, pn9) ? 4 : 0);
-              for (let t = 0; t < 3; t += 1) { const ob9 = (vi - 3 + t) * STRIDE_B; u8[ob9 + 36] = t === 0 ? 255 : 0; u8[ob9 + 37] = t === 1 ? 255 : 0; u8[ob9 + 38] = t === 2 ? 255 : 0; u8[ob9 + 39] = m9; }
+              /* ★ **속 변(삼각화 대각선) 자리에는 남의 날카로운 변을 싣는다**(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데" → "아직도 어긋남 보임") —
+                 모서리까지의 거리는 삼각형마다 제 세 변만 안다. 가늘고 긴 낯(기둥 옆낯)은 대각선이 긴 변과 거의 나란해서, 긴 변의 광택 띠가 대각선을 넘어
+                 이웃 삼각형으로 들어가는 자리에서 뚝 끊겨 톱니가 됐다. 대각선 칸은 어차피 날카롭지 않으니(비트 0) 그 칸에 **같은 다각형의 날카로운 변 중
+                 이 삼각형에 없는 가장 가까운 변**까지의 거리(낯 평면 안에서 1차 함수 — 보간·fwidth 가 그대로 화소 거리를 낸다)를 싣는다. 세 꼭짓점 값을
+                 가장 먼 꼭짓점으로 나눠 0~1(u8). 맞는 변이 없거나 값이 무너지면 종전(대각선 · 비트 0). */
+              const tv9 = [a9, b9, c9];
+              const opp9: [number, number][] = [[b9, c9], [c9, a9], [a9, b9]];
+              const col9 = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+              let m9 = 0;
+              const used9 = new Set<number>();
+              for (let ch = 0; ch < 3; ch += 1) {
+                const [ea9, eb9] = opp9[ch];
+                if (sharp9(poly, n, ea9, eb9, pn9)) { m9 |= 1 << ch; continue; }
+                const isEdge9 = (eb9 === (ea9 + 1) % n) || (ea9 === (eb9 + 1) % n);
+                if (isEdge9) continue;   // 진짜 다각형 변인데 무딘 변 — 종전대로
+                let best9 = -1; let bestD9 = Infinity; let bestV9: number[] | null = null;
+                for (let e9 = 0; e9 < n; e9 += 1) {
+                  const f9 = (e9 + 1) % n;
+                  if (used9.has(e9) || (tv9.includes(e9) && tv9.includes(f9))) continue;
+                  if (!sharp9(poly, n, e9, f9, pn9)) continue;
+                  const ax9 = poly[e9 * 3], ay9 = poly[e9 * 3 + 1], az9 = poly[e9 * 3 + 2];
+                  let dx9 = poly[f9 * 3] - ax9, dy9 = poly[f9 * 3 + 1] - ay9, dz9 = poly[f9 * 3 + 2] - az9;
+                  const dl9 = Math.hypot(dx9, dy9, dz9); if (dl9 < 1e-6) continue;
+                  dx9 /= dl9; dy9 /= dl9; dz9 /= dl9;
+                  const vs9 = tv9.map((vv9) => {
+                    const px9 = poly[vv9 * 3] - ax9, py9 = poly[vv9 * 3 + 1] - ay9, pz9 = poly[vv9 * 3 + 2] - az9;
+                    const cx9 = py9 * dz9 - pz9 * dy9, cy9 = pz9 * dx9 - px9 * dz9, cz9 = px9 * dy9 - py9 * dx9;
+                    return Math.hypot(cx9, cy9, cz9);
+                  });
+                  const avg9 = (vs9[0] + vs9[1] + vs9[2]) / 3;
+                  if (avg9 < bestD9) { bestD9 = avg9; best9 = e9; bestV9 = vs9; }
+                }
+                if (best9 < 0 || !bestV9) continue;
+                const mx9 = Math.max(bestV9[0], bestV9[1], bestV9[2]);
+                if (mx9 < 1e-6) continue;
+                used9.add(best9);
+                col9[ch] = bestV9.map((v9) => Math.round((v9 / mx9) * 255));
+                m9 |= 1 << ch;
+              }
+              for (let t = 0; t < 3; t += 1) { const ob9 = (vi - 3 + t) * STRIDE_B; u8[ob9 + 36] = col9[0][t]; u8[ob9 + 37] = col9[1][t]; u8[ob9 + 38] = col9[2][t]; u8[ob9 + 39] = m9; }
             }
           }
         }

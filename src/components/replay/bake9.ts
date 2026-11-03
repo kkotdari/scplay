@@ -10497,16 +10497,20 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const tx9 = pb9[0] - pa9[0]; const tz9 = pb9[1] - pa9[1]; const tl9 = Math.hypot(tx9, tz9) || 1;
         const sg9 = Math.sign(mx9);
         const nx9 = sg9 * (tz9 / tl9); const nz9 = -sg9 * (tx9 / tl9);
-        return { x: ax9 + nx9 * (hw9 + 0.03), y: 0, z: az9 + nz9 * (hw9 + 0.03), hw: hw9 };
+        return { x: ax9 + nx9 * (hw9 + 0.03), y: 0, z: az9 + nz9 * (hw9 + 0.03), hw: hw9 * 0.92 };   // 폭 0.92 — 띠 가장자리가 기둥 모서리와 겹쳐 싸우지 않게(같은 날)
       };
       const strip9 = (t0: number, t1: number, taperTop: boolean): void => {
         // 바깥 옆낯이 카메라를 향할 때만(2D). GL 은 깊이가 가린다.
         if (facingRatio(Math.sign(mx9), 0) <= 0.05) return;
         const N9 = 6;
         const q9: ShapeFace[] = [];
-        /* 조각 끝을 꺾인 자리(K1_9 · K2_9)에도 둔다(2026-11-03) — 꺾임을 가로지르는 조각은 모서리를 질러 낯 속에 묻혔다. */
-        const ts9 = Array.from({ length: N9 + 1 }, (_, i9) => t0 + ((t1 - t0) * i9) / N9);
-        for (const kk9 of [K1_9, K2_9]) if ((kk9 - t0) * (kk9 - t1) < 0) ts9.push(kk9);
+        /* 조각 끝을 **기둥의 고리 자리**(spirePillar segs 20 · i/20)에 맞춘다(2026-11-03, 재지적: "아직도 어긋남 보임" — 위 띠 모서리 톱니) — 기둥 모서리는 고리 사이를
+           곧게 잇는 꺾은선인데 띠를 6 등분으로 자르면 띠 모서리가 다른 자리에서 꺾여(굵기가 1.5 제곱으로 줄어드는 몫) 두 모서리가 서로 엇갈려 톱니로 보였다.
+           꺾인 자리(K1_9 0.35 = 7/20 · K2_9 0.9 = 18/20)도 고리 위라 함께 맞는다. */
+        void N9;
+        const SEG9 = 20;
+        const ts9 = [t0, t1];
+        for (let g9 = 1; g9 < SEG9; g9 += 1) { const tg9 = g9 / SEG9; if ((tg9 - t0) * (tg9 - t1) < 0) ts9.push(tg9); }
         ts9.sort((p9, q9b) => (t1 > t0 ? p9 - q9b : q9b - p9));
         for (let i9 = 0; i9 + 1 < ts9.length; i9 += 1) {
           const ta9 = ts9[i9];
@@ -10524,8 +10528,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         }
         gatePc9.push(...tagKey(paintBase(q9, RACE_BASE_TONE.toss), 30 + depthNow(mx9, 0) * 1.6 + 0.4));
       };
-      strip9(0.06, 0.42, true);
-      strip9(0.98, 0.58, false);
+      /* (걷음 · 2026-11-03, 재지적: "아직도 어긋남 보임" — 위 띠 자리 모서리 톱니) 바깥 옆낯 금색 데칼 둘 — 몸과 같은 금이라(2026-10-29 TOSS_GOLD) 거의 안 보이는데,
+         데칼 깊이 편향(건물 0.25 모형칸)이 모서리 곁에서 앞낯을 이겨 톱니로 번졌다. 데칼을 빼면 톱니가 사라진다(실측). 되살리려면 이 두 줄 · 색을 한 단 밝게. */
+      void strip9;
     }
     // 가운데 소환 구체 — 두 탑 깊이의 한가운데.
     /* 소환구도 화면 원으로(지적: "구 형태가 찌그러져 보이잖아") — 세로로 긴 타원
