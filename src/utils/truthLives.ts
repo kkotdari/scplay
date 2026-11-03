@@ -38,7 +38,9 @@ export type BuildSecOf = (kind: string) => number;
 /** 건물이 앉은 자리 [초, 발자국 좌상단 타일 x, y] — 처음 지은 자리와, 떠서 옮겨 앉은 자리. */
 export type LifeSite = [number, number, number];
 /** 이 유닛에게 떨어진 명령 [초, 타일 x, 타일 y, 공격인가]. */
-export type LifeOrder = [number, number, number, boolean];
+/** [초 · x · y(타일) · 표적이 있는 명령(갈래 7) · 갈래]. 갈래(덤퍼 bwdump_order · 2026-11-03): 0 우클릭 땅 · 1 이동 명령 · 7 표적이 있는 명령 · 8 땅 공격(A 이동) · 9 패트롤 —
+ *  옛 판(갈래 0·7 뿐)은 이동·공격 땅·패트롤이 다 0 이다. 다섯째는 옛 캐시에 없을 수 있다. */
+export type LifeOrder = [number, number, number, boolean, number?];
 
 /** 한 몸의 한 생애. */
 export type TruthLife = {
@@ -386,7 +388,7 @@ function livesOfTrack(
     }
     const mine: LifeOrder[] = [];
     for (const o of orders.get(tr.tag) ?? []) {
-      if (o[0] >= born && o[0] <= lifeEnd) mine.push([o[0], o[1], o[2], o[3] === 7]);
+      if (o[0] >= born && o[0] <= lifeEnd) mine.push([o[0], o[1], o[2], o[3] === 7, o[3]]);
     }
     out.push({
       tag: tr.tag,

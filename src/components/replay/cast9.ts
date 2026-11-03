@@ -3115,10 +3115,10 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     for (const e9 of army9) { const k9 = UNIT_KO[e9.kind] ?? e9.kind; cnt9.set(k9, (cnt9.get(k9) ?? 0) + 1); }
     const what9 = [...cnt9.entries()].sort((a9, b9) => b9[1] - a9[1]).slice(0, 2).map(([k9]) => k9).join("·");
     /* 그 창의 마지막 명령 — 무리의 몸 가운데 가장 늦은 것. */
-    let ord9: [number, number, number, boolean] | null = null;
+    let ord9: [number, number, number, boolean, number?] | null = null;
     for (const e9 of army9) for (const o9 of e9.orders) if (o9[0] >= t0 - 2 && o9[0] < t1 && (!ord9 || o9[0] > ord9[0])) ord9 = o9;
     if (!ord9) return null;
-    const verb9 = ord9[3] ? "공격 이동" : "이동";
+    const verb9 = ord9[3] || ord9[4] === 8 ? "공격 이동" : "이동";   // 갈래 8 = 땅 공격(A 이동 · 2026-11-03)
     /* 카메라는 **그 무리를 따라간다**(2026-10-22, 지적: "자막하고 화면이 다른데") — 옛 판은 자리를 안 달아 순환 토막이 그 사람의 마지막 착공 건물을 비췄다(무리는 딴 데서 걷는데).
        창 동안 1초 걸음의 무게 중심 길(capPath9). */
     const moving9 = (c9: CapPart9[]): CapPart9[] => {

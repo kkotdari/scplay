@@ -950,6 +950,11 @@ function suitFist(
  *  주인 없는 전체 보기는 null(아무도 초록이 아니다).
  *  ⚠ 첫 판은 같은 편을 노랑·적을 빨강까지 입혔다 — "그건 주인공 모드"(지적)라 걷고, 이어 "내 UI 만 녹색 · 팀은 제 색"으로 다시 세웠다. */
 const UI_OWN9 = "#10fc18";
+/** ★ 명령 줄(2026-11-03, 요청: "이동 명령 · 공격 명령 · 패트롤 명령에도 선을 보여 주고 싶은데 · 구분이 돼야 하는데 화살표 모양이라던지" → "추적 모드도 색은 녹색 원래대로 통일") —
+ *  명령을 받은 유닛 몸에서 명령 자리까지 ORD_LINE_SEC9 초 동안 줄(스러짐). 꼴: 이동 = 실선 + 끝 화살촉 · 공격 = 실선 + 끝 ✕ · 패트롤 = 점선 + 양 끝 화살촉.
+ *  색: 추적(화면 주인 있음) = 원작 초록(UI_OWN9) · 주인 것만 · 자유·중계 = 그 임자 색 · 모두. 붓이 도는 동안만 ORD_NOW9 가 선다(태그 → [x 분수, y 분수, 꼴 0·1·2, 지난 초]). */
+const ORD_LINE_SEC9 = 1.0;
+let ORD_NOW9: Map<number, [number, number, number, number]> | null = null;
 /** 추적 화면에서 랠리를 찍은 뒤 줄을 보이는 초(2026-11-03 · 원작의 랠리 깃발이 잠깐 서는 꼴). */
 const RALLY_FLASH9 = 1.5;
 const UI_ATK9 = "#f40404";
@@ -7193,6 +7198,37 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ringY = (groundY ?? groundOy9) - lift;
           return { ringW, ringK9, ringWd9, ringY, ringBot: ringY + ringWd9 * 0.31 * ringK9 * pitchGroundK9(op) + ringW / 2 };
         };
+        /* ★ 명령 줄(위 ORD_NOW9 ★) — 몸 땅 원점(링 자리)에서 명령 자리까지 · 꼴로 갈래를 가른다 · 끝 0.4 동안 스러진다. */
+        if (ORD_NOW9 && gl9 && gl9.primOk && !op.ghost && op.pickKey && op.pickKey.charCodeAt(0) === 117) {
+          const od9 = ORD_NOW9.get(Number(op.pickKey.slice(1)));
+          if (od9) {
+            const { ringW: lw9, ringY: oy9 } = ringGeo9();
+            const tx9 = zx(od9[0]); const ty9 = zy(od9[1]);
+            const dx9 = tx9 - sx; const dy9 = ty9 - oy9; const L9 = Math.hypot(dx9, dy9);
+            if (L9 > 6) {
+              const age9 = od9[3]; const al9 = op.alpha * Math.min(1, (ORD_LINE_SEC9 - age9) / 0.4) * 0.9;
+              const col9o = UI_SCREEN9 !== null ? UI_OWN9 : op.color;
+              const ux9 = dx9 / L9; const uy9 = dy9 / L9;
+              const ah9 = Math.max(5, lw9 * 6);
+              const seg9 = (x0: number, y0: number, x1: number, y1: number): void => gl9.prim(3, x0, y0, x1, y1, col9o, al9, lw9);
+              if (od9[2] === 2) {   // 패트롤 — 점선 + 양 끝 화살촉
+                const dash9 = Math.max(4, lw9 * 5); const gap9 = Math.max(3, lw9 * 3.5);
+                for (let s9 = 0; s9 < L9; s9 += dash9 + gap9) { const e9 = Math.min(L9, s9 + dash9); seg9(sx + ux9 * s9, oy9 + uy9 * s9, sx + ux9 * e9, oy9 + uy9 * e9); }
+              } else seg9(sx, oy9, tx9, ty9);
+              const head9 = (hx: number, hy: number, vx: number, vy: number): void => {   // (hx,hy) 끝 · (vx,vy) 끝으로 향하는 단위
+                seg9(hx, hy, hx - vx * ah9 - vy * ah9 * 0.55, hy - vy * ah9 + vx * ah9 * 0.55);
+                seg9(hx, hy, hx - vx * ah9 + vy * ah9 * 0.55, hy - vy * ah9 - vx * ah9 * 0.55);
+              };
+              if (od9[2] === 1) {   // 공격 — 끝 ✕
+                const k9 = ah9 * 0.6;
+                seg9(tx9 - k9, ty9 - k9, tx9 + k9, ty9 + k9); seg9(tx9 - k9, ty9 + k9, tx9 + k9, ty9 - k9);
+              } else {
+                head9(tx9, ty9, ux9, uy9);
+                if (od9[2] === 2) head9(sx, oy9, -ux9, -uy9);
+              }
+            }
+          }
+        }
         if ((op.selRing || atkFlashOn9(op) || isPk9(op.pickKey)) && !op.ghost) {
           /* 선 굵기는 화면 고정(지적: 링은 UI 요소 — 확대에 굵어지면 안 됨) — 반지름은
              유닛(px)을 따라가되 굵기에서 zoom을 뺀다. */
@@ -11514,11 +11550,36 @@ export default function ReplayMotionPlayer({
         }
         /* ★ 갈래와 무관하게 본다(2026-10-12, 지적: "자원 우클릭 감지를 못 하네") — 덤퍼(sg-api openbw-scr.patch action_default_order)는 **표적이 있는 우클릭을 다 7** 로
            적는다(`target ? 7 : 0`) — 미네랄 우클릭(채취)도 7 이라 옛 '이동(0)만' 문을 못 지났다. 적 표적(clickTargets9)이 없는 줄이면 자원 자리인지 본다. */
-        out.push([o[0], o[1], o[2], raw, o[3] ? 7 : 0, tg9, tg9 < 0 ? rk9 : ""]);   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
+        out.push([o[0], o[1], o[2], raw, o[3] || o[4] === 8 ? 7 : 0, tg9, tg9 < 0 ? rk9 : ""]);   // 땅 공격(A 이동 · 갈래 8)도 공격 마커(2026-11-03)   // 여섯째 — 표적 태그(없으면 −1 = 땅) · 일곱째 — 겨눈 자원(위)
       }
     }
     return out.sort((a, b) => a[0] - b[0]);
   }, [entData, obsNames, clickTargets9, resSpots9, teamMap9, melee]);
+  /** 명령 줄의 재료(위 ORD_NOW9 ★) — 유닛(건물 아님)이 받은 명령을 시각순 한 줄로: [초, 태그, x, y(타일), 꼴(0 이동 · 1 공격 · 2 패트롤), 임자 raw].
+   *  꼴: 갈래 9 = 패트롤 · 8 = 땅 공격 · 7(표적) = 표적이 다른 편이면 공격 · 아니면 이동 · 나머지(0 우클릭 땅 · 1 이동)는 이동. */
+  const ordFlat9 = useMemo<[number, number, number, number, number, string][]>(() => {
+    if (!entData) return [];
+    const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const lifeOfTag9 = new Map(entData.lives.map((e9) => [e9.tag, e9]));
+    const out9: [number, number, number, number, number, string][] = [];
+    for (const e of entData.lives) {
+      if (e.tag < 0 || e.bld) continue;
+      const raw = nameOfId.get(e.owner) ?? ""; if (!raw || obsNames.has(raw)) continue;
+      for (const o of e.orders) {
+        let st9 = o[4] === 9 ? 2 : o[4] === 8 ? 1 : 0;
+        if (o[3]) {
+          const tg9 = clickTargets9.get(`${e.owner}:${o[0]}:${o[1]}:${o[2]}`);
+          const tl9 = tg9 !== undefined ? lifeOfTag9.get(tg9) : undefined;
+          const tr9 = tl9 ? nameOfId.get(tl9.owner) ?? "" : "";
+          st9 = tl9 && tl9.owner !== e.owner && (melee || !tr9 || teamMap9[tr9] === undefined || teamMap9[tr9] !== teamMap9[raw]) ? 1 : 0;
+        }
+        out9.push([o[0], e.tag, o[1], o[2], st9, raw]);
+      }
+    }
+    return out9.sort((a, b) => a[0] - b[0]);
+  }, [entData, obsNames, clickTargets9, teamMap9, melee]);
+  const ordFlatRef9 = useRef(ordFlat9);
+  ordFlatRef9.current = ordFlat9;
   const entClicksRef9 = useRef(entClicks);
   entClicksRef9.current = entClicks;
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
@@ -19018,6 +19079,21 @@ export default function ReplayMotionPlayer({
     else {
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
       UI_SCREEN9 = uiOwnerRef9.current;
+      /* 명령 줄(위 ORD_NOW9 ★) — 이 장 시각의 창 [t − ORD_LINE_SEC9, t] 의 명령을 태그마다 마지막 하나. 추적이면 화면 주인 것만. */
+      ORD_NOW9 = ((): Map<number, [number, number, number, number]> | null => {
+        const fl9 = ordFlatRef9.current; if (!clickFx || fl9.length === 0) return null;
+        let lo9 = 0; let hi9 = fl9.length;
+        while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (fl9[m9][0] < tNow9 - ORD_LINE_SEC9) lo9 = m9 + 1; else hi9 = m9; }
+        const mp9 = new Map<number, [number, number, number, number]>();
+        const fr9 = mapFracRef.current;
+        for (let i9 = lo9; i9 < fl9.length && fl9[i9][0] <= tNow9; i9 += 1) {
+          const r9 = fl9[i9];
+          if (UI_SCREEN9 !== null && r9[5] !== UI_SCREEN9) continue;
+          const [fx9, fy9] = fr9 ? fr9(r9[2], r9[3]) : [0, 0];
+          mp9.set(r9[1], [fx9, fy9, r9[4], tNow9 - r9[0]]);
+        }
+        return mp9.size > 0 ? mp9 : null;
+      })();
       UI_ENEMY9 = enemyOf9(UI_SCREEN9); ATK_FLASH9 = atkFlashFor9(UI_SCREEN9, tNow9); ATK_T9 = tNow9;   // 적 판정 · 공격 표적 창(위 ★)
       RING_DIAG9.length = 0;
       /* ★ 주인이 있으면 선택 링·건설 고스트도 **주인 것만**(2026-10, 같은 지적 — 동맹의 선택 링·고스트는 분할 칸처럼 걷는다 · splitOwnOps9). */
@@ -19026,7 +19102,7 @@ export default function ReplayMotionPlayer({
       try { unitPaintRef.current?.(zoomRef.current, panRef.current, zoomCommitRef.current); } finally {
         if (scrDiagOn()) SCR_DIAG.ring = `주인 ${UI_SCREEN9 ?? "없음"} · 몸 ${frameOpsRef9.current?.length ?? -1} · 링 ${RING_DIAG9.length}${RING_DIAG9.length > 0 ? ` · ${RING_DIAG9.join(" ")}` : ""}`;
         frameOpsRef9.current = keepOps9;
-        UI_SCREEN9 = null; UI_ENEMY9 = null; ATK_FLASH9 = null;
+        UI_SCREEN9 = null; UI_ENEMY9 = null; ATK_FLASH9 = null; ORD_NOW9 = null;
       }
     }
     xfCvXfRef.current = XF_ID9;
