@@ -44444,7 +44444,7 @@ function bP({
         " · UI ",
         xs.ui,
         " · 판 ",
-        "11-04 07:18",
+        "11-04 08:09",
         xs.ss !== 1 ? ` · 초해상 ×${xs.ss.toFixed(2)}` : "",
         Math.abs(xs.unitScale - xs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${xs.unitScale.toFixed(4)})` : xs.scale > 0 && Math.abs(xs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${xs.scale.toFixed(4)})` : "",
         xs.allocOk ? "" : " · ⚠배킹확보 실패"
