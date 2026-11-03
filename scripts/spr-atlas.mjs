@@ -124,10 +124,11 @@ const ybOf = (key) => { const p = key.split("|"); return Number(p[p.length - 6])
 /** 32칸 머리(gl9 SPR_YAW32_9 와 같은 목록) — 짝·홀로 안 가르고 다 a 에(요잉 8 기기도 32칸을 다 받는다). */
 const YAW32 = new Set(["turrethead", "comsatdish"]);
 /* ★ **요잉 32**(2026-11-03, 요청: "피시의 경우 유닛 굽기 각을 32방으로 · 32방을 모두 적용 · 캐시를 어떻게 활용할지(다운로드 및 풀기 줄이기)") — 덤프가 32칸이면 묶음을 셋으로:
-   a = 칸 % 4 == 0(8방 · 폰 웹) · b = 칸 % 4 == 2(a 와 합쳐 16방 · 앱 폰 · 낮은 PC) · o = 홀 칸(셋 다 32방 · PC). 기기는 쓰는 묶음만 받고(sprAtlas9 pars) 빠진 칸은
+   a = 칸 % 4 == 0(8방) · b = 칸 % 4 == 2(a 와 합쳐 16방) · c·d = 칸 % 4 == 1·3(넷 다 32방). 기기는 쓰는 묶음만 받고(sprAtlas9 pars) 빠진 칸은
    가까운 칸으로 그리며 뒤에서 굽는다(gl9 sprFill ★). 옛 16칸 덤프는 a(짝)·b(홀) 그대로. */
 const YAWN = Number(meta.yaw) || 16;
-const parOf = (yb) => (YAWN >= 32 ? (yb % 2 ? "o" : yb % 4 ? "b" : "a") : yb % 2 ? "b" : "a");
+/* 홀 칸(32방 몫)은 c(칸%4==1)·d(칸%4==3) 둘로 — 한 묶음 16방향이면 울트라 묶음 키가 16384 를 넘는다(옛 16칸 b 8960px × 2). 묶음은 다 8방향씩. */
+const parOf = (yb) => (YAWN >= 32 ? ["a", "c", "b", "d"][yb % 4] : yb % 2 ? "b" : "a");
 const groups = new Map();
 let untagged = 0;
 for (const c of meta.cells) {

@@ -1699,7 +1699,7 @@ export class GlUnits9 implements VecSink9 {
   sprWarmStep = 1;
   /** ★ **교체**(2026-11-03, 요청: "뒤에서 굽는다는 게 메시를 말한 게 아니었어 · 다운은 다 받고 메모리에 올리는 걸 교체한다는 거야") — 아틀라스 묶음(종류.a/b/o) 가운데
    *  GPU 에 안 올린 것(받아 풀어 IndexedDB 에 둔 대기 묶음)이면 sprSwapOf 가 그 이름을 준다. 붓은 그 몸을 가까운 칸으로 그리고 메시로 굽지 않으며 이름을 sprSwapReq 에 적는다 —
-   *  sprAtlas9 의 교체 고리가 올리고(안 쓴 지 오래된 b·o 묶음을 내리고) 칸이 선다. */
+   *  sprAtlas9 의 교체 고리가 올리고(안 쓴 지 오래된 b·c·d 묶음을 내리고) 칸이 선다. */
   sprSwapOf: ((kind: string, yb: number, n: number) => string | null) | null = null;
   sprSwapReq = new Set<string>();
   /** 고정 판 묶음별 마지막 쓴 장(교체 고리가 내릴 것을 고른다) · 지금 장 번호. */

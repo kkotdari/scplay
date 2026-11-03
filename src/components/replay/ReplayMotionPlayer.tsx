@@ -831,7 +831,7 @@ const APP16_9 = (): boolean => {
 };
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
-    glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·o 로 가른다)
+    glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
     const g9 = glNow9(); if (g9) g9.sprDumpQ = SPR_DUMP9;
     return;
   }

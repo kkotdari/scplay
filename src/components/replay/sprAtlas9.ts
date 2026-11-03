@@ -13,8 +13,8 @@ export const sprAtlasOn9 = (): boolean => !!BASE && !!SPR_ATLAS_INDEX9 && !(type
 
 type Cell9 = [string, number, number, number, number, number, number, number];
 interface Chunk9 { w: number; h: number; layers: string[]; files: { f: Record<string, string>; h: Record<string, string> }; cells: Cell9[] }
-type Par9 = "a" | "b" | "o";
-interface Index9 { src: string; q: number; yaw: number; kinds: Record<string, { a?: Chunk9; b?: Chunk9; o?: Chunk9 }> }
+type Par9 = "a" | "b" | "c" | "d";
+interface Index9 { src: string; q: number; yaw: number; kinds: Record<string, { a?: Chunk9; b?: Chunk9; c?: Chunk9; d?: Chunk9 }> }
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type BasisM = any;
 
@@ -180,7 +180,7 @@ let pruned9 = false;
 function cachePrune9(db: IDBDatabase, idx: Index9, tf: number): void {
   if (pruned9) return; pruned9 = true;
   const live9 = new Set<string>();
-  for (const e of Object.values(idx.kinds)) for (const ch of [e.a, e.b, e.o]) if (ch) for (const fs of [ch.files.f, ch.files.h]) for (const f of Object.values(fs ?? {})) live9.add(f + "|" + tf);
+  for (const e of Object.values(idx.kinds)) for (const ch of [e.a, e.b, e.c, e.d]) if (ch) for (const fs of [ch.files.f, ch.files.h]) for (const f of Object.values(fs ?? {})) live9.add(f + "|" + tf);
   try {
     const st9 = db.transaction(IDB_ST9, "readwrite").objectStore(IDB_ST9);
     const rq = st9.getAllKeys();
@@ -202,7 +202,7 @@ export interface SprAtlasLoad9 { cells: number; mb: number; ms: number; fmt: str
 /** 경기 종류들의 아틀라스를 싣는다 — kinds 는 많이 쓰는 차례 · mbCap 을 넘으면 거기서 멈춘다(나머지는 재생 중 굽기).
  *  ★ `core` 개 종류(앞에서부터)의 묶음이 다 실리면(또는 실을 것이 없으면) `onCore` 를 한 번 부른다(2026-10-26 · 요청 2 — 많이 쓰는 종류만 먼저 싣고 재생을 시작 · 나머지는 뒤에서).
  *  `pending` 은 아직 안 실린 종류를 담고 실릴 때마다 뺀다(예열이 그 종류의 동적 미리 굽기를 건너뛰는 자) — 다 끝나면 비운다. */
-/** opt.want — 받을 요잉 방향 수(8 = a · 16 = a+b · 32 = a+b+o · 2026-11-03 요잉 32 ★ spr-atlas parOf). 옛 16칸 표는 a(짝)·b(홀)뿐이라 32 를 줘도 16 까지만 온다. */
+/** opt.want — 받을 요잉 방향 수(8 = a · 16 = a+b · 32 = a+b+c+d · 2026-11-03 요잉 32 ★ spr-atlas parOf). 옛 16칸 표는 a(짝)·b(홀)뿐이라 32 를 줘도 16 까지만 온다. */
 export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "f" | "h"; want: 8 | 16 | 32; em: boolean; mbCap: number;
   core?: number; onCore?: () => void; pending?: Set<string>; workers?: number;
   /** 푼 단 캐시(위 ★)에 쓸 상한 MB(저장소 몫의 40% 와 작은 쪽). */
@@ -230,7 +230,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const spare = (): string | undefined => [...done].find((tg) => !want.has(tg.slice(0, tg.indexOf("."))));
     const k = opt.res === "h" ? 0.5 : 1;
     /* 받을 묶음 — 옛 16칸 표(yaw 16)는 b 가 홀 칸이라 16방부터 받는다. */
-    const pars9: Par9[] = opt.want >= 32 ? ["a", "b", "o"] : opt.want >= 16 ? ["a", "b"] : ["a"];
+    const pars9: Par9[] = opt.want >= 32 ? ["a", "b", "c", "d"] : opt.want >= 16 ? ["a", "b"] : ["a"];
     /** 칸 열쇠의 요잉 칸을 이 기기의 칸 수로 옮긴다(표 A칸 → 기기 n칸 · 건물은 적어도 8 · 32칸 머리는 늘 32) — 안 맞는 칸(기기가 못 쓰는 각)은 null. */
     const ybMap9 = (key0: string, kind: string): string | null => {
       const A9 = SPR_YAW32_9.has(kind) ? 32 : idx.yaw || 16;
@@ -253,9 +253,9 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const coreSet9 = new Set(kinds.slice(0, Math.max(0, opt.core ?? kinds.length)));
     /* ★ 묶음 차례: 앞 종류 짝 → 앞 종류 홀 → 나머지 짝 → 나머지 홀(2026-11-03 · 앱 폰 16방향 — RMP APP16_9 ★). 상한에 닿아 멈추면 덜 쓰는 종류의 **홀 칸만** 빠지고
        (재생 중에 굽는다) 종류가 통째로 빠지지 않는다. 짝만 싣는 기기(폰 웹)는 그대로. */
-    /* (2026-11-03 요잉 32) 홀 칸 묶음(o)은 맨 뒤 — 앞 종류 o → 나머지 o. 빠지면 가까운 칸으로 그리고 뒤에서 굽는다(gl9 sprFill ★). */
+    /* (2026-11-03 요잉 32) 홀 칸 묶음(c·d)은 맨 뒤 — 앞 종류 c·d → 나머지 c·d. 빠지면 가까운 칸으로 그리고 뒤에서 굽는다(gl9 sprFill ★). */
     if (jobs.some((j) => j.par !== "a")) {
-      const rank9 = (j: (typeof jobs)[number]): number => (j.par === "o" ? 4 : 0) + (coreSet9.has(j.kind) ? 0 : 2) + (j.par === "b" ? 1 : 0);
+      const rank9 = (j: (typeof jobs)[number]): number => (j.par === "c" || j.par === "d" ? 4 : 0) + (coreSet9.has(j.kind) ? 0 : 2) + (j.par === "b" || j.par === "d" ? 1 : 0);
       jobs.sort((x, y) => rank9(x) - rank9(y));   // 안정 정렬 — 같은 칸 안은 많이 쓰는 차례 그대로
     }
     let coreLeft9 = jobs.filter((j) => coreSet9.has(j.kind)).length;
@@ -313,7 +313,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const by9 = new Map<string, (typeof jobs)[number]>();
     for (const kind of kinds) {
       const e9 = idx.kinds[kind]; if (!e9) continue;
-      for (const par of ["a", "b", "o"] as Par9[]) {
+      for (const par of ["a", "b", "c", "d"] as Par9[]) {
         const ch = e9[par]; if (!ch) continue;
         const jb9 = { kind, par, ch }; all9.set(`${kind}.${par}`, jb9);
         const tg9 = `${kind}.${par}.${opt.res}`;
@@ -326,7 +326,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       if (by9.size === 0) return null;
       const a9 = SPR_YAW32_9.has(kind) ? 32 : A9;
       const yA9 = (yb * a9) / n; if (yA9 !== Math.floor(yA9)) return null;
-      const par9: Par9 = SPR_YAW32_9.has(kind) ? "a" : a9 >= 32 ? (yA9 % 2 ? "o" : yA9 % 4 ? "b" : "a") : yA9 % 2 ? "b" : "a";
+      const par9: Par9 = SPR_YAW32_9.has(kind) ? "a" : a9 >= 32 ? (["a", "c", "b", "d"] as Par9[])[yA9 % 4] : yA9 % 2 ? "b" : "a";
       const kp9 = `${kind}.${par9}`;
       return by9.has(kp9) ? kp9 : null;
     };
@@ -358,7 +358,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       await new Promise((res) => setTimeout(res, 0));
     }
     /* ★ **교체**(2026-11-03, 요청: "다운은 다 받고 메모리에 올리는 걸 교체한다는 거야") ──
-       이 경기 종류의 묶음 가운데 GPU 에 못 올린 것(기기 몫 밖의 b·o · 상한에 닿아 빠진 것)은 **대기 묶음**이다: ① 뒤에서 차례로 받아 풀어 IndexedDB 에 담아 두고(받기·풀기는
+       이 경기 종류의 묶음 가운데 GPU 에 못 올린 것(기기 몫 밖의 b·c·d · 상한에 닿아 빠진 것)은 **대기 묶음**이다: ① 뒤에서 차례로 받아 풀어 IndexedDB 에 담아 두고(받기·풀기는
        한 번 · 캐시가 없으면 HTTP 캐시만 데운다) ② 붓이 그 칸을 찾으면(gl9 sprSwapOf → sprSwapReq) 가까운 칸으로 그리는 동안 ③ 고리가 한 묶음씩 캐시에서 꺼내 올린다 —
        자리가 모자라면 **안 쓴 지 90장 넘은** 묶음(이 경기 종류의 a 는 빼고)을 내리고 대기로 돌린다. 메시로 굽지 않는다. */
     {
