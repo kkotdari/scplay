@@ -35755,8 +35755,7 @@ const fN = typeof navigator > "u" ? 0 : navigator.deviceMemory ?? 0, xp = { glBl
     aheadMB: 32,
     glMeshMax: 360,
     yaw8Always: !1,
-    meshShadow: !0,
-    // 사영 그림자는 높음부터(위 폰 프로필 ★ · 3배 아래는 그대로 걷는다)
+    // 사영 그림자는 이제 폰 프로필 기본(전 단 · 2026-11-03) — 옛: 높음 단만 meshShadow true
     decalBakeMax: 384,
     hitShardK: 1,
     dieShards: 24,
@@ -35801,7 +35800,9 @@ const fN = typeof navigator > "u" ? 0 : navigator.deviceMemory ?? 0, xp = { glBl
    *  gl-renderer.md '사영 그림자는 단과 배율이 켠다'). 옛 값: 0·1단 접지 타원 · 2단(높음) 8배부터. 뜨거우면 `#glshadow=0`(그때는 그림자가 없다 — 타원 대타 없음). */
   /* 폰 기본은 사영 그림자 **끔** → 접지 타원(shadowEllipse9 · 폰 참)이 대타(2026-10-27, 요청: "모바일은 사영그림자 값이 크다고 했던 기억이.. 모바일은 보통 이하 티어에서
      타원그림자로 고정") — 낮음·보통은 늘 타원 · 높음 단만 사영을 켠다(아래 PHONE_TIERS9 · 단은 오르기만 한다). 옛: 전 단 사영 + 3배 아래 걷기(2026-10-27 제안 B). `#glshadow=1` 이 앞선다. */
-  meshShadow: !1,
+  /* (2026-11-03, 요청: "폰 전체 단에 사영 그림자 적용") 끔 → **켬** — 낮음·보통도 사영(10-27 '보통 이하 타원 고정'을 되물림 · 3배 아래는 그대로 걷는다 ·
+     프레임 사다리 1단이 느린 폰에서 먼저 끈다). 2D 판은 아틀라스에 구운 그림자 칸을 붙일 뿐이고 무거운 것은 3D 보기(메시 두 번)다. */
+  meshShadow: !0,
   meshShadowMinZoom: 3,
   /** 사영이 안 깔리는 프레임에 **접지 타원을 대타로** 깔까 — 폰도 이제 안 깐다(PC 와 같다 · 덜어내기 단에서도 사영을 안 접는다). */
   shadowEllipse: !1,
@@ -43702,7 +43703,7 @@ function DF({
       " · UI ",
       Gs.ui,
       " · 판 ",
-      "11-03 12:24",
+      "11-03 13:09",
       Gs.ss !== 1 ? ` · 초해상 ×${Gs.ss.toFixed(2)}` : "",
       Math.abs(Gs.unitScale - Gs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${Gs.unitScale.toFixed(4)})` : Gs.scale > 0 && Math.abs(Gs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${Gs.scale.toFixed(4)})` : "",
       Gs.allocOk ? "" : " · ⚠배킹확보 실패"
