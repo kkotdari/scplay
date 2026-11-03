@@ -6950,7 +6950,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* ★ 랠리(판 16 · 2026-11-03, 요청: "랠리 … 연결") — 집힌 건물에서 랠리 자리까지 줄 하나 + 그 자리에 작은 링(원작의 깃발 자리). */
             /* (2026-11-03, 요청: "개인 화면 추적에서 랠리 찍은 거는 선 연결" → "추적 중에 랠리 지정하는 순간에만 선을 보여 주라고") — 화면 주인의 건물이 랠리를 찍은 뒤
                RALLY_FLASH9 초 동안만(엔진 rallyAge · 판 16 랠리 값이 선 시각부터) 줄을 긋는다. 보는 사람이 집은 건물은 종전대로 늘. */
-            const rallyNow9 = isPk9(op.pickKey) || (UI_SCREEN9 !== null && op.pickRaw === UI_SCREEN9 && op.rallyAge !== undefined && op.rallyAge >= 0 && op.rallyAge < RALLY_FLASH9);
+            /* (같은 날 되요청: "자유나 중계 모드에서도 똑같이 보여 주면 될 것 같아 · 랠리 찍는 동작을") — 화면 주인이 없으면(자유·중계) 누구의 건물이든 찍은 순간 그 임자 색으로. */
+            const rallyNow9 = isPk9(op.pickKey) || ((UI_SCREEN9 === null || op.pickRaw === UI_SCREEN9) && op.rallyAge !== undefined && op.rallyAge >= 0 && op.rallyAge < RALLY_FLASH9);
             if (rallyNow9 && op.rally && gl9.primOk) {
               const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
               const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
