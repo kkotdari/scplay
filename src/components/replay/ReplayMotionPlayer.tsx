@@ -101,7 +101,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, poseOfRx9, GAIT_CYCLE9, POSE_MERGE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, speedOf, unitTilesOf,
+  resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, SCR_DIAG_SEL, speedOf, unitTilesOf,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -663,6 +663,20 @@ const XF_HEAVY_MS9 = 55;
 /** ★ **배율판 옆 fps 글자**(2026-10-27, 요청: "개발하면서 계속 필요하니까 한동안 프레임을(fps만) 배율 옆에 글자만 표시해줘") — 늘 선다 · `#fps=0` 끔.
  *  붓의 fps 계측(0.5초)이 이 칸의 textContent 만 바꾼다(React 를 다시 그리지 않는다 — 큰 판의 리렌더가 곧 재려는 CPU 다). 걷을 때는 이 상수와 .scr-zoomfps 만. */
 const FPS_TAG9 = !(typeof location !== "undefined" && /(?:^|[#&,])fps=0/.test(location.hash));
+/* ★ **테스터 손잡이 — 최대 프레임 · 진단**(2026-11-03, 요청: "재생기 프레임 글자를 버튼화해서 최대 프레임레이트 지정 가능하게 15 단위로 하고 120 다음은 무제한 · 평소에는
+   현재 프레임 표시" → "운영자용은 아니고 isTester 파라미터 받게" → "diag 버튼도 그 옆에 추가 · 누르면 all, draw 등 선택 가능하게") — 재생기 prop `isTester` 가 참일 때만 fps 글자가
+   서고(그 밖은 숨김 · `#fps=1` 로 억지로) 누르면 최대 프레임이 자동 → 15 → 30 → … → 120 → 무제한 → 자동으로 돈다(누른 뒤 1.4초는 고른 값을 보여 준다). 고른 값은 이 기기에 남는다
+   (localStorage · 테스터 편의). 자동 = 종전 기기 박자(PC 60 · 폰 단 표) · 무제한 = 박자 없이 rAF 마다(화면 주사율까지). 옆의 diag 고르기는 engine9 SCR_DIAG_SEL 을 바꾼다. */
+const FPS_FORCE9 = typeof location !== "undefined" && /(?:^|[#&,])fps=1/.test(location.hash);
+const FPS_CAP_STEPS9 = [0, 15, 30, 45, 60, 75, 90, 105, 120, -1] as const;
+const FPS_CAP9: { on: boolean; v: number; flashUntil: number } = {
+  on: false, flashUntil: 0,
+  v: ((): number => { try { const n9 = Number(localStorage.getItem("scr-fpscap") ?? "0"); return (FPS_CAP_STEPS9 as readonly number[]).includes(n9) ? n9 : 0; } catch { return 0; } })(),
+};
+const fpsCapLabel9 = (v9: number): string => (v9 === 0 ? "자동" : v9 < 0 ? "무제한" : `최대 ${v9}`);
+/** 진단 고르기 칸 — 값(engine9 SCR_DIAG_SEL) · 이름. "" = 끔 · "sum" = 요약 한 줄. */
+const DIAG_PICKS9: readonly [string, string][] = [["", "diag 끔"], ["sum", "요약"], ["all", "all"], ["draw", "draw"], ["bake", "bake"], ["fog", "fog"], ["load", "load"],
+  ["gest", "gest"], ["mem", "mem"], ["worker", "worker"], ["truth", "truth"], ["brush", "brush"], ["view", "view"], ["fps", "fps"]];
 const fpsTagEl9: { el: HTMLElement | null } = { el: null };
 /** ★ **폰 손짓은 초당 30장**(2026-10-27, 지적: "자유모드가 드래그 줌도 많고 유닛도 많이 보일일이 많아서 발열이 심한듯" → 제안 A+B "ㅇㅋ") — 폰 평면 판 길(xfNoCss9)은
  *  손짓 중 CSS 변환 없이 장마다 손끝 보기로 판 전체(지형·안개·몸)를 다시 그려 화면 박자(60Hz · 120Hz 폰은 더)만큼 GPU 를 썼다. 손짓 한 장(gestureFrame9)과 재생 붓(drawGapMs)을
@@ -4585,6 +4599,7 @@ if (typeof window !== "undefined") {
  *    · `brush` · `view` · `all`. 한 주제가 한 줄이고 줄 머리에 주제 이름이 선다.
  *  `#diag=mem`(메모리), `#diag=worker`(설계 일꾼), `#diag=truth`(참값), `#diag=all`(전부). 쉼표로 여럿(`mem,worker`). */
 export const scrDiagModes = (): Set<string> => {
+  if (SCR_DIAG_SEL.v !== null) return new Set(SCR_DIAG_SEL.v === "" || SCR_DIAG_SEL.v === "sum" ? [] : SCR_DIAG_SEL.v.split(","));   // 손 선택(engine9 SCR_DIAG_SEL)
   if (typeof window === "undefined") return new Set();
   const m9 = /diag=([a-z,]+)/.exec(window.location.hash.toLowerCase());
   return new Set(m9 ? m9[1].split(",") : []);
@@ -9976,8 +9991,10 @@ export default function ReplayMotionPlayer({
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   onGuide, guide = true, avatars,
   soleView, melee,
-  onFinish, askMode, pending, veil, onReady, onLoadProgress,
+  onFinish, askMode, pending, veil, onReady, onLoadProgress, isTester = false,
 }: {
+  /** 테스터인가(2026-11-03) — 참이면 배율판 옆 fps 글자가 최대 프레임 단추가 되고 그 옆에 진단(diag) 고르기가 선다(위 FPS_CAP9 ★). */
+  isTester?: boolean;
   grid: ReplayMapGrid;
   /** 경기 길이(초) — 경기 메타(durationSeconds)에서 온다. 없으면 트랙의 끝으로 잡는다. */
   endSec: number | null;
@@ -12927,7 +12944,13 @@ export default function ReplayMotionPlayer({
        더 선명해지지는 않고 크기만 커진다. 맨 위 칸(12)은 '더 크게 보는' 자리이지 '더
        또렷하게 보는' 자리가 아니다. */
   /** 진단 오버레이(#diag) — 주소로 켠다. 한 번만 읽는다(주소가 바뀌면 새로고침). */
-  const [diagOn] = useState(scrDiagOn);
+  const [diagOn, setDiagOn9] = useState(scrDiagOn);
+  const [diagSel9, setDiagSel9] = useState<string>(() => {
+    if (SCR_DIAG_SEL.v !== null) return SCR_DIAG_SEL.v;
+    if (!scrDiagOn()) return "";
+    const m9 = scrDiagModes(); return m9.size ? [...m9].join(",") : "sum";   // 주소(#diag…)에서 시작한 진단도 고르기 칸에 그대로 보인다
+  });
+  FPS_CAP9.on = isTester;
   /* 두 배씩 넷으로(요청: "확대 사다리 1-2-4-8로 변경") — 문턱은 칸 번호를 읽으므로 따라온다: 넓은 자리 자세히 2배·요잉 4배,
      좁은 자리 이동 자세 4배·자세히 8배. 더블탭은 둘째 위 칸(4). 맨 위 8은 굽기 상한 안이라 또렷하다. */
   /* ★ 16배 칸 추가(요청) — 더블클릭·더블탭은 '둘째 위 칸'(ZOOM_TAP)이라 4 → 8로 저절로 오른다(같은 요청: "더블클릭 시
@@ -18654,7 +18677,7 @@ export default function ReplayMotionPlayer({
         fm9.n = 0;
         fm9.at = now9;
         if (fpsOnlyRef9.current) setFpsTick9((k9) => k9 + 1);
-        if (fpsTagEl9.el) fpsTagEl9.el.textContent = `${SCR_DIAG.fps}fps`;   // 위 FPS_TAG9 — 빈 span 이라 글자 하나만 바꾼다
+        if (fpsTagEl9.el && now9 >= FPS_CAP9.flashUntil) fpsTagEl9.el.textContent = `${SCR_DIAG.fps}fps`;   // 위 FPS_TAG9 — 빈 칸이라 글자 하나만 바꾼다(누른 직후 1.4초는 고른 최대 프레임을 보인다)
       }
     }
     const fr9 = frameAt9(tNow9, true);
@@ -20256,7 +20279,8 @@ export default function ReplayMotionPlayer({
       ? (FQ9.lv >= 3 ? PHONE_GAP9 : MOBILE_GAP_MS)
       : (FQ9.lv >= 3 ? PHONE_GAP_LO9 : PHONE_GAP9));
     const drawGapMs = (): number => (
-      GAP9 || (pcView ? (xfGestureRef.current ? 33 : 16)
+      GAP9 || (FPS_CAP9.on && FPS_CAP9.v !== 0 ? (FPS_CAP9.v < 0 ? 0 : 1000 / FPS_CAP9.v - 1.5)   // 테스터 최대 프레임(위 FPS_CAP9 ★ · rAF 떨림 여유 1.5ms)
+        : pcView ? (xfGestureRef.current ? 33 : 16)
         : xfGestureRef.current && XF_PHONE_GAP9 > 0 ? Math.max(MOBILE_GAP_MS, XF_PHONE_GAP9) : phoneGap9()));   // 폰 손짓 중 30장(XF_PHONE_GAP9 ★)
     const tick = (now: number) => {
       const c = clockRef.current;
@@ -23290,7 +23314,25 @@ export default function ReplayMotionPlayer({
           {/* 배속 다이얼 — 무대 오른아래(위 speedDial9 ★★). 단독·분할 다 선다. */}
           {speedDial9}
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
-          {!pending && zoomDial9 && FPS_TAG9 ? <span className="scr-zoomfps" aria-hidden ref={(el) => { fpsTagEl9.el = el; }} /> : null}   {/* 위 FPS_TAG9 — 자식 없음(글자는 계측이 쓴다) */}
+          {!pending && zoomDial9 && FPS_TAG9 && isTester ? (
+            /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
+            <div className="scr-zoomfps is-tester">
+              <select className="scr-zoomfps-diag" value={diagSel9} aria-label="진단(diag) 고르기"
+                onChange={(e) => { const v9 = e.currentTarget.value; SCR_DIAG_SEL.v = v9; setDiagSel9(v9); setDiagOn9(v9 !== ""); }}>
+                {DIAG_PICKS9.map(([v9, n9]) => <option key={v9 || "off"} value={v9}>{n9}</option>)}
+              </select>
+              <button type="button" className="scr-zoomfps-btn" title={`최대 프레임: ${fpsCapLabel9(FPS_CAP9.v)} — 누르면 바뀐다`} aria-label="최대 프레임 바꾸기"
+                ref={(el) => { fpsTagEl9.el = el; }}
+                onClick={(e) => {
+                  const st9 = FPS_CAP_STEPS9 as readonly number[];
+                  FPS_CAP9.v = st9[(st9.indexOf(FPS_CAP9.v) + 1) % st9.length];
+                  try { localStorage.setItem("scr-fpscap", String(FPS_CAP9.v)); } catch { /* 저장 못 해도 이번 판은 먹는다 */ }
+                  FPS_CAP9.flashUntil = pNow() + 1400;
+                  e.currentTarget.textContent = fpsCapLabel9(FPS_CAP9.v);
+                  e.currentTarget.title = `최대 프레임: ${fpsCapLabel9(FPS_CAP9.v)} — 누르면 바뀐다`;
+                }} />
+            </div>
+          ) : !pending && zoomDial9 && FPS_TAG9 && FPS_FORCE9 ? <span className="scr-zoomfps" aria-hidden ref={(el) => { fpsTagEl9.el = el; }} /> : null}   {/* 위 FPS_TAG9 — 자식 없음(글자는 계측이 쓴다) */}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}

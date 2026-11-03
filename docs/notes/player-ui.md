@@ -2906,3 +2906,12 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 ## PC 가로 전체화면 전광판 쪽 넘김 걷기(2026-11-03)
 지적: "전체화면에서만 왜 로스터가 접힘(데이터가 한 컬럼씩 슬라이드)이 되지? 그렇게 좁지 않은 것 같은데" — dockFit9 가로 배치 갈래(wide9)가 `setRosterPaged9(true)` 로 늘 쪽이었다
 (폰 가로를 위한 값이 PC 16:10 이상 전체화면에도 탔다). 이제 평소 독과 같은 자: `uiPhone9 || kp9 < 0.999`(폰이거나 전광판 단이 설계 폭 아래로 줄었을 때만).
+
+## 테스터 손잡이 — 최대 프레임 단추 · diag 고르기(2026-11-03)
+요청: "재생기 프레임 글자를 버튼화해서 최대 프레임레이트 지정 가능하게 15 단위 · 120 다음은 무제한 · 평소에는 현재 프레임 표시" → "운영자용은 아니고 isTester 파라미터 받게" →
+"diag 버튼도 그 옆에 추가 · 누르면 all, draw 등 선택 가능하게".
+- RMP prop `isTester`(기본 거짓). 참일 때만 배율판 옆 fps 글자(.scr-zoomfps.is-tester)가 선다 — 그 밖은 숨김(옛: 모두에게 · `#fps=1` 로 억지로 · `#fps=0` 끔 그대로).
+- 최대 프레임 단추(.scr-zoomfps-btn): 자동 → 15 → 30 → … → 120 → 무제한 → 자동(FPS_CAP_STEPS9) · 누른 뒤 1.4초 고른 값 · 그 밖엔 계측 fps · localStorage `scr-fpscap`.
+  붓 박자 drawGapMs 가 `1000/최대 − 1.5ms`(무제한 0 = rAF 마다) — 자동은 종전(PC 16 · 폰 단 표). `#gap=` 진단(GAP9)이 앞선다.
+- diag 고르기(.scr-zoomfps-diag · 네이티브 select): 끔 · 요약 · all · draw · bake · fog · load · gest · mem · worker · truth · brush · view · fps — engine9 `SCR_DIAG_SEL`
+  (null 이면 주소 #diag 를 따른다)을 scrDiagOn·scrDiagModes 가 먼저 본다 · RMP diagOn 을 상태로. `diag=pix`·`grid` 처럼 모듈 적재 때 읽는 특수 모드는 주소로만.

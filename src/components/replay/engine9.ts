@@ -2976,9 +2976,11 @@ export const SCR_DIAG: {
   areaCap: 0, allocOk: true, zoom: 0, pan: "", paints: 0, edge: "", xfms: 0, terrms: 0, warm9: "", atlas: "", drs: "", gest: "", glBuf: "", lastEv: "", fx: {}, prod: "", litN: 0, worker: "", gl: "", bakew: "", crowd: "", brush: "", fps: 0, fog: "", react: "", nukem: "",
   truthVer: 0, truthTrust: -1, truthWhy: "", split: "", ring: "", ui: "",
 };
-/** #diag가 켜져 있나 — 주소가 바뀌지 않는 한 한 번만 읽는다. */
+/** 진단 손 선택(2026-11-03, 요청: "diag 버튼도 그 옆에 추가 · 누르면 all, draw 등 선택 가능하게") — null 이면 주소(#diag…)를 따른다 · "" = 끔 · "sum" = 요약 한 줄 · 그 밖은 모드(쉼표로 여럿). */
+export const SCR_DIAG_SEL: { v: string | null } = { v: null };
+/** #diag가 켜져 있나 — 손 선택(SCR_DIAG_SEL)이 있으면 그것이 앞선다. */
 export const scrDiagOn = (): boolean =>
-  typeof window !== "undefined" && window.location.hash.toLowerCase().includes("diag");
+  SCR_DIAG_SEL.v !== null ? SCR_DIAG_SEL.v !== "" : typeof window !== "undefined" && window.location.hash.toLowerCase().includes("diag");
 
 /** 테란 부속건물 — 이름 대신 + 하나로 본체 옆에 붙는다(요청). 제 건설 좌표가 본체
  *  오른쪽 아래라 저절로 옆자리다. */
