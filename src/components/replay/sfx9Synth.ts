@@ -961,12 +961,18 @@ function stim9(v: number): Float32Array {
   const r = rng9(2311 + v);
   const hb = new Biquad9("bp", 1600 * K9, 1.2); const hh = new Biquad9("hp", 220, 0.7);
   const hb2 = new Biquad9("bp", 800 * K9, 1.0);
+  /* (같은 날 "처음이 스~ 하는 느낌이면 좋겠는데") — 앞머리 '스~': 가는 높은 띠(5.2kHz · Q 3)가 0.06초에 들어와 0.15~0.5초에 걸쳐 빠지고, 그동안 솨~ 띠가 0.35 → 1 로 차오른다. */
+  const sb9 = new Biquad9("bp", 5200, 3.0); const shp9 = new Biquad9("hp", 3000, 0.7);
   const A9 = 0.2 * L9; const UP9 = 0.22 * L9;
   const raw9 = render9(1.1 * L9, (t) => {
     const u9 = Math.min(1, t / A9); const env9 = t < A9 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - A9) * (3.2 / L9));
     const n9 = r() * 2 - 1;
-    const hiss = (hh.run(hb.run(n9)) * 1.15 + hb2.run(n9) * 0.9) * env9;
-    return sat9(hiss * 0.6, 1.5);
+    const sU9 = Math.min(1, t / 0.06); const sOut9 = 1 - Math.min(1, Math.max(0, (t - 0.15) / 0.35));
+    const sEnv9 = sU9 * sOut9 * sOut9;
+    const shaU9 = Math.min(1, Math.max(0, (t - 0.1) / 0.35)); const shaK9 = 0.35 + 0.65 * shaU9 * shaU9 * (3 - 2 * shaU9);
+    const sss9 = shp9.run(sb9.run(n9)) * sEnv9 * 0.9;
+    const hiss = (hh.run(hb.run(n9)) * 1.15 + hb2.run(n9) * 0.9) * env9 * shaK9;
+    return sat9(hiss * 0.6 + sss9, 1.5);
   }, (t) => {
     const f9 = K9 * (t < UP9 ? 1600 + (t / UP9) * 2800 : Math.max(2400, 4400 - (t - UP9) * (4000 / L9)));   // 스와이~ : 솟고 내려앉음
     hb.set(f9); hb2.set(f9 * 0.5);
