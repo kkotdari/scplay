@@ -448,3 +448,19 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
 남는 뿌리: 장 사이 보간(lerpFrame9)이 자리만 잇고 뜬 높이·자세 위상은 계단이라 박자가 낮을수록 랜딩·리프팅이 뚝뚝 — 그것을 보간하면 박자를 다시 내릴 수 있다.
 - 되물림(같은 날): "10으로 내리고 높이나 동작도 이어야겠네" — 폰 wfps 15 → 10 · `lerpFrame9` 에 **뜬 높이(airPx)** 보간 추가(한쪽 장에 없으면 0 — 앉은 장과도 이어 착륙 마지막 몫까지).
   건물 이륙·착륙의 계단은 이 칸이 장마다 굳어 있던 것. 회전 칸(spin)·자세(pz)는 이미 그리는 시각으로 다시 셈(sx·poseOfRx9)이라 그대로.
+
+## 참값 판 15 — 스팀팩 깃발(2026-11-03)
+요청: "스팀팩 한 경우 속도 빨라져야 해 · 몇 배인지 조사" → (체력 −10 자국 추정 시안을 걷고) "스팀팩을 데이터에 싣는 방법으로 근본적 해결".
+- 원작(get_modified_weapon_cooldown): 스팀이면 쿨다운 반(정수 버림) — 마린 15 → 7 · 파이어뱃 22 → 11 · 쏠 때마다 (rand & 3) − 1. 평균 마린 0.651 → 0.315초(2.07배).
+  engine9 `STIM_CD_K9` · `atkCdK9(unit, t, ups, stims)` — 자세 박자(cd9)와 발사 박자(fxCdRaw → 트레이서·피격 불티·총소리) 둘 다.
+- 덤퍼(sg-api `openbw/bwdump.cpp`): 상태 바이트 0x10 = `u->stim_timer > 0` · 판 14 → 15(꼴 같음). 상태 바이트가 바뀌면 키를 적으므로 켜고 끈 프레임이 키다.
+- 해독(openbwTracks `stim` · TRUTH_VER_MAX9 15) → truthLives `stims` 창(은신과 같은 꼴) → engine 개체 `stims` · 유닛 op `stim`(효과음 sfx9Cues '스팀' — 켜지는 장).
+- ⚠ 옛 판(≤14)은 스팀을 모른다(늘 기본 박자) — 덤퍼 배포 뒤 운영자 재분석 '전부'로 판 15 를 굽는다. 🔎 `node scripts/openbw-tracks-check.mjs`(판 15 왕복 · 0x10).
+
+## 참값에 안 싣고 엔진이 짐작하는 것(2026-11-03 점검)
+- 상태 마법(STATUS_CASTS) — 인스네어·플레이그·스테이시스·마엘·락다운·이레디: 시전 자리 + 반지름 + 고정 지속으로 걸린 몸을 **어림**한다. 원작은 몸마다 타이머(lockdown_timer·
+  irradiate_timer·ensnare_timer·plague_timer·stasis_timer·maelstrom_timer — bwdump WATCH 줄이 이미 읽는다)를 든다.
+- 그 밖 몸 상태 — 디펜시브 매트릭스(defensive_matrix_hp)·패러사이트·옵티컬 플레어(눈멂)·산성 포자 수·환영(hallucination)·피드백/컨슘(순간)은 그림이 없거나 시전 자리뿐.
+- 사격 순간 — 엔진은 '교전에 든 뒤 무기 쿨다운 박자'로 위상을 지어낸다(firePhase). 원작의 실제 발사(ground/air_weapon_cooldown 이 다시 차는 프레임)는 안 싣는다.
+- 실드 — 체력 자국이 체력 + 실드 합이다(visible_hp_plus_shields). 실드 몫은 표에서 어림.
+- 체력 자국 솎기 — 최대의 1/50(≥2) 아래 변화는 합쳐 적는다(잔물결).

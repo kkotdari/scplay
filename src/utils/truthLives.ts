@@ -85,6 +85,8 @@ export type TruthLife = {
    *  덤프가 옛 판이면 **빈 배열**이다(모른다) — 그때는 화면이 종전대로 이름으로 아는
    *  상시 은신만 쓴다. */
   cloaks: [number, number][];
+  /** ★ 스팀팩 구간들 [켠 초, 끈 초](2026-11-03 · 참값 판 15 상태 깃발 0x10 — 원작 stim_timer > 0 인 창). 옛 판은 빈 배열(모른다). */
+  stims: [number, number][];
   /** 자세 바뀜 [초, 박혔나] — 시즈탱크만 갖는다. */
   sieges: [number, boolean][];
   /** 떨어진 명령들 — 마우스 자국과 선택 링이 이것으로 선다. */
@@ -326,6 +328,20 @@ function livesOfTrack(
         if (on9 >= 0) cloaks.push([on9, kT(tr, end - 1)]);
       }
     }
+    /* 스팀 구간 — 은신과 같은 꼴(깃발이 켜진 키의 연속 · 상태 바이트가 바뀌면 덤퍼가 키를 적으므로 켜고 끈 프레임이 그대로 키다). */
+    const stims: [number, number][] = [];
+    {
+      const sm9 = tr.stim;
+      if (sm9) {
+        let on9 = -1;
+        for (let i = segStart; i < end; i += 1) {
+          const up9 = sm9[i] !== 0;
+          if (up9 && on9 < 0) on9 = kT(tr, i);
+          else if (!up9 && on9 >= 0) { stims.push([on9, kT(tr, i)]); on9 = -1; }
+        }
+        if (on9 >= 0) stims.push([on9, kT(tr, end - 1)]);
+      }
+    }
     const mine: LifeOrder[] = [];
     for (const o of orders.get(tr.tag) ?? []) {
       if (o[0] >= born && o[0] <= lifeEnd) mine.push([o[0], o[1], o[2], o[3] === 7]);
@@ -357,6 +373,7 @@ function livesOfTrack(
       doneAt,
       lifts,
       cloaks,
+      stims,
       // 시즈는 이 생애의 구간에 든 것만.
       sieges: sieges.filter(([s]) => s >= born && s <= lastT),
       orders: mine,

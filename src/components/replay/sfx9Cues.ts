@@ -54,6 +54,8 @@ export class SfxCues9 {
   private buried = new Map<string, boolean>();
   /** 맞은 몸마다 앞 장의 피격 위상 — 같은 몸이 잇달아 맞으면 열쇠가 그대로라 위상이 0 으로 돌아온 것으로 새 타를 가른다. */
   private hitPh = new Map<number, number>();
+  /** 몸마다 앞 장에 스팀팩 중이었나(아래 ★ 스팀). */
+  private stimWas = new Map<string, boolean>();
   /** 몸마다 마지막으로 소리 낸 휘두름 번호(위 SWING9 ★). */
   private swingN = new Map<string, number>();
   /** 건물 열쇠마다 앞 장에 공사 고치였나(위 ★ 저그 건물 완성). */
@@ -214,6 +216,12 @@ export class SfxCues9 {
       if (eggGo) play("eggStart", u.fx, u.fy);
       if (clang) play("metalClang", u.fx, u.fy);
       /* ★ 마인 발동(2026-11-02, 요청: "마인 발동 소리 중간 높이의 기계음") — 유닛 op 의 arm(engine9 · 터지기 0.45초 앞)이 선 첫 장. 터질 때는 종전대로 boom(dom mine). */
+      /* ★ 스팀팩(2026-11-03, 요청: "스팀팩 소리 스와이어~ 하는 느낌 남자 목소리 추가") — 유닛 op 의 stim(참값 판 15)이 꺼짐 → 켜짐으로 바뀐 장. 부대가 한꺼번에 써도 한 번(sfx9 MAX·GAP). */
+      if (u.pickKey) {
+        const stimNow9 = !!u.stim; const stimWas9 = this.stimWas.get(u.pickKey);
+        if (stimNow9 && stimWas9 === false) play("stim", u.fx, u.fy);
+        this.stimWas.set(u.pickKey, stimNow9);
+      }
       if (u.kind === "mine" && u.arm && fresh(`a${Math.round(u.fx * 4096)}:${Math.round(u.fy * 4096)}`)) play("mineArm", u.fx, u.fy);
       if (u.kind.startsWith("cocoon")) { beat = true; bx = u.fx; by = u.fy; }
       if (u.pickKey) {
@@ -232,6 +240,7 @@ export class SfxCues9 {
     this.hitPh = hitPh;
     if (this.buried.size > 4000) this.buried.clear();
     if (this.swingN.size > 4000) this.swingN.clear();
+    if (this.stimWas.size > 4000) this.stimWas.clear();
     if (this.cocWas.size > 4000) this.cocWas.clear();
     if (this.eggWas.size > 6000) this.eggWas.clear();
   }

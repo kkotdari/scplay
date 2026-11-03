@@ -20,7 +20,7 @@
  *     키마다: varint(zigzag(프레임차)) · varint(zigzag(x차)) · varint(zigzag(y차))
  *             · u8 방향(0~255) · u8 상태 · varint(zigzag(종류차))
  *       상태 바이트 — 낮은 네 자리(0x0f)가 '무엇을 하는 중인가'이고 그 위는 깃발이다:
- *       0x20 = 은신 중(판 5부터) · 0x40 = 떠 있다(판 3부터) · 0x80 = 아직 안 지어졌다.
+ *       0x10 = 스팀팩 중(판 15부터) · 0x20 = 은신 중(판 5부터) · 0x40 = 떠 있다(판 3부터) · 0x80 = 아직 안 지어졌다.
  *   체력 흐름 → 인터셉터 흐름 (트랙 차례대로, 키가 있는 트랙만)
  *     키마다: varint(프레임차) · varint(값차)
  *   업그레이드 u32 개수, 개마다 varint(프레임차) · u16 id · u8 단계 · u8 사람
@@ -89,6 +89,8 @@ export type TruthTrack = {
   air?: Uint8Array;
   /** 키마다 '은신 중인가'(1/0) — 해독기는 늘 채운다(판 11~14). */
   cloak?: Uint8Array;
+  /** 키마다 '스팀팩 중인가'(1/0 · 원작 stim_timer > 0) — **판 15부터** 덤퍼가 상태 바이트 0x10 에 싣는다(옛 판은 늘 0). 해독기는 늘 채운다. */
+  stim?: Uint8Array;
   /** 키마다의 유닛 종류 번호 — 한 생애 안에서 바뀐다(라바→알→저글링, 탱크↔시즈모드).
    *  `kind`는 그중 **마지막**이다. 키 수와 길이가 같다. */
   types: Uint16Array;
@@ -433,7 +435,8 @@ export const TRUTH_VER_MIN9 = 11;
 /* 판 12 = 판 11 + 선택 줄마다 u8 갈래(아래 SEL_KIND9) — 덤퍼가 갈리고 재분석이 돌기까지 판 11 도 그대로 읽는다(갈래 −1). */
 /* 판 13 = 판 12 + 맨 뒤 **데미지 절**(통마다 임자별 준·입은 데미지 · 아래 dmg) — 옛 판은 빈 표다(2026-10). */
 /* 판 14 = 판 13 + 맨 뒤 **채집 절**(사람마다 캔 자원 누적 · 아래 gath) — 옛 판은 빈 표다(2026-10-22). */
-export const TRUTH_VER_MAX9 = 14;
+/* 판 15 = 판 14 + 상태 바이트 0x10 '스팀팩 중'(2026-11-03, 요청: "스팀팩을 데이터에 싣는 방법으로 근본적 해결") — 꼴은 같고 깃발 하나가 는다(옛 판은 0). */
+export const TRUTH_VER_MAX9 = 15;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
   /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
@@ -532,6 +535,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
       const done = new Uint8Array(h.count);
       const air = new Uint8Array(h.count);
       const cloak = new Uint8Array(h.count);
+      const stim = new Uint8Array(h.count);
       let pf = 0;
       let px = 0;
       let py = 0;
@@ -550,8 +554,10 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         const state = stateByte & 0x0f;
         done[k] = stateByte & 0x80 ? 0 : 1;
         air[k] = stateByte & 0x40 ? 1 : 0;
-        // 0x20 = 은신 중 — 남아 있던 깃발 자리를 쓴다(0x10은 아직 빈다).
+        // 0x20 = 은신 중 — 남아 있던 깃발 자리를 쓴다.
         cloak[k] = stateByte & 0x20 ? 1 : 0;
+        // 0x10 = 스팀팩 중(판 15 · 2026-11-03) — 마지막 빈 깃발 자리.
+        stim[k] = stateByte & 0x10 ? 1 : 0;
         pt += c.varint();
         types[k] = pt;
         const t = pf / fps;
@@ -575,6 +581,7 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         done,
         air,
         cloak,
+        stim,
       });
     }
 

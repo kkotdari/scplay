@@ -215,7 +215,13 @@ export const DEFAULT_SPEED = 3.2;
  *  쿨다운 8 → 6 프레임(× 0.75). 배운 시각부터 휘두르는 박자(자세 · 효과음)가 빨라진다. */
 /** 스파이더 마인 발동 — 터지기 이만큼(초) 앞부터 유닛 op 에 arm(효과음이 발동 기계음을 낸다 · 2026-11-02 "마인 발동 소리 중간 높이의 기계음"). */
 export const MINE_ARM_SEC9 = 0.45;
-export function atkCdK9(unit: string, atSec: number, ups: [number, string, number][] | undefined): number {
+/** ★ **스팀팩**(2026-11-03, 요청: "스팀팩 한 경우 속도 빨라져야 해 · 몇 배인지는 조사 필요") — 원작 get_modified_weapon_cooldown: 스팀이면 쿨다운을 반으로 내린다(정수 버림) —
+ *  마린 가우스 15 → 7 프레임(× 7/15) · 파이어뱃 화염 22 → 11(× 0.5). 쏠 때마다 (rand & 3) − 1 프레임이 더 붙어 평균은 15.5 → 7.5(빠름 0.651 → 0.315초 · 2.07배).
+ *  스팀 구간은 **참값이 싣는다**(판 15 상태 깃발 0x10 · truthLives stims) — 옛 판은 모른다(늘 기본 박자). */
+export const STIM_CD_K9: Record<string, number> = { Marine: 7 / 15, Firebat: 11 / 22 };
+export function atkCdK9(unit: string, atSec: number, ups: [number, string, number][] | undefined, stims?: readonly [number, number][]): number {
+  const sk9 = STIM_CD_K9[unit];
+  if (sk9 !== undefined && stims && stims.length > 0) { for (const [a9, b9] of stims) if (atSec >= a9 && atSec < b9) return sk9; }
   if (unit !== "Zergling" || !ups) return 1;
   return ups.some(([sec, name]) => name === "Adrenal Glands" && sec <= atSec) ? 0.75 : 1;
 }
@@ -2115,6 +2121,8 @@ export type UnitDrawOp = {
   arm?: boolean;
   /** 광물을 캐는 일꾼(ST_GATHER)의 종류 — 효과음 '채집'(sfx9Cues · 2026-10-22 · 같은 날 "프로브랑 SCV 는 소리가 달라야" → 참/거짓에서 종류로). */
   gath?: "SCV" | "Probe" | "Drone";
+  /** 스팀팩 중(참값 판 15 의 stims 창) — 효과음 sfx9Cues 가 켜지는 순간 '스팀' 소리를 낸다(2026-11-03). */
+  stim?: boolean;
   /** 걸려 있는 마법(키) — 팝업이 그 효과와 색까지 적는다. */
   pickStatus?: string;
   /** 건물의 발자국 원점(타일) — 팝업이 '이 건물에서 나온 것'만 고르는 자다. */
@@ -3873,6 +3881,8 @@ export function deriveWorld9(inp: {
       statuses: [number, number, string][];
       /** 개인 클로킹 구간(레이스·고스트 f=14/15). */
       cloaks: [number, number][];
+      /** 스팀팩 구간 [시작, 끝](마린·파이어뱃 · 참값 판 15 · truthLives stims). */
+      stims: [number, number][];
       /** 명령(이동·공격·정지) 시각들 — 선택 링(지적: 드래그 선택 구분)의 재료. */
       orders: number[];
       /** 그 사람의 연구 기록 — 걸음 속도 상한(요청)이 속업을 반영하는 재료. */
@@ -4117,6 +4127,7 @@ export function deriveWorld9(inp: {
         walk: wk,
         statuses,
         cloaks,
+        stims: e.stims ?? [],   // 참값 판 15 의 스팀 깃발(truthLives stims ★ · 옛 판은 빈 배열)
       });
     }
     return out;
@@ -9278,6 +9289,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       pickKey: `u${e.tag}`, pickName: e.unit, pickRaw: e.raw,
       // 광물 캐는 일꾼(효과음 '채집' · 2026-10-22).
       ...(simState === ST_GATHER && (e.unit === "SCV" || e.unit === "Probe" || e.unit === "Drone") ? { gath: e.unit } : {}),
+      ...(e.stims.length > 0 && e.stims.some(([sa9, sb9]) => t >= sa9 && t < sb9) ? { stim: true } : {}),   // 스팀팩 중(효과음 · 2026-11-03)
       /* 지금 무슨 상태인가(요청: 모든 상태 노출) — 땅속·은신·얼음·전투까지, 몸이
          이미 아는 것을 글로 옮긴다. 없으면 상태 줄을 안 적는다. */
       pickStatus: (() => {
@@ -9426,7 +9438,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         if (pk9.atk && fighting && kindMain !== "lurker") {
           const pf9 = isKnownKind(drawUnit) ? profileOf(drawUnit) : null;
           const w9 = pf9 ? weaponVs(pf9, !!foe?.air) : null;
-          const cd9 = Math.max(0.2, (w9 ? w9.cd : 0.6) * atkCdK9(drawUnit, t, e.ups));   // 아드레날린(위 atkCdK9)
+          const cd9 = Math.max(0.2, (w9 ? w9.cd : 0.6) * atkCdK9(drawUnit, t, e.ups, e.stims));   // 아드레날린 · 스팀(위 atkCdK9)
           const ph0 = firePhase(`p${holdKey}`, cd9);
           /* ★ 쉬는 위상에는 **날갯짓으로 되돌아간다**(지적: "뮤탈 이동 시 날개짓
              안 함") — 뮤탈·디바우러는 flap과 atk를 둘 다 갖는데, 사거리 안에
@@ -9885,7 +9897,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const fxCdRaw = (() => {
       const pf9 = isKnownKind(fxUnit) ? profileOf(fxUnit) : null;
       const w9 = pf9 ? weaponVs(pf9, foe.air) : null;
-      return Math.max(0.15, w9 ? w9.cd : 0.6);
+      return Math.max(0.15, (w9 ? w9.cd : 0.6) * atkCdK9(fxUnit, t, e.ups, e.stims));   // 스팀이면 발사 박자(트레이서·피격 불티·총소리)도 빨라진다(위 STIM_CD_K9 ★)
     })();
     const fxCd = Math.min(0.32, Math.max(0.08, fxCdRaw * 0.35));
     /* 날아가는 탄(요청) — 발사 박자(쿨다운) 안에서 총구 → 표적으로 나아간다.

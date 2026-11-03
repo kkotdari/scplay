@@ -91,7 +91,7 @@ const SPEC = {
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 11;  // 판 11 만(요청: "판 10 이하 참값은 재생 안되게") — 하단 인포창·K/D 가 판 11 네 절 위에 선다
-const VER_MAX = 14;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래 · 판 13 = 맨 뒤 데미지 절 · 판 14 = 맨 뒤 채집 절
+const VER_MAX = 15;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래 · 판 13 = 맨 뒤 데미지 절 · 판 14 = 맨 뒤 채집 절 · 판 15 = 상태 바이트 0x10 스팀
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -132,7 +132,7 @@ function build(ver) {
     ...(ver >= 8 ? [u8(0)] : []));
   // 키 흐름 — 상태 바이트에 깃발을 실어 판별 갈래(0x80 공사·0x40 공중·0x20 은신)도 본다.
   p.push(varint(48), varint(320), varint(640), u8(0), u8(0x01), varint(7));
-  p.push(varint(24), varint(32), varint(0), u8(64), u8(0x40 | 0x01), varint(0));
+  p.push(varint(24), varint(32), varint(0), u8(64), u8(0x40 | (ver >= 15 ? 0x10 : 0) | 0x01), varint(0));   // 판 15: 0x10 스팀
   p.push(varint(96), varint(160), varint(160), u8(0), u8(0x80 | 0x01), varint(7));
   // 체력 → 인터셉터 → 표적
   p.push(varint(48), varint(60), varint(24), varint(-10));
@@ -235,6 +235,7 @@ function expect(ver, r, fail) {
   if (ver >= 3) eq("트랙0 air(0x40)", [...(a.air ?? [])], [0, 1]);
   else eq("트랙0 air(판2엔 없다)", a.air, undefined);
   if (ver >= 5) eq("트랙0 cloak", [...(a.cloak ?? [])], [0, 0]);
+  eq("트랙0 stim(0x10 · 판 15)", [...(a.stim ?? [])], ver >= 15 ? [0, 1] : [0, 0]);
   // 변곡점은 평평한 형식 배열 [초, 값, 초, 값, …]이다.
   eq("트랙0 체력", [...a.hp], [2, 60, 3, 50]);
   eq("트랙0 인터셉터", [...a.ic], [2, 4]);
@@ -442,6 +443,7 @@ function compare(bin, txt, decoded, upName, fail) {
       if (tr.done[i] !== (state & 0x80 ? 0 : 1)) { fail(`태그 ${tr.tag} 키 ${i} 완성`); break; }
       if (tr.air && tr.air[i] !== (state & 0x40 ? 1 : 0)) { fail(`태그 ${tr.tag} 키 ${i} 공중`); break; }
       if (tr.cloak && tr.cloak[i] !== (state & 0x20 ? 1 : 0)) { fail(`태그 ${tr.tag} 키 ${i} 은신`); break; }
+      if (tr.stim && tr.stim[i] !== (state & 0x10 ? 1 : 0)) { fail(`태그 ${tr.tag} 키 ${i} 스팀`); break; }
       if (tr.types[i] !== type) { fail(`태그 ${tr.tag} 키 ${i} 종류 ${tr.types[i]} vs ${type}`); break; }
     }
     keys += n;
