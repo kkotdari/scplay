@@ -9435,6 +9435,18 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         });
       }
     }
+    /* ★ 스팀팩 가스(2026-11-03, 요청: "스팀팩 시전시 마린 파뱃 주위에 녹색 가스 잠깐 뜨게 1.5초정도") — 스팀 창(참값 판 15 stims)이 열린 뒤 1.5초 동안 몸 한가운데에 stimU. */
+    if (e.stims.length > 0 && !markerView) {
+      const sg9 = e.stims.find(([sa9]) => t >= sa9 && t < sa9 + 1.5);
+      if (sg9) {
+        const cpx8 = drawUnit === "" ? unitGlyphPx(kindMain, kindMain, 0, ay3) : unitPxOf(drawUnit2, ay3, kindMain);
+        fxOps.push({
+          kind: "dom", style: "cast", sub: "stimU", fx, fy,
+          lift: (uAir ? airLiftPxOf(ay3) : 0) + rise9 * cpx8 + cpx8 * 0.24,
+          size: cpx8 * (modelInkOf(kindMain) / 16), age: t - sg9[0], seed: (e.tag + Math.round(sg9[0] * 10)) % 97,
+        });
+      }
+    }
     /* (걷어냄·요청: "근접 잽 애니메이션은 이제 폐기") — 근접 유닛이 때릴 때
        몸을 표적 쪽으로 0.09타일 툭 내밀었다 당기던 자리다. 그릴 효과가 없던
        시절, '때린다'를 자리 밀기로 흉내 내던 대역이었다.
