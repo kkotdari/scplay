@@ -12970,6 +12970,17 @@ export default function ReplayMotionPlayer({
     return () => { document.removeEventListener("pointerdown", dn9, true); document.removeEventListener("keydown", key9); };
   }, [tMenu9]);
   const [fpsCapV9, setFpsCapV9] = useState(FPS_CAP9.v);
+  /* ★ 목록은 독에 안 가린다(2026-11-03, 지적: "독에 가려지면 안 돼 개발 버튼 목록은") — 폰은 독(.scr-fs-lower · 미니맵·로스터·조작 줄)이 판 아래를 덮고 판 상자가 목록을 자른다.
+     열릴 때 목록 위끝에서 '판 상자 아래끝'과 '가로로 겹치는 독의 위끝' 가운데 가까운 것까지를 max-height 로 주고 넘치는 줄은 목록 안에서 굴린다. */
+  useLayoutEffect(() => {
+    const pn9 = tMenu9 ? tRowRef9.current?.querySelector<HTMLElement>(".scr-testmode") : null; if (!pn9) return;
+    const r9 = pn9.getBoundingClientRect();
+    let bot9 = window.innerHeight;
+    const stg9 = tRowRef9.current?.offsetParent as HTMLElement | null; if (stg9) bot9 = Math.min(bot9, stg9.getBoundingClientRect().bottom);
+    const low9 = tRowRef9.current?.closest(".scr-fs-layer")?.querySelector<HTMLElement>(".scr-fs-lower") ?? null;
+    if (low9) { const l9 = low9.getBoundingClientRect(); if (l9.height > 0 && l9.left < r9.right && l9.right > r9.left && l9.top > r9.top) bot9 = Math.min(bot9, l9.top); }
+    pn9.style.maxHeight = `${Math.max(80, Math.floor(bot9 - r9.top - 8))}px`;
+  }, [tMenu9]);
   const [testSel9, setTestSel9] = useState<Set<string>>(() => new Set(hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9))));
   const testOnN9 = useMemo(() => hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9)).length, []);
   const [diagSel9, setDiagSel9] = useState<string>(() => {
@@ -23389,7 +23400,7 @@ export default function ReplayMotionPlayer({
                   </div>
                 </div>
               ) : tMenu9 === "diag" ? (
-                <div className="scr-testmode" role="listbox" aria-label="진단(diag) 고르기">
+                <div className="scr-testmode is-grid" role="listbox" aria-label="진단(diag) 고르기">
                   <div className="scr-testmode-head">진단(diag)</div>
                   {DIAG_PICKS9.map(([v9, n9]) => (
                     <button type="button" key={v9 || "off"} role="option" aria-selected={diagSel9 === v9} className={cx("scr-testmode-row", diagSel9 === v9 && "is-sel")}
@@ -23399,7 +23410,7 @@ export default function ReplayMotionPlayer({
                   ))}
                 </div>
               ) : tMenu9 === "fps" ? (
-                <div className="scr-testmode" role="listbox" aria-label="최대 프레임 고르기">
+                <div className="scr-testmode is-grid" role="listbox" aria-label="최대 프레임 고르기">
                   <div className="scr-testmode-head">최대 프레임{RAF_HZ9.hz > 0 ? ` · 화면 ${RAF_HZ9.hz}Hz` : ""}</div>
                   {(FPS_CAP_STEPS9 as readonly number[]).map((v9) => (
                     <button type="button" key={v9} role="option" aria-selected={fpsCapV9 === v9}

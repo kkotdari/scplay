@@ -4560,7 +4560,7 @@
   text-shadow: none; font-size: calc(11px * var(--sdk)); font-weight: 600;
 }
 /* 목록 줄(테스트·diag·최대 프레임 셋이 한 꼴 — 커스텀 목록 · 2026-11-03) */
-.scr-testmode { max-height: calc(100vh - 120px); overflow-y: auto; }
+.scr-testmode { max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }   /* 실제 높이는 RMP 가 독 위끝까지로 잰다 */
 .scr-testmode-head { padding: calc(2px * var(--sdk)) calc(4px * var(--sdk)) calc(5px * var(--sdk)); color: rgba(232, 237, 243, 0.6); font-size: calc(10px * var(--sdk)); font-weight: 700; }
 .scr-testmode-row {
   display: flex; align-items: center; gap: calc(7px * var(--sdk)); width: 100%; text-align: left; cursor: pointer; color: #e8edf3; font: inherit;
@@ -4569,6 +4569,9 @@
 .scr-testmode-row:hover { background: rgba(255, 255, 255, 0.08); }
 .scr-testmode-row.is-sel { color: #fff; background: rgba(43, 98, 232, 0.35); }
 .scr-testmode-row.is-dim { opacity: 0.45; }
+/* 짧은 이름 목록(diag·최대 프레임)은 두 칸 — 폰 판 높이에 굴리지 않고 다 든다(같은 날 "독에 가려지면 안 돼") */
+.scr-testmode.is-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(4px * var(--sdk)); align-content: start; }
+.scr-testmode.is-grid > .scr-testmode-head, .scr-testmode.is-grid > .scr-testmode-note { grid-column: 1 / -1; }
 .scr-testmode-chk {
   flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(14px * var(--sdk)); height: calc(14px * var(--sdk));
   border: 1px solid rgba(255, 255, 255, 0.35); border-radius: calc(4px * var(--sdk)); font-size: calc(10px * var(--sdk)); line-height: 1; color: #ffc440;

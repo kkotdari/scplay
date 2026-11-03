@@ -2210,7 +2210,7 @@ if (SHOT) {
     const btns9 = await page.evaluate(() => [...document.querySelectorAll(".scr-zoomfps.is-tester > button")].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent, r.left + r.width / 2, r.top + r.height / 2]; }));
     console.log("[테스터] 단추:", JSON.stringify(btns9.map((b) => b[0])));
     const probe9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 줄 ${p.querySelectorAll(".scr-testmode-row").length} · ${p.contains(top) ? "위에 보인다" : "덮였다(" + (top?.className || top?.tagName) + ")"}`; });
+      return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 줄 ${p.querySelectorAll(".scr-testmode-row").length} · ${p.contains(top) ? "위에 보인다" : "덮였다(" + (top?.className || top?.tagName) + ")"} · 아래끝 ${Math.round(r.bottom)} / 독 위끝 ${Math.round(document.querySelector(".scr-fs-lower")?.getBoundingClientRect().top ?? -1)} · 굴림 ${p.scrollHeight > p.clientHeight + 1 ? "있음" : "없음"}`; });
     const SHOTB9 = String(flag("--shot", "x.png")).replace(/\.png$/, "");
     for (const [k9, n9] of [[1, "diag"], [0, "테스트"], [2, "fps"]]) {
       const b9 = btns9[k9]; if (!b9) continue;
