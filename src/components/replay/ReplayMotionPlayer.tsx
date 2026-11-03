@@ -21094,7 +21094,7 @@ export default function ReplayMotionPlayer({
                         {/* 칩을 눌러도 카메라 단추와 같다(2026-10-09, 요청: "닉네임 눌러도 카메라 버튼 누른 것과 동일하게 — PC 도"). */}
                         <span
                           className={cx("scr-motion-teamcol-name scr-dock-name", uiPhone9 && shown9 && "is-picked")} style={chipStyle(m.key, m.team, uiPhone9 ? CHIP_ROW_A9 : 1)}
-                          role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} aria-pressed={uiPhone9 ? on9 : undefined} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다 — 둘 이상 켜면 나눠 본다"}
+                          role="button" tabIndex={-1} onClick={() => pickPerson9(m.key)} aria-pressed={uiPhone9 ? on9 : undefined} title={on9 ? "이 사람 화면을 놓는다" : "이 사람 화면을 따라간다"}
                         >
                           {/* 종족 배지는 이름 **앞**(2026-10-09, 지적: 뒤에 두면 긴 이름에서 먼저 잘린다 · replay.css .scr-dock-name .scr-motion-teamcol-race) — 폰도
                               같다(2026-10-09 되요청: "모바일에서도 종족배지는 그냥 닉네임 왼쪽으로" · 옛 칩 오른쪽 위 오버레이는 걷었다).
