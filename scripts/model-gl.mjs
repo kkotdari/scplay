@@ -94,6 +94,10 @@ const SHADOW = process.argv.includes("--shadow");
 /** `--bake Q`(2026-10-29) — 지도 붓(flush · 메시) 대신 **2D 판 굽기 길**(sprPrebake9 → sprPreStep9 → 덤프)로 그린다. 서버 아틀라스가 굽는 그 그림이다(Q = 덤프 배수 ·
  *  spr-atlas 는 2). 굽기만 타는 손잡이(#ishadow 안 그림자 · #bcon 굽는 대비)를 견줄 때 쓴다. 임자색은 칸(P0) + 켜(tint) × 색으로 다시 입힌다. 칸 가운데에 맞춰 늘려 붙인다. */
 const BAKEQ = Number(flag("--bake", 0)) || 0;
+/** --half(2026-11-03 · 모바일 아틀라스 흉내) — --bake 칸을 2×2 상자로 줄인다(서버 아틀라스 h 판이 f 판을 줄인 그 꼴). --scale S — 칸에 맞추지 않고 f 칸 화소 × S 로 그린다
+ *  (--half 면 h 화소가 2S 배로 늘어 보인다 — 폰이 판을 늘려 붙이는 꼴 · 부드럽게 늘림). */
+const HALF = argv.includes("--half");
+const DSCALE = Number(flag("--scale", 0)) || 0;
 /** \`--glow [K]\`(2026-11-03 · 광택 번짐 시안) — --bake 길에서 빛 켜(em)를 흐려 몸 위에 더한다(지도 번짐의 흉내 · 반지름 칸 폭의 1.2% · 세기 K 기본 1). 헤드리스 메시 길은 번짐이 안 선다. */
 const GLOW = argv.includes("--glow") ? (Number(flag("--glow", 1)) || 1) : 0;
 
@@ -153,13 +157,22 @@ window.__run = (kinds, rots, cell, bg, color, vs2d, stages, lit, spins, normZ, f
             for (let ch = 0; ch < 3; ch += 1) { const v9 = pg9.color[si + ch] / 255 + tn9 * tc9[ch]; im9.data[di + ch] = a9 > 0.003 ? Math.min(255, Math.round((v9 / a9) * 255)) : 0; }
             im9.data[di + 3] = pg9.color[si + 3];
           }
+          if (${HALF} && !shadow) {   // --half — 미리곱한 값으로 2×2 상자 평균(아틀라스 h 판)
+            const hw = Math.max(1, c.w >> 1), hh = Math.max(1, c.h >> 1); const hm = new ImageData(hw, hh);
+            for (let y = 0; y < hh; y += 1) for (let x = 0; x < hw; x += 1) {
+              let ra = 0, ga = 0, ba = 0, aa = 0;
+              for (let dy = 0; dy < 2; dy += 1) for (let dx = 0; dx < 2; dx += 1) { const si = (Math.min(c.h - 1, y * 2 + dy) * c.w + Math.min(c.w - 1, x * 2 + dx)) * 4; const a = im9.data[si + 3] / 255; ra += im9.data[si] * a; ga += im9.data[si + 1] * a; ba += im9.data[si + 2] * a; aa += a; }
+              const di = (y * hw + x) * 4; hm.data[di] = aa > 0 ? ra / aa : 0; hm.data[di + 1] = aa > 0 ? ga / aa : 0; hm.data[di + 2] = aa > 0 ? ba / aa : 0; hm.data[di + 3] = Math.round((aa / 4) * 255);
+            }
+            const cvh = document.createElement("canvas"); cvh.width = hw; cvh.height = hh; cvh.getContext("2d").putImageData(hm, 0, 0); return cvh;
+          }
           const cv = document.createElement("canvas"); cv.width = c.w; cv.height = c.h; cv.getContext("2d").putImageData(im9, 0, 0); return cv;
         };
         /* 앵커 자(배율 kd 로 나눠 같은 자로) — 몸 칸과 그림자 칸은 배율이 다를 수 있다(그림자 한 옥타브 낮음). */
         const parts9 = [s9 ? { c: s9, cv: cvOf9(s9, true) } : null, { c: c9, cv: cvOf9(c9, false) }].filter(Boolean);
         let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
         for (const p9 of parts9) { const k9 = c9.kd / p9.c.kd; bx0 = Math.min(bx0, p9.c.x0 * k9); by0 = Math.min(by0, p9.c.y0 * k9); bx1 = Math.max(bx1, (p9.c.x0 + p9.c.w) * k9); by1 = Math.max(by1, (p9.c.y0 + p9.c.h) * k9); }
-        const sc9 = Math.min((cell * 0.92) / (bx1 - bx0), (cell * 0.92) / (by1 - by1 + (by1 - by0)));
+        const sc9 = ${DSCALE} > 0 ? ${DSCALE} : Math.min((cell * 0.92) / (bx1 - bx0), (cell * 0.92) / (by1 - by1 + (by1 - by0)));
         gx.imageSmoothingQuality = "high";
         const ox9 = i * cell + (cell - (bx1 - bx0) * sc9) / 2 - bx0 * sc9; const oy9 = r * cell + (cell - (by1 - by0) * sc9) / 2 - by0 * sc9;
         for (const p9 of parts9) { const k9 = (c9.kd / p9.c.kd) * sc9; gx.drawImage(p9.cv, ox9 + p9.c.x0 * k9, oy9 + p9.c.y0 * k9, p9.c.w * k9, p9.c.h * k9); }

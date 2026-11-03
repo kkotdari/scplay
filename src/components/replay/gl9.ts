@@ -846,6 +846,10 @@ vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
   return mix(c, max(c, bare), clamp(k9 * 0.20 * wear9, 0.0, 1.0));
 }
 `;
+/** 판 붙임 밉 치우침 시험(2026-11-03 · 폰 뭉갬 분석) — #sprlod=X 면 붙이는 셰이더의 텍스처 치우침 −0.4 를 X 로(링크 때 글자 · 판 해시 안 움직임). */
+const STICK_LOD9 = ((): number | null => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])sprlod=(-?[0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) : null; })();
+/** 모서리 광택 끔(시안 · 위 fsE9). */
+const EDGE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])edgeshine=0/.test(location.hash);
 const hexRgb = (s: string): [number, number, number] => {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
   if (!m) return [0.5, 0.5, 0.5];
@@ -1554,8 +1558,11 @@ export class GlUnits9 implements VecSink9 {
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;")   // glA9 — 유리 투명(MATX_FS9 cl 7)
       .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4((gEm9 + (uMat.x > 1.5 && uMat.x < 2.5 ? vEm.rgb * vEm.a * 0.8 : vec3(0.0))) * a9, a9);");   // 프로토스 발광 낯(보석·수정)도 빛무리 원천(2026-11-03 "보석 자체가 발광")   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
+    /* 시안 손잡이 #edgeshine=0(2026-11-03, 요청: "모바일용 아틀라스 해상도로 모서리 광택 없는 버전 시안 · 저해상도에서 모서리가 화질을 안 좋게 보이게 하는 것 같아") —
+       링크 때 글자로 모서리 광택 몫(과 그 빛무리)을 0 으로. 역따옴표 밖이라 아틀라스 판 해시가 안 움직인다. 기본 켬. */
+    const fsE9 = EDGE_OFF9 ? fsM9.replace("vec3 sh9 = k9 * 0.70 * e9", "vec3 sh9 = 0.0 * k9 * 0.70 * e9") : fsM9;
     const p = gl.createProgram()!;
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsE9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
@@ -1613,7 +1620,7 @@ export class GlUnits9 implements VecSink9 {
           return sh9;
         };
         const q = gl.createProgram()!;
-        gl.attachShader(q, raw(gl.VERTEX_SHADER, SPR_VS9)); gl.attachShader(q, raw(gl.FRAGMENT_SHADER, SPR_FS9)); gl.linkProgram(q);
+        gl.attachShader(q, raw(gl.VERTEX_SHADER, SPR_VS9)); gl.attachShader(q, raw(gl.FRAGMENT_SHADER, STICK_LOD9 === null ? SPR_FS9 : SPR_FS9.split(", -0.4)").join(", " + STICK_LOD9.toFixed(2) + ")"))); gl.linkProgram(q);
         if (!gl.getProgramParameter(q, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(q));
         const qv = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, qv);
@@ -2501,6 +2508,10 @@ export class GlUnits9 implements VecSink9 {
         const pm9 = ((globalThis as unknown as { __sprSt9?: Record<string, number> }).__sprSt9 ??= {});
         const pk9 = it.mesh.key.split(":").slice(0, 2).join(":");
         pm9[pk9] = Math.max(pm9[pk9] ?? 0, (kd / kq0) * 2 ** (sprLiftOf9(it.mesh.key) / 4));
+        if (fx9) {   // 아틀라스 칸을 몇 배로 붙이나(2026-11-03 · 폰 뭉갬 분석) — 1 넘으면 늘림(뭉갬) · 1 아래면 줄임(밉)
+          const pf9 = ((globalThis as unknown as { __sprFx9?: Record<string, [number, number]> }).__sprFx9 ??= {});
+          const r9 = kd / fx9.kd; const o9 = pf9[pk9]; pf9[pk9] = o9 ? [Math.min(o9[0], r9), Math.max(o9[1], r9)] : [r9, r9];
+        }
       }
       let over = kd / (fx9 ? fx9.kd : kq0) > this.sprUpMax * (sh ? 2 : 1);   // 그림자는 한 옥타브 낮게 구워 두 배까지 늘인다(sprLv9 ★)
       if (SPR_HOLD9) { const held = sprHeldMode9.get(key); if (held === undefined) sprHeldMode9.set(key, over); else over = held; }   // 손짓 동안은 처음 모드 그대로(위 sprHeldMode9 ★)

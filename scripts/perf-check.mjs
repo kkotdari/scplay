@@ -2206,6 +2206,12 @@ if (SHOT) {
   }
   /* --losegl [ms](2026-11-02, 지적: "아이폰 pwa 로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — GL 문맥을 일부러 잃게 하고
      (WEBGL_lose_context) 붓이 캔버스를 갈아 끼워 벌을 새로 여는지 · 그린 수가 다시 오르는지 · 다시 열기(다음 경기)에도 사는지 찍는다. 기다림 ms 기본 6000. */
+  if (has("--sprfx")) {   // 아틀라스 칸 붙임 배수(gl9 __sprFx9 · `#sprprobe` 를 함께 건다) — 종류마다 [최소, 최대] · 흐림 줄
+    const fx9 = await page.evaluate(() => globalThis.__sprFx9 || {});
+    const ent9 = Object.entries(fx9).sort((a, b) => b[1][1] - a[1][1]);
+    console.log("[아틀라스 붙임] 종류 " + ent9.length + " · " + ent9.map(([k, v]) => k.replace(/^[ub]:/, "") + " " + v[0].toFixed(2) + "~" + v[1].toFixed(2)).join(" · "));
+    console.log("[흐림]", await page.evaluate(() => (window.__scrDiag && window.__scrDiag.blur) || document.querySelector(".scr-motion-diag")?.innerText.split("\n").find((l) => l.startsWith("흐림")) || "-"));
+  }
   if (has("--testerprobe")) {   // 테스터 손잡이 셋(테스트·diag·최대 프레임) — diag 를 켠 채로 단추·목록 줄을 눌러(폰은 손가락) 먹는지 · 그 점의 맨 위 '보이는' 요소(pointer-events 무관)를 찍는다
     const tap9 = async (x, y) => { if (has("--ios")) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); await page.waitForTimeout(500); };
     const btns9 = () => page.evaluate(() => [...document.querySelectorAll(".scr-zoomfps.is-tester > button")].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent, r.left + r.width / 2, r.top + r.height / 2]; }));

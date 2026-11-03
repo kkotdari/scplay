@@ -2937,3 +2937,14 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - (같은 날) "진단 패널 열리면 버튼들이 안 눌리거나 눌려도 뒤에 뜸" — 진단 판(`.scr-motion-diag` z 99000)은 무대 상자 밖의 형제라 무대 안 목록의 z(99100)가 쌓임 맥락을 못 넘는다
   (헤드리스 `--testerprobe` 의 '위에 보인다'는 elementFromPoint 라 pointer-events:none 판을 못 봐 놓쳤다). 목록이 열린 동안 진단 판을 숨긴다(`.is-hide`).
   "진단 패널에 내용 복사 버튼" — 판 머리 오른쪽 `.scr-diag-copy`(판 innerText · 클립보드 · 안 되면 textarea+execCommand).
+
+## 폰 모델 뭉갬 분석 — 범인은 배킹 2/3(2026-11-03)
+지적: "모바일용 아틀라스 해상도로 모서리 광택 없는 시안" → "원인이 그게 아닌 것 같아 · 실제 폰에서는 훨씬 작게 나와 8배라도 · 뭔가 뭉개지는 거 같아 · 분석해 보자".
+- 실측(헤드리스 --ios --dpr 3 · 배율 6 · 아틀라스 h): 판 붙임 배수(gl9 `__sprFx9` · perf-check `--sprfx` · `#sprprobe`) 배율 4 에서 0.3~0.37 · 8 에서 0.6~0.74 —
+  **아틀라스는 늘 줄여 붙인다**(해상도 모자람 아님). 흐림 줄 `GL 1184x1664/592x832 ×0.6667` — dpr 3 폰의 몸 배킹이 2(PHONE_DPR9 · 높음 2.25 · 배율 6 이상 capSmall9 2)라
+  합성기가 1.5배 늘린다.
+- 같은 장면 라플라시안 분산(건물 · 드론 떼): 지금 112 / 531 → `#backcap=3` 494 / 3974(4~7배) · 그 위 `#sprlod=-1`(밉 치우침 −0.4 → −1) 557 / 4015(조금) · 메시 496 / 2106.
+  모서리 광택 끄기(`#edgeshine=0`)는 원인이 아니라 보고 시안을 접었다.
+- 시험 손잡이: `#backcap=N`(몸 배킹 상한 · 있던 것) · `#sprlod=X`(gl9 STICK_LOD9 · 붙임 셰이더 치우침 · 링크 때 글자) · `#edgeshine=0`(gl9 EDGE_OFF9) ·
+  model-gl `--half`(f 칸 2×2 줄임 = h)·`--scale S`. ⚠ gl9 에 `const SPR_…` 이름을 새로 쓰면 아틀라스 판 해시(spr-atlas atlasVer)가 잰다 — 시험 상수는 다른 이름으로.
+- 🔎 `perf-check.mjs --ios --dpr 3 --warm 4000 --glblit --atlas spr --zoom 6 --cx 0.15 --cy 0.82 --t 60 --pause --castoff --readyms 200000 [--hash backcap=3] --shot x.png`
