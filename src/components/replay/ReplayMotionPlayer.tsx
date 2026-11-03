@@ -23562,18 +23562,19 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9}   {/* 자료 기다림(pending)은 빈 지도라 배율이 뜻이 없다 */}
           {!pending && zoomDial9 && FPS_TAG9 && isTester ? (
             /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
+            /* (2026-11-03, 요청: "테스트 diag 버튼을 프레임 버튼 아래에 일렬로" · "테스트 feat 으로 변경") — 세로 한 줄: 프레임 → feat → diag(replay.css .scr-zoomfps.is-tester). */
             <div className={cx("scr-zoomfps is-tester", tMenu9 && "is-open")} ref={tRowRef9}>
+              <button type="button" className={cx("scr-zoomfps-btn", fpsCapV9 > 0 && "is-on", tMenu9 === "fps" && "is-open")} title={`최대 프레임: ${fpsCapLabel9(fpsCapV9)}`} aria-label="최대 프레임 고르기"
+                aria-expanded={tMenu9 === "fps"} ref={(el) => { fpsTagEl9.el = el; }}
+                onClick={() => setTMenu9((m9) => (m9 === "fps" ? "" : "fps"))} />
               <button type="button" className={cx("scr-zoomfps-btn", testOnN9 > 0 && "is-on", tMenu9 === "test" && "is-open")} aria-expanded={tMenu9 === "test"}
                 onClick={() => setTMenu9((m9) => (m9 === "test" ? "" : "test"))}>
-                {testOnN9 > 0 ? `테스트 ${testOnN9}` : "테스트"}
+                {testOnN9 > 0 ? `feat ${testOnN9}` : "feat"}
               </button>
               <button type="button" className={cx("scr-zoomfps-btn", diagSel9 !== "" && "is-on", tMenu9 === "diag" && "is-open")} aria-expanded={tMenu9 === "diag"} aria-label="진단(diag) 고르기"
                 onClick={() => setTMenu9((m9) => (m9 === "diag" ? "" : "diag"))}>
                 {diagSel9 === "" ? "diag" : `diag ${DIAG_PICKS9.find(([v9]) => v9 === diagSel9)?.[1] ?? diagSel9}`}
               </button>
-              <button type="button" className={cx("scr-zoomfps-btn", fpsCapV9 > 0 && "is-on", tMenu9 === "fps" && "is-open")} title={`최대 프레임: ${fpsCapLabel9(fpsCapV9)}`} aria-label="최대 프레임 고르기"
-                aria-expanded={tMenu9 === "fps"} ref={(el) => { fpsTagEl9.el = el; }}
-                onClick={() => setTMenu9((m9) => (m9 === "fps" ? "" : "fps"))} />
               {tMenu9 === "test" ? (
                 <div className="scr-testmode" role="dialog" aria-label="테스트 모드 — 기능 끄기·켜기">
                   <div className="scr-testmode-head">테스트 모드 · 적용하면 새로고침</div>
@@ -23819,7 +23820,25 @@ export default function ReplayMotionPlayer({
               {dockFit9.ki > 0 && infoDock9}
               {/* ★ 차례 [미니맵 | 인포창 | 전광판](2026-10-19, 요청: "독 내 순서 변경 미니맵 (인포창) 전광판 순으로") — 옛 [전광판 | 미니맵 | 인포창]. 인포창은 한 단 낮아
                   가운데가 쏙 들어간다(replay.css .scr-fs-dockmain ★★ · --plate-h). */}
-              <div className="scr-fs-rosterpanel">{dockRoster9}</div>
+              <div className="scr-fs-rosterpanel">
+                {/* ★ 폰 개인 화면 현황(2026-11-03, 요청: "모바일에서 개인화면 선택 시 로스터 위(밖 위)에 일꾼수 인구수 자원 · 위에 라벨하고 흰 글씨") — 로스터 판 바로 위 바깥에
+                    네 칸(일꾼 · 인구 · 미네랄 · 가스) · 라벨 줄 위 · 값은 흰 글씨. 개인 추적(trackRaw)일 때만 · 폰(smallDevice9)만. 꼴은 replay.css .scr-fs-ownstat. */}
+                {smallDevice9 && trackRaw !== null && ((): React.ReactNode => {
+                  const sp9 = supplyNow.get(trackRaw); const rs9 = resNow.get(trackRaw);
+                  const cells9: [string, string][] = [["일꾼", String(workerNow.get(trackRaw) ?? "-")], ["인구", sp9 ? `${sp9[0]}/${sp9[1]}` : "-"],
+                    ["미네랄", rs9 ? String(rs9[0]) : "-"], ["가스", rs9 ? String(rs9[1]) : "-"]];
+                  return (
+                    <div className="scr-fs-ownstat" aria-label="화면 주인 현황">
+                      {cells9.map(([l9, v9]) => (
+                        <span key={l9} className={cx("scr-fs-ownstat-c", l9 === "미네랄" && "is-min", l9 === "가스" && "is-gas")}>
+                          <span className="scr-fs-ownstat-l">{l9}</span><span className="scr-fs-ownstat-v">{v9}</span>
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {dockRoster9}
+              </div>
             </div>
             </div>
           </div>

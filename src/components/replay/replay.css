@@ -4548,7 +4548,7 @@
 }
 .scr-fs-layer.is-fs .scr-zoomfps { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
 /* 테스터 손잡이(2026-11-03 · RMP FPS_CAP9) — 진단 고르기 + 최대 프레임 단추. 바탕 없는 글자 꼴 그대로 누를 수 있게. */
-.scr-zoomfps.is-tester { pointer-events: auto; gap: calc(6px * var(--sdk)); opacity: 1; }   /* 판(.scr-testmode)이 이 묶음 기준으로 선다 — position 은 원래 absolute */
+.scr-zoomfps.is-tester { pointer-events: auto; gap: calc(6px * var(--sdk)); opacity: 1; flex-direction: column; align-items: flex-end; height: auto; }   /* 세로 한 줄(프레임 → feat → diag · 2026-11-03) */   /* 판(.scr-testmode)이 이 묶음 기준으로 선다 — position 은 원래 absolute */
 /* 목록이 열리면 진단 판(.scr-motion-diag z 99000) 위로 — 옛 판(30001 안의 z 2)은 PC 에서 diag 를 켜 두면 그 판에 덮여 '눌러도 안 뜬다'였다(2026-11-03). */
 .scr-zoomfps.is-tester.is-open { z-index: 99100; }
 .scr-zoomfps-btn {
@@ -5639,3 +5639,15 @@
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }
+
+/* ★ 폰 개인 화면 현황(2026-11-03 · RMP .scr-fs-rosterpanel 안 첫 자식) — 로스터 판 바로 위 **바깥**에 네 칸 · 위 라벨(옅게) · 아래 값(흰 글씨 · 그림자로 지도 위에서도 읽힘).
+   판의 위 가장자리에 붙여 띄우고(bottom 100%) 판 폭 안에서 고르게 나눈다. 누름은 지도로 흘린다. */
+.scr-fs-ownstat {
+  position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: calc(4px * var(--ui, 1));
+  display: flex; justify-content: space-around; gap: calc(4px * var(--ui, 1));
+  pointer-events: none; z-index: 2;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.scr-fs-ownstat-c { display: flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1.15; }
+.scr-fs-ownstat-l { font-size: calc(9px * var(--ui, 1)); color: rgba(255, 255, 255, 0.62); letter-spacing: 0.02em; }
+.scr-fs-ownstat-v { font-size: calc(13px * var(--ui, 1)); font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -2251,16 +2251,16 @@ if (SHOT) {
       const e = document.elementFromPoint(x, y); st.remove(); return e ? (e.className || e.tagName) + "" : "-"; }, [x, y]);
     const menu9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 진단 판 ${document.querySelector(".scr-motion-diag:not(.is-hide)") ? "보임" : "숨김/없음"}`; });
     let b9 = await btns9(); console.log("[테스터] 단추:", JSON.stringify(b9.map((b) => b[0])));
-    await tap9(b9[1][1], b9[1][2]); console.log("[테스터] diag 누름 →", await menu9());
+    await tap9(b9[2][1], b9[2][2]); console.log("[테스터] diag 누름 →", await menu9());
     const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("all"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
     if (row9) { await tap9(row9[0], row9[1]); console.log("[테스터] all 고름 → 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
     b9 = await btns9();
-    for (const [k9, n9] of [[0, "테스트"], [2, "fps"], [1, "diag"]]) {
+    for (const [k9, n9] of [[1, "feat"], [0, "fps"], [2, "diag"]]) {
       console.log(`[테스터] ${n9} 단추 자리 맨 위: ${await topAt9(b9[k9][1], b9[k9][2])}`);
       await tap9(b9[k9][1], b9[k9][2]); console.log(`[테스터] ${n9} 누름 →`, await menu9());
       const r9 = await page.evaluate(() => { const r = document.querySelectorAll(".scr-testmode-row")[1]?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
       if (r9) console.log(`[테스터] ${n9} 둘째 줄 맨 위: ${await topAt9(r9[0], r9[1])}`);
-      if (n9 === "테스트" && r9) { await tap9(r9[0], r9[1]); console.log("[테스터] 둘째 줄 누름 → 고름", await page.evaluate(() => document.querySelectorAll(".scr-testmode-row.is-sel").length)); }
+      if (n9 === "feat" && r9) { await tap9(r9[0], r9[1]); console.log("[테스터] 둘째 줄 누름 → 고름", await page.evaluate(() => document.querySelectorAll(".scr-testmode-row.is-sel").length)); }
       await tap9(b9[k9][1], b9[k9][2]); console.log(`[테스터] ${n9} 다시 누름(닫기) →`, await menu9());
     }
     await page.screenshot({ path: String(flag("--shot", "x.png")).replace(/\.png$/, "-tester.png"), timeout: 30000 }).catch(() => console.log("[테스터] 찍기 건너뜀"));
