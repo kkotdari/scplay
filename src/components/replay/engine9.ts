@@ -7224,7 +7224,9 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           /* ★ 저그 가스 기운은 **연구·업그레이드 중에만**(2026-11-03 요청) — 해처리류의 라바 생산은 안 든다(깜빡임 없이 켜 둔다). */
           ...(race2 === "저그" && !bldFrozen9 && !raising && researching ? { aura: true } : {}),
           ...((): { pulseK?: number } => {
-            /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다. */
+            /* ★ 저그 활성 건물의 숨(ZERG_PULSE_K9 의 ★) — 해처리류의 생산(라바 → 알)은 뺀다.
+               (걷음 · 2026-11-03, 요청: "저그 활성 건물 바운스는 제거(가스로 대체)") — 활성은 가스 기운(op.aura · gl9 AURA9)이 맡는다. */
+            if (race2 === "저그") return {};
             if (race2 !== "저그" || bldFrozen9 || raising) return {};
             const hall9 = unit === "Hatchery" || unit === "Lair" || unit === "Hive";
             if (!(researching || (producing && !hall9))) return {};

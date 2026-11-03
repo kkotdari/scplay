@@ -471,28 +471,26 @@ function warpHum9(v: number): Float32Array {
 /** 소환 끝(물마루가 흐르며 건물이 드러남) — 가장 아름답게(2026-10-22, 요청: "특히 완성") — 맑은 종이 라장조 칠화음으로 위로 굴러 오르고(라·도#·미·솔#·라·도#),
  *  그 아래 같은 화음이 부풀었다 사라지며, 맨 끝에 높은 별빛 하나. 종 = 사인 셋(1 · 2.01 · 3.98배 · 위로 갈수록 빨리 사그라짐). 메아리 둘(짧게 · 길게)로 여운. */
 function warpEnd9(v: number): Float32Array {
-  /* ★ **에너지가 차오르는 한 음**(2026-11-02 · 되요청 "너무 슬픈 느낌 · 피리 느낌이 아니라 에너지음 느낌") — 옛 판(A4 사인 한 음)은 맑은 피리처럼 들렸다.
-     이제 살짝 어긋난 톱니 둘(330Hz · ±0.6%)의 웅웅 맥놀이를 저역 거르개가 600 → 3200Hz 로 **열며** 차오르고 · 높이는 0.94 → 1 로 짧게 올라선다(전원이 들어오는 꼴) ·
-     한 옥타브 위 옅은 사인의 반짝 · 듬성한 전기 지직. 0.05초 들어와 0.95초 붙들고 0.4초에 놓는다(단음 · 내려가는 꼴 없음). */
-  /* ★ **미 · 솔 두 갈래 · 더 은은하고 부드럽게**(2026-11-03, 되요청: "프로토스 완공음 미솔로 변경하고 더 은은 부드럽게") — 갈래 미(E4) · 솔(G4).
-     옛 판(11-02)의 지직(잡음 반짝)을 걷고 · 톱니를 사인과 반씩 섞어 결을 누그러뜨리고 · 거르개는 500 → 1400Hz 로만 연다 · 들어옴 0.05 → 0.14초 ·
-     놓음은 곧은 0.4초 대신 둥근 0.6초 · 봉우리 0.3 → 0.22. 맥놀이(±0.6%)와 짧게 올라서는 높이(0.96 → 1)는 그대로 — 에너지가 차오르는 결은 남긴다. */
-  const lp = new Biquad9("lp", 500, 0.9);
-  const f0 = [329.63, 392.0][v % 2];
-  let pa = 0; let pb = 0;
-  const HOLD9 = 1.0; const REL9 = 0.6;
+  /* ★ **전기가 들어오는 소리 · 한 갈래**(2026-11-03, 요청: "프로토스 건물 착공 완공음 갈래 없이 1개로 · 완공음 나팔소리가 아닌 전기 들어오는 소리로 좀 부드럽게") —
+     옛 판(미·솔 두 갈래 · 톱니+사인 음)은 음높이가 또렷해 나팔처럼 들렸다. 이제 **음이 아니라 기계가 깨어나는 결**: ① 도는 웅 — 70 → 220Hz 로 감기며 오르는 사인
+     (2·3배음 옅게 · 800Hz 저역) ② 전원 웅웅 — 0.15초 뒤 들어오는 120Hz 사인에 3배음 한 줌(잔 맥놀이) ③ 숨 — 띠 거르개 잡음이 300 → 1400Hz 로 열리며 아주 옅게.
+     들어옴 0.22초(둥근) · 붙듦 0.6초 · 놓음 0.55초(cos²). 지직·딱 소리는 없다. v 는 안 쓴다(한 갈래). */
+  void v;
+  const r = rng9(1601);
+  const lp = new Biquad9("lp", 800, 0.7);
+  const bp = new Biquad9("bp", 300, 1.6);
+  let ph = 0; let pm = 0;
+  const HOLD9 = 0.8; const REL9 = 0.55;
   return finish9(render9(HOLD9 + REL9, (t) => {
-    const up = 0.96 + 0.04 * Math.min(1, t / 0.2);
-    pa += (f0 * up * 1.006) / SFX_RATE9; pb += (f0 * up * 0.994) / SFX_RATE9;
-    const saw = ((pa % 1) * 2 - 1) + ((pb % 1) * 2 - 1);
-    const sine = Math.sin(2 * Math.PI * pa) + Math.sin(2 * Math.PI * pb);
-    const body = saw * 0.5 + sine * 0.5;
-    const shimmer = Math.sin(2 * Math.PI * f0 * 2 * up * t) * 0.12;
-    const a9 = Math.min(1, t / 0.14); const att = a9 * a9 * (3 - 2 * a9);
+    const f = 70 + 150 * (1 - Math.exp(-t / 0.35));
+    ph += f / SFX_RATE9; pm += (120 + 0.8 * Math.sin(2 * Math.PI * 3 * t)) / SFX_RATE9;
+    const spin = Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.3 + Math.sin(6 * Math.PI * ph) * 0.1;
+    const m9 = Math.min(1, Math.max(0, (t - 0.15) / 0.3)); const mains = (Math.sin(2 * Math.PI * pm) + Math.sin(6 * Math.PI * pm) * 0.12) * m9 * m9 * (3 - 2 * m9) * 0.55;
+    const air = bp.run(r() * 2 - 1) * 0.08;
+    const a9 = Math.min(1, t / 0.22); const att = a9 * a9 * (3 - 2 * a9);
     const rel = t < HOLD9 ? 1 : Math.cos((Math.PI / 2) * Math.min(1, (t - HOLD9) / REL9)) ** 2;
-    const env = att * rel;
-    return sat9(lp.run(body * 0.35) + shimmer * env, 0.8) * env;
-  }, (t) => lp.set(500 + 900 * Math.min(1, t / 0.4))), 0.22);
+    return sat9(lp.run(spin * 0.5 + mains) + air, 0.7) * att * rel;
+  }, (t) => bp.set(300 + 1100 * Math.min(1, t / 0.8))), 0.22);
 }
 
 /** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
@@ -994,11 +992,11 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
   flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
-  warpHum: [2, warpHum9], warpEnd: [2, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
+  warpHum: [2, warpHum9], warpEnd: [1, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
   eggPop: [2, eggPop9],
   screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
-  warpCharge: [2, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
+  warpCharge: [1, warpCharge9], zlingHit: [3, zlingHit9], ultraHit: [3, ultraHit9],
   missileLow: [3, missileLow9], missileHi: [3, missileHi9],
   fleshUnfold: [2, fleshUnfold9], zergDone: [2, zergDone9],
   eggStart: [3, eggStart9], eggHatch: [3, eggHatch9], metalClang: [3, metalClang9],
