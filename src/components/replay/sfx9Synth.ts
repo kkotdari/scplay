@@ -467,22 +467,25 @@ function warpEnd9(v: number): Float32Array {
   /* ★ **에너지가 차오르는 한 음**(2026-11-02 · 되요청 "너무 슬픈 느낌 · 피리 느낌이 아니라 에너지음 느낌") — 옛 판(A4 사인 한 음)은 맑은 피리처럼 들렸다.
      이제 살짝 어긋난 톱니 둘(330Hz · ±0.6%)의 웅웅 맥놀이를 저역 거르개가 600 → 3200Hz 로 **열며** 차오르고 · 높이는 0.94 → 1 로 짧게 올라선다(전원이 들어오는 꼴) ·
      한 옥타브 위 옅은 사인의 반짝 · 듬성한 전기 지직. 0.05초 들어와 0.95초 붙들고 0.4초에 놓는다(단음 · 내려가는 꼴 없음). */
-  const r = rng9(1951 + 37 * v);
-  const lp = new Biquad9("lp", 600, 1.4);
-  const hp = new Biquad9("hp", 3500, 0.8);
-  /* 갈래는 **장3화음**(되요청: "두 갈래가 장조 차이 나게") — 미(E4) · 솔#(G#4 · 장3도) · 시(B4 · 완전5도). 옛: ±반음 언저리라 갈래가 거의 같게 들렸다. */
-  const f0 = [329.63, 415.3, 493.88][v % 3];
+  /* ★ **미 · 솔 두 갈래 · 더 은은하고 부드럽게**(2026-11-03, 되요청: "프로토스 완공음 미솔로 변경하고 더 은은 부드럽게") — 갈래 미(E4) · 솔(G4).
+     옛 판(11-02)의 지직(잡음 반짝)을 걷고 · 톱니를 사인과 반씩 섞어 결을 누그러뜨리고 · 거르개는 500 → 1400Hz 로만 연다 · 들어옴 0.05 → 0.14초 ·
+     놓음은 곧은 0.4초 대신 둥근 0.6초 · 봉우리 0.3 → 0.22. 맥놀이(±0.6%)와 짧게 올라서는 높이(0.96 → 1)는 그대로 — 에너지가 차오르는 결은 남긴다. */
+  const lp = new Biquad9("lp", 500, 0.9);
+  const f0 = [329.63, 392.0][v % 2];
   let pa = 0; let pb = 0;
-  const HOLD9 = 1.0; const REL9 = 0.4;
+  const HOLD9 = 1.0; const REL9 = 0.6;
   return finish9(render9(HOLD9 + REL9, (t) => {
-    const up = 0.94 + 0.06 * Math.min(1, t / 0.15);
+    const up = 0.96 + 0.04 * Math.min(1, t / 0.2);
     pa += (f0 * up * 1.006) / SFX_RATE9; pb += (f0 * up * 0.994) / SFX_RATE9;
-    const buzz = ((pa % 1) * 2 - 1) + ((pb % 1) * 2 - 1);
-    const shimmer = Math.sin(2 * Math.PI * f0 * 2 * up * t) * 0.25;
-    const env = t < 0.05 ? t / 0.05 : t < HOLD9 ? 1 : Math.max(0, 1 - (t - HOLD9) / REL9);
-    const zap = r() < 0.004 ? hp.run(r() * 2 - 1) * 0.6 : hp.run(0) * 0;
-    return sat9(lp.run(buzz * 0.4) + shimmer * env, 1.0) * env + zap * env * 0.6;
-  }, (t) => lp.set(600 + 1600 * Math.min(1, t / 0.35))), 0.3);   // 되요청 "좀 약하게" — 봉우리 0.4 → 0.3 · 거르개 위끝 3200 → 2200Hz · 웅웅·지직 덜
+    const saw = ((pa % 1) * 2 - 1) + ((pb % 1) * 2 - 1);
+    const sine = Math.sin(2 * Math.PI * pa) + Math.sin(2 * Math.PI * pb);
+    const body = saw * 0.5 + sine * 0.5;
+    const shimmer = Math.sin(2 * Math.PI * f0 * 2 * up * t) * 0.12;
+    const a9 = Math.min(1, t / 0.14); const att = a9 * a9 * (3 - 2 * a9);
+    const rel = t < HOLD9 ? 1 : Math.cos((Math.PI / 2) * Math.min(1, (t - HOLD9) / REL9)) ** 2;
+    const env = att * rel;
+    return sat9(lp.run(body * 0.35) + shimmer * env, 0.8) * env;
+  }, (t) => lp.set(500 + 900 * Math.min(1, t / 0.4))), 0.22);
 }
 
 /** 저그 부화(알·번데기가 깨짐 · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게") — 옛 판은 공용 퍽(puff · 3kHz 잡음 + 날 선 팝)이었다.
@@ -953,7 +956,7 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   load: [2, (v) => hatch9(v, true)], unload: [2, (v) => hatch9(v, false)],
   burrow: [2, (v) => burrow9(v, true)], unburrow: [2, (v) => burrow9(v, false)], warp: [3, warp9],
   flame: [2, flame9], slash: [3, slash9], blade: [3, blade9], claw: [3, claw9], spine: [3, spine9],
-  warpHum: [2, warpHum9], warpEnd: [3, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
+  warpHum: [2, warpHum9], warpEnd: [2, warpEnd9], heart: [2, heart9], mineScv: [2, mineScv9], mineProbe: [2, mineProbe9],
   eggPop: [2, eggPop9],
   screamLow: [2, (v) => scream9(v, false, 0.72)], screamHi: [2, (v) => scream9(v, true, 1.45)],
   spikeEarth: [3, spikeEarth9], guardHum: [2, guardHum9], springBreak: [2, springBreak9], scanHum: [2, scanHum9],
