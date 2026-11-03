@@ -1313,9 +1313,31 @@ void main() {
  *  gEm9 · 가린 자리는 덮임)을 가우스(σ = 칸 긴 변 × GLOW_SIG9 · ±3σ · 13×13 표본)로 흐려 칸에 **더한다**: rgb 는 빛(미리곱한 알파에서 rgb > a 면 더하기 빛) · a 는 휘도의 반 —
  *  실루엣 밖 투명 자리에도 옅은 빛무리가 남는다. 칸 여백(sprJob9 m = 3 + 5%)이 ±3σ 를 품는다. 그림자 칸은 안 탄다. 판에 들어 재생 비용이 없고 모든 기기가 같다. */
 const GLOW_SIG9 = 0.012;
+/** ★ **저그 가스 기운**(2026-11-03, 요청: "저그도 약간 보라색이나 붉은색 가스기운 · 녹색이나 · 몇몇 건물에" → "성큰은 빼고 스포어 스파이어 그레이터 스파이어에 녹색기운") —
+ *  같은 굽는 빛무리 패스가 몸 실루엣(원천 판의 알파)을 넓게 흐린 가면으로 **둘레에 색 기운**을 더한다(실루엣 바로 밖이 가장 짙고 몸 안은 옅게 · 잔 결로 가스처럼 고르지 않게).
+ *  종류 → [r, g, b, 세기]. 다 지은 몸(단계 0)만 · 그림자 칸은 안 탄다. 칸 여백을 AURA_MARGIN9 만큼 넓힌다(sprJob9). σ = 칸 긴 변 × AURA_SIG9. */
+const AURA_PURPLE9: [number, number, number, number] = [0.62, 0.30, 0.95, 0.55];
+const AURA_GREEN9: [number, number, number, number] = [0.38, 0.95, 0.30, 0.55];
+const AURA_RED9: [number, number, number, number] = [0.88, 0.24, 0.55, 0.55];
+const AURA9: Record<string, [number, number, number, number]> = {
+  hatchery: AURA_PURPLE9, lair: AURA_PURPLE9, hive: AURA_PURPLE9,
+  pool: AURA_GREEN9, hydraden: AURA_GREEN9, spore: AURA_GREEN9, spire: AURA_GREEN9, gspire: AURA_GREEN9,
+  dmound: AURA_RED9,
+};
+const AURA_SIG9 = 0.035;
+const AURA_MARGIN9 = 0.13;
+/** 이 메시의 가스 기운(없으면 null) — 건물 열쇠 b:종류:단계:… 의 다 지은 몸만. */
+const auraOf9 = (key: string): [number, number, number, number] | null => {
+  if (!key.startsWith("b:")) return null;
+  const p9 = key.split(":"); if (p9[2] !== "0") return null;
+  return AURA9[p9[1]] ?? null;
+};
 const GLOW_K9 = 1.6;
 const GLOW_FS9 = `#version 300 es
-precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; in vec2 v1; in vec2 v0; out vec4 o;
+precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; uniform vec4 uAura; uniform float uASig; in vec2 v1; in vec2 v0; out vec4 o;
+float hA9(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
+float nA9(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hA9(i), hA9(i + vec2(1.0, 0.0)), f.x), mix(hA9(i + vec2(0.0, 1.0)), hA9(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
   vec3 s9 = vec3(0.0); float w9 = 0.0;
   for (int i = -6; i <= 6; i++) {
@@ -1328,7 +1350,28 @@ void main() {
     }
   }
   vec3 g = s9 / w9 * uK;
-  o = vec4(g, clamp(dot(g, vec3(0.299, 0.587, 0.114)) * 0.5, 0.0, 1.0));
+  float ga9 = clamp(dot(g, vec3(0.299, 0.587, 0.114)) * 0.5, 0.0, 1.0);
+  /* 가스 기운(위 AURA9 ★) — 원천 판의 알파(몸 실루엣)를 넓게 흐린 가면 × (1 − 0.8·제 자리 몸) × 잔 결. */
+  if (uAura.a > 0.0) {
+    float m9 = 0.0; float mw9 = 0.0;
+    for (int i = -6; i <= 6; i++) {
+      for (int j = -6; j <= 6; j++) {
+        vec2 d = vec2(float(i), float(j)) * (uASig * 0.5);
+        float w = exp(-dot(d, d) / (2.0 * uASig * uASig));
+        vec2 u = v1 + d * uPx;
+        float t = (u.x < uR.x || u.y < uR.y || u.x > uR.z || u.y > uR.w) ? 0.0 : textureLod(uT1, u, 0.0).a;
+        m9 += t * w; mw9 += w;
+      }
+    }
+    m9 /= mw9;
+    float c9 = textureLod(uT1, clamp(v1, uR.xy, uR.zw), 0.0).a;
+    vec2 q9 = v1 / uPx / max(uASig, 1.0);
+    float gas9 = 0.55 + 0.45 * (0.65 * nA9(q9 * 0.9) + 0.35 * nA9(q9 * 2.3 + 7.1));
+    float k9 = smoothstep(0.02, 0.55, m9) * (1.0 - 0.8 * c9) * gas9 * uAura.a;
+    g += uAura.rgb * k9;
+    ga9 = max(ga9, k9 * 0.6);
+  }
+  o = vec4(g, ga9);
 }`;
 /** 미리 찍기(돌기) — 한 번 본 몸(메시·배율·색)의 **다른 요잉 칸**을 남는 예산으로 차례로 찍어 둔다. 둘 이상의 요잉을 본 것만(도는 몸) 연다. */
 interface SprWarm9 { job: Omit<SprJob9, "key" | "yaw" | "x0" | "y0" | "w" | "h" | "cell" | "tint">; yb0: number; ys: Set<number>; step: number; qk: number; gRq: number; gCyq: number }
@@ -1560,7 +1603,8 @@ export class GlUnits9 implements VecSink9 {
             gl.attachShader(w9, raw(gl.VERTEX_SHADER, TN_VS9)); gl.attachShader(w9, raw(gl.FRAGMENT_SHADER, GLOW_FS9)); gl.linkProgram(w9);
             if (!gl.getProgramParameter(w9, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(w9));
             this.glw = { prog: w9, aQ: gl.getAttribLocation(w9, "aQ"), uDst: gl.getUniformLocation(w9, "uDst"), uUv1: gl.getUniformLocation(w9, "uUv1"), uT1: gl.getUniformLocation(w9, "uT1"),
-              uR: gl.getUniformLocation(w9, "uR"), uPx: gl.getUniformLocation(w9, "uPx"), uSig: gl.getUniformLocation(w9, "uSig"), uK: gl.getUniformLocation(w9, "uK") };
+              uR: gl.getUniformLocation(w9, "uR"), uPx: gl.getUniformLocation(w9, "uPx"), uSig: gl.getUniformLocation(w9, "uSig"), uK: gl.getUniformLocation(w9, "uK"),
+              uAura: gl.getUniformLocation(w9, "uAura"), uASig: gl.getUniformLocation(w9, "uASig") };
           } catch (e) { console.warn("[gl9] 굽는 빛무리", e); this.glw = null; }
         }
       } catch (e) { console.warn("[gl9] 스프라이트", e); this.spr = null; }
@@ -1607,7 +1651,7 @@ export class GlUnits9 implements VecSink9 {
   }
   /** 굽는 선명·광택 프로그램(위 SPR_LOOK9 ★) — 못 세우면 null(옛 그림). */
   /** 굽는 빛무리 프로그램(GLOW_FS9 ★). */
-  private glw: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uSig: WebGLUniformLocation | null; uK: WebGLUniformLocation | null } | null = null;
+  private glw: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uSig: WebGLUniformLocation | null; uK: WebGLUniformLocation | null; uAura: WebGLUniformLocation | null; uASig: WebGLUniformLocation | null } | null = null;
   private flt: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uLk: WebGLUniformLocation | null } | null = null;
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
@@ -1837,7 +1881,7 @@ export class GlUnits9 implements VecSink9 {
   private sprJob9(key: string, mesh: GlMesh9, yaw: number, cam: GlCam9, kd: number, kc: number, color: string, gR: number, gCy: number, sh: boolean, lt?: GlMesh9): SprJob9 {
     const f = sh ? this.shadowFoot9(mesh, yaw, cam) : this.footOf(mesh, yaw, cam);
     const minX = f.cx - f.w / 2; const maxX = f.cx + f.w / 2;
-    const m = 3 + 0.05 * kd * Math.max(f.w, f.bot - f.top);
+    const m = 3 + (!sh && auraOf9(mesh.key) ? AURA_MARGIN9 : 0.05) * kd * Math.max(f.w, f.bot - f.top);   // 가스 기운 몸은 둘레가 넓다(AURA9 ★)
     const x0 = Math.floor(kd * minX - m); const y0 = Math.floor(kd * f.top - m);
     const x1 = Math.ceil(kd * maxX + m); const y1 = Math.ceil(kd * f.bot + m);
     return { key, mesh, yaw, cam, kd, kc, color, gR, gCy, sh, x0, y0, w: x1 - x0, h: y1 - y0, cell: null, tint: this.sprTint && mesh.team && !sh, ...(lt && !sh && this.sprTint ? { lt } : {}) };
@@ -2323,7 +2367,7 @@ export class GlUnits9 implements VecSink9 {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.spr.qvbo);
         gl.enableVertexAttribArray(glw.aQ); gl.vertexAttribPointer(glw.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(glw.aQ, 0);
         let pgG: SprPage9 | null = null;
-        for (const { sx, sy, cell } of glows) {
+        for (const { j, sx, sy, cell } of glows) {
           if (cell.page !== pgG) { pgG = cell.page; gl.bindFramebuffer(gl.FRAMEBUFFER, pgG.fb); gl.viewport(0, 0, P, P); }
           const dx0 = cell.px / P * 2 - 1; const dx1 = (cell.px + cell.w) / P * 2 - 1;
           const dy0 = (P - cell.py - cell.h) / P * 2 - 1; const dy1 = (P - cell.py) / P * 2 - 1;
@@ -2332,6 +2376,9 @@ export class GlUnits9 implements VecSink9 {
           gl.uniform4f(glw.uUv1, u0, v0, u1, v1);
           gl.uniform4f(glw.uR, u0 + 0.5 / S, v0 + 0.5 / S, u1 - 0.5 / S, v1 - 0.5 / S);
           gl.uniform1f(glw.uSig, Math.max(1.2, GLOW_SIG9 * Math.max(cell.w, cell.h)));
+          const au9 = auraOf9(j.mesh.key);
+          if (au9) { gl.uniform4f(glw.uAura, au9[0], au9[1], au9[2], au9[3]); gl.uniform1f(glw.uASig, Math.max(2, AURA_SIG9 * Math.max(cell.w, cell.h))); }
+          else gl.uniform4f(glw.uAura, 0, 0, 0, 0);
           gl.drawArrays(gl.TRIANGLES, 0, 6);
           this.stat.draws += 1;
         }
