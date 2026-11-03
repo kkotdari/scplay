@@ -2192,6 +2192,7 @@ export const BLD_DRAW_TUNE: Record<string, number> = {
   turret: 0.9,                                                             // 1.2 → 1.0 복구(요청) — 공통 1.2배만 탄다 → 0.9(2026-10-11 요청)
   trapezoid: 0.9,   // 서플라이 디팟 1.0(표 없음) → 0.9(2026-10-11 요청: "서플라이 0.9")
   pool: 1.2,
+  refinery: 0.9,   // 표 없음(1.0) → 0.9(2026-11-03, 요청: "리파이너리 그리는 튠값 축소" — 몫을 안 받아 0.9 로 · 되물릴 값)
   /* ★ **기지 다섯은 0.9 배**(2026-09, 요청: "모든 기지류 5종 0.9배") — 커맨드센터·넥서스·해처리·레어·하이브.
      다섯 다 표에 없던(= 1.0) 자리라 '값'으로 읽든 '곱'으로 읽든 같은 0.9 다. 모델 좌표(BLD_NORM)는 안 건드린다
      — 이것은 지도가 띄우는 자(BLD_DRAW_K 1.2 × tune)이고 tune 에 선형이다. */
@@ -7013,8 +7014,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                attachRot 로 준다. 각이 유니폼이라 메시는 두 벌이고 칸 없이 이어서 돈다. 공사 중에도 돌고
                잔상(bldFrozen9)은 멎는다 — 터렛 탐지 회전과 같은 규약이다. */
             : shapeKind === "comsat"
-              ? { attach: "comsatdish", attachRot: bldFrozen9 ? buildingYawOf() : (((t * COMSAT_SWEEP9 + centerX * 37 + centerY * 53) % 360) + 360) % 360,
-                ...(bldFrozen9 ? {} : { ax: [COMSAT_SWEEP9, centerX * 37 + centerY * 53] }) }
+              /* (2026-11-03, 요청: "위성 초기 위치는 정면 보게 재조정") — 위상을 자리로 흩던 것(centerX·37 + centerY·53)을 걷고 **지은 시각(sec)에 건물 정면**(buildingYawOf)에서
+                 돌기 시작한다: 각 = 정면 + (t − sec)·SWEEP. */
+              ? { attach: "comsatdish", attachRot: bldFrozen9 ? buildingYawOf() : ((((t - sec) * COMSAT_SWEEP9 + buildingYawOf()) % 360) + 360) % 360,
+                ...(bldFrozen9 ? {} : { ax: [COMSAT_SWEEP9, buildingYawOf() - sec * COMSAT_SWEEP9] }) }
             /* ★ 혓바닥도 **제 절대 요잉**을 받아야 표적을 본다(2026-09, 지적: "성큰 …
                혓바닥 나오는 컷들") — 터렛을 딸림 부품으로 가르며 붓이 딸림 부품을
                그릴 때 `headDeg: undefined` 로 굽게 되었는데(각은 attachRot 이 준다),

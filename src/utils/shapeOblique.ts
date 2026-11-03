@@ -1490,6 +1490,8 @@ export function domeFaces3(
    *  round면 3차 베지에로 바꾼다: 조종점을 밑동 접선(세로)·꼭대기 접선(가로) 방향으로
    *  0.5523배씩 두면 한가운데가 (0.707r, 0.707h) — 타원 위의 그 점이다. */
   round = false,
+  /** 손으로 그린 광·그늘(shine·shade 덧칠)을 걷는다(2026-11-03, 요청: "드론과 프로브 몸 위에 손으로 그린 글로우효과 제거") — 광택은 셰이더 몫. 안 주면 종전. */
+  noShine = false,
 ): ShapeFace[] {
   const [bx, by] = project(cx, cy, z0);
   // 꼭대기 x도 제 투영으로(지적) — 원통과 같은 이유. 정수리만 기울고 발은 붙는다.
@@ -1509,6 +1511,10 @@ export function domeFaces3(
   const shine = groundEllipse((bx + tx) / 2 - r * 0.25, (by + ty) / 2 - (by - ty) * 0.22, r * 0.4, r * 0.18);
   const shade = `M${r2(tx + r * 0.35)} ${r2(ty + (by - ty) * 0.08)} Q${r2(tx + r)} ${r2(ty + (by - ty) * 0.25)} ${r2(bx + r)} ${r2(by)}`
     + ` Q${r2(bx + r * 0.55)} ${r2(by + ry * 0.6)} ${r2(bx + r * 0.35)} ${r2(by)}Z`;
+  if (noShine) {
+    if (MESH9.on) meshPut9(body, meshDome9(cx, cy, z0, r, hh));
+    return tagKey([bodyFace(body)], depthNow(cx, cy) + Math.min(hh, r));
+  }
   if (MESH9.on) {
     meshPut9(body, meshDome9(cx, cy, z0, r, hh));
     /* 광(shine)은 빌더가 **화면 자로** 얹은 타원이라, 그 중심이 PROJ9 에 없어 되찾기가 **높이를 빌린다** —

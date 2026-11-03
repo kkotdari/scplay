@@ -2352,24 +2352,31 @@ function creepTex9(): HTMLCanvasElement | null {
     };
     const wn9 = vn9(5, 1); const wm9 = vn9(9, 2); const b4 = vn9(4, 9);
     const h9 = new Float32Array(N9); for (let i = 0; i < N9; i += 1) h9[i] = (b4[i] - 0.5) * 0.6;
- 
+    /* ★ **기와처럼 — 위 판이 아래 판을 덮는다**(2026-11-03, 요청: "저그 크립 질감에서 윗쪽판이 아랫쪽판을 살짝 덮는 형태로(기와처럼) 수정. 반대로는 절대 안됨") —
+       옛 판은 판 열여섯을 만든 차례대로 높이를 쌓아(뒤에 만든 판이 위) 덮는 방향이 제멋대로였다. 무늬가 되풀이(타일)되므로 한 줄로 세운 차례는 이음매에서
+       반드시 뒤집힌다 — 그래서 높이를 쌓지 않고 판마다 **아래 가장자리에만** 테(빛 받는 턱)와 그 밑으로 지는 짧은 그늘을 그린다(위 가장자리는 아무 표식이 없다).
+       그 테·그늘은 **화면에서 더 위에 있는 판**이 덮은 자리에서만 감춘다 — '더 위'는 화소마다 두 판의 가장 가까운 되풀이 사본 중심 y 로 견주므로 이음매에서도
+       같다(반대로 덮이는 자리가 없다). 판 밖 결(액체 광택 · 연주황 타원)은 종전대로. */
     let rs9 = 1;
     const rnd9 = (): number => hh9(1000 + (rs9 += 1));
-    for (let k = 0; k < 16; k += 1) {
-      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; const th = 0.45 + rnd9() * 0.4;
-      const cc = new Float32Array(N9); const lpA = new Float32Array(N9); let hm = -1e9;
+    const NS9 = 16;
+    const cov9: Float32Array[] = []; const cyS9: number[] = [];
+    for (let k = 0; k < NS9; k += 1) {
+      const cx = rnd9() * S9; const cy = rnd9() * S9; const r = 34 + rnd9() * 52; rnd9();
+      const cc = new Float32Array(N9);
       for (let y = 0; y < S9; y += 1) for (let x = 0; x < S9; x += 1) {
         const i = y * S9 + x;
         const dx = ((x + 0.5 - cx + S9 * 1.5) % S9) - S9 / 2; const dy = ((y + 0.5 - cy + S9 * 1.5) % S9) - S9 / 2;
         const d = Math.hypot(dx, dy); const an = Math.atan2(dy, dx);
         const rr = r * (1 + 0.22 * Math.sin(an * 3 + k * 1.7) + 0.12 * Math.sin(an * 5 + 2.3 * k) + 0.06 * Math.sin(an * 9 + k)) + (wn9[i] - 0.5) * 30 + (wm9[i] - 0.5) * 12;
-        const t0 = Math.max(0, Math.min(1, (rr + 0.5 - d) / 9)); const c = 1 - (1 - t0) ** 2.5;
-        cc[i] = c; lpA[i] = 0;
-        if (c > 0.5 && h9[i] > hm) hm = h9[i];
+        const t0 = Math.max(0, Math.min(1, (rr + 0.5 - d) / 4));
+        cc[i] = t0 * t0 * (3 - 2 * t0);
       }
-      const top = (hm > -1e8 ? hm : 0) + th * 0.6;
-      for (let i = 0; i < N9; i += 1) { const c = cc[i]; if (c > 0) h9[i] = h9[i] * (1 - c) + top * c + lpA[i] * c * th; }
+      cov9.push(cc); cyS9.push(cy);
     }
+    /** 화소 y 에서 본 판 k 의 가장 가까운 사본 중심 y(이음매를 넘어도 같은 자) — 작을수록 화면 위. */
+    const cyImg9 = (k: number, y: number): number => y + 0.5 - (((y + 0.5 - cyS9[k] + S9 * 1.5) % S9) - S9 / 2);
+    const BW9 = 3; const SH9 = 6;
     let Lx = -0.5; let Ly = -0.6; let Lz = 0.62; const Ln = Math.hypot(Lx, Ly, Lz); Lx /= Ln; Ly /= Ln; Lz /= Ln;
     let Hx = Lx; let Hy = Ly; let Hz = Lz + 1; const Hn = Math.hypot(Hx, Hy, Hz); Hx /= Hn; Hy /= Hn; Hz /= Hn;
     const v9 = new Float32Array(N9);
@@ -2378,9 +2385,25 @@ function creepTex9(): HTMLCanvasElement | null {
       const gx = (h9[y * S9 + ((x + 1) % S9)] - h9[y * S9 + ((x - 1 + S9) % S9)]) * 2;
       const gy = (h9[((y + 1) % S9) * S9 + x] - h9[((y - 1 + S9) % S9) * S9 + x]) * 2;
       const nl = Math.hypot(gx, gy, 1); const nx = -gx / nl; const ny = -gy / nl; const nz = 1 / nl;
-      const dif = nx * Lx + ny * Ly + nz * Lz - Lz;
+      const dif = (nx * Lx + ny * Ly + nz * Lz - Lz) * 0.5;
       const sp = Math.max(0, nx * Hx + ny * Hy + nz * Hz) ** 110 * 1.1;
-      v9[i] = Math.max(-1, Math.min(1, dif + sp - 0.06));
+      const iDn = ((y + BW9) % S9) * S9 + x; const iUp = ((y - SH9 + S9) % S9) * S9 + x;
+      let ed = 0;
+      for (let k = 0; k < NS9; k += 1) {
+        const ck = cov9[k];
+        const rim = ck[i] * (1 - ck[iDn]);          // 아래 가장자리 안쪽 띠(빛 받는 턱)
+        const sh = (1 - ck[i]) * ck[iUp];           // 그 밑 바깥(아래 판 위)으로 지는 그늘
+        if (rim < 0.02 && sh < 0.02) continue;
+        const myY = cyImg9(k, y);
+        let vis = 1;
+        for (let m = 0; m < NS9 && vis > 0.01; m += 1) {
+          if (m === k) continue;
+          const cm = cov9[m][i]; if (cm < 0.01) continue;
+          if (cyImg9(m, y) < myY) vis *= 1 - cm;   // 화면에서 더 위에 있는 판이 이 자리를 덮으면 감춘다
+        }
+        ed += vis * (0.55 * rim - 0.75 * sh);
+      }
+      v9[i] = Math.max(-1, Math.min(1, dif + sp - 0.04 + ed));
     }
     const og9 = new Float32Array(N9);
     const on9 = vn9(24, 31);

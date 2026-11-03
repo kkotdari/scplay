@@ -10557,10 +10557,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         facets9.push({ d: polyPath3([a9, b9, [0, GY9, GZ9 - GB9]]), f: facingRatio(nx9, ny9), nx: nx9, ny: ny9, up: false });
       }
       facets9.sort((p9, q9) => p9.f - q9.f);
+      /* ★ **보석 자체가 빛난다**(2026-11-03, 요청: "게이트웨이 기둥 사이 보석 안의 구 제거하고 보석 자체가 발광하게") — 낯을 거의 불투명(0.96)으로 · 손 명암 덧칠(faceLight·sideFace)을 걷는다
+         (발광 낯 색 둘은 EMIT_FILL9 — 셰이더 유리 결과 굽는 빛무리가 맡는다). 옛: 알파 0.8/0.86 + 명암 덧칠이라 뒤 돔이 비쳐 탁했다. */
       for (const fc9 of facets9) {
-        const fl9 = faceLight(fc9.nx, fc9.ny, 0.35);
-        gem9.push([fc9.d, fc9.up ? 0.8 : 0.86, fc9.up ? "#c4f4ff" : "#7fd6ff"] as ShapeFace,
-          ...(fl9.visible ? fl9.face(fc9.d) : [sideFace(fc9.d, 0.4)]));
+        gem9.push([fc9.d, 0.96, fc9.up ? "#c4f4ff" : "#7fd6ff"] as ShapeFace);
       }
       out.push(...tagKey(gem9, 30));
     }
@@ -10645,12 +10645,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        아니라 구멍으로 보인다. 반투명 사이언으로 못 박고 흰 심을 얹는다. */
     /* 소환 빛도 상태를 말한다(요청: 프로토스 플라즈마) — 유닛을 뽑는 동안만 문틈이
        환하게 타고, 놀고 있을 때는 식은 청록으로 가라앉는다. 테란 창과 같은 규약이다. */
-    gated.push(...tagKey([
-      [billPath3(0, 0.1, 2.64, 0.3), bldLitNow ? 0.62 : 0.34,   // 보석 속 심(작게)
-        glowLit("#a2fff3", "#228679")] as ShapeFace,
-      [billPath3(0, 0.1, 2.64, 0.16), bldLitNow ? 0.5 : 0.28,
-        glowLit("#e8fbff", "#30a495")] as ShapeFace,
-    ], 30.1));
+    /* (걷음 · 2026-11-03, 요청: "보석 안의 구 제거") 보석 속 심 빌보드 둘(glowLit #a2fff3/#228679 · #e8fbff/#30a495) — 보석 낯이 스스로 빛난다(위 ★). */
     // 탑 어깨의 개인색 띠도 같은 이유로 걷었다 — 개인색은 문틈 빛과 발판 원판이 맡는다.
     return gated;
   },
@@ -22592,7 +22587,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
      ⚠ 도록·모델샷은 통째 컴샛을 봐야 하므로 `comsat` 은 둘을 제자리에서 합친 합본으로 남긴다
        (`HEAD_KINDS` 에 들어 도록이 headDeg 로 돌린다 — 지도는 이 이름을 안 그린다). */
   comsat: () => [...SHAPE_BUILDERS.comsatbase(), ...withModelSpin(headYawNow, (): ShapeFace[] => SHAPE_BUILDERS.comsatdish())],
-  comsatbase: () => {
+  /* ★ 밑동 원본 요잉 −90°(2026-11-03, 요청: "컴셋스테이션 모델 원본 −90도 요잉 필요 · 위성 초기 위치는 정면 보게 재조정") — 밑동만 돈다(접시는 attachRot 이 정한다 ·
+     기둥은 원점이라 그대로 맞는다). 접시의 첫 각은 엔진(engine9 comsat attachRot · 지은 시각에 건물 정면)이 맞춘다. */
+  comsatbase: () => withModelSpin(-90, () => SHAPE_BUILDERS.comsatbase0()),
+  comsatbase0: () => {
     const out: ShapeFace[] = [
       // 받침 슬래브는 중심 깊이만(지적: 애드온 바닥이 위 부품을 덮음).
       ...tagKey(boxFaces3(0, 0.2, 5.6, 4.4, 0.72), depthNow(0, 0.2)),
@@ -23555,7 +23553,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const ZH = 4.4; const ZHz9 = 3.52; /* z용 쌍둥이(model-z-scale ×0.8) */     // 통로 높이 — 2.2 → 4.4(요청: "애드온 연결부 높이 2배로")
     /* ★ 옆에서 보면 **팔각형**인 기둥(요청) — 상자 대신 y·z 단면이 정팔각(외접반지름 R8, 옆·위·아래가 평평한
        면)인 각기둥을 X0~X1로 뻗는다. 해저드 띠는 옆의 평평한 면 한가운데 띠로 남긴다(면 높이 2·R8·sin22.5). */
-    const R8 = Math.min(W, ZH / 2);
+    const R8 = Math.min(W, ZH / 2) * 1.2;   // ×1.2(2026-11-03, 요청: "애드온 연결부 굵기는 좀 더 굵게" → "1.2배") — 아래 낯은 안 그려 가장 낮은 그린 점이 z ≈1.07(땅 위)
     /* ★ 축의 높이는 **엔진과 나눠 쓴다**(engine9 LINK_CZ_9 = 옛 Z0 + ZHz9/2 = 2.08) — 엔진이 이 높이로
        벽이 통로를 만나는 자리를 푼다(addonLinkGeom9 의 ★★). 여기 숫자를 바꾸면 그 셈이 함께 바뀌어야 한다. */
     const CZ8 = LINK_CZ_9;
@@ -23564,19 +23562,48 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const HALF8 = R8 * Math.sin(Math.PI / 8) * 0.72; // 옆면 안에 드는 띠 반높이
     const zB = CZ8 - HALF8;           // 띠 아래
     const zT = CZ8 + HALF8;           // 띠 위
-    const band = (ny: 1 | -1): ShapeFace[] => {
-      if (facingRatio(0, ny) < 0.05) return [];
-      // 보이는 쪽 벽을 살짝(0.02) 밖으로 띄워 벽과 z-싸움을 안 하게 한다.
-      const y9 = CY8 + ny * (FLAT8 + 0.02);
-      const pt = (t: number, z: number): [number, number, number] => [ny > 0 ? X0 + t : X1 - t, y9, z];
-      const out: ShapeFace[] = [
-        [polyPath3([pt(0, zB), pt(LEN, zB), pt(LEN, zT), pt(0, zT)]), 1, "#d9ae35"] as ShapeFace,
-      ];
-      for (let t = 0.3; t < LEN - 0.9; t += 1.25) {
-        out.push([polyPath3([pt(t, zB), pt(t + 0.5, zB), pt(t + 0.85, zT), pt(t + 0.35, zT)]),
-          1, "#1b1e23"] as ShapeFace);
+    /* ★ **해저드는 통을 세로로 한 바퀴 두르는 고리 둘**(2026-11-03, 요청: "해저드 띠가 앞면에 가로로 붙는데 그게 아니라 세로로 통을 한 바퀴 둘러싸는 형태 · 전체가 다 채워질 거고
+       · 두 줄로(각각 전체 폭의 2/5 3/5 폭으로)" → (물음에) "고리 두 개, 폭이 2/5·3/5") — 통 길이를 2/5 · 3/5 로 갈라 두 고리가 통 전체를 덮는다. 빗금은 둘레를 따라
+       이어지는 사선(둘레 자리 a 와 축 x 의 합이 일정한 띠)이고 두 고리의 기울기가 서로 반대다. 팔각의 그리는 낯(위·옆 · 아래 낯은 원래 안 그린다)마다 노랑 바탕을 0.02,
+       검은 빗금을 0.035 밖으로 띄운다. 옛: 옆 평평한 낯 한가운데 가로 띠(band · zB~zT). */
+    void zB; void zT;
+    const HZ_P9 = 1.25; const HZ_W9 = 0.5;   // 빗금 주기 · 검은 몫(옛 띠와 같은 자)
+    const ringFaces9 = (xa9: number, xb9: number, dir9: 1 | -1): ShapeFace[] => {
+      const out9: ShapeFace[] = [];
+      const side9 = 2 * R8 * Math.sin(Math.PI / 8);   // 팔각 한 낯의 폭
+      for (let k = 0; k < 8; k += 1) {
+        const an9 = (k * Math.PI) / 4;
+        const ny9 = Math.cos(an9); const nz9 = Math.sin(an9);
+        if (nz9 < -0.05) continue;
+        if (Math.abs(nz9) < 0.3 && facingRatio(0, ny9) < 0.05) continue;
+        const [ya9, za9] = vtx9(k); const [yb9, zb9] = vtx9(k + 1);
+        /** 낯 위 자리(축 x · 낯 안 s 0~1) → 모형 자(바깥으로 off 만큼). */
+        const P9 = (x9: number, s9: number, off9: number): [number, number, number] =>
+          [x9, ya9 + (yb9 - ya9) * s9 + ny9 * off9, za9 + (zb9 - za9) * s9 + nz9 * off9];
+        out9.push([polyPath3([P9(xa9, 0, 0.02), P9(xb9, 0, 0.02), P9(xb9, 1, 0.02), P9(xa9, 1, 0.02)]), 1, "#d9ae35"] as ShapeFace);
+        /* 빗금 — u = x + dir·(둘레 자리) 가 [p, p + HZ_W9] 인 띠를 이 낯의 네모(x ∈ [xa, xb] · s ∈ [0, 1])로 자른다(볼록 다각형 자르기). */
+        const a0 = k * side9;
+        const uOf = (x9: number, s9: number): number => x9 + dir9 * (a0 + s9 * side9);
+        const uMin = Math.min(uOf(xa9, 0), uOf(xa9, 1)); const uMax = Math.max(uOf(xb9, 0), uOf(xb9, 1));
+        for (let p9 = Math.floor(uMin / HZ_P9) * HZ_P9; p9 < uMax; p9 += HZ_P9) {
+          let poly9: [number, number][] = [[xa9, 0], [xb9, 0], [xb9, 1], [xa9, 1]];
+          const clip9 = (f9: (q: [number, number]) => number): void => {
+            const o9: [number, number][] = [];
+            for (let i9 = 0; i9 < poly9.length; i9 += 1) {
+              const A9 = poly9[i9]; const B9 = poly9[(i9 + 1) % poly9.length];
+              const fa9 = f9(A9); const fb9 = f9(B9);
+              if (fa9 >= 0) o9.push(A9);
+              if ((fa9 >= 0) !== (fb9 >= 0)) { const t9 = fa9 / (fa9 - fb9); o9.push([A9[0] + (B9[0] - A9[0]) * t9, A9[1] + (B9[1] - A9[1]) * t9]); }
+            }
+            poly9 = o9;
+          };
+          clip9((q) => uOf(q[0], q[1]) - p9);
+          if (poly9.length >= 3) clip9((q) => p9 + HZ_W9 - uOf(q[0], q[1]));
+          if (poly9.length < 3) continue;
+          out9.push([polyPath3(poly9.map(([x9, s9]) => P9(x9, s9, 0.035))), 1, "#1b1e23"] as ShapeFace);
+        }
       }
-      return out;
+      return out9;
     };
     void CX; void LEN;
     const oct9: ShapeFace[] = [];
@@ -23600,6 +23627,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     sides9.sort((a9, b9) => (a9.nz + facingRatio(0, a9.ny)) - (b9.nz + facingRatio(0, b9.ny)));
     for (const sd9 of sides9) {
       oct9.push(bodyFace(sd9.d));
+      if (MESH9.on) continue;   // GL 은 손 명암 덧칠을 걷는다(2026-11-03 — 해저드 고리가 통을 다 덮어 덧칠이 고리 위에 접혀 노랑이 바랬다)
       if (sd9.nz > 0.6) oct9.push(topFace(sd9.d, 0.2));
       else if (sd9.nz > 0.2) oct9.push(topFace(sd9.d, 0.08));
       else {
@@ -23612,10 +23640,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const cap9 = polyPath3(Array.from({ length: 8 }, (_, k) => { const [y9, z9] = vtx9(k); return [ex9, y9, z9] as [number, number, number]; }));
       oct9.push(bodyFace(cap9), sideFace(cap9, 0.5));
     }
+    const XM9 = X0 + (X1 - X0) * 0.4;   // 두 고리의 경계 — 2/5 · 3/5
     return [
       ...raceBase(oct9, "terran"),
-      ...band(1),
-      ...band(-1),
+      ...ringFaces9(X0, XM9, 1),
+      ...ringFaces9(XM9, X1, -1),
     ];
   },
   /* 버로우 구멍(요청) — 버로우 중엔 유닛 대신 이 구멍만: 흙 둔덕 테 + 어두운 구멍.
@@ -24316,8 +24345,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 옆면 둥근 포트(실물 참고) — 몸이 줄면서 가장자리 밖으로 삐져나와 떠 보였다(확인)
        — 몸 안쪽으로 당기고 더 작게. */
     // 포트 둘 — 자리는 BD(×0.75 포함)를 타고 크기는 그대로 · 높이는 새 어깨 비탈(ZTOP9~ZCAP9)의 한가운데.
-    out.push(topFace(discPath3(-0.98 * BD, 0.5 * BD, (ZTOP9 + ZCAP9) / 2, 0.28, 0.22), 0.3));
-    out.push(topFace(discPath3(0.98 * BD, 0.5 * BD, (ZTOP9 + ZCAP9) / 2, 0.28, 0.22), 0.3));
+    /* (걷음 · 2026-11-03, 요청: "프로브 몸 위에 손으로 그린 글로우 효과 제거") 옆 어깨 포트 둘 — 흰 광 덧칠(topFace 0.3)뿐이었다(몸 비탈 위 수평 원반이라 칠한 낯으로 바꾸면 비탈에 묻힌다). */
     /* 총구 = **눈 아래 앞면 한가운데(입)**(2026-09, 요청: "프로브는 입으로 이동") — 프로브의
        지지는 몸에서 나가는 빛이라, 안 적어 두면 붓이 상자 가운데에서 낸다. 눈 둘(±0.52·BD,
        1.45·BD, 5.04)의 사이 한 뼘 아래다. */
@@ -24381,7 +24409,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         widthOf: (t9: number): number => 1.2 * (1 - 0.88 * t9 ** 1.15) + 0.05,
       }), "#6b4732"), depthNow(0, -2) * 1.6 + 1),
       // 몸통은 **살짝** 누름(2026-10-09, 같은 요청) — 돔 높이 1.04 → 0.9(꼭대기 3.84 → 3.7). 반지름 1.6 그대로.
-      ...tagKey(domeFaces3(0, -0.7, 1.6, 0.9, 2.8), depthNow(0, -0.7) * 1.6 + 1),
+      ...tagKey(domeFaces3(0, -0.7, 1.6, 0.9, 2.8, false, true), depthNow(0, -0.7) * 1.6 + 1),   // 손 광·그늘 걷음(2026-11-03 "드론 몸 위 손으로 그린 글로우 제거")
       /* 얼굴(요청: "얼굴 달고 눈을 얼굴로 옮기기") — 눈 한 쌍만 몸통 앞면에 떠 있어
          '얼굴'이 없었다. 저그 지상 유닛 공용 얼굴(zergFace)을 몸 앞머리에 물려 박고,
          눈은 그 얼굴이 제 몫으로 달고 나온다 — 따로 얹던 눈은 걷는다. */
@@ -30423,6 +30451,7 @@ export const AUX_GALLERY: ShapeGalleryItem[] = [
   /* 컴샛 밑동·접시 — 도는 접시를 딸림 부품으로 가른 짝(comsat 의 ★★). 광택 표가 종족을 찾도록
      적되 목록에는 안 세운다(도록은 합본 comsat 을 headDeg 로 돌려 본다). */
   { kind: "comsatbase", label: "컴샛 밑동", group: "부가", race: "테란", hidden: true },
+  { kind: "comsatbase0", label: "컴샛 밑동(돌리기 전)", group: "부가", race: "테란", hidden: true },   // 2026-11-03 밑동 −90° 감싸개의 속 빌더
   { kind: "comsatdish", label: "컴샛 접시", group: "부가", race: "테란", hidden: true },
   /* ⚠ **숨긴다 — 지도가 더는 안 쓰는 판이다**(2026-09, 지적: 도록의 "시즈 차체"가 "탱크 차체"와
      같은 것이 270도 돌아간 그림이다) — 정착 시즈의 차체도 `tankbody` 를 쓰게 바꾸면서(engine9 의

@@ -722,14 +722,18 @@ const MATX_FS9 = `
       float face9 = vMn.y;
       /* (같은 날 "이 정도가 더 나은 듯 — 이거보다 조금만 투명" · 보낸 그림 = '밝고 연하게' 판) — 그 판의 색으로 되돌리고(낯 0.94 + 0.34 · 흰빛 30% · 흰 빛줄 1.8화소 0.55)
          알파만 살짝(가운데 × 0.85 · 짙은 테 1화소). */
-      c *= mix(1.0, 0.94 + 0.34 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
-      c = mix(c, vec3(1.0), k9 * 0.30);
+      /* 프로토스 보석(2026-11-03, 요청: "플토 보석류 색이 너무 탁한 듯 · 좀 더 맑고 밝게") — 낯 밝기 0.94 → 1.04 바닥 · 흰빛 섞음 0.30 → 0.12(흰빛이 색을 바래게 했다) · 채도 ×1.3.
+         테란·저그 유리는 그대로. */
+      bool tossGem9 = uMat.x > 1.5 && uMat.x < 2.5;
+      c *= mix(1.0, (tossGem9 ? 1.04 : 0.94) + 0.34 * face9, k9 * 0.8);   // 등진 낯을 너무 죽이지 않는다(유리가 탁해진다)
+      c = mix(c, vec3(1.0), k9 * (tossGem9 ? 0.12 : 0.30));
+      if (tossGem9) { float gl9 = dot(c, vec3(0.299, 0.587, 0.114)); c = max(vec3(0.0), mix(vec3(gl9), c, 1.0 + 0.3 * k9)); }
       /* 밝게(2026-11-01 "보석 유리류 색 더 밝고 연하게" — 낯 밝기 0.86 → 0.94) · 흰빛 섞음(연하게 0.30)은 걷고 **투명하게**(같은 날 "연하다기보다 투명하게") —
          반투명 부품(aAlpha < 0.95 · 파일런 수정 등)은 낯 가운데를 더 비치게(알파 × 0.5) 하고 모서리·반짝임 자리는 짙게 남긴다(유리 테). 불투명 유리(넥서스 창 — 몸에 붙은 판)는
          뒤가 제 몸이라 알파를 안 건드린다. */
       if (vCol.a < 0.95) {
         float edA9 = 1.0 - smoothstep(0.3, 1.0, edgePx9());   // 짙은 테 2.4 → 1화소(같은 날 "모서리가 너무 둔탁 · 가늘게")
-        glA9 = mix(1.0, 0.85 + 0.15 * max(edA9, clamp(vMn.x * 2.0, 0.0, 1.0)), k9);   // 가운데 × 0.5 → 0.75("너무 투명") → 0.62("좀 더 반투명") → 0.85(위 되돌림 · "조금만 투명")
+        glA9 = mix(1.0, (tossGem9 ? 0.93 : 0.85) + (tossGem9 ? 0.07 : 0.15) * max(edA9, clamp(vMn.x * 2.0, 0.0, 1.0)), k9);   // 프로토스 보석은 덜 비친다(0.93 · 뒤가 비쳐 탁하던 것)   // 가운데 × 0.5 → 0.75("너무 투명") → 0.62("좀 더 반투명") → 0.85(위 되돌림 · "조금만 투명")
       }
       c += k9 * vec3(1.0, 1.0, 1.0) * vMn.x * 1.4;
       c += k9 * vec3(0.55, 0.85, 1.0) * 0.18 * vMn.z * vMn.z;
@@ -944,6 +948,8 @@ const glossOf9 = (kind: string): Gloss9 => {
           : g.race === "테란" ? GLOSS_TERRAN9 : GLOSS_NONE9);
     }
   }
+  /* 애드온 연결관은 광택 없음(2026-11-03) — 해저드 고리가 통 전체(윗낯 포함)를 덮자 테란 광택이 윗낯 노랑을 하얗게 날리고 검정을 푸르게 비췄다. */
+  if (kind === "addonlink") return GLOSS_NONE9;
   return GLOSS_BY_KIND9.get(kind) ?? GLOSS_NONE9;
 };
 /** 메시 열쇠(`u:종류:…` · `b:종류:…` · `f:종류:…`)에서 종류를 떼어 광택 자를 고른다. */
@@ -1023,7 +1029,7 @@ export function camOf9(pitch: boolean, pitchSquash: number, vq: number): GlCam9 
    오른·앞 낯이 어둡고 그림자는 화면 오른아래로 진다. 2D 폴백(shapeOblique LIGHT_PLAN)은 그대로다. */
 const LIGHT = ((): [number, number, number] => { const v = [-0.5, -0.45, 0.75]; const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; })();
 /** 바닥 그림자의 기울기 — 높이 z 의 꼭짓점이 바닥에서 얼마나 밀리나(= −평면빛/높이빛, shapeOblique 의 LIGHT_PLAN·LIGHT_ELEV 와 같은 자). */
-const SHADOW_K9: [number, number] = [0.367, 0.33];   // (0, −0.25) → (0.367, 0.33)(2026-10-29 · 위 LIGHT ★ 의 −L.xy/L.z × 0.55 — 오른아래로)   // (0.5, −0.25) → (0, −0.25)(2026-10-23 · 광원 가운데 위 — 그림자는 곧장 위로)   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
+const SHADOW_K9: [number, number] = [0.12, 0.108];   // (0.367, 0.33) → (0.12, 0.108)(2026-11-03, 요청: "그림자를 비추는 광원은 좀 더 수직으로 — 몸과 가까운 곳에 수직 하방에 생기게" · 방향 그대로 길이 ⅓)   // (0, −0.25) → (0.367, 0.33)(2026-10-29 · 위 LIGHT ★ 의 −L.xy/L.z × 0.55 — 오른아래로)   // (0.5, −0.25) → (0, −0.25)(2026-10-23 · 광원 가운데 위 — 그림자는 곧장 위로)   // 빛을 더 높이(0.9/−0.45 는 그림자가 몸의 갑절로 길었다)
 /** ★ 그림자의 **번짐 고리는 걷었다**(2026-09, 지적: "연한 거 진한 거 한 장씩 두 장이 겹친다") ─────────────
  *  같은 실루엣을 1.1 배로 한 번 더 옅게 깔아 가장자리를 무르게 하려던 손이다. 그런데 배수는 **앵커를 축으로**
  *  걸리므로 고리가 실루엣을 감싸는 것이 아니라 **비스듬히 밀린 복사판**이 된다 — 부품마다 진한 타원 옆에
@@ -1546,7 +1552,7 @@ export class GlUnits9 implements VecSink9 {
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;")   // glA9 — 유리 투명(MATX_FS9 cl 7)
-      .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4(gEm9 * a9, a9);");   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
+      .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4((gEm9 + (uMat.x > 1.5 && uMat.x < 2.5 ? vEm.rgb * vEm.a * 0.8 : vec3(0.0))) * a9, a9);");   // 프로토스 발광 낯(보석·수정)도 빛무리 원천(2026-11-03 "보석 자체가 발광")   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
