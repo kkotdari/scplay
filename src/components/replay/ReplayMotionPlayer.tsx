@@ -19223,7 +19223,9 @@ export default function ReplayMotionPlayer({
        오른쪽·가운데 끌기도 그대로 둔다. 맥의 ⌃+누름은 차림표를 부르지만 지도는 contextmenu 를 막는다(아래 onContextMenu). */
     /* ★★ **되바꿈**(2026-11-02, 요청: "좌클릭드래그 다시 드래그로 변경하고 선택을 알트 드래그로 · 즉시 드래그") — 그냥 왼쪽 끌기 = 지도 이동(문턱 없이 곧장 · 아래 move 의
        '곧장 끈다' ★) · **Alt(⌥) + 왼쪽 끌기 = 상자 선택**. 오른쪽·가운데 끌기도 이동 그대로. 위 두 ★(왼쪽 = 상자 · Alt/Ctrl = 이동)는 이것으로 뒤집혔다. */
-    const selMod9 = e.pointerType === "mouse" && e.button === 0 && e.altKey;
+    /* ★ **카메라가 잠긴 동안(중계·추적·찾기 구간)은 Alt 없이 왼쪽 끌기 = 상자 선택**(2026-11-03, 요청: "중계모드에서도 드래그 선택 가능하게" → "알트 안 누름") —
+       잠긴 카메라에서 그냥 끌기는 지도를 못 옮기고 토스트만 띄웠다(아래 lockDragRef9). 분할보기는 그대로 안 쓴다. */
+    const selMod9 = e.pointerType === "mouse" && e.button === 0 && (e.altKey || ((camLockRef9.current || trackLockRef.current) && !splitOnRef9.current));
     if (selMod9 && !splitOnRef9.current) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       const sr9 = stageRef.current?.getBoundingClientRect();   // 무대 자리는 끄는 동안 안 바뀐다 — 누를 때 한 번만 잰다(아래 move 의 ★)
