@@ -2149,6 +2149,8 @@ export type UnitDrawOp = {
   pickWip?: boolean;
   /** 판 16 랠리 자리(지도 분수) — 집힌 건물에서 줄을 긋는다(2026-11-03). */
   rally?: [number, number];
+  /** 랠리를 찍은 뒤 지난 초(판 16 랠리 값이 선 시각부터) — 추적 화면은 찍은 순간만 줄을 보인다(2026-11-03). */
+  rallyAge?: number;
   /** 자원(미네랄·간헐천)의 남은 양 · 처음 양(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시") — 판 11 자원량 절(amounts)의 그 자리 줄:
    *  처음 = 가장 이른 줄 · 남은 = t 이하 마지막 줄. 줄이 없으면 둘 다 없다. 자원 op 의 pickKey 는 `r<x×2>|<y×2>`(반 타일 칸). */
   resAmt?: number;
@@ -7305,13 +7307,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
           selBy: myTag9 !== undefined ? selBy9.get(myTag9) : undefined,
           /* 판 16 랠리(2026-11-03) — 건물 태그의 랠리 자리(픽셀 x << 16 | y). 0 이거나 제 자리면 없음. 붓은 집힌 건물에만 줄을 긋는다. */
-          ...((): { rally?: [number, number] } => {
+          ...((): { rally?: [number, number]; rallyAge?: number } => {
             const rv9 = myTag9 !== undefined ? st16At(bldTruth9.get(myTag9)?.st16, ST16.rally, t) : null;
             if (!rv9 || !rv9[0]) return {};
             const rx9 = Math.floor(rv9[0] / 65536) / 32; const ry9 = (rv9[0] % 65536) / 32;
             if (rx9 <= 0 && ry9 <= 0) return {};
             if (Math.hypot(rx9 - (x + footDx(unit)), ry9 - (y + footDy(unit))) < 1) return {};
-            return { rally: posFrac(rx9, ry9) as [number, number] };
+            return { rally: posFrac(rx9, ry9) as [number, number], rallyAge: t - rv9[1] };
           })(),
           drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
