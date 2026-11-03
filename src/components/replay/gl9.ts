@@ -743,13 +743,15 @@ const MATX_FS9 = `
       float cel9 = fbm9(p9 * 1.6 + 1.7, px9);
       c *= 1.0 - k9 * (0.18 * (sp9 - 0.5) + 0.16 * (cel9 - 0.5));
     }
-    /* ★ 면 광택 구운 번짐(2026-11-03, 시안 B 정함 · 위 edgeShine9 ★) — 쇠·금 낯(cl 1·2·6)의 센 광택 자리를 한 번 더 밝혀 빛이 번진 듯이(빛 판이 아니라 그림에). */
-    if (cl9 == 1 || cl9 == 2 || cl9 == 6) c += k9 * 0.16 * spec9 * smoothstep(0.10, 0.35, amt9);
+    /* ★ 면 광택 빛무리(2026-11-03, 시안 B 정함 · edgeShine9 ★) — 쇠·금 낯(cl 1·2·6)의 센 광택 × 0.3 을 빛무리 원천(gEm9)에 — 굽기가 흐려 칸에 더한다. */
+    if (cl9 == 1 || cl9 == 2 || cl9 == 6) gEm9 += k9 * 0.3 * spec9 * smoothstep(0.10, 0.35, amt9);
   }
 `;
 const MATX_FN9 = `
 uniform float uMatK;
 uniform highp vec2 uMat;
+uniform float uGlowOut;
+vec3 gEm9 = vec3(0.0);
 highp float h3_9(highp vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
 float vn9(highp vec3 p) {
   highp vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -825,11 +827,11 @@ vec3 edgeShine9(vec3 c, float px9, float k9, float lt9, vec3 col9) {
   float w9 = clamp(0.014 * px9, 0.45, 0.85);
   float e9 = 1.0 - smoothstep(0.25 * w9, w9, edgePx9());
   /* (같은 날 "모서리 광택이 명암부 상관없이 붙어서 어색") — 세기를 낯 휘도(금은 그늘에서도 밝다)가 아니라 **빛을 마주 본 정도**(vLt = N·L · 정점)로 — 그늘 낯은 0. */
-  /* ★ 구운 번짐(2026-11-03, 시안 B 정함: "B로 기본 적용 · 어차피 미리 굽는 거면 폰에도 전 티어") — 화면 번짐(빛 판 · 폰은 발열로 끔)이 아니라 **그림에 굽는다**:
-     날 곁 R(1.5~4화소)에 걸친 부드러운 빛무리를 같은 색으로 더한다(가우스 꼴 · 세기 SHN_HALO9). 판에 들어 있으니 폰·PC 어느 단이든 같고 재생 비용이 없다. */
-  float R9 = clamp(0.05 * px9, 1.5, 4.0);
-  float h9 = exp(-(edgePx9() * edgePx9()) / (R9 * R9));
-  return c + k9 * 0.70 * (e9 + 0.45 * h9) * smoothstep(0.20, 0.70, lt9) * col9;
+  /* ★ 구운 빛무리(2026-11-03, 시안 B 정함 · "모델 테두리 밖까지 투명 배경으로 · 피시도 런타임 필요 없어") — 광택 선 × 1.5 를 전역 gEm9 에 모은다.
+     굽기(sprBakeRun9 빛무리 패스)가 이 몫만 따로 찍어(uGlowOut) 흐린 뒤 칸에 더한다 — 실루엣 밖 투명 자리까지. 재생 비용 없음 · 모든 기기 같음. */
+  vec3 sh9 = k9 * 0.70 * e9 * smoothstep(0.20, 0.70, lt9) * col9;
+  gEm9 += sh9 * 1.5;
+  return c + sh9;
 }
 /** 모서리 마모 — 날카로운 모서리 곁 몇 화소(모형 0.05칸 · 1~3.5화소)를 군데군데 끊긴 띠로 밝게(칠이 벗겨져 드러난 쇠). bare 는 드러난 쇠의 색. */
 vec3 edgeWear9(vec3 c, highp vec3 p9, float px9, float k9, vec3 bare) {
@@ -1307,6 +1309,27 @@ void main() {
   float sp = clamp((lc - lb) * 5.0, 0.0, 1.0) * clamp((lc - 0.5) * 2.5, 0.0, 1.0);
   o = vec4(clamp(c.rgb + (c.rgb - b1.rgb) * uLk.x + vec3(sp * uLk.y * 0.7) * c.a, 0.0, c.a), c.a);
 }`;
+/** ★ **굽는 빛무리**(2026-11-03, 요청: "모서리·면 광택 번짐 · 꼭 모델 테두리 안에만? 투명 배경으로 번짐까지 못 넣어? · 피시도 런타임 필요 없어") — 칸마다 광택 원천(uGlowOut 로 찍은
+ *  gEm9 · 가린 자리는 덮임)을 가우스(σ = 칸 긴 변 × GLOW_SIG9 · ±3σ · 13×13 표본)로 흐려 칸에 **더한다**: rgb 는 빛(미리곱한 알파에서 rgb > a 면 더하기 빛) · a 는 휘도의 반 —
+ *  실루엣 밖 투명 자리에도 옅은 빛무리가 남는다. 칸 여백(sprJob9 m = 3 + 5%)이 ±3σ 를 품는다. 그림자 칸은 안 탄다. 판에 들어 재생 비용이 없고 모든 기기가 같다. */
+const GLOW_SIG9 = 0.012;
+const GLOW_K9 = 1.6;
+const GLOW_FS9 = `#version 300 es
+precision highp float; uniform sampler2D uT1; uniform vec4 uR; uniform vec2 uPx; uniform float uSig; uniform float uK; in vec2 v1; in vec2 v0; out vec4 o;
+void main() {
+  vec3 s9 = vec3(0.0); float w9 = 0.0;
+  for (int i = -6; i <= 6; i++) {
+    for (int j = -6; j <= 6; j++) {
+      vec2 d = vec2(float(i), float(j)) * (uSig * 0.5);
+      float w = exp(-dot(d, d) / (2.0 * uSig * uSig));
+      vec2 u = v1 + d * uPx;
+      vec3 t = (u.x < uR.x || u.y < uR.y || u.x > uR.z || u.y > uR.w) ? vec3(0.0) : textureLod(uT1, u, 0.0).rgb;
+      s9 += t * w; w9 += w;
+    }
+  }
+  vec3 g = s9 / w9 * uK;
+  o = vec4(g, clamp(dot(g, vec3(0.299, 0.587, 0.114)) * 0.5, 0.0, 1.0));
+}`;
 /** 미리 찍기(돌기) — 한 번 본 몸(메시·배율·색)의 **다른 요잉 칸**을 남는 예산으로 차례로 찍어 둔다. 둘 이상의 요잉을 본 것만(도는 몸) 연다. */
 interface SprWarm9 { job: Omit<SprJob9, "key" | "yaw" | "x0" | "y0" | "w" | "h" | "cell" | "tint">; yb0: number; ys: Set<number>; step: number; qk: number; gRq: number; gCyq: number }
 let SPR_HOLD9 = false;
@@ -1439,14 +1462,15 @@ export class GlUnits9 implements VecSink9 {
     const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt; uniform vec2 uMat; attribute vec4 aEdg;\n")
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
-      .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;");   // glA9 — 유리 투명(MATX_FS9 cl 7)
+      .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;")   // glA9 — 유리 투명(MATX_FS9 cl 7)
+      .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4(gEm9 * a9, a9);");   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsM9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -1530,6 +1554,15 @@ export class GlUnits9 implements VecSink9 {
               uT1: gl.getUniformLocation(f9, "uT1"), uR: gl.getUniformLocation(f9, "uR"), uPx: gl.getUniformLocation(f9, "uPx"), uLk: gl.getUniformLocation(f9, "uLk") };
           } catch (e) { console.warn("[gl9] 굽는 선명·광택", e); this.flt = null; }
         }
+        if (MATX9 > 0) {
+          try {
+            const w9 = gl.createProgram()!;
+            gl.attachShader(w9, raw(gl.VERTEX_SHADER, TN_VS9)); gl.attachShader(w9, raw(gl.FRAGMENT_SHADER, GLOW_FS9)); gl.linkProgram(w9);
+            if (!gl.getProgramParameter(w9, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(w9));
+            this.glw = { prog: w9, aQ: gl.getAttribLocation(w9, "aQ"), uDst: gl.getUniformLocation(w9, "uDst"), uUv1: gl.getUniformLocation(w9, "uUv1"), uT1: gl.getUniformLocation(w9, "uT1"),
+              uR: gl.getUniformLocation(w9, "uR"), uPx: gl.getUniformLocation(w9, "uPx"), uSig: gl.getUniformLocation(w9, "uSig"), uK: gl.getUniformLocation(w9, "uK") };
+          } catch (e) { console.warn("[gl9] 굽는 빛무리", e); this.glw = null; }
+        }
       } catch (e) { console.warn("[gl9] 스프라이트", e); this.spr = null; }
     }
   }
@@ -1573,6 +1606,8 @@ export class GlUnits9 implements VecSink9 {
     this.sprYaw = n;
   }
   /** 굽는 선명·광택 프로그램(위 SPR_LOOK9 ★) — 못 세우면 null(옛 그림). */
+  /** 굽는 빛무리 프로그램(GLOW_FS9 ★). */
+  private glw: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uSig: WebGLUniformLocation | null; uK: WebGLUniformLocation | null } | null = null;
   private flt: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uR: WebGLUniformLocation | null; uPx: WebGLUniformLocation | null; uLk: WebGLUniformLocation | null } | null = null;
   private tn: { prog: WebGLProgram; aQ: number; uDst: WebGLUniformLocation | null; uUv1: WebGLUniformLocation | null; uUv0: WebGLUniformLocation | null; uT1: WebGLUniformLocation | null; uT0: WebGLUniformLocation | null } | null = null;
   /** 미리 굽기 큐(위 ★★ · sprPrebake9 → sprPreStep9) 와 그 열쇠. */
@@ -2267,6 +2302,41 @@ export class GlUnits9 implements VecSink9 {
           this.stat.draws += 1;
         }
         gl.disableVertexAttribArray(flt.aQ);
+        gl.useProgram(this.prog);
+        gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
+      }
+      /* ★ 굽는 빛무리(위 GLOW_FS9 ★) — 묶음을 광택 원천만(uGlowOut) 한 번 더 찍고(깊이로 가림) 칸마다 흐려 판 제 자리에 더한다. */
+      const glw = this.glw; const glows = placed.filter((e) => !e.j.sh);
+      if (glw && glows.length && this.spr && this.loc.uGlowOut) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, scr.ms);
+        gl.drawBuffers(scr.em ? [gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1] : [gl.COLOR_ATTACHMENT0]);
+        gl.viewport(0, 0, S, S); gl.useProgram(this.prog);
+        gl.clearColor(0, 0, 0, 0); gl.depthMask(true); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.uniform1f(this.loc.uGlowOut, 1);
+        renderBatch(false);
+        gl.useProgram(this.prog); gl.uniform1f(this.loc.uGlowOut, 0);
+        gl.disable(gl.DEPTH_TEST); gl.disable(gl.SCISSOR_TEST); gl.enable(gl.BLEND);
+        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // rgb 는 더하고 · a 는 덮어 쌓는다
+        gl.useProgram(glw.prog); gl.uniform1i(glw.uT1, 0); gl.uniform2f(glw.uPx, 1 / S, 1 / S); gl.uniform1f(glw.uK, GLOW_K9);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, scr.texs[0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spr.qvbo);
+        gl.enableVertexAttribArray(glw.aQ); gl.vertexAttribPointer(glw.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(glw.aQ, 0);
+        let pgG: SprPage9 | null = null;
+        for (const { sx, sy, cell } of glows) {
+          if (cell.page !== pgG) { pgG = cell.page; gl.bindFramebuffer(gl.FRAMEBUFFER, pgG.fb); gl.viewport(0, 0, P, P); }
+          const dx0 = cell.px / P * 2 - 1; const dx1 = (cell.px + cell.w) / P * 2 - 1;
+          const dy0 = (P - cell.py - cell.h) / P * 2 - 1; const dy1 = (P - cell.py) / P * 2 - 1;
+          const u0 = sx / S; const v0 = (S - sy - cell.h) / S; const u1 = (sx + cell.w) / S; const v1 = (S - sy) / S;
+          gl.uniform4f(glw.uDst, dx0, dy0, dx1, dy1);
+          gl.uniform4f(glw.uUv1, u0, v0, u1, v1);
+          gl.uniform4f(glw.uR, u0 + 0.5 / S, v0 + 0.5 / S, u1 - 0.5 / S, v1 - 0.5 / S);
+          gl.uniform1f(glw.uSig, Math.max(1.2, GLOW_SIG9 * Math.max(cell.w, cell.h)));
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          this.stat.draws += 1;
+        }
+        gl.disableVertexAttribArray(glw.aQ);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.useProgram(this.prog);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
       }
