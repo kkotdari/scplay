@@ -65,6 +65,8 @@ export interface ReplayModuleProps {
   /** 로딩이 처음 다 끝날 때까지 재생기 전체를 가린다 · 끝나면 onReady(ReplayMotionPlayer veil ★). */
   veil?: boolean;
   onReady?: () => void;
+  /** 테스터인가(2026-11-03) — 재생기 배율판 옆 최대 프레임 단추 · 진단(diag) 고르기(ReplayMotionPlayer isTester). */
+  isTester?: boolean;
   /** 로딩 진행도(0~1 · 뒤로 안 간다) — 가림(veil) 동안 앱이 워드마크 아래 퍼센트를 그린다(ReplayMotionPlayer onLoadProgress ★). */
   onLoadProgress?: (p: number) => void;
 }
@@ -74,7 +76,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, shareNode, onShare, shareLabel,
-  onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress,
+  onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester,
 }: ReplayModuleProps) {
   return (
     <div className="scr-story-map">
@@ -102,6 +104,7 @@ export default function ReplayModule({
         veil={veil}
         onReady={onReady}
         onLoadProgress={onLoadProgress}
+        isTester={isTester}
       />
     </div>
   );
