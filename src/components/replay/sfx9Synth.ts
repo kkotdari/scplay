@@ -956,7 +956,9 @@ function stim9(v: number): Float32Array {
   const K9 = 0.65;
   const hb = new Biquad9("bp", 1600 * K9, 2.2); const hh = new Biquad9("hp", 600, 0.7);
   const raw9 = render9(1.1, (t) => {
-    const hiss = hh.run(hb.run(r() * 2 - 1)) * ad9(t, 0.035, 3.6) * 1.15;
+    /* (같은 날 "스팀팩 처음에 좀 부드럽게 시작 · 팍 시작 아니고") — 들어옴 0.035초 곧은 오름 → 0.2초 둥근 오름(smoothstep) · 잦아듦 3.6 → 3.2. */
+    const u9 = Math.min(1, t / 0.2); const env9 = t < 0.2 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - 0.2) * 3.2);
+    const hiss = hh.run(hb.run(r() * 2 - 1)) * env9 * 1.15;
     return sat9(hiss * 0.55, 1.4);
   }, (t) => {
     hb.set(K9 * (t < 0.22 ? 1600 + (t / 0.22) * 2800 : Math.max(2400, 4400 - (t - 0.22) * 4000)));   // 스와이~ : 솟고 내려앉음
