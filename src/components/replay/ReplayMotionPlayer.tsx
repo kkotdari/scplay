@@ -75,7 +75,9 @@ import {
   TRUTH_ST_FIGHT as ST_FIGHT,
   TRUTH_ST_GATHER as ST_GATHER,
   TRUTH_ST_INSIDE as ST_INSIDE,
-  TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
+  TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks, st16At, ST16 } from "../../utils/openbwTracks";
+import { BW_UNIT_NAME } from "../../utils/bwUnitNames";
+import { bwUpgradeName, BW_TECH_NAME } from "../../utils/bwUpgradeNames";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
 import { posAt, posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos, type TrackPt } from "../../utils/replayTrack";
@@ -6867,6 +6869,14 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
               ringDiagPush9(op, bRingCol9, rx9 * 2, rg9.lineW);
               if (gLift9 > 0.5) bRing9 = rg9;   // 뜬 건물은 공중 유닛처럼 몸의 깊이 칸을 탄다(유닛 airRing9 와 같은 자)
               else gl9.prim(rg9.kind, rg9.x, rg9.y, rg9.rx, rg9.ry, rg9.color, rg9.alpha, rg9.lineW);
+            }
+            /* ★ 랠리(판 16 · 2026-11-03, 요청: "랠리 … 연결") — 집힌 건물에서 랠리 자리까지 줄 하나 + 그 자리에 작은 링(원작의 깃발 자리). */
+            if (isPk9(op.pickKey) && op.rally && gl9.primOk) {
+              const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
+              const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
+              const col9r = selRingCol9(op) ?? op.color;
+              gl9.prim(3, sx, cy9, rx9r, ry9r, col9r, op.alpha * 0.8, lw9r);
+              gl9.prim(2, rx9r, ry9r, Math.max(3, (tilePx ?? 8) * zoom * 0.35), Math.max(2, (tilePx ?? 8) * zoom * 0.2), col9r, op.alpha, lw9r);
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(glBlt9 ? { lit: litOn9, meshLt: glBlt9 } : {}), ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
@@ -22028,13 +22038,17 @@ export default function ReplayMotionPlayer({
     const ko = bld9 ? BUILDING_KO[en] ?? en : UNIT_KO[en] ?? en;
     const tag9 = tagOfOp9(op);
     const life9 = tag9 !== undefined ? lifeAt9(tag9, t) : undefined;
+    /* ★ 판 16 상태(2026-11-03, 요청: "연구·업그레이드 진행 · 생산 대기열 · 킬 수 · … 연결") — 이 생애의 상태 줄(st16At). 없으면(판 15 이하) 옛 어림 그대로. */
+    const st9 = life9?.st16;
+    const sv9 = (k9: number): [number, number] | null => st16At(st9, k9, t, life9 ? life9.born - 0.05 : -Infinity);
     const max = op.hpMax ?? 0;
     const cur = Math.max(0, Math.round((op.hpFrac ?? 1) * max));
     const sh = bld9 ? (BLD_STATS[en]?.[1] ?? 0) : (UNIT_STATS[en]?.sh ?? 0);
     const hpOnly = Math.max(1, max - sh);
-    const hpCur = Math.min(cur, hpOnly);
+    /* 실드는 판 16 참값(op.shV · op.hpV)이 있으면 그대로 — 아니면 '실드부터 깎였다'고 어림한다. */
+    const hpCur = op.hpV !== undefined ? Math.round(op.hpV * hpOnly) : Math.min(cur, hpOnly);
     const hpR = hpCur / hpOnly;
-    const shCur = Math.max(0, cur - hpOnly);
+    const shCur = op.shV !== undefined ? Math.round(op.shV * sh) : Math.max(0, cur - hpOnly);
     /* 에너지(판 11) — 그 생애 안의 마지막 값(계단). */
     let en9: number | null = null;
     if (tag9 !== undefined) {
@@ -22052,7 +22066,11 @@ export default function ReplayMotionPlayer({
     const enMax9 = ENERGY_UP9[en] && upDone9(ENERGY_UP9[en]) ? 250 : 200;
     /* 처치(판 11) — 이 생애 동안 이 몸에게 올라간 처치. */
     let kills9: number | null = null;
-    if (!bld9 && tag9 !== undefined) {
+    if (st9) {
+      /* 판 16 — 원작 kill_count(건물도 · 벙커·캐논·성큰의 처치까지). */
+      const kc9 = sv9(ST16.kills)?.[0] ?? 0;
+      if (!bld9 || kc9 > 0) kills9 = kc9;
+    } else if (!bld9 && tag9 !== undefined) {
       const ks9 = killsByTag9.get(tag9) ?? [];
       kills9 = ks9.filter((s9) => s9 <= t && (!life9 || s9 >= life9.born - 0.05)).length;
     }
@@ -22117,9 +22135,23 @@ export default function ReplayMotionPlayer({
         }
       }
       evs.sort((a, b) => a[0] - b[0]);
-      const making = evs.find(([ps, , sec]) => t < ps && t >= ps - sec) ?? null;
+      let making = evs.find(([ps, , sec]) => t < ps && t >= ps - sec) ?? null;
       const queue: [number, string, number][] = [];
-      {
+      /* ★ 판 16 — 지금 짓는 몸(current_build_unit)의 생애(태어남·완성)로 진행을 정확히 · 대기열은 원작 build_queue 2~5칸 그대로(옛: 완성 시각에서 거꾸로 어림). */
+      const cbu9 = st9 ? sv9(ST16.building) : null;
+      if (st9) {
+        making = null;
+        const tr9 = cbu9 && cbu9[0] ? lifeAt9(cbu9[0], t) : undefined;
+        if (tr9 && !tr9.bld) {
+          const done9 = Number.isFinite(tr9.doneAt) ? tr9.doneAt : tr9.born + (UNIT_BUILD_SEC[tr9.kind] ?? 30);
+          making = [done9, tr9.kind, Math.max(0.1, done9 - tr9.born)];
+        }
+        for (const k9 of [ST16.queue2, ST16.queue3, ST16.queue4, ST16.queue5]) {
+          const q9 = sv9(k9)?.[0] ?? 0;
+          if (q9 > 0) { const nm9 = BW_UNIT_NAME[q9 - 1]; if (nm9) queue.push([0, nm9, 0]); }
+        }
+      }
+      if (!st9) {
         const headEnd9 = making ? making[0] : t;
         let prevEnd9 = headEnd9;
         for (const ev9 of evs) {
@@ -22158,12 +22190,23 @@ export default function ReplayMotionPlayer({
         );
       }
       const hall9 = en === "Lair" || en === "Hive" ? "Hatchery" : en;
-      const doing = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
+      const doing0 = (upsByRaw.get(op.pickRaw ?? "") ?? []).filter(([us, n, utag]) =>
         RESEARCH_BUILDING[upBase9(n)] === hall9 && t < us && us - t <= RESEARCH_SEC
         && (utag > 0 && op.pickTag !== undefined ? utag === op.pickTag : op.pickRep !== false));
+      /* ★ 판 16 — 연구 중 기술(19)·업그레이드(20 · 단계 21)와 남은 연구 시간(66 · 시작 때 값 = 전체 프레임)으로 진행을 정확히. [이름, 진행]. */
+      const doing: [string, number][] = st9 ? ((): [string, number][] => {
+        const tc9 = sv9(ST16.research)?.[0] ?? 0; const up9 = sv9(ST16.upgrade)?.[0] ?? 0;
+        if (!tc9 && !up9) return [];
+        const lv9 = sv9(ST16.upgradeLv)?.[0] ?? 1;
+        const nm9 = tc9 ? BW_TECH_NAME[tc9 - 1] : bwUpgradeName(up9 - 1);
+        if (!nm9) return [];
+        const rt9 = sv9(ST16.researchTime);
+        const prog9 = rt9 && rt9[0] > 0 ? (t - rt9[1]) / (rt9[0] * FRAME_SEC) : 0;
+        return [[!tc9 && lv9 > 1 ? `${nm9} ${lv9}` : nm9, prog9]];
+      })() : doing0.map(([us, n]) => [n, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC] as [string, number]);
       /* ★ 연구도 [무엇을 연구하는지 한 칸][진행 바](2026-09, 요청: "연구중도 뭐연구하는지 왼쪽에 그림셀 배치 · 아래에 불켜는 대신") —
          칸은 아래 상황판과 같은 업그레이드 칸(글자 · 단계 숫자)이다. 상황판의 '하는 중' 초록 테는 걷었다(이 칸이 그 몫이다). */
-      for (const [us, n] of doing) {
+      for (const [n, prog9] of doing) {
         const lvTxt9 = / (\d)$/.exec(n)?.[1];
         const rko9 = researchKo(upBase9(n));
         lines.push(
@@ -22171,7 +22214,7 @@ export default function ReplayMotionPlayer({
             <span className="scr-motion-infodock-upsq scr-motion-infodock-rhead">
               <i className={cx(rko9.length > 4 && "is-long")} title={rko9}><span>{rko9}</span>{lvTxt9 && <b>{lvTxt9}</b>}</i>
             </span>
-            {bar9(`연구 중 ${rko9}${lvTxt9 ? ` ${lvTxt9}단계` : ""}`, Math.min(0.99, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC), `rb${n}`)}
+            {bar9(`연구 중 ${rko9}${lvTxt9 ? ` ${lvTxt9}단계` : ""}`, Math.max(0, Math.min(0.99, prog9)), `rb${n}`)}
           </div>,
         );
       }
@@ -22358,6 +22401,12 @@ export default function ReplayMotionPlayer({
         <div className="scr-motion-infodock-text">
           <div className="scr-motion-infodock-lines">
             {kills9 !== null && <div className="scr-motion-info-line">{`처치 ${kills9}`}</div>}
+            {/* 판 16 몸 상태 줄(2026-11-03) — 핵 장전 · 스캐럽 · 나이더스 출구 · 매트릭스 남은 몫 · 산성 포자. */}
+            {st9 && en === "Nuclear Silo" && <div className="scr-motion-info-line">{(sv9(ST16.nukeReady)?.[0] ?? 0) ? "핵 장전됨" : "핵 없음"}</div>}
+            {st9 && en === "Reaver" && <div className="scr-motion-info-line">{`스캐럽 ${sv9(ST16.scarabs)?.[0] ?? 0}`}</div>}
+            {st9 && en === "Nydus Canal" && <div className="scr-motion-info-line">{(sv9(ST16.nydusExit)?.[0] ?? 0) ? "출구 연결됨" : "출구 없음"}</div>}
+            {st9 && (sv9(ST16.matrixHp)?.[0] ?? 0) > 0 && <div className="scr-motion-info-line" style={{ color: "#7fd6ff" }}>{`디펜시브 매트릭스 ${sv9(ST16.matrixHp)?.[0]}`}</div>}
+            {st9 && (sv9(ST16.acid)?.[0] ?? 0) > 0 && <div className="scr-motion-info-line" style={{ color: "#b07ae0" }}>{`산성 포자 ${sv9(ST16.acid)?.[0]}`}</div>}
             {gasAmt9 && <div className="scr-motion-info-line">{`가스 ${gasAmt9[0]} / ${gasAmt9[1]}`}</div>}
             {lines}
           </div>

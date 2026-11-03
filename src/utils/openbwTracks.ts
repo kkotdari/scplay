@@ -266,7 +266,27 @@ export const ST16 = {
   acid: 11, parasite: 12, blind: 13, halluc: 14, disabled: 15, invincible: 16, irrOwner: 17, detected: 18,
   research: 19, upgrade: 20, upgradeLv: 21, queue: 22, kills: 23, speedUp: 24, cdUp: 25, shield: 26, healed: 27,
   building: 28, nydusExit: 29, rally: 30, nukeReady: 31, scarabs: 32, spellCd: 33,
+  /* 재생용 참값에 함께 실리는 40 이상(덤퍼 st_main9) — 생산 대기열 2~5칸 · 연구 남은 시간(프레임 · 타이머). */
+  queue2: 55, queue3: 56, queue4: 57, queue5: 58, researchTime: 66,
 } as const;
+const ST16_IDX9 = new WeakMap<Float64Array, Map<number, Float64Array>>();
+/** ★ 판 16 상태 줄에서 갈래 kind 의 t 시각 값 — [값, 그 값이 선 초] · 없으면 null. from 앞에 선 값은 안 본다(태그를 나눠 쓰는 앞 생애의 값).
+ *  갈래마다 [초, 값] 색인을 한 번 지어 두고(WeakMap) 이분 탐색한다 — 붓이 장마다 부른다. */
+export function st16At(st: Float64Array | undefined, kind: number, t: number, from = -Infinity): [number, number] | null {
+  if (!st) return null;
+  let idx = ST16_IDX9.get(st);
+  if (!idx) {
+    const acc = new Map<number, number[]>();
+    for (let i = 0; i + 2 < st.length; i += 3) { const k = st[i + 1]; const a = acc.get(k); if (a) a.push(st[i], st[i + 2]); else acc.set(k, [st[i], st[i + 2]]); }
+    idx = new Map([...acc].map(([k, a]) => [k, Float64Array.from(a)]));
+    ST16_IDX9.set(st, idx);
+  }
+  const a = idx.get(kind); if (!a) return null;
+  let lo = 0; let hi = (a.length >> 1) - 1; let at = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (a[m * 2] <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+  if (at < 0 || a[at * 2] < from) return null;
+  return [a[at * 2 + 1], a[at * 2]];
+}
 export const ST16_TIMERS = new Set<number>([1, 2, 3, 4, 5, 6, 7, 8, 10]);
 
 /* 개인색은 덤퍼가 리마스터의 **CCLR 구획**에서 읽어 온다(bwdump.cpp) — 사람마다 고른

@@ -11,6 +11,7 @@ import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 import { acquireTilesOf, bodyRadiusOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles, weaponVs } from "../../utils/bwCombat";
 import { BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, buildingBox, sightTiles, unitOf } from "../../utils/bwUnits";
 import { type TruthWorld } from "../../utils/truthLives";
+import { st16At, ST16 } from "../../utils/openbwTracks";
 import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw, yawBucket9, BLD_YAW9 } from "../../utils/shapeOblique";
@@ -219,6 +220,42 @@ export const MINE_ARM_SEC9 = 0.45;
  *  마린 가우스 15 → 7 프레임(× 7/15) · 파이어뱃 화염 22 → 11(× 0.5). 쏠 때마다 (rand & 3) − 1 프레임이 더 붙어 평균은 15.5 → 7.5(빠름 0.651 → 0.315초 · 2.07배).
  *  스팀 구간은 **참값이 싣는다**(판 15 상태 깃발 0x10 · truthLives stims) — 옛 판은 모른다(늘 기본 박자). */
 export const STIM_CD_K9: Record<string, number> = { Marine: 7 / 15, Firebat: 11 / 22 };
+/** ★ 판 16 건물 참값 색인(2026-11-03, 요청: "방어 건물 실제 사격 · 랠리 … 연결") — 건물 태그 → 상태 줄·실제 사격 · 사람 번호 → 편. 판(entData)마다 한 번. */
+const TRUTH_IDX9 = new WeakMap<object, { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number> }>();
+function truthIdx9(ed: { lives: readonly { bld: boolean; tag: number; st16?: Float64Array; fires?: Float64Array }[]; players: readonly { owner: number; team: number }[];
+  loads?: readonly [number, number, number][] } | null | undefined): { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number> } {
+  if (!ed) return { bld: new Map(), team: new Map() };
+  let m9 = TRUTH_IDX9.get(ed);
+  if (!m9) {
+    m9 = { bld: new Map(), team: new Map() };
+    for (const e of ed.lives) if (e.bld && e.tag > 0 && (e.st16 || e.fires)) m9.bld.set(e.tag, { st16: e.st16, fires: e.fires });
+    for (const pl of ed.players) m9.team.set(pl.owner, pl.team);
+    /* ★ 벙커는 제가 안 쏜다 — **탄 몸들의 실제 사격**을 탄 동안만 모아 벙커의 사격으로(탑승 [초, 승객, 배(0 = 내림)]). */
+    if (ed.loads && ed.loads.length > 0) {
+      const firesOf9 = new Map<number, Float64Array>();
+      for (const e of ed.lives) if (!e.bld && e.fires && e.fires.length > 0) {
+        const o9 = firesOf9.get(e.tag); firesOf9.set(e.tag, o9 ? Float64Array.from([...o9, ...e.fires]) : e.fires);
+      }
+      const inShip9 = new Map<number, [number, number]>();   // 승객 → [배, 탄 초]
+      const acc9 = new Map<number, number[]>();
+      const close9 = (pax9: number, until9: number): void => {
+        const cur9 = inShip9.get(pax9); if (!cur9) return;
+        const fs9 = firesOf9.get(pax9);
+        if (fs9) { const a9 = acc9.get(cur9[0]) ?? []; for (const f9 of fs9) if (f9 >= cur9[1] && f9 < until9) a9.push(f9); acc9.set(cur9[0], a9); }
+        inShip9.delete(pax9);
+      };
+      for (const [lt9, pax9, ship9] of ed.loads) { close9(pax9, lt9); if (ship9 > 0) inShip9.set(pax9, [ship9, lt9]); }
+      for (const pax9 of [...inShip9.keys()]) close9(pax9, Infinity);
+      for (const [sh9, a9] of acc9) {
+        if (a9.length === 0) continue;
+        const r9 = m9.bld.get(sh9) ?? {};
+        if (!r9.fires || r9.fires.length === 0) m9.bld.set(sh9, { ...r9, fires: Float64Array.from(a9.sort((x, y) => x - y)) });
+      }
+    }
+    TRUTH_IDX9.set(ed, m9);
+  }
+  return m9;
+}
 export function atkCdK9(unit: string, atSec: number, ups: [number, string, number][] | undefined, stims?: readonly [number, number][]): number {
   const sk9 = STIM_CD_K9[unit];
   if (sk9 !== undefined && stims && stims.length > 0) { for (const [a9, b9] of stims) if (atSec >= a9 && atSec < b9) return sk9; }
@@ -2101,6 +2138,8 @@ export type UnitDrawOp = {
   /** 아직 짓는(변태하는) 중인 건물인가 — 그런 건물은 생산도 큐도 연구도 못 한다.
    *  팝업이 그 줄들을 아예 안 쓰는 표다(요청). */
   pickWip?: boolean;
+  /** 판 16 랠리 자리(지도 분수) — 집힌 건물에서 줄을 긋는다(2026-11-03). */
+  rally?: [number, number];
   /** 자원(미네랄·간헐천)의 남은 양 · 처음 양(2026-10-12, 요청: "자원 클릭 시 자원 잔량/전체량 표시") — 판 11 자원량 절(amounts)의 그 자리 줄:
    *  처음 = 가장 이른 줄 · 남은 = t 이하 마지막 줄. 줄이 없으면 둘 다 없다. 자원 op 의 pickKey 는 `r<x×2>|<y×2>`(반 타일 칸). */
   resAmt?: number;
@@ -3892,6 +3931,8 @@ export function deriveWorld9(inp: {
       fires?: Float64Array;
       /** 판 16 실드 변곡점 [초, 실드] — 없으면 체력바가 합산에서 어림한다. */
       sh?: Ticks;
+      /** 판 16 그 태그의 상태 줄 전부(st16At 으로 읽는다 — 탐지 비트 등). */
+      st16?: Float64Array;
       /** 명령(이동·공격·정지) 시각들 — 선택 링(지적: 드래그 선택 구분)의 재료. */
       orders: number[];
       /** 그 사람의 연구 기록 — 걸음 속도 상한(요청)이 속업을 반영하는 재료. */
@@ -4141,6 +4182,7 @@ export function deriveWorld9(inp: {
         stims: e.stims ?? [],   // 참값 판 15 의 스팀 깃발(truthLives stims ★ · 옛 판은 빈 배열)
         ...(e.fires ? { fires: e.fires } : {}),
         ...(e.sh ? { sh: e.sh } : {}),
+        ...(e.st16 ? { st16: e.st16 } : {}),
       });
     }
     return out;
@@ -4981,6 +5023,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     /** ★ 판 16 실제 사격(2026-11-03, 요청: "실제 사격 … 다") — 개체 열쇠(holdKey) → 사격 시각들. 개체마다 붓 고리 머리에서 채운다. */
     const FIRES9 = new Map<string, Float64Array>();
+    /** 판 16 건물 참값(태그 → 상태 줄·실제 사격) · 사람 번호 → 편(아래 truthIdx9 · 판마다 한 번 짓는다). */
+    const { bld: bldTruth9, team: teamOfSlot9 } = truthIdx9(entData);
     /** 그 사격 시각들에서 t 와 같거나 앞선 마지막 발(없으면 −∞). */
     const lastFire9 = (fa: Float64Array, tt: number): number => {
       let lo = 0; let hi = fa.length - 1; let at = -Infinity;
@@ -4995,7 +5039,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     /** 그 열쇠의 사격 박자 위상(0~1) — 사거리에 든 순간이 0이다. 판 16 이면 마지막 실제 발에서 잰다(위 realPh9). */
     const firePhase = (key: string, cd: number): number => {
-      if (key[0] === "u" || key[0] === "p") { const r9 = realPh9(key.slice(1), cd); if (r9 !== null) return r9; }
+      { const r9 = realPh9(FIRES9.has(key) ? key : key[0] === "u" || key[0] === "p" ? key.slice(1) : key, cd); if (r9 !== null) return r9; }   // 건물(방어 사격)은 제 열쇠 그대로 FIRES9 에
       const m9 = fireStartRef.current;
       const prev = m9.get(key);
       /* 이어지는 사격인가 — 앞 프레임에도 쏘고 있었고 시계가 앞으로만 갔으면 잇는다.
@@ -6933,6 +6977,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        *  둘이 따로 놀면 혀는 나와 있는데 가시가 없거나 그 반대가 된다. */
       const sunkCd9 = Math.max(0.2, (unit === "Sunken Colony" && isKnownKind(unit) ? weaponVs(profileOf(unit), false)?.cd : 0) || 1.34);
       const sunkKey9 = `s${raw}|${Math.round(x * 4)}|${Math.round(y * 4)}`;
+      if (unit === "Sunken Colony" && myTag9 !== undefined) { const bf9 = bldTruth9.get(myTag9)?.fires; if (bf9) FIRES9.set(sunkKey9, bf9); }   // 판 16 실제 사격
       const sunkenPh = unit === "Sunken Colony" ? firePhase(sunkKey9, sunkCd9) : 0;
       /** 그 박자의 시작(회전 칸 처방 sx [3] — 붓이 그리는 시각으로 혀를 고른다). */
       const sunkStart9 = unit === "Sunken Colony" ? (fireStartRef.current.get(sunkKey9)?.start ?? t) : 0;
@@ -7165,6 +7210,15 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           pickRep: myOrd === repOrd, pickTag: myTag9,
           selRing: (myTag9 !== undefined && selTags9.has(myTag9)) || undefined,
           selBy: myTag9 !== undefined ? selBy9.get(myTag9) : undefined,
+          /* 판 16 랠리(2026-11-03) — 건물 태그의 랠리 자리(픽셀 x << 16 | y). 0 이거나 제 자리면 없음. 붓은 집힌 건물에만 줄을 긋는다. */
+          ...((): { rally?: [number, number] } => {
+            const rv9 = myTag9 !== undefined ? st16At(bldTruth9.get(myTag9)?.st16, ST16.rally, t) : null;
+            if (!rv9 || !rv9[0]) return {};
+            const rx9 = Math.floor(rv9[0] / 65536) / 32; const ry9 = (rv9[0] % 65536) / 32;
+            if (rx9 <= 0 && ry9 <= 0) return {};
+            if (Math.hypot(rx9 - (x + footDx(unit)), ry9 - (y + footDy(unit))) < 1) return {};
+            return { rally: posFrac(rx9, ry9) as [number, number] };
+          })(),
           drawK: bldDrawK9(shapeKind, FOOTPRINT[unit]?.[0] ?? 3, BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1),
           /* 땅에 앉은 건물은 그림자를 안 진다(요청: 건물 바닥 그림자는 제거) —
              건물은 발자국이 곧 제 자리라 바닥 타원이 정보를 더하지 않고, 모델
@@ -7534,6 +7588,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const flySec9 = Math.min(cd9 * 0.9,
               Math.max(0.05, Math.min(cd9 * 0.4, 0.4),
                 dist9 / Math.max(1, shotSpeedOf9(nm9))));
+            { const bf9 = myTag9 !== undefined ? bldTruth9.get(myTag9)?.fires : undefined; if (bf9) FIRES9.set(defKey9, bf9); }   // 판 16 실제 사격(방어 건물)
             const ph9 = firePhase(defKey9, cd9);
             const u9 = (ph9 * cd9) / flySec9;
             shotBr9 = { uw: u9, ur: 1 / flySec9, uc: cd9 / flySec9 };
@@ -9260,9 +9315,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* ★ 탐지 못 한 상대 은신은 **안 지우고 투명한 실루엣**으로 그린다(2026-09, 요청: "상대편 클로킹은 안보이는 대신 투명모델로
        어느정도 실루엣만 나오게" · "분할모드와 일반모드에서 시야 적용했을대도 똑같이") — 원작의 일렁이는 왜곡처럼 '무엇인가 있다'만 읽히게: 몸을 색 없는 한 색(CLOAK_SIL_COL9)으로 굽고
        알파 CLOAK_SIL_A9 · 그림자·체력바·링·상태 오라 없이 · 집을 수 없다(누르면 정체가 드러난다). 미니맵에는 여전히 안 선다. */
+    /* 판 16 탐지 비트(2026-11-03) — 원작 detected_flags(사람마다 한 비트). 있으면 '보는 편 누가 탐지하나'를 그대로 읽는다(옛: 디텍터 9칸 어림). */
+    const det9 = e.st16 ? st16At(e.st16, ST16.detected, t) : null;
     const cloakSil9 = cloakedNow9 && fogOn && !visAll && viewTeam > 0 && team !== viewTeam
-      && !detectorSpots.some((dsp) => dsp.team === viewTeam
-        && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9);
+      && (det9
+        ? ![...teamOfSlot9].some(([sl9, tm9]) => tm9 === viewTeam && ((det9[0] >>> sl9) & 1) === 1)
+        : !detectorSpots.some((dsp) => dsp.team === viewTeam
+          && Math.hypot(dsp.x - pos.x, dsp.y - pos.y) <= 9));
     /** 컷 처방(UnitDrawOp.pz) — 아래 pose 고르기가 시각의 함수인 갈래에서 그 인자를 적는다. */
     let poseRx9: number[] | undefined;
     unitOps.push({
