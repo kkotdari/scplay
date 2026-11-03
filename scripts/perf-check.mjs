@@ -478,7 +478,9 @@ function makeWorld() {
   const w = new W();
   w.u8(0x4f); w.u8(0x42); w.u8(0x57); w.u8(0x54);   // "OBWT"
   /* 판 12 = 판 11 + 선택 줄마다 u8 갈래 · --dmg 면 판 13(= 판 12 + 맨 뒤 데미지 절 — 현황 데미지 칸 "1.2k(46%)/0.9k(52%)" 의 재료). */
-  w.u8(has("--dmg") ? 13 : 12); w.f32(FPS); w.i32(-1);
+  /* --v17(2026-11-03) — 판 17 합성(채집·상태·사격 절은 비고 · 탄 절 몇 줄 · 타일 절: 본진마다 시야가 시간에 따라 넓어지고 저그 본진에 크립이 퍼진다). */
+  const V17 = has("--v17");
+  w.u8(V17 ? 17 : has("--dmg") ? 13 : 12); w.f32(FPS); w.i32(-1);
   w.u8(PLAYERS.length);
   for (const pl of PLAYERS) { w.u8(pl.owner); w.u8(pl.owner); w.u8(pl.race); w.u8(pl.force); w.u8(0); w.u32(pl.color); w.str(pl.name); }
   w.u32(tracks.length);
@@ -570,6 +572,34 @@ function makeWorld() {
     w.u32(rows9.length); w.u16(bf9);
     let pb9 = 0;
     for (const [b9, who, du, db, tu, tb] of rows9) { w.vz(b9 - pb9); pb9 = b9; w.u8(who); w.vz(du); w.vz(db); w.vz(tu); w.vz(tb); }
+  } else if (V17) { w.u32(0); w.u16(119); }   // 판 13 데미지 절(빈)
+  if (V17) {
+    w.u32(0);   // 판 14 채집(빈)
+    w.u32(0); w.u32(0);   // 판 16 상태 · 사격(빈)
+    const sec = (fill, head) => { const s9 = new W(); const n9 = fill(s9); const body = s9.out(); const hl = head ? 4 : 0; w.u32(4 + hl + body.length); w.u32(n9); if (head) { w.u16(head[0]); w.u16(head[1]); } w.need(body.length); body.copy(w.b, w.p); w.p += body.length; };
+    /* 탄 — 0번 트랙이 10초부터 2초마다 하나씩 쏜다(0.6초 날아 꽂힘). */
+    sec((s9) => { let pf = 0; let n = 0; const tg0 = tracks[0]?.tag ?? 1;
+      for (let k = 0; k < 40; k += 1) { const f0 = F(10 + 2 * k); s9.u8(0); s9.vz(f0 - pf); pf = f0; s9.u32(k + 1); s9.u16(0); s9.u8(0); s9.u32(tg0); s9.u32(0); s9.u16(18 * 32); s9.u16(18 * 32); s9.u16(30 * 32); s9.u16(24 * 32); n += 1;
+        const f1 = F(10.6 + 2 * k); s9.u8(1); s9.vz(f1 - pf); pf = f1; s9.u32(k + 1); n += 1; }
+      return n; });
+    /* 타일 — 2초마다: 사람마다 본진 둘레 반지름 6 + 시각/4(최대 14) 안을 보임·밝힘 · 저그(Rex·타센) 본진 반지름 4 + 시각/6(최대 10) 크립. */
+    sec((s9) => { let pf = 0; let n = 0; const W9 = 128; const last = new Uint32Array(W9 * W9).fill(0xffffffff);
+      for (let sec9 = 0; sec9 <= 120; sec9 += 2) {
+        const f9 = F(sec9);
+        for (let y = 0; y < W9; y += 1) for (let x = 0; x < W9; x += 1) {
+          let vis = 0xff; let exp = 0xff; let creep = 0;
+          for (const pl of PLAYERS) {
+            const d = Math.hypot(x + 0.5 - pl.home[0], y + 0.5 - pl.home[1]);
+            if (d <= Math.min(14, 6 + sec9 / 4)) { vis &= ~(1 << pl.owner); exp &= ~(1 << pl.owner); }
+            if (pl.race === 0 && d <= Math.min(10, 4 + sec9 / 6)) creep = 0x40;
+          }
+          const v = ((creep << 16) | (vis << 8) | exp) >>> 0;
+          const i = y * W9 + x;
+          if (last[i] === v) continue;
+          last[i] = v; s9.vz(f9 - pf); pf = f9; s9.u32(i); s9.u32(v); n += 1;
+        }
+      }
+      return n; }, [128, 128]);
   }
   const motion = deflateSync(w.out()).toString("base64");
   /* 합성 뭉치를 파일로도 낸다(PERF_MOTION_OUT=경로) — 엔진을 노드에서 곧장 돌려 보는 하네스의 재료(브라우저 없이 ghosts9·op 를 찍는다). */

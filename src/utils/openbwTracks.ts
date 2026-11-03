@@ -259,7 +259,64 @@ export type TruthTracks = {
   has16: boolean;
   /** 초당 프레임(머리). */
   fps: number;
+  /** ★ 판 17 탄(2026-11-03, 요청: "탄환·시야·크립·포탑 넷 다 연결하고 참값으로") — 생긴 초·사라진 초·무기·임자·쏜 몸·표적 몸·자리(픽셀). 생긴 차례. 옛 판은 빈 배열. */
+  bullets: Bullet17[];
+  /** ★ 판 17 타일(크립·시야) 시간축 — 옛 판은 null. */
+  tiles: TileTL17 | null;
 };
+export type Bullet17 = { id: number; t0: number; t1: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number };
+/** ★ 판 17 타일 시간축 — 12 프레임마다 바뀐 칸의 [깃발 << 16 | 보임 << 8 | 밝힘](원작 그대로 — 보임·밝힘은 **비트가 서면 그 사람에게 안 보임·안 밝힘**).
+ *  stateAt(t) 는 그 시각의 판 전체(Uint32Array · 되쓰는 배열 — 부른 쪽이 베끼지 않으면 다음 부름에 바뀐다). 30초마다 찍어 둔 판에서 앞으로만 감는다. */
+export class TileTL17 {
+  readonly w: number; readonly h: number;
+  readonly ts: Float64Array; readonly ix: Uint32Array; readonly vs: Uint32Array;
+  private readonly snaps: { t: number; i: number; st: Uint32Array }[] = [];
+  private cur: Uint32Array; private curT = -Infinity; private curI = 0;
+  constructor(w: number, h: number, ts: Float64Array, ix: Uint32Array, vs: Uint32Array) {
+    this.w = w; this.h = h; this.ts = ts; this.ix = ix; this.vs = vs;
+    const st = new Uint32Array(w * h).fill(0x0000ffff);   // 처음: 깃발 0 · 아무도 못 봄 · 아무도 안 밝힘
+    let nextSnap = 0;
+    for (let i = 0; i < ts.length; i += 1) {
+      if (ts[i] >= nextSnap) { this.snaps.push({ t: ts[i], i, st: st.slice() }); nextSnap = ts[i] + 30; }
+      if (ix[i] < st.length) st[ix[i]] = vs[i];
+    }
+    this.cur = new Uint32Array(w * h).fill(0x0000ffff);
+  }
+  /** 워커로 넘어오며 구조 복제로 메서드를 잃은 판을 되살린다(frameWorker 가 받자마자 부른다). */
+  static revive(o: TileTL17 | { w: number; h: number; ts: Float64Array; ix: Uint32Array; vs: Uint32Array } | null | undefined): TileTL17 | null {
+    if (!o) return null;
+    if (o instanceof TileTL17) return o;
+    return new TileTL17(o.w, o.h, o.ts, o.ix, o.vs);
+  }
+  get n(): number { return this.ts.length; }
+  /** 줄 수 · 끝 시각(진단). */
+  get lastT(): number { return this.ts.length ? this.ts[this.ts.length - 1] : 0; }
+  stateAt(t: number): Uint32Array {
+    if (t < this.curT) {   // 되감기 — t 앞의 가장 가까운 찍은 판에서 다시
+      let s9: { t: number; i: number; st: Uint32Array } | null = null;
+      for (const sn of this.snaps) { if (sn.t <= t) s9 = sn; else break; }
+      if (s9) { this.cur.set(s9.st); this.curI = s9.i; } else { this.cur.fill(0x0000ffff); this.curI = 0; }
+    }
+    const ts = this.ts; const ix = this.ix; const vs = this.vs; const cur = this.cur;
+    let i = this.curI;
+    while (i < ts.length && ts[i] <= t) { if (ix[i] < cur.length) cur[ix[i]] = vs[i]; i += 1; }
+    this.curI = i; this.curT = t;
+    return cur;
+  }
+  /** 사람 비트 mask(그 편의 사람들)가 **처음 밝힌** 초 — 칸마다(못 밝혔으면 Infinity). 한 번 셈해 둔다(편마다). */
+  private firstSeen = new Map<number, Float32Array>();
+  exploredAtFor(mask: number): Float32Array {
+    let f = this.firstSeen.get(mask);
+    if (f) return f;
+    f = new Float32Array(this.w * this.h).fill(Infinity);
+    for (let i = 0; i < this.ts.length; i += 1) {
+      const k = this.ix[i]; if (k >= f.length || f[k] !== Infinity) continue;
+      if ((~this.vs[i] & 0xff & mask) !== 0) f[k] = this.ts[i];
+    }
+    this.firstSeen.set(mask, f);
+    return f;
+  }
+}
 /** 판 16 상태 갈래(덤퍼 bwdump.cpp 판 16 블록과 같은 번호). 타이머 = 켜짐·늘어남·꺼짐만 적힌 갈래. */
 export const ST16 = {
   lockdown: 1, irradiate: 2, ensnare: 3, plague: 4, stasis: 5, maelstrom: 6, stim: 7, matrix: 8, matrixHp: 9, storm: 10,
@@ -267,7 +324,7 @@ export const ST16 = {
   research: 19, upgrade: 20, upgradeLv: 21, queue: 22, kills: 23, speedUp: 24, cdUp: 25, shield: 26, healed: 27,
   building: 28, nydusExit: 29, rally: 30, nukeReady: 31, scarabs: 32, spellCd: 33,
   /* 재생용 참값에 함께 실리는 40 이상(덤퍼 st_main9) — 생산 대기열 2~5칸 · 연구 남은 시간(프레임 · 타이머). */
-  queue2: 55, queue3: 56, queue4: 57, queue5: 58, researchTime: 66,
+  queue2: 55, queue3: 56, queue4: 57, queue5: 58, turret: 62, researchTime: 66,
 } as const;
 const ST16_IDX9 = new WeakMap<Float64Array, Map<number, Float64Array>>();
 /** ★ 판 16 상태 줄에서 갈래 kind 의 t 시각 값 — [값, 그 값이 선 초] · 없으면 null. from 앞에 선 값은 안 본다(태그를 나눠 쓰는 앞 생애의 값).
@@ -507,7 +564,8 @@ export const TRUTH_VER_MIN9 = 11;
 /* 판 15 = 판 14 + 상태 바이트 0x10 '스팀팩 중'(2026-11-03, 요청: "스팀팩을 데이터에 싣는 방법으로 근본적 해결") — 꼴은 같고 깃발 하나가 는다(옛 판은 0). */
 /* 판 16 = 판 15 + 맨 뒤 **상태 절**(마법 타이머·매트릭스·실드·연구 중… 아래 ST16) · **사격 절**(실제 발사 프레임) + 체력 솎기 없음(2026-11-03, 요청: "하나도 빠짐없이 다"). */
 /* (판 17 은 만들지 않았다 — 큰 원본은 재생용 참값을 무겁게 하지 않게 **곁 꾸러미 OBWX**(아래 decodeTruthExtra)로 갈랐다 · 2026-11-03.) */
-export const TRUTH_VER_MAX9 = 16;
+/* 판 17 = 판 16 + 맨 뒤 **탄 절** · **타일 절**(크립·시야 · 12 프레임마다) · 상태 절에 포탑 방향(62) — "탄환·시야·크립·포탑 넷 다 연결하고 참값으로"(2026-11-03). */
+export const TRUTH_VER_MAX9 = 17;
 /** 선택 갈래(판 12 선택 줄의 낮은 넉 비트) — 높은 넉 비트는 부대 번호(0~9 · 부대 갈래에서만 뜻이 있다). */
 export const SEL_KIND9 = {
   /** 마우스로 고름(클릭·끌어 고르기 = Select) — 그 몸들은 그 순간 그 사람 화면 안이었다. */
@@ -539,19 +597,19 @@ export async function peekTruthHead(
 
 /** ★ 참값 곁 꾸러미 OBWX(2026-11-03, 요청: "절대 하나도 빼놓지 마 · 다 나중에 필요해") — 서버 `GET /game-results/{id}/truth-extras` 의 data(base64).
  *  ("원본을 저장하라는 게 아니라 원본이 더 이상 필요 없게 게임 상태를") — 덤퍼가 재생용 참값(OBWT)과 따로 낸 게임 상태: ① 상태 나머지(갈래 40~89 — 명령·표적·
- *  이동 표적·상태 비트·운반·대기열·건설 남은 시간·포탑 방향·보임 비트·정확한 체력·에너지·…) ② 정밀 자리 ③ 탄 ④ 사람 ⑤ 타일. 리플레이 명령 바이트는 없다.
+ *  이동 표적·상태 비트·운반·건설 남은 시간·보임 비트·정확한 체력·에너지·…) ② 정밀 자리 ③ 사람. 리플레이 명령 바이트는 없다(탄·타일은 판 17 OBWT 에).
  *  ①은 OBWT 의 stat 과 같은 꼴(태그마다 평평한 [초, 갈래, 값])로 풀고
  *  나머지는 바이트로 들고 있다가 raw17* 로 푼다(정밀 자리만 수백만 줄일 수 있다). 꼴은 덤퍼 bwdump.cpp 'OBWX' 주석. */
 export type TruthExtra = {
   fps: number;
   stat: Map<number, Float64Array>;
-  pos: Raw17Sec; bullets: Raw17Sec; players: Raw17Sec; tiles: Raw17Sec & { w: number; h: number };
+  pos: Raw17Sec; players: Raw17Sec;
 };
 export async function decodeTruthExtra(b64: string): Promise<TruthExtra | null> {
   try {
     const c = new Cursor(await inflate(fromBase64(b64)));
     if (c.u8() !== 0x4f || c.u8() !== 0x42 || c.u8() !== 0x57 || c.u8() !== 0x58) return null; // "OBWX"
-    if (c.u8() !== 1) return null;
+    if (c.u8() !== 2) return null;   // 판 2 — 탄·타일은 판 17 OBWT 로 옮겼다
     const fps = c.f32();
     const sec9 = (head9 = 0): Raw17Sec & { w: number; h: number } => {
       const len9 = c.u32(); const n9 = c.u32();
@@ -566,8 +624,8 @@ export async function decodeTruthExtra(b64: string): Promise<TruthExtra | null> 
         const a9 = acc9.get(tag); if (a9) a9.push(pf / fps, kind, v); else acc9.set(tag, [pf / fps, kind, v]);
       }
       for (const [tg9, a9] of acc9) stat.set(tg9, Float64Array.from(a9)); }
-    const pos = sec9(); const bullets = sec9(); const players = sec9(); const tiles = sec9(4);
-    return { fps, stat, pos, bullets, players, tiles };
+    const pos = sec9(); const players = sec9();
+    return { fps, stat, pos, players };
   } catch {
     return null;
   }
@@ -590,6 +648,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
     const hasGath = version >= 14;
     /** 상태·사격 절(판 16) — 채집 절 뒤. */
     const has16 = version >= 16;
+    /** 탄·타일 절(판 17) — 사격 절 뒤. */
+    const has17 = version >= 17;
     const fps = c.f32();
     const trustFrame = c.i32();
     if (!Number.isFinite(fps) || fps <= 0) return null;
@@ -960,10 +1020,28 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         } }
       for (const [tg9, a9] of acc9) fires.set(tg9, Float64Array.from(a9));
     }
+    /* 판 17 — 탄 절 · 타일 절(각 u32 바이트 길이 · u32 줄 수 · 몸 · 타일은 머리 u16 폭·높이). */
+    const bullets: Bullet17[] = [];
+    let tiles: TileTL17 | null = null;
+    if (has17) {
+      { const len9 = c.u32(); const n9 = c.u32(); const sc = new Cursor(c.take(len9 - 4));
+        const live9 = new Map<number, Bullet17>(); let pf = 0;
+        for (let i = 0; i < n9; i += 1) {
+          const k = sc.u8(); pf += sc.varint(); const id = sc.u32();
+          if (k === 1) { const b9 = live9.get(id); if (b9) { b9.t1 = pf / fps; live9.delete(id); } continue; }
+          const b9: Bullet17 = { id, t0: pf / fps, t1: Infinity, wpn: sc.u16(), owner: sc.u8(), src: sc.u32(), tgt: sc.u32(), x: sc.u16(), y: sc.u16(), tx: sc.u16(), ty: sc.u16() };
+          live9.set(id, b9); bullets.push(b9);
+        } }
+      { const len9 = c.u32(); const n9 = c.u32(); const w9 = c.u16(); const h9 = c.u16(); const sc = new Cursor(c.take(len9 - 8));
+        const ts = new Float64Array(n9); const ix = new Uint32Array(n9); const vs = new Uint32Array(n9); let pf = 0;
+        for (let i = 0; i < n9; i += 1) { pf += sc.varint(); ts[i] = pf / fps; ix[i] = sc.u32(); vs[i] = sc.u32(); }
+        tiles = new TileTL17(w9, h9, ts, ix, vs); }
+    }
+
     return { version, leftover: c.left,
       tracks, trustUntil: trustFrame < 0 ? null : trustFrame / fps,
       players, ups, casts, pings, res, apm, apmBucketSec, orders, resFields, builds, sels,
-      energy, loads, amounts, kills, dmg, dmgBucketSec, gath, stat, fires, has16, fps };
+      energy, loads, amounts, kills, dmg, dmgBucketSec, gath, stat, fires, has16, fps, bullets, tiles };
   } catch {
     return null;
   }

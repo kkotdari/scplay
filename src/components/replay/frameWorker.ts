@@ -26,7 +26,7 @@ import {
 import { pack9 } from "./framePack";
 import { estBytes9 } from "./memEst9";
 import { UNIT_BUILD_SEC } from "./unitStats";
-import type { TruthTracks } from "../../utils/openbwTracks";
+import { TileTL17, type TruthTracks } from "../../utils/openbwTracks";
 import { truthWorld } from "../../utils/truthLives";
 
 const FPS9 = 30;
@@ -343,6 +343,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       deriveNow();
     } else if (m.type === "truth") {
       truthData = m.truth;
+      if (truthData) truthData.tiles = TileTL17.revive(truthData.tiles);   // 판 17 타일 시간축 — 구조 복제로 잃은 메서드를 되살린다
       deriveNow();
     } else if (m.type === "want") {
       if (m.what === "walks") {

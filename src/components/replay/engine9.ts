@@ -221,13 +221,20 @@ export const MINE_ARM_SEC9 = 0.45;
  *  스팀 구간은 **참값이 싣는다**(판 15 상태 깃발 0x10 · truthLives stims) — 옛 판은 모른다(늘 기본 박자). */
 export const STIM_CD_K9: Record<string, number> = { Marine: 7 / 15, Firebat: 11 / 22 };
 /** ★ 판 16 건물 참값 색인(2026-11-03, 요청: "방어 건물 실제 사격 · 랠리 … 연결") — 건물 태그 → 상태 줄·실제 사격 · 사람 번호 → 편. 판(entData)마다 한 번. */
-const TRUTH_IDX9 = new WeakMap<object, { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number> }>();
+type TruthIdx9 = { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number>;
+  /** 판 17 탄 — 쏜 몸 태그 → 탄(생긴 차례). */ blt: Map<number, { t0: number; t1: number; tx: number; ty: number; tgt: number }[]> };
+const TRUTH_IDX9 = new WeakMap<object, TruthIdx9>();
 function truthIdx9(ed: { lives: readonly { bld: boolean; tag: number; st16?: Float64Array; fires?: Float64Array }[]; players: readonly { owner: number; team: number }[];
-  loads?: readonly [number, number, number][] } | null | undefined): { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number> } {
-  if (!ed) return { bld: new Map(), team: new Map() };
+  loads?: readonly [number, number, number][]; bullets?: readonly { t0: number; t1: number; src: number; tgt: number; tx: number; ty: number }[] } | null | undefined): TruthIdx9 {
+  if (!ed) return { bld: new Map(), team: new Map(), blt: new Map() };
   let m9 = TRUTH_IDX9.get(ed);
   if (!m9) {
-    m9 = { bld: new Map(), team: new Map() };
+    m9 = { bld: new Map(), team: new Map(), blt: new Map() };
+    for (const b9 of ed.bullets ?? []) {
+      if (!b9.src) continue;
+      const a9 = m9.blt.get(b9.src); const r9 = { t0: b9.t0, t1: b9.t1, tx: b9.tx, ty: b9.ty, tgt: b9.tgt };
+      if (a9) a9.push(r9); else m9.blt.set(b9.src, [r9]);
+    }
     for (const e of ed.lives) if (e.bld && e.tag > 0 && (e.st16 || e.fires)) m9.bld.set(e.tag, { st16: e.st16, fires: e.fires });
     for (const pl of ed.players) m9.team.set(pl.owner, pl.team);
     /* ★ 벙커는 제가 안 쏜다 — **탄 몸들의 실제 사격**을 탄 동안만 모아 벙커의 사격으로(탑승 [초, 승객, 배(0 = 내림)]). */
@@ -4810,11 +4817,38 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
   const lastViewRef = { current: -1 };
   /* 안개 이력(옛 fogSrc memo) — 시점(viewTeam·visAll)마다 한 번. */
   let fogCache: { key: string; v: { explored: Uint16Array; rebuildLastSeen: (out: Float32Array, tCap: number) => void } | null } | null = null;
+  /* ★ 판 17 시야 타일(2026-11-03, 요청: "탄환·시야·크립·포탑 넷 다 연결") — 있으면 안개를 원작 타일 시야 그대로 쓴다(밝힘·지금 보임·마지막으로 본 때).
+     사람 비트 mask = 그 편 사람들(전체 보기면 모든 사람). 원작 비트는 '서면 안 보임'이다 — 보임 = ~비트 & mask. */
+  const tiles17 = entData?.tiles && entData.tiles.w === gw9 && entData.tiles.h === gh9 ? entData.tiles : null;
+  const tileMask9 = (visAll: boolean, viewTeam: number): number => {
+    let m9 = 0;
+    for (const [sl9, tm9] of truthIdx9(entData).team) if (sl9 >= 0 && sl9 < 8 && (visAll || tm9 === viewTeam)) m9 |= 1 << sl9;
+    return m9;
+  };
   const fogSrcFor = (fogOn: boolean, visAll: boolean, viewTeam: number) => {
     const key = `${fogOn ? 1 : 0}|${visAll ? 1 : 0}|${viewTeam}`;
     if (fogCache && fogCache.key === key) return fogCache.v;
     const v = ((): { explored: Uint16Array; rebuildLastSeen: (out: Float32Array, tCap: number) => void } | null => {
       if (!fogOn) return null;
+      if (tiles17) {   // 판 17 — 원작 타일 시야(위 ★)
+        const mask9 = tileMask9(visAll, viewTeam);
+        const fs9 = tiles17.exploredAtFor(mask9);
+        const explored = new Uint16Array(fs9.length);
+        for (let i9 = 0; i9 < fs9.length; i9 += 1) explored[i9] = fs9[i9] === Infinity ? FOG_NEVER : Math.min(FOG_NEVER - 1, Math.max(0, Math.round(fs9[i9])));
+        const rebuildLastSeen = (out: Float32Array, tCap: number): void => {
+          out.fill(-1);
+          const vis9 = new Uint8Array(out.length);
+          const ts9 = tiles17.ts; const ix9 = tiles17.ix; const vs9 = tiles17.vs;
+          for (let i9 = 0; i9 < ts9.length && ts9[i9] <= tCap; i9 += 1) {
+            const k9 = ix9[i9]; if (k9 >= out.length) continue;
+            const on9 = (~vs9[i9] >>> 8 & 0xff & mask9) !== 0;
+            if (vis9[k9] && !on9) out[k9] = ts9[i9];
+            vis9[k9] = on9 ? 1 : 0;
+          }
+          for (let k9 = 0; k9 < out.length; k9 += 1) if (vis9[k9]) out[k9] = tCap;
+        };
+        return { explored, rebuildLastSeen };
+      }
       const n9 = gw9 * gh9;
       /** 눈 하나 — (x, y, 시야, 보기 시작한 초, 그만 본 초). 유닛 표본은 앞뒤가 같다. */
       type Eye = (x: number, y: number, r: number, from: number, to: number) => void;
@@ -5023,8 +5057,17 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     /** ★ 판 16 실제 사격(2026-11-03, 요청: "실제 사격 … 다") — 개체 열쇠(holdKey) → 사격 시각들. 개체마다 붓 고리 머리에서 채운다. */
     const FIRES9 = new Map<string, Float64Array>();
-    /** 판 16 건물 참값(태그 → 상태 줄·실제 사격) · 사람 번호 → 편(아래 truthIdx9 · 판마다 한 번 짓는다). */
-    const { bld: bldTruth9, team: teamOfSlot9 } = truthIdx9(entData);
+    /** 판 16 건물 참값(태그 → 상태 줄·실제 사격) · 사람 번호 → 편 · 판 17 탄(쏜 태그 → 탄)(아래 truthIdx9 · 판마다 한 번 짓는다). */
+    const { bld: bldTruth9, team: teamOfSlot9, blt: blt17 } = truthIdx9(entData);
+    /** ★ 판 17 — 그 몸이 쏜 탄 가운데 t 에 날고 있는 마지막 것(없으면 null) · 자료가 없는 몸이면 undefined(지어낸다). */
+    const bltNow9 = (src: number | undefined): { t0: number; t1: number; tx: number; ty: number; tgt: number } | null | undefined => {
+      if (src === undefined || blt17.size === 0) return undefined;
+      const a9 = blt17.get(src); if (!a9) return null;
+      let lo = 0; let hi = a9.length - 1; let at = -1;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (a9[m].t0 <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+      for (let i9 = at; i9 >= 0 && i9 >= at - 3; i9 -= 1) if (t < a9[i9].t1) return a9[i9];
+      return null;
+    };
     /** 그 사격 시각들에서 t 와 같거나 앞선 마지막 발(없으면 −∞). */
     const lastFire9 = (fa: Float64Array, tt: number): number => {
       let lo = 0; let hi = fa.length - 1; let at = -Infinity;
@@ -5537,8 +5580,24 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        눈 자리를 모으는 고리는 값싸다(비싼 것은 원 찍기다) — 그래서 고리를 조르기 밖으로 꺼내
        프레임마다 돌리고, 원 찍기는 그 목록을 받아 종전 박자대로 쌓는다. 붓은 이 프레임 눈으로
        잇는다(장 간격 40ms — 몸과 같은 결). */
+    /** 판 17 — 지금 보이는 칸(편 mask · 위 tiles17 ★). 장마다 한 번. */
+    const tileVis9 = fogOn && tiles17 ? ((): Uint8Array => {
+      const st9 = tiles17.stateAt(t); const m9 = tileMask9(visAll, viewTeam);
+      const o9 = new Uint8Array(st9.length);
+      for (let i9 = 0; i9 < st9.length; i9 += 1) if ((~st9[i9] >>> 8 & 0xff & m9) !== 0) o9[i9] = 255;
+      return o9;
+    })() : null;
     const eyes9 = ((): Float32Array => {
       if (!fogOn) return EMPTY_FRAME9.eyes;
+      if (tileVis9) {   // 판 17 — 보이는 칸마다 작은 눈 하나(반지름 0.75 타일 · 신원 = 칸 번호) — GL 안개가 그 합집합을 밝힌다
+        let n9 = 0; for (let i9 = 0; i9 < tileVis9.length; i9 += 1) if (tileVis9[i9]) n9 += 1;
+        const o9 = new Float32Array(n9 * 4); let j9 = 0;
+        for (let i9 = 0; i9 < tileVis9.length; i9 += 1) {
+          if (!tileVis9[i9]) continue;
+          o9[j9] = (i9 % gw9) + 0.5; o9[j9 + 1] = Math.floor(i9 / gw9) + 0.5; o9[j9 + 2] = 0.75; o9[j9 + 3] = i9; j9 += 4;
+        }
+        return o9;
+      }
       /** 안개 층이 쓸 눈 목록 — disc를 부를 때마다 여기에도 적는다.
        *  ★ 한 눈은 **네 칸**이다: x · y · 반지름 · **신원(eid)**(지적: "안개 뒤로 돌림은
        *    없지만 뚝뚝 끊기네") ────────────────────────────────────────────────────────
@@ -5639,6 +5698,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const pFogVis9 = PERF9 ? pNow() : 0;
     const visNow = ((): Uint8Array | null => {
       if (!fogOn) return null;
+      if (tileVis9) { visSrcRef.current = eyes9; return tileVis9; }   // 판 17 — 원작 타일 시야 그대로
       const n9 = gw9 * gh9;
       let buf = visBufRef.current;
       if (!buf || buf.length !== n9) { buf = new Uint8Array(n9); visBufRef.current = buf; }
@@ -7049,6 +7109,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           const sweep9 = unit === "Missile Turret"
             ? snap9((t * 96 + centerX * 37 + centerY * 53) % 360)   // 24 → 48 → 96°/s(요청: 두 번에 걸쳐 2배씩 — 3.75초에 한 바퀴)
             : undefined;
+          /* ★ 판 17 — 미사일 터렛의 포드는 원작 subunit heading 그대로(쉴 때 도는 것까지 · 유닛 포탑과 같은 셈). */
+          if (unit === "Missile Turret" && myTag9 !== undefined) {
+            const tu9 = st16At(bldTruth9.get(myTag9)?.st16, ST16.turret, t);
+            if (tu9) return snap9((tu9[0] * 360) / 256 + 180);
+          }
           /* 공사 중에는 겨누지 않는다 — 탐지 회전만 이어 돈다(위 ★★). */
           if (raising) return sweep9;
           const f9 = foeOfTgt9(rec9?.tgt);
@@ -7585,6 +7650,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             /* 유닛 쪽과 같은 바닥(그 자리 ★) — 미사일 터렛도 붙어 쏠수록
                탄이 안 보이던 병을 함께 앓았다(1타일 14%). */
             const dist9 = lenB / Math.max(1, tPxB);
+            /* ★ 판 17 — 이 건물이 쏜 탄이 날고 있으면 그 탄의 진행 그대로(없으면 안 그린다 · 자료 없는 옛 판은 지어낸다). */
+            const bb9 = bltNow9(myTag9);
+            if (bb9 === null) return null;
+            if (bb9 && Number.isFinite(bb9.t1)) {
+              const fs9 = Math.max(0.03, bb9.t1 - bb9.t0); const u9 = (t - bb9.t0) / fs9;
+              shotBr9 = { uw: u9, ur: 1 / fs9, uc: cd9 / fs9 };
+              return Math.max(0, Math.min(1, u9));
+            }
             const flySec9 = Math.min(cd9 * 0.9,
               Math.max(0.05, Math.min(cd9 * 0.4, 0.4),
                 dist9 / Math.max(1, shotSpeedOf9(nm9))));
@@ -7931,6 +8004,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     if (race !== "저그") return null;
     const goneAt = gone ?? 0;
     if (goneAt > 0 && t >= goneAt + 1.2) return null;
+    if (tiles17) return null;   // 판 17 — 크립은 원작 타일 그대로(아래 ★ 타일 크립)
     const cxb = x + footDx(unit);
     /* ★ 크립의 한가운데는 **발자국 한가운데**다(지적: "3D에서 크립 위치가 아직도
        위쪽으로 쏠린듯") ────────────────────────────────────────────────────────
@@ -8035,6 +8109,42 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     return null;
   });
       void r9;
+    }
+    /* ★ 판 17 타일 크립(2026-11-03, 요청: "크립 … 연결") — 원작 타일의 크립 깃발(0x40) 그대로. 4×4 타일 칸마다 크립 칸 수·무게중심으로 크립 판 하나를 깐다
+       (건물 둘레 어림·확산 시계를 걷는다 · 퍼짐·물러남이 원작대로 따라온다). 판 그림·질감은 종전 크립 판(creeppatch)을 그대로 쓴다. */
+    if (tiles17) {
+      const st9 = tiles17.stateAt(t);
+      /* 칸은 가로 4 × 세로 2 — 크립 판은 땅에 눕혀 그려 세로가 가로의 4할 남짓이라, 정사각 칸이면 줄 사이가 빈다(헤드리스 --v17 실측). */
+      const C9 = 4; const R9 = 2;
+      for (let cy9 = 0; cy9 < gh9; cy9 += R9) for (let cx9 = 0; cx9 < gw9; cx9 += C9) {
+        let n9 = 0; let sx9 = 0; let sy9 = 0;
+        for (let y9 = cy9; y9 < Math.min(gh9, cy9 + R9); y9 += 1) for (let x9 = cx9; x9 < Math.min(gw9, cx9 + C9); x9 += 1) {
+          if ((st9[y9 * gw9 + x9] >>> 16) & 0x40) { n9 += 1; sx9 += x9 + 0.5; sy9 += y9 + 0.5; }
+        }
+        if (n9 < 2) continue;
+        const cid9 = (cy9 / R9) * 1000 + cx9 / C9;
+        const jx9 = (((cid9 * 2654435761) >>> 0) % 1000) / 1000 - 0.5; const jy9 = (((cid9 * 2246822519) >>> 0) % 1000) / 1000 - 0.5;
+        const px9 = sx9 / n9 + jx9 * 0.8 + (((cy9 / R9) & 1) ? 1 : -1); const py9 = sy9 / n9 + jy9 * 0.3;   // 줄마다 반 칸씩 엇갈려(벽돌 쌓기) 무늬가 줄로 안 읽히게
+        const cSeen9: 0 | 1 | 2 = fogOn ? seenAt(px9, py9) : 2;
+        if (cSeen9 === 0) continue;
+        const w9 = 3 + 3.8 * Math.sqrt(n9 / (C9 * R9));
+        const mk9 = pitchK(py9);
+        const [fx9, fy9] = posFrac(px9, py9);
+        unitOps.push({
+          fx: fx9, fy: fy9, z: 880 + (cid9 % 20),
+          kind: cid9 % 3 === 0 ? "creeppatch" : cid9 % 3 === 1 ? "creeppatch2" : "creeppatch3",
+          viewYaw: viewYawOf(px9, py9), flat: !pitched, pitch: pitched,
+          sizePx: 0,
+          wFrac: (w9 / grid.width) * mk9,
+          hFrac: ((w9 * 0.953) / grid.width) * mk9,
+          boxFit: "meet", fitWidth: true,
+          inkCenter: true,
+          color: "#6b5a72",
+          alpha: cSeen9 === 1 ? 0.5 : 1,
+          noShadow: true,
+          clipWalk: true,
+        });
+      }
     }
     /* ★ 건물 이륙·착륙의 **소리 신호**(2026-10-22, 요청: "건물 리프트 랜딩 소리 추가") — 그림은 없다(붓이 안 그리는 dom "lift" sub up/down · sfx9Cues). 착륙 먼지(아래 dom land)는
        품질(qBuildFx)에 매여 있어 소리 신호로 안 쓴다. 착륙 = 다른 자리에서 떠 와서 선 기록(아래 cameFrom 과 같은 셈). */
@@ -9698,7 +9808,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
         return siegeXf9.to === 1 ? e9 : 1 - e9;
       })();
       const idleAim9 = lastAim9 ?? ((last.rotDeg ?? 0) + gunRest9);
-      turretAt9 = { hdg: foeDeg !== null ? foeDeg : idleAim9, fx: gfx, fy: gfy };
+      /* ★ 판 17 포탑 방향(2026-11-03, 요청: "포탑 … 연결") — 원작 subunit heading(0~255 · 몸 방향 simHdg 와 같은 셈: × 360/256 + 180). 있으면 표적 어림(foeDeg)을 안 쓴다. */
+      const tur17 = e.st16 ? st16At(e.st16, ST16.turret, t, e.born - 0.05) : null;
+      const turDeg9 = tur17 ? ((tur17[0] * 360) / 256 + 180) % 360 : foeDeg !== null ? foeDeg : idleAim9;
+      turretAt9 = { hdg: turDeg9, fx: gfx, fy: gfy };
       unitOps.push({
         // 포신 가려짐 해결(지적) — 곁 유닛의 z가 포탑을 얇게 자르지 않게 여유 있게.
         ...last, kind: gunXf9 ? "tankturretxf" : gunKind, fx: gfx, fy: gfy, z: last.z + 30,
@@ -9720,7 +9833,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            물려받아, 옆에서 오는 적을 차체째 돌지 않고는 겨눌 수 없었다. 표적이
            없을 때만 차체를 따른다(포신이 허공을 겨눈 채 굳지 않게).
            축은 포탑 링이다 — 위 tankTurret이 링을 모델 원점에 맞춰 둔 덕이다. */
-        rotDeg: foeDeg !== null ? foeDeg : idleAim9,
+        rotDeg: turDeg9,   // 판 17 포탑 방향(위) · 없으면 표적 어림
         selRing: undefined, hpFrac: undefined, hpMax: undefined,
         tint: undefined, groundShadow: undefined,
       });
@@ -10047,7 +10160,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     /* 디바우러의 부식성 산(acid)은 원작에서 느리게 날아가는 탄이다(지적: 디바우러 탄이 안 보임 — 쿨다운 100프레임에
        비행 0.4초면 한 주기의 1/10만 보였다). 그 탄만 속도를 5타일/초로 낮추고 바닥을 1초로 올려 눈에 들게 한다. */
     const slowAcid9 = fxName9 === "acid";
-    const flySec9 = ((cd9v: number, dist9v: number): number => {
+    /* ★ 판 17 탄(2026-11-03, 요청: "탄환 … 연결") — 이 몸의 날고 있는 탄이 있으면 비행 시간·진행을 그 탄(생긴 초 → 사라진 초)으로. */
+    const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) ? bltNow9(e.tag) : undefined;
+    const flySec9 = blt9 && Number.isFinite(blt9.t1) ? Math.max(0.03, blt9.t1 - blt9.t0) : ((cd9v: number, dist9v: number): number => {
       const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
         Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : shotSpeedOf9(fxName9))));
@@ -10067,6 +10182,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
          (foeDist)로 재면 조준 높이와 무관하고, 사수가 바로 밑에 서도 제 거리가
          남는다. 화면 거리는 그리는 길이·방향에만 쓴다(그건 화면의 일이 맞다). */
       if (!fxName9 || !PROJECTILE_FX.has(fxName9)) return null;
+      if (blt9 === null) return null;   // 판 17 — 날고 있는 탄이 없다
+      if (blt9) { const u9 = (t - blt9.t0) / flySec9; shotUw9 = u9; return Math.max(0, Math.min(1, u9)); }   // 판 17 — 탄의 실제 진행
       if (!Number.isFinite(foeDist) || foeDist <= 0.05) return null;
       const ph9 = firePhase(`u${holdKey}`, fxCdRaw);
       const u9 = (ph9 * fxCdRaw) / flySec9;

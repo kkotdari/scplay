@@ -91,7 +91,7 @@ const SPEC = {
 };
 /** 해독기가 받아 주어야 할 판 — 이 범위 밖은 물리쳐야 한다. */
 const VER_MIN = 11;  // 판 11 만(요청: "판 10 이하 참값은 재생 안되게") — 하단 인포창·K/D 가 판 11 네 절 위에 선다
-const VER_MAX = 16;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래 · 판 13 = 맨 뒤 데미지 절 · 판 14 = 맨 뒤 채집 절 · 판 15 = 상태 바이트 0x10 스팀
+const VER_MAX = 17;  // 판 11 = 판 10 + 맨 뒤 에너지·탑승·자원량·처치 절 · 판 12 = 선택 줄마다 u8 갈래 · 판 13 = 맨 뒤 데미지 절 · 판 14 = 맨 뒤 채집 절 · 판 15 = 상태 바이트 0x10 스팀
 
 // ── 바이트 짓기 ────────────────────────────────────────────────────────────────
 const u8 = (v) => Buffer.from([v]);
@@ -212,6 +212,11 @@ function build(ver) {
     p.push(varint(48), u32(77), u8(0), u32(78));
     p.push(varint(15), u32(77), u8(1), u32(0));
   }
+  if (ver >= 17) {                                       // 판 17 — 탄 절 · 타일 절(각 u32 길이 · u32 줄 수 · (타일만 u16 폭·높이) · 몸)
+    const secM = (n, body, head = Buffer.alloc(0)) => { const bb = Buffer.concat(body); p.push(u32(4 + head.length + bb.length), u32(n), head, bb); };
+    secM(2, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(1), varint(12), u32(1)]);
+    secM(2, [varint(24), u32(5), u32((0x40 << 16) | (0xfe << 8) | 0xfe), varint(24), u32(5), u32((0 << 16) | (0xff << 8) | 0xfe)], Buffer.concat([u16(128), u16(96)]));
+  }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
 }
 
@@ -286,6 +291,17 @@ function expect(ver, r, fail) {
   eq("상태 77", r.stat?.get(77) ? [...r.stat.get(77)] : [], ver >= 16 ? [48 / FPS, 1, 131, 96 / FPS, 1, 0] : []);
   eq("상태 78", r.stat?.get(78) ? [...r.stat.get(78)] : [], ver >= 16 ? [72 / FPS, 26, 60] : []);
   eq("사격 77", r.fires?.get(77) ? [...r.fires.get(77)] : [], ver >= 16 ? [48 / FPS, 0, 78, 63 / FPS, 1, 0] : []);
+  // 판 17 — 탄(생김·사라짐 짝) · 타일 시간축(되감기 포함) · 처음 밝힌 초.
+  eq("판17 탄", (r.bullets ?? []).map((b) => [b.id, b.t0, b.t1, b.wpn, b.owner, b.src, b.tgt, b.x, b.y, b.tx, b.ty]),
+    ver >= 17 ? [[1, 48 / FPS, 60 / FPS, 0, 3, 77, 78, 10, 20, 30, 40]] : []);
+  if (ver >= 17 && r.tiles) {
+    const tl = r.tiles;
+    eq("판17 타일 크기", [tl.w, tl.h, tl.n], [128, 96, 2]);
+    eq("판17 타일 24f", tl.stateAt(24 / FPS)[5], (0x40 << 16) | (0xfe << 8) | 0xfe);
+    eq("판17 타일 48f", tl.stateAt(48 / FPS)[5], (0xff << 8) | 0xfe);
+    eq("판17 타일 되감기", tl.stateAt(30 / FPS)[5], (0x40 << 16) | (0xfe << 8) | 0xfe);
+    eq("판17 처음 밝힘(사람0)", tl.exploredAtFor(1)[5], 24 / FPS);
+  } else eq("판17 타일 없음", r.tiles ?? null, null);
 
 }
 
@@ -624,22 +640,18 @@ for (let ver = VER_MIN; ver <= VER_MAX; ver += 1) {
 /* 곁 꾸러미 OBWX(2026-11-03) — 상태 나머지 · 정밀 자리 · 탄 · 사람 · 타일 절을 짓고 풀어 견준다. */
 {
   const before = bad;
-  const fpsX = 24; const xb = [Buffer.from("OBWX"), u8(1)]; { const f = Buffer.alloc(4); f.writeFloatLE(fpsX); xb.push(f); }
+  const fpsX = 24; const xb = [Buffer.from("OBWX"), u8(2)]; { const f = Buffer.alloc(4); f.writeFloatLE(fpsX); xb.push(f); }
   const sec = (n, body, head = Buffer.alloc(0)) => { const bb = Buffer.concat(body); xb.push(u32(4 + head.length + bb.length), u32(n), head, bb); };
   sec(1, [varint(24), u32(77), u8(40), u32(10)]);                                                 // 상태 나머지: 태그 77 명령 10
   sec(1, [varint(24), u32(77), u16(320), u16(640), u8(64), varint(512), u8(70)]);
-  sec(2, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(1), varint(12), u32(1)]);
   sec(1, [varint(24), u8(3), u16(0), u32(18)]);
-  sec(1, [varint(24), u32(5), u32((0x40 << 16) | (1 << 8) | 1)], Buffer.concat([u16(128), u16(96)]));
   const x = await R17.decodeTruthExtra(zlib.deflateSync(Buffer.concat(xb)).toString("base64"));
   const ok = (name, a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) fail(`곁 꾸러미 ${name}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`); };
   if (!x) fail("곁 꾸러미: 해독기가 null");
   else {
     ok("상태", [...(x.stat.get(77) ?? [])], [24 / fpsX, 40, 10]);
     ok("자리", R17.raw17Pos(x.pos, fpsX), [[24 / fpsX, 77, 320, 640, 64, 512, 70]]);
-    ok("탄", R17.raw17Bullets(x.bullets, fpsX), [{ t: 48 / fpsX, id: 1, wpn: 0, owner: 3, src: 77, tgt: 78, x: 10, y: 20, tx: 30, ty: 40 }, { t: 60 / fpsX, id: 1, gone: true }]);
     ok("사람", R17.raw17Players(x.players, fpsX), [[24 / fpsX, 3, 0, 18]]);
-    ok("타일", [x.tiles.w, x.tiles.h, ...R17.raw17Tiles(x.tiles, fpsX)], [128, 96, [24 / fpsX, 5, 0x40, 1, 1]]);
   }
   if (bad === before) console.log("   ✔ 곁 꾸러미 OBWX");
 }
