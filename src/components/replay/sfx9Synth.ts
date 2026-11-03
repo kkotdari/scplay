@@ -957,12 +957,12 @@ function stim9(v: number): Float32Array {
      포화 1.4 → 1.8 로 두께를 더한다. 길이·오름·솟음은 그대로. */
   /* (같은 날 되요청: "몸통 소리 필요 없고 솨~ 하는 소리를 좀 더 크면서 남성적") — 몸통(갈색 잡음 저역)을 걷고, 솨~ 띠에 그 한 옥타브 아래 띠(×0.5 · Q 1.0)를 겹쳐 가슴 울림을 더한다 ·
      포화 1.8 → 1.5 · 끝 크기 0.6 → 0.85(더 크게). */
-  const K9 = 0.45; const L9 = 1.5;
+  const K9 = 0.39; const L9 = 1.5;   // (같은 날 "스왕이아 음정 좀만 낮게") 0.45 → 0.39 · 앞머리 스~ 5.2 → 4.4kHz(약 −15%)
   const r = rng9(2311 + v);
   const hb = new Biquad9("bp", 1600 * K9, 1.2); const hh = new Biquad9("hp", 220, 0.7);
   const hb2 = new Biquad9("bp", 800 * K9, 1.0);
   /* (같은 날 "처음이 스~ 하는 느낌이면 좋겠는데") — 앞머리 '스~': 가는 높은 띠(5.2kHz · Q 3)가 0.06초에 들어와 0.15~0.5초에 걸쳐 빠지고, 그동안 솨~ 띠가 0.35 → 1 로 차오른다. */
-  const sb9 = new Biquad9("bp", 5200, 3.0); const shp9 = new Biquad9("hp", 3000, 0.7);
+  const sb9 = new Biquad9("bp", 4400, 3.0); const shp9 = new Biquad9("hp", 2500, 0.7);
   const A9 = 0.2 * L9; const UP9 = 0.22 * L9;
   const raw9 = render9(1.1 * L9, (t) => {
     const u9 = Math.min(1, t / A9); const env9 = t < A9 ? u9 * u9 * (3 - 2 * u9) : Math.exp(-(t - A9) * (3.2 / L9));
