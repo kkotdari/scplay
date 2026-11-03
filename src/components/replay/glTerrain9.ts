@@ -137,6 +137,9 @@ float grain() {
        판마다 반씩 엇갈려 잇는다. 홈은 어둡고 아래쪽에 빛 테. 홈은 한 화소 아래로 가늘어지면 켜는 몫을 줄인다(타일 14~30 기기 px 사이에서 켜진다). */
     float chk = mod(floor(tc.x * 0.5) + floor(tc.y * 0.5), 2.0);
     float g = (chk - 0.5) * 0.17 * uGr.w + m3 * 0.04 * fd(8.0);   // 바둑판은 타일 실색이 없을 때만(uGr.w · 실색엔 원작 2×2 판 색이 이미 있다 — 겹치면 어긋난다)
+    /* ★ 은은한 얼룩(2026-11-03, 요청: "우주맵 마름모 패턴 너무 엠보싱으로 보임 · 주변 그림자 지우고 얇은 선으로 · 대신 얼룩을 좀 넣고파 은은하게") — 언덕 얼룩(아래 a 갈래)과 같은 결(m1·m2)을
+       그 6할 남짓으로. 홈·판 결 아래에 깔린다. */
+    g += m1 * 0.08 + m2 * 0.05 * fd(2.7);
     if (P > 36.8) g += (vn(tc * 23.0) - 0.5) * 0.06 * fd(23.0);
     float gk = clamp((P - 14.0) / 16.0, 0.0, 1.0);
     if (gk > 0.0) {
@@ -153,15 +156,13 @@ float grain() {
       if (f < b0) { pid = c - 1.0; lo = bm; hi = b0; } else if (f > b1) { pid = c + 1.0; lo = b1; hi = bp; }
       float dL = (f - lo) * 0.95 / 1.097; float dR = (hi - f) * 0.95 / 1.097;
       float d0 = min(min(dT, dB), min(dL, dR));
-      float gw = max(0.010, px * 0.5);
+      float gw = max(0.005, px * 0.3);   // 얇은 선(같은 날 ★ 은은한 얼룩 · 옛 max(0.010, px·0.5))
       float groove = 1.0 - smoothstep(gw, gw + px, d0);
-      float bev = 0.09;
-      float hiE = (1.0 - smoothstep(gw, gw + bev, min(dT, dL)));    // 위·왼쪽 테(빛)
-      float shE = (1.0 - smoothstep(gw, gw + bev, min(dB, dR)));    // 아래·오른쪽 테(그늘)
+      /* 판 테 음영(위·왼쪽 빛 +0.09 · 아래·오른쪽 그늘 −0.10 · 0.09칸)은 걷었다(같은 날 ★ — "너무 엠보싱 · 주변 그림자 지우고 얇은 선으로"). 홈 어둡기 0.24 → 0.18. */
       vec2 ax = vec2(0.894, 0.447); vec2 ay = vec2(-0.447, 0.894);
       float brush = vn(vec2(dot(tc, ax) * 3.0, dot(tc, ay) * 40.0) + pid * 7.1) - 0.5;
       float plate = (h12(vec2(k, pid) + 3.7) - 0.5) * 0.08;
-      g += ((hiE * 0.09 - shE * 0.10) * (1.0 - groove) - groove * 0.24 + plate + brush * 0.05 * fd(40.0)) * gk;
+      g += (-groove * 0.18 + plate + brush * 0.05 * fd(40.0)) * gk;
     }
     d += w.b * g;
   } else if (w.b > 0.02) {
