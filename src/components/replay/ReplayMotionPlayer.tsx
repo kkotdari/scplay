@@ -12083,7 +12083,12 @@ export default function ReplayMotionPlayer({
   const [splitPick9, setSplitPick9] = useState<string | null>(null);
   /** ★ UI 숨기기(2026-11-04, 요청: "PC에서 UI 숨기기 단축키 — H 누르면 모든 UI 숨김 · G 누르면 독만 남기고 숨김(자막이나 화면 주인까지도)") —
    *  0 보임 · 1 다 숨김(H) · 2 독만(G). 같은 키를 다시 누르면 돌아온다. 무대(.scr-fs-stage)의 지도·하늘 밖 자식을 감춘다(replay.css is-uihide-*) — 자리는 그대로라 지도가 안 흔들린다. */
-  const [uiHide9, setUiHide9] = useState<0 | 1 | 2>(0);
+  /* (같은 날 다시 짬, 요청: "L 라인 토글 · K 자막 · 채팅 · 화면 주인 토글 · J 독 토글 · H 다 숨기기") — 셋이 따로 켜지는 깃발이다(G 독만 남김은 걷었다 · H 와 J 를 합치면 같다).
+   *  all(H) 무대 위 글·단추와 독·툴박스 전부 · cap(K) 자막 · 채팅 · 화면 주인 이름표(분할 칸 머리까지) · dock(J) 독 줄(미니맵 · 로스터 · 인포창 — 재생바는 남는다). */
+  const [uiHide9, setUiHide9] = useState<{ all: boolean; cap: boolean; dock: boolean }>({ all: false, cap: false, dock: false });
+  /** ★ 자막 크기(2026-11-04, 요청: "재생기 자막 크기 줄이기/키우기 단축키 [ ]") — 자막(중계 · 검색) 글자에 곱하는 배수(0.5~2 · 한 번에 0.1) · 기기마다 기억. */
+  const [capU9, setCapU9] = useState<number>(() => { try { const v9 = Number(localStorage.getItem("scplay.capu")); return v9 >= 0.5 && v9 <= 2 ? v9 : 1; } catch { return 1; } });
+  useEffect(() => { try { localStorage.setItem("scplay.capu", String(capU9)); } catch { /* 저장 못 해도 이번 판은 된다 */ } }, [capU9]);
   /* ★ 분할에 **세울 사람들**(2026-09, 요청: "중계선택에서 분할->전체로 변경하고 닉네임 누르면 선택 추가돼서 그 사람들만 분할모드로")
      — null 이면 전체(TV 목록의 '전체'), 배열이면 목록에서 닉네임으로 고른 사람들(둘 이상)이다. 한 사람이면 분할이 아니라 개인 추적이다. */
   const [splitSel9, setSplitSel9] = useState<string[] | null>(null);
@@ -20051,12 +20056,17 @@ export default function ReplayMotionPlayer({
         if (e.repeat) return;
         wakeUi();
         toggleLinesRef9.current();
-      } else if ((e.code === "KeyH" || e.code === "KeyG") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // h = UI 다 숨김 · g = 독만 남김(위 uiHide9 ★) · 같은 키를 다시 누르면 보임. 판을 깨우지 않는다(숨기려고 누른 키다).
+      } else if ((e.code === "KeyH" || e.code === "KeyK" || e.code === "KeyJ") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // h = UI 다 숨김 · k = 자막 · 채팅 · 화면 주인 · j = 독(위 uiHide9 ★) · 같은 키를 다시 누르면 보임. 판을 깨우지 않는다(숨기려고 누른 키다).
         e.preventDefault();
         if (e.repeat) return;
-        const m9: 1 | 2 = e.code === "KeyH" ? 1 : 2;
-        setUiHide9((v) => (v === m9 ? 0 : m9));
+        const k9 = e.code === "KeyH" ? "all" : e.code === "KeyK" ? "cap" : "dock";
+        setUiHide9((v) => ({ ...v, [k9]: !v[k9] }));
+      } else if ((e.code === "BracketLeft" || e.code === "BracketRight") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // [ = 자막 작게 · ] = 자막 크게(위 capU9 ★ · 0.1 씩 · 0.5~2). 누르고 있으면 이어 간다.
+        e.preventDefault();
+        const d9 = e.code === "BracketRight" ? 0.1 : -0.1;
+        setCapU9((v) => Math.round(Math.min(2, Math.max(0.5, v + d9)) * 10) / 10);
       } else if (e.code === "KeyM") {
         /* m — 음악 켜기/끄기(지시). 색상(c)·재생(p)과 같은 결이다: 손잡이가 화면에
            있는 조작이라 **오버레이를 깨운다**(위 wakeUi 주석의 그 규약 — 눌러 놓고
@@ -23717,7 +23727,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", uiHide9 === 1 && "is-uihide-all", uiHide9 === 2 && "is-uihide-dock")} ref={fsRootRef}
+        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         <div
@@ -23725,6 +23735,7 @@ export default function ReplayMotionPlayer({
           style={{
             ...stageStyle,
             ["--capk" as string]: capK9,   // 자막 키 셈(--cap-res · 채팅·다이얼이 그 위에 선다 — replay.css)
+            ["--capu" as string]: capU9,   // 손으로 고른 자막 배수([ ] · 위 capU9 ★)
             touchAction: "none",
           } as React.CSSProperties}
           /* ★ 손짓은 **무대가 받는다**(요청: "나머지 부분은 그 아래 맵으로 흘려서

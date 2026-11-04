@@ -3008,3 +3008,10 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - 자막(.is-wide .scr-cast-caption) 독 위 틈 3px·dk → 12px·dk.
 - 쇠독: 넓은 배치는 쇠판(.scr-fs-lower::before)·받침 가짜 요소를 다 걷어 쇠 테마면 재생바가 판 없이 비었다(홀로그램은 재생바 제 가짜 요소라 살았다) —
   `.is-wide:not(.is-holodock)` 재생바에 --steel-dark 바탕 + 쇠 테 · 미니맵·로스터·인포창에 3px·dk 쇠 테(#2b2e33 + 검은 선).
+
+## UI 숨김 단축키 다시 짬 · 자막 크기 [ ](2026-11-04)
+요청: "L 라인 토글 · K 자막 · 채팅 · 화면 주인 토글 · J 독 토글 · H 다 숨기기" · "자막 크기 줄이기/키우기 단축키 [ ]".
+- `uiHide9` 가 0|1|2 에서 깃발 셋 `{all, cap, dock}` 으로 — 따로 켜고 끈다. 뿌리 클래스 `is-uihide-all|cap|dock`(replay.css).
+  K = `.scr-fs-solo`(단독 화면 주인 · 자막) · `.scr-fs-chat` · `.scr-split-cap`(분할 칸 머리) · `.scr-cast-caption` · J = `.scr-fs-dockrow`(재생바는 남음).
+  옛 G(독만 남김)는 걷었다 — H 가 그 위를 덮는다.
+- `capU9`(0.5~2 · 0.1 걸음 · localStorage `scplay.capu`) → 무대 `--capu` → `.scr-cast-caption` 글자와 `--cap-fz`(자막 자리 · 채팅이 그 위에 선다)에 곱한다.
