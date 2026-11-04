@@ -10082,6 +10082,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (재요청: "정삼각형이 아니라 발판 끝쪽으로 더 긴 이등변삼각형, 뿔 끝점과 발판 끝점이 딱 맞는 형태"). 뒷변은
          7.2에서 반폭 0.5(그 자리 날 반폭 0.58 안), 꼭대기는 7.7 위 1.85 높이 — 옆면 셋을 직접 세운다(spirePillar는
          정다각 단면뿐). 밑면은 판에 묻혀 안 그린다. 면마다 법선을 재서 빛을 받고, 등 돌린 면은 건너뛴다. */
+      /** 날 끝 뿔 색 — 몸 금(#e8cb5e)에서 **아주 살짝 오렌지 쪽**(2026-11-04, 요청: "넥서스 네 발판 끝의 뿔 형태 부품들 아주 살짝만 오렌지 톤으로") · 주황(#f08a30) 18% 섞음. */
+      const HORN_GOLD9 = "#e9c057";
       for (const ang of [0, 90, 180, 270]) {
         const a = (ang * Math.PI) / 180;
         const sx = Math.sin(a);
@@ -10103,7 +10105,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const fl9 = faceLight(nx9 / nl9, ny9 / nl9, nz9 / nl9);
           if (!fl9.visible) return [];
           const d9 = polyPath3([p0, p1, p2]);
-          return [[d9, 1, GOLD9] as ShapeFace, ...fl9.face(d9)];
+          return [[d9, 1, HORN_GOLD9] as ShapeFace, ...fl9.face(d9)];
         };
         out.push(...tagKey([
           ...tri9(tip9, apex9, br9),   // 오른 옆면(바깥에서 보면 반시계)
