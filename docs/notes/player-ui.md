@@ -2992,3 +2992,8 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 - RMP `uiHide9`(0 보임 · 1 H · 2 G) · onKey 에 KeyH/KeyG(e.code · 같은 키 다시 = 보임 · 판을 안 깨움) · `.scr-fs-root.is-uihide-all|is-uihide-dock`.
 - replay.css: 무대(.scr-fs-stage)의 지도(.scr-motion-map)·하늘(.scr-fs-space)·분할 밑 층 밖 자식과 무대 밖 형제를 visibility hidden + 누름 끔(자리는 둠 → 지도 안 흔들림).
   G 는 `.scr-fs-lower`(독 줄 + 툴박스)를 남긴다. 링·명령 줄·클릭 표시는 지도 그림이라 남는다. 사용법(ReplayGuide '도구')에 'UI 숨기기' 줄.
+
+## 폰 전체화면 검색 — 키보드 위로 띄움(2026-11-04)
+지적: "모바일 재생기 전체화면에서 검색 누르면 키보드가 화면을 가림 · 키보드 위로 검색창을 잠시 띄워야". 전체화면은 판이 고정이라 페이지 굴림(searchScroll9)이 안 듣는다.
+RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport resize·scroll 마다 알약 아래 끝(옮기기 전)이 보이는 화면 아래 끝보다 밑이면 그만큼 +8px translateY(−) · z 60.
+350ms 뒤 한 번 더 · 접히면 제자리.

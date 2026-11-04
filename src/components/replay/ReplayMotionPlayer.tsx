@@ -15012,6 +15012,35 @@ export default function ReplayMotionPlayer({
     const tm9 = window.setTimeout(back9, 350);
     return () => { cancelAnimationFrame(raf9); window.clearTimeout(tm9); };
   };
+  /* ★ **키보드 위로 띄운다**(2026-11-04, 지적: "모바일 재생기 전체화면에서 검색 누르면 키보드가 화면을 가림 · 키보드 위로 검색창을 잠시 띄워야") — 전체화면은 판이 고정이라
+     페이지를 굴려도 입력칸이 안 올라온다. 입력 꼴인 동안 보이는 화면(visualViewport)의 아래 끝을 재어, 알약의 아래 끝이 그보다 밑이면 그만큼(+8px) 위로 옮긴다(transform ·
+     자리 셈은 옮기기 전 자리로). 키보드가 내려가거나 입력 꼴이 끝나면 제자리. 키보드가 없는 PC 는 넘친 몫이 없어 그대로다. */
+  const searchWrapRef9 = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    const el9 = searchWrapRef9.current;
+    const vv9 = window.visualViewport;
+    if (!searchEdit9 || !el9 || !vv9) return undefined;
+    let lift9 = 0;
+    const fit9 = (): void => {
+      const bottom9 = el9.getBoundingClientRect().bottom + lift9;   // 옮기기 전 자리
+      const view9 = vv9.offsetTop + vv9.height;
+      const nx9 = Math.max(0, Math.ceil(bottom9 - view9 + 8));
+      if (nx9 === lift9) return;
+      lift9 = nx9;
+      el9.style.transform = nx9 > 0 ? `translateY(${-nx9}px)` : "";
+      el9.style.zIndex = nx9 > 0 ? "60" : "";
+    };
+    fit9();
+    const t9 = window.setTimeout(fit9, 350);   // 키보드가 다 올라온 뒤 한 번 더
+    vv9.addEventListener("resize", fit9);
+    vv9.addEventListener("scroll", fit9);
+    return () => {
+      window.clearTimeout(t9);
+      vv9.removeEventListener("resize", fit9);
+      vv9.removeEventListener("scroll", fit9);
+      el9.style.transform = ""; el9.style.zIndex = "";
+    };
+  }, [searchEdit9]);
   /* 입력 꼴은 바깥 누름에 접힌다(검색이 살아 있으면 결과 꼴로). */
   useEffect(() => {
     if (!searchEdit9) return undefined;
@@ -21903,6 +21932,7 @@ export default function ReplayMotionPlayer({
           Enter 가 찾고 결과가 있으면 **첫 결과(1/N)로 가며** 결과 꼴로 바뀐다(없으면 입력 꼴에 '0건'). 결과 꼴에서 돋보기·n/N 을 누르면 그 검색어로 다시 입력 ·
           ✕ 는 검색 취소. 입력 중 Esc·바깥 누름은 입력을 접는다(검색이 살아 있으면 결과 꼴로). 앞뒤는 ‹ › 와 B/N. */}
       <span
+        ref={searchWrapRef9}
         className={cx("scr-motion-searchwrap", (searchEdit9 || searchOn9) && "is-open", searchClosing9 && "is-closing")}
         onAnimationEnd={(e) => { if (e.animationName === "scr-search-out") searchFoldEnd9(); }}
       >
