@@ -18265,7 +18265,9 @@ export default function ReplayMotionPlayer({
            hover9 오르내림까지)가 장마다 굳은 값이라 폰 장 박자(10)로 계단처럼 올랐다. 한쪽 장에 없으면(앉은 장) 0 으로 보고 잇는다 — 앉는 마지막 몫도 매끄럽다. */
         if (s9.airPx !== undefined || n9.airPx !== undefined) {
           const ap9 = (s9.airPx ?? 0) + ((n9.airPx ?? 0) - (s9.airPx ?? 0)) * u9;
-          if (ap9 > 0.01) o9.airPx = ap9; else delete o9.airPx;
+          /* ⚠ 나는 몸(o9.air)은 0 도 높이다(2026-11-04, 지적: "저그 공중 유닛이 일단 공중에서 나타났다가 다시 지상에서 공중으로 올라감") — 지우면 붓이 기본 비행 높이(몸 × AIR_LIFT_K)로
+             물러나, 알에서 갓 난 나는 몸(engine9 hatchLift9 = 0 · 땅 높이)이 첫 장에 하늘에 떴다. 지우는 것은 땅에 앉은 건물(착륙 끝)만. */
+          if (ap9 > 0.01 || o9.air) o9.airPx = Math.max(0, ap9); else delete o9.airPx;
         }
         /* 들썩임(고치의 liftK)도 잇는다(지적: "고치 바운스 잔떨림 심해짐") — 높은 배속에서는 장 하나가 경기 시간
            반 초를 덮어, 장마다 굳은 사인값이 그대로 튀었다. 두 장 사이를 이으면 배속과 무관하게 매끄럽다. */
