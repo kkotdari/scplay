@@ -23607,9 +23607,9 @@ export default function ReplayMotionPlayer({
               out9.push(<span key={`curbox-${raw9}`} className="scr-motion-pcbox" style={{ left: `${(bx09 * 100).toFixed(3)}%`, top: `${(by09 * 100).toFixed(3)}%`, width: `${((bx19 - bx09) * 100).toFixed(3)}%`, height: `${((by19 - by09) * 100).toFixed(3)}%`, color: col9, zIndex: 21 }} />);
             }
             if (c9.ring) {
-              const tile9 = (mapRef.current?.clientWidth ?? 320) / grid.width;
-              /* 원작보다 컸다(같은 날 "유닛 위 마디 고리가 너무 큰데 원작에 비해") — 지름 = 몸 반지름 × 2 × 0.62 · 바닥 30 → 20px. */
-              const dPx9 = Math.max(20, c9.ring.r * 2 * 0.62 * tile9 * zoom * pitchK(c9.ring.y));
+              /* ★ 고리는 **커서 그림**이다 — 대상 몸 크기와 무관하게 화살표 크기에 맞춘다(같은 날 "말도 안 되는 마커 크기" → "마커 크기는 커서 크기 참고해서 보내 준 사진 보고") —
+                 예시(원작 리마스터 화면)의 고리 폭 ≈ 화살표 크기의 1.7배. 옛: 몸 반지름 × 배율(건물 위에선 화면 반을 덮었다). */
+              const dPx9 = sz9 * 1.7;
               const rc9 = c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : col9;
               const R9 = 49; const a09 = (125 * Math.PI) / 180; const a19 = (15 * Math.PI) / 180;
               const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;

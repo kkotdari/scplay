@@ -4531,8 +4531,8 @@ export function deriveWorld9(inp: {
   const gasBuildings = (() => buildsSrc
     .map((row, i) => [row, i] as const)
     .filter(([[, , , unit]]) => ["Refinery", "Assimilator", "Extractor"].includes(unit))
-    .map(([[sec, x, y, unit, raw, gone, , doneAt]]) => ({
-      sec, x: x + footDx(unit), y: y + footDy(unit), raw, gone: gone ?? 0,
+    .map(([[sec, x, y, unit, raw, gone, , doneAt], i]) => ({
+      i, sec, x: x + footDx(unit), y: y + footDy(unit), raw, gone: gone ?? 0,
       /* 창문 불빛이 제 건물을 도로 찾는 열쇠(요청: 가스 캘 때 불빛) — 건물 op의
          pickKey와 **똑같은 자**여야 한다. 그래서 그리는 자리(x+footDx)가 아니라 줄이
          적어 둔 x·y와 종류로 짓는다. */
@@ -6186,6 +6186,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       tilePx * (UNIT_BODY_TILES[UNIT_3D[u] ?? u]
         ?? CLASS_TILES[u === "?" ? 0 : (UNIT_BULK[u] ?? 1)]);
     void unitSepPxOf;
+    /** 이번 장에 **다 지어진 채로 그려진** 가스 건물(buildsSrc 차례) — 간헐천 감추기는 이것만 본다(아래 자원 gasOn ★). */
+    const gasDrawn9 = new Set<number>();
     {
     const rBD9 = buildsDrawOrder.map((i) => {
       const [sec, x, y, unit, raw, gone, liftAt, bldDoneAt] = buildsSrc[i];
@@ -7475,6 +7477,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           color, alpha, noShadow: true,
           ...(warpK9 !== undefined ? { warpK: warpK9 } : {}),
         });
+        if (!raising && (unit === "Refinery" || unit === "Assimilator" || unit === "Extractor")) gasDrawn9.add(i);
         /* (걷어냄) **라바·변태알 장식** — 해처리가 제 생산 기록을 규칙표
            (bwUnits.hatchState)에 먹여 "지금 라바가 몇이고 무엇을 품고 있나"를
            되짚어, 발치 여섯 칸에 라바와 알을 앉히던 자리다. 리플레이 개체 기록에
@@ -7988,7 +7991,10 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const gasOn = gasSpot ? gasHideOf.find((g) =>
       g.sec <= t && (g.gone === 0 || t < g.gone) && g.gd <= 4
       && Math.abs(g.gx - res[0]) < 0.5 && Math.abs(g.gy - res[1]) < 0.5) : undefined;
-    if (gasOn && t >= gasOn.done) return null;
+    /* ★ 감추는 것은 **이번 장에 다 지어진 채로 그려진** 가스 건물이 그 위에 있을 때만(2026-11-04, 지적: "가스 건물 터지면 간헐천이 다시 보여야 함") — 원작은 가스 건물이
+       부서지면 간헐천으로 되돌리고 임자를 중립으로 넘긴다(OpenBW kill_unit → morph_unit(Vespene Geyser) · set_unit_owner 11). 그 줄의 걷힌 시각(gone)이 비면
+       간헐천이 영영 감춰졌다 — 줄의 시각 대신 그린 몸(gasDrawn9)을 본다. */
+    if (gasOn && t >= gasOn.done && gasDrawn9.has(gasOn.i)) return null;
     /* ★ **바닥난 미네랄은 아예 안 그린다**(요청: "미네랄 소진 시 미네랄 모델
        아예 없어져야 해") — 여태 남은 단 0에서도 결정 한 덩이를 남겼다
        (keepN [1, 3, 6, 9, 12]의 그 1). 원작에서 다 캔 밭은 자리째 사라지므로

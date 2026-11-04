@@ -3066,3 +3066,5 @@ click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointe
   ① 메인은 참값 트랙을 안 든다(`setSimTracks(new Map())` — 워커에만 넘김) → 선택 자리(posAtSim)가 늘 비었다. 워커가 `selPtsOf9`(cursor9 · sels 마다 열 칸)를 지어
   `{type:"selpts"}` 로 보내고(메인이 `want selpts` 로 청함 · feat `#cursor` · worldGen9 마다) cursorPathsOf9 가 `selPts` 로 쓴다. 엔진(워커)은 트랙으로 같은 셈.
   ② 고리 지름 = 몸 반지름 × 2 × **0.62** · 바닥 20px(옛 × 1 · 30px). ③ 칸 판은 발자국 SVG 한 장(타일 viewBox · crispEdges · 칸 테 없음 · 불투명 0.34).
+- (같은 날 "말도 안 되는 마커 크기" · "마커 크기는 커서 크기 참고해서 보내 준 사진 보고") — 고리는 **커서 그림**: 지름 = 화살표 크기(sz9) × 1.7(예시의 고리 폭 · 화살표 비) ·
+  대상 몸 크기와 무관(옛: 몸 반지름 × 배율 — 건물 위에서 화면 반을 덮었다). 경로의 반지름 칸(r)은 이제 안 쓴다.
