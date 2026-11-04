@@ -1,1 +1,1 @@
-scplay 빌드 결과물 — main 의 cdca593c2a639758e98253bb913b03e85b4a8828 에서 `npx vite build` 로 만든 것(scripts/publish-dist.sh). 손으로 고치지 않는다.
+scplay 빌드 결과물 — main 의 49502ba54a5bbfd163821a75c7e451436117acf8 에서 `npx vite build` 로 만든 것(scripts/publish-dist.sh). 손으로 고치지 않는다.
