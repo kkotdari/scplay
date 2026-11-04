@@ -12084,7 +12084,9 @@ export default function ReplayMotionPlayer({
   /** ★ UI 숨기기(2026-11-04, 요청: "PC에서 UI 숨기기 단축키 — H 누르면 모든 UI 숨김 · G 누르면 독만 남기고 숨김(자막이나 화면 주인까지도)") —
    *  0 보임 · 1 다 숨김(H) · 2 독만(G). 같은 키를 다시 누르면 돌아온다. 무대(.scr-fs-stage)의 지도·하늘 밖 자식을 감춘다(replay.css is-uihide-*) — 자리는 그대로라 지도가 안 흔들린다. */
   /* (같은 날 다시 짬, 요청: "L 라인 토글 · K 자막 · 채팅 · 화면 주인 토글 · J 독 토글 · H 다 숨기기") — 셋이 따로 켜지는 깃발이다(G 독만 남김은 걷었다 · H 와 J 를 합치면 같다).
-   *  all(H) 무대 위 글·단추와 독·툴박스 전부 · cap(K) 자막 · 채팅 · 화면 주인 이름표(분할 칸 머리까지) · dock(J) 독 줄(미니맵 · 로스터 · 인포창 — 재생바는 남는다). */
+   *  all(H) 무대 위 글·단추와 독·툴박스 전부 · cap(K) 자막 · 채팅 · 화면 주인 이름표(분할 칸 머리까지).
+   *  dock(J) **독 통째**(.scr-fs-lower — 미니맵 · 로스터 · 인포창 · 쇠판 · 재생부까지 · 같은 날 지적: "독이 다 안 숨겨져 · 독 숨기기는 독 접기랑 달라 · 재생부까지 다 숨겨야 해" —
+   *  옛: 독 줄만 감춰 쇠판 · 틀 · 재생바가 남았다). 숨기면 자막이 독 자리까지 내려온다(replay.css --cap-drop · 접기도 같은 결 — 아래 dockFit read9). */
   const [uiHide9, setUiHide9] = useState<{ all: boolean; cap: boolean; dock: boolean }>({ all: false, cap: false, dock: false });
   /** ★ 자막 크기(2026-11-04, 요청: "재생기 자막 크기 줄이기/키우기 단축키 [ ]") — 자막(중계 · 검색) 글자에 곱하는 배수(0.5~2 · 한 번에 0.1) · 기기마다 기억. */
   const [capU9, setCapU9] = useState<number>(() => { try { const v9 = Number(localStorage.getItem("scplay.capu")); return v9 >= 0.5 && v9 <= 2 ? v9 : 1; } catch { return 1; } });
@@ -22904,9 +22906,14 @@ export default function ReplayMotionPlayer({
         const tb9 = low9?.querySelector<HTMLElement>(":scope > .scr-tb");
         low9?.style.setProperty("--plate-holes", "none");
         low9?.style.setProperty("--plate-top", `${tb9 ? tb9.offsetTop : 0}px`);
+        /* 접힌 독 위로 자막을 내린다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기") — 받침 솟음(--dock-lift)은 0 · 비운 독 줄 키(재생바 위끝까지)만큼 아래로(--cap-drop · replay.css). */
+        const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
+        lay9?.style.setProperty("--dock-lift", "0px");
+        lay9?.style.setProperty("--cap-drop", `${tb9 ? tb9.offsetTop : 0}px`);
         return;
       }
       fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
+      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-drop", "0px");
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
