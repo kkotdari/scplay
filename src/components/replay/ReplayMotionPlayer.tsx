@@ -3558,13 +3558,6 @@ const irradSpr9 = (): HTMLCanvasElement => domSpr9("irrcloud", (c9, S9) => {
     puff9(R9 + Math.cos(an9) * rd9, R9 + Math.sin(an9) * rd9, (0.34 + (i9 % 2) * 0.04) * R9, 0.62);
   }
 }, 96);
-/** 스팀팩 가스 한 덩이(2026-11-03) — 가운데가 짙은 연두에서 둘레로 스러지는 둥근 김. 그리는 쪽(stimU)이 몸 둘레에 여럿 뿌린다. */
-const stimPuffSpr9 = (): HTMLCanvasElement => domSpr9("stimpuff", (c9, S9) => {
-  const R9 = S9 / 2;
-  const g9 = c9.createRadialGradient(R9, R9, 0, R9, R9, R9);
-  g9.addColorStop(0, "rgba(170,255,120,0.85)"); g9.addColorStop(0.45, "rgba(110,220,80,0.5)"); g9.addColorStop(1, "rgba(80,190,60,0)");
-  c9.fillStyle = g9; c9.beginPath(); c9.arc(R9, R9, R9, 0, Math.PI * 2); c9.fill();
-}, 64);
 /** 용접 실 한 올 — 밑동(앵커 쪽)이 희고 끝으로 갈수록 스러진다. 둘레의 옅은 빛무리는 box-shadow 자리. */
 /** 스톰 벼락이 자라는 빠르기(칸/초) — 14 → 21(2026-10-19, 요청: "스톰 이펙트 속도 1.5배 상승시키기"). 한 줄기가 STORM_STAGES(16) 칸에 걸쳐 자라므로
  *  한 줄기 1.14 → 0.76초. GL 판(위 put)과 2D 판(drawDomFx9 storm)이 같은 값을 쓴다. */
@@ -4117,23 +4110,53 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         }
         break;
       }
-      /* ★ 스팀팩 가스(2026-11-03, 요청: "스팀팩 시전시 마린 파뱃 주위에 녹색 가스 잠깐 뜨게 1.5초정도") — 몸 둘레에 김 열 덩이가 터져 나와
-         퍼지며(0.35 → 0.9 몸 폭 · 끝이 느긋한 2차) 조금 떠오르고 1.5초에 스러진다. 엔진 stimU(참값 판 15 stims 창의 시작). */
+      /* ★ 스팀팩 에너지(2026-11-04, 요청: "스팀팩 효과를 가스가 아니라 에너지 기운이 위로 솟구치는 느낌으로" · 시안 승인) — 1.2초 · 더하기 합성 · 연두:
+         ① 발밑 고리(0.45초 넓어지며 스러짐) ② 몸을 감싼 세로 빛 기둥(옅게) ③ 솟는 빛줄기 열넷(제각각 늦게 출발 · 머리가 밝고 꼬리가 아래로).
+         옛(2026-11-03 "녹색 가스 1.5초"): 몸 둘레 김 열 덩이(stimPuffSpr9)가 퍼지며 떠오르던 것 — 걷었다. 엔진 stimU(참값 stims 창의 시작) 그대로. */
       if (cls9 === "stimU") {
-        const dur9 = 1.5;
+        const dur9 = 1.2;
         if (u0 > dur9) break;
-        const q9 = u0 / dur9; const e9 = 1 - (1 - q9) * (1 - q9);
-        const fd9 = Math.min(1, u0 / 0.1) * Math.pow(1 - q9, 1.2);
+        const q9 = u0 / dur9;
+        const fd9 = Math.min(1, u0 / 0.08) * Math.pow(1 - q9, 0.8);
         const sd9 = f.seed ?? 0;
-        const N9 = 10;
-        for (let i9 = 0; i9 < N9; i9 += 1) {
-          const an9 = (i9 / N9) * Math.PI * 2 + sd9 * 0.37 + 0.25 * Math.sin(i9 * 2.3 + sd9);
-          const rd9 = W9 * (0.35 + 0.55 * e9) * (0.85 + 0.3 * (((i9 * 7 + sd9) % 5) / 4));
-          const k9 = (0.42 + 0.3 * e9) * (0.85 + 0.15 * ((i9 * 3) % 2));
-          const x9 = ax + Math.cos(an9) * rd9; const y9 = ay + Math.sin(an9) * rd9 * 0.62 - W9 * 0.18 * e9;
-          ctx.globalAlpha = fd9 * 0.6;
-          ctx.drawImage(stimPuffSpr9(), x9 - (W9 * k9) / 2, y9 - (W9 * k9) / 2, W9 * k9, W9 * k9);
+        const hh9 = (i: number): number => { const v9 = Math.sin(i * 12.9898 + sd9 * 78.233) * 43758.5453; return v9 - Math.floor(v9); };
+        const foot9 = ay + W9 * 0.28;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+        if (u0 < 0.45) {
+          const s9 = u0 / 0.45; const r9 = W9 * (0.3 + 0.45 * s9);
+          ctx.save(); ctx.translate(ax, foot9); ctx.scale(1, 0.42);
+          ctx.globalAlpha = 0.75 * (1 - s9) * Math.min(1, u0 / 0.06);
+          ctx.strokeStyle = "rgba(160,255,120,1)"; ctx.lineWidth = Math.max(1, W9 * 0.06);
+          ctx.beginPath(); ctx.arc(0, 0, r9, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
         }
+        {
+          ctx.save(); ctx.translate(ax, ay - W9 * 0.25); ctx.scale(1, 2.0);
+          const R9 = W9 * 0.55;
+          const g9 = ctx.createRadialGradient(0, 0, 0, 0, 0, R9);
+          g9.addColorStop(0, "rgba(150,255,110,0.55)"); g9.addColorStop(0.5, "rgba(90,220,70,0.22)"); g9.addColorStop(1, "rgba(60,180,50,0)");
+          ctx.globalAlpha = fd9 * 0.8; ctx.fillStyle = g9; ctx.beginPath(); ctx.arc(0, 0, R9, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+        const N9 = 14;
+        for (let pass9 = 0; pass9 < 2; pass9 += 1) {
+          ctx.strokeStyle = pass9 ? "rgba(235,255,210,1)" : "rgba(110,240,80,1)";
+          ctx.lineWidth = Math.max(pass9 ? 0.7 : 1.4, W9 * (pass9 ? 0.035 : 0.09));
+          for (let i9 = 0; i9 < N9; i9 += 1) {
+            const s9 = (u0 - hh9(i9) * 0.55) / 0.6;
+            if (s9 <= 0 || s9 >= 1) continue;
+            const x9 = ax + (hh9(i9 + 31) - 0.5) * W9 * 0.95;
+            const head9 = foot9 - s9 * W9 * (1.3 + 0.5 * hh9(i9 + 57));
+            const ln9 = W9 * (0.28 + 0.22 * hh9(i9 + 83)) * (1 - 0.35 * s9);
+            ctx.globalAlpha = fd9 * Math.sin(Math.PI * s9) * (pass9 ? 0.95 : 0.45);
+            ctx.beginPath(); ctx.moveTo(x9, head9 + ln9); ctx.lineTo(x9, head9); ctx.stroke();
+          }
+        }
+        ctx.restore();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
         break;
       }
       if (cls9 === "irrU") {
