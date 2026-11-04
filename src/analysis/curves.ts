@@ -5,7 +5,7 @@
    꼴이 낯설면 null(던지지 않는다 — 굽기를 막지 않게). 재생기 해독기(utils/openbwTracks.ts)와 같은 꼴을 읽는다. */
 
 const TRUTH_VER_MIN = 11;
-const TRUTH_VER_MAX = 14;
+const TRUTH_VER_MAX = 17;   // 14 → 17(2026-11-04, 지적: "데이터 창이 다 이래 — 표시할 데이터가 아직 없어요" · 판 16·17 은 절을 맨 뒤(채집 절 뒤)에만 더해 이 해독기가 읽는 앞 절은 같다 — 막혀 재분석한 판의 곡선이 다 비었다)
 const ST_GONE = 3;
 const NEUTRAL = 11;
 /** 분당 곡선 끝(옛 40 — 데이터창은 게임 끝까지 본다). */

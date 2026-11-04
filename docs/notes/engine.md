@@ -529,3 +529,8 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
 ## publish-dist — 디스크를 안 거친다(2026-11-03)
 - 지적 "배포하려다가 자꾸 멈춤" — 옛 판은 dist 브랜치를 worktree 로 꺼내(spr/ 494MB) 지우고 다시 베끼고 다시 해시해 2~3분. 이제 임시 인덱스에 spr/·bin/ 은 HEAD 나무 그대로(read-tree --prefix),
   dist/ 만 add, package.json·README 는 hash-object → write-tree → commit-tree → push. `PUBLISH_DRY=1` 은 커밋만 짓고 안 민다(나무 해시를 옛 dist 와 견줌 — 같은 HEAD 면 같은 나무 · 실측 일치 · 25초).
+
+## 분석기 곡선 — 참값 판 17 까지(2026-11-04)
+지적: "데이터 창이 다 이래 — 표시할 데이터가 아직 없어요 · 재분석하면 생겨요". 범인: `src/analysis/curves.ts` 의 제 해독기 TRUTH_VER_MAX 가 **14** 에 머물러 판 16·17 로 재분석한 판은
+곡선이 null → sg-api `_store_curves` 가 빈 줄(wk [])을 적었다(빈 줄은 채우기 배치도 다시 안 잡는다). 판 16·17 은 절을 채집 절 뒤에만 더해 이 해독기가 읽는 앞 절(머리 · 로스터 · 트랙표 ·
+키 · 자원 · 데미지 · 채집)은 같다 → MAX 17. ⚠ 판을 올릴 때 utils/openbwTracks.ts 의 TRUTH_VER_MAX9 와 **이것도** 함께. 이미 빈 판은 재분석해야 곡선이 다시 선다.
