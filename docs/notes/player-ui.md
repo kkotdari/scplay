@@ -3001,3 +3001,10 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 ## 선 끄기 단추 · L(2026-11-04)
 요청: "재생기에 선 끄기 버튼 · 단축키는 L". 소리 단추 오른쪽 `Route` 단추(켜졌을 때 is-on · 끄면 옅게) · 키 L(e.code) · localStorage `scr-lines-off`.
 모듈 `LINES_OFF9`(붓 틱이 linesOffRef9 를 옮겨 적음) — 명령 줄(ORD_NOW9)과 랠리 번쩍 줄(RALLY_FLASH9)을 안 긋는다 · 보는 사람이 집은 건물의 랠리 줄은 남김. 사용법 '도구'에 '선' 줄.
+
+## 넓은 전체화면 — 재생바 아래 여백 · 자막 틈 · 쇠독(2026-11-04)
+지적(PC 가로 긴 전체화면 사진): "재생바 아래 여백 부재 · 자막이 독에 딱 붙음 · 쇠독 테마가 제대로 안 나옴".
+- 재생바(.is-wide .scr-fs-lower > .scr-tb) padding-bottom 0 → 6px(위와 같게).
+- 자막(.is-wide .scr-cast-caption) 독 위 틈 3px·dk → 12px·dk.
+- 쇠독: 넓은 배치는 쇠판(.scr-fs-lower::before)·받침 가짜 요소를 다 걷어 쇠 테마면 재생바가 판 없이 비었다(홀로그램은 재생바 제 가짜 요소라 살았다) —
+  `.is-wide:not(.is-holodock)` 재생바에 --steel-dark 바탕 + 쇠 테 · 미니맵·로스터·인포창에 3px·dk 쇠 테(#2b2e33 + 검은 선).
