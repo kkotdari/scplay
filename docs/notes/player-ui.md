@@ -2997,3 +2997,7 @@ sg-web 이 활동 화면을 걷고 게임·게시판 두 화면으로 나누며(
 지적: "모바일 재생기 전체화면에서 검색 누르면 키보드가 화면을 가림 · 키보드 위로 검색창을 잠시 띄워야". 전체화면은 판이 고정이라 페이지 굴림(searchScroll9)이 안 듣는다.
 RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport resize·scroll 마다 알약 아래 끝(옮기기 전)이 보이는 화면 아래 끝보다 밑이면 그만큼 +8px translateY(−) · z 60.
 350ms 뒤 한 번 더 · 접히면 제자리.
+
+## 선 끄기 단추 · L(2026-11-04)
+요청: "재생기에 선 끄기 버튼 · 단축키는 L". 소리 단추 오른쪽 `Route` 단추(켜졌을 때 is-on · 끄면 옅게) · 키 L(e.code) · localStorage `scr-lines-off`.
+모듈 `LINES_OFF9`(붓 틱이 linesOffRef9 를 옮겨 적음) — 명령 줄(ORD_NOW9)과 랠리 번쩍 줄(RALLY_FLASH9)을 안 긋는다 · 보는 사람이 집은 건물의 랠리 줄은 남김. 사용법 '도구'에 '선' 줄.

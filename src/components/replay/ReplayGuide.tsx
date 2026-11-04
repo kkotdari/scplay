@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Map as MapIcon, Maximize, Palette, Play, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
+import { Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
 
 /* ★ 사용법은 **기능마다 한 줄 · 그 이름 옆에 PC 단축키**(2026-10-22, 요청: "단축키를 각 기능 설명부에 통합 — 기능 옆에 단축키 · 내용 전체적으로 많이 간소화") —
    옛 두 절(01 화면 도구 · 02 PC 단축키)과 도구 상자·전광판 그림은 걷었다.
@@ -77,6 +77,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Palette size={15}/>} name="색" keys={<Keys k={["C"]}/>}>개인색 ↔ 팀색 · 개인 화면에선 개인색 ↔ 주인공색.</Row>
           <Row ic={<T s="2D"/>} name="평면 / 입체"/>
           <Row ic={<Volume2 size={15}/>} name="소리" keys={<Keys k={["M"]}/>}/>
+          <Row ic={<Route size={15}/>} name="선" keys={<Keys k={["L"]}/>}>명령(이동 · 공격 · 패트롤) 줄과 랠리 줄 켜고 끄기.</Row>
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>

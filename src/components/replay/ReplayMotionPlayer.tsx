@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -974,6 +974,9 @@ function dashLine9(g9: { prim: (k: 0 | 1 | 2 | 3, a: number, b: number, c: numbe
 let ORD_NOW9: Map<number, [number, number, number, number]> | null = null;
 /** 추적 화면에서 랠리를 찍은 뒤 줄을 보이는 초(2026-11-03 · 원작의 랠리 깃발이 잠깐 서는 꼴). */
 const RALLY_FLASH9 = 1.5;
+/** ★ 선 끄기(2026-11-04, 요청: "재생기에 선 끄기 버튼 · 단축키는 L") — 참이면 명령 줄(ORD_NOW9)·랠리 번쩍 줄을 안 긋는다(보는 사람이 집은 건물의 랠리 줄은 남는다).
+ *  붓이 도는 동안 RMP 의 linesOff9 를 옮겨 적는다(UI_SCREEN9 와 같은 규약). */
+let LINES_OFF9 = false;
 const UI_ATK9 = "#f40404";
 let UI_SCREEN9: string | null = null;
 /** raw9 가 화면 주인이면 초록(공격 클릭 atk9 면 빨강) · 아니면 null(부르는 쪽이 색 모드 색으로 물러난다). */
@@ -6977,7 +6980,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* (2026-11-03, 요청: "개인 화면 추적에서 랠리 찍은 거는 선 연결" → "추적 중에 랠리 지정하는 순간에만 선을 보여 주라고") — 화면 주인의 건물이 랠리를 찍은 뒤
                RALLY_FLASH9 초 동안만(엔진 rallyAge · 판 16 랠리 값이 선 시각부터) 줄을 긋는다. 보는 사람이 집은 건물은 종전대로 늘. */
             /* (같은 날 되요청: "자유나 중계 모드에서도 똑같이 보여 주면 될 것 같아 · 랠리 찍는 동작을") — 화면 주인이 없으면(자유·중계) 누구의 건물이든 찍은 순간 그 임자 색으로. */
-            const rallyNow9 = isPk9(op.pickKey) || ((UI_SCREEN9 === null || op.pickRaw === UI_SCREEN9) && op.rallyAge !== undefined && op.rallyAge >= 0 && op.rallyAge < RALLY_FLASH9);
+            const rallyNow9 = isPk9(op.pickKey) || (!LINES_OFF9 && (UI_SCREEN9 === null || op.pickRaw === UI_SCREEN9) && op.rallyAge !== undefined && op.rallyAge >= 0 && op.rallyAge < RALLY_FLASH9);
             if (rallyNow9 && op.rally && gl9.primOk) {
               const rx9r = zx(op.rally[0]); const ry9r = zy(op.rally[1]);
               const lw9r = uiLineW9((tilePx ?? 8) * zoom, Bd);
@@ -10377,6 +10380,17 @@ export default function ReplayMotionPlayer({
   /* 손잡이(도구 판의 알약)는 걷었다(요청: 도구 오버레이 미사용) — 값은 남아 이 화면의
      기본으로 굳는다. 다시 켤 때 setter만 도로 꺼내면 된다. */
   const [clickFx] = useState(true); // 기본 켬(요청)
+  /** 선 끄기(위 LINES_OFF9 ★) — 브라우저에 기억(실패하면 켬). */
+  const [linesOff9, setLinesOff9] = useState<boolean>(() => { try { return localStorage.getItem("scr-lines-off") === "1"; } catch { return false; } });
+  const linesOffRef9 = useRef(linesOff9);
+  linesOffRef9.current = linesOff9;
+  const toggleLines9 = useCallback((): void => {
+    setLinesOff9((v9) => { const nv9 = !v9; try { localStorage.setItem("scr-lines-off", nv9 ? "1" : "0"); } catch { /* 기억 못 함 */ } return nv9; });
+    linesKick9.current();   // 멈춤 중에도 한 장 다시 칠한다(아래 requestPaint9 를 늦게 잇는다)
+  }, []);
+  const linesKick9 = useRef<() => void>(() => {});
+  const toggleLinesRef9 = useRef(toggleLines9);
+  toggleLinesRef9.current = toggleLines9;
   /* 사양 라디오(요청: "성능 3단계로 수정(저/중/고) 이러면 딱 LOD랑 맞고 편하지") —
      값이 **곧 모델 부품 등급(LOD)**이다: 1 저=형체만 · 2 중=+포인트 · 3 고=+장식.
      렌더 요소도 같은 세 칸에 접었다(옛 다섯 칸의 최저는 저로, 최고는 고로 합쳤다):
@@ -15689,6 +15703,7 @@ export default function ReplayMotionPlayer({
       paintFnRef9.current?.(tLiveRef9.current);
     });
   }, []);
+  linesKick9.current = () => requestPaint9();
   // 렌더마다 — 멈춘 채 무언가(거울·토글·크기·탐색) 바뀌었으면 붓 하나가 한 장 칠한다. 재생 중엔 무동작.
   useEffect(() => { requestPaint9(); });
   const requestFogPaint9 = useCallback((): void => requestPaint9(true), [requestPaint9]);
@@ -19136,9 +19151,10 @@ export default function ReplayMotionPlayer({
     else {
       /* 원작 초록의 기준(UI_SCREEN9)은 붓이 도는 동안만 — 렌더에서 놓으면 딴 인스턴스의 렌더가 덮는다(위 UI_OWN9 주석). */
       UI_SCREEN9 = uiOwnerRef9.current;
+      LINES_OFF9 = linesOffRef9.current;   // 선 끄기(위 LINES_OFF9 ★)
       /* 명령 줄(위 ORD_NOW9 ★) — 이 장 시각의 창 [t − ORD_LINE_SEC9, t] 의 명령을 태그마다 마지막 하나. 추적이면 화면 주인 것만. */
       ORD_NOW9 = ((): Map<number, [number, number, number, number]> | null => {
-        const fl9 = ordFlatRef9.current; if (!clickFx || fl9.length === 0) return null;
+        const fl9 = ordFlatRef9.current; if (!clickFx || LINES_OFF9 || fl9.length === 0) return null;
         let lo9 = 0; let hi9 = fl9.length;
         while (lo9 < hi9) { const m9 = (lo9 + hi9) >> 1; if (fl9[m9][0] < tNow9 - ORD_LINE_SEC9) lo9 = m9 + 1; else hi9 = m9; }
         const mp9 = new Map<number, [number, number, number, number]>();
@@ -20029,6 +20045,12 @@ export default function ReplayMotionPlayer({
            안 뺏는다. */
       // (걷어냄) ]/[ 확대·축소 별칭 · 2/3 평면·입체 · r 로스터 · t 색 — 안내에 없는 매핑은 두지 않는다(요청).
       /* (걷음 2026-10-24, 요청: "3D V 키로도 안 되게 — 특수 주소줄 파라미터로만 켜게") — v 키의 평면 ↔ 입체 토글. 입체는 `#3d=1`(PITCH_HASH9)로 연 재생기만. */
+      } else if (e.code === "KeyL" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // l = 선 끄기/켜기(명령 줄 · 랠리 번쩍 줄 · 위 LINES_OFF9 ★ · 2026-11-04 요청 "단축키는 L").
+        e.preventDefault();
+        if (e.repeat) return;
+        wakeUi();
+        toggleLinesRef9.current();
       } else if ((e.code === "KeyH" || e.code === "KeyG") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // h = UI 다 숨김 · g = 독만 남김(위 uiHide9 ★) · 같은 키를 다시 누르면 보임. 판을 깨우지 않는다(숨기려고 누른 키다).
         e.preventDefault();
@@ -21931,6 +21953,17 @@ export default function ReplayMotionPlayer({
           </div>
         ) : undefined)}
       </span>
+      {/* ★ 선 끄기(위 LINES_OFF9 ★ · 2026-11-04, 요청: "재생기에 선 끄기 버튼 · 단축키는 L") — 명령 줄 · 랠리 번쩍 줄을 끄고 켠다(켜졌을 때 is-on). */}
+      <button
+        type="button"
+        className={cx("scr-motion-litbtn scr-motion-mapbtn", !linesOff9 && "is-on")}
+        onClick={toggleLines9}
+        aria-pressed={!linesOff9}
+        aria-label={linesOff9 ? "선 켜기 (L) — 명령 · 랠리 줄" : "선 끄기 (L) — 명령 · 랠리 줄"}
+        title={linesOff9 ? "선 켜기 (L)" : "선 끄기 (L)"}
+      >
+        <Route size={18} style={linesOff9 ? { opacity: 0.45 } : undefined} />
+      </button>
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
           1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].
