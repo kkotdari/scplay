@@ -10047,38 +10047,37 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
       const STAR_R = 8.9 * SK9;
       const STAR_IN = 3.2 * SK9;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다.
-      const star9 = (z9: number): [number, number, number][] => {
-        const pts: [number, number, number][] = [];
-        for (let k9 = 0; k9 < 4; k9 += 1) {
-          const a9 = (k9 * Math.PI) / 2;
-          pts.push([Math.sin(a9) * STAR_R, Math.cos(a9) * STAR_R, z9]);
-          const b9 = a9 + Math.PI / 4;
-          pts.push([Math.sin(b9) * STAR_IN, Math.cos(b9) * STAR_IN, z9]);
+      /* ★ **날만 잘라 제자리에**(2026-11-04, 요청: "별 모양 발판을 각각 다 잘라서 튀어나오는 부분만 잘라서 각각의 위치에 직접 붙여 · 높이는 땅 기준으로") —
+         옛 판은 몸 밑에 깔린 별 한 장(날 끝 STAR_R · 오목점 STAR_IN)이라 가운데가 밑동 단 · 피라미드와 겹쳐 앞 두 날은 밑동 앞벽에 · 뒤 두 날은 덜 묻혀 무늬가 앞뒤로 달리 보였다
+         (지적: "앞 두 개는 더 많은 무늬가 본체에 가려져 뒤보다"). 이제 같은 별의 **밑동 단 밖으로 나온 날 넷만** 삼각 기둥으로 잘라, 밑동 밑변(반폭 R0P9)에서 날 끝까지 땅(z 0 ~ TH9)에 세운다.
+         날의 옆선은 옛 별 그대로(날 끝 → 오목점) · 밑동 벽에서의 반폭 W0P9 는 그 옆선이 벽과 만나는 자리. 몸과 안 겹치므로 네 날이 똑같이 보인다. */
+      const R0P9 = (BASE_W9 + 0.8) / 2;   // 밑동 단 밑변 반폭(위 '밑동 한 단' frustumFaces3 의 밑변)
+      const W0P9 = ((STAR_R - R0P9) / (STAR_R - STAR_IN * Math.SQRT1_2)) * STAR_IN * Math.SQRT1_2;
+      for (const ang9 of [0, 90, 180, 270]) {
+        const a9 = (ang9 * Math.PI) / 180;
+        const sx9 = Math.sin(a9); const sy9 = Math.cos(a9); const ux9 = Math.cos(a9); const uy9 = -Math.sin(a9);
+        const Q9 = (r9: number, u9: number, z9: number): [number, number, number] => [sx9 * r9 + ux9 * u9, sy9 * r9 + uy9 * u9, z9];
+        const lo9: [number, number, number][] = [Q9(R0P9, -W0P9, 0), Q9(STAR_R, 0, 0), Q9(R0P9, W0P9, 0)];
+        const hi9: [number, number, number][] = lo9.map(([x9, y9]) => [x9, y9, TH9]);
+        const cX9 = (lo9[0][0] + lo9[1][0] + lo9[2][0]) / 3; const cY9 = (lo9[0][1] + lo9[1][1] + lo9[2][1]) / 3;
+        const padF: ShapeFace[] = [];
+        for (let i9 = 0; i9 < 3; i9 += 1) {
+          const j9 = (i9 + 1) % 3;
+          const w9 = polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]);
+          const ex9 = hi9[j9][0] - hi9[i9][0]; const ey9 = hi9[j9][1] - hi9[i9][1];
+          const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2 - cX9; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2 - cY9;
+          let nx9 = ey9; let ny9 = -ex9;
+          if (nx9 * mx9 + ny9 * my9 < 0) { nx9 = -nx9; ny9 = -ny9; }
+          const nl9 = Math.hypot(nx9, ny9) || 1;
+          const fl9 = faceLight(nx9 / nl9, ny9 / nl9, 0.2);
+          if (!fl9.visible) continue;   // 등 돌린 옆면은 안 그린다(옛 판과 같은 까닭)
+          padF.push([w9, 1, GOLDD] as ShapeFace, ...fl9.face(w9));
         }
-        return pts;
-      };
-      const hi9 = star9(TH9); const lo9 = star9(0);
-      const padF: ShapeFace[] = [];
-      for (let i9 = 0; i9 < hi9.length; i9 += 1) {
-        const j9 = (i9 + 1) % hi9.length;
-        const w9 = polyPath3([lo9[i9], lo9[j9], hi9[j9], hi9[i9]]);
-        // 변의 바깥 법선 — 변 방향을 90도 돌린 것 중 변 중점 쪽(밖)을 향하는 것.
-        const ex9 = hi9[j9][0] - hi9[i9][0]; const ey9 = hi9[j9][1] - hi9[i9][1];
-        const mx9 = (hi9[i9][0] + hi9[j9][0]) / 2; const my9 = (hi9[i9][1] + hi9[j9][1]) / 2;
-        let nx9 = ey9; let ny9 = -ex9;
-        if (nx9 * mx9 + ny9 * my9 < 0) { nx9 = -nx9; ny9 = -ny9; }
-        const nl9 = Math.hypot(nx9, ny9) || 1;
-        const fl9 = faceLight(nx9 / nl9, ny9 / nl9, 0.2);
-        /* 등 돌린 옆면은 **안 그린다**(지적: "발판 옆면 투명해 보이는 이슈") — 위에서 보는 판의 뒷벽은 윗면이 덮어야
-           하는데, 어두운 덮개(sideFace)까지 얹은 뒷벽이 윗면 가장자리에서 비쳐 판이 유리처럼 읽혔다. 보이는 벽만. */
-        if (!fl9.visible) continue;
-        padF.push([w9, 1, GOLDD] as ShapeFace, ...fl9.face(w9));
+        const top9 = polyPath3(hi9);
+        padF.push([top9, 1, GOLDD] as ShapeFace, topFace(top9, 0.18));
+        /* 키는 제 자리 — 다만 그 날의 뿔(아래 · 키 depthNow(7.8·SK9))보다는 늘 먼저(뒤 날은 뿔이 더 뒤라 제 자리 키면 판이 뿔 밑동을 덮는다). */
+        out.push(...tagKey(padF, Math.min(depthNow(cX9, cY9), depthNow(sx9 * 7.8 * SK9, sy9 * 7.8 * SK9)) - 0.2));
       }
-      const top9 = polyPath3(hi9);
-      padF.push([top9, 1, GOLDD] as ShapeFace, topFace(top9, 0.18));
-      /* 판의 키는 **맨 뒤**(지적: "발판 위 뿔 키값 수정") — 키 −1이면 뒤쪽 날의 뿔(깊이 −5.4)이 판보다 먼저
-         그려져 판 윗면이 뿔 밑동을 덮었다. 판은 바닥에 깔린 것이라 무엇보다 먼저 그려도 된다. */
-      out.push(...tagKey(padF, depthNow(0, 0) - 20));
       /* 날 끝 뿔 — 밑면은 **날 끝으로 길게 뻗은 이등변삼각형**이고 그 뾰족한 꼭짓점이 **날 끝점(8.9)과 딱 맞는다**
          (재요청: "정삼각형이 아니라 발판 끝쪽으로 더 긴 이등변삼각형, 뿔 끝점과 발판 끝점이 딱 맞는 형태"). 뒷변은
          7.2에서 반폭 0.5(그 자리 날 반폭 0.58 안), 꼭대기는 7.7 위 1.85 높이 — 옆면 셋을 직접 세운다(spirePillar는
