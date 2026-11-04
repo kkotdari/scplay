@@ -285,7 +285,8 @@ function livesOfTrack(
          계속 서 있는 것이라 완성으로 읽힌다) 고치가 한 프레임도 안 떴다. */
       const morphed = segStart > 0 && !handoff && MORPH_SEC[kind] !== undefined;
       const raising = (tr.done[segStart] === 0 || morphed) && born > 1;
-      sites.push([raising ? born : born - buildSecOf(kind), bx, by]);
+      /* 손바뀜으로 이어진 생애(handoff — 버려진 애드온이 다시 붙음 등)는 짓는 시간을 앞당겨 세우지 않는다 — 앞 생애(engine9 buildsV2 가 중립 구간까지 늘린 줄)와 겹쳐 두 벌이 선다. */
+      sites.push([raising || handoff ? born : born - buildSecOf(kind), bx, by]);
       if (raising) {
         doneAt = Infinity;
         for (let i = segStart; i < end; i += 1) {

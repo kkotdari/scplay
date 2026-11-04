@@ -1935,6 +1935,9 @@
 .scr-motion-pcursor.is-press { transform: translate(-1px, -1px) scale(0.84); }
 .scr-motion-pcring { position: absolute; pointer-events: none; overflow: visible; transform: translate(-50%, -50%); transition: transform 0.08s ease-out; }
 .scr-motion-pcring.is-press { transform: translate(-50%, -50%) scale(0.9); }
+/* 선수 커서의 건설 칸 판(RMP cursorBuild9 ★) — 원작 배치 미리보기: 칸마다 초록(놓을 수 있음) · 빨강(막힘) · 반투명 + 진한 테. */
+.scr-motion-pcgrid { position: absolute; pointer-events: none; box-sizing: border-box; background: rgba(62, 224, 106, 0.32); box-shadow: inset 0 0 0 1px rgba(20, 110, 40, 0.85); }
+.scr-motion-pcgrid.is-bad { background: rgba(240, 52, 52, 0.36); box-shadow: inset 0 0 0 1px rgba(120, 16, 16, 0.85); }
 .scr-motion-pcbox {
   position: absolute; pointer-events: none; box-sizing: border-box;
   border: 1.5px solid currentColor; box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 38%, black), inset 0 0 0 1px color-mix(in srgb, currentColor 38%, black);
@@ -5683,10 +5686,18 @@
 .scr-fs-root.is-uihide-cap :is(.scr-fs-solo, .scr-fs-chat, .scr-split-cap, .scr-cast-caption),
 .scr-fs-root.is-uihide-cap :is(.scr-fs-solo, .scr-fs-chat, .scr-split-cap, .scr-cast-caption) *,
 .scr-fs-root.is-uihide-dock > .scr-fs-lower,
-.scr-fs-root.is-uihide-dock > .scr-fs-lower * {
+.scr-fs-root.is-uihide-dock > .scr-fs-lower *,
+.scr-fs-root.is-uihide-mini .scr-fs-minipanel,
+.scr-fs-root.is-uihide-mini .scr-fs-minipanel *,
+.scr-fs-root.is-uihide-ctl :is(.scr-modetog-stage, .scr-zoomdial, .scr-speeddial, .scr-zoomfps),
+.scr-fs-root.is-uihide-ctl :is(.scr-modetog-stage, .scr-zoomdial, .scr-speeddial, .scr-zoomfps) * {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+/* J(독 숨김)도 **미니맵은 남긴다**(2026-11-04, 요청: "J 독 숨기기에서 미니맵은 제외 · 미니맵은 N 으로 따로") — 미니맵 우물(받침 포함)만 되살린다. N(is-uihide-mini) · H 는 그대로 감춘다.
+   U(is-uihide-ctl) = 재생 모드 토글 · 테스트 단추 줄 · 배율 · 배속 다이얼. */
+.scr-fs-root.is-uihide-dock:not(.is-uihide-mini):not(.is-uihide-all) > .scr-fs-lower .scr-fs-minipanel,
+.scr-fs-root.is-uihide-dock:not(.is-uihide-mini):not(.is-uihide-all) > .scr-fs-lower .scr-fs-minipanel * { visibility: visible !important; pointer-events: auto !important; }
 /* 독을 숨기면 **자막만** 독 자리까지 내려온다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기" → "채팅 · 배속 다이얼은 그대로 두기") — 자막은 받침 솟음을 안 타고(--cap-keep 0)
    무대 아래 독 키(--dock-under · 무대가 그 밑까지 그린다)만큼 아래로(--cap-drop). 접기는 RMP dockFit read9 가 뿌리에 같은 두 값을 적는다. --cap-bot(채팅 · 다이얼)은 안 건드린다. */
 .scr-fs-root.is-uihide-dock { --cap-keep: 0; --cap-drop: var(--dock-under, 0px); }

@@ -58,6 +58,7 @@ import {
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
+import { CUR_ARROW_D9, CUR_CARRY_SEC9, CUR_FOE9, CUR_GROUND9, CUR_OWN9, CUR_RES9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
 import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
@@ -9989,40 +9990,6 @@ function spinOfSx9(sx: number[], t: number): number {
   const m9 = ((c9 % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9;
   return sx[0] === 2 ? m9 : Math.floor(m9);
 }
-/** 선수 커서 들르는 점의 꼴(RMP cursorPaths9 ★) — 땅(화살표) · 제 편 · 적 · 자원 몸 위(고리) · 끌기 시작 · 끌기 끝(상자). */
-/** 선수 커서 화살촉(시안 승인) — 끝(0,0)이 왼위 · 왼 아래 · 안쪽 파임 · 오른 아래(viewBox −2~30). */
-const CUR_ARROW_D9 = "M1 1 L0.4 26 L7 17.4 L27.2 27 Z";
-const CUR_GROUND9 = 0; const CUR_OWN9 = 1; const CUR_FOE9 = 2; const CUR_RES9 = 3; const CUR_DRAG09 = 4; const CUR_DRAG19 = 5;
-/** ★ 선수 커서 자리(RMP cursorPaths9 ★) — 들르는 점 [초, x, y, 꼴, 반지름]… 에서 t 의 자리 · 모습. 첫 점 전은 null.
- *  다음 점 직전(거리에 따라 0.15~0.45초 · 두 점 사이의 80% 안)에 출발해 그 시각에 정확히 닿는다(천천히 출발 · 빨리 · 천천히 닿음). 그 전에는 마지막 점에 머문다.
- *  끌기(시작 → 끝)는 두 점 사이 전부를 고르게 끌고 그동안 상자(box · 시작 모서리)를 낸다. 몸 위 점(고리 꼴)은 닿기 직전 20% 부터 떠나기 전(최대 0.6초)까지 고리(ring)로 바뀐다.
- *  press 는 누른 직후 0.12초(살짝 눌리는 모션). */
-function cursorAt9(p9: Float64Array, t9: number): { x: number; y: number; press: boolean; ring: { x: number; y: number; k: number; r: number } | null; box: [number, number] | null } | null {
-  const S9 = 5;
-  const n9 = p9.length / S9;
-  if (n9 === 0 || t9 < p9[0]) return null;
-  let lo = 0; let hi = n9 - 1;
-  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (p9[m * S9] <= t9) lo = m; else hi = m - 1; }
-  const o0 = lo * S9;
-  const s0 = p9[o0]; const x0 = p9[o0 + 1]; const y0 = p9[o0 + 2]; const k0 = p9[o0 + 3]; const r0 = p9[o0 + 4];
-  const press = t9 - s0 < 0.12 && k0 !== CUR_DRAG09;
-  const ringK0 = k0 === CUR_OWN9 || k0 === CUR_FOE9 || k0 === CUR_RES9;
-  const stay9 = { x: x0, y: y0, press, ring: ringK0 && t9 - s0 < 0.6 ? { x: x0, y: y0, k: k0, r: r0 } : null, box: null };
-  if (lo + 1 >= n9) return stay9;
-  const o1 = o0 + S9;
-  const s1 = p9[o1]; const x1 = p9[o1 + 1]; const y1 = p9[o1 + 2]; const k1 = p9[o1 + 3]; const r1 = p9[o1 + 4];
-  if (k0 === CUR_DRAG09 && k1 === CUR_DRAG19) {   // 끌어 고르기 — 시작 모서리에서 끝 모서리로 고르게 끈다
-    const u9 = Math.min(1, Math.max(0, (t9 - s0) / Math.max(0.01, s1 - s0)));
-    return { x: x0 + (x1 - x0) * u9, y: y0 + (y1 - y0) * u9, press: false, ring: null, box: [x0, y0] };
-  }
-  const d9 = Math.hypot(x1 - x0, y1 - y0);
-  const tr9 = Math.min(Math.max(0.15, Math.min(0.45, 0.12 + d9 * 0.012)), (s1 - s0) * 0.8);
-  if (tr9 <= 0 || t9 <= s1 - tr9) return stay9;
-  const u9 = Math.min(1, (t9 - (s1 - tr9)) / tr9);
-  const e9 = u9 < 0.5 ? 4 * u9 * u9 * u9 : 1 - Math.pow(-2 * u9 + 2, 3) / 2;
-  const ringK1 = k1 === CUR_OWN9 || k1 === CUR_FOE9 || k1 === CUR_RES9;
-  return { x: x0 + (x1 - x0) * e9, y: y0 + (y1 - y0) * e9, press, ring: ringK1 && u9 > 0.8 ? { x: x1, y: y1, k: k1, r: r1 } : null, box: null };
-}
 /** ★ **효과를 그리는 시각으로 잇는다**(2026-10-28 · 폰 장 초당 5장) — 앞 장의 효과 op 를 dt(= 그리는 시각 − 장 시각)만큼 민다:
  *  age·clk 은 dt 그대로 · ph 는 pr(쿨다운 박자 pc 면 감아 돈다 · 아니면 1 을 넘으면 끝난 효과라 뺀다 — 고이는 피(pool)는 1 에서 멈춘다) ·
  *  탄 u 는 죄기 전 값(uw)에서 ur 로 · uc 로 감아 다음 발 · 1.2 넘으면(닿은 뒤) 뺀다. 빠르기가 없는 op 은 장 값 그대로(engine9 FxOp.pr 의 ★).
@@ -10095,7 +10062,7 @@ function viewKeyOf9(v9: EngineView9): string {
     + `|${v9.geom.w}|${v9.geom.h}|${v9.geom.P.toFixed(1)}|${v9.geom.ox.toFixed(1)},${v9.geom.oy.toFixed(1)}`
     + `|${v9.geom.sox.toFixed(1)}`
     + `|${v9.viewTeam}|${v9.visAll ? 1 : 0}|${v9.fogOn ? 1 : 0}|s${v9.splitTeams?.join(",") ?? ""}`
-    + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}`
+    + `|${v9.qAnim ? 1 : 0}${v9.qBuildFx ? 1 : 0}${v9.qDeath ? 1 : 0}${v9.clickFx ? 1 : 0}${v9.cursor ? 1 : 0}`
     + `|${v9.cull ? `${v9.cull.x0.toFixed(3)},${v9.cull.x1.toFixed(3)},${v9.cull.y0.toFixed(3)},${v9.cull.y1.toFixed(3)}` : "all"}`
     + `|${v9.cullList ? v9.cullList.map((r9) => `${r9.x0.toFixed(3)},${r9.x1.toFixed(3)},${r9.y0.toFixed(3)},${r9.y1.toFixed(3)}`).join(";") : "-"}`
     /* ★ 팀 엔진의 사각형은 **값까지** 열쇠에 든다(2026-10, 지적: "분할에서 … 화면 이동한 곳이 안 그려지는 듯") — 여태 팀 번호만
@@ -11678,73 +11645,58 @@ export default function ReplayMotionPlayer({
    *  재료: 명령 클릭(entClicks — 표적 몸·자원이면 고리) · 건설 자리(builds) · 마법 표적(casts) · 마우스 선택(sels 의 click · add — 하나면 그 몸 위 고리 · 여럿이면 끌어 고르기 상자:
    *  고른 몸들을 감싼 네모의 한 모서리에서 반대 모서리로 끈다). **키보드는 안 움직인다** — 부대 불러오기 · 지정 · 추가(sels 의 recall · assign · groupAdd)와 정지 · 홀드 · 생산 같은
    *  단축키 명령(덤퍼가 자리를 안 적는다)은 들르는 점이 아니다. feat 칸의 `#cursor` 일 때만 짓는다. */
+  /** 지형 타일 깃발(원작 그대로 · 위 decodeMapTerrain) — 선수 커서의 건설 칸 판이 '못 짓는 칸'(TILE.unbuildable)을 본다. */
+  const mapTileRef9 = useRef<{ w: number; h: number; tile: ArrayLike<number> } | null>(null);
+  /** ★ 선수 커서에 붙어 가는 건설 고스트의 **칸 판**(2026-11-04, 요청: "건물 고스트가 커서를 따라다니다가 클릭하면 그 자리에 짓잖아" → "지나가는 동안 놓을 수 없는 자리면 빨간색") —
+   *  건물 모델은 엔진이 커서를 따라 옮긴다(engine9 ghosts · view.cursor). 여기선 사람마다 건설 명령 [초, 건물] 과, 칸이 그때 막혔나를 볼 재료(건물 발자국 [시작, 끝, x, y, 폭, 높이]).
+   *  막힘: 지도 밖 · 못 짓는 지형 · 그때 선 건물 발자국 · 자원(가스 건물은 간헐천 위만 됨). 크립 · 사이오닉 전력은 안 본다. */
+  const cursorBuild9 = useMemo(() => {
+    const by9 = new Map<string, [number, string][]>();
+    const foot9: [number, number, number, number, number, number][] = [];
+    if (!entData || !CURSOR9) return { by: by9, foot: foot9 };
+    const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    for (const [bs9, bo9, , , , bk9] of entData.builds ?? []) {
+      const r9 = nameOfId9.get(bo9) ?? ""; if (!r9) continue;
+      const a9 = by9.get(r9); if (a9) a9.push([bs9, bk9]); else by9.set(r9, [[bs9, bk9]]);
+    }
+    for (const a9 of by9.values()) a9.sort((p9, q9) => p9[0] - q9[0]);
+    for (const e9 of entData.lives) {
+      if (!e9.bld) continue;
+      const f9 = BUILDING_FOOT[e9.kind]; if (!f9) continue;
+      for (let i9 = 0; i9 < e9.sites.length; i9 += 1) {
+        const [ss9, sx9, sy9] = e9.sites[i9];
+        const se9 = i9 + 1 < e9.sites.length ? e9.sites[i9 + 1][0] : (e9.died ?? Infinity);
+        foot9.push([ss9, se9, sx9, sy9, f9[0], f9[1]]);
+      }
+    }
+    return { by: by9, foot: foot9 };
+  }, [entData]);
   const cursorPaths9 = useMemo<Map<string, Float64Array>>(() => {
-    const out9 = new Map<string, Float64Array>();
-    if (!entData || !CURSOR9) return out9;   // feat 칸의 `#cursor` 일 때만(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단" → "feat 안에 넣어 달라는 뜻")
+    if (!entData || !CURSOR9) return new Map();   // feat 칸의 `#cursor` 일 때만(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단" → "feat 안에 넣어 달라는 뜻")
     const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const lifeOfTag9 = new Map(entData.lives.map((e9) => [e9.tag, e9]));
-    const acc9 = new Map<string, number[][]>();
-    const put9 = (raw9: string, s9: number, x9: number, y9: number, k9: number, r9: number): void => {
-      if (!raw9 || obsNames.has(raw9) || !Number.isFinite(x9) || !Number.isFinite(y9)) return;
-      const a9 = acc9.get(raw9); if (a9) a9.push([s9, x9, y9, k9, r9]); else acc9.set(raw9, [[s9, x9, y9, k9, r9]]);
-    };
     /** 몸의 고리 꼴 — 제 것 · 같은 편이면 제 편 · 아니면 적(주인 없는 몸은 자원 꼴). */
     const relOf9 = (raw9: string, owner9: number): number => {
       const o9 = nameOfId9.get(owner9) ?? "";
       if (!o9) return CUR_RES9;
       return o9 === raw9 || (!melee && teamMap9[o9] !== undefined && teamMap9[o9] === teamMap9[raw9]) ? CUR_OWN9 : CUR_FOE9;
     };
-    /** 몸의 고리 반지름(타일) — 건물은 발자국 반 대각 남짓 · 유닛은 0.75. */
+    /** 몸의 고리 반지름(타일) — 건물은 발자국 긴 변의 0.62 · 유닛은 0.75. */
     const radOf9 = (e9: { bld: boolean; kind: string } | undefined): number => {
       if (e9?.bld) { const f9 = BUILDING_FOOT[e9.kind] ?? [2, 2]; return Math.max(1, Math.max(f9[0], f9[1]) * 0.62); }
       return 0.75;
     };
+    /** 명령 클릭의 꼴 — 표적 몸(관계) · 자원(노랑) · 땅(entClicks 가 이미 가른 표적 · 자원 열쇠). */
+    const clk9 = new Map<string, readonly [number, number]>();
     for (const [cs9, cx9, cy9, raw9, , tg9, rk9] of entClicks) {
-      if (tg9 >= 0) { const l9 = lifeOfTag9.get(tg9); put9(raw9, cs9, cx9, cy9, l9 ? relOf9(raw9, l9.owner) : CUR_FOE9, radOf9(l9)); }
-      else if (rk9) put9(raw9, cs9, cx9, cy9, CUR_RES9, 0.9);
-      else put9(raw9, cs9, cx9, cy9, CUR_GROUND9, 0);
+      const l9 = tg9 >= 0 ? lifeOfTag9.get(tg9) : undefined;
+      clk9.set(`${raw9}:${cs9}:${cx9}:${cy9}`, tg9 >= 0 ? [l9 ? relOf9(raw9, l9.owner) : CUR_FOE9, radOf9(l9)] : rk9 ? [CUR_RES9, 0.9] : [CUR_GROUND9, 0]);
     }
-    for (const [bs9, bo9, , btx9, bty9, bk9] of entData.builds ?? []) {
-      const ft9 = BUILDING_FOOT[bk9] ?? [2, 2];
-      put9(nameOfId9.get(bo9) ?? "", bs9, btx9 + ft9[0] / 2, bty9 + ft9[1] / 2, CUR_GROUND9, 0);
-    }
-    for (const [cs9, cx9, cy9, , co9] of entData.casts ?? []) put9(nameOfId9.get(co9) ?? "", cs9, cx9, cy9, CUR_GROUND9, 0);
-    if (simTracks) {
-      for (const [ss9, so9, stg9, sk9] of entData.sels ?? []) {
-        const k9 = sk9 < 0 ? -1 : sk9 & 15;
-        if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다
-        const raw9 = nameOfId9.get(so9) ?? "";
-        const pts9: [number, number, number][] = [];
-        for (const tg9 of stg9) {
-          const tr9 = simTracks.get(tg9); const q9 = tr9 ? posAtSim(tr9, ss9) : null;
-          if (q9) pts9.push([q9.x, q9.y, tg9]);
-        }
-        if (pts9.length === 0) continue;
-        if (pts9.length === 1) {
-          const l9 = lifeOfTag9.get(pts9[0][2]);
-          put9(raw9, ss9, pts9[0][0], pts9[0][1], l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9));
-          continue;
-        }
-        /* 여럿 — 끌어 고르기(리플레이엔 클릭 · 끌기 구분이 없다 · 한 번에 여럿이 잡혔으면 끈 것으로 본다). 감싼 네모(+0.7타일)의 왼위 → 오른아래로. */
-        let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity;
-        for (const [px9, py9] of pts9) { x09 = Math.min(x09, px9); y09 = Math.min(y09, py9); x19 = Math.max(x19, px9); y19 = Math.max(y19, py9); }
-        x09 -= 0.7; y09 -= 0.7; x19 += 0.7; y19 += 0.7;
-        const dd9 = Math.min(0.45, Math.max(0.2, 0.18 + Math.hypot(x19 - x09, y19 - y09) * 0.02));
-        put9(raw9, ss9 - dd9, x09, y09, CUR_DRAG09, 0);
-        put9(raw9, ss9, x19, y19, CUR_DRAG19, 0);
-      }
-    }
-    for (const [raw9, a9] of acc9) {
-      a9.sort((p, q) => p[0] - q[0]);
-      const f9: number[] = [];
-      for (const [s9, x9, y9, k9, r9] of a9) {
-        const n9 = f9.length;
-        if (n9 >= 5 && s9 - f9[n9 - 5] < 0.02 && Math.hypot(x9 - f9[n9 - 4], y9 - f9[n9 - 3]) < 0.5 && k9 !== CUR_DRAG19) continue;   // 같은 누름이 두 갈래로 적힌 것
-        f9.push(s9, x9, y9, k9, r9);
-      }
-      out9.set(raw9, Float64Array.from(f9));
-    }
-    return out9;
+    return cursorPathsOf9(entData, simTracks, {
+      skip: (raw9) => obsNames.has(raw9),
+      clickKind: (raw9, t9, x9, y9) => clk9.get(`${raw9}:${t9}:${x9}:${y9}`) ?? null,
+      selKind: (raw9, tg9) => { const l9 = lifeOfTag9.get(tg9); return [l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9)]; },
+    });
   }, [entData, entClicks, simTracks, obsNames, melee, teamMap9]);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
   const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
@@ -12010,6 +11962,7 @@ export default function ReplayMotionPlayer({
     decodeMapTerrain(grid.terrain).then((mt) => {
       if (cancelled) return;
       if (!mt) return;   // 못 풀면 다음 로드에 다시 본다
+      mapTileRef9.current = { w: mt.w, h: mt.h, tile: mt.tile };   // 선수 커서 건설 칸 판(놓을 수 있나 · 아래 cursorBuild9)
       const tg = terrainGridOfMap(mt);
       setTerrain(closeNarrowGaps(tg));
       setTerrainRaw(tg);
@@ -12221,7 +12174,9 @@ export default function ReplayMotionPlayer({
    *  all(H) 무대 위 글·단추와 독·툴박스 전부 · cap(K) 자막 · 채팅 · 화면 주인 이름표(분할 칸 머리까지).
    *  dock(J) **독 통째**(.scr-fs-lower — 미니맵 · 로스터 · 인포창 · 쇠판 · 재생부까지 · 같은 날 지적: "독이 다 안 숨겨져 · 독 숨기기는 독 접기랑 달라 · 재생부까지 다 숨겨야 해" —
    *  옛: 독 줄만 감춰 쇠판 · 틀 · 재생바가 남았다). 숨기면 자막이 독 자리까지 내려온다(replay.css --cap-drop · 접기도 같은 결 — 아래 dockFit read9). */
-  const [uiHide9, setUiHide9] = useState<{ all: boolean; cap: boolean; dock: boolean }>({ all: false, cap: false, dock: false });
+  /* (같은 날 더함, 요청: "J 독 숨기기에서 미니맵은 제외 · 미니맵은 N 으로 따로 토글 · 중계 토글 · 테스트 버튼들 · 배율 배속 오버레이 토글은 U") — mini(N) 미니맵 · ctl(U) 무대 위 손잡이
+   *  (재생 모드 토글 · 테스트 단추 줄 · 배율 다이얼 · 배속 다이얼). J(dock)는 이제 미니맵을 남긴다. */
+  const [uiHide9, setUiHide9] = useState<{ all: boolean; cap: boolean; dock: boolean; mini: boolean; ctl: boolean }>({ all: false, cap: false, dock: false, mini: false, ctl: false });
   /** ★ 자막 크기(2026-11-04, 요청: "재생기 자막 크기 줄이기/키우기 단축키 [ ]") — 자막(중계 · 검색) 글자에 곱하는 배수(0.5~2 · 한 번에 0.1) · 기기마다 기억. */
   const [capU9, setCapU9] = useState<number>(() => { try { const v9 = Number(localStorage.getItem("scplay.capu")); return v9 >= 0.5 && v9 <= 2 ? v9 : 1; } catch { return 1; } });
   useEffect(() => { try { localStorage.setItem("scplay.capu", String(capU9)); } catch { /* 저장 못 해도 이번 판은 된다 */ } }, [capU9]);
@@ -17807,6 +17762,7 @@ export default function ReplayMotionPlayer({
     pitched, pitchFlat, geom: pitchGeom(),
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
+    ...(CURSOR9 ? { cursor: true } : {}),   // 선수 커서(feat · cursor9 ★) — 건설 고스트가 커서를 따라간다
     cull: cullRect9,
     ...(splitCull9 ? { cullList: splitCull9.all, splitCull: splitCull9.team } : {}),
     crowd: CROWD9.lv,
@@ -20140,6 +20096,8 @@ export default function ReplayMotionPlayer({
         /* ★ 검색 결과 앞뒤 — B 이전 · N 다음(2026-10-12, 요청: "검색 결과 이전/다음은 B/N 으로 매핑하고 검색창 닫아도 동작") — 검색창(입력)에 있을 땐 이 판이
            안 들으므로(위 INPUT 문) 창을 닫거나 접은 뒤에 먹는다. 결과가 없으면 키를 흘린다. */
         if (searchKeyRef9.current(e.code === "KeyN" ? 1 : -1)) { e.preventDefault(); wakeUi(); }
+        /* N 은 검색 결과가 없으면 **미니맵 보이기/숨기기**(2026-11-04, 요청: "J 독 숨기기에서 미니맵은 제외 · 미니맵은 N 으로 따로 토글") — 위 uiHide9.mini. */
+        else if (e.code === "KeyN" && !e.repeat) { e.preventDefault(); setUiHide9((v) => ({ ...v, mini: !v.mini })); }
       } else if ((e.code === "PageUp" || e.code === "PageDown") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         /* ★ PgUp/PgDn = 다음/이전 사람(2026-10-24, 요청: "숫자패드 단축키 제거 · + − → pgUp pgDn · . 9 0 은 이제 필요없어서 제거 · 색깔 C 로 변경 · 줌 Q E 제거") —
            옛 숫자패드 한 벌(2026-10-13 · 1~8 사람 · 9 전체 · 0 끄기 · . 자동중계 · −/+ 이전/다음 · / 색)을 통째로 걷었다. 고른 모드로 끝까지 보므로(모드 잠금 ·
@@ -20194,11 +20152,11 @@ export default function ReplayMotionPlayer({
         if (e.repeat) return;
         wakeUi();
         toggleLinesRef9.current();
-      } else if ((e.code === "KeyH" || e.code === "KeyK" || e.code === "KeyJ") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      } else if ((e.code === "KeyH" || e.code === "KeyK" || e.code === "KeyJ" || e.code === "KeyU") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // h = UI 다 숨김 · k = 자막 · 채팅 · 화면 주인 · j = 독(위 uiHide9 ★) · 같은 키를 다시 누르면 보임. 판을 깨우지 않는다(숨기려고 누른 키다).
         e.preventDefault();
         if (e.repeat) return;
-        const k9 = e.code === "KeyH" ? "all" : e.code === "KeyK" ? "cap" : "dock";
+        const k9 = e.code === "KeyH" ? "all" : e.code === "KeyK" ? "cap" : e.code === "KeyU" ? "ctl" : "dock";
         setUiHide9((v) => ({ ...v, [k9]: !v[k9] }));
       } else if ((e.code === "BracketLeft" || e.code === "BracketRight") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // [ = 자막 작게 · ] = 자막 크게(위 capU9 ★ · 0.1 씩 · 0.5~2). 누르고 있으면 이어 간다.
@@ -23593,6 +23551,33 @@ export default function ReplayMotionPlayer({
             const sz9 = uiPhone9 ? 16 : Math.round(22 * (ui9.k / 0.75));
             const dark9 = "color-mix(in srgb, currentColor 38%, black)";
             const out9: React.ReactNode[] = [];
+            /* 건설 칸 판(위 cursorBuild9 ★) — 이 사람의 다음 건설 명령까지 CUR_CARRY_SEC9 안이면, 커서 가운데 · 타일에 맞춘 발자국 칸마다 초록(놓을 수 있음) · 빨강(막힘). 엔진의 고스트 모델과 같은 자리 셈. */
+            {
+              const bl9 = cursorBuild9.by.get(raw9);
+              const nb9 = bl9?.find(([bs9]) => bs9 > t && bs9 - t <= CUR_CARRY_SEC9);
+              const fb9 = nb9 ? BUILDING_FOOT[nb9[1]] : undefined;
+              if (nb9 && fb9) {
+                const gx9 = Math.round(c9.x - fb9[0] / 2); const gy9 = Math.round(c9.y - fb9[1] / 2);
+                const gas9 = nb9[1] === "Refinery" || nb9[1] === "Assimilator" || nb9[1] === "Extractor";
+                const mt9 = mapTileRef9.current;
+                for (let ty9 = gy9; ty9 < gy9 + fb9[1]; ty9 += 1) {
+                  for (let tx9 = gx9; tx9 < gx9 + fb9[0]; tx9 += 1) {
+                    let ok9 = tx9 >= 0 && ty9 >= 0 && tx9 < grid.width && ty9 < grid.height;
+                    if (ok9 && mt9 && tx9 < mt9.w && ty9 < mt9.h && (mt9.tile[ty9 * mt9.w + tx9] & TILE.unbuildable) !== 0) ok9 = false;
+                    if (ok9) for (const [fs9, fe9, fx9, fy9, fw9, fh9] of cursorBuild9.foot) { if (t >= fs9 && t < fe9 && tx9 >= fx9 && tx9 < fx9 + fw9 && ty9 >= fy9 && ty9 < fy9 + fh9) { ok9 = false; break; } }
+                    let onGas9 = false;
+                    for (const r9 of resSpots9) {
+                      const hw9 = r9.gas ? 2 : 1; const hh9 = r9.gas ? 1 : 0.5;
+                      if (tx9 + 0.5 >= r9.x - hw9 && tx9 + 0.5 <= r9.x + hw9 && ty9 + 0.5 >= r9.y - hh9 && ty9 + 0.5 <= r9.y + hh9) { if (r9.gas) onGas9 = true; else ok9 = false; }
+                    }
+                    if (gas9 ? !onGas9 : onGas9) ok9 = false;
+                    const [ax9, ay9] = posFrac(tx9, ty9); const [bx9, by9] = posFrac(tx9 + 1, ty9 + 1);
+                    out9.push(<span key={`curg-${raw9}-${tx9}-${ty9}`} className={cx("scr-motion-pcgrid", !ok9 && "is-bad")}
+                      style={{ left: `${(ax9 * 100).toFixed(3)}%`, top: `${(ay9 * 100).toFixed(3)}%`, width: `${((bx9 - ax9) * 100).toFixed(3)}%`, height: `${((by9 - ay9) * 100).toFixed(3)}%`, zIndex: 19 }} />);
+                  }
+                }
+              }
+            }
             if (c9.box) {
               const [bx09, by09] = posFrac(Math.min(c9.box[0], c9.x), Math.min(c9.box[1], c9.y));
               const [bx19, by19] = posFrac(Math.max(c9.box[0], c9.x), Math.max(c9.box[1], c9.y));
@@ -23940,7 +23925,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock")} ref={fsRootRef}
+        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         <div

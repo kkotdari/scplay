@@ -1,6 +1,7 @@
 /* 프레임 엔진(3번: 파일 분리) — ReplayMotionPlayer.tsx에서 엔진(deriveWorld9·createEngine9)과 그것이 이행적으로
  * 참조하는 표·헬퍼를 통째로 옮겼다(스크립트: scratchpad/split_engine.mjs). React·DOM은 없다 — 워커는 이 모듈만 든다.
  * 붓·UI가 쓰는 이름은 ReplayMotionPlayer가 여기서 import한다. */
+import { CUR_CARRY_SEC9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { PERF9, perfHit, pNow, pAdd, pFrame } from "./perf9";
 import { type MiniDot } from "./ReplayFullscreenMinimap";
 import { cx } from "./cx";
@@ -3538,10 +3539,21 @@ export function deriveWorld9(inp: {
       lift?: number; doneAt: number };
     const tagRows: Row[] = [];
     const physRows: (Row & { used?: boolean })[] = [];
+    /* ★ **버려진 애드온은 그 자리에 선다**(2026-11-04, 지적: "건물 리프트 시 애드온 '연결부'만 없애라고 한 건데 애드온까지 파괴되네") — 원작은 본체가 뜨면 애드온을
+       중립(11)으로 넘긴다(building_abandon_addon). 참값엔 손바뀜(own)으로 실려 임자 없는 새 생애가 이어지는데, 이 목록은 임자 없는 생애를 건너뛰어 넘어가는 순간 애드온이
+       지도에서 사라졌다. 손바뀜으로 끝난 애드온 생애의 **다음 생애가 중립이면** 그 중립 생애가 끝날 때까지(다시 붙어 임자가 생기거나 · 부서지거나) 앞 임자의 줄을 늘린다. */
+    const nextLife9 = new Map<(typeof entData.lives)[number], (typeof entData.lives)[number]>();
+    {
+      const byTag9 = new Map<number, (typeof entData.lives)[number][]>();
+      for (const e9 of entData.lives) { if (!e9.bld || e9.tag <= 0) continue; const a9 = byTag9.get(e9.tag); if (a9) a9.push(e9); else byTag9.set(e9.tag, [e9]); }
+      for (const a9 of byTag9.values()) { a9.sort((p9, q9) => p9.born - q9.born); for (let i9 = 0; i9 + 1 < a9.length; i9 += 1) nextLife9.set(a9[i9], a9[i9 + 1]); }
+    }
     for (const e of entData.lives) {
       if (!e.bld || !e.kind) continue;
       const raw = nameOfId.get(e.owner) ?? "";
       if (!raw) continue;
+      const abandon9 = e.end === "own" && ADDONS.has(e.kind) ? nextLife9.get(e) : undefined;
+      const goneAbandon9 = abandon9 && !nameOfId.get(abandon9.owner) ? (abandon9.died ?? 0) : null;
       const spots = e.sites;
       if (spots.length === 0) continue;
       /* 죽음의 주인은 하나다(과제 #69) — 분석이 체력 자취를 **d에서** 0으로 맞춰
@@ -3549,7 +3561,7 @@ export function deriveWorld9(inp: {
          이르면 그쪽을 골랐는데, 실측으로 그 둘이 거의 늘 달랐다(경기1: 체력 0에 닿은
          1042기 중 d와 같은 것이 6기, 934기가 평균 6초 일렀고 62기는 증거상 살았는데도
          바가 0이었다). 이제 분석 쪽에서 하나로 모았다. */
-      const gone = e.died ?? 0;
+      const gone = goneAbandon9 ?? e.died ?? 0;
       for (let i = 0; i < spots.length; i += 1) {
         const [sSec, x, y] = spots[i];
         const nextS = i + 1 < spots.length ? spots[i + 1][0] : null;
@@ -4690,6 +4702,8 @@ export type EngineView9 = {
   cullList?: { x0: number; x1: number; y0: number; y1: number }[] | null;
   /** 팀 엔진마다의 시야 사각형(분할 칸 중 그 팀의 것) — 워커가 팀 엔진의 cullList 로 옮긴다(frameWorker subView). 엔진은 안 읽는다. */
   splitCull?: Record<number, { x0: number; x1: number; y0: number; y1: number }[]>;
+  /** 선수 마우스 커서(feat `#cursor` · cursor9 ★) — 켜면 건설 고스트가 자리에 놓이기 전 CUR_CARRY_SEC9 동안 그 사람 커서를 따라간다(타일에 맞춰). 워커엔 해시가 없어 이 자리로 받는다. */
+  cursor?: boolean;
 };
 /** ★★ **같은 자리에 겹쳐 쌓인 미네랄 밭은 하나만 그린다**(2026-09, 지적: "성능 하락과 얼룩의 정체 … 주변의 라이트가 다른 곳에
  *  영향을 주는 것 같아" → 스샷의 넥서스 앞 푸른 덩어리) — 빠른무한 맵은 한 자리(반 타일 안)에 밭을 수십 장 포갠다. 밭마다 op
@@ -4763,6 +4777,13 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     resStageSeries, resAmtSeries, gridHasGasFlags, gasHideOf, mines, bldPre9, bldRecMemo, teamOfRaw, bases, grid, total, ghosts9, clickTargets9,
     selRows9,
   } = world;
+  /** 선수 커서 경로(cursor9 · 붓의 DOM 커서와 같은 셈) — 커서 켠 판에서 처음 물을 때 한 번 짓는다. */
+  let curPaths9: Map<string, Float64Array> | null = null;
+  const curPathOf9 = (raw9: string): Float64Array | undefined => {
+    if (!entData) return undefined;
+    if (!curPaths9) curPaths9 = cursorPathsOf9(entData, simTracks ?? null);
+    return curPaths9.get(raw9);
+  };
   /* ★ **자폭으로 맞은 자리는 죽은 몸이 낸다**(2026-09, 지적: "스커지가 배틀에 박아서
      폭발했는데 배틀에 피격 효과가 안나오는거 같은데") ─────────────────────────────
      맞은 쪽 불티는 `hitSrcOf` 가 **나를 겨눈 산 몸**(foeByTarget)에서 무기 갈래와 방향을
@@ -7885,19 +7906,31 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
        자리 셈은 완성 건물의 그것과 **한 자**다(몸 상자 · 지면선에서 잰 가로 · 앵커 · 배수 · 요잉) — 다른 자로 두면 착공
        순간 건물이 고스트 자리에서 튄다. 명령은 누른 사람만 아는 일이라 안개가 켜져 있으면 **시점 팀의 것만** 그린다. */
     for (const g9 of ghosts9) {
-      if (t < g9.t0) continue;
+      /* ★ 커서에 붙어 가는 고스트(2026-11-04, 요청: "건물을 지으려고 시작하는 순간 마우스 커서에 고스트가 붙고 따라다니다가 클릭하면 그 자리에 짓잖아" → "ㅇㅇ") — 커서(view.cursor ·
+         feat `#cursor`)가 켜져 있으면 명령 CUR_CARRY_SEC9 전부터 그 사람 커서(cursor9 · 붓의 DOM 커서와 같은 경로)를 따라 **타일에 맞춰** 옮겨 다닌다. 칸마다 놓을 수 있나(초록 · 빨강)는
+         붓이 DOM 칸 판으로 얹는다(RMP cursorBuild9). 명령 시각에 커서가 건설 자리 한가운데에 닿으므로 그 순간 원래 자리로 이어진다. */
+      let carry9 = false;
+      let gx9 = g9.x; let gy9 = g9.y;
+      const fpC9 = FOOTPRINT[g9.unit] ?? [3, 2];
+      if (t < g9.t0) {
+        if (!view.cursor || t < g9.t0 - CUR_CARRY_SEC9) continue;
+        const p9 = curPathOf9(g9.raw); const c9 = p9 ? cursorAt9(p9, t) : null;
+        if (!c9) continue;
+        carry9 = true;
+        gx9 = Math.round(c9.x - fpC9[0] / 2); gy9 = Math.round(c9.y - fpC9[1] / 2);
+      }
       const tEnd9 = g9.done ? g9.t1 : g9.t1 + GHOST_FADE_SEC9;
       if (t >= tEnd9) continue;
       const teamG9 = teamOfRaw(g9.raw);
       // 관전자(visAll)는 모두의 명령을 본다 — 팀 시점일 때만 제 팀 것으로 죈다(이 문을 팀만 보고 걸면 관전자에게 하나도 안 선다 · 실측).
       if (fogOn && !visAll && teamG9 !== viewTeam) continue;
-      if (cull9 && !onScreen9(g9.x, g9.y)[0]) continue;
+      if (cull9 && !onScreen9(gx9, gy9)[0]) continue;
       const unit = g9.unit;
-      const fadeG9 = g9.done ? 1 : Math.max(0, Math.min(1, (tEnd9 - t) / GHOST_FADE_SEC9));
+      const fadeG9 = carry9 || g9.done ? 1 : Math.max(0, Math.min(1, (tEnd9 - t) / GHOST_FADE_SEC9));
       const shapeKind = SHAPE_KIND[unit];
-      const fpG9 = FOOTPRINT[unit] ?? [3, 2];
-      const centerX = g9.x + fpG9[0] / 2;
-      const centerY = g9.y + fpG9[1] / 2;
+      const fpG9 = fpC9;
+      const centerX = gx9 + fpG9[0] / 2;
+      const centerY = gy9 + fpG9[1] / 2;
       const [boxW, boxH, boxOx, boxOy] = buildingBox(unit);
       const bodyX = centerX + boxOx;
       const bodyY = centerY + boxOy;
@@ -7909,12 +7942,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const mkK = pitchK(centerY);
       const wTiles = boxW * (shapeKind ? 1 : 0.8);
       const hTiles = wTiles * ((boxH + (shapeKind ? riseOf(unit) : 0)) / boxW);
-      // 발자국 네 귀 — 지면 격자와 같은 평면에 눕는 판(뜬 건물 그림자 shadowPts 와 같은 손).
-      const pts9: number[] = [];
-      for (const [cx9, cy9] of [[g9.x, g9.y], [g9.x + fpG9[0], g9.y], [g9.x + fpG9[0], g9.y + fpG9[1]], [g9.x, g9.y + fpG9[1]]]) {
-        const [px9, py9] = posFrac(cx9, cy9);
-        pts9.push(px9, py9);
-      }
+      /* (걷음 2026-11-04, 요청: "놓인 뒤 녹색 박스 제거하고 반투명 건물 모델만 유지") — 발자국 초록 판(platePts · GHOST_PLATE_A9)을 안 싣는다. 커서에 붙어 가는 동안의
+         칸 판(초록 · 빨강)은 붓의 DOM 이 맡는다. */
       unitOps.push({
         fx: fxF, fy: fyF,
         // 같은 자리에 진짜 건물이 서는 순간 그것보다 한 단 뒤 — 두 몸이 겹치는 프레임이 있어도 고스트가 앞에 안 선다.
@@ -7926,7 +7955,6 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         baseFy: posFrac(bodyX, groundYT)[1],
         ...(shapeKind ? { drawK: bldDrawK9(shapeKind, fpG9[0], BLD_DRAW_TUNE[shapeKind] ?? 1) * (BLD_DRAW_TUNE[shapeKind] ?? 1) } : {}),
         color: modeColor(g9.raw, teamG9), alpha: GHOST_ALPHA9 * fadeG9, noShadow: true,
-        platePts: pts9, plateAlpha: GHOST_PLATE_A9 * fadeG9,
         ghostRaw: g9.raw,   // 분할 칸은 제 사람의 고스트만(메인 splitPaint9)
       });
     }
