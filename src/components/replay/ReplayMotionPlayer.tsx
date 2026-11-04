@@ -9989,23 +9989,39 @@ function spinOfSx9(sx: number[], t: number): number {
   const m9 = ((c9 % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9;
   return sx[0] === 2 ? m9 : Math.floor(m9);
 }
-/** ★ 선수 커서 자리(RMP cursorPaths9 ★) — 들르는 점 [초, x, y]… 에서 t 의 자리. 첫 점 전은 null. 다음 점 직전(거리에 따라 0.15~0.45초 · 두 점 사이의 80% 안)에
- *  출발해 그 시각에 정확히 닿는다(천천히 출발 · 빨리 · 천천히 닿음 — 손의 결). 그 전에는 마지막 점에 머문다. press 는 누른 직후 0.12초(살짝 눌리는 모션). */
-function cursorAt9(p9: Float64Array, t9: number): { x: number; y: number; press: boolean } | null {
-  const n9 = p9.length / 3;
+/** 선수 커서 들르는 점의 꼴(RMP cursorPaths9 ★) — 땅(화살표) · 제 편 · 적 · 자원 몸 위(고리) · 끌기 시작 · 끌기 끝(상자). */
+/** 선수 커서 화살촉(시안 승인) — 끝(0,0)이 왼위 · 왼 아래 · 안쪽 파임 · 오른 아래(viewBox −2~30). */
+const CUR_ARROW_D9 = "M1 1 L0.4 26 L7 17.4 L27.2 27 Z";
+const CUR_GROUND9 = 0; const CUR_OWN9 = 1; const CUR_FOE9 = 2; const CUR_RES9 = 3; const CUR_DRAG09 = 4; const CUR_DRAG19 = 5;
+/** ★ 선수 커서 자리(RMP cursorPaths9 ★) — 들르는 점 [초, x, y, 꼴, 반지름]… 에서 t 의 자리 · 모습. 첫 점 전은 null.
+ *  다음 점 직전(거리에 따라 0.15~0.45초 · 두 점 사이의 80% 안)에 출발해 그 시각에 정확히 닿는다(천천히 출발 · 빨리 · 천천히 닿음). 그 전에는 마지막 점에 머문다.
+ *  끌기(시작 → 끝)는 두 점 사이 전부를 고르게 끌고 그동안 상자(box · 시작 모서리)를 낸다. 몸 위 점(고리 꼴)은 닿기 직전 20% 부터 떠나기 전(최대 0.6초)까지 고리(ring)로 바뀐다.
+ *  press 는 누른 직후 0.12초(살짝 눌리는 모션). */
+function cursorAt9(p9: Float64Array, t9: number): { x: number; y: number; press: boolean; ring: { x: number; y: number; k: number; r: number } | null; box: [number, number] | null } | null {
+  const S9 = 5;
+  const n9 = p9.length / S9;
   if (n9 === 0 || t9 < p9[0]) return null;
   let lo = 0; let hi = n9 - 1;
-  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (p9[m * 3] <= t9) lo = m; else hi = m - 1; }
-  const s0 = p9[lo * 3]; const x0 = p9[lo * 3 + 1]; const y0 = p9[lo * 3 + 2];
-  const press = t9 - s0 < 0.12;
-  if (lo + 1 >= n9) return { x: x0, y: y0, press };
-  const s1 = p9[lo * 3 + 3]; const x1 = p9[lo * 3 + 4]; const y1 = p9[lo * 3 + 5];
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (p9[m * S9] <= t9) lo = m; else hi = m - 1; }
+  const o0 = lo * S9;
+  const s0 = p9[o0]; const x0 = p9[o0 + 1]; const y0 = p9[o0 + 2]; const k0 = p9[o0 + 3]; const r0 = p9[o0 + 4];
+  const press = t9 - s0 < 0.12 && k0 !== CUR_DRAG09;
+  const ringK0 = k0 === CUR_OWN9 || k0 === CUR_FOE9 || k0 === CUR_RES9;
+  const stay9 = { x: x0, y: y0, press, ring: ringK0 && t9 - s0 < 0.6 ? { x: x0, y: y0, k: k0, r: r0 } : null, box: null };
+  if (lo + 1 >= n9) return stay9;
+  const o1 = o0 + S9;
+  const s1 = p9[o1]; const x1 = p9[o1 + 1]; const y1 = p9[o1 + 2]; const k1 = p9[o1 + 3]; const r1 = p9[o1 + 4];
+  if (k0 === CUR_DRAG09 && k1 === CUR_DRAG19) {   // 끌어 고르기 — 시작 모서리에서 끝 모서리로 고르게 끈다
+    const u9 = Math.min(1, Math.max(0, (t9 - s0) / Math.max(0.01, s1 - s0)));
+    return { x: x0 + (x1 - x0) * u9, y: y0 + (y1 - y0) * u9, press: false, ring: null, box: [x0, y0] };
+  }
   const d9 = Math.hypot(x1 - x0, y1 - y0);
   const tr9 = Math.min(Math.max(0.15, Math.min(0.45, 0.12 + d9 * 0.012)), (s1 - s0) * 0.8);
-  if (tr9 <= 0 || t9 <= s1 - tr9) return { x: x0, y: y0, press };
+  if (tr9 <= 0 || t9 <= s1 - tr9) return stay9;
   const u9 = Math.min(1, (t9 - (s1 - tr9)) / tr9);
   const e9 = u9 < 0.5 ? 4 * u9 * u9 * u9 : 1 - Math.pow(-2 * u9 + 2, 3) / 2;
-  return { x: x0 + (x1 - x0) * e9, y: y0 + (y1 - y0) * e9, press };
+  const ringK1 = k1 === CUR_OWN9 || k1 === CUR_FOE9 || k1 === CUR_RES9;
+  return { x: x0 + (x1 - x0) * e9, y: y0 + (y1 - y0) * e9, press, ring: ringK1 && u9 > 0.8 ? { x: x1, y: y1, k: k1, r: r1 } : null, box: null };
 }
 /** ★ **효과를 그리는 시각으로 잇는다**(2026-10-28 · 폰 장 초당 5장) — 앞 장의 효과 op 를 dt(= 그리는 시각 − 장 시각)만큼 민다:
  *  age·clk 은 dt 그대로 · ph 는 pr(쿨다운 박자 pc 면 감아 돈다 · 아니면 1 을 넘으면 끝난 효과라 뺀다 — 고이는 피(pool)는 1 에서 멈춘다) ·
@@ -11657,48 +11673,79 @@ export default function ReplayMotionPlayer({
   const entClicksRef9 = useRef(entClicks);
   entClicksRef9.current = entClicks;
   /** ★ 선수 마우스 커서 경로(2026-11-04, 요청: "개인 마우스 커서 이동 시뮬레이션해서 넣어 줄 수 있나" → "전체 지도에 모두 · 개인 화면만 원작 녹색 · 전체나 중계에선 임자색 ·
-   *  가만히 있는 구간은 마지막 자리에 머묾") — 리플레이엔 마우스 자리가 없고 **누른 자리**만 남는다. 사람마다 [초, x, y(타일)] 들르는 점(오름차순 · 평평한 배열):
-   *  명령 클릭(entClicks) · 건설 자리(builds — 발자국 가운데) · 마법 표적(casts) · 마우스 선택(sels 의 클릭 · 시프트 더함 — 고른 몸들의 그때 자리 무게 중심).
-   *  부대 불러오기 · 지정은 키보드라 안 넣는다. 그리는 쪽(cursorAt9)이 다음 점 직전에 출발해 그 시각에 정확히 닿게 미끄러진다. */
+   *  가만히 있는 구간은 마지막 자리에 머묾" → "건물 선택 · 유닛 선택 · 드래그 선택도" · 그림은 원작 리마스터 예시대로(시안 승인)) — 리플레이엔 마우스 자리가 없고 **누른 자리**만 남는다.
+   *  사람마다 들르는 점 [초, x, y(타일), 꼴, 반지름(타일)] 다섯씩(평평한 배열 · 오름차순). 꼴(CUR_*9): 땅 · 제 편 몸 위(고리) · 적 몸 위 · 자원 위 · 끌기 시작 · 끌기 끝.
+   *  재료: 명령 클릭(entClicks — 표적 몸·자원이면 고리) · 건설 자리(builds) · 마법 표적(casts) · 마우스 선택(sels 의 click · add — 하나면 그 몸 위 고리 · 여럿이면 끌어 고르기 상자:
+   *  고른 몸들을 감싼 네모의 한 모서리에서 반대 모서리로 끈다). **키보드는 안 움직인다** — 부대 불러오기 · 지정 · 추가(sels 의 recall · assign · groupAdd)와 정지 · 홀드 · 생산 같은
+   *  단축키 명령(덤퍼가 자리를 안 적는다)은 들르는 점이 아니다. feat 칸의 `#cursor` 일 때만 짓는다. */
   const cursorPaths9 = useMemo<Map<string, Float64Array>>(() => {
     const out9 = new Map<string, Float64Array>();
     if (!entData || !CURSOR9) return out9;   // feat 칸의 `#cursor` 일 때만(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단" → "feat 안에 넣어 달라는 뜻")
     const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
+    const lifeOfTag9 = new Map(entData.lives.map((e9) => [e9.tag, e9]));
     const acc9 = new Map<string, number[][]>();
-    const put9 = (raw9: string, s9: number, x9: number, y9: number): void => {
+    const put9 = (raw9: string, s9: number, x9: number, y9: number, k9: number, r9: number): void => {
       if (!raw9 || obsNames.has(raw9) || !Number.isFinite(x9) || !Number.isFinite(y9)) return;
-      const a9 = acc9.get(raw9); if (a9) a9.push([s9, x9, y9]); else acc9.set(raw9, [[s9, x9, y9]]);
+      const a9 = acc9.get(raw9); if (a9) a9.push([s9, x9, y9, k9, r9]); else acc9.set(raw9, [[s9, x9, y9, k9, r9]]);
     };
-    for (const [cs9, cx9, cy9, raw9] of entClicks) put9(raw9, cs9, cx9, cy9);
+    /** 몸의 고리 꼴 — 제 것 · 같은 편이면 제 편 · 아니면 적(주인 없는 몸은 자원 꼴). */
+    const relOf9 = (raw9: string, owner9: number): number => {
+      const o9 = nameOfId9.get(owner9) ?? "";
+      if (!o9) return CUR_RES9;
+      return o9 === raw9 || (!melee && teamMap9[o9] !== undefined && teamMap9[o9] === teamMap9[raw9]) ? CUR_OWN9 : CUR_FOE9;
+    };
+    /** 몸의 고리 반지름(타일) — 건물은 발자국 반 대각 남짓 · 유닛은 0.75. */
+    const radOf9 = (e9: { bld: boolean; kind: string } | undefined): number => {
+      if (e9?.bld) { const f9 = BUILDING_FOOT[e9.kind] ?? [2, 2]; return Math.max(1, Math.max(f9[0], f9[1]) * 0.62); }
+      return 0.75;
+    };
+    for (const [cs9, cx9, cy9, raw9, , tg9, rk9] of entClicks) {
+      if (tg9 >= 0) { const l9 = lifeOfTag9.get(tg9); put9(raw9, cs9, cx9, cy9, l9 ? relOf9(raw9, l9.owner) : CUR_FOE9, radOf9(l9)); }
+      else if (rk9) put9(raw9, cs9, cx9, cy9, CUR_RES9, 0.9);
+      else put9(raw9, cs9, cx9, cy9, CUR_GROUND9, 0);
+    }
     for (const [bs9, bo9, , btx9, bty9, bk9] of entData.builds ?? []) {
       const ft9 = BUILDING_FOOT[bk9] ?? [2, 2];
-      put9(nameOfId9.get(bo9) ?? "", bs9, btx9 + ft9[0] / 2, bty9 + ft9[1] / 2);
+      put9(nameOfId9.get(bo9) ?? "", bs9, btx9 + ft9[0] / 2, bty9 + ft9[1] / 2, CUR_GROUND9, 0);
     }
-    for (const [cs9, cx9, cy9, , co9] of entData.casts ?? []) put9(nameOfId9.get(co9) ?? "", cs9, cx9, cy9);
+    for (const [cs9, cx9, cy9, , co9] of entData.casts ?? []) put9(nameOfId9.get(co9) ?? "", cs9, cx9, cy9, CUR_GROUND9, 0);
     if (simTracks) {
       for (const [ss9, so9, stg9, sk9] of entData.sels ?? []) {
         const k9 = sk9 < 0 ? -1 : sk9 & 15;
-        if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;
-        let n9 = 0; let sx9 = 0; let sy9 = 0;
+        if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다
+        const raw9 = nameOfId9.get(so9) ?? "";
+        const pts9: [number, number, number][] = [];
         for (const tg9 of stg9) {
           const tr9 = simTracks.get(tg9); const q9 = tr9 ? posAtSim(tr9, ss9) : null;
-          if (q9) { n9 += 1; sx9 += q9.x; sy9 += q9.y; }
+          if (q9) pts9.push([q9.x, q9.y, tg9]);
         }
-        if (n9 > 0) put9(nameOfId9.get(so9) ?? "", ss9, sx9 / n9, sy9 / n9);
+        if (pts9.length === 0) continue;
+        if (pts9.length === 1) {
+          const l9 = lifeOfTag9.get(pts9[0][2]);
+          put9(raw9, ss9, pts9[0][0], pts9[0][1], l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9));
+          continue;
+        }
+        /* 여럿 — 끌어 고르기(리플레이엔 클릭 · 끌기 구분이 없다 · 한 번에 여럿이 잡혔으면 끈 것으로 본다). 감싼 네모(+0.7타일)의 왼위 → 오른아래로. */
+        let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity;
+        for (const [px9, py9] of pts9) { x09 = Math.min(x09, px9); y09 = Math.min(y09, py9); x19 = Math.max(x19, px9); y19 = Math.max(y19, py9); }
+        x09 -= 0.7; y09 -= 0.7; x19 += 0.7; y19 += 0.7;
+        const dd9 = Math.min(0.45, Math.max(0.2, 0.18 + Math.hypot(x19 - x09, y19 - y09) * 0.02));
+        put9(raw9, ss9 - dd9, x09, y09, CUR_DRAG09, 0);
+        put9(raw9, ss9, x19, y19, CUR_DRAG19, 0);
       }
     }
     for (const [raw9, a9] of acc9) {
       a9.sort((p, q) => p[0] - q[0]);
       const f9: number[] = [];
-      for (const [s9, x9, y9] of a9) {
+      for (const [s9, x9, y9, k9, r9] of a9) {
         const n9 = f9.length;
-        if (n9 >= 3 && s9 - f9[n9 - 3] < 0.02 && Math.hypot(x9 - f9[n9 - 2], y9 - f9[n9 - 1]) < 0.5) continue;   // 같은 누름이 두 갈래로 적힌 것
-        f9.push(s9, x9, y9);
+        if (n9 >= 5 && s9 - f9[n9 - 5] < 0.02 && Math.hypot(x9 - f9[n9 - 4], y9 - f9[n9 - 3]) < 0.5 && k9 !== CUR_DRAG19) continue;   // 같은 누름이 두 갈래로 적힌 것
+        f9.push(s9, x9, y9, k9, r9);
       }
       out9.set(raw9, Float64Array.from(f9));
     }
     return out9;
-  }, [entData, entClicks, simTracks, obsNames]);
+  }, [entData, entClicks, simTracks, obsNames, melee, teamMap9]);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
   const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
     const cl9 = entClicksRef9.current;
@@ -23532,24 +23579,62 @@ export default function ReplayMotionPlayer({
             );
           })}
 
-          {/* ★ 선수 마우스 커서(위 cursorPaths9 · cursorAt9 ★) — 클릭 자국과 같은 문(clickFx · 시점 보기는 상대편 감춤 · 화면 주인이 있으면 주인 것만).
-              개인 화면(주인)은 원작 초록 화살표 · 전체 · 중계는 임자색(색 모드). 크기는 화면 px 고정(배율과 무관 — 렌즈 안이라 px = 화면 px). 끝이 누른 자리다. */}
+          {/* ★ 선수 마우스 커서(위 cursorPaths9 · cursorAt9 ★) — 클릭 자국과 같은 문(clickFx · 시점 보기는 상대편 감춤 · 화면 주인이 있으면 주인 것만) + feat `#cursor`.
+              그림은 원작 리마스터 예시(시안 승인 · 2026-11-04): 화살표 = 꼬리 없는 날씬한 화살촉(밝은 테 + 진한 속 · 겉선은 **같은 색의 진한 색** — "테두리가 검정이 아니라 진한 색") ·
+              몸 위 = 겹 타원 + 아래가 트인 굵은 바깥 호 + 마디 + 가운데 점(제 편 · 적 빨강 · 자원 노랑) · 끌기 = 얇은 네모. 색: 개인 화면(주인) 원작 초록 · 전체 · 중계는 임자색(적 고리 빨강 · 자원 노랑 그대로).
+              크기: 화살표 화면 px 고정(PC 22·ui · 폰 16) · 고리 = 몸 반지름 × 배율(바닥 30px). 끝(0,0)이 누른 자리. */}
           {clickFx && CURSOR9 && [...cursorPaths9].map(([raw9, p9]) => {   /* feat `#cursor` 일 때만(위 cursorPaths9 ★) */
             if (uiOwnerRef9.current !== null && raw9 !== uiOwnerRef9.current) return null;
             if (fogOn && !visAll && teamOfRaw(raw9) !== viewTeam) return null;
             const c9 = cursorAt9(p9, t);
             if (!c9) return null;
+            const own9 = ownCol9(raw9);
+            const col9 = own9 ?? modeColor(raw9, teamOfRaw(raw9));
             const sz9 = uiPhone9 ? 16 : Math.round(22 * (ui9.k / 0.75));
-            return (
-              <svg
-                key={`cur-${raw9}`}
-                className={cx("scr-motion-pcursor", c9.press && "is-press")}
-                viewBox="0 0 14 21" width={sz9} height={Math.round(sz9 * 1.5)} aria-hidden
-                style={{ ...posStyle(c9.x, c9.y), color: ownCol9(raw9) ?? modeColor(raw9, teamOfRaw(raw9)), zIndex: 21 }}
-              >
-                <path d="M1 1 L1 16.5 L4.8 13 L7.6 19.6 L10.2 18.5 L7.5 12 L12.6 12 Z" />
-              </svg>
-            );
+            const dark9 = "color-mix(in srgb, currentColor 38%, black)";
+            const out9: React.ReactNode[] = [];
+            if (c9.box) {
+              const [bx09, by09] = posFrac(Math.min(c9.box[0], c9.x), Math.min(c9.box[1], c9.y));
+              const [bx19, by19] = posFrac(Math.max(c9.box[0], c9.x), Math.max(c9.box[1], c9.y));
+              out9.push(<span key={`curbox-${raw9}`} className="scr-motion-pcbox" style={{ left: `${(bx09 * 100).toFixed(3)}%`, top: `${(by09 * 100).toFixed(3)}%`, width: `${((bx19 - bx09) * 100).toFixed(3)}%`, height: `${((by19 - by09) * 100).toFixed(3)}%`, color: col9, zIndex: 21 }} />);
+            }
+            if (c9.ring) {
+              const tile9 = (mapRef.current?.clientWidth ?? 320) / grid.width;
+              const dPx9 = Math.max(30, c9.ring.r * 2 * tile9 * zoom * pitchK(c9.ring.y));
+              const rc9 = c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : col9;
+              const R9 = 49; const a09 = (125 * Math.PI) / 180; const a19 = (15 * Math.PI) / 180;
+              const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;
+              const da9 = (r: number): string => `${((Math.PI * r) / 2 - 6).toFixed(2)} 6`;
+              const tabs9 = (sw: number, dark: boolean): React.ReactNode => [0, 90, 180, 270].map((g9) => (
+                <path key={g9} d="M 29 0 H 39" transform={`rotate(${g9 + 45})`} style={{ stroke: dark ? dark9 : "currentColor" }} strokeWidth={sw} />));
+              out9.push(
+                <svg key={`curring-${raw9}`} className={cx("scr-motion-pcring", c9.press && "is-press")} viewBox="-60 -60 120 120" width={dPx9 * 120 / 98} height={dPx9 * 120 / 98} aria-hidden
+                  style={{ ...posStyle(c9.ring.x, c9.ring.y), color: rc9, zIndex: 21 }}>
+                  <g transform="scale(1 0.6)" fill="none">
+                    <path d={arc9} style={{ stroke: dark9 }} strokeWidth={10} />
+                    <path d={arc9} stroke="currentColor" strokeWidth={7} />
+                    <g transform="rotate(45)">
+                      <circle r={37} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                      <circle r={31} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(62)} strokeDashoffset={-3} />
+                      <circle r={37} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                      <circle r={31} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(62)} strokeDashoffset={-3} />
+                    </g>
+                    {tabs9(7, true)}{tabs9(4.4, false)}
+                  </g>
+                  <circle r={4.4} style={{ fill: dark9 }} /><circle r={3.1} fill="currentColor" />
+                </svg>,
+              );
+            } else {
+              out9.push(
+                <svg key={`cur-${raw9}`} className={cx("scr-motion-pcursor", c9.press && "is-press")} viewBox="-2 -2 32 32" width={sz9} height={sz9} aria-hidden
+                  style={{ ...posStyle(c9.x, c9.y), color: col9, zIndex: 21 }}>
+                  <path d={CUR_ARROW_D9} style={{ fill: dark9, fillOpacity: 0.78, stroke: dark9 }} strokeWidth={3.8} strokeLinejoin="miter" strokeMiterlimit={10} />
+                  <path d={CUR_ARROW_D9} fill="none" stroke="currentColor" strokeWidth={2.3} strokeLinejoin="miter" strokeMiterlimit={10} />
+                  <path d="M2.3 5 L1.9 21" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.8} />
+                </svg>,
+              );
+            }
+            return out9;
           })}
 
           {/* 미니맵 핑(요청: 클릭도 기록 — 리플레이에 좌표가 온전히 남는다) — v2 트랙에만
