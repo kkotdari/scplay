@@ -727,7 +727,9 @@ export function poseOfRx9(kind: string, rx: number[], t: number): Pose9 {
     case 3: { const ph9 = Math.floor(t * rx[1]) % 3; return ph9 === 0 ? 0 : ph9 === 1 ? 1 : 3; }
     case 4: {
       const cd9 = rx[2];
-      const ph9 = ((((t - rx[1]) % cd9) + cd9) % cd9) / cd9;
+      /* rx[4] = 1 — 시작이 **마지막 실제 발**(판 16)이다: 한 쿨다운 안이면 그 위상, 지나면 쉬는 위상(0.999 · 되돌지 않는다). 옛 처방은 실제 발이 있으면 시작을
+         '지금'으로 적어 붓의 위상이 늘 0 언저리 = 던지는 컷에 갇혔다(2026-11-04, 지적: "뮤탈 공격 박자상 1.2초로 해도 계속 날갯짓이 멈춰 있는 것 같기도"). */
+      const ph9 = rx[4] ? ((d9) => (d9 >= 0 && d9 < cd9 ? d9 / cd9 : 0.999))(t - rx[1]) : ((((t - rx[1]) % cd9) + cd9) % cd9) / cd9;
       return atkCutOf(kind, ph9, rx[3] > 0 ? rx[3] : undefined, t);
     }
     case 5: return Math.floor(t * 18) % 2 === 1 ? 5 : 4;
@@ -923,6 +925,8 @@ export const SUICIDE_FX9: Record<string, string> = {
 /** 자폭한 몸을 '이 피격의 임자'로 보는 창(초) — 맞은 몸의 불티 창(0.15초)보다 한 뼘 넉넉히.
  *  참값에서 닿는 순간과 죽는 순간은 같은 프레임이지만, 체력 변곡점이 한 틱 뒤에 찍힐 수 있다. */
 export const SUICIDE_HIT_SEC9 = 0.25;
+/** 표적 쪽 그림이 따로 있는 무기 갈래(engine9 tgtHitFx9 ★★ 밖) — 시즈 착탄 · 커세어 · 아콘 · 치료 · 럴커 가시 · 캐리어 몸(인터셉터가 쏜다). */
+export const TGT_OWN_FX9 = new Set(["siege", "flare", "zap", "heal", "spike", "burst"]);
 /** ★ **그 유닛이 그 표적에 쓰는 트레이서 갈래**(2026-09, 요청: "공격 트레이서가 두 종류 이상
  *  (골리앗 스카우트 배틀 등)인 경우 나눠서 두 셀로 표시") ─────────────────────────────
  *  셋(골리앗·레이스·스카우트)은 **지상·대공 무기가 아예 다르다** — 원작에서 포탑이 둘이다
@@ -5945,6 +5949,74 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       return { dir, uk: uk9 && isKnownKind(uk9) ? uk9 : undefined,
         sfx: uk9 ? SUICIDE_FX9[uk9] : undefined };
     };
+    /** ★ 판 17 — 그 몸이 쏜 탄 가운데 t 까지 **떨어진**(닿은) 마지막 것의 닿은 초(없으면 null) · 자료가 없으면 undefined. */
+    const bltLand9 = (src: number | undefined): number | null | undefined => {
+      if (src === undefined || blt17.size === 0) return undefined;
+      const a9 = blt17.get(src); if (!a9) return null;
+      let lo = 0; let hi = a9.length - 1; let at = -1;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (a9[m].t0 <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+      let best9 = -Infinity;
+      for (let i9 = at; i9 >= 0 && i9 >= at - 6; i9 -= 1) { const t19 = a9[i9].t1; if (Number.isFinite(t19) && t19 <= t && t19 > best9) best9 = t19; }
+      return Number.isFinite(best9) ? best9 : null;
+    };
+    /** 마지막 실제 발에서 지난 초(판 16 FIRES9 · 그 열쇠가 없으면 사격 박자 위상 × 쿨다운으로 지어낸다). */
+    const fireSince9 = (key: string, cd: number): number => {
+      const fa9 = FIRES9.get(key);
+      if (fa9) return t - lastFire9(fa9, t);
+      return firePhase(key, cd) * cd;
+    };
+    /** ★★ **표적 피격은 공격 기록 박자로**(2026-11-04, 요청: "날아가는 탄도 표적에 피격효과 얹고 · 2번(맞은 쪽 체력이 줄 때 내던 것)은 없애고 · 모두 공격 기록에 맞추기") ──
+     *  쏜 쪽이 낸다: 마지막 실제 발(판 16)에서 since 초 · 탄이면 닿은 뒤(delay · 판 17 이면 탄이 실제로 떨어진 초)에 표적 몸 위에 섬광·결 파편을 한 번,
+     *  실드가 남은 프로토스면 실드막을. 자리는 표적에서 쏜 쪽 가장자리(hitDirOf9 · 멀면 가운데). 결은 표적 종족(저그 체액 · 프로토스 에너지 · 테란 생체 피 · 기계 불티).
+     *  소총류(rifle 불티)·탱크·커세어·아콘·자폭은 제 그림이 따로 있어 여기 안 온다. */
+    const tgtHitFx9 = (o: {
+      sx: number; sy: number; tg: { bx: number; by: number; air: boolean; k?: string; uk?: string; hp?: number };
+      tag?: number; style?: string; by?: string; since: number; delay: number; fallPx: number; rifle?: boolean;
+    }): void => {
+      const s9 = o.since - o.delay;
+      if (!(s9 >= 0 && s9 < (o.rifle ? 0.25 : 0.4))) return;
+      const tg = o.tg;
+      const bk9 = tg.k && FOOTPRINT[tg.k] ? tg.k : undefined;
+      const nm9 = bk9 ?? (tg.uk && isKnownKind(tg.uk) ? tg.uk : undefined);
+      const tPx9 = mapW9 / grid.width;
+      const aL9 = tg.air ? airLiftPxOf(tg.by) : 0;
+      let w9: number; let lift9: number;
+      if (bk9) { w9 = FOOTPRINT[bk9][0] * tPx9; lift9 = bldMidLift9(bk9) + aL9; }
+      else {
+        const px9 = nm9 ? unitPxOf(nm9, tg.by) : o.fallPx;
+        const sk9 = nm9 ? (UNIT_3D[nm9] ?? nm9) : "";
+        w9 = px9 * ((nm9 ? modelInkOf(sk9) : 16) / 16);
+        lift9 = aL9 + px9 * (nm9 ? unitMidK9(sk9, pitched) : 0.34);
+      }
+      const bs9 = bk9 ? BLD_STATS[bk9] : undefined;
+      const st9 = bs9 ? { hp: bs9[0], sh: bs9[1] } : nm9 ? UNIT_STATS[nm9] : undefined;
+      const full9 = st9 ? st9.hp + (st9.sh ?? 0) : 0;
+      const shShare9 = st9 && st9.sh ? st9.sh / full9 : 0;
+      const shieldUp9 = shShare9 > 0 && (tg.hp === undefined || tg.hp / Math.max(1, full9) > 1 - shShare9 + 0.001);
+      const [fx9, fy9] = posFrac(tg.bx, tg.by);
+      const d9 = hitDirOf9(o.sx, o.sy, tg.bx, tg.by);
+      const ok9 = o.tag ? { ok: `u${o.tag}`, seed: o.tag } : {};
+      const wp9 = o.style ? { style: o.style } : o.by ? { by: o.by } : {};
+      if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
+        fxOps.push({
+          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.3, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
+          ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...ok9, ...wp9,
+        });
+        return;
+      }
+      if (shieldUp9) {
+        fxOps.push({ kind: "shield", fx: fx9, fy: fy9, lift: lift9, size: w9 * (bk9 ? 0.95 : 1.2), ph: s9 / 0.4, pr: 1 / 0.4, ...ok9, ...wp9 });
+        return;
+      }
+      if (s9 >= 0.14) return;
+      const rc9 = raceOfName9(nm9);
+      const mat9: "bio" | "mech" | "toss" | "zerg" = rc9 === "저그" ? "zerg" : rc9 === "프로토스" ? "toss" : nm9 && BIONIC_UNITS.has(nm9) ? "bio" : "mech";
+      fxOps.push({
+        kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * (bk9 ? 0.45 : 0.69), mat: mat9,
+        ...(d9 ? { dist: w9 * 0.25, dx: d9[0], dy: d9[1] } : { dist: 0 }),
+        ph: s9 / 0.14, pr: 1 / 0.14, ...ok9, ...wp9,
+      });
+    };
     const RIDE_TETHER_SEC = 1.0;   // 1.1 → 1.0(2026-10-12, 요청: "1초 정도 계속 실시간으로 움직이며 노출")
     /* ★ 배 쪽 끝은 **배에게 묻는다**(지적: "드랍십 내리기 점선이 전혀 엉뚱한 데랑 이어져.
        드랍십이 아니라 엄청 먼 곳") ────────────────────────────────────────────────────
@@ -6940,7 +7012,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const bHitSrc9 = bldHp.hurt > -99 && t - bldHp.hurt <= 0.18
         ? hitSrcOf(rec9?.tag ?? 0, centerX, centerY) : null;
       const bHitDir9 = bHitSrc9?.dir ?? null;
-      if (bHitSrc9 && !bldFrozen9) {
+      if (bHitSrc9?.sfx && !bldFrozen9) {   // 자폭만(2026-11-04 · 나머지는 쏜 쪽이 tgtHitFx9 로)
         const [bfx9, bfy9] = posFrac(centerX, centerY);
         const bw9 = bwPx9;
         /* 효과는 몸 위에서 — 건물 앵커는 발자국 한가운데인데 그려지는 몸은
@@ -7514,7 +7586,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                넷이 서로 다른 것을 겨눌 수 있는데 화면에 그리는 사격은 한 갈래라,
                명단 차례로 처음 잡히는 표적을 쓴다. */
           const foeB = ((): {
-            bx: number; by: number; bd: number; air: boolean; k?: string; uk?: string;
+            bx: number; by: number; bd: number; air: boolean; k?: string; uk?: string; hp?: number; eid?: number;
           } => {
             const none9 = { bx: 0, by: 0, bd: Infinity, air: false };
             /* ★ 벙커는 사수를 먼저 묻고, **없으면 제 것을 묻는다** ────────────
@@ -7537,7 +7609,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             return {
               bx: r9.x, by: r9.y,
               bd: Math.hypot(r9.x - centerX, r9.y - centerY),
-              air: r9.air, k: r9.k, uk: r9.uk,
+              air: r9.air, k: r9.k, uk: r9.uk, hp: r9.hp, eid: r9.eid,
             };
           })();
           /* 실제로 닿는 사거리(위 reachTo 주석) — 벙커는 승무원 무기라 표에서
@@ -7764,6 +7836,25 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
               const wd9 = FX_BEAM.gun?.dur ?? 0.22;
               const wp9 = ((((t + i * 0.13) % wd9) + wd9) % wd9) / wd9;
               if (!qAnim || wp9 < 0.5) unitOps[bldOpIx9].lit = true;
+            }
+          }
+          /* ★★ 방어 건물도 표적 피격을 **쏜 박자로**(tgtHitFx9 ★★ · 2026-11-04) — 포톤·스포어·터렛은 탄이 닿은 순간(판 17 이면 실제로 떨어진 초) · 성큰은 가시가 솟는 순간 ·
+             벙커는 사수의 소총 불티(가우스) · 화염. */
+          if (!bldFrozen9 && Number.isFinite(foeB.bd) && foeB.bd <= rgB) {
+            if (myTag9 !== undefined) { const bf9 = bldTruth9.get(myTag9)?.fires; if (bf9) FIRES9.set(defKey9, bf9); }
+            const tagB9 = foeB.eid !== undefined && foeB.eid > 0 ? foeB.eid : undefined;
+            const hB9 = { sx: centerX, sy: centerY, tg: foeB, tag: tagB9, fallPx: tPxB };
+            if (defNm9 && (unit !== "Missile Turret" || foeB.air)) {
+              const land9 = bltLand9(myTag9);
+              if (land9 !== null) {
+                const fly9 = Math.min(defCd9 * 0.9, Math.max(0.05, Math.min(defCd9 * 0.4, 0.4), (lenB / Math.max(1, tPxB)) / Math.max(1, shotSpeedOf9(defNm9))));
+                tgtHitFx9({ ...hB9, style: defNm9, since: typeof land9 === "number" ? t - land9 : fireSince9(defKey9, defCd9), delay: typeof land9 === "number" ? 0 : fly9 });
+              }
+            }
+            if (unit === "Sunken Colony") tgtHitFx9({ ...hB9, by: unit, since: fireSince9(sunkKey9, sunkCd9), delay: 0.2 * sunkCd9 });
+            if (unit === "Bunker" && (crew.length > 0 || presumed)) {
+              if (crewGun && rgB >= 0) tgtHitFx9({ ...hB9, style: "gun", rifle: true, since: fireSince9(defKey9, defCd9), delay: 0 });
+              if (crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG) tgtHitFx9({ ...hB9, style: "flame", since: fireSince9(defKey9, defCd9), delay: 0.2 });
             }
           }
         }
@@ -9699,7 +9790,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
              것이다. 그 처방이 공용 문 안에 들어가 있다(flapHz 인자). */
           /* 고스트는 교전에 든 첫 마디에 **반쯤 든 컷**으로 총을 꺼낸다(GHOST_DRAW_SEC9 의 ★). */
           if (kindMain === "ghost" && drawAge9(drawMemRef.current, holdKey, t) < GHOST_DRAW_SEC9) return POSE_ATK_L;
-          poseRx9 = [4, fireStartRef.current.get(`p${holdKey}`)?.start ?? t, cd9, pk9.flap ?? 0];
+          { const fa9 = FIRES9.get(holdKey); poseRx9 = fa9 ? [4, Math.max(-1e9, lastFire9(fa9, t)), cd9, pk9.flap ?? 0, 1] : [4, fireStartRef.current.get(`p${holdKey}`)?.start ?? t, cd9, pk9.flap ?? 0]; }   // 판 16 은 마지막 실제 발(poseOfRx9 rx[4])
           return atkCutOf(kindMain, ph0, pk9.flap, t);
         }
         /* 날갯짓은 **자취가 멈춰 있어도** 돈다(요청) — 공중에 뜬 몸은 늘
@@ -9995,7 +10086,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const [fxfx9, fxfy9] = posFrac(ax3, ay3);
     /** 쏘는 줄기의 원점 — 탱크는 포탑 판의 자리(위 turretAt9), 나머지는 몸이다. 피격 그림은 늘 몸(fxfx9)이다. */
     const [mzfx9, mzfy9] = turretAt9 ? [turretAt9.fx, turretAt9.fy] : [fxfx9, fxfy9];
-    const hitFx9: FxOp | null = hitNow ? (shieldUp9
+    /* ★ 맞은 쪽 체력으로 내던 피격(섬광·결 파편·실드막)은 걷었다(2026-11-04 · 위 tgtHitFx9 ★★ — 이제 쏜 쪽이 공격 기록 박자로 표적에 낸다). 자폭(스커지·인페스티드)만 남는다 — 때린 몸이 죽어 쏜 쪽이 없다. */
+    const hitFx9: FxOp | null = hitNow && hitSrc9?.sfx ? (shieldUp9
       /* ★ 실드 막의 자도 **보이는 몸**이다(같은 스크린샷에서 함께 드러났다) —
          fxPx는 모델 상자라 몸의 세 배 남짓이고, 1.05를 곱하면 막 하나가 유닛
          서넛을 덮는 크기가 된다(캐리어에서 실측). 잉크 몫으로 몸 폭을 되찾은 뒤
@@ -10064,6 +10156,12 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const reach9 = drawUnit !== "" && isKnownKind(drawUnit)
       ? Math.max(fireRangeTilesOf(drawUnit, false), fireRangeTilesOf(drawUnit, true)) : -1;
     const trueMelee = reach9 >= 0 && reach9 < 1;
+    /* 근접 — 때리는 기록 박자에 표적 몸 위로(tgtHitFx9 ★★ · by = 때린 몸 → 효과음이 칼질·물기를 고른다). */
+    if (fighting && trueMelee && drawUnit !== "" && Number.isFinite(foe.bd) && !SUICIDE_FX9[drawUnit]) {
+      const pfM9 = isKnownKind(drawUnit) ? profileOf(drawUnit) : null;
+      const cdM9 = Math.max(0.15, ((pfM9 ? weaponVs(pfM9, foe.air) : null)?.cd ?? 0.6) * atkCdK9(drawUnit, t, e.ups, e.stims));
+      tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, by: drawUnit, since: fireSince9(holdKey, cdM9), delay: 0, fallPx: fxPx });
+    }
     if (!lurkStrike && !hitFx9 && (trueMelee || drawUnit === "")) {
       return null;
     }
@@ -10236,6 +10334,17 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       shotUw9 = u9;
       return u9 < 1.2 ? Math.min(1, u9) : null;
     })();
+    /* ★★ 원거리 — 표적 피격(tgtHitFx9 ★★): 날아가는 탄은 **닿은 순간**(판 17 이면 탄이 실제로 떨어진 초 · 아니면 마지막 발 + 나는 시간), 즉발(빛줄기·화염·스파크)은 쏜 순간.
+       제 그림이 따로 있는 갈래(소총 불티 · 시즈 착탄 · 커세어 · 아콘 · 치료 · 럴커 가시 · 캐리어 몸)는 뺀다. */
+    if (fighting && fxName9 && Number.isFinite(foe.bd) && !TGT_OWN_FX9.has(fxName9)
+      && !(RIFLE_HIT9.has(fxUnit) || (!foe.air && RIFLE_GROUND9.has(fxUnit)))) {
+      const proj9 = PROJECTILE_FX.has(fxName9);
+      const land9 = proj9 ? bltLand9(e.tag) : undefined;
+      if (land9 !== null) {
+        const since9 = typeof land9 === "number" ? t - land9 : fireSince9(holdKey, fxCdRaw);
+        tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, style: fxName9, since: since9, delay: typeof land9 === "number" || !proj9 ? 0 : flySec9, fallPx: fxPx });
+      }
+    }
     if (beamDeg === null || !fxName9) return null;
     /* ★★ **글레이브 웜은 두 번 더 튄다**(2026-09, 요청: "뮤탈 글레이브 연타 붙여줘 — 원작 충실") ──
        원작 규칙은 짐작할 것이 없다 — OpenBW(`bwgame.h` · `bullet_state_bounce`)가 그대로 적어 두었다:
