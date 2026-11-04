@@ -7478,11 +7478,19 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              그것이 '크고 이상한 위치'의 정체다. 가로 0.6·세로 2타일로 죈다.
              ★ 그리고 **못 찾으면 안 그린다**(아래) — 허공에서 시작하는 통로보다
                아무것도 없는 편이 낫다. */
-          const par = buildsSrc.find(([ps3, pxT, pyT, pu3, pr3, pg3]) =>
-            pr3 === raw && !ADDONS.has(pu3) && ps3 <= t
-            && ((pg3 ?? 0) === 0 || t < (pg3 ?? 0))
+          /* ★ **떠난 본체 · 무너진 본체와는 잇지 않는다**(2026-11-04, 지적: "옮긴 자리나 파괴된 자리의 연결부 없애야 함") —
+             여태 걷힘을 날 값(gone)으로만 봐서 이륙한 본체(liftAt — gone 은 착륙 시각이라 그 사이 내내 '있다')와 핵으로 앞당겨
+             걷힌 본체(goneEffOf)가 통로를 붙들고 있었다. 이륙 순간부터 · 공용 걷힘 시각부터 통로를 걷는다. 다른 자리에 앉은
+             본체는 그 착륙 줄(ps3 = 착륙 시각)이 새 부모로 잡힌다(원작도 붙어 앉으면 다시 잇는다). */
+          const par = buildsSrc.find((b3) => {
+            const [ps3, pxT, pyT, pu3, pr3, , pl3] = b3;
+            const pg3 = goneEffOf(b3);
+            return pr3 === raw && !ADDONS.has(pu3) && ps3 <= t
+            && (pg3 === 0 || t < pg3)
+            && !(pl3 !== undefined && pl3 > 0 && t >= pl3)
             && Math.abs((pxT + (FOOTPRINT[pu3] ?? [4, 3])[0]) - x) <= 0.6
-            && Math.abs(pyT - y) <= 2);
+            && Math.abs(pyT - y) <= 2;
+          });
           if (!par) return null;
           /* ★★ **두 끝은 두 벽이다**(2026-09, 요청: "애드온연결부의 길이를 본건물과 애드온 양옆벽을 잇는 좌표로
              설정해주는 로직 개발(수동으로 길이조절 안하게)") — 옛 손 값 셋(LINK_IN 1.3 · 본체 0.55 · 스타포트
