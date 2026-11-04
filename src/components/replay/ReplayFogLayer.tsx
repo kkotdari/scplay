@@ -141,8 +141,10 @@ export type FogOverride = {
 };
 
 export default function ReplayFogLayer({
-  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, flat, className, painter, onNeedPaint,
+  w, h, exploredAt, t, vis, proj, zoom, pan, tilePx, flatK, flat, className, painter, onNeedPaint, tile,
 }: {
+  /** ★ 판 17 칸 안개(2026-11-03 · RMP FOG17_9 — 칸마다 RGBA · G = 지금 보임 · B = 밝힘) — 있고 평면이면 눈 원 대신 그 칸 판을 매끄럽게 늘려 그린다(GL 안개와 같은 꼴 · 처음 GL 이 서기 전). */
+  tile?: { data: Uint8Array | null; ver: number; w: number; h: number; live: boolean } | null;
   /** 지도 격자 크기(타일). */
   w: number;
   h: number;
@@ -175,6 +177,7 @@ export default function ReplayFogLayer({
   /** 밝힘 등고선 갈무리 — 아래 ①의 규칙(판이 바뀌고 · 뜸하게)으로만 다시 뽑는다.
    *  `path`는 같은 고리를 **타일 자리** 그대로 담은 길이다(평면 빠른 길, 아래 ③). */
   const ctRef = useRef<{ count: number; loops: Loop[]; path: Path2D | null; at: number; ver: number; t: number } | null>(null);
+  const tileCvRef = useRef<{ cv: HTMLCanvasElement; w: number; h: number; ver: number } | null>(null);
   const fldRef = useRef<{ n: number; f: Float32Array; tmp: Float32Array } | null>(null);
   /* ★ 붓이 React 밖에서 넘기는 최신 안개(지적: "유닛은 부드러운데 안개는 뚝뚝") — React 상태 t는 100ms 박자라
      props의 vis/exploredAt만 쓰면 안개가 초당 열 번만 바뀐다. 붓 틱이 고른 장의 안개를 painter의 셋째 인자로
@@ -364,6 +367,30 @@ export default function ReplayFogLayer({
        것이 그것이다.
        지도의 네 귀퉁이를 같은 사상(proj)으로 옮겨 그 안만 칠한다 — 원근 사영은 직선을
        직선으로 보내므로 네 점이면 사다리꼴이 정확히 난다(평면에서는 판과 똑같은 네모다). */
+    /* 칸 안개(위 tile ★) — 칸마다 안개 알파(안 밝힘 1 · 밝힘 DIM · 보임 0)를 한 칸 한 화소 판에 적고 지도 네모에 매끄럽게(쌍선형) 늘려 붙인다. */
+    if (flat && tile && tile.live && tile.data && tile.w === w && tile.h === h) {
+      let tc9 = tileCvRef.current;
+      if (!tc9 || tc9.w !== w || tc9.h !== h) { const c9 = document.createElement("canvas"); c9.width = w; c9.height = h; tc9 = { cv: c9, w, h, ver: -1 }; tileCvRef.current = tc9; }
+      if (tc9.ver !== tile.ver) {
+        const x9 = tc9.cv.getContext("2d");
+        if (x9) {
+          const im9 = x9.createImageData(w, h); const d9 = im9.data; const s9 = tile.data;
+          const [cr9, cg9, cb9] = FOG_RGB.split(",").map((v) => Number(v.trim()));
+          for (let i9 = 0; i9 < w * h; i9 += 1) {
+            const a9 = s9[i9 * 4 + 1] ? 0 : s9[i9 * 4 + 2] ? DIM : 1;
+            d9[i9 * 4] = cr9; d9[i9 * 4 + 1] = cg9; d9[i9 * 4 + 2] = cb9; d9[i9 * 4 + 3] = Math.round(a9 * 255);
+          }
+          x9.putImageData(im9, 0, 0);
+        }
+        tc9.ver = tile.ver;
+      }
+      const kx9 = (cw * zoom) / w; const ky9 = (ch * zoom) / h;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      ctx.setTransform(B * kx9, 0, 0, B * ky9, B * zx(0), B * zy(0));
+      ctx.drawImage(tc9.cv, 0, 0, w, h);
+      ctx.setTransform(B, 0, 0, B, 0, 0);
+      return;
+    }
     ctx.fillStyle = `rgba(${FOG_RGB}, 1)`;
     if (flat) {
       /* 평면에서는 지도가 **네모**다 — 길 하나를 짓는 대신 사각형 한 번으로 칠한다(같은 화소). */

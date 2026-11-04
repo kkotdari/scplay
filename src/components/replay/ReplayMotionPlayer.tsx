@@ -2410,7 +2410,7 @@ let CREEP_TEX9: HTMLCanvasElement | null | undefined;
 /** 판 17 칸 안개의 칸 판(위 GlFog9.tile ★ · 붓의 안개 블록이 채운다) — 칸마다 RGBA(앞 보임 · 지금 보임 · 밝힘 · 255) · 감은 자리(at) · 지금 찍힘 시각(t0) · 섞는 길이(fade 초). */
 /** 진단 — 칸 안개를 안 탄 까닭(GL 줄 · 위 FOG17_9). */
 const FOG17_WHY9 = { v: "" };
-const FOG17_9: { data: Uint8Array | null; at: number; mask: number; t0: number; fade: number; ver: number; on: boolean; want: number } = { data: null, at: -1, mask: -1, t0: -Infinity, fade: 0, ver: 0, on: false, want: 0 };
+const FOG17_9: { data: Uint8Array | null; at: number; mask: number; t0: number; fade: number; ver: number; on: boolean; want: number; w: number; h: number; live: boolean; cvVer: number } = { data: null, at: -1, mask: -1, t0: -Infinity, fade: 0, ver: 0, on: false, want: 0, w: 0, h: 0, live: false, cvVer: -1 };
 const CREEP17_9: { tiles: TileTL17 | null; mask: number; visAll: boolean; t: number; key: string; cv: HTMLCanvasElement | null; dim: HTMLCanvasElement | null } = { tiles: null, mask: 0, visAll: true, t: 0, key: "", cv: null, dim: null };
 const CREEP17_PX9 = 8;
 function creep17Layer9(t9: number): HTMLCanvasElement | null {
@@ -19033,7 +19033,10 @@ export default function ReplayMotionPlayer({
        칸 텍스처로: 지금 찍힘(G)과 앞 찍힘(R)을 찍힘 사이 간격(≤ 0.5초) 동안 서서히 섞는다(f) · 밝힘(B). 앞으로 흐를 때만 섞고, 시각을 건너뛰면 곧장 선다.
        장마다 f 만 바뀌어도 지형 캔버스가 다시 칠하게 fogGlDirty9 를 세운다. 분할보기·전체 시야는 안 탄다(눈 원 길). */
     FOG17_WHY9.v = !glFog9 ? "GL안개꺼짐" : !fogGlRef9.current ? "안개없음" : splitOnRef9.current ? "분할" : !CREEP17_9.tiles ? "타일없음" : !FOG17_9.on ? "안개꺼짐" : FOG17_9.want === 0 ? "편없음" : "";
-    if (glFog9 && fogGlRef9.current && !splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0 && !FOG17_OFF9) {
+    /* (같은 날 "처음 재생 시작하면 안개가 이전의 칸별 동그라미 모양으로 잠깐 보임") — GL 지형이 서기 전에는 옛 안개 캔버스(ReplayFogLayer)가 그린다. 칸 판은 GL 이 없어도 짓고
+       그 캔버스도 같은 칸 판(FOG17_9)으로 그리게 한다(ReplayFogLayer tile ★). GL 안개 객체에 싣는 것만 glFog9 일 때. */
+    FOG17_9.live = false;
+    if (!splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0 && !FOG17_OFF9) {
       const tl9 = CREEP17_9.tiles; const ft9 = FOG17_9;
       const st9 = tl9.stateAt(tNow9);
       const at9 = tl9.at; const m9 = FOG17_9.want;
@@ -19053,8 +19056,14 @@ export default function ReplayMotionPlayer({
         ft9.t0 = t09; ft9.at = at9; ft9.mask = m9; ft9.ver += 1;
       }
       const f9 = ft9.fade > 0 ? Math.max(0, Math.min(1, (tNow9 - ft9.t0) / ft9.fade)) : 1;
-      const cur9 = fogGlRef9.current;
-      if (!cur9.tile || cur9.tile.ver !== ft9.ver || cur9.tile.f !== f9) {
+      ft9.w = tl9.w; ft9.h = tl9.h; ft9.live = true;
+      /* 옛 안개 캔버스가 아직 그리는 동안(GL 안개 전) — 칸 판이 바뀐 장에 한 번 더 칠한다(위 칠은 눈 원이 바뀔 때만 돈다). */
+      if (!glFog9 && fogPaintRef.current && ft9.cvVer !== ft9.ver && fr9.visSrc && fr9.explored) {
+        ft9.cvVer = ft9.ver;
+        fogPaintRef.current(zoomRef.current, panRef.current, { vis: fr9.visSrc, exploredAt: fr9.explored, t: tNow9, branch: fogBranchRef9.current });
+      }
+      const cur9 = glFog9 ? fogGlRef9.current : null;
+      if (cur9 && (!cur9.tile || cur9.tile.ver !== ft9.ver || cur9.tile.f !== f9)) {
         fogGlRef9.current = { ...cur9, tile: { w: tl9.w, h: tl9.h, data: ft9.data, ver: ft9.ver, f: f9 } };
         fogGlDirty9.v = true;
       }
@@ -23181,6 +23190,7 @@ export default function ReplayMotionPlayer({
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1} flat={!pitched}
                 painter={fogPaintRef} onNeedPaint={requestFogPaint9}
+                tile={FOG17_OFF9 ? null : FOG17_9}
               />
             )}
 
