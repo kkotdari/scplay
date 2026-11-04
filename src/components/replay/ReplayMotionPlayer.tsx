@@ -4928,7 +4928,8 @@ export function paintFxList9(
         const lite9 = CROWD9.lv >= 2 || FQ9.lv >= 2;
         const per9 = lite9 ? 6 : 12;   // 6 → 12(2026-11-03, 요청: "소총 피격 효과 불티수 두배정도로 늘리고 동그랗게 폭죽처럼 배치") · 덜어내기 3 → 6
         const sd9 = ((f.seed ?? 7) * 131 + (f.rs ?? 0) * 977) | 0;
-        const hh9 = (a: number): number => { let x = Math.imul((a | 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return x / 4294967296; };
+        /* ⚠ 끝에 >>> 0(2026-11-04) — 옛 판은 마지막 ^= 가 부호 있는 정수를 돌려 값이 [−0.5, 0.5) 였다 → (h − 0.5) 가 늘 음수라 불티가 늘 몸 왼쪽 위로 쏠렸다. */
+        const hh9 = (a: number): number => { let x = Math.imul((a | 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35) >>> 0; x ^= x >>> 16; return (x >>> 0) / 4294967296; };
         ctx.save();
         ctx.translate(hx9, hy9);
         ctx.scale(1, 0.9);
@@ -4936,7 +4937,7 @@ export function paintFxList9(
         ctx.lineCap = "round";
         for (let j9 = 0; j9 < n9; j9 += 1) {
           const b9 = sd9 + j9 * 7919;
-          const ox9 = (hh9(b9 + 1) - 0.5) * R9 * 0.55; const oy9 = (hh9(b9 + 2) - 0.5) * R9 * 0.45;
+          const ox9 = (hh9(b9 + 1) - 0.5) * R9 * 0.35; const oy9 = (hh9(b9 + 2) - 0.5) * R9 * 0.3;   // 흔들림은 좁게 — 자리는 쏘는 쪽 가장자리(engine9 dx·dy·dist)가 정한다
           // 섬광 점 — 흰 속 → 노랑 → 투명(작게 · 앞 40% 에서 사그라든다)
           const fr9 = R9 * (0.16 + 0.08 * hh9(b9 + 3));
           ctx.globalAlpha = fa9 * Math.max(0, 1 - p9 * 1.6);
