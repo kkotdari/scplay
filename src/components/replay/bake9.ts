@@ -9809,7 +9809,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         ...tagKey(spirePillar({
           // 키 6.4 → PH9(×1.2) · taper PT9로 밑에서 빨리 좁아진다(요청: "기둥 높이 1.2배, 좁아지는 속도 빠르게")
           // 홀쭉이(재요청) — 밑 반폭 PW9; 옆선은 밑이 벌어진 바늘(위 PT9 주석)
-          x: px, y: py, z0: 0.32, h: PH9, w: PW9, tipW: PTIP9, sides: 3, segs: 8, fill: TOSS_GOLD,
+          // 아주 살짝 주황(2026-11-04, 요청: "네 기둥도 주황 톤 아주 살짝 돌게") — 몸 금 #e8cb5e 에 주황 #f08a30 18%(발판 끝 뿔의 첫 판과 같은 색).
+          x: px, y: py, z0: 0.32, h: PH9, w: PW9, tipW: PTIP9, sides: 3, segs: 8, fill: "#e9c057",
           widthOf: (t9: number): number => PTIP9 + (PW9 - PTIP9) * (1 - t9) ** PT9,
           oval: 0.75, phase: -Math.PI / 2, ref: [-py / Math.hypot(px, py), px / Math.hypot(px, py), 0],
           /* ★ 축은 **더 수직으로 오르다 위에서 안으로 굽는다**(재요청) — curve(t²) 대신 path로 t^PCP9(3.5)를 준다:
@@ -10041,7 +10042,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* ★ 불가사리 다리(날 + 뿔)를 **1.25배**(2026-09, 요청: "넥서스 발판 튀어나온 불가사리 다리 크기 25프로 확대") —
          날 끝·오목점·뿔의 자리와 키를 다 같은 배수로 키운다(중심에 대해 닮은꼴). 몸 밑동(반폭 4.5)은 그대로라
          삐져나온 몫만 큰다. */
-      const SK9 = 1.125;   // 1.25 → 1.125(재요청: "불가사리 10프로 축소")
+      const SK9 = 1.2375;   // 1.25 → 1.125(재요청: "불가사리 10프로 축소") → ×1.1(2026-11-04, 요청: "발판 크기도 10프로 확대" — 날 · 뿔 · 두께가 함께)
       const TH9 = 0.4 * SK9;
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
       const STAR_R = 8.9 * SK9;
@@ -10082,8 +10083,12 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (재요청: "정삼각형이 아니라 발판 끝쪽으로 더 긴 이등변삼각형, 뿔 끝점과 발판 끝점이 딱 맞는 형태"). 뒷변은
          7.2에서 반폭 0.5(그 자리 날 반폭 0.58 안), 꼭대기는 7.7 위 1.85 높이 — 옆면 셋을 직접 세운다(spirePillar는
          정다각 단면뿐). 밑면은 판에 묻혀 안 그린다. 면마다 법선을 재서 빛을 받고, 등 돌린 면은 건너뛴다. */
-      /** 날 끝 뿔 색 — 몸 금(#e8cb5e)에서 **아주 살짝 오렌지 쪽**(2026-11-04, 요청: "넥서스 네 발판 끝의 뿔 형태 부품들 아주 살짝만 오렌지 톤으로") · 주황(#f08a30) 18% 섞음. */
-      const HORN_GOLD9 = "#e9c057";
+      /** 날 끝 뿔 색 — 몸 금(#e8cb5e)에서 **아주 살짝 오렌지 쪽**(2026-11-04, 요청: "넥서스 네 발판 끝의 뿔 형태 부품들 아주 살짝만 오렌지 톤으로") · 주황(#f08a30) 18% 섞음
+       *  → 32%(같은 날 "아주 살짝 더"). */
+      const HORN_GOLD9 = "#ebb64f";
+      /* ★ 뿔 1.25배(같은 날, 요청: "그 도형들 크기 25프로 키우되 발판 틀에 맞게") — **날 끝점(뾰족한 꼭짓점)을 축으로** 닮은꼴로 키운다: 뒷변 7.2 → 8.9 − 1.25·1.7 = 6.775 ·
+         반폭 0.5 → 0.625(그 자리 날 반폭 0.341·(8.9 − 6.775) = 0.725 안 — 날 윤곽과 같은 비) · 꼭대기 7.7 → 7.4 · 높이 1.48 → 1.85. 끝점은 그대로 날 끝에 맞는다. */
+      const HK9 = 1.25;
       for (const ang of [0, 90, 180, 270]) {
         const a = (ang * Math.PI) / 180;
         const sx = Math.sin(a);
@@ -10093,9 +10098,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const P3 = (r9: number, u9: number, z9: number): [number, number, number] =>
           [sx * r9 + cxa * u9, sy * r9 + sya * u9, z9];
         const tip9 = P3(STAR_R, 0, TH9);
-        const bl9 = P3(7.2 * SK9, -0.5 * SK9, TH9);
-        const br9 = P3(7.2 * SK9, 0.5 * SK9, TH9);
-        const apex9 = P3(7.7 * SK9, 0, TH9 + 1.48 * SK9);
+        const bl9 = P3((8.9 - HK9 * 1.7) * SK9, -0.5 * HK9 * SK9, TH9);
+        const br9 = P3((8.9 - HK9 * 1.7) * SK9, 0.5 * HK9 * SK9, TH9);
+        const apex9 = P3((8.9 - HK9 * 1.2) * SK9, 0, TH9 + 1.48 * HK9 * SK9);
         const tri9 = (p0: [number, number, number], p1: [number, number, number], p2: [number, number, number]): ShapeFace[] => {
           // 법선 = (p1−p0)×(p2−p0) — 꼭짓점을 바깥에서 봐 반시계로 준다.
           const ax9 = p1[0] - p0[0]; const ay9 = p1[1] - p0[1]; const az9 = p1[2] - p0[2];
