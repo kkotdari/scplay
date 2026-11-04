@@ -3022,3 +3022,10 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - 자막 내림 `--cap-drop`: 숨김은 CSS(`.scr-fs-root.is-uihide-dock { --dock-lift: 0; --dock-lift-r: 0; --cap-drop: var(--dock-under) }`) · 접기는 dockFit read9 의
   dockFoldOn9 갈래가 뿌리에 `--dock-lift 0` · `--cap-drop = 재생바 offsetTop`(비운 독 줄 키). 자막 bottom 세 곳 · `--cap-bot` 둘(채팅 · 배속 다이얼이 탄다)에서 뺀다.
 - (같은 날 "채팅 · 배속 다이얼은 그대로 두기") — 내림은 **자막만**: `--cap-keep 0`(자막이 받침 솟음 --dock-lift 를 안 탐) + `--cap-drop`. `--dock-lift` · `--cap-bot` 은 안 건드린다.
+
+## 인포창 생산 · 연구 진행이 늘 꽉 차던 것(2026-11-04)
+지적: "업그레이드나 생산 진행률이 이상한 듯 · 무조건 꽉 차 있어".
+- 생산: 판 16 갈래가 짓는 몸(28)의 생애로 [완성, 종류, 걸림] 을 지으며 `doneAt` 을 완성으로 썼는데, **유닛 생애의 doneAt 은 born 과 같다**(truthLives 는 완성 비트를 건물만 훑는다)
+  → 걸림 0 → 0.1 → 진행 (t − born + 0.1)/0.1 → 0.99 로 잘려 늘 꽉. 이제 doneAt 이 born + 0.5 넘을 때만 쓰고 아니면 born + UNIT_BUILD_SEC.
+- 연구: 시작 = 19/20 갈래가 켜진 초 · 전체 = 그 근처(±2초)에 적힌 66 값 × FRAME_SEC · 아니면 UPGRADE_TIME(upgradeSeconds) · 기술은 66 값(+ 시작과의 어긋남). 옛: 66 이 적힌 초를 시작으로.
+  ⚠ 클라우드엔 실제 판 16 자료가 없어 66 의 적힘 꼴을 실측 못 했다 — 🔎 연구 중 건물을 집고 막대가 시간 따라 차는지 볼 것.

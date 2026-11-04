@@ -51,7 +51,7 @@ import {
 /* 러커 가시가 나아가는 거리·속도는 무기표가 아니라 iscript 행동(behaviour 9 "go to max
    range")에서 온 값이라 bwCombat이 안 물고 있다. 숫자를 여기 또 적는 대신 표에서 읽는다. */
 import {
-  BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX,
+  BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, UPGRADE_TIME, upgradeSeconds,
   LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, PLASMA_SHIELD_UPGRADE,
   buildingBox, raceOfBwKind9, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
 } from "../../utils/bwUnits";
@@ -22482,7 +22482,9 @@ export default function ReplayMotionPlayer({
         making = null;
         const tr9 = cbu9 && cbu9[0] ? lifeAt9(cbu9[0], t) : undefined;
         if (tr9 && !tr9.bld) {
-          const done9 = Number.isFinite(tr9.doneAt) ? tr9.doneAt : tr9.born + (UNIT_BUILD_SEC[tr9.kind] ?? 30);
+          /* ⚠ 유닛 생애의 doneAt 은 **태어난 시각과 같다**(truthLives — 완성 비트를 건물만 훑는다) — 옛 셈은 그 값을 완성으로 써 걸리는 시간이 0(→ 0.1)이 되어
+             진행이 늘 0.99(꽉 참)였다(2026-11-04, 지적: "업그레이드나 생산 진행률이 이상한 듯 · 무조건 꽉 차 있어"). 태어남(짓기 시작) + 표의 생산 시간으로 잰다. */
+          const done9 = Number.isFinite(tr9.doneAt) && tr9.doneAt > tr9.born + 0.5 ? tr9.doneAt : tr9.born + (UNIT_BUILD_SEC[tr9.kind] ?? 30);
           making = [done9, tr9.kind, Math.max(0.1, done9 - tr9.born)];
         }
         for (const k9 of [ST16.queue2, ST16.queue3, ST16.queue4, ST16.queue5]) {
@@ -22540,7 +22542,15 @@ export default function ReplayMotionPlayer({
         const nm9 = tc9 ? BW_TECH_NAME[tc9 - 1] : bwUpgradeName(up9 - 1);
         if (!nm9) return [];
         const rt9 = sv9(ST16.researchTime);
-        const prog9 = rt9 && rt9[0] > 0 ? (t - rt9[1]) / (rt9[0] * FRAME_SEC) : 0;
+        /* 시작 = 연구(19)/업글(20) 갈래가 켜진 초 · 전체 = 그때 적힌 남은 시간(66)(같은 날 지적: "진행률이 무조건 꽉 차") — 66 이 시작 근처에 안 적혔으면(타이머가 따로
+           늘어 적힌 판) 표의 연구 시간(UPGRADE_TIME · 기술은 66 값)으로. 옛: 66 이 적힌 초를 시작으로 삼아, 시작과 어긋나면 진행이 틀렸다. */
+        const on9 = sv9(tc9 ? ST16.research : ST16.upgrade);
+        const start9 = on9 ? on9[1] : rt9 ? rt9[1] : t;
+        const rtOk9 = !!rt9 && rt9[0] > 0 && Math.abs(rt9[1] - start9) <= 2;
+        const total9 = rtOk9 ? rt9![0] * FRAME_SEC
+          : !tc9 && UPGRADE_TIME[nm9] ? upgradeSeconds(nm9, lv9)
+            : rt9 && rt9[0] > 0 ? rt9[0] * FRAME_SEC + Math.max(0, rt9[1] - start9) : 1200 * FRAME_SEC;
+        const prog9 = (t - start9) / Math.max(1, total9);
         return [[!tc9 && lv9 > 1 ? `${nm9} ${lv9}` : nm9, prog9]];
       })() : doing0.map(([us, n]) => [n, (RESEARCH_SEC - (us - t)) / RESEARCH_SEC] as [string, number]);
       /* ★ 연구도 [무엇을 연구하는지 한 칸][진행 바](2026-09, 요청: "연구중도 뭐연구하는지 왼쪽에 그림셀 배치 · 아래에 불켜는 대신") —
