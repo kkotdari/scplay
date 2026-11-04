@@ -701,13 +701,54 @@ export const SUPPLY_COST: Record<string, number> = {
   "Infested Terran": 2,
   // 인구를 안 먹는 것들 — 오버로드는 오히려 준다(아래).
   Overlord: 0, Larva: 0, Egg: 0, Cocoon: 0, Broodling: 0, Interceptor: 0, Scarab: 0,
-  "Spider Mine": 0, "Nuclear Missile": 0,
+  "Spider Mine": 0,
+  /* 사일로의 핵은 원작에서 인구 8(내부 16)을 먹는다(2026-11-04, 지적: 렉스 인구 원작 150 · 우리 134). */
+  "Nuclear Missile": 16,
 };
 export const SUPPLY_GIVES: Record<string, number> = {
   "Command Center": 20, "Supply Depot": 16,
   Nexus: 18, Pylon: 16,
   Hatchery: 2, Lair: 2, Hive: 2, Overlord: 16,
 };
+
+/** 인구 사건을 낼 생애의 꼴 — truthLives 의 TruthLife 중 이 셈이 읽는 칸. */
+type SupplyLife9 = { tag: number; kind: string; born: number; died: number | null; bld: boolean; doneAt: number; end: string };
+const SUPPLY_EGG9 = new Set(["Egg", "Lurker Egg", "Cocoon", "Mutalisk Cocoon"]);
+/**
+ * ★ 생애마다 원작 셈의 인구 사건 [초, 먹은 Δ, 준 Δ](내부 단위)(2026-11-04, 지적: "정구랑 렉스가 너무 다른데 인구수가") — 로스터와 중계 자막이 함께 쓴다.
+ *  ① 알·럴커알·고치는 **나올 유닛의 인구를 알 때부터** 먹는다(원작은 변태를 거는 순간 잡는다 · 저글링·스커지 알은 둘 몫).
+ *     취소로 되돌아가면 되돌아간 꼴(라바 0 · 히드라 2 · 뮤탈 4)의 값이라 그대로 맞는다.
+ *  ② 상한은 **다 지은 때부터** 오른다(서플·파일런·커맨드·넥서스·해처리) — 옛 셈은 착공에 올려 공사 중인 서플만큼 부풀었다.
+ *     레어·하이브처럼 주던 몸이 변태로 이어진 생애는 변태 중에도 그대로 준다.
+ *  ③ 시작 밑천과 겹치지 않게 주는 쪽은 2초 뒤에 난 것만 센다(종족 몫이 따로 든다).
+ */
+export function supplyEvents9<L extends SupplyLife9>(lives: readonly L[]): [number, number, number, L][] {
+  const byTag = new Map<number, L[]>();
+  for (const e of lives) { const a = byTag.get(e.tag); if (a) a.push(e); else byTag.set(e.tag, [e]); }
+  for (const a of byTag.values()) a.sort((p, q) => p.born - q.born);
+  const out: [number, number, number, L][] = [];
+  for (const a of byTag.values()) {
+    for (let i = 0; i < a.length; i += 1) {
+      const e = a[i];
+      const next = e.end === "morph" ? a[i + 1] : undefined;
+      const prev = i > 0 && a[i - 1].end === "morph" ? a[i - 1] : undefined;
+      let eats = e.bld ? 0 : (SUPPLY_COST[e.kind] ?? 0);
+      if (SUPPLY_EGG9.has(e.kind) && next)
+        eats = (SUPPLY_COST[next.kind] ?? 0) * (next.kind === "Zergling" || next.kind === "Scourge" ? 2 : 1);
+      const gives = e.born > 2 ? (SUPPLY_GIVES[e.kind] ?? 0) : 0;
+      const giveAt = gives > 0 && e.bld && !(prev && (SUPPLY_GIVES[prev.kind] ?? 0) > 0) ? e.doneAt : e.born;
+      if (eats > 0) {
+        out.push([e.born, eats, 0, e]);
+        if (e.died !== null) out.push([e.died, -eats, 0, e]);
+      }
+      if (gives > 0 && Number.isFinite(giveAt) && (e.died === null || giveAt < e.died)) {
+        out.push([giveAt, 0, gives, e]);
+        if (e.died !== null) out.push([e.died, 0, -gives, e]);
+      }
+    }
+  }
+  return out;
+}
 
 /** 유닛 종류(BW 이름)의 **종족** — units.dat 번호 띠로 가른다(유닛: 테란 0~34 · 저그 35~59 · 프로토스 60~88 · 건물: 테란 106~129 ·
  *  저그 130~153 · 프로토스 154~175). ⚠ 확장팩 유닛은 띠 밖에 끼어 있다 — 발키리 58(저그 띠) · 디바우러 62(프로토스 띠) · 럴커 103 ·

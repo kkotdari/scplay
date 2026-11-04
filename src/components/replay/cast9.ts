@@ -34,7 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
-import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, speedOfUnit, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
+import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, speedOfUnit, SUPPLY_CAP, supplyEvents9, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
 import { kN, kT, kX, kY, keyJump, posAtTruth, SEL_KIND9, tkN, tkT, tkV, type TruthTrack } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
 
@@ -3146,8 +3146,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (inCenter9(ord9[1], ord9[2], CENTER_K9.hold)) return moving9([{ raw: raw9 }, { text: ` ${what9} 센터로 ${verb9}` }]);
     return moving9([{ raw: raw9 }, { text: ` ${what9} ${verb9}` }]);
   };
-  /* ★★ **인구 막힘**(2026-10-10, 요청: "인구 막힘도 중요 포인트라 자막 나오면 좋음") — 재생기 로스터의 인구(supplyLive)와 같은 셈: 몸마다 난 초에 먹은 인구(SUPPLY_COST) ·
-     준 인구(SUPPLY_GIVES · 시작 밑천과 안 겹치게 2초 뒤에 난 것만) 계단 · 상한 = min(SUPPLY_CAP, 종족 시작 몫 + 준 것) · **제 종족 풀**만(뺏은 몸의 딴 풀은 뺀다).
+  /* ★★ **인구 막힘**(2026-10-10, 요청: "인구 막힘도 중요 포인트라 자막 나오면 좋음") — 재생기 로스터의 인구(supplyLive)와 같은 셈(bwUnits supplyEvents9 — 알은 나올 유닛 몫 · 상한은 다 지은 때부터) 계단 · 상한 = min(SUPPLY_CAP, 종족 시작 몫 + 준 것) · **제 종족 풀**만(뺏은 몸의 딴 풀은 뺀다).
      먹은 것이 상한에 닿은(상한 − 1 ~ 상한 · 상한이 200 아래) 동안이 막힘이고, BLOCK9.min 초 넘게 이어진 것만 센다(BLOCK9.merge 초 안의 틈은 잇는다). 단위는 원작 내부(두 배). */
   const RACE_START_SUPPLY9: Record<string, number> = { 테란: 20, 프로토스: 18, 저그: 18 };
   const BLOCK9 = { min: 12, merge: 6 };
@@ -3177,20 +3176,18 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   };
   type Block9 = { t0: number; t1: number; used: number; cap: number };
   const blocksMemo9 = new Map<string, Block9[]>();
+  let supplyEvsMemo9: [number, number, number, (typeof world.lives)[number]][] | null = null;
+  const supplyEvs9 = () => (supplyEvsMemo9 ??= supplyEvents9(world.lives));
   const blocksOf9 = (raw9: string): Block9[] => {
     const got9 = blocksMemo9.get(raw9);
     if (got9) return got9;
     const own9 = ownersOf9(raw9);
     const race9 = world.players.find((pl9) => pl9.name === raw9)?.race ?? "";
     const ev9: [number, number, number][] = [];
-    for (const e9 of world.lives) {
+    for (const [sec9, u9, g9, e9] of supplyEvs9()) {
       if (!own9.has(e9.owner)) continue;
       if (race9 && (raceOfBwKind9(e9.kind) || race9) !== race9) continue;
-      const g9 = (SUPPLY_GIVES[e9.kind] ?? 0) > 0 && e9.born > 2 ? SUPPLY_GIVES[e9.kind] : 0;
-      const u9 = e9.bld ? 0 : SUPPLY_COST[e9.kind] ?? 0;
-      if (g9 === 0 && u9 === 0) continue;
-      ev9.push([e9.born, u9, g9]);
-      if (e9.died !== null) ev9.push([e9.died, -u9, -g9]);
+      ev9.push([sec9, u9, g9]);
     }
     ev9.sort((a9, b9) => a9[0] - b9[0]);
     const base9 = RACE_START_SUPPLY9[race9] ?? 0;

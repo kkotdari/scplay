@@ -53,7 +53,7 @@ import {
 import {
   BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, UPGRADE_TIME, upgradeSeconds,
   LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, PLASMA_SHIELD_UPGRADE,
-  buildingBox, raceOfBwKind9, SUPPLY_CAP, SUPPLY_COST, SUPPLY_GIVES, sightTiles,
+  buildingBox, raceOfBwKind9, SUPPLY_CAP, supplyEvents9, sightTiles,
 } from "../../utils/bwUnits";
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
@@ -11188,20 +11188,15 @@ export default function ReplayMotionPlayer({
     const nameOfId = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const raceOfId = new Map(entData.players.map((pl) => [pl.owner, pl.race ?? ""]));
     const evs = new Map<string, Map<string, [number, number, number][]>>();
-    for (const e of entData.lives) {
+    /* 생애마다 사건은 supplyEvents9 가 원작 셈으로 낸다 — 알은 나올 유닛 몫 · 상한은 다 지은 때부터(2026-11-04). */
+    for (const [sec, eats, g, e] of supplyEvents9(entData.lives)) {
       const raw = nameOfId.get(e.owner);
       if (raw === undefined) continue;
-      const gives = SUPPLY_GIVES[e.kind] ?? 0;
-      const eats = e.bld ? 0 : (SUPPLY_COST[e.kind] ?? 0);
-      /* 주는 쪽은 시작 밑천과 겹치지 않게 2초 뒤에 난 것만 센다(위 ★). */
-      const g = gives > 0 && e.born > 2 ? gives : 0;
-      if (eats === 0 && g === 0) continue;
       const own9 = raceOfId.get(e.owner) ?? "";
       const pool9 = own9 === "" ? "" : (raceOfBwKind9(e.kind) || own9);
       const byRace = evs.get(raw) ?? new Map<string, [number, number, number][]>();
       const a = byRace.get(pool9) ?? [];
-      a.push([e.born, eats, g]);
-      if (e.died !== null) a.push([e.died, -eats, -g]);
+      a.push([sec, eats, g]);
       byRace.set(pool9, a);
       evs.set(raw, byRace);
     }
