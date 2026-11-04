@@ -720,7 +720,7 @@ const SUPPLY_EGG9 = new Set(["Egg", "Lurker Egg", "Cocoon", "Mutalisk Cocoon"]);
  *     취소로 되돌아가면 되돌아간 꼴(라바 0 · 히드라 2 · 뮤탈 4)의 값이라 그대로 맞는다.
  *  ② 상한은 **다 지은 때부터** 오른다(서플·파일런·커맨드·넥서스·해처리) — 옛 셈은 착공에 올려 공사 중인 서플만큼 부풀었다.
  *     레어·하이브처럼 주던 몸이 변태로 이어진 생애는 변태 중에도 그대로 준다.
- *  ③ 시작 밑천과 겹치지 않게 주는 쪽은 2초 뒤에 난 것만 센다(종족 몫이 따로 든다).
+ *  ③ 시작 밑천과 겹치지 않게 주는 쪽은 2초 뒤에 난 것만 센다(종족 몫이 따로 든다) — 시작 홀에서 변태로 이어진 레어·하이브도 안 센다.
  */
 export function supplyEvents9<L extends SupplyLife9>(lives: readonly L[]): [number, number, number, L][] {
   const byTag = new Map<number, L[]>();
@@ -728,19 +728,24 @@ export function supplyEvents9<L extends SupplyLife9>(lives: readonly L[]): [numb
   for (const a of byTag.values()) a.sort((p, q) => p.born - q.born);
   const out: [number, number, number, L][] = [];
   for (const a of byTag.values()) {
+    let startGiver = false;
     for (let i = 0; i < a.length; i += 1) {
       const e = a[i];
       const next = e.end === "morph" ? a[i + 1] : undefined;
       const prev = i > 0 && a[i - 1].end === "morph" ? a[i - 1] : undefined;
+      /* 시작 홀이 변태로 이어진 레어·하이브는 종족 몫(시작 밑천)에 이미 들었다 — 또 세면 상한이 1 붓는다(2026-11-04, 지적: 정구 상한 136 · 우리 137). */
+      startGiver = (SUPPLY_GIVES[e.kind] ?? 0) > 0 && (e.born <= 2 || (!!prev && startGiver));
       let eats = e.bld ? 0 : (SUPPLY_COST[e.kind] ?? 0);
       if (SUPPLY_EGG9.has(e.kind) && next)
         eats = (SUPPLY_COST[next.kind] ?? 0) * (next.kind === "Zergling" || next.kind === "Scourge" ? 2 : 1);
-      const gives = e.born > 2 ? (SUPPLY_GIVES[e.kind] ?? 0) : 0;
+      const gives = startGiver ? 0 : (SUPPLY_GIVES[e.kind] ?? 0);
       const giveAt = gives > 0 && e.bld && !(prev && (SUPPLY_GIVES[prev.kind] ?? 0) > 0) ? e.doneAt : e.born;
       if (eats > 0) {
         out.push([e.born, eats, 0, e]);
         if (e.died !== null) out.push([e.died, -eats, 0, e]);
       }
+      /* 시작 몫으로 든 홀·오버로드가 죽거나 뺏기면(변태로 이어지는 것 말고) 그때 시작 몫에서 뺀다 — 옛 셈은 시작 오버로드가 죽어도 상한이 그대로였다. */
+      if (startGiver && e.end !== "morph" && e.died !== null && e.died > 2) out.push([e.died, 0, -(SUPPLY_GIVES[e.kind] ?? 0), e]);
       if (gives > 0 && Number.isFinite(giveAt) && (e.died === null || giveAt < e.died)) {
         out.push([giveAt, 0, gives, e]);
         if (e.died !== null) out.push([e.died, 0, -gives, e]);
