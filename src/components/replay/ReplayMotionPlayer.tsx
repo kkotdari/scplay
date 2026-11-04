@@ -11703,6 +11703,8 @@ export default function ReplayMotionPlayer({
       selKind: (raw9, tg9) => { const l9 = lifeOfTag9.get(tg9); return [l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9)]; },
     });
   }, [entData, entClicks, selPts9, obsNames, melee, teamMap9]);
+  /** ★ 선수 커서를 매 장 옮기는 붓(그리기 틱이 부른다 · 위 커서 JSX 의 ★) — 상자 · 고리 · 화살표의 자리 · 보임 · 눌림을 살아 있는 시계로. */
+  const cursorPaintRef9 = useRef<((t9: number) => void) | null>(null);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
   const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
     const cl9 = entClicksRef9.current;
@@ -17232,6 +17234,33 @@ export default function ReplayMotionPlayer({
     const [fx, fy] = posFrac(x, y);
     return { left: `${(fx * 100).toFixed(3)}%`, top: `${(fy * 100).toFixed(3)}%` };
   };
+  cursorPaintRef9.current = CURSOR9 ? (t9: number): void => {
+    const root9 = stageRef.current; if (!root9) return;
+    const els9 = root9.querySelectorAll<HTMLElement>("[data-cur-raw]");
+    if (els9.length === 0) return;
+    const cache9 = new Map<string, ReturnType<typeof cursorAt9>>();
+    const pc9 = (v9: number): string => `${(v9 * 100).toFixed(3)}%`;
+    els9.forEach((el9) => {
+      const raw9 = el9.getAttribute("data-cur-raw") ?? ""; const k9 = el9.getAttribute("data-cur");
+      let c9 = cache9.get(raw9);
+      if (c9 === undefined) { const p9 = cursorPaths9.get(raw9); c9 = p9 ? cursorAt9(p9, t9) : null; cache9.set(raw9, c9); }
+      const st9 = el9.style;
+      if (!c9) { st9.display = "none"; return; }
+      if (k9 === "arrow" || k9 === "ring") {
+        const on9 = k9 === "ring" ? !!c9.ring : !c9.ring;
+        if (!on9) { st9.display = "none"; return; }
+        const [fx9, fy9] = k9 === "ring" && c9.ring ? posFrac(c9.ring.x, c9.ring.y) : posFrac(c9.x, c9.y);
+        st9.display = ""; st9.left = pc9(fx9); st9.top = pc9(fy9);
+        if (k9 === "ring" && c9.ring) st9.color = c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : (el9.getAttribute("data-cur-col") ?? "");
+        el9.classList.toggle("is-press", c9.press);
+      } else if (k9 === "box") {
+        if (!c9.box) { st9.display = "none"; return; }
+        const [bx09, by09] = posFrac(Math.min(c9.box[0], c9.x), Math.min(c9.box[1], c9.y));
+        const [bx19, by19] = posFrac(Math.max(c9.box[0], c9.x), Math.max(c9.box[1], c9.y));
+        st9.display = ""; st9.left = pc9(bx09); st9.top = pc9(by09); st9.width = pc9(bx19 - bx09); st9.height = pc9(by19 - by09);
+      }
+    });
+  } : null;
   /** ★ 효과 시트(fxlens)의 **px 게이트 하나**(요청: "css 요소의 배율 적용을 하나의 게이트로 통일") ──
    *  그 시트는 폭 자체가 배율×100%라 안에 적는 px이 곧 화면 px이다. 엔진이 주는 길이는 전부 1배
    *  상자 px이므로 시트에 px을 적는 곳은 **예외 없이** 이 함수를 지난다 — 파손 효과가 12배에서
@@ -20869,6 +20898,7 @@ export default function ReplayMotionPlayer({
         tLiveRef9.current = next9;
         camStepRef9.current?.(performance.now());   // 카메라 한 걸음(위 camTickOwnRef9 ★) — 붓이 그 눈으로 칠한다
         paintFnRef9.current?.(next9);
+        cursorPaintRef9.current?.(next9);   // 선수 커서(feat · 매 장)
         const nowR9 = performance.now();
         /* ★ 미니맵도 붓 틱이 민다(2026-10-29, 실기 지적: "미니맵 너무 프레임이 낮아서 끊겨") — 미니맵은 React 리렌더(tick = t)에만 다시 그렸는데, 폰 보통 이하는
            React 박자가 0.2초(reactStepRef9 · 2026-10-28 덜 그리기)라 초당 5장이었다. 그리기 틱에서 MINI_GAP_MS9 마다 한 장(점은 붓이 방금 낸 opsRef) — React 몫은 그대로 겹쳐도 같은 그림. */
@@ -23601,48 +23631,47 @@ export default function ReplayMotionPlayer({
                 );
               }
             }
-            if (c9.box) {
+            /* ★ 상자 · 고리 · 화살표는 **늘 세워 두고 붓 틱이 매 장 옮긴다**(같은 날 지적: "상자 선택이 좀 부드럽지 않아 뚝뚝 끊겨") — React 시각 t 는 초당 열 번(폰 다섯 번)만
+               올라 그 박자로 뛰었다. 여기서는 처음 자리만 적고, 그리기 틱(cursorPaintRef9 · 아래)이 살아 있는 시계로 자리 · 보임 · 눌림을 바꾼다. */
+            const rc9 = c9.ring ? (c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : col9) : col9;
+            const dPx9 = sz9 * 1.7;   // 고리는 커서 그림 — 화살표 크기의 1.7배(예시 · 대상 크기와 무관)
+            const R9 = 49; const a09 = (125 * Math.PI) / 180; const a19 = (15 * Math.PI) / 180;
+            const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;
+            const da9 = (r: number): string => `${((Math.PI * r) / 2 - 6).toFixed(2)} 6`;
+            const tabs9 = (sw: number, dark: boolean): React.ReactNode => [0, 90, 180, 270].map((g9) => (
+              <path key={g9} d="M 29 0 H 39" transform={`rotate(${g9 + 45})`} style={{ stroke: dark ? dark9 : "currentColor" }} strokeWidth={sw} />));
+            const boxSt9 = ((): React.CSSProperties => {
+              if (!c9.box) return { display: "none" };
               const [bx09, by09] = posFrac(Math.min(c9.box[0], c9.x), Math.min(c9.box[1], c9.y));
               const [bx19, by19] = posFrac(Math.max(c9.box[0], c9.x), Math.max(c9.box[1], c9.y));
-              out9.push(<span key={`curbox-${raw9}`} className="scr-motion-pcbox" style={{ left: `${(bx09 * 100).toFixed(3)}%`, top: `${(by09 * 100).toFixed(3)}%`, width: `${((bx19 - bx09) * 100).toFixed(3)}%`, height: `${((by19 - by09) * 100).toFixed(3)}%`, color: col9, zIndex: 21 }} />);
-            }
-            if (c9.ring) {
-              /* ★ 고리는 **커서 그림**이다 — 대상 몸 크기와 무관하게 화살표 크기에 맞춘다(같은 날 "말도 안 되는 마커 크기" → "마커 크기는 커서 크기 참고해서 보내 준 사진 보고") —
-                 예시(원작 리마스터 화면)의 고리 폭 ≈ 화살표 크기의 1.7배. 옛: 몸 반지름 × 배율(건물 위에선 화면 반을 덮었다). */
-              const dPx9 = sz9 * 1.7;
-              const rc9 = c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : col9;
-              const R9 = 49; const a09 = (125 * Math.PI) / 180; const a19 = (15 * Math.PI) / 180;
-              const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;
-              const da9 = (r: number): string => `${((Math.PI * r) / 2 - 6).toFixed(2)} 6`;
-              const tabs9 = (sw: number, dark: boolean): React.ReactNode => [0, 90, 180, 270].map((g9) => (
-                <path key={g9} d="M 29 0 H 39" transform={`rotate(${g9 + 45})`} style={{ stroke: dark ? dark9 : "currentColor" }} strokeWidth={sw} />));
-              out9.push(
-                <svg key={`curring-${raw9}`} className={cx("scr-motion-pcring", c9.press && "is-press")} viewBox="-60 -60 120 120" width={dPx9 * 120 / 98} height={dPx9 * 120 / 98} aria-hidden
-                  style={{ ...posStyle(c9.ring.x, c9.ring.y), color: rc9, zIndex: 21 }}>
-                  <g transform="scale(1 0.6)" fill="none">
-                    <path d={arc9} style={{ stroke: dark9 }} strokeWidth={10} />
-                    <path d={arc9} stroke="currentColor" strokeWidth={7} />
-                    <g transform="rotate(45)">
-                      <circle r={37} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(74)} strokeDashoffset={-3} />
-                      <circle r={31} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(62)} strokeDashoffset={-3} />
-                      <circle r={37} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(74)} strokeDashoffset={-3} />
-                      <circle r={31} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(62)} strokeDashoffset={-3} />
-                    </g>
-                    {tabs9(7, true)}{tabs9(4.4, false)}
+              return { left: `${(bx09 * 100).toFixed(3)}%`, top: `${(by09 * 100).toFixed(3)}%`, width: `${((bx19 - bx09) * 100).toFixed(3)}%`, height: `${((by19 - by09) * 100).toFixed(3)}%` };
+            })();
+            out9.push(<span key={`curbox-${raw9}`} data-cur="box" data-cur-raw={raw9} className="scr-motion-pcbox" style={{ ...boxSt9, color: col9, zIndex: 21 }} />);
+            out9.push(
+              <svg key={`curring-${raw9}`} data-cur="ring" data-cur-raw={raw9} data-cur-col={col9} className={cx("scr-motion-pcring", c9.press && "is-press")} viewBox="-60 -60 120 120" width={dPx9 * 120 / 98} height={dPx9 * 120 / 98} aria-hidden
+                style={{ ...(c9.ring ? posStyle(c9.ring.x, c9.ring.y) : { display: "none" }), color: rc9, zIndex: 21 }}>
+                <g transform="scale(1 0.6)" fill="none">
+                  <path d={arc9} style={{ stroke: dark9 }} strokeWidth={10} />
+                  <path d={arc9} stroke="currentColor" strokeWidth={7} />
+                  <g transform="rotate(45)">
+                    <circle r={37} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                    <circle r={31} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(62)} strokeDashoffset={-3} />
+                    <circle r={37} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                    <circle r={31} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(62)} strokeDashoffset={-3} />
                   </g>
-                  <circle r={4.4} style={{ fill: dark9 }} /><circle r={3.1} fill="currentColor" />
-                </svg>,
-              );
-            } else {
-              out9.push(
-                <svg key={`cur-${raw9}`} className={cx("scr-motion-pcursor", c9.press && "is-press")} viewBox="-2 -2 32 32" width={sz9} height={sz9} aria-hidden
-                  style={{ ...posStyle(c9.x, c9.y), color: col9, zIndex: 21 }}>
-                  <path d={CUR_ARROW_D9} style={{ fill: dark9, fillOpacity: 0.78, stroke: dark9 }} strokeWidth={3.8} strokeLinejoin="miter" strokeMiterlimit={10} />
-                  <path d={CUR_ARROW_D9} fill="none" stroke="currentColor" strokeWidth={2.3} strokeLinejoin="miter" strokeMiterlimit={10} />
-                  <path d="M2.3 5 L1.9 21" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.8} />
-                </svg>,
-              );
-            }
+                  {tabs9(7, true)}{tabs9(4.4, false)}
+                </g>
+                <circle r={4.4} style={{ fill: dark9 }} /><circle r={3.1} fill="currentColor" />
+              </svg>,
+            );
+            out9.push(
+              <svg key={`cur-${raw9}`} data-cur="arrow" data-cur-raw={raw9} className={cx("scr-motion-pcursor", c9.press && "is-press")} viewBox="-2 -2 32 32" width={sz9} height={sz9} aria-hidden
+                style={{ ...(c9.ring ? { display: "none" } : posStyle(c9.x, c9.y)), color: col9, zIndex: 21 }}>
+                <path d={CUR_ARROW_D9} style={{ fill: dark9, fillOpacity: 0.78, stroke: dark9 }} strokeWidth={3.8} strokeLinejoin="miter" strokeMiterlimit={10} />
+                <path d={CUR_ARROW_D9} fill="none" stroke="currentColor" strokeWidth={2.3} strokeLinejoin="miter" strokeMiterlimit={10} />
+                <path d="M2.3 5 L1.9 21" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.8} />
+              </svg>,
+            );
             return out9;
           })}
 
