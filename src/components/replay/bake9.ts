@@ -10052,13 +10052,17 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          (지적: "앞 두 개는 더 많은 무늬가 본체에 가려져 뒤보다"). 이제 같은 별의 **밑동 단 밖으로 나온 날 넷만** 삼각 기둥으로 잘라, 밑동 밑변(반폭 R0P9)에서 날 끝까지 땅(z 0 ~ TH9)에 세운다.
          날의 옆선은 옛 별 그대로(날 끝 → 오목점) · 밑동 벽에서의 반폭 W0P9 는 그 옆선이 벽과 만나는 자리. 몸과 안 겹치므로 네 날이 똑같이 보인다. */
       const R0P9 = (BASE_W9 + 0.8) / 2;   // 밑동 단 밑변 반폭(위 '밑동 한 단' frustumFaces3 의 밑변)
-      const W0P9 = ((STAR_R - R0P9) / (STAR_R - STAR_IN * Math.SQRT1_2)) * STAR_IN * Math.SQRT1_2;
+      /* 붙는 면은 **밑동 벽의 기울기 그대로** 깎는다(같은 날, 요청: "붙이는 면 기울기를 딱 맞게 깎아서 붙여야지") — 밑동 단은 밑 반폭 5.65 → 위 5.35(높이 0.44)라 벽이 안으로 기운다.
+         날의 안쪽 면도 같은 비로: 높이 z 에서 안쪽 끝 = R0P9 − 0.3·z/0.44(밑동 단보다 높은 날 윗면은 그 벽을 늘인 자리). 옆선 위 반폭은 wAt9(그 자리 별 날의 반폭). */
+      const RT9 = (z9: number): number => R0P9 - 0.3 * (z9 / 0.44);
+      const wAt9 = (r9: number): number => ((STAR_R - r9) / (STAR_R - STAR_IN * Math.SQRT1_2)) * STAR_IN * Math.SQRT1_2;
+      const W0P9 = wAt9(R0P9);
       for (const ang9 of [0, 90, 180, 270]) {
         const a9 = (ang9 * Math.PI) / 180;
         const sx9 = Math.sin(a9); const sy9 = Math.cos(a9); const ux9 = Math.cos(a9); const uy9 = -Math.sin(a9);
         const Q9 = (r9: number, u9: number, z9: number): [number, number, number] => [sx9 * r9 + ux9 * u9, sy9 * r9 + uy9 * u9, z9];
         const lo9: [number, number, number][] = [Q9(R0P9, -W0P9, 0), Q9(STAR_R, 0, 0), Q9(R0P9, W0P9, 0)];
-        const hi9: [number, number, number][] = lo9.map(([x9, y9]) => [x9, y9, TH9]);
+        const hi9: [number, number, number][] = [Q9(RT9(TH9), -wAt9(RT9(TH9)), TH9), Q9(STAR_R, 0, TH9), Q9(RT9(TH9), wAt9(RT9(TH9)), TH9)];
         const cX9 = (lo9[0][0] + lo9[1][0] + lo9[2][0]) / 3; const cY9 = (lo9[0][1] + lo9[1][1] + lo9[2][1]) / 3;
         const padF: ShapeFace[] = [];
         for (let i9 = 0; i9 < 3; i9 += 1) {
