@@ -10047,17 +10047,13 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       // 표창 0.8배(요청) 뒤 길이는 원복(재요청: "길이는 원복하고 폭만 줄인 걸로 유지") — 끝 8.9, 오목점 3.2.
       const STAR_R = 8.9 * SK9;
       const STAR_IN = 3.2 * SK9;   // 5.0 → 4.0(요청: 날 폭 줄이기) — 오목점이 안으로 들수록 날이 가늘다.
-      /* ★ 표창 발판을 **앞(화면 아래)으로 0.6·0.6** 옮긴다(2026-11-04, 지적: "발판 판이랑 본건물 위치가 안 맞음 · 발판 무늬를 봐 뒤쪽 두 개가 더 많이 보여") — 판과 몸은
-         같은 중심(0,0)이지만 몸이 받침(0.55) 위에 솟고 밑동 단이 0.4 더 넓어, 건물 요잉(BLD_YAW9 45)으로 보면 앞 두 날은 밑동에 더 덮이고 뒤 두 날은 길게 남았다.
-         모형 (+x, +y) 대각이 그 요잉의 화면 아래다 — 0.6 에서 네 날의 보이는 길이가 맞았다(model-gl 45° 견줌). 날 끝 뿔도 함께 옮긴다. */
-      const POX9 = 0.6; const POY9 = 0.6;
       const star9 = (z9: number): [number, number, number][] => {
         const pts: [number, number, number][] = [];
         for (let k9 = 0; k9 < 4; k9 += 1) {
           const a9 = (k9 * Math.PI) / 2;
-          pts.push([Math.sin(a9) * STAR_R + POX9, Math.cos(a9) * STAR_R + POY9, z9]);
+          pts.push([Math.sin(a9) * STAR_R, Math.cos(a9) * STAR_R, z9]);
           const b9 = a9 + Math.PI / 4;
-          pts.push([Math.sin(b9) * STAR_IN + POX9, Math.cos(b9) * STAR_IN + POY9, z9]);
+          pts.push([Math.sin(b9) * STAR_IN, Math.cos(b9) * STAR_IN, z9]);
         }
         return pts;
       };
@@ -10100,7 +10096,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         const cxa = Math.cos(a);
         const sya = -Math.sin(a);
         const P3 = (r9: number, u9: number, z9: number): [number, number, number] =>
-          [sx * r9 + cxa * u9 + POX9, sy * r9 + sya * u9 + POY9, z9];
+          [sx * r9 + cxa * u9, sy * r9 + sya * u9, z9];
         const tip9 = P3(STAR_R, 0, TH9);
         const bl9 = P3((8.9 - HK9 * 1.7) * SK9, -0.5 * HK9 * SK9, TH9);
         const br9 = P3((8.9 - HK9 * 1.7) * SK9, 0.5 * HK9 * SK9, TH9);
