@@ -4328,10 +4328,9 @@ export function deriveWorld9(inp: {
         if (goneAt > 0 && nk.sec <= goneAt && goneAt - nk.sec <= 90 && d9 <= 5) {
           eff = Math.min(eff, nk.sec);
         }
-        if (nk.confirmed && nk.sec >= bs9 && d9 <= 4
-          && !["Command Center", "Nexus", "Hatchery", "Lair", "Hive"].includes(bu9)) {
-          eff = eff > 0 ? Math.min(eff, nk.sec) : nk.sec;
-        }
+        /* (걷음 2026-11-04, 지적: "우리 재생기엔 익스트랙터 4개가 터졌고 원작에선 안 터짐") — 확정 핵 4타일 안의 건물(본진 제외)을 **안 죽었어도** 그 시각에 무너뜨리던 어림.
+           참값이 없던 시절의 대역이다 — 참값은 건물이 정말 무너진 시각(위 goneAt)을 안다. 핵에 버틴 건물(익스트랙터 750 · 핵 500)이 화면에서만 터지고 간헐천이 드러났다.
+           남는 것은 위 줄 하나 — 핵 뒤 90초 안에 **실제로** 무너진 건물의 걷힘을 착탄 시각으로 당기는 것. */
       }
       m9.set(b9, eff);
     }
