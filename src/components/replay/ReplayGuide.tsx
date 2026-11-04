@@ -3,6 +3,7 @@ import { Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Vid
 
 /* ★ 사용법은 **기능마다 한 줄 · 그 이름 옆에 PC 단축키**(2026-10-22, 요청: "단축키를 각 기능 설명부에 통합 — 기능 옆에 단축키 · 내용 전체적으로 많이 간소화") —
    옛 두 절(01 화면 도구 · 02 PC 단축키)과 도구 상자·전광판 그림은 걷었다.
+   ★ 단축키 2026-11-04(요청: "단축키 설명 업데이트") — UI 숨기기 H · K · J · U · 미니맵 N · 자막 크기 [ ] · 선 L(옛 G 독만 남김은 걷었다).
    ★ 단축키 2026-10-24(요청: "숫자패드 단축키 제거 · + − → PgUp PgDn · . 9 0 제거 · 색깔 C · 줌 Q E 제거") — 여기 적힌 키만 재생기(onKey)가 듣는다. V(입체)도 걷었다(`#3d=1` 로만). */
 
 /** 기능 이름 옆 단축키 — plus 면 함께 누르는 키(Alt + Enter). */
@@ -62,7 +63,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<T s="↔"/>} name="움직이기" keys={<Keys k={["W", "A", "S", "D"]}/>}>끌기(PC 는 왼쪽 버튼).</Row>
           <Row ic={<T s="▭"/>} name="상자 선택" keys={<Keys k={["Shift", "끌기"]} plus/>}>PC 에서 오른쪽 버튼으로 끌거나 Shift 누른 채 끌면 여러 유닛을 고릅니다(개인 추적 중엔 안 됨).</Row>
           <Row ic={<T s="휠"/>} name="확대 / 축소">휠 · 핀치 · 두 번 누르기.</Row>
-          <Row ic={<MapIcon size={15}/>} name="미니맵">누르면 그 자리로(중계 중에는 잠김).</Row>
+          <Row ic={<MapIcon size={15}/>} name="미니맵" keys={<Keys k={["N"]}/>}>누르면 그 자리로(중계 중에는 잠김) · N 보이기 / 숨기기.</Row>
         </ul>
 
         <h3 className="scr-guide-h3">중계 — 전광판의 카메라 단추</h3>
@@ -78,10 +79,11 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<T s="2D"/>} name="평면 / 입체"/>
           <Row ic={<Volume2 size={15}/>} name="소리" keys={<Keys k={["M"]}/>}/>
           <Row ic={<Route size={15}/>} name="선" keys={<Keys k={["L"]}/>}>명령(이동 · 공격 · 패트롤) 줄과 랠리 줄 켜고 끄기.</Row>
-          <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · B · N 이전 · 다음.</Row>
+          <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · 결과가 있으면 B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
-          <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["G"]}/></>}>H 모두 숨김 · G 독만 남김 · 다시 누르면 보임.</Row>
+          <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵은 남김) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
+          <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]"]}/>}>[ 작게 · ] 크게.</Row>
         </ul>
 
         <h3 className="scr-guide-h3">인포창</h3>
