@@ -5999,7 +5999,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const wp9 = o.style ? { style: o.style } : o.by ? { by: o.by } : {};
       if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
         fxOps.push({
-          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.3, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
+          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.18, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
           ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...ok9, ...wp9,
         });
         return;
@@ -10826,8 +10826,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
             kind: "hit", style: fxName9, fx: tfx9, fy: tfy9, ok: `u${tgtTag9}`,   // style = 쏜 무기(효과음 HIT9 가 총소리를 고른다 — 없으면 근접 칼질로 울렸다)
             lift: foe.air ? foeLift9 : vPx9 * 0.34,
             /* ★ 쏘는 쪽 가장자리에(2026-11-04, 지적: "위치가 유닛 왼쪽 윗부분으로 고정 · 쏘는 쪽이랑 가까운 곳에 튀어야") — 표적에서 사수 쪽 화면 방향(hitDirOf9)으로
-               보이는 몸 폭의 0.3 만큼. 너무 멀면(14칸 밖) 몸 가운데. */
-            ...((d9) => (d9 ? { dist: vW9 * 0.3, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
+               보이는 몸 폭의 0.3 만큼. 너무 멀면(14칸 밖) 몸 가운데. (같은 날 "위치를 좀 더 피격 대상 몸 중심 쪽으로(안쪽으로)" → 0.3 → 0.18 · 벙커 사수 몫도) */
+            ...((d9) => (d9 ? { dist: vW9 * 0.18, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
             size: vW9 * 0.69,
             ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
           });

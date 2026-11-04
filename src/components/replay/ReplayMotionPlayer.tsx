@@ -4959,7 +4959,7 @@ export function paintFxList9(
               const q9 = b9 + 11 + k9 * 37;
               const an9 = rot9 + (k9 / per9) * Math.PI * 2 + (hh9(q9) - 0.5) * 0.24;
               const d09 = R9 * (0.10 + 0.10 * hh9(q9 + 1)) + p9 * R9 * (0.55 + 0.2 * hh9(q9 + 2));
-              const ln9 = R9 * (0.28 + 0.16 * hh9(q9 + 3)) * (1 - p9 * 0.6);
+              const ln9 = R9 * (0.17 + 0.10 * hh9(q9 + 3)) * (1 - p9 * 0.6);   // 0.28+0.16 → 0.17+0.10(×0.6 · 2026-11-04, 요청: "불티 하나하나의 길이 좀 줄이고")
               const cx9 = Math.cos(an9); const sy9 = Math.sin(an9);
               ctx.moveTo(ox9 + cx9 * d09, oy9 + sy9 * d09);
               ctx.lineTo(ox9 + cx9 * (d09 + ln9), oy9 + sy9 * (d09 + ln9));
