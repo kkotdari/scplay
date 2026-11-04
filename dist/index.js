@@ -44558,7 +44558,7 @@ function YP({
         " · UI ",
         vs.ui,
         " · 판 ",
-        "11-04 22:26",
+        "11-05 00:10",
         vs.ss !== 1 ? ` · 초해상 ×${vs.ss.toFixed(2)}` : "",
         Math.abs(vs.unitScale - vs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${vs.unitScale.toFixed(4)})` : vs.scale > 0 && Math.abs(vs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${vs.scale.toFixed(4)})` : "",
         vs.allocOk ? "" : " · ⚠배킹확보 실패"
