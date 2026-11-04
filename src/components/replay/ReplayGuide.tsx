@@ -80,6 +80,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
+          <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["G"]}/></>}>H 모두 숨김 · G 독만 남김 · 다시 누르면 보임.</Row>
         </ul>
 
         <h3 className="scr-guide-h3">인포창</h3>

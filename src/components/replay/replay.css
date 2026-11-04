@@ -5661,3 +5661,18 @@
   max-width: calc(100% - var(--wl, var(--cap-side)) - var(--sd-room, 0px) - var(--sd-gap, 0px));
 }
 .scr-motion-pc9 .scr-fs-layer.is-wide .scr-fs-chat { max-width: min(40%, calc(100% - var(--wl, var(--cap-side)) - var(--sd-room, 0px) - var(--sd-gap, 0px))); }
+
+/* ★ UI 숨기기(2026-11-04 · RMP uiHide9 ★ — H 다 숨김 · G 독만 남김) — 무대의 지도·하늘·분할 밑 층 밖 자식(자막·화면 주인 머리·모드 토글·배율·배속·채팅·테스터 단추…)과
+   무대 밖 형제(독·툴박스 .scr-fs-lower · 품질 알림)를 **자리는 둔 채** 안 보이게 하고 누름도 안 받는다(레이아웃이 안 바뀌어 지도가 안 흔들린다). G 는 .scr-fs-lower 를 남긴다.
+   지도 안의 링·명령 줄·클릭 표시는 지도 그림이라 남는다. */
+.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under),
+.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under) *,
+.scr-fs-root.is-uihide-all > :not(.scr-fs-stage),
+.scr-fs-root.is-uihide-all > :not(.scr-fs-stage) *,
+.scr-fs-root.is-uihide-dock > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under),
+.scr-fs-root.is-uihide-dock > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under) *,
+.scr-fs-root.is-uihide-dock > :not(.scr-fs-stage):not(.scr-fs-lower),
+.scr-fs-root.is-uihide-dock > :not(.scr-fs-stage):not(.scr-fs-lower) * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
