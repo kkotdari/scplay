@@ -20169,6 +20169,10 @@ export default function ReplayMotionPlayer({
         if (e.repeat) return;
         const k9 = e.code === "KeyH" ? "all" : e.code === "KeyK" ? "cap" : e.code === "KeyU" ? "ctl" : "dock";
         setUiHide9((v) => ({ ...v, [k9]: !v[k9] }));
+      } else if (e.code === "Backslash" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // \ = 자막 크기 처음대로(위 capU9 ★ · 2026-11-04, 요청: "\: 자막 크기 초기화 단축키").
+        e.preventDefault();
+        setCapU9(1);
       } else if ((e.code === "BracketLeft" || e.code === "BracketRight") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // [ = 자막 작게 · ] = 자막 크게(위 capU9 ★ · 0.1 씩 · 0.5~2). 누르고 있으면 이어 간다.
         e.preventDefault();

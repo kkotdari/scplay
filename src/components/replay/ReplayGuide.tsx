@@ -83,7 +83,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
           <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵은 남김) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
-          <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]"]}/>}>[ 작게 · ] 크게.</Row>
+          <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]", "\\"]}/>}>[ 작게 · ] 크게 · \ 처음대로.</Row>
         </ul>
 
         <h3 className="scr-guide-h3">인포창</h3>

@@ -3014,7 +3014,7 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - `uiHide9` 가 0|1|2 에서 깃발 셋 `{all, cap, dock}` 으로 — 따로 켜고 끈다. 뿌리 클래스 `is-uihide-all|cap|dock`(replay.css).
   K = `.scr-fs-solo`(단독 화면 주인 · 자막) · `.scr-fs-chat` · `.scr-split-cap`(분할 칸 머리) · `.scr-cast-caption` · J = `.scr-fs-dockrow`(재생바는 남음).
   옛 G(독만 남김)는 걷었다 — H 가 그 위를 덮는다.
-- `capU9`(0.5~2 · 0.1 걸음 · localStorage `scplay.capu`) → 무대 `--capu` → `.scr-cast-caption` 글자와 `--cap-fz`(자막 자리 · 채팅이 그 위에 선다)에 곱한다.
+- `capU9`(0.5~2 · 0.1 걸음 · `\\` 처음대로 1 · localStorage `scplay.capu`) → 무대 `--capu` → `.scr-cast-caption` 글자와 `--cap-fz`(자막 자리 · 채팅이 그 위에 선다)에 곱한다.
 
 ## J = 독 통째 숨김 · 독 접기/숨김 때 자막 내림(2026-11-04)
 지적: "독이 다 안 숨겨져"(J 가 독 줄만 감춰 쇠판 · 틀 · 재생바가 남았다) → "독 숨기기는 독 접기랑 달라 · 재생부까지 다 숨겨야 해" · "독 접거나 숨기면 자막 내리기".
