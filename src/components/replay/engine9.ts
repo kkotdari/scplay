@@ -222,17 +222,19 @@ export const MINE_ARM_SEC9 = 0.45;
 export const STIM_CD_K9: Record<string, number> = { Marine: 7 / 15, Firebat: 11 / 22 };
 /** ★ 판 16 건물 참값 색인(2026-11-03, 요청: "방어 건물 실제 사격 · 랠리 … 연결") — 건물 태그 → 상태 줄·실제 사격 · 사람 번호 → 편. 판(entData)마다 한 번. */
 type TruthIdx9 = { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number>;
-  /** 판 17 탄 — 쏜 몸 태그 → 탄(생긴 차례). */ blt: Map<number, { t0: number; t1: number; tx: number; ty: number; tgt: number }[]> };
+  /** 판 17 탄 — 쏜 몸 태그 → 탄(생긴 차례 · t1 = 닿은 초 · 옛 판은 사라진 초). */ blt: Map<number, { t0: number; t1: number; tx: number; ty: number; tgt: number }[]> };
 const TRUTH_IDX9 = new WeakMap<object, TruthIdx9>();
 function truthIdx9(ed: { lives: readonly { bld: boolean; tag: number; st16?: Float64Array; fires?: Float64Array }[]; players: readonly { owner: number; team: number }[];
-  loads?: readonly [number, number, number][]; bullets?: readonly { t0: number; t1: number; src: number; tgt: number; tx: number; ty: number }[] } | null | undefined): TruthIdx9 {
+  loads?: readonly [number, number, number][]; bullets?: readonly { t0: number; th?: number; t1: number; src: number; tgt: number; tx: number; ty: number }[] } | null | undefined): TruthIdx9 {
   if (!ed) return { bld: new Map(), team: new Map(), blt: new Map() };
   let m9 = TRUTH_IDX9.get(ed);
   if (!m9) {
     m9 = { bld: new Map(), team: new Map(), blt: new Map() };
     for (const b9 of ed.bullets ?? []) {
       if (!b9.src) continue;
-      const a9 = m9.blt.get(b9.src); const r9 = { t0: b9.t0, t1: b9.t1, tx: b9.tx, ty: b9.ty, tgt: b9.tgt };
+      /* t1 = **닿은 초**(덤퍼 k 2 · th)가 있으면 그것 — 탄은 그때 표적에 닿고 나머지는 폭발 그림이다(2026-11-04, 지적: "드라군 · 미사일 속도가 너무 느림 · 원작 속도대로").
+         옛 판(닿음이 없다)은 사라진 초 그대로라 폭발 그림 몫만큼 느리다 — 재분석하면 원작 속도. */
+      const a9 = m9.blt.get(b9.src); const r9 = { t0: b9.t0, t1: b9.th !== undefined && Number.isFinite(b9.th) ? b9.th : b9.t1, tx: b9.tx, ty: b9.ty, tgt: b9.tgt };
       if (a9) a9.push(r9); else m9.blt.set(b9.src, [r9]);
     }
     for (const e of ed.lives) if (e.bld && e.tag > 0 && (e.st16 || e.fires)) m9.bld.set(e.tag, { st16: e.st16, fires: e.fires });
@@ -981,7 +983,7 @@ export const TARGET_FX = new Set(["zap"]);
  *  되돌리는 것은 **진짜 탄이 날아가는 무기**뿐이고, 총알·광선처럼 사실상 즉발인 것은
  *  그대로 번쩍인다("마린같이 실시간은 어쩔수 없고"가 그 선이다).
  *  여기 드는 갈래: 히드라 가시·뮤탈 글레이브·드라군 플라즈마·미사일·독구체·포탄. */
-/** 무기가 포탑 부속(subunit)에 있는 몸 — 덤퍼 판 16 사격 · 판 17 탄이 본체 태그로 안 적힌다(그 자리 ★ · 실제 사격 대신 지어낸다). */
+/** 무기가 포탑 부속(subunit)에 있는 몸 — 옛 덤퍼는 판 16 사격을 본체 태그로 안 적었다(그 자리 ★ · 빈 사격이면 지어낸다 · 탄은 원작이 본체로 적어 그대로). */
 const SUBWPN9 = (u: string): boolean => u === "Goliath" || u.startsWith("Siege Tank");
 export const PROJECTILE_FX = new Set([
   "spine", "glave", "acid", "venom", "missile", "missileG", "plasma", "cannon", "siege", "frag", "spit", "yamato",
@@ -8637,10 +8639,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        건물이 시야 안이면 싸움이다: 그 자리에 멈춰 서고(engageHoldRef), 트레이서·
        불꽃이 인다. 일꾼·수송·옵저버는 안 싸운다(도망 대상일 뿐). */
     const holdKey = `${e.raw}-v2e${ei}`;
-    /* ⚠ 무기가 **포탑 부속(subunit)**에 있는 몸(탱크 두 모드 · 골리앗)은 덤퍼가 사격·탄을 못 적는다(2026-11-04, 지적: "탱크 트레이서 아예 안 나옴") —
-       덤퍼 bwdump.cpp 판 16 사격은 보이는/숨은 몸 목록만 훑고(부속은 그 목록에 없다) 쿨다운은 부속이 든다 · 판 17 탄의 쏜 몸도 부속 태그다. 그래서 본체의 fires 는
-       늘 빈 배열인데 truthLives 는 빈 배열도 싣고, realPh9 는 그것을 '안 쏘는 중'(0.999)으로 읽어 탱크 탄이 한 번도 안 났다. 이 몸들은 실제 사격을 안 쓰고 지어낸다(SUBWPN9). */
-    if (e.fires && !SUBWPN9(drawUnit)) FIRES9.set(holdKey, e.fires); else FIRES9.delete(holdKey);   // 판 16 실제 사격(위 FIRES9 ★)
+    /* ⚠ 무기가 **포탑 부속(subunit)**에 있는 몸(탱크 두 모드 · 골리앗) — 옛 덤퍼는 부속의 사격을 못 적었다(2026-11-04, 지적: "탱크 트레이서 아예 안 나옴"):
+       판 16 사격은 보이는/숨은 몸 목록만 훑고(부속은 그 목록에 없다) 쿨다운은 부속이 든다. 그래서 본체의 fires 가 늘 빈 배열이었고, realPh9 는 그것을 '안 쏘는 중'(0.999)으로
+       읽어 탱크 탄이 한 번도 안 났다. 덤퍼가 이제 부속 사격을 본체 태그로 적는다(같은 날) — 재분석 판은 실제 박자 · 빈 배열인 옛 판의 이 몸들만 지어낸다(SUBWPN9). */
+    if (e.fires && (e.fires.length > 0 || !SUBWPN9(drawUnit))) FIRES9.set(holdKey, e.fires); else FIRES9.delete(holdKey);   // 판 16 실제 사격(위 FIRES9 ★)
     /* ★ **공중 유닛도 싸운다**(지적: "미사일 류 효과 안보임") ────────────────
        `!uAir`가 여기 있던 까닭은 옛 '교전 붙기'다 — 적이 시야에 들면 그 자리에
        멈춰 서게 하던 장치인데, 나는 것은 멈춰 서지 않고 지나가므로 뺐다.
@@ -10318,7 +10320,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        비행 0.4초면 한 주기의 1/10만 보였다). 그 탄만 속도를 5타일/초로 낮추고 바닥을 1초로 올려 눈에 들게 한다. */
     const slowAcid9 = fxName9 === "acid";
     /* ★ 판 17 탄(2026-11-03, 요청: "탄환 … 연결") — 이 몸의 날고 있는 탄이 있으면 비행 시간·진행을 그 탄(생긴 초 → 사라진 초)으로. */
-    const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) && !SUBWPN9(drawUnit) ? bltNow9(e.tag) : undefined;   // 부속 무기 몸은 탄이 부속 태그라 지어낸다(위 SUBWPN9 ★)
+    const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) ? bltNow9(e.tag) : undefined;   // 탄은 원작이 본체 태그로 적는다(bullet_owner_unit = 포탑의 본체)
     const flySec9 = blt9 && Number.isFinite(blt9.t1) ? Math.max(0.03, blt9.t1 - blt9.t0) : ((cd9v: number, dist9v: number): number => {
       const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
@@ -10352,7 +10354,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     if (fighting && fxName9 && Number.isFinite(foe.bd) && !TGT_OWN_FX9.has(fxName9)
       && !(RIFLE_HIT9.has(fxUnit) || (!foe.air && RIFLE_GROUND9.has(fxUnit)))) {
       const proj9 = PROJECTILE_FX.has(fxName9);
-      const land9 = proj9 && !SUBWPN9(drawUnit) ? bltLand9(e.tag) : undefined;
+      const land9 = proj9 ? bltLand9(e.tag) : undefined;
       if (land9 !== null) {
         const since9 = typeof land9 === "number" ? t - land9 : fireSince9(holdKey, fxCdRaw);
         tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, style: fxName9, since: since9, delay: typeof land9 === "number" || !proj9 ? 0 : flySec9, fallPx: fxPx });

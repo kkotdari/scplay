@@ -214,7 +214,7 @@ function build(ver) {
   }
   if (ver >= 17) {                                       // 판 17 — 탄 절 · 타일 절(각 u32 길이 · u32 줄 수 · (타일만 u16 폭·높이) · 몸)
     const secM = (n, body, head = Buffer.alloc(0)) => { const bb = Buffer.concat(body); p.push(u32(4 + head.length + bb.length), u32(n), head, bb); };
-    secM(2, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(1), varint(12), u32(1)]);
+    secM(3, [u8(0), varint(48), u32(1), u16(0), u8(3), u32(77), u32(78), u16(10), u16(20), u16(30), u16(40), u8(2), varint(6), u32(1), u8(1), varint(6), u32(1)]);   // 생김 48 · 닿음 54 · 사라짐 60
     secM(2, [varint(24), u32(5), u32((0x40 << 16) | (0xfe << 8) | 0xfe), varint(24), u32(5), u32((0 << 16) | (0xff << 8) | 0xfe)], Buffer.concat([u16(128), u16(96)]));
   }
   return zlib.deflateSync(Buffer.concat(p)).toString("base64");
@@ -292,8 +292,8 @@ function expect(ver, r, fail) {
   eq("상태 78", r.stat?.get(78) ? [...r.stat.get(78)] : [], ver >= 16 ? [72 / FPS, 26, 60] : []);
   eq("사격 77", r.fires?.get(77) ? [...r.fires.get(77)] : [], ver >= 16 ? [48 / FPS, 0, 78, 63 / FPS, 1, 0] : []);
   // 판 17 — 탄(생김·사라짐 짝) · 타일 시간축(되감기 포함) · 처음 밝힌 초.
-  eq("판17 탄", (r.bullets ?? []).map((b) => [b.id, b.t0, b.t1, b.wpn, b.owner, b.src, b.tgt, b.x, b.y, b.tx, b.ty]),
-    ver >= 17 ? [[1, 48 / FPS, 60 / FPS, 0, 3, 77, 78, 10, 20, 30, 40]] : []);
+  eq("판17 탄", (r.bullets ?? []).map((b) => [b.id, b.t0, b.th, b.t1, b.wpn, b.owner, b.src, b.tgt, b.x, b.y, b.tx, b.ty]),
+    ver >= 17 ? [[1, 48 / FPS, 54 / FPS, 60 / FPS, 0, 3, 77, 78, 10, 20, 30, 40]] : []);
   if (ver >= 17 && r.tiles) {
     const tl = r.tiles;
     eq("판17 타일 크기", [tl.w, tl.h, tl.n], [128, 96, 2]);

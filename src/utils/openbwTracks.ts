@@ -264,7 +264,8 @@ export type TruthTracks = {
   /** ★ 판 17 타일(크립·시야) 시간축 — 옛 판은 null. */
   tiles: TileTL17 | null;
 };
-export type Bullet17 = { id: number; t0: number; t1: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number };
+/** th — 탄이 **표적에 닿은** 초(덤퍼 k 2 · state_dying 첫 프레임 · 2026-11-04 · 옛 판은 Infinity). t1 은 폭발 그림까지 끝나 목록에서 빠진 초다. */
+export type Bullet17 = { id: number; t0: number; th: number; t1: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number };
 /** ★ 판 17 타일 시간축 — 12 프레임마다 바뀐 칸의 [깃발 << 16 | 보임 << 8 | 밝힘](원작 그대로 — 보임·밝힘은 **비트가 서면 그 사람에게 안 보임·안 밝힘**).
  *  stateAt(t) 는 그 시각의 판 전체(Uint32Array · 되쓰는 배열 — 부른 쪽이 베끼지 않으면 다음 부름에 바뀐다). 30초마다 찍어 둔 판에서 앞으로만 감는다. */
 export class TileTL17 {
@@ -526,6 +527,7 @@ export function raw17Bullets(sec: Raw17Sec, fps: number): ({ t: number; id: numb
   for (let i = 0; i < sec.n; i += 1) {
     const k = c.u8(); pf += c.varint(); const id = c.u32();
     if (k === 1) { out.push({ t: pf / fps, id, gone: true }); continue; }
+    if (k === 2) continue;   // 닿음(판 17 탄 절과 같은 꼴 · 2026-11-04) — 여기선 안 쓴다
     out.push({ t: pf / fps, id, wpn: c.u16(), owner: c.u8(), src: c.u32(), tgt: c.u32(), x: c.u16(), y: c.u16(), tx: c.u16(), ty: c.u16() });
   }
   return out;
@@ -1031,7 +1033,8 @@ export async function decodeTruthTracks(b64: string): Promise<TruthTracks | null
         for (let i = 0; i < n9; i += 1) {
           const k = sc.u8(); pf += sc.varint(); const id = sc.u32();
           if (k === 1) { const b9 = live9.get(id); if (b9) { b9.t1 = pf / fps; live9.delete(id); } continue; }
-          const b9: Bullet17 = { id, t0: pf / fps, t1: Infinity, wpn: sc.u16(), owner: sc.u8(), src: sc.u32(), tgt: sc.u32(), x: sc.u16(), y: sc.u16(), tx: sc.u16(), ty: sc.u16() };
+          if (k === 2) { const b9 = live9.get(id); if (b9) b9.th = pf / fps; continue; }   // 닿음(위 Bullet17.th)
+          const b9: Bullet17 = { id, t0: pf / fps, th: Infinity, t1: Infinity, wpn: sc.u16(), owner: sc.u8(), src: sc.u32(), tgt: sc.u32(), x: sc.u16(), y: sc.u16(), tx: sc.u16(), ty: sc.u16() };
           live9.set(id, b9); bullets.push(b9);
         } }
       { const len9 = c.u32(); const n9 = c.u32(); const w9 = c.u16(); const h9 = c.u16(); const sc = new Cursor(c.take(len9 - 8));
