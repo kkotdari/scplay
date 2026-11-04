@@ -1936,8 +1936,7 @@
 .scr-motion-pcring { position: absolute; pointer-events: none; overflow: visible; transform: translate(-50%, -50%); transition: transform 0.08s ease-out; }
 .scr-motion-pcring.is-press { transform: translate(-50%, -50%) scale(0.9); }
 /* 선수 커서의 건설 칸 판(RMP cursorBuild9 ★) — 원작 배치 미리보기: 칸마다 초록(놓을 수 있음) · 빨강(막힘) · 반투명 + 진한 테. */
-.scr-motion-pcgrid { position: absolute; pointer-events: none; box-sizing: border-box; background: rgba(62, 224, 106, 0.32); box-shadow: inset 0 0 0 1px rgba(20, 110, 40, 0.85); }
-.scr-motion-pcgrid.is-bad { background: rgba(240, 52, 52, 0.36); box-shadow: inset 0 0 0 1px rgba(120, 16, 16, 0.85); }
+.scr-motion-pcgrid { position: absolute; pointer-events: none; overflow: visible; opacity: 0.34; }   /* 칸 경계선 없이 색으로만(2026-11-04) — 발자국 SVG 한 장 */
 .scr-motion-pcbox {
   position: absolute; pointer-events: none; box-sizing: border-box;
   border: 1.5px solid currentColor; box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 38%, black), inset 0 0 0 1px color-mix(in srgb, currentColor 38%, black);

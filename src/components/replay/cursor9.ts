@@ -25,6 +25,24 @@ export type CursorSrc9 = {
   casts?: readonly (readonly [number, number, number, string, number])[];
   sels?: readonly (readonly [number, number, readonly number[], number])[];
 };
+/** ★ 선택 자리(워커가 짓는다 · 메인은 트랙이 없다) — sels 마다 [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그] 열 칸. 마우스 고르기(click · add)만. */
+export function selPtsOf9(sels: readonly (readonly [number, number, readonly number[], number])[], tracks: ReadonlyMap<number, TruthTrack>): Float64Array {
+  const out9: number[] = [];
+  for (const [ss9, so9, stg9, sk9] of sels) {
+    const k9 = sk9 < 0 ? -1 : sk9 & 15;
+    if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;
+    let n9 = 0; let sx9 = 0; let sy9 = 0; let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity; let first9 = 0;
+    for (const tg9 of stg9) {
+      const tr9 = tracks.get(tg9); const q9 = tr9 ? posAtTruth(tr9, ss9) : null;
+      if (!q9) continue;
+      if (n9 === 0) first9 = tg9;
+      n9 += 1; sx9 += q9.x; sy9 += q9.y;
+      x09 = Math.min(x09, q9.x); y09 = Math.min(y09, q9.y); x19 = Math.max(x19, q9.x); y19 = Math.max(y19, q9.y);
+    }
+    if (n9 > 0) out9.push(ss9, so9, n9, x09, y09, x19, y19, sx9 / n9, sy9 / n9, first9);
+  }
+  return Float64Array.from(out9);
+}
 export type CursorOpts9 = {
   /** 안 그릴 사람(관전자). */
   skip?: (raw: string) => boolean;
@@ -32,6 +50,8 @@ export type CursorOpts9 = {
   clickKind?: (raw: string, t: number, x: number, y: number) => readonly [number, number] | null;
   /** 하나 고른 몸의 꼴 · 반지름 — 없으면 제 편 · 0.75. */
   selKind?: (raw: string, tag: number) => readonly [number, number];
+  /** 선택 자리(selPtsOf9 · 워커가 지은 것) — 있으면 트랙 대신 이것을 쓴다. */
+  selPts?: Float64Array | null;
 };
 
 /** 사람마다 들르는 점(위 ★). */
@@ -60,7 +80,24 @@ export function cursorPathsOf9(src: CursorSrc9, tracks: ReadonlyMap<number, Trut
     put9(nameOfId9.get(bo9) ?? "", bs9, btx9 + ft9[0] / 2, bty9 + ft9[1] / 2, CUR_GROUND9, 0);
   }
   for (const [cs9, cx9, cy9, , co9] of src.casts ?? []) put9(nameOfId9.get(co9) ?? "", cs9, cx9, cy9, CUR_GROUND9, 0);
-  if (tracks) {
+  /** 고른 몸들 → 들르는 점(하나면 그 몸 위 · 여럿이면 끌어 고르기). */
+  const putSel9 = (raw9: string, ss9: number, n9: number, x09: number, y09: number, x19: number, y19: number, cx9: number, cy9: number, tg9: number): void => {
+    if (n9 === 1) {
+      const kr9 = o.selKind ? o.selKind(raw9, tg9) : [CUR_OWN9, 0.75] as const;
+      put9(raw9, ss9, cx9, cy9, kr9[0], kr9[1]);
+      return;
+    }
+    const ax9 = x09 - 0.7; const ay9 = y09 - 0.7; const bx9 = x19 + 0.7; const by9 = y19 + 0.7;
+    const dd9 = Math.min(0.45, Math.max(0.2, 0.18 + Math.hypot(bx9 - ax9, by9 - ay9) * 0.02));
+    put9(raw9, ss9 - dd9, ax9, ay9, CUR_DRAG09, 0);
+    put9(raw9, ss9, bx9, by9, CUR_DRAG19, 0);
+  };
+  if (o.selPts) {
+    const sp9 = o.selPts;
+    for (let i9 = 0; i9 + 9 < sp9.length; i9 += 10) {
+      putSel9(nameOfId9.get(sp9[i9 + 1]) ?? "", sp9[i9], sp9[i9 + 2], sp9[i9 + 3], sp9[i9 + 4], sp9[i9 + 5], sp9[i9 + 6], sp9[i9 + 7], sp9[i9 + 8], sp9[i9 + 9]);
+    }
+  } else if (tracks) {
     for (const [ss9, so9, stg9, sk9] of src.sels ?? []) {
       const k9 = sk9 < 0 ? -1 : sk9 & 15;
       if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다

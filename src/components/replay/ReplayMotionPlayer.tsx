@@ -11006,6 +11006,8 @@ export default function ReplayMotionPlayer({
              그 깜빡임이 났다. 옛 장이 100ms쯤 낡은 것이 안개가 사라지는 것보다 훨씬 낫다. */
         frames9.clear();
         fogSnapsRef9.current = []; eyeSnapsRef9.current = [];
+      } else if (m9.type === "selpts") {
+        setSelPts9((m9 as unknown as { pts: Float64Array }).pts);   // 선수 커서의 선택 자리(워커 · cursor9 selPtsOf9)
       } else if (m9.type === "walks") {
         const w9 = m9 as unknown as { raw?: string; entWalks: EngineWorld9["entWalks"] };
         /* 청해 둔 표를 지운다 — 보관함이 그 사람을 버린 뒤 다시 필요해지면 또 청할 수 있어야 한다. */
@@ -11647,6 +11649,8 @@ export default function ReplayMotionPlayer({
    *  단축키 명령(덤퍼가 자리를 안 적는다)은 들르는 점이 아니다. feat 칸의 `#cursor` 일 때만 짓는다. */
   /** 지형 타일 깃발(원작 그대로 · 위 decodeMapTerrain) — 선수 커서의 건설 칸 판이 '못 짓는 칸'(TILE.unbuildable)을 본다. */
   const mapTileRef9 = useRef<{ w: number; h: number; tile: ArrayLike<number> } | null>(null);
+  /** 선수 커서의 선택 자리(워커가 지어 보낸다 · cursor9 selPtsOf9) — 없으면 선택은 들르는 점이 아니다. */
+  const [selPts9, setSelPts9] = useState<Float64Array | null>(null);
   /** ★ 선수 커서에 붙어 가는 건설 고스트의 **칸 판**(2026-11-04, 요청: "건물 고스트가 커서를 따라다니다가 클릭하면 그 자리에 짓잖아" → "지나가는 동안 놓을 수 없는 자리면 빨간색") —
    *  건물 모델은 엔진이 커서를 따라 옮긴다(engine9 ghosts · view.cursor). 여기선 사람마다 건설 명령 [초, 건물] 과, 칸이 그때 막혔나를 볼 재료(건물 발자국 [시작, 끝, x, y, 폭, 높이]).
    *  막힘: 지도 밖 · 못 짓는 지형 · 그때 선 건물 발자국 · 자원(가스 건물은 간헐천 위만 됨). 크립 · 사이오닉 전력은 안 본다. */
@@ -11692,12 +11696,13 @@ export default function ReplayMotionPlayer({
       const l9 = tg9 >= 0 ? lifeOfTag9.get(tg9) : undefined;
       clk9.set(`${raw9}:${cs9}:${cx9}:${cy9}`, tg9 >= 0 ? [l9 ? relOf9(raw9, l9.owner) : CUR_FOE9, radOf9(l9)] : rk9 ? [CUR_RES9, 0.9] : [CUR_GROUND9, 0]);
     }
-    return cursorPathsOf9(entData, simTracks, {
+    return cursorPathsOf9(entData, null, {
+      selPts: selPts9,
       skip: (raw9) => obsNames.has(raw9),
       clickKind: (raw9, t9, x9, y9) => clk9.get(`${raw9}:${t9}:${x9}:${y9}`) ?? null,
       selKind: (raw9, tg9) => { const l9 = lifeOfTag9.get(tg9); return [l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9)]; },
     });
-  }, [entData, entClicks, simTracks, obsNames, melee, teamMap9]);
+  }, [entData, entClicks, selPts9, obsNames, melee, teamMap9]);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
   const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
     const cl9 = entClicksRef9.current;
@@ -12570,6 +12575,12 @@ export default function ReplayMotionPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [castOn, castRaw, spotNow9 !== null, searchSegNow9 !== null]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
+  /* 선수 커서의 선택 자리(cursor9 selPtsOf9 ★) — 메인은 트랙이 없어(워커에만 넘긴다) 워커에 청한다 · 세계가 바뀌면 다시. feat `#cursor` 일 때만. */
+  useEffect(() => {
+    const w9 = frameWorkerRef.current;
+    if (!w9 || !CURSOR9 || !worldEnts9) return;
+    w9.postMessage({ type: "want", what: "selpts" });
+  }, [worldGen9, workerTick9, worldEnts9]);
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
     const w9 = frameWorkerRef.current;
@@ -23560,6 +23571,9 @@ export default function ReplayMotionPlayer({
                 const gx9 = Math.round(c9.x - fb9[0] / 2); const gy9 = Math.round(c9.y - fb9[1] / 2);
                 const gas9 = nb9[1] === "Refinery" || nb9[1] === "Assimilator" || nb9[1] === "Extractor";
                 const mt9 = mapTileRef9.current;
+                /* 칸 경계선 없이 **색으로만**(같은 날 "고스트에 격자무늬가 보임 · 격자무늬 자체는 안 보이고 색으로만") — 칸마다 따로 깔면 반투명 칸 사이에 이음매가 비쳤다.
+                   발자국 하나를 SVG 한 장(타일 자 viewBox · crispEdges)으로 칠한다. */
+                const cells9: React.ReactNode[] = [];
                 for (let ty9 = gy9; ty9 < gy9 + fb9[1]; ty9 += 1) {
                   for (let tx9 = gx9; tx9 < gx9 + fb9[0]; tx9 += 1) {
                     let ok9 = tx9 >= 0 && ty9 >= 0 && tx9 < grid.width && ty9 < grid.height;
@@ -23571,11 +23585,16 @@ export default function ReplayMotionPlayer({
                       if (tx9 + 0.5 >= r9.x - hw9 && tx9 + 0.5 <= r9.x + hw9 && ty9 + 0.5 >= r9.y - hh9 && ty9 + 0.5 <= r9.y + hh9) { if (r9.gas) onGas9 = true; else ok9 = false; }
                     }
                     if (gas9 ? !onGas9 : onGas9) ok9 = false;
-                    const [ax9, ay9] = posFrac(tx9, ty9); const [bx9, by9] = posFrac(tx9 + 1, ty9 + 1);
-                    out9.push(<span key={`curg-${raw9}-${tx9}-${ty9}`} className={cx("scr-motion-pcgrid", !ok9 && "is-bad")}
-                      style={{ left: `${(ax9 * 100).toFixed(3)}%`, top: `${(ay9 * 100).toFixed(3)}%`, width: `${((bx9 - ax9) * 100).toFixed(3)}%`, height: `${((by9 - ay9) * 100).toFixed(3)}%`, zIndex: 19 }} />);
+                    cells9.push(<rect key={`${tx9}-${ty9}`} x={tx9 - gx9} y={ty9 - gy9} width={1} height={1} fill={ok9 ? "#3ee06a" : "#f03434"} />);
                   }
                 }
+                const [ax9, ay9] = posFrac(gx9, gy9); const [bx9, by9] = posFrac(gx9 + fb9[0], gy9 + fb9[1]);
+                out9.push(
+                  <svg key={`curg-${raw9}`} className="scr-motion-pcgrid" viewBox={`0 0 ${fb9[0]} ${fb9[1]}`} preserveAspectRatio="none" shapeRendering="crispEdges" aria-hidden
+                    style={{ left: `${(ax9 * 100).toFixed(3)}%`, top: `${(ay9 * 100).toFixed(3)}%`, width: `${((bx9 - ax9) * 100).toFixed(3)}%`, height: `${((by9 - ay9) * 100).toFixed(3)}%`, zIndex: 19 }}>
+                    {cells9}
+                  </svg>,
+                );
               }
             }
             if (c9.box) {
@@ -23585,7 +23604,8 @@ export default function ReplayMotionPlayer({
             }
             if (c9.ring) {
               const tile9 = (mapRef.current?.clientWidth ?? 320) / grid.width;
-              const dPx9 = Math.max(30, c9.ring.r * 2 * tile9 * zoom * pitchK(c9.ring.y));
+              /* 원작보다 컸다(같은 날 "유닛 위 마디 고리가 너무 큰데 원작에 비해") — 지름 = 몸 반지름 × 2 × 0.62 · 바닥 30 → 20px. */
+              const dPx9 = Math.max(20, c9.ring.r * 2 * 0.62 * tile9 * zoom * pitchK(c9.ring.y));
               const rc9 = c9.ring.k === CUR_FOE9 ? UI_ATK9 : c9.ring.k === CUR_RES9 ? "#ffd23a" : col9;
               const R9 = 49; const a09 = (125 * Math.PI) / 180; const a19 = (15 * Math.PI) / 180;
               const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;

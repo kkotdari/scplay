@@ -3062,3 +3062,7 @@ click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointe
 요청: "J 독 숨기기에서 미니맵은 제외 · 미니맵은 N 으로 따로 토글 · 중계 토글 · 테스트 버튼들 · 배율 배속 오버레이 토글은 U".
 - uiHide9 에 mini(N · `is-uihide-mini` → `.scr-fs-minipanel`) · ctl(U · `is-uihide-ctl` → `.scr-modetog-stage` · `.scr-zoomdial` · `.scr-speeddial` · `.scr-zoomfps`).
 - J 는 `.scr-fs-lower` 를 감추되 미니맵 우물은 되살린다(N · H 가 함께 켜지면 감춤). N 은 검색 결과가 있으면 종전대로 다음 결과 — 없을 때만 미니맵.
+- (같은 날 "유닛 · 건물 선택이나 드래그 선택이 전혀 안 나오는데" · "유닛 위 마디 고리가 너무 큰데 원작에 비해" · "고스트에 격자무늬 — 색으로만")
+  ① 메인은 참값 트랙을 안 든다(`setSimTracks(new Map())` — 워커에만 넘김) → 선택 자리(posAtSim)가 늘 비었다. 워커가 `selPtsOf9`(cursor9 · sels 마다 열 칸)를 지어
+  `{type:"selpts"}` 로 보내고(메인이 `want selpts` 로 청함 · feat `#cursor` · worldGen9 마다) cursorPathsOf9 가 `selPts` 로 쓴다. 엔진(워커)은 트랙으로 같은 셈.
+  ② 고리 지름 = 몸 반지름 × 2 × **0.62** · 바닥 20px(옛 × 1 · 30px). ③ 칸 판은 발자국 SVG 한 장(타일 viewBox · crispEdges · 칸 테 없음 · 불투명 0.34).

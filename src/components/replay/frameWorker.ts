@@ -19,6 +19,7 @@
  *
  *  ⚠ 이 파일은 ReplayMotionPlayer 모듈을 통째로 끌어온다(엔진이 그 안의 표·헬퍼를 쓴다). React도 함께
  *    묶이지만 DOM은 안 만진다 — 워커에서 `document`를 만지는 줄이 생기면 여기서 던지고 메인 진단에 적힌다. */
+import { selPtsOf9 } from "./cursor9";
 import {
   cineSet9,
   createEngine9, deriveWorld9, pickWorldUi9, type EngineView9, type EngineWorld9, type Frame9,
@@ -47,7 +48,7 @@ type TruthMsg = { type: "truth"; truth: TruthTracks | null };
 type ViewMsg = { type: "view"; view: EngineView9; seq?: number; /** 안개 갈래(시야 주인·전체시야·안개 켬이 바뀔 때만 오른다) */ fogSeq?: number;
   /** 손짓이 도는 중의 시야인가 — 참이면 앞으로 안 짓고 **지금 한 장**만 짓는다(아래 ★). */ live?: boolean };
 type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number; /** 장 간격 바탕(초당 장 · 폰 20 · PC 30) */ fps?: number };
-type WantMsg = { type: "want"; what: "walks"; raw?: string };
+type WantMsg = { type: "want"; what: "walks" | "selpts"; raw?: string };
 /** ★ 시계 맞춤(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로 가는 경우" → "원천적인 해결" · 시계는 메인 하나) — 메인 틱이 그린 재생 시각을
  *  50ms 마다 보낸다. 워커는 그 값에 제 시계를 붙인다(옛: 명령 cmd 의 t0 — React 렌더의 t 라 틱보다 최대 한 박자 늦고, 0.3초·배속×0.15초 어긋날 때까지
  *  안 맞췄다 → 다시 짓는 첫 장이 메인보다 **과거**에 떨어져 유닛·안개가 뒤로 튀었다). 세대(gen)는 안 올린다 — 지어 둔 장은 그대로 쓴다. */
@@ -351,6 +352,12 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
         /* 누구 것인지 **되돌려 실어 준다** — 중계는 사람을 갈아타며 여러 번 청하므로,
            받는 쪽이 사람마다 따로 담으려면 이 표가 있어야 한다(없으면 마지막 것 하나만 남는다). */
         post({ type: "walks", raw: m.raw ?? "", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
+      } else if (m.what === "selpts") {
+        /* ★ 선수 커서의 선택 자리(2026-11-04, 지적: "유닛 · 건물 선택이나 드래그 선택이 전혀 안 나오는데") — 메인은 참값 트랙을 안 든다(워커에만 넘긴다). 선택마다
+           [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그] 아홉씩을 지어 보낸다(cursor9 selPtsOf9 · 메인 cursorPaths9 가 받는다). */
+        const ed9 = world?.entData;
+        const pts9 = ed9 && world?.simTracks ? selPtsOf9(ed9.sels ?? [], world.simTracks) : new Float64Array(0);
+        post({ type: "selpts", pts: pts9 }, [pts9.buffer]);
       }
     } else if (m.type === "view") {
       /* ★ **자(크기)가 바뀐 시야는 지어 둔 장을 버리고 지금 시각부터 다시 짓는다**(지적: "4배 확대 주소로 들어와서 처음
