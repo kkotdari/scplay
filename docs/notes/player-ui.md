@@ -3035,6 +3035,6 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - 리플레이엔 마우스 자리가 없다 — 누른 자리만. `cursorPaths9`(사람마다 [초, x, y] 평평한 배열): 명령 클릭(entClicks) · 건설 자리(builds · 발자국 가운데) · 마법 표적(casts) ·
   마우스 선택(sels 의 click · add — 고른 몸들의 그때 자리(posAtSim) 무게 중심). 부대 불러오기 · 지정(키보드)은 안 넣는다. 0.02초 안 0.5타일 안 겹침은 하나로.
 - `cursorAt9`: 다음 점 직전 이동 시간 = clamp(0.12 + 0.012·거리타일, 0.15, 0.45) · 두 점 사이의 80% 상한 · ease-in-out 3차 · 그 전엔 머묾 · 누른 뒤 0.12초 `is-press`(0.84배).
-- (같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단") — 재생기 prop `isTester` 일 때만 경로를 짓고 그린다.
+- (같은 날 "마우스는 테스트 기능으로만 · feat 안에") — feat 칸(TEST_FLAGS9)의 `#cursor` 일 때만 경로를 짓고 그린다(CURSOR9). 한때 isTester 문이었다.
 - 그림: 렌즈 안 DOM `svg.scr-motion-pcursor`(화살표 끝 = 자리 · 화면 px 고정 PC 22·ui · 폰 16) · 색 ownCol9(주인 = 원작 초록) ?? modeColor. 문은 클릭 자국과 같다
   (clickFx · 시점 보기 상대편 감춤 · 주인이 있으면 주인 것만). ⚠ 분할 칸(캔버스 칸)에는 아직 없다.

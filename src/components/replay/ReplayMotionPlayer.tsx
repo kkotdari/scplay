@@ -689,7 +689,10 @@ const TEST_FLAGS9: readonly [string, string][] = [
   ["terrcache=0", "지형 판 재사용 끄기"], ["viewclip=0", "보이는 곳만 칠하기 끄기"], ["drs=0", "해상도 자동 조절 끄기"], ["gl=0", "GL 끄기(2D 폴백)"],
   /* (2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 상한 낮춰도 그대로" — 범인 좁히기) */
   ["yaw16", "32방 끄기(16방)"], ["fog17=0", "칸 안개 끄기(옛 눈 원)"], ["sprcache=0", "아틀라스 캐시 끄기"],
+  ["cursor", "선수 마우스 커서 켜기"],   // (2026-11-04, 요청: "마우스는 테스트 기능으로만 · feat 안에") — RMP cursorPaths9 ★
 ];
+/** `#cursor` — 선수 마우스 커서 시뮬레이션을 켠다(위 TEST_FLAGS9 · feat 칸 · RMP cursorPaths9 ★). */
+const CURSOR9 = typeof location !== "undefined" && /(?:^|[#&,])cursor(?=$|[&,])/.test(location.hash);
 /** `#yaw16` — 요잉 칸·아틀라스 몫을 16 으로(32방 전 꼴 · 시험용 · 위 TEST_FLAGS9). */
 const YAW16_9 = typeof location !== "undefined" && /(?:^|[#&,])yaw16(?=$|[&,])/.test(location.hash);
 /** `#fog17=0` — 판 17 칸 안개(FOG17_9)를 끄고 옛 눈 원 길로(시험용). */
@@ -11659,7 +11662,7 @@ export default function ReplayMotionPlayer({
    *  부대 불러오기 · 지정은 키보드라 안 넣는다. 그리는 쪽(cursorAt9)이 다음 점 직전에 출발해 그 시각에 정확히 닿게 미끄러진다. */
   const cursorPaths9 = useMemo<Map<string, Float64Array>>(() => {
     const out9 = new Map<string, Float64Array>();
-    if (!entData || !isTester) return out9;   // 테스트 기능(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단") — 재생기 prop isTester 일 때만
+    if (!entData || !CURSOR9) return out9;   // feat 칸의 `#cursor` 일 때만(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단" → "feat 안에 넣어 달라는 뜻")
     const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const acc9 = new Map<string, number[][]>();
     const put9 = (raw9: string, s9: number, x9: number, y9: number): void => {
@@ -11695,7 +11698,7 @@ export default function ReplayMotionPlayer({
       out9.set(raw9, Float64Array.from(f9));
     }
     return out9;
-  }, [entData, entClicks, simTracks, obsNames, isTester]);
+  }, [entData, entClicks, simTracks, obsNames]);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
   const atkFlashFor9 = (raw9: string | null, t9: number): Map<number | string, number> | null => {
     const cl9 = entClicksRef9.current;
@@ -23529,7 +23532,7 @@ export default function ReplayMotionPlayer({
 
           {/* ★ 선수 마우스 커서(위 cursorPaths9 · cursorAt9 ★) — 클릭 자국과 같은 문(clickFx · 시점 보기는 상대편 감춤 · 화면 주인이 있으면 주인 것만).
               개인 화면(주인)은 원작 초록 화살표 · 전체 · 중계는 임자색(색 모드). 크기는 화면 px 고정(배율과 무관 — 렌즈 안이라 px = 화면 px). 끝이 누른 자리다. */}
-          {clickFx && isTester && [...cursorPaths9].map(([raw9, p9]) => {   /* 테스트 기능만(위 cursorPaths9 ★) */
+          {clickFx && CURSOR9 && [...cursorPaths9].map(([raw9, p9]) => {   /* feat `#cursor` 일 때만(위 cursorPaths9 ★) */
             if (uiOwnerRef9.current !== null && raw9 !== uiOwnerRef9.current) return null;
             if (fogOn && !visAll && teamOfRaw(raw9) !== viewTeam) return null;
             const c9 = cursorAt9(p9, t);
