@@ -3038,3 +3038,7 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - (같은 날 "마우스는 테스트 기능으로만 · feat 안에") — feat 칸(TEST_FLAGS9)의 `#cursor` 일 때만 경로를 짓고 그린다(CURSOR9). 한때 isTester 문이었다.
 - 그림: 렌즈 안 DOM `svg.scr-motion-pcursor`(화살표 끝 = 자리 · 화면 px 고정 PC 22·ui · 폰 16) · 색 ownCol9(주인 = 원작 초록) ?? modeColor. 문은 클릭 자국과 같다
   (clickFx · 시점 보기 상대편 감춤 · 주인이 있으면 주인 것만). ⚠ 분할 칸(캔버스 칸)에는 아직 없다.
+
+## 테스트 버튼(프레임 · feat · diag)이 안 눌리던 것(2026-11-04)
+지적: "버튼이 안 눌려 · 프레임 feat diag 다". 무대 `onMapPointerDown` 이 왼쪽 누름을 `setPointerCapture` 로 잡아 지도 끌기로 쓰므로(2026-11-03 "좌클릭 드래그 = 이동") 떼는 순간
+click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointerDown stopPropagation` — 배율 다이얼(zoomDial9)과 같은 막. ⚠ 무대 안에 단추를 새로 세우면 같은 막을 둘 것.

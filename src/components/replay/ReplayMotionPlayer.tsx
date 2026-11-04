@@ -23924,7 +23924,9 @@ export default function ReplayMotionPlayer({
           {!pending && zoomDial9 && FPS_TAG9 && isTester ? (
             /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
             /* (2026-11-03, 요청: "테스트 diag 버튼을 프레임 버튼 아래에 일렬로" · "테스트 feat 으로 변경") — 세로 한 줄: 프레임 → feat → diag(replay.css .scr-zoomfps.is-tester). */
-            <div className={cx("scr-zoomfps is-tester", tMenu9 && "is-open")} ref={tRowRef9}>
+            /* 누름은 여기서 끊는다(2026-11-04, 지적: "버튼이 안 눌려 · 프레임 feat diag 다") — 무대(onMapPointerDown)가 왼쪽 누름을 setPointerCapture 로 잡아 지도 끌기로 쓰므로
+               떼는 순간 click 이 무대로 가 버렸다. 배율 다이얼(zoomDial9)과 같은 막이다. */
+            <div className={cx("scr-zoomfps is-tester", tMenu9 && "is-open")} ref={tRowRef9} onPointerDown={(e) => e.stopPropagation()}>
               <button type="button" className={cx("scr-zoomfps-btn", fpsCapV9 > 0 && "is-on", tMenu9 === "fps" && "is-open")} title={`최대 프레임: ${fpsCapLabel9(fpsCapV9)}`} aria-label="최대 프레임 고르기"
                 aria-expanded={tMenu9 === "fps"} ref={(el) => { fpsTagEl9.el = el; }}
                 onClick={() => setTMenu9((m9) => (m9 === "fps" ? "" : "fps"))} />
