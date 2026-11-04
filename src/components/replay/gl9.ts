@@ -1756,6 +1756,9 @@ export class GlUnits9 implements VecSink9 {
   /** 아틀라스 칸 열쇠에서 뽑은 메시 이름표(2026-11-01 · 위 GlMesh9.lazy ★) — 실린 메시 · 메시·카메라·그림자 → 찍는 단(qk · sprLv9 가 꼭짓점 없이 쓴다) · 빛 켜가 있는 메시. */
   private sprFixedMesh = new Set<string>();
   private sprFixedLv = new Map<string, number>();
+  /** ★ 아틀라스 몸의 굽기 배(메시|카메라|그림자 → 칸 kd ÷ 단 배율 · 2026-11-04, 지적: "가끔 모델들이 저화질로 나온다 · 일부만") — 아틀라스 칸이 아직 안 올라온 몸(폰 상한 밖 묶음 ·
+   *  교체 대기 · 내린 묶음)을 재생 붓이 손수 구우면 1 배라 확대에서 아틀라스(2 배) 몸 옆에 뭉개져 보였다. 그 몸을 늘려 붙여야 하면 아틀라스와 같은 배로 굽는다(want). */
+  private sprFixedQ = new Map<string, number>();
   private sprFixedEmit = new Set<string>();
   private sprFixedCells = new Map<string, SprCell9>();
   /** 고정 판의 GPU 바이트 합(MB) — 동적 판 바이트 상한(sprBytesMax)에서 뺀다. */
@@ -2128,6 +2131,8 @@ export class GlUnits9 implements VecSink9 {
       if (p9.length >= 8) {
         this.sprFixedMesh.add(p9[0]);
         this.sprFixedLv.set(p9[0] + "|" + p9[1] + "|" + p9[p9.length - 1], Number(p9[3]));   // 이어 붙임(역따옴표는 아틀라스 판 해시가 잰다)
+        const q9 = c.kd / 2 ** (Number(p9[3]) / SPR_KQ9);
+        if (q9 > 1.01 && q9 < 8) this.sprFixedQ.set(p9[0] + "|" + p9[1] + "|" + p9[p9.length - 1], q9);
         if (em) this.sprFixedEmit.add(p9[0]);
       }
     }
@@ -2534,6 +2539,15 @@ export class GlUnits9 implements VecSink9 {
     const keyOf = (mesh: GlMesh9, cam: GlCam9, yb: number, qk: number, color: string, gRq: number, gCyq: number, sh: boolean): string => this.sprKey9(mesh, cam, yb, qk, color, gRq, gCyq, sh);
     let fill9 = SPR_HOLD9 ? 0 : this.sprFillMax;   // 채우기(위 sprFillMax ★) — 이 장에 굽는 '가까운 칸으로 그린 몸'의 제 칸 수
     const lvOf = (mesh: GlMesh9, cam: GlCam9, sh: boolean): number => this.sprLv9(mesh, cam, sh);
+    /* 손수 굽는 칸(위 sprFixedQ ★) — 아틀라스 몸이고 지금 늘려 붙여야 하면 아틀라스와 같은 배로. 굽는 판(SPR_SCR9)을 넘으면 1 배. */
+    const locJob = (key: string, it: GlInst9, yb: number, qk: number, gRq: number, gCyq: number, sh: boolean): SprJob9 => {
+      const kq = 2 ** (qk / SPR_KQ9);
+      const qa9 = this.sprFixedQ.get(it.mesh.key + "|" + it.cam.key + "|" + (sh ? 1 : 0)) ?? 1;
+      const q9 = qa9 > 1 && (it.k * dprK) / kq > 1.05 ? qa9 : 1;
+      const mk = (q: number): SprJob9 => this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq * q, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq * q, (gCyq / 8) * kq * q, sh, it.meshLt);
+      const j = mk(q9);
+      return q9 > 1 && (j.w > this.sprScrS() - 4 || j.h > this.sprScrS() - 4) ? mk(1) : j;
+    };
     const want = (it: GlInst9, sh: boolean): { cell: [SprCell9, number] | null; job: SprJob9 | null } => {
       const kd = it.k * dprK;
       const yb = this.sprYbOf9(it.yawDeg, it.mesh);
@@ -2574,8 +2588,7 @@ export class GlUnits9 implements VecSink9 {
         near9.page.last = this.frameNo;
         if (fill9 > 0 && budget > 0 && this.sprDumpQ === 0 && !jobOf.has(key) && this.sprPages.length < this.sprPageCap9()) {
           fill9 -= 1; budget -= 1;
-          const kq = 2 ** (qk / SPR_KQ9);
-          const j = this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, it.meshLt);
+          const j = locJob(key, it, yb, qk, gRq, gCyq, sh);
           jobs.push(j); jobOf.set(key, j); st.fill += 1;
         }
         return { cell: [near9, kd / near9.kd], job: null };
@@ -2583,8 +2596,7 @@ export class GlUnits9 implements VecSink9 {
       const pend = jobOf.get(key); if (pend) return { cell: null, job: pend };
       if (budget > 0 && this.sprDumpQ === 0) {   // 덤프 중엔 재생 붓이 안 굽는다(미리 굽기가 Q 배로 굽는다 · 위 sprDumpQ ★)
         budget -= 1;
-        const kq = 2 ** (qk / SPR_KQ9);
-        const j = this.sprJob9(key, it.mesh, (yb * 360) / this.yawN9(it.mesh), it.cam, kq, kq / Math.max(0.01, dprK), it.color, (gRq / 8) * kq, (gCyq / 8) * kq, sh, it.meshLt);
+        const j = locJob(key, it, yb, qk, gRq, gCyq, sh);
         jobs.push(j); jobOf.set(key, j);
         st.missN += 1; st.missLog.push(key); if (st.missLog.length > 12) st.missLog.shift();
         /* 미리 찍기 표에 올린다 — 같은 몸의 다른 요잉 칸을 남는 예산으로 찍는다(둘 이상의 요잉을 본 것만). */
@@ -2593,7 +2605,7 @@ export class GlUnits9 implements VecSink9 {
           let w9 = this.sprWarm.get(wk);
           if (!w9) {
             if (this.sprWarm.size > 600) { const k0 = this.sprWarm.keys().next().value; if (k0 !== undefined) this.sprWarm.delete(k0); }
-            w9 = { job: { mesh: it.mesh, cam: it.cam, kd: kq, kc: j.kc, color: it.color, gR: j.gR, gCy: j.gCy, sh }, yb0: yb, ys: new Set(), step: 1, qk, gRq, gCyq };
+            w9 = { job: { mesh: it.mesh, cam: it.cam, kd: j.kd, kc: j.kc, color: it.color, gR: j.gR, gCy: j.gCy, sh }, yb0: yb, ys: new Set(), step: 1, qk, gRq, gCyq };
             this.sprWarm.set(wk, w9);
           }
           w9.ys.add(yb);
