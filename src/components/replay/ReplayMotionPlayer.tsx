@@ -20324,6 +20324,11 @@ export default function ReplayMotionPlayer({
        애드온 연결관. 매 경기 화면에 나오는데 재생 중에 굽던 것들이다. RMP 는 아틀라스 판 해시(atlasVer) 밖이라 이 줄은 다음 굽기부터 먹는다. */
     if (SPR_DUMP9 > 0) for (const k9 of ["mineral", "mineral0", "mineral1", "mineral2", "mineral3", "mineralb", "mineralb0", "mineralb1", "mineralb2", "mineralb3",
       "mineralc", "mineralc0", "mineralc1", "mineralc2", "mineralc3", "geyser", "geyserdry", "cocoon", "cocoon1", "cocoon2", "scaffold", "addonlink"]) if (SHAPE_BUILDERS[k9]) kinds.add(k9);
+    /* 부분 굽기(spr-atlas --kinds · `#sprkinds=a~b` · 2026-11-04) — 고른 종류만(별본 WARM_KIN9 은 본 종류를 따라 아래에서 붙는다). 덤프에서만 듣는다. */
+    if (SPR_DUMP9 > 0) {
+      const only9 = /sprkinds=([^,&]+)/.exec(location.hash)?.[1];
+      if (only9) { const keep9 = new Set(decodeURIComponent(only9).split("~")); for (const k9 of [...kinds]) if (!keep9.has(k9)) kinds.delete(k9); }
+    }
     if (kinds.size === 0) { setIntroWarm9(true); return undefined; }
     /* 일감 — 종류마다 **부품 등급표 한 벌 + 방향 판**이다(건물은 방향이 없어 한 벌).
        ★ **등급표를 여기서 짓는다**(실기 계측: "굽기 7장 314ms · 최악판 devourer 270ms",

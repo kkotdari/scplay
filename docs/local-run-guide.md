@@ -101,6 +101,13 @@ PW_HEADED=1 node scripts/spr-atlas.mjs --bake --prune --basisu /tmp/package/bin/
 $env:PW_HEADED="1"; node scripts/spr-atlas.mjs --bake --prune --basisu "$env:TEMP\package\bin\win\x64\basisu.exe"
 ```
 
+**부분 굽기**(2026-11-04~) — 모델 **하나만** 고쳤으면 그 종류만 굽고 나머지는 지금 표 그대로 잇는다(몇 분). 이름은 SHAPE_BUILDERS 이름(예: 넥서스 `pyramidWide` · 게이트 `gate`) · 쉼표로 여럿.
+```bash
+PW_HEADED=1 node scripts/spr-atlas.mjs --bake --prune --kinds pyramidWide --basisu /tmp/package/bin/darwin/arm64/basisu
+```
+⚠ 셰이더(gl9 · 광택표)나 여러 모델이 같이 쓰는 헬퍼(bake9 공용 함수 · mesh9 · shapeOblique)를 고쳤으면 **전체 굽기**(위)를 쓴다 — 부분 굽기는 안 구운 종류를 옛 그림 그대로 두는데
+`--check` 는 그것을 못 가린다(판 해시는 소스 하나로 잰다).
+
 하는 일과 걸리는 때:
 0. **단 올림표**(2026-11-03~) — 크기표가 바뀌었으면 `node scripts/spr-lift.mjs` 를 먼저 돌려 `src/components/replay/sprLift.gen.ts` 를 다시 쓴다
    (장면 시트 세 장을 창에 띄워 잰다 · 몇 분). 안 바뀌었으면 `크기표 그대로` 한 줄 찍고 건너뛴다. 따로 돌리려면 `node scripts/spr-lift.mjs`(맥은 앞에 `PW_HEADED=1`).

@@ -3,6 +3,9 @@
  *   node scripts/spr-atlas.mjs --bake [--prune]          굽기(perf-check 덤프 · 수십 분) → 짐 꾸리기 → spr/ · src/components/replay/sprAtlas.gen.ts 갱신
  *   node scripts/spr-atlas.mjs --dump <dumpdir> [--prune]   이미 뜬 덤프로 짐만 다시 꾸린다
  *   node scripts/spr-atlas.mjs --check                   모델 소스의 판(ver)이 sprAtlas.gen.ts 와 같은가 · 표가 가리키는 파일이 spr/ 에 다 있는가(아니면 1)
+ *   node scripts/spr-atlas.mjs --bake --kinds pyramidWide,gate [--prune]   ★ 부분 굽기(2026-11-04, 요청: "부분 굽기 옵션 넣어줘") — 고른 종류(SHAPE_BUILDERS 이름 ·
+ *     그 별본 WARM_KIN9 포함)만 굽고 지금 표(sprAtlas.gen.ts 의 SPR_ATLAS_INDEX9)의 나머지 종류는 그대로 이어 새 표를 쓴다. 판(src)은 지금 소스로 적는다 —
+ *     ⚠ 셰이더(gl9 굽는 셰이더 · 광택표)나 여러 모델이 같이 쓰는 헬퍼(bake9 공용 · mesh9 · shapeOblique)를 고쳤으면 **전체 굽기**를 쓴다(안 구운 종류가 옛 그림인 채 --check 를 통과한다).
  *   (--out <dir> 딴 자리에 꾸리기 · --work <dir> 덤프·PNG 작업 자리 — 기본 scratchpad/spr-work · 덤프는 5GB 남짓)
  *
  * 원본 자리(2026-10-25, 요청: "scplay를 쓰는 다른 곳들에서는 그 파일을 못쓰잖아 그래서 원본을 scplay에 두는게 맞다고 봐"):
@@ -76,6 +79,9 @@ if (has("--check")) {
 }
 
 let DUMP = flag("--dump", null);
+/** 부분 굽기(위 머리 ★) — 고른 종류 · 없으면 전체. */
+const ONLY = flag("--kinds", null) ? String(flag("--kinds")).split(",").map((k) => k.trim()).filter(Boolean) : null;
+if (ONLY && !genIdx()) { console.error("[아틀라스] 부분 굽기는 이어 쓸 지금 표(sprAtlas.gen.ts)가 있어야 한다 — 먼저 전체 굽기"); process.exit(2); }
 if (has("--bake")) {
   /* ★ 크기표가 바뀌었으면 단 올림표부터 다시 잰다(2026-11-03, 요청: "다음부터는 크기 변경 시 표도 스크립트로 로컬에서 재생성하게") — 그대로면 바로 건너뛴다.
      표가 바뀌면 판 해시(atlasVer · sprLift.gen.ts 포함)도 바뀌므로 아래 굽기·표 쓰기가 새 표로 돈다. 커밋할 때 sprLift.gen.ts 도 함께. */
@@ -84,7 +90,7 @@ if (has("--bake")) {
   rmSync(DUMP, { recursive: true, force: true });
   console.log("[아틀라스] 굽기(perf-check --sprdump) …");
   execFileSync("node", [join(ROOT, "scripts/perf-check.mjs"), "--wide", "--cpu", "1", "--warm", "0", "--bloom", "--mrt",
-    "--hash", "sprdump=2,pctier=2,glmesh=4000", "--readyms", "900000", "--sprdump", DUMP], { stdio: "inherit" });
+    "--hash", `sprdump=2,pctier=2,glmesh=4000${ONLY ? `,sprkinds=${ONLY.join("~")}` : ""}`, "--readyms", "900000", "--sprdump", DUMP], { stdio: "inherit" });
 }
 if (!DUMP || !existsSync(join(DUMP, "cells.json"))) { console.error("덤프가 없다(--dump <dir> 또는 --bake)"); process.exit(2); }
 
@@ -185,6 +191,15 @@ function half(buf, W, H) {
 }
 const nonzero = (b) => { for (let i = 0; i < b.length; i += 4) if (b[i] | b[i + 1] | b[i + 2] | b[i + 3]) return true; return false; };
 const index = { src: ver, q: meta.q, yaw: YAWN, kinds: {} };
+/* 부분 굽기 — 지금 표의 종류를 먼저 옮겨 두고 이번에 구운 종류(꼬리표)만 갈아 끼운다. 배율(q)·요잉 칸 수가 다르면 섞을 수 없다. */
+if (ONLY) {
+  const old = JSON.parse(readFileSync(join(OUT, genIdx()), "utf8"));
+  if (old.q !== index.q || (old.yaw || 16) !== YAWN) { console.error(`[아틀라스] 부분 굽기: 지금 표(q ${old.q} · 요잉 ${old.yaw || 16})와 덤프(q ${index.q} · 요잉 ${YAWN})가 달라 이을 수 없다 — 전체 굽기`); process.exit(2); }
+  const fresh = new Set([...groups.keys()].map((g) => g.slice(0, g.lastIndexOf("."))));
+  for (const [k, e] of Object.entries(old.kinds)) if (!fresh.has(k)) index.kinds[k] = e;
+  console.log(`[아틀라스] 부분 굽기 — 새로 ${[...fresh].sort().join(" · ") || "(없음)"} · 그대로 ${Object.keys(index.kinds).length} 종류`);
+  if (fresh.size === 0) { console.error("[아틀라스] 고른 종류의 칸이 덤프에 없다(이름을 SHAPE_BUILDERS 이름으로)"); process.exit(2); }
+}
 let nEnc = 0; let nSkip = 0;
 const tmp = join(WORK, "_png"); mkdirSync(tmp, { recursive: true });
 let nDone = 0; let bytes = { f: 0, h: 0 };
