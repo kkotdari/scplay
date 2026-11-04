@@ -4647,7 +4647,7 @@
   /* 자리는 **바닥 가운데**(옛 이름표 자리 · 2026-10-09, 요청: "자막을 내리기") — 받침 솟음(--dock-lift)만큼 올라선다. */
   /* ★ 폭 상한 = 무대 폭 **80%**(2026-10-09, 요청: "자막 폭은 화면폭 80프로 활용") — 옛 `left 50% + translateX(−50%)` 는 absolute 의 shrink-to-fit 가용 폭이 '담는 상자 − left'
      = 50% 라 max-width 와 무관하게 무대의 반에서 접혔다(폰 195/390 실측). left·right 0 + width fit-content + margin auto 로 가운데 두고 상한만 80%. */
-  position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px) - var(--cap-drop, 0px)); z-index: 1;
+  position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: calc(3px * var(--dk) + var(--dock-lift, 0px) * var(--cap-keep, 1) - var(--cap-drop, 0px)); z-index: 1;
   max-width: calc(100% - var(--cap-side, 0px) * 2); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; text-align: center;   /* 80%·다이얼 자리 비움 → 폭을 거의 다(2026-10-19 · 다이얼·채팅은 자막 위 · 아래 --over-cap) */
   font-size: calc(var(--cap-fs) * 0.875); line-height: round(nearest, 1.5em, 2px); font-weight: 700; color: #fff; pointer-events: none;
   padding: round(nearest, 0.15em, 2px) round(nearest, 0.6em, 2px); border-radius: 4px; background: rgba(8, 10, 14, 0.62);
@@ -4684,7 +4684,7 @@
 .scr-motion-pc9 .scr-fs-solo-cap { top: round(nearest, calc(28px * var(--dk) / 1.35), 2px); }   /* 16 → 28(2026-10-23, 요청: "주인탭 너무 위 여백이 없더라" — 팀 배지가 칩 위로 솟아 실제 여백이 더 좁다) */
 /* 폰 단독 화면 이름표도 살짝 내린다(2026-10-12, 요청: "재생기 모바일의 화면 주인 부분 살짝 내리기") — 위 3·dk 는 팀 배지가 화면 윗변에 닿았다 → **10·dk**(짝수). */
 .scr-motion:not(.scr-motion-pc9) .scr-fs-solo-cap { top: round(nearest, calc(18px * var(--dk)), 2px); }   /* 10 → 18(2026-10-23 같은 요청) */
-.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px) - var(--cap-drop, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
+.scr-motion-pc9 .scr-cast-caption { bottom: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px) * var(--cap-keep, 1) - var(--cap-drop, 0px)); }   /* 48 → 24(2026-10-11, 요청: "피시 자막 좀 내리기" — 글자가 46 으로 커져 위로 솟았다) */
 @keyframes scr-cast-caption-in {
   from { opacity: 0; transform: translateY(0.5em); }
   to { opacity: 1; transform: none; }
@@ -4699,14 +4699,14 @@
 .scr-fs-stage {
   --cap-side: calc(6px * var(--dk)); --cap-lines: 2;
   --cap-fz: round(nearest, calc(8px * var(--dk) * 0.875 * var(--capu, 1)), 2px);
-  --cap-bot: calc(3px * var(--dk) + var(--dock-lift, 0px) - var(--cap-drop, 0px));
+  --cap-bot: calc(3px * var(--dk) + var(--dock-lift, 0px));
   --cap-res: calc(var(--cap-fz) * (1.5 * var(--cap-lines) + 0.8));
   --over-cap: calc(var(--cap-bot) + var(--cap-res) + var(--sd-gap));
 }
 .scr-motion-pc9 .scr-fs-stage {
   --cap-side: round(nearest, calc(24px * var(--dk) / 1.35), 2px); --cap-lines: 1;
   --cap-fz: round(nearest, calc(24px * var(--dk) / 1.35 * var(--capk, 1) * var(--capu, 1)), 2px);
-  --cap-bot: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px) - var(--cap-drop, 0px));
+  --cap-bot: calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px));
 }
 .scr-fs-chat {
   position: absolute; left: var(--cap-side); bottom: var(--over-cap); z-index: 40001; pointer-events: none; box-sizing: border-box;
@@ -5635,7 +5635,7 @@
 .scr-fs-layer.is-wide .scr-zoomdial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); }
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + var(--wbot) + var(--sd-gap)); }
-.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wmini-w, 0px) + var(--wl) + var(--winfo-w, 0px) + var(--winfo-gap, 0px)); right: calc(var(--wroster-w, 0px) + var(--wr)); bottom: calc(12px * var(--dk) + var(--dock-lift, 0px) + var(--wbot) - var(--cap-drop, 0px)); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") */
+.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wmini-w, 0px) + var(--wl) + var(--winfo-w, 0px) + var(--winfo-gap, 0px)); right: calc(var(--wroster-w, 0px) + var(--wr)); bottom: calc(12px * var(--dk) + var(--dock-lift, 0px) * var(--cap-keep, 1) + var(--wbot) - var(--cap-drop, 0px)); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") */
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }
@@ -5677,9 +5677,9 @@
   visibility: hidden !important;
   pointer-events: none !important;
 }
-/* 독을 숨기면 자막 · 채팅이 독 자리까지 내려온다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기") — 받침 솟음 0 · 무대 아래 독 키(--dock-under · 무대가 그 밑까지 그린다)만큼
-   아래로(--cap-drop). 접기는 RMP dockFit read9 가 뿌리에 같은 두 값을 적는다. */
-.scr-fs-root.is-uihide-dock { --dock-lift: 0px; --dock-lift-r: 0px; --cap-drop: var(--dock-under, 0px); }
+/* 독을 숨기면 **자막만** 독 자리까지 내려온다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기" → "채팅 · 배속 다이얼은 그대로 두기") — 자막은 받침 솟음을 안 타고(--cap-keep 0)
+   무대 아래 독 키(--dock-under · 무대가 그 밑까지 그린다)만큼 아래로(--cap-drop). 접기는 RMP dockFit read9 가 뿌리에 같은 두 값을 적는다. --cap-bot(채팅 · 다이얼)은 안 건드린다. */
+.scr-fs-root.is-uihide-dock { --cap-keep: 0; --cap-drop: var(--dock-under, 0px); }
 
 /* ★ 가로가 긴 화면의 **쇠독**(2026-11-04, 지적: "쇠독 테마가 제대로 안 나옴") — 넓은 배치는 쇠판(.scr-fs-lower::before)·받침(::before/::after)을 다 걷어(display contents · none)
    쇠 테마면 재생바가 판 없이 비었다(홀로그램은 재생바 제 가짜 요소가 판을 그려 살아 있었다). 쇠 테마일 때만 재생바에 쇠판 바탕 · 미니맵·로스터에 쇠 테를 직접 준다. */

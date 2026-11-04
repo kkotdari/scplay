@@ -3021,3 +3021,4 @@ RMP `searchWrapRef9` effect — 입력 꼴(searchEdit9)인 동안 visualViewport
 - J = `is-uihide-dock` → `.scr-fs-root > .scr-fs-lower`(와 자손 · 쇠판 ::before 는 visibility 를 물려받는다)를 자리 둔 채 감춤. 한때(같은 날 잠깐) J 를 dockFold9 에 물렸다 — 되물림.
 - 자막 내림 `--cap-drop`: 숨김은 CSS(`.scr-fs-root.is-uihide-dock { --dock-lift: 0; --dock-lift-r: 0; --cap-drop: var(--dock-under) }`) · 접기는 dockFit read9 의
   dockFoldOn9 갈래가 뿌리에 `--dock-lift 0` · `--cap-drop = 재생바 offsetTop`(비운 독 줄 키). 자막 bottom 세 곳 · `--cap-bot` 둘(채팅 · 배속 다이얼이 탄다)에서 뺀다.
+- (같은 날 "채팅 · 배속 다이얼은 그대로 두기") — 내림은 **자막만**: `--cap-keep 0`(자막이 받침 솟음 --dock-lift 를 안 탐) + `--cap-drop`. `--dock-lift` · `--cap-bot` 은 안 건드린다.

@@ -22906,14 +22906,16 @@ export default function ReplayMotionPlayer({
         const tb9 = low9?.querySelector<HTMLElement>(":scope > .scr-tb");
         low9?.style.setProperty("--plate-holes", "none");
         low9?.style.setProperty("--plate-top", `${tb9 ? tb9.offsetTop : 0}px`);
-        /* 접힌 독 위로 자막을 내린다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기") — 받침 솟음(--dock-lift)은 0 · 비운 독 줄 키(재생바 위끝까지)만큼 아래로(--cap-drop · replay.css). */
+        /* 접힌 독 위로 **자막만** 내린다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기" → "채팅 · 배속 다이얼은 그대로") — 자막은 받침 솟음을 안 타고(--cap-keep 0) 비운 독 줄 키
+           (재생바 위끝까지)만큼 아래로(--cap-drop · replay.css). --dock-lift(채팅 · 다이얼)는 그대로. */
         const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
-        lay9?.style.setProperty("--dock-lift", "0px");
+        lay9?.style.setProperty("--cap-keep", "0");
         lay9?.style.setProperty("--cap-drop", `${tb9 ? tb9.offsetTop : 0}px`);
         return;
       }
       fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-drop", "0px");
+      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-keep", "1");
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
