@@ -1788,10 +1788,20 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   })();
   /** ★ **첫 바퀴는 팀째로**(2026-10-11, 요청: "첫 순환은 1팀 쭉 하고 2팀 쭉 하고 순서를 이렇게 · 그다음부턴 교대로") — 고리(ring9)를 팀 차례로 다시 늘어세운 줄(팀 안은 로스터
    *  차례). 순환이 이 줄의 사람을 한 번씩 다 보여 줄 때까지는 이 줄을 따르고, 그 뒤로는 고리(팀 번갈아)로 돈다(마지막으로 보인 사람 다음부터). */
+  /* ★ 팀 안은 **출발 자리 시계 차례**(2026-11-04, 요청: "중계 모드 처음 선수 소개 시 시계 방향으로 12시부터 11시로 도는 순서로 팀별로 소개") — 지도 가운데(mapW·mapH 의 반 ·
+     없으면 출발 자리들의 가운데)에서 본 출발 자리(start9)의 각을 12시 = 0 · 시계 방향(화면 y 아래)으로 재 작은 것부터. 출발 자리를 모르는 사람은 그 팀 끝(로스터 차례). */
   const teamRing9: string[] = (() => {
     const tOrd9: number[] = [];
     for (const n9 of ring9) { const tm9 = opts.teamOf?.[n9] ?? 0; if (!tOrd9.includes(tm9)) tOrd9.push(tm9); }
-    return [...ring9].sort((a9, b9) => tOrd9.indexOf(opts.teamOf?.[a9] ?? 0) - tOrd9.indexOf(opts.teamOf?.[b9] ?? 0));
+    const st9 = [...start9.values()];
+    const cx9 = (opts.mapW ?? 0) > 0 ? opts.mapW! / 2 : st9.length ? st9.reduce((a9, p9) => a9 + p9.x, 0) / st9.length : 0;
+    const cy9 = (opts.mapH ?? 0) > 0 ? opts.mapH! / 2 : st9.length ? st9.reduce((a9, p9) => a9 + p9.y, 0) / st9.length : 0;
+    const clock9 = (n9: string): number => {
+      const p9 = start9.get(n9); if (!p9) return 99;
+      const a9 = Math.atan2(p9.x - cx9, -(p9.y - cy9));   // 12시 = 0 · 3시 = π/2(시계 방향)
+      return a9 < 0 ? a9 + Math.PI * 2 : a9;
+    };
+    return [...ring9].sort((a9, b9) => (tOrd9.indexOf(opts.teamOf?.[a9] ?? 0) - tOrd9.indexOf(opts.teamOf?.[b9] ?? 0)) || (clock9(a9) - clock9(b9)));
   })();
   const firstLap9 = new Set<string>();
   /** 고리에서 마지막으로 보여 준 사람의 자리 — 순환은 그 다음부터 돈다. */
