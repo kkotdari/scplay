@@ -44653,7 +44653,7 @@ function PP({
         " · UI ",
         xs.ui,
         " · 판 ",
-        "11-05 03:08",
+        "11-05 03:13",
         xs.ss !== 1 ? ` · 초해상 ×${xs.ss.toFixed(2)}` : "",
         Math.abs(xs.unitScale - xs.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${xs.unitScale.toFixed(4)})` : xs.scale > 0 && Math.abs(xs.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${xs.scale.toFixed(4)})` : "",
         xs.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -46276,7 +46276,9 @@ function PP({
                   !m && Uf && sS && B ? (
                     /* 테스터 손잡이(위 FPS_CAP9 ★) — 진단 고르기 · 최대 프레임 단추(글자는 계측이 쓴다 · 자식 없음). */
                     /* (2026-11-03, 요청: "테스트 diag 버튼을 프레임 버튼 아래에 일렬로" · "테스트 feat 으로 변경") — 세로 한 줄: 프레임 → feat → diag(replay.css .scr-zoomfps.is-tester). */
-                    /* @__PURE__ */ is("div", { className: Pn("scr-zoomfps is-tester", u0 && "is-open"), ref: vl, children: [
+                    /* 누름은 여기서 끊는다(2026-11-04, 지적: "버튼이 안 눌려 · 프레임 feat diag 다") — 무대(onMapPointerDown)가 왼쪽 누름을 setPointerCapture 로 잡아 지도 끌기로 쓰므로
+                       떼는 순간 click 이 무대로 가 버렸다. 배율 다이얼(zoomDial9)과 같은 막이다. */
+                    /* @__PURE__ */ is("div", { className: Pn("scr-zoomfps is-tester", u0 && "is-open"), ref: vl, onPointerDown: (h) => h.stopPropagation(), children: [
                       /* @__PURE__ */ Dt(
                         "button",
                         {
