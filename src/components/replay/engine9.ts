@@ -981,6 +981,8 @@ export const TARGET_FX = new Set(["zap"]);
  *  되돌리는 것은 **진짜 탄이 날아가는 무기**뿐이고, 총알·광선처럼 사실상 즉발인 것은
  *  그대로 번쩍인다("마린같이 실시간은 어쩔수 없고"가 그 선이다).
  *  여기 드는 갈래: 히드라 가시·뮤탈 글레이브·드라군 플라즈마·미사일·독구체·포탄. */
+/** 무기가 포탑 부속(subunit)에 있는 몸 — 덤퍼 판 16 사격 · 판 17 탄이 본체 태그로 안 적힌다(그 자리 ★ · 실제 사격 대신 지어낸다). */
+const SUBWPN9 = (u: string): boolean => u === "Goliath" || u.startsWith("Siege Tank");
 export const PROJECTILE_FX = new Set([
   "spine", "glave", "acid", "venom", "missile", "missileG", "plasma", "cannon", "siege", "frag", "spit", "yamato",
   // 레이저(레이스 지상·배틀크루저) — 짧은 광탄이 날아가 꽂힌다(그 표의 ★).
@@ -7769,7 +7771,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             if (bb9 === null) return null;
             if (bb9 && Number.isFinite(bb9.t1)) {
               const fs9 = Math.max(0.03, bb9.t1 - bb9.t0); const u9 = (t - bb9.t0) / fs9;
-              shotBr9 = { uw: u9, ur: 1 / fs9, uc: cd9 / fs9 };
+              shotBr9 = { uw: u9, ur: 1 / fs9, uc: 1e6 };   // 실제 탄은 감아 돌지 않는다(아래 유닛 쪽 ★ 판 17 uc)
               return Math.max(0, Math.min(1, u9));
             }
             const flySec9 = Math.min(cd9 * 0.9,
@@ -8635,7 +8637,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        건물이 시야 안이면 싸움이다: 그 자리에 멈춰 서고(engageHoldRef), 트레이서·
        불꽃이 인다. 일꾼·수송·옵저버는 안 싸운다(도망 대상일 뿐). */
     const holdKey = `${e.raw}-v2e${ei}`;
-    if (e.fires) FIRES9.set(holdKey, e.fires); else FIRES9.delete(holdKey);   // 판 16 실제 사격(위 FIRES9 ★)
+    /* ⚠ 무기가 **포탑 부속(subunit)**에 있는 몸(탱크 두 모드 · 골리앗)은 덤퍼가 사격·탄을 못 적는다(2026-11-04, 지적: "탱크 트레이서 아예 안 나옴") —
+       덤퍼 bwdump.cpp 판 16 사격은 보이는/숨은 몸 목록만 훑고(부속은 그 목록에 없다) 쿨다운은 부속이 든다 · 판 17 탄의 쏜 몸도 부속 태그다. 그래서 본체의 fires 는
+       늘 빈 배열인데 truthLives 는 빈 배열도 싣고, realPh9 는 그것을 '안 쏘는 중'(0.999)으로 읽어 탱크 탄이 한 번도 안 났다. 이 몸들은 실제 사격을 안 쓰고 지어낸다(SUBWPN9). */
+    if (e.fires && !SUBWPN9(drawUnit)) FIRES9.set(holdKey, e.fires); else FIRES9.delete(holdKey);   // 판 16 실제 사격(위 FIRES9 ★)
     /* ★ **공중 유닛도 싸운다**(지적: "미사일 류 효과 안보임") ────────────────
        `!uAir`가 여기 있던 까닭은 옛 '교전 붙기'다 — 적이 시야에 들면 그 자리에
        멈춰 서게 하던 장치인데, 나는 것은 멈춰 서지 않고 지나가므로 뺐다.
@@ -10313,7 +10318,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
        비행 0.4초면 한 주기의 1/10만 보였다). 그 탄만 속도를 5타일/초로 낮추고 바닥을 1초로 올려 눈에 들게 한다. */
     const slowAcid9 = fxName9 === "acid";
     /* ★ 판 17 탄(2026-11-03, 요청: "탄환 … 연결") — 이 몸의 날고 있는 탄이 있으면 비행 시간·진행을 그 탄(생긴 초 → 사라진 초)으로. */
-    const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) ? bltNow9(e.tag) : undefined;
+    const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) && !SUBWPN9(drawUnit) ? bltNow9(e.tag) : undefined;   // 부속 무기 몸은 탄이 부속 태그라 지어낸다(위 SUBWPN9 ★)
     const flySec9 = blt9 && Number.isFinite(blt9.t1) ? Math.max(0.03, blt9.t1 - blt9.t0) : ((cd9v: number, dist9v: number): number => {
       const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
@@ -10347,7 +10352,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     if (fighting && fxName9 && Number.isFinite(foe.bd) && !TGT_OWN_FX9.has(fxName9)
       && !(RIFLE_HIT9.has(fxUnit) || (!foe.air && RIFLE_GROUND9.has(fxUnit)))) {
       const proj9 = PROJECTILE_FX.has(fxName9);
-      const land9 = proj9 ? bltLand9(e.tag) : undefined;
+      const land9 = proj9 && !SUBWPN9(drawUnit) ? bltLand9(e.tag) : undefined;
       if (land9 !== null) {
         const since9 = typeof land9 === "number" ? t - land9 : fireSince9(holdKey, fxCdRaw);
         tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, style: fxName9, since: since9, delay: typeof land9 === "number" || !proj9 ? 0 : flySec9, fallPx: fxPx });
@@ -10736,7 +10741,9 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
           ...tgtFields9(0),
           mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
-          uw: shotUw9, ur: 1 / flySec9, uc: fxCdRaw / flySec9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
+          /* uc(감기) — 지어낸 박자는 쿨다운마다 다음 발로 감지만, **판 17 실제 탄은 감지 않는다**(2026-11-04, 지적: "미사일류 · 드라군 트레이서가 피격 대상까지 안 감") —
+             탄의 수명(생김 → 사라짐 · 폭발 그림까지)이 쿨다운보다 길면 uc < 1 이라 장 사이 밀기(fxAdvance9)가 u 를 1 에 닿기 전에 0 으로 감아 머리가 표적 앞에서 되돌아갔다. */
+          uw: shotUw9, ur: 1 / flySec9, uc: blt9 ? 1e6 : fxCdRaw / flySec9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
           // 쌍이면 붓이 나란히 내보내 표적 가까이에서 모은다(FxOp.twin 의 ★).
           ...(laneAt9.length > 1 ? { twin: true } : {}),
         });
