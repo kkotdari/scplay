@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -690,9 +690,8 @@ const TEST_FLAGS9: readonly [string, string][] = [
   ["terrcache=0", "지형 판 재사용 끄기"], ["viewclip=0", "보이는 곳만 칠하기 끄기"], ["drs=0", "해상도 자동 조절 끄기"], ["gl=0", "GL 끄기(2D 폴백)"],
   /* (2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 상한 낮춰도 그대로" — 범인 좁히기) */
   ["yaw16", "32방 끄기(16방)"], ["fog17=0", "칸 안개 끄기(옛 눈 원)"], ["sprcache=0", "아틀라스 캐시 끄기"],
-  ["cursor", "선수 마우스 커서 켜기"],   // (2026-11-04, 요청: "마우스는 테스트 기능으로만 · feat 안에") — RMP cursorPaths9 ★
 ];
-/** `#cursor` — 선수 마우스 커서 시뮬레이션을 켠다(위 TEST_FLAGS9 · feat 칸 · RMP cursorPaths9 ★). */
+/** `#cursor` — 선수 마우스 커서를 처음부터 켠다(옛 feat 칸 · 2026-11-05 부터는 재생 바의 [마우스] 단추 · RMP cursorOn9 ★). */
 const CURSOR9 = typeof location !== "undefined" && /(?:^|[#&,])cursor(?=$|[&,])/.test(location.hash);
 /** `#yaw16` — 요잉 칸·아틀라스 몫을 16 으로(32방 전 꼴 · 시험용 · 위 TEST_FLAGS9). */
 const YAW16_9 = typeof location !== "undefined" && /(?:^|[#&,])yaw16(?=$|[&,])/.test(location.hash);
@@ -10416,6 +10415,13 @@ export default function ReplayMotionPlayer({
     linesKick9.current();   // 멈춤 중에도 한 장 다시 칠한다(아래 requestPaint9 를 늦게 잇는다)
   }, []);
   const linesKick9 = useRef<() => void>(() => {});
+  /** ★ 선수 마우스 커서 켜기(2026-11-05, 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가" — 재생 바의 선 단추 왼쪽 · 옛: feat 칸 `#cursor` 시험 기능) — 브라우저에 기억 · 기본 끔.
+   *  주소 `#cursor` 면 처음부터 켬. 켜면 위 cursorPaths9 · cursorBuild9 를 짓고 엔진 시야(cursor)로 건설 고스트가 커서를 따라간다. */
+  const [cursorOn9, setCursorOn9] = useState<boolean>(() => { if (CURSOR9) return true; try { return localStorage.getItem("scr-cursor-on") === "1"; } catch { return false; } });
+  const toggleCursor9 = useCallback((): void => {
+    setCursorOn9((v9) => { const nv9 = !v9; try { localStorage.setItem("scr-cursor-on", nv9 ? "1" : "0"); } catch { /* 기억 못 함 */ } return nv9; });
+    linesKick9.current();
+  }, []);
   const toggleLinesRef9 = useRef(toggleLines9);
   toggleLinesRef9.current = toggleLines9;
   /* 사양 라디오(요청: "성능 3단계로 수정(저/중/고) 이러면 딱 LOD랑 맞고 편하지") —
@@ -11653,7 +11659,7 @@ export default function ReplayMotionPlayer({
   const cursorBuild9 = useMemo(() => {
     const by9 = new Map<string, [number, string][]>();
     const foot9: [number, number, number, number, number, number][] = [];
-    if (!entData || !CURSOR9) return { by: by9, foot: foot9 };
+    if (!entData || !cursorOn9) return { by: by9, foot: foot9 };
     const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     for (const [bs9, bo9, , , , bk9] of entData.builds ?? []) {
       const r9 = nameOfId9.get(bo9) ?? ""; if (!r9) continue;
@@ -11670,9 +11676,9 @@ export default function ReplayMotionPlayer({
       }
     }
     return { by: by9, foot: foot9 };
-  }, [entData]);
+  }, [entData, cursorOn9]);
   const cursorPaths9 = useMemo<Map<string, Float64Array>>(() => {
-    if (!entData || !CURSOR9) return new Map();   // feat 칸의 `#cursor` 일 때만(같은 날 "마우스는 테스트 기능으로만 켜게 해 줘 일단" → "feat 안에 넣어 달라는 뜻")
+    if (!entData || !cursorOn9) return new Map();   // [마우스] 단추가 켜졌을 때만(위 cursorOn9 ★ · 옛: feat 칸의 `#cursor`)
     const nameOfId9 = new Map(entData.players.map((pl) => [pl.owner, pl.name]));
     const lifeOfTag9 = new Map(entData.lives.map((e9) => [e9.tag, e9]));
     /** 몸의 고리 꼴 — 제 것 · 같은 편이면 제 편 · 아니면 적(주인 없는 몸은 자원 꼴). */
@@ -11698,7 +11704,7 @@ export default function ReplayMotionPlayer({
       clickKind: (raw9, t9, x9, y9) => clk9.get(`${raw9}:${t9}:${x9}:${y9}`) ?? null,
       selKind: (raw9, tg9) => { const l9 = lifeOfTag9.get(tg9); return [l9 ? relOf9(raw9, l9.owner) : CUR_OWN9, radOf9(l9)]; },
     });
-  }, [entData, entClicks, selPts9, obsNames, melee, teamMap9]);
+  }, [entData, entClicks, selPts9, obsNames, melee, teamMap9, cursorOn9]);
   /** ★ 선수 커서를 매 장 옮기는 붓(그리기 틱이 부른다 · 위 커서 JSX 의 ★) — 상자 · 고리 · 화살표의 자리 · 보임 · 눌림을 살아 있는 시계로. */
   const cursorPaintRef9 = useRef<((t9: number) => void) | null>(null);
   /** 그 사람의 공격 표적 창(표적 태그 → 명령 초 · 지금부터 0.9초 안) — 붓이 돌기 전에 ATK_FLASH9 에 건다(메인 · 분할 칸). */
@@ -12576,9 +12582,9 @@ export default function ReplayMotionPlayer({
   /* 선수 커서의 선택 자리(cursor9 selPtsOf9 ★) — 메인은 트랙이 없어(워커에만 넘긴다) 워커에 청한다 · 세계가 바뀌면 다시. feat `#cursor` 일 때만. */
   useEffect(() => {
     const w9 = frameWorkerRef.current;
-    if (!w9 || !CURSOR9 || !worldEnts9) return;
+    if (!w9 || !cursorOn9 || !worldEnts9) return;
     w9.postMessage({ type: "want", what: "selpts" });
-  }, [worldGen9, workerTick9, worldEnts9]);
+  }, [worldGen9, workerTick9, worldEnts9, cursorOn9]);
   /* 걷기는 추적을 켤 때 워커에 청한다 — 세계가 바뀌었으면(worldGen9) 다시. */
   useEffect(() => {
     const w9 = frameWorkerRef.current;
@@ -17230,7 +17236,7 @@ export default function ReplayMotionPlayer({
     const [fx, fy] = posFrac(x, y);
     return { left: `${(fx * 100).toFixed(3)}%`, top: `${(fy * 100).toFixed(3)}%` };
   };
-  cursorPaintRef9.current = CURSOR9 ? (t9: number): void => {
+  cursorPaintRef9.current = cursorOn9 ? (t9: number): void => {
     const root9 = stageRef.current; if (!root9) return;
     const els9 = root9.querySelectorAll<HTMLElement>("[data-cur-raw]");
     if (els9.length === 0) return;
@@ -17798,7 +17804,7 @@ export default function ReplayMotionPlayer({
     pitched, pitchFlat, geom: pitchGeom(),
     viewTeam, visAll, fogOn, colors: colorTable9,
     qAnim, qBuildFx, qDeath, clickFx,
-    ...(CURSOR9 ? { cursor: true } : {}),   // 선수 커서(feat · cursor9 ★) — 건설 고스트가 커서를 따라간다
+    ...(cursorOn9 ? { cursor: true } : {}),   // 선수 커서([마우스] 단추 · cursorOn9 ★) — 건설 고스트가 커서를 따라간다(viewKeyOf9 열쇠에 든다)
     cull: cullRect9,
     ...(splitCull9 ? { cullList: splitCull9.all, splitCull: splitCull9.team } : {}),
     crowd: CROWD9.lv,
@@ -22128,6 +22134,17 @@ export default function ReplayMotionPlayer({
           </div>
         ) : undefined)}
       </span>
+      {/* ★ 마우스(위 cursorOn9 ★ · 2026-11-05, 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가") — 선수 마우스 커서를 켜고 끈다(켜졌을 때 is-on · 기본 끔). 선 단추 바로 왼쪽. */}
+      <button
+        type="button"
+        className={cx("scr-motion-litbtn scr-motion-mapbtn", cursorOn9 && "is-on")}
+        onClick={toggleCursor9}
+        aria-pressed={cursorOn9}
+        aria-label={cursorOn9 ? "마우스 끄기 — 선수 마우스 커서" : "마우스 켜기 — 선수 마우스 커서"}
+        title={cursorOn9 ? "마우스 끄기" : "마우스 켜기"}
+      >
+        <MousePointer2 size={18} style={cursorOn9 ? undefined : { opacity: 0.45 }} />
+      </button>
       {/* ★ 선 끄기(위 LINES_OFF9 ★ · 2026-11-04, 요청: "재생기에 선 끄기 버튼 · 단축키는 L") — 명령 줄 · 랠리 번쩍 줄을 끄고 켠다(켜졌을 때 is-on). */}
       <button
         type="button"
@@ -23610,7 +23627,7 @@ export default function ReplayMotionPlayer({
               그림은 원작 리마스터 예시(시안 승인 · 2026-11-04): 화살표 = 꼬리 없는 날씬한 화살촉(밝은 테 + 진한 속 · 겉선은 **같은 색의 진한 색** — "테두리가 검정이 아니라 진한 색") ·
               몸 위 = 겹 타원 + 아래가 트인 굵은 바깥 호 + 마디 + 가운데 점(제 편 · 적 빨강 · 자원 노랑) · 끌기 = 얇은 네모. 색: 개인 화면(주인) 원작 초록 · 전체 · 중계는 임자색(적 고리 빨강 · 자원 노랑 그대로).
               크기: 화살표 화면 px 고정(PC 22·ui · 폰 16) · 고리 = 몸 반지름 × 배율(바닥 30px). 끝(0,0)이 누른 자리. */}
-          {clickFx && CURSOR9 && [...cursorPaths9].map(([raw9, p9]) => {   /* feat `#cursor` 일 때만(위 cursorPaths9 ★) */
+          {clickFx && cursorOn9 && [...cursorPaths9].map(([raw9, p9]) => {   /* [마우스] 단추가 켜졌을 때만(위 cursorOn9 ★) */
             if (uiOwnerRef9.current !== null && raw9 !== uiOwnerRef9.current) return null;
             if (fogOn && !visAll && teamOfRaw(raw9) !== viewTeam) return null;
             const c9 = cursorAt9(p9, t);

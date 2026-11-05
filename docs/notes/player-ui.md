@@ -3089,3 +3089,8 @@ click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointe
 ## 자유 모드 배율 단추 → 중계 기본 배율(2026-11-05)
 지적: "재생기 자유모드에서 배율버튼 누르면 무조건 1배로 가는거" → "중계 화면과 같은 기본 배율로 가기". zoomDial9 의 기본(zoomFit9)이 자유 모드에선 1(지도 전체)이었다.
 이제 모든 모드가 castZoomFit9 — 자유 모드 누름은 zoomTo(castZoomFit9()) · 옅게(is-base)도 그 값 기준. 분할은 종전대로 없음.
+
+## 재생 바 [마우스] 단추(2026-11-05)
+요청: "이 옆 왼쪽에 마우스 토글 버튼 추가"(재생 바 선 단추 왼쪽). 선수 마우스 커서(cursorPaths9 · 건설 고스트가 커서를 따라감)를 feat 칸의 시험 기능(`#cursor`)에서
+재생 바 단추로 옮겼다 — RMP `cursorOn9`(localStorage `scr-cursor-on` · 기본 끔 · 주소 `#cursor` 면 처음부터 켬). 아이콘 lucide `MousePointer2` · 선 단추와 같은 꼴(켜지면 is-on · 꺼지면 흐림).
+폰 · PC 같은 줄이라 PC 에도 [마우스] · [선](L) 둘 다 있다. feat 칸의 "선수 마우스 커서 켜기"는 걷었다.
