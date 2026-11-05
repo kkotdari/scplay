@@ -3327,6 +3327,12 @@ export const ADDONS = new Set([
   // v2 트랙의 변형 이름(지적: 커맨드 애드온에 통로가 안 붙음) — screp는 ComSat으로 준다.
   "ComSat",
 ]);
+/** ★ 애드온 → 붙는 본체 종류(2026-11-05, 지적: "애드온이 엉뚱한 곳이랑 연결되는 문제 · 거리만이 아니라 위치까지 봐야 함") — 부모 찾기가 종류를 안 봐서
+ *  오른변 근처의 아무 건물(배럭·엔베 …)이나 붙잡았다. */
+export const ADDON_HOST9: Record<string, string> = {
+  "Comsat Station": "Command Center", ComSat: "Command Center", "Nuclear Silo": "Command Center",
+  "Machine Shop": "Factory", "Control Tower": "Starport", "Covert Ops": "Science Facility", "Physics Lab": "Science Facility",
+};
 
 /** 건물 짓는 시간(초, 어림) — 짓는 동안 반투명 표시(요청)의 창이다. */
 /* 건물 짓는 시간(초) — 원작의 프레임 수를 23.81로 나눈 값이다(지적: 3시 첫 포톤캐논이
@@ -3939,6 +3945,8 @@ export function deriveWorld9(inp: {
       end: string;
       /** 손바뀜(마인드 컨트롤)으로 시작한 생애 — 합체 창(archonMergeK9)이 안 선다. */
       handoff?: boolean;
+      /** 다 만들어진 적이 있나(truthLives made) — 거짓이면 생산 중 취소된 몸(사망 효과 없음). */
+      made?: boolean;
       /** 건설에 흡수되는 시각(지적: 건설 일꾼 잔상) — 현장 도착부터 숨는다. */
       buildHideAt: number | null;
       /** 공사 중 숨김 구간들(재재지적: 도는 SCV와 원래 SCV 이중 표시) — 앵커마다
@@ -4211,7 +4219,7 @@ export function deriveWorld9(inp: {
       const buildHideAt: number | null = null;
       const buildHides: [number, number][] = [];
       out.push({
-        raw, unit: e.kind, born: e.born, died: e.died, end: e.end, tag: e.tag, ...(e.handoff ? { handoff: true } : {}),
+        raw, unit: e.kind, born: e.born, died: e.died, end: e.end, tag: e.tag, ...(e.handoff ? { handoff: true } : {}), ...(e.made === false ? { made: false } : {}),
         buildHideAt, buildHides, ups: pUps,
         // 건설 자리 — 참값에서는 **건물 생애**에만 달린다(일꾼에게는 안 달린다).
         buildSites: e.sites.map((v) => [v[0], v[1], v[2]] as [number, number, number]),
@@ -6304,18 +6312,23 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
          발자국 그대로 그리면 본체 모델은 제 아랫변에 서고 부속 판은 그 아래에 매달린 꼴이 된다 — 원작 그림은 본체
          스프라이트의 치마가 그 줄까지 내려와 붙어 보이지만 우리 모델은 발자국에서 끝난다. 통로(아래 link)가 본체를
          찾는 것과 같은 규칙으로 본체를 찾아, 몸 상자로 잰 두 지면선의 차이만큼 부속을 위로 올린다(그리는 자리만). */
+      /** 부속의 본체 깊이 키(z) — 통로·부속의 그리는 차례가 쓴다(아래 ★ 통로는 본체와 부속 사이 · 2026-11-05). */
+      let addonParZ9: number | null = null;
       if (ADDONS.has(unit)) {
+        /* 본체 찾기는 통로와 같은 규칙(아래 ★ 종류 · 자리까지 본다 · 2026-11-05) — 종류(ADDON_HOST9) · 부속 왼위 = 본체 왼위 + (폭, 1). */
         const par9 = buildsSrc.find(([ps3, pxT, pyT, pu3, pr3, pg3]) =>
           pr3 === raw && !ADDONS.has(pu3) && ps3 <= t
+          && (ADDON_HOST9[unit] === undefined || pu3 === ADDON_HOST9[unit])
           && ((pg3 ?? 0) === 0 || t < (pg3 ?? 0))
           && Math.abs((pxT + (FOOTPRINT[pu3] ?? [4, 3])[0]) - x) <= 0.6
-          && y >= pyT - 0.5 && y <= pyT + 2.5);
+          && Math.abs(pyT + 1 - y) <= 0.6);
         if (par9) {
           const pb9 = buildingBox(par9[3]);
           const ab9 = buildingBox(unit);
           const parGround9 = par9[2] + footDy(par9[3]) + pb9[3] + pb9[1] / 2;
           const addGround9 = y + footDy(unit) + ab9[3] + ab9[1] / 2;
           if (addGround9 > parGround9 + 0.05) by -= addGround9 - parGround9;
+          addonParZ9 = 1000 + Math.round(parGround9 * Z_TILE) + Math.min(60, Math.round(par9[0] / 45));   // 본체 줄의 z(아래 z 식 그대로 · 본체 밀림 몫은 뺀다)
         }
       }
       /* 짝의 걷힌 시각이 실제로 있어야(> 0) 한다(지적: 첫 기지가 위에서 내려온다) —
@@ -6591,8 +6604,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       /* 평면(90도)도 같은 자로 잰다(지적: 자원·건물 가림) — 여태 평면에서는
          건물끼리 **나이 순**이라, 뒤에 늦게 지은 건물이 앞 건물을 덮었다.
          뜬 건물만 층이 다르다 — 그건 나이가 아니라 공중이므로 air로 올린다. */
-      const z = 1000 + Math.round((bodyY + boxH / 2) * Z_TILE)
-        + Math.min(60, Math.round(sec / 45));
+      /* ★ 부속은 본체보다 **두 칸 뒤에** 칠한다(2026-11-05, 지적: "가끔 연결부가 본체 뒤에 그려져서 가려지는 경우") — 부속은 본체 지면선에 앉혀
+         (위 by 올림) 바닥 항이 같고, 나이 항(45초 단위)도 같은 칸이면 z 가 같았다. 통로는 '부속 z − 1' 이라 그때 본체보다 먼저 칠해져
+         본체 몸에 덮였다. 이제 본체 < 통로(본체 + 1) < 부속(≥ 본체 + 2). */
+      const z = Math.max(1000 + Math.round((bodyY + boxH / 2) * Z_TILE)
+        + Math.min(60, Math.round(sec / 45)), addonParZ9 !== null ? addonParZ9 + 2 : 0);
       /* 뜬 건물도 **불투명**하다(지적: "띄운건물이 페이드아웃되는 현상") —
          여태 0.75를 곱해, 뜬 동안 내내 25% 비쳤다. 반투명은 "떠 있다"를 말할
          길이 그것뿐이던 시절의 표시다. 이제는 몸이 실제로 떠오르고(liftK) 그
@@ -7525,15 +7541,20 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
              여태 걷힘을 날 값(gone)으로만 봐서 이륙한 본체(liftAt — gone 은 착륙 시각이라 그 사이 내내 '있다')와 핵으로 앞당겨
              걷힌 본체(goneEffOf)가 통로를 붙들고 있었다. 이륙 순간부터 · 공용 걷힘 시각부터 통로를 걷는다. 다른 자리에 앉은
              본체는 그 착륙 줄(ps3 = 착륙 시각)이 새 부모로 잡힌다(원작도 붙어 앉으면 다시 잇는다). */
-          const par = buildsSrc.find((b3) => {
+          /* ★ **종류 · 자리까지 본다**(2026-11-05, 지적: "애드온이 엉뚱한 곳이랑 연결되는 문제 · 거리만이 아니라 위치까지 봐야 함") — 여태 같은 임자의
+             '오른변이 0.6 안 · 세로 2타일 안'인 첫 건물이었다(종류 무관 · 먼저 적힌 것). 이제 본체 종류(ADDON_HOST9)가 맞고 원작 자리 —
+             부속 왼위 = 본체 왼위 + (본체 폭, 1)(addonPairGeom9 와 같은 자) — 에서 가로·세로 각 0.6 타일 안인 것 가운데 **가장 가까운** 것. */
+          const host9 = ADDON_HOST9[unit];
+          let par: (typeof buildsSrc)[number] | undefined; let parErr9 = Infinity;
+          for (const b3 of buildsSrc) {
             const [ps3, pxT, pyT, pu3, pr3, , pl3] = b3;
+            if (pr3 !== raw || ADDONS.has(pu3) || ps3 > t || (host9 !== undefined && pu3 !== host9)) continue;
             const pg3 = goneEffOf(b3);
-            return pr3 === raw && !ADDONS.has(pu3) && ps3 <= t
-            && (pg3 === 0 || t < pg3)
-            && !(pl3 !== undefined && pl3 > 0 && t >= pl3)
-            && Math.abs((pxT + (FOOTPRINT[pu3] ?? [4, 3])[0]) - x) <= 0.6
-            && Math.abs(pyT - y) <= 2;
-          });
+            if (!(pg3 === 0 || t < pg3) || (pl3 !== undefined && pl3 > 0 && t >= pl3)) continue;
+            const ex9 = Math.abs(pxT + (FOOTPRINT[pu3] ?? [4, 3])[0] - x); const ey9 = Math.abs(pyT + 1 - y);
+            if (ex9 > 0.6 || ey9 > 0.6) continue;
+            if (ex9 + ey9 < parErr9) { parErr9 = ex9 + ey9; par = b3; }
+          }
           if (!par) return null;
           /* ★★ **두 끝은 두 벽이다**(2026-09, 요청: "애드온연결부의 길이를 본건물과 애드온 양옆벽을 잇는 좌표로
              설정해주는 로직 개발(수동으로 길이조절 안하게)") — 옛 손 값 셋(LINK_IN 1.3 · 본체 0.55 · 스타포트
@@ -7555,7 +7576,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                통로만 요잉 0으로 구우면 그 벽을 비껴 찌른다. 같은 각으로 구워야
                모형의 x축이 두 벽의 법선과 나란해져, 막대가 양쪽 벽에 직각으로
                꽂힌다(까닭은 addonlink 모델 쪽 주석에 적어 두었다). */
-            fx: lfx, fy: lfy, z: z - 1, kind: "addonlink",
+            fx: lfx, fy: lfy, z: addonParZ9 !== null && addonParZ9 + 1 < z ? addonParZ9 + 1 : z - 1, kind: "addonlink",
             rotDeg: buildingYawOf(),
             viewYaw: viewYawOf(centerX, centerY), flat: !pitched, pitch: pitched,
             sizePx: 0, wFrac: (linkW / grid.width) * mkA, hFrac: ((linkW * 0.36) / grid.width) * mkA,
@@ -9188,6 +9209,10 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       /* 고치 갈래(지적): 변태알·러커알·뮤탈 고치가 취소로 터지면 피 폭발이 아니라 고치색 파편이 튄다. */
       const cocoon9 = (e.end === "self" || hatch9)
         && (e.unit === "Egg" || e.unit === "Lurker Egg" || e.unit === "Mutalisk Cocoon");
+      /* ★ 다 만들어지기 전에 끝난 몸은 터지지 않는다(2026-11-05, 지적: "생산큐의 유닛 취소 시 건물에 유닛 사망 효과가 보이는 문제") — 원작은 생산을
+         시작할 때 개체를 잡아 두므로 참값에 그 몸이 실리고, 취소하면 그 생애가 '사라짐'으로 끝나 건물 발치에서 사망 효과가 났다. 참값 0x80(아직 안
+         지어짐)이 한 번도 안 꺼진 생애(truthLives made 거짓)는 조용히 걷는다. 알·고치 취소(cocoon9 — 고치 파편)는 그대로 둔다. */
+      if (e.made === false && !cocoon9 && !hatch9) return null;
       const dk = cocoon9 ? "cocoon" : race === "저그" ? "zerg"
         : race === "프로토스" ? "toss"
           : BIONIC_UNITS.has(drawUnit) ? "bio" : "mech";

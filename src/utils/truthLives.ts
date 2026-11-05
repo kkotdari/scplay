@@ -76,6 +76,9 @@ export type TruthLife = {
    *  ★ 이 값이 있어서 '언제 완공됐나'를 더는 유추하지 않는다 — 옛 화면은 일꾼의 명령
    *    증거로 "이 건물이 처음 일한 때"를 찾아 완공을 어림했다. */
   doneAt: number;
+  /** ★ 유닛이 이 생애에 한 번이라도 **다 만들어졌나**(참값 0x80 비트가 꺼진 키가 있나) — 거짓이면 생산 대기열에서 만들다 취소된 몸이다
+   *  (2026-11-05, 지적: "생산큐의 유닛 취소 시 건물에 유닛 사망 효과가 보이는 문제"). 건물은 늘 참(건물은 doneAt 이 말한다). */
+  made?: boolean;
   /** 떠오른 초들 — 착륙(sites)과 짝이 된다. */
   lifts: number[];
   /** ★ 은신해 있던 구간들 [켠 초, 끈 초] — 참값이 키마다 싣는 은신 깃발이 켜져 있던 창이다
@@ -416,6 +419,7 @@ function livesOfTrack(
       bld,
       sites,
       doneAt,
+      ...(bld ? {} : { made: ((): boolean => { for (let i = segStart; i < end; i += 1) if (tr.done[i]) return true; return false; })() }),
       lifts,
       cloaks,
       stims,
