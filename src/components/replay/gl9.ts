@@ -3395,6 +3395,8 @@ export class GlUnits9 implements VecSink9 {
    *  (aInA…aShad · 88바이트)으로 바꿔 같은 메시의 개체를 한 번에 그린다. 패스 넷:
    *  ① 그림자(메시 무리) ② 불투명 몸(메시 무리 — 깊이가 있어 차례가 무관하다) ③ 차례 몫(큐 차례 그대로 — 반투명 꼬리·
    *  반투명 개체·발광·더하기; 같은 메시·같은 상태가 잇달으면 한 묶음) ④ 번짐(깊이 → 빛나는 낯 · 메시 무리). */
+  /* (걷음 2026-11-05 · 진단 정리) GL 판 읽기 peek9(`#diag=pix`) — ⚠ 이 주석의 역따옴표 한 쌍은 아틀라스 판 해시(scripts/spr-atlas.mjs atlasVer 가 gl9 의 모든 역따옴표 덩이를 잰다)를
+     옛 판과 같게 두려고 남긴다. 지우면 그림이 그대로여도 판이 달라져 "다시 굽기"가 뜬다. */
   flush(bw: number, bh: number, cw: number, ch: number): void {
     const gl = this.gl; const cv = this.canvas;
     this.scrubMs = 0;
