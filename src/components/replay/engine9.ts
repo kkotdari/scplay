@@ -2436,9 +2436,9 @@ export type FxOp = {
   ro?: boolean;
   /** 소총 피격의 때 소금(맞은 시각) — 연달아 맞을 때 불티 자리가 매번 갈린다. */
   rs?: number;
-  /** 소총 불티 op 의 사수 **원** 쿨다운(경기 초 · 스팀 든) — 효과음이 이것으로 '다' 한 발 간격을 셈해 고르게 잇는다(sfx9 gunBeat9 · 2026-11-05). */
-  cd?: number;
-  /** 소총 불티 op 가 서는 주기(경기 초) — 효과음이 다음 op 까지 소리를 이어 둘 길이. */
+  /** 소총 불티 op 의 총소리 **한 발 간격**(경기 초) = 사수 원 쿨다운(스팀 든) ÷ 공격당 발 수(GUN_ROUNDS9) — 효과음이 이 박자로 '다' 한 발씩 고르게 잇는다(sfx9 gunBeat9 · 2026-11-05). */
+  gg?: number;
+  /** 소총 불티 op 가 서는 주기(경기 초 · 판 16 실제 사격이면 원 쿨다운) — 효과음이 다음 op 까지 소리를 이어 둘 길이. */
   cp?: number;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
@@ -2829,6 +2829,10 @@ export const HIT_FX_K = 0.72;
 export const RIFLE_HIT9 = new Set(["Marine", "Ghost", "Bunker", "Interceptor"]);
 /** ★ 지상 표적에만 소총 불티(2026-11-02, 요청: "마린 골리앗 레이스 스카웃 지상 등등 트레이서가 시작부에만 나오는 건 피격자에도 불꽃 튐") — 이 셋은 공중엔 미사일이라 땅 표적일 때만. */
 export const RIFLE_GROUND9 = new Set(["Goliath", "Wraith", "Scout"]);
+/** ★ 총소리 **공격 한 번에 몇 발**(2026-11-05, 요청: "마린은 다다다다 똑같은 박자로 이어지게" → "고스트는 저렇게 빨리 공격 안 하는데 속도 다 점검해 봐") —
+ *  사수 원 쿨다운을 이 수로 나눈 것이 한 발 간격(gg). 마린(가우스 소총 15f = 0.63초) 8 → 79ms 연사 · 스팀 40ms · 벙커 = 안의 마린.
+ *  고스트(C-10 22f = 0.92초)는 한 발씩 끊어 쏘는 저격총 · 인터셉터(펄스 캐논)도 쏠 때마다 한 발. 골리앗·스카우트(spark)·레이스(laser) 지상은 총소리가 아니라 제 소리(HIT9)다. */
+export const GUN_ROUNDS9: Record<string, number> = { Marine: 8, Bunker: 8, Ghost: 1, Interceptor: 1 };
 /* ★ 효과는 **그려진 몸의 한가운데**에서 난다(지적: "유닛·건물 피격·사망·파괴 효과를 중앙에 내는데 발바닥이 아니라
    그려진 것의 중앙이어야 하는데 캔버스 발바닥의 중앙으로 그리는 듯") ─────────────────────────────────────────
    여태 유닛은 발 원점에서 (0.24 + 0.02)·상자 위 — 곧 **판(상자)의 한가운데**였고, 건물 파괴는 발자국 한가운데(높이 0)
@@ -6010,7 +6014,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
      *  소총류(rifle 불티)·탱크·커세어·아콘·자폭은 제 그림이 따로 있어 여기 안 온다. */
     const tgtHitFx9 = (o: {
       sx: number; sy: number; tg: { bx: number; by: number; air: boolean; k?: string; uk?: string; hp?: number };
-      tag?: number; style?: string; by?: string; since: number; delay: number; fallPx: number; rifle?: boolean; cd?: number;
+      tag?: number; style?: string; by?: string; since: number; delay: number; fallPx: number; rifle?: boolean; gg?: number; cp?: number;
     }): void => {
       const s9 = o.since - o.delay;
       if (!(s9 >= 0 && s9 < (o.rifle ? 0.25 : 0.4))) return;
@@ -6039,7 +6043,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
         fxOps.push({
           kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
-          ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...(o.cd ? { cd: o.cd, cp: o.cd } : {}), ...ok9, ...wp9,
+          ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...(o.gg && o.cp ? { gg: o.gg, cp: o.cp } : {}), ...ok9, ...wp9,
         });
         return;
       }
@@ -7900,7 +7904,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             }
             if (unit === "Sunken Colony") tgtHitFx9({ ...hB9, by: unit, since: fireSince9(sunkKey9, sunkCd9), delay: 0.2 * sunkCd9 });
             if (unit === "Bunker" && (crew.length > 0 || presumed)) {
-              if (crewGun && rgB >= 0) tgtHitFx9({ ...hB9, style: "gun", rifle: true, cd: defCd9, since: fireSince9(defKey9, defCd9), delay: 0 });
+              if (crewGun && rgB >= 0) tgtHitFx9({ ...hB9, style: "gun", rifle: true, gg: defCd9 / GUN_ROUNDS9.Bunker, cp: defCd9, since: fireSince9(defKey9, defCd9), delay: 0 });
               if (crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG) tgtHitFx9({ ...hB9, style: "flame", since: fireSince9(defKey9, defCd9), delay: 0.2 });
             }
           }
@@ -10881,7 +10885,8 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
                2026-11-05 "유닛의 더 안쪽으로 많이" → 0.06) */
             ...((d9) => (d9 ? { dist: vW9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
             size: vW9 * 0.69,
-            ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag, cd: fxCdRaw, cp: fxCd,
+            ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
+            ...(GUN_ROUNDS9[fxUnit] ? { gg: fxCdRaw / GUN_ROUNDS9[fxUnit], cp: FIRES9.has(holdKey) ? fxCdRaw : fxCd } : {}),
           });
         }
       }

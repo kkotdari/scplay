@@ -125,7 +125,7 @@ export class SfxCues9 {
           const s = op.style;
           if (s === undefined && op.by && SWING9[op.by]) break;   // 저글링·울트라는 휘두르는 박자로 낸다(아래 SWING9 ★) — 맞은 순간에 또 내면 겹친다
           /* 소총 불티(사수 박자 op · cd 있음)는 묶음 소리 대신 고른 연사 줄기를 살린다(sfx9 gunBeat9 ★ · 2026-11-05). */
-          if (op.ro && op.cd && op.cp) { if (live) gunBeat9(op.cd, op.cp, { near: near(op.fx, op.fy), speed: o.speed }); break; }
+          if (op.ro && op.gg && op.cp && s !== undefined && HIT9[s] === "gun") { if (live) gunBeat9(op.gg, op.cp, { near: near(op.fx, op.fy), speed: o.speed }); break; }
           play(s === undefined ? (op.by ? MELEE9[op.by] : undefined) ?? "slash" : HIT9[s] === undefined ? "gun" : HIT9[s], op.fx, op.fy);
           break;
         }

@@ -198,24 +198,27 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
 
 /* ★ **소총 연사 줄기**(2026-11-05, 요청: "마린 같은 경우 소리가 공격 중에 다다다 다다다 다다다 가 아니라 다다다다다다다다다다다 이렇게 똑같은 박자로 이어지게
    계산해서") — 옛 판은 소총 불티 op 가 설 때마다 네 발 묶음(gun · 0.21초)을 틀어, op 주기(쿨다운 × 0.35)와 묶음 길이가 어긋나 묶음 사이가 비었다.
-   이제 한 줄기만 둔다: op 가 서면(gunBeat9) 줄기를 **다음 op 가 올 때까지(cp) + 여유** 살려 두고, 한 발(gunShot) 간격은 사수의 원 쿨다운을 8 로 나눈 값
-   (마린 15f = 0.63초 → 79ms · 스팀이면 절반 · 40~120ms 로 죔)을 배속으로 나눈다. 발은 AudioContext 시계로 미리(0.15초 앞까지) 박아 장 간격과 무관하게 고르다.
+   이제 한 줄기만 둔다: op 가 서면(gunBeat9) 줄기를 **다음 op 가 올 때까지(cp) + 여유** 살려 두고, 한 발(gunShot) 간격은 엔진이 셈한 gg
+   (사수 원 쿨다운 ÷ 공격당 발 수 engine9 GUN_ROUNDS9 — 마린 79ms · 스팀 40ms · 고스트는 0.92초마다 한 발 · 35ms 아래로는 안 줄인다)를 배속으로 나눈다. 발은 AudioContext 시계로 미리(0.15초 앞까지) 박아 장 간격과 무관하게 고르다.
    여러 사수가 쏴도 줄기는 하나(박자는 가장 최근 op 의 사수 것) — 쏘는 몸이 다 그치면 마지막 op 의 cp 뒤에 멎는다. 4배속 위는 옛 규칙대로 소총 소리를 뺀다. */
-const GUN_PER_CD9 = 8;
-const gunRun9 = { next: 0, until: 0, gap: 0.079, gain: 1 };
+const gunRun9 = { next: 0, until: 0, gap: 0.079, gain: 1, last: -1 };
 const gunSrcs9: AudioBufferSourceNode[] = [];
-export function gunBeat9(cd: number, cp: number, opt: SfxPlay9 = {}): void {
+export function gunBeat9(gg: number, cp: number, opt: SfxPlay9 = {}): void {
   if (!enabled9 || typeof window === "undefined" || !bank9.has("gunShot")) return;
   const speed = Math.max(1, opt.speed ?? 1);
   if (speed >= 4) return;
   const c9 = ctxOf9();
   if (!c9 || c9.state !== "running") return;
   const now = c9.currentTime;
-  gunRun9.gap = Math.min(0.12, Math.max(0.04, cd / GUN_PER_CD9)) / speed;
+  const gap9 = Math.max(0.035, gg) / speed;
+  gunRun9.gap = gunRun9.until > now ? Math.min(gunRun9.gap, gap9) : gap9;   // 줄기가 살아 있으면 빠른 쪽(마린 사이에 고스트가 쏴도 연사가 안 끊긴다)
   const g9 = (GAIN9.gunShot ?? 1) * (0.45 + 0.55 * Math.max(0, Math.min(1, opt.near ?? 1)));
   gunRun9.gain = gunRun9.until > now ? Math.max(gunRun9.gain, g9) : g9;
-  if (gunRun9.until <= now || gunRun9.next < now) gunRun9.next = now;
-  gunRun9.until = Math.max(gunRun9.until, now + cp / speed + 0.1);
+  /* 줄기가 멎었으면 다시 연다 — 단 마지막 발에서 한 발 간격이 안 지났으면 그때까지 기다린다(참값 없는 판은 op 가 쿨다운의 0.35 마다 서서, 고스트가 세 배로 쏘던 것). */
+  if (gunRun9.until <= now || gunRun9.next < now) gunRun9.next = Math.max(now, gunRun9.last + gunRun9.gap);
+  /* 다음 op 까지 + 0.1초 — 한 발 간격 절반은 뺀다: 한 번에 한 발(고스트)이면 다음 op 가 와야 다음 발이 난다(쏘기를 그친 뒤 헛발이 안 난다). */
+  gunRun9.until = Math.max(gunRun9.until, now + cp / speed - gunRun9.gap * 0.5 + 0.1,
+    gunRun9.next <= now + cp / speed + 0.05 ? gunRun9.next + 0.001 : 0);   // 기다리던 발이 다음 op 앞에 올 차례면 그 발까지는 낸다
   pumpGun9();
 }
 /** 줄기의 발을 0.15초 앞까지 박는다 — 효과음 신호(SfxCues9.run)가 장마다 부른다. */
@@ -239,6 +242,7 @@ export function pumpGun9(): void {
       src.start(at9);
       SFX_STAT9.played.gunShot = (SFX_STAT9.played.gunShot ?? 0) + 1;
     } catch { /* 못 틀면 버린다 */ }
+    gunRun9.last = at9;
     gunRun9.next = at9 + gunRun9.gap;
   }
 }
@@ -250,6 +254,7 @@ export function hushSfx9(): void {
   for (const s9 of gunSrcs9) { try { s9.stop(); } catch { /* 이미 끝남 */ } }
   gunSrcs9.length = 0;
   gunRun9.until = 0;
+  gunRun9.last = -1;
 }
 
 export const sfxOn9 = (): boolean => enabled9;
