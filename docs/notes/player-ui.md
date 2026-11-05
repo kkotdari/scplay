@@ -3113,3 +3113,8 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 지적: "A 무리를 집은 상태에서 쉬프트 누르고 다른 쪽에서 B 무리를 선택하는 경우 A~B 전체를 상자 선택 · 너무 넓은 말도 안 되는 상자". 판 10 선택 절(sels)은 명령 **뒤의 선택 전체**라
 더함(add)을 그대로 감싸면 A+B 를 덮었다. cursor9 `mouseSels9` — 사람마다 앞 선택(모든 갈래)을 기억해 더함은 그 밖의 몸만 남긴다(없으면 점 아님). selPtsOf9(워커) · 트랙 길 둘 다.
 인포창의 선택(선택 전체)은 그대로.
+
+## 독 접기 — 미니맵은 남긴다(2026-11-05)
+요청: "독 접기 눌렀을 때 미니맵은 안 숨기기". replay.css `.scr-fs-dockrow.is-fold .scr-fs-minipanel(*)` 를 visible · pointer auto 로 되살린다(J 와 같은 꼴 · N · H 는 !important 라 그대로 감춘다).
+- 자막: 접으면 독 자리까지 내리던 것(--cap-drop)을 **미니맵이 보이는 동안은 안 내린다**(RMP dockFit read9 접힘 갈래 · uiHide9.mini · all 를 의존성에) — 내리면 자막이 미니맵 뒤로 가려졌다.
+- 접기 단추 이름 "미니맵·인포창 접기" → "독 접기(미니맵은 남음)" · perf-check `--fold` 가 두 이름을 다 찾는다. 🔎 `perf-check --ios --warm 0 --fold --shot x.png`.

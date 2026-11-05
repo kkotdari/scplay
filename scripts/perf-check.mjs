@@ -1115,7 +1115,7 @@ if (has("--glms")) await page.evaluate(() => {
 });
 /* --fold(2026-10-23) — 독(인포창·미니맵 줄)을 접은 채 찍는다(접힘 때 툴박스 폭 검산). */
 if (has("--fold")) {
-  const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /인포창 접기$/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
+  const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /(인포창 접기|^독 접기)/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
   await page.waitForTimeout(600);
   console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}`);
   /* --foldhit(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌이 안 되고 페이지 드래그가 됨") — 접힌 독 자리·지도 자리의 맨 위 요소와

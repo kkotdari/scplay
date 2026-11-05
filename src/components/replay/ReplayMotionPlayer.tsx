@@ -22871,8 +22871,11 @@ export default function ReplayMotionPlayer({
         /* 접힌 독 위로 **자막만** 내린다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기" → "채팅 · 배속 다이얼은 그대로") — 자막은 받침 솟음을 안 타고(--cap-keep 0) 비운 독 줄 키
            (재생바 위끝까지)만큼 아래로(--cap-drop · replay.css). --dock-lift(채팅 · 다이얼)는 그대로. */
         const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
-        lay9?.style.setProperty("--cap-keep", "0");
-        lay9?.style.setProperty("--cap-drop", `${tb9 ? tb9.offsetTop : 0}px`);
+        /* (2026-11-05) 접어도 미니맵은 남으므로(replay.css ★ 접어도 미니맵은 남긴다) 미니맵이 보이는 동안은 자막을 안 내린다 — 내리면 자막이 미니맵 뒤로 가려졌다.
+           미니맵을 N · H 로 감췄거나(전체화면 미니맵 단추로 껐으면 우물이 없다) 할 때만 종전대로 내린다. */
+        const miniUp9 = !uiHide9.mini && !uiHide9.all && !!fr9.querySelector(".scr-fs-minipanel");
+        lay9?.style.setProperty("--cap-keep", miniUp9 ? "1" : "0");
+        lay9?.style.setProperty("--cap-drop", miniUp9 ? "0px" : `${tb9 ? tb9.offsetTop : 0}px`);
         return;
       }
       fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
@@ -22904,7 +22907,7 @@ export default function ReplayMotionPlayer({
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9, wide9]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -22924,8 +22927,8 @@ export default function ReplayMotionPlayer({
   const dockFoldNode9 = (
     <button
       type="button" className="scr-motion-infodock-fold"
-      aria-label={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"} aria-pressed={dockFoldOn9}
-      title={dockFold9 ? "미니맵·인포창 펼치기" : "미니맵·인포창 접기"}
+      aria-label={dockFold9 ? "독 펼치기" : "독 접기(미니맵은 남음)"} aria-pressed={dockFoldOn9}
+      title={dockFold9 ? "독 펼치기" : "독 접기(미니맵은 남음)"}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => setDockFold9((v) => !v)}
     >
