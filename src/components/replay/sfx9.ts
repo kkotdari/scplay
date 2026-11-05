@@ -19,6 +19,7 @@ const PRIO9: Record<SfxKind9, number> = {
   liftOff: 5, landing: 5, load: 5, unload: 5, burrow: 5, unburrow: 5, mine: 1, weld: 2, warpHum: 1, heart: 1, warpEnd: 6, mineScv: 1, mineProbe: 1, eggPop: 3,
   screamLow: 7, screamHi: 7, springBreak: 7, spikeEarth: 4, guardHum: 4, scanHum: 6, warpCharge: 6, zlingHit: 3, ultraHit: 3, missileLow: 5, missileHi: 5, fleshUnfold: 5, zergDone: 6, eggStart: 3, eggHatch: 3, metalClang: 5, mineArm: 5, reaverBreak: 7, vesselBoom: 8, bioLoad: 5, bioUnload: 5, obsBoom: 7, lurkerDie: 7, squealHi: 7, squealMuta: 7,   // 2026-11-02 새 소리
   stim: 5,   // 2026-11-03
+  gunShot: 3,   // 2026-11-05 — gunBeat9 가 따로 튼다(묶음을 안 탄다)
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
@@ -34,7 +35,7 @@ const GAP9: Partial<Record<SfxKind9, number>> = {
   screamLow: 260, screamHi: 380, springBreak: 200, spikeEarth: 90, guardHum: 260, scanHum: 600, warpCharge: 500, zlingHit: 60, ultraHit: 80, missileLow: 150, missileHi: 150, fleshUnfold: 300, zergDone: 400, eggStart: 220, eggHatch: 220, metalClang: 120, mineArm: 120, reaverBreak: 200, vesselBoom: 300, bioLoad: 250, bioUnload: 250, obsBoom: 300, lurkerDie: 200, squealHi: 160, squealMuta: 160, stim: 600,
 };
 /** 종류마다 크기. */
-const GAIN9: Partial<Record<SfxKind9, number>> = { warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
+const GAIN9: Partial<Record<SfxKind9, number>> = { gunShot: 0.7, warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";
@@ -195,10 +196,60 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
   } catch { /* 못 틀면 버린다 */ }
 }
 
+/* ★ **소총 연사 줄기**(2026-11-05, 요청: "마린 같은 경우 소리가 공격 중에 다다다 다다다 다다다 가 아니라 다다다다다다다다다다다 이렇게 똑같은 박자로 이어지게
+   계산해서") — 옛 판은 소총 불티 op 가 설 때마다 네 발 묶음(gun · 0.21초)을 틀어, op 주기(쿨다운 × 0.35)와 묶음 길이가 어긋나 묶음 사이가 비었다.
+   이제 한 줄기만 둔다: op 가 서면(gunBeat9) 줄기를 **다음 op 가 올 때까지(cp) + 여유** 살려 두고, 한 발(gunShot) 간격은 사수의 원 쿨다운을 8 로 나눈 값
+   (마린 15f = 0.63초 → 79ms · 스팀이면 절반 · 40~120ms 로 죔)을 배속으로 나눈다. 발은 AudioContext 시계로 미리(0.15초 앞까지) 박아 장 간격과 무관하게 고르다.
+   여러 사수가 쏴도 줄기는 하나(박자는 가장 최근 op 의 사수 것) — 쏘는 몸이 다 그치면 마지막 op 의 cp 뒤에 멎는다. 4배속 위는 옛 규칙대로 소총 소리를 뺀다. */
+const GUN_PER_CD9 = 8;
+const gunRun9 = { next: 0, until: 0, gap: 0.079, gain: 1 };
+const gunSrcs9: AudioBufferSourceNode[] = [];
+export function gunBeat9(cd: number, cp: number, opt: SfxPlay9 = {}): void {
+  if (!enabled9 || typeof window === "undefined" || !bank9.has("gunShot")) return;
+  const speed = Math.max(1, opt.speed ?? 1);
+  if (speed >= 4) return;
+  const c9 = ctxOf9();
+  if (!c9 || c9.state !== "running") return;
+  const now = c9.currentTime;
+  gunRun9.gap = Math.min(0.12, Math.max(0.04, cd / GUN_PER_CD9)) / speed;
+  const g9 = (GAIN9.gunShot ?? 1) * (0.45 + 0.55 * Math.max(0, Math.min(1, opt.near ?? 1)));
+  gunRun9.gain = gunRun9.until > now ? Math.max(gunRun9.gain, g9) : g9;
+  if (gunRun9.until <= now || gunRun9.next < now) gunRun9.next = now;
+  gunRun9.until = Math.max(gunRun9.until, now + cp / speed + 0.1);
+  pumpGun9();
+}
+/** 줄기의 발을 0.15초 앞까지 박는다 — 효과음 신호(SfxCues9.run)가 장마다 부른다. */
+export function pumpGun9(): void {
+  if (!ctx9 || !master9 || gunRun9.until <= 0) return;
+  const now = ctx9.currentTime;
+  if (gunRun9.until <= now) { gunRun9.until = 0; return; }
+  const bs9 = bufsOf9(ctx9, "gunShot");
+  if (!bs9 || !bs9.length) return;
+  const end9 = Math.min(gunRun9.until, now + 0.15);
+  while (gunRun9.next < end9) {
+    const at9 = Math.max(gunRun9.next, now);
+    try {
+      const src = ctx9.createBufferSource();
+      src.buffer = bs9[0];
+      const g9 = ctx9.createGain();
+      g9.gain.value = gunRun9.gain * (0.9 + Math.random() * 0.1);
+      src.connect(g9).connect(master9);
+      src.onended = (): void => { const i9 = gunSrcs9.indexOf(src); if (i9 >= 0) gunSrcs9.splice(i9, 1); };
+      gunSrcs9.push(src);
+      src.start(at9);
+      SFX_STAT9.played.gunShot = (SFX_STAT9.played.gunShot ?? 0) + 1;
+    } catch { /* 못 틀면 버린다 */ }
+    gunRun9.next = at9 + gunRun9.gap;
+  }
+}
+
 /** 지금 나는 소리를 다 끊는다(멈춤·되감기·탐색). */
 export function hushSfx9(): void {
   for (const v of voices9) { try { v.src.stop(); } catch { /* 이미 끝남 */ } }
   voices9.length = 0;
+  for (const s9 of gunSrcs9) { try { s9.stop(); } catch { /* 이미 끝남 */ } }
+  gunSrcs9.length = 0;
+  gunRun9.until = 0;
 }
 
 export const sfxOn9 = (): boolean => enabled9;

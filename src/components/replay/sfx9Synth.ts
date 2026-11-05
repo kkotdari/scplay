@@ -121,6 +121,33 @@ function gun9(v: number): Float32Array {
   return finish9(out9, 0.55);
 }
 
+/** ★ 소총 **한 발**(2026-11-05, 요청: "소리도 좀 더 다발총 소리처럼 변형 · 마린 같은 경우 공격 중에 다다다 다다다 가 아니라 다다다다다다 이렇게 똑같은 박자로
+ *  이어지게 계산해서") — 묶음(gun9 네 발)을 공격마다 틀던 것을 걷고, 이 한 발을 sfx9 gunBeat9 가 사수 쿨다운으로 셈한 고른 간격으로 잇는다.
+ *  기관총 결: 터지는 딱(고역 잡음 · 빠른 꺼짐) + 짖는 가운데(700Hz 띠 잡음) + 낮은 퍽(110 → 60Hz) + 노리쇠 찰칵(12ms 뒤 짧은 쇳소리) · 작은 방 울림 한 겹. */
+function gunShot9(v: number): Float32Array {
+  const r = rng9(301 + v);
+  const hp = new Biquad9("hp", 1500, 0.7);
+  const bp = new Biquad9("bp", 720, 1.4);
+  const lp = new Biquad9("lp", 6000, 0.7);
+  const raw9 = render9(0.11, (t) => {
+    const n = r() * 2 - 1;
+    const crack = hp.run(n) * exp9(t, 150) * 1.1;
+    const bark = bp.run(n) * exp9(t, 48) * 1.6;
+    const punch = Math.sin(2 * Math.PI * (110 - t * 450) * t) * exp9(t, 38) * 0.75;
+    const tc = t - 0.012;
+    const clack = tc > 0 ? Math.sin(2 * Math.PI * 3400 * tc) * exp9(tc, 420) * 0.22 : 0;
+    return sat9(lp.run(crack + bark + punch + clack), 1.9);
+  });
+  const lpW9 = new Biquad9("lp", 2600, 0.7);
+  const wet9 = echo9(Float32Array.from(raw9), 0.037, 0.22);
+  const out9 = new Float32Array(Math.min(wet9.length, Math.round(0.2 * SFX_RATE9)));
+  for (let i = 0; i < out9.length; i += 1) {
+    const d9 = i < raw9.length ? raw9[i] : 0;
+    out9[i] = d9 + lpW9.run(wet9[i] - d9) * 0.6;
+  }
+  return finish9(out9, 0.55);
+}
+
 /** 굵은 포(시즈탱크·골리앗 대공 아님) — 쿵 + 잡음 꼬리. */
 function cannon9(v: number): Float32Array {
   const r = rng9(131 + v); const br = brown9(r);
@@ -988,7 +1015,7 @@ export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot";
 
 /** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -1010,5 +1037,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   mineArm: [1, mineArm9], reaverBreak: [1, reaverBreak9], vesselBoom: [1, vesselBoom9],
   bioLoad: [1, (v) => bioHold9(v, true)], bioUnload: [1, (v) => bioHold9(v, false)],
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
-  stim: [1, stim9],
+  stim: [1, stim9], gunShot: [1, gunShot9],
 };

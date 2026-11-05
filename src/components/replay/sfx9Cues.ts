@@ -1,4 +1,4 @@
-import { hushSfx9, playSfx9, sfxOn9, type SfxPlay9 } from "./sfx9";
+import { gunBeat9, hushSfx9, playSfx9, pumpGun9, sfxOn9, type SfxPlay9 } from "./sfx9";
 import type { SfxKind9 } from "./sfx9Synth";
 import type { FxOp, UnitDrawOp } from "./engine9";
 
@@ -124,6 +124,8 @@ export class SfxCues9 {
           if (!fresh(`h${op.seed}`) && !(was !== undefined && ph < was - 0.05)) break;
           const s = op.style;
           if (s === undefined && op.by && SWING9[op.by]) break;   // 저글링·울트라는 휘두르는 박자로 낸다(아래 SWING9 ★) — 맞은 순간에 또 내면 겹친다
+          /* 소총 불티(사수 박자 op · cd 있음)는 묶음 소리 대신 고른 연사 줄기를 살린다(sfx9 gunBeat9 ★ · 2026-11-05). */
+          if (op.ro && op.cd && op.cp) { if (live) gunBeat9(op.cd, op.cp, { near: near(op.fx, op.fy), speed: o.speed }); break; }
           play(s === undefined ? (op.by ? MELEE9[op.by] : undefined) ?? "slash" : HIT9[s] === undefined ? "gun" : HIT9[s], op.fx, op.fy);
           break;
         }
@@ -236,6 +238,7 @@ export class SfxCues9 {
     if (r) for (const [k, [x, y]] of mine) play(k, x, y);
     if (r && hum) play("warpHum", hx, hy);
     if (r && beat) play("heart", bx, by);   // 고치는 0.9초마다 부푼다(engine9 hopP9) — 간격 880ms
+    if (live) pumpGun9();
     this.prev = now;
     this.hitPh = hitPh;
     if (this.buried.size > 4000) this.buried.clear();

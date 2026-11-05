@@ -2436,6 +2436,10 @@ export type FxOp = {
   ro?: boolean;
   /** 소총 피격의 때 소금(맞은 시각) — 연달아 맞을 때 불티 자리가 매번 갈린다. */
   rs?: number;
+  /** 소총 불티 op 의 사수 **원** 쿨다운(경기 초 · 스팀 든) — 효과음이 이것으로 '다' 한 발 간격을 셈해 고르게 잇는다(sfx9 gunBeat9 · 2026-11-05). */
+  cd?: number;
+  /** 소총 불티 op 가 서는 주기(경기 초) — 효과음이 다음 op 까지 소리를 이어 둘 길이. */
+  cp?: number;
   /** burst: 프로토스 **기계** 유닛(드라군·리버·셔틀·캐리어 …) — 건물과 같은 플라즈마 빛줄기 폭발(2026-10-17 · 아래 TOSS_FLESH9 밖). */
   tmech?: boolean;
   /** burst: 저그·테란 생체 **지상** 유닛의 죽음 — 피가 바닥에 떨어져 고이고 BLOOD_POOL_SEC 까지 남는다(2026-10-17).
@@ -6006,7 +6010,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
      *  소총류(rifle 불티)·탱크·커세어·아콘·자폭은 제 그림이 따로 있어 여기 안 온다. */
     const tgtHitFx9 = (o: {
       sx: number; sy: number; tg: { bx: number; by: number; air: boolean; k?: string; uk?: string; hp?: number };
-      tag?: number; style?: string; by?: string; since: number; delay: number; fallPx: number; rifle?: boolean;
+      tag?: number; style?: string; by?: string; since: number; delay: number; fallPx: number; rifle?: boolean; cd?: number;
     }): void => {
       const s9 = o.since - o.delay;
       if (!(s9 >= 0 && s9 < (o.rifle ? 0.25 : 0.4))) return;
@@ -6034,8 +6038,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const wp9 = o.style ? { style: o.style } : o.by ? { by: o.by } : {};
       if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
         fxOps.push({
-          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.18, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
-          ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...ok9, ...wp9,
+          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
+          ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...(o.cd ? { cd: o.cd, cp: o.cd } : {}), ...ok9, ...wp9,
         });
         return;
       }
@@ -7896,7 +7900,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             }
             if (unit === "Sunken Colony") tgtHitFx9({ ...hB9, by: unit, since: fireSince9(sunkKey9, sunkCd9), delay: 0.2 * sunkCd9 });
             if (unit === "Bunker" && (crew.length > 0 || presumed)) {
-              if (crewGun && rgB >= 0) tgtHitFx9({ ...hB9, style: "gun", rifle: true, since: fireSince9(defKey9, defCd9), delay: 0 });
+              if (crewGun && rgB >= 0) tgtHitFx9({ ...hB9, style: "gun", rifle: true, cd: defCd9, since: fireSince9(defKey9, defCd9), delay: 0 });
               if (crewBat && !foeB.air && batRG >= 0 && foeB.bd <= batRG) tgtHitFx9({ ...hB9, style: "flame", since: fireSince9(defKey9, defCd9), delay: 0.2 });
             }
           }
@@ -10873,10 +10877,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
             kind: "hit", style: fxName9, fx: tfx9, fy: tfy9, ok: `u${tgtTag9}`,   // style = 쏜 무기(효과음 HIT9 가 총소리를 고른다 — 없으면 근접 칼질로 울렸다)
             lift: foe.air ? foeLift9 : vPx9 * 0.34,
             /* ★ 쏘는 쪽 가장자리에(2026-11-04, 지적: "위치가 유닛 왼쪽 윗부분으로 고정 · 쏘는 쪽이랑 가까운 곳에 튀어야") — 표적에서 사수 쪽 화면 방향(hitDirOf9)으로
-               보이는 몸 폭의 0.3 만큼. 너무 멀면(14칸 밖) 몸 가운데. (같은 날 "위치를 좀 더 피격 대상 몸 중심 쪽으로(안쪽으로)" → 0.3 → 0.18 · 벙커 사수 몫도) */
-            ...((d9) => (d9 ? { dist: vW9 * 0.18, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
+               보이는 몸 폭의 0.3 만큼. 너무 멀면(14칸 밖) 몸 가운데. (같은 날 "위치를 좀 더 피격 대상 몸 중심 쪽으로(안쪽으로)" → 0.3 → 0.18 · 벙커 사수 몫도 ·
+               2026-11-05 "유닛의 더 안쪽으로 많이" → 0.06) */
+            ...((d9) => (d9 ? { dist: vW9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
             size: vW9 * 0.69,
-            ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
+            ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag, cd: fxCdRaw, cp: fxCd,
           });
         }
       }
