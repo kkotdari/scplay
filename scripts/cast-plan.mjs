@@ -1772,6 +1772,28 @@ rmSync(tmp, { recursive: true, force: true });
     ["돌아선 오버로드(끝내 못 닿음)는 정찰이 아니다", !sc.some((g) => /오버로드 정찰/.test(capTxt(g)))],
   ]) console.log(`  ${pass ? "✔" : "✘"} ${name}`);
 }
+/* ㉛e 짐을 실은 오버로드는 정찰이 아니다(2026-11-05, 지적: "오버로드 드랍 초반에 오버로드 정찰이라고 나오는 경우가 있음 · 드랍 의도면 처음부터 드랍으로 판정") —
+   같은 오버로드가 R 본진(14,14)으로 가 넥서스를 보는데, 한쪽 판은 저글링을 태우고(5초) 간다. 실은 판은 정찰 사건이 없어야 한다. */
+{
+  for (const loaded of [false, true]) {
+    let tt = 95000;
+    const L = [];
+    const mk = (o, kind, bld, x, y, born, ex = {}) => { const e = { tag: (tt += 1), owner: o, kind, born, bornX: x, bornY: y, died: null, end: "", bld,
+      sites: bld ? [[born, x - 1, y - 1]] : [], doneAt: born + (bld ? 30 : 0), lifts: [], cloaks: [], sieges: [], orders: [], ...ex }; L.push(e); return e; };
+    const trk = (tag, owner, kind, keys) => ({ tag, owner, kind, born: keys[0][0], died: null, own: [],
+      kt: Float32Array.from(keys.map((k) => k[0])), kxy: Int16Array.from(keys.flatMap((k) => [k[1] * 32, k[2] * 32])), kh: new Uint8Array(keys.length),
+      kst: new Uint8Array(keys.length).fill(1), done: new Uint8Array(keys.length).fill(1), types: new Uint16Array(keys.length).fill(42) });
+    mk(0, "Nexus", true, 10, 10, 0); mk(1, "Hatchery", true, 100, 100, 0);
+    const ov = mk(1, "Overlord", false, 100, 100, 0, { orders: [[10, 14, 14, false]] });
+    const zl = mk(1, "Zergling", false, 100, 100, 0);
+    const tracks = [trk(ov.tag, 1, "Overlord", [[0, 100, 100], [10, 100, 100], [100, 14, 14]])];
+    const w = { players: [["R", "프로토스", 1], ["Z", "저그", 2]].map(([name, race, team], o) => ({ owner: o, name, race, color: "#fff", team })),
+      lives: L, ups: [[1, "Ventral Sacs", 1]], casts: [], pings: [], resFields: [], kills: [], sels: [], builds: [], loads: loaded ? [[5, zl.tag, ov.tag]] : [] };
+    const ev = castPlan9(w, { total: 400, order: ["R", "Z"], teamOf: { R: 1, Z: 2 }, mapW: 110, mapH: 110, event: true, tracks });
+    const has = ev.some((g) => /오버로드 정찰/.test(capTxt(g)));
+    console.log(`  ${has === !loaded ? "✔" : "✘"} ${loaded ? "저글링을 실은 오버로드는 정찰이 아니다(드랍)" : "빈 오버로드는 오버로드 정찰"}`);
+  }
+}
 /* ㉛d 정찰은 **적의 건물·유닛을 처음 본 때**부터 · 카메라는 정찰하는 몸을 따라간다(2026-10-26, 요청: "정찰장면에서 정찰주체를 카메라가 따라가야하고 정찰은 기지 입장이 아닌
    건물 유닛을 일부라도 본순간부터 정찰로 판단"). ㉛c 와 같은 판에 R 의 파일런 하나를 길목(52,30)에 둔다 — 드론(시야 7)은 65초쯤 그것을 본다(기지에 들어선 때는 90초 넘어). */
 {

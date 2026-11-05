@@ -1563,6 +1563,19 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       }
       return false;
     };
+    /* ★ **짐을 실은 오버로드는 정찰이 아니다**(2026-11-05, 지적: "오버로드 드랍 초반에 오버로드 정찰이라고 나오는 경우가 있음 · 드랍 의도면 처음부터 드랍으로 판정") —
+       탑승 절(판 11 loads [초, 탄 몸, 배 · 0 = 내림])로 배마다 실린 구간을 모아, 그 명령부터 본 때까지 한 번이라도 짐이 있었으면 정찰 사건을 안 낸다(드랍 장면이 말한다). */
+    const carry9 = new Map<number, [number, number][]>();
+    {
+      const ride9 = new Map<number, [number, number]>();
+      for (const [ls9, pax9, ship9] of [...(world.loads ?? [])].sort((a9, b9) => a9[0] - b9[0])) {
+        const on9 = ride9.get(pax9);
+        if (on9) { ride9.delete(pax9); const a9 = carry9.get(on9[1]) ?? []; a9.push([on9[0], ls9]); carry9.set(on9[1], a9); }
+        if (ship9 !== 0) ride9.set(pax9, [ls9, ship9]);
+      }
+      for (const [, [ls9, ship9]] of ride9) { const a9 = carry9.get(ship9) ?? []; a9.push([ls9, Infinity]); carry9.set(ship9, a9); }
+    }
+    const carried9 = (tag9: number, s09: number, s19: number): boolean => (carry9.get(tag9) ?? []).some(([a9, b9]) => a9 <= s19 && b9 >= s09);
     const found9: Sc0_9[] = [];
     for (const [sec9, cx9, cy9, tech9, own9] of world.casts) {
       if (tech9 !== "Scanner Sweep") continue;
@@ -1597,11 +1610,13 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
             const q9 = posAtTruth(tr9, s9);
             /* (2026-11-01) **상대 기지 안에 들어선 채로 적의 몸을 본 때**(요청: "상대 기지에 들어간 건 필수고 들어가서 유닛이나 건물을 본 거") — 둘 다여야 한다.
                옛(10-26): 기지 안 · 또는 길목에서 본 것 어느 하나(길목의 파일런을 본 것도 정찰이 됐다). */
-            if (q9 && inFoe9(foe9, q9.x, q9.y, s9) && seesFoe9(foe9, q9.x, q9.y, sight9, s9)) { found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
+            if (q9 && inFoe9(foe9, q9.x, q9.y, s9) && seesFoe9(foe9, q9.x, q9.y, sight9, s9)) {
+              if (carried9(e9.tag, ot9, s9)) break;   // 짐을 실은 배(오버로드 드랍) — 위 ★
+              found9.push({ sec: s9, att: att9, foe: foe9, how: how9, x: q9.x, y: q9.y, stag: e9.tag }); break; }
           }
         } else if (foe9) {
           const arr9 = ot9 + Math.hypot(ox9 - px9, oy9 - py9) / spd9;
-          if (!(e9.died !== null && arr9 > e9.died)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9, stag: e9.tag });
+          if (!(e9.died !== null && arr9 > e9.died) && !carried9(e9.tag, ot9, arr9)) found9.push({ sec: arr9, att: att9, foe: foe9, how: how9, x: ox9, y: oy9, stag: e9.tag });
         }
         px9 = ox9; py9 = oy9;
       }
