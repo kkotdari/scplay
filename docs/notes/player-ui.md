@@ -3101,3 +3101,10 @@ click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointe
 `sprcache=0`(아틀라스 캐시 끄기 · sprAtlas9) · `spratlas=0`/`sprAtlas=0`(아틀라스 끄기 · sprAtlas9) · `drs=0`(해상도 자동 조절 끄기).
 DRS 는 이제 자동 조종(`navigator.webdriver` — perf-check 등 헤드리스)에서 스스로 꺼진다(perf-check 의 `drs=0` · `--drs` 걷음).
 남은 메뉴(최신순): 안개 끄기 · 2D 판 끄기 · GL 지형 끄기 · 3D 보기 · GL 끄기(2D 폴백) · 크립 끄기 · 그림자 끄기 · 번짐 끄기.
+
+## 진단(diag) 메뉴 정리(2026-11-05)
+요청: "진단 기능더 필수적인거만 남기고 제거" → 고른 안 "요약·fps·mem·truth". 남은 고르기: diag 끔 · 요약 · fps · mem · truth(판 머리 dpr·배율·UI·판 번호와 `흐림:` 줄은 늘).
+걷은 줄: draw(화면·덜어내기·프레임·GL) · bake(불빛·캔버스) · fog · load(로딩·지도판·입체) · gest(손짓) · worker · brush(붓 2초 요약) · view(보기 3초 · 링크 발자취) · all ·
+`#diag=pix`(GL 판 가장자리 · gl9.peek9 째). 그 줄만 쓰던 것도 걷었다: linkDiag9/linkLog9 · brushLogSummary9 · PLAY_FLIPS9 · pixStat9/pixPaint9.
+남긴 것(스크립트가 읽는다): SCR_DIAG 값 전부(window.__scrDiag) · BRUSH_LOG9(__brushLog9 · perf-check --pinchtrace) · viewDiag9(lastEv · evTail · --shakeprobe/--foldprobe).
+perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.

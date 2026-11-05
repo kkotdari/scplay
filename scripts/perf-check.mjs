@@ -2252,8 +2252,8 @@ if (SHOT) {
     const menu9 = () => page.evaluate(() => { const p = document.querySelector(".scr-testmode"); if (!p) return "없음"; const r = p.getBoundingClientRect(); return `있음 ${[r.left, r.top, r.width, r.height].map(Math.round)} · 진단 판 ${document.querySelector(".scr-motion-diag:not(.is-hide)") ? "보임" : "숨김/없음"}`; });
     let b9 = await btns9(); console.log("[테스터] 단추:", JSON.stringify(b9.map((b) => b[0])));
     await tap9(b9[2][1], b9[2][2]); console.log("[테스터] diag 누름 →", await menu9());
-    const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("all"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
-    if (row9) { await tap9(row9[0], row9[1]); console.log("[테스터] all 고름 → 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
+    const row9 = await page.evaluate(() => { const r = [...document.querySelectorAll(".scr-testmode-row")].find((x) => x.textContent.trim().endsWith("mem"))?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2] : null; });
+    if (row9) { await tap9(row9[0], row9[1]); console.log("[테스터] mem 고름 → 진단 판", await page.evaluate(() => !!document.querySelector(".scr-motion-diag"))); }
     b9 = await btns9();
     for (const [k9, n9] of [[1, "feat"], [0, "fps"], [2, "diag"]]) {
       console.log(`[테스터] ${n9} 단추 자리 맨 위: ${await topAt9(b9[k9][1], b9[k9][2])}`);
@@ -3286,7 +3286,7 @@ if (has("--sharpshot")) {
 /* --terrprobe(2026-10-23) — 진단판의 '지도판' 줄(구움 수 · 굽기 ms · 최악)을 찍는다 — 지형 판 재사용 연구의 자. --diag 와 함께 · --zoomsweep 뒤에 두면 줌 훑기의 굽기 수가 든다. */
 if (has("--terrprobe")) {
   const t9 = await page.evaluate(() => [...document.querySelectorAll(".scr-motion-diag div")].map((d) => d.textContent || "").filter((x) => /지도판|로딩/.test(x)).join(" | "));
-  console.log(`[지형판] ${t9 || "(진단 줄 없음 — #diag=load?)"} · 지도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gridWH) || "?")}`);
+  console.log(`[지형판] ${t9 || "(진단 줄 없음 — load 줄은 2026-11-05 걷었다)"} · 지도 ${await page.evaluate(() => (window.__scrDiag && window.__scrDiag.gridWH) || "?")}`);
   // GL 지형층(glTerrain9) — 붓이 건 네 귀 자리·기하 요약(2026-10-23).
   console.log(`[지도상자] ${await page.evaluate(() => { const m = document.querySelector(".scr-motion-map"); const u = document.querySelector(".scr-motion-unitlayer"); if (!m) return "-"; const r = m.getBoundingClientRect(); const ru = u ? u.getBoundingClientRect() : null; return `map ${r.left.toFixed(1)},${r.top.toFixed(1)} ${r.width.toFixed(1)}x${r.height.toFixed(1)} 가운데 ${(r.left + r.width / 2).toFixed(1)},${(r.top + r.height / 2).toFixed(1)}${ru ? ` · 유닛층 ${ru.left.toFixed(1)},${ru.top.toFixed(1)} ${ru.width.toFixed(1)}x${ru.height.toFixed(1)}` : ""} dpr ${window.devicePixelRatio}`; })}`);
   console.log(`[GL지형] ${await page.evaluate(() => { const t = window.__terr9; if (!t) return "지형층 없음(옛 벡터층)"; return `캔버스 ${t.canvas.width}x${t.canvas.height} stat ${JSON.stringify(t.terr.stat)}`; })}`);

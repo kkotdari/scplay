@@ -469,13 +469,6 @@ function blurDiag9(root: HTMLElement | null, gest9: boolean, pinch9: boolean): s
 }
 /** GL 붓이 못 맡아 판으로 떨어진 종류별 횟수(진단 'GL' 줄의 '판으로'). */
 const GL_MISS9 = new Map<string, number>();
-/** 공유 링크의 자리 앉히기 발자취(`#diag=view`의 '링크' 줄) — 실기기에서만 나는 어긋남을 눈으로 보려는 자다.
- *  앉히는 자리와 다시 앉히는 자리가 여기 한 줄씩 적는다(최근 12줄). */
-const linkDiag9: string[] = [];
-const linkLog9 = (s9: string): void => {
-  linkDiag9.push(s9);
-  if (linkDiag9.length > 12) linkDiag9.shift();
-};
 /** 손짓 중 한 장이 이 시간을 넘으면 **무거운 자리**로 본다(3D·난전) — 그때는 끄는 동안 다시 그리기를 미루고
  *  CSS 미끄러짐에 맡긴다(아래 xfPaintNow의 ★). 55ms면 60Hz 기준 세 프레임을 통째로 먹는다는 뜻이다. */
 /** 그려진 보기(b)에서 지금 보기까지의 **임시 변환** — 캔버스 내용은 그대로 두고 합성기만
@@ -695,8 +688,9 @@ const CURSOR9 = typeof location !== "undefined" && /(?:^|[#&,])cursor(?=$|[&,])/
 /** 주소 해시의 낱말(#·&·, 로 가른다). */
 const hashToks9 = (): string[] => (typeof location === "undefined" ? [] : location.hash.replace(/^#/, "").split(/[&,]/).filter(Boolean));
 /** 진단 고르기 칸 — 값(engine9 SCR_DIAG_SEL) · 이름. "" = 끔 · "sum" = 요약 한 줄. */
-const DIAG_PICKS9: readonly [string, string][] = [["", "diag 끔"], ["sum", "요약"], ["all", "all"], ["draw", "draw"], ["bake", "bake"], ["fog", "fog"], ["load", "load"],
-  ["gest", "gest"], ["mem", "mem"], ["worker", "worker"], ["truth", "truth"], ["brush", "brush"], ["view", "view"], ["fps", "fps"]];
+const DIAG_PICKS9: readonly [string, string][] = [
+  /* (2026-11-05, 요청: "진단 기능더 필수적인거만 남기고 제거") — 요약 · fps · mem · truth 만. 걷은 줄: draw · bake · fog · load · gest · worker · brush · view · all · pix(주소 전용). */
+  ["", "diag 끔"], ["sum", "요약"], ["fps", "fps"], ["mem", "mem"], ["truth", "truth"]];
 const fpsTagEl9: { el: HTMLElement | null } = { el: null };
 /** ★ **폰 손짓은 초당 30장**(2026-10-27, 지적: "자유모드가 드래그 줌도 많고 유닛도 많이 보일일이 많아서 발열이 심한듯" → 제안 A+B "ㅇㅋ") — 폰 평면 판 길(xfNoCss9)은
  *  손짓 중 CSS 변환 없이 장마다 손끝 보기로 판 전체(지형·안개·몸)를 다시 그려 화면 박자(60Hz · 120Hz 폰은 더)만큼 GPU 를 썼다. 손짓 한 장(gestureFrame9)과 재생 붓(drawGapMs)을
@@ -862,35 +856,11 @@ let brushAT9 = -1;
 let INST_SEQ9 = 0;
 let brushInst9 = 0;
 /** 인스턴스별 재생(driven) 뒤집힘 횟수 — 렌더에서 playing9가 지난 값과 다르면 센다. */
-const PLAY_FLIPS9: { at: number; inst: number; on: boolean }[] = [];
 const brushLogPush9 = (z: number, px: number, py: number, n: number, xf: string): void => {
   BRUSH_LOG9.push({ at: performance.now(), src: brushSrc9, z, px, py, n, aT: brushAT9, xf, inst: brushInst9 });
   if (BRUSH_LOG9.length > 120) BRUSH_LOG9.splice(0, BRUSH_LOG9.length - 120);
   (globalThis as unknown as { __brushLog9?: unknown }).__brushLog9 = BRUSH_LOG9;   // 하네스가 장마다 읽는다(perf-check --pinchtrace)
   brushSrc9 = "react";
-};
-/** 최근 2초 요약 — 진단 줄이 부른다. */
-const brushLogSummary9 = (): string => {
-  const now9 = performance.now();
-  const rs9 = BRUSH_LOG9.filter((r9) => now9 - r9.at < 2000);
-  if (!rs9.length) return "-";
-  const cnt9: Record<string, number> = {};
-  for (const r9 of rs9) cnt9[`${r9.inst}:${r9.src}`] = (cnt9[`${r9.inst}:${r9.src}`] ?? 0) + 1;
-  const flips9 = PLAY_FLIPS9.filter((f9) => now9 - f9.at < 2000);
-  const views9 = new Set(rs9.map((r9) => `${r9.z.toFixed(3)}|${r9.px.toFixed(1)}|${r9.py.toFixed(1)}`));
-  const pxs9 = rs9.map((r9) => r9.px); const pys9 = rs9.map((r9) => r9.py);
-  let back9 = 0; let prevT9 = -1;
-  for (const r9 of rs9) { if (r9.aT >= 0) { if (prevT9 >= 0 && r9.aT < prevT9 - 1e-6) back9 += 1; prevT9 = r9.aT; } }
-  const xfs9 = rs9.filter((r9) => r9.xf).length;
-  // src마다: 서로 다른 보기 수 · 마지막 보기(팬) · 마지막 op 수 · 마지막 앞 장 시각 — 두 붓이 다른 팬·다른 장으로 칠하는지 바로 읽힌다.
-  const bySrc9: Record<string, { views: Set<string>; last: (typeof rs9)[number] }> = {};
-  for (const r9 of rs9) {
-    const k9 = `${r9.inst}:${r9.src}`;
-    const e9 = bySrc9[k9] ?? (bySrc9[k9] = { views: new Set(), last: r9 });
-    e9.views.add(`${r9.px.toFixed(1)}|${r9.py.toFixed(1)}`); e9.last = r9;
-  }
-  const detail9 = Object.entries(bySrc9).map(([k9, e9]) => `${k9} 보기${e9.views.size} 팬(${e9.last.px.toFixed(1)},${e9.last.py.toFixed(1)}) op${e9.last.n} 장${e9.last.aT >= 0 ? e9.last.aT.toFixed(2) : "-"}`).join(" / ");
-  return `${detail9} ‖ ${Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ")} · 보기 ${views9.size}종 팬x ${(Math.max(...pxs9) - Math.min(...pxs9)).toFixed(1)} 팬y ${(Math.max(...pys9) - Math.min(...pys9)).toFixed(1)} · 장 되돌림 ${back9} · 변환有 ${xfs9} · 재생뒤집힘 ${flips9.length}${flips9.length ? `(${flips9.slice(-4).map((f9) => `${f9.inst}:${f9.on ? "on" : "off"}`).join(" ")})` : ""} · 인스턴스 ${INST_SEQ9}`;
 };
 /** ★ 이 종류가 **어떤 컷을 갖나**(요청: "이동, 액션 모션은 별도 모델링이 없으면 idle
  *  모션이 그 모션이 됨") — 도록이 칸을 세울지 idle로 갈음할지 이 값이 정한다.
@@ -1119,70 +1089,6 @@ function dumpCv9(cv9: HTMLCanvasElement, name9: string): void {
     const a9 = document.createElement("a"); a9.href = URL.createObjectURL(b9); a9.download = name9; a9.click();
     window.setTimeout(() => URL.revokeObjectURL(a9.href), 5000);
   });
-}
-/** ★ **`#diag=pix` — GL 판의 가장자리 날카로움**(2026-10-09, 흐림 가르기: 사용자 PC(dpr 1) 화면 크롭은 유닛 가장자리가 **모두** 2~3px 로
- *  번졌고 한 칸에서 바로 뛰는 가장자리가 0.7% 뿐인데, 헤드리스 1:1 GL 그림은 35% 가 한 칸이다 — 기하(배킹·CSS·자리)는 전부 1:1 이라
- *  진단 머리로는 못 가른다). flush 직후 GL 판을 읽어(gl9.peek9 · 합성기가 받는 바로 그 화소) 실루엣(알파 0→255)·속(불투명 밝기 ΔL≥60)
- *  가장자리의 단조 구간 길이를 센다: **한칸 몫이 30% 안팎이면 판은 또렷하고 번짐은 그 뒤(합성·화면) 몫**, 0% 에 가까우면 GPU 가 그리고
- *  MSAA 를 푸는 단계부터 번진 것이다. 가장자리가 가장 많은 48×48 창을 4배(화소 그대로)로 진단판에 보인다. 1초에 한 번(readPixels 멈춤). */
-const DIAG_PIX9 = typeof location !== "undefined" && /diag=[^&#]*pix/.test(location.hash);
-const PIX9: { at: number; line: string; win: ImageData | null } = { at: 0, line: "", win: null };
-function pixStat9(p9: { w: number; h: number; px: Uint8Array }): void {
-  const { w, h, px } = p9;
-  const ra9 = [0, 0, 0, 0]; const rl9 = [0, 0, 0, 0];   // 길이 1·2·3·4+ — 실루엣(알파) · 속(밝기)
-  const CELL9 = 48; const cols9 = Math.ceil(w / CELL9);
-  const hit9 = new Uint32Array(cols9 * Math.ceil(h / CELL9));
-  const lum9 = (i9: number): number => 0.299 * px[i9] + 0.587 * px[i9 + 1] + 0.114 * px[i9 + 2];
-  for (let y = 0; y < h; y += 1) {
-    const row9 = y * w * 4; const cy9 = Math.floor(y / CELL9) * cols9;
-    let x = 0;
-    while (x < w - 1) {
-      const i0 = row9 + x * 4; const a0 = px[i0 + 3]; const a1 = px[i0 + 7];
-      if (Math.abs(a1 - a0) > 4) {   // 알파 단조 구간
-        const s9 = a1 > a0 ? 1 : -1; let xe = x;
-        while (xe < w - 1 && (px[row9 + xe * 4 + 7] - px[row9 + xe * 4 + 3]) * s9 > 4) xe += 1;
-        const ae = px[row9 + xe * 4 + 3];
-        if (Math.min(a0, ae) < 16 && Math.max(a0, ae) >= 240) { ra9[Math.min(3, xe - x - 1)] += 1; hit9[cy9 + Math.floor(x / CELL9)] += 1; }
-        x = xe; continue;
-      }
-      if (a0 >= 240 && a1 >= 240) {   // 속 밝기 단조 구간(불투명끼리)
-        const L0 = lum9(i0); let Lp = L0; let xe = x;
-        const s9 = lum9(i0 + 4) > L0 ? 1 : -1;
-        while (xe < w - 1 && px[row9 + xe * 4 + 7] >= 240) { const Ln = lum9(row9 + xe * 4 + 4); if ((Ln - Lp) * s9 <= 1.5) break; xe += 1; Lp = Ln; }
-        if (xe > x) {
-          if (Math.abs(Lp - L0) >= 60) { rl9[Math.min(3, xe - x - 1)] += 1; hit9[cy9 + Math.floor(x / CELL9)] += 1; }
-          x = xe; continue;
-        }
-      }
-      x += 1;
-    }
-  }
-  const pct9 = (r9: number[]): string => { const n9 = r9[0] + r9[1] + r9[2] + r9[3]; return n9 ? `한칸 ${(100 * r9[0] / n9).toFixed(0)}%·두칸 ${(100 * r9[1] / n9).toFixed(0)}%·세칸+ ${(100 * (r9[2] + r9[3]) / n9).toFixed(0)}% (${n9})` : "없음"; };
-  PIX9.line = `GL판 가장자리 — 실루엣 ${pct9(ra9)} · 속 ${pct9(rl9)} · 판 ${w}×${h}`;
-  let best9 = 0; for (let i9 = 1; i9 < hit9.length; i9 += 1) if (hit9[i9] > hit9[best9]) best9 = i9;
-  if (hit9[best9] > 0 && typeof ImageData !== "undefined") {
-    const cx9 = (best9 % cols9) * CELL9; const cy0 = Math.floor(best9 / cols9) * CELL9;
-    const cw9 = Math.min(CELL9, w - cx9); const chh9 = Math.min(CELL9, h - cy0);
-    const out9 = new ImageData(CELL9, CELL9);
-    for (let yy = 0; yy < chh9; yy += 1) for (let xx = 0; xx < cw9; xx += 1) {
-      const si = ((cy0 + yy) * w + cx9 + xx) * 4; const di = ((CELL9 - 1 - yy) * CELL9 + xx) * 4;   // GL 은 아래가 0 행 — 뒤집는다
-      const a9 = px[si + 3]; const k9 = a9 > 0 ? 255 / a9 : 0;   // 미리곱한 알파를 푼다(보이기용)
-      out9.data[di] = Math.min(255, px[si] * k9); out9.data[di + 1] = Math.min(255, px[si + 1] * k9); out9.data[di + 2] = Math.min(255, px[si + 2] * k9); out9.data[di + 3] = a9;
-    }
-    PIX9.win = out9;
-  }
-}
-let pixTmp9: HTMLCanvasElement | null = null;
-/** 진단판의 4배 창 — 화소를 그대로(보간 없이) 키운다. **인라인** 콜백 ref 로 걸어야 렌더마다 다시 그린다(모듈 함수를 그대로 주면 처음 한 번뿐). */
-function pixPaint9(c9: HTMLCanvasElement | null): void {
-  if (!c9 || !PIX9.win) return;
-  if (!pixTmp9) { pixTmp9 = document.createElement("canvas"); pixTmp9.width = PIX9.win.width; pixTmp9.height = PIX9.win.height; }
-  const t9 = pixTmp9.getContext("2d"); const x9 = c9.getContext("2d");
-  if (!t9 || !x9) return;
-  t9.putImageData(PIX9.win, 0, 0);
-  x9.imageSmoothingEnabled = false;
-  x9.fillStyle = "#2f6d3a"; x9.fillRect(0, 0, c9.width, c9.height);   // 투명 바탕은 초록 땅빛으로 — 실루엣 가장자리가 보이게
-  x9.drawImage(pixTmp9, 0, 0, c9.width, c9.height);
 }
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
 /** ★ **워커는 지도 전체를 짓는다**(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로" · "안개가 앞뒤 시각으로 튐" → "원천적인 해결법" → "다 ㄱㄱ") — 옛: 보이는 곳 + 여유만
@@ -4738,11 +4644,8 @@ function bakeStepOf(z9: number): number {
 if (typeof window !== "undefined") {
   (window as unknown as { __scrDiag?: unknown }).__scrDiag = SCR_DIAG;
 }
-/** 진단의 **용도**(요청: "diag= 파라미터로 용도를 나누던가") — `#diag`만이면 요약 한 줄, `#diag=draw`(그리기·굽기),
- *  ★ 모드를 주제별로 다시 갈랐다(지적: "diag draw 너무 많아서 정리 · 내용별로 줄바꿈"): `draw`(화면·덜어내기·프레임)
- *    · `bake`(굽기·판갈림·캔버스) · `fog`(안개) · `load`(로딩·지도판·입체) · `gest`(손짓·원점) · `mem` · `worker` · `truth`
- *    · `brush` · `view` · `all`. 한 주제가 한 줄이고 줄 머리에 주제 이름이 선다.
- *  `#diag=mem`(메모리), `#diag=worker`(설계 일꾼), `#diag=truth`(참값), `#diag=all`(전부). 쉼표로 여럿(`mem,worker`). */
+/** 진단의 **용도** — `#diag`만이면 요약 한 줄 · `#diag=fps` · `#diag=mem`(메모리) · `#diag=truth`(참값) · 쉼표로 여럿(`mem,truth`).
+ *  (2026-11-05, 요청: "진단 기능더 필수적인거만 남기고 제거" — draw · bake · fog · load · gest · worker · brush · view · all · pix 줄은 걷었다.) */
 export const scrDiagModes = (): Set<string> => {
   if (SCR_DIAG_SEL.v !== null) return new Set(SCR_DIAG_SEL.v === "" || SCR_DIAG_SEL.v === "sum" ? [] : SCR_DIAG_SEL.v.split(","));   // 손 선택(engine9 SCR_DIAG_SEL)
   if (typeof window === "undefined") return new Set();
@@ -7697,10 +7600,6 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (DUMP_CV9 && !DUMP9.done) {   // 위 ★ — flush 직후 같은 작업 안에서 읽는다
           if (!DUMP9.at) DUMP9.at = performance.now();
           else if (performance.now() - DUMP9.at > 4000) { DUMP9.done = true; if (glRef.current) dumpCv9(glRef.current, "gl.png"); dumpCv9(cv, "unit.png"); }
-        }
-        if (DIAG_PIX9 && performance.now() - PIX9.at > 1000) {   // ★ `#diag=pix` — flush 직후 같은 작업 안에서 읽는다(위 pixStat9)
-          PIX9.at = performance.now();
-          const p9 = gl9.peek9(); if (p9) pixStat9(p9);
         }
         if (scrDiagOn()) {
           const miss9 = [...GL_MISS9].sort((a9, b9) => b9[1] - a9[1]).slice(0, 4).map(([k9, n9]) => `${k9}×${n9}`).join(" ");
@@ -10692,7 +10591,6 @@ export default function ReplayMotionPlayer({
   const instIdRef9 = useRef(0);
   /** 워커에 시각을 마지막으로 붙인 때(틱의 clk · frameWorker ClkMsg ★). */
   const clkAtRef9 = useRef(0);
-  const lastPlaying9 = useRef<boolean | null>(null);
   const wStatRef = useRef({
     got: 0, used: 0, missed: 0, err: "", sentWorld: 0, sentView: 0, sentCmd: 0,
     /** 워커가 세계를 받아 엔진을 세웠다(ready). 세계를 보낸 뒤 오래 안 오면 진단에 '응답 없음'. */
@@ -14761,8 +14659,6 @@ export default function ReplayMotionPlayer({
      기다려도 안 서면 그냥 포기한다 — 못 옮긴 채로라도 재생은 돌아야 한다. */
   const viewDoneRef = useRef(false);
   useEffect(() => {
-    if (!initialView) linkLog9("받은 자리 없음(링크에 z·cx·cy가 안 실렸거나 읽는 쪽이 안 넘겼다)");
-    else linkLog9(`받음 z${initialView.z} ${initialView.cx},${initialView.cy} 각${initialView.deg}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialView]);
   useEffect(() => {
@@ -14806,7 +14702,6 @@ export default function ReplayMotionPlayer({
         return;
       }
       if (!placed9) {
-        linkLog9(`통과 ${tries}프레임 상자 ${bw}x${bh} 덮 ${cw9.toFixed(0)} 무대 ${stageSizeRef.current.w}x${stageSizeRef.current.h}${ready9 ? "" : " ⚠못선채"}`);
       }
       if (!placed9) {
         placed9 = true;
@@ -14834,7 +14729,6 @@ export default function ReplayMotionPlayer({
       const wy9 = (0.5 - initialView.cy) * bh * z9;
       const gx9 = Math.min(lim.x, Math.max(-lim.x, wx9));
       const gy9 = Math.min(centerTop9(lim, initialView.cy * grid.height), Math.max(-lim.y, wy9));
-      linkLog9(`앉힘 z${z9} 바람 ${wx9.toFixed(0)},${wy9.toFixed(0)} 한계 ${lim.x.toFixed(0)}/${lim.y.toFixed(0)}·${lim.yTop.toFixed(0)} → ${gx9.toFixed(0)},${gy9.toFixed(0)} 상자 ${bw}x${bh}`);
       setView9(z9, { x: gx9, y: gy9 }, true);
     };
     raf = requestAnimationFrame(step);
@@ -15904,7 +15798,6 @@ export default function ReplayMotionPlayer({
     const ny9 = Math.min(centerTop9(lim9, hold9.cy * grid.height), Math.max(-lim9.y, (0.5 - hold9.cy) * bh9 * z9));
     if (Math.abs(nx9 - panRef.current.x) < 0.5 && Math.abs(ny9 - panRef.current.y) < 0.5) return;
     viewDiagPush9("link", `${nx9.toFixed(1)},${ny9.toFixed(1)}`);
-    linkLog9(`다시 ${panRef.current.x.toFixed(0)},${panRef.current.y.toFixed(0)} → ${nx9.toFixed(0)},${ny9.toFixed(0)} 상자 ${bw9}x${bh9} 한계 ${lim9.x.toFixed(0)}/${lim9.y.toFixed(0)}`);
     setView9(z9, { x: nx9, y: ny9 }, true);
     // panLimit·setView9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -17844,13 +17737,9 @@ export default function ReplayMotionPlayer({
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
   {
-    // #diag=brush — 인스턴스 번호와 재생 뒤집힘(위 PLAY_FLIPS9)
+    // 붓 자취의 인스턴스 번호(BRUSH_LOG9 · perf-check --pinchtrace)
     if (instIdRef9.current === 0) { INST_SEQ9 += 1; instIdRef9.current = INST_SEQ9; }
     brushInst9 = instIdRef9.current;
-    if (lastPlaying9.current !== playing9) {
-      if (lastPlaying9.current !== null) { PLAY_FLIPS9.push({ at: performance.now(), inst: instIdRef9.current, on: playing9 }); if (PLAY_FLIPS9.length > 60) PLAY_FLIPS9.splice(0, PLAY_FLIPS9.length - 60); }
-      lastPlaying9.current = playing9;
-    }
   }
   cmdNowRef9.current = { playing: playing9, t, speed };
   // 밖에서 t가 바뀌었으면(탐색) 틱의 살아 있는 시계도 거기로.
@@ -21641,13 +21530,6 @@ export default function ReplayMotionPlayer({
                 {/* 흐림 진단(위 blurDiag9) — **어느 모드에서나** 보인다(2026-10-09: `#diag=grid` 에서 이 줄이 빠져 사용자가 무늬만 찍어 보냈다).
                     사용자가 찍어 보내는 머리 아래 한 줄이다. */}
                 <div>{blurDiag9(mapRef.current, xfGestureRef.current, gestureRef.current)}</div>
-                {/* `#diag=pix` — GL 판 자체의 가장자리(위 pixStat9) + 가장자리가 가장 많은 48×48 창의 4배 화소. */}
-                {DIAG_PIX9 && (
-                  <div>
-                    {PIX9.line || "GL판 읽는 중…(GL 붓이 칠한 뒤 1초)"}
-                    <canvas className="scr-diag-pix" width={192} height={192} ref={(c9) => pixPaint9(c9)} aria-hidden />   {/* 인라인 콜백 — 렌더마다 다시 그린다 */}
-                  </div>
-                )}
                 {/* 요약(값 없는 #diag) — 한 줄에 끊김·메모리·워커의 첫 자를 다 둔다. */}
                 {diagModes9.size === 0 && (
                   <div>
@@ -21658,91 +21540,6 @@ export default function ReplayMotionPlayer({
                     {" · 워커 "}{frameWorkerRef.current ? (wStatRef.current.ready ? "on" : "준비중") : "off"}
                     {" "}{wStatRef.current.buildMs.toFixed(0)}ms
                     {wStatRef.current.err ? ` ⚠ ${wStatRef.current.err}` : ""}
-                  </div>
-                )}
-                {/* ★ 진단을 **주제별 줄**로 가른다(지적: "diag draw 너무 많아서 정리 · 내용별로 줄바꿈 — 뭐가 뭔지
-                    눈에 안 들어와") — 한 덩이로 이어 붙이던 것을 모드 넷(draw·bake·fog·load·gest)으로 나누고,
-                    모드 안에서도 한 주제가 한 줄이다. 줄 머리에 주제 이름. `all`은 여전히 전부. */}
-                {dm9("draw") && (
-                  <>
-                    <div>
-                      <b>화면</b>{" "}유닛 {SCR_DIAG.unitCss}css → {SCR_DIAG.unitBack} (B {SCR_DIAG.unitB.toFixed(2)}
-                      {SCR_DIAG.dpr && SCR_DIAG.unitB < SCR_DIAG.dpr ? ` · 화질 ${Math.round((SCR_DIAG.unitB / SCR_DIAG.dpr) * 100)}%` : ""})
-                      {" · 지도 "}{SCR_DIAG.mapBack} · 타일당 {SCR_DIAG.ppt}/{SCR_DIAG.needed}
-                    </div>
-                    {SCR_DIAG.crowd ? <div><b>덜어내기</b>{" "}{SCR_DIAG.crowd}</div> : null}
-                    <div>
-                      <b>프레임</b>{" "}찍기{" "}
-                      {SPRITE_PERF.wLast.frames
-                        ? Math.round(SPRITE_PERF.wLast.blit / SPRITE_PERF.wLast.frames) : 0}장/프레임
-                      {" · 최악프레임 "}{SPRITE_PERF.wLast.worstFrame.toFixed(0)}ms
-                      {SPRITE_PERF.wLast.direct > 0 ? ` · 직접 ${SPRITE_PERF.wLast.direct}` : ""} · 마커 {SPRITE_PERF.dom.markers}개
-                      {/* 이 판이 본 가장 긴 프레임과 그 몫(위 WORSTF9) — 핵 창 밖의 끊김도 여기 잡힌다. */}
-                      {WORSTF9.ms > 0 ? ` · 최장프레임[${WORSTF9.ms.toFixed(0)}ms ${WORSTF9.parts}]` : ""}
-                      {/* 타이머 틈(위 TICKM9) — rAF와 견줘 '주 실마리가 막혔나 · 그리기만 굶었나'를 가른다. */}
-                      {TICKM9.n > 0 ? ` · 타이머[최악${TICKM9.worst.toFixed(0)}ms ${TICKM9.n}번]` : ""}
-                      {/* 캔버스 배킹 손실(위 LOST9) — 잃고 다시 그린 횟수·검사 횟수. */}
-                      {` · 배킹[손실${LOST9.n} 검사${LOST9.probe}${SCR_DIAG.allocOk ? "" : " ⚠확보실패"}]`}
-                      {/* React 한 장(위 REACTM9) — 핵·스톰이 뜨면 박자가 25~60Hz로 오른다. */}
-                      {SCR_DIAG.react ? ` · 리액트[박자${reactStepRef9.current}ms · ${SCR_DIAG.react}]` : ""}
-                      {/* 지난 핵 창(위 NUKEM9) — 멈춘 뒤에 찍어도 남아 있다. */}
-                      {SCR_DIAG.nukem ? ` · 핵[${SCR_DIAG.nukem}]` : ""}
-                    </div>
-                  </>
-                )}
-                {dm9("bake") && (
-                  <>
-                    {/* 건물 불빛(요청 신고: "활성시 불이 안 들어와") — 생산 색인이 비었는지,
-                        켜진 건물이 0인지를 수로 가른다. 0이면 켜는 자가 문제고, 1 이상인데
-                        화면이 어두우면 그 판을 굽는 쪽이다. */}
-                    <div><b>불빛</b>{" "}켠건물 {SCR_DIAG.litN} · 생산색인 {SCR_DIAG.prod || "-"}</div>
-                    {/* 캔버스 만듦(위 CVN9)·되쓰기 창고(위 CVSTORE9) — 캔버스를 얼마나 새로 짓고, 얼마나 되쓰나. */}
-                    <div>
-                      <b>캔버스</b>{" "}만듦 총{CVN9.n} 초당{CVN9.rate.toFixed(0)} 최고{CVN9.peak.toFixed(0)}{CVN9.peakTop ? `(${CVN9.peakTop})` : ""}
-                      {` · 창고 든${CVSTORE9.hit} 빗${CVSTORE9.miss} 넣${CVSTORE9.put} 쌓${CVSTORE9.list.length}`}
-                    </div>
-                  </>
-                )}
-                {dm9("fog") && SCR_DIAG.fog ? (
-                  /* 안개 붓 계량기(위 FOGM9)·역행·떨림 — 안개만 뒤처지거나 떠는 신고를 수로 가른다. */
-                  <div><b>안개</b>{" "}{SCR_DIAG.fog}</div>
-                ) : null}
-                {dm9("load") && (
-                  <>
-                    {/* ★ 로딩의 초는 어디로 가나(위 LOAD9) — 메인 실마리를 초 단위로 잡을 수 있는
-                        자리 넷을 나란히 둔다. 합이 곧 '로딩이 기어간 시간'이고, 큰 칸이 다음 칼이다. */}
-                    <div>
-                      <b>로딩</b>{" "}지도판{MAPVEC_M9.ms.toFixed(0)} 참값{LOAD9.truthMs.toFixed(0)}
-                      {` 워커세움${LOAD9.wkMs.toFixed(0)} 예열${LOAD9.warmMs.toFixed(0)}ms/${LOAD9.warmN}개`}
-                    </div>
-                    {/* 지도 판(위 MAPVEC_M9) — 다시 구운 수·확보 실패·지금 예산과 한 변. 지도가 까만 채로
-                        남는 신고를 '안 구웠나 · 굽다 실패했나'로 가른다. */}
-                    <div>
-                      <b>지도판</b>{" "}구움{MAPVEC_M9.bake} 실패{MAPVEC_M9.fail} 줄임{MAPVEC_M9.shrink}
-                      {` 한변${MAPVEC_M9.side} 예산${(MAPVEC_M9.cap / 1e6).toFixed(1)}Mpx`}
-                      {` 굽기${MAPVEC_M9.ms.toFixed(0)}ms(최악${MAPVEC_M9.max.toFixed(0)})`}
-                    </div>
-                    {/* 입체 흐림 조사(지적: "3D에서 맵 선명하지 않은 거 조사") — 타일당 기기픽셀 셋을 나란히:
-                        서피스(합성기가 실제로 래스터하는 해상도) · 배킹(우리가 구운 것) · 요구(화면 맨 앞줄이 보이는 것).
-                        서피스 < 요구면 합성 단계가 병목이고, 배킹 < 요구면 굽기가 병목이다. */}
-                    {pitched && MAPVEC_M9.tiles > 0 ? (
-                      <div>
-                        <b>입체</b>{" "}R{MAPVEC_M9.r} 창{MAPVEC_M9.css}css→서피스{MAPVEC_M9.surf}px 배킹{MAPVEC_M9.back}px {MAPVEC_M9.tiles.toFixed(0)}타일
-                        {` · 타일당 서피스${(MAPVEC_M9.surf / MAPVEC_M9.tiles).toFixed(0)} 배킹${(MAPVEC_M9.back / MAPVEC_M9.tiles).toFixed(0)} 요구${MAPVEC_M9.need.toFixed(0)}(앞줄×${MAPVEC_M9.pmag.toFixed(2)})`}
-                      </div>
-                    ) : null}
-                  </>
-                )}
-                {dm9("gest") && (
-                  /* 손짓 조사 — 한 장 값(미룸 문턱 XF_HEAVY_MS9)·배킹 몫·그린 장의 원점(ORG9)·세대·차례·실시간 원근 판정. */
-                  <div>
-                    <b>손짓</b>{" "}{SCR_DIAG.xfms}ms{SCR_DIAG.xfms >= XF_HEAVY_MS9 ? "(미룸)" : ""}{SCR_DIAG.terrms > 0 ? ` 지형 ${SCR_DIAG.terrms}ms` : ""}
-                    {xfBackK9.k !== 1 ? ` 배킹×${xfBackK9.k}` : ""}
-                    {" · 원점 그린"}{ORG9.ox.toFixed(0)}{"/지금"}{ORG9.live.toFixed(0)}
-                    {" 세대"}{ORG9.gen}{"·차례"}{ORG9.seq}{"/보냄"}{wStatRef.current.sentView}
-                    {" "}{live3dOn9() ? (liveViewOkRef9.current ? "live" : "접힘") : "off"}
-                    {(() => { const m9 = xfMsMid9(); return m9 >= 0 ? `(실측${m9.toFixed(0)}/${LIVE3D_DRAW_MS9}ms)` : `(벤치${CROWD9.bench3.toFixed(0)}/${LIVE3D_BENCH_MS9}ms)`; })()}
-                    {" · "}{ORG9.sLast}걸음 역행{ORG9.rLast}
                   </div>
                 )}
                 {dm9("mem") && (
@@ -21791,33 +21588,6 @@ export default function ReplayMotionPlayer({
                       : `${Math.floor(SCR_DIAG.truthTrust / 60)}분 ${Math.floor(SCR_DIAG.truthTrust % 60)}초`}
                   </div>
                 )}
-                {dm9("worker") && (
-                  /* 프레임 워커 — on/준비중/off · 받은/쓴/놓친 장수 · 한 장 짓는 ms · op·KB · 앞 · 시야 · [속] · 오류(⚠). */
-                  <div style={{ wordBreak: "break-all" }}>워커 {SCR_DIAG.worker || "-"}</div>
-                )}
-                {dm9("draw") && SCR_DIAG.gl && (
-                  <div style={{ wordBreak: "break-all" }}>GL {SCR_DIAG.gl}</div>
-                )}
-                {dm9("brush") && (
-                  <div style={{ wordBreak: "break-all" }}>붓 2초: {brushLogSummary9()}</div>
-                )}
-                {dm9("view") && ((): React.ReactNode => {
-                  /* 보기 상태 변화(위 viewDiag9) — 최근 3초의 종류별 횟수, 지금 값, 마지막 여덟 사건(몇 초 전). */
-                  const d9 = viewDiag9.current;
-                  const now9 = performance.now();
-                  const recent9 = d9.ev.filter((e9) => now9 - e9.t < 3000);
-                  const cnt9: Record<string, number> = {};
-                  for (const e9 of recent9) cnt9[e9.k] = (cnt9[e9.k] ?? 0) + 1;
-                  return (
-                    <div style={{ wordBreak: "break-all" }}>
-                      보기 3초: {Object.entries(cnt9).map(([k9, n9]) => `${k9}×${n9}`).join(" ") || "-"}
-                      {` · 지금 팬 ${d9.last.pan ?? "-"} 배율 ${d9.last.zoom ?? "-"} 무대 ${d9.last.stage ?? "-"} 예산 ${d9.last.budget ?? "-"} 창 ${d9.last.ih ?? "-"}`}
-                      {/* 마지막 여덟 사건은 **시간과 무관하게** 값까지 보인다(2026-10 — 3초 창만으로는 사람이 찍을 틈이 없었다). */}
-                      {` · 최근 ${d9.ev.slice(-8).map((e9) => `${e9.k}${e9.v ? `(${e9.v})` : ""}@${((now9 - e9.t) / 1000).toFixed(1)}s`).join(" ") || "-"}`}
-                      <div>링크: {linkDiag9.join(" ‖ ") || "-"}</div>
-                    </div>
-                  );
-                })()}
               </div>
   ) : null;
   /** 확대 버튼에 적을 값 — 화면의 지금 배율이다(핀치·더블탭·휠·한 손 줌 공통). 칸에
