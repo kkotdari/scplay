@@ -2180,7 +2180,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
       if (e9.kind === "Overlord" && !sacs9) continue;
       if (e9.orders.some((o9) => o9[0] >= sec9 - DROP_W9 && o9[0] <= sec9 + 5 && halls9.some(([hx9, hy9]) => inBaseArea9(hx9, hy9, o9[1], o9[2])))) ships9.add(e9.tag);
     }
-    if (ships9.size < BOMB_DROP_N9 || !isBomb9(att9, def9, sec9)) return null;   // 폭탄드랍만(위 isBomb9 — 기수가 있어야)
+    /* ★ 한 대 드랍도(2026-11-05, 요청: "드랍 의도면 처음부터 드랍으로 판정" → 한 대 드랍도 처음부터 따라가기 "응") — 옛: 폭탄드랍만(배 둘 이상 · isBomb9 기수).
+       이제 그 기지에 내린 배가 하나라도 있으면 내리기 DROP_ARRIVE9 초 앞부터 배 → 내린 몸을 따라간다. 자막의 '폭탄드랍' 이름은 그대로 isBomb9(dropKind9)가 정한다. */
+    if (ships9.size === 0) return null;
     /* ★ **내림은 물결마다**(2026-10-22, 지적: "자막은 드랍인데 엉뚱한 데 보여 줌" — 261019005801 13:50) — 옛 판은 처음 내린 때부터 DROP_UNLOAD9 초 안의 몸만 '이 드랍의 유닛'으로
        장면 끝까지 따라갔다. 그 판은 셔틀 한 대가 먼저 둘을 내려(818초) 곧 다 죽고(825초), 셔틀 셋이 본진에서 다시 태워 846초에 폭탄드랍을 했다 — 첫 둘이 죽은 뒤 카메라는
        장면 가운데(아직 아무도 없는 빈 땅)로 물러나 20초를 섰다. 이제 내림을 물결(앞 내림과 DROP_UNLOAD9 초 넘게 떨어지면 새 물결)로 나눠 물결마다 [그 물결 수송선 → 내린 몸]을
