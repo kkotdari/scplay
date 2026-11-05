@@ -984,6 +984,56 @@ export function stackMouth9(
   out.push([polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, rIn, dep))), 1, "#121519"] as ShapeFace);
   return out;
 }
+/** ★ **아무 방향으로 뚫린 관의 아가리**(히드라 덴 코끝 · 2026-11-05) — `nozzleRim9`·`stackMouth9` 의 일반형. c = 아가리 한가운데, d = 바깥(관이 뻗는) 방향.
+ *  단면 축은 u ⟂ d · v = d × u 로 잡는다(u × v = d — nozzleRim9 의 X·Z·−Y 와 같은 손이라 감김이 같다). fill 이 null 이면 테두리를 안 칠한다(임자 색 · 살을 자른 낯). */
+export function tubeMouth9(
+  c: [number, number, number], d: [number, number, number], rOut: number,
+  o: { th?: number; dep?: number; sides?: number; fill?: string | null; phase?: number; radOf?: (a: number) => number } = {},
+): ShapeFace[] {
+  const dl = Math.hypot(d[0], d[1], d[2]) || 1;
+  const D: [number, number, number] = [d[0] / dl, d[1] / dl, d[2] / dl];
+  const ref: [number, number, number] = Math.abs(D[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const dotR = ref[0] * D[0] + ref[1] * D[1] + ref[2] * D[2];
+  let U: [number, number, number] = [ref[0] - D[0] * dotR, ref[1] - D[1] * dotR, ref[2] - D[2] * dotR];
+  const ul = Math.hypot(U[0], U[1], U[2]) || 1; U = [U[0] / ul, U[1] / ul, U[2] / ul];
+  const V: [number, number, number] = [D[1] * U[2] - D[2] * U[1], D[2] * U[0] - D[0] * U[2], D[0] * U[1] - D[1] * U[0]];
+  const th = Math.min(rOut * 0.55, o.th ?? Math.max(0.07, rOut * 0.2));
+  const rIn = rOut - th;
+  const dep = o.dep ?? rOut * 1.6;
+  const n9 = o.sides ?? 12;
+  /* 단면 각 · 반지름 배수는 spirePillar 와 같은 자(phase · radOf) — 관 몸과 같은 단면(둥근 삼각 따위)이라야 테두리가 옆선과 맞는다. u 는 위(ref ẑ)를 땅과 나란한
+     끝 접선에 수직화한 것이라, 평면 위 곡선의 평행 이송으로 같은 자리에 온 spirePillar 의 u 와 같다. */
+  const ph9 = o.phase ?? 0;
+  const P9 = (i9: number, rr9: number, k9: number): [number, number, number] => {
+    const a9 = (i9 / n9) * Math.PI * 2 + ph9;
+    const rk9 = o.radOf ? o.radOf(a9) : 1;
+    const ca = Math.cos(a9) * rr9 * rk9; const sa = Math.sin(a9) * rr9 * rk9;
+    return [c[0] + U[0] * ca + V[0] * sa - D[0] * k9, c[1] + U[1] * ca + V[1] * sa - D[1] * k9, c[2] + U[2] * ca + V[2] * sa - D[2] * k9];
+  };
+  const out: ShapeFace[] = [];
+  const front9 = faceLight(D[0], D[1], D[2]);
+  const inD9: string[] = []; const inP9: number[][] = [];
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const j9 = i9 + 1;
+    const dr9 = polyPath3([P9(i9, rOut, 0), P9(j9, rOut, 0), P9(j9, rIn, 0), P9(i9, rIn, 0)]);
+    out.push((o.fill === null ? [dr9, 1] : [dr9, 1, o.fill ?? "#6d757f"]) as ShapeFace, ...(front9.visible ? front9.face(dr9) : []));
+    const am9 = ((i9 + 0.5) / n9) * Math.PI * 2 + ph9;
+    const nx = -(U[0] * Math.cos(am9) + V[0] * Math.sin(am9));
+    const ny = -(U[1] * Math.cos(am9) + V[1] * Math.sin(am9));
+    const nz = -(U[2] * Math.cos(am9) + V[2] * Math.sin(am9));
+    const q9: [number, number, number][] = [P9(i9, rIn, 0), P9(j9, rIn, 0), P9(j9, rIn, dep), P9(i9, rIn, dep)];
+    if (!faceLight(nx, ny, nz).visible) continue;
+    inD9.push(polyPath3(q9));
+    inP9.push(q9.flatMap((t9) => modelPoint9(t9[0], t9[1], t9[2]) as unknown as number[]));
+  }
+  if (inD9.length > 0) {
+    const dIn9 = inD9.join(" ");
+    meshPut9(dIn9, inP9 as never[]);
+    out.push([dIn9, 1, "#2a1512"] as ShapeFace);
+  }
+  out.push([polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, rIn, dep))), 1, "#170a08"] as ShapeFace);
+  return out;
+}
 export function thrustFlame(
   x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
   /** 가로(x) 늘림 배수 — 노즐이 넙적한 타원이면 불꽃도 같은 비라야 한다(그 ⚠ 규약).
@@ -12967,7 +13017,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: 0, y: -0.3, z0: 4.752, h: 1.152, w: 0.95, tipW: 1.55,
         segs: 3, sides: 12, hold: 0.2, caps: "bottom",
       }), "#21252c"),
-      ...stackMouth9(0, -0.3, 5.904, 1.55, { th: 0.22, dep: 1.0, sides: 12, phase: Math.PI / 12, fill: "#2d323b" }),
+      ...stackMouth9(0, -0.3, 5.904, 1.55, { th: 0.45, dep: 1.0, sides: 12, phase: Math.PI / 12, fill: "#2d323b" }),   // 살 0.22 → 0.45(2026-11-05, 요청: "굴뚝 두께주기")
       ...fine(gasPuffs9({ x: 0, y: -0.3, z: 5.94, r: 0.8, h: 2.34, col: "#8cff86", n: 3 })),
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
@@ -17151,28 +17201,34 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        (아래로 미끄럼틀처럼 내려가는건 유지해야함)") — 옛 꼬리는 마디 돔 여덟이 옆(px)으로 u² 만큼 휘며 흘렀다. 이제 몸 등에서 **곧게 앞으로**(px 고정 · py 만)
        나가는 한 줄기 관이고, 높이는 옛 미끄럼(2.24 − u²·2)을 그대로 탄다. 굵기는 뿌리에서 끝으로 가늘어지고, 주름(굵기 물결 아홉)이 마디를 대신한다.
        임자 색 그대로(칠하지 않음). */
-    const TRUNK_N9 = 9;
+    /* ★★ 굵고 길게 · 끝은 앞을 보는 구멍(2026-11-05, 재요청: "주황부품 제거하고 코를 더 길게 늘어뜨리기 끝 구멍은 정면 향함 · 두께가 지금보다 훨씬
+       두꺼워야하고 끝으로 가면서 너무 좁아지지 않아야함") — 높이는 S 자(3t² − 2t³): 몸에서 완만히 떠나 가운데서 미끄럼처럼 떨어지고, 끝에서 다시 수평이 되어
+       아가리가 정면(앞)을 본다. 굵기 1.2 → 0.92(옛 0.78 → 0.38). 아가리는 tubeMouth9(살은 임자 색 · 속은 어두운 살빛). */
+    const TRUNK_N9 = 10;
+    const TRUNK_Z0 = 2.6; const TRUNK_Z1 = 0.95;
+    const trunkAt9 = (t9: number): [number, number, number] => {
+      const [tx9, ty9] = PB(1.7, 0.3 - t9 * 5.0);
+      return [tx9, ty9, TRUNK_Z0 - (TRUNK_Z0 - TRUNK_Z1) * (3 * t9 * t9 - 2 * t9 * t9 * t9)];
+    };
+    const trunkW9 = (t9: number): number => (1.2 - t9 * 0.28) * (1 + 0.07 * Math.cos(t9 * TRUNK_N9 * Math.PI * 2));
+    /* 단면은 **둥근 삼각**(2026-11-05, 요청: "히드라덴 코는 둥근 삼각형 모양임") — radOf 1 + 0.2·cos 3a · u 가 위라 꼭짓점 하나가 위 · 바닥은 평평한 변. */
+    const TRUNK_RAD9 = (a9: number): number => 1 + 0.2 * Math.cos(3 * a9);
     out.push(...tagKey(spirePillar({
-      x: 0, y: 0, h: 1, w: 1, segs: 54, sides: 12, caps: "none", trueNormal: true,
-      path: (t9: number): [number, number, number] => {
-        const [tx9, ty9] = PB(1.7, 0.3 - t9 * 3.5);
-        return [tx9, ty9, 2.24 - t9 * t9 * 2 + 0.42 - t9 * 0.12];
-      },
-      widthOf: (t9: number): number => (0.78 - t9 * 0.4) * (1 + 0.09 * Math.cos(t9 * TRUNK_N9 * Math.PI * 2)),
-    }), 14 + depthNow(...PB(1.7, -1.4)) * 1.6));
+      x: 0, y: 0, h: 1, w: 1, segs: 70, sides: 15, caps: "none", trueNormal: true, ref: [0, 0, 1], phase: 0,
+      path: trunkAt9, widthOf: trunkW9, radOf: TRUNK_RAD9,
+    }), 14 + depthNow(...PB(1.7, -2.2)) * 1.6));
+    {
+      const e9 = trunkAt9(1); const e8 = trunkAt9(0.98);
+      out.push(...tagKey(tubeMouth9(e9, [e9[0] - e8[0], e9[1] - e8[1], e9[2] - e8[2]], trunkW9(1) * 1.03,
+        { th: 0.3, dep: 1.1, sides: 15, fill: null, phase: 0, radOf: TRUNK_RAD9 }), 14.5 + depthNow(e9[0], e9[1]) * 1.6));
+    }
     // 꼬리 곁의 창백한 뼈 마디 둘 — 흰색이되 임자 색은 아니다(사진의 옆 갈비).
     for (const m9 of [-1, 1] as const) {
       const [rx9, ry9] = PB(1.7 + m9 * 1.7, -0.7);
       out.push(...tagKey(paintBase(domeFaces3(rx9, ry9, 0.7, 0.416, 1.44), BONE),
         13 + depthNow(rx9, ry9) * 1.6));
     }
-    // 살빛 주둥이 — 코끝(곧은 코의 끝 · 위 ★)에 붙은 통통한 코.
-    const [nx9, ny9] = PB(1.7, -3.3);
-    const [n2x, n2y] = PB(1.7, -3.9);
-    out.push(...tagKey(paintBase([
-      ...domeFaces3(nx9, ny9, 1, 0.64, 0.24),
-      ...domeFaces3(n2x, n2y, 0.66, 0.448, 0.24),
-    ], "#c9613a"), 18 + depthNow(nx9, ny9) * 1.6));
+    // (걷음 2026-11-05, 요청: "코끝 주황부품 제거") 살빛 주둥이 — 코끝이 이제 정면을 보는 구멍(위 ★★)이다.
     /* 검은 엄니 한 쌍 — 주둥이 옆에서 앞으로 크게 말린다(사진의 아래 두 뿔). */
     for (const m9 of [-1, 1] as const) {
       out.push(...tagKey(paintBase(spirePillar({

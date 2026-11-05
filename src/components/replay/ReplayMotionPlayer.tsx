@@ -11467,9 +11467,10 @@ export default function ReplayMotionPlayer({
     /* ★ 양도 함께(2026-10-10, 요청: "데미지량 다시 표시 — 퍼센트와 병기") — "1.2k(45%)/810(47%)"(옛 퍼센트만 "45%/47%"). */
     return (
       <>
-        <span className="scr-dmg-dealt">{fmtK9(d9[0])}{p0 === null ? "" : `(${p0}%)`}</span>
+        {/* 퍼센트는 제 칸(.scr-dmg-pct) — 판이 좁으면 전광판이 퍼센트만 걷는다(2026-11-05 · dmgLite9). */}
+        <span className="scr-dmg-dealt">{fmtK9(d9[0])}{p0 === null ? "" : <span className="scr-dmg-pct">{`(${p0}%)`}</span>}</span>
         <span className="scr-dmg-sep">/</span>
-        <span className="scr-dmg-taken">{fmtK9(d9[1])}{p1 === null ? "" : `(${p1}%)`}</span>
+        <span className="scr-dmg-taken">{fmtK9(d9[1])}{p1 === null ? "" : <span className="scr-dmg-pct">{`(${p1}%)`}</span>}</span>
       </>
     );
   };
@@ -21204,6 +21205,32 @@ export default function ReplayMotionPlayer({
   /* ★ 쪽(is-paged)은 **독 맞춤**(아래 dockFit9 · 2026-10-09)이 정한다 — 폰은 늘 쪽, PC 는 전광판·미니맵이 제 설계 폭을 못 받아 줄었을 때(k < 1)만 쪽이다.
      옛 '판 폭 < 인포창 × 1.5' 자(ResizeObserver)는 인포창이 숨거나 줄어드는 지금 판에서는 틀린다. */
   const [rosterPaged9, setRosterPaged9] = useState(uiPhone9);
+  /* ★ 판이 좁으면 **데미지의 퍼센트를 걷는다**(2026-11-05, 지적: "전광판에 APM이 안보임" → 요청: "모자라면 데미지를 퍼센트를 부분제거") — PC 전광판(쪽 꼴 아님)의 칸 폭은
+     ch 로 못 박혀(데미지 22ch) 판이 좁으면 맨 끝 APM 이 판 밖으로 밀려 잘렸다. 머리 줄 자료 띠의 칸 폭 합(퍼센트를 걷은 꼴이면 걷힌 몫 10ch 를 더한 온 꼴)이
+     띠 폭을 넘으면 is-dmglite(replay.css — 퍼센트 숨김 · 데미지 12ch). ch 의 px 은 일꾼 칸(4ch)에서 잰다. */
+  const [rosterEl9, setRosterEl9] = useState<HTMLDivElement | null>(null);   // 콜백 ref — 전광판이 늦게 서도(자료 도착 뒤) 재기가 붙는다
+  const [dmgLite9, setDmgLite9] = useState(false);
+  useLayoutEffect(() => {
+    const root9 = rosterEl9;
+    if (!root9 || rosterPaged9) { setDmgLite9(false); return undefined; }
+    const data9 = root9.querySelector<HTMLElement>(".scr-dock-headrow .scr-dock-data");
+    if (!data9) return undefined;
+    const check9 = (): void => {
+      const row9 = data9.querySelector<HTMLElement>(".scr-dock-page .scr-dock-row");
+      const cells9 = row9 ? Array.from(row9.querySelectorAll<HTMLElement>(".scr-dock-cell")) : [];
+      const wk9 = cells9.find((c9) => c9.classList.contains("is-worker"));
+      if (!row9 || !wk9 || cells9.length === 0) return;
+      const ch9 = wk9.getBoundingClientRect().width / 4;
+      const gap9 = parseFloat(getComputedStyle(row9).columnGap || "0") || 0;
+      const lite9 = root9.classList.contains("is-dmglite");
+      const need9 = cells9.reduce((n9, c9) => n9 + c9.getBoundingClientRect().width, 0) + gap9 * (cells9.length - 1) + (lite9 ? 10 * ch9 : 0);
+      setDmgLite9(need9 > data9.clientWidth + 0.5);
+    };
+    check9();
+    const ro9 = new ResizeObserver(check9);
+    ro9.observe(data9);
+    return () => ro9.disconnect();
+  }, [rosterEl9, rosterPaged9]);
   useEffect(() => {
     if (!rosterPaged9) return undefined;
     const id9 = window.setInterval(() => setRosterPage9((p9) => (p9 >= ROSTER_PAGES9.length ? 1 : p9 + 1)), ROSTER_PAGE_MS9);
@@ -21252,7 +21279,7 @@ export default function ReplayMotionPlayer({
       }
     };
     return (
-      <div className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged", rosterSnap9 && "is-snap")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
+      <div ref={setRosterEl9} className={cx("scr-dock-roster", !melee && "is-team", rosterPaged9 && "is-paged", rosterSnap9 && "is-snap", dmgLite9 && "is-dmglite")} style={{ ["--rows" as string]: String(rows9) } as React.CSSProperties}>
         {/* 머리 줄 하나 — 왼쪽(이름 기둥)은 AUTO(자동 중계 · 요청: "비디오카메라에 AUTO 글자 합성"), 오른쪽(자료 기둥)은 칸 라벨.
             쪽 꼴이면 라벨 띠도 자료 띠와 **같은 translateX** 로 미끄러져 쪽마다 제 라벨이 선다. */}
         {/* ★ 머리 줄의 자동중계 스위치·전체 알약은 걷었다(2026-10-24, 요청: "한번 선택한 모드로 끝까지 … 자동중계로 바꾸는 버튼도 미표시 · 전체분할중계 버튼도 삭제") — 줄은
@@ -21881,7 +21908,9 @@ export default function ReplayMotionPlayer({
      (확대·축소가 열린 때 · 위 zoomCapRef9 ★)만 무대 오른위에 선다. 값은 기본 배율(castZoomFit9) 대비 "×1.5" · 기본이면 옅게 · 누르면 holdFit9(기본 배율 · 자리는 카메라가 잡는다). */
   /* ★ 손 카메라(전체 보기)에도 선다(2026-10-24, 지적: "배율판이 자동중계때만 뜨는 문제") — 기본 배율은 1(지도 전체)이고 누르면 zoomTo(1)(가운데 기준 · 팬은 한계 안).
      분할만 없다(칸마다 제 배율). 중계·개인 화면은 종전대로 castZoomFit9 대비 · holdFit9. */
-  const zoomFit9 = splitOn9 ? 0 : camLockRef9.current ? castZoomFit9() : 1;
+  /* ★ 자유 모드도 **중계 화면과 같은 기본 배율**(castZoomFit9)로 간다(2026-11-05, 지적: "재생기 자유모드에서 배율버튼 누르면 무조건 1배로 가는거" → "중계 화면과 같은
+     기본 배율로 가기") — 옛: 자유 모드의 기본은 1(지도 전체)이라 누르면 늘 지도 전체로 물러났다. 자리(가운데)는 zoomTo 가 잡는다. */
+  const zoomFit9 = splitOn9 ? 0 : castZoomFit9();
   const zoomK9 = zoomFit9 > 0 ? zoom / zoomFit9 : 1;
   /* ★ 보이는 값은 **절대 배율**(2026-10-29, 실기 지적: "자유와 중계 모드에서 배율이 다르게 표현됨 — 같은 배율이 자유에서 8배 중계에서 1배로") — 옛: 중계·개인 화면은
      기본 배율(castZoomFit9) 대비 몫이라 폰 중계 기본(≈6.7)이 ×1.0 으로 읽혔다. 이제 어느 모드든 같은 자(1 = 지도 전체 · 상한 PLAYBACK_ZOOM_MAX).
@@ -21895,7 +21924,7 @@ export default function ReplayMotionPlayer({
       title="배율 — 누르면 기본 배율로"
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); if (camLockRef9.current) { viewCut9(); holdFit9(); } else zoomTo(1); }}
+      onClick={(e) => { e.stopPropagation(); wheelStopRef9.current(); if (camLockRef9.current) { viewCut9(); holdFit9(); } else zoomTo(castZoomFit9()); }}
     >
       {/* 라벨 "배율"(2026-10-20, 요청: "배율 오버레이에 배속처럼 라벨 넣고 색도 녹색톤") — 배속 다이얼의 "속도"(.scr-speeddial-lab)와 같은 꼴. */}
       <span className="scr-zoomdial-lab" aria-hidden>배율</span>
