@@ -9,7 +9,7 @@ import { SPR_YAW32_9, type GlUnits9 } from "./gl9";
 let BASE: string | null = null;
 /** 아틀라스 자리(앱이 준다 · 예: "/spr") — null 이면 끈다. */
 export function setReplaySpriteAtlas(opt: { base: string } | null): void { BASE = opt?.base ? opt.base.replace(/\/+$/, "") : null; }
-export const sprAtlasOn9 = (): boolean => !!BASE && !!SPR_ATLAS_INDEX9 && !(typeof location !== "undefined" && /sprAtlas=0|spratlas=0/.test(location.hash));
+export const sprAtlasOn9 = (): boolean => !!BASE && !!SPR_ATLAS_INDEX9;
 
 type Cell9 = [string, number, number, number, number, number, number, number];
 interface Chunk9 { w: number; h: number; layers: string[]; files: { f: Record<string, string>; h: Record<string, string> }; cells: Cell9[] }
@@ -116,12 +116,12 @@ function poolRun9(pl9: Pool9, buf: ArrayBuffer, tf: number, maxLv: number): Prom
 /* ★ **푼 단 캐시**(IndexedDB · 2026-11-01, 요청: "그래픽 소스를 유저스토리지에 캐시해서 빠르게" → "둘 다 진행") ──
    KTX2 를 기기 형식으로 푸는 일이 첫 판의 큰 몫이다(PC 실측 7.1초 중 풀기 5.0초 · 폰은 워커 1). 푼 단들을 켜 파일 이름(내용 해시가 든다) · 기기 형식(tf) · 단 수로 열쇠 삼아
    담아 두고 다음에 오면 받기·풀기를 건너뛴다. 다시 구운 파일은 이름이 바뀌어 저절로 새로 받고, 지금 판에 없는 열쇠(옛 해시 · 다른 형식)는 다 실은 뒤 걷는다(cachePrune9).
-   쓰기는 저장소 몫(navigator.storage.estimate)의 40% · 부른 쪽 상한(opt.cacheMB · RMP 폰 400MB · PC 1500MB) 안에서만 — 넘거나 쓰기가 한 번 실패하면 그 판은 더 안 쓴다. #sprcache=0 이면 끈다. */
+   쓰기는 저장소 몫(navigator.storage.estimate)의 40% · 부른 쪽 상한(opt.cacheMB · RMP 폰 400MB · PC 1500MB) 안에서만 — 넘거나 쓰기가 한 번 실패하면 그 판은 더 안 쓴다. */
 const IDB9 = "scplay-spr"; const IDB_ST9 = "lv";
 let dbP9: Promise<IDBDatabase | null> | null = null;
 function db9(): Promise<IDBDatabase | null> {
   if (dbP9) return dbP9;
-  if (typeof indexedDB === "undefined" || (typeof location !== "undefined" && /(?:^|[#&,])sprcache=0(?=$|[&,])/.test(location.hash))) return (dbP9 = Promise.resolve(null));
+  if (typeof indexedDB === "undefined") return (dbP9 = Promise.resolve(null));
   dbP9 = new Promise<IDBDatabase | null>((res) => {
     let rq: IDBOpenDBRequest;
     try { rq = indexedDB.open(IDB9, 1); } catch { res(null); return; }

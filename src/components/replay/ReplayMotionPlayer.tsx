@@ -685,18 +685,13 @@ const RAF_HZ9: { n: number; at: number; hz: number } = { n: 0, at: 0, hz: 0 };
 /** ★ **테스트 모드 — 기능 끄기·켜기**(2026-11-03, 요청: "diag 왼쪽에 테스트 모드 버튼 추가 · 기능 끄기나 켜기 토글 버튼들(성능 영향도 파악용) · 3D 안개 이런 거") —
  *  스위치 대부분이 모듈 적재 때 주소(#…)를 읽으므로 고른 것을 주소 해시에 적고 **새로고침**해서 건다(적용 단추). [해시 낱말, 이름]. 같은 주소로 다시 들어오면 그대로 켜져 있다. */
 const TEST_FLAGS9: readonly [string, string][] = [
-  ["3d=1", "3D 보기 켜기"], ["nofog", "안개 끄기"], ["nocreep", "크립 끄기"], ["creeptex=0", "크립 질감 끄기"], ["glshadow=0", "그림자 끄기"],
-  ["glbloom=0", "번짐(블룸) 끄기"], ["spratlas=0", "아틀라스 끄기(실시간 굽기)"], ["glspr=0", "2D 판 끄기(메시로 그리기)"], ["glterr=0", "GL 지형 끄기"],
-  ["terrcache=0", "지형 판 재사용 끄기"], ["viewclip=0", "보이는 곳만 칠하기 끄기"], ["drs=0", "해상도 자동 조절 끄기"], ["gl=0", "GL 끄기(2D 폴백)"],
-  /* (2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 상한 낮춰도 그대로" — 범인 좁히기) */
-  ["yaw16", "32방 끄기(16방)"], ["fog17=0", "칸 안개 끄기(옛 눈 원)"], ["sprcache=0", "아틀라스 캐시 끄기"],
+  /* 최신순(2026-11-05, 요청: "테스트 기능메뉴에서 이제 안정화된 기능은 제거해줘 내부 백도어 로직자체제거 · 순서도 최신순") — 걷은 것(로직째): 32방 끄기 yaw16 · 칸 안개 끄기 fog17=0 ·
+     지형 판 재사용 끄기 terrcache=0 · 보이는 곳만 칠하기 끄기 viewclip=0 · 크립 질감 끄기 creeptex=0 · 아틀라스 캐시 끄기 sprcache=0 · 아틀라스 끄기 spratlas=0 · 해상도 자동 조절 끄기 drs=0. */
+  ["nofog", "안개 끄기"], ["glspr=0", "2D 판 끄기(메시로 그리기)"], ["glterr=0", "GL 지형 끄기"],
+  ["3d=1", "3D 보기 켜기"], ["gl=0", "GL 끄기(2D 폴백)"], ["nocreep", "크립 끄기"], ["glshadow=0", "그림자 끄기"], ["glbloom=0", "번짐(블룸) 끄기"],
 ];
 /** `#cursor` — 선수 마우스 커서를 처음부터 켠다(옛 feat 칸 · 2026-11-05 부터는 재생 바의 [마우스] 단추 · RMP cursorOn9 ★). */
 const CURSOR9 = typeof location !== "undefined" && /(?:^|[#&,])cursor(?=$|[&,])/.test(location.hash);
-/** `#yaw16` — 요잉 칸·아틀라스 몫을 16 으로(32방 전 꼴 · 시험용 · 위 TEST_FLAGS9). */
-const YAW16_9 = typeof location !== "undefined" && /(?:^|[#&,])yaw16(?=$|[&,])/.test(location.hash);
-/** `#fog17=0` — 판 17 칸 안개(FOG17_9)를 끄고 옛 눈 원 길로(시험용). */
-const FOG17_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])fog17=0(?=$|[&,])/.test(location.hash);
 /** 주소 해시의 낱말(#·&·, 로 가른다). */
 const hashToks9 = (): string[] => (typeof location === "undefined" ? [] : location.hash.replace(/^#/, "").split(/[&,]/).filter(Boolean));
 /** 진단 고르기 칸 — 값(engine9 SCR_DIAG_SEL) · 이름. "" = 끔 · "sum" = 요약 한 줄. */
@@ -746,12 +741,11 @@ const xfGest9 = { on: false };
 /* ★ **보이는 몫만 칠한다**(2026-11-02, 요청: "지도 상자가 정사각이라 창 아래로 벗어난 부분까지 칠합니다 — 이거까지 하자" → "드래그나 줌 때문에 미리 그리고 있던 건?" →
    "ㅇㅇ 진행해") — 지도 상자는 정사각(PC 2151²)인데 무대(.scr-fs-stage · overflow hidden)·창은 그보다 낮아(실측 맥북 무대 2151×884) 칠한 화소의 반 넘게 버렸다.
    그 몫은 손짓 중에는 쓰인다 — 손짓 사이 캔버스를 CSS 로 밀고 당기는 동안 무대 밖이 들어온다. 그래서
-     · 손짓 중(xfGest9)·분할 칸·`#viewclip=0` → null(통째로 칠한다 · 옛길).
+     · 손짓 중(xfGest9)·분할 칸 → null(통째로 칠한다).
      · 가만히 볼 때 → 캔버스·무대·창의 겹친 네모 + 여유 띠(긴 변의 15% + 24px — 손짓이 막 설 때 첫 장 몫)를 GL 몸(gl9.view)·지형(draw view)이 가위로 죈다.
        겹친 네모가 캔버스의 85% 를 넘으면 안 죈다(이득 없음).
    네모는 150ms 마다 · 스크롤·창 크기가 바뀌면 곧장 다시 잰다(getBoundingClientRect). 죄고 있는데 스크롤·크기가 바뀌면 멈춘 화면도 한 장 다시 칠한다(VIS_KICK9 — 새로 드러난
    몫이 지난 그림으로 남지 않게). */
-const VIEW_CLIP_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])viewclip=0(?=$|[&,])/.test(location.hash);
 /** 캔버스마다 잰 네모(재생기가 여럿일 수 있다) · gen = 스크롤·창 크기 바뀜 세대. */
 const VIS9 = new WeakMap<HTMLCanvasElement, { at: number; gen: number; r: [number, number, number, number] | null }>();
 const VIS_GEN9 = { v: 0 };
@@ -760,7 +754,7 @@ const VIS_KICK9: { fns: Set<() => void>; raf: number; clipped: number; paintAt: 
 if (typeof window !== "undefined") {
   /* ★ **문서 스크롤·창 크기만** 본다(2026-11-02, 지적: "재생 초반과 시간 점프 시 줌·드래그 무거움 · 10프레임도 안 나와" — tgrain=0·lazymesh=0 둘 다 그대로) —
      첫 판은 capture 로 **모든 요소의 스크롤**을 받아, 재생기 안 목록(전광판·로그·차림표)이 스크롤할 때마다 네모를 다시 재고(getBoundingClientRect · 강제 배치)
-     멈춘 화면용 '한 장 다시'까지 불렀다 — 점프 직후·초반처럼 목록이 몰아 움직일 때 칠하기가 두 배였다. 그리고 그 '한 장 다시'는 #viewclip=0 이어도 돌았다.
+     멈춘 화면용 '한 장 다시'까지 불렀다 — 점프 직후·초반처럼 목록이 몰아 움직일 때 칠하기가 두 배였다.
      이제 ① 문서(창) 스크롤과 창 크기만 ② 지난 칠하기가 실제로 죄었을 때만(clipped) ③ 120ms 안에 붓이 돌았으면(재생 중) 안 부른다 — 다음 장이 새 네모로 칠한다. */
   const visDirty9 = (): void => {
     VIS_GEN9.v += 1;
@@ -781,7 +775,7 @@ function visFog9(cv: HTMLCanvasElement): [number, number, number, number] | null
 function visRect9(cv: HTMLCanvasElement, cw: number, ch: number): [number, number, number, number] | null {
   const now9 = performance.now();
   VIS_KICK9.paintAt = now9;
-  if (VIEW_CLIP_OFF9 || xfGest9.on) { VIS_KICK9.clipped = 0; return null; }   // 잰 네모는 남겨 둔다 — 안개 덮음 판정(visFog9)이 손짓 중에도 쓴다
+  if (xfGest9.on) { VIS_KICK9.clipped = 0; return null; }   // 잰 네모는 남겨 둔다 — 안개 덮음 판정(visFog9)이 손짓 중에도 쓴다
   const e9 = VIS9.get(cv);
   if (e9 && e9.gen === VIS_GEN9.v && now9 - e9.at < 150) { VIS_KICK9.clipped = e9.r ? 1 : 0; return e9.r; }
   const put9 = (r: [number, number, number, number] | null): [number, number, number, number] | null => { VIS9.set(cv, { at: now9, gen: VIS_GEN9.v, r }); VIS_KICK9.clipped = r ? 1 : 0; return r; };
@@ -843,7 +837,7 @@ const sprTune9 = (): void => {
   /* ★ **요잉 32 칸 · 모든 기기**(2026-11-03, 요청: "피시 유닛 굽기 각을 32방 · 32방을 모두 적용" → "모바일도 메모리가 다 올리기엔 부족하지만 32방을 필요한 걸 백그라운드에서
      구우면서 채우면 괜찮지 않음?") — 칸 열쇠는 32칸이고, 아틀라스는 기기 몫(ATLAS_WANT9 — PC 32 · 낮은 PC·앱 폰 16 · 폰 8)만 받는다. 없는 칸은 **가까운 칸(16·8방)으로 그리며**
      남는 예산으로 조금씩 굽는다(gl9 sprFill ★ — fill 이 한 장 상한 · 판이 상한이면 안 굽고 가까운 칸 그대로). */
-  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, YAW16_9 ? 16 : 32,
+  glSprTune9(phone9 || TIER9.v === 0 ? Infinity : SPR_UP_PC9, 32,
     phone9 ? { pageMax: 14, budget: TIER9.v >= 2 ? 32 : 24, warmMax: TIER9.v >= 2 ? 8 : 6, msaa: 0,
       /* (2026-11-03, 요청: "폰웹 16 앱 32로 변경") — 판 전체 상한에 아틀라스 몫(아래 mbCap — 웹 ×1.75 · 앱 ×2.5)의 늘어난 만큼을 더한다 · 미리 찍기 걸음 웹 2 · 앱 1. */
       /* ★ (같은 날 "PWA 나 캐퍼시터 앱이라고 메모리 이점은 없지? → 셋 다 같은 상한으로 통일하고 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 같은 상한(성능 단별) ·
@@ -854,7 +848,6 @@ const sprTune9 = (): void => {
 };
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
 const ATLAS_WANT9 = (): 8 | 16 | 32 => {
-  if (YAW16_9) return 16;
   if (DEV9.name === "phone") return 32;   // (2026-11-03 "셋 다 같은 상한 · 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 32방을 상한까지 올리고 넘친 묶음은 교체 · 옛: 앱 32 · 웹 16 ← 앱 16 · 웹 8
   return TIER9.v === 0 ? 16 : 32;
 };
@@ -1860,15 +1853,15 @@ const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
    배율 6 이상 2 누름(capSmall9)도 걷었다. 프레임이 떨어지면 실측 조절(DRS9)이 내린다. 견줌 `#backcap=N`. */
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
  *  1.3 넘게 2초 이어지면 배킹 상한을 0.25 내리고(바닥 폰 2 · PC 1) · 1.08 아래로 6초 이어지면 0.25 올린다(단 상한에 닿으면 풀림 ∞). 바꾼 뒤 4초는 안 바꾼다(캔버스·MRT 판을
- *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다). */
+ *  다시 잡는 한 장 값 · 오르내림 진동 막기). 손짓·굽기 멈춤·예열·숨은 탭은 안 잰다. 자동 조종(navigator.webdriver · perf-check 등 헤드리스)에선 끈다 — 헤드리스 소프트웨어 GL 은 늘 느려 바닥까지 내려간다(옛 `#drs=0` 해시는 걷었다 · 2026-11-05). */
 /* ★ **프레임이 떨어지는 동안에만 내린다**(2026-10-27, 요청: "프레임 드랍중에만 무조건 내리는걸로" — 앞서 "해상도 안내리고"로 끈 뒤 "어제·엊그제보다 전반적으로 느려짐, 끊김") ──
    옛 판의 함정 셋을 걷었다(실기 #diag `재표본 ×0.5004` · 정지·가벼운 장면에서도 바닥):
    ① 느림의 자가 16.7ms 붙박이였다 — 폰이 화면 박자를 30Hz 로 묶으면(저전력·발열 조절) 늘 비 2 로 읽혀 바닥까지 갔다. 이제 자는 **그 기기의 박자**(base ·
       빠른 간격엔 곧장 붙고 느린 쪽으로는 고른 박자일 때만 옮긴다 · 위로 40ms 상한)다. 30Hz 폰은 33ms 가 보통이다.
    ② 되올림이 6초 · 비 < 1.08 이라 30Hz 에서 영영 안 열렸다 → 비 < 1.12 가 2초면 한 칸씩 되올린다(상한에 닿으면 풀림).
    ③ 정지 중엔 안 재서 내린 채 남았다 → 멈추면 곧장 풀고 한 장 다시 그린다(아래 재생 effect 정리).
-   내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 0.75/1.0 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. `#drs=0` 끔(perf-check 는 기본 끔 — 헤드리스는 늘 느리다 · `--drs` 로 켬). */
-const DRS9 = { on: !(typeof location !== "undefined" && /(^|[#&,])drs=0/.test(location.hash)), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
+   내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 0.75/1.0 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. 자동 조종(헤드리스)에선 끔. */
+const DRS9 = { on: !(typeof navigator !== "undefined" && navigator.webdriver === true), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
   base: 0, ivm: 0, steady: 0, t0: 0, z: 1 };
 /** ★ **프레임 대응 사다리 — 해상도는 마지막**(2026-10-27, 요청: "프레임대응 해상도는 최후의 수단 · 그전에 불필요 그래픽효과 줄이기 —
  *  사영그림자를 타원으로 바꾸고 공중유닛과 비행건물만 그리기 · 그밖의 비필수효과 끄기 · 방향 4방으로 줄이기 · 해상도 줄이기 순") ──────────
@@ -2388,8 +2381,6 @@ const crowdShardK9 = (): number => (CROWD9.lv >= 2 || FQ9.lv >= 2 ? 0.34 : CROWD
    왜 지금 보니 타원형으로 바뀌었지?" — 2단의 접지 그림자 2배율이 그래서 안 걸렸다).
    규약대로 **자리에서 DEV9 를 읽는다**(CLAUDE.md: "자리에서는 다들 DEV9.x 를 프레임마다 읽는다"). */
 const decalBakeMax9 = (): number => DEV9.decalBakeMax;
-/** `#creeptex=0` — 크립 질감(creepTex9)을 끈다(옛 단색 판). */
-const CREEP_TEX_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])creeptex=0(?=$|[&,])/.test(location.hash);
 /** ★ **크립 얼룩 판** — 지도에서 판(캔버스 그림)으로 남은 **유일한** 것이다(2026-09, 판 굽기 길을 걷으며) ────────────
  *  크립은 모델이 아니라 **땅**이다: 지형 마스크로 파내고(붓의 destination-out) 이웃 얼룩과 이음매 없이 이어져야 하는데,
  *  그 두 가지가 2D 캔버스의 일이라 GL 로 옮기지 않았다. 대신 옛 판 기계(예산·LRU·대타·굽기 일꾼·색별 물들이기)는
@@ -2607,8 +2598,8 @@ function creepPlate9(op: UnitDrawOp, B: number): CreepPlate9 | null {
           releaseCanvas(tn9.cv);
         }
         c29.drawImage(body9, r9.ox - x09, r9.oy - y09);
-        /* 크립 질감(위 creepTex9 ★) — 판 안(source-atop)에 무늬를 깐다 · 판 한 변(잉크 ≈ l / 2.56)에 무늬 한 장 반(덮인 판 스무 남짓)이 들게. `#creeptex=0` 옛길. */
-        const tx9 = CREEP_TEX_OFF9 || !op.pitch ? null : creepTex9();   // 평면은 땅에 붙인 무늬(붓의 ★ 크립 질감은 땅에 붙인다)로 · 입체만 판에 굽는다
+        /* 크립 질감(위 creepTex9 ★) — 판 안(source-atop)에 무늬를 깐다 · 판 한 변(잉크 ≈ l / 2.56)에 무늬 한 장 반(덮인 판 스무 남짓)이 들게. */
+        const tx9 = !op.pitch ? null : creepTex9();   // 평면은 땅에 붙인 무늬(붓의 ★ 크립 질감은 땅에 붙인다)로 · 입체만 판에 굽는다
         if (tx9) {
           const pat9 = c29.createPattern(tx9, "repeat");
           if (pat9) {
@@ -7586,7 +7577,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            구울 때 판 한 변에 무늬 1.5장으로 깔렸다. 판은 크기와 무관하게 셋(무늬) × 보기 둘이라 같은 판이 16타일 해처리 크립에도 7타일 발판에도 늘려 찍혀, 겹(판)
            하나의 크기가 크립 크기를 따라 갔다. 이제 이 캔버스엔 아직 크립뿐이니(위 주석) **한 번에** 지도 자리에 못 박은 무늬를 source-atop 으로 덮는다 — 겹 하나가
            늘 CREEP_TEX_TILES9 타일이고, 겹쳐 깔린 크립끼리도 이음매 없이 이어진다. 입체(pitched · 원근)는 이 아핀 무늬가 안 맞아 종전대로 판에 구운 질감을 쓴다. */
-        if (!pitchedProp && !CREEP_TEX_OFF9) {   // ⚠ clipQuad 는 평면에도 늘 온다(단위 사각형) — 입체 가름은 pitchedProp(첫 배포는 clipQuad 로 갈라 평면에서도 늘 건너뛰어 결이 사라졌다)
+        if (!pitchedProp) {   // ⚠ clipQuad 는 평면에도 늘 온다(단위 사각형) — 입체 가름은 pitchedProp(첫 배포는 clipQuad 로 갈라 평면에서도 늘 건너뛰어 결이 사라졌다)
           const tx9 = creepTex9();
           const pat9 = tx9 ? creepPatOf9(ctx, tx9) : null;
           if (tx9 && pat9) {
@@ -19225,7 +19216,7 @@ export default function ReplayMotionPlayer({
     /* (같은 날 "처음 재생 시작하면 안개가 이전의 칸별 동그라미 모양으로 잠깐 보임") — GL 지형이 서기 전에는 옛 안개 캔버스(ReplayFogLayer)가 그린다. 칸 판은 GL 이 없어도 짓고
        그 캔버스도 같은 칸 판(FOG17_9)으로 그리게 한다(ReplayFogLayer tile ★). GL 안개 객체에 싣는 것만 glFog9 일 때. */
     FOG17_9.live = false;
-    if (!splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0 && !FOG17_OFF9) {
+    if (!splitOnRef9.current && CREEP17_9.tiles && FOG17_9.on && FOG17_9.want !== 0) {
       const tl9 = CREEP17_9.tiles; const ft9 = FOG17_9;
       const st9 = tl9.stateAt(tNow9);
       const at9 = tl9.at; const m9 = FOG17_9.want;
@@ -23477,7 +23468,7 @@ export default function ReplayMotionPlayer({
                 tilePx={(mapRef.current?.clientWidth ?? 320) / grid.width}
                 flatK={pitched ? pitchFlat : 1} flat={!pitched}
                 painter={fogPaintRef} onNeedPaint={requestFogPaint9}
-                tile={FOG17_OFF9 ? null : FOG17_9}
+                tile={FOG17_9}
               />
             )}
 

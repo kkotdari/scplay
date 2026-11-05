@@ -235,7 +235,7 @@ $env:PW_HEADED="1"; node scripts/scene-sheet.mjs
 | `--noshadow` | 사영 그림자 끄기 |
 | `--hb N` | 유닛 방향(0 북 · 64 동 · 128 남 · 192 서 · 기본 160) |
 | `--deg N` | 3D 시점각(기본 90 평면) |
-| `--hash k=v` | 재생기 해시 깃발 더하기(예: `--hash creeptex=0`) |
+| `--hash k=v` | 재생기 해시 깃발 더하기(예: `--hash nofog`) |
 
 ---
 

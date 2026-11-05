@@ -3094,3 +3094,10 @@ click 이 무대로 갔다. 테스터 줄(`.scr-zoomfps.is-tester`)에 `onPointe
 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가"(재생 바 선 단추 왼쪽). 선수 마우스 커서(cursorPaths9 · 건설 고스트가 커서를 따라감)를 feat 칸의 시험 기능(`#cursor`)에서
 재생 바 단추로 옮겼다 — RMP `cursorOn9`(localStorage `scr-cursor-on` · 기본 끔 · 주소 `#cursor` 면 처음부터 켬). 아이콘 lucide `MousePointer2` · 선 단추와 같은 꼴(켜지면 is-on · 꺼지면 흐림).
 폰 · PC 같은 줄이라 PC 에도 [마우스] · [선](L) 둘 다 있다. feat 칸의 "선수 마우스 커서 켜기"는 걷었다.
+
+## 테스트 기능(feat) 메뉴 정리(2026-11-05)
+요청: "테스트 기능메뉴에서 이제 안정화된 기능은 제거해줘 내부 백도어 로직자체제거 · 순서도 최신순". 메뉴와 **주소 해시 갈래 로직째** 걷은 것:
+`yaw16`(32방 끄기) · `fog17=0`(칸 안개 끄기) · `terrcache=0`(지형 판 재사용 끄기 · glTerrain9) · `viewclip=0`(보이는 곳만 칠하기 끄기) · `creeptex=0`(크립 질감 끄기) ·
+`sprcache=0`(아틀라스 캐시 끄기 · sprAtlas9) · `spratlas=0`/`sprAtlas=0`(아틀라스 끄기 · sprAtlas9) · `drs=0`(해상도 자동 조절 끄기).
+DRS 는 이제 자동 조종(`navigator.webdriver` — perf-check 등 헤드리스)에서 스스로 꺼진다(perf-check 의 `drs=0` · `--drs` 걷음).
+남은 메뉴(최신순): 안개 끄기 · 2D 판 끄기 · GL 지형 끄기 · 3D 보기 · GL 끄기(2D 폴백) · 크립 끄기 · 그림자 끄기 · 번짐 끄기.

@@ -930,8 +930,6 @@ void main() { gl_FragColor = texelFetch(uT, ivec2(gl_FragCoord.xy), 0); }`;
 const TERR_THIN_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrthin=0(?=$|[&,])/.test(location.hash);
 /** `#terrtri=0` — 지형 삼각(GlTerrain9 ★ 지형 삼각)을 끈다(옛 부채꼴+덮기). */
 const TERR_TRI_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrtri=0(?=$|[&,])/.test(location.hash);
-/** `#terrcache=0` — 지형 판 재사용을 끈다(견줌 · GlTerrCanvas9 ★ 지형 판). */
-const TERR_CACHE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])terrcache=0(?=$|[&,])/.test(location.hash);
 const SHARP_FS9 = `
 precision mediump float;
 uniform sampler2D uT; uniform float uAmt;
@@ -1023,7 +1021,7 @@ export class GlTerrCanvas9 {
      장마다 지도 전체 벡터(등고선 정점 38만 · 스텐실 부채꼴 겹 · 다중표본 · 결 · 또렷이)를 처음부터 다시 그렸다. 장마다 바뀌는 것은 안개뿐이다.
      이제 카메라·크기·가위가 **두 장 내리 같으면** 그린 지형(또렷이까지)을 텍스처에 베껴 두고, 같은 열쇠의 다음 장부터는 그 판을 한 번 붙이고 안개만 칠한다.
      카메라가 움직이는 장(손짓·추적)은 종전대로 다 그린다(베끼기도 안 한다 — 열쇠가 장마다 바뀌면 베낄 까닭이 없다). WebGL2 만 · 분할 칸(clip)은 종전 길.
-     또렷이는 이제 안개 **앞**(지형에만)에 걸린다 — 안개는 부드러운 막이라 차이가 안 보인다. `#terrcache=0` 옛길. */
+     또렷이는 이제 안개 **앞**(지형에만)에 걸린다 — 안개는 부드러운 막이라 차이가 안 보인다. */
   private copy: { prog: WebGLProgram; aQ: number; uT: WebGLUniformLocation | null } | null = null;
   private cache: { tex: WebGLTexture; w: number; h: number } | null = null;
   private cacheKey = ""; private prevKey = ""; private gId = 0; private gLast: TerrainGeom9 | null = null;
@@ -1083,7 +1081,7 @@ export class GlTerrCanvas9 {
     const fv9 = clip ?? fogView ?? (vs ? view : null);
     /* 지형 판 재사용(위 ★) — 열쇠: 지도 · 카메라(quad) · 배킹 · 가위 · 또렷이 · 결 세기. */
     if (G !== this.gLast) { this.gLast = G; this.gId += 1; }
-    const canCache9 = !clip && !!this.copy && !TERR_CACHE_OFF9;
+    const canCache9 = !clip && !!this.copy;
     if (canCache9) {
       const key9 = `${this.gId}|${quad.map((v) => v.toFixed(2)).join(",")}|${bw}x${bh}|${cw}x${ch}|${wallScale}|${vs ? vs.join(",") : "-"}|${sharp}|${TGRAIN_HASH9 >= 0 ? TGRAIN_HASH9 : TERR_GRAIN9.k}`;
       const g2 = gl as WebGL2RenderingContext;
