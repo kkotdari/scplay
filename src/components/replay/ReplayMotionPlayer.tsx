@@ -12637,6 +12637,17 @@ export default function ReplayMotionPlayer({
         pts9.push(p9);
       }
       if (n9 > 0) return { x: sx9 / n9, y: sy9 / n9, pts: pts9, sel: `follow${fol9.t0}`, sec: fol9.t0 };
+      /* ★ 따라가던 몸이 다 죽었으면 **마지막으로 선 자리**에 머문다(2026-11-05, 지적: "정찰 … 뒤쪽에 엉뚱한 빈 땅") — 옛: 사건 자리(spot · 처음 본 자리)로 튀었다.
+         폭탄드랍의 수송선 → 내린 유닛처럼 구간이 갈리면 그 구간의 몸이다. 태그 중 가장 늦게 죽은 몸의 죽은 순간 자리. */
+      let last9: { x: number; y: number } | null = null; let lastT9 = -Infinity;
+      for (const tg9 of fol9.tags) {
+        for (const e9 of walksByTag.get(tg9) ?? []) {
+          if (e9.died === null || e9.died > t || e9.died < fol9.t0 || e9.died <= lastT9) continue;
+          const p9 = posAtW(e9.walk, e9.died);
+          if (p9) { last9 = { x: p9.x, y: p9.y }; lastT9 = e9.died; }
+        }
+      }
+      if (last9) return { x: last9.x, y: last9.y, pts: [last9], sel: `follow${fol9.t0}`, sec: fol9.t0 };
     }
     if (!camRaw9 && spotNow9 && spotNow9.length > 0) {   // 교전 자리(위 spotNow9) — 그 길의 지금 자리 하나
       const q9 = spotAt9(spotNow9, t);

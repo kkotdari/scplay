@@ -77,6 +77,8 @@ export type CastSeg9 = {
 };
 /** 따라갈 몸 한 구간 — 그 동안 이 태그들(산 것)의 자리 평균이 카메라 자리다. */
 export type CastFollow9 = { t0: number; t1: number; tags: number[] };
+/** 정찰 따라가기를 장면 끝(본 순간 + 4초) 뒤로 더 늘리는 몫(초) — 토막이 이어지는 동안은 정찰 몸을 계속 본다(아래 scoutFol9 ★ · 2026-11-05). */
+const SCOUT_FOL_MORE9 = 20;
 /** 자막 한 조각 — 글귀(text) 또는 사람(raw · 뒤에 붙일 조사 p: ga 가/이 · eul 를/을 · wa 와/과 · ui 의). */
 export type CapPart9 = { text: string; raw?: undefined; p?: undefined } | { raw: string; p?: "ga" | "eul" | "wa" | "ui"; text?: undefined };
 export type CastRole9 = "atk" | "def" | "war";
@@ -326,6 +328,9 @@ const STAGE_SKIP9 = new Set(["SCV", "Probe", "Drone", "Dropship", "Shuttle", "Ov
 const CYCLE9 = 6;   // 8 → 6(2026-10-10, 요청: "소강상태 전환 6초로 단축") — 장면 뒤 머묾(MIN_HOLD9 8)과는 따로다
 /** 장면이 끝나고 이만큼 비면 순환으로 돌아간다(초). */
 const IDLE9 = 8;
+/** 가벼운 장면의 무게 상한 · 그 장면을 잡아 두는 최대 초(아래 ★ 보여 준 장면만 끝을 민다 · 2026-11-05) — MIN_SCENE9 의 두 배 아래(정찰 450 · 일꾼 몇 킬)는 12초까지. */
+const LOW_SCENE9 = 900;
+const LOW_MAX9 = 12;
 /** 죽인 쪽을 되짚는 창(초) — 이 안에 그 태그를 겨누고 있었으면 그 임자의 킬로 센다. */
 const KILL_W9 = 2.5;
 /** 잃은 쪽의 몫 — 죽인 쪽 1에 대해. */
@@ -3583,9 +3588,12 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     if (drop9 && !must9) pick9 = drop9.raw;   // 폭탄드랍은 드랍한 사람의 화면(위 ★)
     /* ★ **정찰은 정찰하는 몸을 따라간다**(2026-10-26, 요청: "정찰장면에서 정찰주체를 카메라가 따라가야") — 그 장면에 든 정찰 사건(몸 태그가 있는 것 · 스캔은 자리 그대로)의
        몸을 장면 끝까지 따라간다(폭탄드랍의 follow 와 같은 길 · 몸이 죽으면 재생기는 종전 카메라로). 주인공이 그 정찰한 사람일 때만. */
+    /* ★ 따라가기는 **토막이 끝날 때까지**(2026-11-05, 지적: "정찰 사건 중계 시 처음엔 유닛을 잘 따라가다가 뒤쪽에 엉뚱한 빈 땅을 보여 주는 경우가 많음") — 옛 끝(scEnd9 =
+       본 순간 + 4초)을 지나도 다음 장면이 안 끼어들면 토막이 이어지는데, 그때 카메라가 사건 자리(정찰 몸이 적을 처음 본 자리 · spot)로 돌아가 빈 땅을 비췄다.
+       이제 끝을 SCOUT_FOL_MORE9 만큼 늘린다 — 다음 토막이 서면 그 토막에는 이 follow 가 없으니 거기서 끝난다. */
     const scoutEv9 = !drop9 ? sc9.evs.find((e9) => e9.why === "정찰" && e9.stag !== undefined) : undefined;
     const scoutFol9: { raw: string; follow: CastFollow9[] } | null = scoutEv9
-      ? { raw: scoutEv9.raw, follow: [{ t0: Math.min(at9, scoutEv9.sec), t1: scEnd9, tags: [scoutEv9.stag!] }] } : null;
+      ? { raw: scoutEv9.raw, follow: [{ t0: Math.min(at9, scoutEv9.sec), t1: scEnd9 + SCOUT_FOL_MORE9, tags: [scoutEv9.stag!] }] } : null;
     /* ★ 같은 전투·딴 전투의 문도 **장면 최소 시간**을 지난다(위 MIN_SHOW9) — 카메라가 갈리는 경우(pick ≠ 지금)에만. */
     const heavy9 = tot9 >= lastScore9() * JUMP9;
     /* ★ **주인공이 애매하면 교전 자리**(위 CastSeg9.spot ★) — 그 장면의 둘째 몫이 첫째의 SPOT_TIE9 배 이상이면(맞대결이 엇비슷 · 여럿이 비슷하게 싸움) 한 사람의
@@ -3594,7 +3602,9 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const tieSpot9 = rank9.length > 1 && (crowd9 ? rank9[0][1] < rank9[1][1] * SPOT_STAND9 : rank9[1][1] >= rank9[0][1] * SPOT_TIE9);
     const spot9 = opts.event ? spotPath9(sc9, at9)   // 사건 중계는 늘 사건 자리(위 opts.event ★)
       : !must9 && tieSpot9 && !(drop9 && pick9 === drop9.raw) ? spotPath9(sc9, at9) : undefined;
+    let shown9 = false;
     if (must9 || pick9 === cur9raw || !held9 || heavy9 || (busy9 && at9 - lastSwitch9() >= MIN_SHOW9)) {
+      shown9 = true;
       trimFrom9(at9, pick9, !!spot9);
       emitScene9(at9, sc9, pick9, tot9, -Infinity, spot9);
       curBid9 = bid9;
@@ -3613,7 +3623,14 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     }   // 최소 시간에 걸린 딴 전투는 안 보여 준다(위 trimFrom9 ★)
     /* 장면의 끝은 마지막 사건 + **꼬리의 남는 몫**이다 — 견제는 마지막 킬 뒤에도 쫓는 몸이 그 자리에
        있으니 그만큼 머물고, 그 사이에 순환이 끼어들지 않는다(교전은 tail = GAP9 라 종전 그대로). */
-    cur9 = Math.max(cur9, sc9.t1 + (sc9.tail - GAP9) + END_PAD9);
+    /* ★ **보여 준 장면만** 끝을 민다 · 가벼운 장면은 길이 상한(2026-11-05, 지적: "보여 줄 만한 중계 사건이 없는 구간에서 중요도가 낮은 사건을 오래 무의미하게 보여 주기보다는
+       차라리 순환 중계로 적당히 넘어가는 게 좋을 듯" · "정찰 사건 중계 시 처음엔 유닛을 잘 따라가다가 뒤쪽에 엉뚱한 빈 땅을 보여 주는 경우가 많음") — 옛 셈은 머묾에 걸려
+       **안 보여 준** 장면도 cur9 를 밀어, 앞 토막(정찰 따위)이 순환으로 안 넘어가고 그 장면들 끝까지 늘어졌다(정찰은 따라가기가 끝난 뒤 사건 자리 — 빈 땅). 이제 보여 준 장면만 밀고,
+       무게가 LOW_SCENE9 아래인 장면(뚝배기 · 러시 · 폭탄드랍 빼고)은 선 때에서 LOW_MAX9 초까지만 잡는다 — 그 뒤 소강이면 순환이 메운다. */
+    if (shown9) {
+      const low9 = tot9 < LOW_SCENE9 && !must9 && !drop9 && !sc9.evs.some((e9) => e9.why === "러시");
+      cur9 = Math.max(cur9, low9 ? Math.min(scEnd9, at9 + LOW_MAX9) : scEnd9);
+    }
   }
   fill9(cur9, total);
   /* ★★ **gg 선언 · 노엘 외침**(2026-10-10, 요청: "엘리 gg(ㅈㅈ) 선언 ㄴㅇ 노엘 외침도") — 채팅에서 그 말을 한 사람을 그때 CHAT_HOLD9 초 보여 주고 "[A] gg 선언" ·
