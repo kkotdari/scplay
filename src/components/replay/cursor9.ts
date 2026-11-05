@@ -25,12 +25,29 @@ export type CursorSrc9 = {
   casts?: readonly (readonly [number, number, number, string, number])[];
   sels?: readonly (readonly [number, number, readonly number[], number])[];
 };
+/** ★ 마우스 고르기(click · add)만 — **더함(add)은 새로 든 몸만**(2026-11-05, 지적: "A 무리를 집은 상태에서 쉬프트 누르고 다른 쪽에서 B 무리를 선택하는 경우
+ *  A~B 전체를 상자 선택하고 있는 거 같아 · 너무 넓은 말도 안 되는 상자") — 판 10 선택 절은 그 명령 **뒤의 선택 전체**를 싣는다(덤퍼가 ShiftSelect 를 풀어 준다).
+ *  그래서 더함을 그대로 감싸면 A+B 를 다 덮었다. 사람마다 앞 선택(모든 갈래 — 키보드 불러오기 · 지정도 선택을 바꾼다)을 기억해 그 밖의 몸만 남긴다.
+ *  새로 든 몸이 없으면(시프트로 빼기 등) 들르는 점이 아니다. */
+function mouseSels9(sels: readonly (readonly [number, number, readonly number[], number])[]): [number, number, readonly number[]][] {
+  const prev9 = new Map<number, ReadonlySet<number>>();
+  const out9: [number, number, readonly number[]][] = [];
+  for (const [ss9, so9, stg9, sk9] of sels) {
+    const k9 = sk9 < 0 ? -1 : sk9 & 15;
+    const was9 = prev9.get(so9);
+    prev9.set(so9, new Set(stg9));
+    if (k9 === SEL_KIND9.click) out9.push([ss9, so9, stg9]);
+    else if (k9 === SEL_KIND9.add) {
+      const nw9 = was9 ? stg9.filter((tg9) => !was9.has(tg9)) : stg9;
+      if (nw9.length > 0) out9.push([ss9, so9, nw9]);
+    }
+  }
+  return out9;
+}
 /** ★ 선택 자리(워커가 짓는다 · 메인은 트랙이 없다) — sels 마다 [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그] 열 칸. 마우스 고르기(click · add)만. */
 export function selPtsOf9(sels: readonly (readonly [number, number, readonly number[], number])[], tracks: ReadonlyMap<number, TruthTrack>): Float64Array {
   const out9: number[] = [];
-  for (const [ss9, so9, stg9, sk9] of sels) {
-    const k9 = sk9 < 0 ? -1 : sk9 & 15;
-    if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;
+  for (const [ss9, so9, stg9] of mouseSels9(sels)) {
     let n9 = 0; let sx9 = 0; let sy9 = 0; let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity; let first9 = 0;
     for (const tg9 of stg9) {
       const tr9 = tracks.get(tg9); const q9 = tr9 ? posAtTruth(tr9, ss9) : null;
@@ -98,9 +115,7 @@ export function cursorPathsOf9(src: CursorSrc9, tracks: ReadonlyMap<number, Trut
       putSel9(nameOfId9.get(sp9[i9 + 1]) ?? "", sp9[i9], sp9[i9 + 2], sp9[i9 + 3], sp9[i9 + 4], sp9[i9 + 5], sp9[i9 + 6], sp9[i9 + 7], sp9[i9 + 8], sp9[i9 + 9]);
     }
   } else if (tracks) {
-    for (const [ss9, so9, stg9, sk9] of src.sels ?? []) {
-      const k9 = sk9 < 0 ? -1 : sk9 & 15;
-      if (k9 !== SEL_KIND9.click && k9 !== SEL_KIND9.add) continue;   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다
+    for (const [ss9, so9, stg9] of mouseSels9(src.sels ?? [])) {   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다 · 더함은 새로 든 몸만(위 mouseSels9)
       const raw9 = nameOfId9.get(so9) ?? "";
       const pts9: [number, number, number][] = [];
       for (const tg9 of stg9) {

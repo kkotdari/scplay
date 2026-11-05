@@ -3108,3 +3108,8 @@ DRS 는 이제 자동 조종(`navigator.webdriver` — perf-check 등 헤드리�
 `#diag=pix`(GL 판 가장자리 · gl9.peek9 째). 그 줄만 쓰던 것도 걷었다: linkDiag9/linkLog9 · brushLogSummary9 · PLAY_FLIPS9 · pixStat9/pixPaint9.
 남긴 것(스크립트가 읽는다): SCR_DIAG 값 전부(window.__scrDiag) · BRUSH_LOG9(__brushLog9 · perf-check --pinchtrace) · viewDiag9(lastEv · evTail · --shakeprobe/--foldprobe).
 perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
+
+## 선수 커서 — 시프트 더함은 새로 든 몸만 감싼다(2026-11-05)
+지적: "A 무리를 집은 상태에서 쉬프트 누르고 다른 쪽에서 B 무리를 선택하는 경우 A~B 전체를 상자 선택 · 너무 넓은 말도 안 되는 상자". 판 10 선택 절(sels)은 명령 **뒤의 선택 전체**라
+더함(add)을 그대로 감싸면 A+B 를 덮었다. cursor9 `mouseSels9` — 사람마다 앞 선택(모든 갈래)을 기억해 더함은 그 밖의 몸만 남긴다(없으면 점 아님). selPtsOf9(워커) · 트랙 길 둘 다.
+인포창의 선택(선택 전체)은 그대로.
