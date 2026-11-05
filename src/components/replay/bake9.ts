@@ -945,6 +945,45 @@ export function nozzleRim9(
   out.push([dbot9, 1, "#1a1e24"] as ShapeFace);
   return tagKey(out, key);
 }
+/** ★ **위로 뚫린 관의 아가리**(굴뚝 · 2026-11-05) — `nozzleRim9` 를 세운 꼴: 테두리(관의 살을 자른 윗낯) · 속벽(법선이 축을 본다) · 속 바닥.
+ *  (x, y) 축 · 윗면 높이 zTop · 겉 반지름 rOut. 관 몸은 부르는 쪽이 뚜껑 없이(caps "bottom") 세운다 — 낯 수·위상(phase)은 그 관과 같아야 테두리가 옆선과 맞는다
+ *  (spirePillar 기본 위상은 π/sides). 점 차례는 nozzleRim9 를 x 축으로 −90° 돌린 것(고유 회전이라 감김이 같다). */
+export function stackMouth9(
+  x: number, y: number, zTop: number, rOut: number,
+  o: { th?: number; dep?: number; sides?: number; phase?: number; fill?: string } = {},
+): ShapeFace[] {
+  const th = Math.min(rOut * 0.55, o.th ?? Math.max(0.07, rOut * 0.18));
+  const rIn = rOut - th;
+  const dep = o.dep ?? rOut * 1.2;
+  const n9 = o.sides ?? 12;
+  const ph9 = o.phase ?? 0;
+  const P9 = (i9: number, rr9: number, d9: number): [number, number, number] => {
+    const a9 = (i9 / n9) * Math.PI * 2 + ph9;
+    return [x + Math.cos(a9) * rr9, y + Math.sin(a9) * rr9, zTop - d9];
+  };
+  const out: ShapeFace[] = [];
+  const up9 = faceLight(0, 0, 1);
+  const inD9: string[] = []; const inP9: number[][] = [];
+  for (let i9 = 0; i9 < n9; i9 += 1) {
+    const j9 = i9 + 1;
+    const dr9 = polyPath3([P9(i9, rOut, 0), P9(j9, rOut, 0), P9(j9, rIn, 0), P9(i9, rIn, 0)]);
+    out.push([dr9, 1, o.fill ?? "#6d757f"] as ShapeFace, ...(up9.visible ? up9.face(dr9) : []));
+    const am9 = ((i9 + 0.5) / n9) * Math.PI * 2 + ph9;
+    const q9: [number, number, number][] = [P9(i9, rIn, 0), P9(j9, rIn, 0), P9(j9, rIn, dep), P9(i9, rIn, dep)];
+    const lin9 = faceLight(-Math.cos(am9), -Math.sin(am9), 0);
+    if (!lin9.visible) continue;
+    inD9.push(polyPath3(q9));
+    inP9.push(q9.flatMap((t9) => modelPoint9(t9[0], t9[1], t9[2]) as unknown as number[]));
+  }
+  // 속벽은 한 덩이로(편향 없는 몸 — nozzleRim9 의 ★★ 그 까닭).
+  if (inD9.length > 0) {
+    const dIn9 = inD9.join(" ");
+    meshPut9(dIn9, inP9 as never[]);
+    out.push([dIn9, 1, "#1d2127"] as ShapeFace);
+  }
+  out.push([polyPath3(Array.from({ length: n9 }, (_, i9) => P9(i9, rIn, dep))), 1, "#121519"] as ShapeFace);
+  return out;
+}
 export function thrustFlame(
   x: number, y: number, z: number, r: number, race: "terran" | "toss", key: number,
   /** 가로(x) 늘림 배수 — 노즐이 넙적한 타원이면 불꽃도 같은 비라야 한다(그 ⚠ 규약).
@@ -12921,12 +12960,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        5.28(덩이 5.8 × Z8 + 0.64)로 올랐으니 굴뚝도 그 위에 선다.
        그 위로 **베스핀 가스 증기**가 오른다(지시) — 이제 **뭉게뭉게 덩이**다(2026-09 요청 · gasPuffs9):
        옛 세 켜 타원은 정지 그림이었다. 회전 칸이 시계라 덩이가 나고 오르고 스러진다. 가스라 3티어. */
+    /* ★ 굴뚝은 **위가 뚫린 관**이다(2026-11-05, 요청: "리파이너리 굴뚝이 위가 막혀있는데 진짜 굴뚝처럼 테두리만 남기고 파기") — 옛 굴뚝은 위 뚜껑(caps 기본)에
+       어두운 판(capFace)까지 덮여 있었다. 뚜껑을 걷고(caps "bottom") 테두리 · 속벽 · 속 바닥을 stackMouth9 로 판다(노즐 아가리 nozzleRim9 를 세운 꼴). */
     out.push(...tagKey([
       ...paintBase(spirePillar({
         x: 0, y: -0.3, z0: 4.752, h: 1.152, w: 0.95, tipW: 1.55,
-        segs: 3, sides: 12, hold: 0.2,
+        segs: 3, sides: 12, hold: 0.2, caps: "bottom",
       }), "#21252c"),
-      capFace(discPath3(0, -0.3, 5.904, 1.38), 0.55),
+      ...stackMouth9(0, -0.3, 5.904, 1.55, { th: 0.22, dep: 1.0, sides: 12, phase: Math.PI / 12, fill: "#2d323b" }),
       ...fine(gasPuffs9({ x: 0, y: -0.3, z: 5.94, r: 0.8, h: 2.34, col: "#8cff86", n: 3 })),
     ], 10 + depthNow(0, -0.3) * 1.6 + 1.2));
     /* 관 셋 — 가운데는 입구 천장, **양옆은 앞 드럼통 옥상 가운데에 꽂힌다**(정정:
@@ -15109,11 +15150,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...tagKey(hornFaces(0.9, -1.5, 3.04, 1.3, -2.1, 6.4, 1), depthNow(1.1, -1.8) + 1.2),
       // 가운데 드럼.
       ...tagKey(cylinderFaces3(0, -0.2, 2.5, 2.64), -6),
-      // 위 파란 발광 고리의 금 뚜껑.
-      ...tagKey([
-        bodyFace(discPath3(0, -0.2, 2.88, 1.45, 0.72)),
-        topFace(discPath3(0, -0.2, 2.88, 1.05, 0.5), 0.25),
-      ], -4.8),
+      /* ★ 디스크 밑 **금판** — 디스크와 같은 중심(0, −0.2)의 납작한 원판이고 디스크(1.75)보다 넓다(2026-11-05, 요청: "코어 디스크 아래 금색판 위치가
+         치우쳐있음 중심 맞춰야함 크기는 디스크보다 크게"). 옛 뚜껑은 화면 자 세로 반지름(0.72)으로 그린 타원이라 모형에선 앞뒤로 길쭉했고, 디스크보다 작아(1.45)
+         드럼 윗면에서 뜬 디스크 밑으로 금빛이 한쪽만 비어져 나와 치우쳐 보였다. 이제 드럼 윗면(2.64)에서 디스크 밑(2.928)까지 메운다. */
+      ...tagKey(paintBase(cylinderFaces3(0, -0.2, 2.1, 0.288, 2.64), P_GOLD), -4.8),
       // 위 파란 발광 고리 — 반투명 판(색을 안 줘 raceBase의 금 바탕이 든다).
       ...tagKey([[discPath3(0, -0.2, 2.88, 2.3, 1.15), 0.55] as ShapeFace], -5),
       /* 플라즈마 디스크(재지적: "디스크 크기 줄이고 본체 위에 딱 붙여 올리기") —
@@ -17107,23 +17147,28 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }), RED), 12));
     /* 창백한 마디 꼬리 = **임자 색**(요청: 사진의 흰 부분) — 몸 등에서 앞오른쪽으로
        흘러내리는 마디 여덟. 칠하지 않으므로 그리는 쪽이 팀색을 넣는다. */
-    for (let k = 0; k < 8; k += 1) {
-      const u9 = k / 7;
-      const [tx9, ty9] = PB(1.7 + u9 * u9 * 1.5, 0.3 - u9 * 3.4);
-      const tz9 = 2.24 - u9 * u9 * 2;
-      const seg9 = domeFaces3(tx9, ty9, 1.15 - u9 * 0.6, 0.688 - u9 * 0.32, tz9);
-      out.push(...tagKey([...seg9, sideFace(seg9[0][0], 0.16)],
-        14 + k * 0.2 + depthNow(tx9, ty9) * 1.6));
-    }
+    /* ★ **코끼리 코**(2026-11-05, 요청: "히드라덴 앞에 나온 긴 관을 코끼리코같은 모양으로 변경하고 옆으로 휘지말고 기준면에서 수직으로 나아가게 수정
+       (아래로 미끄럼틀처럼 내려가는건 유지해야함)") — 옛 꼬리는 마디 돔 여덟이 옆(px)으로 u² 만큼 휘며 흘렀다. 이제 몸 등에서 **곧게 앞으로**(px 고정 · py 만)
+       나가는 한 줄기 관이고, 높이는 옛 미끄럼(2.24 − u²·2)을 그대로 탄다. 굵기는 뿌리에서 끝으로 가늘어지고, 주름(굵기 물결 아홉)이 마디를 대신한다.
+       임자 색 그대로(칠하지 않음). */
+    const TRUNK_N9 = 9;
+    out.push(...tagKey(spirePillar({
+      x: 0, y: 0, h: 1, w: 1, segs: 54, sides: 12, caps: "none", trueNormal: true,
+      path: (t9: number): [number, number, number] => {
+        const [tx9, ty9] = PB(1.7, 0.3 - t9 * 3.5);
+        return [tx9, ty9, 2.24 - t9 * t9 * 2 + 0.42 - t9 * 0.12];
+      },
+      widthOf: (t9: number): number => (0.78 - t9 * 0.4) * (1 + 0.09 * Math.cos(t9 * TRUNK_N9 * Math.PI * 2)),
+    }), 14 + depthNow(...PB(1.7, -1.4)) * 1.6));
     // 꼬리 곁의 창백한 뼈 마디 둘 — 흰색이되 임자 색은 아니다(사진의 옆 갈비).
     for (const m9 of [-1, 1] as const) {
       const [rx9, ry9] = PB(1.7 + m9 * 1.7, -0.7);
       out.push(...tagKey(paintBase(domeFaces3(rx9, ry9, 0.7, 0.416, 1.44), BONE),
         13 + depthNow(rx9, ry9) * 1.6));
     }
-    // 살빛 주둥이 — 꼬리 끝에 붙은 통통한 코.
-    const [nx9, ny9] = PB(3, -3.4);
-    const [n2x, n2y] = PB(3.2, -4.2);
+    // 살빛 주둥이 — 코끝(곧은 코의 끝 · 위 ★)에 붙은 통통한 코.
+    const [nx9, ny9] = PB(1.7, -3.3);
+    const [n2x, n2y] = PB(1.7, -3.9);
     out.push(...tagKey(paintBase([
       ...domeFaces3(nx9, ny9, 1, 0.64, 0.24),
       ...domeFaces3(n2x, n2y, 0.66, 0.448, 0.24),

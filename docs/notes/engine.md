@@ -573,3 +573,8 @@ dist 가 옛 코드로 굽히고(2026-10-24 dist `da9ae2f4…` 가 그랬다 · 
 - **남긴 진단:** `⚠ 첫 못 푼 태그`(막 죽은 몸 클릭은 뺌) — 명령 적중이 95% 아래인 판에서만 · 서버 로그 요약은 `⚠` 줄을 따로 20줄까지(openbw.py digest).
   걷은 시험 손잡이: NUKEFREE/NUKE2SWEEP/SILO·BUILD·NOHIDE · TRAINLOG · SLOTW · FREEW · DEATHW · 남의 몸 고름 · 갈린 몸 · 핵미사일 죽음 줄 · 옛 NUKECMD/NUKERANGE/NUKEV/NUKECHAIN/NONUKEREP/NONUKERAND/FREEDELAY/FREELIST.
   다시 파려면 그 커밋들(sg-api `f6e37f2` ~ `9a7177a`)에서 되살린다.
+
+## 건설 고스트 — 다시 명령한 실패 명령은 끝낸다(2026-11-05)
+지적: "고스트 건설 명령후 돈이 모자라거나 방해를 받아서 못짓는경우 고스트가 안없어지고 있음". ghosts9 짝 찾기가 '같은 임자·종류·타일 · GHOST_WAIT_SEC9(180초) 안 착공'이라,
+실패한 명령도 나중에 다시 지은 건물을 제 짝으로 물어 그때까지 떠 있었다. 같은 사람이 같은 자리에 같은 건물을 **다시 명령**하면(어느 일꾼이든) 앞 명령은 실패로 보고
+min(다음 명령 · 재명령 · +GHOST_CANCEL_SEC9)에 끝내 스러지게 했다 — 짝은 재명령이 가져간다.

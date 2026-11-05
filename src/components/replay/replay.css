@@ -3521,6 +3521,10 @@
 .scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-data { flex: 1 1 0; }
 .scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-strip, .scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-page { flex: 1 1 auto; }
 .scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-page .scr-dock-row { justify-content: space-between; }
+/* ★ 판이 칸 합보다 좁으면 **데미지 칸만** 준다(2026-11-05, 지적: "전광판에 APM이 안보임") — 데미지 칸(22ch)이 폭을 못 박아 맨 끝 APM 칸이 판 밖으로 밀려 잘렸다.
+   띠·쪽이 제 글자 폭 아래로 줄 수 있게(min-width 0) 하고, 데미지만 22ch 에서 줄어든다(값은 보통 22자보다 짧다). */
+.scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-strip, .scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-page { min-width: 0; }
+.scr-motion-pc9 .scr-dock-roster:not(.is-paged) .scr-dock-cell.is-dmg { flex: 0 1 22ch; width: auto; }
 .scr-motion-pc9 .scr-dock-lab { font-size: calc(var(--rf) - 4px); }   /* 값이 한 단 작아진 만큼 라벨도(2026-10-10) */
 .scr-motion-pc9 .scr-dock-gap::after { left: calc(16px * var(--dks)); right: calc(16px * var(--dks)); }
 /* 머리 줄(.scr-dock-headrow — AUTO 단추 + 칸 라벨 · 2026-10-09)은 여느 팀 덩이와 같은 [이름 기둥 | 자료 띠] 꼴이라 따로 둘 규칙이 없다.

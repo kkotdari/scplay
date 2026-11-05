@@ -3790,6 +3790,17 @@ export function deriveWorld9(inp: {
       for (let j = k + 1; j < bl.length; j += 1) {
         if (bl[j][2] === wtag && bl[j][1] === who && bl[j][0] > sec) { next = bl[j][0]; break; }
       }
+      /* ★ 같은 사람이 같은 자리에 같은 건물을 **다시 명령**했으면(어느 일꾼이든) 이 명령은 실패한 것이다(2026-11-05, 지적: "고스트 건설 명령후 돈이 모자라거나
+         방해를 받아서 못짓는경우 고스트가 안없어지고 있음") — 옛 짝은 그 뒤 실제로 선 건물(GHOST_WAIT_SEC9 안)을 이 명령에 물려 고스트가 다시 지을 때까지 떠 있었다.
+         다시 명령한 쪽이 짝을 가져가고, 이 고스트는 그 순간 끝나 스러진다. */
+      let retry = Infinity;
+      for (let j = k + 1; j < bl.length; j += 1) {
+        const [js, jwho, , jx, jy, junit] = bl[j];
+        if (js <= sec || jwho !== who || junit !== unit) continue;
+        if (Math.abs(jx - tx) > 0.75 || Math.abs(jy - ty) > 0.75) continue;
+        retry = js; break;
+      }
+      if (best >= 0 && bestBorn > retry) { out.push({ t0: sec, t1: Math.min(next, retry, sec + GHOST_CANCEL_SEC9), x: tx, y: ty, unit, raw, done: false }); continue; }
       if (best >= 0 && bestBorn <= next) { claimed.add(best); out.push({ t0: sec, t1: bestBorn, x: tx, y: ty, unit, raw, done: true }); }
       else out.push({ t0: sec, t1: Math.min(next, sec + GHOST_CANCEL_SEC9), x: tx, y: ty, unit, raw, done: false });
     }
