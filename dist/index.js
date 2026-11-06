@@ -44564,14 +44564,17 @@ function nR({
     const v = h.querySelector(".scr-dock-headrow .scr-dock-data");
     if (!v) return;
     const E = () => {
-      const st = v.querySelector(".scr-dock-page .scr-dock-row"), q = st ? Array.from(st.querySelectorAll(".scr-dock-cell")) : [], nt = q.find((Bt) => Bt.classList.contains("is-worker"));
+      const st = v.querySelector(".scr-dock-page .scr-dock-row"), q = st ? Array.from(st.querySelectorAll(".scr-dock-cell")) : [], nt = q.find((zt) => zt.classList.contains("is-worker"));
       if (!st || !nt || q.length === 0) return;
-      const it = nt.getBoundingClientRect().width / 4, lt = parseFloat(getComputedStyle(st).columnGap || "0") || 0, gt = h.classList.contains("is-dmglite"), ft = q.reduce((Bt, St) => Bt + St.getBoundingClientRect().width, 0) + lt * (q.length - 1) + (gt ? 10 * it : 0);
-      UM(ft > v.clientWidth + 0.5);
+      const it = nt.getBoundingClientRect().width / 4, lt = parseFloat(getComputedStyle(st).columnGap || "0") || 0, gt = h.classList.contains("is-dmglite"), ft = q.reduce((zt, ts) => zt + ts.getBoundingClientRect().width, 0) + lt * (q.length - 1) + (gt ? 10 * it : 0), Bt = h.closest(".scr-fs-rosterpanel") ?? h, St = getComputedStyle(Bt), Pt = Math.min(
+        v.clientWidth,
+        Bt.getBoundingClientRect().right - (parseFloat(St.paddingRight) || 0) - (parseFloat(St.borderRightWidth) || 0) - v.getBoundingClientRect().left
+      );
+      UM(ft > Pt + 0.5);
     };
     E();
     const N = new ResizeObserver(E);
-    return N.observe(v), () => N.disconnect();
+    return N.observe(v), N.observe(h.closest(".scr-fs-rosterpanel") ?? h), () => N.disconnect();
   }, [jM, Yc]), xs(() => {
     if (!Yc) return;
     const h = window.setInterval(() => QM((v) => v >= NA.length ? 1 : v + 1), NJ);
@@ -44816,7 +44819,7 @@ function nR({
         " · UI ",
         sn.ui,
         " · 판 ",
-        "11-06 09:02",
+        "11-06 13:29",
         sn.ss !== 1 ? ` · 초해상 ×${sn.ss.toFixed(2)}` : "",
         Math.abs(sn.unitScale - sn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${sn.unitScale.toFixed(4)})` : sn.scale > 0 && Math.abs(sn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${sn.scale.toFixed(4)})` : "",
         sn.allocOk ? "" : " · ⚠배킹확보 실패"
