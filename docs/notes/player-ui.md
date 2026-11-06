@@ -3119,6 +3119,6 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 자막: 접으면 독 자리까지 내리던 것(--cap-drop)을 **미니맵이 보이는 동안은 안 내린다**(RMP dockFit read9 접힘 갈래 · uiHide9.mini · all 를 의존성에) — 내리면 자막이 미니맵 뒤로 가려졌다.
 - 접기 단추 이름 "미니맵·인포창 접기" → "독 접기(미니맵은 남음)" · perf-check `--fold` 가 두 이름을 다 찾는다. 🔎 `perf-check --ios --warm 0 --fold --shot x.png`.
 
-## 선수 마우스 커서 — 다시 feat 칸(2026-11-06)
-요청: "개인 마우스 보기 아직 테스트 기능으로 다시 넣기 · 버튼은 안 보이게". 재생 바 [마우스] 단추(2026-11-05 '재생 바 [마우스] 단추')와 localStorage `scr-cursor-on` 을 걷고,
-TEST_FLAGS9 맨 앞에 `["cursor", "선수 마우스 커서 켜기"]` — RMP `cursorOn9 = CURSOR9`(주소 `#cursor`). 경로 · 건설 고스트 따라가기 · 선택 상자 로직은 그대로.
+## 선수 마우스 커서 — 정식(2026-11-06)
+요청: "선수 마우스 커서 보기 기능 정식 출시 · 테스트에서 빼고". 같은 날 feat 칸으로 돌렸던 것(935a8517)을 되돌렸다 — 재생 바 [마우스] 단추(`cursorOn9` · localStorage `scr-cursor-on` ·
+기본 끔 · 주소 `#cursor` 면 처음부터 켬)가 다시 선다 · feat 칸 항목은 없다.
