@@ -21119,11 +21119,18 @@ export default function ReplayMotionPlayer({
       const gap9 = parseFloat(getComputedStyle(row9).columnGap || "0") || 0;
       const lite9 = root9.classList.contains("is-dmglite");
       const need9 = cells9.reduce((n9, c9) => n9 + c9.getBoundingClientRect().width, 0) + gap9 * (cells9.length - 1) + (lite9 ? 10 * ch9 : 0);
-      setDmgLite9(need9 > data9.clientWidth + 0.5);
+      /* ★ 견줄 폭은 **판의 오른 안끝까지**(2026-11-06, 지적: "APM 안 잘리게 너비에 따라 데미지의 퍼센트 괄호 없애기로 했는데" — 여전히 APM 이 잘렸다) — 띠(data9)는 칸 폭만큼
+         늘어나 판 밖으로 넘치므로 제 clientWidth 와 견주면 늘 '남는다'였다. 전광판 우물(.scr-fs-rosterpanel · 없으면 전광판 뿌리)의 안쪽 오른끝 − 띠 왼끝. */
+      const box9 = root9.closest<HTMLElement>(".scr-fs-rosterpanel") ?? root9;
+      const bcs9 = getComputedStyle(box9);
+      const avail9 = Math.min(data9.clientWidth,
+        box9.getBoundingClientRect().right - (parseFloat(bcs9.paddingRight) || 0) - (parseFloat(bcs9.borderRightWidth) || 0) - data9.getBoundingClientRect().left);
+      setDmgLite9(need9 > avail9 + 0.5);
     };
     check9();
     const ro9 = new ResizeObserver(check9);
     ro9.observe(data9);
+    ro9.observe(root9.closest<HTMLElement>(".scr-fs-rosterpanel") ?? root9);
     return () => ro9.disconnect();
   }, [rosterEl9, rosterPaged9]);
   useEffect(() => {
