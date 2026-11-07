@@ -1123,6 +1123,15 @@ if (has("--fold")) {
     await page.waitForTimeout(600);
   }
   console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}${has("--fold2") ? " · 2단" : ""}`);
+  /* --miniprobe(2026-11-07) — 미니맵 우물 · 상자 · 캔버스 상자와 받침(::before)의 계산값(테가 어디서 잘리나). */
+  if (has("--miniprobe")) console.log("[미니맵 상자]", await page.evaluate(() => {
+    const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; };
+    const pn = document.querySelector(".scr-fs-minipanel"); const bx = pn?.querySelector(".scr-motion-minibox"); const cv = bx?.querySelector("canvas");
+    const cs = pn ? getComputedStyle(pn, "::before") : null;
+    return { 뿌리: r(document.querySelector(".scr-fs-root")), 층: r(document.querySelector(".scr-fs-layer")), 우물: r(pn), 상자: r(bx), 캔버스: r(cv), 캔버스들: pn ? pn.querySelectorAll("canvas").length : 0,
+      받침: cs ? { display: cs.display, top: cs.top, bottom: cs.bottom, left: cs.left, right: cs.right, height: cs.height, inset: cs.inset, z: cs.zIndex, clip: cs.clipPath.slice(0, 20) } : null,
+      우물overflow: pn ? getComputedStyle(pn).overflow : null, 뿌리overflow: getComputedStyle(document.querySelector(".scr-fs-root")).overflow, 층overflow: getComputedStyle(document.querySelector(".scr-fs-layer")).overflow };
+  }));
   /* --foldstate(2026-11-07 · 접기 3단) — 단마다 무엇이 보이나(computed visibility)와 자막 자리 변수(--cap-bot9 · --cap-l9)를 찍는다(그림 없이 · 헤드리스가 느릴 때). */
   if (has("--foldstate")) console.log("[접기 상태]", await page.evaluate(() => {
     const vis = (sel) => { const el = document.querySelector(sel); if (!el) return "없음"; const cs = getComputedStyle(el); return cs.visibility === "hidden" || cs.display === "none" ? "숨김" : "보임"; };
