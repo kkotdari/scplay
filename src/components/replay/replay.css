@@ -5655,7 +5655,9 @@
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + var(--wbot) + var(--sd-gap)); }
 /* 가로가 긴 배치 — 독 위 · 전 폭(좌우 안전영역만)(2026-11-07 · RMP capPlace9 --cap-bot9 · 옛: 미니맵~로스터 사이 · 재생바 위). */
-.scr-fs-layer.is-wide .scr-cast-caption { left: var(--wl); right: var(--wr); bottom: var(--cap-bot9, calc(12px * var(--dk) + var(--dock-lift, 0px) + var(--wbot))); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") */
+.scr-fs-layer.is-wide .scr-cast-caption { left: var(--cap-l9, var(--wl)); right: var(--wr); bottom: var(--cap-bot9, calc(12px * var(--dk) + var(--dock-lift, 0px) + var(--wbot))); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") · 왼끝 = 미니맵 오른쪽(--cap-l9 · RMP capPlace9 · 2026-11-07 셋째: "폭도 미니맵을 제외한 모든 폭") */
+/* 2단(미니맵만)의 가로 자막은 펼치기 손잡이(.scr-fs-foldfab · 오른아래) 자리를 비운다. */
+.scr-fs-layer.is-wide .scr-fs-root.is-dockfold2 .scr-cast-caption { right: calc(var(--wr) + 30px * var(--ui, 1) + 10px); }
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }

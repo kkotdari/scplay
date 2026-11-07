@@ -1130,7 +1130,10 @@ if (has("--fold")) {
     const cs = pn ? getComputedStyle(pn, "::before") : null;
     return { 뿌리: r(document.querySelector(".scr-fs-root")), 층: r(document.querySelector(".scr-fs-layer")), 우물: r(pn), 상자: r(bx), 캔버스: r(cv), 캔버스들: pn ? pn.querySelectorAll("canvas").length : 0,
       받침: cs ? { display: cs.display, top: cs.top, bottom: cs.bottom, left: cs.left, right: cs.right, height: cs.height, inset: cs.inset, z: cs.zIndex, clip: cs.clipPath.slice(0, 20) } : null,
-      우물overflow: pn ? getComputedStyle(pn).overflow : null, 뿌리overflow: getComputedStyle(document.querySelector(".scr-fs-root")).overflow, 층overflow: getComputedStyle(document.querySelector(".scr-fs-layer")).overflow };
+      우물overflow: pn ? getComputedStyle(pn).overflow : null, 뿌리overflow: getComputedStyle(document.querySelector(".scr-fs-root")).overflow, 층overflow: getComputedStyle(document.querySelector(".scr-fs-layer")).overflow,
+      /* 받침 네 변 바깥 3px 자리의 맨 위 요소(무엇이 테를 덮나 · 2026-11-07 되지적 "아래쪽 안 보임") */
+      덮개: pn ? (() => { const b = pn.getBoundingClientRect(); const at = (x, y) => { const e = document.elementFromPoint(x, y); return e ? `${e.tagName.toLowerCase()}.${String(e.className?.baseVal ?? e.className).split(" ").slice(0, 2).join(".")}` : "없음"; };
+        return { 위: at(b.left + b.width / 2, b.top - 3), 아래: at(b.left + b.width / 2, b.bottom + 3), 왼: at(b.left - 3, b.top + b.height / 2), 오른: at(b.right + 3, b.top + b.height / 2), 재생바: r(document.querySelector(".scr-fs-lower > .scr-tb")), 플레이트top: document.querySelector(".scr-fs-layer")?.style.getPropertyValue("--plate-top") }; })() : null };
   }));
   /* --foldstate(2026-11-07 · 접기 3단) — 단마다 무엇이 보이나(computed visibility)와 자막 자리 변수(--cap-bot9 · --cap-l9)를 찍는다(그림 없이 · 헤드리스가 느릴 때). */
   if (has("--foldstate")) console.log("[접기 상태]", await page.evaluate(() => {

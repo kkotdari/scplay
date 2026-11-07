@@ -22771,7 +22771,7 @@ export default function ReplayMotionPlayer({
     /* ★ 자막 자리 = **보이는 독 요소(미니맵 · 인포창 · 전광판 · 재생바) 가운데 가장 높은 것 바로 위 · 가운데**(2026-11-07, 실기 지적 뒤 되요청: "자막 위치 — 프레임 · 전체화면 ·
        가로 · 세로 모두 항상 독 요소(미니맵 포함) 최고 높이보다 살짝 위의 가운데로 고정 · 미니맵을 안 숨기면 미니맵보다 위") — 셈이 아니라 **실제 상자**를 잰다(받침 · 테 · 여백이 다
        든다 · 가로 배치의 --wmini-h 셈은 틀 테를 못 봐 자막이 미니맵 띠에 걸쳤다). 무대 바닥 기준 px 로 적는다(--cap-bot9 · 무대가 독 밑까지 그리므로 음수도 된다). 보이는 것이
-       하나도 없으면(J · H 로 다 숨김) 아래 안전영역 위. 접기 단은 숨은 요소가 빠지니 저절로 내려온다. 옛 '접으면 미니맵 오른쪽부터'(--cap-l9)는 걷었다. */
+       하나도 없으면(J · H 로 다 숨김) 아래 안전영역 위. 접기 단은 숨은 요소가 빠지니 저절로 내려온다. 가로 배치는 아래 ★(미니맵 제외 · --cap-l9). */
     const capPlace9 = (): void => {
       const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
       const st9 = lay9?.querySelector<HTMLElement>(":scope > .scr-fs-root > .scr-fs-stage") ?? lay9?.querySelector<HTMLElement>(".scr-fs-stage");
@@ -22790,10 +22790,21 @@ export default function ReplayMotionPlayer({
       ].filter(shown9);
       const stB9 = st9.getBoundingClientRect().bottom;
       const gap9 = 10;
+      /* ★ 가로 배치는 **미니맵을 뺀** 독 요소(재생바 · 로스터 · 인포창) 위 · 폭은 미니맵 오른쪽부터 오른끝까지(2026-11-07 셋째, 실기 요청: "가로모드 시 자막 위치를 미니맵을 제외한
+         독 부분의 높이에 맞추고 폭도 미니맵을 제외한 모든 폭을 다 쓰게 그 가운데 정렬") — 미니맵은 왼아래 제 자리에 홀로 서니 그 옆 빈 폭을 자막이 쓴다. 미니맵만 남으면(2단)
+         아래 안전영역 위(펼치기 손잡이 줄). 왼끝은 --cap-l9(층 왼끝 기준 px) · 세로는 안 적는다(CSS 가 --wl 로 받는다). */
+      const wideL9 = lay9.classList.contains("is-wide");
+      const mini9 = fr9.querySelector<HTMLElement>(".scr-fs-minipanel");
+      const picks9 = wideL9 ? cands9.filter((el9) => el9 !== mini9) : cands9;
       let top9: number;
-      if (cands9.length) top9 = Math.min(...cands9.map((el9) => el9.getBoundingClientRect().top));
-      else top9 = lay9.getBoundingClientRect().bottom - (low9 ? parseFloat(getComputedStyle(low9).paddingBottom) || 0 : 0);
+      if (picks9.length) top9 = Math.min(...picks9.map((el9) => el9.getBoundingClientRect().top));
+      else {
+        const fab9 = lay9.querySelector<HTMLElement>(".scr-fs-foldfab");   // 2단 — 펼치기 손잡이와 바닥을 맞춘다
+        top9 = fab9 ? fab9.getBoundingClientRect().bottom - gap9 : lay9.getBoundingClientRect().bottom - (low9 ? parseFloat(getComputedStyle(low9).paddingBottom) || 0 : 0);
+      }
       lay9.style.setProperty("--cap-bot9", `${(stB9 - top9 + gap9).toFixed(1)}px`);
+      if (wideL9 && shown9(mini9)) lay9.style.setProperty("--cap-l9", `${(mini9.getBoundingClientRect().right - lay9.getBoundingClientRect().left + gap9).toFixed(1)}px`);
+      else lay9.style.removeProperty("--cap-l9");
     };
     const fit9 = (): void => {
       const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
