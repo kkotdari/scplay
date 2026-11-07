@@ -5721,6 +5721,14 @@
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold,
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold * { visibility: visible !important; pointer-events: auto !important; }
 .scr-fs-root.is-dockfold2 > .scr-fs-lower::before, .scr-fs-root.is-dockfold2 > .scr-fs-lower::after { display: none !important; }
+/* 2단의 손잡이는 **제 판**을 가진다(2026-11-07, 실기 지적: "2단에서 접기 버튼이 안 보여" — 크리스탈(반투명) 꼴이라 재생바 판이 사라지면 지도 위에서 안 보였다) —
+   어두운 바탕 · 흰 삼각형 · 흰 테. 쇠 · 홀로그램 · 클레이 테마 공통. */
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold {
+  background: rgba(8, 10, 14, 0.8) !important; color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 4px rgba(0, 0, 0, 0.7) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold svg { filter: none !important; }
 /* ★ 전체화면 자막 자리(2026-11-07, 요청: "자막은 전체화면에서도 독 위에 위치해서 폭 넓게 사용하고 1 · 2 단계에선 그만큼 아래로") — RMP dockFit read9 가 적는 --cap-bot9(무대 바닥 기준 ·
    접으면 음수로 독 밑까지) · --cap-l9(남은 미니맵의 오른쪽부터). 평소 세로 배치는 --cap-bot9 가 없어 종전 식(독 위 · 받침 솟음)이다. */
 .scr-fs-layer.is-fs .scr-cast-caption { left: var(--cap-l9, 0px); right: 0; bottom: var(--cap-bot9, calc(3px * var(--dk) + var(--dock-lift, 0px) * var(--cap-keep, 1) - var(--cap-drop, 0px))); }
