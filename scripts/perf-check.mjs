@@ -1123,6 +1123,14 @@ if (has("--fold")) {
     await page.waitForTimeout(600);
   }
   console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}${has("--fold2") ? " · 2단" : ""}`);
+  /* --foldstate(2026-11-07 · 접기 3단) — 단마다 무엇이 보이나(computed visibility)와 자막 자리 변수(--cap-bot9 · --cap-l9)를 찍는다(그림 없이 · 헤드리스가 느릴 때). */
+  if (has("--foldstate")) console.log("[접기 상태]", await page.evaluate(() => {
+    const vis = (sel) => { const el = document.querySelector(sel); if (!el) return "없음"; const cs = getComputedStyle(el); return cs.visibility === "hidden" || cs.display === "none" ? "숨김" : "보임"; };
+    const lay = document.querySelector(".scr-fs-layer");
+    return { 독줄: vis(".scr-fs-dockrow"), 미니맵: vis(".scr-fs-minipanel"), 전광판: vis(".scr-fs-rosterpanel"), 인포창: vis(".scr-motion-infodock-body"), 재생바: vis(".scr-fs-lower > .scr-tb"),
+      손잡이: vis(".scr-motion-infodock-fold"), 배속: vis(".scr-speeddial"), 모드토글: vis(".scr-modetog-stage"), 배율: vis(".scr-zoomdial"), 채팅: vis(".scr-fs-chat"),
+      자막: vis(".scr-cast-caption"), capBot: lay?.style.getPropertyValue("--cap-bot9"), capL: lay?.style.getPropertyValue("--cap-l9"), fold2: document.querySelector(".scr-fs-root")?.classList.contains("is-dockfold2") };
+  }));
   /* --foldhit(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌이 안 되고 페이지 드래그가 됨") — 접힌 독 자리·지도 자리의 맨 위 요소와
      그 사슬(touch-action · 손짓 받는 판 .scr-motion-map 안인가)을 적는다. */
   if (has("--foldhit")) console.log("[접기 맞힘]", await page.evaluate(() => {
