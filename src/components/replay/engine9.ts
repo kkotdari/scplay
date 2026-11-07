@@ -977,6 +977,10 @@ export const SHELL_ONLY_FX9 = new Set(["cannon"]);
  *  있고 터지는 자리도 있어야 한다. 그래서 이 갈래는 표적 그림을 내되 **선도 그대로 그린다**.
  *  ※ 실제로 체력이 주는 순간의 그림과 같은 표(FX_IMPACT)를 쓰므로 둘이 겹쳐도 결이 같다. */
 export const TARGET_FX = new Set(["zap"]);
+/** ★ **몸 중심 → 표적 몸 중심**으로 긋는 갈래(2026-11-07, 요청: "드라군 · 아콘 · 히드라 등 원거리 트레이서 시작과 끝이 내 몸 중심에서 타겟 몸 중심까지여야 해") —
+ *  총구 앵커(mzP · 아콘은 표면 0.8 반지름)와 끝의 스플래시 경계(tgap)를 안 쓰고 쏘는 몸의 잉크 가운데(liftPx9 · mx·my 0)에서 표적 가운데(tgtFields9(0))까지다.
+ *  탄(shot)은 그 길을 날고, 줄기(zap)는 그 두 점 사이에 걸린다. 도록(RMP DocTracer9 centred)도 같은 자. */
+export const CENTER_FX9 = new Set(["plasma", "spine", "zap"]);
 /** 실제로 **날아가는** 무기(요청: "트레이서로 미사일을 적한테 직접 꽂아줘 할수있나?
  *  마린같이 실시간은 어쩔수 없고") ─────────────────────────────────────────────────
  *  예전에 날아가던 것을 지적("움직임 없이 유닛의 공격부에 고정되어 나타나되 방향만
@@ -10805,12 +10809,13 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const launchDeg9 = lockAim(`m${holdKey}`, firePhase(`u${holdKey}`, fxCdRaw), beamDeg, beamLen).deg;
       const lanes9: number[] = twin9 ? [-1, 1] : [0];
       /* 쌍 앵커가 있으면 그 자리가 이긴다(위 mzDelta9의 ★) — 없으면 옛 자(잉크 폭 어림). */
-      const laneAt9: [number, number][] = mzDelta9.length
+      const ctr9 = CENTER_FX9.has(fxName9);   // 몸 중심에서 난다(CENTER_FX9 ★ · 총구 앵커 안 씀)
+      const laneAt9: [number, number][] = ctr9 ? [[0, 0]] : mzDelta9.length
         ? mzDelta9.map((d9): [number, number] => [mzx9 + d9[0], mzy9 + d9[1]])
         : lanes9.map((s9): [number, number] => [mzx9 + perp9[0] * s9, mzy9 + perp9[1] * s9]);
       for (const [lx9, ly9] of laneAt9) {
         fxOps.push({
-          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9, ...(fxUnit ? { by: fxUnit } : {}),   // by = 쏜 몸(효과음이 미사일 둘을 가른다 · 2026-11-02)
+          kind: "shot", style: fxName9, fx: mzfx9, fy: mzfy9, lift: ctr9 ? liftPx9 : mzLift9, ...(fxUnit ? { by: fxUnit } : {}),   // by = 쏜 몸(효과음이 미사일 둘을 가른다 · 2026-11-02)
           ...tgtFields9(0),
           mx: lx9, my: ly9,
           deg: beamDeg, len: beamLen, u: shotU, d0: launchDeg9,
@@ -10867,16 +10872,18 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const beamAt9: [number, number][] = mzDelta9.length ? mzDelta9
         : (flH9 > 0 ? [-1, 1] : [0]).map((fs9): [number, number] =>
           [Math.cos(rad9) * flH9 * fs9, Math.sin(rad9) * flH9 * fs9]);
-      for (const [fdx9, fdy9] of beamAt9) {
+      /* ★ 몸 중심 → 표적 몸 중심(CENTER_FX9 · 아콘 zap · 2026-11-07) — 표면 시작(mzsx9)·스플래시 경계 끝(tgap)을 안 쓴다. */
+      const ctrB9 = CENTER_FX9.has(fxName9);
+      for (const [fdx9, fdy9] of (ctrB9 ? [[0, 0]] as [number, number][] : beamAt9)) {
       fxOps.push({
-        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: mzLift9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
+        kind: "beam", style: fxName9, fx: mzfx9, fy: mzfy9, lift: ctrB9 ? liftPx9 : mzLift9, ok: `u${e.tag}`, tk: `u${tgtTag9}`,
         // 표적 그림을 줄기 끝에 얹는 갈래(TARGET_FX) — 자는 쏘는 몸의 상자(옛 hit op와 같다).
         ...(TARGET_FX.has(fxName9) ? { size: fxPx, splash: true } : {}),
-        ...tgtFields9(st9Span(fxName9) ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
+        ...tgtFields9(st9Span(fxName9) && !ctrB9 ? surf9 + (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95 : 0),
         /* len은 '표적까지'다 — 그리는 쪽이 번쩍임 길이를 이 값으로 죈다
            (지적: "피격대상을 지나서까지 그려지는데"). 붙어 싸울수록 짧아진다. */
-        mx: (st9Span(fxName9) ? mzsx9 : mzx9) + fdx9,
-        my: (st9Span(fxName9) ? mzsy9 : mzy9) + fdy9,
+        mx: ctrB9 ? 0 : (st9Span(fxName9) ? mzsx9 : mzx9) + fdx9,
+        my: ctrB9 ? 0 : (st9Span(fxName9) ? mzsy9 : mzy9) + fdy9,
         deg: beamDeg,
         ...(beamAt9.length > 1 ? { twin: true } : {}),
         /* ★ 끝이 **스플래시 경계에 맞닿는다**(지시) — 두 몫을 뺀다:
@@ -10885,7 +10892,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
                그림 한복판을 뚫고 지나가 둘이 겹쳐 보인다(impR9).
            impR9는 그리는 쪽의 셈을 그대로 옮긴 것이다: 반지름은 상자 절반 ×
            HIT_FX_K × 갈래 배수이고, 자라는 몫(0.7~1.2)의 한복판을 쓴다. */
-        len: st9Span(fxName9)
+        len: st9Span(fxName9) && !ctrB9
           ? Math.max(0, beamLen - surf9
             - (fxPx / 2) * HIT_FX_K * (FX_IMPACT[fxName9]?.r ?? 0.5) * 0.95)
           : beamLen,

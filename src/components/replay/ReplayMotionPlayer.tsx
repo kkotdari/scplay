@@ -105,7 +105,7 @@ import { TEAM_COLOR, type MinimapMarker } from "./markers";
 import {
   atkCutOf as atkCutOf9, flapCutOf as flapCutOf9, walkCutOf9, poseOfRx9, GAIT_CYCLE9, POSE_MERGE9, archonMergeK9, startHallClear9,
   muzzlePoint as muzzlePoint9, muzzleLanes9, anchorPoint as anchorPoint9, spinMuzzle9, BLD_MUZZLE, HEAD_MUZZLE_KINDS9, TWIN_POD_BLD9, COMSAT_SWEEP9, SPIN_WORK_KINDS9, spinRateOf9, LIT_STEADY_KINDS9, MUZZLE_BURST_FX9, SHELL_ONLY_FX9,
-  resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, SCR_DIAG_SEL, speedOf, unitTilesOf,
+  resUniq9, WOUND_GROW9, AIR_LIFT_K, AIR_LIFT_REF, NORM_PAIR, BLD_NORM_PAIR, BLD_DRAW_K, BLD_DRAW_TUNE, bldDrawK9, cineResTiles9, cineSet9, BLD_INK_BOX, BUILDING_BASE_YAW, BUILD_STAGES, BW_ROWS, CAST_HOLD_SEC, CLASS_TILES, EMPTY_FRAME9, FOOTPRINT, FX_BEAM, FX_IMPACT, HIT_FX_K, ATTACK_FX, NO_BEAM_FX, TARGET_FX, CENTER_FX9, PROJECTILE_FX, NUKE_BOOM_SEC, NUKE_FALL_SEC, RECALL_DELAY_SEC, RECALL_FIELD_SEC, POSE_ATK_L, POSE_ATK_R, POSE_KINDS, attackFxOf9, PRODUCED_BY, PROD_FLASH_SEC, RESEARCH_BUILDING, RESEARCH_SEC, SCAN_DETECT_SEC, SCR_DIAG, SHAPE_KIND, SIEGE_TURN_U9, SIEGE_XF_SEC, BURROW_DIG_SEC, SPIN_ANIM9, SPIN_STEPS, SUNK_OUT9, sunkenCut9, STATUS_CASTS, STATUS_KO, UNIT_3D, UNIT_BODY_TILES, UNIT_BULK, addonPairGeom9, bldAnchorKey, bldNormOf, bwBoxTiles, emptyWorldUi9, footDx, footDy, galleryYawOf, gmOf, isAirUnit, modelInkOf, modelNormOf, scrDiagOn, SCR_DIAG_SEL, speedOf, unitTilesOf, unitMidK9,
 } from "./engine9";
 import type { EngineView9, EngineWorld9, Frame9, FxOp, PitchGeom9, Pose9, UnitDrawOp, WorldUi9 } from "./engine9";
 import {
@@ -7973,7 +7973,7 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     const mzRot9 = sh9?.rotDeg ?? yaw9;
     const mzK9 = sh9?.k ?? 1;
     /* ★ 성큰 가시·럴커 가시·파는 흙은 총구가 아니라 **몸 한가운데**에서 난다(engine9 의 그 자리: mx 0 · my 0). */
-    const centred9 = style === "spike" || style === "dig" || style === "erupt";
+    const centred9 = style === "spike" || style === "dig" || style === "erupt" || CENTER_FX9.has(style);   // CENTER_FX9 — 드라군·히드라·아콘은 몸 가운데에서(2026-11-07)
     /* ★★ **좌우 한 쌍인 발사관은 두 점의 가운데가 원점이다**(2026-09, 지적: "발키리/레이스/스카우트/골리앗
        쌍 트레이서 시작점 전혀 안 맞음 너무 오른쪽이고 아래야") — 여태 원점을 `muzzlePoint`(= 오른쪽 발사관
        한 점)에 두고 거기서 ±반간격을 벌려, 한 줄기는 오른 발사관 **바깥**에, 한 줄기는 몸 한가운데에 났다.
@@ -7981,7 +7981,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     const ls9 = k9 && !centred9 && !BLD_MUZZLE[kind] ? muzzleLanes9(mzKind9, mzRot9, 0, false, air) : null;
     const mz9 = ((): [number, number] | null => {
       if (!k9) return null;
-      if (centred9) return [8, 12];
+      // 몸 중심 갈래는 잉크 가운데(engine9 liftPx9 와 같은 점 · 16-상자 자) · 땅에서 솟는 것은 발밑.
+      if (centred9) return CENTER_FX9.has(style) ? [8, 12 - (unitMidK9(kind, false) * 16) / modelNormOf(kind)] : [8, 12];
       const bm9 = BLD_MUZZLE[kind];
       /* 머리가 도는 건물(터렛·포토)은 표의 값이 **머리 자**라, 머리에 준 각만큼 모형에서
          돌려야 포드·관 위에 앉는다(지도의 muzzleAt9 과 같은 손). */
@@ -8081,7 +8082,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
       /* ★ 럴커 — 지도와 같은 **spike op** 이다(engine9: 몸 한가운데에서 표적 쪽으로 가시 일곱이 줄지어
          솟는다). 여태 beam 으로 밀어 붓이 별 하나(tri)로 그렸다(지적: "가시가 엄청 작게 · 개수도 한 개").
          길이는 표적까지 — 지도는 늘 최대 사거리를 훑지만 칸에는 인형이 그 반에 서 있다. */
-      ops9.push({ kind: "spike", style: "spike", fx: 0, fy: 0, lift: 0, mx: 0, my: 0, deg: deg9, ph: age9, len: dist9 / ZOOM9 } as FxOp);
+      // ★ 길이는 **늘 최대 사거리**(2026-11-07, 요청: "럴커 가시는 타겟 위치와 상관없이 나가는 방향으로 간격과 거리 고정") — 지도와 같은 212px = 6.6 타일(배율 1 의 타일 = 8px).
+      ops9.push({ kind: "spike", style: "spike", fx: 0, fy: 0, lift: 0, mx: 0, my: 0, deg: deg9, ph: age9, len: (LURKER_SPINE_TRAVEL_PX / 32) * 8 } as FxOp);
     } else if (style === "dig") {
       /* ★ 버로우의 흙먼지(지적: "기타 액션에서 버로우 시 흙먼지가 안 보임") — 지도의 DOM 효과(dig)를
          그대로 부른다: 0.15초마다 흙덩이 다섯이 옆·뒤로 튀어 올랐다 떨어진다(붓의 CLODS9). 파는 창
