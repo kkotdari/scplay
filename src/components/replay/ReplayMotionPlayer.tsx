@@ -22795,6 +22795,13 @@ export default function ReplayMotionPlayer({
          아래 안전영역 위(펼치기 손잡이 줄). 왼끝은 --cap-l9(층 왼끝 기준 px) · 세로는 안 적는다(CSS 가 --wl 로 받는다). */
       const wideL9 = lay9.classList.contains("is-wide");
       const mini9 = fr9.querySelector<HTMLElement>(".scr-fs-minipanel");
+      /* 세로 2단 — 숨긴 재생바의 바깥 키(여백 포함)를 --tb-h9 로 적어 미니맵을 그만큼 내린다(CSS .is-dockfold2 미니맵 transform · 2026-11-07 넷째). 아래 상자 재기는 이 값을 반영한 자리다. */
+      const tb9 = low9?.querySelector<HTMLElement>(":scope > .scr-tb");
+      const fold2L9 = !!lay9.querySelector(":scope > .scr-fs-root.is-dockfold2");
+      if (!wideL9 && fold2L9 && tb9) {
+        const tcs9 = getComputedStyle(tb9);
+        lay9.style.setProperty("--tb-h9", `${(tb9.getBoundingClientRect().height + (parseFloat(tcs9.marginTop) || 0) + (parseFloat(tcs9.marginBottom) || 0)).toFixed(1)}px`);
+      } else lay9.style.removeProperty("--tb-h9");
       const picks9 = wideL9 ? cands9.filter((el9) => el9 !== mini9) : cands9;
       let top9: number;
       if (picks9.length) top9 = Math.min(...picks9.map((el9) => el9.getBoundingClientRect().top));

@@ -5721,6 +5721,9 @@
   pointer-events: none !important;
 }
 .scr-fs-root.is-dockfold2 > .scr-fs-lower::before, .scr-fs-root.is-dockfold2 > .scr-fs-lower::after { display: none !important; }
+/* 세로 2단은 **미니맵도 재생바 키만큼 내린다**(2026-11-07 넷째, 실기 요청: "세로모드 시 재생기까지 접은 2단 접기 땐 미니맵도 그만큼 내리기") — 숨긴 재생바(자리는 남는다)의 바깥 키를
+   RMP capPlace9 가 --tb-h9 로 층에 적고 우물을 옮긴다(transform — 줄 키는 그대로라 무대가 안 바뀐다). 가로는 재생바가 미니맵 옆이라 안 탄다. */
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-dockfold2 .scr-fs-dockmain > .scr-fs-minipanel { transform: translateY(var(--tb-h9, 0px)); }
 /* 2단의 펼치기 손잡이는 **뿌리 오른아래에 뜬다**(2026-11-07, 실기 지적: "2단에서 접기 버튼이 안 보여" → "펼치기 버튼은 아래쪽으로" — RMP .scr-fs-foldfab · 재생바 꼬리에서 빠진다) —
    어두운 바탕 · 흰 삼각형 · 흰 테(크리스탈(반투명) 꼴은 지도 위에서 안 보였다). 쇠 · 홀로그램 · 클레이 테마 공통 · 좌우 · 아래 안전영역 안쪽. */
 .scr-fs-foldfab { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 40; pointer-events: auto; }
@@ -5752,7 +5755,13 @@
   inset: calc(-1 * var(--dock-out, 6px) - 2px); top: calc(-1 * var(--dock-out, 6px) - 2px); left: calc(-1 * var(--dock-out, 6px) - 2px); right: calc(-1 * var(--dock-out, 6px) - 2px); height: auto;
   clip-path: none; border-radius: 1px;
   background: var(--steel-dark-ped) #2b2e33;
-  /* 아래 변에도 입술(안 어두운 줄 + 바깥 밝은 줄)을 준다(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 실측으론 네 변이 다 있었다 · 아래가 검은 선뿐이라 안 보였다). */
+  /* ★ 아래 변을 **그린다**(2026-11-07 넷째, 실기 지적: "미니맵 아래 프레임은 가려진다기보다 안 그리는 거야 — 원래는 다른 독에 가려져서 필요 없었으니까") — 위 우물 파기(mask exclude ·
+     5537 줄)의 구멍이 받침 위 --ped-in 부터 **바닥까지**(높이 100%)라 아래 띠가 통째로 비었다. 여기선 구멍 높이도 --ped-in 두 몫을 뺀다. */
+  --ped-in: calc(var(--dock-out, 6px) + 1px);
+  -webkit-mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) calc(100% - 2 * var(--ped-in)) no-repeat, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) calc(100% - 2 * var(--ped-in)) no-repeat, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  /* 아래 변 입술(안 어두운 줄 + 바깥 밝은 줄)(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 참 까닭은 위 구멍 높이였다). */
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 0 -2px 0 rgba(255, 255, 255, 0.08), inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 1px 0 1px rgba(255, 255, 255, 0.22), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel { box-shadow: 0 0 0 1px #050607, inset 0 0 0 1px rgba(255, 255, 255, 0.14) !important; }
@@ -5761,7 +5770,13 @@
   display: block; inset: calc(-1 * var(--dock-out, 6px) - 2px); top: calc(-1 * var(--dock-out, 6px) - 2px); left: calc(-1 * var(--dock-out, 6px) - 2px); right: calc(-1 * var(--dock-out, 6px) - 2px); height: auto;
   clip-path: none; border-radius: 1px; z-index: 0;
   background: var(--steel-dark-ped) #2b2e33;
-  /* 아래 변에도 입술(안 어두운 줄 + 바깥 밝은 줄)을 준다(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 실측으론 네 변이 다 있었다 · 아래가 검은 선뿐이라 안 보였다). */
+  /* ★ 아래 변을 **그린다**(2026-11-07 넷째, 실기 지적: "미니맵 아래 프레임은 가려진다기보다 안 그리는 거야 — 원래는 다른 독에 가려져서 필요 없었으니까") — 위 우물 파기(mask exclude ·
+     5537 줄)의 구멍이 받침 위 --ped-in 부터 **바닥까지**(높이 100%)라 아래 띠가 통째로 비었다. 여기선 구멍 높이도 --ped-in 두 몫을 뺀다. */
+  --ped-in: calc(var(--dock-out, 6px) + 1px);
+  -webkit-mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) calc(100% - 2 * var(--ped-in)) no-repeat, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) var(--ped-in) var(--ped-in) / calc(100% - 2 * var(--ped-in)) calc(100% - 2 * var(--ped-in)) no-repeat, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  /* 아래 변 입술(안 어두운 줄 + 바깥 밝은 줄)(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 참 까닭은 위 구멍 높이였다). */
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 0 -2px 0 rgba(255, 255, 255, 0.08), inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 1px 0 1px rgba(255, 255, 255, 0.22), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 /* 미니맵 **안쪽 테**는 캔버스 위에 얹는다(같은 날 — 우물의 inset 흰 1px 은 미니맵 상자(.scr-motion-minibox · z 1)가 꽉 덮어 안 보였다). 상자 위 가짜 요소 한 겹(z 2 · 누름 안 받음). */

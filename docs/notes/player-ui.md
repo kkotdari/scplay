@@ -3147,4 +3147,10 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   미니맵만 남은 2단은 펼치기 손잡이(`.scr-fs-foldfab`) 바닥에 맞춘다. 세로는 `--cap-l9` 를 지운다(종전 · 미니맵 포함 가장 높은 것 위 가운데).
 - CSS `.scr-fs-layer.is-wide .scr-cast-caption { left: var(--cap-l9, var(--wl)) }` · 2단(`.scr-fs-root.is-dockfold2`)은 오른끝을 손잡이 폭(30·ui + 10)만큼 비운다.
 - 🔎 `perf-check --wide --ios --fs --castoff --foldstate`(capBot · capL) — 헤드리스는 첫 그림이 분 단위라 `--readyms 240000`.
-- 미결: 미니맵 쇠 테 **아래 변**이 실기에서 안 보인다(세로 1단 · 가로 펼침부터) — `--miniprobe` 에 네 변 바깥 3px 의 맨 위 요소(덮개)를 찍는 항목을 더해 뒀다(아직 못 돌림).
+- `--miniprobe` 에 네 변 바깥 3px 의 맨 위 요소(덮개)를 찍는 항목을 더했다.
+
+## 미니맵 쇠 테 아래 변 · 세로 2단 미니맵 내리기(2026-11-07 넷째)
+- 아래 변이 안 보인 참 까닭: 받침 우물 파기(`replay.css` 5537 줄 mask exclude)의 구멍이 `--ped-in` 위부터 **바닥까지**(높이 100%)라 아래 띠가 통째로 비었다 — 옛 받침은 솟은 몫만이라
+  아래가 쇠판·다른 독에 가려져 상관없었다(실기 지적: "가려진다기보다 안 그리는 거야"). 가로(`.is-wide`)·세로 접기(`.is-fold`) 온 둘레 테 규칙에서 구멍 높이도 `100% − 2·ped-in` 으로 닫았다.
+  앞서 더한 '아래 입술' box-shadow 는 구멍에 같이 깎여 안 보였던 것.
+- 세로 2단: 숨긴 재생바(visibility · 자리 남음)의 바깥 키를 RMP `capPlace9` 가 `--tb-h9` 로 층에 적고 `.is-dockfold2` 미니맵을 `translateY` 로 그만큼 내린다(줄 키 불변 · 무대 안 바뀜). 자막은 내린 자리 위.
