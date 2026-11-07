@@ -821,6 +821,10 @@ const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = 
 /* (걷음 · 2026-11-03 "셋 다 같은 상한으로 통일") 옛 APP16_9 — Capacitor 앱만 16방·상한 ×1.75 로 가르던 자. 이제 폰은 웹·PWA·앱 모두 같다(아래 sprTune9 · ATLAS_WANT9). */
 /** 아이폰·아이패드(웹킷 — 탭 메모리 한도가 빡빡하다 · 2026-11-03, 지적: "아이폰 PWA 에서 세로 → 가로로 돌리면 페이지가 리로드 · 32방 이후"). */
 const IOS9 = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1));
+/** ★ 가로가 긴 전체화면(wide9)인가 — 붓(배킹 상한)이 읽는 거울(2026-11-07, 실기: "아이폰 PWA 전체화면 가로모드가 켜지는 순간 자꾸 터져"). 아이폰은 가로 전체화면에서 몸 배킹을
+ *  IOS_WIDE_DPR9 로 눌러(dpr 3 → 2 · 화소 4/9) 가로로 도는 순간 옛·새 캔버스·MRT 가 겹치는 메모리를 줄인다 — 웹킷 탭 한도(gl-renderer.md 'GL 문맥 잃음' · 회전 리로드). */
+const WIDE9 = { on: false };
+const IOS_WIDE_DPR9 = 2;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
@@ -6088,7 +6092,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const capSmall9 = BACKCAP9 > 0 ? BACKCAP9 : Infinity;   // 폰 배율 6 이상 2 누름은 걷었다(위 ★ '폰 배킹 상한 올림' · 2026-11-03)
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
-      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1));   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥)
+      const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1),
+        IOS9 && WIDE9.on ? IOS_WIDE_DPR9 : Infinity);   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥) · 아이폰 가로 전체화면 2(WIDE9 ★)
       DRS9.lastB = B; DRS9.z = BZ9.z;
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
@@ -13325,12 +13330,15 @@ export default function ReplayMotionPlayer({
   const boxElRef9 = useRef<HTMLDivElement | null>(null);
   const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
   useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
-  /** 하단 인포창을 접었나(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
-  const [dockFold9, setDockFold9] = useState(false);
+  /** 하단 독 접기 **3단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 평소: 미니맵·플레이바·인포창·전광판·자막·오버레이 다 · 1단: 미니맵·플레이바·자막·오버레이만 ·
+   *  2단: 미니맵·자막만") — 0 평소 · 1 독 줄(인포창·전광판) 숨김 · 2 재생바·오버레이(배속·배율·모드 토글·채팅·화면 주인·요약)까지 숨김. 손잡이는 2단에서도 남는다(replay.css is-dockfold2).
+   *  옛 판은 켬/끔 둘(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
+  const [dockFold9, setDockFold9] = useState<0 | 1 | 2>(0);
   /** 실제로 접혔나 — ★ 분할보기도 **안 접는다**(2026-10, 요청: "분할화면에서 자동으로 독 접지 않기. 계산하느라 버벅임") — 접고
    *  펴는 순간마다 무대 키가 바뀌어 칸 배치·칸 배율·분할 칠하기가 통째로 다시 돌았다(맞대결 자동 분할은 그것이 장면마다였다).
    *  옛 '분할은 늘 접는다(열기 불가)'를 되물렸다 — 독은 칸을 누른 사람의 것을 든다(아래 splitPick9). */
-  const dockFoldOn9 = dockFold9;
+  const dockFoldOn9 = dockFold9 > 0;
+  const dockFold2On9 = dockFold9 === 2;
   /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
   const closePicked9 = useCallback((): void => {
     if (pickedRef.current !== null) { setPicked(null); setBoxSel9(null); }
@@ -13478,7 +13486,9 @@ export default function ReplayMotionPlayer({
     const read9 = (): void => {
       const w9 = window.innerWidth; const h9 = Math.max(1, window.innerHeight);
       /* 문턱 "16:9 초과" → **16:9 이상**(2026-11-02, 요청: "전체화면 16:9 이상이면 가로모드 켜지게") — PC 16:9 모니터(1920×1080 = 1.778)도 켠다 · 반올림 몫 0.02 아래까지. */
-      setWide9(f9 === "1" ? true : f9 === "0" ? false : fsOn && w9 / h9 >= 16 / 10 - 0.02);   // 16:9 → **16:10 이상**(같은 날 "16:9 말고 16:10부터 적용" · 1920×1200 = 1.6)
+      const on9 = f9 === "1" ? true : f9 === "0" ? false : fsOn && w9 / h9 >= 16 / 10 - 0.02;   // 16:9 → **16:10 이상**(같은 날 "16:9 말고 16:10부터 적용" · 1920×1200 = 1.6)
+      WIDE9.on = on9;   // 붓의 아이폰 가로 배킹 상한(IOS_WIDE_DPR9)
+      setWide9(on9);
     };
     read9();
     window.addEventListener("resize", read9);
@@ -22807,6 +22817,12 @@ export default function ReplayMotionPlayer({
         const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
+        /* ★ 자막은 **독 위 · 전 폭**(2026-11-07, 요청: "자막은 전체화면에서도 독 위에 위치해서 폭 넓게 사용하고 1 · 2 단계에선 그만큼 아래로") — 평소: 바닥 요소(미니맵 · 로스터 ·
+           재생바) 가운데 가장 높은 것 위 · 좌우는 안전영역만(옛: 미니맵~로스터 사이 · 재생바 위). 접기 1단(로스터 숨김): 재생바 위 · 미니맵 오른쪽부터 · 2단(재생바도 숨김): 바닥선 ·
+           미니맵 오른쪽부터(replay.css --cap-bot9 · --cap-l9). */
+        const capBot9 = dockFold9 === 0 ? Math.max(miniH9, showRoster9 ? rh9 : 0, tbH9) : dockFold9 === 1 ? tbH9 : 0;
+        lay9.style.setProperty("--cap-bot9", `${capBot9}px`);
+        lay9.style.setProperty("--cap-l9", `${dockFold9 > 0 && miniW9 > 0 ? miniW9 + gap9 : 0}px`);
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
         /* 쪽(is-paged)은 평소 독과 같은 자 — 폰이거나 전광판이 제 설계 폭을 못 받아 줄었을 때만(2026-11-03, 지적: "전체화면에서만 왜 로스터가 접힘(한 컬럼씩 슬라이드)? 그렇게
            좁지 않은 것 같은데" — 가로 배치 갈래가 늘 쪽(true)으로 못 박아 PC 16:10 이상 전체화면에서 넓은데도 한 칸씩 넘겼다). */
@@ -22883,11 +22899,22 @@ export default function ReplayMotionPlayer({
         const miniUp9 = !uiHide9.mini && !uiHide9.all && !!fr9.querySelector(".scr-fs-minipanel");
         lay9?.style.setProperty("--cap-keep", miniUp9 ? "1" : "0");
         lay9?.style.setProperty("--cap-drop", miniUp9 ? "0px" : `${tb9 ? tb9.offsetTop : 0}px`);
+        /* ★ 접기 단마다 자막을 **그만큼 아래로**(2026-11-07, 요청: "1 · 2 단계에선 그만큼 아래로") — 1단: 재생바 위끝(비운 독 줄 키만큼) · 2단: 바닥선(재생바도 숨김 · 아래 안전영역 위).
+           남은 미니맵은 피해 그 오른쪽부터(--cap-l9). 무대 바닥 기준이라 음수(무대가 독 밑까지 그린다 · --dock-under). 옛 --cap-keep/--cap-drop 은 CSS 되돌림 값으로만 남는다. */
+        if (lay9 && low9) {
+          const padB9 = parseFloat(getComputedStyle(low9).paddingBottom) || 0;
+          const drop9 = dockFold9 >= 2 ? low9.clientHeight - padB9 : (tb9 ? tb9.offsetTop : 0);
+          lay9.style.setProperty("--cap-bot9", `${(6 - drop9).toFixed(1)}px`);
+          const mini9 = miniUp9 ? fr9.querySelector<HTMLElement>(".scr-fs-minipanel")?.getBoundingClientRect() : null;
+          lay9.style.setProperty("--cap-l9", mini9 && mini9.width > 0 ? `${(mini9.right - lay9.getBoundingClientRect().left + 6).toFixed(1)}px` : "0px");
+        }
         return;
       }
       fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-drop", "0px");
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-keep", "1");
+      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.removeProperty("--cap-bot9");   // 평소는 CSS 식(독 위 · 받침 솟음)대로
+      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-l9", "0px");
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
@@ -22914,7 +22941,7 @@ export default function ReplayMotionPlayer({
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all]);
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -22931,16 +22958,22 @@ export default function ReplayMotionPlayer({
      접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
      둘 다 먹는다(옛 '전체화면에만'을 되물림). ★ 자리는 **틀의 오른 끝 기둥 위쪽**이다(2026-09, 요청: "접기버튼을 독 우상단으로
      이동" · "접은상태 - 미니맵 인포창 접기") — 정보줄이 툴박스로 나가 틀은 [미니맵 | 인포창 | 접기] 한 줄이고, 접으면 그 손잡이 키만 남는다. */
+  /* 3단 순환(0 → 1 → 2 → 0 · 위 dockFold9 ★) — 삼각형은 0·1 단에서 ▼(더 접힘) · 2 단에서 ▲(펼침). 1 단은 ▼ 둘. */
+  const foldLabel9 = dockFold9 === 0 ? "독 접기 1단(인포창 · 전광판 숨김)" : dockFold9 === 1 ? "독 접기 2단(재생바 · 오버레이도 숨김)" : "독 펼치기";
   const dockFoldNode9 = (
     <button
-      type="button" className="scr-motion-infodock-fold"
-      aria-label={dockFold9 ? "독 펼치기" : "독 접기(미니맵은 남음)"} aria-pressed={dockFoldOn9}
-      title={dockFold9 ? "독 펼치기" : "독 접기(미니맵은 남음)"}
+      type="button" className={cx("scr-motion-infodock-fold", dockFold9 === 1 && "is-fold1", dockFold2On9 && "is-fold2")}
+      aria-label={foldLabel9} aria-pressed={dockFoldOn9}
+      title={foldLabel9}
       onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => setDockFold9((v) => !v)}
+      onClick={() => setDockFold9((v) => ((v + 1) % 3) as 0 | 1 | 2)}
     >
       <svg viewBox="0 0 10 10" aria-hidden>
-        <polygon points={dockFoldOn9 ? "0,9.33 10,9.33 5,0.67" : "0,0.67 10,0.67 5,9.33"} fill="currentColor" />
+        {dockFold2On9
+          ? <polygon points="0,9.33 10,9.33 5,0.67" fill="currentColor" />
+          : dockFold9 === 1
+            ? <><polygon points="0,0.4 10,0.4 5,4.8" fill="currentColor" /><polygon points="0,5.2 10,5.2 5,9.6" fill="currentColor" /></>
+            : <polygon points="0,0.67 10,0.67 5,9.33" fill="currentColor" />}
       </svg>
     </button>
   );
@@ -23801,7 +23834,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl")} ref={fsRootRef}
+        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         <div

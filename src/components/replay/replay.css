@@ -5654,7 +5654,8 @@
 .scr-fs-layer.is-wide .scr-zoomdial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); }
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + var(--wbot) + var(--sd-gap)); }
-.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wmini-w, 0px) + var(--wl) + var(--winfo-w, 0px) + var(--winfo-gap, 0px)); right: calc(var(--wroster-w, 0px) + var(--wr)); bottom: calc(12px * var(--dk) + var(--dock-lift, 0px) * var(--cap-keep, 1) + var(--wbot) - var(--cap-drop, 0px)); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") */
+/* 가로가 긴 배치 — 독 위 · 전 폭(좌우 안전영역만) · 접으면 미니맵 오른쪽부터 · 그만큼 아래로(2026-11-07 · RMP wide 갈래 --cap-bot9 · --cap-l9 · 옛: 미니맵~로스터 사이 · 재생바 위). */
+.scr-fs-layer.is-wide .scr-cast-caption { left: calc(var(--wl) + var(--cap-l9, 0px)); right: var(--wr); bottom: calc(12px * var(--dk) + var(--cap-bot9, var(--dock-lift, 0px)) + var(--wbot)); }   /* 독 위 틈 3 → 12px·dk(2026-11-04, 지적: "자막이 독에 딱 붙는 문제") */
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }
@@ -5707,6 +5708,23 @@
 /* 독을 숨기면 **자막만** 독 자리까지 내려온다(2026-11-04, 요청: "독 접거나 숨기면 자막 내리기" → "채팅 · 배속 다이얼은 그대로 두기") — 자막은 받침 솟음을 안 타고(--cap-keep 0)
    무대 아래 독 키(--dock-under · 무대가 그 밑까지 그린다)만큼 아래로(--cap-drop). 접기는 RMP dockFit read9 가 뿌리에 같은 두 값을 적는다. --cap-bot(채팅 · 다이얼)은 안 건드린다. */
 .scr-fs-root.is-uihide-dock { --cap-keep: 0; --cap-drop: var(--dock-under, 0px); }
+/* ★ 독 접기 **2단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 2단: 미니맵 · 자막만 보이기") — 1단(is-fold · 독 줄 숨김 · 미니맵만 남김)에 더해 재생바(.scr-tb)와 오버레이(모드 토글 ·
+   배율 원 · fps · 배속 다이얼 · 채팅 · 화면 주인 이름표 · 요약 알약)를 숨긴다. 접기 손잡이(.scr-motion-infodock-fold)는 재생바 안에서 홀로 남아 펼친다(visibility 는 자식이 되살릴 수 있다 —
+   미니맵과 같은 꼴). 쇠판 켜(.scr-fs-lower::before/::after)도 걷어 지도가 바닥까지 비친다. 자리는 그대로(숨기기만 · 무대가 안 바뀐다). */
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb,
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb *,
+.scr-fs-root.is-dockfold2 :is(.scr-modetog-stage, .scr-zoomdial, .scr-speeddial, .scr-zoomfps, .scr-fs-chat, .scr-fs-solo-cap, .scr-digest-pill),
+.scr-fs-root.is-dockfold2 :is(.scr-modetog-stage, .scr-zoomdial, .scr-speeddial, .scr-zoomfps, .scr-fs-chat, .scr-fs-solo-cap, .scr-digest-pill) * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold,
+.scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb .scr-motion-infodock-fold * { visibility: visible !important; pointer-events: auto !important; }
+.scr-fs-root.is-dockfold2 > .scr-fs-lower::before, .scr-fs-root.is-dockfold2 > .scr-fs-lower::after { display: none !important; }
+/* ★ 전체화면 자막 자리(2026-11-07, 요청: "자막은 전체화면에서도 독 위에 위치해서 폭 넓게 사용하고 1 · 2 단계에선 그만큼 아래로") — RMP dockFit read9 가 적는 --cap-bot9(무대 바닥 기준 ·
+   접으면 음수로 독 밑까지) · --cap-l9(남은 미니맵의 오른쪽부터). 평소 세로 배치는 --cap-bot9 가 없어 종전 식(독 위 · 받침 솟음)이다. */
+.scr-fs-layer.is-fs .scr-cast-caption { left: var(--cap-l9, 0px); right: 0; bottom: var(--cap-bot9, calc(3px * var(--dk) + var(--dock-lift, 0px) * var(--cap-keep, 1) - var(--cap-drop, 0px))); }
+.scr-fs-layer.is-fs.scr-motion-pc9 .scr-cast-caption { bottom: var(--cap-bot9, calc(round(nearest, calc(24px * var(--dk) / 1.35), 2px) + var(--dock-lift, 0px) * var(--cap-keep, 1) - var(--cap-drop, 0px))); }
 
 /* ★ 가로가 긴 화면의 **쇠독**(2026-11-04, 지적: "쇠독 테마가 제대로 안 나옴") — 넓은 배치는 쇠판(.scr-fs-lower::before)·받침(::before/::after)을 다 걷어(display contents · none)
    쇠 테마면 재생바가 판 없이 비었다(홀로그램은 재생바 제 가짜 요소가 판을 그려 살아 있었다). 쇠 테마일 때만 재생바에 쇠판 바탕 · 미니맵·로스터에 쇠 테를 직접 준다. */

@@ -1117,7 +1117,12 @@ if (has("--glms")) await page.evaluate(() => {
 if (has("--fold")) {
   const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /(인포창 접기|^독 접기)/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
   await page.waitForTimeout(600);
-  console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}`);
+  /* --fold2(2026-11-07 · 접기 3단) — 한 번 더 눌러 2단(재생바 · 오버레이도 숨김). */
+  if (has("--fold2")) {
+    await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /^독 접기/.test(e.getAttribute("aria-label") || "")); b?.click(); });
+    await page.waitForTimeout(600);
+  }
+  console.log(`[접기] ${ok9 ? "눌렀다" : "단추 없음"}${has("--fold2") ? " · 2단" : ""}`);
   /* --foldhit(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌이 안 되고 페이지 드래그가 됨") — 접힌 독 자리·지도 자리의 맨 위 요소와
      그 사슬(touch-action · 손짓 받는 판 .scr-motion-map 안인가)을 적는다. */
   if (has("--foldhit")) console.log("[접기 맞힘]", await page.evaluate(() => {
