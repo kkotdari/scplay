@@ -22768,6 +22768,33 @@ export default function ReplayMotionPlayer({
     if (!row9 || !mk9 || !fr9) return undefined;
     const ar9 = Math.max(0.25, Math.min(4, Math.max(1, grid.width) / Math.max(1, grid.height)));
     const miniOn9 = fsOn ? fsMiniOn : true;
+    /* ★ 자막 자리 = **보이는 독 요소(미니맵 · 인포창 · 전광판 · 재생바) 가운데 가장 높은 것 바로 위 · 가운데**(2026-11-07, 실기 지적 뒤 되요청: "자막 위치 — 프레임 · 전체화면 ·
+       가로 · 세로 모두 항상 독 요소(미니맵 포함) 최고 높이보다 살짝 위의 가운데로 고정 · 미니맵을 안 숨기면 미니맵보다 위") — 셈이 아니라 **실제 상자**를 잰다(받침 · 테 · 여백이 다
+       든다 · 가로 배치의 --wmini-h 셈은 틀 테를 못 봐 자막이 미니맵 띠에 걸쳤다). 무대 바닥 기준 px 로 적는다(--cap-bot9 · 무대가 독 밑까지 그리므로 음수도 된다). 보이는 것이
+       하나도 없으면(J · H 로 다 숨김) 아래 안전영역 위. 접기 단은 숨은 요소가 빠지니 저절로 내려온다. 옛 '접으면 미니맵 오른쪽부터'(--cap-l9)는 걷었다. */
+    const capPlace9 = (): void => {
+      const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
+      const st9 = lay9?.querySelector<HTMLElement>(":scope > .scr-fs-root > .scr-fs-stage") ?? lay9?.querySelector<HTMLElement>(".scr-fs-stage");
+      const low9 = fr9.closest<HTMLElement>(".scr-fs-lower");
+      if (!lay9 || !st9) return;
+      const shown9 = (el9: HTMLElement | null | undefined): el9 is HTMLElement => {
+        if (!el9) return false;
+        const r9 = el9.getBoundingClientRect();
+        if (r9.width < 0.5 || r9.height < 0.5) return false;
+        const cs9 = getComputedStyle(el9);
+        return cs9.visibility !== "hidden" && cs9.display !== "none";
+      };
+      const cands9 = [
+        fr9.querySelector<HTMLElement>(".scr-fs-minipanel"), fr9.querySelector<HTMLElement>(".scr-fs-rosterpanel"),
+        fr9.querySelector<HTMLElement>(".scr-motion-infodock"), low9?.querySelector<HTMLElement>(":scope > .scr-tb"),
+      ].filter(shown9);
+      const stB9 = st9.getBoundingClientRect().bottom;
+      const gap9 = 10;
+      let top9: number;
+      if (cands9.length) top9 = Math.min(...cands9.map((el9) => el9.getBoundingClientRect().top));
+      else top9 = lay9.getBoundingClientRect().bottom - (low9 ? parseFloat(getComputedStyle(low9).paddingBottom) || 0 : 0);
+      lay9.style.setProperty("--cap-bot9", `${(stB9 - top9 + gap9).toFixed(1)}px`);
+    };
     const fit9 = (): void => {
       const pr9 = fr9.querySelector<HTMLElement>(".scr-fs-dockprobe");
       if (!pr9) return;
@@ -22817,12 +22844,7 @@ export default function ReplayMotionPlayer({
         const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
-        /* ★ 자막은 **독 위 · 전 폭**(2026-11-07, 요청: "자막은 전체화면에서도 독 위에 위치해서 폭 넓게 사용하고 1 · 2 단계에선 그만큼 아래로") — 평소: 바닥 요소(미니맵 · 로스터 ·
-           재생바) 가운데 가장 높은 것 위 · 좌우는 안전영역만(옛: 미니맵~로스터 사이 · 재생바 위). 접기 1단(로스터 숨김): 재생바 위 · 미니맵 오른쪽부터 · 2단(재생바도 숨김): 바닥선 ·
-           미니맵 오른쪽부터(replay.css --cap-bot9 · --cap-l9). */
-        const capBot9 = dockFold9 === 0 ? Math.max(miniH9, showRoster9 ? rh9 : 0, tbH9) : dockFold9 === 1 ? tbH9 : 0;
-        lay9.style.setProperty("--cap-bot9", `${capBot9}px`);
-        lay9.style.setProperty("--cap-l9", `${dockFold9 > 0 && miniW9 > 0 ? miniW9 + gap9 : 0}px`);
+        capPlace9();   // 자막 자리(아래 ★ capPlace9)
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
         /* 쪽(is-paged)은 평소 독과 같은 자 — 폰이거나 전광판이 제 설계 폭을 못 받아 줄었을 때만(2026-11-03, 지적: "전체화면에서만 왜 로스터가 접힘(한 컬럼씩 슬라이드)? 그렇게
            좁지 않은 것 같은데" — 가로 배치 갈래가 늘 쪽(true)으로 못 박아 PC 16:10 이상 전체화면에서 넓은데도 한 칸씩 넘겼다). */
@@ -22881,6 +22903,7 @@ export default function ReplayMotionPlayer({
          원래 폭 유지하기") — 마지막 값을 그대로 둔다(펼치면 의존성으로 다시 돈다). */
       if (row9.clientWidth === 0) {
         fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-holes", "none");   // 접힌 쇠판엔 우물이 없다 — 옛 구멍으로 지도가 비쳤다(실측)
+        capPlace9();
         return;
       }
       /* ★ 접힘은 이제 **숨기기만**(2026-10-24, 지적: "독 뒤에 지도를 이제 항상 그리니까 접을 때 그냥 위의 독들을 숨기기만 하면 될 거 같은데 뭔가 다시 그리네 깜빡여") —
@@ -22899,22 +22922,13 @@ export default function ReplayMotionPlayer({
         const miniUp9 = !uiHide9.mini && !uiHide9.all && !!fr9.querySelector(".scr-fs-minipanel");
         lay9?.style.setProperty("--cap-keep", miniUp9 ? "1" : "0");
         lay9?.style.setProperty("--cap-drop", miniUp9 ? "0px" : `${tb9 ? tb9.offsetTop : 0}px`);
-        /* ★ 접기 단마다 자막을 **그만큼 아래로**(2026-11-07, 요청: "1 · 2 단계에선 그만큼 아래로") — 1단: 재생바 위끝(비운 독 줄 키만큼) · 2단: 바닥선(재생바도 숨김 · 아래 안전영역 위).
-           남은 미니맵은 피해 그 오른쪽부터(--cap-l9). 무대 바닥 기준이라 음수(무대가 독 밑까지 그린다 · --dock-under). 옛 --cap-keep/--cap-drop 은 CSS 되돌림 값으로만 남는다. */
-        if (lay9 && low9) {
-          const padB9 = parseFloat(getComputedStyle(low9).paddingBottom) || 0;
-          const drop9 = dockFold9 >= 2 ? low9.clientHeight - padB9 : (tb9 ? tb9.offsetTop : 0);
-          lay9.style.setProperty("--cap-bot9", `${(6 - drop9).toFixed(1)}px`);
-          const mini9 = miniUp9 ? fr9.querySelector<HTMLElement>(".scr-fs-minipanel")?.getBoundingClientRect() : null;
-          lay9.style.setProperty("--cap-l9", mini9 && mini9.width > 0 ? `${(mini9.right - lay9.getBoundingClientRect().left + 6).toFixed(1)}px` : "0px");
-        }
+        capPlace9();   // 자막은 보이는 독 요소 위(위 ★ capPlace9 · 접은 단은 숨은 요소가 빠져 저절로 내려온다)
         return;
       }
       fr9.closest<HTMLElement>(".scr-fs-lower")?.style.setProperty("--plate-top", "0px");
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-drop", "0px");
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-keep", "1");
-      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.removeProperty("--cap-bot9");   // 평소는 CSS 식(독 위 · 받침 솟음)대로
-      fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--cap-l9", "0px");
+      capPlace9();
       const side9 = (row9.clientWidth - fr9.getBoundingClientRect().width) / 2;
       row9.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);
       fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-side", `${Math.max(0, side9)}px`);   // 쇠판·툴박스도 틀 폭만(2026-10-23 · replay.css 독 모양 ★★)
@@ -22941,7 +22955,7 @@ export default function ReplayMotionPlayer({
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all]);
+  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock]);   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
@@ -23816,7 +23830,7 @@ export default function ReplayMotionPlayer({
               </button>
               {/* 접기 손잡이 — **전체화면 단추 오른쪽**(2026-10, 요청: "접기펴기 버튼 전체화면 버튼 오른쪽으로 이동 크기도 맞추기" ·
                   옛 자리 버튼 줄 정가운데). 크기는 꼬리 원과 같은 --mapbtn-h(replay.css .scr-tb-tail > .scr-motion-infodock-fold). */}
-              {dockFoldNode9}
+              {!dockFold2On9 && dockFoldNode9}
             </div>
   );
   const stageNode = (
@@ -23844,6 +23858,9 @@ export default function ReplayMotionPlayer({
         className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
+        {/* ★ 2단 접기의 펼치기 손잡이는 **뿌리 오른아래**에 뜬다(2026-11-07, 실기 지적: "2단 접기 상태의 펼치기 버튼은 아래쪽으로" — 재생바가 숨은 자리(화면 가운데쯤)에 홀로 떠 있었다).
+            재생바 꼬리(tailNode9)에서는 빠진다. */}
+        {dockFold2On9 && <div className="scr-fs-foldfab">{dockFoldNode9}</div>}
         <div
           className={cx("scr-fs-stage", splitOn9 && "is-split", NO_STAGE_OV9 && "scr-t-nostageov")} ref={stageRef}
           style={{
