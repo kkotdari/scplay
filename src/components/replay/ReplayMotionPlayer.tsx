@@ -22960,13 +22960,20 @@ export default function ReplayMotionPlayer({
      이동" · "접은상태 - 미니맵 인포창 접기") — 정보줄이 툴박스로 나가 틀은 [미니맵 | 인포창 | 접기] 한 줄이고, 접으면 그 손잡이 키만 남는다. */
   /* 3단 순환(0 → 1 → 2 → 0 · 위 dockFold9 ★) — 삼각형은 0·1 단에서 ▼(더 접힘) · 2 단에서 ▲(펼침). 1 단은 ▼ 둘. */
   const foldLabel9 = dockFold9 === 0 ? "독 접기 1단(인포창 · 전광판 숨김)" : dockFold9 === 1 ? "독 접기 2단(재생바 · 오버레이도 숨김)" : "독 펼치기";
+  /* 한 탭에 클릭이 둘 들어오면 두 단을 뛴다(2026-11-07, 실기 지적: "1단에서 2단 접기가 안 되고 펼침이 됨" — 1 → 2 → 0) — 400ms 안의 두 번째 클릭은 버린다. */
+  const foldAtRef9 = useRef(0);
   const dockFoldNode9 = (
     <button
       type="button" className={cx("scr-motion-infodock-fold", dockFold9 === 1 && "is-fold1", dockFold2On9 && "is-fold2")}
       aria-label={foldLabel9} aria-pressed={dockFoldOn9}
       title={foldLabel9}
       onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => setDockFold9((v) => ((v + 1) % 3) as 0 | 1 | 2)}
+      onClick={() => {
+        const now9 = performance.now();
+        if (now9 - foldAtRef9.current < 400) return;
+        foldAtRef9.current = now9;
+        setDockFold9((v) => ((v + 1) % 3) as 0 | 1 | 2);
+      }}
     >
       <svg viewBox="0 0 10 10" aria-hidden>
         {dockFold2On9
