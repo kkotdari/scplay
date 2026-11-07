@@ -1129,7 +1129,8 @@ if (has("--fold")) {
     const lay = document.querySelector(".scr-fs-layer");
     return { 독줄: vis(".scr-fs-dockrow"), 미니맵: vis(".scr-fs-minipanel"), 전광판: vis(".scr-fs-rosterpanel"), 인포창: vis(".scr-motion-infodock-body"), 재생바: vis(".scr-fs-lower > .scr-tb"),
       손잡이: vis(".scr-motion-infodock-fold"), 배속: vis(".scr-speeddial"), 모드토글: vis(".scr-modetog-stage"), 배율: vis(".scr-zoomdial"), 채팅: vis(".scr-fs-chat"),
-      자막: vis(".scr-cast-caption"), capBot: lay?.style.getPropertyValue("--cap-bot9"), capL: lay?.style.getPropertyValue("--cap-l9"), fold2: document.querySelector(".scr-fs-root")?.classList.contains("is-dockfold2") };
+      자막: vis(".scr-cast-caption"), capBot: lay?.style.getPropertyValue("--cap-bot9"), capL: lay?.style.getPropertyValue("--cap-l9"), fold2: document.querySelector(".scr-fs-root")?.classList.contains("is-dockfold2"),
+      wide: lay?.classList.contains("is-wide"), fs: lay?.classList.contains("is-fs"), wmini: lay?.style.getPropertyValue("--wmini-w"), lift: lay?.style.getPropertyValue("--dock-lift") };
   }));
   /* --foldhit(2026-10-30, 실기 지적: "독 접은 뒤 접힌 자리가 화면으로 인식이 안 됨 — 드래그·줌이 안 되고 페이지 드래그가 됨") — 접힌 독 자리·지도 자리의 맨 위 요소와
      그 사슬(touch-action · 손짓 받는 판 .scr-motion-map 안인가)을 적는다. */
