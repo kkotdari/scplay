@@ -5747,18 +5747,20 @@
    우물 안은 미니맵 상자(z 1)가 덮는다. 홀로그램 테마는 종전. 2단(미니맵만)에도 받침이 따라 남는다. */
 .scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel::before {
   content: ""; display: block; position: absolute; z-index: 0; pointer-events: none;
-  inset: calc(-1 * var(--dock-out, 6px)); top: calc(-1 * var(--dock-out, 6px)); left: calc(-1 * var(--dock-out, 6px)); right: calc(-1 * var(--dock-out, 6px)); height: auto;
+  inset: calc(-1 * var(--dock-out, 6px) - 2px); top: calc(-1 * var(--dock-out, 6px) - 2px); left: calc(-1 * var(--dock-out, 6px) - 2px); right: calc(-1 * var(--dock-out, 6px) - 2px); height: auto;
   clip-path: none; border-radius: 1px;
   background: var(--steel-dark-ped) #2b2e33;
-  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 2px 6px rgba(0, 0, 0, 0.5);
+  /* 아래 변에도 입술(안 어두운 줄 + 바깥 밝은 줄)을 준다(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 실측으론 네 변이 다 있었다 · 아래가 검은 선뿐이라 안 보였다). */
+  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 0 -2px 0 rgba(255, 255, 255, 0.08), inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 1px 0 1px rgba(255, 255, 255, 0.22), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel { box-shadow: 0 0 0 1px #050607, inset 0 0 0 1px rgba(255, 255, 255, 0.14) !important; }
 /* ★ 세로 배치도 **접으면**(1 · 2단 · 쇠판 · 틀이 재생바 위끝으로 내려가 미니맵 양옆 · 아래 쇠가 사라진다) 같은 온 둘레 쇠 테(같은 날 되지적: "가로모드만 말한 게 아니구 다 그렇구"). */
 .scr-fs-layer:not(.is-holodock):not(.is-wide) .scr-fs-lower.is-fold .scr-fs-dockmain > .scr-fs-minipanel::before {
-  display: block; inset: calc(-1 * var(--dock-out, 6px)); top: calc(-1 * var(--dock-out, 6px)); left: calc(-1 * var(--dock-out, 6px)); right: calc(-1 * var(--dock-out, 6px)); height: auto;
+  display: block; inset: calc(-1 * var(--dock-out, 6px) - 2px); top: calc(-1 * var(--dock-out, 6px) - 2px); left: calc(-1 * var(--dock-out, 6px) - 2px); right: calc(-1 * var(--dock-out, 6px) - 2px); height: auto;
   clip-path: none; border-radius: 1px; z-index: 0;
   background: var(--steel-dark-ped) #2b2e33;
-  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 2px 6px rgba(0, 0, 0, 0.5);
+  /* 아래 변에도 입술(안 어두운 줄 + 바깥 밝은 줄)을 준다(같은 날 되지적: "아직도 가로모드 아래쪽이 없어지네" — 실측으론 네 변이 다 있었다 · 아래가 검은 선뿐이라 안 보였다). */
+  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, inset 0 -2px 0 rgba(255, 255, 255, 0.08), inset 1px 0 0 rgba(255, 255, 255, 0.06), inset -1px 0 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #050607, 0 1px 0 1px rgba(255, 255, 255, 0.22), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 /* 미니맵 **안쪽 테**는 캔버스 위에 얹는다(같은 날 — 우물의 inset 흰 1px 은 미니맵 상자(.scr-motion-minibox · z 1)가 꽉 덮어 안 보였다). 상자 위 가짜 요소 한 겹(z 2 · 누름 안 받음). */
 .scr-fs-minipanel .scr-motion-minibox::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); }
