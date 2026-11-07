@@ -3154,3 +3154,8 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   아래가 쇠판·다른 독에 가려져 상관없었다(실기 지적: "가려진다기보다 안 그리는 거야"). 가로(`.is-wide`)·세로 접기(`.is-fold`) 온 둘레 테 규칙에서 구멍 높이도 `100% − 2·ped-in` 으로 닫았다.
   앞서 더한 '아래 입술' box-shadow 는 구멍에 같이 깎여 안 보였던 것.
 - 세로 2단: 숨긴 재생바(visibility · 자리 남음)의 바깥 키를 RMP `capPlace9` 가 `--tb-h9` 로 층에 적고 `.is-dockfold2` 미니맵을 `translateY` 로 그만큼 내린다(줄 키 불변 · 무대 안 바뀜). 자막은 내린 자리 위.
+
+## 전체화면 뒤로가기 단추(2026-11-07)
+요청: "전체화면 좌상단에 뒤로가기 버튼 노출 · 접기 상관없이 노출 · 모든 UI 숨기기(H)시엔 숨김".
+- RMP `.scr-fs-back`(fsOn 일 때만 · 무대 왼위 맨 앞 · exitFs) · 배율 원과 같은 원(--sd-w · 바탕 0.4 · 그늘) · ChevronLeft. 모드 토글(.scr-modetog-stage)은 `.is-fs` 에서 원 지름 + 6px·sdk 오른쪽(가로 배치는 안전영역 몫 더함).
+- 독 접기 1·2단의 숨김 목록(is-dockfold2)에 안 들어 남는다 · H(is-uihide-all)는 무대 자식을 다 숨겨 같이 숨는다 · U(is-uihide-ctl)에는 안 든다.

@@ -4550,6 +4550,18 @@
   font: inherit; cursor: pointer; pointer-events: auto; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none;
 }
 .scr-fs-layer.is-fs .scr-modetog-stage { top: calc(var(--safe-top, 0px) + var(--sd-gap)); }
+/* ★ 전체화면 뒤로가기(2026-11-07 · RMP .scr-fs-back · 요청: "전체화면 좌상단에 뒤로가기 버튼 노출 · 접기 상관없이 · H 땐 숨김") — 배율 원과 같은 원(--sd-w · 같은 바탕·그늘) · 무대 왼위 맨 앞.
+   모드 토글은 그 오른쪽으로 한 칸(원 지름 + 6px·sdk) 민다. 가로 배치는 왼쪽 안전영역 몫을 더한다(아래 .is-wide 줄). */
+.scr-fs-back {
+  position: absolute; left: var(--sd-gap); top: calc(var(--safe-top, 0px) + var(--sd-gap)); z-index: 30001;
+  width: var(--sd-w); height: var(--sd-w); box-sizing: border-box; padding: 0; border: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: rgba(8, 10, 14, 0.4); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  cursor: pointer; pointer-events: auto; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none;
+}
+.scr-fs-back svg { width: calc(22px * var(--sdk)); height: calc(22px * var(--sdk)); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)); }
+.scr-fs-back:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+.scr-fs-layer.is-fs .scr-modetog-stage { left: calc(var(--sd-gap) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-modetog-stage:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
 .scr-modetog-stage > span {
   display: inline-flex; align-items: center; padding: 0 calc(9px * var(--sdk)); border-radius: 999px;
@@ -5651,6 +5663,8 @@
 }
 /* 오버레이 — 원래 자리 + 좌우 안전영역. 배속 다이얼은 로스터 위(--dock-lift-r · CSS --over-cap 이 아니라 로스터 키로). 자막은 미니맵~로스터 사이 가운데. */
 .scr-fs-layer.is-wide .scr-modetog-stage { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }
+.scr-fs-layer.is-wide .scr-fs-back { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }
+.scr-fs-layer.is-wide.is-fs .scr-modetog-stage { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px) + var(--sd-w) + 6px * var(--sdk)); }   /* 뒤로가기 몫(위 .scr-fs-back) */
 .scr-fs-layer.is-wide .scr-zoomdial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); }
 .scr-fs-layer.is-wide .scr-zoomfps { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px) + var(--sd-w) + 6px * var(--sdk)); }
 .scr-fs-layer.is-wide .scr-speeddial { right: calc(var(--sd-gap) + env(safe-area-inset-right, 0px)); bottom: calc(var(--dock-lift-r, 0px) + var(--wbot) + var(--sd-gap)); }

@@ -24013,6 +24013,18 @@ export default function ReplayMotionPlayer({
               ) : null}
             </div>
           ) : !pending && zoomDial9 && FPS_TAG9 && FPS_FORCE9 ? <span className="scr-zoomfps" aria-hidden ref={(el) => { fpsTagEl9.el = el; }} /> : null}   {/* 위 FPS_TAG9 — 자식 없음(글자는 계측이 쓴다) */}
+          {/* ★ 전체화면 뒤로가기(2026-11-07, 요청: "전체화면 좌상단에 뒤로가기 버튼 노출 · 접기 상관없이 노출 · 모든 UI 숨기기(H)시엔 숨김") — 무대 왼위 맨 앞(모드 토글은 그만큼 오른쪽 ·
+              CSS .scr-fs-back) · 독 접기 1 · 2단에도 남는다(is-dockfold2 의 숨김 목록에 안 든다) · H(is-uihide-all)는 무대 자식을 다 숨기므로 같이 숨는다. */}
+          {fsOn && !pending && (
+            <button
+              type="button" className="scr-fs-back"
+              onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); exitFs(); }}
+              aria-label="전체화면 나가기" title="전체화면 나가기 (Alt+Enter)"
+            >
+              <ChevronLeft size={22} aria-hidden />
+            </button>
+          )}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
