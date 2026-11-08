@@ -22933,6 +22933,10 @@ export default function ReplayMotionPlayer({
       const st9 = lay9?.querySelector<HTMLElement>(":scope > .scr-fs-root > .scr-fs-stage") ?? lay9?.querySelector<HTMLElement>(".scr-fs-stage");
       const low9 = fr9.closest<HTMLElement>(".scr-fs-lower");
       if (!lay9 || !st9) return;
+      /* ★ 가림(data-veil · props veil) 동안은 안 잰다(2026-11-09, 지적: "재생기 중계모드 자막이 처음에 가끔 안 켜짐 · 단축키로 켜면 켜짐") — 가림은 모든 요소를 visibility hidden 으로
+         감춰 아래 shown9 가 독 요소를 하나도 못 찾았고, 자막 바닥(--cap-bot9)이 층 바닥으로 떨어져 **독 뒤에 숨었다**. 가림이 걷혀도 크기는 그대로라 ResizeObserver 가
+         다시 재지 않았다(로딩 차례에 따라 가끔). 걷히면 아래 effect 의존(veiled9)으로 다시 잰다. */
+      if (lay9.closest("[data-veil]")) return;
       const shown9 = (el9: HTMLElement | null | undefined): el9 is HTMLElement => {
         if (!el9) return false;
         const r9 = el9.getBoundingClientRect();
@@ -23129,7 +23133,7 @@ export default function ReplayMotionPlayer({
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock]);   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다
+  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock, veiled9]);   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다 · veiled9 — 가림이 걷히면 다시(위 capPlace9 ★ 가림)
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).
