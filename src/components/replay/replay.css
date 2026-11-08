@@ -5074,11 +5074,9 @@
   border-left: calc(4px * var(--ui, 1)) solid transparent; border-right: calc(4px * var(--ui, 1)) solid transparent; border-top: calc(5px * var(--ui, 1)) solid rgba(255, 255, 255, 0.94);
 }
 .scr-motion-pin svg { display: block; width: calc(10px * var(--ui, 1)); height: calc(10px * var(--ui, 1)); fill: currentColor; }
-.scr-motion-pin svg circle { fill: rgba(255, 255, 255, 0.94); }
 .scr-motion-pin > b { font: inherit; }
 .scr-motion-pin.is-mine { background: var(--scr-sc-green); }
 .scr-motion-pin.is-mine::after { border-top-color: var(--scr-sc-green); }
-.scr-motion-pin.is-mine svg circle { fill: var(--scr-sc-green); }
 .scr-motion-pin.is-on { transform: translateX(-50%) scale(1.15); }
 .scr-motion-pin:hover, .scr-motion-pin:focus-visible { transform: translateX(-50%) scale(1.15); outline: none; }
 .scr-tb-tail .scr-pinbtn { order: 0; }
@@ -5094,8 +5092,7 @@
 }
 .scr-motion-pc9 .scr-pin-card { font-size: round(nearest, calc(15px * var(--dk, 1)), 1px); }
 .scr-pin-card-body { display: inline-flex; align-items: center; gap: 0.35em; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.scr-pin-card-body svg { flex: none; width: 1.05em; height: 1.05em; fill: #ffd166; }
-.scr-pin-card-body svg circle { fill: rgba(8, 10, 14, 0.9); }
+.scr-pin-card-body svg { flex: none; width: 1.05em; height: 1.05em; color: #ffd166; }
 .scr-pin-card-body b { flex: none; font-weight: 800; }
 .scr-pin-memo { min-width: 0; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.92; }
 .scr-pin-like {

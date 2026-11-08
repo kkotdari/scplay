@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, MapPin, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -9778,6 +9778,12 @@ export type ScenePin9 = {
   likeCount: number;
   /** 내가 추천했나 · 내가 꽂았나 */ liked: boolean; mine: boolean;
 };
+/** 핀 아이콘 — 재생바 표식과 같은 꼴(긴 칩 + 아래 삼각 꼭지 · 2026-11-08 되요청 "아이콘도"). 툴바 단추 · 지나는 카드가 쓴다. */
+const PinMark9 = ({ size = 18 }: { size?: number }): React.ReactElement => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill="currentColor">
+    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H14.2L12 20l-2.2-4H6.5A2.5 2.5 0 0 1 4 13.5v-8z" />
+  </svg>
+);
 /** 지금 장면을 링크 쿼리로 — 시각·배속·자리·각도·카메라 임자. 기본값(0초 · 1배속 · 1배율 · 가운데 · 90도 ·
  *  임자 없음)은 안 싣는다(지적: stargayte 처럼 기본값은 빼기) — 주소만 길어진다. 카메라를 기계가 쥔 장면(중계·
  *  추적)은 playbackViewOf 가 자리를 비워 두므로 저절로 각도와 `&tr=` 만 실린다(위 ★). */
@@ -21525,8 +21531,7 @@ export default function ReplayMotionPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
               >
-                <svg viewBox="0 0 24 24" aria-hidden><path d="M12 22s7-6.4 7-12.2A7 7 0 0 0 5 9.8C5 15.6 12 22 12 22z" /><circle cx="12" cy="9.8" r="2.6" /></svg>
-                {g9.likes > 0 && <b>{g9.likes}</b>}
+                {g9.likes > 0 ? <><svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.1 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5c3.5 0 5.4 3.6 4.1 6.7C17.5 16.4 12 21 12 21z" /></svg><b>{g9.likes}</b></> : <b>{g9.pins.length > 1 ? g9.pins.length : "핀"}</b>}
               </button>
             ))}
           </span>
@@ -23976,7 +23981,7 @@ export default function ReplayMotionPlayer({
                   aria-label="이 장면에 핀 꽂기"
                   title="이 장면에 핀 꽂기 (P)"
                 >
-                  {pinDone9 ? <Check size={18} aria-hidden /> : <MapPin size={18} aria-hidden />}
+                  {pinDone9 ? <Check size={18} aria-hidden /> : <PinMark9 size={18} />}
                 </button>
               )}
               {onShare && (
@@ -24199,7 +24204,7 @@ export default function ReplayMotionPlayer({
                 return (
                   <div key={p9.id} className="scr-pin-card">
                     <button type="button" className="scr-pin-card-body" onClick={() => pinGo9(p9)} title="이 장면 자리로">
-                      <svg viewBox="0 0 24 24" aria-hidden><path d="M12 22s7-6.4 7-12.2A7 7 0 0 0 5 9.8C5 15.6 12 22 12 22z" /><circle cx="12" cy="9.8" r="2.6" /></svg>
+                      <PinMark9 size={16} />
                       <b>{p9.author.nickname}</b>
                       {p9.memo && <span className="scr-pin-memo">{p9.memo}</span>}
                     </button>
