@@ -9776,12 +9776,14 @@ export type ScenePin9 = {
   author: { memberId: string; nickname: string; avatar?: string | null };
   /** 내가 꽂았나 */ mine: boolean;
 };
-/** 핀 꼴 한 벌 — **긴 물방울 핀**(머리 둥글고 꼬리가 길게 뾰족 · 2026-11-08 되요청: "핀 모양이 말주머니 같아 보여 · 핀 모양으로 변경" — 옛 칩 + 삼각 꼭지 되물림). 재생바 표식 · 툴바 단추 · 카드가 같은 길. 머리 속은 빈 점. */
-const PIN_PATH9 = "M12 31C12 31 2.5 18.2 2.5 10.5A9.5 9.5 0 0 1 21.5 10.5C21.5 18.2 12 31 12 31Z";
+/** 핀 꼴 한 벌 — **막대사탕 핀**(가는 막대 위에 둥근 머리 · 2026-11-08 되요청: "핀 모양은 막대에 둥근 머리가 달린 막대사탕 꼴" — 그 앞의 물방울 · 칩 + 삼각 꼭지는 되물림).
+ *  재생바 표식 · 툴바 단추 · 카드가 같은 길 · 막대 끝(아래)이 그 시각. 24×32 자: 머리 r 7.5(가운데 y 8) · 막대 폭 2.8(y 14~32). */
+const PIN_PATH9 = "M12 0.5A7.5 7.5 0 1 1 11.99 0.5ZM10.6 14.5H13.4V32H10.6Z";
 const PinMark9 = ({ size = 18 }: { size?: number }): React.ReactElement => (
   <svg width={Math.round(size * 0.75)} height={size} viewBox="0 0 24 32" aria-hidden fill="currentColor">
-    <path d={PIN_PATH9} />
-    <circle cx="12" cy="10.5" r="3.4" className="scr-pin-hole" />
+    <circle cx="12" cy="8" r="7.5" />
+    <rect x="10.6" y="14.5" width="2.8" height="17.5" rx="1" />
+    <circle cx="9.6" cy="5.8" r="1.8" className="scr-pin-hole" />
   </svg>
 );
 /** 지금 장면을 링크 쿼리로 — 시각·배속·자리·각도·카메라 임자. 기본값(0초 · 1배속 · 1배율 · 가운데 · 90도 ·
@@ -21548,7 +21550,7 @@ export default function ReplayMotionPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
               >
-                <svg viewBox="0 0 24 32" aria-hidden><path d={PIN_PATH9} />{g9.pins.length <= 1 && <circle cx="12" cy="10.5" r="3.4" className="scr-pin-hole" />}</svg>
+                <svg viewBox="0 0 24 32" aria-hidden><circle cx="12" cy="8" r="7.5" /><rect x="10.6" y="14.5" width="2.8" height="17.5" rx="1" />{g9.pins.length <= 1 && <circle cx="9.6" cy="5.8" r="1.8" className="scr-pin-hole" />}</svg>
                 {g9.pins.length > 1 && <b>{g9.pins.length}</b>}
               </button>
             ))}

@@ -5060,17 +5060,17 @@
 /* ★ 장면 핀(2026-11-08, 요청: "태그는 재생바 위에 표시 — 하나 막대 뭐 그런 걸로" → 고른 꼴: 작은 핀 + 추천 수 · RMP pinGroups9) — 탐색바 위 한 줄 · 자는 검색 태그와 같다(손잡이 폭 반씩 양끝 비움).
    흰 핀(속은 어두운 점) · 내가 꽂은 것은 녹색(is-mine · 검색 켜짐과 같은 --scr-sc-green) · 지금 지나는 것은 1.25배(is-on) · 추천 수는 오른위 붉은 배지. 누름은 받는다(끌기로 안 샌다 — RMP stopPropagation). */
 .scr-motion-pins { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 3; }
-/* ★ 꼴은 **긴 물방울 핀**(2026-11-08 되요청: "핀 모양이 말주머니 같아 보여 · 핀 모양으로 변경" — 칩 + 삼각 꼭지 되물림 · 그 앞의 "긴 칩" 도) — RMP PIN_PATH9(24×32 · 꼬리 끝 = 그 시각) ·
-   흰 핀에 속 빈 점(.scr-pin-hole · 뒤가 비친다) · 내 핀은 녹색 · 지나는 핀 1.15배 · 묶음이면 머리에 개수(점 대신). 글자는 없다(되요청 "글자 없이 모양만"). */
+/* ★ 꼴은 **막대사탕 핀**(2026-11-08 되요청: "핀 모양은 막대에 둥근 머리가 달린 막대사탕 꼴" — 물방울 · 칩 + 삼각 꼭지 · 긴 칩은 다 되물림) — RMP PinMark9 와 같은 24×32 자(머리 r 7.5 · 막대 2.8 · 막대 끝 = 그 시각) ·
+   흰 핀 · 머리에 작은 빛점(.scr-pin-hole) · 내 핀은 녹색 · 지나는 핀 1.15배 · 묶음이면 머리에 개수(빛점 대신). 글자는 없다(되요청 "글자 없이 모양만"). */
 .scr-motion-pin {
   position: absolute; left: calc(var(--sp) * 100%); bottom: calc(50% + 6px * var(--ui, 1)); transform: translateX(-50%);
   display: block; width: calc(13px * var(--ui, 1)); height: calc(17px * var(--ui, 1)); padding: 0; border: 0; background: none; color: #fff;
   pointer-events: auto; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75)); transition: transform .15s; -webkit-tap-highlight-color: transparent;
 }
 .scr-motion-pin svg { display: block; width: 100%; height: 100%; fill: currentColor; }
-.scr-pin-hole { fill: rgba(8, 10, 14, 0.55); }
+.scr-pin-hole { fill: rgba(255, 255, 255, 0.7); }   /* 머리의 작은 빛점(막대사탕 광택) */
 .scr-motion-pin > b {
-  position: absolute; left: 50%; top: calc(17px * var(--ui, 1) * 10.5 / 32); transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: calc(17px * var(--ui, 1) * 8 / 32); transform: translate(-50%, -50%);
   font-size: calc(8px * var(--ui, 1)); line-height: 1; font-weight: 800; color: #14171c; filter: none;
 }
 .scr-motion-pin.is-mine { color: var(--scr-sc-green); }
