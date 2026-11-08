@@ -42,7 +42,17 @@ const VOL_KEY9 = "scr.sfx.vol";
 const read9 = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
 const write9 = (k: string, v: string): void => { try { localStorage.setItem(k, v); } catch { /* 사생활 모드 */ } };
 
-type Voice9 = { src: AudioBufferSourceNode; kind: SfxKind9; prio: number; at: number; until: number };
+type Voice9 = { src: AudioBufferSourceNode; gain: GainNode; kind: SfxKind9; prio: number; at: number; until: number };
+/** ★ 소리를 **스며 끊는다**(2026-11-08, 지적: "효과음 잡음 — 저그만 그런 건 아닌데") — 옛 판은 자리 뺏기(VOICES9 · 같은 종류 MAX9) · 멈춤 · 탐색 때 src.stop() 으로
+ *  파형 한가운데를 뚝 잘라 '딱'이 났다. 12ms 에 걸쳐 0 으로 내리고 그 뒤에 멈춘다. */
+function fadeStop9(src: AudioBufferSourceNode, gain: GainNode | null): void {
+  const c9 = src.context;
+  const t9 = c9.currentTime;
+  try {
+    if (gain) { gain.gain.cancelScheduledValues(t9); gain.gain.setValueAtTime(gain.gain.value, t9); gain.gain.linearRampToValueAtTime(0, t9 + 0.012); }
+    src.stop(t9 + (gain ? 0.015 : 0));
+  } catch { /* 이미 끝남 */ }
+}
 const voices9: Voice9[] = [];
 /** 종류마다 갈래 PCM(굽기 일꾼) — AudioBuffer 는 소리를 처음 낼 때 그 AudioContext 로 옮겨 담는다(bufsOf9). */
 const bank9 = new Map<SfxKind9, Float32Array[]>();
@@ -110,7 +120,13 @@ function ctxOf9(): AudioContext | null {
     try { ctx9 = new C9({ latencyHint: "interactive" }); } catch { return null; }
     master9 = ctx9.createGain();
     master9.gain.value = full9 ? 1 : volume9;
-    master9.connect(ctx9.destination);
+    /* ★ 출력 앞 리미터(2026-11-08, 지적: "효과음 잡음 — 저그만 그런 건 아닌데") — 소리 하나는 봉우리 0.75 안팎인데 교전에서 여섯 소리(VOICES9) + 연사 줄기가 겹치면 합이
+       1 을 넘어 **잘려(클리핑) 지글거렸다**. 압축기를 리미터로(문턱 −8dB · 무릎 6 · 비 12 · 공격 3ms · 놓음 0.2초) — 겹칠 때만 눌리고 혼자 나는 소리는 그대로다. */
+    try {
+      const lim9 = ctx9.createDynamicsCompressor();
+      lim9.threshold.value = -8; lim9.knee.value = 6; lim9.ratio.value = 12; lim9.attack.value = 0.003; lim9.release.value = 0.2;
+      master9.connect(lim9).connect(ctx9.destination);
+    } catch { master9.connect(ctx9.destination); }
   }
   if (ctx9.state === "suspended") void ctx9.resume().catch(() => {});
   return ctx9;
@@ -178,7 +194,7 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
   const c9 = ctxOf9();
   const bs9 = c9 && master9 ? bufsOf9(c9, kind) : null;
   if (!c9 || !master9 || !bs9 || bs9.length === 0 || c9.state !== "running") return;
-  if (slot) { try { slot.src.stop(); } catch { /* 이미 끝남 */ } voices9.splice(voices9.indexOf(slot), 1); }
+  if (slot) { fadeStop9(slot.src, slot.gain); voices9.splice(voices9.indexOf(slot), 1); }
   SFX_STAT9.played[kind] = (SFX_STAT9.played[kind] ?? 0) + 1;
   let vi = Math.floor(Math.random() * bs9.length);
   if (bs9.length > 1 && prev && vi === prev.v) vi = (vi + 1) % bs9.length;
@@ -189,7 +205,7 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
     const g9 = c9.createGain();
     g9.gain.value = (GAIN9[kind] ?? 1) * (0.45 + 0.55 * Math.max(0, Math.min(1, opt.near ?? 1)));
     src.connect(g9).connect(master9);
-    const v9: Voice9 = { src, kind, prio, at: now, until: now + bs9[vi].duration * 1000 };
+    const v9: Voice9 = { src, gain: g9, kind, prio, at: now, until: now + bs9[vi].duration * 1000 };
     src.onended = (): void => { const i9 = voices9.indexOf(v9); if (i9 >= 0) voices9.splice(i9, 1); };
     voices9.push(v9);
     src.start();
@@ -249,9 +265,9 @@ export function pumpGun9(): void {
 
 /** 지금 나는 소리를 다 끊는다(멈춤·되감기·탐색). */
 export function hushSfx9(): void {
-  for (const v of voices9) { try { v.src.stop(); } catch { /* 이미 끝남 */ } }
+  for (const v of voices9) fadeStop9(v.src, v.gain);
   voices9.length = 0;
-  for (const s9 of gunSrcs9) { try { s9.stop(); } catch { /* 이미 끝남 */ } }
+  for (const s9 of gunSrcs9) fadeStop9(s9, null);
   gunSrcs9.length = 0;
   gunRun9.until = 0;
   gunRun9.last = -1;

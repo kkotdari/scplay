@@ -3210,3 +3210,10 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 1.7 → 1.4(zergDone) · 1.8 → 1.5(boom) · 1.5 → 1.3(bioBoom) · 성대 숨 잡음 0.4 → 0.2(squeal · lurkerDie).
 측정(1차 차분 에너지 ÷ 신호 에너지 · v0): squeal 0.011 → 0.004 · lurkerDie 0.009 → 0.003 · fleshUnfold 0.011 → 0.001 · zergDone 0.006 → 0.003 · boom 0.007 → 0.004. 크기·길이 그대로.
 🔎 `$S/sfxchk/run.ts`(esbuild → node · 소리마다 peak · 고역비 · NaN).
+
+## 효과음 출력 리미터 · 스며 끊기(2026-11-08)
+되지적: "근데 꼭 저그만 그런 건 아닌데" — 소리 하나가 아니라 **합친 출력**의 문제였다.
+- 리미터 없음: master9 → destination 바로. 소리 하나 봉우리 ≈ 0.75 · 교전에서 VOICES9(6) + 연사 줄기가 겹치면 합이 1 을 넘어 잘려(클리핑) 지글거렸다 →
+  `master9 → DynamicsCompressor(문턱 −8dB · 무릎 6 · 비 12 · 공격 3ms · 놓음 0.2초) → destination`. 혼자 나는 소리는 문턱 아래라 그대로.
+- 뚝 끊기: 자리 뺏기(VOICES9 가 차면 덜 급한 소리) · 멈춤 · 탐색(hushSfx9)이 `src.stop()` 으로 파형 한가운데를 잘라 '딱' → `fadeStop9`(12ms 선형 내림 뒤 15ms 에 멈춤 · Voice9 에 gain 을 둔다).
+- 🔎 실기 귀로(교전 · 멈춤/탐색 순간).
