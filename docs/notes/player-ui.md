@@ -3202,3 +3202,11 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 성큰에 맞은 몸의 hit op(무기 갈래 없음 · by = Sunken Colony)가 근접 칼질(slash)로 한 번 더 났다 → 조용히(성큰은 erupt 의 spikeEarth 로 이미 운다).
 - `spikeEarth9` 를 덜 거칠게: 알갱이 0.9 → 0.35(확률 0.06 → 0.03) · 띠 잡음 1.4 → 0.8 · 치솟는 끝 2600 → 1700Hz · 포화 1.7 → 1.15 · 쿵 0.7 → 0.9 · 전체 0.62 → 0.5 · 동시 3 → 2 · 간격 90 → 160ms.
 - 🔎 실기 귀로 — 헤드리스는 소리를 못 듣는다. 견본은 `$S/sfxh/run.ts` 꼴(esbuild → WAV).
+
+## 죽음 · 건물 폭발 소리의 지글거림 — 한 표본 튐을 둥근 알갱이로(2026-11-08)
+되지적: "뭔가 건물이 터지거나 유닛 죽을 때 소리 같은데". 저그 죽음(squeal · squealHi · squealMuta · lurkerDie) · 알 부화(eggHatch) · 건물 착공/완공(fleshUnfold · zergDone) ·
+기계 폭발(boom · boomBig) · 가시(spikeEarth)가 '질척 · 파편'을 **표본 한 개짜리 무작위 튐**(22050Hz 에서 초당 50~110번)으로 냈다 — 온 대역에 퍼져 지글거리는 잡음으로 들렸다.
+`Grain9`(낮은 거르개 500~1400Hz + 되돌림 배수)에 통과시켜 둥근 '톡'으로 · 빈도 절반(squeal · lurkerDie · zergDone · eggHatch) · 포화 1.8 → 1.35(squeal · lurkerDie) · 1.6 → 1.35(fleshUnfold) ·
+1.7 → 1.4(zergDone) · 1.8 → 1.5(boom) · 1.5 → 1.3(bioBoom) · 성대 숨 잡음 0.4 → 0.2(squeal · lurkerDie).
+측정(1차 차분 에너지 ÷ 신호 에너지 · v0): squeal 0.011 → 0.004 · lurkerDie 0.009 → 0.003 · fleshUnfold 0.011 → 0.001 · zergDone 0.006 → 0.003 · boom 0.007 → 0.004. 크기·길이 그대로.
+🔎 `$S/sfxchk/run.ts`(esbuild → node · 소리마다 peak · 고역비 · NaN).

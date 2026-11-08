@@ -77,6 +77,13 @@ function echo9(buf: Float32Array, sec: number, fb: number): Float32Array {
  *  이제 Web Audio 라 음량 손잡이(주 GainNode)도 곱해진다(sfx9 ★). */
 const SFX_LEVEL9 = 0.75;
 
+/** ★ 둥근 알갱이(2026-11-08, 지적: "저그 효과음 잡음 심함 — 건물 터지거나 유닛 죽을 때") — 옛 소리들은 표본 **한 개**짜리 무작위 튐(초당 50~110번)을 '질척 · 파편'으로 썼는데,
+ *  한 표본 튐은 온 대역에 퍼져 **지글거리는 잡음**으로 들렸다. 튐을 낮은 거르개(hz)에 통과시켜 짧은 둥근 '톡'으로 바꾼다(거르면 작아지므로 gain 으로 되돌린다). */
+class Grain9 {
+  private f: Biquad9;
+  constructor(hz: number, private gain = 3) { this.f = new Biquad9("lp", hz, 0.7); }
+  run(x: number): number { return this.f.run(x) * this.gain; }
+}
 function finish9(buf: Float32Array, peak: number): Float32Array {
   let m = 0;
   for (let i = 0; i < buf.length; i += 1) m = Math.max(m, Math.abs(buf[i]));
@@ -164,11 +171,12 @@ function boom9(v: number, big: boolean): Float32Array {
   const lp = new Biquad9("lp", 3000, 0.8);
   const dur = big ? 1.5 : 0.8;
   const k = big ? 2.6 : 4.5;
+  const gD = new Grain9(1400, 2.5);
   return finish9(render9(dur, (t) => {
     const thump = Math.sin(2 * Math.PI * ((big ? 55 : 75) - t * 30) * t) * exp9(t, big ? 4 : 7);
     const body = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.35) * ad9(t, 0.006, k);
-    const debris = t > 0.05 && r() < 0.004 * exp9(t, 3) ? (r() * 2 - 1) * 0.8 : 0;
-    return sat9(thump * 0.9 + body + debris, 1.8);
+    const debris = gD.run(t > 0.05 && r() < 0.004 * exp9(t, 3) ? (r() * 2 - 1) * 0.8 : 0);
+    return sat9(thump * 0.9 + body + debris, 1.5);
   }, (t) => lp.set(3200 * exp9(t, big ? 2.2 : 3.5) + 120)), big ? 0.9 : 0.7);
 }
 
@@ -185,8 +193,8 @@ function bioBoom9(v: number): Float32Array {
     const low = lp.run(br()) * exp9(t, 4) * 0.9;
     if (t > bubT) { bubT = t + 0.05 + r() * 0.12; bubF = 180 + r() * 380; }
     const bub = Math.sin(2 * Math.PI * bubF * (1 + (t - bubT) * 4) * t) * Math.max(0, 1 - (bubT - t) * 18) * 0.25 * exp9(t, 2);
-    return sat9(splat + low + bub, 1.5);
-  }), 0.85);
+    return sat9(splat + low + bub, 1.3);
+  }), 0.8);
 }
 
 /** ★ 저그 유닛 죽음 — **생체 조직 폭발 + 저그 울음**(2026-11-02, 요청: "저그 죽음 소리 저거 말고 생체 조직 폭발과 저그 울음소리여야 · 다 변경") — 옛: 꾸웩 하나(톱니 성대만).
@@ -198,16 +206,17 @@ function squeal9(v: number, pk = 1): Float32Array {
   const f1 = new Biquad9("bp", 620 * fk, 3); const f2 = new Biquad9("bp", 1350 * fk, 4); const f3 = new Biquad9("bp", 2500 * fk, 5);
   const lp = new Biquad9("lp", 900, 0.7);
   const base = [340, 300, 380][v % 3] * pk;
+  const gG = new Grain9(600, 3);
   let ph = 0;
   return finish9(render9(0.8, (t) => {
     const f0 = base * Math.max(0.44, 1.08 - t * 1.0) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.03 * Math.sin(2 * Math.PI * 31 * t));
     ph += f0 / SFX_RATE9;
-    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.4;
+    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.2;   // 숨 잡음 0.4 → 0.2(2026-11-08 잡음)
     const cry = (f1.run(src) * 1.2 + f2.run(src) * 0.85 + f3.run(src) * 0.4) * ad9(t, 0.03, 3.4) * 1.6;
-    const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.2) * ad9(t, 0.005, 6.5) * 1.0;
+    const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.1) * ad9(t, 0.005, 6.5) * 1.0;
     const thump = Math.sin(2 * Math.PI * (80 - t * 50) * t) * exp9(t, 9) * 0.8;
-    const goo = t > 0.04 && t < 0.5 && r() < 0.005 ? (r() * 2 - 1) * 0.6 : 0;
-    return sat9(cry * 0.75 + splat + thump + goo, 1.8);
+    const goo = gG.run(t > 0.04 && t < 0.5 && r() < 0.0025 ? (r() * 2 - 1) * 0.6 : 0);   // 둥근 질척(Grain9) · 절반 빈도
+    return sat9(cry * 0.75 + splat + thump + goo, 1.35);   // 포화 1.8 → 1.35
   }, (t) => { f1.set((620 - t * 260) * fk); f2.set((1350 - t * 450) * fk); lp.set(900 - 600 * Math.min(1, t / 0.5)); }), 0.62);
 }
 
@@ -629,11 +638,12 @@ function spikeEarth9(v: number): Float32Array {
   const r = rng9(1301 + v); const br = brown9(r);
   const bp = new Biquad9("bp", 300, 3.5);
   const lp = new Biquad9("lp", 1800, 0.7);
+  const gS = new Grain9(1200, 2.5);
   /* ★ 덜 거칠게(2026-11-08, 지적: "저그 효과음 잡음 심한데 성큰 효과음 의심됨") — 성큰 · 럴커가 여럿이면 이 소리가 겹쳐 쌓인다. 알갱이(grit · 흰 잡음 튐) 0.9 → 0.35 · 확률 0.06 → 0.03 ·
      쑥(띠 잡음) 1.4 → 0.8 · 치솟는 끝 2600 → 1700Hz · 포화 1.7 → 1.15(찌그러짐이 잡음으로 들렸다) · 쿵은 조금 더(0.7 → 0.9) · 전체 0.62 → 0.5. */
   return finish9(render9(0.38, (t) => {
     const crack = lp.run(br() * 1.0) * ad9(t, 0.004, 16);
-    const grit = r() < 0.03 * exp9(t, 12) ? (r() * 2 - 1) * 0.35 : 0;
+    const grit = gS.run(r() < 0.03 * exp9(t, 12) ? (r() * 2 - 1) * 0.35 : 0);
     const shoot = bp.run(r() * 2 - 1) * ad9(t, 0.03, 11) * 0.8;
     const thump = Math.sin(2 * Math.PI * (110 - t * 160) * t) * exp9(t, 24) * 0.9;
     return sat9(crack + grit + shoot + thump, 1.15);
@@ -765,6 +775,7 @@ function missileHi9(v: number): Float32Array {
  *  낮게 떨며 오르는 늘어남(70 → 140Hz · 느린 떨림) + 질척임(띠 잡음 400 → 900Hz 가 출렁) + 끈적한 뜯김 톡톡(흩어진 짧은 잡음) + 끝의 축축한 철퍽. 0.9초. */
 function fleshUnfold9(v: number): Float32Array {
   const r = rng9(1701 + v); const br = brown9(r);
+  const gT = new Grain9(700, 3);
   const bp = new Biquad9("bp", 400, 2.4);
   const lp = new Biquad9("lp", 600, 0.7);
   let ph = 0;
@@ -773,10 +784,10 @@ function fleshUnfold9(v: number): Float32Array {
     ph += (70 + 70 * u) * (1 + 0.08 * Math.sin(2 * Math.PI * 7 * t)) / SFX_RATE9;
     const stretch = Math.sin(2 * Math.PI * ph) * ad9(t, 0.12, 2.6) * 0.55;
     const squelch = bp.run(br() * 1.2 + (r() * 2 - 1) * 0.3) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 5 * t)) * ad9(t, 0.08, 2.8);
-    const tear = t > 0.1 && t < 0.75 && r() < 0.0025 ? (r() * 2 - 1) * 0.9 : 0;
+    const tear = gT.run(t > 0.1 && t < 0.75 && r() < 0.0025 ? (r() * 2 - 1) * 0.9 : 0);
     const sk = t - 0.68;
     const splat = sk > 0 ? lp.run(br() * 2) * Math.exp(-sk * 18) * 1.1 : 0;
-    return sat9(stretch + squelch + tear + splat, 1.6);
+    return sat9(stretch + squelch + tear + splat, 1.35);
   }, (t) => bp.set(400 + 500 * Math.min(1, t / 0.6))), 0.58);
 }
 
@@ -785,6 +796,7 @@ function fleshUnfold9(v: number): Float32Array {
  *  + 낮게 그르렁(42Hz 떨림) · 끝의 거품 방울 몇. 1.4초. */
 function zergDone9(v: number): Float32Array {
   const r = rng9(1751 + v); const br = brown9(r);
+  const gR = new Grain9(700, 3);
   const lp = new Biquad9("lp", 500, 0.7);
   const sq1 = new Biquad9("bp", 900, 2.2); const sq2 = new Biquad9("bp", 700, 2.6);
   const k = [1, 1.07, 0.93][v % 3];
@@ -795,12 +807,12 @@ function zergDone9(v: number): Float32Array {
     const s1 = sq1.run(br() + (r() * 2 - 1) * 0.3) * ad9(t, 0.03, 4.5) * 1.1;
     const t2 = t - 0.22;
     const s2 = t2 > 0 ? sq2.run(br() + (r() * 2 - 1) * 0.3) * ad9(t2, 0.03, 5) * 0.9 : 0;
-    const rip = t < 0.6 && r() < 0.012 * exp9(t, 4) ? (r() * 2 - 1) * 0.8 : 0;
+    const rip = gR.run(t < 0.6 && r() < 0.006 * exp9(t, 4) ? (r() * 2 - 1) * 0.8 : 0);
     ph += 42 * k * (1 + 0.2 * Math.sin(2 * Math.PI * 9 * t)) / SFX_RATE9;
     const growl = Math.sin(2 * Math.PI * ph) * ad9(t, 0.15, 2.4) * 0.45;
     const tb = t - 0.75;
     const bub = tb > 0 && r() < 0.0018 ? Math.sin(2 * Math.PI * (300 + r() * 500) * tb) * 0.5 : 0;
-    return sat9(thump + flesh + s1 + s2 + rip + growl + bub, 1.7);
+    return sat9(thump + flesh + s1 + s2 + rip + growl + bub, 1.4);
   }, (t) => { sq1.set(900 - 600 * Math.min(1, t / 0.5)); sq2.set(700 - 400 * Math.min(1, Math.max(0, t - 0.22) / 0.5)); }), 0.85);
 }
 
@@ -825,6 +837,7 @@ function eggStart9(v: number): Float32Array {
 /** ★ 알 깨짐(부화) — 옛 eggPop(부드러운 뽁)보다 **낮은 생체**(2026-11-02, 같은 요청): 깊은 퍽(72 → 36Hz) + 축축한 철퍽(저역 600Hz) + 껍질 찢김 바스락 + 낮은 방울 셋. 0.6초. */
 function eggHatch9(v: number): Float32Array {
   const r = rng9(1851 + v); const br = brown9(r);
+  const gH = new Grain9(700, 3);
   const lp = new Biquad9("lp", 600, 0.7);
   const k = [1, 1.07, 0.92][v % 3];
   let ph = 0;
@@ -834,7 +847,7 @@ function eggHatch9(v: number): Float32Array {
     ph += (72 - 36 * Math.min(1, t / 0.15)) * k / SFX_RATE9;
     const thump = Math.sin(2 * Math.PI * ph) * ad9(t, 0.006, 9) * 1.1;
     const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.2) * ad9(t, 0.008, 7) * 1.2;
-    const rip = t < 0.25 && r() < 0.02 * exp9(t, 8) ? (r() * 2 - 1) * 0.7 : 0;
+    const rip = gH.run(t < 0.25 && r() < 0.01 * exp9(t, 8) ? (r() * 2 - 1) * 0.7 : 0);
     let gl = 0;
     for (let i = 0; i < 3; i += 1) {
       const u = t - bub[i][0];
@@ -963,16 +976,17 @@ function lurkerDie9(v: number): Float32Array {
   const f1 = new Biquad9("bp", 450, 3); const f2 = new Biquad9("bp", 950, 4); const f3 = new Biquad9("bp", 1900, 5);
   const lp = new Biquad9("lp", 700, 0.7);
   const base = [210, 185, 235][v % 3];
+  const gL = new Grain9(500, 3);
   let ph = 0;
   return finish9(render9(0.9, (t) => {
     const f0 = base * Math.max(0.43, 1.05 - t * 1.1) * (1 + 0.08 * Math.sin(2 * Math.PI * 17 * t));
     ph += f0 / SFX_RATE9;
-    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.4;
+    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.2;
     const howl = (f1.run(src) * 1.2 + f2.run(src) * 0.8 + f3.run(src) * 0.35) * ad9(t, 0.03, 2.8) * 1.7;
     const thump = Math.sin(2 * Math.PI * (60 - t * 28) * t) * exp9(t, 6) * 1.0;
     const blast = lp.run(br() * 1.8) * ad9(t, 0.006, 5) * 0.9;
-    const splat = t > 0.08 && t < 0.6 && r() < 0.004 ? (r() * 2 - 1) * 0.7 : 0;
-    return sat9(howl * 0.8 + thump + blast + splat, 1.8);
+    const splat = gL.run(t > 0.08 && t < 0.6 && r() < 0.002 ? (r() * 2 - 1) * 0.7 : 0);
+    return sat9(howl * 0.8 + thump + blast + splat, 1.35);
   }, (t) => { f1.set(450 - t * 160); f2.set(950 - t * 300); }), 0.82);
 }
 
