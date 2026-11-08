@@ -5060,20 +5060,27 @@
 /* ★ 장면 핀(2026-11-08, 요청: "태그는 재생바 위에 표시 — 하나 막대 뭐 그런 걸로" → 고른 꼴: 작은 핀 + 추천 수 · RMP pinGroups9) — 탐색바 위 한 줄 · 자는 검색 태그와 같다(손잡이 폭 반씩 양끝 비움).
    흰 핀(속은 어두운 점) · 내가 꽂은 것은 녹색(is-mine · 검색 켜짐과 같은 --scr-sc-green) · 지금 지나는 것은 1.25배(is-on) · 추천 수는 오른위 붉은 배지. 누름은 받는다(끌기로 안 샌다 — RMP stopPropagation). */
 .scr-motion-pins { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 3; }
+/* ★ 꼴은 **긴 칩 + 아래 삼각형**(2026-11-08 실기 되요청: "저거보다는 긴 칩 모양에 아래는 삼각형") — 둥근 네모 칩(핀 아이콘 + 추천 수) · 밑변 가운데 삼각 꼭지가 그 시각을 가리킨다 ·
+   흰 칩에 어두운 글자 · 내 핀은 녹색 칩 · 지나는 핀은 1.15배. 옛 '핀 아이콘 + 붉은 배지'는 되물렸다(작고 자리를 안 가리켰다). */
 .scr-motion-pin {
-  position: absolute; left: calc(var(--sp) * 100%); bottom: calc(50% + 5px * var(--ui, 1)); transform: translateX(-50%);
-  width: calc(16px * var(--ui, 1)); height: calc(16px * var(--ui, 1)); padding: 0; border: 0; background: none; color: #fff;
-  pointer-events: auto; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); transition: transform .15s; -webkit-tap-highlight-color: transparent;
+  position: absolute; left: calc(var(--sp) * 100%); bottom: calc(50% + 9px * var(--ui, 1)); transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: calc(2px * var(--ui, 1)); height: calc(15px * var(--ui, 1)); min-width: calc(22px * var(--ui, 1)); padding: 0 calc(5px * var(--ui, 1)); box-sizing: border-box;
+  border: 0; border-radius: calc(3px * var(--ui, 1)); background: rgba(255, 255, 255, 0.94); color: #14171c;
+  font-size: calc(10px * var(--ui, 1)); line-height: 1; font-weight: 800; white-space: nowrap;
+  pointer-events: auto; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); transition: transform .15s; -webkit-tap-highlight-color: transparent;
 }
-.scr-motion-pin svg { display: block; width: 100%; height: 100%; fill: currentColor; }
-.scr-motion-pin svg circle { fill: rgba(8, 10, 14, 0.9); }
-.scr-motion-pin.is-mine { color: var(--scr-sc-green); }
-.scr-motion-pin.is-on { transform: translateX(-50%) scale(1.25); }
-.scr-motion-pin:hover, .scr-motion-pin:focus-visible { transform: translateX(-50%) scale(1.25); outline: none; }
-.scr-motion-pin > b {
-  position: absolute; top: calc(-5px * var(--ui, 1)); right: calc(-6px * var(--ui, 1)); min-width: calc(12px * var(--ui, 1)); height: calc(12px * var(--ui, 1)); padding: 0 calc(3px * var(--ui, 1)); box-sizing: border-box;
-  border-radius: 999px; background: #e8455a; color: #fff; font-size: calc(9px * var(--ui, 1)); line-height: calc(12px * var(--ui, 1)); font-weight: 800; text-align: center; filter: none;
+.scr-motion-pin::after {
+  content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  border-left: calc(4px * var(--ui, 1)) solid transparent; border-right: calc(4px * var(--ui, 1)) solid transparent; border-top: calc(5px * var(--ui, 1)) solid rgba(255, 255, 255, 0.94);
 }
+.scr-motion-pin svg { display: block; width: calc(10px * var(--ui, 1)); height: calc(10px * var(--ui, 1)); fill: currentColor; }
+.scr-motion-pin svg circle { fill: rgba(255, 255, 255, 0.94); }
+.scr-motion-pin > b { font: inherit; }
+.scr-motion-pin.is-mine { background: var(--scr-sc-green); }
+.scr-motion-pin.is-mine::after { border-top-color: var(--scr-sc-green); }
+.scr-motion-pin.is-mine svg circle { fill: var(--scr-sc-green); }
+.scr-motion-pin.is-on { transform: translateX(-50%) scale(1.15); }
+.scr-motion-pin:hover, .scr-motion-pin:focus-visible { transform: translateX(-50%) scale(1.15); outline: none; }
 .scr-tb-tail .scr-pinbtn { order: 0; }
 /* 지나는 핀 카드(RMP pinNow9) — 무대 위 가운데 · 화면 주인 이름표(top 3px·dk · 키 ≈ 1.5em) 아래 · 어두운 알약 · 꽂은 사람 굵게 · 메모 한 줄(넘치면 …) · 하트 단추(추천이면 붉게) · 추천한 사람 작게. */
 .scr-pin-cards {

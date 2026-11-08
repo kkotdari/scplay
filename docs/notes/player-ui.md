@@ -3167,7 +3167,8 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   `ReplayModule` props `pins: ScenePin9[]` · `onPinAdd(scene & {memo})` · `onPinLike(pin, on)` · `onPinDelete(pin)`(앱 sg-web GameResultStory 가 서버 일 · 홀로 선 화면에서만 받는다).
 - 꽂기: 툴바 꼬리 핀 단추(공유 왼쪽 · `.scr-pinbtn`) · 단축키 **P**(공유 X 와 같은 자격 · soleView/fsOn) → 멈추고 메모 창(`.scr-pinask` · body 포털 · Enter 꽂기 · Esc 취소) → 지금 장면은 공유 링크와 같은 표
   (`playbackClockOf`·`playbackViewOf`·`playbackTrackOf` · `pinSceneNow9` · 시각 0 도 싣는다) → 끝나면 단추 초록 체크 1.8초.
-- 표식(`.scr-motion-pins > .scr-motion-pin` · `pinGroups9`): 탐색바 위 · 흰 핀(속 어두운 점) · 내 핀 녹색(`is-mine`) · 지나는 핀 1.25배(`is-on`) · 추천 수 붉은 배지 · 전체 길이의 1.2% 안 핀은 한 표식(수 합).
+- 표식(`.scr-motion-pins > .scr-motion-pin` · `pinGroups9`): 탐색바 위 · **긴 칩 + 아래 삼각 꼭지**(실기 되요청 "저거보다는 긴 칩 모양에 아래는 삼각형" · 옛 핀 아이콘 + 붉은 배지 되물림) ·
+  흰 칩(핀 아이콘 + 추천 수) · 내 핀 녹색 칩(`is-mine`) · 지나는 핀 1.15배(`is-on`) · 전체 길이의 1.2% 안 핀은 한 표식(수 합). 자리는 검색 태그와 같은 자(--th 반씩 비움 · 꼭지 = 시각).
   누르면 `pinGo9`: 시각 옮김(검색 이동과 같은 길 tLiveRef9·setT·setDone) + 자리(z·cx·cy)가 있고 카메라가 손에 있으면(trackRaw null · 분할 아님) 그 자리(링크 받기 initialView 와 같은 셈 · 각은 안 건드림).
 - 카드(`.scr-pin-cards > .scr-pin-card` · `pinNow9`): 무대 위 가운데(화면 주인 이름표 아래 · top 34px·dk + 안전영역) · 장면 0.5초 전~4초(멈추면 남는다) · 둘까지 · 핀 · 꽂은 사람 굵게 · 메모 한 줄 · 하트(추천 · `is-on` 붉게 · 수) ·
   추천한 사람 셋 + 외 N · 내 핀이면 × 지우기 · 몸을 누르면 그 장면 자리로. H(is-uihide-all)에 같이 숨는다(무대 자식) · 접기 단은 그대로.
