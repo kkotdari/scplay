@@ -3217,3 +3217,5 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   `master9 → DynamicsCompressor(문턱 −8dB · 무릎 6 · 비 12 · 공격 3ms · 놓음 0.2초) → destination`. 혼자 나는 소리는 문턱 아래라 그대로.
 - 뚝 끊기: 자리 뺏기(VOICES9 가 차면 덜 급한 소리) · 멈춤 · 탐색(hushSfx9)이 `src.stop()` 으로 파형 한가운데를 잘라 '딱' → `fadeStop9`(12ms 선형 내림 뒤 15ms 에 멈춤 · Voice9 에 gain 을 둔다).
 - 🔎 실기 귀로(교전 · 멈춤/탐색 순간).
+- (같은 날 "지지지직 소리") 효과음 AudioContext `latencyHint` "interactive" → **"playback"** — 폭발 · 죽음 순간은 GL 이 가장 무거워 짧은 버퍼(폰 ~5ms)가 언더런으로 지직거렸다.
+  그래도 지직이면 다음 의심: 오디오 스레드가 아니라 기기 전체 과부하(perf-check 로 그 장면 프레임 시간) · BGM 과 효과음이 다른 문맥이라 서로 다른 버퍼로 도는 것.

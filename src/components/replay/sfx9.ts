@@ -117,7 +117,9 @@ function ctxOf9(): AudioContext | null {
       : window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!C9) return null;
     ambientAudio9();   // 세션을 먼저 ambient 로 — 무음 스위치를 따른다(위 ★)
-    try { ctx9 = new C9({ latencyHint: "interactive" }); } catch { return null; }
+    /* ★ 버퍼를 크게(2026-11-08, 지적: "지지지직 소리" — 종족 무관 · 건물 터지고 유닛 죽을 때) — "interactive"(가장 짧은 버퍼 · 폰 ~5ms)는 그 순간 GL 그림이 가장 무거워
+       오디오 스레드가 제때 못 채우면(언더런) 출력이 끊겨 지직거렸다. 재생기 효과음은 수십 ms 늦어도 티가 안 나므로 "playback"(큰 버퍼). 연사 줄기는 AudioContext 시계로 미리 박으니 그대로 고르다. */
+    try { ctx9 = new C9({ latencyHint: "playback" }); } catch { try { ctx9 = new C9(); } catch { return null; } }
     master9 = ctx9.createGain();
     master9.gain.value = full9 ? 1 : volume9;
     /* ★ 출력 앞 리미터(2026-11-08, 지적: "효과음 잡음 — 저그만 그런 건 아닌데") — 소리 하나는 봉우리 0.75 안팎인데 교전에서 여섯 소리(VOICES9) + 연사 줄기가 겹치면 합이
