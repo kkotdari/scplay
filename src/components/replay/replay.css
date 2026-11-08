@@ -5077,6 +5077,8 @@
 .scr-motion-pin.is-on { transform: translateX(-50%) scale(1.15); }
 .scr-motion-pin:hover, .scr-motion-pin:focus-visible { transform: translateX(-50%) scale(1.15); outline: none; }
 .scr-tb-tail .scr-pinbtn { order: 0; }
+/* ★ 폰은 검색 입력 중 꼬리의 핀 · 공유 · 도움말 단추를 접는다(2026-11-08, 실기 지적 "UI 오류" — 핀 단추가 더해져 입력칸이 최소 폭(48·ui)까지 눌려 "유닛·기…" 가 잘렸다 · 전체화면 · 접기 단추는 남긴다). */
+.scr-motion:not(.scr-motion-pc9) .scr-tb.is-searching .scr-tb-tail > :is(.scr-pinbtn, .scr-sharebtn, .scr-guide-btn) { display: none; }
 /* 지나는 핀 카드(RMP pinNow9) — 무대 위 가운데 · 화면 주인 이름표(top 3px·dk · 키 ≈ 1.5em) 아래 · 어두운 알약 · 꽂은 사람 굵게 · 메모 한 줄(넘치면 …) · 하트 단추(추천이면 붉게) · 추천한 사람 작게. */
 .scr-pin-cards {
   /* ★ 둥근 네모 · 폭을 다 쓴다(2026-11-08 되요청: "핀 내용 표시 패널 둥근 네모형으로 하고 폭 최대한 활용") — 무대 좌우 여백(배율 원 자리 --sd-room 안쪽 · 가로 배치는 안전영역)만 비우고 판을 편다. */

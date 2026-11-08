@@ -3182,3 +3182,7 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 ## 폰 배치: 선수 커서 · 명령줄 단추 미노출 · 늘 켬(2026-11-08)
 요청: "선수 커서 · 명령줄은 모바일에선 끌 수 없게 아이콘 미노출(자리 좁음 이슈)". RMP `linesOff9 = uiPhone9 ? false : linesOffPref9` · `cursorOn9 = uiPhone9 || cursorPref9`(기억 값은 PC 몫) ·
 두 단추(`MousePointer2` · `Route`)는 `!uiPhone9` 에만. 이를 위해 `ui9`·`uiPhone9` 상태 선언을 선 끄기 상태 앞(10333 줄 근처)으로 올렸다(resize effect 는 제자리). 옛 폰 기본은 커서 끔이었다.
+
+## 폰 검색 입력칸 눌림 — 꼬리 단추 접기(2026-11-08)
+실기 지적("UI 오류" · 스크린샷: 키보드 위로 띄운 검색 알약의 입력칸이 좁아 "유닛·기…" 잘림). 핀 단추가 꼬리에 더해져 폰 한 줄(왼 셋 + 검색 · 오른 다섯)에서 입력칸이 최소 폭 48·ui 까지 눌렸다.
+`.scr-tb.is-searching`(RMP searchEdit9) 동안 폰은 꼬리의 핀 · 공유 · 도움말을 `display:none`(전체화면 · 접기는 남김) — 입력칸이 제 폭(150·ui)으로 선다. 알약이 키보드 위로 혼자 떠 보이는 것은 2026-11-04 설계(지도 위 transform 들어 올림).

@@ -24450,7 +24450,7 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className={cx("scr-tb", !uiPhone9 && "is-one")}
+            className={cx("scr-tb", !uiPhone9 && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
