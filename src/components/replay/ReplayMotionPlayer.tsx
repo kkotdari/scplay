@@ -1832,7 +1832,10 @@ const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
    ③ 정지 중엔 안 재서 내린 채 남았다 → 멈추면 곧장 풀고 한 장 다시 그린다(아래 재생 effect 정리).
    내림: 비 > 1.3 이 1초 · 0.25 씩 · 바닥은 배율로(아래 drsFloor9 — 폰 0.75/1.0 · PC 1) · 바꾼 뒤 1.5초는 안 바꾼다 · 처음 2.5초는 재기만. 자동 조종(헤드리스)에선 끔. */
 const DRS9 = { on: !(typeof navigator !== "undefined" && navigator.webdriver === true), cap: Infinity, ema: 1, slow: 0, fast: 0, at: 0, lastB: 0, steps: 0,
-  base: 0, ivm: 0, steady: 0, t0: 0, z: 1 };
+  base: 0, ivm: 0, steady: 0, t0: 0, z: 1, capAt: 0 };
+/** ★ 배킹을 바꾼 뒤 다시 바꾸기까지 쉬는 ms(2026-11-08, 아이폰 배속 탭 터짐) — 배킹이 바뀔 때마다 화면 크기 버퍼(MRT 색 · 깊이 · 빛 · 번짐 사슬)를 통째로 다시 잡는다.
+ *  사파리는 지운 GPU 메모리를 늦게 돌려줘 1.5초마다 오르내리면 쌓였다. 메모리 단 1 이상은 6초 쉬고 · 올릴 때도 6초 넉넉해야 올린다(memLv9 ★). 0 단은 종전(0). */
+const drsHold9 = (): number => (memLv9() >= 1 ? 6000 : 0);
 /** ★ **프레임 대응 사다리 — 해상도는 마지막**(2026-10-27, 요청: "프레임대응 해상도는 최후의 수단 · 그전에 불필요 그래픽효과 줄이기 —
  *  사영그림자를 타원으로 바꾸고 공중유닛과 비행건물만 그리기 · 그밖의 비필수효과 끄기 · 방향 4방으로 줄이기 · 해상도 줄이기 순") ──────────
  *  아래 drsNote9 가 '느리다'를 읽으면 배킹보다 이 단을 먼저 한 칸씩 올리고(누적), 셋째 단까지 다 올린 뒤에야 배킹(DRS9.cap)을 내린다.
@@ -1906,14 +1909,15 @@ function drsNote9(now: number, interval: number, target: number): void {
     if (DRS9.slow > 1000 && FQ9.force < 0 && FQ9.lv < fqMax9()) {
       FQ9.lv += 1;
       DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
-    } else if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01) {
+    } else if (DRS9.slow > 1000 && DRS9.lastB > floor9 + 0.01 && now - DRS9.capAt >= drsHold9()) {
       DRS9.cap = Math.max(floor9, Math.floor((DRS9.lastB - 0.25) * 4) / 4);
-      DRS9.at = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
-    } else if (DRS9.fast > 2000 && DRS9.cap < Infinity) {
+      DRS9.at = now; DRS9.capAt = now; DRS9.slow = 0; DRS9.fast = 0; DRS9.ema = 1; DRS9.steps += 1;
+    } else if (DRS9.fast > (drsHold9() > 0 ? drsHold9() : 2000) && DRS9.cap < Infinity && now - DRS9.capAt >= drsHold9()) {
+      DRS9.capAt = now;
       DRS9.cap += 0.25;
       if (DRS9.cap >= Math.min(cap9, 8)) DRS9.cap = Infinity;
       DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
-    } else if (DRS9.fast > 2000 && FQ9.force < 0 && FQ9.lv > 0) {
+    } else if (DRS9.fast > 2000 && DRS9.cap === Infinity && FQ9.force < 0 && FQ9.lv > 0) {   // 올림은 해상도 먼저(위 사다리) — 배킹이 쉬는 동안(drsHold9) 효과 단이 앞질러 안 오르게
       FQ9.lv -= 1;
       DRS9.at = now; DRS9.fast = 0; DRS9.steps += 1;
     }
@@ -20813,7 +20817,7 @@ export default function ReplayMotionPlayer({
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
           mbCap: (ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (IOS9 ? 1 : 1.75) : TIER9.v >= 2 ? 2048 : 1024) * memK9(),   // × 메모리 단(위 memK9 ★)   // 아이폰은 ×1(위 IOS9 ★ · 200/160/128MB)   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 800 : 3000,
-          slowPrefetchMs: IOS9 ? 20000 : undefined, noPrefetch: memLv9() >= 1,   // 메모리 단 1 이상은 뒤에서 받아 풀기 안 함(위 memLv9 ★ · sprAtlas9 noPrefetch · 2026-11-08)   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
+          slowPrefetchMs: IOS9 ? 20000 : undefined, noPrefetch: memLv9() >= 1, noDrop: memLv9() >= 1,   // 메모리 단 1 이상은 뒤에서 받아 풀기 안 함(위 memLv9 ★ · sprAtlas9 noPrefetch · 2026-11-08)   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `메모리${memLv9()}단·${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;

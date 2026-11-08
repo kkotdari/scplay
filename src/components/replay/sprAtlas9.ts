@@ -221,6 +221,10 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
   /** ★ 뒤에서 받아 풀기를 아예 안 한다(2026-11-08, 지적: "아이폰 14 Pro 사파리에서 재생하고 얼마 안 있다 탭이 터져") — 아이폰은 20초 뒤 시작하던 받아 풀기(묶음 하나를
    *  RGBA 로 풀어 수십~백수십 MB · IndexedDB 에 담을 때 또 한 벌)가 웹킷 탭 한도를 넘겼다. 켜면 ① 를 건너뛰고, 교체 고리(②③)는 이미 캐시에 담긴 묶음만 올린다(slowPrefetchMs 와 같은 문). */
   noPrefetch?: boolean;
+  /** ★ 교체로 **내리지 않는다**(2026-11-08, 실기 블랙박스: 아이폰 1단 · 아틀라스 128MB = 상한에 딱 붙은 채 배속 재생 3분 반에 탭 터짐) — 상한에 닿으면 교체 고리가 150ms 마다
+   *  안 쓴 묶음을 GPU 에서 내리고 다른 묶음을 올렸고, 그 전에 묶음(수십 MB)을 먼저 풀어 놓고서야 상한을 쟀다. 배속에서 카메라가 빨리 돌면 큰 할당 · 해제가 쉬지 않았다.
+   *  켜면 상한 안에 들 때만 올리고(재기 전에 안 푼다) · 안 들면 그 묶음은 대기에서 뺀다 — 그 종류는 가까운 칸 · 채우기(판)로 그린다. */
+  noDrop?: boolean;
   /** 푼 단 캐시(위 ★)에 쓸 상한 MB(저장소 몫의 40% 와 작은 쪽). */
   cacheMB?: number;
   /** 앞 종류(core) 묶음의 처리 수 / 전체 — 로딩 진행도(RMP onLoadProgress)의 몫(2026-11-01). */
@@ -411,6 +415,8 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         if (performance.now() - resizeAt9.t < 2000) return;   // 화면 크기가 막 바뀌었다(위 ★ 천천히) — 캔버스를 새로 잡는 동안 텍스처를 안 올린다
         const kp9 = g9.sprSwapReq.values().next().value as string; g9.sprSwapReq.clear();
         const j = by9.get(kp9); if (!j) return;
+        /* 내리지 않는 기기(위 noDrop ★)는 상한에 거의 닿았으면 풀지도 않고 대기에서 뺀다. */
+        if (opt.noDrop && g9.sprFixedMB >= opt.mbCap * 0.97) { by9.delete(kp9); return; }
         st9.busy = true;
         /* 천천히(위 ★) 기기는 **캐시에 담긴 묶음만** 올린다 — 그 자리에서 받아 풀지 않는다(가까운 칸으로 그리는 동안 뒤에서 담기가 채운다). */
         const ready9 = (opt.slowPrefetchMs || opt.noPrefetch) && db
@@ -427,11 +433,11 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
             const p9 = u.tag.split("."); const kd9 = p9.slice(0, -2).join("."); const pr9 = p9[p9.length - 2];
             return now9 - u.last > 90 && (pr9 !== "a" || !want9.has(kd9));
           }).sort((x, y) => x.last - y.last);
-          while (g9.sprFixedMB + mb > opt.mbCap && cand9.length) {
+          while (!opt.noDrop && g9.sprFixedMB + mb > opt.mbCap && cand9.length) {
             const u = cand9.shift()!; g9.sprAtlasDrop9(u.tag); done.delete(u.tag); st9.drop += 1;
             const p9 = u.tag.split("."); const kpD9 = p9.slice(0, -1).join("."); const jb9 = all9.get(kpD9); if (jb9) by9.set(kpD9, jb9);
           }
-          if (g9.sprFixedMB + mb > opt.mbCap) return;
+          if (g9.sprFixedMB + mb > opt.mbCap) { if (opt.noDrop) by9.delete(kp9); return; }
           if (put9(j, c, t, e, mb) < 0) { by9.delete(kp9); return; }
           by9.delete(kp9); done.add(`${j.kind}.${j.par}.${opt.res}`); st9.n += 1;
         }).catch(() => { /* 아직 안 담김(위 천천히) — 다음 요청 때 */ }).finally(() => { st9.busy = false; });
