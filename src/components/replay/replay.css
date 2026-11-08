@@ -5064,7 +5064,7 @@
    흰 칩에 어두운 글자 · 내 핀은 녹색 칩 · 지나는 핀은 1.15배. 옛 '핀 아이콘 + 붉은 배지'는 되물렸다(작고 자리를 안 가리켰다). */
 .scr-motion-pin {
   position: absolute; left: calc(var(--sp) * 100%); bottom: calc(50% + 9px * var(--ui, 1)); transform: translateX(-50%);
-  display: inline-flex; align-items: center; gap: calc(2px * var(--ui, 1)); height: calc(15px * var(--ui, 1)); min-width: calc(22px * var(--ui, 1)); padding: 0 calc(5px * var(--ui, 1)); box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; gap: calc(2px * var(--ui, 1)); height: calc(12px * var(--ui, 1)); min-width: calc(18px * var(--ui, 1)); padding: 0 calc(4px * var(--ui, 1)); box-sizing: border-box;   /* 글자 없이 모양만(2026-11-08 되요청) — 칩을 한 단 작게(15×22 → 12×18) */
   border: 0; border-radius: calc(3px * var(--ui, 1)); background: rgba(255, 255, 255, 0.94); color: #14171c;
   font-size: calc(10px * var(--ui, 1)); line-height: 1; font-weight: 800; white-space: nowrap;
   pointer-events: auto; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); transition: transform .15s; -webkit-tap-highlight-color: transparent;

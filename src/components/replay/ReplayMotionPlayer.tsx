@@ -21514,7 +21514,7 @@ export default function ReplayMotionPlayer({
             ))}
           </span>
         )}
-        {/* ★ 장면 핀 표식(위 pinGroups9 ★ · 2026-11-08) — 진행바 위 칩(묶음이면 개수) · 내가 꽂은 것은 녹색 · 지금 지나는 것은 크게. 누르면 그 장면으로(pinGo9 · 끌기로 안 샌다). */}
+        {/* ★ 장면 핀 표식(위 pinGroups9 ★ · 2026-11-08) — 진행바 위 빈 칩(글자 없이 모양만 · 묶음이면 개수) · 내가 꽂은 것은 녹색 · 지금 지나는 것은 크게. 누르면 그 장면으로(pinGo9 · 끌기로 안 샌다). */}
         {pinGroups9.length > 0 && total > 0 && (
           <span className="scr-motion-pins">
             {pinGroups9.map((g9) => (
@@ -21527,7 +21527,7 @@ export default function ReplayMotionPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
               >
-                <b>{g9.pins.length > 1 ? g9.pins.length : "핀"}</b>
+                {g9.pins.length > 1 && <b>{g9.pins.length}</b>}
               </button>
             ))}
           </span>
