@@ -9776,10 +9776,12 @@ export type ScenePin9 = {
   author: { memberId: string; nickname: string; avatar?: string | null };
   /** 내가 꽂았나 */ mine: boolean;
 };
-/** 핀 아이콘 — 재생바 표식과 같은 꼴(긴 칩 + 아래 삼각 꼭지 · 2026-11-08 되요청 "아이콘도"). 툴바 단추 · 지나는 카드가 쓴다. */
+/** 핀 꼴 한 벌 — **긴 물방울 핀**(머리 둥글고 꼬리가 길게 뾰족 · 2026-11-08 되요청: "핀 모양이 말주머니 같아 보여 · 핀 모양으로 변경" — 옛 칩 + 삼각 꼭지 되물림). 재생바 표식 · 툴바 단추 · 카드가 같은 길. 머리 속은 빈 점. */
+const PIN_PATH9 = "M12 31C12 31 2.5 18.2 2.5 10.5A9.5 9.5 0 0 1 21.5 10.5C21.5 18.2 12 31 12 31Z";
 const PinMark9 = ({ size = 18 }: { size?: number }): React.ReactElement => (
-  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill="currentColor">
-    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H14.2L12 20l-2.2-4H6.5A2.5 2.5 0 0 1 4 13.5v-8z" />
+  <svg width={Math.round(size * 0.75)} height={size} viewBox="0 0 24 32" aria-hidden fill="currentColor">
+    <path d={PIN_PATH9} />
+    <circle cx="12" cy="10.5" r="3.4" className="scr-pin-hole" />
   </svg>
 );
 /** 지금 장면을 링크 쿼리로 — 시각·배속·자리·각도·카메라 임자. 기본값(0초 · 1배속 · 1배율 · 가운데 · 90도 ·
@@ -15157,6 +15159,22 @@ export default function ReplayMotionPlayer({
     const tm9 = window.setTimeout(back9, 350);
     return () => { cancelAnimationFrame(raf9); window.clearTimeout(tm9); };
   };
+  /* ★ 핀 메모 창도 검색과 같이 **화면이 안 밀리게**(2026-11-08 되요청: "검색과 마찬가지로 화면 안 밀리게 하고 입력창을 위에 띄우기") — 열 때 페이지 자리를 적고 · 손은 preventScroll 로 얹고
+     (autoFocus 는 굴린다) · 닫힐 때 곧장 · 한 장 뒤 · 350ms 뒤 되돌린다(searchScrollBack9). 창 자체는 가운데가 아니라 **위**에 선다(.scr-sharepick-overlay.is-top — 키보드가 올라와도 안 가린다). */
+  const pinInputRef9 = useRef<HTMLInputElement | null>(null);
+  const pinScroll9 = useRef<{ x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    if (pinAsk9 !== null) {
+      if (!pinScroll9.current) pinScroll9.current = { x: window.scrollX, y: window.scrollY };
+      pinInputRef9.current?.focus({ preventScroll: true });
+      return undefined;
+    }
+    const at9 = pinScroll9.current;
+    pinScroll9.current = null;
+    if (!at9) return undefined;
+    return searchScrollBack9(at9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinAsk9 !== null]);
   /* ★ **키보드 위로 띄운다**(2026-11-04, 지적: "모바일 재생기 전체화면에서 검색 누르면 키보드가 화면을 가림 · 키보드 위로 검색창을 잠시 띄워야") — 전체화면은 판이 고정이라
      페이지를 굴려도 입력칸이 안 올라온다. 입력 꼴인 동안 보이는 화면(visualViewport)의 아래 끝을 재어, 알약의 아래 끝이 그보다 밑이면 그만큼(+8px) 위로 옮긴다(transform ·
      자리 셈은 옮기기 전 자리로). 키보드가 내려가거나 입력 꼴이 끝나면 제자리. 키보드가 없는 PC 는 넘친 몫이 없어 그대로다. */
@@ -21527,6 +21545,7 @@ export default function ReplayMotionPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
               >
+                <svg viewBox="0 0 24 32" aria-hidden><path d={PIN_PATH9} />{g9.pins.length <= 1 && <circle cx="12" cy="10.5" r="3.4" className="scr-pin-hole" />}</svg>
                 {g9.pins.length > 1 && <b>{g9.pins.length}</b>}
               </button>
             ))}
@@ -24495,11 +24514,11 @@ export default function ReplayMotionPlayer({
   /* ★ 핀 메모 창(위 pinOpen9 ★ · 2026-11-08) — 공유의 사람 고르기 판과 같은 꼴(body 포털 · 전체화면 위에도 뜬다) · 한 줄 메모(선택 · 200자) · Enter 꽂기 · Esc 취소. */
   const pinAskSec9 = pinAsk9 !== null ? Math.max(0, Math.floor((clockKey ? playbackClockOf.get(clockKey) : undefined) ?? tLiveRef9.current)) : 0;
   const pinAskNode9 = pinAsk9 !== null ? createPortal(
-    <div className="scr-sharepick-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setPinAsk9(null); }}>
+    <div className="scr-sharepick-overlay is-top" onPointerDown={(e) => { if (e.target === e.currentTarget) setPinAsk9(null); }}>
       <div className="scr-sharepick scr-pinask" role="dialog" aria-modal="true" aria-label="이 장면에 핀 꽂기">
         <p className="scr-sharepick-title">이 장면에 핀 꽂기 <small>{Math.floor(pinAskSec9 / 60)}:{String(pinAskSec9 % 60).padStart(2, "0")}</small></p>
         <input
-          className="scr-pinask-input" type="text" autoFocus maxLength={200} placeholder="메모 (선택)" value={pinAsk9}
+          className="scr-pinask-input" type="text" ref={pinInputRef9} maxLength={200} placeholder="메모 (선택)" value={pinAsk9}
           onChange={(e) => setPinAsk9(e.target.value)}
           onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); void pinSubmit9(); } else if (e.key === "Escape") { e.preventDefault(); setPinAsk9(null); } }}
         />
