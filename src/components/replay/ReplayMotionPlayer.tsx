@@ -821,6 +821,51 @@ const SPR_DUMP9 = typeof location !== "undefined" ? ((): number => { const m9 = 
 /* (걷음 · 2026-11-03 "셋 다 같은 상한으로 통일") 옛 APP16_9 — Capacitor 앱만 16방·상한 ×1.75 로 가르던 자. 이제 폰은 웹·PWA·앱 모두 같다(아래 sprTune9 · ATLAS_WANT9). */
 /** 아이폰·아이패드(웹킷 — 탭 메모리 한도가 빡빡하다 · 2026-11-03, 지적: "아이폰 PWA 에서 세로 → 가로로 돌리면 페이지가 리로드 · 32방 이후"). */
 const IOS9 = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1));
+/* ══ 기기 메모리 단(2026-11-08, 지적: "아이폰 14 Pro 사파리에서 재생하고 얼마 안 있다 탭이 터져" → "아이폰만 지정하기보다 메모리를 따져야 · 기기에 맞게") ══════════════
+   0 넉넉 · 1 보통 · 2 빠듯 · 3 아주 빠듯. ① 브라우저가 기기 메모리를 알려 주면(navigator.deviceMemory · 크롬·안드로이드·PC) 그 값으로(8GB+ 0 · 4~6 1 · 2~3 2 · 그 아래 3).
+   ② 안 알려 주면(사파리 · 파이어폭스) 폰이면 1 · 아니면 0 에서 시작한다. ③ **탭이 터지면 배운다** — 재생기가 서 있는 동안 localStorage 에 '재생 중'을 적고 깨끗이
+   끝나면(내려감 · pagehide · 화면 숨김) 지운다. 다음에 열 때 그 표식이 30분 안의 것으로 남아 있으면 웹킷이 탭을 죽이고 다시 띄운 것으로 보고 한 단 내린다(최대 3) ·
+   3일 동안 안 터지면 한 단 돌려준다. `#memlv=N` 이면 그 단(시험). 단이 쓰는 곳: 아틀라스 방향 수(ATLAS_WANT9) · 뒤에서 받아 풀기(noPrefetch) · 아틀라스 GPU 상한 ·
+   2D 판 바이트 상한(memK9). 옛 아이폰 콕 집기(IOS9 → 16방 · 받아 풀기 끔)는 이 단으로 갈음했다. */
+const MEM_LV_KEY9 = "scr-memlv";
+const MEM_LIVE_KEY9 = "scr-memlive";
+let memCrashLv9 = -1;
+/** 터짐에서 배운 단(앞서 깨끗이 안 끝난 재생 · 3일 회복) — 한 번만 잰다(이 세션의 '재생 중' 표식을 적기 전에). */
+const memLearned9 = (): number => {
+  if (memCrashLv9 >= 0) return memCrashLv9;
+  let st9 = { lv: 0, at: 0 };
+  const now9 = Date.now();
+  try {
+    const j9 = JSON.parse(localStorage.getItem(MEM_LV_KEY9) ?? "null") as { lv?: number; at?: number } | null;
+    if (j9 && typeof j9.lv === "number") st9 = { lv: j9.lv, at: j9.at ?? 0 };
+    while (st9.lv > 0 && now9 - st9.at > 3 * 864e5) st9 = { lv: st9.lv - 1, at: st9.at + 3 * 864e5 };
+    const live9 = JSON.parse(localStorage.getItem(MEM_LIVE_KEY9) ?? "null") as { t?: number } | null;
+    if (live9 && typeof live9.t === "number" && now9 - live9.t < 30 * 60e3) st9 = { lv: Math.min(3, st9.lv + 1), at: now9 };
+    localStorage.removeItem(MEM_LIVE_KEY9);
+    localStorage.setItem(MEM_LV_KEY9, JSON.stringify(st9));
+  } catch { /* 저장소가 막혔으면 배우지 않는다 */ }
+  memCrashLv9 = st9.lv;
+  return memCrashLv9;
+};
+/** 기기 메모리 단(위 ★) — 0 넉넉 ~ 3 아주 빠듯. */
+const memLv9 = (): number => {
+  const ov9 = typeof location !== "undefined" ? /(?:^|[#&,])memlv=(\d)/.exec(location.hash) : null;
+  if (ov9) return Math.min(3, Number(ov9[1]));
+  const dm9 = typeof navigator !== "undefined" ? (navigator as unknown as { deviceMemory?: number }).deviceMemory : undefined;
+  /* 메모리를 안 알려 주는 폰(아이폰 전부 · 사파리는 기종명도 안 준다) — **처음부터** 한 단 아래(터진 뒤가 아니라). 기종은 화면 크기로만 가를 수 있다: 짧은 변 ≤ 375pt
+     (X~13 mini · SE · 3~4GB)는 두 단 아래. 393·390·428·430pt 무리는 같은 크기 안에 6GB 와 8GB 가 섞여(14 Pro 6 · 15 Pro 8) 더 못 가른다 — 탭을 죽이는 건 기기 전체가 아니라
+     사파리 탭 한도라 그 차이도 작다(2026-11-08, 질문 "아이폰 기종으로 판단 가능?"). */
+  const short9 = typeof window !== "undefined" ? Math.min(window.screen?.width ?? 0, window.screen?.height ?? 0) : 0;
+  const base9 = dm9 ? (dm9 >= 8 ? 0 : dm9 >= 4 ? 1 : dm9 >= 2 ? 2 : 3) : IOS9 && short9 > 0 && short9 <= 375 ? 2 : smallDevice9 ? 1 : 0;
+  return Math.min(3, base9 + memLearned9());
+};
+/** 메모리 단의 상한 배수(아틀라스 GPU · 2D 판 바이트) — 0 단 1 · 1 단 0.8 · 2 단 0.6 · 3 단 0.45. */
+const memK9 = (): number => [1, 0.8, 0.6, 0.45][memLv9()] ?? 0.45;
+/** '재생 중' 표식(위 ★ ③) — 켜면 적고 끄면 지운다. 배운 단을 먼저 잰다(이 세션 표식을 지난 세션 것으로 읽지 않게). */
+const memLive9 = (on: boolean): void => {
+  memLearned9();
+  try { if (on) localStorage.setItem(MEM_LIVE_KEY9, JSON.stringify({ t: Date.now() })); else localStorage.removeItem(MEM_LIVE_KEY9); } catch { /* 못 적으면 배우지 않는다 */ }
+};
 /** ★ 가로가 긴 전체화면(wide9)인가 — 붓(배킹 상한)이 읽는 거울(2026-11-07, 실기: "아이폰 PWA 전체화면 가로모드가 켜지는 순간 자꾸 터져"). 아이폰은 가로 전체화면에서 몸 배킹을
  *  IOS_WIDE_DPR9 로 눌러(dpr 3 → 2 · 화소 4/9) 가로로 도는 순간 옛·새 캔버스·MRT 가 겹치는 메모리를 줄인다 — 웹킷 탭 한도(gl-renderer.md 'GL 문맥 잃음' · 회전 리로드). */
 const WIDE9 = { on: false };
@@ -841,11 +886,15 @@ const sprTune9 = (): void => {
       /* ★ (같은 날 "PWA 나 캐퍼시터 앱이라고 메모리 이점은 없지? → 셋 다 같은 상한으로 통일하고 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 같은 상한(성능 단별) ·
          판 전체 = 기본 + 아틀라스 몫(아래 mbCap ×1.75 의 늘어난 몫) · 미리 찍기 걸음 2(16방 · 사이는 교체가 채운다). */
       /* ★ 아이폰은 아틀라스 몫을 안 더한다(IOS9 · 회전 때 캔버스를 새 크기로 다시 잡는 순간 옛·새가 겹쳐 웹킷이 탭을 죽이고 다시 띄웠다) — 넘치는 방향은 교체·가까운 칸이 채운다. */
-      bytesMB: (TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (IOS9 ? 0 : TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: 2 }
+      bytesMB: ((TIER9.v >= 2 ? 320 : TIER9.v === 1 ? 256 : 224) + (IOS9 ? 0 : TIER9.v >= 2 ? 150 : TIER9.v === 1 ? 120 : 96)) * memK9(), em: false, fill: TIER9.v >= 2 ? 2 : 1, warmStep: 2 }   // bytesMB × 메모리 단(memK9 ★ · 2026-11-08)
       : { pageMax: 36, budget: 96, warmMax: 24, msaa: -1, fill: 8, warmStep: TIER9.v === 0 ? 2 : 1 });
 };
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
 const ATLAS_WANT9 = (): 8 | 16 | 32 => {
+  /* ★ 메모리 단(위 memLv9 ★ · 2026-11-08 "기기에 맞게") — 0 단만 32방 · 1 단 16방 · 2 단 이상 8방. 없는 방향은 가까운 칸으로 그린다. */
+  const lv9 = memLv9();
+  if (lv9 >= 2) return 8;
+  if (lv9 === 1) return 16;
   if (DEV9.name === "phone") return 32;   // (2026-11-03 "셋 다 같은 상한 · 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 32방을 상한까지 올리고 넘친 묶음은 교체 · 옛: 앱 32 · 웹 16 ← 앱 16 · 웹 8
   return TIER9.v === 0 ? 16 : 32;
 };
@@ -14784,6 +14833,17 @@ export default function ReplayMotionPlayer({
       : { z: zoom, cx: 0.5 - pan.x / (bw * zoom), cy: 0.5 - pan.y / (bh * zoom), deg: pitchDeg });
   }, [clockKey, zoom, pan.x, pan.y, pitchDeg, fsOn, stage.w, stage.h, fsCoverW, castOn, trackRaw]);
   useEffect(() => () => { if (clockKey) playbackViewOf.delete(clockKey); }, [clockKey]);
+  /* ★ '재생 중' 표식(위 memLv9 ★ ③ · 2026-11-08) — 재생기가 서 있는 동안 적고, 내려가거나 페이지를 떠나거나(pagehide) 화면이 숨으면 지운다(다시 보이면 또 적는다).
+     웹킷이 탭을 죽이면 지울 틈이 없어 표식이 남고, 다음에 열 때 메모리 단을 한 단 내린다. 자리만 잡은 재생기(pending)는 안 적는다. */
+  useEffect(() => {
+    if (pending) return undefined;
+    memLive9(document.visibilityState !== "hidden");
+    const vis9 = (): void => memLive9(document.visibilityState !== "hidden");
+    const hide9 = (): void => memLive9(false);
+    document.addEventListener("visibilitychange", vis9);
+    window.addEventListener("pagehide", hide9);
+    return () => { document.removeEventListener("visibilitychange", vis9); window.removeEventListener("pagehide", hide9); memLive9(false); };
+  }, [pending]);
   /* ★ 카메라 임자를 적어 둔다(playbackTrackOf — 공유 버튼이 &tr= 로 싣는다): 개인 추적이면 그 사람, 자동 중계면
      CAST_AUTO_LINK9(요청: "대신 중계 파라미터 공유하기로 변경"). 표만 내보내 놓고 **적는 자리가 없었다**(2026-09 에
      찾음: 추적을 켜고 공유해도 링크에 &tr= 가 한 번도 안 실렸다). 둘 다 꺼져 있으면 지운다. 중계 중 '지금 누구
@@ -20684,12 +20744,12 @@ export default function ReplayMotionPlayer({
         sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
           /* (2026-11-03 요잉 32 · "고성능 피시는 교체 없이 쭉") — PC 높은 단은 32방 묶음(o)까지 다 GPU 에 올리게 2048MB · 그 아래는 1024MB 에서 넘치면 교체(sprAtlas9 교체 ★).
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
-          mbCap: ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (IOS9 ? 1 : 1.75) : TIER9.v >= 2 ? 2048 : 1024,   // 아이폰은 ×1(위 IOS9 ★ · 200/160/128MB)   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
+          mbCap: (ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (IOS9 ? 1 : 1.75) : TIER9.v >= 2 ? 2048 : 1024) * memK9(),   // × 메모리 단(위 memK9 ★)   // 아이폰은 ×1(위 IOS9 ★ · 200/160/128MB)   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 800 : 3000,
-          slowPrefetchMs: IOS9 ? 20000 : undefined,   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
+          slowPrefetchMs: IOS9 ? 20000 : undefined, noPrefetch: memLv9() >= 1,   // 메모리 단 1 이상은 뒤에서 받아 풀기 안 함(위 memLv9 ★ · sprAtlas9 noPrefetch · 2026-11-08)   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
-            SCR_DIAG.atlas = `${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
+            SCR_DIAG.atlas = `메모리${memLv9()}단·${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
             if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
           .finally(release9);

@@ -218,6 +218,9 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
   core?: number; onCore?: () => void; pending?: Set<string>; workers?: number;
   /** 뒤에서 받아 풀기를 천천히(2026-11-03 · 아이폰 회전 리로드 — 아래 ★ 천천히) — 시작을 이만큼(ms) 늦추고 · 켜 사이를 쉰다. 없으면 종전대로. */
   slowPrefetchMs?: number;
+  /** ★ 뒤에서 받아 풀기를 아예 안 한다(2026-11-08, 지적: "아이폰 14 Pro 사파리에서 재생하고 얼마 안 있다 탭이 터져") — 아이폰은 20초 뒤 시작하던 받아 풀기(묶음 하나를
+   *  RGBA 로 풀어 수십~백수십 MB · IndexedDB 에 담을 때 또 한 벌)가 웹킷 탭 한도를 넘겼다. 켜면 ① 를 건너뛰고, 교체 고리(②③)는 이미 캐시에 담긴 묶음만 올린다(slowPrefetchMs 와 같은 문). */
+  noPrefetch?: boolean;
   /** 푼 단 캐시(위 ★)에 쓸 상한 MB(저장소 몫의 40% 와 작은 쪽). */
   cacheMB?: number;
   /** 앞 종류(core) 묶음의 처리 수 / 전체 — 로딩 진행도(RMP onLoadProgress)의 몫(2026-11-01). */
@@ -330,6 +333,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         const ch = e9[par]; if (!ch) continue;
         const jb9 = { kind, par, ch }; all9.set(`${kind}.${par}`, jb9);
         const tg9 = `${kind}.${par}.${opt.res}`;
+        if (opt.noPrefetch && !pars9.includes(par)) continue;   // 받아 풀기를 안 하는 기기(아이폰)는 기기 몫(want) 밖 방향을 교체로도 안 올린다(옛 세션 캐시에 담긴 c·d 가 GPU 를 오가며 메모리를 흔들었다)
         if (!done.has(tg9) && !bad.has(tg9)) by9.set(`${kind}.${par}`, jb9);   // 본 싣기가 올리면 뺀다(put9 뒤)
       }
     }
@@ -382,7 +386,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
          ★ 천천히(2026-11-03, 지적: "아이폰 PWA 회전하면 리로드 · 어쩔 땐 되고 어쩔 땐 안 되고 · 32방 끄니 괜찮고 다시 켜도 그 뒤론 잘 됨") — 처음 보는 묶음을 받아 풀고 담는 동안
          회전하면 캔버스를 새로 잡는 몫과 겹쳐 웹킷이 탭을 죽였다(캐시가 다 차면 안 난다). slowPrefetchMs 가 있으면 그만큼 늦게 시작하고 · 화면 크기가 바뀐 뒤 4초는 쉬고 ·
          켜 사이를 400ms 쉰다. 교체 고리(②③)도 크기가 바뀐 뒤 2초는 안 올린다(모든 기기). */
-      if (by9.size > 0) {
+      if (by9.size > 0 && !opt.noPrefetch) {
         void (async () => {
           const slow9 = opt.slowPrefetchMs ?? 0;
           if (slow9 > 0) await new Promise((res) => setTimeout(res, slow9));
@@ -409,7 +413,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         const j = by9.get(kp9); if (!j) return;
         st9.busy = true;
         /* 천천히(위 ★) 기기는 **캐시에 담긴 묶음만** 올린다 — 그 자리에서 받아 풀지 않는다(가까운 칸으로 그리는 동안 뒤에서 담기가 채운다). */
-        const ready9 = opt.slowPrefetchMs && db
+        const ready9 = (opt.slowPrefetchMs || opt.noPrefetch) && db
           ? Promise.all(lys9(j).map((ly) => cacheHas9(db, j.ch.files[opt.res][ly] + "|" + fmt.tf + "|6"))).then((hs) => hs.every(Boolean))
           : Promise.resolve(true);
         void ready9.then((ok9) => { if (!ok9) throw new Error("skip"); return Promise.all(lys9(j).map((ly) => layer9(j, ly))); }).then((xs) => {
