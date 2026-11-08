@@ -10329,8 +10329,13 @@ export default function ReplayMotionPlayer({
   /* 손잡이(도구 판의 알약)는 걷었다(요청: 도구 오버레이 미사용) — 값은 남아 이 화면의
      기본으로 굳는다. 다시 켤 때 setter만 도로 꺼내면 된다. */
   const [clickFx] = useState(true); // 기본 켬(요청)
-  /** 선 끄기(위 LINES_OFF9 ★) — 브라우저에 기억(실패하면 켬). */
-  const [linesOff9, setLinesOff9] = useState<boolean>(() => { try { return localStorage.getItem("scr-lines-off") === "1"; } catch { return false; } });
+  /* ★ 해상도 단 상태(아래 uiStep9 effect 가 resize 에 다시 잰다) — 여기로 올렸다(2026-11-08): 선·커서 단추가 폰 배치를 먼저 봐야 해서. */
+  const [ui9, setUi9] = useState(uiStep9);
+  /** UI 가 폰 배치인가(위 UI_PHONE_W9 ★ — 폰 기기 또는 좁은 창). */
+  const uiPhone9 = ui9.phone;
+  /** 선 끄기(위 LINES_OFF9 ★) — 브라우저에 기억(실패하면 켬). ★ **폰 배치는 늘 켬 · 단추도 안 낸다**(2026-11-08, 요청: "선수 커서 · 명령줄은 모바일에선 끌 수 없게 아이콘 미노출 — 자리 좁음") — 기억 값은 PC 몫. */
+  const [linesOffPref9, setLinesOff9] = useState<boolean>(() => { try { return localStorage.getItem("scr-lines-off") === "1"; } catch { return false; } });
+  const linesOff9 = uiPhone9 ? false : linesOffPref9;
   const linesOffRef9 = useRef(linesOff9);
   linesOffRef9.current = linesOff9;
   const toggleLines9 = useCallback((): void => {
@@ -10340,7 +10345,8 @@ export default function ReplayMotionPlayer({
   const linesKick9 = useRef<() => void>(() => {});
   /** ★ 선수 마우스 커서 켜기(2026-11-05, 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가" — 재생 바의 선 단추 왼쪽 · 옛: feat 칸 `#cursor` 시험 기능) — 브라우저에 기억 · 기본 끔.
    *  주소 `#cursor` 면 처음부터 켬. 켜면 위 cursorPaths9 · cursorBuild9 를 짓고 엔진 시야(cursor)로 건설 고스트가 커서를 따라간다. */
-  const [cursorOn9, setCursorOn9] = useState<boolean>(() => { if (CURSOR9) return true; try { return localStorage.getItem("scr-cursor-on") === "1"; } catch { return false; } });
+  const [cursorPref9, setCursorOn9] = useState<boolean>(() => { if (CURSOR9) return true; try { return localStorage.getItem("scr-cursor-on") === "1"; } catch { return false; } });
+  const cursorOn9 = uiPhone9 || cursorPref9;   // 폰 배치는 늘 켬(위 선 끄기 ★ · 같은 요청)
   const toggleCursor9 = useCallback((): void => {
     setCursorOn9((v9) => { const nv9 = !v9; try { localStorage.setItem("scr-cursor-on", nv9 ? "1" : "0"); } catch { /* 기억 못 함 */ } return nv9; });
     linesKick9.current();
@@ -13543,16 +13549,13 @@ export default function ReplayMotionPlayer({
     if (typeof document === "undefined") return null;
     const d9 = document.createElement("div"); d9.className = "scr-motion-stagehost"; d9.style.display = "contents"; return d9;
   });
-  /* ★ 해상도 단(위 uiStep9) — 뿌리의 `--ui`. 화면이 바뀌면(폴드 펴기 · 딴 모니터로) resize 에서 다시 잰다. */
-  const [ui9, setUi9] = useState(uiStep9);
+  /* ★ 해상도 단(위 uiStep9) — 뿌리의 `--ui`. 화면이 바뀌면(폴드 펴기 · 딴 모니터로) resize 에서 다시 잰다. (상태 선언은 위 — 선·커서 단추 갈래가 먼저 본다 · 2026-11-08) */
   useEffect(() => {
     const on9 = (): void => { const n9 = uiStep9(); setUi9((p9) => (p9.k === n9.k && p9.name === n9.name && p9.phone === n9.phone ? p9 : n9)); };
     window.addEventListener("resize", on9);
     return () => window.removeEventListener("resize", on9);
   }, []);
   /* --dk·--dk-roster 도 인라인으로(위 uiStep9 주석 — 폰 자는 배치와 무관하게 폰 값) · CSS 의 식은 서버 렌더·옛 호스트의 대타다. */
-  /** UI 가 폰 배치인가(위 UI_PHONE_W9 ★ — 폰 기기 또는 좁은 창). */
-  const uiPhone9 = ui9.phone;
   /* 좁은 창으로 줄면(폰 UI) 분할을 닫는다 — 폰 UI 에는 분할이 없다(startSplit9 · pickPerson9 의 폰 갈래). */
   useEffect(() => { if (uiPhone9) setSplitOn9(false); }, [uiPhone9]);
   const uiVars9 = useMemo(() => ({
@@ -22075,7 +22078,7 @@ export default function ReplayMotionPlayer({
         ) : undefined)}
       </span>
       {/* ★ 마우스(위 cursorOn9 ★ · 2026-11-05, 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가") — 선수 마우스 커서를 켜고 끈다(켜졌을 때 is-on · 기본 끔). 선 단추 바로 왼쪽. */}
-      <button
+      {!uiPhone9 && <button
         type="button"
         className={cx("scr-motion-litbtn scr-motion-mapbtn", cursorOn9 && "is-on")}
         onClick={toggleCursor9}
@@ -22084,9 +22087,9 @@ export default function ReplayMotionPlayer({
         title={cursorOn9 ? "마우스 끄기" : "마우스 켜기"}
       >
         <MousePointer2 size={18} style={cursorOn9 ? undefined : { opacity: 0.45 }} />
-      </button>
+      </button>}
       {/* ★ 선 끄기(위 LINES_OFF9 ★ · 2026-11-04, 요청: "재생기에 선 끄기 버튼 · 단축키는 L") — 명령 줄 · 랠리 번쩍 줄을 끄고 켠다(켜졌을 때 is-on). */}
-      <button
+      {!uiPhone9 && <button
         type="button"
         className={cx("scr-motion-litbtn scr-motion-mapbtn", !linesOff9 && "is-on")}
         onClick={toggleLines9}
@@ -22095,7 +22098,7 @@ export default function ReplayMotionPlayer({
         title={linesOff9 ? "선 켜기 (L)" : "선 끄기 (L)"}
       >
         <Route size={18} style={linesOff9 ? { opacity: 0.45 } : undefined} />
-      </button>
+      </button>}
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
           1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].
