@@ -28,6 +28,7 @@ export { TEAM_COLOR } from "./markers";
 
 // 재생 시각과 장면 링크 — 앱은 sceneLinkQueryOf9(짓기)·sceneLinkOf9(풀기)만 부르고 값은 안 만진다.
 export { playbackClockOf, SCENE_LINK_KEYS9, sceneLinkQueryOf9, sceneLinkOf9 } from "./ReplayMotionPlayer";
+export type { ScenePin9 } from "./ReplayMotionPlayer";   // 장면 핀(2026-11-08)
 
 /* ── 도록 페이지(2026-10, 요청: "도록을 scplay에 포함시킬것임 재생기가 아니라 도록 페이지 자체를 제공함") ──
    scplayer 가 짓던 화면을 통째로 들였다(ModelCatalog.tsx 머리말 · 모델 조각 문은 2026-10-26 걷었다 — 도록 페이지가 안에서 쓴다). 앱이 갈래·종족 고르기를 제 알약으로

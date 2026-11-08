@@ -3159,3 +3159,16 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 요청: "전체화면 좌상단에 뒤로가기 버튼 노출 · 접기 상관없이 노출 · 모든 UI 숨기기(H)시엔 숨김".
 - RMP `.scr-fs-back`(fsOn 일 때만 · 무대 왼위 맨 앞 · exitFs) · 배율 원과 같은 원(--sd-w · 바탕 0.4 · 그늘) · ChevronLeft. 모드 토글(.scr-modetog-stage)은 `.is-fs` 에서 원 지름 + 6px·sdk 오른쪽(가로 배치는 안전영역 몫 더함).
 - 독 접기 1·2단의 숨김 목록(is-dockfold2)에 안 들어 남는다 · H(is-uihide-all)는 무대 자식을 다 숨겨 같이 숨는다 · U(is-uihide-ctl)에는 안 든다.
+
+## 장면 핀(2026-11-08)
+요청: "장면 공유 파라미터 일부 활용해 가칭 책갈피 — 어떤 장면에 태그 남겨서 다른 사람들도 그 장면을 보고 좋으면 추천 · 태그는 지도 위치와 시각이 기본 · 메모 · 재생바 위에 표시 ·
+그 장면을 지나갈 때 추천인·내용·좋아요한 사람 표시". 이름은 **핀**(추천안 채택 · 재생바·지도에 꽂힌 그림 = 말 · 핀 꽂기 · 핀 추천). 고른 꼴: 작은 핀 + 추천 수 · 지나갈 때 위 가운데 카드 4초 · 툴바 단추 + P · 메모 선택.
+- 자료: 서버(sg-api `game_scene_pins` · `game_scene_pin_likes` · `/api/game-results/{id}/pins[/{pid}[/like]]`) — 장면 링크 값(t·z·cx·cy·a·tr = `SceneLink9`)과 메모(200자). 재생기는 **그리기만**:
+  `ReplayModule` props `pins: ScenePin9[]` · `onPinAdd(scene & {memo})` · `onPinLike(pin, on)` · `onPinDelete(pin)`(앱 sg-web GameResultStory 가 서버 일 · 홀로 선 화면에서만 받는다).
+- 꽂기: 툴바 꼬리 핀 단추(공유 왼쪽 · `.scr-pinbtn`) · 단축키 **P**(공유 X 와 같은 자격 · soleView/fsOn) → 멈추고 메모 창(`.scr-pinask` · body 포털 · Enter 꽂기 · Esc 취소) → 지금 장면은 공유 링크와 같은 표
+  (`playbackClockOf`·`playbackViewOf`·`playbackTrackOf` · `pinSceneNow9` · 시각 0 도 싣는다) → 끝나면 단추 초록 체크 1.8초.
+- 표식(`.scr-motion-pins > .scr-motion-pin` · `pinGroups9`): 탐색바 위 · 흰 핀(속 어두운 점) · 내 핀 녹색(`is-mine`) · 지나는 핀 1.25배(`is-on`) · 추천 수 붉은 배지 · 전체 길이의 1.2% 안 핀은 한 표식(수 합).
+  누르면 `pinGo9`: 시각 옮김(검색 이동과 같은 길 tLiveRef9·setT·setDone) + 자리(z·cx·cy)가 있고 카메라가 손에 있으면(trackRaw null · 분할 아님) 그 자리(링크 받기 initialView 와 같은 셈 · 각은 안 건드림).
+- 카드(`.scr-pin-cards > .scr-pin-card` · `pinNow9`): 무대 위 가운데(화면 주인 이름표 아래 · top 34px·dk + 안전영역) · 장면 0.5초 전~4초(멈추면 남는다) · 둘까지 · 핀 · 꽂은 사람 굵게 · 메모 한 줄 · 하트(추천 · `is-on` 붉게 · 수) ·
+  추천한 사람 셋 + 외 N · 내 핀이면 × 지우기 · 몸을 누르면 그 장면 자리로. H(is-uihide-all)에 같이 숨는다(무대 자식) · 접기 단은 그대로.
+- 미확인: 헤드리스엔 핀 자료가 없어 그림은 못 봤다(코드 확신 · 요청대로 스샷 생략) — 실기에서 표식 자리(손잡이 가운데 맞음) · 카드가 이름표와 안 겹치는지 볼 것.

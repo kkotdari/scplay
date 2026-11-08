@@ -5057,6 +5057,62 @@
 }
 /* 흰색 · 지금 결과만 켜짐 녹색(카메라 단추 .scr-roster-cam.is-on 의 #3dffa8 · 2026-10-12, 요청: "검색 결과 태그는 흰색으로 하고 액티브만 녹색") — 옛 주황·빨강. */
 .scr-motion-searchtag.is-on { height: calc(18px * var(--ui, 1)); background: var(--scr-sc-green); }
+/* ★ 장면 핀(2026-11-08, 요청: "태그는 재생바 위에 표시 — 하나 막대 뭐 그런 걸로" → 고른 꼴: 작은 핀 + 추천 수 · RMP pinGroups9) — 탐색바 위 한 줄 · 자는 검색 태그와 같다(손잡이 폭 반씩 양끝 비움).
+   흰 핀(속은 어두운 점) · 내가 꽂은 것은 녹색(is-mine · 검색 켜짐과 같은 --scr-sc-green) · 지금 지나는 것은 1.25배(is-on) · 추천 수는 오른위 붉은 배지. 누름은 받는다(끌기로 안 샌다 — RMP stopPropagation). */
+.scr-motion-pins { position: absolute; top: 0; bottom: 0; left: calc(var(--th) / 2); right: calc(var(--th) / 2); pointer-events: none; z-index: 3; }
+.scr-motion-pin {
+  position: absolute; left: calc(var(--sp) * 100%); bottom: calc(50% + 5px * var(--ui, 1)); transform: translateX(-50%);
+  width: calc(16px * var(--ui, 1)); height: calc(16px * var(--ui, 1)); padding: 0; border: 0; background: none; color: #fff;
+  pointer-events: auto; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); transition: transform .15s; -webkit-tap-highlight-color: transparent;
+}
+.scr-motion-pin svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.scr-motion-pin svg circle { fill: rgba(8, 10, 14, 0.9); }
+.scr-motion-pin.is-mine { color: var(--scr-sc-green); }
+.scr-motion-pin.is-on { transform: translateX(-50%) scale(1.25); }
+.scr-motion-pin:hover, .scr-motion-pin:focus-visible { transform: translateX(-50%) scale(1.25); outline: none; }
+.scr-motion-pin > b {
+  position: absolute; top: calc(-5px * var(--ui, 1)); right: calc(-6px * var(--ui, 1)); min-width: calc(12px * var(--ui, 1)); height: calc(12px * var(--ui, 1)); padding: 0 calc(3px * var(--ui, 1)); box-sizing: border-box;
+  border-radius: 999px; background: #e8455a; color: #fff; font-size: calc(9px * var(--ui, 1)); line-height: calc(12px * var(--ui, 1)); font-weight: 800; text-align: center; filter: none;
+}
+.scr-tb-tail .scr-pinbtn { order: 0; }
+/* 지나는 핀 카드(RMP pinNow9) — 무대 위 가운데 · 화면 주인 이름표(top 3px·dk · 키 ≈ 1.5em) 아래 · 어두운 알약 · 꽂은 사람 굵게 · 메모 한 줄(넘치면 …) · 하트 단추(추천이면 붉게) · 추천한 사람 작게. */
+.scr-pin-cards {
+  position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 34px * var(--dk, 1)); transform: translateX(-50%); z-index: 30001;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--dk, 1)); max-width: min(92%, 560px); pointer-events: none;
+}
+.scr-pin-card {
+  display: inline-flex; align-items: center; gap: 0.4em; max-width: 100%; box-sizing: border-box; padding: 0.22em 0.5em 0.22em 0.45em; border-radius: 999px;
+  background: rgba(8, 10, 14, 0.74); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.16); color: #fff;
+  font-size: round(nearest, calc(13px * var(--dk, 1)), 1px); line-height: 1.3; pointer-events: auto; animation: scr-cast-caption-in 0.3s ease-out;
+}
+.scr-motion-pc9 .scr-pin-card { font-size: round(nearest, calc(15px * var(--dk, 1)), 1px); }
+.scr-pin-card-body { display: inline-flex; align-items: center; gap: 0.35em; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.scr-pin-card-body svg { flex: none; width: 1.05em; height: 1.05em; fill: #ffd166; }
+.scr-pin-card-body svg circle { fill: rgba(8, 10, 14, 0.9); }
+.scr-pin-card-body b { flex: none; font-weight: 800; }
+.scr-pin-memo { min-width: 0; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.92; }
+.scr-pin-like {
+  flex: none; display: inline-flex; align-items: center; gap: 0.2em; min-height: 1.6em; padding: 0 0.45em; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 0.88em; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.scr-pin-like svg { width: 1em; height: 1em; fill: currentColor; }
+.scr-pin-like.is-on { background: rgba(232, 69, 90, 0.85); }
+.scr-pin-like:disabled { cursor: default; opacity: 0.75; }
+.scr-pin-who { flex: none; max-width: 11em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82em; opacity: 0.78; }
+.scr-pin-del { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.5em; height: 1.5em; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.08); color: #fff; cursor: pointer; }
+.scr-pin-del:hover { background: rgba(255, 255, 255, 0.18); }
+/* 핀 메모 창(RMP pinAskNode9) — 공유의 사람 고르기 판(.scr-sharepick) 위에 입력 한 줄 · [취소 | 꽂기]. */
+.scr-pinask { gap: 8px; }
+.scr-sharepick-title > small { margin-left: 0.4em; font-size: 0.85em; font-weight: 600; opacity: 0.7; }
+.scr-pinask-input {
+  width: 100%; box-sizing: border-box; min-height: 38px; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; font-size: 15px; outline: none;
+}
+.scr-pinask-input:focus { border-color: rgba(255, 255, 255, 0.45); }
+.scr-pinask-row { display: flex; gap: 6px; }
+.scr-pinask-row > button { flex: 1; }
+.scr-pinask-ok { min-height: 36px; border: 0; border-radius: 4px; background: #2b62e8; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.scr-pinask-ok:hover, .scr-pinask-ok:focus-visible { background: #3a72f5; outline: none; }
 /* 자동 완성(2026-10-12, 요청: "자동 완성해 보자 · 게임 목록 검색처럼 · 단 그 게임에 나온 것만") — 알약 **위로** 뜬다(쇠판이 화면 아래라). 목록 판(.scr-motion-pickmenu)과 같은 결. */
 .scr-motion-searchsug {
   position: absolute; left: 0; bottom: calc(100% + 6px * var(--ui)); z-index: 7600;

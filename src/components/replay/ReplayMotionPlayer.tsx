@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, unlockSfx9 } from "./sfx9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, MapPin, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -9765,6 +9765,19 @@ export type SceneLink9 = {
   /** 각도(도) */ a?: number;
   /** 카메라 임자 — 게임 아이디 · `*`(CAST_AUTO_LINK9)는 자동 중계 */ tr?: string;
 };
+/** ★ 장면 핀(2026-11-08, 요청: "어떤 장면에 태그 남겨서 다른 사람들도 그 장면을 보고 좋으면 추천 · 지도 위치와 시각이 기본 · 메모 · 재생바 위에 표시 · 지나갈 때
+ *  추천인 · 내용 · 좋아요한 사람 표시") — 앱(sg-web)이 서버에서 받아 `pins` 로 넘기는 한 개. 자리 값은 장면 링크(SceneLink9)와 같은 뜻(없으면 기본). 꽂기 · 추천 · 지우기는
+ *  앱의 함수(onPinAdd · onPinLike · onPinDelete)가 하고, 재생기는 그린다(표식 · 카드 · 메모 창 · P). */
+export type ScenePin9 = {
+  id: number;
+  /** 시각(초) */ sec: number;
+  z?: number | null; cx?: number | null; cy?: number | null; a?: number | null; tr?: string | null;
+  memo: string;
+  author: { memberId: string; nickname: string; avatar?: string | null };
+  likes: { memberId: string; nickname: string }[];
+  likeCount: number;
+  /** 내가 추천했나 · 내가 꽂았나 */ liked: boolean; mine: boolean;
+};
 /** 지금 장면을 링크 쿼리로 — 시각·배속·자리·각도·카메라 임자. 기본값(0초 · 1배속 · 1배율 · 가운데 · 90도 ·
  *  임자 없음)은 안 싣는다(지적: stargayte 처럼 기본값은 빼기) — 주소만 길어진다. 카메라를 기계가 쥔 장면(중계·
  *  추적)은 playbackViewOf 가 자리를 비워 두므로 저절로 각도와 `&tr=` 만 실린다(위 ★). */
@@ -10100,6 +10113,7 @@ export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
+  pins, onPinAdd, onPinLike, onPinDelete,
   onGuide, guide = true, avatars,
   soleView, melee,
   onFinish, askMode, pending, veil, onReady, onLoadProgress, isTester = false,
@@ -10188,6 +10202,14 @@ export default function ReplayMotionPlayer({
   onShare?: () => string | boolean | void | Promise<string | boolean | void>;
   /** 공유 버튼의 글씨 — 기본 "장면 공유". */
   shareLabel?: string;
+  /** ★ 장면 핀(위 ScenePin9 ★ · 2026-11-08) — 앱이 서버에서 받은 목록. 바뀌면(꽂기 · 추천 뒤 다시 받기) 새 배열로 넘긴다. */
+  pins?: ScenePin9[];
+  /** 핀 꽂기 — 주면 툴바 꼬리에 단추(핀 · 단축키 P)가 서고 메모 창 뒤 지금 장면(시각 · 자리 · 각 · 카메라 임자 = SceneLink9)과 메모를 넘긴다. 던지면 안 꽂힌 것으로 둔다. */
+  onPinAdd?: (scene: SceneLink9 & { memo: string }) => void | Promise<unknown>;
+  /** 핀 추천 켜기·끄기 — 없으면 카드의 하트가 숫자만 보인다. */
+  onPinLike?: (pin: ScenePin9, on: boolean) => void | Promise<unknown>;
+  /** 내 핀 지우기 — 없으면 지우기 단추가 안 선다. */
+  onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
    *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
   onGuide?: () => void;
@@ -13566,6 +13588,79 @@ export default function ReplayMotionPlayer({
     if (tailTimer9.current) window.clearTimeout(tailTimer9.current);
     tailTimer9.current = window.setTimeout(() => { tailTimer9.current = 0; setTailDone9(null); }, 1800);
   }, [clockKey]);
+  /* ★ 장면 핀(위 ScenePin9 ★ · 2026-11-08) — 꽂기: 단추(툴바 꼬리) · P → 멈추고 메모 창(pinAsk9 · null 이면 닫힘) → 지금 장면(시각 · 자리 · 각 · 카메라 임자 — 공유 링크와
+     같은 표 playbackClockOf · playbackViewOf · playbackTrackOf)과 메모를 앱(onPinAdd)에 넘긴다 · 끝나면 단추에 초록 체크 1.8초. 표식·카드는 아래 pinGroups9 · pinNow9. */
+  const [pinAsk9, setPinAsk9] = useState<string | null>(null);
+  const [pinDone9, setPinDone9] = useState(false);
+  const pinTimer9 = useRef(0);
+  const onPinAddRef9 = useRef(onPinAdd);
+  onPinAddRef9.current = onPinAdd;
+  const pinOpen9 = useCallback((): void => {
+    if (!onPinAddRef9.current) return;
+    setPlaying(false);
+    setPinAsk9("");
+  }, []);
+  /** 지금 장면 한 벌 — 공유 링크(sceneLinkQueryOf9)와 같은 규칙 · 시각은 0 도 싣는다(핀은 늘 시각이 있다). */
+  const pinSceneNow9 = useCallback((): SceneLink9 => {
+    const out9: SceneLink9 = {};
+    const t9 = clockKey ? playbackClockOf.get(clockKey) : undefined;
+    out9.t = Math.max(0, Math.floor(t9 ?? tLiveRef9.current));
+    const v9 = clockKey ? playbackViewOf.get(clockKey) : undefined;
+    if (v9) {
+      const z9 = v9.z ?? 1;
+      if (z9 > 1.001) {
+        out9.z = Number(z9.toFixed(2));
+        out9.cx = Number((v9.cx ?? 0.5).toFixed(3));
+        out9.cy = Number((v9.cy ?? 0.5).toFixed(3));
+      }
+      if (Math.round(v9.deg) !== 90) out9.a = Math.round(v9.deg);
+    }
+    const tr9 = clockKey ? playbackTrackOf.get(clockKey) : undefined;
+    if (tr9) out9.tr = tr9;
+    return out9;
+  }, [clockKey]);
+  const pinSubmit9 = useCallback(async (): Promise<void> => {
+    const f9 = onPinAddRef9.current;
+    const memo9 = (pinAsk9 ?? "").trim();
+    setPinAsk9(null);
+    if (!f9) return;
+    try { await f9({ ...pinSceneNow9(), memo: memo9 }); } catch { return; }
+    setPinDone9(true);
+    if (pinTimer9.current) window.clearTimeout(pinTimer9.current);
+    pinTimer9.current = window.setTimeout(() => { pinTimer9.current = 0; setPinDone9(false); }, 1800);
+  }, [pinAsk9, pinSceneNow9]);
+  /* 단축키 P — 공유의 X 와 같은 자격(홀로 있는 화면 · 전체화면). */
+  useEffect(() => {
+    if (!onPinAdd) return undefined;
+    if (!soleView && !fsOn) return undefined;
+    const onKey9 = (e: KeyboardEvent): void => {
+      if (e.code !== "KeyP" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const t9 = e.target as HTMLElement | null;
+      if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.isContentEditable)) return;
+      e.preventDefault();
+      pinOpen9();
+    };
+    window.addEventListener("keydown", onKey9);
+    return () => window.removeEventListener("keydown", onKey9);
+  }, [onPinAdd, pinOpen9, soleView, fsOn]);
+  /** 재생바 표식 묶음 — 가까운 핀(전체 길이의 1.2% 안)은 한 표식으로 묶고 추천 수를 더한다(겹쳐 안 읽히는 것을 막는다). */
+  const pinGroups9 = useMemo((): { sec: number; pins: ScenePin9[]; likes: number; mine: boolean }[] => {
+    if (!pins || pins.length === 0) return [];
+    const sorted9 = [...pins].sort((a9, b9) => a9.sec - b9.sec || a9.id - b9.id);
+    const out9: { sec: number; pins: ScenePin9[]; likes: number; mine: boolean }[] = [];
+    const span9 = Math.max(1, total) * 0.012;
+    for (const p9 of sorted9) {
+      const g9 = out9[out9.length - 1];
+      if (g9 && p9.sec - g9.sec <= span9) { g9.pins.push(p9); g9.likes += p9.likeCount; g9.mine = g9.mine || p9.mine; }
+      else out9.push({ sec: p9.sec, pins: [p9], likes: p9.likeCount, mine: p9.mine });
+    }
+    return out9;
+  }, [pins, total]);
+  /** 지금 지나는 핀 — 장면 0.5초 전부터 4초 동안(멈추면 그대로 남는다) · 카드 둘까지. */
+  const pinNow9 = useMemo((): ScenePin9[] => {
+    if (!pins || pins.length === 0) return [];
+    return pins.filter((p9) => t >= p9.sec - 0.5 && t <= p9.sec + 4).sort((a9, b9) => a9.sec - b9.sec || a9.id - b9.id).slice(0, 2);
+  }, [pins, t]);
   /* 분할을 끄면 고르던 창도 닫는다 · Esc 로도 닫는다. */
   useEffect(() => { if (!splitOn9) setTailPick9(false); }, [splitOn9]);
   useEffect(() => {
@@ -21402,6 +21497,25 @@ export default function ReplayMotionPlayer({
             ))}
           </span>
         )}
+        {/* ★ 장면 핀 표식(위 pinGroups9 ★ · 2026-11-08) — 진행바 위 작은 핀 · 추천 수 배지 · 내가 꽂은 것은 녹색 · 지금 지나는 것은 크게. 누르면 그 장면으로(pinGo9 · 끌기로 안 샌다). */}
+        {pinGroups9.length > 0 && total > 0 && (
+          <span className="scr-motion-pins">
+            {pinGroups9.map((g9) => (
+              <button
+                key={g9.pins[0].id} type="button"
+                className={cx("scr-motion-pin", g9.mine && "is-mine", pinNow9.some((p9) => g9.pins.includes(p9)) && "is-on")}
+                style={{ ["--sp" as string]: String(Math.min(1, Math.max(0, g9.sec / total))) } as React.CSSProperties}
+                title={g9.pins.map((p9) => `${p9.author.nickname}${p9.memo ? ` · ${p9.memo}` : ""}`).join("\n")}
+                aria-label={`핀 ${g9.pins.length}개 · ${Math.floor(g9.sec / 60)}:${String(g9.sec % 60).padStart(2, "0")}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M12 22s7-6.4 7-12.2A7 7 0 0 0 5 9.8C5 15.6 12 22 12 22z" /><circle cx="12" cy="9.8" r="2.6" /></svg>
+                {g9.likes > 0 && <b>{g9.likes}</b>}
+              </button>
+            ))}
+          </span>
+        )}
         {!pending && <span className="scr-motion-seektips" aria-hidden><span className="scr-motion-seektip" ref={seekTipRef9} /></span>}
         <input
           ref={rangeRef}
@@ -23812,9 +23926,38 @@ export default function ReplayMotionPlayer({
      심는** 일일 뿐이다(fixed·inset:0). 평소에는 제자리에서 프레임 크기로 선다.
      크롭도 저절로 하나가 된다: 지도는 늘 무대를 덮게(cover) 깔리는데, 프레임의
      가로세로비를 지도와 같게 주므로 평소에는 덮는 몫이 0이다(=꼭 맞는다). */
-  /** 툴박스 꼬리 — 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
+  /** 핀 장면으로 — 시각을 옮기고(검색 결과 이동과 같은 길) 자리(z · cx · cy)가 있고 카메라가 손에 있으면 그 자리로(링크 받기 initialView 와 같은 셈 · 각은 안 건드린다). */
+  const pinGo9 = (p9: ScenePin9): void => {
+    const v9 = Math.min(total, Math.max(0, p9.sec));
+    tLiveRef9.current = v9;
+    setT(v9);
+    setDone(v9 >= total);
+    if (p9.z != null && p9.cx != null && p9.cy != null && trackRaw === null && !splitOn9) {
+      const cov9 = coverRef.current;
+      if (cov9.w < 4 || cov9.h < 4) return;
+      const z9 = Math.min(ZOOM_MAX, Math.max(1, p9.z));
+      const lim9 = panLimit(z9);
+      setView9(z9, {
+        x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - p9.cx) * cov9.w * z9)),
+        y: Math.min(centerTop9(lim9, p9.cy * grid.height), Math.max(-lim9.y, (0.5 - p9.cy) * cov9.h * z9)),
+      });
+    }
+  };
+  /** 툴박스 꼬리 — 핀 · 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
   const tailNode9 = (
             <div className="scr-tb-tail">
+              {/* ★ 장면 핀 꽂기(위 pinOpen9 ★ · 2026-11-08) — 공유 단추 왼쪽 · 단축키 P · 끝나면 초록 체크. */}
+              {onPinAdd && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn scr-pinbtn", pinDone9 && "is-done")}
+                  onClick={pinOpen9}
+                  aria-label="이 장면에 핀 꽂기"
+                  title="이 장면에 핀 꽂기 (P)"
+                >
+                  {pinDone9 ? <Check size={18} aria-hidden /> : <MapPin size={18} aria-hidden />}
+                </button>
+              )}
               {onShare && (
                 <button
                   type="button"
@@ -24026,6 +24169,36 @@ export default function ReplayMotionPlayer({
             </button>
           )}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
+          {/* ★ 지나는 핀 카드(위 pinNow9 ★ · 2026-11-08) — 무대 위 가운데(화면 주인 이름표 아래) · 꽂은 사람 · 메모 · 하트(추천 · 수) · 추천한 사람 셋 + 외 N · 내 핀은 지우기 ·
+              몸을 누르면 그 장면 자리로. 장면 0.5초 전 ~ 4초(멈추면 남는다) · 둘까지. H(is-uihide-all)는 무대 자식이라 같이 숨는다. */}
+          {!pending && pinNow9.length > 0 && (
+            <div className="scr-pin-cards" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
+              {pinNow9.map((p9) => {
+                const who9 = p9.likes.slice(0, 3).map((l9) => l9.nickname).join(", ") + (p9.likes.length > 3 ? ` 외 ${p9.likes.length - 3}` : "");
+                return (
+                  <div key={p9.id} className="scr-pin-card">
+                    <button type="button" className="scr-pin-card-body" onClick={() => pinGo9(p9)} title="이 장면 자리로">
+                      <svg viewBox="0 0 24 24" aria-hidden><path d="M12 22s7-6.4 7-12.2A7 7 0 0 0 5 9.8C5 15.6 12 22 12 22z" /><circle cx="12" cy="9.8" r="2.6" /></svg>
+                      <b>{p9.author.nickname}</b>
+                      {p9.memo && <span className="scr-pin-memo">{p9.memo}</span>}
+                    </button>
+                    <button
+                      type="button" className={cx("scr-pin-like", p9.liked && "is-on")} disabled={!onPinLike}
+                      onClick={() => { void onPinLike?.(p9, !p9.liked); }}
+                      aria-label={p9.liked ? "추천 거두기" : "추천"} title={p9.liked ? "추천 거두기" : "추천"}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.1 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5c3.5 0 5.4 3.6 4.1 6.7C17.5 16.4 12 21 12 21z" /></svg>
+                      {p9.likeCount > 0 && <span>{p9.likeCount}</span>}
+                    </button>
+                    {who9 && <span className="scr-pin-who">{who9}</span>}
+                    {p9.mine && onPinDelete && (
+                      <button type="button" className="scr-pin-del" onClick={() => { void onPinDelete(p9); }} aria-label="핀 지우기" title="핀 지우기"><X size={12} aria-hidden /></button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {askShow9 && (
@@ -24309,6 +24482,24 @@ export default function ReplayMotionPlayer({
       </div>
     </div>, document.body) : null;
 
+  /* ★ 핀 메모 창(위 pinOpen9 ★ · 2026-11-08) — 공유의 사람 고르기 판과 같은 꼴(body 포털 · 전체화면 위에도 뜬다) · 한 줄 메모(선택 · 200자) · Enter 꽂기 · Esc 취소. */
+  const pinAskSec9 = pinAsk9 !== null ? Math.max(0, Math.floor((clockKey ? playbackClockOf.get(clockKey) : undefined) ?? tLiveRef9.current)) : 0;
+  const pinAskNode9 = pinAsk9 !== null ? createPortal(
+    <div className="scr-sharepick-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setPinAsk9(null); }}>
+      <div className="scr-sharepick scr-pinask" role="dialog" aria-modal="true" aria-label="이 장면에 핀 꽂기">
+        <p className="scr-sharepick-title">이 장면에 핀 꽂기 <small>{Math.floor(pinAskSec9 / 60)}:{String(pinAskSec9 % 60).padStart(2, "0")}</small></p>
+        <input
+          className="scr-pinask-input" type="text" autoFocus maxLength={200} placeholder="메모 (선택)" value={pinAsk9}
+          onChange={(e) => setPinAsk9(e.target.value)}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); void pinSubmit9(); } else if (e.key === "Escape") { e.preventDefault(); setPinAsk9(null); } }}
+        />
+        <div className="scr-pinask-row">
+          <button type="button" className="scr-sharepick-cancel" onClick={() => setPinAsk9(null)}>취소</button>
+          <button type="button" className="scr-pinask-ok" onClick={() => { void pinSubmit9(); }}>꽂기</button>
+        </div>
+      </div>
+    </div>, document.body) : null;
+
   /* ══ 몸통 — **프레임 하나와 댓글 기둥**뿐이다(요청: 일반/전체화면 통합) ═════════
      여기 있던 것들을 전부 걷었다: 맵줄(.scr-motion-maprow)·좁은 화면 로스터 줄
      (.scr-motion-rosterwrap)·합친 사이드바(sideNode/.scr-motion-sidepanel)·지도 기둥
@@ -24342,6 +24533,7 @@ export default function ReplayMotionPlayer({
       {fsInner}
       {guideNode9}
       {tailPickNode9}
+      {pinAskNode9}
     </div>
   );
 
