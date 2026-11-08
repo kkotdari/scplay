@@ -374,7 +374,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, pins, onPinAdd, onPinLike, onPinDelete, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -420,12 +420,11 @@ export declare interface ReplayModuleProps {
     onShare?: () => string | boolean | void | Promise<string | boolean | void>;
     /** 공유 버튼의 글씨 — 기본 "장면 공유". */
     shareLabel?: string;
-    /** ★ 장면 핀(2026-11-08 · ReplayMotionPlayer ScenePin9 ★) — 목록 · 꽂기(단추 · P) · 추천 · 내 핀 지우기. 서버 일은 앱이 한다. */
+    /** ★ 장면 핀(2026-11-08 · ReplayMotionPlayer ScenePin9 ★) — 목록 · 꽂기(단추 · P) · 내 핀 지우기. 서버 일은 앱이 한다. */
     pins?: ScenePin9[];
     onPinAdd?: (scene: SceneLink9 & {
         memo: string;
     }) => void | Promise<unknown>;
-    onPinLike?: (pin: ScenePin9, on: boolean) => void | Promise<unknown>;
     onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
     /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
     onGuide?: () => void;
@@ -567,8 +566,8 @@ export declare const sceneLinkOf9: (src: string | URLSearchParams) => SceneLink9
 export declare const sceneLinkQueryOf9: (clockKey: string) => URLSearchParams;
 
 /** ★ 장면 핀(2026-11-08, 요청: "어떤 장면에 태그 남겨서 다른 사람들도 그 장면을 보고 좋으면 추천 · 지도 위치와 시각이 기본 · 메모 · 재생바 위에 표시 · 지나갈 때
- *  추천인 · 내용 · 좋아요한 사람 표시") — 앱(sg-web)이 서버에서 받아 `pins` 로 넘기는 한 개. 자리 값은 장면 링크(SceneLink9)와 같은 뜻(없으면 기본). 꽂기 · 추천 · 지우기는
- *  앱의 함수(onPinAdd · onPinLike · onPinDelete)가 하고, 재생기는 그린다(표식 · 카드 · 메모 창 · P). */
+ *  추천인 · 내용 표시") — 앱(sg-web)이 서버에서 받아 `pins` 로 넘기는 한 개. 자리 값은 장면 링크(SceneLink9)와 같은 뜻(없으면 기본). 꽂기 · 지우기는
+ *  앱의 함수(onPinAdd · onPinDelete)가 하고, 재생기는 그린다(표식 · 카드 · 메모 창 · P). 좋아요(추천)는 걷었다(2026-11-08 요청: "핀에 좋아요 기능은 없앨게"). */
 export declare type ScenePin9 = {
     id: number;
     /** 시각(초) */ sec: number;
@@ -583,13 +582,7 @@ export declare type ScenePin9 = {
         nickname: string;
         avatar?: string | null;
     };
-    likes: {
-        memberId: string;
-        nickname: string;
-    }[];
-    likeCount: number;
-    /** 내가 추천했나 · 내가 꽂았나 */ liked: boolean;
-    mine: boolean;
+    /** 내가 꽂았나 */ mine: boolean;
 };
 
 export declare const SEARCH_ROLES9: string[];
