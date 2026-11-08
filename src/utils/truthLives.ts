@@ -23,7 +23,7 @@
  */
 import { BUILDING_FOOT } from "./bwUnits";
 import { BW_UNIT_NAME } from "./bwUnitNames";
-import { TRUTH_ST_GONE, TRUTH_ST_MOVE, type TruthTrack, type TruthTracks, kT, kX, kY, kS, tkSlice, type Ticks, type Bullet17, type TileTL17 } from "./openbwTracks";
+import { TRUTH_ST_GONE, TRUTH_ST_MOVE, type TruthTrack, type TruthTracks, kT, kX, kY, kS, tkSlice, type Ticks, type Bullet17, type BltCols17, type TileTL17 } from "./openbwTracks";
 
 /** 시즈탱크의 두 자세 — 종류 번호가 바뀌지만 같은 몸이다. */
 const TANK_ID = 5;
@@ -144,6 +144,8 @@ export type TruthWorld = {
   dmgBucketSec: number;
   /** 판 17 탄 · 타일(크립·시야) 시간축 — openbwTracks 그대로. 옛 자취는 빈 배열·null. */
   bullets: Bullet17[];
+  /** 탄 열(openbwTracks BltCols17 ★ · 워커 쪽에만 선다). */
+  bltCols?: BltCols17;
   tiles: TileTL17 | null;
 };
 
@@ -550,6 +552,7 @@ export function truthWorld(truth: TruthTracks, buildSecOf: BuildSecOf): TruthWor
     dmg: truth.dmg ?? [],
     dmgBucketSec: truth.dmgBucketSec ?? 0,
     bullets: truth.bullets ?? [],
+    ...(truth.bltCols ? { bltCols: truth.bltCols } : {}),
     tiles: truth.tiles ?? null,
   };
 }

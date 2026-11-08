@@ -610,3 +610,9 @@ min(다음 명령 · 재명령 · +GHOST_CANCEL_SEC9)에 끝내 스러지게 했
   메인 참값은 그대로(전광판 · 우세 곡선 · 데이터 창 · 미니맵 핑 · 편성표 cast9 가 읽는다). 워커 쪽만 그만큼 준다.
 - `#diag=mem` 에 **메인 참값 칸 상위** 여섯(칸별 estBytes9) — 다음 실기 캡처에서 어느 칸이 큰지(총알 bullets · 명령 orders · 선택 sels · 피해 dmg …) 바로 보인다.
 - 남은 큰 몫 후보: 워커와 메인이 **둘 다** 읽는 orders · sels · builds · loads · ups · casts — 크면 형식 배열로 바꿔 transfer 하거나 한쪽에서 파생만 넘기는 길(다음 캡처로 정한다).
+- (같은 날 다음 캡처) **메인 참값 칸 상위: bullets 127.9MB** · tiles 15.1 · amounts 8.1 · stat 5.9 · orders 5.3 · gath 4.6 — 범인은 판 17 탄(객체 50만여 개). 워커 참값 216.3MB(위 slim9 로 −10).
+  · `BltCols17`(openbwTracks) — 엔진이 쓰는 칸만 형식 배열 여섯(src Int32 · t0 · t1(닿은 초 th · 없으면 t1) · tx · ty Float32 · tgt Int32)에 쏜 몸 차례 · 한 몸 안은 생긴 차례로.
+    RMP postTruth9 가 지어 transfer · 워커 truthWorld 가 entData.bltCols 로 넘기고 engine9 truthIdx9 가 쏜 몸 → [첫, 끝) 범위만 적는다(bc · br) · bltNow9 · bltLand9 는 열을 이분 탐색.
+    메인의 bullets(참값 · entData)는 넘긴 뒤 빈 배열 — 메인은 엔진을 안 돌린다(createEngine9 · deriveWorld9 는 워커만). 옛 객체 길은 bltCols 가 없을 때 그대로.
+  · 터짐 학습 열쇠 scr-memlv → **scr-memlv2**(참값이 줄었으니 새로 배운다). 캡처의 '메모리2단 · 2D판 1장 × 32MB · 메시 300/300'은 학습으로 내려간 단에서 아틀라스 96MB 가
+    바이트 상한을 먹어 판이 1장뿐이었던 것 — 배속에서 판 비우고 다시 굽기가 되풀이돼 프레임이 무너졌다 → gl9 `sprPageCap9` 바닥 3장.

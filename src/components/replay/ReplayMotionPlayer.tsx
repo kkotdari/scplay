@@ -78,7 +78,7 @@ import {
   TRUTH_ST_INSIDE as ST_INSIDE,
   TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks, st16At, ST16 } from "../../utils/openbwTracks";
 import { BW_UNIT_NAME } from "../../utils/bwUnitNames";
-import type { TileTL17 } from "../../utils/openbwTracks";
+import type { TileTL17, BltCols17 } from "../../utils/openbwTracks";
 import { bwUpgradeName, BW_TECH_NAME } from "../../utils/bwUpgradeNames";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
@@ -827,7 +827,7 @@ const IOS9 = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(naviga
    끝나면(내려감 · pagehide · 화면 숨김) 지운다. 다음에 열 때 그 표식이 30분 안의 것으로 남아 있으면 웹킷이 탭을 죽이고 다시 띄운 것으로 보고 한 단 내린다(최대 3) ·
    3일 동안 안 터지면 한 단 돌려준다. `#memlv=N` 이면 그 단(시험). 단이 쓰는 곳: 아틀라스 방향 수(ATLAS_WANT9) · 뒤에서 받아 풀기(noPrefetch) · 아틀라스 GPU 상한 ·
    2D 판 바이트 상한(memK9). 옛 아이폰 콕 집기(IOS9 → 16방 · 받아 풀기 끔)는 이 단으로 갈음했다. */
-const MEM_LV_KEY9 = "scr-memlv";
+const MEM_LV_KEY9 = "scr-memlv2";   // 2 — 탄 열(BltCols17 · 2026-11-08)로 참값이 200MB 남짓 줄어 옛 터짐 학습(scr-memlv)은 새로 시작한다
 /** ★ 블랙박스(2026-11-08, 지적: "아직도 터짐 · 그냥 재생이 문제인 듯") — 재생 중 2초마다 메모리에 닿는 수치를 적어 두고(scr-blackbox), 탭이 터지고 다시 열리면 그 마지막 줄을
  *  터짐 기록(scr-crashlog)으로 옮겨 진단 창(diag) 맨 위에 띄운다. 사파리는 힙을 안 알려 주고 헤드리스는 웹킷 탭 한도를 못 재므로 실기에서 범인을 가르는 자다. */
 const BLACKBOX_KEY9 = "scr-blackbox";
@@ -10775,8 +10775,29 @@ export default function ReplayMotionPlayer({
     /* ★ 워커가 **안 읽는 칸은 안 보낸다**(2026-11-08, 실기 진단: 43분 8인 판 메인 참값 177.5MB · 워커 참값 226.1MB(형식 41.8MB) — 아이폰 사파리 배속 재생 탭 터짐) —
        형식 배열 말고 칸들은 구조 복제라 **두 벌**이 된다. 피해(dmg) · 킬(kills) · 핑 · APM · 에너지 · 자원 그래프(res) · 채집(gath)은 메인만 읽는다(전광판 · 우세 곡선 ·
        데이터 창 · 미니맵 핑 · 편성표 cast9 — engine9 · frameWorker · 워커의 truthWorld 가 안 쓴다). 껍데기 사본(얕은 복사)에 빈 표를 끼워 보낸다 — 메인 참값은 그대로. */
-    const slim9: TruthTracks | null = tr9 ? { ...tr9, dmg: [], kills: [], pings: [], apm: new Map(), energy: new Map(), res: new Map(), gath: [] } : null;
+    /* ★ 탄은 **열로**(openbwTracks BltCols17 ★ · 같은 날 진단: bullets 127.9MB) — 엔진이 쓰는 칸(쏜 몸 · 생긴 초 · 닿은 초 · 표적 자리 · 표적)만 형식 배열 여섯에 쏜 몸 차례로 담아
+       transfer 한다(객체 50만여 개의 복제가 없다). 메인은 탄을 안 읽으므로 넘긴 뒤 비운다(아래). */
+    const bl9 = tr9?.bullets ?? [];
+    let bltCols9: BltCols17 | undefined;
+    if (tr9 && bl9.length > 0) {
+      const ord9: number[] = [];
+      for (let i9 = 0; i9 < bl9.length; i9 += 1) if (bl9[i9].src) ord9.push(i9);
+      ord9.sort((a9, b9) => (bl9[a9].src - bl9[b9].src) || (a9 - b9));   // 쏜 몸 차례 · 한 몸 안은 생긴 차례
+      const n9 = ord9.length;
+      bltCols9 = { src: new Int32Array(n9), t0: new Float32Array(n9), t1: new Float32Array(n9), tx: new Float32Array(n9), ty: new Float32Array(n9), tgt: new Int32Array(n9) };
+      for (let k9 = 0; k9 < n9; k9 += 1) {
+        const b9 = bl9[ord9[k9]];
+        bltCols9.src[k9] = b9.src; bltCols9.t0[k9] = b9.t0;
+        bltCols9.t1[k9] = b9.th !== undefined && Number.isFinite(b9.th) ? b9.th : b9.t1;
+        bltCols9.tx[k9] = b9.tx; bltCols9.ty[k9] = b9.ty; bltCols9.tgt[k9] = b9.tgt;
+      }
+      for (const a9 of Object.values(bltCols9)) bufs9.push((a9 as ArrayBufferView).buffer as ArrayBuffer);
+    }
+    const slim9: TruthTracks | null = tr9 ? { ...tr9, dmg: [], kills: [], pings: [], apm: new Map(), energy: new Map(), res: new Map(), gath: [],
+      bullets: bltCols9 ? [] : bl9, ...(bltCols9 ? { bltCols: bltCols9 } : {}) } : null;
     w9.postMessage({ type: "truth", truth: slim9 }, bufs9);
+    /* 메인의 탄을 비운다(메인은 엔진을 안 돌린다 — createEngine9 · deriveWorld9 는 워커만). 개체 표(entData)도 같은 배열을 가리킨다. */
+    if (tr9 && bltCols9) tr9.bullets = [];
     /* 넘긴 뒤 메인의 트랙은 **비운다** — 형식 배열은 transfer로 이미 비었지만 체력·인터셉터·표적 같은 쌍 배열은
        복제라 남는다(계측: 폰에서 메인 참값 40.8MB). 메인이 트랙을 읽는 자리는 없다(개체 표·자원 그래프·판 번호는
        따로 있다). 배열을 비우면 트랙 객체가 통째로 걷힌다. */
@@ -10787,6 +10808,7 @@ export default function ReplayMotionPlayer({
     const ed9 = entDataRef9.current;
     /* 메인의 화면이 읽는 생애 필드는 born·died·owner·kind·bld·tag·orders뿐(1번: 개체 표 두 벌 줄이기). 자리 열
        (sites)·이착륙·은신·시즈 구간은 워커 것만 쓰이므로 빈 배열(공유)로 바꿔 놓는다 — 객체는 그대로, 배열만 놓는다. */
+    if (ed9 && bltCols9) ed9.bullets = [];
     if (ed9) {
       for (const lf9 of ed9.lives) {
         lf9.hp = undefined; lf9.ic = undefined; lf9.tgt = undefined;

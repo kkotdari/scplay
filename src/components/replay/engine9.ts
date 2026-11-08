@@ -12,7 +12,7 @@ import { BLD_STATS, UNIT_BUILD_SEC, UNIT_STATS } from "./unitStats";
 import { acquireTilesOf, bodyRadiusOf, fireRangeTilesOf, isKnownKind, profileOf, reachTiles, weaponVs } from "../../utils/bwCombat";
 import { BUILDING_FOOT, FRAME_SEC, GEYSER_FOOT, LURKER_SPINE_SPEED_PX, LURKER_SPINE_TRAVEL_PX, MEDIC_HEAL_RANGE_PX, MINERAL_FOOT, buildingBox, sightTiles, unitOf } from "../../utils/bwUnits";
 import { type TruthWorld } from "../../utils/truthLives";
-import { st16At, ST16 } from "../../utils/openbwTracks";
+import { st16At, ST16, type BltCols17 } from "../../utils/openbwTracks";
 import { posAtTruth as posAtSim, kN, kS, type TruthTrack, type TruthTracks, TRUTH_ST_CARRY_GAS as ST_CARRY_GAS, TRUTH_ST_CARRY_MIN as ST_CARRY_MIN, TRUTH_ST_BURROW as ST_BURROW, TRUTH_ST_FIGHT as ST_FIGHT, TRUTH_ST_GATHER as ST_GATHER, TRUTH_ST_INSIDE as ST_INSIDE, TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks } from "../../utils/openbwTracks";
 import { posAtW, wT, wX, wY, EMPTY_WALK, type WalkView, type TrackPos } from "../../utils/replayTrack";
 import { project, withPitchView, withTopView, withViewShear, withYaw, yawBucket9, BLD_YAW9 } from "../../utils/shapeOblique";
@@ -223,15 +223,26 @@ export const MINE_ARM_SEC9 = 0.45;
 export const STIM_CD_K9: Record<string, number> = { Marine: 7 / 15, Firebat: 11 / 22 };
 /** ★ 판 16 건물 참값 색인(2026-11-03, 요청: "방어 건물 실제 사격 · 랠리 … 연결") — 건물 태그 → 상태 줄·실제 사격 · 사람 번호 → 편. 판(entData)마다 한 번. */
 type TruthIdx9 = { bld: Map<number, { st16?: Float64Array; fires?: Float64Array }>; team: Map<number, number>;
-  /** 판 17 탄 — 쏜 몸 태그 → 탄(생긴 차례 · t1 = 닿은 초 · 옛 판은 사라진 초). */ blt: Map<number, { t0: number; t1: number; tx: number; ty: number; tgt: number }[]> };
+  /** 판 17 탄 — 쏜 몸 태그 → 탄(생긴 차례 · t1 = 닿은 초 · 옛 판은 사라진 초). */ blt: Map<number, { t0: number; t1: number; tx: number; ty: number; tgt: number }[]>;
+  /** 탄 열(BltCols17 · 2026-11-08) 이 있으면 — 쏜 몸 → [첫 칸, 끝 칸) · blt 는 비어 있다. */ bc?: BltCols17; br?: Map<number, [number, number]> };
 const TRUTH_IDX9 = new WeakMap<object, TruthIdx9>();
 function truthIdx9(ed: { lives: readonly { bld: boolean; tag: number; st16?: Float64Array; fires?: Float64Array }[]; players: readonly { owner: number; team: number }[];
-  loads?: readonly [number, number, number][]; bullets?: readonly { t0: number; th?: number; t1: number; src: number; tgt: number; tx: number; ty: number }[] } | null | undefined): TruthIdx9 {
+  loads?: readonly [number, number, number][]; bullets?: readonly { t0: number; th?: number; t1: number; src: number; tgt: number; tx: number; ty: number }[]; bltCols?: BltCols17 } | null | undefined): TruthIdx9 {
   if (!ed) return { bld: new Map(), team: new Map(), blt: new Map() };
   let m9 = TRUTH_IDX9.get(ed);
   if (!m9) {
     m9 = { bld: new Map(), team: new Map(), blt: new Map() };
-    for (const b9 of ed.bullets ?? []) {
+    /* 탄 열(BltCols17 ★) — 쏜 몸마다 이어진 칸 범위만 적는다(객체를 안 만든다). */
+    const bc9 = ed.bltCols;
+    if (bc9 && bc9.src.length > 0) {
+      const br9 = new Map<number, [number, number]>();
+      let s0 = 0;
+      for (let i9 = 1; i9 <= bc9.src.length; i9 += 1) {
+        if (i9 === bc9.src.length || bc9.src[i9] !== bc9.src[s0]) { br9.set(bc9.src[s0], [s0, i9]); s0 = i9; }
+      }
+      m9.bc = bc9; m9.br = br9;
+    }
+    for (const b9 of bc9 ? [] : ed.bullets ?? []) {
       if (!b9.src) continue;
       /* t1 = **닿은 초**(덤퍼 k 2 · th)가 있으면 그것 — 탄은 그때 표적에 닿고 나머지는 폭발 그림이다(2026-11-04, 지적: "드라군 · 미사일 속도가 너무 느림 · 원작 속도대로").
          옛 판(닿음이 없다)은 사라진 초 그대로라 폭발 그림 몫만큼 느리다 — 재분석하면 원작 속도. */
@@ -5124,9 +5135,16 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     /** ★ 판 16 실제 사격(2026-11-03, 요청: "실제 사격 … 다") — 개체 열쇠(holdKey) → 사격 시각들. 개체마다 붓 고리 머리에서 채운다. */
     const FIRES9 = new Map<string, Float64Array>();
     /** 판 16 건물 참값(태그 → 상태 줄·실제 사격) · 사람 번호 → 편 · 판 17 탄(쏜 태그 → 탄)(아래 truthIdx9 · 판마다 한 번 짓는다). */
-    const { bld: bldTruth9, team: teamOfSlot9, blt: blt17 } = truthIdx9(entData);
+    const { bld: bldTruth9, team: teamOfSlot9, blt: blt17, bc: bc17, br: br17 } = truthIdx9(entData);
     /** ★ 판 17 — 그 몸이 쏜 탄 가운데 t 에 날고 있는 마지막 것(없으면 null) · 자료가 없는 몸이면 undefined(지어낸다). */
     const bltNow9 = (src: number | undefined): { t0: number; t1: number; tx: number; ty: number; tgt: number } | null | undefined => {
+      if (src !== undefined && bc17 && br17) {   // 탄 열(BltCols17 ★)
+        const r9 = br17.get(src); if (!r9) return null;
+        let lo = r9[0]; let hi = r9[1] - 1; let at = -1;
+        while (lo <= hi) { const m = (lo + hi) >> 1; if (bc17.t0[m] <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+        for (let i9 = at; i9 >= r9[0] && i9 >= at - 3; i9 -= 1) if (t < bc17.t1[i9]) return { t0: bc17.t0[i9], t1: bc17.t1[i9], tx: bc17.tx[i9], ty: bc17.ty[i9], tgt: bc17.tgt[i9] };
+        return null;
+      }
       if (src === undefined || blt17.size === 0) return undefined;
       const a9 = blt17.get(src); if (!a9) return null;
       let lo = 0; let hi = a9.length - 1; let at = -1;
@@ -6006,6 +6024,14 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     };
     /** ★ 판 17 — 그 몸이 쏜 탄 가운데 t 까지 **떨어진**(닿은) 마지막 것의 닿은 초(없으면 null) · 자료가 없으면 undefined. */
     const bltLand9 = (src: number | undefined): number | null | undefined => {
+      if (src !== undefined && bc17 && br17) {   // 탄 열(BltCols17 ★)
+        const r9 = br17.get(src); if (!r9) return null;
+        let lo = r9[0]; let hi = r9[1] - 1; let at = -1;
+        while (lo <= hi) { const m = (lo + hi) >> 1; if (bc17.t0[m] <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+        let bestC9 = -Infinity;
+        for (let i9 = at; i9 >= r9[0] && i9 >= at - 6; i9 -= 1) { const t19 = bc17.t1[i9]; if (Number.isFinite(t19) && t19 <= t && t19 > bestC9) bestC9 = t19; }
+        return Number.isFinite(bestC9) ? bestC9 : null;
+      }
       if (src === undefined || blt17.size === 0) return undefined;
       const a9 = blt17.get(src); if (!a9) return null;
       let lo = 0; let hi = a9.length - 1; let at = -1;

@@ -261,10 +261,15 @@ export type TruthTracks = {
   fps: number;
   /** ★ 판 17 탄(2026-11-03, 요청: "탄환·시야·크립·포탑 넷 다 연결하고 참값으로") — 생긴 초·사라진 초·무기·임자·쏜 몸·표적 몸·자리(픽셀). 생긴 차례. 옛 판은 빈 배열. */
   bullets: Bullet17[];
+  /** 탄 열(위 BltCols17 ★) — 워커에 보낼 때만 선다(파서는 안 채운다). */
+  bltCols?: BltCols17;
   /** ★ 판 17 타일(크립·시야) 시간축 — 옛 판은 null. */
   tiles: TileTL17 | null;
 };
 /** th — 탄이 **표적에 닿은** 초(덤퍼 k 2 · state_dying 첫 프레임 · 2026-11-04 · 옛 판은 Infinity). t1 은 폭발 그림까지 끝나 목록에서 빠진 초다. */
+/** ★ 탄 열(2026-11-08, 실기 진단: 43분 8인 판 bullets 127.9MB — 객체 50만여 개가 메인 · 워커에 두 벌) — 엔진이 쓰는 칸만 형식 배열로. 쏜 몸(src) 차례로 묶이고 한 몸 안은 생긴 차례다.
+ *  t1 = 닿은 초(th · 없으면 사라진 초 t1). 메인 RMP postTruth9 가 지어 워커에 transfer 하고 메인의 bullets 는 비운다(메인은 탄을 안 읽는다). */
+export type BltCols17 = { src: Int32Array; t0: Float32Array; t1: Float32Array; tx: Float32Array; ty: Float32Array; tgt: Int32Array };
 export type Bullet17 = { id: number; t0: number; th: number; t1: number; wpn: number; owner: number; src: number; tgt: number; x: number; y: number; tx: number; ty: number };
 /** ★ 판 17 타일 시간축 — 12 프레임마다 바뀐 칸의 [깃발 << 16 | 보임 << 8 | 밝힘](원작 그대로 — 보임·밝힘은 **비트가 서면 그 사람에게 안 보임·안 밝힘**).
  *  stateAt(t) 는 그 시각의 판 전체(Uint32Array · 되쓰는 배열 — 부른 쪽이 베끼지 않으면 다음 부름에 바뀐다). 30초마다 찍어 둔 판에서 앞으로만 감는다. */

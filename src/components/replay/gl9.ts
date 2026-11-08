@@ -1830,7 +1830,8 @@ export class GlUnits9 implements VecSink9 {
   /** 판 한 장의 GPU 바이트(MB) — 색 RGBA + (빛 RGBA) + (임자색 RG8), 밉 5단 ≈ ×4/3. */
   sprPageMB9(): number { return (SPR_PAGE9 * SPR_PAGE9 * (4 + (this.sprEm ? 4 : 0) + (this.sprTint ? 2 : 0)) * 4) / 3 / 1048576; }
   /** 지금 세울 수 있는 판 수 — min(판 수 상한, 바이트 상한 ÷ 한 장)(위 sprBytesMax ★ · 적어도 1). */
-  sprPageCap9(): number { return Math.max(1, Math.min(this.sprPageMax, Math.floor((this.sprBytesMax - this.sprFixedMB) / this.sprPageMB9()))); }
+  /* 바닥 3장(2026-11-08, 실기 진단: 아이폰 메모리 2단에서 아틀라스 96MB 가 바이트 상한을 거의 먹어 판 1장 — 배속에서 판을 비우고 다시 굽기를 되풀이해 프레임이 무너졌다). */
+  sprPageCap9(): number { return Math.max(Math.min(3, this.sprPageMax), Math.min(this.sprPageMax, Math.floor((this.sprBytesMax - this.sprFixedMB) / this.sprPageMB9()))); }
   private sprPageClear9(pg: SprPage9): void {
     const gl = this.gl;
     gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0);
