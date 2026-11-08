@@ -881,6 +881,10 @@ const memLive9 = (on: boolean): void => {
  *  IOS_WIDE_DPR9 로 눌러(dpr 3 → 2 · 화소 4/9) 가로로 도는 순간 옛·새 캔버스·MRT 가 겹치는 메모리를 줄인다 — 웹킷 탭 한도(gl-renderer.md 'GL 문맥 잃음' · 회전 리로드). */
 const WIDE9 = { on: false };
 const IOS_WIDE_DPR9 = 2;
+/** ★ 배킹 **화소 예산**(2026-11-08, 실기 블랙박스: "가로모드 돌리면 잘 터짐" — 가로에서 지도 상자가 정사각 852×852pt 라 배킹이 2130×2130(450만 화소) · 같은 크기 캔버스 셋 53MB ·
+ *  GL 렌더 버퍼(색 · 깊이 · 빛 · 번짐)까지 그만큼 · 돌리는 순간엔 세로 때 것(1068×1703)과 겹쳤다. 화면엔 그 절반도 안 보인다). 배율(dpr)이 아니라 총 화소로도 묶는다 —
+ *  메모리 단(memLv9 ★)마다 0 단 무제한 · 1 단 260만 · 2 단 190만 · 3 단 140만. 세로 폰(427×681pt × 2.5 = 182만)은 그대로이고 가로 정사각만 준다. */
+const backPx9 = (): number => [Infinity, 2.6e6, 1.9e6, 1.4e6][memLv9()] ?? 1.4e6;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
@@ -6157,7 +6161,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 초해상(위 ssK9) — dpr 1 PC 는 배킹을 화면 밀도 위로(1.5~2배). 손짓 중 줄이기(xfBackK9)는 그 위에서 그대로 돈다. */
       const ssNow9 = ssK9(dpr);
       const B = Math.min(dpr * ssNow9, DPRCAP9, capSmall9, backCap9(), zoomCap9(BZ9.z), Math.max(DRS9.cap, drsFloor9(BZ9.z)), 4096 / Math.max(cw, ch, 1),
-        IOS9 && WIDE9.on ? IOS_WIDE_DPR9 : Infinity);   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥) · 아이폰 가로 전체화면 2(WIDE9 ★)
+        IOS9 && WIDE9.on ? IOS_WIDE_DPR9 : Infinity,
+        Math.sqrt(backPx9() / Math.max(1, cw * ch)));   // 화소 예산(backPx9 ★ · 2026-11-08 가로 회전 터짐)   // 단별 상한(backCap9 ★) · 배율 상한(zoomCap9 ★) · 실측 조절(DRS9 ★ · 배율 바닥) · 아이폰 가로 전체화면 2(WIDE9 ★)
       DRS9.lastB = B; DRS9.z = BZ9.z;
       /* ★ 손짓이 도는 동안은 **배킹을 줄여 칠한다**(요청: "이동 시 더 빠르게 시점 변경") ─────────────────────
          병목은 셈이 아니라 칠하는 **픽셀 수**이고(계측: 표본의 3분의 2가 네이티브 칠하기), 그 수는 배킹 배수의
@@ -7661,7 +7666,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
              1.5배 늘여 붙었고, 지형의 곧은 등고선·벽띠가 그만큼 물렀다. 지형은 드로 스무 남짓의 벡터라 화소 몫이 작다 — 손짓 중(배킹 몫 < 1)만 몸과 같이 줄인다.
              `#terrdpr=0` 옛길(몸과 같은 배킹) · `#terrdpr=N` 상한 N. 분할 칸은 몸 배킹 그대로(가위 자가 몸 자다). */
           const bk9 = cv.width / Math.max(1, cw);
-          const tk9 = pcl9 || TERR_DPR9 === 0 || xfBackK9.k < 1 ? bk9 : Math.max(bk9, Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, TERR_DPR9));
+          const tk9 = pcl9 || TERR_DPR9 === 0 || xfBackK9.k < 1 ? bk9 : Math.max(bk9, Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, TERR_DPR9,
+            Math.sqrt(backPx9() / Math.max(1, cw * ch))));   // 지형층도 화소 예산(backPx9 ★ · 가로 정사각 dpr 3 = 650만 화소였다)
           const tbw9 = Math.round(cw * tk9); const tbh9 = Math.round(ch * tk9);
           if (!tc9 || !tc9.draw(tg9, q9, tbw9, tbh9, cw, ch, pitchedProp ? 4 : 2, pcl9, pcl9 ? null : (fog?.current ?? null), TERR_SHARP9, vis9, pcl9 ? null : visFog9(cv))) { if (terrain) terrain.current = null; terrainOff?.(); }   // 분할 칸(pcl9)은 안개 없음(칸 안개가 따로 선다)
         }
