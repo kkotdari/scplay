@@ -12177,6 +12177,14 @@ export default function ReplayMotionPlayer({
      움직이는 장면도) · 자리만 있으면 그 점 · 둘 다 없으면 그 사람 화면. 자막은 그 결과의 글귀. */
   /** 마지막 결과에서 멈췄다(아래 사건 끝 넘김 ★) — 멈춘 동안은 창 끝을 조금 넘었어도 그 결과의 자막을 세워 둔다(배속·느린 기기는 한 틱이 끝을 넘긴다). */
   const [searchHold9, setSearchHold9] = useState(false);
+  /* ★ 핀 장면 잡기(2026-11-08, 결정: "중계가 켜진 채 핀을 누르면 핀 자리를 4초 강제하고 중계 복귀") — 검색 장면 잡기(searchFocus9)와 같은 길: 핀의 자리(cx·cy → 타일)를 교전 자리
+     토막(spot)으로 [from, to] 동안 중계 토막 대신 세운다 · 자막은 "📍 꽂은 사람 · 메모". 창이 끝나면(to) 저절로 중계로 돌아간다. 그냥 지나갈 때는 안 선다(카드만 · pinNow9). */
+  const [pinFocus9, setPinFocus9] = useState<{ from: number; to: number; x: number; y: number; caps: CapPart9[] } | null>(null);
+  const pinSeg9 = useMemo((): CastSeg9 | null => {
+    const f9 = pinFocus9;
+    if (!f9) return null;
+    return { at: f9.from, raw: "", why: "핀", cyc: false, score: 0, caps: f9.caps, capTo: f9.to, spot: [[f9.from, f9.x, f9.y], [f9.to, f9.x, f9.y]] };
+  }, [pinFocus9]);
   const searchSeg9 = useMemo((): CastSeg9 | null => {
     const f9 = searchFocus9;
     if (!f9) return null;
@@ -12201,17 +12209,21 @@ export default function ReplayMotionPlayer({
      아닐 때) 카메라는 지금 결과의 사건 자리(장면 길 spot · 없으면 그 점)를 쥐고(trackView #spot) 손짓·줌은 잠근다. 창 밖이어도 그 결과를 쥔다(길 끝에 머문다 — 놓으면 옛 손 자리로 튀었다).
      자동 중계 편성표는 검색 중엔 물러나 있다(castOn = castUser9 && !searchOn9). */
   const searchSegNow9 = searchSeg9 && searchFocus9 && searchOn9 && trackRaw === null && !splitUser9 ? searchSeg9 : null;
-  const castRaw = searchSegNow9 ? (searchSegNow9.spot ? null : searchSegNow9.raw) : castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
+  /** 핀 장면(위 pinFocus9 ★) — 자동 중계가 켜져 있고 창 안일 때만 · 검색 장면이 있으면 그쪽이 먼저. */
+  const pinSegNow9 = pinSeg9 && pinFocus9 && castOn && trackRaw === null && !splitUser9 && t >= pinFocus9.from - 0.2 && t <= pinFocus9.to ? pinSeg9 : null;
+  /** 중계 토막을 대신하는 장면(검색 · 핀) — 아래 카메라 · 잠금 · 줌 당김 · 자막이 다 이것을 본다. */
+  const focusSegNow9 = searchSegNow9 ?? pinSegNow9;
+  const castRaw = focusSegNow9 ? (focusSegNow9.spot ? null : focusSegNow9.raw) : castIdx9 >= 0 && !castPlan[castIdx9].spot ? castPlan[castIdx9].raw : null;
   if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).castRaw = castRaw;   // perf-check --fogprobe 가 갈아탐을 짚는다
   /* ★★ 자동 중계는 **늘 한 사람 화면**이다(2026-10-09, 요청 2: "자동 카메라 모드 — 무조건 1사람 화면만 노출 · 공격이나 교전 발생시 더 잘한 사람
      보여주고 화면주인 닉네임택은 원래자리에 표시하고 '누구의 공격 / 누구와 누구를 공격 / 누구와 함께 누구와 교전' 자막을 닉넴택 위쪽에") —
      옛 **맞대결 자동 분할**(2026-10 · 편성표의 foe 로 두 사람을 나란히 · 배지 → 화살표·⚔️ 표)은 되물렸다. 편성표는 여전히 장면마다 상대역·
      몫(foe · role · foes · allies)을 적고, 재생기는 그것으로 자막(아래 castCap9)만 짓는다. 분할은 이제 손으로 켠 것뿐이다. */
-  const castSeg9 = searchSegNow9 ?? (castIdx9 >= 0 ? castPlan[castIdx9] : null);
+  const castSeg9 = focusSegNow9 ?? (castIdx9 >= 0 ? castPlan[castIdx9] : null);
   if (scrDiagOn() && typeof window !== "undefined") (window as unknown as { __castPlan9?: CastSeg9[] }).__castPlan9 = castPlan;   // perf-check --planprobe
   if (scrDiagOn() && castSeg9) (SCR_DIAG as unknown as Record<string, unknown>).castSeg = `${castSeg9.at.toFixed(1)} ${castSeg9.why ?? ""} ${castSeg9.raw}${castSeg9.spot ? " spot" : ""} fol${(castSeg9.follow ?? []).map((f9) => `[${f9.t0.toFixed(1)}-${f9.t1.toFixed(1)}:${f9.tags.join("/")}]`).join("")}`;   // perf-check --camprobe
   /** 지금 따라가는 교전 자리 길(위 castRaw ★) — 자동 중계 · 개인 추적·손 분할이 아닐 때만. */
-  const spotNow9 = (castOn || searchSegNow9 !== null) && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
+  const spotNow9 = (castOn || focusSegNow9 !== null) && trackRaw === null && !splitUser9 ? castSeg9?.spot ?? null : null;
   /** 그 길의 t 자리(1초 간격 키 사이를 직선으로). */
   const spotAt9 = (p9: readonly [number, number, number][], t9: number): { x: number; y: number } => {
     if (t9 <= p9[0][0]) return { x: p9[0][1], y: p9[0][2] };
@@ -12234,7 +12246,7 @@ export default function ReplayMotionPlayer({
    *  자동도 포함) 드래그 줌(마우스, 손제스쳐, 단축키) 다 막혀야해 꼭 분할화면이 아니라 단독화면이라도") — 휠(onWheel) · 핀치(onTS) · 한 손 줌
    *  (quickZoom) · ↑↓(zoomStep9) · 미니맵 휠(fsWheelZoom). 카메라가 기계 것일 때 배율은 중계의 자(castZoomFit9)다. 옛 '분할만 막는다'는 이 안에 든다. */
   const camLockRef9 = useRef(false);
-  camLockRef9.current = castOn || searchSegNow9 !== null || trackRaw !== null || splitOn9;
+  camLockRef9.current = castOn || focusSegNow9 !== null || trackRaw !== null || splitOn9;
   /* ★ 카메라가 잠긴 동안의 **줌·화면 이동** 손짓도 토스트로 말한다(2026-10-11, 요청: "중계 중 줌 기능이나 화면 이동 사용 시에도 토스트") — 미니맵 손짓(miniLockToast9)과
      같은 결. 휠·핀치·↑↓·더블탭·끌기·WASD 가 이 하나를 부른다(효과 안의 처리기도 읽게 ref). 끌면 pointermove 마다라 2.5초에 한 번만. 가장자리 밀기는 마우스가
      가장자리에 머무는 것만으로 걸려 안 부른다. */
@@ -12245,7 +12257,7 @@ export default function ReplayMotionPlayer({
     if (now9 - camLockToastAt9.current < 2500) return;
     camLockToastAt9.current = now9;
     /* 단독 화면(중계·개인)은 이제 확대·축소가 열려 있다(아래 zoomCapRef9 ★ · 2026-10-19) — 막힌 것은 화면 이동뿐. 분할은 둘 다. */
-    replayToast(splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : castOn || searchSegNow9 !== null ? "중계 모드에선 화면 이동이 안 돼요" : "개인 화면에선 화면 이동이 안 돼요", { kind: "info" });
+    replayToast(splitOn9 ? "분할보기에선 줌·화면 이동이 안 돼요" : castOn || focusSegNow9 !== null ? "중계 모드에선 화면 이동이 안 돼요" : "개인 화면에선 화면 이동이 안 돼요", { kind: "info" });
   };
   /** 잠긴 동안 누른 손가락 — 실제로 끌면(DRAG_SLOP 넘게) 토스트(위 ★). 그냥 누름(몸 집기)은 안 부른다. */
   const lockDragRef9 = useRef<{ id: number; sx: number; sy: number } | null>(null);
@@ -12489,13 +12501,13 @@ export default function ReplayMotionPlayer({
      "개인추적도 모바일는 6배"). 처음엔 중계에만 따로 상수를 두었는데(요청이 이름 붙인 것만) 이어진 요청이 둘을 한 값으로 묶었다. */
   const castZoomRef9 = useRef(false);
   useEffect(() => {
-    if (!(castOn || searchSegNow9 !== null) || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다 · 검색 장면도 중계처럼(위 searchSegNow9 ★)
+    if (!(castOn || focusSegNow9 !== null) || (!castRaw && !spotNow9)) { castZoomRef9.current = false; return; }   // 교전 자리 토막으로 시작해도 당긴다 · 검색 장면도 중계처럼(위 searchSegNow9 ★)
     if (castZoomRef9.current) return;
     castZoomRef9.current = true;
     holdFitKeep9();   // 자유에서 보던 배율은 지킨다(위 holdFitKeep9 ★)
     // setView9·castZoomFit9는 안 바뀌는 클로저다 — 목록에 넣으면 선언 전(TDZ)에 읽힌다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [castOn, castRaw, spotNow9 !== null, searchSegNow9 !== null]);
+  }, [castOn, castRaw, spotNow9 !== null, focusSegNow9 !== null]);
   /** 태그 → 그 태그의 유닛 생애들 — 변태로 갈린 생애가 같은 태그를 나눠 쓴다. */
   /* 선수 커서의 선택 자리(cursor9 selPtsOf9 ★) — 메인은 트랙이 없어(워커에만 넘긴다) 워커에 청한다 · 세계가 바뀌면 다시. feat `#cursor` 일 때만. */
   useEffect(() => {
@@ -13600,25 +13612,26 @@ export default function ReplayMotionPlayer({
     setPlaying(false);
     setPinAsk9("");
   }, []);
-  /** 지금 장면 한 벌 — 공유 링크(sceneLinkQueryOf9)와 같은 규칙 · 시각은 0 도 싣는다(핀은 늘 시각이 있다). */
+  /** 지금 장면 한 벌 — 시각은 0 도 싣는다(핀은 늘 시각이 있다). ★ 자리는 **중계 중에도 그 순간 화면 자리를 박아 담는다**(2026-11-08 결정: "그 순간 화면 자리를 박아 담기" —
+   *  공유 링크는 중계 중 자리 대신 임자(&tr=)만 싣지만 핀은 늘 '지도 위치 + 시각'이다) — 공유 표(playbackViewOf)가 아니라 지금 배율·팬·상자에서 바로 센다(그 표를 적는 식과 같다).
+   *  카메라 임자(tr)는 안 담는다. */
   const pinSceneNow9 = useCallback((): SceneLink9 => {
     const out9: SceneLink9 = {};
     const t9 = clockKey ? playbackClockOf.get(clockKey) : undefined;
     out9.t = Math.max(0, Math.floor(t9 ?? tLiveRef9.current));
-    const v9 = clockKey ? playbackViewOf.get(clockKey) : undefined;
-    if (v9) {
-      const z9 = v9.z ?? 1;
-      if (z9 > 1.001) {
-        out9.z = Number(z9.toFixed(2));
-        out9.cx = Number((v9.cx ?? 0.5).toFixed(3));
-        out9.cy = Number((v9.cy ?? 0.5).toFixed(3));
-      }
-      if (Math.round(v9.deg) !== 90) out9.a = Math.round(v9.deg);
+    const el9 = mapRef.current;
+    const bw9 = el9?.offsetWidth ?? 0;
+    const bh9 = el9?.offsetHeight ?? 0;
+    const z9 = zoomRef.current;
+    if (bw9 > 0 && bh9 > 0 && z9 > 1.001) {
+      const pan9 = panRef.current;
+      out9.z = Number(z9.toFixed(2));
+      out9.cx = Number(Math.min(1, Math.max(0, 0.5 - pan9.x / (bw9 * z9))).toFixed(3));
+      out9.cy = Number(Math.min(1, Math.max(0, 0.5 - pan9.y / (bh9 * z9))).toFixed(3));
     }
-    const tr9 = clockKey ? playbackTrackOf.get(clockKey) : undefined;
-    if (tr9) out9.tr = tr9;
+    if (Math.round(pitchDeg) !== 90) out9.a = Math.round(pitchDeg);
     return out9;
-  }, [clockKey]);
+  }, [clockKey, pitchDeg]);
   const pinSubmit9 = useCallback(async (): Promise<void> => {
     const f9 = onPinAddRef9.current;
     const memo9 = (pinAsk9 ?? "").trim();
@@ -13661,6 +13674,8 @@ export default function ReplayMotionPlayer({
     if (!pins || pins.length === 0) return [];
     return pins.filter((p9) => t >= p9.sec - 0.5 && t <= p9.sec + 4).sort((a9, b9) => a9.sec - b9.sec || a9.id - b9.id).slice(0, 2);
   }, [pins, t]);
+  /* 핀 장면 잡기는 창이 지나거나 중계가 꺼지면 걷는다(위 pinFocus9 ★). */
+  useEffect(() => { if (pinFocus9 && (!castOn || t > pinFocus9.to + 0.5 || t < pinFocus9.from - 1)) setPinFocus9(null); }, [pinFocus9, castOn, t]);
   /* 분할을 끄면 고르던 창도 닫는다 · Esc 로도 닫는다. */
   useEffect(() => { if (!splitOn9) setTailPick9(false); }, [splitOn9]);
   useEffect(() => {
@@ -23807,7 +23822,7 @@ export default function ReplayMotionPlayer({
     const now9 = performance.now();
     if (now9 - miniLockToastAt9.current < 2500) return;
     miniLockToastAt9.current = now9;
-    replayToast(castOn || searchSegNow9 !== null ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
+    replayToast(castOn || focusSegNow9 !== null ? "중계 모드에선 미니맵 조작이 안 돼요" : splitOn9 ? "분할보기에선 미니맵 조작이 안 돼요" : "개인 화면에선 미니맵 조작이 안 돼요", { kind: "info" });
   };
   /** 미니맵을 짚으면 그 자리가 가운데로 온다.
    *  ★ 끌기는 **지도 끌기와 같은 길**이다(2026-10-24, 요청: "미니맵상 드래그줌등 더 부드럽게하기 지도에서 하는것처럼 부드럽게") — 옛 길은 pointermove 마다
@@ -23932,10 +23947,16 @@ export default function ReplayMotionPlayer({
     tLiveRef9.current = v9;
     setT(v9);
     setDone(v9 >= total);
-    if (p9.z != null && p9.cx != null && p9.cy != null && trackRaw === null && !splitOn9) {
+    if (p9.cx == null || p9.cy == null || trackRaw !== null || splitOn9) return;   // 자리 없는 핀 · 개인 추적 · 분할 — 시각만
+    /* ★ 자동 중계 중이면 **핀 자리를 4초 잡았다가 중계로 돌아간다**(2026-11-08 결정 · 위 pinFocus9 ★) — 검색 장면 잡기와 같은 길(교전 자리 토막 · 줌 당김 · 자막). */
+    if (castOn) {
+      setPinFocus9({ from: v9, to: v9 + 4, x: p9.cx * grid.width, y: p9.cy * grid.height, caps: [{ text: `📍 ${p9.author.nickname}${p9.memo ? ` · ${p9.memo}` : ""}` }] });
+      return;
+    }
+    {
       const cov9 = coverRef.current;
       if (cov9.w < 4 || cov9.h < 4) return;
-      const z9 = Math.min(ZOOM_MAX, Math.max(1, p9.z));
+      const z9 = Math.min(ZOOM_MAX, Math.max(1, p9.z ?? 1));
       const lim9 = panLimit(z9);
       setView9(z9, {
         x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - p9.cx) * cov9.w * z9)),
