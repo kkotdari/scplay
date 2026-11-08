@@ -9766,17 +9766,15 @@ export type SceneLink9 = {
   /** 카메라 임자 — 게임 아이디 · `*`(CAST_AUTO_LINK9)는 자동 중계 */ tr?: string;
 };
 /** ★ 장면 핀(2026-11-08, 요청: "어떤 장면에 태그 남겨서 다른 사람들도 그 장면을 보고 좋으면 추천 · 지도 위치와 시각이 기본 · 메모 · 재생바 위에 표시 · 지나갈 때
- *  추천인 · 내용 · 좋아요한 사람 표시") — 앱(sg-web)이 서버에서 받아 `pins` 로 넘기는 한 개. 자리 값은 장면 링크(SceneLink9)와 같은 뜻(없으면 기본). 꽂기 · 추천 · 지우기는
- *  앱의 함수(onPinAdd · onPinLike · onPinDelete)가 하고, 재생기는 그린다(표식 · 카드 · 메모 창 · P). */
+ *  추천인 · 내용 표시") — 앱(sg-web)이 서버에서 받아 `pins` 로 넘기는 한 개. 자리 값은 장면 링크(SceneLink9)와 같은 뜻(없으면 기본). 꽂기 · 지우기는
+ *  앱의 함수(onPinAdd · onPinDelete)가 하고, 재생기는 그린다(표식 · 카드 · 메모 창 · P). 좋아요(추천)는 걷었다(2026-11-08 요청: "핀에 좋아요 기능은 없앨게"). */
 export type ScenePin9 = {
   id: number;
   /** 시각(초) */ sec: number;
   z?: number | null; cx?: number | null; cy?: number | null; a?: number | null; tr?: string | null;
   memo: string;
   author: { memberId: string; nickname: string; avatar?: string | null };
-  likes: { memberId: string; nickname: string }[];
-  likeCount: number;
-  /** 내가 추천했나 · 내가 꽂았나 */ liked: boolean; mine: boolean;
+  /** 내가 꽂았나 */ mine: boolean;
 };
 /** 핀 아이콘 — 재생바 표식과 같은 꼴(긴 칩 + 아래 삼각 꼭지 · 2026-11-08 되요청 "아이콘도"). 툴바 단추 · 지나는 카드가 쓴다. */
 const PinMark9 = ({ size = 18 }: { size?: number }): React.ReactElement => (
@@ -10119,7 +10117,7 @@ export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
-  pins, onPinAdd, onPinLike, onPinDelete,
+  pins, onPinAdd, onPinDelete,
   onGuide, guide = true, avatars,
   soleView, melee,
   onFinish, askMode, pending, veil, onReady, onLoadProgress, isTester = false,
@@ -10212,8 +10210,6 @@ export default function ReplayMotionPlayer({
   pins?: ScenePin9[];
   /** 핀 꽂기 — 주면 툴바 꼬리에 단추(핀 · 단축키 P)가 서고 메모 창 뒤 지금 장면(시각 · 자리 · 각 · 카메라 임자 = SceneLink9)과 메모를 넘긴다. 던지면 안 꽂힌 것으로 둔다. */
   onPinAdd?: (scene: SceneLink9 & { memo: string }) => void | Promise<unknown>;
-  /** 핀 추천 켜기·끄기 — 없으면 카드의 하트가 숫자만 보인다. */
-  onPinLike?: (pin: ScenePin9, on: boolean) => void | Promise<unknown>;
   /** 내 핀 지우기 — 없으면 지우기 단추가 안 선다. */
   onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
@@ -13662,16 +13658,16 @@ export default function ReplayMotionPlayer({
     window.addEventListener("keydown", onKey9);
     return () => window.removeEventListener("keydown", onKey9);
   }, [onPinAdd, pinOpen9, soleView, fsOn]);
-  /** 재생바 표식 묶음 — 가까운 핀(전체 길이의 1.2% 안)은 한 표식으로 묶고 추천 수를 더한다(겹쳐 안 읽히는 것을 막는다). */
-  const pinGroups9 = useMemo((): { sec: number; pins: ScenePin9[]; likes: number; mine: boolean }[] => {
+  /** 재생바 표식 묶음 — 가까운 핀(전체 길이의 1.2% 안)은 한 표식으로 묶는다(겹쳐 안 읽히는 것을 막는다). */
+  const pinGroups9 = useMemo((): { sec: number; pins: ScenePin9[]; mine: boolean }[] => {
     if (!pins || pins.length === 0) return [];
     const sorted9 = [...pins].sort((a9, b9) => a9.sec - b9.sec || a9.id - b9.id);
-    const out9: { sec: number; pins: ScenePin9[]; likes: number; mine: boolean }[] = [];
+    const out9: { sec: number; pins: ScenePin9[]; mine: boolean }[] = [];
     const span9 = Math.max(1, total) * 0.012;
     for (const p9 of sorted9) {
       const g9 = out9[out9.length - 1];
-      if (g9 && p9.sec - g9.sec <= span9) { g9.pins.push(p9); g9.likes += p9.likeCount; g9.mine = g9.mine || p9.mine; }
-      else out9.push({ sec: p9.sec, pins: [p9], likes: p9.likeCount, mine: p9.mine });
+      if (g9 && p9.sec - g9.sec <= span9) { g9.pins.push(p9); g9.mine = g9.mine || p9.mine; }
+      else out9.push({ sec: p9.sec, pins: [p9], mine: p9.mine });
     }
     return out9;
   }, [pins, total]);
@@ -21518,7 +21514,7 @@ export default function ReplayMotionPlayer({
             ))}
           </span>
         )}
-        {/* ★ 장면 핀 표식(위 pinGroups9 ★ · 2026-11-08) — 진행바 위 작은 핀 · 추천 수 배지 · 내가 꽂은 것은 녹색 · 지금 지나는 것은 크게. 누르면 그 장면으로(pinGo9 · 끌기로 안 샌다). */}
+        {/* ★ 장면 핀 표식(위 pinGroups9 ★ · 2026-11-08) — 진행바 위 칩(묶음이면 개수) · 내가 꽂은 것은 녹색 · 지금 지나는 것은 크게. 누르면 그 장면으로(pinGo9 · 끌기로 안 샌다). */}
         {pinGroups9.length > 0 && total > 0 && (
           <span className="scr-motion-pins">
             {pinGroups9.map((g9) => (
@@ -21531,7 +21527,7 @@ export default function ReplayMotionPlayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); pinGo9(g9.pins[0]); }}
               >
-                {g9.likes > 0 ? <><svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.1 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5c3.5 0 5.4 3.6 4.1 6.7C17.5 16.4 12 21 12 21z" /></svg><b>{g9.likes}</b></> : <b>{g9.pins.length > 1 ? g9.pins.length : "핀"}</b>}
+                <b>{g9.pins.length > 1 ? g9.pins.length : "핀"}</b>
               </button>
             ))}
           </span>
@@ -24195,34 +24191,22 @@ export default function ReplayMotionPlayer({
             </button>
           )}
           {!pending && !askShow9 && modeToggle9}   {/* 재생 모드 토글 — 무대 왼위(위 modeToggle9 ★) · 보기 모드 판이 떠 있는 동안엔 그 판이 고른다 */}
-          {/* ★ 지나는 핀 카드(위 pinNow9 ★ · 2026-11-08) — 무대 위 가운데(화면 주인 이름표 아래) · 꽂은 사람 · 메모 · 하트(추천 · 수) · 추천한 사람 셋 + 외 N · 내 핀은 지우기 ·
-              몸을 누르면 그 장면 자리로. 장면 0.5초 전 ~ 4초(멈추면 남는다) · 둘까지. H(is-uihide-all)는 무대 자식이라 같이 숨는다. */}
+          {/* ★ 지나는 핀 카드(위 pinNow9 ★ · 2026-11-08) — 무대 위 가운데(화면 주인 이름표 아래) · 꽂은 사람 · 메모 · 내 핀은 지우기 · 몸을 누르면 그 장면 자리로.
+              장면 0.5초 전 ~ 4초(멈추면 남는다) · 둘까지. H(is-uihide-all)는 무대 자식이라 같이 숨는다. 좋아요(하트 · 추천한 사람)는 걷었다(같은 날 요청). */}
           {!pending && pinNow9.length > 0 && (
             <div className="scr-pin-cards" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
-              {pinNow9.map((p9) => {
-                const who9 = p9.likes.slice(0, 3).map((l9) => l9.nickname).join(", ") + (p9.likes.length > 3 ? ` 외 ${p9.likes.length - 3}` : "");
-                return (
+              {pinNow9.map((p9) => (
                   <div key={p9.id} className="scr-pin-card">
                     <button type="button" className="scr-pin-card-body" onClick={() => pinGo9(p9)} title="이 장면 자리로">
                       <PinMark9 size={16} />
                       <b>{p9.author.nickname}</b>
                       {p9.memo && <span className="scr-pin-memo">{p9.memo}</span>}
                     </button>
-                    <button
-                      type="button" className={cx("scr-pin-like", p9.liked && "is-on")} disabled={!onPinLike}
-                      onClick={() => { void onPinLike?.(p9, !p9.liked); }}
-                      aria-label={p9.liked ? "추천 거두기" : "추천"} title={p9.liked ? "추천 거두기" : "추천"}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.1 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5c3.5 0 5.4 3.6 4.1 6.7C17.5 16.4 12 21 12 21z" /></svg>
-                      {p9.likeCount > 0 && <span>{p9.likeCount}</span>}
-                    </button>
-                    {who9 && <span className="scr-pin-who">{who9}</span>}
                     {p9.mine && onPinDelete && (
                       <button type="button" className="scr-pin-del" onClick={() => { void onPinDelete(p9); }} aria-label="핀 지우기" title="핀 지우기"><X size={12} aria-hidden /></button>
                     )}
                   </div>
-                );
-              })}
+              ))}
             </div>
           )}
           {chatNode9}

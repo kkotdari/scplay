@@ -48,10 +48,9 @@ export interface ReplayModuleProps {
   onShare?: () => string | boolean | void | Promise<string | boolean | void>;
   /** 공유 버튼의 글씨 — 기본 "장면 공유". */
   shareLabel?: string;
-  /** ★ 장면 핀(2026-11-08 · ReplayMotionPlayer ScenePin9 ★) — 목록 · 꽂기(단추 · P) · 추천 · 내 핀 지우기. 서버 일은 앱이 한다. */
+  /** ★ 장면 핀(2026-11-08 · ReplayMotionPlayer ScenePin9 ★) — 목록 · 꽂기(단추 · P) · 내 핀 지우기. 서버 일은 앱이 한다. */
   pins?: ScenePin9[];
   onPinAdd?: (scene: SceneLink9 & { memo: string }) => void | Promise<unknown>;
-  onPinLike?: (pin: ScenePin9, on: boolean) => void | Promise<unknown>;
   onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
   /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
   onGuide?: () => void;
@@ -80,7 +79,7 @@ export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
-  onFinish, onDetailClose, shareNode, onShare, shareLabel, pins, onPinAdd, onPinLike, onPinDelete,
+  onFinish, onDetailClose, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete,
   onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester,
 }: ReplayModuleProps) {
   return (
@@ -93,7 +92,7 @@ export default function ReplayModule({
         shareNode={shareNode}
         onShare={onShare}
         shareLabel={shareLabel}
-        pins={pins} onPinAdd={onPinAdd} onPinLike={onPinLike} onPinDelete={onPinDelete}
+        pins={pins} onPinAdd={onPinAdd} onPinDelete={onPinDelete}
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}

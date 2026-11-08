@@ -5095,14 +5095,6 @@
 .scr-pin-card-body svg { flex: none; width: 1.05em; height: 1.05em; color: #ffd166; }
 .scr-pin-card-body b { flex: none; font-weight: 800; }
 .scr-pin-memo { min-width: 0; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.92; }
-.scr-pin-like {
-  flex: none; display: inline-flex; align-items: center; gap: 0.2em; min-height: 1.6em; padding: 0 0.45em; border: 0; border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 0.88em; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.scr-pin-like svg { width: 1em; height: 1em; fill: currentColor; }
-.scr-pin-like.is-on { background: rgba(232, 69, 90, 0.85); }
-.scr-pin-like:disabled { cursor: default; opacity: 0.75; }
-.scr-pin-who { flex: none; max-width: 11em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82em; opacity: 0.78; }
 .scr-pin-del { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.5em; height: 1.5em; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.08); color: #fff; cursor: pointer; }
 .scr-pin-del:hover { background: rgba(255, 255, 255, 0.18); }
 /* 핀 메모 창(RMP pinAskNode9) — 공유의 사람 고르기 판(.scr-sharepick) 위에 입력 한 줄 · [취소 | 꽂기]. */
