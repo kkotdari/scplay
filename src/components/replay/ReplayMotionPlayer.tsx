@@ -20778,7 +20778,9 @@ export default function ReplayMotionPlayer({
     /* 요잉은 **그 기기의 칸 전부**(gl9 sprYaw · PC 16 · 폰 8 · 저사양 폰 4 — 2026-10-24 결정) · 건물은 제 요잉 한 칸(같은 식 sprYbOf9). */
     /* (2026-11-03 요잉 32) 기기 몫(ATLAS_WANT9)의 칸만 — 32칸 기기라도 폰은 8방(4칸 걸음)만 미리 굽고 나머지는 재생 중 채움(gl9 sprFill ★). */
     /** 미리 굽기 방향 수 — 폰은 16(32 를 다 미리 굽기엔 무겁다 · 사이는 교체·채우기). */
-    const preWant9 = (): number => (DEV9.name === "phone" ? 16 : ATLAS_WANT9());
+    /* 폰은 16방까지 · **받는 아틀라스 방향 수를 안 넘는다**(2026-11-08, 실기 지적: "폰에서 로딩이 길어졌어 · 초반 퍼센티지에서" — 메모리 2단(8방 아틀라스)에서 예열이 16방을 굽느라
+       나머지 8방을 폰에서 손수 굽고, 판까지 좁아 굽고 비우기를 되풀이했다). 모자란 방향은 재생 중 가까운 칸 · 채우기. */
+    const preWant9 = (): number => (DEV9.name === "phone" ? Math.min(16, ATLAS_WANT9()) : ATLAS_WANT9());
     const preYaws9 = (g9: GlUnits9): number[] => { const st9 = Math.max(1, Math.round(g9.sprYaw / preWant9())); return Array.from({ length: Math.ceil(g9.sprYaw / st9) }, (_, i9) => i9 * st9); };
     const preStep9 = DEV9.name === "phone" ? 8 : 24;
     /* ★ 걸음은 **장 길이에 맞춘다**(2026-10-24, 지적: "팝업 뜬 상태에서 화면 멈춤 · 처음 로딩 애니메이션 멈추지 않게") — 한 장에 preStep9 장을 못 박으면 무거운 장(GPU 굽기 몰림)에
@@ -21793,14 +21795,16 @@ export default function ReplayMotionPlayer({
     const top9 = Math.ceil(bt9.getBoundingClientRect().bottom - par9.getBoundingClientRect().top + 6);
     pn9.style.top = `${Math.max(6, top9)}px`;
   });
+  const memDiag9 = diagModes9.has("mem") || diagModes9.has("all");   // 불(값)이라 의존에 넣어도 렌더마다 안 돈다(diagModes9 는 렌더마다 새 Set)
   const memMain9 = useMemo(() => {
-    if (!diagOn) return { truth: 0, ent: 0, ui: 0, walks: 0 };
+    /* mem 칸을 볼 때만(2026-11-08 · 참값 전체를 걷는 일이라 진단 요약만 켜 둬도 로딩 중 몇 번씩 돌았다). */
+    if (!diagOn || !memDiag9) return { truth: 0, ent: 0, ui: 0, walks: 0 };
     const seen9 = new Set<object>();
     /* 참값 칸별(2026-11-08 · 위 slim9 ★) — 무엇이 큰지 실기에서 바로 보이게 상위 여섯. 칸마다 따로 재므로(seen 을 안 나눈다) 합은 위 참값과 조금 다를 수 있다. */
     const fields9 = truth ? Object.entries(truth as unknown as Record<string, unknown>)
       .map(([k9, v9]) => [k9, estBytes9(v9)] as [string, number]).sort((a9, b9) => b9[1] - a9[1]).slice(0, 6) : [];
     return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9([...walksByRaw9.values()], seen9), fields: fields9 };
-  }, [diagOn, truth, entData, world, walksByRaw9]);
+  }, [diagOn, memDiag9, truth, entData, world, walksByRaw9]);
   const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
   /* `#diag=fps` — 오른쪽 위 귀퉁이에 **작은 fps 오버레이만**(요청). 다른 진단 글은 안 그린다.
      붓의 fps 계측(paintFnRef9)이 0.5초마다 fpsTick9를 올려 이 숫자만 다시 그린다. */
