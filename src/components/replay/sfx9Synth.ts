@@ -629,13 +629,15 @@ function spikeEarth9(v: number): Float32Array {
   const r = rng9(1301 + v); const br = brown9(r);
   const bp = new Biquad9("bp", 300, 3.5);
   const lp = new Biquad9("lp", 1800, 0.7);
+  /* ★ 덜 거칠게(2026-11-08, 지적: "저그 효과음 잡음 심한데 성큰 효과음 의심됨") — 성큰 · 럴커가 여럿이면 이 소리가 겹쳐 쌓인다. 알갱이(grit · 흰 잡음 튐) 0.9 → 0.35 · 확률 0.06 → 0.03 ·
+     쑥(띠 잡음) 1.4 → 0.8 · 치솟는 끝 2600 → 1700Hz · 포화 1.7 → 1.15(찌그러짐이 잡음으로 들렸다) · 쿵은 조금 더(0.7 → 0.9) · 전체 0.62 → 0.5. */
   return finish9(render9(0.38, (t) => {
-    const crack = lp.run(br() * 1.2) * ad9(t, 0.004, 14);
-    const grit = r() < 0.06 * exp9(t, 9) ? (r() * 2 - 1) * 0.9 : 0;
-    const shoot = bp.run(r() * 2 - 1) * ad9(t, 0.03, 9) * 1.4;
-    const thump = Math.sin(2 * Math.PI * (110 - t * 160) * t) * exp9(t, 26) * 0.7;
-    return sat9(crack + grit + shoot + thump, 1.7);
-  }, (t) => bp.set(300 + 2300 * Math.min(1, t / 0.14))), 0.62);
+    const crack = lp.run(br() * 1.0) * ad9(t, 0.004, 16);
+    const grit = r() < 0.03 * exp9(t, 12) ? (r() * 2 - 1) * 0.35 : 0;
+    const shoot = bp.run(r() * 2 - 1) * ad9(t, 0.03, 11) * 0.8;
+    const thump = Math.sin(2 * Math.PI * (110 - t * 160) * t) * exp9(t, 24) * 0.9;
+    return sat9(crack + grit + shoot + thump, 1.15);
+  }, (t) => bp.set(300 + 1400 * Math.min(1, t / 0.14))), 0.5);
 }
 /** ★ 가디언 공격 — 낮은 웅~(2026-11-02, 요청: "가디언 낮은 공격 웅~ 소리") — 70Hz 언저리 둥근 소리가 천천히 부풀었다 사그라든다(0.7초) · 살짝 오르는 높이 · 2배음 · 낮은 잡음 숨결. */
 function guardHum9(v: number): Float32Array {

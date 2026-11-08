@@ -17,7 +17,8 @@ type Rect9 = { x0: number; x1: number; y0: number; y1: number } | null;
 /** 때린 무기(style) → 맞을 때 나는 소리. null 이면 맞을 때는 조용하다(쏠 때 난다 — LAUNCH9). 없는 style(근접)은 칼질. */
 const HIT9: Record<string, SfxKind9 | null> = {
   gun: "gun", burst: "gun", frag: "cannon", cannon: "cannon", siege: "cannon", laserBC: "cannon",
-  laser: "zap", flame: "flame", spine: "spine", spike: "spikeEarth",   // 럴커 가시 → 땅 뚫고 솟는 소리(2026-11-02) glave: "glaive", zap: "zap", flare: "zap",
+  // 럴커 가시 → 땅 뚫고 솟는 소리(2026-11-02). ★ 2026-11-08: 이 주석이 줄 끝에 붙어 뒤의 glave · zap · flare 를 삼켜 뮤탈 · 아콘 · 커세어가 맞을 때 기관총(gun)으로 울렸다(저그 잡음의 한 몫).
+  laser: "zap", flame: "flame", spine: "spine", spike: "spikeEarth", glave: "glaive", zap: "zap", flare: "zap",
   spark: "weld", weld: "zap", tankboom: "boom", heal: null,
   missile: null, missileG: null, plasma: null, photon: null, venom: null, acid: null, spit: null,
 };
@@ -124,6 +125,9 @@ export class SfxCues9 {
           if (!fresh(`h${op.seed}`) && !(was !== undefined && ph < was - 0.05)) break;
           const s = op.style;
           if (s === undefined && op.by && SWING9[op.by]) break;   // 저글링·울트라는 휘두르는 박자로 낸다(아래 SWING9 ★) — 맞은 순간에 또 내면 겹친다
+          /* 성큰에 맞은 몸은 조용하다(2026-11-08, 지적: "저그 효과음 잡음 심한데 성큰 효과음 의심됨") — 성큰은 가시가 솟을 때(erupt · spikeEarth) 이미 울리는데,
+             맞은 쪽 op 는 무기 갈래가 없어(by = Sunken Colony) 근접 칼질(slash)로 한 번 더 났다. */
+          if (s === undefined && op.by === "Sunken Colony") break;
           /* 소총 불티(사수 박자 op · cd 있음)는 묶음 소리 대신 고른 연사 줄기를 살린다(sfx9 gunBeat9 ★ · 2026-11-05). */
           if (op.ro && op.gg && op.cp && s !== undefined && HIT9[s] === "gun") { if (live) gunBeat9(op.gg, op.cp, { near: near(op.fx, op.fy), speed: o.speed }); break; }
           play(s === undefined ? (op.by ? MELEE9[op.by] : undefined) ?? "slash" : HIT9[s] === undefined ? "gun" : HIT9[s], op.fx, op.fy);
