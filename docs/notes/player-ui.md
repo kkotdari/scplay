@@ -3166,7 +3166,7 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 자료: 서버(sg-api `game_scene_pins` · `game_scene_pin_likes` · `/api/game-results/{id}/pins[/{pid}[/like]]`) — 장면 링크 값(t·z·cx·cy·a·tr = `SceneLink9`)과 메모(200자). 재생기는 **그리기만**:
   `ReplayModule` props `pins: ScenePin9[]` · `onPinAdd(scene & {memo})` · `onPinDelete(pin)`(앱 sg-web GameResultStory 가 서버 일 · 홀로 선 화면에서만 받는다).
   **좋아요(추천)는 걷었다**(같은 날 요청 "핀에 좋아요 기능은 없앨게" — scplay onPinLike·하트·추천인 줄 · sg-api game_scene_pin_likes 표·/like 길 · sg-web likeScenePin 다).
-- 꽂기: 툴바 꼬리 핀 단추(공유 왼쪽 · `.scr-pinbtn`) · 단축키 **P**(공유 X 와 같은 자격 · soleView/fsOn) → 멈추고 메모 창(`.scr-pinask` · body 포털 · **위에 선다** `.is-top` · Enter 꽂기 · Esc 취소 ·
+- 꽂기: 툴바 꼬리 핀 단추(공유 왼쪽 · `.scr-pinbtn`) · 단축키 **P**(공유 X 와 같은 자격 · soleView/fsOn) → 멈추고 메모 창(`.scr-pinask` · body 포털 · **위에 선다** `.is-top` · 위 안전영역 + 72px(되요청 "살짝 낮게" · 옛 14) · Enter 꽂기 · Esc 취소 ·
   검색과 같이 페이지 자리 적어 두고 preventScroll 로 손 얹고 닫힐 때 `searchScrollBack9` 로 되돌린다 — 되요청 "화면 안 밀리게 · 입력창 위에") → 지금 장면은 공유 링크와 같은 표
   (`playbackClockOf`·`playbackViewOf`·`playbackTrackOf` · `pinSceneNow9` · 시각 0 도 싣는다) → 끝나면 단추 초록 체크 1.8초.
 - 표식(`.scr-motion-pins > .scr-motion-pin` · `pinGroups9`): 탐색바 위 · **막대사탕 핀**(머리 r 7.5 + 막대 2.8 · 24×32 · `PinMark9` 와 같은 꼴 · 되요청 "막대에 둥근 머리가 달린 막대사탕 꼴" — 물방울 → 그 앞 "긴 칩 + 삼각형" → 처음 lucide 핀 + 붉은 배지 다 되물림) ·

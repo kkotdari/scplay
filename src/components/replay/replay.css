@@ -5101,7 +5101,7 @@
 /* 핀 메모 창(RMP pinAskNode9) — 공유의 사람 고르기 판(.scr-sharepick) 위에 입력 한 줄 · [취소 | 꽂기]. */
 .scr-pinask { gap: 8px; }
 /* 핀 메모 창은 **위**에 선다(RMP pinAskNode9 · 2026-11-08 되요청 "입력창을 위에 띄우기") — 폰 키보드가 올라와도 안 가린다 · 위 안전영역 아래. */
-.scr-sharepick-overlay.is-top { align-items: flex-start; padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.scr-sharepick-overlay.is-top { align-items: flex-start; padding-top: calc(env(safe-area-inset-top, 0px) + 72px); }   /* 14 → 72px(2026-11-08 되요청: "핀 꽂기 창 살짝 낮게 해도 됨") */
 .scr-sharepick-title > small { margin-left: 0.4em; font-size: 0.85em; font-weight: 600; opacity: 0.7; }
 .scr-pinask-input {
   width: 100%; box-sizing: border-box; min-height: 38px; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px;
