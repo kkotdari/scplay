@@ -10772,7 +10772,11 @@ export default function ReplayMotionPlayer({
         }
       }
     }
-    w9.postMessage({ type: "truth", truth: tr9 }, bufs9);
+    /* ★ 워커가 **안 읽는 칸은 안 보낸다**(2026-11-08, 실기 진단: 43분 8인 판 메인 참값 177.5MB · 워커 참값 226.1MB(형식 41.8MB) — 아이폰 사파리 배속 재생 탭 터짐) —
+       형식 배열 말고 칸들은 구조 복제라 **두 벌**이 된다. 피해(dmg) · 킬(kills) · 핑 · APM · 에너지 · 자원 그래프(res) · 채집(gath)은 메인만 읽는다(전광판 · 우세 곡선 ·
+       데이터 창 · 미니맵 핑 · 편성표 cast9 — engine9 · frameWorker · 워커의 truthWorld 가 안 쓴다). 껍데기 사본(얕은 복사)에 빈 표를 끼워 보낸다 — 메인 참값은 그대로. */
+    const slim9: TruthTracks | null = tr9 ? { ...tr9, dmg: [], kills: [], pings: [], apm: new Map(), energy: new Map(), res: new Map(), gath: [] } : null;
+    w9.postMessage({ type: "truth", truth: slim9 }, bufs9);
     /* 넘긴 뒤 메인의 트랙은 **비운다** — 형식 배열은 transfer로 이미 비었지만 체력·인터셉터·표적 같은 쌍 배열은
        복제라 남는다(계측: 폰에서 메인 참값 40.8MB). 메인이 트랙을 읽는 자리는 없다(개체 표·자원 그래프·판 번호는
        따로 있다). 배열을 비우면 트랙 객체가 통째로 걷힌다. */
@@ -21770,7 +21774,10 @@ export default function ReplayMotionPlayer({
   const memMain9 = useMemo(() => {
     if (!diagOn) return { truth: 0, ent: 0, ui: 0, walks: 0 };
     const seen9 = new Set<object>();
-    return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9([...walksByRaw9.values()], seen9) };
+    /* 참값 칸별(2026-11-08 · 위 slim9 ★) — 무엇이 큰지 실기에서 바로 보이게 상위 여섯. 칸마다 따로 재므로(seen 을 안 나눈다) 합은 위 참값과 조금 다를 수 있다. */
+    const fields9 = truth ? Object.entries(truth as unknown as Record<string, unknown>)
+      .map(([k9, v9]) => [k9, estBytes9(v9)] as [string, number]).sort((a9, b9) => b9[1] - a9[1]).slice(0, 6) : [];
+    return { truth: estBytes9(truth, seen9), ent: estBytes9(entData, seen9), ui: estBytes9(world, seen9), walks: estBytes9([...walksByRaw9.values()], seen9), fields: fields9 };
   }, [diagOn, truth, entData, world, walksByRaw9]);
   const dm9 = (k: string): boolean => diagModes9.has(k) || diagModes9.has("all");
   /* `#diag=fps` — 오른쪽 위 귀퉁이에 **작은 fps 오버레이만**(요청). 다른 진단 글은 안 그린다.
@@ -21858,6 +21865,11 @@ export default function ReplayMotionPlayer({
                       {" · 걷기 "}{mb9(memMain9.walks)}
                       {" | 워커: "}{memWorker9 ? `참값 ${mb9(memWorker9.truth)}(형식 ${mb9(memWorker9.typed ?? 0)}) · 파생 ${mb9(memWorker9.world)}` : "-"}
                     </div>
+                    {(memMain9.fields?.length ?? 0) > 0 && (
+                      <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
+                        메인 참값 칸 상위: {(memMain9.fields ?? []).map(([k9, b9]) => `${k9} ${mb9(b9)}`).join(" · ")}
+                      </div>
+                    )}
                     {memWorker9?.top && (
                       <div style={{ fontSize: "0.92em", opacity: 0.85 }}>
                         워커 파생 상위: {memWorker9.top.map(([k9, b9]) => `${k9} ${mb9(b9)}`).join(" · ")}
