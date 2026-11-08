@@ -3194,6 +3194,7 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   J · H · N 처럼 독 effect 를 다시 돌리는 단축키를 누르면 다시 재서 보였다.
 - 고침: `capPlace9` 는 `lay9.closest("[data-veil]")` 이면 안 잰다 · 독 effect 의존에 `veiled9` 를 더해 가림이 걷히면 다시 잰다.
   🔎 가림이 있는 앱 진입(scplayer 재생 화면)에서 중계 모드를 고르고 첫 자막이 독 위에 서는지.
+
 ## 저그 효과음 잡음(2026-11-08)
 지적: "저그 효과음 잡음 심한데 성큰 효과음 의심됨". 셋이 겹쳐 있었다.
 - **삼킨 리터럴**(규약 "한 줄 리터럴 사이에 줄 주석을 끼우지 마라" 위반) — sfx9Cues `HIT9` 의 `spike: "spikeEarth",   // 럴커 가시 …` 줄 끝 주석이 뒤의 `glave · zap · flare` 를 삼켜
