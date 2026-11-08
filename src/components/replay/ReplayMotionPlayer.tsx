@@ -828,6 +828,12 @@ const IOS9 = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(naviga
    3일 동안 안 터지면 한 단 돌려준다. `#memlv=N` 이면 그 단(시험). 단이 쓰는 곳: 아틀라스 방향 수(ATLAS_WANT9) · 뒤에서 받아 풀기(noPrefetch) · 아틀라스 GPU 상한 ·
    2D 판 바이트 상한(memK9). 옛 아이폰 콕 집기(IOS9 → 16방 · 받아 풀기 끔)는 이 단으로 갈음했다. */
 const MEM_LV_KEY9 = "scr-memlv";
+/** ★ 블랙박스(2026-11-08, 지적: "아직도 터짐 · 그냥 재생이 문제인 듯") — 재생 중 2초마다 메모리에 닿는 수치를 적어 두고(scr-blackbox), 탭이 터지고 다시 열리면 그 마지막 줄을
+ *  터짐 기록(scr-crashlog)으로 옮겨 진단 창(diag) 맨 위에 띄운다. 사파리는 힙을 안 알려 주고 헤드리스는 웹킷 탭 한도를 못 재므로 실기에서 범인을 가르는 자다. */
+const BLACKBOX_KEY9 = "scr-blackbox";
+const CRASHLOG_KEY9 = "scr-crashlog";
+/** 터짐 기록 한 줄(없으면 null) — 진단 창이 읽는다. */
+const crashLog9 = (): string | null => { memLearned9(); try { return localStorage.getItem(CRASHLOG_KEY9); } catch { return null; } };
 const MEM_LIVE_KEY9 = "scr-memlive";
 let memCrashLv9 = -1;
 /** 터짐에서 배운 단(앞서 깨끗이 안 끝난 재생 · 3일 회복) — 한 번만 잰다(이 세션의 '재생 중' 표식을 적기 전에). */
@@ -840,7 +846,12 @@ const memLearned9 = (): number => {
     if (j9 && typeof j9.lv === "number") st9 = { lv: j9.lv, at: j9.at ?? 0 };
     while (st9.lv > 0 && now9 - st9.at > 3 * 864e5) st9 = { lv: st9.lv - 1, at: st9.at + 3 * 864e5 };
     const live9 = JSON.parse(localStorage.getItem(MEM_LIVE_KEY9) ?? "null") as { t?: number } | null;
-    if (live9 && typeof live9.t === "number" && now9 - live9.t < 30 * 60e3) st9 = { lv: Math.min(3, st9.lv + 1), at: now9 };
+    if (live9 && typeof live9.t === "number" && now9 - live9.t < 30 * 60e3) {
+      st9 = { lv: Math.min(3, st9.lv + 1), at: now9 };
+      /* 블랙박스(아래 BLACKBOX_KEY9 ★) — 터지기 직전 마지막 기록을 '터짐 기록'으로 옮겨 둔다(진단 창 맨 위에 뜬다). */
+      const bb9 = localStorage.getItem(BLACKBOX_KEY9);
+      if (bb9) localStorage.setItem(CRASHLOG_KEY9, bb9);
+    }
     localStorage.removeItem(MEM_LIVE_KEY9);
     localStorage.setItem(MEM_LV_KEY9, JSON.stringify(st9));
   } catch { /* 저장소가 막혔으면 배우지 않는다 */ }
@@ -14844,6 +14855,34 @@ export default function ReplayMotionPlayer({
     window.addEventListener("pagehide", hide9);
     return () => { document.removeEventListener("visibilitychange", vis9); window.removeEventListener("pagehide", hide9); memLive9(false); };
   }, [pending]);
+  /* ★ 블랙박스 쓰기(위 BLACKBOX_KEY9 ★) — 2초마다 한 줄. 무엇이 자라다 터졌나를 가른다: DOM 캔버스(장 · MB) · 메시(수/상한 · MB) · 2D 판(장 · 장당 MB) · 아틀라스 고정 MB ·
+     설계도(워커 장 · MB) · 안개 갈무리 · 효과 래스터 · GL 배킹 · 재생 시각 · 배속 · 배율 · 메모리 단 · (있으면) JS 힙. */
+  const bbRef9 = useRef({ zoom: 1, speed: 1 });
+  bbRef9.current.zoom = zoom; bbRef9.current.speed = speed;
+  useEffect(() => {
+    if (pending) return undefined;
+    const t0 = performance.now();
+    const tick9 = (): void => {
+      try {
+        let cvN9 = 0; let cvB9 = 0;
+        document.querySelectorAll<HTMLCanvasElement>("canvas").forEach((c9) => { cvN9 += 1; cvB9 += c9.width * c9.height * 4; });
+        let wfB9 = 0; for (const f9 of wFramesRef.current.values()) wfB9 += f9.buf.byteLength;
+        const g9 = glNow9();
+        const mb = (b9: number): string => (b9 / 1048576).toFixed(0);
+        const heap9 = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
+        const line9 = `${new Date().toLocaleString("ko-KR", { hour12: false })} · 재생${Math.round(tLiveRef9.current)}초(켠 뒤 ${Math.round((performance.now() - t0) / 1000)}초) ×${bbRef9.current.speed} 배율${bbRef9.current.zoom.toFixed(1)}`
+          + ` · 메모리${memLv9()}단 ${ATLAS_WANT9()}방 · 캔버스${cvN9}장 ${mb(cvB9)}MB`
+          + (g9 ? ` · GL배킹${g9.canvas.width}×${g9.canvas.height} 메시${g9.stat.meshes}/${g9.meshMax} ${mb(g9.stat.bytes)}MB 2D판${g9.sprStat.pages}장×${g9.sprPageMB9().toFixed(0)}MB 아틀라스${g9.sprFixedMB.toFixed(0)}MB 칸${g9.sprStat.cells}` : " · GL없음")
+          + ` · 설계도${wFramesRef.current.size}장 ${mb(wfB9)}MB · 안개갈무리${fogSnapsRef9.current.length} · 효과판${mb(FX_RASTER_BYTES.n)}MB · 캔버스생성${CVN9.n}`
+          + (heap9 ? ` · 힙${mb(heap9)}MB` : "");
+        localStorage.setItem(BLACKBOX_KEY9, line9);
+      } catch { /* 저장소가 막혔으면 못 남긴다 */ }
+    };
+    tick9();
+    const iv9 = window.setInterval(tick9, 2000);
+    return () => window.clearInterval(iv9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
   /* ★ 카메라 임자를 적어 둔다(playbackTrackOf — 공유 버튼이 &tr= 로 싣는다): 개인 추적이면 그 사람, 자동 중계면
      CAST_AUTO_LINK9(요청: "대신 중계 파라미터 공유하기로 변경"). 표만 내보내 놓고 **적는 자리가 없었다**(2026-09 에
      찾음: 추적을 켜고 공유해도 링크에 &tr= 가 한 번도 안 실렸다). 둘 다 꺼져 있으면 지운다. 중계 중 '지금 누구
@@ -20750,7 +20789,7 @@ export default function ReplayMotionPlayer({
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `메모리${memLv9()}단·${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
-            if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, 480); }   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
+            if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, [480, 360, 0, 0][memLv9()] ?? 0); }   // 자세 메시 자리도 메모리 단을 따른다(memLv9 ★ · 2026-11-08 · 2 단 이상은 안 올린다)   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
           .finally(release9);
       }
@@ -21786,6 +21825,8 @@ export default function ReplayMotionPlayer({
                     {wStatRef.current.err ? ` ⚠ ${wStatRef.current.err}` : ""}
                   </div>
                 )}
+                {/* 터짐 기록(위 BLACKBOX_KEY9 ★) — 지난 재생이 깨끗이 안 끝났을 때 그 직전 줄. 어느 진단 칸이든 맨 위. */}
+                {((cl9) => (cl9 ? <div style={{ color: "#ffb36b" }}><b>직전 터짐</b> {cl9}</div> : null))(crashLog9())}
                 {dm9("mem") && (
                   <>
                     {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
