@@ -23346,6 +23346,9 @@ export default function ReplayMotionPlayer({
         lay9.querySelectorAll<HTMLElement>(".scr-fs-back, .scr-modetog-stage, .scr-zoomdial, .scr-zoomfps").forEach((el9) => {
           if (!shown9(el9)) return;
           const r9 = el9.getBoundingClientRect();
+          /* 자막 줄(겹층 위끝 ~ 그 아래 120px)에 걸치는 단추만 비킨다 — 단추들은 이제 아래로 내려가(data-ovlow9 ★) 대개 안 걸린다(2026-11-09, 실기 지적: "자막 폭 이제 좌우 다 써야지" —
+             아래로 내린 뒤에도 그 폭을 비켜 자막이 가운데 좁은 기둥으로 접혔다). */
+          if (r9.top > sr9.top + 120 || r9.bottom < sr9.top) return;
           side9 = Math.max(side9, r9.left + r9.width / 2 < mid9 ? r9.right - sr9.left : sr9.right - r9.left);
         });
         lay9.style.setProperty("--cap-tops9", `${(side9 + gap9).toFixed(1)}px`);
