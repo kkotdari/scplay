@@ -1155,20 +1155,42 @@ function stim9(v: number): Float32Array {
  *  ① 막 찢김 '쩍' — 갈색 잡음을 띠(1.1k → 380Hz)로 거르고 빠른 무작위 덩이(초당 ~90 · 저역으로 둥글린 것)로 끊어 끈적하게 찢어지는 결 · ② 끈적한 '쭈왁' — 공명 큰
  *  저역 거르개(Q 5 · 650 → 170Hz)로 쓸어 내린 갈색 잡음 · ③ 낮은 '퍽' 몸(85 → 45Hz · 배음 하나). 물방울 · 출렁임은 걷었다. pk 는 음높이 배(알 1 · 고치 · 번데기 · 공사 고치 0.72). 0.6초. */
 function eggSplash9(v: number, pk: number): Float32Array {
+  /* ★ 알껍질 찢김(2026-11-09 열둘째, 요청: "저그 부화 소리에 알껍질이 찢어지는 소리 필요") — 터지기 전 0.22초 동안 질긴 껍질이 **찌이익** 찢어진다: 가죽 · 천 찢김처럼 잘게
+     뜯기는 섬유 '틱'들(둥근 알갱이 Grain9 → 띠 1.9kHz · Q 1.4 · 밀도가 점점 빨라짐 초당 60 → 260)과 그 밑의 긁힘(갈색 잡음 띠 1.2kHz · 같은 결로 떨림). 그 뒤 0.18초에 아래 태반 터짐.
+     전체 0.78초. */
   const r = rng9(3101 + v + (pk !== 1 ? 17 : 0)); const br = brown9(r);
   const bpT = new Biquad9("bp", 1100 * pk, 1.2);
   const lpQ = new Biquad9("lp", 650 * pk, 5);
   const lpE = new Biquad9("lp", 60, 0.7);
+  const gF = new Grain9(3200 * pk, 3);
+  const bpF = new Biquad9("bp", 1900 * pk, 1.4);
+  const bpR = new Biquad9("bp", 1200 * pk, 2);
+  const T0 = 0.18;
   let ph = 0;
-  return finish9(render9(0.6, (t) => {
-    const n = br();
-    const lump = Math.max(0, lpE.run(r() < 0.06 ? (r() * 2 - 1) * 40 : 0));
-    const tear = bpT.run(n) * Math.min(1, lump) * ad9(t, 0.004, 9) * 1.6;
-    const squelch = lpQ.run(n) * ad9(Math.max(0, t - 0.02), 0.03, 5.5) * (t > 0.02 ? 1 : 0) * 0.55;
-    ph += (45 + 40 * exp9(t, 16)) * pk / SFX_RATE9;
-    const puk = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.35) * ad9(t, 0.003, 12) * 0.9;
-    return sat9(tear + squelch + puk, 1.15);
-  }, (t) => { bpT.set((380 + 720 * exp9(t, 8)) * pk); lpQ.set((170 + 480 * exp9(t, 6)) * pk); }), 0.5);
+  return finish9(render9(0.78, (t) => {
+    /* 찢김(0 ~ 0.24초) */
+    let rip = 0;
+    if (t < 0.26) {
+      const u = t / 0.24;
+      const rate = 60 + 200 * u * u;
+      const tick = r() < rate / SFX_RATE9 ? (r() * 2 - 1) * (0.6 + r() * 0.4) : 0;
+      const renv = Math.min(1, t / 0.03) * (t < 0.2 ? 0.6 + 0.4 * u : Math.max(0, 1 - (t - 0.2) / 0.06));
+      rip = (bpF.run(gF.run(tick)) * 2.2 + bpR.run(br()) * 0.35 * (0.6 + 0.4 * Math.sin(2 * Math.PI * 47 * t))) * renv;
+    }
+    /* 태반 터짐(아홉째 · T0 부터) */
+    const tb = t - T0;
+    let burst = 0;
+    if (tb > 0) {
+      const n = br();
+      const lump = Math.max(0, lpE.run(r() < 0.06 ? (r() * 2 - 1) * 40 : 0));
+      const tear = bpT.run(n) * Math.min(1, lump) * ad9(tb, 0.004, 9) * 1.6;
+      const squelch = lpQ.run(n) * ad9(Math.max(0, tb - 0.02), 0.03, 5.5) * (tb > 0.02 ? 1 : 0) * 0.55;
+      ph += (45 + 40 * exp9(tb, 16)) * pk / SFX_RATE9;
+      const puk = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.35) * ad9(tb, 0.003, 12) * 0.9;
+      burst = tear + squelch + puk;
+    }
+    return sat9(rip + burst, 1.15);
+  }, (t) => { const tb = Math.max(0, t - T0); bpT.set((380 + 720 * exp9(tb, 8)) * pk); lpQ.set((170 + 480 * exp9(tb, 6)) * pk); }), 0.5);
 }
 
 /** ★ 럴커 땅 파기(2026-11-09 아홉째, 요청: "럴커 버로우 하는 동작 소리") — 파는 창 동안 흙덩이(engine9 dom dig · 0.15초마다 한 움큼)마다 하나: 다리 가시가 흙에 박히는 '푹'
