@@ -3270,3 +3270,6 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - (여덟째) "자유 → 중계 토글 아직 느림" — 자유로 시작하면 편성표(castPlan9)를 중계를 처음 켤 때 구웠다(cast-plan.mjs 8인 20분 195ms · 폰 몇 배). 참값이 서면 곧 한 번 굽는다(castWarm9 → planWant9).
 - (아홉째) PWA 실기: 머리 줄이 여전히 홈 막대 밑 — `getComputedStyle().getPropertyValue("--scr-frame-below")` 는 **풀리지 않은 글자**("calc(16px + 40px)")라 parseFloat 가 0 이었다.
   프레임 안 숨은 탐침(i.scr-frame-below-probe · height: var(--scr-frame-below))의 키로 px 을 푼다.
+- (열째) 요청: "재생기가 자기 크기를 정할 게 아니라 넣는 페이지에서 크기를 파라미터로 · 높이 너비 다" — `frameH`(판 키 예산) · `frameW`(판 폭 상한) prop(ReplayModule → RMP).
+  frameH 가 오면 read 의 제 셈(주소창 붙들기 · lvh 반 · 바 밑 몫)을 건너뛰고 그 값이 frameMaxH. 옛 --scr-frame-below · 탐침은 걷었다.
+  sg-web GameDetailPage(폰)가 잰다: 폭 = 카드 안쪽 · 키 = 붙든 창 높이 − 카드 위끝 − 카드 아래 여백 − 머리 줄 키 − 아래 안전영역 − 8.

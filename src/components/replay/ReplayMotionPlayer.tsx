@@ -10307,7 +10307,7 @@ const nextColorMode9 = (m: ColorMode9, melee: boolean, solo: boolean): ColorMode
 };
 export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
-  onDetailClose, onBack, loadUnitTracks, sceneLink,
+  onDetailClose, onBack, frameH, frameW, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   pins, onPinAdd, onPinDelete,
   onGuide, guide = true, avatars,
@@ -10353,6 +10353,10 @@ export default function ReplayMotionPlayer({
   /** 상세 팝업 닫기(요청: PC는 게임 결과만 확대창이 기본, 기존 상세는 미사용) — 값이
    *  오면 PC에서 마운트되자마자 확대창을 열고, 확대창을 닫을 때 상세까지 함께 닫는다. */
   onDetailClose?: () => void;
+  /** 판 폭(px · 2026-11-09) — 넣는 페이지가 정한다. 없으면 담는 상자 폭(옛 셈). */
+  frameW?: number;
+  /** 판 키 예산(px · 2026-11-09) — 넣는 페이지가 정한다(창 높이에서 판 위 · 판 아래에 둘 것 · 안전영역을 뺀 값). 없으면 재생기가 창을 재 스스로 정한다(옛 셈). */
+  frameH?: number;
   /** 전체화면 뒤로가기(왼위 ‹ · .scr-fs-back) — 전체화면을 나가고 앱이 게임 목록으로 돌아간다(2026-11-09, 요청: "전체화면의 뒤로가기 버튼은 전체화면 종료가 아니라 게임 목록까지 뒤로가는 거야"). 없으면 전체화면만 나간다. */
   onBack?: () => void;
   /** 참값 자취 로더 — 서버가 리플레이를 실제로 돌려 구운 것 하나면 화면이 다 선다
@@ -14273,6 +14277,14 @@ export default function ReplayMotionPlayer({
     if (el9 && stageHost9 && !fsOnRef9.current && stageHost9.parentNode !== el9) el9.appendChild(stageHost9);
   }, [stageHost9]);
   const [frameMaxH, setFrameMaxH] = useState(0);
+  /** 넣는 쪽이 정한 판 키(frameH prop · 아래 read ★) — read 는 마운트 한 번 묶인 함수라 ref 로 읽는다. 값이 바뀌면 곧 반영한다. */
+  const frameHRef9 = useRef(frameH);
+  frameHRef9.current = frameH;
+  useLayoutEffect(() => {
+    if (frameH === undefined || !(frameH > 0)) return;
+    const hw9 = Math.round(Math.min(1400, Math.max(160, frameH)));
+    setFrameMaxH((v) => (Math.abs(v - hw9) > 2 ? hw9 : v));
+  }, [frameH]);
   /** 폰의 창 높이 붙들기(지적: "드래그·팬 뒤에 안개·모델이 위아래·좌우로 떨린다") — 아래 read가 쓰는 innerHeight는
    *  모바일에서 **주소창이 접히고 펴질 때마다** 바뀐다(스크롤 한 번에 수십 px, 그것도 몇 프레임에 걸쳐). 그때마다 예산이
    *  바뀌면 무대 높이 → 폭(높이가 폭을 정한다) → 캔버스 크기·타일 px이 줄줄이 바뀌어 판 전체가 들썩였다. 폭이 그대로이고
@@ -14287,6 +14299,14 @@ export default function ReplayMotionPlayer({
     const read = (): void => {
       const r = el.getBoundingClientRect();
       const above = Math.min(200, Math.max(0, r.top + window.scrollY));
+      /* ★ **판 키는 넣는 쪽이 정한다**(2026-11-09, 요청: "재생기가 자기 크기를 정할 게 아니라 재생기를 넣는 페이지에서 크기를 파라미터로 보내야 함") — frameH 가 오면 그 값이
+         예산이다(창 높이 · 바 · 안전영역 · 아래에 둘 것은 넣는 쪽이 다 셈했다). 아래 제 셈(주소창 붙들기 · lvh 반 · 바 밑 몫)은 안 탄다. */
+      const host9 = frameHRef9.current;
+      if (host9 !== undefined && host9 > 0) {
+        el.style.setProperty("--scr-bar-under", "0px");
+        const hw9 = Math.round(Math.min(1400, Math.max(160, host9)));
+        setFrameMaxH((v) => (Math.abs(v - hw9) > 2 ? hw9 : v));
+      } else {
       /* ★ 아래 몫은 **재서 뺀다**(지적, iOS 사파리: "너무 높이가 짧게 나옴 맵이 —
          여기는 탭바/FAB 없는 페이지라 안전영역 확인 다시 해야 해") ────────────────────
          여태 붙박이 88이었다. 그 수는 '아래 탭바 + 안전영역 + 여백'을 뭉뚱그린 어림인데,
@@ -14311,29 +14331,14 @@ export default function ReplayMotionPlayer({
          댓글부가 이어진다. 그런데 그 높이(약 81px)를 예산에서 빼면 지도가 그만큼 작아진
          채로 **못 박힌다** — 되찾을 길이 없다.
          남는 것은 숨 쉴 자리 하나(12)와 안전 영역(위 ★)뿐이다. */
-      /* ★ 앱이 판 **아래에 둘 것**의 몫(--scr-frame-below · 2026-11-09, 실기 지적: "헤더 로우가 완전 가려짐 · 더 위로 올려야 해 · 재생기 줄이고") — sg-web 게임 상세(폰)가 머리 줄을
-         재생기 아래로 옮기며 그 키를 CSS 변수로 준다. 그 몫이 있으면 판을 펴진 바 밑까지 늘리지 않는다(아래 lvh 반 · --scr-bar-under) — 늘리면 아래 줄이 다시 바 밑으로 깔린다. */
-      /* ⚠ 사용자 정의 속성의 계산값은 **풀리지 않은 글자**다("calc(16px + 40px)" → parseFloat NaN → 0 · 2026-11-09 실기: 머리 줄이 여전히 홈 막대 밑) — 숨은 탐침의 키로 px 을 푼다. */
-      let res9 = 0;
-      if (getComputedStyle(el).getPropertyValue("--scr-frame-below").trim()) {
-        let pb9 = el.querySelector<HTMLElement>(":scope > .scr-frame-below-probe");
-        if (!pb9) {
-          pb9 = document.createElement("i");
-          pb9.className = "scr-frame-below-probe";
-          pb9.setAttribute("aria-hidden", "true");
-          pb9.style.cssText = "position:absolute;left:0;top:0;width:0;height:var(--scr-frame-below,0px);visibility:hidden;pointer-events:none";
-          el.appendChild(pb9);
-        }
-        res9 = pb9.offsetHeight;
-      }
-      const below9 = 12 + safeBottomOf9() + res9;
+      const below9 = 12 + safeBottomOf9();
       let ih9 = window.innerHeight;
       if (window.matchMedia?.("(pointer: coarse)").matches) {
         /* ★ 폰의 innerHeight 는 **주소창·탭바가 펴진 때의 작은 높이**다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") —
            iOS 26 의 떠 있는 탭바는 접힌 채 그 몫(100 남짓)이 비어 보이는데도 innerHeight 가 안 커져, 판 아래가 통째로 남았다.
            바를 걷은 높이(100lvh)와의 차의 **반**을 더 쓴다 — 다 쓰면 펴진 바 밑으로 독이 들어가고, 안 쓰면 비어 보인다. */
         const lv9 = lvhOf9();
-        if (lv9 > ih9 && res9 <= 0) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
+        if (lv9 > ih9) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
         if (!vhHold9.current && vhHoldShared9 && performance.now() - vhHoldShared9.t < VH_HOLD_PASS_MS9) {
           vhHold9.current = { w: vhHoldShared9.w, h: vhHoldShared9.h };   // 앞 재생기가 붙든 값을 잇는다(위 vhHoldShared9 ★)
         }
@@ -14352,6 +14357,7 @@ export default function ReplayMotionPlayer({
       const want = Math.round(Math.min(1400, Math.max(300, ih9 - above - below9)));
       // 2px 안쪽 흔들림은 무시한다 — 아래 관찰자와 서로 되먹임하지 않게.
       setFrameMaxH((v) => (Math.abs(v - want) > 2 ? want : v));
+      }
       /* ★ 로스터도 **지도에 붙어 있어야 한다** — 판이 제 칸을 꽉 채우게 되면서(폭 상한을
          무대로 옮긴 그 손질) 판의 왼끝이 곧 페이지의 왼끝이 됐다. 로스터는 판 기준의
          절대 배치라 그대로 페이지 구석으로 끌려가, 지도에서 한참 떨어져 떴다.
@@ -14975,7 +14981,10 @@ export default function ReplayMotionPlayer({
          조종부도 같은 폭이 된다. 가운데 정렬은 판이 한 번만 한다(.scr-fs-layer의
          margin: 0 auto). 줄이 지도 **안**에 뜨는 배치(전체화면)에서는 종전대로 아래
          caps가 판을 죈다. */
-      width: rowsOutside ? (stageCapW9 ?? "100%") : `min(${caps.join(", ")})`,
+      /* 넣는 쪽이 폭을 주면(frameW · 2026-11-09, 요청: "높이 너비 다 페이지에서 파라미터로") 그 값이 상한이다. */
+      width: frameW !== undefined && frameW > 0
+        ? `min(${Math.round(frameW)}px, ${rowsOutside ? (stageCapW9 ?? "100%") : `min(${caps.join(", ")})`})`
+        : rowsOutside ? (stageCapW9 ?? "100%") : `min(${caps.join(", ")})`,
       /* ★ 판의 천장은 **줄이 지도 안에 있을 때만** 건다(지적: "너무 위험한 방식으로
          위아래 공간을 만든 거 아니야? 안전하게 가자 — 모든 경우를 테스트할 순 없어")
          ────────────────────────────────────────────────────────────────────────────
