@@ -3858,11 +3858,13 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          양 끝이 다 자유라 물결은 온 폭에 고르게(왼끝도 0.35 몫). 시각은 경기 시각(age). */
       /* (여섯째, 실기 지적: "너무 정면에서 본 모습이야 · 우리 투사각이 위 40도인데") — 정면을 **향하되** 위에서 내려다본 꼴: 높이 × sin(40도 · 0.64) · 깊이 굽음은 화면 y 로 × cos(0.77) ·
          굽음은 작게(0.07 — 크면 천이 옆으로 돈 것처럼 보였다 · 셋째 "정면을 향하게"). */
-      const fl9 = W9 * 1.125; const fh9 = W9 * 0.285 * PLACARD_SIN9;
+      /* (여덟째, 실기 지적: "지금 저건 땅에 수평으로 누워서 펼쳐진 모양 · 땅에 수직으로 면이 서야 해") — **선 면**을 위 40도에서 보면 세로는 cos(0.77) 로만 줄고, 앞뒤 굽음은
+         화면 y 로 sin(0.64) 배 · 카메라 쪽(앞)으로 나온 몫이 아래로 간다. 굽음 진폭은 작게(0.06) — 크면 결이 위아래로 크게 흘러 누운 띠처럼 읽혔다. */
+      const fl9 = W9 * 1.125; const fh9 = W9 * 0.285 * PLACARD_COS9;
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
-      const amp9 = W9 * 0.07; const tt9 = u0 * 4.2;
+      const amp9 = W9 * 0.06; const tt9 = u0 * 4.2;
       const dep9 = (x9: number): number => { const k9 = 0.35 + 0.65 * (x9 / fl9); const q9 = x9 / fl9; return amp9 * k9 * Math.sin(q9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(q9 * Math.PI * 5.1 - tt9 * 1.7); };
       /* 줄어든 가로를 먼저 재어 가운데 맞춘다. */
       const ws9: number[] = []; let tw9 = 0;
@@ -3872,8 +3874,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
         const w9 = ws9[i9];
-        /* 밀림 부호(일곱째, 실기 지적: "지금 모습은 내려다본 게 아닌 올려다본 거야 · 물결의 방향이") — 옛 부호는 올려다본 물결이었다. 뒤집어 위에서 본 물결로. */
-        const ya9 = -da9 * PLACARD_COS9; const yb9 = -db9 * PLACARD_COS9;
+        const ya9 = da9 * PLACARD_SIN9; const yb9 = db9 * PLACARD_SIN9;   // 앞(카메라 쪽)으로 나온 몫 → 화면 아래(여덟째)
         ctx.save();
         ctx.transform(1, (yb9 - ya9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ya9);
         ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, w9 + 0.8, fh9);
