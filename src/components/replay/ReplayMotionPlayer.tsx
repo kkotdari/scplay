@@ -13376,12 +13376,22 @@ export default function ReplayMotionPlayer({
      옛: setCastOn(false) 만 해서 배율은 중계 것인데 이동(pan)은 옛 손 자리라 엉뚱한 귀퉁이가 떴다. */
   /* (되물림 · 같은 날 셋째, 지적: "아니 위가 본진이 잘려서 나오잖아 · 원래 안 그랬는데") — 지도 전체로 물러나는 것은 걷고 다시 판 뒤 중계 카메라를 넘겨받는다. 잘림은 가운데 잡기의
      위 한계(centerTop9)가 맨 윗줄 몇 칸 안에서만 그림 여유를 열어, 위 귀퉁이 본진(가운데 ≈ 6 줄)은 지붕이 지도 윗변 밖이라 잘렸던 것 — centerTop9 에서 고친다. */
+  /* ★ (같은 날 넷째, 실기 비교샷: "뒤에 거가 중계고 앞이 자유야 둘이 다르잖아") — 판이 떠 있는 동안은 가림이라 중계 카메라가 **한 번도 안 그려져** trackCamRef 가 비어
+     있었다(넘겨받을 것이 없어 옛 손 자리 · 배율만 중계 것). 판을 닫고 중계 카메라가 첫 장을 그릴 때까지(최대 ~0.5초) 기다렸다가 그 자리를 넘겨받고 중계를 끈다 — 화면은
+     중계 첫 장과 같은 자리에서 그대로 자유로 이어진다. */
   const pickFree9 = (): void => {
     setModeAsk9(false);
-    const tc9 = trackCamRef.current;   // 마지막으로 그린 중계 카메라(사람 · 장소 토막 어느 것이든)
-    if (castOn && tc9.raw !== null && Number.isFinite(tc9.z) && tc9.z > 0) setView9(tc9.z, { ...tc9.pan });
-    setCastOn(false);
     bgmKickRef9.current();
+    if (!castOn) return;
+    trackCamRef.current = { ...trackCamRef.current, raw: null };   // 판 전의 낡은 자리는 안 쓴다
+    let n9 = 0;
+    const step9 = (): void => {
+      const tc9 = trackCamRef.current;
+      if (tc9.raw !== null && Number.isFinite(tc9.z) && tc9.z > 0) { setView9(tc9.z, { ...tc9.pan }); setCastOn(false); return; }
+      if ((n9 += 1) > 40) { setCastOn(false); return; }
+      requestAnimationFrame(step9);
+    };
+    requestAnimationFrame(step9);
   };
   const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); bgmKickRef9.current(); };
   /* 창을 건너뛸 때 카메라는 **곧장**(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 미끄러짐·스프링을 버려(viewCut9) 자막이 뜨는 장에 그 자리가 바로 선다. */
