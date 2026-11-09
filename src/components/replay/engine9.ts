@@ -4782,7 +4782,10 @@ export const EVENT_PLACARD9 = false;
 /** ★ 이벤트 깃발(2026-11-09, 요청: "이벤트 플래카드 말고 이벤트 깃발 추가 — 깃봉(나무)이 본진 홀 중앙에 꽂혀 위로 길게 올라오고 끝에 깃발(폭이 긴)이 펄럭임 ·
  *  멘트는 그때그때 다른데 이번엔 '환영 Ben님 가입' · 환영은 뒤에 동그란 배경색") — 플래카드와 같은 자리(시작 본진 · 지붕 높이 가운데)에 dom "eventflag" 를 낸다.
  *  글귀는 RMP EVENT_FLAG_TEXT9(머리 배지 · 본문). 끄려면 false. */
-export const EVENT_FLAG9 = true;
+export const EVENT_FLAG9 = false;   // (2026-11-09, 요청: "깃발은 넣어 두고 대신 전광판(응원용)으로") — 끈다. 그림 · 자리 셈은 남긴다(다시 켤 때 true).
+/** ★ 응원 전광판(2026-11-09, 요청: "까만 배경에 전광판 글자(도트 느낌) · 같은 내용 · 깜빡임 · 슬라이딩") — 깃발과 같은 자리(시작 본진 위에 뜬다)에 dom "eventboard".
+ *  그림은 RMP evBoardSpr9 · 글귀는 RMP EVENT_FLAG_TEXT9(깃발과 같은 표). 끄려면 false. */
+export const EVENT_BOARD9 = true;
 const START_HALL_BY_RAW9 = new WeakMap<object, Map<string, string>>();
 /** 임자(raw) → 시작 본진 줄의 열쇠 `${sec}|${unit}|${x}|${y}` — 배열이 같은 동안 한 번만 센다. */
 function startHallKeys9(rows: readonly (readonly [number, number, number, string, string, ...unknown[]])[]): Map<string, string> {
@@ -7341,6 +7344,11 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         && startHallKeys9(buildsSrc).get(raw) === `${sec}|${unit}|${x}|${y}`) {
         const [gfx9, gfy9] = posFrac(centerX, bodyY + boxH / 2 - hTiles * 0.55);
         fxOps.push({ kind: "dom", style: "eventflag", fx: gfx9, fy: gfy9, lift: 0, size: wTiles * tilePx, seed: 0, age: t });
+      }
+      if (EVENT_BOARD9 && !pitched && shapeKind && !raising && !flownFrom && !bldFrozen9 && alpha > 0.5
+        && startHallKeys9(buildsSrc).get(raw) === `${sec}|${unit}|${x}|${y}`) {
+        const [efx9, efy9] = posFrac(centerX, bodyY + boxH / 2 - hTiles * 0.55);
+        fxOps.push({ kind: "dom", style: "eventboard", fx: efx9, fy: efy9, lift: 0, size: wTiles * tilePx, seed: 0, age: t });
       }
       let bldOpIx9 = -1;
       if (shapeKind) {

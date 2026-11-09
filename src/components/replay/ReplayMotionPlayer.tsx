@@ -3890,6 +3890,90 @@ function evFlagSpr9(): HTMLCanvasElement {
   }
   return cv9;
 }
+/* ★ 응원 전광판(2026-11-09, 요청: "깃발은 넣어 두고 대신 전광판(응원용)으로 · 까만 배경에 전광판 글자(도트 느낌) · 같은 내용 · 깜빡임 · 슬라이딩") — engine9 EVENT_BOARD9 ★.
+   글귀(EVENT_FLAG_TEXT9 — 배지는 분홍 · 본문은 호박색)를 18 줄 도트 띠로 한 번 굽고(알파 문턱), 판(EVB_COLS9 × EVB_ROWS9 도트)은 **장면이 바뀔 때만**(띠 자리 · 켜짐) 다시 칠해 판 번호(sprVer9)를 올린다.
+   차례(경기 시각): 오른쪽에서 밀려 들어와 가운데 멈춤 → 세 번 깜빡 → 잠깐 머묾 → 왼쪽으로 밀려 나감 → 빈 판 잠깐. 자리는 도트 한 칸씩(전광판 맛). 꺼진 도트도 어둡게 보인다. */
+const EVB_COLS9 = 96; const EVB_ROWS9 = 18; const EVB_D9 = 8; const EVB_PAD9 = 14;
+const EVB_W9 = EVB_COLS9 * EVB_D9 + EVB_PAD9 * 2; const EVB_H9 = EVB_ROWS9 * EVB_D9 + EVB_PAD9 * 2;
+const EVB_SPEED9 = 24;   // 도트/초
+let evbStrip9: { w: number; m: Uint8Array } | null = null;
+let evbCv9: HTMLCanvasElement | null = null;
+let evbKey9 = ""; let evbVer9 = 10; let evbFontTried9 = false;
+const EVB_COL9 = ["#ff4f8a", "#ffc21a"];   // 1 = 배지(분홍) · 2 = 본문(호박)
+function evbStripMake9(): { w: number; m: Uint8Array } {
+  const R = EVB_ROWS9;
+  const font9 = `800 ${R - 2}px "SCP NanumSquare Neo", "SCP Rasheeq", sans-serif`;
+  const segs9: [string, number][] = [[EVENT_FLAG_TEXT9.badge, 1], [EVENT_FLAG_TEXT9.text, 2]];
+  const cv9 = newCanvas9("전광판 글자"); cv9.width = 4; cv9.height = R;
+  let c9 = cv9.getContext("2d", { willReadFrequently: true });
+  if (!c9) return { w: 1, m: new Uint8Array(R) };
+  c9.font = font9;
+  const GAP9 = 6;
+  const ws9 = segs9.map(([t9]) => Math.ceil(c9!.measureText(t9).width));
+  const W = Math.max(1, ws9.reduce((a, b) => a + b, 0) + GAP9 * (segs9.length - 1));
+  cv9.width = W; c9 = cv9.getContext("2d", { willReadFrequently: true })!;
+  const m9 = new Uint8Array(W * R);
+  let x9 = 0;
+  segs9.forEach(([t9, k9], i9) => {
+    c9!.clearRect(0, 0, W, R); c9!.font = font9; c9!.textBaseline = "middle"; c9!.fillStyle = "#fff";
+    c9!.fillText(t9, x9, R / 2 + 1);
+    const d9 = c9!.getImageData(0, 0, W, R).data;
+    for (let y = 0; y < R; y += 1) for (let x = x9; x < Math.min(W, x9 + ws9[i9]); x += 1) if (d9[(y * W + x) * 4 + 3] > 110) m9[y * W + x] = k9;
+    x9 += ws9[i9] + GAP9;
+  });
+  return { w: W, m: m9 };
+}
+/** 경기 시각 → [띠 왼끝의 판 칸(정수) · 켜짐]. */
+function evbState9(t: number, sw9: number): [number, boolean] {
+  const C = EVB_COLS9; const cx9 = Math.floor((C - sw9) / 2);
+  const dA = (C - cx9) / EVB_SPEED9; const dB = 1.6; const dC = 1.2; const dD = (cx9 + sw9) / EVB_SPEED9; const dE = 0.5;
+  let u = ((t % (dA + dB + dC + dD + dE)) + (dA + dB + dC + dD + dE)) % (dA + dB + dC + dD + dE);
+  if (u < dA) return [Math.round(C - u * EVB_SPEED9), true];
+  u -= dA;
+  if (u < dB) return [cx9, (u % 0.53) < 0.33];
+  u -= dB;
+  if (u < dC) return [cx9, true];
+  u -= dC;
+  if (u < dD) return [Math.round(cx9 - u * EVB_SPEED9), true];
+  return [C, false];
+}
+function evbDraw9(cv9: HTMLCanvasElement, x0: number, on9: boolean): void {
+  const c9 = cv9.getContext("2d"); if (!c9) return;
+  const st9 = evbStrip9!; const D = EVB_D9; const P = EVB_PAD9;
+  c9.clearRect(0, 0, EVB_W9, EVB_H9);
+  /* 테(짙은 쇠) · 안쪽 까만 판. */
+  const g9 = c9.createLinearGradient(0, 0, 0, EVB_H9);
+  g9.addColorStop(0, "#4a4f58"); g9.addColorStop(0.5, "#2a2e35"); g9.addColorStop(1, "#1b1e23");
+  c9.fillStyle = g9; c9.beginPath(); if (typeof c9.roundRect === "function") c9.roundRect(0, 0, EVB_W9, EVB_H9, 10); else c9.rect(0, 0, EVB_W9, EVB_H9); c9.fill();
+  c9.fillStyle = "#050506"; c9.fillRect(P - 4, P - 4, EVB_COLS9 * D + 8, EVB_ROWS9 * D + 8);
+  const r9 = D * 0.4;
+  for (let y = 0; y < EVB_ROWS9; y += 1) {
+    for (let x = 0; x < EVB_COLS9; x += 1) {
+      const sx9 = x - x0;
+      const k9 = on9 && sx9 >= 0 && sx9 < st9.w ? st9.m[y * st9.w + sx9] : 0;
+      const px9 = P + x * D + D / 2; const py9 = P + y * D + D / 2;
+      c9.beginPath(); c9.arc(px9, py9, r9, 0, Math.PI * 2);
+      if (k9) { c9.shadowColor = EVB_COL9[k9 - 1]; c9.shadowBlur = D * 0.9; c9.fillStyle = EVB_COL9[k9 - 1]; }
+      else { c9.shadowBlur = 0; c9.fillStyle = "#1d1a17"; }
+      c9.fill();
+    }
+  }
+  c9.shadowBlur = 0;
+  /* 유리 윤 — 위 절반에 옅은 흰 띠. */
+  c9.fillStyle = "rgba(255,255,255,0.05)"; c9.fillRect(P - 4, P - 4, EVB_COLS9 * D + 8, (EVB_ROWS9 * D + 8) * 0.45);
+}
+function evBoardSpr9(t: number): HTMLCanvasElement {
+  if (!evbStrip9) evbStrip9 = evbStripMake9();
+  if (!evbCv9) { evbCv9 = newCanvas9("응원 전광판"); evbCv9.width = EVB_W9; evbCv9.height = EVB_H9; evbKey9 = ""; }
+  if (!evbFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
+    evbFontTried9 = true;
+    document.fonts.load(`800 16px "SCP NanumSquare Neo"`).then(() => { evbStrip9 = evbStripMake9(); evbKey9 = ""; }).catch(() => {});
+  }
+  const [x09, on9] = evbState9(t, evbStrip9.w);
+  const key9 = `${x09}|${on9 ? 1 : 0}|${evbStrip9.w}`;
+  if (key9 !== evbKey9) { evbKey9 = key9; evbDraw9(evbCv9, x09, on9); evbVer9 += 1; sprVer9(evbCv9, evbVer9); }
+  return evbCv9;
+}
 export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number,
   zoom: number, Bd9: number, tz9: number): void {
   const W9 = (f.size ?? 8) * zoom;
@@ -3921,6 +4005,13 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const pw9 = W9 * 1.25; const ph9 = pw9 * (PLACARD_H9 / PLACARD_W9);
       ctx.globalAlpha = 1;
       ctx.drawImage(placardSpr9(), ax - pw9 / 2, ay - ph9 - W9 * PLACARD_LIFT9, pw9, ph9);
+      break;
+    }
+    case "eventboard": {
+      /* 응원 전광판(위 evBoardSpr9 ★) — 깃발 자리(지붕에서 발자국 폭 × 0.75 위가 판 가운데) · 폭 W9 × 0.95 · 판 비율 그대로(위 40도 내려다봄은 높이 × 0.9 로만). */
+      const bw9 = W9 * 0.95; const bh9 = bw9 * (EVB_H9 / EVB_W9) * 0.9;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(evBoardSpr9(u0), ax - bw9 / 2, ay - W9 * 0.75 - bh9 / 2, bw9, bh9);
       break;
     }
     case "eventflag": {
