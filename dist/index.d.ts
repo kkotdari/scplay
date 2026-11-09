@@ -374,7 +374,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -413,6 +413,10 @@ export declare interface ReplayModuleProps {
     onDetailClose?: () => void;
     /** 전체화면 뒤로가기(왼위 ‹) — 전체화면을 나가며 앱이 게임 목록으로 돌아간다(2026-11-09). 없으면 전체화면만 나간다. */
     onBack?: () => void;
+    /** 판 키 예산(px) — 넣는 페이지가 정한다(없으면 재생기가 창을 재 스스로). */
+    frameH?: number;
+    /** 판 폭(px) — 넣는 페이지가 정한다(없으면 담는 상자 폭). */
+    frameW?: number;
     /** 진행바 아래 슬롯 — 공유처럼 **앱의 것**을 여기 꽂는다. */
     shareNode?: ReactNode;
     /** ★ 장면 공유(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해" ·
