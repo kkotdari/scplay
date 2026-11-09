@@ -354,7 +354,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
         post({ type: "walks", raw: m.raw ?? "", entWalks: m.raw ? all.filter((e) => e.raw === m.raw) : all });
       } else if (m.what === "selpts") {
         /* ★ 선수 커서의 선택 자리(2026-11-04, 지적: "유닛 · 건물 선택이나 드래그 선택이 전혀 안 나오는데") — 메인은 참값 트랙을 안 든다(워커에만 넘긴다). 선택마다
-           [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그] 아홉씩을 지어 보낸다(cursor9 selPtsOf9 · 메인 cursorPaths9 가 받는다). */
+           [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그, 꼴] 열한 칸씩을 지어 보낸다(cursor9 selPtsOf9 · 메인 cursorPaths9 가 받는다). */
         const ed9 = world?.entData;
         const pts9 = ed9 && world?.simTracks ? selPtsOf9(ed9.sels ?? [], world.simTracks) : new Float64Array(0);
         post({ type: "selpts", pts: pts9 }, [pts9.buffer]);

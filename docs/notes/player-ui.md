@@ -3226,3 +3226,10 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - scplay: 2초 블랙박스 줄 머리에 `판 MM-DD HH:mm`(__SCPLAY_BUILD__) · 사건 줄 짧은 수치 머리에 `판HH:mm` — 어느 판에서 터졌나가 줄에 남는다.
 - sg-web: `utils/staleBuild.ts` installStaleBuildCheck — 뜬 뒤 3초 · 화면이 30초 넘게 숨었다 보일 때 서버 index.html(no-store)의 /assets/main-*.js 가 지금 것과 다르면 새로고침(2분에 한 번) ·
   보이는 동안 15분마다는 토스트만. vercel.json: assets · spr · pf · uploader · sw.js 밖 경로(곧 HTML)에 `Cache-Control: no-cache, must-revalidate`.
+
+## 선수 커서 — 같은 종류 고르기 · 시프트 빼기(2026-11-09)
+- 요청: "더블클릭으로 같은 종류 선택, 컨트롤/시프트로 같은 종류 선택 혹은 제거" — 리플레이엔 클릭·끌기·더블클릭 구분이 없다(선택 결과만).
+- `selPtsOf9` 줄이 열한 칸(끝 칸 꼴 `SELM_*`). 여럿이 **모두 같은 종류**이고 감싼 상자(+0.7타일) 안에 **안 고른 다른 종류 제 유닛**(건물 빼고)이 있으면 더블클릭(`SELM_DBL9`):
+  무게 중심에 가장 가까운 한 몸 위에서 0.2초 사이로 두 번 누름. 아니면 옛날처럼 끌기 상자.
+- 시프트 빼기(remove)는 빠진 몸(여럿이면 무게 중심에 가장 가까운 것) 위 한 번 누름(`SELM_OFF9`) — 옛날엔 안 움직였다.
+- 엔진(트랙 있음)도 같은 셈(`cursorPathsOf9` 가 selPts 없으면 selPtsOf9 로 짓는다).

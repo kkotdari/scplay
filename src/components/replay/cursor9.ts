@@ -25,38 +25,81 @@ export type CursorSrc9 = {
   casts?: readonly (readonly [number, number, number, string, number])[];
   sels?: readonly (readonly [number, number, readonly number[], number])[];
 };
-/** ★ 마우스 고르기(click · add)만 — **더함(add)은 새로 든 몸만**(2026-11-05, 지적: "A 무리를 집은 상태에서 쉬프트 누르고 다른 쪽에서 B 무리를 선택하는 경우
+/** 선택 자리 한 줄의 꼴(selPtsOf9 열한째 칸 · 2026-11-09, 요청: "더블클릭으로 같은 종류 선택, 컨트롤/시프트로 같은 종류 선택 혹은 제거"). */
+export const SELM_BOX9 = 0;   // 하나면 그 몸 위 클릭 · 여럿이면 끌어 고르기 상자
+export const SELM_DBL9 = 1;   // 같은 종류 고르기(더블클릭 · Ctrl+클릭) — 한 몸 위에서 두 번 누름
+export const SELM_OFF9 = 2;   // 시프트로 뺌(Ctrl+Shift 같은 종류 빼기 포함) — 뺀 몸 하나 위에서 한 번 누름
+/** ★ 마우스 고르기(click · add · remove)만 — **더함(add)은 새로 든 몸만 · 뺌(remove)은 빠진 몸만**(2026-11-05, 지적: "A 무리를 집은 상태에서 쉬프트 누르고 다른 쪽에서 B 무리를 선택하는 경우
  *  A~B 전체를 상자 선택하고 있는 거 같아 · 너무 넓은 말도 안 되는 상자") — 판 10 선택 절은 그 명령 **뒤의 선택 전체**를 싣는다(덤퍼가 ShiftSelect 를 풀어 준다).
  *  그래서 더함을 그대로 감싸면 A+B 를 다 덮었다. 사람마다 앞 선택(모든 갈래 — 키보드 불러오기 · 지정도 선택을 바꾼다)을 기억해 그 밖의 몸만 남긴다.
- *  새로 든 몸이 없으면(시프트로 빼기 등) 들르는 점이 아니다. */
-function mouseSels9(sels: readonly (readonly [number, number, readonly number[], number])[]): [number, number, readonly number[]][] {
+ *  새로 든(빠진) 몸이 없으면 들르는 점이 아니다. 넷째 칸: 뺌이면 true. */
+function mouseSels9(sels: readonly (readonly [number, number, readonly number[], number])[]): [number, number, readonly number[], boolean][] {
   const prev9 = new Map<number, ReadonlySet<number>>();
-  const out9: [number, number, readonly number[]][] = [];
+  const out9: [number, number, readonly number[], boolean][] = [];
   for (const [ss9, so9, stg9, sk9] of sels) {
     const k9 = sk9 < 0 ? -1 : sk9 & 15;
     const was9 = prev9.get(so9);
-    prev9.set(so9, new Set(stg9));
-    if (k9 === SEL_KIND9.click) out9.push([ss9, so9, stg9]);
+    const now9 = new Set(stg9);
+    prev9.set(so9, now9);
+    if (k9 === SEL_KIND9.click) out9.push([ss9, so9, stg9, false]);
     else if (k9 === SEL_KIND9.add) {
       const nw9 = was9 ? stg9.filter((tg9) => !was9.has(tg9)) : stg9;
-      if (nw9.length > 0) out9.push([ss9, so9, nw9]);
+      if (nw9.length > 0) out9.push([ss9, so9, nw9, false]);
+    } else if (k9 === SEL_KIND9.remove && was9) {
+      const gone9 = [...was9].filter((tg9) => !now9.has(tg9));
+      if (gone9.length > 0) out9.push([ss9, so9, gone9, true]);
     }
   }
   return out9;
 }
-/** ★ 선택 자리(워커가 짓는다 · 메인은 트랙이 없다) — sels 마다 [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그] 열 칸. 마우스 고르기(click · add)만. */
+const aliveAt9 = (tr9: TruthTrack, t9: number): boolean => tr9.born <= t9 && (tr9.died === null || tr9.died > t9);
+/** ★ 선택 자리(워커가 짓는다 · 메인은 트랙이 없다) — sels 마다 [초, 임자, 잡힌 수, 왼위 x·y, 오른아래 x·y, 무게 중심 x·y, 첫 태그, 꼴(SELM_*)] 열한 칸. 마우스 고르기(click · add · remove)만.
+ *  같은 종류 고르기 가림(2026-11-09) — 리플레이엔 클릭 · 끌기 · 더블클릭의 구분이 없다. 여럿이 **모두 같은 종류**인데 그것들을 감싼 상자 안에 **안 고른 다른 종류의
+ *  제 유닛**(건물 아님)이 서 있으면 끌어 고른 것일 수 없다 — 더블클릭(Ctrl+클릭)으로 보고 무게 중심에 가장 가까운 한 몸 위에서 두 번 누른다(SELM_DBL9).
+ *  뺌은 늘 빠진 몸 하나(여럿이면 무게 중심에 가장 가까운 것) 위 한 번 누름(SELM_OFF9). 꼴이 DBL · OFF 면 상자 칸·무게 중심은 그 한 몸의 자리다. */
 export function selPtsOf9(sels: readonly (readonly [number, number, readonly number[], number])[], tracks: ReadonlyMap<number, TruthTrack>): Float64Array {
   const out9: number[] = [];
-  for (const [ss9, so9, stg9] of mouseSels9(sels)) {
+  let byOwner9: Map<number, TruthTrack[]> | null = null;   // 다른 종류 제 유닛 찾기(처음 쓸 때 한 번 묶는다)
+  const ownUnits9 = (so9: number): TruthTrack[] => {
+    if (!byOwner9) {
+      byOwner9 = new Map();
+      for (const tr9 of tracks.values()) {
+        if (BUILDING_FOOT[tr9.kind]) continue;
+        const a9 = byOwner9.get(tr9.owner); if (a9) a9.push(tr9); else byOwner9.set(tr9.owner, [tr9]);
+      }
+    }
+    return byOwner9.get(so9) ?? [];
+  };
+  for (const [ss9, so9, stg9, off9] of mouseSels9(sels)) {
     let n9 = 0; let sx9 = 0; let sy9 = 0; let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity; let first9 = 0;
+    let kind9: string | null = null; let same9 = true;
+    const pts9: [number, number, number][] = [];
     for (const tg9 of stg9) {
       const tr9 = tracks.get(tg9); const q9 = tr9 ? posAtTruth(tr9, ss9) : null;
-      if (!q9) continue;
+      if (!tr9 || !q9) continue;
       if (n9 === 0) first9 = tg9;
+      if (kind9 === null) kind9 = tr9.kind; else if (kind9 !== tr9.kind) same9 = false;
+      pts9.push([q9.x, q9.y, tg9]);
       n9 += 1; sx9 += q9.x; sy9 += q9.y;
       x09 = Math.min(x09, q9.x); y09 = Math.min(y09, q9.y); x19 = Math.max(x19, q9.x); y19 = Math.max(y19, q9.y);
     }
-    if (n9 > 0) out9.push(ss9, so9, n9, x09, y09, x19, y19, sx9 / n9, sy9 / n9, first9);
+    if (n9 === 0) continue;
+    let mode9 = off9 ? SELM_OFF9 : SELM_BOX9;
+    if (!off9 && n9 > 1 && same9 && kind9 !== null && !BUILDING_FOOT[kind9]) {
+      const picked9 = new Set(stg9);
+      const ax9 = x09 - 0.7; const ay9 = y09 - 0.7; const bx9 = x19 + 0.7; const by9 = y19 + 0.7;
+      for (const tr9 of ownUnits9(so9)) {
+        if (tr9.kind === kind9 || picked9.has(tr9.tag) || !aliveAt9(tr9, ss9)) continue;
+        const q9 = posAtTruth(tr9, ss9);
+        if (q9 && q9.x > ax9 && q9.x < bx9 && q9.y > ay9 && q9.y < by9) { mode9 = SELM_DBL9; break; }
+      }
+    }
+    if (mode9 !== SELM_BOX9 && n9 > 1) {
+      const cx9 = sx9 / n9; const cy9 = sy9 / n9;
+      let best9 = pts9[0]; let bd9 = Infinity;
+      for (const p9 of pts9) { const d9 = Math.hypot(p9[0] - cx9, p9[1] - cy9); if (d9 < bd9) { bd9 = d9; best9 = p9; } }
+      out9.push(ss9, so9, 1, best9[0], best9[1], best9[0], best9[1], best9[0], best9[1], best9[2], mode9);
+    } else out9.push(ss9, so9, n9, x09, y09, x19, y19, sx9 / n9, sy9 / n9, first9, mode9);
   }
   return Float64Array.from(out9);
 }
@@ -98,9 +141,10 @@ export function cursorPathsOf9(src: CursorSrc9, tracks: ReadonlyMap<number, Trut
   }
   for (const [cs9, cx9, cy9, , co9] of src.casts ?? []) put9(nameOfId9.get(co9) ?? "", cs9, cx9, cy9, CUR_GROUND9, 0);
   /** 고른 몸들 → 들르는 점(하나면 그 몸 위 · 여럿이면 끌어 고르기). */
-  const putSel9 = (raw9: string, ss9: number, n9: number, x09: number, y09: number, x19: number, y19: number, cx9: number, cy9: number, tg9: number): void => {
+  const putSel9 = (raw9: string, ss9: number, n9: number, x09: number, y09: number, x19: number, y19: number, cx9: number, cy9: number, tg9: number, mode9: number): void => {
     if (n9 === 1) {
       const kr9 = o.selKind ? o.selKind(raw9, tg9) : [CUR_OWN9, 0.75] as const;
+      if (mode9 === SELM_DBL9) put9(raw9, ss9 - 0.2, cx9, cy9, kr9[0], kr9[1]);   // 더블클릭 — 같은 자리 두 번 누름(누름은 0.12초 · 사이 0.08초)
       put9(raw9, ss9, cx9, cy9, kr9[0], kr9[1]);
       return;
     }
@@ -109,32 +153,11 @@ export function cursorPathsOf9(src: CursorSrc9, tracks: ReadonlyMap<number, Trut
     put9(raw9, ss9 - dd9, ax9, ay9, CUR_DRAG09, 0);
     put9(raw9, ss9, bx9, by9, CUR_DRAG19, 0);
   };
-  if (o.selPts) {
-    const sp9 = o.selPts;
-    for (let i9 = 0; i9 + 9 < sp9.length; i9 += 10) {
-      putSel9(nameOfId9.get(sp9[i9 + 1]) ?? "", sp9[i9], sp9[i9 + 2], sp9[i9 + 3], sp9[i9 + 4], sp9[i9 + 5], sp9[i9 + 6], sp9[i9 + 7], sp9[i9 + 8], sp9[i9 + 9]);
-    }
-  } else if (tracks) {
-    for (const [ss9, so9, stg9] of mouseSels9(src.sels ?? [])) {   // 키보드(불러오기 · 지정 · 추가)는 안 움직인다 · 더함은 새로 든 몸만(위 mouseSels9)
-      const raw9 = nameOfId9.get(so9) ?? "";
-      const pts9: [number, number, number][] = [];
-      for (const tg9 of stg9) {
-        const tr9 = tracks.get(tg9); const q9 = tr9 ? posAtTruth(tr9, ss9) : null;
-        if (q9) pts9.push([q9.x, q9.y, tg9]);
-      }
-      if (pts9.length === 0) continue;
-      if (pts9.length === 1) {
-        const kr9 = o.selKind ? o.selKind(raw9, pts9[0][2]) : [CUR_OWN9, 0.75] as const;
-        put9(raw9, ss9, pts9[0][0], pts9[0][1], kr9[0], kr9[1]);
-        continue;
-      }
-      /* 여럿 — 끌어 고르기(리플레이엔 클릭 · 끌기 구분이 없다 · 한 번에 여럿이 잡혔으면 끈 것으로 본다). 감싼 네모(+0.7타일)의 왼위 → 오른아래로. */
-      let x09 = Infinity; let y09 = Infinity; let x19 = -Infinity; let y19 = -Infinity;
-      for (const [px9, py9] of pts9) { x09 = Math.min(x09, px9); y09 = Math.min(y09, py9); x19 = Math.max(x19, px9); y19 = Math.max(y19, py9); }
-      x09 -= 0.7; y09 -= 0.7; x19 += 0.7; y19 += 0.7;
-      const dd9 = Math.min(0.45, Math.max(0.2, 0.18 + Math.hypot(x19 - x09, y19 - y09) * 0.02));
-      put9(raw9, ss9 - dd9, x09, y09, CUR_DRAG09, 0);
-      put9(raw9, ss9, x19, y19, CUR_DRAG19, 0);
+  /* 선택 자리는 워커가 지은 것(selPts) — 없고 트랙이 있으면 여기서 짓는다(엔진 · 같은 셈 selPtsOf9). 키보드(불러오기 · 지정 · 추가)는 안 움직인다. */
+  const sp9 = o.selPts ?? (tracks ? selPtsOf9(src.sels ?? [], tracks) : null);
+  if (sp9) {
+    for (let i9 = 0; i9 + 10 < sp9.length; i9 += 11) {
+      putSel9(nameOfId9.get(sp9[i9 + 1]) ?? "", sp9[i9], sp9[i9 + 2], sp9[i9 + 3], sp9[i9 + 4], sp9[i9 + 5], sp9[i9 + 6], sp9[i9 + 7], sp9[i9 + 8], sp9[i9 + 9], sp9[i9 + 10]);
     }
   }
   const out9 = new Map<string, Float64Array>();
