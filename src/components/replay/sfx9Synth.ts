@@ -220,24 +220,30 @@ function squeal9(v: number, pk = 1): Float32Array {
   }, (t) => { f1.set((620 - t * 260) * fk); f2.set((1350 - t * 450) * fk); lp.set(900 - 600 * Math.min(1, t / 0.5)); }), 0.62);
 }
 
-/** 사람 비명(테란 보병) — 성대 펄스 + 'ㅏ' 세 꼭지(F1 800 · F2 1200 · F3 2500) · 떨림 · 끝이 꺾인다. female 이면 높다. */
+/** 사람 비명(테란 보병) — ★ **비명답게**(2026-11-09, 요청: "마린 · 메딕 · 파뱃 · 고스트 등 죽음 소리 더 비명처럼") — 옛: 260Hz 성대 펄스 + 'ㅏ' 세 꼭지(낮은 '아~').
+ *  이제: 더 높은 기본음(남 380 · 여 760) · 처음 0.12초에 1.3배로 치솟았다가 끝에서 0.65배로 꺾이는 높낮이 · 굵은 떨림(7Hz ± 5%) · 거친 쇳소리(40~70Hz 떨리는 진폭 + 반 높이
+ *  아래음 0.3) · 숨 잡음 · 밝은 꼭지(F1 950 · F2 1500 · F3 3000 · 넓게). female 이면 높다 · pk 높낮이 배수(메딕 · 파뱃). */
 function scream9(v: number, female: boolean, pk = 1): Float32Array {
   const r = rng9((female ? 551 : 501) + v + (pk !== 1 ? 37 : 0));
-  const f0b = (female ? 520 + v * 30 : 260 + v * 25) * pk;   // pk — 높낮이 배수(메딕 1.15 → 1.45 "메딕 더 높게" · 파뱃 0.72 · 2026-11-02)
-  const s = (female ? 1.18 : 1) * Math.sqrt(pk);
-  const f1 = new Biquad9("bp", 800 * s, 6); const f2 = new Biquad9("bp", 1250 * s, 8); const f3 = new Biquad9("bp", 2600 * s, 10);
-  let ph = 0;
-  const dur = 0.75;
+  const f0b = (female ? 760 + v * 30 : 380 + v * 25) * pk;
+  const s = (female ? 1.15 : 1) * Math.sqrt(pk);
+  const f1 = new Biquad9("bp", 950 * s, 4); const f2 = new Biquad9("bp", 1500 * s, 5); const f3 = new Biquad9("bp", 3000 * s, 6);
+  const hpN = new Biquad9("hp", 1800, 0.7);
+  let ph = 0; let ph2 = 0;
+  const dur = 0.85;
+  const rf9 = 40 + r() * 30;
   return finish9(render9(dur, (t) => {
-    const rise = t < 0.08 ? 0.92 + t : 1 - (t - 0.08) * 0.42;
-    const f0 = f0b * rise * (1 + 0.035 * Math.sin(2 * Math.PI * 6.5 * t) + 0.012 * (r() * 2 - 1));
-    ph += f0 / SFX_RATE9;
+    const rise = t < 0.12 ? 0.85 + (t / 0.12) * 0.45 : t < 0.55 ? 1.3 - (t - 0.12) * 0.25 : 1.19 - (t - 0.55) * 1.8;
+    const f0 = f0b * Math.max(0.6, rise) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.02 * (r() * 2 - 1));
+    ph += f0 / SFX_RATE9; ph2 += (f0 * 0.5) / SFX_RATE9;
     const p = ph % 1;
-    const glot = p < 0.4 ? Math.sin(Math.PI * p / 0.4) : 0; // 성대 펄스(닫힌 몫이 있는 반사인)
-    const src = (glot - 0.25) * 1.4 + (r() * 2 - 1) * 0.12;
-    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.75 + f3.run(src) * 0.35;
-    return sat9(voc * ad9(t, 0.03, 2.2) * 3.2, 1.8);
-  }), female ? 0.42 : 0.6);
+    const glot = p < 0.35 ? Math.sin(Math.PI * p / 0.35) : 0;
+    const sub = Math.sin(2 * Math.PI * ph2) * 0.3;
+    const rasp = 0.7 + 0.3 * Math.sin(2 * Math.PI * rf9 * t + 3 * Math.sin(2 * Math.PI * 11 * t));
+    const src = ((glot - 0.22) * 1.5 + sub) * rasp + (r() * 2 - 1) * 0.18;
+    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.85 + f3.run(src) * 0.5 + hpN.run(r() * 2 - 1) * 0.12;
+    return sat9(voc * ad9(t, 0.02, 2.0) * 3.4, 2.1);
+  }), female ? 0.42 : 0.58);
 }
 
 /** 전기 지지직(프로브·아콘·질럿 사이오닉) — 낮은 윙 + 듬성한 방전 펄스 + 높은 쉬익. */
@@ -1089,7 +1095,7 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   flame: [1, flame9], slash: [1, slash9], blade: [1, blade9], claw: [1, claw9], spine: [1, spine9],
   warpHum: [1, warpHum9], warpEnd: [1, warpEnd9], heart: [1, heart9], mineScv: [1, mineScv9], mineProbe: [1, mineProbe9],
   eggPop: [1, eggPop9],
-  screamLow: [1, (v) => scream9(v, false, 0.72)], screamHi: [1, (v) => scream9(v, true, 1.45)],
+  screamLow: [1, (v) => scream9(v, false, 0.72)], screamHi: [1, (v) => scream9(v, true, 1.7)],   // 메딕 1.45 → 1.7(2026-11-09, 요청: "메딕 죽음 소리 더 고음으로")
   spikeEarth: [1, spikeEarth9], guardHum: [1, guardHum9], springBreak: [1, springBreak9], scanHum: [1, scanHum9],
   warpCharge: [1, warpCharge9], zlingHit: [1, zlingHit9], ultraHit: [1, ultraHit9],
   missileLow: [1, missileLow9], missileHi: [1, missileHi9],

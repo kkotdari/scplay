@@ -37,7 +37,7 @@ const GAP9: Partial<Record<SfxKind9, number>> = {
   screamLow: 260, screamHi: 380, springBreak: 200, spikeEarth: 160, guardHum: 260, scanHum: 600, warpCharge: 500, zlingHit: 60, ultraHit: 80, missileLow: 150, missileHi: 150, fleshUnfold: 300, zergDone: 400, eggStart: 220, eggHatch: 220, metalClang: 120, mineArm: 120, reaverBreak: 200, vesselBoom: 300, bioLoad: 250, bioUnload: 250, obsBoom: 300, lurkerDie: 200, squealHi: 160, squealMuta: 160, stim: 600,
 };
 /** 종류마다 크기. */
-const GAIN9: Partial<Record<SfxKind9, number>> = { gunShot: 0.175, warpHum: 0.5, heart: 0.3, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // gunShot 0.7 → 0.35 → 0.175(넷째 "볼륨 반으로") (2026-11-09 셋째 "반 정도로 줄여야 할 듯 너무 커" → "0.7 에서 반" · 사이에 0.48 · 0.24 를 거쳤다) · heart 0.6 → 0.3(2026-11-09, 요청: "저그 공사 고치 두근두근 소리 작게") · eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
+const GAIN9: Partial<Record<SfxKind9, number>> = { gunShot: 0.35, warpHum: 0.5, heart: 0.3, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // gunShot 0.7 → 0.35 → 0.175(넷째 "볼륨 반으로") → 0.35(다섯째 "볼륨 2배로") (2026-11-09 셋째 "반 정도로 줄여야 할 듯 너무 커" → "0.7 에서 반" · 사이에 0.48 · 0.24 를 거쳤다) · heart 0.6 → 0.3(2026-11-09, 요청: "저그 공사 고치 두근두근 소리 작게") · eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";

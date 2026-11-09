@@ -3943,16 +3943,18 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const ws9: number[] = []; let tw9 = 0;
       for (let i9 = 0; i9 < N9; i9 += 1) { const sl9 = (dep9((i9 + 1) * dx9) - dep9(i9 * dx9)) / dx9; const w9 = dx9 / Math.sqrt(1 + sl9 * sl9); ws9.push(w9); tw9 += w9; }
       let sx9 = ax - tw9 / 2; const fy0 = ay - W9 * 0.75 - fh9 / 2;
-      /* 마루(앞으로 가장 나온 자리) → 그 오른쪽 골(가장 들어간 자리) 짝들 — 드리운 그림자(아래 ★)의 자. 64 점으로 찾는다. */
+      /* 마루(앞으로 가장 나온 자리) → 그 오른쪽 골 짝들 — 드리운 그림자(아래 ★)의 자.
+         ★ 그림자가 **끊기지 않게**(2026-11-09, 요청: "깃발은 사선 그림자가 진짜 중요한 듯 · 계속 나와야 해 끊기지 말고") — 옛: 64 점에서 국소 마루를 찾아, 잔물결(둘째 배음)이 만든
+         작은 마루가 짧은 그림자를 냈다 꺼졌다 하고 끝을 넘나드는 마루는 생겼다 사라졌다. 이제 **큰 물결의 위상**에서 바로 푼다: 마루 q = (π/2 + 시각 + 2πn) ÷ 2.6π · 골 = 마루 + 반 주기.
+         왼끝 밖(−0.5 까지)의 마루도 넣어 그림자가 끝에서 흘러들고 흘러 나간다. */
       const folds9: [number, number][] = [];
       {
-        const M9 = 64; const ds9: number[] = [];
-        for (let k9 = 0; k9 <= M9; k9 += 1) ds9.push(dep9((k9 / M9) * fl9));
-        for (let k9 = 1; k9 < M9; k9 += 1) {
-          if (!(ds9[k9] >= ds9[k9 - 1] && ds9[k9] > ds9[k9 + 1])) continue;
-          let t9 = k9 + 1;
-          while (t9 < M9 && ds9[t9 + 1] < ds9[t9]) t9 += 1;
-          folds9.push([(k9 / M9) * fl9, (t9 / M9) * fl9]);
+        const per9 = Math.PI * 2.6;
+        const n09 = Math.ceil((-0.5 * per9 - Math.PI / 2 - tt9) / (Math.PI * 2));   // 시각이 커져도 왼끝 밖 −0.5 부터
+        for (let n9 = n09; n9 < n09 + 4; n9 += 1) {
+          const q9 = (Math.PI / 2 + tt9 + Math.PI * 2 * n9) / per9;
+          if (q9 > 1) break;
+          folds9.push([q9 * fl9, (q9 + Math.PI / per9) * fl9]);
         }
       }
       for (let i9 = 0; i9 < N9; i9 += 1) {
