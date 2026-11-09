@@ -3283,3 +3283,4 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - (열한째 넷째) 실기 비교샷 "뒤에 거가 중계고 앞이 자유야 둘이 다르잖아" — 판이 떠 있는 동안은 가림이라 중계 카메라가 한 번도 안 그려져 trackCamRef 가 비어 있었다(넘겨받기 헛돎).
   pickFree9 는 판을 닫고 trackCamRef.raw 를 비운 뒤 중계 카메라가 첫 장을 그릴 때까지 rAF 로 기다렸다가(최대 40장) 그 자리를 넘겨받고 중계를 끈다.
   🔎 `perf-check --ios --ask 4 --askpick 0`(자유) · `--askpick 1`(풀) 미니맵 네모가 같은 자리.
+- (같은 날) "소리 팝오버가 인포창에 가려짐" — 가로 배치 재생바(z 13 · 제 겹 문맥)의 위로 펴는 목록이 인포창·전광판(z 14)에 갇혔다 → `.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb` z 15.

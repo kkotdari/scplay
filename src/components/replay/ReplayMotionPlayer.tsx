@@ -3902,7 +3902,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
            그 줄의 기울기를 **왼쪽으로 밀린 자리**(아래로 갈수록 깃발 폭 × EVFLAG_SLANT9 만큼)에서 읽는다 — 띠가 위에서 아래로 오른쪽으로 기운다(왼 위에서 내리쬐는 빛).
            그림(천)은 한 장 · 그늘만 칸으로(칸 이음매 줄무늬가 안 생기게 그늘 칸은 겹치지 않는다). */
         const shOf9 = (sl: number): string | null => {
-          const sh = sl < 0 ? Math.min(0.5, -sl * 1.8) : -Math.min(0.18, sl * 0.9);
+          /* 흰 천은 밝혀도 안 보인다 — 왼쪽을 보는 면도 **옅게 어둡게**(열여덟째 · 꺾인 면이면 어느 쪽이든 음영) · 오른쪽을 보는 면은 진하게. */
+          const sh = sl < 0 ? Math.min(0.5, -sl * 1.8) : Math.min(0.22, sl * 0.8);
           return Math.abs(sh) > 0.01 ? (sh > 0 ? `rgba(0,0,0,${sh.toFixed(3)})` : `rgba(255,255,255,${(-sh * 0.8).toFixed(3)})`) : null;
         };
         const shCol9 = R9 > 1 ? shOf9(sl9) : null;
@@ -3933,8 +3934,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
           }
           ctx.save();
           ctx.transform(1, (tb9 - ta9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ta9);
-          if (v09 < 1) { ctx.fillStyle = "rgba(20,24,40,0.36)"; ctx.fillRect(0, v09 * ha9, w9 + 0.8, ha9 * (1 - v09)); }
-          else if (sl9 > 0) { ctx.fillStyle = `rgba(255,255,255,${Math.min(0.16, sl9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, w9 + 0.8, ha9); }
+          /* 면의 기울기 음영은 **늘** 깐다(열여덟째, 실기 지적: "이 정도 꺾인 면도 음영 들어가야지" — 드리운 그림자 밖의 꺾인 면이 맨살이었다): 오른쪽을 보는 면 어둡게 · 왼쪽을 보는 면 옅게 밝게.
+             그 위에 드리운 그림자를 겹친다. */
+          const base9 = shOf9(sl9);
+          if (base9) { ctx.fillStyle = base9; ctx.fillRect(0, 0, w9 + 0.8, ha9); }
+          if (v09 < 1) { ctx.fillStyle = "rgba(20,24,40,0.32)"; ctx.fillRect(0, v09 * ha9, w9 + 0.8, ha9 * (1 - v09)); }
           ctx.restore();
         }
         sx9 += w9;

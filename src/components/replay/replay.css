@@ -5720,6 +5720,9 @@
    남은 것은 배속 다이얼 바닥 내림(--wdial-push · RMP pushDial9) — 전광판 · 재생바 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로. */
 .scr-fs-layer.is-wide .scr-fs-lower > .scr-tb.scr-tb { margin-right: calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap) + var(--wdial-push, 0px)); }
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel { margin-right: calc(var(--wr) + var(--wdial-push, 0px)); }
+/* 재생바 위로 펴는 목록(소리 · 색 · 핀 …)이 인포창 · 전광판(z 14)에 가렸다(2026-11-09, 실기 지적: "소리 팝오버가 인포창에 가려짐") — 가로 배치의 재생바는 판(z 13 · 제 겹 문맥)이라
+   목록이 그 안에 갇힌다. 재생바를 그들 위(15)로 — 재생바와 판들은 안 겹치고(PC: 아래 한 줄 · 폰: 사이) 위로 펴는 목록만 그 위에 선다. */
+.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb.scr-tb { z-index: 15; }
 /* ★ PC 가로 배치는 재생바가 인포창 · 전광판 **아래 한 줄**(미니맵 오른쪽 ~ 오른끝 − 다이얼 몫) · 둘은 재생바 키 + 틈만큼 위 · 그 사이는 빈다(2026-11-09 넷째, 요청: "피시는 그냥 가로 모드에서
    인포창-전광판 사이만 벌리자 · 재생판은 원래대로 아래 한 줄로 하고 사이에 넣지 마"). 폰은 위 사이 두 줄. 틈 = --wgap + 홀로그램 판 넓힘 두 몫. */
 .scr-fs-layer.is-wide.scr-motion-pc9 { --wtb-lift: calc(var(--wtb-h, 0px) + var(--wgap) + 2 * var(--holo-ext, 0px)); }
