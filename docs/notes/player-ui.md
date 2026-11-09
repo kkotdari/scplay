@@ -3268,3 +3268,5 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   미룬 일이 돌기 전 두 번째 누름은 버린다(modeBusy9 — 옛 상태로 한 번 더 뒤집혔다).
 - (여덟째) 폰 게임 상세에서 재생기 아래로 옮긴 머리 줄이 브라우저 바 밑에 깔림 — 앱이 `--scr-frame-below`(sg-web: 카드 아래 여백 + 40px)를 주면 frameMaxH 예산에서 빼고 lvh 반 늘림을 끈다.
 - (여덟째) "자유 → 중계 토글 아직 느림" — 자유로 시작하면 편성표(castPlan9)를 중계를 처음 켤 때 구웠다(cast-plan.mjs 8인 20분 195ms · 폰 몇 배). 참값이 서면 곧 한 번 굽는다(castWarm9 → planWant9).
+- (아홉째) PWA 실기: 머리 줄이 여전히 홈 막대 밑 — `getComputedStyle().getPropertyValue("--scr-frame-below")` 는 **풀리지 않은 글자**("calc(16px + 40px)")라 parseFloat 가 0 이었다.
+  프레임 안 숨은 탐침(i.scr-frame-below-probe · height: var(--scr-frame-below))의 키로 px 을 푼다.

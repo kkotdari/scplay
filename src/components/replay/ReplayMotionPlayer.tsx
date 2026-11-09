@@ -14313,7 +14313,19 @@ export default function ReplayMotionPlayer({
          남는 것은 숨 쉴 자리 하나(12)와 안전 영역(위 ★)뿐이다. */
       /* ★ 앱이 판 **아래에 둘 것**의 몫(--scr-frame-below · 2026-11-09, 실기 지적: "헤더 로우가 완전 가려짐 · 더 위로 올려야 해 · 재생기 줄이고") — sg-web 게임 상세(폰)가 머리 줄을
          재생기 아래로 옮기며 그 키를 CSS 변수로 준다. 그 몫이 있으면 판을 펴진 바 밑까지 늘리지 않는다(아래 lvh 반 · --scr-bar-under) — 늘리면 아래 줄이 다시 바 밑으로 깔린다. */
-      const res9 = parseFloat(getComputedStyle(el).getPropertyValue("--scr-frame-below")) || 0;
+      /* ⚠ 사용자 정의 속성의 계산값은 **풀리지 않은 글자**다("calc(16px + 40px)" → parseFloat NaN → 0 · 2026-11-09 실기: 머리 줄이 여전히 홈 막대 밑) — 숨은 탐침의 키로 px 을 푼다. */
+      let res9 = 0;
+      if (getComputedStyle(el).getPropertyValue("--scr-frame-below").trim()) {
+        let pb9 = el.querySelector<HTMLElement>(":scope > .scr-frame-below-probe");
+        if (!pb9) {
+          pb9 = document.createElement("i");
+          pb9.className = "scr-frame-below-probe";
+          pb9.setAttribute("aria-hidden", "true");
+          pb9.style.cssText = "position:absolute;left:0;top:0;width:0;height:var(--scr-frame-below,0px);visibility:hidden;pointer-events:none";
+          el.appendChild(pb9);
+        }
+        res9 = pb9.offsetHeight;
+      }
       const below9 = 12 + safeBottomOf9() + res9;
       let ih9 = window.innerHeight;
       if (window.matchMedia?.("(pointer: coarse)").matches) {
