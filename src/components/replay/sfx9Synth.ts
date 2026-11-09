@@ -211,7 +211,9 @@ function squeal9(v: number, pk = 1): Float32Array {
   return finish9(render9(0.8, (t) => {
     const f0 = base * Math.max(0.44, 1.08 - t * 1.0) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.03 * Math.sin(2 * Math.PI * 31 * t));
     ph += f0 / SFX_RATE9;
-    const src = ((ph % 1) * 2 - 1) * 0.8 + (r() * 2 - 1) * 0.2;   // 숨 잡음 0.4 → 0.2(2026-11-08 잡음)
+    /* 톱니 → 반사인 성대 펄스(2026-11-09 셋째, 지적: "스톰 소린지 죽는 드론 소린지 모르겠음" — 높은 갈래(squealHi 1.35 · 드론 · 저글링…)의 톱니가 쨍쨍 지지직처럼 갈렸다). */
+    const pp9 = ph % 1;
+    const src = ((pp9 < 0.4 ? Math.sin(Math.PI * pp9 / 0.4) : 0) - 0.25) * 1.3 + (r() * 2 - 1) * 0.15;   // 숨 잡음 0.4 → 0.2(2026-11-08 잡음) → 0.15
     const cry = (f1.run(src) * 1.2 + f2.run(src) * 0.85 + f3.run(src) * 0.4) * ad9(t, 0.03, 3.4) * 1.6;
     const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.1) * ad9(t, 0.005, 6.5) * 1.0;
     const thump = Math.sin(2 * Math.PI * (80 - t * 50) * t) * exp9(t, 9) * 0.8;
@@ -353,25 +355,36 @@ function photonC9(v: number): Float32Array {
   return finish9(echo9(raw, 0.085, 0.22), 0.62);
 }
 
-/** ★ 드라군 포 — **낮은 둥**(2026-11-09, 요청: "드라군 포 소리 낮고 둥둥 소리로") — 옛: 스카우트·아비터와 같은 뿅(photon9 · 1.7kHz 에서 꺾임).
- *  낮은 북: 120 → 48Hz 로 떨어지는 사인 몸(느린 꺼짐) + 2배음 옅게 + 막힌 잡음 퍽(600Hz 아래) + 아주 옅은 플라즈마 쉭(위로 살짝 · 1.1kHz 띠) + 메아리 하나. */
+/** ★ 드라군 포 — **휘잉 날아가서 펑**(2026-11-09 셋째, 요청: "드라군 — 휘잉 하고 날아가서 펑 터지는 듯하게") — 쏠 때(이 소리): 낮은 '툭' 발사 + 휘잉(사인 휘파람이
+ *  700 → 1200Hz 로 올랐다 900Hz 로 지나가며 · 7Hz 떨림 · 위아래 띠 잡음 바람) 0.42초. 맞을 때는 dragoonHit9(펑). 옛 '낮은 둥' 한 방(같은 날)은 걷었다. */
 function dragoonShot9(v: number): Float32Array {
   let ph = 0;
   const r = rng9(2071 + v);
-  const lp = new Biquad9("lp", 600, 0.7);
-  const bp = new Biquad9("bp", 1100, 2);
-  const raw = render9(0.5, (t) => {
-    const f = 48 + (72 + v * 8) * exp9(t, 9);
+  const bpW = new Biquad9("bp", 1000, 1.5);
+  return finish9(render9(0.42, (t) => {
+    const u = t / 0.42;
+    const f = (700 + 500 * Math.sin(Math.PI * Math.min(1, u * 1.3)) + v * 30) * (1 + 0.025 * Math.sin(2 * Math.PI * 7 * t));
     ph += f / SFX_RATE9;
-    /* (2026-11-09 둘째, 지적: "히드라 · 드라군 소리가 작은 건지 질럿이 큰 건지") — 48~120Hz 몸은 폰 스피커가 거의 못 내 작게 들렸다 → 2 · 3 배음을 올리고(0.18 → 0.45 · 0.25)
-       300Hz 언저리 '똑'(막힌 잡음 위 짧은 사인)을 얹어 작은 스피커에서도 '둥'이 들리게 · 봉우리 0.7 → 0.82. */
-    const body = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.45 + Math.sin(6 * Math.PI * ph) * 0.25) * ad9(t, 0.006, 6.5);
-    const thock = Math.sin(2 * Math.PI * (320 - t * 400) * t) * exp9(t, 30) * 0.5;
-    const puff = lp.run(r() * 2 - 1) * exp9(t, 45) * 0.8;
-    const hiss = bp.run(r() * 2 - 1) * exp9(t, 18) * 0.12;
-    return sat9(body * 1.15 + thock + puff + hiss, 1.5);
-  });
-  return finish9(echo9(raw, 0.11, 0.2), 0.82);
+    const whistle = Math.sin(2 * Math.PI * ph) * ad9(t, 0.05, 4.5) * 0.55;
+    const wind = bpW.run(r() * 2 - 1) * ad9(t, 0.04, 5) * 0.8;
+    const pop = Math.sin(2 * Math.PI * (160 - t * 900) * t) * exp9(t, 50) * 0.7;
+    return sat9(whistle + wind + pop, 1.3);
+  }, (t) => bpW.set(900 + 900 * Math.sin(Math.PI * Math.min(1, t / 0.32)))), 0.5);
+}
+
+/** ★ 드라군 탄 맞음 — **펑**(2026-11-09 셋째) — 둥근 폭발: 낮은 쿵(110 → 45Hz · 2 · 3 배음으로 폰에서도 들림) + 터지는 잡음(1.4kHz → 300Hz 로 닫히는 저역) + 짧은 메아리 · 0.55초. */
+function dragoonHit9(v: number): Float32Array {
+  let ph = 0;
+  const r = rng9(2091 + v); const br = brown9(r);
+  const lp = new Biquad9("lp", 1400, 0.7);
+  const raw = render9(0.55, (t) => {
+    const f = 45 + (65 + v * 6) * exp9(t, 10);
+    ph += f / SFX_RATE9;
+    const boom = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.45 + Math.sin(6 * Math.PI * ph) * 0.2) * ad9(t, 0.004, 7) * 1.1;
+    const blast = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.5) * ad9(t, 0.003, 9) * 1.2;
+    return sat9(boom + blast, 1.5);
+  }, (t) => lp.set(300 + 1100 * exp9(t, 8)));
+  return finish9(echo9(raw, 0.09, 0.18), 0.72);
 }
 
 /** 채집 — 낮고 부드러운 사각임 두 번 + 아주 옅은 낮은 툭.
@@ -431,7 +444,7 @@ function thunder9(v: number): Float32Array {
   const hp = new Biquad9("hp", 2200, 0.7);
   const gF = new Grain9(1500, 3);
   return finish9(render9(2.0, (t) => {
-    const crack = hp.run(r() * 2 - 1) * exp9(t, 14) * 0.9;
+    const crack = hp.run(r() * 2 - 1) * exp9(t, 18) * 0.6;   // 0.9 → 0.6 · 꺼짐 14 → 18(2026-11-09 셋째 · 지지직 줄임)
     const roll = lp.run(br() * 1.5) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 1.7 * t + v)) * ad9(t, 0.04, 1.4);
     /* (2026-11-09, 지적: "스톰 쓰면 지직임 소리 발생") — 옛 fizz 는 **한 표본 튐**(r < 0.01 이면 ±1)이라 지글거렸고(2026-11-08 죽음·폭발에서 고친 그 병), 고역 딱(hp 3kHz)도
        포화(1.6)에 걸려 갈라졌다. 튐은 둥근 알갱이(Grain9 · 1.5kHz 아래)로 · 딱은 2.2kHz 위 · 0.9 · 포화 1.3. */
@@ -1104,7 +1117,7 @@ export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie" | "dragoonHit";
 
 /** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -1126,5 +1139,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   mineArm: [1, mineArm9], reaverBreak: [1, reaverBreak9], vesselBoom: [1, vesselBoom9],
   bioLoad: [1, (v) => bioHold9(v, true)], bioUnload: [1, (v) => bioHold9(v, false)],
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
-  stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9],
+  stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9], dragoonHit: [1, dragoonHit9],
 };

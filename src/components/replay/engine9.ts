@@ -6081,7 +6081,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const [fx9, fy9] = posFrac(tg.bx, tg.by);
       const d9 = hitDirOf9(o.sx, o.sy, tg.bx, tg.by);
       const ok9 = o.tag ? { ok: `u${o.tag}`, seed: o.tag } : {};
-      const wp9 = o.style ? { style: o.style } : o.by ? { by: o.by } : {};
+      const wp9 = o.style ? { style: o.style, ...(o.by ? { by: o.by } : {}) } : o.by ? { by: o.by } : {};   // 무기 갈래 + 쏜 몸(효과음이 드라군 탄 '펑'을 가른다 · 2026-11-09)
       if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
         fxOps.push({
           kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
@@ -10225,7 +10225,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            튀는 자리(dist 기본 = size×0.71)는 몸 폭 하나 밖이었다. 후보판의 비(반지름 = 몸 폭의
            1/4, 튀는 자리 = 중심에서 몸 폭의 0.32)로 맞춘다. */
       ? { kind: "shield", fx: fxfx9, fy: fxfy9, lift: liftPx9,
-        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, pr: 1 / 0.4, ok: `u${e.tag}`, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
+        size: fxPx * (modelInkOf(kindMain) / 16) * 1.2, ph: (t - hurtAt) / 0.4, pr: 1 / 0.4, ok: `u${e.tag}`, seed: e.tag, ...(hitWpn9 ? { style: hitWpn9, ...(hitSrc9?.uk ? { by: hitSrc9.uk } : {}) } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}) }
       : { kind: "hit", fx: fxfx9, fy: fxfy9, lift: liftPx9,
         /* ★ 튀는 자리는 **몸 가운데 가까이**(지적: "트레이서는 타겟 중심을 향하는데 피격효과는 외부에서
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
@@ -10238,7 +10238,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            정체는 **자리**였다: 자폭은 두 몸이 겹치므로 맞은 쪽의 불티가 스커지 자리에서 난 것처럼 읽힌다.
            스커지 제 몸은 이제 저그 파편으로만 죽으므로(위 죽음 갈래) 덮어쓸 까닭도 없다. */
         ph: (t - hurtAt) / 0.14, pr: 1 / 0.14, ok: `u${e.tag}`, mat: hitMat9, seed: e.tag,   // seed = 맞은 몸 — 효과음이 '새로 맞음'을 가른다(2026-10-22)
-        ...(hitWpn9 ? { style: hitWpn9 } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
+        ...(hitWpn9 ? { style: hitWpn9, ...(hitSrc9?.uk ? { by: hitSrc9.uk } : {}) } : hitSrc9?.uk ? { by: hitSrc9.uk } : {}),
         ...(hitDir9 ? { dx: hitDir9[0], dy: hitDir9[1] } : {}),
         ...((): Partial<FxOp> => {
           /* 소총류 피격 — 지금 이 몸을 겨눈 소총류 수(지상 표적이면 골리앗·레이스·스카웃도) · 그 수를 못 셌어도 때린 쪽이 소총류면 하나. */
@@ -10468,7 +10468,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
       const land9 = proj9 ? bltLand9(e.tag) : undefined;
       if (land9 !== null) {
         const since9 = typeof land9 === "number" ? t - land9 : fireSince9(holdKey, fxCdRaw);
-        tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, style: fxName9, since: since9, delay: typeof land9 === "number" || !proj9 ? 0 : flySec9, fallPx: fxPx });
+        tgtHitFx9({ sx: ax3, sy: ay3, tg: foe, tag: tgtTag9, style: fxName9, by: drawUnit, since: since9, delay: typeof land9 === "number" || !proj9 ? 0 : flySec9, fallPx: fxPx });
       }
     }
     if (beamDeg === null || !fxName9) return null;

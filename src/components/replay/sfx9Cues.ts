@@ -52,6 +52,8 @@ const CAST9: Record<string, SfxKind9> = {
 
 export class SfxCues9 {
   private prev = new Set<string>();
+  /** 스톰 씨앗 → 마지막으로 울린 때(실시간 ms · 위 storm ★). */
+  private stormAt = new Map<string, number>();
   private buried = new Map<string, boolean>();
   /** 맞은 몸마다 앞 장의 피격 위상 — 같은 몸이 잇달아 맞으면 열쇠가 그대로라 위상이 0 으로 돌아온 것으로 새 타를 가른다. */
   private hitPh = new Map<number, number>();
@@ -129,6 +131,7 @@ export class SfxCues9 {
              맞은 쪽 op 는 무기 갈래가 없어(by = Sunken Colony) 근접 칼질(slash)로 한 번 더 났다. */
           if (s === undefined && op.by === "Sunken Colony") break;
           /* 소총 불티(사수 박자 op · cd 있음)는 묶음 소리 대신 고른 연사 줄기를 살린다(sfx9 gunBeat9 ★ · 2026-11-05). */
+          if (s === "plasma" && op.by === "Dragoon") { play("dragoonHit", op.fx, op.fy); break; }   // 드라군 탄 맞음 = 펑(2026-11-09 · 쏠 때는 휘잉 dragoonShot)
           if (op.ro && op.gg && op.cp && s !== undefined && HIT9[s] === "gun") { if (live) gunBeat9(op.gg, op.cp, { near: near(op.fx, op.fy), speed: o.speed }); break; }
           play(s === undefined ? (op.by ? MELEE9[op.by] : undefined) ?? "slash" : HIT9[s] === undefined ? "gun" : HIT9[s], op.fx, op.fy);
           break;
@@ -158,7 +161,12 @@ export class SfxCues9 {
           if (st === "weld") { weld = true; wx = op.fx; wy = op.fy; break; }
           const key = `d${st}:${op.sub ?? ""}:${op.seed ?? ""}`;
           if (!fresh(key)) break;
-          if (st === "storm") play("thunder", op.fx, op.fy);
+          /* 스톰은 **한 번만**(2026-11-09, 지적: "스톰 지지직 아직 남음") — 앞 장에 없던 열쇠면 새것으로 쳤는데(fresh), 스톰 op 가 화면 밖 · 장 건너뜀으로 한 장 빠지면
+             4초 동안 몇 번이고 다시 울려 첫 '딱'이 지지직처럼 겹쳤다. 씨앗마다 4.5초(실시간) 안에는 다시 안 낸다. */
+          if (st === "storm") {
+            const sk9 = `storm:${op.seed ?? ""}`; const nowMs9 = performance.now();
+            if (nowMs9 - (this.stormAt.get(sk9) ?? -1e9) > 4500) { this.stormAt.set(sk9, nowMs9); play("thunder", op.fx, op.fy); }
+          }
           else if (st === "nuke") play("boomBig", op.fx, op.fy);
           else if (st === "swarm") play("puff", op.fx, op.fy);
           else if (st === "cast") play(CAST9[op.sub ?? ""], op.fx, op.fy);

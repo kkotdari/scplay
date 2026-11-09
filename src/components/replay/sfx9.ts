@@ -23,6 +23,7 @@ const PRIO9: Record<SfxKind9, number> = {
   dragoonShot: 5,   // 2026-11-09
   zealotStab: 3,   // 2026-11-09
   tossDie: 7,   // 2026-11-09
+  dragoonHit: 5,   // 2026-11-09
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
