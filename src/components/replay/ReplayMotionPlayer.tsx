@@ -3868,13 +3868,25 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const fl9 = W9 * 1.125; const fh9 = W9 * 0.3;
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
-      const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
+      const N9 = 64; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;   // 32 → 64(드리운 그림자의 사선 끝 계단을 잘게 · 열일곱째)
       const amp9 = W9 * 0.06; const tt9 = u0 * 4.2;
       const dep9 = (x9: number): number => { const k9 = 0.35 + 0.65 * (x9 / fl9); const q9 = x9 / fl9; return amp9 * k9 * Math.sin(q9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(q9 * Math.PI * 5.1 - tt9 * 1.7); };
       /* 줄어든 가로를 먼저 재어 가운데 맞춘다. */
       const ws9: number[] = []; let tw9 = 0;
       for (let i9 = 0; i9 < N9; i9 += 1) { const sl9 = (dep9((i9 + 1) * dx9) - dep9(i9 * dx9)) / dx9; const w9 = dx9 / Math.sqrt(1 + sl9 * sl9); ws9.push(w9); tw9 += w9; }
       let sx9 = ax - tw9 / 2; const fy0 = ay - W9 * 0.75 - fh9 / 2;
+      /* 마루(앞으로 가장 나온 자리) → 그 오른쪽 골(가장 들어간 자리) 짝들 — 드리운 그림자(아래 ★)의 자. 64 점으로 찾는다. */
+      const folds9: [number, number][] = [];
+      {
+        const M9 = 64; const ds9: number[] = [];
+        for (let k9 = 0; k9 <= M9; k9 += 1) ds9.push(dep9((k9 / M9) * fl9));
+        for (let k9 = 1; k9 < M9; k9 += 1) {
+          if (!(ds9[k9] >= ds9[k9 - 1] && ds9[k9] > ds9[k9 + 1])) continue;
+          let t9 = k9 + 1;
+          while (t9 < M9 && ds9[t9 + 1] < ds9[t9]) t9 += 1;
+          folds9.push([(k9 / M9) * fl9, (t9 / M9) * fl9]);
+        }
+      }
       for (let i9 = 0; i9 < N9; i9 += 1) {
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
@@ -3908,19 +3920,21 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
           ctx.restore();
         }
         if (R9 === 1) {
-          /* 띠 한 장 · 세로 그러데이션(멈춤 7 개) — 칸으로 칠하면 바둑판처럼 보였다. */
-          /* ★ 사선은 **쏙 들어간 결에만**(열여섯째, 요청: "앞으로 튀어나온 경계면은 수직으로 떨어지고 쏙 들어간 쪽이 사선") — 들어간 몫(깊이 −)에 비례해 기울이고 나온 결(깊이 +)은 0. */
-          const RS9 = 6; const xm9 = (i9 + 0.5) * dx9;
-          const rec9 = Math.max(0, Math.min(1, -dep9(xm9) / Math.max(1e-6, amp9 * 0.6)));
-          const g9 = ctx.createLinearGradient(0, 0, 0, ha9);
-          for (let r9 = 0; r9 <= RS9; r9 += 1) {
-            const xs9 = xm9 - (r9 / RS9) * fl9 * EVFLAG_SLANT9 * rec9;
-            g9.addColorStop(r9 / RS9, shOf9((dep9(xs9 + dx9 / 2) - dep9(xs9 - dx9 / 2)) / dx9) ?? "rgba(0,0,0,0)");
+          /* ★ **드리운 그림자**(열여섯째~열일곱째, 요청: "앞으로 튀어나온 경계면은 수직으로 떨어지고 쏙 들어간 쪽이 사선 · 그 사이는 다 채워야지") — 왼 위 빛: 앞으로 나온 결(마루)의
+             오른쪽에서 그늘이 **수직 경계**로 시작해 들어간 결(골) 쪽으로 뻗고, 끝 경계는 **사선**(위는 짧고 아래는 길게 · 골까지 거리의 0.55 → 1.15 배) — 그 사이는 고르게 채운다.
+             띠마다 그 띠가 그늘에 드는 세로 몫(v 부터 아래 끝까지)만 칠한다. 빛 쪽(왼쪽을 보는 비탈)은 옅게 밝힌다. */
+          const xm9 = (i9 + 0.5) * dx9;
+          let v09 = 2;
+          for (const [xc9, xt9] of folds9) {
+            if (xm9 < xc9) continue;
+            const u9 = (xm9 - xc9) / Math.max(1e-6, xt9 - xc9);   // 0 = 마루 · 1 = 골
+            const vv9 = u9 <= 0.55 ? 0 : (u9 - 0.55) / 0.6;      // 끝 경계 u = 0.55 + 0.6·v
+            if (vv9 < v09) v09 = vv9;
           }
           ctx.save();
           ctx.transform(1, (tb9 - ta9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ta9);
-          ctx.fillStyle = g9;
-          ctx.fillRect(0, 0, w9 + 0.8, ha9);
+          if (v09 < 1) { ctx.fillStyle = "rgba(20,24,40,0.36)"; ctx.fillRect(0, v09 * ha9, w9 + 0.8, ha9 * (1 - v09)); }
+          else if (sl9 > 0) { ctx.fillStyle = `rgba(255,255,255,${Math.min(0.16, sl9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, w9 + 0.8, ha9); }
           ctx.restore();
         }
         sx9 += w9;
