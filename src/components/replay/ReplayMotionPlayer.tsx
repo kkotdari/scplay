@@ -3865,11 +3865,12 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       /* (여덟째, 실기 지적: "지금 저건 땅에 수평으로 누워서 펼쳐진 모양 · 땅에 수직으로 면이 서야 해") — **선 면**을 위 40도에서 보면 세로는 cos(0.77) 로만 줄고, 앞뒤 굽음은
          화면 y 로 sin(0.64) 배 · 카메라 쪽(앞)으로 나온 몫이 아래로 간다. 굽음 진폭은 작게(0.06) — 크면 결이 위아래로 크게 흘러 누운 띠처럼 읽혔다. */
       /* (열넷째, 실기 지적: "좀 옆으로 납작해졌네") — 세로 cos 눌림을 걷고 키를 0.3 으로(옛 0.285 × 0.77 ≈ 0.22). */
-      const fl9 = W9 * 1.125; const fh9 = W9 * 0.3;
+      /* (열아홉째, 요청: "환영 깃발 크기 25% 축소 및 펄럭임 속도 줄이기") — 폭 1.125 → 0.84 · 키 0.3 → 0.225 · 진폭도 같이(0.06 → 0.045) · 물결 시각 4.2 → 2.6. */
+      const fl9 = W9 * 0.84; const fh9 = W9 * 0.225;
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
       const N9 = 64; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;   // 32 → 64(드리운 그림자의 사선 끝 계단을 잘게 · 열일곱째)
-      const amp9 = W9 * 0.06; const tt9 = u0 * 4.2;
+      const amp9 = W9 * 0.045; const tt9 = u0 * 2.6;
       const dep9 = (x9: number): number => { const k9 = 0.35 + 0.65 * (x9 / fl9); const q9 = x9 / fl9; return amp9 * k9 * Math.sin(q9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(q9 * Math.PI * 5.1 - tt9 * 1.7); };
       /* 줄어든 가로를 먼저 재어 가운데 맞춘다. */
       const ws9: number[] = []; let tw9 = 0;

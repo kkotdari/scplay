@@ -137,7 +137,8 @@ export class SfxCues9 {
           /* 미사일은 쏜 몸으로 가른다(2026-11-02, 요청: "스카웃·발키리·레이스 대공 낮은 연기 추진 · 터렛·골리앗 대공 살짝 높고 가는 추진 + 연기") — op.by(engine9). 모르면 옛 missile. */
           const msl9 = op.style === "missile" || op.style === "missileG"
             ? (op.by && MISSILE_LOW9.has(op.by) ? "missileLow" : op.by && MISSILE_HI9.has(op.by) ? "missileHi" : undefined) : undefined;
-          const k = msl9 ?? (op.style ? LAUNCH9[op.style] : undefined);
+          /* 드라군 포는 낮은 둥(2026-11-09 · dragoonShot) — 같은 plasma 를 쏘는 스카우트·아비터는 옛 뿅. */
+          const k = msl9 ?? (op.style === "plasma" && op.by === "Dragoon" ? "dragoonShot" : op.style ? LAUNCH9[op.style] : undefined);
           if (k && (op.u ?? 1) < 0.15) play(k, op.fx, op.fy);
           break;
         }

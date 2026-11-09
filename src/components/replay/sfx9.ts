@@ -20,6 +20,7 @@ const PRIO9: Record<SfxKind9, number> = {
   screamLow: 7, screamHi: 7, springBreak: 7, spikeEarth: 4, guardHum: 4, scanHum: 6, warpCharge: 6, zlingHit: 3, ultraHit: 3, missileLow: 5, missileHi: 5, fleshUnfold: 5, zergDone: 6, eggStart: 3, eggHatch: 3, metalClang: 5, mineArm: 5, reaverBreak: 7, vesselBoom: 8, bioLoad: 5, bioUnload: 5, obsBoom: 7, lurkerDie: 7, squealHi: 7, squealMuta: 7,   // 2026-11-02 새 소리
   stim: 5,   // 2026-11-03
   gunShot: 3,   // 2026-11-05 — gunBeat9 가 따로 튼다(묶음을 안 탄다)
+  dragoonShot: 5,   // 2026-11-09
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
@@ -35,7 +36,7 @@ const GAP9: Partial<Record<SfxKind9, number>> = {
   screamLow: 260, screamHi: 380, springBreak: 200, spikeEarth: 160, guardHum: 260, scanHum: 600, warpCharge: 500, zlingHit: 60, ultraHit: 80, missileLow: 150, missileHi: 150, fleshUnfold: 300, zergDone: 400, eggStart: 220, eggHatch: 220, metalClang: 120, mineArm: 120, reaverBreak: 200, vesselBoom: 300, bioLoad: 250, bioUnload: 250, obsBoom: 300, lurkerDie: 200, squealHi: 160, squealMuta: 160, stim: 600,
 };
 /** 종류마다 크기. */
-const GAIN9: Partial<Record<SfxKind9, number>> = { gunShot: 0.7, warpHum: 0.5, heart: 0.6, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
+const GAIN9: Partial<Record<SfxKind9, number>> = { gunShot: 0.7, warpHum: 0.5, heart: 0.3, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, gun: 0.75, slash: 0.8, eggPop: 0.45 };   // heart 0.6 → 0.3(2026-11-09, 요청: "저그 공사 고치 두근두근 소리 작게") · eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";
@@ -219,7 +220,7 @@ export function playSfx9(kind: SfxKind9, opt: SfxPlay9 = {}): void {
    이제 한 줄기만 둔다: op 가 서면(gunBeat9) 줄기를 **다음 op 가 올 때까지(cp) + 여유** 살려 두고, 한 발(gunShot) 간격은 엔진이 셈한 gg
    (사수 원 쿨다운 ÷ 공격당 발 수 engine9 GUN_ROUNDS9 — 마린 79ms · 스팀 40ms · 고스트는 0.92초마다 한 발 · 35ms 아래로는 안 줄인다)를 배속으로 나눈다. 발은 AudioContext 시계로 미리(0.15초 앞까지) 박아 장 간격과 무관하게 고르다.
    여러 사수가 쏴도 줄기는 하나(박자는 가장 최근 op 의 사수 것) — 쏘는 몸이 다 그치면 마지막 op 의 cp 뒤에 멎는다. 4배속 위는 옛 규칙대로 소총 소리를 뺀다. */
-const gunRun9 = { next: 0, until: 0, gap: 0.079, gain: 1, last: -1 };
+const gunRun9 = { next: 0, until: 0, gap: 0.079, gain: 1, last: -1, n: 0 };
 const gunSrcs9: AudioBufferSourceNode[] = [];
 export function gunBeat9(gg: number, cp: number, opt: SfxPlay9 = {}): void {
   if (!enabled9 || typeof window === "undefined" || !bank9.has("gunShot")) return;
@@ -233,6 +234,7 @@ export function gunBeat9(gg: number, cp: number, opt: SfxPlay9 = {}): void {
   const g9 = (GAIN9.gunShot ?? 1) * (0.45 + 0.55 * Math.max(0, Math.min(1, opt.near ?? 1)));
   gunRun9.gain = gunRun9.until > now ? Math.max(gunRun9.gain, g9) : g9;
   /* 줄기가 멎었으면 다시 연다 — 단 마지막 발에서 한 발 간격이 안 지났으면 그때까지 기다린다(참값 없는 판은 op 가 쿨다운의 0.35 마다 서서, 고스트가 세 배로 쏘던 것). */
+  if (gunRun9.until <= now) gunRun9.n = 0;   // 새 줄기는 묶음 첫 발부터
   if (gunRun9.until <= now || gunRun9.next < now) gunRun9.next = Math.max(now, gunRun9.last + gunRun9.gap);
   /* 다음 op 까지 + 0.1초 — 한 발 간격 절반은 뺀다: 한 번에 한 발(고스트)이면 다음 op 가 와야 다음 발이 난다(쏘기를 그친 뒤 헛발이 안 난다). */
   gunRun9.until = Math.max(gunRun9.until, now + cp / speed - gunRun9.gap * 0.5 + 0.1,
@@ -261,7 +263,11 @@ export function pumpGun9(): void {
       SFX_STAT9.played.gunShot = (SFX_STAT9.played.gunShot ?? 0) + 1;
     } catch { /* 못 틀면 버린다 */ }
     gunRun9.last = at9;
-    gunRun9.next = at9 + gunRun9.gap;
+    /* ★ **네 발씩 끊어서**(2026-11-09, 요청: "마린은 4발씩 끊어서") — 빠른 연사(한 발 간격 < 0.15초 · 마린 · 벙커)는 네 발 묶음(간격 × 0.85) 뒤 쉼(간격 × 4.6) — 평균 박자는
+       옛 고른 줄기(2026-11-05 "다다다다")의 반쯤이다. 느린 것(고스트 한 발)은 그대로. */
+    gunRun9.n += 1;
+    const burst9 = gunRun9.gap < 0.15;
+    gunRun9.next = at9 + (burst9 ? (gunRun9.n % 4 === 0 ? gunRun9.gap * 4.6 : gunRun9.gap * 0.85) : gunRun9.gap);
   }
 }
 
@@ -273,6 +279,7 @@ export function hushSfx9(): void {
   gunSrcs9.length = 0;
   gunRun9.until = 0;
   gunRun9.last = -1;
+  gunRun9.n = 0;
 }
 
 export const sfxOn9 = (): boolean => enabled9;
