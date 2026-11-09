@@ -3787,33 +3787,37 @@ function evFlagDraw9(cv9: HTMLCanvasElement): void {
   c9.strokeStyle = "rgba(0,0,0,0.16)"; c9.lineWidth = 4; c9.strokeRect(2, 2, W - 4, H - 4);
   const font9 = (px: number): string => `800 ${px}px "SCP NanumSquare Neo", "SCP Rasheeq", sans-serif`;
   const { badge, text } = EVENT_FLAG_TEXT9;
-  /* 배지 — 둥근(알약) 바탕 + 흰 글자 · 본문 — 짙은 남색. 둘을 한 줄로 가운데. 천 폭에 맞춰 함께 줄인다. */
+  /* 배지 — **한 글자씩 분홍 동그라미**(2026-11-09 둘째, 요청: "환영 양쪽에 한 글자씩 분홍 배경") + 흰 글자 · 본문 — 짙은 남색. 한 줄로 가운데 · 천 폭에 맞춰 함께 줄인다. */
   let fs9 = 120;
-  const gap9 = 26; const padX9 = 34;
+  const gap9 = 26; const cgap9 = 8;
+  const chars9 = [...badge];
+  const dia9 = (): number => fs9 * 1.32;   // 동그라미 지름
   const measure9 = (): { bw: number; tw: number; total: number } => {
-    c9.font = font9(fs9); const bw = badge ? c9.measureText(badge).width + padX9 * 2 : 0;
-    const tw = c9.measureText(text).width; return { bw, tw, total: bw + (badge ? gap9 : 0) + tw };
+    c9.font = font9(fs9); const bw = chars9.length ? chars9.length * dia9() + (chars9.length - 1) * cgap9 : 0;
+    const tw = c9.measureText(text).width; return { bw, tw, total: bw + (chars9.length ? gap9 : 0) + tw };
   };
   let m9 = measure9();
   while (fs9 > 40 && m9.total > W - 22 - 80) { fs9 -= 4; m9 = measure9(); }
   let x9 = 22 + (W - 22 - m9.total) / 2; const cy9 = H / 2;
-  c9.textBaseline = "middle"; c9.textAlign = "left";
-  if (badge) {
-    const bh9 = fs9 * 1.25;
-    c9.fillStyle = "#e8423f";
-    c9.beginPath(); c9.roundRect(x9, cy9 - bh9 / 2, m9.bw, bh9, bh9 / 2); c9.fill();
-    c9.fillStyle = "#ffffff"; c9.fillText(badge, x9 + padX9, cy9 + fs9 * 0.04);
-    x9 += m9.bw + gap9;
+  c9.textBaseline = "middle";
+  for (const ch9 of chars9) {
+    const d9 = dia9();
+    c9.fillStyle = "#ff6fa8";
+    c9.beginPath(); c9.arc(x9 + d9 / 2, cy9, d9 / 2, 0, Math.PI * 2); c9.fill();
+    c9.fillStyle = "#ffffff"; c9.textAlign = "center"; c9.fillText(ch9, x9 + d9 / 2, cy9 + fs9 * 0.04);
+    x9 += d9 + cgap9;
   }
+  if (chars9.length) x9 += gap9 - cgap9;
+  c9.textAlign = "left";
   c9.fillStyle = "#1f2a5c"; c9.fillText(text, x9, cy9 + fs9 * 0.04);
 }
 function evFlagSpr9(): HTMLCanvasElement {
   if (evFlagCv9) return evFlagCv9;
   const cv9 = newCanvas9("이벤트 깃발"); cv9.width = EVFLAG_W9; cv9.height = EVFLAG_H9;
-  evFlagDraw9(cv9); sprVer9(cv9, 1); evFlagCv9 = cv9;
+  evFlagDraw9(cv9); sprVer9(cv9, 3); evFlagCv9 = cv9;
   if (!evFlagFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
     evFlagFontTried9 = true;
-    document.fonts.load(`800 120px "SCP NanumSquare Neo"`).then(() => { if (evFlagCv9) { evFlagDraw9(evFlagCv9); sprVer9(evFlagCv9, 2); } }).catch(() => {});
+    document.fonts.load(`800 120px "SCP NanumSquare Neo"`).then(() => { if (evFlagCv9) { evFlagDraw9(evFlagCv9); sprVer9(evFlagCv9, 4); } }).catch(() => {});
   }
   return cv9;
 }
@@ -3852,10 +3856,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
     }
     case "eventflag": {
       /* 이벤트 깃발(위 evFlagSpr9 ★) — **건물 카메라 시야각**(TOP_ELEV9 · 40도 내려다봄 · 2026-11-09, 요청: "각도는 시야각도 잘 적용"): 곧은 것(깃봉 · 깃발 높이)은 cos 만큼 짧게,
-         펄럭임은 천이 **앞뒤(깊이)로** 굽는 것이라 화면에선 sin 만큼 위아래 밀림 + 굽은 기울기만큼 가로가 준다. 크기: 깃봉 = 발자국 폭(W9) × 1.7 · 깃발 폭 × 1.5 · 높이 × 0.38(세계 자).
+         펄럭임은 천이 **앞뒤(깊이)로** 굽는 것이라 화면에선 cos 만큼 위아래 밀림 + 굽은 기울기만큼 가로가 준다(세로는 sin — 아래 둘째 지적). 크기: 깃봉 = 발자국 폭(W9) × 1.7 · 깃발 폭 × 1.5 · 높이 × 0.38(세계 자).
          빛은 앞에서 — 카메라 쪽으로 돈 면이 밝고 돌아선 면이 어둡다. 시각은 경기 시각(age) — 멈추면 깃발도 멈춘다. */
-      const ph9 = W9 * 1.7 * PLACARD_COS9; const pw9 = Math.max(2, W9 * 0.04);
-      const fl9 = W9 * 1.5; const fh9 = W9 * 0.38 * PLACARD_COS9;
+      /* (같은 날 둘째, 지적: "시야각이 반대여 — 위에서 본 모습인데") — 세로는 sin(40도 · 0.64) 로 줄이고 깊이 굽음이 cos(0.77) 로 위아래 밀린다(옛: 거꾸로). */
+      const ph9 = W9 * 1.7 * PLACARD_SIN9; const pw9 = Math.max(2, W9 * 0.04);
+      const fl9 = W9 * 1.5; const fh9 = W9 * 0.38 * PLACARD_SIN9;
       const topY9 = ay - ph9;
       ctx.globalAlpha = 1;
       /* 깃봉 — 나무(밝은 결 → 그늘) · 밑동은 지붕 가운데. */
@@ -3863,7 +3868,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       pg9.addColorStop(0, "#a8743c"); pg9.addColorStop(0.45, "#8a5a2b"); pg9.addColorStop(1, "#5a3818");
       ctx.fillStyle = pg9;
       ctx.fillRect(ax - pw9 / 2, topY9, pw9, ph9);
-      /* 깃발 — 띠 32 개 · 깊이 굽음 dep(x)(세계 px) → 화면 y 밀림 dep × sin · 띠 가로 = 띠 길이 ÷ √(1 + 기울기²). */
+      /* 깃발 — 띠 32 개 · 깊이 굽음 dep(x)(세계 px) → 화면 y 밀림 dep × cos · 띠 가로 = 띠 길이 ÷ √(1 + 기울기²). */
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
       const amp9 = W9 * 0.13; const tt9 = u0 * 4.2;
@@ -3873,7 +3878,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;   // 깊이 기울기(세계)
         const w9 = dx9 / Math.sqrt(1 + sl9 * sl9);   // 굽은 만큼 가로가 준다
-        const ya9 = da9 * PLACARD_SIN9; const yb9 = db9 * PLACARD_SIN9;
+        const ya9 = da9 * PLACARD_COS9; const yb9 = db9 * PLACARD_COS9;
         ctx.save();
         ctx.transform(1, (yb9 - ya9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ya9);
         ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, w9 + 0.8, fh9);
