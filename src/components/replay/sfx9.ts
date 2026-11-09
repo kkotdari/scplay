@@ -22,6 +22,7 @@ const PRIO9: Record<SfxKind9, number> = {
   gunShot: 3,   // 2026-11-05 — gunBeat9 가 따로 튼다(묶음을 안 탄다)
   dragoonShot: 5,   // 2026-11-09
   zealotStab: 3,   // 2026-11-09
+  tossDie: 7,   // 2026-11-09
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {

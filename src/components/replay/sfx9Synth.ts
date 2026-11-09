@@ -246,6 +246,24 @@ function scream9(v: number, female: boolean, pk = 1): Float32Array {
   }), female ? 0.42 : 0.58);
 }
 
+/** ★ 프로토스 보병 죽음(질럿 · 다크 · 하이템플러 · 아콘 · 2026-11-09, 지적: "질럿 죽을 때 소리에도 지직거림이 있는 듯") — 옛: 전기 지지직(zap9 · 한 표본 방전 펄스 + 네모 윙 +
+ *  포화 2.5)이라 갈라졌다. 이제 **사이오닉이 흩어지는** 소리: 620 → 150Hz 로 떨어지는 떨리는 음(6Hz 떨림 · 부드러운 2배음) + 숨 섞인 낮은 잡음(900Hz 아래) +
+ *  둥근 반짝이 알갱이(Grain9 · 2.4kHz 아래 · 듬성) — 포화 1.2 · 0.7초. */
+function tossDie9(v: number): Float32Array {
+  const r = rng9(2501 + v);
+  const lpB = new Biquad9("lp", 900, 0.7);
+  const gS = new Grain9(2400, 2.2);
+  let ph = 0;
+  return finish9(render9(0.7, (t) => {
+    const f = 150 + (470 + v * 30) * exp9(t, 4.5);
+    ph += (f * (1 + 0.04 * Math.sin(2 * Math.PI * 6 * t))) / SFX_RATE9;
+    const tone = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.3) * ad9(t, 0.02, 4.2) * 0.8;
+    const breath = lpB.run(r() * 2 - 1) * ad9(t, 0.01, 6) * 0.5;
+    const shimmer = gS.run(r() < 0.01 ? (r() * 2 - 1) : 0) * exp9(t, 3.5) * 0.6;
+    return sat9(tone + breath + shimmer, 1.2);
+  }), 0.5);
+}
+
 /** 전기 지지직(프로브·아콘·질럿 사이오닉) — 낮은 윙 + 듬성한 방전 펄스 + 높은 쉬익. */
 function zap9(v: number): Float32Array {
   const r = rng9(601 + v);
@@ -1088,7 +1106,7 @@ export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie";
 
 /** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -1110,5 +1128,5 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   mineArm: [1, mineArm9], reaverBreak: [1, reaverBreak9], vesselBoom: [1, vesselBoom9],
   bioLoad: [1, (v) => bioHold9(v, true)], bioUnload: [1, (v) => bioHold9(v, false)],
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
-  stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9],
+  stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9],
 };
