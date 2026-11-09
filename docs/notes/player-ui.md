@@ -3273,3 +3273,5 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - (열째) 요청: "재생기가 자기 크기를 정할 게 아니라 넣는 페이지에서 크기를 파라미터로 · 높이 너비 다" — `frameH`(판 키 예산) · `frameW`(판 폭 상한) prop(ReplayModule → RMP).
   frameH 가 오면 read 의 제 셈(주소창 붙들기 · lvh 반 · 바 밑 몫)을 건너뛰고 그 값이 frameMaxH. 옛 --scr-frame-below · 탐침은 걷었다.
   sg-web GameDetailPage(폰)가 잰다: 폭 = 카드 안쪽 · 키 = 붙든 창 높이 − 카드 위끝 − 카드 아래 여백 − 머리 줄 키 − 아래 안전영역 − 8.
+- (열한째) "자유 선택 시 첫 장면 위치가 이상함" — 보기 모드 판의 자유(pickFree9)가 setCastOn(false) 만 해, 배율은 판 뒤 중계 것인데 이동(pan)은 옛 손 자리라 엉뚱한 귀퉁이가 떴다.
+  마지막으로 그린 중계 카메라(trackCamRef · z · pan)를 setView9 로 넘겨받는다(stopCast9 와 같은 뜻 · raw 가 무엇이든).

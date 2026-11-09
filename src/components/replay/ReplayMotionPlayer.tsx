@@ -13292,7 +13292,15 @@ export default function ReplayMotionPlayer({
   const bgmKickRef9 = useRef<() => void>(() => {});
   const pickFull9 = (): void => { setModeAsk9(false); bgmKickRef9.current(); };
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
-  const pickFree9 = (): void => { setModeAsk9(false); setCastOn(false); bgmKickRef9.current(); };
+  /* ★ 고르는 순간 보이던 자리에 머문다(2026-11-09, 실기 지적: "자유 선택 시 첫 장면 위치가 이상함") — 판 뒤에서 돌던 중계 카메라(편성표 자리)를 그대로 넘겨받는다(stopCast9 · 중계 끄기와 같은 문).
+     옛: setCastOn(false) 만 해서 배율은 중계 것인데 이동(pan)은 옛 손 자리라 엉뚱한 귀퉁이가 떴다. */
+  const pickFree9 = (): void => {
+    setModeAsk9(false);
+    const tc9 = trackCamRef.current;   // 마지막으로 그린 중계 카메라(사람 · 장소 토막 어느 것이든)
+    if (castOn && tc9.raw !== null && Number.isFinite(tc9.z) && tc9.z > 0) setView9(tc9.z, { ...tc9.pan });
+    setCastOn(false);
+    bgmKickRef9.current();
+  };
   const pickDigest9 = (): void => { setModeAsk9(false); setCastOn(true); setSpeed(2); setDigestWant9(true); bgmKickRef9.current(); };
   /* 창을 건너뛸 때 카메라는 **곧장**(2026-10-24, 지적: "요약 중계 자막이랑 장면 안 맞음") — 미끄러짐·스프링을 버려(viewCut9) 자막이 뜨는 장에 그 자리가 바로 선다. */
   const digestJump9 = (v9: number): void => { tLiveRef9.current = v9; setT(v9); setDone(false); viewCut9(); };
