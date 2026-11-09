@@ -3902,7 +3902,8 @@ let evbKey9 = ""; let evbVer9 = 10; let evbFontTried9 = false;
 const EVB_COL9 = ["#ff4f8a", "#ffc21a"];   // 1 = 배지(분홍) · 2 = 본문(호박)
 function evbStripMake9(): { w: number; m: Uint8Array } {
   const R = EVB_ROWS9;
-  const font9 = `800 ${R - 2}px "SCP NanumSquare Neo", "SCP Rasheeq", sans-serif`;
+  /* 재생기 글꼴(--scr-font 와 같은 차례 — 라틴은 Rasheeq · 한글은 NanumSquare Neo · 2026-11-09 셋째, 요청: "재생기 글꼴로"). */
+  const font9 = `550 ${R - 2}px "SCP Rasheeq", "SCP NanumSquare Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif`;
   const segs9: [string, number][] = [[EVENT_FLAG_TEXT9.badge, 1], [EVENT_FLAG_TEXT9.text, 2]];
   const cv9 = newCanvas9("전광판 글자"); cv9.width = 4; cv9.height = R;
   let c9 = cv9.getContext("2d", { willReadFrequently: true });
@@ -3967,7 +3968,9 @@ function evBoardSpr9(t: number): HTMLCanvasElement {
   if (!evbCv9) { evbCv9 = newCanvas9("응원 전광판"); evbCv9.width = EVB_W9; evbCv9.height = EVB_H9; evbKey9 = ""; }
   if (!evbFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
     evbFontTried9 = true;
-    document.fonts.load(`800 16px "SCP NanumSquare Neo"`).then(() => { evbStrip9 = evbStripMake9(); evbKey9 = ""; }).catch(() => {});
+    const tx9 = `${EVENT_FLAG_TEXT9.badge}${EVENT_FLAG_TEXT9.text}`;
+    Promise.all([document.fonts.load(`800 16px "SCP NanumSquare Neo"`, tx9), document.fonts.load(`800 16px "SCP Rasheeq"`, tx9)])
+      .then(() => { evbStrip9 = evbStripMake9(); evbKey9 = ""; }).catch(() => {});
   }
   const [x09, on9] = evbState9(t, evbStrip9.w);
   const key9 = `${x09}|${on9 ? 1 : 0}|${evbStrip9.w}`;
