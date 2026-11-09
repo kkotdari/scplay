@@ -145,12 +145,14 @@ function gunShot9(v: number): Float32Array {
     const thump = Math.sin(2 * Math.PI * (95 - t * 360) * t) * exp9(t, 26) * 0.9;
     return sat9(lp.run(crack + blast + thump), 2.3);
   });
-  const lpW9 = new Biquad9("lp", 2400, 0.7);
-  const wet9 = echo9(echo9(Float32Array.from(raw9), 0.053, 0.32), 0.121, 0.22);
-  const out9 = new Float32Array(Math.min(wet9.length, Math.round(0.34 * SFX_RATE9)));
+  /* (같은 날 둘째, 요청: "에코 좀 더 있게") — 메아리를 발 간격(≥ 0.09초)보다 **길게** 미룬다(0.17 · 0.29초 · 되먹임 0.34 · 0.24) — 옛 53 · 121ms 는 묶음 안 다음 발과 겹쳐
+     한 발을 묻었다(세 발처럼 들림). 꼬리 0.34 → 0.7초 · 메아리는 더 어둡게(2kHz 아래). */
+  const lpW9 = new Biquad9("lp", 2000, 0.7);
+  const wet9 = echo9(echo9(Float32Array.from(raw9), 0.17, 0.34), 0.29, 0.24);
+  const out9 = new Float32Array(Math.min(wet9.length, Math.round(0.7 * SFX_RATE9)));
   for (let i = 0; i < out9.length; i += 1) {
     const d9 = i < raw9.length ? raw9[i] : 0;
-    out9[i] = d9 + lpW9.run(wet9[i] - d9) * 0.75;
+    out9[i] = d9 + lpW9.run(wet9[i] - d9) * 0.8;
   }
   return finish9(out9, 0.6);
 }
