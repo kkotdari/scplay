@@ -751,28 +751,26 @@ function claw9(v: number): Float32Array {
 
 /** 가시(히드라·럴커) — 내리꽂는 휙(높은 음이 떨어짐) + 쉭 + 딱. */
 function spine9(v: number): Float32Array {
-  /* ★ 히드라 — **물과 가시가 튀는 소리**(2026-11-09 열여덟째, 지적: "히드라 소리 이상해 · 물과 가시가 튀는 소린데") — 열여섯째 '촥'은 마른 잡음 터짐뿐이었다. 이제 셋을 겹친다:
-     ① 가시 '핏' — 가는 바람 띠(5.5k → 2.4kHz · Q 2.5 · 0.05초)가 빠르게 지나감 + 튕겨 나가는 딸깍(3.2kHz · 2ms)
-     ② 물 '촤' — 젖은 띠 잡음(1.8k → 900Hz · Q 1 · 0.12초 · 덩이져 흩어짐)
-     ③ 물방울 — 위로 휘는 아주 짧은 방울 일곱(900 ~ 2200Hz · 12ms · 0.02 ~ 0.16초에 흩뿌림). 낮은 음은 없다. 0.24초. */
-  const r = rng9(2201 + v); const br = brown9(r);
-  const bpS = new Biquad9("bp", 5500, 2.5);
-  const bpK = new Biquad9("bp", 3200, 4);
-  const bpW = new Biquad9("bp", 1800, 1);
-  const lpE = new Biquad9("lp", 90, 0.7);
-  const drops: { t0: number; f: number; a: number }[] = [];
-  for (let k = 0; k < 7; k += 1) drops.push({ t0: 0.02 + r() * 0.14, f: 900 + r() * 1300, a: 0.18 + r() * 0.2 });
-  return finish9(render9(0.24, (t) => {
+  /* ★ 히드라 — **'퉤' 뱉기**(2026-11-09 스물째, 지적: "히드라 저거 아니야 · 퉤 뱉는 소리(입술 마찰음 + 가시가 툭 하고 뱉어지는 소리)") — 열여덟째 물방울 판을 걷었다.
+     ① 터짐 'ㅌ' — 입술이 떨어지는 짧은 파열(2ms 잡음 저역 3k + 낮은 퐁 150Hz)
+     ② 입술 마찰 '웨~' — 띠 잡음 두 갈래(입 모양 'ㅔ' — 1.9kHz · 520Hz)를 35Hz 로 떨리는 입술(진폭)로 · 0.13초
+     ③ 가시 '툭' — 0.025초에 뱉어지는 둔한 툭(330 → 170Hz · 빨리 꺼짐) + 짧은 나무 딸깍(bp 950 · Q 3). 0.2초. */
+  const r = rng9(2201 + v);
+  const lpP = new Biquad9("lp", 3000, 0.7);
+  const bpF2 = new Biquad9("bp", 1900, 1.6);
+  const bpF1 = new Biquad9("bp", 520, 1.4);
+  const bpK = new Biquad9("bp", 950, 3);
+  let ph = 0;
+  return finish9(render9(0.2, (t) => {
     const n = r() * 2 - 1;
-    const spike = bpS.run(n) * (t < 0.05 ? Math.sin(Math.PI * t / 0.05) : 0) * 1.3;
-    const click = bpK.run(n) * exp9(t, 500) * 1.2;
-    const lump = Math.max(0, lpE.run(r() < 0.07 ? (r() * 2 - 1) * 28 : 0));
-    const tw = t - 0.012;
-    const water = tw > 0 ? bpW.run(n * 0.7 + br() * 0.5) * Math.min(1, 0.45 + lump) * ad9(tw, 0.006, 16) * 1.3 : 0;
-    let dr = 0;
-    for (const d of drops) { const u = t - d.t0; if (u > 0 && u < 0.012) dr += Math.sin(2 * Math.PI * d.f * (1 + u * 30) * u) * Math.sin(Math.PI * u / 0.012) * d.a; }
-    return sat9(spike + click + water + dr, 1.1);
-  }, (t) => { bpS.set(2400 + 3100 * exp9(t, 30)); bpW.set(900 + 900 * exp9(t, 12)); }), 0.62);
+    const plo = lpP.run(n) * exp9(t, 700) * 1.4 + Math.sin(2 * Math.PI * 150 * t) * exp9(t, 90) * 0.5;
+    const flut = 0.55 + 0.45 * Math.sin(2 * Math.PI * 35 * t + r() * 0.3);
+    const lip = (bpF2.run(n) * 1.1 + bpF1.run(n) * 0.6) * flut * ad9(Math.max(0, t - 0.004), 0.006, 17) * (t > 0.004 ? 1 : 0) * 1.4;
+    const tk = t - 0.025;
+    let tuk = 0;
+    if (tk > 0) { ph += (170 + 160 * exp9(tk, 50)) / SFX_RATE9; tuk = Math.sin(2 * Math.PI * ph) * exp9(tk, 55) * 0.9 + bpK.run(n) * exp9(tk, 160) * 0.8; }
+    return sat9(plo + lip + tuk, 1.15);
+  }), 0.62);
 }
 
 /** ★ 질럿 — **창으로 찌르는 쇠 마찰**(2026-11-09, 요청: "질럿 공격 소리 — 창으로 찌르는 쇠 마찰 소리로") — 옛: 다크와 같은 칼질(blade9). 찌르는 휙(2→5kHz 로 오르는 띠 잡음) +
