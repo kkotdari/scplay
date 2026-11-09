@@ -3772,6 +3772,8 @@ function placardSpr9(): HTMLCanvasElement {
    띠마다 물결만큼 밀고 기울여(transform · drawImage 9인자 — glctx9 심이 받는다) 펄럭이게 얹는다. 깃봉(나무)·꼭지(금)는 붓이 직접 그린다. 글귀: 머리 배지(둥근 바탕) + 본문. */
 export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님" };   // "가입" 뺌(2026-11-09 넷째)
 const EVFLAG_W9 = 960;
+/** 아랫변을 윗변보다 좁히는 몫(원근 · 위에서 내려다보니 아랫변이 멀다 · 2026-11-09 열한째). */
+const EVFLAG_KEY9 = 0.12;
 const EVFLAG_H9 = 240;
 let evFlagCv9: HTMLCanvasElement | null = null;
 let evFlagFontTried9 = false;
@@ -3874,19 +3876,22 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
         const w9 = ws9[i9];
-        /* ★ 윗변 · 아랫변이 **엇갈려** 출렁인다(아홉째, 실기 스케치: "내가 그린 형태로 보여야 위에서 본 모습") — 윗변은 굽음만큼 아래로(× 0.9), 아랫변은 거꾸로 위로(× 0.5): 굽어 물러난
-           결은 위아래가 좁아지고 나온 결은 넓어진다. 띠마다 윗변 기울기(shear) + 평균 키(세로 배)로 얹는다(띠가 좁아 아랫변 오차는 작다). */
-        const ta9 = da9 * 0.9; const tb9 = db9 * 0.9; const ba9 = -da9 * 0.5; const bb9 = -db9 * 0.5;
-        /* 띠를 세로로 6 칸 더 나눠 칸마다 제 기울기(윗변 → 아랫변 사이 보간)로 — 한 장 평행사변형이면 아랫변이 톱니가 됐다. */
-        const R9 = 6; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;
+        /* ★ 윗변이 **더 크게**, 아랫변은 같은 쪽으로 작게 출렁인다(열째, 실기 지적: "왜 이해를 못 해 · 그건 아래에서 올려다본 걸로 보인다니까") — 위에서 내려다보면 카메라에 가까운
+           **윗변**의 앞뒤 굽음이 화면에서 크게(× 0.9) 움직이고 먼 아랫변은 작게(× 0.35) 같은 쪽으로 움직인다(앞으로 나온 결 = 아래로). 아홉째의 엇갈림(윗변 아래 · 아랫변 위)은
+           가까운 결이 좁아지는 꼴이라 올려다본 모습이었다. 띠마다 세로 6 칸으로 나눠 윗변↔아랫변 사이를 보간한다(한 장 평행사변형이면 아랫변이 톱니). */
+        const ta9 = da9 * 0.9; const tb9 = db9 * 0.9; const ba9 = da9 * 0.35; const bb9 = db9 * 0.35;
+        const R9 = 8; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;
         const sh9 = Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // +: 카메라에서 돌아선 면 → 어둡게
         const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
         for (let r9 = 0; r9 < R9; r9 += 1) {
           const v09 = r9 / R9; const v19 = (r9 + 1) / R9;
           const a09 = ta9 + v09 * ha9; const a19 = ta9 + v19 * ha9; const b09 = tb9 + v09 * hb9; const b19 = tb9 + v19 * hb9;
           const hh9 = ((a19 - a09) + (b19 - b09)) / 2 + 0.6;
+          /* ★ 원근(열한째, 요청: "살짝만 아래쪽을 축소해서 · 원근감으로라도 위아래를 구분되게") — 위에서 내려다보면 아랫변이 멀다: 가로를 깃발 가운데(ax) 기준으로 윗변 1 → 아랫변
+             1 − EVFLAG_KEY9 로 좁힌다(칸 가운데 줄의 배). */
+          const kx9 = 1 - EVFLAG_KEY9 * ((v09 + v19) / 2);
           ctx.save();
-          ctx.transform(1, (b09 - a09) / Math.max(0.01, w9), 0, 1, sx9, fy0 + a09);
+          ctx.transform(kx9, (b09 - a09) / Math.max(0.01, w9), 0, 1, ax + (sx9 - ax) * kx9, fy0 + a09);
           ctx.drawImage(spr9, i9 * sw9, v09 * EVFLAG_H9, sw9, EVFLAG_H9 / R9, 0, 0, w9 + 0.8, hh9);
           if (shCol9) { ctx.fillStyle = shCol9; ctx.fillRect(0, 0, w9 + 0.8, hh9 - 0.6); }
           ctx.restore();
