@@ -58,6 +58,7 @@ import {
 // (정리) DEFENSE_BUILDINGS — 건물 캔버스 전환으로 ▲ 글자 갈래가 없어져 더는 안 쓴다.
 import { type TerrainGrid } from "./terrainGrid";
 import { decodeMapTerrain, levelAt, TILE, terrainFace, terrainGridOfMap } from "../../utils/mapTerrain";
+import SG_LOGO_SRC9 from "./assets/sg-logo-white.png?inline";   // 맵 가운데 로고(아래 mapLogoSpr9 ★ · 2026-11-09)
 import { CUR_ARROW_D9, CUR_CARRY_SEC9, CUR_FOE9, CUR_GROUND9, CUR_OWN9, CUR_RES9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
@@ -3766,6 +3767,72 @@ function placardSpr9(): HTMLCanvasElement {
     placardFontTried9 = true;
     document.fonts.load(`800 54px "SCP NanumSquare Neo"`).then(() => { if (placardCv9) { placardDraw9(placardCv9); sprVer9(placardCv9, 6); } }).catch(() => {});
   }
+  return cv9;
+}
+/* ★ **맵 정중앙 로고**(2026-11-09, 요청: "앞으로 맵 정중앙에 적당한 크기로 스타게이트 로고 넣기 · 그냥 넣지 말고 자연스럽게 전장의 마모된 느낌 좀 줘서 · 흰색 버전이 나을 듯 — 맵이 보통
+   어두우니까") — 공식 흰 글자(logo_no_symbol_white) + 별(symbol)을 맞춰 붙인 판(assets/sg-logo-white.png · 1024 폭 · 48 색)을 바닥 페인트처럼 **닳게** 한 번 굽는다:
+   ① 결 잡음(굵은 칸 32px + 잔 칸 8px 값 잡음)으로 알파를 0.35~1 사이로 흐리게 ② 벗겨진 얼룩(둥근 지움 40) ③ 긁힌 줄(25) ④ 잔 점 지움(900) ⑤ 흙때(갈색 덧칠 · 원자 위) —
+   씨앗 고정이라 판마다 같다. 붓(UnitLayer paint)이 크립 **아래**에 지도 가운데 MAP_LOGO_TILES9 칸 폭 · 알파 MAP_LOGO_ALPHA9 로 깐다(평면만 · 입체는 안 깐다). 끄기: MAP_LOGO_ON9 false. */
+export const MAP_LOGO_ON9 = true;
+const MAP_LOGO_TILES9 = 18;
+const MAP_LOGO_ALPHA9 = 0.5;
+let mapLogoImg9: HTMLImageElement | null = null;
+let mapLogoCv9: HTMLCanvasElement | null = null;
+function mapLogoSpr9(): HTMLCanvasElement | null {
+  if (mapLogoCv9) return mapLogoCv9;
+  if (typeof document === "undefined") return null;
+  if (!mapLogoImg9) { const im9 = new Image(); im9.decoding = "async"; im9.src = SG_LOGO_SRC9; mapLogoImg9 = im9; return null; }
+  if (!mapLogoImg9.complete || !mapLogoImg9.naturalWidth) return null;
+  const W = mapLogoImg9.naturalWidth; const H = mapLogoImg9.naturalHeight;
+  const cv9 = newCanvas9("맵 로고"); cv9.width = W; cv9.height = H;
+  const c9 = cv9.getContext("2d"); if (!c9) return null;
+  c9.drawImage(mapLogoImg9, 0, 0);
+  let sd9 = 90917;
+  const rnd9 = (): number => { sd9 = (sd9 * 1103515245 + 12345) & 0x7fffffff; return sd9 / 0x7fffffff; };
+  /* ① 결 잡음 — 두 칸 값 잡음(이선 보간)을 알파에 곱한다. */
+  const grid9 = (cell: number): { at: (x: number, y: number) => number } => {
+    const gw = Math.ceil(W / cell) + 2; const gh = Math.ceil(H / cell) + 2; const v = new Float32Array(gw * gh);
+    for (let i = 0; i < v.length; i += 1) v[i] = rnd9();
+    return { at: (x, y) => { const fx = x / cell; const fy = y / cell; const x0 = Math.floor(fx); const y0 = Math.floor(fy); const tx = fx - x0; const ty = fy - y0;
+      const a = v[y0 * gw + x0]; const b = v[y0 * gw + x0 + 1]; const c = v[(y0 + 1) * gw + x0]; const d = v[(y0 + 1) * gw + x0 + 1];
+      return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty; } };
+  };
+  const g19 = grid9(32); const g29 = grid9(8);
+  const id9 = c9.getImageData(0, 0, W, H); const d9 = id9.data;
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+    const i = (y * W + x) * 4; if (d9[i + 3] === 0) continue;
+    const n = g19.at(x, y) * 0.7 + g29.at(x, y) * 0.3;
+    d9[i + 3] = Math.round(d9[i + 3] * Math.max(0.35, Math.min(1, 0.25 + n * 1.05)));
+  }
+  c9.putImageData(id9, 0, 0);
+  /* ②③④ 지움 — 벗겨진 얼룩 · 긁힌 줄 · 잔 점. */
+  c9.globalCompositeOperation = "destination-out";
+  for (let k = 0; k < 40; k += 1) {
+    const x = rnd9() * W; const y = rnd9() * H; const r = 6 + rnd9() * 20;
+    const g = c9.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(0,0,0,${(0.35 + rnd9() * 0.45).toFixed(2)})`); g.addColorStop(1, "rgba(0,0,0,0)");
+    c9.fillStyle = g; c9.beginPath(); c9.arc(x, y, r, 0, Math.PI * 2); c9.fill();
+  }
+  c9.lineCap = "round";
+  for (let k = 0; k < 25; k += 1) {
+    const x = rnd9() * W; const y = rnd9() * H; const a = (rnd9() - 0.5) * 1.2 + (rnd9() < 0.5 ? 0 : Math.PI / 2) * 0.3; const L = 30 + rnd9() * 170;
+    c9.strokeStyle = `rgba(0,0,0,${(0.45 + rnd9() * 0.45).toFixed(2)})`; c9.lineWidth = 1 + rnd9() * 2;
+    c9.beginPath(); c9.moveTo(x, y); c9.lineTo(x + Math.cos(a) * L, y + Math.sin(a) * L); c9.stroke();
+  }
+  for (let k = 0; k < 900; k += 1) {
+    c9.fillStyle = `rgba(0,0,0,${(0.5 + rnd9() * 0.5).toFixed(2)})`;
+    c9.beginPath(); c9.arc(rnd9() * W, rnd9() * H, 0.5 + rnd9() * 2, 0, Math.PI * 2); c9.fill();
+  }
+  /* ⑤ 흙때 — 남은 페인트 위에만(source-atop) 갈색 얼룩. */
+  c9.globalCompositeOperation = "source-atop";
+  for (let k = 0; k < 28; k += 1) {
+    const x = rnd9() * W; const y = rnd9() * H; const r = 14 + rnd9() * 40;
+    const g = c9.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(78,62,44,${(0.25 + rnd9() * 0.3).toFixed(2)})`); g.addColorStop(1, "rgba(78,62,44,0)");
+    c9.fillStyle = g; c9.beginPath(); c9.arc(x, y, r, 0, Math.PI * 2); c9.fill();
+  }
+  c9.globalCompositeOperation = "source-over";
+  sprVer9(cv9, 1); mapLogoCv9 = cv9;
   return cv9;
 }
 /* ★ 이벤트 깃발(2026-11-09 · engine9 EVENT_FLAG9 ★) — 깃발 천 한 장(글귀 포함)을 판(sprVer9)으로 한 번 그려 두고, 붓(drawDomFx9 "eventflag")이 세로 띠 32 개로 잘라
@@ -7750,6 +7817,16 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 클립은 벽 마스크와 무관하다(재지적: 3D에서 아직도 미니맵을 벗어남) — 전에는
          마스크가 있을 때만 이 갈래로 들어와, 마스크가 아직 안 구워진 판에서는 클립
          자체가 안 걸려 크립이 맵 밖으로 샜다. 이제 크립이 있으면 늘 가둔다. */
+      /* 맵 정중앙 로고(위 mapLogoSpr9 ★) — 바닥 페인트라 크립 **아래** · 평면만. */
+      if (MAP_LOGO_ON9 && !pitchedProp) {
+        const lg9 = mapLogoSpr9();
+        if (lg9) {
+          const lw9 = (tilePx ?? mw9 / 128) * MAP_LOGO_TILES9 * zoom; const lh9 = lw9 * (lg9.height / lg9.width);
+          ctx.save(); ctx.globalAlpha = MAP_LOGO_ALPHA9;
+          ctx.drawImage(lg9, zx(0.5) - lw9 / 2, zy(0.5) - lh9 / 2, lw9, lh9);
+          ctx.restore();
+        }
+      }
       const creep17cv9 = !pitchedProp && showCreep !== false && CREEP17_9.tiles ? creep17Layer9(CREEP17_9.t) : null;   // 판 17 크립 한 장(위 creep17Layer9 ★)
       if (creepList.length > 0 || creep17cv9) {
         /* 크립은 맵 밖으로 못 나간다(지적: 미니맵 밖까지 나옴) — 컨테이너가 overflow:
