@@ -299,7 +299,9 @@ function tossDie9(v: number): Float32Array {
   let ph = 0; let tilt = 0; let jit = 0; let shm = 0;
   const raw = render9(0.6, (t) => {
     jit += ((r() * 2 - 1) - jit) * 0.003; shm += ((r() * 2 - 1) - shm) * 0.004;
-    const f0 = (82 + 6 * exp9(t, 3) + v * 2) * (1 + 0.008 * jit + 0.004 * Math.sin(2 * Math.PI * 5 * t));
+    /* 조금 올라갔다 내려오기(열아홉째, 요청: "질럿 목소리는 좀 올라가다가 내려오기") — 82Hz 에서 0.15초에 +15%(94Hz)까지 오르고 끝(0.6초)엔 −10%(74Hz)로. */
+    const cont9 = t < 0.15 ? 1 + 0.15 * Math.sin((Math.PI / 2) * (t / 0.15)) : 1.15 - (t - 0.15) * 0.55;
+    const f0 = (82 + v * 2) * cont9 * (1 + 0.008 * jit + 0.004 * Math.sin(2 * Math.PI * 5 * t));
     ph += f0 / SFX_RATE9;
     const p = ph % 1;
     const glot = p < 0.4 ? 0.5 * (1 - Math.cos(Math.PI * p / 0.4)) : p < 0.6 ? Math.cos((Math.PI / 2) * (p - 0.4) / 0.2) : 0;
