@@ -345,12 +345,15 @@ function dragoonShot9(v: number): Float32Array {
   const raw = render9(0.5, (t) => {
     const f = 48 + (72 + v * 8) * exp9(t, 9);
     ph += f / SFX_RATE9;
-    const body = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.18) * ad9(t, 0.006, 6.5);
+    /* (2026-11-09 둘째, 지적: "히드라 · 드라군 소리가 작은 건지 질럿이 큰 건지") — 48~120Hz 몸은 폰 스피커가 거의 못 내 작게 들렸다 → 2 · 3 배음을 올리고(0.18 → 0.45 · 0.25)
+       300Hz 언저리 '똑'(막힌 잡음 위 짧은 사인)을 얹어 작은 스피커에서도 '둥'이 들리게 · 봉우리 0.7 → 0.82. */
+    const body = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.45 + Math.sin(6 * Math.PI * ph) * 0.25) * ad9(t, 0.006, 6.5);
+    const thock = Math.sin(2 * Math.PI * (320 - t * 400) * t) * exp9(t, 30) * 0.5;
     const puff = lp.run(r() * 2 - 1) * exp9(t, 45) * 0.8;
     const hiss = bp.run(r() * 2 - 1) * exp9(t, 18) * 0.12;
-    return sat9(body * 1.15 + puff + hiss, 1.5);
+    return sat9(body * 1.15 + thock + puff + hiss, 1.5);
   });
-  return finish9(echo9(raw, 0.11, 0.2), 0.7);
+  return finish9(echo9(raw, 0.11, 0.2), 0.82);
 }
 
 /** 채집 — 낮고 부드러운 사각임 두 번 + 아주 옅은 낮은 툭.
@@ -407,12 +410,15 @@ function mineProbe9(v: number): Float32Array {
 function thunder9(v: number): Float32Array {
   const r = rng9(1101 + v); const br = brown9(r);
   const lp = new Biquad9("lp", 4000, 0.7);
-  const hp = new Biquad9("hp", 3000, 0.7);
+  const hp = new Biquad9("hp", 2200, 0.7);
+  const gF = new Grain9(1500, 3);
   return finish9(render9(2.0, (t) => {
-    const crack = hp.run(r() * 2 - 1) * exp9(t, 14) * 1.4;
+    const crack = hp.run(r() * 2 - 1) * exp9(t, 14) * 0.9;
     const roll = lp.run(br() * 1.5) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 1.7 * t + v)) * ad9(t, 0.04, 1.4);
-    const fizz = (r() < 0.01 ? (r() * 2 - 1) : 0) * exp9(t, 1.2);
-    return sat9(crack + roll + fizz, 1.6);
+    /* (2026-11-09, 지적: "스톰 쓰면 지직임 소리 발생") — 옛 fizz 는 **한 표본 튐**(r < 0.01 이면 ±1)이라 지글거렸고(2026-11-08 죽음·폭발에서 고친 그 병), 고역 딱(hp 3kHz)도
+       포화(1.6)에 걸려 갈라졌다. 튐은 둥근 알갱이(Grain9 · 1.5kHz 아래)로 · 딱은 2.2kHz 위 · 0.9 · 포화 1.3. */
+    const fizz = gF.run(r() < 0.006 ? (r() * 2 - 1) * 0.8 : 0) * exp9(t, 1.2);
+    return sat9(crack + roll + fizz, 1.3);
   }, (t) => lp.set(3000 * exp9(t, 3) + 140)), 0.9);
 }
 
@@ -661,7 +667,7 @@ function spine9(v: number): Float32Array {
     const ts = t - 0.07;
     const splat = ts > 0 ? lpS.run(n) * exp9(ts, 22) * 1.3 : 0;
     return sat9(lip + gurgle + pop + splat, 1.5);
-  }), 0.45);
+  }), 0.62);   // 0.45 → 0.62(2026-11-09 둘째 · 질럿보다 작게 들렸다)
 }
 
 /** ★ 질럿 — **창으로 찌르는 쇠 마찰**(2026-11-09, 요청: "질럿 공격 소리 — 창으로 찌르는 쇠 마찰 소리로") — 옛: 다크와 같은 칼질(blade9). 찌르는 휙(2→5kHz 로 오르는 띠 잡음) +
@@ -680,7 +686,7 @@ function zealotStab9(v: number): Float32Array {
     const ring = ts > 0 ? (Math.sin(2 * Math.PI * 1830 * k9 * ts) * 0.5 + Math.sin(2 * Math.PI * 2710 * k9 * ts) * 0.35 + Math.sin(2 * Math.PI * 4190 * k9 * ts) * 0.22) * exp9(ts, 11) * 0.45 : 0;
     const thud = ts > 0 ? Math.sin(2 * Math.PI * 150 * ts) * exp9(ts, 35) * 0.5 : 0;
     return sat9(swish + scrape + ring + thud, 1.3);
-  }, (t) => { bpW.set(2000 + t * 12000); bp1.set(2900 - t * 2600); bp2.set(4700 - t * 3800); }), 0.5);
+  }, (t) => { bpW.set(2000 + t * 12000); bp1.set(2900 - t * 2600); bp2.set(4700 - t * 3800); }), 0.38);   // 0.5 → 0.38(2026-11-09 둘째 · 쇳소리 고역이 히드라 · 드라군보다 크게 들렸다)
 }
 
 /** ★ 가시가 땅을 뚫고 솟음(성큰·럴커 · 2026-11-02, 요청: "성큰 럴커 가시가 땅을 뚫고 솟는 소리") — 흙 깨지는 바스락(갈색 잡음 + 듬성한 알갱이) 위로
