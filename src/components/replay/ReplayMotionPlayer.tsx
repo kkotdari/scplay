@@ -884,6 +884,11 @@ const IOS_WIDE_DPR9 = 2;
 /** ★ 배킹 **화소 예산**(2026-11-08, 실기 블랙박스: "가로모드 돌리면 잘 터짐" — 가로에서 지도 상자가 정사각 852×852pt 라 배킹이 2130×2130(450만 화소) · 같은 크기 캔버스 셋 53MB ·
  *  GL 렌더 버퍼(색 · 깊이 · 빛 · 번짐)까지 그만큼 · 돌리는 순간엔 세로 때 것(1068×1703)과 겹쳤다. 화면엔 그 절반도 안 보인다). 배율(dpr)이 아니라 총 화소로도 묶는다 —
  *  메모리 단(memLv9 ★)마다 0 단 무제한 · 1 단 260만 · 2 단 190만 · 3 단 140만. 세로 폰(427×681pt × 2.5 = 182만)은 그대로이고 가로 정사각만 준다. */
+/** ★ 메시 상한 한 곳(2026-11-08, 지적: "고배속 뚝뚝 끊김 여전" · 실기 블랙박스 메시 300/300) — 아틀라스를 실은 폰은 자세 메시 자리를 올리는데(옛: g09.meshMax = 480/360),
+ *  붓이 **매 프레임** glUnits9(…, DEV9.glMeshMax …)로 기기 표 값(폰 300)을 다시 덮어 한 프레임도 못 갔다 — 늘 상한에 붙어 버리고 다시 굽기(buildMesh9 · JS 쪽 가장 큰 일)를
+ *  되풀이했고 배속이면 자세가 빨리 돌아 더 잦았다. 이제 두 호출이 이 값을 쓴다: 아틀라스를 실은 폰은 메모리 단 0 · 1 단 480 · 2 단 400 · 3 단 기기 값(메시 한 벌 ≈ 0.22MB). */
+const ATLAS_MESH9 = { on: false };
+const meshMaxNow9 = (): number => (ATLAS_MESH9.on && DEV9.name === "phone" ? Math.max(DEV9.glMeshMax, [480, 480, 400, 0][memLv9()] ?? 0) : DEV9.glMeshMax);
 const backPx9 = (): number => [Infinity, 2.6e6, 1.9e6, 1.4e6][memLv9()] ?? 1.4e6;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
@@ -6266,7 +6271,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           console.warn("[gl9] 문맥 잃음 — 캔버스 갈아 끼움");
         }
       }
-      const gl9 = glUnits9(glRef.current, DEV9.glMeshMax, DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★)
+      const gl9 = glUnits9(glRef.current, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★)
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
          둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
@@ -20643,7 +20648,7 @@ export default function ReplayMotionPlayer({
        붓이 쓰는 그 캔버스(.scr-motion-gl9)로 같은 인자로 세우고 판 조율(sprTune9)까지 맞춘 뒤 일감을 짠다. 캔버스가 아직 없으면 종전대로(벌이 서면 아래 glGen9S 로 다시 돈다). */
     if (GL_ON9 && !glNow9()) {
       const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-gl9") ?? null;
-      if (cv9) { glUnits9(cv9, DEV9.glMeshMax, DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
+      if (cv9) { glUnits9(cv9, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
     } else if (glNow9()) sprTune9();
     warmGenRef9.current = glGen9();
     const warmNo9 = warmRuns9.current;
@@ -20827,7 +20832,7 @@ export default function ReplayMotionPlayer({
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `메모리${memLv9()}단·${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;
-            if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; g09.meshMax = Math.max(g09.meshMax, [480, 360, 0, 0][memLv9()] ?? 0); }   // 자세 메시 자리도 메모리 단을 따른다(memLv9 ★ · 2026-11-08 · 2 단 이상은 안 올린다)   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
+            if (ph9 && (r9.cells > 0 || r9.kept > 0)) { g09.sprEmOn = DEV9.glBloom; ATLAS_MESH9.on = true; g09.meshMax = meshMaxNow9(); }   // 자세 메시 자리도 메모리 단을 따른다(memLv9 ★ · 2026-11-08 · 2 단 이상은 안 올린다)   // 폰: 평면 몸의 번짐 테 되살림 · 자세 메시 자리
           })
           .finally(release9);
       }

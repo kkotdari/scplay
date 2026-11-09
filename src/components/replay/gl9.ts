@@ -3986,7 +3986,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   if (!GL_ON9 || !cv) return null;
   if (glInst9 !== undefined && (glInst9 === null || glInst9.canvas === cv)) {
     // 단이 올랐으면 새 상한·번짐·표본 수를 그 벌에 옮긴다(벌은 한 번만 짓는다).
-    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = meshMax <= 300 ? 14 : 36; }
+    if (glInst9) { glInst9.meshMax = GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax; glInst9.bloomOn = bloom; glInst9.specOn = spec; glInst9.msaa = msaa; glInst9.sprPageMax = glInst9.sprBudget <= 32 ? 14 : 36; }   // 폰 가름은 굽기 예산으로(2026-11-08 — 아틀라스를 실은 폰은 메시 상한이 400~480 이라 옛 '메시 ≤ 300 = 폰' 이 PC 로 읽었다)
     return glInst9;
   }
   /* 캔버스가 바뀌어 벌을 새로 열 때 옛 벌이 화면 밖(떼어 낸 캔버스)이면 그 문맥을 곧장 놓는다 — iOS 는 떼어 낸 캔버스의 GPU 메모리를 늦게 거둔다(위 lost ★). */
@@ -3995,7 +3995,7 @@ export function glUnits9(cv: HTMLCanvasElement | null, meshMax = MESH_MAX9, bloo
   try {
     glInst9 = new GlUnits9(cv, GL_MESH_MAX9 > 0 ? GL_MESH_MAX9 : meshMax, bloom, spec);
     glGen9N += 1;
-    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax <= 300 ? 14 : 36; glInst9.sprBudget = meshMax <= 300 ? 24 : 96; glInst9.sprWarmMax = meshMax <= 300 ? 6 : 24; glInst9.sprMsaa = meshMax <= 300 ? 0 : -1; }   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
+    if (glInst9) { glInst9.msaa = msaa; glInst9.sprOn = GL_SPR9; glInst9.sprPageMax = meshMax < 600 ? 14 : 36; glInst9.sprBudget = meshMax < 600 ? 24 : 96; glInst9.sprWarmMax = meshMax < 600 ? 6 : 24; glInst9.sprMsaa = meshMax < 600 ? 0 : -1; }   // 폰 = 메시 상한 600 미만(PC 는 늘 600 · 2026-11-08 아틀라스 실은 폰 400~480)   // 폰 예산 48 → 24(한 프레임에 48장 MSAA 굽기가 멎음을 만들었다 · 새 몸은 두 프레임에 나눠 선다)   // 2D 스프라이트 판은 지도 붓만 — 판 상한·굽기 예산은 폰(메시 상한 240)이 작다
   } catch (e) { console.warn("[gl9]", e); glInst9 = null; }
   (globalThis as unknown as { __gl9?: GlUnits9 | null }).__gl9 = glInst9;   // 진단(perf-check --probe-gl)
   return glInst9;
