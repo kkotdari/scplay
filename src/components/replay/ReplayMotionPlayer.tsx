@@ -930,7 +930,10 @@ if (typeof window !== "undefined") {
 const SETTLE9 = new WeakMap<HTMLCanvasElement, { k: string; t: number }>();
 const SETTLE_KICK9: { fn: (() => void) | null; tm: number } = { fn: null, tm: 0 };
 const SETTLE_MS9 = 450;
-const backPx9 = (): number => [Infinity, 2.6e6, 1.9e6, 1.4e6][memLv9()] ?? 1.4e6;
+/* 1 단 260만 → **150만**(2026-11-09, 실기 사건 블랙박스: 첫 가로 전환에서 GL 배킹 1312×1982(=260만 · 예산을 꽉 채움) · 화면 캔버스 31MB — 가로 화면은 852×393pt 인데 지도 상자를 덮게 키워
+   보이는 건 30% 남짓. 세로로 돌아왔다 두 번째 가로 전환의 자리 잡기 0.45초 안(우리가 안 그리는 동안)에 터졌다 — 첫 전환의 큰 버퍼를 사파리가 아직 안 놓은 채 회전의 제 화면 재구성이 겹쳤다).
+   세로 폰 2 배(866×1362 = 118만)는 그대로 · 2.5 배(182만)만 살짝 준다. 2 · 3 단도 함께 내린다. */
+const backPx9 = (): number => [Infinity, 1.5e6, 1.2e6, 1.0e6][memLv9()] ?? 1.0e6;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
     glSprTune9(Infinity, 32, { pageMax: 999, budget: 96, warmMax: 24, msaa: -1, bytesMB: Infinity, em: true });   // 덤프는 요잉 32(2026-11-03 · spr-atlas 가 a·b·c·d 로 가른다)
