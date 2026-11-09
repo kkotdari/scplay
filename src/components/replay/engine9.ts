@@ -4779,6 +4779,10 @@ export function startHallClear9<R extends [number, number, 0 | 1]>(res: readonly
  *  그림은 효과 층(dom "placard" · RMP drawDomFx9 — GL 위라 글자가 산다). 끄려면 EVENT_PLACARD9 를 false 로. */
 /* (2026-11-01, 요청: "메인홀 플래카드 제거") — 끈다. 그림·자리 셈은 남겨 둔다(다시 켤 때 true 한 글자). */
 export const EVENT_PLACARD9 = false;
+/** ★ 이벤트 깃발(2026-11-09, 요청: "이벤트 플래카드 말고 이벤트 깃발 추가 — 깃봉(나무)이 본진 홀 중앙에 꽂혀 위로 길게 올라오고 끝에 깃발(폭이 긴)이 펄럭임 ·
+ *  멘트는 그때그때 다른데 이번엔 '환영 Ben님 가입' · 환영은 뒤에 동그란 배경색") — 플래카드와 같은 자리(시작 본진 · 지붕 높이 가운데)에 dom "eventflag" 를 낸다.
+ *  글귀는 RMP EVENT_FLAG_TEXT9(머리 배지 · 본문). 끄려면 false. */
+export const EVENT_FLAG9 = true;
 const START_HALL_BY_RAW9 = new WeakMap<object, Map<string, string>>();
 /** 임자(raw) → 시작 본진 줄의 열쇠 `${sec}|${unit}|${x}|${y}` — 배열이 같은 동안 한 번만 센다. */
 function startHallKeys9(rows: readonly (readonly [number, number, number, string, string, ...unknown[]])[]): Map<string, string> {
@@ -7331,6 +7335,12 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
         /* 천 아랫단은 상자 **윗변이 아니라 지붕 높이**에(첫 샷: 상자 윗변은 몸 잉크보다 한참 위라 너무 떠 보였다) — 바닥에서 상자 높이의 0.55 자리 · 풍선이 그 위로 떠 있다. */
         const [pfx9, pfy9] = posFrac(centerX, bodyY + boxH / 2 - hTiles * 0.55);
         fxOps.push({ kind: "dom", style: "placard", fx: pfx9, fy: pfy9, lift: 0, size: wTiles * tilePx, seed: 0, age: t });
+      }
+      /* ★ 이벤트 깃발(위 EVENT_FLAG9 ★) — 플래카드와 같은 문 · 깃봉 밑동은 지붕 높이 가운데(몸 상자 가운데 위 · 바닥에서 상자 높이의 0.55). */
+      if (EVENT_FLAG9 && !pitched && shapeKind && !raising && !flownFrom && !bldFrozen9 && alpha > 0.5
+        && startHallKeys9(buildsSrc).get(raw) === `${sec}|${unit}|${x}|${y}`) {
+        const [gfx9, gfy9] = posFrac(centerX, bodyY + boxH / 2 - hTiles * 0.55);
+        fxOps.push({ kind: "dom", style: "eventflag", fx: gfx9, fy: gfy9, lift: 0, size: wTiles * tilePx, seed: 0, age: t });
       }
       let bldOpIx9 = -1;
       if (shapeKind) {

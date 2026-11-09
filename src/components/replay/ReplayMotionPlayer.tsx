@@ -3768,6 +3768,55 @@ function placardSpr9(): HTMLCanvasElement {
   }
   return cv9;
 }
+/* ★ 이벤트 깃발(2026-11-09 · engine9 EVENT_FLAG9 ★) — 깃발 천 한 장(글귀 포함)을 판(sprVer9)으로 한 번 그려 두고, 붓(drawDomFx9 "eventflag")이 세로 띠 32 개로 잘라
+   띠마다 물결만큼 밀고 기울여(transform · drawImage 9인자 — glctx9 심이 받는다) 펄럭이게 얹는다. 깃봉(나무)·꼭지(금)는 붓이 직접 그린다. 글귀: 머리 배지(둥근 바탕) + 본문. */
+export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님 가입" };
+const EVFLAG_W9 = 960;
+const EVFLAG_H9 = 240;
+let evFlagCv9: HTMLCanvasElement | null = null;
+let evFlagFontTried9 = false;
+function evFlagDraw9(cv9: HTMLCanvasElement): void {
+  const c9 = cv9.getContext("2d"); if (!c9) return;
+  const W = EVFLAG_W9; const H = EVFLAG_H9;
+  c9.clearRect(0, 0, W, H);
+  /* 천 — 미색 · 깃봉 쪽(왼) 감침 띠 · 끝(오른) 살짝 짙게. */
+  const g9 = c9.createLinearGradient(0, 0, W, 0);
+  g9.addColorStop(0, "#fffdf4"); g9.addColorStop(1, "#f1ece0");
+  c9.fillStyle = g9; c9.fillRect(0, 0, W, H);
+  c9.fillStyle = "#d9cfb8"; c9.fillRect(0, 0, 22, H);   // 깃봉 감침
+  c9.strokeStyle = "rgba(0,0,0,0.16)"; c9.lineWidth = 4; c9.strokeRect(2, 2, W - 4, H - 4);
+  const font9 = (px: number): string => `800 ${px}px "SCP NanumSquare Neo", "SCP Rasheeq", sans-serif`;
+  const { badge, text } = EVENT_FLAG_TEXT9;
+  /* 배지 — 둥근(알약) 바탕 + 흰 글자 · 본문 — 짙은 남색. 둘을 한 줄로 가운데. 천 폭에 맞춰 함께 줄인다. */
+  let fs9 = 120;
+  const gap9 = 26; const padX9 = 34;
+  const measure9 = (): { bw: number; tw: number; total: number } => {
+    c9.font = font9(fs9); const bw = badge ? c9.measureText(badge).width + padX9 * 2 : 0;
+    const tw = c9.measureText(text).width; return { bw, tw, total: bw + (badge ? gap9 : 0) + tw };
+  };
+  let m9 = measure9();
+  while (fs9 > 40 && m9.total > W - 22 - 80) { fs9 -= 4; m9 = measure9(); }
+  let x9 = 22 + (W - 22 - m9.total) / 2; const cy9 = H / 2;
+  c9.textBaseline = "middle"; c9.textAlign = "left";
+  if (badge) {
+    const bh9 = fs9 * 1.25;
+    c9.fillStyle = "#e8423f";
+    c9.beginPath(); c9.roundRect(x9, cy9 - bh9 / 2, m9.bw, bh9, bh9 / 2); c9.fill();
+    c9.fillStyle = "#ffffff"; c9.fillText(badge, x9 + padX9, cy9 + fs9 * 0.04);
+    x9 += m9.bw + gap9;
+  }
+  c9.fillStyle = "#1f2a5c"; c9.fillText(text, x9, cy9 + fs9 * 0.04);
+}
+function evFlagSpr9(): HTMLCanvasElement {
+  if (evFlagCv9) return evFlagCv9;
+  const cv9 = newCanvas9("이벤트 깃발"); cv9.width = EVFLAG_W9; cv9.height = EVFLAG_H9;
+  evFlagDraw9(cv9); sprVer9(cv9, 1); evFlagCv9 = cv9;
+  if (!evFlagFontTried9 && typeof document !== "undefined" && document.fonts && typeof document.fonts.load === "function") {
+    evFlagFontTried9 = true;
+    document.fonts.load(`800 120px "SCP NanumSquare Neo"`).then(() => { if (evFlagCv9) { evFlagDraw9(evFlagCv9); sprVer9(evFlagCv9, 2); } }).catch(() => {});
+  }
+  return cv9;
+}
 export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number,
   zoom: number, Bd9: number, tz9: number): void {
   const W9 = (f.size ?? 8) * zoom;
@@ -3799,6 +3848,42 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       const pw9 = W9 * 1.25; const ph9 = pw9 * (PLACARD_H9 / PLACARD_W9);
       ctx.globalAlpha = 1;
       ctx.drawImage(placardSpr9(), ax - pw9 / 2, ay - ph9 - W9 * PLACARD_LIFT9, pw9, ph9);
+      break;
+    }
+    case "eventflag": {
+      /* 이벤트 깃발(위 evFlagSpr9 ★) — 깃봉 키 = 발자국 폭(W9) × 1.7 · 깃발 폭 × 1.5 · 높이 × 0.38. 펄럭임: 띠마다 세로 밀림 = 진폭 × (깃봉에서 먼 몫) × sin(물결 − 시각) ·
+         띠 기울기만큼 밝고 어둡게. 시각은 경기 시각(age) — 멈추면 깃발도 멈춘다. */
+      const ph9 = W9 * 1.7; const pw9 = Math.max(2, W9 * 0.04);
+      const fl9 = W9 * 1.5; const fh9 = W9 * 0.38;
+      const topY9 = ay - ph9;
+      ctx.globalAlpha = 1;
+      /* 깃봉 — 나무(밝은 결 → 그늘) · 밑동은 지붕 가운데. */
+      const pg9 = ctx.createLinearGradient(ax - pw9 / 2, 0, ax + pw9 / 2, 0);
+      pg9.addColorStop(0, "#a8743c"); pg9.addColorStop(0.45, "#8a5a2b"); pg9.addColorStop(1, "#5a3818");
+      ctx.fillStyle = pg9;
+      ctx.fillRect(ax - pw9 / 2, topY9, pw9, ph9);
+      /* 깃발 — 띠 32 개. */
+      const spr9 = evFlagSpr9();
+      const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
+      const amp9 = fh9 * 0.16; const tt9 = u0 * 4.2;
+      const off9 = (x9: number): number => { const k9 = x9 / fl9; return amp9 * k9 * Math.sin(k9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(k9 * Math.PI * 5.1 - tt9 * 1.7); };
+      const fx0 = ax + pw9 / 2; const fy0 = topY9 + pw9 * 0.8;
+      for (let i9 = 0; i9 < N9; i9 += 1) {
+        const xa9 = i9 * dx9; const xb9 = xa9 + dx9;
+        const ya9 = off9(xa9); const yb9 = off9(xb9);
+        const sl9 = (yb9 - ya9) / dx9;
+        ctx.save();
+        ctx.transform(1, sl9, 0, 1, fx0 + xa9, fy0 + ya9);
+        ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, dx9 + 0.8, fh9);
+        const sh9 = Math.max(-0.22, Math.min(0.22, sl9 * 0.9));
+        if (Math.abs(sh9) > 0.01) { ctx.fillStyle = sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, dx9 + 0.8, fh9); }
+        ctx.restore();
+      }
+      /* 꼭지 — 금빛 구슬(깃발 위에 얹어 감침을 덮는다). */
+      ctx.fillStyle = "#e9c24a";
+      ctx.beginPath(); ctx.arc(ax, topY9, pw9 * 1.15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.beginPath(); ctx.arc(ax - pw9 * 0.35, topY9 - pw9 * 0.35, pw9 * 0.4, 0, Math.PI * 2); ctx.fill();
       break;
     }
     case "die": {
