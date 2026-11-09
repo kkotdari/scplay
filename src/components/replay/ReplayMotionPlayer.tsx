@@ -3851,10 +3851,11 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       break;
     }
     case "eventflag": {
-      /* 이벤트 깃발(위 evFlagSpr9 ★) — 깃봉 키 = 발자국 폭(W9) × 1.7 · 깃발 폭 × 1.5 · 높이 × 0.38. 펄럭임: 띠마다 세로 밀림 = 진폭 × (깃봉에서 먼 몫) × sin(물결 − 시각) ·
-         띠 기울기만큼 밝고 어둡게. 시각은 경기 시각(age) — 멈추면 깃발도 멈춘다. */
-      const ph9 = W9 * 1.7; const pw9 = Math.max(2, W9 * 0.04);
-      const fl9 = W9 * 1.5; const fh9 = W9 * 0.38;
+      /* 이벤트 깃발(위 evFlagSpr9 ★) — **건물 카메라 시야각**(TOP_ELEV9 · 40도 내려다봄 · 2026-11-09, 요청: "각도는 시야각도 잘 적용"): 곧은 것(깃봉 · 깃발 높이)은 cos 만큼 짧게,
+         펄럭임은 천이 **앞뒤(깊이)로** 굽는 것이라 화면에선 sin 만큼 위아래 밀림 + 굽은 기울기만큼 가로가 준다. 크기: 깃봉 = 발자국 폭(W9) × 1.7 · 깃발 폭 × 1.5 · 높이 × 0.38(세계 자).
+         빛은 앞에서 — 카메라 쪽으로 돈 면이 밝고 돌아선 면이 어둡다. 시각은 경기 시각(age) — 멈추면 깃발도 멈춘다. */
+      const ph9 = W9 * 1.7 * PLACARD_COS9; const pw9 = Math.max(2, W9 * 0.04);
+      const fl9 = W9 * 1.5; const fh9 = W9 * 0.38 * PLACARD_COS9;
       const topY9 = ay - ph9;
       ctx.globalAlpha = 1;
       /* 깃봉 — 나무(밝은 결 → 그늘) · 밑동은 지붕 가운데. */
@@ -3862,22 +3863,24 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       pg9.addColorStop(0, "#a8743c"); pg9.addColorStop(0.45, "#8a5a2b"); pg9.addColorStop(1, "#5a3818");
       ctx.fillStyle = pg9;
       ctx.fillRect(ax - pw9 / 2, topY9, pw9, ph9);
-      /* 깃발 — 띠 32 개. */
+      /* 깃발 — 띠 32 개 · 깊이 굽음 dep(x)(세계 px) → 화면 y 밀림 dep × sin · 띠 가로 = 띠 길이 ÷ √(1 + 기울기²). */
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
-      const amp9 = fh9 * 0.16; const tt9 = u0 * 4.2;
-      const off9 = (x9: number): number => { const k9 = x9 / fl9; return amp9 * k9 * Math.sin(k9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(k9 * Math.PI * 5.1 - tt9 * 1.7); };
-      const fx0 = ax + pw9 / 2; const fy0 = topY9 + pw9 * 0.8;
+      const amp9 = W9 * 0.13; const tt9 = u0 * 4.2;
+      const dep9 = (x9: number): number => { const k9 = x9 / fl9; return amp9 * k9 * Math.sin(k9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(k9 * Math.PI * 5.1 - tt9 * 1.7); };
+      let sx9 = ax + pw9 / 2; const fy0 = topY9 + pw9 * 0.8;
       for (let i9 = 0; i9 < N9; i9 += 1) {
-        const xa9 = i9 * dx9; const xb9 = xa9 + dx9;
-        const ya9 = off9(xa9); const yb9 = off9(xb9);
-        const sl9 = (yb9 - ya9) / dx9;
+        const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
+        const sl9 = (db9 - da9) / dx9;   // 깊이 기울기(세계)
+        const w9 = dx9 / Math.sqrt(1 + sl9 * sl9);   // 굽은 만큼 가로가 준다
+        const ya9 = da9 * PLACARD_SIN9; const yb9 = db9 * PLACARD_SIN9;
         ctx.save();
-        ctx.transform(1, sl9, 0, 1, fx0 + xa9, fy0 + ya9);
-        ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, dx9 + 0.8, fh9);
-        const sh9 = Math.max(-0.22, Math.min(0.22, sl9 * 0.9));
-        if (Math.abs(sh9) > 0.01) { ctx.fillStyle = sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, dx9 + 0.8, fh9); }
+        ctx.transform(1, (yb9 - ya9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ya9);
+        ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, w9 + 0.8, fh9);
+        const sh9 = Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // +: 카메라에서 돌아선 면 → 어둡게
+        if (Math.abs(sh9) > 0.01) { ctx.fillStyle = sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, w9 + 0.8, fh9); }
         ctx.restore();
+        sx9 += w9;
       }
       /* 꼭지 — 금빛 구슬(깃발 위에 얹어 감침을 덮는다). */
       ctx.fillStyle = "#e9c24a";
