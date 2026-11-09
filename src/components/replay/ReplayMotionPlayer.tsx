@@ -3773,7 +3773,9 @@ function placardSpr9(): HTMLCanvasElement {
 export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님" };   // "가입" 뺌(2026-11-09 넷째)
 const EVFLAG_W9 = 960;
 /** 아랫변을 윗변보다 좁히는 몫(원근 · 위에서 내려다보니 아랫변이 멀다 · 2026-11-09 열한째). */
-const EVFLAG_KEY9 = 0;   // 0.12 → 0(열셋째, 요청: "이 상태에서"(여덟째 꼴 샷) — 원근 좁힘 걷음 · 손잡이는 남김)
+const EVFLAG_KEY9 = 0;
+/** 그늘 띠가 위에서 아래로 기우는 몫(깃발 폭 배 · 비스듬한 빛 · 2026-11-09 열다섯째). */
+const EVFLAG_SLANT9 = 0.15;   // 0.12 → 0(열셋째, 요청: "이 상태에서"(여덟째 꼴 샷) — 원근 좁힘 걷음 · 손잡이는 남김)
 const EVFLAG_H9 = 240;
 let evFlagCv9: HTMLCanvasElement | null = null;
 let evFlagFontTried9 = false;
@@ -3884,8 +3886,14 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         /* 빛은 왼앞에서 — **오른쪽을 보는 면이 어둡다**(열넷째, 실기 지적: "휘어지면 오른쪽 면에 어두운 그림자가 생겨야 하는데 지금 안 그런 거 같아"). 앞(카메라 쪽 = 깊이 +)으로
            나온 결의 오른 비탈(깊이가 x 따라 줄어듦 · 기울기 −)이 오른쪽을 본다. 옛 세기(± 0.24 · 기울기 × 0.8)는 결 가운데서 거의 안 보였다 — 그늘은 진하게(최대 0.5 · × 1.8),
            빛은 옅게(최대 0.18). */
-        const sh9 = sl9 < 0 ? Math.min(0.5, -sl9 * 1.8) : -Math.min(0.18, sl9 * 0.9);
-        const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
+        /* ★ 빛이 **비스듬히**(열다섯째, 요청: "약간 비스듬히 빛이 들어온다고 생각하고 그림자도 비스듬하게 하면 위아래가 좀 구분될 것 같은데") — 그늘 띠를 세로 8 칸으로 나눠 칸마다
+           그 줄의 기울기를 **왼쪽으로 밀린 자리**(아래로 갈수록 깃발 폭 × EVFLAG_SLANT9 만큼)에서 읽는다 — 띠가 위에서 아래로 오른쪽으로 기운다(왼 위에서 내리쬐는 빛).
+           그림(천)은 한 장 · 그늘만 칸으로(칸 이음매 줄무늬가 안 생기게 그늘 칸은 겹치지 않는다). */
+        const shOf9 = (sl: number): string | null => {
+          const sh = sl < 0 ? Math.min(0.5, -sl * 1.8) : -Math.min(0.18, sl * 0.9);
+          return Math.abs(sh) > 0.01 ? (sh > 0 ? `rgba(0,0,0,${sh.toFixed(3)})` : `rgba(255,255,255,${(-sh * 0.8).toFixed(3)})`) : null;
+        };
+        const shCol9 = R9 > 1 ? shOf9(sl9) : null;
         for (let r9 = 0; r9 < R9; r9 += 1) {
           const v09 = r9 / R9; const v19 = (r9 + 1) / R9;
           const a09 = ta9 + v09 * ha9; const a19 = ta9 + v19 * ha9; const b09 = tb9 + v09 * hb9; const b19 = tb9 + v19 * hb9;
@@ -3897,6 +3905,20 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
           ctx.transform(kx9, (b09 - a09) / Math.max(0.01, w9), 0, 1, ax + (sx9 - ax) * kx9, fy0 + a09);
           ctx.drawImage(spr9, i9 * sw9, v09 * EVFLAG_H9, sw9, EVFLAG_H9 / R9, 0, 0, w9 + 0.8, hh9);
           if (shCol9) { ctx.fillStyle = shCol9; ctx.fillRect(0, 0, w9 + 0.8, hh9 - 0.6); }
+          ctx.restore();
+        }
+        if (R9 === 1) {
+          /* 띠 한 장 · 세로 그러데이션(멈춤 7 개) — 칸으로 칠하면 바둑판처럼 보였다. */
+          const RS9 = 6; const xm9 = (i9 + 0.5) * dx9;
+          const g9 = ctx.createLinearGradient(0, 0, 0, ha9);
+          for (let r9 = 0; r9 <= RS9; r9 += 1) {
+            const xs9 = xm9 - (r9 / RS9) * fl9 * EVFLAG_SLANT9;
+            g9.addColorStop(r9 / RS9, shOf9((dep9(xs9 + dx9 / 2) - dep9(xs9 - dx9 / 2)) / dx9) ?? "rgba(0,0,0,0)");
+          }
+          ctx.save();
+          ctx.transform(1, (tb9 - ta9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ta9);
+          ctx.fillStyle = g9;
+          ctx.fillRect(0, 0, w9 + 0.8, ha9);
           ctx.restore();
         }
         sx9 += w9;
