@@ -5716,17 +5716,10 @@
   margin: 0 calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap)) var(--wbot) calc(var(--wmini-w, 0px) + var(--wl) + var(--wgap) + var(--winfo-w, 0px) + var(--winfo-gap, 0px));   /* PC 는 인포창 몫까지(위 ★) */
   padding-left: 8px; padding-right: 8px; padding-bottom: 6px; pointer-events: auto;   /* 아래 여백 0 → 6px(2026-11-04, 지적: "전체화면에서 재생바 아래 여백 부재" — 위 여백 6px 와 같게) */
 }
-/* ★ 가로 전체화면(PC · 폰) — 재생바가 **인포창 · 전광판 아래 폭 전부**(2026-11-09, 요청: "재생바 패널을 지금 전체화면의 높이 그대로 인포창과 전광판 아래의 폭 전체에 넣고 인포창과 전광판은
-   그만큼 위로 올리는 거야") — 재생바 = 인포창 왼끝(미니맵 오른쪽 + 틈)부터 오른끝(--wr)까지 · 바닥선. 인포창 · 전광판은 재생바 키(--wtb-h · RMP dockFit wide 갈래가 잰다) + 틈만큼 위.
-   미니맵은 왼아래 제 자리(바닥선) 그대로. 폰 가로(인포창 없음)도 같다(같은 날 "모바일도 똑같이") — 재생바는 미니맵 오른쪽부터 · 전광판만 올라간다. 틈 = --wgap + 홀로그램 판 넓힘 두 몫(위아래 판이 겹치지 않게). */
-.scr-fs-layer.is-wide { --wtb-lift: calc(var(--wtb-h, 0px) + var(--wgap) + 2 * var(--holo-ext, 0px)); }
-.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb {
-  margin: 0 calc(var(--wr) + var(--wdial-push, 0px)) var(--wbot) calc(var(--wl) + var(--wmini-w, 0px) + var(--wgap));
-}
-.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel { margin-bottom: calc(var(--wbot) + var(--wtb-lift)); margin-right: calc(var(--wr) + var(--wdial-push, 0px)); }
-/* ↑ --wdial-push: 배속 다이얼이 전광판 위에 안 들어 바닥으로 내려오면(RMP pushDial9) 전광판 · 재생바를 다이얼 폭 + 틈만큼 왼쪽으로(2026-11-09). */
-.scr-fs-layer.is-wide.is-wide-info .scr-fs-dockmain > .scr-motion-infodock { margin-bottom: calc(var(--wbot) + var(--wtb-lift)); }
-.scr-fs-layer.is-wide.is-holodock .scr-fs-lower > .scr-tb::before { top: calc(-1 * var(--holo-ext)); }   /* 위로 더 넓힌 판(세로 독 몫)이 올린 판에 겹친다 */
+/* (되물림 · 2026-11-09 셋째) 재생바를 인포창 · 전광판 아래 폭 전부로 두고 그 둘을 올리던 배치는 걷었다(요청: "예전처럼 미니맵(+인포창)과 전광판 사이에 두 줄로 · 전광판이 안 올라가게").
+   남은 것은 배속 다이얼 바닥 내림(--wdial-push · RMP pushDial9) — 전광판 · 재생바 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로. */
+.scr-fs-layer.is-wide .scr-fs-lower > .scr-tb.scr-tb { margin-right: calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap) + var(--wdial-push, 0px)); }
+.scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel { margin-right: calc(var(--wr) + var(--wdial-push, 0px)); }
 /* 오버레이 — 원래 자리 + 좌우 안전영역. 배속 다이얼은 로스터 위(--dock-lift-r · CSS --over-cap 이 아니라 로스터 키로). 자막은 미니맵~로스터 사이 가운데. */
 .scr-fs-layer.is-wide .scr-modetog-stage { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }
 .scr-fs-layer.is-wide .scr-fs-back { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }

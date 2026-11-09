@@ -23216,6 +23216,9 @@ export default function ReplayMotionPlayer({
        가로 · 세로 모두 항상 독 요소(미니맵 포함) 최고 높이보다 살짝 위의 가운데로 고정 · 미니맵을 안 숨기면 미니맵보다 위") — 셈이 아니라 **실제 상자**를 잰다(받침 · 테 · 여백이 다
        든다 · 가로 배치의 --wmini-h 셈은 틀 테를 못 봐 자막이 미니맵 띠에 걸쳤다). 무대 바닥 기준 px 로 적는다(--cap-bot9 · 무대가 독 밑까지 그리므로 음수도 된다). 보이는 것이
        하나도 없으면(J · H 로 다 숨김) 아래 안전영역 위. 접기 단은 숨은 요소가 빠지니 저절로 내려온다. 가로 배치는 아래 ★(미니맵 제외 · --cap-l9). */
+    /* 다시 재기(2026-11-09, 지적: "처음 진입 시 중계 토글이 위에 나오는 문제") — 가림 중이거나 단추·다이얼이 아직 안 섰으면 잠시 뒤 다시 잰다(최대 40번 · 0.3초). */
+    let capT9 = 0; let capN9 = 0;
+    const capAgain9 = (): void => { if (capN9 >= 40) return; capN9 += 1; window.clearTimeout(capT9); capT9 = window.setTimeout(() => capPlace9(), 300); };
     const capPlace9 = (): void => {
       const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer");
       const st9 = lay9?.querySelector<HTMLElement>(":scope > .scr-fs-root > .scr-fs-stage") ?? lay9?.querySelector<HTMLElement>(".scr-fs-stage");
@@ -23224,7 +23227,7 @@ export default function ReplayMotionPlayer({
       /* ★ 가림(data-veil · props veil) 동안은 안 잰다(2026-11-09, 지적: "재생기 중계모드 자막이 처음에 가끔 안 켜짐 · 단축키로 켜면 켜짐") — 가림은 모든 요소를 visibility hidden 으로
          감춰 아래 shown9 가 독 요소를 하나도 못 찾았고, 자막 바닥(--cap-bot9)이 층 바닥으로 떨어져 **독 뒤에 숨었다**. 가림이 걷혀도 크기는 그대로라 ResizeObserver 가
          다시 재지 않았다(로딩 차례에 따라 가끔). 걷히면 아래 effect 의존(veiled9)으로 다시 잰다. */
-      if (lay9.closest("[data-veil]")) return;
+      if (lay9.closest("[data-veil]")) { capAgain9(); return; }
       const shown9 = (el9: HTMLElement | null | undefined): el9 is HTMLElement => {
         if (!el9) return false;
         const r9 = el9.getBoundingClientRect();
@@ -23269,14 +23272,20 @@ export default function ReplayMotionPlayer({
           lay9.querySelectorAll<HTMLElement>(sel9).forEach((el9) => { if (!shown9(el9)) return; const r9 = el9.getBoundingClientRect(); a9 = Math.min(a9, r9.left); b9 = Math.max(b9, r9.right); if (left9) hl9 = Math.max(hl9, r9.height); });
           return a9 < b9 ? [a9, b9] : null;
         };
-        const floorOf9 = (x9: [number, number] | null, extra9: (HTMLElement | null)[]): number => {
+        const floorOf9 = (x9: [number, number], extra9: (HTMLElement | null)[]): number => {
           const bl9 = [...cands9, ...extra9.filter(shown9)];
           let t9 = Math.min(stB9, lay9.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(lay9).getPropertyValue("--wbot")) || 0));   // 프레임은 독이 무대 밖(아래)이라 무대 바닥까지
-          if (x9) for (const el9 of bl9) { const r9 = el9.getBoundingClientRect(); if (r9.right > x9[0] && r9.left < x9[1]) t9 = Math.min(t9, r9.top); }
+          for (const el9 of bl9) { const r9 = el9.getBoundingClientRect(); if (r9.right > x9[0] && r9.left < x9[1]) t9 = Math.min(t9, r9.top); }
           return stB9 - t9 + gap9;
         };
-        const xl9 = xr9(".scr-fs-back, .scr-modetog-stage", true);
-        const xrr9 = xr9(".scr-zoomdial, .scr-zoomfps");
+        /* 단추가 아직 없으면(보기 모드 판 · 로딩) 무대 왼끝 · 오른끝 한 줄로 잰다 — 단추는 늘 그 끝에 선다. 그리고 다시 잰다(capAgain9). */
+        const sb9 = st9.getBoundingClientRect();
+        const xlM9 = xr9(".scr-fs-back, .scr-modetog-stage", true);
+        const xrM9 = xr9(".scr-zoomdial, .scr-zoomfps");
+        if (!xlM9 || !xrM9 || !lay9.querySelector(".scr-speeddial")) capAgain9();
+        if (!xlM9) hl9 = Math.max(hl9, parseFloat(getComputedStyle(st9).getPropertyValue("--sd-w")) || 36);
+        const xl9: [number, number] = xlM9 ?? [sb9.left, sb9.left + 1];
+        const xrr9: [number, number] = xrM9 ?? [sb9.right - 1, sb9.right];
         const lb9 = floorOf9(xl9, []);   // 채팅은 셈에 안 넣는다(줄 수에 따라 단추가 들썩인다) — 채팅이 단추 위로 간다(--ov-l-top9)
         lay9.style.setProperty("--ov-l-bot9", `${lb9.toFixed(1)}px`);
         lay9.style.setProperty("--ov-l-top9", `${(lb9 + hl9 + gap9).toFixed(1)}px`);
@@ -23323,10 +23332,10 @@ export default function ReplayMotionPlayer({
         const pairP9 = (k: number): number => h0 * k * (rr9 + (miniOn9 ? ar9 * up9 : 0)) + (miniOn9 ? sep9 : 0);
         const kp9 = DOCK_STEPS9.find((k) => pairP9(k) <= Wp9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
         const rh9 = ev9(h0 * kp9); const rw9 = ev9(rh9 * rr9);
-        /* 재생바가 인포창·전광판 **아래** 폭 전부라(PC · 폰)(아래 ★ 2026-11-09 · replay.css --wtb-lift) 로스터 자리 키에 재생바 키 + 틈이 더 든다. */
+        /* (되물림 · 2026-11-09 셋째, 요청: "가로 모드에서 재생판을 다시 예전처럼 미니맵(+인포창)과 전광판 사이에 두 줄로 — 그래야 전광판이 안 올라가니까 · 지금 화면을 너무 가림") —
+           재생바를 전광판 아래로 내리고 전광판을 올리던 몫(tbLift9 · --wtb-lift)을 걷었다. */
         const tbH0 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
-        const tbLift9 = tbH0 + (parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6) + 2 * (parseFloat(getComputedStyle(lay9).getPropertyValue("--holo-ext")) || 0);
-        const showRoster9 = H9 >= rh9 + tbLift9 + 24;
+        const showRoster9 = H9 >= rh9 + 24;
         let miniH9 = ev9(Math.min(H9 * 0.4, h0 * up9)); let miniW9 = ev9(miniH9 * ar9);
         const maxMW9 = W9 * 0.3;
         if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
@@ -23340,11 +23349,13 @@ export default function ReplayMotionPlayer({
         /* ★ 배속 다이얼(2026-11-09, 요청: "가로 레이아웃 배속 다이얼의 경우 위에 자리가 모자라면 아래로 이동하고(바닥까지), 전광판과 재생부를 왼쪽으로 밀기") — 전광판 위
            (배율 원 아래 ~ 전광판 위끝)에 다이얼 키가 안 들면 다이얼은 오른아래 바닥까지 내리고 전광판 · 재생바의 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로(--wdial-push). */
         const dial9 = lay9.querySelector<HTMLElement>(".scr-speeddial");
+        /* 자리 셈(2026-11-09 셋째, 지적: "가로 모드에서 배속판 위의 배율 버튼이 아예 안 나오는 경우 · 자리가 모자라면 배속판을 바로 아래로") — 배율 원이 배속판 **위**에 서므로
+           (capPlace9 is-ovlow9 ★) 전광판 위에 [틈 · 배속판 · 틈 · 배율 원 · 위 틈]이 다 들어야 한다. 배율 원의 지금 자리는 다이얼을 따라 움직여 못 쓴다(옛 셈이 그것을 재 돌았다) — 키만 쓴다. */
         const zd9 = lay9.querySelector<HTMLElement>(".scr-zoomdial");
-        const layTop9 = lay9.getBoundingClientRect().top;
-        const dialRoomTop9 = zd9 ? zd9.getBoundingClientRect().bottom - layTop9 + gap9 : 60;
+        const sd9 = gap9 * (10 / 6);   // --sd-gap(10·sdk) ≈ --wgap(6·dk) × 10/6
         const dialH9 = dial9?.offsetHeight ?? 0;
-        const pushDial9 = !!dial9 && dialH9 > 0 && showRoster9 && H9 - gap9 - (rh9 + tbLift9) - 2 * gap9 - dialRoomTop9 < dialH9;
+        const needH9 = gap9 + rh9 + sd9 + dialH9 + sd9 + (zd9?.offsetHeight ?? 0) + 2 * sd9;
+        const pushDial9 = !!dial9 && dialH9 > 0 && showRoster9 && H9 < needH9;
         const dialPush9 = pushDial9 ? (dial9?.offsetWidth ?? 0) + 2 * gap9 : 0;
         const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2 + dialPush9;
         /* 인포창 단은 종전 자(가운데 재생부 최소 폭 몫을 남긴다) — 재생바가 아래로 내려가도 인포창·전광판 크기는 그대로(요청: "그만큼 위로 올리기"만). */
@@ -23360,10 +23371,9 @@ export default function ReplayMotionPlayer({
         lay9.classList.toggle("is-wide-noroster", !showRoster9);
         /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막이 재생바 키만큼 비킨다(--dock-lift). 배속 다이얼은 로스터 위(--dock-lift-r). */
         const tbH9 = tbH0;
-        lay9.style.setProperty("--wtb-h", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         /* 배속 다이얼 — 전광판 위 · 자리가 모자라면 바닥(위 pushDial9 ★). */
-        lay9.style.setProperty("--dock-lift-r", `${pushDial9 ? 0 : showRoster9 ? rh9 + tbLift9 : tbH9}px`);
+        lay9.style.setProperty("--dock-lift-r", `${pushDial9 ? 0 : showRoster9 ? rh9 : tbH9}px`);
         lay9.style.setProperty("--wdial-push", `${dialPush9}px`);
         lay9.style.setProperty("--wdial-g", pushDial9 ? "0" : "1");   // 바닥으로 내리면 틈 없이 바닥선(--wbot)에
         capPlace9();   // 자막 자리(아래 ★ capPlace9)
@@ -23476,7 +23486,7 @@ export default function ReplayMotionPlayer({
     const lowO9 = fr9.closest<HTMLElement>(".scr-fs-lower");
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
-    return () => ro9.disconnect();
+    return () => { ro9.disconnect(); window.clearTimeout(capT9); };
   }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock, veiled9, pending]);   // pending — 다 받은 뒤 서는 배속 다이얼을 잰다(pushDial9)   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다 · veiled9 — 가림이 걷히면 다시(위 capPlace9 ★ 가림)
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
@@ -24798,15 +24808,15 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className={cx("scr-tb", (!uiPhone9 || wide9) && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
+            className={cx("scr-tb", !uiPhone9 && !wide9 && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
             {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
                 "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
                 키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
-            {/* 폰 가로 전체화면(wide9)도 PC 처럼 한 줄(2026-11-09, 요청: "모바일도 재생바 패널 배치도 피시처럼 · 버튼 재생바 버튼") — 재생바가 인포창·전광판 아래 폭 전부라 자리가 난다. */}
-            {uiPhone9 && !wide9 ? (
+            {/* 가로 배치(wide9 · PC · 폰)는 **두 줄**(2026-11-09 셋째, 요청: "미니맵(+인포창)과 전광판 사이에 두 줄로" — 같은 날 한 줄은 되물렸다). */}
+            {uiPhone9 || wide9 ? (
               <>
                 <div className="scr-tb-btnrow">
                   {mapBtnRow}
