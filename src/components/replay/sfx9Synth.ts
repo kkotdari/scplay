@@ -1147,26 +1147,42 @@ function stim9(v: number): Float32Array {
   return finish9(echo9(raw9, 0.07, 0.22), 0.85);
 }
 
-/** ★ 알 부화 '촤락'(2026-11-09 일곱째, 요청: "저그 알 부화 소리 촤락 · 약간 양수 터지는 소리 · 공사 고치나 번데기도 다 그 소리로 하되 좀 낮게") — 막이 찢기는 젖은 터짐:
- *  잡음 띠(2.2kHz → 600Hz 로 닫힘 · Q 0.9)의 '촤' + 뒤따라 흘러내리는 '락'(저역 잡음을 느린 출렁임으로) + 물방울(위로 휘는 짧은 사인 · 처음 몰리고 사그라짐) + 낮은 '퍽' 몸.
- *  pk 는 음높이 배(알 1 · 고치 · 번데기 · 공사 고치 0.72). 0.65초. */
+/** ★ 알 부화 — **태반 터짐**(2026-11-09 아홉째, 지적: "부화 소리 좀 물 같아 · 물 말고 태반 터지는 소리") — 일곱째 '촤락'(물방울 · 출렁임)은 물소리였다. 이제 살막이 터지는 꼴:
+ *  ① 막 찢김 '쩍' — 갈색 잡음을 띠(1.1k → 380Hz)로 거르고 빠른 무작위 덩이(초당 ~90 · 저역으로 둥글린 것)로 끊어 끈적하게 찢어지는 결 · ② 끈적한 '쭈왁' — 공명 큰
+ *  저역 거르개(Q 5 · 650 → 170Hz)로 쓸어 내린 갈색 잡음 · ③ 낮은 '퍽' 몸(85 → 45Hz · 배음 하나). 물방울 · 출렁임은 걷었다. pk 는 음높이 배(알 1 · 고치 · 번데기 · 공사 고치 0.72). 0.6초. */
 function eggSplash9(v: number, pk: number): Float32Array {
   const r = rng9(3101 + v + (pk !== 1 ? 17 : 0)); const br = brown9(r);
-  const bpS = new Biquad9("bp", 2200 * pk, 0.9);
-  const lpF = new Biquad9("lp", 700 * pk, 0.7);
-  const drops: { t0: number; f: number; a: number }[] = [];
-  for (let k = 0; k < 14; k += 1) { const t0 = 0.03 + Math.pow(r(), 1.8) * 0.45; drops.push({ t0, f: (500 + r() * 900) * pk, a: (0.25 + r() * 0.35) * Math.exp(-t0 * 3) }); }
+  const bpT = new Biquad9("bp", 1100 * pk, 1.2);
+  const lpQ = new Biquad9("lp", 650 * pk, 5);
+  const lpE = new Biquad9("lp", 60, 0.7);
   let ph = 0;
-  return finish9(render9(0.65, (t) => {
-    const n = br() * 0.7 + (r() * 2 - 1) * 0.5;
-    const chwa = bpS.run(n) * ad9(t, 0.004, 11) * 1.5;
-    const rak = lpF.run(n) * ad9(Math.max(0, t - 0.04), 0.03, 5) * (0.75 + 0.25 * Math.sin(2 * Math.PI * 9 * t)) * (t > 0.04 ? 1 : 0) * 0.9;
-    let dr = 0;
-    for (const d of drops) { const u = t - d.t0; if (u > 0 && u < 0.03) dr += Math.sin(2 * Math.PI * d.f * (1 + u * 18) * u) * Math.sin(Math.PI * u / 0.03) * d.a; }
-    ph += (60 + 70 * exp9(t, 14)) * pk / SFX_RATE9;
-    const puk = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.4) * ad9(t, 0.003, 13) * 0.8;
-    return sat9(chwa + rak + dr + puk, 1.2);
-  }, (t) => { bpS.set((600 + 1600 * exp9(t, 9)) * pk); }), 0.5);
+  return finish9(render9(0.6, (t) => {
+    const n = br();
+    const lump = Math.max(0, lpE.run(r() < 0.06 ? (r() * 2 - 1) * 40 : 0));
+    const tear = bpT.run(n) * Math.min(1, lump) * ad9(t, 0.004, 9) * 1.6;
+    const squelch = lpQ.run(n) * ad9(Math.max(0, t - 0.02), 0.03, 5.5) * (t > 0.02 ? 1 : 0) * 0.55;
+    ph += (45 + 40 * exp9(t, 16)) * pk / SFX_RATE9;
+    const puk = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.35) * ad9(t, 0.003, 12) * 0.9;
+    return sat9(tear + squelch + puk, 1.15);
+  }, (t) => { bpT.set((380 + 720 * exp9(t, 8)) * pk); lpQ.set((170 + 480 * exp9(t, 6)) * pk); }), 0.5);
+}
+
+/** ★ 럴커 땅 파기(2026-11-09 아홉째, 요청: "럴커 버로우 하는 동작 소리") — 파는 창 동안 흙덩이(engine9 dom dig · 0.15초마다 한 움큼)마다 하나: 다리 가시가 흙에 박히는 '푹'
+ *  (낮은 퉁 95 → 50Hz) + 딱딱한 껍질 '딱'(bp 1.6kHz · 3ms) + 흙 튐(갈색 잡음 lp 1000 → 300 · 0.12초) + 낮은 끙(생체 · 70Hz 배음 · 옅게). 0.28초. */
+function lurkerDig9(v: number): Float32Array {
+  const r = rng9(3301 + v); const br = brown9(r);
+  const bpC = new Biquad9("bp", 1600, 3);
+  const lpD = new Biquad9("lp", 1000, 0.7);
+  let ph = 0; let phG = 0;
+  return finish9(render9(0.28, (t) => {
+    ph += (50 + 45 * exp9(t, 30)) / SFX_RATE9;
+    const stab = Math.sin(2 * Math.PI * ph) * ad9(t, 0.002, 26) * 1.0;
+    const click = bpC.run(r() * 2 - 1) * exp9(t, 450) * 0.9;
+    const dirt = lpD.run(br()) * ad9(Math.max(0, t - 0.01), 0.008, 16) * 0.9;
+    phG += (70 * (1 - t * 0.4)) / SFX_RATE9;
+    const grunt = (Math.sin(2 * Math.PI * phG) * 0.6 + Math.sin(4 * Math.PI * phG) * 0.3) * ad9(t, 0.03, 9) * 0.25;
+    return sat9(stab + click + dirt + grunt, 1.15);
+  }, (t) => lpD.set(300 + 700 * exp9(t, 12))), 0.5);
 }
 
 /** ★ 낮은 드릴(2026-11-09 일곱째, 요청: "테란 건설이나 리페어에 지금 소리랑 교차로 낮은 드릴 소리 넣기") — 용접(weld9)과 번갈아(sfx9Cues). 모터 웅(92Hz 톱니를 lp 600 · 갈리는 28Hz 떨림) +
@@ -1193,7 +1209,7 @@ export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie" | "dragoonHit" | "eggSplash" | "eggSplashLow" | "drillLow";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie" | "dragoonHit" | "eggSplash" | "eggSplashLow" | "drillLow" | "lurkerDig";
 
 /** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -1217,6 +1233,7 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
   stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9], dragoonHit: [1, dragoonHit9],
   eggSplash: [1, (v) => eggSplash9(v, 1)], eggSplashLow: [1, (v) => eggSplash9(v, 0.72)], drillLow: [1, drillLow9],   // 2026-11-09 일곱째
+  lurkerDig: [1, lurkerDig9],   // 2026-11-09 아홉째
 };
 
 /* ★ **묶음별 크기 맞춤**(2026-11-09, 요청: "모든 공격 소리끼리 · 죽음 소리끼리 데시벨을 노멀라이징 해 줘") — 옛 판은 갈래마다 봉우리(finish9 peak)만 맞춰,

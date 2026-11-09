@@ -176,7 +176,7 @@ export class SfxCues9 {
           else if (st === "lift") play(op.sub === "up" ? "liftOff" : "landing", op.fx, op.fy);   // 건물 이륙·착륙(엔진의 소리 신호 · 2026-10-22)
           else if (st === "bunk") play(op.sub === "out" ? "unload" : "load", op.fx, op.fy);   // 벙커 들고 남 = 수송선과 같은 소리(2026-10-22)
           else if (st === "mine") play("boom", op.fx, op.fy);
-          else if (st === "dig") play("burrow", op.fx, op.fy);
+          else if (st === "dig") play("lurkerDig", op.fx, op.fy);   // 럴커 파는 동작 — 흙덩이마다 푹(2026-11-09 아홉째 · 옛 burrow)
           break;
         }
         default:

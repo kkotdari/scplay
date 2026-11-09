@@ -24,18 +24,18 @@ const PRIO9: Record<SfxKind9, number> = {
   zealotStab: 3,   // 2026-11-09
   tossDie: 7,   // 2026-11-09
   dragoonHit: 5,   // 2026-11-09
-  eggSplash: 4, eggSplashLow: 6, drillLow: 2,   // 2026-11-09 일곱째(공사 고치 완공은 옛 zergDone 6 자리)
+  eggSplash: 4, eggSplashLow: 6, drillLow: 2, lurkerDig: 5,   // 2026-11-09 일곱째(공사 고치 완공은 옛 zergDone 6 자리)
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
-  eggSplash: 2, eggSplashLow: 1, drillLow: 1,
+  eggSplash: 2, eggSplashLow: 1, drillLow: 1, lurkerDig: 2,
   warpHum: 1, warpEnd: 1, heart: 1, mineScv: 1, mineProbe: 1, gun: 2, slash: 2, blade: 3, claw: 3, spine: 3, zap: 2, glaive: 2, mine: 1, weld: 1, liftOff: 1, landing: 1, thunder: 1, warp: 1,
   screamM: 1, screamF: 1, squeal: 2, boom: 3, boomBig: 2, bioBoom: 2, load: 1, unload: 1, burrow: 1, unburrow: 1, eggPop: 2,
   screamLow: 1, screamHi: 1, springBreak: 2, spikeEarth: 2, guardHum: 2, scanHum: 1, warpCharge: 1, zlingHit: 3, ultraHit: 2, missileLow: 2, missileHi: 2, fleshUnfold: 2, zergDone: 1, eggStart: 2, eggHatch: 2, metalClang: 2, mineArm: 2, reaverBreak: 2, vesselBoom: 2, bioLoad: 1, bioUnload: 1, obsBoom: 2, lurkerDie: 2, squealHi: 2, squealMuta: 2, stim: 1,
 };
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
-  eggSplash: 180, eggSplashLow: 300, drillLow: 700,
+  eggSplash: 180, eggSplashLow: 300, drillLow: 700, lurkerDig: 130,
   warpHum: 1450, warpEnd: 400, heart: 880, mineScv: 900, mineProbe: 900, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, photonC: 120, missile: 150, cannon: 120,
   mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, liftOff: 700, landing: 700, load: 250, unload: 250, burrow: 300, unburrow: 300, eggPop: 220,
