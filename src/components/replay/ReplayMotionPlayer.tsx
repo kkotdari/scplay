@@ -3862,7 +3862,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          굽음은 작게(0.07 — 크면 천이 옆으로 돈 것처럼 보였다 · 셋째 "정면을 향하게"). */
       /* (여덟째, 실기 지적: "지금 저건 땅에 수평으로 누워서 펼쳐진 모양 · 땅에 수직으로 면이 서야 해") — **선 면**을 위 40도에서 보면 세로는 cos(0.77) 로만 줄고, 앞뒤 굽음은
          화면 y 로 sin(0.64) 배 · 카메라 쪽(앞)으로 나온 몫이 아래로 간다. 굽음 진폭은 작게(0.06) — 크면 결이 위아래로 크게 흘러 누운 띠처럼 읽혔다. */
-      const fl9 = W9 * 1.125; const fh9 = W9 * 0.285 * PLACARD_COS9;
+      /* (열넷째, 실기 지적: "좀 옆으로 납작해졌네") — 세로 cos 눌림을 걷고 키를 0.3 으로(옛 0.285 × 0.77 ≈ 0.22). */
+      const fl9 = W9 * 1.125; const fh9 = W9 * 0.3;
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
@@ -3880,7 +3881,10 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
            위아래 구분은 아랫변 원근 좁힘(EVFLAG_KEY9) 하나가 진다. 띠마다 세로 칸으로 나눠 좁힘을 칸마다 준다. */
         const ta9 = da9 * PLACARD_SIN9; const tb9 = db9 * PLACARD_SIN9; const ba9 = ta9; const bb9 = tb9;
         const R9 = EVFLAG_KEY9 > 0 ? 8 : 1; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;   // 좁힘이 없으면 한 장(칸 이음매 줄무늬가 안 생긴다)
-        const sh9 = -Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // 빛·그늘 뒤집음(열셋째, 요청: "이 상태에서 빛과 그림자를 반대로") — 옛: 기울기 + 면이 어둡게
+        /* 빛은 왼앞에서 — **오른쪽을 보는 면이 어둡다**(열넷째, 실기 지적: "휘어지면 오른쪽 면에 어두운 그림자가 생겨야 하는데 지금 안 그런 거 같아"). 앞(카메라 쪽 = 깊이 +)으로
+           나온 결의 오른 비탈(깊이가 x 따라 줄어듦 · 기울기 −)이 오른쪽을 본다. 옛 세기(± 0.24 · 기울기 × 0.8)는 결 가운데서 거의 안 보였다 — 그늘은 진하게(최대 0.5 · × 1.8),
+           빛은 옅게(최대 0.18). */
+        const sh9 = sl9 < 0 ? Math.min(0.5, -sl9 * 1.8) : -Math.min(0.18, sl9 * 0.9);
         const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
         for (let r9 = 0; r9 < R9; r9 += 1) {
           const v09 = r9 / R9; const v19 = (r9 + 1) / R9;
