@@ -269,7 +269,9 @@ function tossDie9(v: number): Float32Array {
      성문 펄스 · 포먼트 셋(오: 420 · 800 · 2500Hz)으로 내고, 세 겹 합창(±0.6% 어긋남)으로 넓히고, 한 옥타브 + 5도 위 옅은 빛 울림(사인 · 느린 떨림)을 얹은 뒤
      메아리 둘(0.13초 · 0.21초 되먹임)로 공간에 퍼진다. 1.0초 + 메아리. 옛: 60 → 44Hz 배음 신음(일곱째). */
   const r = rng9(2501 + v);
-  const fA = new Biquad9("bp", 420, 3); const fB = new Biquad9("bp", 800, 4); const fC = new Biquad9("bp", 2500, 6);
+  /* '사아~'(2026-11-09 열째, 요청: "질럿은 오~ 보다는 사아~ 이런 느낌") — 모음 '오'(420 · 800 · 2500) → '아'(720 · 1150 · 2600) · 앞머리에 '스'(4.5kHz 위 숨 0.13초)가 모음으로 스며든다. */
+  const fA = new Biquad9("bp", 720, 3); const fB = new Biquad9("bp", 1150, 4); const fC = new Biquad9("bp", 2600, 6);
+  const hpS = new Biquad9("hp", 4500, 0.7); const lpS = new Biquad9("lp", 9000, 0.7);
   const lpB = new Biquad9("lp", 350, 0.7);
   const det = [1, 1.006, 0.994];
   const ph = [0, 0, 0]; let phS = 0;
@@ -278,12 +280,13 @@ function tossDie9(v: number): Float32Array {
     let src = 0;
     for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.4 ? Math.sin(Math.PI * p / 0.4) : 0) - 0.25; }
     src /= 3;
-    const env = ad9(t, 0.06, 2.4);
+    const env = t < 0.07 ? 0 : ad9(t - 0.07, 0.08, 2.4);   // '스' 뒤에 모음이 연다
+    const ss = lpS.run(hpS.run(r() * 2 - 1)) * (t < 0.04 ? t / 0.04 : Math.exp(-(t - 0.04) * 11)) * 0.7;
     const voice = (fA.run(src) * 1.2 + fB.run(src) * 0.8 + fC.run(src) * 0.3) * env;
     phS += (f * 3 * (1 + 0.004 * Math.sin(2 * Math.PI * 0.8 * t))) / SFX_RATE9;
     const shine = Math.sin(2 * Math.PI * phS) * ad9(t, 0.15, 2.2) * 0.12;
     const air = lpB.run(r() * 2 - 1) * ad9(t, 0.02, 4) * 0.15;
-    return sat9((voice * 2.2 + shine + air), 1.1);
+    return sat9((voice * 2.2 + shine + air + ss), 1.1);
   });
   return finish9(echo9(echo9(raw, 0.13, 0.32), 0.21, 0.22), 0.5);
 }
