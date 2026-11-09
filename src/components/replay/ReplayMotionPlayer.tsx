@@ -23252,6 +23252,20 @@ export default function ReplayMotionPlayer({
         top9 = fab9 ? fab9.getBoundingClientRect().bottom - gap9 : lay9.getBoundingClientRect().bottom - (low9 ? parseFloat(getComputedStyle(low9).paddingBottom) || 0 : 0);
       }
       lay9.style.setProperty("--cap-bot9", `${(stB9 - top9 + gap9).toFixed(1)}px`);
+      /* ★ 가로 화면의 자막은 **위 · 화면 주인 자리**(2026-11-09, 요청: "자막 위치 — 세로 레이아웃 현행 유지 · 가로 레이아웃(프레임 · 전체화면 · PC · 폰)은 위쪽으로(화면 주인 위치)") —
+         CSS @media (orientation: landscape). 같은 줄의 왼위(뒤로 · 모드 토글) · 오른위(배율 · fps) 단추를 비키는 좌우 몫(--cap-tops9 · 가운데 맞춤이라 두 쪽 중 큰 값)을 잰다. */
+      const solo9 = lay9.querySelector<HTMLElement>(".scr-fs-solo");
+      if (solo9) {
+        const sr9 = solo9.getBoundingClientRect();
+        const mid9 = sr9.left + sr9.width / 2;
+        let side9 = 0;
+        lay9.querySelectorAll<HTMLElement>(".scr-fs-back, .scr-modetog-stage, .scr-zoomdial, .scr-zoomfps").forEach((el9) => {
+          if (!shown9(el9)) return;
+          const r9 = el9.getBoundingClientRect();
+          side9 = Math.max(side9, r9.left + r9.width / 2 < mid9 ? r9.right - sr9.left : sr9.right - r9.left);
+        });
+        lay9.style.setProperty("--cap-tops9", `${(side9 + gap9).toFixed(1)}px`);
+      }
       if (wideL9 && shown9(mini9)) lay9.style.setProperty("--cap-l9", `${(mini9.getBoundingClientRect().right - lay9.getBoundingClientRect().left + gap9).toFixed(1)}px`);
       else lay9.style.removeProperty("--cap-l9");
     };
@@ -23292,7 +23306,16 @@ export default function ReplayMotionPlayer({
         const infoDW9 = parseFloat(cs9.width) || 0;
         const gap9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6;
         const sideL9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wl")) || gap9;
-        const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2;
+        /* ★ 배속 다이얼(2026-11-09, 요청: "가로 레이아웃 배속 다이얼의 경우 위에 자리가 모자라면 아래로 이동하고(바닥까지), 전광판과 재생부를 왼쪽으로 밀기") — 전광판 위
+           (배율 원 아래 ~ 전광판 위끝)에 다이얼 키가 안 들면 다이얼은 오른아래 바닥까지 내리고 전광판 · 재생바의 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로(--wdial-push). */
+        const dial9 = lay9.querySelector<HTMLElement>(".scr-speeddial");
+        const zd9 = lay9.querySelector<HTMLElement>(".scr-zoomdial");
+        const layTop9 = lay9.getBoundingClientRect().top;
+        const dialRoomTop9 = zd9 ? zd9.getBoundingClientRect().bottom - layTop9 + gap9 : 60;
+        const dialH9 = dial9?.offsetHeight ?? 0;
+        const pushDial9 = !!dial9 && dialH9 > 0 && showRoster9 && H9 - gap9 - (rh9 + tbLift9) - 2 * gap9 - dialRoomTop9 < dialH9;
+        const dialPush9 = pushDial9 ? (dial9?.offsetWidth ?? 0) + 2 * gap9 : 0;
+        const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2 + dialPush9;
         /* 인포창 단은 종전 자(가운데 재생부 최소 폭 몫을 남긴다) — 재생바가 아래로 내려가도 인포창·전광판 크기는 그대로(요청: "그만큼 위로 올리기"만). */
         const kI9 = uiPhone9 || infoDW9 <= 0 ? 0 : (INFO_STEPS9.find((k) => usedW9 + infoDW9 * k + gap9 + infoDW9 * 1.2 <= W9) ?? 0);
         const infoW9 = kI9 > 0 ? ev9(infoDW9 * kI9) : 0;
@@ -23308,10 +23331,10 @@ export default function ReplayMotionPlayer({
         const tbH9 = tbH0;
         lay9.style.setProperty("--wtb-h", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
-        /* 배속 다이얼 — PC 는 전광판 위 · 폰 가로는 키가 모자라(전광판이 재생바 위로 올라 다이얼이 배율 원에 겹쳤다 · 2026-11-09 실측) **전광판 왼쪽 · 재생바 위**. */
-        const dialSide9 = uiPhone9 && showRoster9;
-        lay9.style.setProperty("--dock-lift-r", `${dialSide9 ? tbLift9 : showRoster9 ? rh9 + tbLift9 : tbH9}px`);
-        lay9.style.setProperty("--wdial-r", `${dialSide9 ? rw9 + gap9 : 0}px`);
+        /* 배속 다이얼 — 전광판 위 · 자리가 모자라면 바닥(위 pushDial9 ★). */
+        lay9.style.setProperty("--dock-lift-r", `${pushDial9 ? 0 : showRoster9 ? rh9 + tbLift9 : tbH9}px`);
+        lay9.style.setProperty("--wdial-push", `${dialPush9}px`);
+        lay9.style.setProperty("--wdial-g", pushDial9 ? "0" : "1");   // 바닥으로 내리면 틈 없이 바닥선(--wbot)에
         capPlace9();   // 자막 자리(아래 ★ capPlace9)
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
         /* 쪽(is-paged)은 평소 독과 같은 자 — 폰이거나 전광판이 제 설계 폭을 못 받아 줄었을 때만(2026-11-03, 지적: "전체화면에서만 왜 로스터가 접힘(한 컬럼씩 슬라이드)? 그렇게
@@ -23418,12 +23441,12 @@ export default function ReplayMotionPlayer({
     const ro9 = new ResizeObserver(read9);
     ro9.observe(row9);
     ro9.observe(fr9);
-    { const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer"); if (lay9) ro9.observe(lay9); }   // 가로가 긴 화면은 줄·틀이 상자가 없다(display contents) — 뿌리 크기로 다시 잰다
+    { const lay9 = fr9.closest<HTMLElement>(".scr-fs-layer"); if (lay9) { ro9.observe(lay9); const dl9 = lay9.querySelector<HTMLElement>(".scr-speeddial"); if (dl9) ro9.observe(dl9); } }   // 배속 다이얼 — 키가 바뀌면 바닥 내림(pushDial9)을 다시 · 가로가 긴 화면은 줄·틀이 상자가 없다(display contents) — 뿌리 크기로 다시 잰다
     const lowO9 = fr9.closest<HTMLElement>(".scr-fs-lower");
     if (lowO9) ro9.observe(lowO9);   // 툴박스 키가 바뀌면 우물 자리(쇠판 구멍)가 옮는다
     fr9.querySelectorAll<HTMLElement>(".scr-fs-dockmain > *").forEach((el9) => ro9.observe(el9));
     return () => ro9.disconnect();
-  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock, veiled9]);   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다 · veiled9 — 가림이 걷히면 다시(위 capPlace9 ★ 가림)
+  }, [fsOn, fsMiniOn, dockFoldOn9, dockFold9, grid.width, grid.height, uiPhone9, wide9, uiHide9.mini, uiHide9.all, uiHide9.dock, veiled9, pending]);   // pending — 다 받은 뒤 서는 배속 다이얼을 잰다(pushDial9)   // uiHide9.dock — J 로 독을 숨기면 자막 자리(capPlace9)를 다시 잰다 · veiled9 — 가림이 걷히면 다시(위 capPlace9 ★ 가림)
   /* ★★ TV 단추는 **틀 위쪽 왼 끝의 쇠 정사각**이다 — 오른 끝 접기 손잡이와 같은 꼴·같은 크기의 짝(2026-09, 요청: "독 중계 버튼을
      접기 버튼같은 형태로 변경하고 동그란 테두리 제거"). 정보줄(우물) 안의 동그라미였던 것을 틀의 제 칸(1열)으로 꺼냈다 — 그래서
      정보줄은 양쪽에 같은 정사각을 끼고 한가운데에 선다(옛 padding-left 몫은 걷었다).

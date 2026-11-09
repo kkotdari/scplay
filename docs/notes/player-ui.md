@@ -3240,3 +3240,9 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - dockFit9 wide 갈래가 `--wtb-h` 를 적고 전광판 자리 판정(showRoster9)에 재생바 몫을 더한다. 인포창 단(kI9)은 종전 자(크기 그대로).
 - 폰 가로도 재생바 한 줄(`.scr-tb.is-one` · `uiPhone9 && !wide9` 일 때만 두 줄). 폰 가로의 배속 다이얼은 전광판 왼쪽 · 재생바 위(`--wdial-r` · 위로 올리면 배율 원과 겹쳤다).
 - 전체화면 ‹(뒤로) = 전체화면 나가기 + `onBack`(앱이 게임 목록으로 · sg-web GameDetailPage → GameResultStory → ReplayModule). onBack 이 없으면 전체화면만 나간다.
+
+## 가로 화면 자막은 위 · 배속 다이얼 바닥 내림(2026-11-09)
+- 자막: 창이 가로(orientation landscape · 프레임·전체화면·PC·폰)면 화면 주인 이름표 자리(위 PC 28 · 폰 18 · dk). 좌우는 같은 줄 단추(뒤로·모드 토글·배율·fps)를 비킨 몫 `--cap-tops9`(RMP capPlace9).
+  세로 창은 종전(독 위 --cap-bot9). 자막은 중계 때만이라 이름표와 안 겹친다(요청자 말).
+- 가로 배치 배속 다이얼: 배율 원 아래 ~ 전광판 위에 다이얼 키가 안 들면(pushDial9) 오른아래 바닥선(--wbot · 틈 0 `--wdial-g`)으로 내리고 전광판·재생바 오른끝을
+  다이얼 폭 + 2틈(`--wdial-push`)만큼 왼쪽으로. 옛 폰 전용 '전광판 왼쪽'(--wdial-r)은 걷었다. fit 은 다이얼을 RO 로 보고 pending 이 풀리면 다시 돈다.
