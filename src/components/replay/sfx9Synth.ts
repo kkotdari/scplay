@@ -271,18 +271,19 @@ function tossDie9(v: number): Float32Array {
   const r = rng9(2501 + v);
   /* '사아~'(2026-11-09 열째, 요청: "질럿은 오~ 보다는 사아~ 이런 느낌") — 모음 '오'(420 · 800 · 2500) → '아'(720 · 1150 · 2600) · 앞머리에 '스'(4.5kHz 위 숨 0.13초)가 모음으로 스며든다. */
   const fA = new Biquad9("bp", 720, 3); const fB = new Biquad9("bp", 1150, 4); const fC = new Biquad9("bp", 2600, 6);
-  const hpS = new Biquad9("hp", 4500, 0.7); const lpS = new Biquad9("lp", 9000, 0.7);
+  const hpS = new Biquad9("hp", 2800, 0.7); const lpS = new Biquad9("lp", 6000, 0.7);   // (열한째, 되요청: "부드럽게 스아~") 옛 4.5k ~ 9k 쉬익 → 2.8k ~ 6k 옅은 숨
   const lpB = new Biquad9("lp", 350, 0.7);
   const det = [1, 1.006, 0.994];
   const ph = [0, 0, 0]; let phS = 0;
   const raw = render9(1.0, (t) => {
     const f = (78 + 14 * exp9(t, 2.2) + v * 3) * (1 + 0.012 * Math.sin(2 * Math.PI * 4.5 * t));
     let src = 0;
-    for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.4 ? Math.sin(Math.PI * p / 0.4) : 0) - 0.25; }
+    for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.6 ? Math.sin(Math.PI * p / 0.6) : 0) - 0.38; }   // 펄스 0.4 → 0.6(둥글게 · 열한째)
     src /= 3;
-    const env = t < 0.07 ? 0 : ad9(t - 0.07, 0.08, 2.4);   // '스' 뒤에 모음이 연다
-    const ss = lpS.run(hpS.run(r() * 2 - 1)) * (t < 0.04 ? t / 0.04 : Math.exp(-(t - 0.04) * 11)) * 0.7;
-    const voice = (fA.run(src) * 1.2 + fB.run(src) * 0.8 + fC.run(src) * 0.3) * env;
+    /* 부드럽게(열한째) — '스'는 옅게(0.7 → 0.22) 0.06초 차올라 모음이 열리는 동안(0.04초부터 0.2초에 걸쳐 차오름) 스며 사라진다(끊긴 앞머리 아님). */
+    const env = t < 0.04 ? 0 : (t < 0.24 ? Math.sin((Math.PI / 2) * (t - 0.04) / 0.2) : Math.exp(-(t - 0.24) * 2.4));
+    const ss = lpS.run(hpS.run(r() * 2 - 1)) * (t < 0.06 ? t / 0.06 : Math.exp(-(t - 0.06) * 9)) * 0.22;
+    const voice = (fA.run(src) * 1.2 + fB.run(src) * 0.75 + fC.run(src) * 0.15) * env;
     phS += (f * 3 * (1 + 0.004 * Math.sin(2 * Math.PI * 0.8 * t))) / SFX_RATE9;
     const shine = Math.sin(2 * Math.PI * phS) * ad9(t, 0.15, 2.2) * 0.12;
     const air = lpB.run(r() * 2 - 1) * ad9(t, 0.02, 4) * 0.15;
