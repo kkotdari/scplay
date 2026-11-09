@@ -668,23 +668,25 @@ function claw9(v: number): Float32Array {
 
 /** 가시(히드라·럴커) — 내리꽂는 휙(높은 음이 떨어짐) + 쉭 + 딱. */
 function spine9(v: number): Float32Array {
-  /* ★ 히드라 — **점액 가시 침 뱉기**(2026-11-09, 요청: "히드라 — 점액 가시 액체 침 뱉는 소리로 변경") — 옛: 높은 휙 + 쉭 + 톡(마른 가시).
-     '퉤': 입술 터짐(1.2kHz 띠 잡음 · 빠른 꺼짐) + 젖은 꿀렁(400 → 140Hz 로 내려가는 몸에 35Hz 떨림) + 끈적한 거품 톡톡(듬성한 짧은 클릭 · 2~4kHz) + 끝에 낮은 철퍽(500Hz 아래 잡음). */
+  /* ★ 히드라 — **점액 가시 침 뱉기**(2026-11-09, 요청: "히드라 — 점액 가시 액체 침 뱉는 소리로 변경") → **더 거칠게**(같은 날 셋째, 요청: "히드라 소리 퉤퉤 좀 더 거친 소리로"):
+     '퉤': 넓은 띠 입술 터짐(1.1kHz · Q 0.6) + 쉰 쇳소리(위 3kHz 잡음 · 90Hz 로 떨리는 진폭) + 젖은 꿀렁(400 → 140Hz · 35Hz 떨림) + 거품 톡톡 + 끝 철퍽 · 포화 2.0. */
   const r = rng9(2201 + v);
-  const bpL = new Biquad9("bp", 1200 + v * 120, 1.2);
+  const bpL = new Biquad9("bp", 1100 + v * 120, 0.6);
+  const hpR = new Biquad9("hp", 3000, 0.7);
   const bpB = new Biquad9("bp", 2800, 3);
-  const lpS = new Biquad9("lp", 500, 0.7);
+  const lpS = new Biquad9("lp", 600, 0.7);
   let ph = 0;
   return finish9(render9(0.26, (t) => {
     const n = r() * 2 - 1;
-    const lip = bpL.run(n) * exp9(t, 60) * 1.1;
+    const lip = bpL.run(n) * exp9(t, 45) * 1.5;
+    const rasp = hpR.run(n) * (0.5 + 0.5 * Math.sin(2 * Math.PI * 90 * t)) * exp9(t, 28) * 0.9;
     ph += (140 + 260 * exp9(t, 16)) / SFX_RATE9;
-    const gurgle = Math.sin(2 * Math.PI * ph) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 35 * t)) * ad9(t, 0.006, 14) * 0.7;
+    const gurgle = Math.sin(2 * Math.PI * ph) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 35 * t)) * ad9(t, 0.006, 14) * 0.6;
     const bubble = r() < 0.004 * exp9(t, 6) ? 1 : 0;
     const pop = bpB.run(bubble * (r() * 2 - 1) * 3) * 0.6;
     const ts = t - 0.07;
-    const splat = ts > 0 ? lpS.run(n) * exp9(ts, 22) * 1.3 : 0;
-    return sat9(lip + gurgle + pop + splat, 1.5);
+    const splat = ts > 0 ? lpS.run(n) * exp9(ts, 20) * 1.4 : 0;
+    return sat9(lip + rasp + gurgle + pop + splat, 2.0);
   }), 0.62);   // 0.45 → 0.62(2026-11-09 둘째 · 질럿보다 작게 들렸다)
 }
 
@@ -704,7 +706,7 @@ function zealotStab9(v: number): Float32Array {
     const ring = ts > 0 ? (Math.sin(2 * Math.PI * 1830 * k9 * ts) * 0.5 + Math.sin(2 * Math.PI * 2710 * k9 * ts) * 0.35 + Math.sin(2 * Math.PI * 4190 * k9 * ts) * 0.22) * exp9(ts, 11) * 0.45 : 0;
     const thud = ts > 0 ? Math.sin(2 * Math.PI * 150 * ts) * exp9(ts, 35) * 0.5 : 0;
     return sat9(swish + scrape + ring + thud, 1.3);
-  }, (t) => { bpW.set(2000 + t * 12000); bp1.set(2900 - t * 2600); bp2.set(4700 - t * 3800); }), 0.38);   // 0.5 → 0.38(2026-11-09 둘째 · 쇳소리 고역이 히드라 · 드라군보다 크게 들렸다)
+  }, (t) => { bpW.set(2000 + t * 12000); bp1.set(2900 - t * 2600); bp2.set(4700 - t * 3800); }), 0.27);   // 0.5 → 0.38 → 0.27(2026-11-09 둘째 · 셋째 "질럿 소리 좀 더 줄여야 해")
 }
 
 /** ★ 가시가 땅을 뚫고 솟음(성큰·럴커 · 2026-11-02, 요청: "성큰 럴커 가시가 땅을 뚫고 솟는 소리") — 흙 깨지는 바스락(갈색 잡음 + 듬성한 알갱이) 위로
@@ -870,25 +872,21 @@ function fleshUnfold9(v: number): Float32Array {
  *  깊은 쿵(58 → 32Hz) + 두꺼운 살덩이 몸(갈색 잡음 저역) + 아래로 미끄러지는 질척임 둘(띠 900 → 300Hz · 엇박) + 껍질 찢어지는 바스락(듬성한 알갱이)
  *  + 낮게 그르렁(42Hz 떨림) · 끝의 거품 방울 몇. 1.4초. */
 function zergDone9(v: number): Float32Array {
+  /* ★ **팍~ 터지는** 완공(2026-11-09, 요청: "저그 완공 소리 볼륨도 더 줄이고 좀 더 팍~ 터지는 소리로") — 옛: 1.4초 낮은 쿵 + 살 질척 + 끼익 둘 + 으르렁(느리게 부푸는 소리).
+     이제 0.7초: 바로 터지는 젖은 팍(넓은 띠 잡음 · 1.8kHz → 500Hz 로 내려가는 띠 · 빠른 꺼짐) + 짧은 쿵(75 → 45Hz) + 흩어지는 점액 알갱이(Grain9 · 0.4초) + 낮은 철퍽 꼬리 · 봉우리 0.85 → 0.5. */
   const r = rng9(1751 + v); const br = brown9(r);
-  const gR = new Grain9(700, 3);
+  const bp = new Biquad9("bp", 1800, 0.8);
   const lp = new Biquad9("lp", 500, 0.7);
-  const sq1 = new Biquad9("bp", 900, 2.2); const sq2 = new Biquad9("bp", 700, 2.6);
+  const gR = new Grain9(1100, 3);
   const k = [1, 1.07, 0.93][v % 3];
-  let ph = 0;
-  return finish9(render9(1.4, (t) => {
-    const thump = Math.sin(2 * Math.PI * (58 * k - t * 26) * t) * exp9(t, 5.5) * 1.1;
-    const flesh = lp.run(br() * 1.8) * ad9(t, 0.01, 3.4);
-    const s1 = sq1.run(br() + (r() * 2 - 1) * 0.3) * ad9(t, 0.03, 4.5) * 1.1;
-    const t2 = t - 0.22;
-    const s2 = t2 > 0 ? sq2.run(br() + (r() * 2 - 1) * 0.3) * ad9(t2, 0.03, 5) * 0.9 : 0;
-    const rip = gR.run(t < 0.6 && r() < 0.006 * exp9(t, 4) ? (r() * 2 - 1) * 0.8 : 0);
-    ph += 42 * k * (1 + 0.2 * Math.sin(2 * Math.PI * 9 * t)) / SFX_RATE9;
-    const growl = Math.sin(2 * Math.PI * ph) * ad9(t, 0.15, 2.4) * 0.45;
-    const tb = t - 0.75;
-    const bub = tb > 0 && r() < 0.0018 ? Math.sin(2 * Math.PI * (300 + r() * 500) * tb) * 0.5 : 0;
-    return sat9(thump + flesh + s1 + s2 + rip + growl + bub, 1.4);
-  }, (t) => { sq1.set(900 - 600 * Math.min(1, t / 0.5)); sq2.set(700 - 400 * Math.min(1, Math.max(0, t - 0.22) / 0.5)); }), 0.85);
+  return finish9(render9(0.7, (t) => {
+    const n = r() * 2 - 1;
+    const pak = bp.run(n * 0.7 + br() * 0.6) * ad9(t, 0.002, 16) * 2.2;
+    const thump = Math.sin(2 * Math.PI * (75 * k - t * 60) * t) * exp9(t, 14) * 0.9;
+    const goo = gR.run(t < 0.45 && r() < 0.012 * exp9(t, 6) ? (r() * 2 - 1) * 0.9 : 0);
+    const tail = lp.run(br() * 1.6) * ad9(t, 0.01, 7) * 0.7;
+    return sat9(pak + thump + goo + tail, 1.5);
+  }, (t) => bp.set(500 + 1300 * exp9(t, 9))), 0.5);
 }
 
 /** ★ 알 변태 시작(라바 → 알 · 히드라 → 럴커 알 · 뮤탈 → 고치 · 2026-11-02, 요청: "알 변태 시작과 깨짐도 낮고 생체 소리로") — 끈적한 살이 오므라들며 굳는다:
