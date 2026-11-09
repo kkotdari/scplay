@@ -3773,7 +3773,7 @@ function placardSpr9(): HTMLCanvasElement {
 export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님" };   // "가입" 뺌(2026-11-09 넷째)
 const EVFLAG_W9 = 960;
 /** 아랫변을 윗변보다 좁히는 몫(원근 · 위에서 내려다보니 아랫변이 멀다 · 2026-11-09 열한째). */
-const EVFLAG_KEY9 = 0.12;
+const EVFLAG_KEY9 = 0;   // 0.12 → 0(열셋째, 요청: "이 상태에서"(여덟째 꼴 샷) — 원근 좁힘 걷음 · 손잡이는 남김)
 const EVFLAG_H9 = 240;
 let evFlagCv9: HTMLCanvasElement | null = null;
 let evFlagFontTried9 = false;
@@ -3879,8 +3879,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         /* 윗변·아랫변은 **같이** 출렁인다(앞으로 나온 결 = 아래 · × sin — 여덟째 꼴 · 열둘째, 실기 지적: "아니 이 상태에서" — 아홉째 엇갈림 · 열째 윗변 크게는 되물림).
            위아래 구분은 아랫변 원근 좁힘(EVFLAG_KEY9) 하나가 진다. 띠마다 세로 칸으로 나눠 좁힘을 칸마다 준다. */
         const ta9 = da9 * PLACARD_SIN9; const tb9 = db9 * PLACARD_SIN9; const ba9 = ta9; const bb9 = tb9;
-        const R9 = 8; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;
-        const sh9 = Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // +: 카메라에서 돌아선 면 → 어둡게
+        const R9 = EVFLAG_KEY9 > 0 ? 8 : 1; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;   // 좁힘이 없으면 한 장(칸 이음매 줄무늬가 안 생긴다)
+        const sh9 = -Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // 빛·그늘 뒤집음(열셋째, 요청: "이 상태에서 빛과 그림자를 반대로") — 옛: 기울기 + 면이 어둡게
         const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
         for (let r9 = 0; r9 < R9; r9 += 1) {
           const v09 = r9 / R9; const v19 = (r9 + 1) / R9;
