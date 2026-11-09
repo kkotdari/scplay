@@ -207,25 +207,33 @@ function bioBoom9(v: number): Float32Array {
  *  ① 울음 — 톱니 성대 340 → 150Hz 로 꺾이며 떨고(느린 떨림 + 빠른 그르렁) · 꼭지 셋 620·1350·2500Hz · 거친 숨 · 0.7초
  *  ② 폭발 — 살이 터지는 철퍽(저역 갈색 잡음 · 900 → 300Hz 로 닫힘) + 깊은 쿵(80 → 45Hz) + 흩어지는 질척 알갱이. pk = 높낮이 배수(소형 저글링·드론·브루들링·스커지 1.35 · 뮤탈 2.2 — "진짜 뮤탈 건 훨씬 높아야" · 꼭지는 √pk). */
 function squeal9(v: number, pk = 1): Float32Array {
+  /* ★ 저그 죽음 — **짐승 단말마**(2026-11-09 열여섯째, 지적: "저그 울음소리 너무 우스꽝스럽게 들려") — 옛: 340Hz 성대 펄스가 1.08 → 0.44 로 길게 미끄러지는(0.8초 내내) '삐요~'라
+     만화 같았다. 이제 목 깊은 **으르렁 + 쉰 비명**: 낮은 성대(기본음 115Hz × pk · 반 박자마다 세기가 갈리는 이중 주기 = 짐승 목 · 느린 지터) → 넓은 공명 셋(Klatt · 500/160 · 1100/220 ·
+     2400/320 × √pk)으로 '아악' · 음높이는 짧게 솟았다(1 → 1.12 · 0.08초) 조금만 처진다(0.85 까지 · 미끄럼 없음) · 위에 쉰 바람(띠 잡음 2.6kHz · 음 없음) · 밑에 젖은 철퍽 · 쿵.
+     pk: 소형 1.35 · 뮤탈 2.2 · 0.7초. */
   const r = rng9(401 + v + (pk !== 1 ? 53 : 0)); const br = brown9(r);
   const fk = Math.sqrt(pk);
-  const f1 = new Biquad9("bp", 620 * fk, 3); const f2 = new Biquad9("bp", 1350 * fk, 4); const f3 = new Biquad9("bp", 2500 * fk, 5);
+  const R = [new Reso9(500 * fk, 160), new Reso9(1100 * fk, 220), new Reso9(2400 * fk, 320)];
+  const bpH = new Biquad9("bp", 2600 * fk, 1.0);
   const lp = new Biquad9("lp", 900, 0.7);
-  const base = [340, 300, 380][v % 3] * pk;
-  const gG = new Grain9(600, 3);
-  let ph = 0;
-  return finish9(render9(0.8, (t) => {
-    const f0 = base * Math.max(0.44, 1.08 - t * 1.0) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.03 * Math.sin(2 * Math.PI * 31 * t));
+  let ph = 0; let jit = 0; let odd = false; let lastP = 0;
+  return finish9(render9(0.7, (t) => {
+    jit += ((r() * 2 - 1) - jit) * 0.004;
+    const cont = t < 0.08 ? 1 + 0.12 * (t / 0.08) : Math.max(0.85, 1.12 - (t - 0.08) * 0.5);
+    const f0 = 115 * pk * cont * (1 + 0.03 * jit);
     ph += f0 / SFX_RATE9;
-    /* 톱니 → 반사인 성대 펄스(2026-11-09 셋째, 지적: "스톰 소린지 죽는 드론 소린지 모르겠음" — 높은 갈래(squealHi 1.35 · 드론 · 저글링…)의 톱니가 쨍쨍 지지직처럼 갈렸다). */
-    const pp9 = ph % 1;
-    const src = ((pp9 < 0.4 ? Math.sin(Math.PI * pp9 / 0.4) : 0) - 0.25) * 1.3 + (r() * 2 - 1) * 0.15;   // 숨 잡음 0.4 → 0.2(2026-11-08 잡음) → 0.15
-    const cry = (f1.run(src) * 1.2 + f2.run(src) * 0.85 + f3.run(src) * 0.4) * ad9(t, 0.03, 3.4) * 1.6;
-    const splat = lp.run(br() * 1.8 + (r() * 2 - 1) * 0.1) * ad9(t, 0.005, 6.5) * 1.0;
-    const thump = Math.sin(2 * Math.PI * (80 - t * 50) * t) * exp9(t, 9) * 0.8;
-    const goo = gG.run(t > 0.04 && t < 0.5 && r() < 0.0025 ? (r() * 2 - 1) * 0.6 : 0);   // 둥근 질척(Grain9) · 절반 빈도
-    return sat9(cry * 0.75 + splat + thump + goo, 1.35);   // 포화 1.8 → 1.35
-  }, (t) => { f1.set((620 - t * 260) * fk); f2.set((1350 - t * 450) * fk); lp.set(900 - 600 * Math.min(1, t / 0.5)); }), 0.62);
+    const p = ph % 1;
+    if (p < lastP) odd = !odd;
+    lastP = p;
+    const glot = (p < 0.45 ? Math.sin(Math.PI * p / 0.45) : 0) * (odd ? 0.55 : 1);
+    const env = ad9(t, 0.02, 3.6);
+    let x = (glot - 0.3) * env; let cry = 0;
+    for (let k = 0; k < 3; k += 1) { x = R[k].run(x); cry += x * [1, 0.7, 0.4][k]; }
+    const hiss = bpH.run(r() * 2 - 1) * ad9(t, 0.01, 5) * 0.35;
+    const splat = lp.run(br() * 1.8) * ad9(t, 0.005, 6.5) * 0.9;
+    const thump = Math.sin(2 * Math.PI * (80 - t * 50) * t) * exp9(t, 9) * 0.7;
+    return sat9(cry * 3.2 + hiss + splat + thump, 1.2);
+  }, (t) => { lp.set(900 - 600 * Math.min(1, t / 0.5)); }), 0.62);
 }
 
 /** 사람 비명(테란 보병) — ★ **비명답게**(2026-11-09, 요청: "마린 · 메딕 · 파뱃 · 고스트 등 죽음 소리 더 비명처럼") — 옛: 260Hz 성대 펄스 + 'ㅏ' 세 꼭지(낮은 '아~').
@@ -740,26 +748,22 @@ function claw9(v: number): Float32Array {
 
 /** 가시(히드라·럴커) — 내리꽂는 휙(높은 음이 떨어짐) + 쉭 + 딱. */
 function spine9(v: number): Float32Array {
-  /* ★ 히드라 — **점액 가시 침 뱉기**(2026-11-09, 요청: "히드라 — 점액 가시 액체 침 뱉는 소리로 변경") → **더 거칠게**(같은 날 셋째, 요청: "히드라 소리 퉤퉤 좀 더 거친 소리로"):
-     '퉤': 넓은 띠 입술 터짐(1.1kHz · Q 0.6) + 쉰 쇳소리(위 3kHz 잡음 · 90Hz 로 떨리는 진폭) + 젖은 꿀렁(400 → 140Hz · 35Hz 떨림) + 거품 톡톡 + 끝 철퍽 · 포화 2.0. */
-  const r = rng9(2201 + v);
-  const bpL = new Biquad9("bp", 1100 + v * 120, 0.6);
-  const hpR = new Biquad9("hp", 3000, 0.7);
-  const bpB = new Biquad9("bp", 2800, 3);
-  const lpS = new Biquad9("lp", 600, 0.7);
-  let ph = 0;
-  return finish9(render9(0.26, (t) => {
+  /* ★ 히드라 — **'촥'**(2026-11-09 열여섯째, 요청: "공격 소리도 좀 더 촥 느낌으로 · 음 없이") — 옛 '퉤'(셋째)는 젖은 꿀렁(400 → 140Hz 사인)이 음으로 들렸다. 이제 **잡음만**:
+     'ㅊ' 앞머리(4kHz 위 · 아주 짧게) + '촤' 몸(흰 + 갈색 잡음 · 띠 3k → 1.1kHz 로 닫힘 · Q 0.8) + 젖은 끝 '악'(저역 잡음 0.04초부터 · 덩이져 흩어짐). 0.22초. */
+  const r = rng9(2201 + v); const br = brown9(r);
+  const hpC = new Biquad9("hp", 4000, 0.7);
+  const bpM = new Biquad9("bp", 3000, 0.8);
+  const lpW = new Biquad9("lp", 800, 0.7);
+  const lpE = new Biquad9("lp", 80, 0.7);
+  return finish9(render9(0.22, (t) => {
     const n = r() * 2 - 1;
-    const lip = bpL.run(n) * exp9(t, 45) * 1.5;
-    const rasp = hpR.run(n) * (0.5 + 0.5 * Math.sin(2 * Math.PI * 90 * t)) * exp9(t, 28) * 0.9;
-    ph += (140 + 260 * exp9(t, 16)) / SFX_RATE9;
-    const gurgle = Math.sin(2 * Math.PI * ph) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 35 * t)) * ad9(t, 0.006, 14) * 0.6;
-    const bubble = r() < 0.004 * exp9(t, 6) ? 1 : 0;
-    const pop = bpB.run(bubble * (r() * 2 - 1) * 3) * 0.6;
-    const ts = t - 0.07;
-    const splat = ts > 0 ? lpS.run(n) * exp9(ts, 20) * 1.4 : 0;
-    return sat9(lip + rasp + gurgle + pop + splat, 2.0);
-  }), 0.62);   // 0.45 → 0.62(2026-11-09 둘째 · 질럿보다 작게 들렸다)
+    const ch = hpC.run(n) * ad9(t, 0.0015, 60) * 0.7;
+    const body = bpM.run(n * 0.8 + br() * 0.6) * ad9(t, 0.003, 20) * 1.6;
+    const lump = Math.max(0, lpE.run(r() < 0.05 ? (r() * 2 - 1) * 30 : 0));
+    const tw = t - 0.04;
+    const wet = tw > 0 ? lpW.run(br()) * Math.min(1, 0.4 + lump) * ad9(tw, 0.006, 18) * 0.9 : 0;
+    return sat9(ch + body + wet, 1.1);
+  }, (t) => bpM.set(1100 + 1900 * exp9(t, 14))), 0.62);
 }
 
 /** ★ 질럿 — **창으로 찌르는 쇠 마찰**(2026-11-09, 요청: "질럿 공격 소리 — 창으로 찌르는 쇠 마찰 소리로") — 옛: 다크와 같은 칼질(blade9). 찌르는 휙(2→5kHz 로 오르는 띠 잡음) +
