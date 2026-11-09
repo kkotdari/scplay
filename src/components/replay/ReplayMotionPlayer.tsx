@@ -10307,7 +10307,7 @@ const nextColorMode9 = (m: ColorMode9, melee: boolean, solo: boolean): ColorMode
 };
 export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
-  onDetailClose, loadUnitTracks, sceneLink,
+  onDetailClose, onBack, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   pins, onPinAdd, onPinDelete,
   onGuide, guide = true, avatars,
@@ -10353,6 +10353,8 @@ export default function ReplayMotionPlayer({
   /** 상세 팝업 닫기(요청: PC는 게임 결과만 확대창이 기본, 기존 상세는 미사용) — 값이
    *  오면 PC에서 마운트되자마자 확대창을 열고, 확대창을 닫을 때 상세까지 함께 닫는다. */
   onDetailClose?: () => void;
+  /** 전체화면 뒤로가기(왼위 ‹ · .scr-fs-back) — 전체화면을 나가고 앱이 게임 목록으로 돌아간다(2026-11-09, 요청: "전체화면의 뒤로가기 버튼은 전체화면 종료가 아니라 게임 목록까지 뒤로가는 거야"). 없으면 전체화면만 나간다. */
+  onBack?: () => void;
   /** 참값 자취 로더 — 서버가 리플레이를 실제로 돌려 구운 것 하나면 화면이 다 선다
    *  (자리·방향·상태·종류·체력·업그레이드·마법·핑·로스터). 없으면 재생기는 아무것도
    *  안 그리고 "재생할 수 없는 게임"이라고만 말한다(요청: 폴백 없음). */
@@ -23276,7 +23278,10 @@ export default function ReplayMotionPlayer({
         const pairP9 = (k: number): number => h0 * k * (rr9 + (miniOn9 ? ar9 * up9 : 0)) + (miniOn9 ? sep9 : 0);
         const kp9 = DOCK_STEPS9.find((k) => pairP9(k) <= Wp9) ?? DOCK_STEPS9[DOCK_STEPS9.length - 1];
         const rh9 = ev9(h0 * kp9); const rw9 = ev9(rh9 * rr9);
-        const showRoster9 = H9 >= rh9 + 24;
+        /* 재생바가 인포창·전광판 **아래** 폭 전부라(PC · 폰)(아래 ★ 2026-11-09 · replay.css --wtb-lift) 로스터 자리 키에 재생바 키 + 틈이 더 든다. */
+        const tbH0 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
+        const tbLift9 = tbH0 + (parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6) + 2 * (parseFloat(getComputedStyle(lay9).getPropertyValue("--holo-ext")) || 0);
+        const showRoster9 = H9 >= rh9 + tbLift9 + 24;
         let miniH9 = ev9(Math.min(H9 * 0.4, h0 * up9)); let miniW9 = ev9(miniH9 * ar9);
         const maxMW9 = W9 * 0.3;
         if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
@@ -23288,6 +23293,7 @@ export default function ReplayMotionPlayer({
         const gap9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6;
         const sideL9 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wl")) || gap9;
         const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2;
+        /* 인포창 단은 종전 자(가운데 재생부 최소 폭 몫을 남긴다) — 재생바가 아래로 내려가도 인포창·전광판 크기는 그대로(요청: "그만큼 위로 올리기"만). */
         const kI9 = uiPhone9 || infoDW9 <= 0 ? 0 : (INFO_STEPS9.find((k) => usedW9 + infoDW9 * k + gap9 + infoDW9 * 1.2 <= W9) ?? 0);
         const infoW9 = kI9 > 0 ? ev9(infoDW9 * kI9) : 0;
         lay9.style.setProperty("--winfo-w", `${infoW9}px`);
@@ -23299,9 +23305,13 @@ export default function ReplayMotionPlayer({
         lay9.style.setProperty("--wroster-h", `${showRoster9 ? rh9 : 0}px`);
         lay9.classList.toggle("is-wide-noroster", !showRoster9);
         /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막이 재생바 키만큼 비킨다(--dock-lift). 배속 다이얼은 로스터 위(--dock-lift-r). */
-        const tbH9 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
+        const tbH9 = tbH0;
+        lay9.style.setProperty("--wtb-h", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
-        lay9.style.setProperty("--dock-lift-r", `${showRoster9 ? rh9 : tbH9}px`);
+        /* 배속 다이얼 — PC 는 전광판 위 · 폰 가로는 키가 모자라(전광판이 재생바 위로 올라 다이얼이 배율 원에 겹쳤다 · 2026-11-09 실측) **전광판 왼쪽 · 재생바 위**. */
+        const dialSide9 = uiPhone9 && showRoster9;
+        lay9.style.setProperty("--dock-lift-r", `${dialSide9 ? tbLift9 : showRoster9 ? rh9 + tbLift9 : tbH9}px`);
+        lay9.style.setProperty("--wdial-r", `${dialSide9 ? rw9 + gap9 : 0}px`);
         capPlace9();   // 자막 자리(아래 ★ capPlace9)
         setDockFit9((p9) => (Math.abs((p9.h ?? -1) - rh9) < 0.5 && Math.abs(p9.ki - kI9) < 0.005 && p9.lift === 0 ? p9 : { h: rh9, ki: kI9, k: kp9, lift: 0 }));
         /* 쪽(is-paged)은 평소 독과 같은 자 — 폰이거나 전광판이 제 설계 폭을 못 받아 줄었을 때만(2026-11-03, 지적: "전체화면에서만 왜 로스터가 접힘(한 컬럼씩 슬라이드)? 그렇게
@@ -24492,8 +24502,8 @@ export default function ReplayMotionPlayer({
             <button
               type="button" className="scr-fs-back"
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); exitFs(); }}
-              aria-label="전체화면 나가기" title="전체화면 나가기 (Alt+Enter)"
+              onClick={(e) => { e.stopPropagation(); exitFs(); onBack?.(); }}
+              aria-label={onBack ? "뒤로" : "전체화면 나가기"} title={onBack ? "뒤로" : "전체화면 나가기 (Alt+Enter)"}
             >
               <ChevronLeft size={22} aria-hidden />
             </button>
@@ -24734,14 +24744,15 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className={cx("scr-tb", !uiPhone9 && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
+            className={cx("scr-tb", (!uiPhone9 || wide9) && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
             {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
                 "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
                 키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
-            {uiPhone9 ? (
+            {/* 폰 가로 전체화면(wide9)도 PC 처럼 한 줄(2026-11-09, 요청: "모바일도 재생바 패널 배치도 피시처럼 · 버튼 재생바 버튼") — 재생바가 인포창·전광판 아래 폭 전부라 자리가 난다. */}
+            {uiPhone9 && !wide9 ? (
               <>
                 <div className="scr-tb-btnrow">
                   {mapBtnRow}

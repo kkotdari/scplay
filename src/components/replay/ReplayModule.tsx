@@ -39,6 +39,8 @@ export interface ReplayModuleProps {
   onFinish?: () => void;
   /** 확대 창을 닫는 길 — 있으면 재생기가 닫기 단추를 낸다. */
   onDetailClose?: () => void;
+  /** 전체화면 뒤로가기(왼위 ‹) — 전체화면을 나가며 앱이 게임 목록으로 돌아간다(2026-11-09). 없으면 전체화면만 나간다. */
+  onBack?: () => void;
   /** 진행바 아래 슬롯 — 공유처럼 **앱의 것**을 여기 꽂는다. */
   shareNode?: ReactNode;
   /** ★ 장면 공유(지적: "스크랩 버튼, 공유 버튼은 쓰는 쪽에서 쓸지 말지 선택하는 거고 함수도 알아서 연결해야 해" ·
@@ -79,7 +81,7 @@ export default function ReplayModule({
   grid, endSec, bases, teamOfRaw, loadUnitTracks,
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
-  onFinish, onDetailClose, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete,
+  onFinish, onDetailClose, onBack, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete,
   onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester,
 }: ReplayModuleProps) {
   return (
@@ -96,6 +98,7 @@ export default function ReplayModule({
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}
+        onBack={onBack}
         soleView={soleView}
         loadUnitTracks={loadUnitTracks}
         winnerTeam={winnerTeam}
