@@ -3866,7 +3866,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
-      const amp9 = W9 * 0.08; const tt9 = u0 * 4.2;
+      const amp9 = W9 * 0.06; const tt9 = u0 * 4.2;
       const dep9 = (x9: number): number => { const k9 = 0.35 + 0.65 * (x9 / fl9); const q9 = x9 / fl9; return amp9 * k9 * Math.sin(q9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(q9 * Math.PI * 5.1 - tt9 * 1.7); };
       /* 줄어든 가로를 먼저 재어 가운데 맞춘다. */
       const ws9: number[] = []; let tw9 = 0;
@@ -3876,10 +3876,9 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
         const w9 = ws9[i9];
-        /* ★ 윗변이 **더 크게**, 아랫변은 같은 쪽으로 작게 출렁인다(열째, 실기 지적: "왜 이해를 못 해 · 그건 아래에서 올려다본 걸로 보인다니까") — 위에서 내려다보면 카메라에 가까운
-           **윗변**의 앞뒤 굽음이 화면에서 크게(× 0.9) 움직이고 먼 아랫변은 작게(× 0.35) 같은 쪽으로 움직인다(앞으로 나온 결 = 아래로). 아홉째의 엇갈림(윗변 아래 · 아랫변 위)은
-           가까운 결이 좁아지는 꼴이라 올려다본 모습이었다. 띠마다 세로 6 칸으로 나눠 윗변↔아랫변 사이를 보간한다(한 장 평행사변형이면 아랫변이 톱니). */
-        const ta9 = da9 * 0.9; const tb9 = db9 * 0.9; const ba9 = da9 * 0.35; const bb9 = db9 * 0.35;
+        /* 윗변·아랫변은 **같이** 출렁인다(앞으로 나온 결 = 아래 · × sin — 여덟째 꼴 · 열둘째, 실기 지적: "아니 이 상태에서" — 아홉째 엇갈림 · 열째 윗변 크게는 되물림).
+           위아래 구분은 아랫변 원근 좁힘(EVFLAG_KEY9) 하나가 진다. 띠마다 세로 칸으로 나눠 좁힘을 칸마다 준다. */
+        const ta9 = da9 * PLACARD_SIN9; const tb9 = db9 * PLACARD_SIN9; const ba9 = ta9; const bb9 = tb9;
         const R9 = 8; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;
         const sh9 = Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // +: 카메라에서 돌아선 면 → 어둡게
         const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
