@@ -5824,6 +5824,12 @@
   background: var(--steel-dark) #222529;
   box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607, 0 0 0 1px #050607;
 }
+/* ★ 재생바에도 전광판 · 인포창과 같은 **쇠 테**(3·dk + 검은 1px · 2026-11-09, 지적: "쇠독 테마일 때 전체화면에서 재생바 아래가 좀 떠") — 이웃 판들은 테가 상자 밖으로 3·dk 더 나가
+   바닥선이 그만큼 낮게 보였고, 재생바만 1px 테라 위로 뜬 듯 보였다. 안쪽 입술(위 밝은 줄 · 위아래 검은 줄)은 그대로. */
+.scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-lower > .scr-tb.scr-tb {
+  box-shadow: inset 0 1px 0 #050607, inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 #050607,
+    0 0 0 calc(3px * var(--dk, 1)) #2b2e33, 0 0 0 calc(3px * var(--dk, 1) + 1px) #050607;
+}
 .scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-dockmain > .scr-fs-minipanel,
 .scr-fs-layer.is-wide:not(.is-holodock) .scr-fs-dockmain > .scr-fs-rosterpanel,
 .scr-fs-layer.is-wide.is-wide-info:not(.is-holodock) .scr-fs-dockmain > .scr-motion-infodock {
