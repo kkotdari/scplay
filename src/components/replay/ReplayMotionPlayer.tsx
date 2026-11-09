@@ -834,6 +834,28 @@ const BLACKBOX_KEY9 = "scr-blackbox";
 const CRASHLOG_KEY9 = "scr-crashlog";
 /** 터짐 기록 한 줄(없으면 null) — 진단 창이 읽는다. */
 const crashLog9 = (): string | null => { memLearned9(); try { return localStorage.getItem(CRASHLOG_KEY9); } catch { return null; } };
+/** ★ 사건 블랙박스(2026-11-08, 실기: 2초 줄로는 터지기 직전 몇 초가 안 보였다 — 터진 줄의 수치가 작았다) — 회전 · 크기 변화 · 전체화면 · 가로 배치 · 배속 · GL 문맥 잃음 · 화면 숨김 ·
+ *  크기 자리 잡기 끝 같은 **사건이 일어난 그 순간** 짧은 수치와 함께 바로 적는다(마지막 14개 · scr-bbevt). 터지고 다시 열면 scr-crashevt 로 옮겨 진단 창 '직전 터짐' 아래에 띄운다. */
+const BB_EVT_KEY9 = "scr-bbevt";
+const CRASH_EVT_KEY9 = "scr-crashevt";
+const BB_EVT9: string[] = [];
+const BB_SNAP9: { fn: (() => string) | null } = { fn: null };
+const bbEvt9 = (tag: string): void => {
+  try {
+    memLearned9();   // 지난 세션 사건을 터짐 기록으로 먼저 옮긴다(아래 memLearned9)
+    const d9 = new Date();
+    const hm9 = `${String(d9.getMinutes()).padStart(2, "0")}:${String(d9.getSeconds()).padStart(2, "0")}.${String(Math.floor(d9.getMilliseconds() / 100))}`;
+    BB_EVT9.push(`${hm9} ${tag}${BB_SNAP9.fn ? ` [${BB_SNAP9.fn()}]` : ""}`);
+    if (BB_EVT9.length > 14) BB_EVT9.shift();
+    localStorage.setItem(BB_EVT_KEY9, BB_EVT9.join("\n"));
+  } catch { /* 저장소가 막혔으면 못 남긴다 */ }
+};
+const crashEvt9 = (): string | null => { memLearned9(); try { return localStorage.getItem(CRASH_EVT_KEY9); } catch { return null; } };
+if (typeof window !== "undefined") {
+  window.addEventListener("orientationchange", () => bbEvt9(`회전 ${String((screen.orientation as ScreenOrientation | undefined)?.type ?? "")}`), { passive: true });
+  window.addEventListener("resize", () => bbEvt9(`창 ${window.innerWidth}×${window.innerHeight}`), { passive: true });
+  document.addEventListener("visibilitychange", () => bbEvt9(`화면 ${document.visibilityState}`));
+}
 const MEM_LIVE_KEY9 = "scr-memlive";
 let memCrashLv9 = -1;
 /** 터짐에서 배운 단(앞서 깨끗이 안 끝난 재생 · 3일 회복) — 한 번만 잰다(이 세션의 '재생 중' 표식을 적기 전에). */
@@ -851,6 +873,8 @@ const memLearned9 = (): number => {
       /* 블랙박스(아래 BLACKBOX_KEY9 ★) — 터지기 직전 마지막 기록을 '터짐 기록'으로 옮겨 둔다(진단 창 맨 위에 뜬다). */
       const bb9 = localStorage.getItem(BLACKBOX_KEY9);
       if (bb9) localStorage.setItem(CRASHLOG_KEY9, bb9);
+      const ev9 = localStorage.getItem("scr-bbevt");   // 사건 블랙박스(아래 BB_EVT_KEY9 ★)
+      if (ev9) localStorage.setItem("scr-crashevt", ev9);
     }
     localStorage.removeItem(MEM_LIVE_KEY9);
     localStorage.setItem(MEM_LV_KEY9, JSON.stringify(st9));
@@ -6141,7 +6165,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         else if (s9.k !== k9) { s9.k = k9; s9.t = now9; }
         const st9 = SETTLE9.get(cv);
         if (st9 && cv.width > 0 && now9 - WIN_RS9.t < 1500 && now9 - st9.t < SETTLE_MS9 && memLv9() >= 1) {
-          if (!SETTLE_KICK9.tm) SETTLE_KICK9.tm = window.setTimeout(() => { SETTLE_KICK9.tm = 0; SETTLE_KICK9.fn?.(); }, SETTLE_MS9 + 40);
+          if (!SETTLE_KICK9.tm) { bbEvt9(`크기 바뀜 ${k9} 기다림`); SETTLE_KICK9.tm = window.setTimeout(() => { SETTLE_KICK9.tm = 0; bbEvt9("크기 자리 잡음 → 다시 그림"); SETTLE_KICK9.fn?.(); }, SETTLE_MS9 + 40); }
           return;
         }
       }
@@ -6287,6 +6311,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       {
         const o9 = glRef.current;
         if (o9 && o9.parentNode && glLostCv9(o9) && performance.now() - glSwapAt9 > 2000) {
+          bbEvt9("GL 문맥 잃음 → 캔버스 갈아 끼움");
           glSwapAt9 = performance.now();
           const n9 = document.createElement("canvas");
           n9.className = o9.className; n9.style.cssText = o9.style.cssText; n9.setAttribute("aria-hidden", "true");
@@ -14924,6 +14949,17 @@ export default function ReplayMotionPlayer({
      설계도(워커 장 · MB) · 안개 갈무리 · 효과 래스터 · GL 배킹 · 재생 시각 · 배속 · 배율 · 메모리 단 · (있으면) JS 힙. */
   const bbRef9 = useRef({ zoom: 1, speed: 1 });
   bbRef9.current.zoom = zoom; bbRef9.current.speed = speed;
+  /* 사건 블랙박스의 짧은 수치(위 BB_EVT9 ★) — 재생 초 · 배속 · 캔버스 장/MB · GL 배킹 · 아틀라스 · 메시 · 판. */
+  BB_SNAP9.fn = (): string => {
+    let cvN9 = 0; let cvB9 = 0;
+    document.querySelectorAll<HTMLCanvasElement>("canvas").forEach((c9) => { cvN9 += 1; cvB9 += c9.width * c9.height * 4; });
+    const g9 = glNow9();
+    return `${Math.round(tLiveRef9.current)}초 ×${bbRef9.current.speed} 캔버스${cvN9}장${(cvB9 / 1048576).toFixed(0)}MB`
+      + (g9 ? ` GL${g9.canvas.width}×${g9.canvas.height} 아틀라스${g9.sprFixedMB.toFixed(0)} 메시${g9.stat.meshes} 판${g9.sprStat.pages}${g9.lost ? " 잃음" : ""}` : "");
+  };
+  useEffect(() => { bbEvt9(fsOn ? "전체화면 켬" : "전체화면 끔"); }, [fsOn]);
+  useEffect(() => { bbEvt9(wide9 ? "가로 배치 켬" : "가로 배치 끔"); }, [wide9]);
+  useEffect(() => { bbEvt9(`배속 ×${speed}`); }, [speed]);
   useEffect(() => {
     if (pending) return undefined;
     const t0 = performance.now();
@@ -21900,6 +21936,7 @@ export default function ReplayMotionPlayer({
                 )}
                 {/* 터짐 기록(위 BLACKBOX_KEY9 ★) — 지난 재생이 깨끗이 안 끝났을 때 그 직전 줄. 어느 진단 칸이든 맨 위. */}
                 {((cl9) => (cl9 ? <div style={{ color: "#ffb36b" }}><b>직전 터짐</b> {cl9}</div> : null))(crashLog9())}
+                {((ce9) => (ce9 ? <div style={{ color: "#ffb36b", whiteSpace: "pre-wrap", fontSize: "0.92em" }}><b>직전 사건</b>{"\n"}{ce9}</div> : null))(crashEvt9())}
                 {dm9("mem") && (
                   <>
                     {/* 메모리 흐름(위 MEMTR9) — 처음·지금·최대가 나란하면 새는 데가 없다. */}
