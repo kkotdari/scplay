@@ -892,7 +892,10 @@ const memLv9 = (): number => {
      사파리 탭 한도라 그 차이도 작다(2026-11-08, 질문 "아이폰 기종으로 판단 가능?"). */
   const short9 = typeof window !== "undefined" ? Math.min(window.screen?.width ?? 0, window.screen?.height ?? 0) : 0;
   const base9 = dm9 ? (dm9 >= 8 ? 0 : dm9 >= 4 ? 1 : dm9 >= 2 ? 2 : 3) : IOS9 && short9 > 0 && short9 <= 375 ? 2 : smallDevice9 ? 1 : 0;
-  return Math.min(3, base9 + memLearned9());
+  memLearned9();   // 터짐 기록 · 사건 옮기기는 그대로(진단용)
+  /* ★ 터짐 학습으로 단을 **내리지 않는다**(2026-11-08 밤, 실기: 학습이 3단(8방 · 아틀라스 57MB · 메시 240)까지 내린 뒤에도 터졌고 그 순간 메모리도 작았다 — 상한을 깎아서는
+     못 막는데, 미리 구운 아틀라스를 줄인 만큼 장면을 바꿀 때마다 새 몸을 폰에서 굽게 돼 "1배속에도 엄청 버거워 · 특히 장면 바꿀 때"). 단은 기기 바탕(base9)만. */
+  return Math.min(3, base9);
 };
 /** 메모리 단의 상한 배수(아틀라스 GPU · 2D 판 바이트) — 0 단 1 · 1 단 0.8 · 2 단 0.6 · 3 단 0.45. */
 const memK9 = (): number => [1, 0.8, 0.6, 0.45][memLv9()] ?? 0.45;
