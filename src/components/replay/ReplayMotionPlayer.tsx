@@ -3770,7 +3770,7 @@ function placardSpr9(): HTMLCanvasElement {
 }
 /* ★ 이벤트 깃발(2026-11-09 · engine9 EVENT_FLAG9 ★) — 깃발 천 한 장(글귀 포함)을 판(sprVer9)으로 한 번 그려 두고, 붓(drawDomFx9 "eventflag")이 세로 띠 32 개로 잘라
    띠마다 물결만큼 밀고 기울여(transform · drawImage 9인자 — glctx9 심이 받는다) 펄럭이게 얹는다. 깃봉(나무)·꼭지(금)는 붓이 직접 그린다. 글귀: 머리 배지(둥근 바탕) + 본문. */
-export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님 가입" };
+export const EVENT_FLAG_TEXT9 = { badge: "환영", text: "Ben님" };   // "가입" 뺌(2026-11-09 넷째)
 const EVFLAG_W9 = 960;
 const EVFLAG_H9 = 240;
 let evFlagCv9: HTMLCanvasElement | null = null;
