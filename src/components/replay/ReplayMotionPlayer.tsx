@@ -3852,7 +3852,7 @@ function evFlagDraw9(cv9: HTMLCanvasElement): void {
   c9.clearRect(0, 0, W, H);
   /* 천 — 미색 · 깃봉 쪽(왼) 감침 띠 · 끝(오른) 살짝 짙게. */
   const g9 = c9.createLinearGradient(0, 0, W, 0);
-  g9.addColorStop(0, "#fffdf4"); g9.addColorStop(1, "#f1ece0");
+  g9.addColorStop(0, "#ffffff"); g9.addColorStop(1, "#ffffff");   // 흰 천(2026-11-09, 요청: "깃발 배경색 흰색으로" · 옛 미색 #fffdf4 → #f1ece0)
   c9.fillStyle = g9; c9.fillRect(0, 0, W, H);
   /* (걷어냄 · 다섯째 — 깃대가 없다) 깃봉 감침 띠. */
   c9.strokeStyle = "rgba(0,0,0,0.16)"; c9.lineWidth = 4; c9.strokeRect(2, 2, W - 4, H - 4);

@@ -2592,3 +2592,4 @@ goldPol9 반사 띠 어두운 쪽 ×0.35 → **×0.12** · 넥서스 짙은 호�
 - 닳게 굽기(RMP `mapLogoSpr9` · 씨앗 고정): 결 잡음(32px + 8px 값 잡음)으로 알파 0.35~1 · 벗겨진 얼룩 40 · 긁힌 줄 25 · 잔 점 900(destination-out) · 흙때 28(source-atop 갈색).
 - 붓: UnitLayer paint 가 크립 **아래**에 지도 가운데 `MAP_LOGO_TILES9`(18 칸) 폭 · 알파 `MAP_LOGO_ALPHA9`(0.5) · 평면만. 끄기 `MAP_LOGO_ON9 = false`.
 - 🔎 그 함수만 떼어 굽기(`$S/logo.html`).
+- (스무째) "깃발 배경색 흰색으로" — 천 미색 그러데이션(#fffdf4 → #f1ece0) → 흰색 한 빛.
