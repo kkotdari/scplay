@@ -22223,6 +22223,7 @@ export default function ReplayMotionPlayer({
      중계 = 자동 중계(toggleCast9 · 요약이 돌던 중이면 요약은 그친다 — 중계를 끄면 digest 가 걷힌다) · 중계에서 연 개인 화면도 '중계' 쪽(castBackRef9 — 끄면 중계로 돌아가는 자리).
      자유 = 중계·개인 화면 다 놓고 손으로. 무대 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. */
   const modeCastSide9 = castOn || (trackRaw !== null && castBackRef9.current);
+  const modeBusy9 = useRef(false);   // 토글 누름 뒤 미룬 일이 도는 중(아래 ★ 누르자마자 바뀐 꼴)
   const modeToggle9 = (
     <button
       type="button" role="switch" aria-checked={modeCastSide9}
@@ -22230,11 +22231,22 @@ export default function ReplayMotionPlayer({
       onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
-        if (modeCastSide9) {
-          castBackRef9.current = false;
-          if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
-          if (castOn) stopCast9();
-        } else toggleCast9();
+        /* ★ 누르자마자 바뀐 꼴(2026-11-09, 지적: "토글 반응 속도가 느림") — 모드를 바꾸면 재생기 통째가 다시 그려지고(중계 편성 · 카메라) 그 뒤에야 토글 글자가 바뀌었다.
+           두 칸의 켜짐(is-on)을 DOM 에서 먼저 뒤집고, 무거운 일은 한 번 칠한 뒤(rAF → 0ms)로 미룬다. React 는 바뀐 상태로 같은 꼴을 다시 칠한다. */
+        if (modeBusy9.current) return;   // 미룬 일이 돌기 전 두 번째 누름은 버린다(옛 상태로 한 번 더 뒤집힌다)
+        modeBusy9.current = true;
+        const sp9 = Array.from(e.currentTarget.children) as HTMLElement[];
+        sp9[0]?.classList.toggle("is-on", modeCastSide9);
+        sp9[1]?.classList.toggle("is-on", !modeCastSide9);
+        const toCast9 = !modeCastSide9;
+        requestAnimationFrame(() => window.setTimeout(() => {
+          if (!toCast9) {
+            castBackRef9.current = false;
+            if (trackRaw !== null) { stopTrack9(); setViewRaw(null); }
+            if (castOn) stopCast9();
+          } else toggleCast9();
+          modeBusy9.current = false;
+        }, 0));
       }}
       aria-label={modeCastSide9 ? "재생 모드: 중계 — 누르면 자유" : "재생 모드: 자유 — 누르면 중계"}
       title={modeCastSide9 ? "중계 (누르면 자유)" : "자유 (누르면 중계)"}
