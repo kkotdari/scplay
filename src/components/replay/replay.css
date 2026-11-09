@@ -5720,6 +5720,15 @@
    남은 것은 배속 다이얼 바닥 내림(--wdial-push · RMP pushDial9) — 전광판 · 재생바 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로. */
 .scr-fs-layer.is-wide .scr-fs-lower > .scr-tb.scr-tb { margin-right: calc(var(--wroster-w, 0px) + var(--wr) + var(--wgap) + var(--wdial-push, 0px)); }
 .scr-fs-layer.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel { margin-right: calc(var(--wr) + var(--wdial-push, 0px)); }
+/* ★ PC 가로 배치는 재생바가 인포창 · 전광판 **아래 한 줄**(미니맵 오른쪽 ~ 오른끝 − 다이얼 몫) · 둘은 재생바 키 + 틈만큼 위 · 그 사이는 빈다(2026-11-09 넷째, 요청: "피시는 그냥 가로 모드에서
+   인포창-전광판 사이만 벌리자 · 재생판은 원래대로 아래 한 줄로 하고 사이에 넣지 마"). 폰은 위 사이 두 줄. 틈 = --wgap + 홀로그램 판 넓힘 두 몫. */
+.scr-fs-layer.is-wide.scr-motion-pc9 { --wtb-lift: calc(var(--wtb-h, 0px) + var(--wgap) + 2 * var(--holo-ext, 0px)); }
+.scr-fs-layer.is-wide.scr-motion-pc9 .scr-fs-lower > .scr-tb.scr-tb {
+  margin: 0 calc(var(--wr) + var(--wdial-push, 0px)) var(--wbot) calc(var(--wl) + var(--wmini-w, 0px) + var(--wgap));
+}
+.scr-fs-layer.is-wide.scr-motion-pc9 .scr-fs-dockmain > .scr-fs-rosterpanel.scr-fs-rosterpanel { margin-bottom: calc(var(--wbot) + var(--wtb-lift)); }
+.scr-fs-layer.is-wide.is-wide-info.scr-motion-pc9 .scr-fs-dockmain > .scr-motion-infodock.scr-motion-infodock { margin-bottom: calc(var(--wbot) + var(--wtb-lift)); }
+.scr-fs-layer.is-wide.scr-motion-pc9.is-holodock .scr-fs-lower > .scr-tb::before { top: calc(-1 * var(--holo-ext)); }   /* 위로 더 넓힌 판(세로 독 몫)이 올린 판에 겹친다 */
 /* 오버레이 — 원래 자리 + 좌우 안전영역. 배속 다이얼은 로스터 위(--dock-lift-r · CSS --over-cap 이 아니라 로스터 키로). 자막은 미니맵~로스터 사이 가운데. */
 .scr-fs-layer.is-wide .scr-modetog-stage { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }
 .scr-fs-layer.is-wide .scr-fs-back { left: calc(var(--sd-gap) + env(safe-area-inset-left, 0px)); }

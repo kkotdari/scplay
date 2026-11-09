@@ -23335,7 +23335,11 @@ export default function ReplayMotionPlayer({
         /* (되물림 · 2026-11-09 셋째, 요청: "가로 모드에서 재생판을 다시 예전처럼 미니맵(+인포창)과 전광판 사이에 두 줄로 — 그래야 전광판이 안 올라가니까 · 지금 화면을 너무 가림") —
            재생바를 전광판 아래로 내리고 전광판을 올리던 몫(tbLift9 · --wtb-lift)을 걷었다. */
         const tbH0 = fr9.closest<HTMLElement>(".scr-fs-lower")?.querySelector<HTMLElement>(":scope > .scr-tb")?.offsetHeight ?? 0;
-        const showRoster9 = H9 >= rh9 + 24;
+        /* ★ PC 는 재생바가 인포창 · 전광판 **아래 한 줄**(미니맵 오른쪽 ~ 오른끝)이고 둘은 그만큼 위(같은 날 넷째, 요청: "피시는 그냥 가로 모드에서 인포창-전광판 사이만 벌리자 · 재생판은
+           원래대로 아래 한 줄로 하고 사이에 넣지 마") — 폰만 사이 두 줄. 올리는 몫 = 재생바 키 + 틈 + 홀로그램 넓힘 두 몫(replay.css --wtb-lift). */
+        const gapW0 = parseFloat(getComputedStyle(lay9).getPropertyValue("--wgap")) || 6;
+        const tbLift9 = uiPhone9 ? 0 : tbH0 + gapW0 + 2 * (parseFloat(getComputedStyle(lay9).getPropertyValue("--holo-ext")) || 0);
+        const showRoster9 = H9 >= rh9 + tbLift9 + 24;
         let miniH9 = ev9(Math.min(H9 * 0.4, h0 * up9)); let miniW9 = ev9(miniH9 * ar9);
         const maxMW9 = W9 * 0.3;
         if (miniW9 > maxMW9) { miniW9 = ev9(maxMW9); miniH9 = ev9(miniW9 / ar9); }
@@ -23354,7 +23358,7 @@ export default function ReplayMotionPlayer({
         const zd9 = lay9.querySelector<HTMLElement>(".scr-zoomdial");
         const sd9 = gap9 * (10 / 6);   // --sd-gap(10·sdk) ≈ --wgap(6·dk) × 10/6
         const dialH9 = dial9?.offsetHeight ?? 0;
-        const needH9 = gap9 + rh9 + sd9 + dialH9 + sd9 + (zd9?.offsetHeight ?? 0) + 2 * sd9;
+        const needH9 = gap9 + rh9 + tbLift9 + sd9 + dialH9 + sd9 + (zd9?.offsetHeight ?? 0) + 2 * sd9;
         const pushDial9 = !!dial9 && dialH9 > 0 && showRoster9 && H9 < needH9;
         const dialPush9 = pushDial9 ? (dial9?.offsetWidth ?? 0) + 2 * gap9 : 0;
         const usedW9 = sideL9 + miniW9 + gap9 + (showRoster9 ? rw9 + gap9 : 0) + gap9 + 2 + dialPush9;
@@ -23371,9 +23375,10 @@ export default function ReplayMotionPlayer({
         lay9.classList.toggle("is-wide-noroster", !showRoster9);
         /* 무대가 재생바 뒤까지 내려오므로(무대 위에 겹침) 중계 자막이 재생바 키만큼 비킨다(--dock-lift). 배속 다이얼은 로스터 위(--dock-lift-r). */
         const tbH9 = tbH0;
+        lay9.style.setProperty("--wtb-h", `${tbH9}px`);
         lay9.style.setProperty("--dock-lift", `${tbH9}px`);
         /* 배속 다이얼 — 전광판 위 · 자리가 모자라면 바닥(위 pushDial9 ★). */
-        lay9.style.setProperty("--dock-lift-r", `${pushDial9 ? 0 : showRoster9 ? rh9 : tbH9}px`);
+        lay9.style.setProperty("--dock-lift-r", `${pushDial9 ? 0 : showRoster9 ? rh9 + tbLift9 : tbH9}px`);
         lay9.style.setProperty("--wdial-push", `${dialPush9}px`);
         lay9.style.setProperty("--wdial-g", pushDial9 ? "0" : "1");   // 바닥으로 내리면 틈 없이 바닥선(--wbot)에
         capPlace9();   // 자막 자리(아래 ★ capPlace9)
@@ -24808,15 +24813,15 @@ export default function ReplayMotionPlayer({
             </div>
           </div>
           <div
-            className={cx("scr-tb", !uiPhone9 && !wide9 && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
+            className={cx("scr-tb", !uiPhone9 && "is-one", searchEdit9 && "is-searching")}   /* is-searching — 폰은 입력 중 꼬리 단추(핀 · 공유 · 도움말)를 접어 입력칸 자리를 준다(2026-11-08 · CSS) */
             onPointerDown={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
             {/* ★ PC 는 **한 줄**이다 — [아이콘 단추들 | 배속 · 재생 · 진행바(가변) · 시계 | 공유 · 사용법 · 전체화면 · 접기](2026-10-09, 요청:
                 "버튼이 이제 몇개 안되니 버튼과 재생부를 한줄로 합치기(슬라이드바 길이를 가변적으로). 버튼을 현재 재생부 좌우로 배치") — 단추 줄 한 줄의
                 키(--mapbtn-h + 줄 사이)가 비고 그만큼 독(--dock-body · replay.css .scr-motion-pc9)이 자란다. 폰은 종전 두 줄 그대로. 꼬리는 한 벌(tailNode9). */}
-            {/* 가로 배치(wide9 · PC · 폰)는 **두 줄**(2026-11-09 셋째, 요청: "미니맵(+인포창)과 전광판 사이에 두 줄로" — 같은 날 한 줄은 되물렸다). */}
-            {uiPhone9 || wide9 ? (
+            {/* 폰은 두 줄(가로 배치도 사이에 두 줄 · 2026-11-09 셋째) · PC 는 한 줄(가로 배치도 아래 한 줄 · 같은 날 넷째 "피시는 재생판 원래대로 아래 한 줄"). */}
+            {uiPhone9 ? (
               <>
                 <div className="scr-tb-btnrow">
                   {mapBtnRow}
