@@ -265,31 +265,38 @@ function scream9(v: number, female: boolean, pk = 1): Float32Array {
  *  포화 2.5)이라 갈라졌다. 이제 **사이오닉이 흩어지는** 소리: 620 → 150Hz 로 떨어지는 떨리는 음(6Hz 떨림 · 부드러운 2배음) + 숨 섞인 낮은 잡음(900Hz 아래) +
  *  둥근 반짝이 알갱이(Grain9 · 2.4kHz 아래 · 듬성) — 포화 1.2 · 0.7초. */
 function tossDie9(v: number): Float32Array {
-  /* ★ 신비한 목소리(2026-11-09 여덟째, 요청: "질럿은 좀 더 울림 있고 신비한 목소리로") — 낮은 남자 목소리 '오~'(기본음 92 → 78Hz · 톤 변화 적게 · 일곱째 "많이 낮고 톤 변화 적게")를
-     성문 펄스 · 포먼트 셋(오: 420 · 800 · 2500Hz)으로 내고, 세 겹 합창(±0.6% 어긋남)으로 넓히고, 한 옥타브 + 5도 위 옅은 빛 울림(사인 · 느린 떨림)을 얹은 뒤
-     메아리 둘(0.13초 · 0.21초 되먹임)로 공간에 퍼진다. 1.0초 + 메아리. 옛: 60 → 44Hz 배음 신음(일곱째). */
+  /* ★ 질럿 사망 '흐어~~'(2026-11-09 열넷째, 요청: "질럿 소리 흐어~~ 이거로 변경 · 울림 있는") — 옛 판들: 신음(일곱째) · '오~'(여덟째) · '스아~'(열째 ~ 열셋째).
+     낮은 남자 목소리(기본음 96 → 80Hz · 톤 변화 적게) · 모음 'ㅓ'(포먼트 600 · 980 · 2450Hz) · 앞머리 'ㅎ' = 같은 모음 꼴로 거른 숨(소리 없는 바람)이 0.18초 동안 목소리로 넘어간다.
+     세 겹 합창(±0.6%) · 성문 펄스 둥글게(0.6) · 1.8kHz 위 깎음 · 배경 겹(빛 울림 · 숨 잡음)은 없다. 울림 = 빗살 되먹임 셋(37 · 53 · 71ms · 0.45)을 섞은 짧은 잔향 + 메아리 0.17초. 1.2초. */
   const r = rng9(2501 + v);
-  /* '사아~'(2026-11-09 열째, 요청: "질럿은 오~ 보다는 사아~ 이런 느낌") — 모음 '오'(420 · 800 · 2500) → '아'(720 · 1150 · 2600) · 앞머리에 '스'(4.5kHz 위 숨 0.13초)가 모음으로 스며든다. */
-  const fA = new Biquad9("bp", 720, 3); const fB = new Biquad9("bp", 1150, 4); const fC = new Biquad9("bp", 2600, 6);
-  const hpS = new Biquad9("hp", 2800, 0.7); const lpS = new Biquad9("lp", 6000, 0.7);   // (열한째, 되요청: "부드럽게 스아~") 옛 4.5k ~ 9k 쉬익 → 2.8k ~ 6k 옅은 숨
-  const lpB = new Biquad9("lp", 350, 0.7);
+  const fA = new Biquad9("bp", 600, 3); const fB = new Biquad9("bp", 980, 4); const fC = new Biquad9("bp", 2450, 6);
+  const hA = new Biquad9("bp", 600, 2); const hB = new Biquad9("bp", 980, 2.5); const hC = new Biquad9("bp", 2450, 3);
+  const lpV = new Biquad9("lp", 1800, 0.7);
   const det = [1, 1.006, 0.994];
-  const ph = [0, 0, 0]; let phS = 0;
-  const raw = render9(1.0, (t) => {
-    const f = (78 + 14 * exp9(t, 2.2) + v * 3) * (1 + 0.012 * Math.sin(2 * Math.PI * 4.5 * t));
+  const ph = [0, 0, 0];
+  const raw = render9(1.2, (t) => {
+    const f = (80 + 16 * exp9(t, 2) + v * 3) * (1 + 0.01 * Math.sin(2 * Math.PI * 4.5 * t));
     let src = 0;
-    for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.6 ? Math.sin(Math.PI * p / 0.6) : 0) - 0.38; }   // 펄스 0.4 → 0.6(둥글게 · 열한째)
+    for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.6 ? Math.sin(Math.PI * p / 0.6) : 0) - 0.38; }
     src /= 3;
-    /* 부드럽게(열한째) — '스'는 옅게(0.7 → 0.22) 0.06초 차올라 모음이 열리는 동안(0.04초부터 0.2초에 걸쳐 차오름) 스며 사라진다(끊긴 앞머리 아님). */
-    const env = t < 0.04 ? 0 : (t < 0.24 ? Math.sin((Math.PI / 2) * (t - 0.04) / 0.2) : Math.exp(-(t - 0.24) * 2.4));
-    const ss = lpS.run(hpS.run(r() * 2 - 1)) * (t < 0.06 ? t / 0.06 : Math.exp(-(t - 0.06) * 9)) * 0.22;
-    const voice = (fA.run(src) * 1.2 + fB.run(src) * 0.75 + fC.run(src) * 0.15) * env;
-    phS += (f * 3 * (1 + 0.004 * Math.sin(2 * Math.PI * 0.8 * t))) / SFX_RATE9;
-    const shine = Math.sin(2 * Math.PI * phS) * ad9(t, 0.15, 2.2) * 0.12;
-    const air = lpB.run(r() * 2 - 1) * ad9(t, 0.02, 4) * 0.15;
-    return sat9((voice * 2.2 + shine + air + ss), 1.1);
+    const venv = t < 0.06 ? 0 : (t < 0.3 ? Math.sin((Math.PI / 2) * (t - 0.06) / 0.24) ** 2 : Math.exp(-(t - 0.3) * 2.2));
+    const henv = t < 0.05 ? t / 0.05 : Math.max(0, 1 - (t - 0.05) / 0.2);
+    const n = r() * 2 - 1;
+    const hh = (hA.run(n) + hB.run(n) * 0.7 + hC.run(n) * 0.35) * henv * 0.55;
+    const voice = lpV.run(fA.run(src) * 1.2 + fB.run(src) * 0.75 + fC.run(src) * 0.12) * venv * 2.2;
+    return (voice + hh) * 0.6;
   });
-  return finish9(echo9(echo9(raw, 0.13, 0.32), 0.21, 0.22), 0.5);
+  /* 울림 — 빗살 셋을 나란히(짧은 잔향) 섞고 메아리 하나. */
+  const out = new Float32Array(raw.length + Math.round(0.6 * SFX_RATE9));
+  out.set(raw);
+  const wet = new Float32Array(out.length);
+  for (const [ms, fb] of [[37, 0.45], [53, 0.43], [71, 0.4]] as const) {
+    const d = Math.round(ms / 1000 * SFX_RATE9); const c = new Float32Array(out.length);
+    for (let i = 0; i < out.length; i += 1) c[i] = out[i] + (i >= d ? c[i - d] * fb : 0);
+    for (let i = 0; i < out.length; i += 1) wet[i] += c[i] / 3;
+  }
+  for (let i = 0; i < out.length; i += 1) out[i] = out[i] * 0.65 + wet[i] * 0.45;
+  return finish9(echo9(out, 0.17, 0.22), 0.5);
 }
 
 /** 전기 지지직(프로브·아콘·질럿 사이오닉) — 낮은 윙 + 듬성한 방전 펄스 + 높은 쉬익. */
