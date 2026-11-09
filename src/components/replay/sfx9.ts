@@ -24,18 +24,18 @@ const PRIO9: Record<SfxKind9, number> = {
   zealotStab: 3,   // 2026-11-09
   tossDie: 7,   // 2026-11-09
   dragoonHit: 5,   // 2026-11-09
-  eggSplash: 4, eggSplashLow: 6, drillLow: 2, lurkerDig: 5,   // 2026-11-09 일곱째(공사 고치 완공은 옛 zergDone 6 자리)
+  eggSplash: 4, eggSplashLow: 6, drillLow: 2, lurkerDig: 5, spineSmall: 3,   // 2026-11-09 일곱째(공사 고치 완공은 옛 zergDone 6 자리)
 };
 /** 종류마다 동시에 나는 수. */
 const MAX9: Partial<Record<SfxKind9, number>> = {
-  eggSplash: 2, eggSplashLow: 1, drillLow: 1, lurkerDig: 2,
+  eggSplash: 2, eggSplashLow: 1, drillLow: 1, lurkerDig: 2, spineSmall: 3,
   warpHum: 1, warpEnd: 1, heart: 1, mineScv: 1, mineProbe: 1, gun: 2, slash: 2, blade: 3, claw: 3, spine: 3, zap: 2, glaive: 2, mine: 1, weld: 1, liftOff: 1, landing: 1, thunder: 1, warp: 1,
   screamM: 1, screamF: 1, squeal: 2, boom: 3, boomBig: 2, bioBoom: 2, load: 1, unload: 1, burrow: 1, unburrow: 1, eggPop: 2,
   screamLow: 1, screamHi: 1, springBreak: 2, spikeEarth: 2, guardHum: 2, scanHum: 1, warpCharge: 1, zlingHit: 3, ultraHit: 2, missileLow: 2, missileHi: 2, fleshUnfold: 2, zergDone: 1, eggStart: 2, eggHatch: 2, metalClang: 2, mineArm: 2, reaverBreak: 2, vesselBoom: 2, bioLoad: 1, bioUnload: 1, obsBoom: 2, lurkerDie: 2, squealHi: 2, squealMuta: 2, stim: 1,
 };
 /** 종류마다 앞 소리와의 최소 간격(ms · 1배속). */
 const GAP9: Partial<Record<SfxKind9, number>> = {
-  eggSplash: 180, eggSplashLow: 300, drillLow: 700, lurkerDig: 130,
+  eggSplash: 180, eggSplashLow: 300, drillLow: 700, lurkerDig: 130, spineSmall: 60,
   warpHum: 1450, warpEnd: 400, heart: 880, mineScv: 900, mineProbe: 900, gun: 70, slash: 90, blade: 60, claw: 60, spine: 60, zap: 140, glaive: 160, flame: 200, puff: 160, photon: 120, photonC: 120, missile: 150, cannon: 120,
   mine: 900, weld: 700, boom: 80, boomBig: 200, bioBoom: 200, squeal: 160, screamM: 260, screamF: 380,
   thunder: 600, warp: 500, liftOff: 700, landing: 700, load: 250, unload: 250, burrow: 300, unburrow: 300, eggPop: 220,
@@ -43,7 +43,7 @@ const GAP9: Partial<Record<SfxKind9, number>> = {
 };
 /** 종류마다 크기. */
 /* gunShot · gun · slash 는 뺐다(2026-11-09 다섯째 — 공격 묶음 크기 맞춤 sfx9Synth LOUD_ATK_KINDS9 가 맡는다 · 옛 gunShot 0.35 · gun 0.75 · slash 0.8). */
-const GAIN9: Partial<Record<SfxKind9, number>> = { drillLow: 0.4, warpHum: 0.5, heart: 0.3, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, eggPop: 0.45 };   // gunShot 0.7 → 0.35 → 0.175(넷째 "볼륨 반으로") → 0.35(다섯째 "볼륨 2배로") (2026-11-09 셋째 "반 정도로 줄여야 할 듯 너무 커" → "0.7 에서 반" · 사이에 0.48 · 0.24 를 거쳤다) · heart 0.6 → 0.3(2026-11-09, 요청: "저그 공사 고치 두근두근 소리 작게") · eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
+const GAIN9: Partial<Record<SfxKind9, number>> = { spineSmall: 0.6, drillLow: 0.4, warpHum: 0.5, heart: 0.3, mine: 0.55, mineScv: 0.55, mineProbe: 0.55, weld: 0.4, eggPop: 0.45 };   // gunShot 0.7 → 0.35 → 0.175(넷째 "볼륨 반으로") → 0.35(다섯째 "볼륨 2배로") (2026-11-09 셋째 "반 정도로 줄여야 할 듯 너무 커" → "0.7 에서 반" · 사이에 0.48 · 0.24 를 거쳤다) · heart 0.6 → 0.3(2026-11-09, 요청: "저그 공사 고치 두근두근 소리 작게") · eggPop 0.6 → 0.45(2026-10-27 · 몸이 잡음 철퍽이라 들리는 띠가 더 차서)
 
 const KEY9 = "scr.sfx";
 const VOL_KEY9 = "scr.sfx.vol";

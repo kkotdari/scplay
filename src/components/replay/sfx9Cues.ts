@@ -20,7 +20,7 @@ const HIT9: Record<string, SfxKind9 | null> = {
   // 럴커 가시 → 땅 뚫고 솟는 소리(2026-11-02). ★ 2026-11-08: 이 주석이 줄 끝에 붙어 뒤의 glave · zap · flare 를 삼켜 뮤탈 · 아콘 · 커세어가 맞을 때 기관총(gun)으로 울렸다(저그 잡음의 한 몫).
   laser: "zap", flame: "flame", spine: "spine", spike: "spikeEarth", glave: "glaive", zap: "zap", flare: "zap",
   spark: "weld", weld: "zap", tankboom: "boom", heal: null,
-  missile: null, missileG: null, plasma: null, photon: null, venom: null, acid: null, spit: null,
+  missile: null, missileG: null, plasma: null, photon: null, venom: null, acid: null, spit: "spineSmall",   // 드론 침 = 히드라 퉤의 작은 판(2026-11-09 스물두째 · 옛: 조용)
 };
 /** 근접(무기 갈래 없음)의 때린 몸 → 타격 소리(op.by · 2026-10-22). 없는 것은 칼질. */
 const MELEE9: Record<string, SfxKind9> = {
