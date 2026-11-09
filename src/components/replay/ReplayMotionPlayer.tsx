@@ -1230,12 +1230,59 @@ const EVEN_BOX9 = typeof location !== "undefined" && /evenbox/.test(location.has
 const evenIf9 = (v9: number): number => (EVEN_BOX9 ? v9 - (v9 & 1) : v9);
 const NO_STAGE_OV9 = typeof location !== "undefined" && /nostageov/.test(location.hash);
 /** 유닛·GL·효과 캔버스의 인라인 변환 한 줄 — `#noxf` 면 비운다. */
+/** ★ **보이는 몫만 캔버스**(2026-11-09, 실기 사건 블랙박스: 가로에서 지도 상자가 화면보다 훨씬 커(852×1287pt 남짓 · 화면 852×393) 보이는 건 30% 인데 캔버스 넷(지형 · 몸 · GL · 효과)은
+ *  상자 크기로 잡혀 GL 1312×1982 · 화면 캔버스 31MB — 두 번째 가로 전환에서 탭이 터졌다. 헤드리스 844×390 도 상자 812² 로 절반이 화면 밖).
+ *  폰에서 상자(위 띠 · 독 뒤 늘림 포함)와 무대(.scr-fs-stage)가 겹치는 네모가 상자의 80% 아래면 캔버스 넷을 그 네모로 자른다(인라인 left · top · width · height) — 그리는 쪽은
+ *  지도 크기를 상자 폭(mw9)으로 재고 좌표에 −offsetLeft · −offsetTop 을 더한다(붓 paint · terrPaint9). 손짓 중 CSS 변환의 기준점은 상자 가운데로(data-xfo · xfSet9).
+ *  분할 칸 · 3D 눕힘 · PC 는 안 자른다(옛 꼴) · 손짓 중엔 그대로 둔다 · 250ms 마다 다시 잰다. */
+const CROP9 = new WeakMap<HTMLCanvasElement, number>();
+const CROP_WHY9 = { v: "" };
+function cropLayers9(cv: HTMLCanvasElement, on: boolean, gesture: boolean): void {
+  if (scrDiagOn()) (window as unknown as { __crop9?: unknown }).__crop9 = CROP_WHY9;
+  const box9 = cv.parentElement; if (!box9) { CROP_WHY9.v = "상자없음"; return; }
+  if (on && typeof location !== "undefined" && /(?:^|[#&,])crop=0/.test(location.hash)) on = false;   // #crop=0 — 자르기 끔(견줌·탈출구)
+  if (!on) CROP_WHY9.v = "끔(분할·눕힘·PC)";
+  const ls9 = Array.from(box9.children).filter((c9): c9 is HTMLCanvasElement => c9 instanceof HTMLCanvasElement && c9.classList.contains("scr-motion-unitlayer"));
+  const off9 = (): void => { for (const c9 of ls9) if (c9.dataset.crop) { c9.style.left = ""; c9.style.top = ""; c9.style.width = ""; c9.style.height = ""; c9.style.right = ""; c9.style.bottom = ""; delete c9.dataset.crop; delete c9.dataset.xfo; } };
+  if (!on) { off9(); return; }
+  if (gesture) return;
+  const now9 = performance.now(); const at9 = CROP9.get(cv) ?? -1e9;
+  if (now9 - at9 < 250) return;
+  CROP9.set(cv, now9);
+  CROP_WHY9.v = !cv.closest(".scr-fs-stage") ? "무대밖" : !document.querySelector(".scr-fs-layer.is-fs") ? "전체화면아님" : "잼";
+  /* 전체화면에서만(프레임 모드는 스크롤마다 겹치는 몫이 바뀌어 캔버스를 계속 다시 잡는다) · 자르는 자는 **화면(뷰포트)** — 가로 전체화면의 무대 상자는 812×160 처럼 작고
+     지도가 그 밖으로 넘쳐 화면 전체에 보인다(헤드리스 실측 · 무대로 자르면 아래위가 비었다). */
+  if (!cv.closest(".scr-fs-stage") || !document.querySelector(".scr-fs-layer.is-fs")) { off9(); return; }   // 무대는 포털(stagehost)이라 is-fs 층의 자식이 아닐 수 있다
+  const b9 = box9.getBoundingClientRect(); const s9 = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+  const bw9 = box9.clientWidth; const bh9 = box9.clientHeight;
+  if (!(bw9 > 0 && bh9 > 0 && b9.width > 0)) { off9(); return; }
+  const k9 = b9.width / bw9;   // 상자에 걸린 배율(보통 1)
+  const cs9 = getComputedStyle(box9);
+  const band9 = parseFloat(cs9.getPropertyValue("--scr-mapband")) || 0; const ext9 = parseFloat(cs9.getPropertyValue("--map-ext")) || 0;
+  const nx0 = 0; const ny0 = -band9; const nx1 = bw9; const ny1 = bh9 + ext9;
+  const vx0 = Math.floor(Math.max(nx0, (s9.left - b9.left) / k9)); const vy0 = Math.floor(Math.max(ny0, (s9.top - b9.top) / k9));
+  const vx1 = Math.ceil(Math.min(nx1, (s9.right - b9.left) / k9)); const vy1 = Math.ceil(Math.min(ny1, (s9.bottom - b9.top) / k9));
+  CROP_WHY9.v = `보임 ${vx0},${vy0}~${vx1},${vy1} / 상자 ${nx1 - nx0}×${ny1 - ny0} 띠${band9} 늘림${ext9}`;
+  if (vx1 - vx0 < 8 || vy1 - vy0 < 8 || (vx1 - vx0) * (vy1 - vy0) > 0.8 * (nx1 - nx0) * (ny1 - ny0)) { off9(); return; }
+  const xfo9 = `${bw9 / 2 - vx0}px ${bh9 / 2 - vy0}px`;
+  for (const c9 of ls9) {
+    const L9 = `${vx0}px`; const T9 = `${vy0}px`; const W9 = `${vx1 - vx0}px`; const H9 = `${vy1 - vy0}px`;
+    if (c9.style.left !== L9) c9.style.left = L9;
+    if (c9.style.top !== T9) c9.style.top = T9;
+    if (c9.style.width !== W9) c9.style.width = W9;
+    if (c9.style.height !== H9) c9.style.height = H9;
+    if (c9.style.right !== "auto") c9.style.right = "auto";
+    if (c9.style.bottom !== "auto") c9.style.bottom = "auto";
+    c9.dataset.crop = "1"; c9.dataset.xfo = xfo9;
+  }
+}
 function xfSet9(cv9: HTMLCanvasElement, xf9: string): void {
   if (NO_XF9) { if (cv9.style.transform) { cv9.style.transform = ""; cv9.style.transformOrigin = ""; } return; }
   /* ★ 기준점은 **렌즈(지도 상자)의 가운데**다(2026-10-31, 지적: "피시 줌할 때 유닛층이 자리가 흔들리는 현상") — 몸 캔버스는 위로 띠(--scr-mapband)·아래로
      독 뒤(--map-ext)만큼 늘어나 제 가운데가 상자 가운데에서 (ext − band)/2 내려가 있다. 옛 "center" 로는 손짓 중 배율 s 를 걸면 (s − 1) × 그 차만큼
      밀렸다가 다시 그릴 때 제자리로 돌아왔다(실측 PC 창 1280: ext 9px → 4.5px 차 · 2배 당김이면 4.5px 튐). 전체화면은 ext 0 이라 안 났다. */
-  if (cv9.style.transformOrigin !== XF_ORIGIN9) cv9.style.transformOrigin = XF_ORIGIN9;
+  const or9 = cv9.dataset.xfo ?? XF_ORIGIN9;   // 잘린 캔버스는 상자 가운데를 px 로(cropLayers9 ★)
+  if (cv9.style.transformOrigin !== or9) cv9.style.transformOrigin = or9;
   if (cv9.style.transform !== xf9) cv9.style.transform = xf9;
 }
 const XF_ORIGIN9 = "50% calc(50% + (var(--scr-mapband, 0px) - var(--map-ext, 0px)) / 2)";
@@ -6164,6 +6211,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 지난 판에서 덜어낸 판들을 여기서 놓는다(위 RELEASE_Q9) — 이 시점에는 어느
          op도 옛 판을 안 들고 있다. */
       flushReleased9();
+      cropLayers9(cv, DEV9.name === "phone" && PAINT_CLIP9 === null && !pitchedProp, xfGest9.on);   // 보이는 몫만 캔버스(cropLayers9 ★)
       const cw = cv.clientWidth;
       const ch = cv.clientHeight;
       /* 크기 자리 잡기(위 SETTLE9 ★) — 회전 · 크기 변화 직후 CSS 크기가 바뀌는 동안은 칠하지 않고 마지막 변화 뒤 한 번만 다시 잡는다. */
@@ -6184,6 +6232,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 띠는 **위로 늘린 몫만**이다 — 아래로 늘린 몫(--map-ext · 독 뒤)은 지도 자리에 안 든다(2026-10-23). offsetTop 은 손짓 변환(transform)과 무관한 레이아웃 값. */
       const band9 = Math.max(0, -cv.offsetTop);
       const mh9 = Math.max(1, cv.parentElement?.clientHeight ?? (ch - band9));
+      /* ★ 보이는 몫만 캔버스(cropLayers9 ★ · 2026-11-09) — 지도 크기는 **상자** 폭(mw9)으로 재고, 그리기 좌표엔 캔버스가 상자 안에서 밀린 만큼(−offsetLeft · −offsetTop)을 더한다.
+         안 잘렸으면 mw9 = cw · tx9 = 0 · ty9 = band9 라 옛 셈 그대로. */
+      const mw9 = Math.max(1, cv.parentElement?.clientWidth ?? cw);
+      const tx9 = -cv.offsetLeft; const ty9 = -cv.offsetTop;
       if (!cw || !ch) return;
       /* 선명한 확대(지적: 확대가 선명하게 돼야) — 렌즈의 CSS 확대에 태우면 배킹 해상도가
          줌을 따라 커져야 해서 한계(4096px)에 막혀 흐려졌다. 이제 캔버스는 렌즈 밖에서
@@ -6367,8 +6419,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          떠 있음은 아래 hover 분기의 발밑 타원만 말한다. */
       // 렌즈 CSS(translate(pan) scale(zoom), 원점 가운데)와 같은 사상 — 분수 자리를
       // 확대·팬이 실린 화면 픽셀로 푼다.
-      const zx = (f: number): number => (f - 0.5) * cw * zoom + cw / 2 + pan.x;
-      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + band9;
+      const zx = (f: number): number => (f - 0.5) * mw9 * zoom + mw9 / 2 + pan.x + tx9;
+      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + ty9;
       /* 공중은 늘 위층(지적: 공중 유닛이 뒤·아래 건물에 가려짐) — 화가 순서에서 공중
          유닛을 통째로 지상·건물 위로 올린다. 공중끼리는 제 z 순서 그대로다. */
       /* 화면 밖 선별(지적: 줌·드래그 버벅임) — 이완·겹침·그리기 전에 뷰포트 밖(여유
@@ -6377,7 +6429,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const CULL = 160;
       const inView0 = (o: UnitDrawOp): boolean => {
         const ex0 = (o.wFrac !== undefined
-          ? Math.max(o.wFrac, o.hFrac ?? 0) * cw : o.sizePx) * zoom + CULL;
+          ? Math.max(o.wFrac, o.hFrac ?? 0) * mw9 : o.sizePx) * zoom + CULL;
         const vx0 = zx(o.fx);
         const vy0 = zy(o.fy);
         /* ★ **크립 얼룩도 화면 밖은 안 그린다**(조사: "12배 확대에서 저그 기지에서만
@@ -6642,7 +6694,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            뜬 높이만큼 위에 있어, 앵커가 가장자리 밖으로 그만큼 나가면 보이는 윗몸까지 통째로 빠졌다. 두 배 + 뜬 몫 + 64px.
            워커가 이미 시야 밖을 걸러 주므로 여기서 더 넉넉해도 값이 거의 없다. */
         const ext = (op.wFrac !== undefined
-          ? Math.max(op.wFrac, op.hFrac ?? 0) * cw : op.sizePx) * zoom * 2 + (op.airPx !== undefined ? op.airPx * zoom : 0) + 64;
+          ? Math.max(op.wFrac, op.hFrac ?? 0) * mw9 : op.sizePx) * zoom * 2 + (op.airPx !== undefined ? op.airPx * zoom : 0) + 64;
         if (sx < -ext || sx > cw + ext || sy < -ext || sy > ch + ext) continue;
         /* ── 저배율 마커(요청) — save() 앞에서 갈라져 op마다의 save/restore·그림자·판
            조회를 통째로 건너뛴다. 상태는 alpha·fillStyle만 만지므로 저장이 필요 없다. */
@@ -6659,9 +6711,9 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             const res9 = op.kind.startsWith("mineral") ? MARKER_MIN
               : op.kind.startsWith("geyser") ? MARKER_GAS : null;
             if (res9) { ctx.fillStyle = res9; ctx.globalAlpha = 1; }
-            const mwPx = Math.max(2, op.wFrac * cw * zoom);
-            const mhPx = Math.max(2, op.hFrac * cw * zoom * 0.72);
-            const gy9 = groundY ?? sy + (op.hFrac * cw * zoom) / 2;
+            const mwPx = Math.max(2, op.wFrac * mw9 * zoom);
+            const mhPx = Math.max(2, op.hFrac * mw9 * zoom * 0.72);
+            const gy9 = groundY ?? sy + (op.hFrac * mw9 * zoom) / 2;
             if (gl9 && gl9.primOk) gl9.prim(0, sx, gy9 - mhPx / 2, mwPx / 2, mhPx / 2, res9 ?? op.color, res9 ? 1 : op.alpha);
             else ctx.fillRect(sx - mwPx / 2, gy9 - mhPx, mwPx, mhPx);
           } else {
@@ -6718,8 +6770,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         }
         if (op.wFrac !== undefined && op.hFrac !== undefined) {
           // 건물 상자 — 스팬의 % 폭 + aspectRatio(폭 기준)를 그대로 픽셀로 푼 것.
-          const wPx = op.wFrac * cw * zoom;
-          const hPx = op.hFrac * cw * zoom;
+          const wPx = op.wFrac * mw9 * zoom;
+          const hPx = op.hFrac * mw9 * zoom;
           /* ★ 건설 명령 고스트의 **초록 발자국 판**(2026-09, 요청: "공사명령후부터 건설전까지 반투명 초록판+건물 모델
              (투명도 높게) 얹기") — 발자국 네 귀(engine9 platePts · posFrac 을 지난 분수 좌표)를 그대로 잇는다. 뜬 건물
              그림자 shadowPts 와 같은 손이라 지면 격자와 한 평면에 눕고, 유닛 캔버스(GL 층 아래)에 그리므로 그 위의
@@ -6961,7 +7013,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const bldHpBar9 = (byTop: number): void => {
             if (!(showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
               && (op.hpShow || ownSel9(op) || isPk9(op.pickKey)))) return;   // 맞은 지 잠깐·선택된 개체만(요청)
-            const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
+            const bw3 = Math.max(3, (op.hpBarFrac ?? 0) * mw9 * zoom);
             const bh3 = Math.max(hpBarH9(zoom), 5 * (bw3 / (op.hpBarW ?? 19)));
             const bx3 = sx - bw3 / 2;
             if (gl9 && gl9.primOk) {
@@ -6979,7 +7031,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             /* ★ 통로(addonlink)는 **원점 앉히기**다(2026-09, engine9 addonLinkGeom9) — 배수(mkFrac · 타일/모델칸 · 그리드
                폭 몫)와 원점(fx·fy)을 엔진이 두 벽에서 풀어 주므로, 잉크 상자로 크기를 맞추거나 바닥을 지면선에 앉히지 않는다.
                (통로 모델의 z 0 이 곧 땅이라 원점이 지면선이다.) */
-            const gk9 = op.mkFrac !== undefined ? op.mkFrac * cw * zoom : (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
+            const gk9 = op.mkFrac !== undefined ? op.mkFrac * mw9 * zoom : (sidePx * (op.pulseK ?? 1) / 16) * (bldNormOf(op.kind) ?? 1);
             const gLift9 = op.airPx !== undefined ? op.airPx * zoom : wPx * (op.liftK ?? 0);
             /* 가운데 축 부풂(pulseMid — 소환구가 작은 공에서 부풂 · 2026-10-15) — 바닥 축 배율이 내린 가운데를 다 자란 몸의 가운데로 도로 올린다. */
             const gMid9 = op.pulseMid && op.pulseK !== undefined && op.pulseK > 0 && glBf9
@@ -7377,7 +7429,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (showHp !== false && deepOk9 && op.hpFrac !== undefined && op.hpFrac > 0
               && (op.hpShow || ownSel9(op) || isPk9(op.pickKey))) {   // 맞은 지 잠깐·선택된 개체만(요청)
           // 원작 폭(요청) — 건물 쪽(bw3)과 같은 자. 옛 잉크 폭·체력 보정 자는 걷었다.
-          const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * cw * zoom);
+          const bw2 = Math.max(3, (op.hpBarFrac ?? 0) * mw9 * zoom);
           const bh2 = Math.max(hpBarH9(zoom), 5 * (bw2 / (op.hpBarW ?? 19)));
           const bx2 = sx - bw2 / 2;
           /* ★ 바는 **몸 아래**다(요청: "유닛 건물 체력바를 원작처럼 모델 아래쪽으로
@@ -7536,7 +7588,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            각각 '가운데 거리 + 제 반지름 ≤ 남긴 판의 반지름'일 때만 버린다(상자 포함). 세로는 fy(지도 높이 분수)를
            지도 폭 분수로 바꿔 wFrac·hFrac과 같은 자로 잰다. */
         const keep9: UnitDrawOp[] = [];
-        const fyK9 = mh9 / cw;
+        const fyK9 = mh9 / mw9;
         for (const o9 of all9) {
           const rox9 = (o9.wFrac ?? 0) * 0.5;
           const roy9 = (o9.hFrac ?? o9.wFrac ?? 0) * 0.5;
@@ -7579,13 +7631,13 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
           ctx.closePath();
         } else {
-          ctx.rect(zx(0), zy(0), cw * zoom, mh9 * zoom);   // 세로는 지도 키(mh9) — ch 는 위 띠·독 뒤 늘림(--map-ext)까지 든 캔버스 키다
+          ctx.rect(zx(0), zy(0), mw9 * zoom, mh9 * zoom);   // 세로는 지도 키(mh9) — ch 는 위 띠·독 뒤 늘림(--map-ext)까지 든 캔버스 키다
         }
         ctx.clip();
         paintOps(creepList);
         if (creep17cv9) {   // 판 17 — 지도 상자에 한 장(벽 파내기·땅 질감은 아래 그대로 탄다)
           ctx.save(); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(creep17cv9, zx(0), zy(0), cw * zoom, mh9 * zoom);
+          ctx.drawImage(creep17cv9, zx(0), zy(0), mw9 * zoom, mh9 * zoom);
           ctx.restore();
         }
         // 지형 차단은 마스크가 구워졌을 때만 파낸다.
@@ -7601,7 +7653,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           for (const [sy0, sh, fx0, fy0, fx1, fy1] of maskRects) {
             const dx9 = zx(fx0);
             const dy9 = zy(fy0);
-            const dw9 = (fx1 - fx0) * cw * zoom;
+            const dw9 = (fx1 - fx0) * mw9 * zoom;
             /* ★ 세로 자는 **지도 키(mh9)** 다 — zy 와 같은 자(2026-10-25, 지적: "크립이 부분부분 지워지거나 벽경계를 넘어가거나").
                여기 ch(캔버스 키 = 위 띠 + 지도 + 독 뒤 늘림 --map-ext)를 쓰고 있어, 폰에서 독 뒤까지 그리기(10-23) 뒤로 마스크가
                세로로 (지도+늘림)/지도 배만큼 늘어나 벽 자리에서 어긋났다 — 벽 위 크립은 남고 엉뚱한 땅의 크립이 파였다. */
@@ -7619,7 +7671,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const tx9 = creepTex9();
           const pat9 = tx9 ? creepPatOf9(ctx, tx9) : null;
           if (tx9 && pat9) {
-            const tp9 = tilePx ?? (cw / 128);
+            const tp9 = tilePx ?? (mw9 / 128);
             const sx9 = (tp9 * zoom * CREEP_TEX_TILES9) / tx9.width;   // tilePx = 지도 폭 / 타일 수(배율 1) — 평면은 정사각 타일
             const sy9 = (tp9 * zoom * CREEP_TEX_TILES9) / tx9.height;
             pat9.setTransform(new DOMMatrix([sx9, 0, 0, sy9, zx(0), zy(0)]));
@@ -7627,7 +7679,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.globalCompositeOperation = "source-atop";
             ctx.globalAlpha = 1;
             ctx.fillStyle = pat9;
-            ctx.fillRect(zx(0), zy(0), cw * zoom, mh9 * zoom);
+            ctx.fillRect(zx(0), zy(0), mw9 * zoom, mh9 * zoom);
             ctx.restore();
           }
         }
@@ -7767,8 +7819,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       { const st9 = SETTLE9.get(cv); const now9 = performance.now(); if (st9 && (st9.k !== `${cw}x${ch}` || now9 - st9.t < SETTLE_MS9) && now9 - WIN_RS9.t < 1500 && memLv9() >= 1) return false; }   // 크기 자리 잡는 중(SETTLE9 ★)
       const band9 = Math.max(0, -cv.offsetTop);
       const mh9 = Math.max(1, cv.parentElement?.clientHeight ?? (ch - band9));
-      const zx = (f: number): number => (f - 0.5) * cw * zoom + cw / 2 + pan.x;
-      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + band9;
+      /* ★ 보이는 몫만 캔버스(cropLayers9 ★ · 2026-11-09) — 지도 크기는 **상자** 폭(mw9)으로 재고, 그리기 좌표엔 캔버스가 상자 안에서 밀린 만큼(−offsetLeft · −offsetTop)을 더한다.
+         안 잘렸으면 mw9 = cw · tx9 = 0 · ty9 = band9 라 옛 셈 그대로. */
+      const mw9 = Math.max(1, cv.parentElement?.clientWidth ?? cw);
+      const tx9 = -cv.offsetLeft; const ty9 = -cv.offsetTop;
+      const zx = (f: number): number => (f - 0.5) * mw9 * zoom + mw9 / 2 + pan.x + tx9;
+      const zy = (f: number): number => (f - 0.5) * mh9 * zoom + mh9 / 2 + pan.y + ty9;
       const tc9 = glTerrCanvas9(tcv9);
       if (!tc9) return false;
       const q9 = [zx(clipQuad[0][0]), zy(clipQuad[0][1]), zx(clipQuad[1][0]), zy(clipQuad[1][1]), zx(clipQuad[2][0]), zy(clipQuad[2][1]), zx(clipQuad[3][0]), zy(clipQuad[3][1])];

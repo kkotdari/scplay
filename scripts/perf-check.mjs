@@ -1114,6 +1114,29 @@ if (has("--glms")) await page.evaluate(() => {
   g.flush = (...a) => { const t = performance.now(); f0(...a); g.gl.finish(); globalThis.__glms.push(performance.now() - t); };
 });
 /* --fold(2026-10-23) — 독(인포창·미니맵 줄)을 접은 채 찍는다(접힘 때 툴박스 폭 검산). */
+  /* --cropprobe(2026-11-09 · 보이는 몫만 캔버스 cropLayers9) — 지도 상자 · 무대 · 캔버스 넷의 자리와 크기. */
+if (has("--cropprobe") && has("--fs") && !(await page.evaluate(() => !!document.querySelector(".scr-fs-layer.is-fs")))) {   // --fs 누름은 아래 갈래 안에 있다 — 여기서 먼저 켠다
+  await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((el) => el.getAttribute("aria-label") === "전체화면"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(1500);
+}
+if (has("--cropprobe")) console.log("[캔버스 자르기]", await page.evaluate(() => {
+  const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; };
+  const box = document.querySelector(".scr-motion-map"); const st = document.querySelector(".scr-fs-stage");
+  return { 왜: window.__crop9?.v ?? "(없음)", 상자: r(box), 상자css: box ? [box.clientWidth, box.clientHeight] : null, 무대: r(st), 창: [innerWidth, innerHeight],
+    캔버스: [...(box?.querySelectorAll(":scope > .scr-motion-unitlayer") ?? [])].map((c) => ({ cls: c.className.split(" ").pop(), rect: r(c), back: [c.width, c.height], crop: c.dataset.crop ?? "-", style: c.getAttribute("style")?.slice(0, 120) })) };
+}));
+/* --cropcmp <파일머리>(2026-11-09) — 모델 준비가 끝나길 기다려 멈춘 뒤 잘린 그림(-a.png)과 #crop=0 그림(-b.png)을 같은 순간에 찍어 견준다. */
+if (has("--cropcmp")) {
+  const pre9 = String(flag("--cropcmp"));
+  for (let k = 0; k < 240; k += 1) { if (!(await page.evaluate(() => /모델 준비/.test(document.body.innerText)))) break; await page.waitForTimeout(1000); }
+  await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${pre9}-a.png`, timeout: 120000 });
+  await page.evaluate(() => { location.hash = (location.hash.replace(/^#/, "") + ",crop=0").replace(/^,/, ""); });
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${pre9}-b.png`, timeout: 120000 });
+  console.log("[자르기 견줌]", `${pre9}-a.png`, `${pre9}-b.png`);
+}
 if (has("--fold")) {
   const ok9 = await page.evaluate(() => { const b = [...document.querySelectorAll("button")].find((e) => /(인포창 접기|^독 접기)/.test(e.getAttribute("aria-label") || "")); if (!b) return false; b.click(); return true; });
   await page.waitForTimeout(600);
