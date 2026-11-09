@@ -889,6 +889,18 @@ const IOS_WIDE_DPR9 = 2;
  *  되풀이했고 배속이면 자세가 빨리 돌아 더 잦았다. 이제 두 호출이 이 값을 쓴다: 아틀라스를 실은 폰은 메모리 단 0 · 1 단 480 · 2 단 400 · 3 단 기기 값(메시 한 벌 ≈ 0.22MB). */
 const ATLAS_MESH9 = { on: false };
 const meshMaxNow9 = (): number => (ATLAS_MESH9.on && DEV9.name === "phone" ? Math.max(DEV9.glMeshMax, [480, 480, 400, 0][memLv9()] ?? 0) : DEV9.glMeshMax);
+/** ★ 크기 자리 잡기(2026-11-08, 실기 블랙박스: 전체화면 가로 전환 때 탭 터짐 — 터진 순간 GPU 몫은 작았다(배킹 564×852 · 아틀라스 70MB) · 회전하며 크기가 몇 번 연달아 바뀌고
+ *  바뀔 때마다 캔버스 셋(지형 · 유닛층 · GL)과 GL 렌더 버퍼를 새 크기로 다시 잡아, 사파리가 옛 것을 늦게 놓는 사이 겹쳤다). 창이 회전 · 크기 변화를 막 겪었고(1.5초 안) 캔버스 CSS 크기가
+ *  바뀐 지 SETTLE_MS9 안이면 그 장은 **안 칠하고** 옛 그림을 CSS 로 늘려 둔다 — 마지막 변화 뒤 한 번만 다시 잡는다. 메모리 단 1 이상만(memLv9 ★). */
+const WIN_RS9 = { t: -1e9 };
+if (typeof window !== "undefined") {
+  const mark9 = (): void => { WIN_RS9.t = performance.now(); };
+  window.addEventListener("resize", mark9, { passive: true });
+  window.addEventListener("orientationchange", mark9, { passive: true });
+}
+const SETTLE9 = new WeakMap<HTMLCanvasElement, { k: string; t: number }>();
+const SETTLE_KICK9: { fn: (() => void) | null; tm: number } = { fn: null, tm: 0 };
+const SETTLE_MS9 = 450;
 const backPx9 = (): number => [Infinity, 2.6e6, 1.9e6, 1.4e6][memLv9()] ?? 1.4e6;
 const sprTune9 = (): void => {
   if (SPR_DUMP9 > 0) {
@@ -6122,6 +6134,17 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       flushReleased9();
       const cw = cv.clientWidth;
       const ch = cv.clientHeight;
+      /* 크기 자리 잡기(위 SETTLE9 ★) — 회전 · 크기 변화 직후 CSS 크기가 바뀌는 동안은 칠하지 않고 마지막 변화 뒤 한 번만 다시 잡는다. */
+      {
+        const k9 = `${cw}x${ch}`; const now9 = performance.now(); const s9 = SETTLE9.get(cv);
+        if (!s9) SETTLE9.set(cv, { k: k9, t: -1e9 });
+        else if (s9.k !== k9) { s9.k = k9; s9.t = now9; }
+        const st9 = SETTLE9.get(cv);
+        if (st9 && cv.width > 0 && now9 - WIN_RS9.t < 1500 && now9 - st9.t < SETTLE_MS9 && memLv9() >= 1) {
+          if (!SETTLE_KICK9.tm) SETTLE_KICK9.tm = window.setTimeout(() => { SETTLE_KICK9.tm = 0; SETTLE_KICK9.fn?.(); }, SETTLE_MS9 + 40);
+          return;
+        }
+      }
       /* ★ 이 캔버스는 지도보다 **위로 한 뼘 더 크다**(요청: 지도 위에 그림만 그려지는
          자리) — 그 몫을 CSS에서 되읽는다(부모가 지도, 나 자신이 지도+여유). 좌표 사상은
          **지도 크기**로 하고 그린 뒤 여유만큼 내린다: 그래야 분수 0~1이 여전히 지도의
@@ -7708,6 +7731,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       if (!cv || !tcv9 || !tg9 || !clipQuad || clipQuad.length !== 4) return false;
       const cw = cv.clientWidth; const ch = cv.clientHeight;
       if (!cw || !ch || !cv.width || !cv.height) return false;
+      { const st9 = SETTLE9.get(cv); const now9 = performance.now(); if (st9 && (st9.k !== `${cw}x${ch}` || now9 - st9.t < SETTLE_MS9) && now9 - WIN_RS9.t < 1500 && memLv9() >= 1) return false; }   // 크기 자리 잡는 중(SETTLE9 ★)
       const band9 = Math.max(0, -cv.offsetTop);
       const mh9 = Math.max(1, cv.parentElement?.clientHeight ?? (ch - band9));
       const zx = (f: number): number => (f - 0.5) * cw * zoom + cw / 2 + pan.x;
@@ -15998,6 +16022,7 @@ export default function ReplayMotionPlayer({
     });
   }, []);
   linesKick9.current = () => requestPaint9();
+  SETTLE_KICK9.fn = () => requestPaint9();   // 크기 자리 잡기 뒤 한 장(위 SETTLE9 ★)
   // 렌더마다 — 멈춘 채 무언가(거울·토글·크기·탐색) 바뀌었으면 붓 하나가 한 장 칠한다. 재생 중엔 무동작.
   useEffect(() => { requestPaint9(); });
   const requestFogPaint9 = useCallback((): void => requestPaint9(true), [requestPaint9]);
