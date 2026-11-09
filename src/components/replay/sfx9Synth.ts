@@ -293,34 +293,35 @@ function tossDie9(v: number): Float32Array {
        · 앞머리 **ㅎ** = 같은 성도를 지나는 숨만 0.14초 → 목소리가 그 위로 차오른다
      울림 = 짧은 잔향(빗살 셋) + 메아리. 1.15초. */
   const r = rng9(2501 + v);
-  const R = [new Reso9(570, 80), new Reso9(860, 90), new Reso9(2450, 140), new Reso9(3400, 220)];
+  /* (열일곱째, 요청: "짧게 · 더 음 변화 없고 낮게") — 기본음 128 → 92 를 **88 → 82Hz**(거의 평탄) · 공명 ×0.92(더 굵게) · 1.15 → 0.6초 · 'ㅎ' 0.14 → 0.08초 · 잔향 꼬리 짧게. */
+  const R = [new Reso9(525, 80), new Reso9(790, 90), new Reso9(2250, 140), new Reso9(3130, 220)];
   const G = [1, 0.7, 0.35, 0.15];
   let ph = 0; let tilt = 0; let jit = 0; let shm = 0;
-  const raw = render9(1.15, (t) => {
+  const raw = render9(0.6, (t) => {
     jit += ((r() * 2 - 1) - jit) * 0.003; shm += ((r() * 2 - 1) - shm) * 0.004;
-    const f0 = (92 + 36 * exp9(t, 2.4) + v * 3) * (1 + 0.012 * jit + 0.008 * Math.sin(2 * Math.PI * 5 * t));
+    const f0 = (82 + 6 * exp9(t, 3) + v * 2) * (1 + 0.008 * jit + 0.004 * Math.sin(2 * Math.PI * 5 * t));
     ph += f0 / SFX_RATE9;
     const p = ph % 1;
     const glot = p < 0.4 ? 0.5 * (1 - Math.cos(Math.PI * p / 0.4)) : p < 0.6 ? Math.cos((Math.PI / 2) * (p - 0.4) / 0.2) : 0;
     tilt += (glot - tilt) * 0.35;
-    const voiced = t < 0.08 ? 0 : (t < 0.28 ? Math.sin((Math.PI / 2) * (t - 0.08) / 0.2) ** 2 : Math.exp(-(t - 0.28) * 1.9));
-    const breathK = t < 0.14 ? Math.min(1, t / 0.03) : 0.22 + 0.25 * Math.min(1, (t - 0.14) / 0.9);
-    const breath = (r() * 2 - 1) * (t < 0.14 ? 1 : 0.4 + 0.6 * glot) * breathK * (t < 0.14 ? 1 : Math.exp(-(t - 0.14) * 1.6)) * 0.35;
+    const voiced = t < 0.05 ? 0 : (t < 0.17 ? Math.sin((Math.PI / 2) * (t - 0.05) / 0.12) ** 2 : Math.exp(-(t - 0.17) * 5.5));
+    const breathK = t < 0.08 ? Math.min(1, t / 0.02) : 0.22;
+    const breath = (r() * 2 - 1) * (t < 0.08 ? 1 : 0.4 + 0.6 * glot) * breathK * (t < 0.08 ? 1 : Math.exp(-(t - 0.08) * 4)) * 0.35;
     const src = (tilt - 0.3) * voiced * (1 + 0.06 * shm) + breath;
     let y = 0; let x = src;
     for (let k = 0; k < 4; k += 1) { x = R[k].run(x); y += x * G[k] * (k === 0 ? 1 : 0.6); }
     return y;
   });
-  const out = new Float32Array(raw.length + Math.round(0.55 * SFX_RATE9));
+  const out = new Float32Array(raw.length + Math.round(0.3 * SFX_RATE9));
   out.set(raw);
   const wet = new Float32Array(out.length);
-  for (const [ms, fb] of [[37, 0.42], [53, 0.4], [71, 0.38]] as const) {
+  for (const [ms, fb] of [[37, 0.32], [53, 0.3], [71, 0.28]] as const) {
     const d = Math.round(ms / 1000 * SFX_RATE9); const c = new Float32Array(out.length);
     for (let i = 0; i < out.length; i += 1) c[i] = out[i] + (i >= d ? c[i - d] * fb : 0);
     for (let i = 0; i < out.length; i += 1) wet[i] += c[i] / 3;
   }
   for (let i = 0; i < out.length; i += 1) out[i] = out[i] * 0.7 + wet[i] * 0.4;
-  return finish9(echo9(out, 0.17, 0.2), 0.5);
+  return finish9(echo9(out, 0.13, 0.12), 0.5);
 }
 
 /** 전기 지지직(프로브·아콘·질럿 사이오닉) — 낮은 윙 + 듬성한 방전 펄스 + 높은 쉬익. */
