@@ -3864,7 +3864,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       ctx.globalAlpha = 1;
       const spr9 = evFlagSpr9();
       const N9 = 32; const dx9 = fl9 / N9; const sw9 = EVFLAG_W9 / N9;
-      const amp9 = W9 * 0.06; const tt9 = u0 * 4.2;
+      const amp9 = W9 * 0.08; const tt9 = u0 * 4.2;
       const dep9 = (x9: number): number => { const k9 = 0.35 + 0.65 * (x9 / fl9); const q9 = x9 / fl9; return amp9 * k9 * Math.sin(q9 * Math.PI * 2.6 - tt9) + amp9 * 0.35 * k9 * Math.sin(q9 * Math.PI * 5.1 - tt9 * 1.7); };
       /* 줄어든 가로를 먼저 재어 가운데 맞춘다. */
       const ws9: number[] = []; let tw9 = 0;
@@ -3874,13 +3874,23 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
         const w9 = ws9[i9];
-        const ya9 = da9 * PLACARD_SIN9; const yb9 = db9 * PLACARD_SIN9;   // 앞(카메라 쪽)으로 나온 몫 → 화면 아래(여덟째)
-        ctx.save();
-        ctx.transform(1, (yb9 - ya9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ya9);
-        ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, w9 + 0.8, fh9);
+        /* ★ 윗변 · 아랫변이 **엇갈려** 출렁인다(아홉째, 실기 스케치: "내가 그린 형태로 보여야 위에서 본 모습") — 윗변은 굽음만큼 아래로(× 0.9), 아랫변은 거꾸로 위로(× 0.5): 굽어 물러난
+           결은 위아래가 좁아지고 나온 결은 넓어진다. 띠마다 윗변 기울기(shear) + 평균 키(세로 배)로 얹는다(띠가 좁아 아랫변 오차는 작다). */
+        const ta9 = da9 * 0.9; const tb9 = db9 * 0.9; const ba9 = -da9 * 0.5; const bb9 = -db9 * 0.5;
+        /* 띠를 세로로 6 칸 더 나눠 칸마다 제 기울기(윗변 → 아랫변 사이 보간)로 — 한 장 평행사변형이면 아랫변이 톱니가 됐다. */
+        const R9 = 6; const ha9 = fh9 + ba9 - ta9; const hb9 = fh9 + bb9 - tb9;
         const sh9 = Math.max(-0.24, Math.min(0.24, sl9 * 0.8));   // +: 카메라에서 돌아선 면 → 어둡게
-        if (Math.abs(sh9) > 0.01) { ctx.fillStyle = sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`; ctx.fillRect(0, 0, w9 + 0.8, fh9); }
-        ctx.restore();
+        const shCol9 = Math.abs(sh9) > 0.01 ? (sh9 > 0 ? `rgba(0,0,0,${sh9.toFixed(3)})` : `rgba(255,255,255,${(-sh9 * 0.8).toFixed(3)})`) : null;
+        for (let r9 = 0; r9 < R9; r9 += 1) {
+          const v09 = r9 / R9; const v19 = (r9 + 1) / R9;
+          const a09 = ta9 + v09 * ha9; const a19 = ta9 + v19 * ha9; const b09 = tb9 + v09 * hb9; const b19 = tb9 + v19 * hb9;
+          const hh9 = ((a19 - a09) + (b19 - b09)) / 2 + 0.6;
+          ctx.save();
+          ctx.transform(1, (b09 - a09) / Math.max(0.01, w9), 0, 1, sx9, fy0 + a09);
+          ctx.drawImage(spr9, i9 * sw9, v09 * EVFLAG_H9, sw9, EVFLAG_H9 / R9, 0, 0, w9 + 0.8, hh9);
+          if (shCol9) { ctx.fillStyle = shCol9; ctx.fillRect(0, 0, w9 + 0.8, hh9 - 0.6); }
+          ctx.restore();
+        }
         sx9 += w9;
       }
       break;
