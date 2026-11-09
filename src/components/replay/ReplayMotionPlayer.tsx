@@ -3872,7 +3872,8 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         const da9 = dep9(i9 * dx9); const db9 = dep9((i9 + 1) * dx9);
         const sl9 = (db9 - da9) / dx9;
         const w9 = ws9[i9];
-        const ya9 = da9 * PLACARD_COS9; const yb9 = db9 * PLACARD_COS9;
+        /* 밀림 부호(일곱째, 실기 지적: "지금 모습은 내려다본 게 아닌 올려다본 거야 · 물결의 방향이") — 옛 부호는 올려다본 물결이었다. 뒤집어 위에서 본 물결로. */
+        const ya9 = -da9 * PLACARD_COS9; const yb9 = -db9 * PLACARD_COS9;
         ctx.save();
         ctx.transform(1, (yb9 - ya9) / Math.max(0.01, w9), 0, 1, sx9, fy0 + ya9);
         ctx.drawImage(spr9, i9 * sw9, 0, sw9, EVFLAG_H9, 0, 0, w9 + 0.8, fh9);
