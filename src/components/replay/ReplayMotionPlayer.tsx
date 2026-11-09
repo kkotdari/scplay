@@ -14959,7 +14959,7 @@ export default function ReplayMotionPlayer({
     let cvN9 = 0; let cvB9 = 0;
     document.querySelectorAll<HTMLCanvasElement>("canvas").forEach((c9) => { cvN9 += 1; cvB9 += c9.width * c9.height * 4; });
     const g9 = glNow9();
-    return `${Math.round(tLiveRef9.current)}초 ×${bbRef9.current.speed} 캔버스${cvN9}장${(cvB9 / 1048576).toFixed(0)}MB`
+    return `판${typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__.slice(6) : "dev"} ${Math.round(tLiveRef9.current)}초 ×${bbRef9.current.speed} 캔버스${cvN9}장${(cvB9 / 1048576).toFixed(0)}MB`
       + (g9 ? ` GL${g9.canvas.width}×${g9.canvas.height} 아틀라스${g9.sprFixedMB.toFixed(0)} 메시${g9.stat.meshes} 판${g9.sprStat.pages}${g9.lost ? " 잃음" : ""}` : "");
   };
   useEffect(() => { bbEvt9(fsOn ? "전체화면 켬" : "전체화면 끔"); }, [fsOn]);
@@ -14976,7 +14976,7 @@ export default function ReplayMotionPlayer({
         const g9 = glNow9();
         const mb = (b9: number): string => (b9 / 1048576).toFixed(0);
         const heap9 = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
-        const line9 = `${new Date().toLocaleString("ko-KR", { hour12: false })} · 재생${Math.round(tLiveRef9.current)}초(켠 뒤 ${Math.round((performance.now() - t0) / 1000)}초) ×${bbRef9.current.speed} 배율${bbRef9.current.zoom.toFixed(1)}`
+        const line9 = `${new Date().toLocaleString("ko-KR", { hour12: false })} · 판 ${typeof __SCPLAY_BUILD__ !== "undefined" ? __SCPLAY_BUILD__ : "dev"} · 재생${Math.round(tLiveRef9.current)}초(켠 뒤 ${Math.round((performance.now() - t0) / 1000)}초) ×${bbRef9.current.speed} 배율${bbRef9.current.zoom.toFixed(1)}`
           + ` · 메모리${memLv9()}단 ${ATLAS_WANT9()}방 · 캔버스${cvN9}장 ${mb(cvB9)}MB`
           + (g9 ? ` · GL배킹${g9.canvas.width}×${g9.canvas.height} 메시${g9.stat.meshes}/${g9.meshMax} ${mb(g9.stat.bytes)}MB 2D판${g9.sprStat.pages}장×${g9.sprPageMB9().toFixed(0)}MB 아틀라스${g9.sprFixedMB.toFixed(0)}MB 칸${g9.sprStat.cells}` : " · GL없음")
           + ` · 설계도${wFramesRef.current.size}장 ${mb(wfB9)}MB · 안개갈무리${fogSnapsRef9.current.length} · 효과판${mb(FX_RASTER_BYTES.n)}MB · 캔버스생성${CVN9.n}`

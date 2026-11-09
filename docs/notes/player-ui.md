@@ -3219,3 +3219,10 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 🔎 실기 귀로(교전 · 멈춤/탐색 순간).
 - (같은 날 "지지지직 소리") 효과음 AudioContext `latencyHint` "interactive" → **"playback"** — 폭발 · 죽음 순간은 GL 이 가장 무거워 짧은 버퍼(폰 ~5ms)가 언더런으로 지직거렸다.
   그래도 지직이면 다음 의심: 오디오 스레드가 아니라 기기 전체 과부하(perf-check 로 그 장면 프레임 시간) · BGM 과 효과음이 다른 문맥이라 서로 다른 버퍼로 도는 것.
+
+## 블랙박스에 판 시각 · sg-web 새 배포 감지(2026-11-09)
+실기: 같은 PWA 에서 연달아 찍은 두 캡처의 진단 '판'이 09:46 · 09:02 로 갈렸다 — 09:46 판에서 터진 뒤(터짐 줄의 메시 300/300 이 09:46 판 값) 다시 뜰 때 옛 09:02 판이 실렸다.
+웹킷이 터진 페이지를 되살릴 때 캐시의 옛 index.html · 스크립트를 쓴 것으로 본다.
+- scplay: 2초 블랙박스 줄 머리에 `판 MM-DD HH:mm`(__SCPLAY_BUILD__) · 사건 줄 짧은 수치 머리에 `판HH:mm` — 어느 판에서 터졌나가 줄에 남는다.
+- sg-web: `utils/staleBuild.ts` installStaleBuildCheck — 뜬 뒤 3초 · 화면이 30초 넘게 숨었다 보일 때 서버 index.html(no-store)의 /assets/main-*.js 가 지금 것과 다르면 새로고침(2분에 한 번) ·
+  보이는 동안 15분마다는 토스트만. vercel.json: assets · spr · pf · uploader · sw.js 밖 경로(곧 HTML)에 `Cache-Control: no-cache, must-revalidate`.
