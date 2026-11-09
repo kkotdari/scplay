@@ -157,12 +157,16 @@ function gunShot9(v: number): Float32Array {
 
 /** 굵은 포(시즈탱크·골리앗 대공 아님) — 쿵 + 잡음 꼬리. */
 function cannon9(v: number): Float32Array {
+  /* 잡음 걷기(2026-11-09 여섯째, 지적: "탱크 공격 소리인지 피격 소리인지에 잡음 있음") — 옛: 갈색 + **흰 잡음 0.5** 를 2.4kHz 저역으로 · 포화 1.4 라 쉬익 지글이 섞였다.
+     이제 흰 잡음을 걷고 갈색만 1.1kHz 아래로 · 쿵(90 → 55Hz · 2배음) 몸을 키우고 · 포화 1.15. */
   const r = rng9(131 + v); const br = brown9(r);
-  const lp = new Biquad9("lp", 2400, 0.7);
+  const lp = new Biquad9("lp", 1100, 0.7);
+  let ph = 0;
   return finish9(render9(0.45, (t) => {
-    const thump = Math.sin(2 * Math.PI * (90 - t * 120) * t) * exp9(t, 11);
-    return sat9(thump * 1.1 + lp.run(br() + (r() * 2 - 1) * 0.5) * exp9(t, 9), 1.4);
-  }, (t) => lp.set(2400 * exp9(t, 6) + 200)), 0.8);
+    ph += (55 + 35 * exp9(t, 9)) / SFX_RATE9;
+    const thump = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.35) * ad9(t, 0.003, 9);
+    return sat9(thump * 1.2 + lp.run(br()) * ad9(t, 0.003, 10) * 0.9, 1.15);
+  }, (t) => lp.set(1100 * exp9(t, 6) + 150)), 0.8);
 }
 
 /** 기계·건물 폭발 — 저음 쿵 + 갈색 잡음 덩어리 + 바스락 파편. big 이면 길고 낮다. */
@@ -171,11 +175,11 @@ function boom9(v: number, big: boolean): Float32Array {
   const lp = new Biquad9("lp", 3000, 0.8);
   const dur = big ? 1.5 : 0.8;
   const k = big ? 2.6 : 4.5;
-  const gD = new Grain9(1400, 2.5);
+  const gD = new Grain9(900, 2.5);
   return finish9(render9(dur, (t) => {
     const thump = Math.sin(2 * Math.PI * ((big ? 55 : 75) - t * 30) * t) * exp9(t, big ? 4 : 7);
-    const body = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.35) * ad9(t, 0.006, k);
-    const debris = gD.run(t > 0.05 && r() < 0.004 * exp9(t, 3) ? (r() * 2 - 1) * 0.8 : 0);
+    const body = lp.run(br() * 1.4 + (r() * 2 - 1) * 0.12) * ad9(t, 0.006, k);   // 흰 잡음 0.35 → 0.12(같은 날 여섯째 · 탱크 잡음 — 시즈 착탄 tankboom 이 이 소리)
+    const debris = gD.run(t > 0.05 && r() < 0.002 * exp9(t, 3) ? (r() * 2 - 1) * 0.5 : 0);   // 파편 알갱이 반으로
     return sat9(thump * 0.9 + body + debris, 1.5);
   }, (t) => lp.set(3200 * exp9(t, big ? 2.2 : 3.5) + 120)), big ? 0.9 : 0.7);
 }
@@ -238,17 +242,19 @@ function scream9(v: number, female: boolean, pk = 1): Float32Array {
   const dur = 0.85;
   const rf9 = 40 + r() * 30;
   const subK = female ? 0.3 : 0.55;
+  let jit9 = 0;
   return finish9(render9(dur, (t) => {
     const rise = t < 0.12 ? 0.85 + (t / 0.12) * 0.45 : t < 0.55 ? 1.3 - (t - 0.12) * 0.25 : 1.19 - (t - 0.55) * 1.8;
-    const f0 = f0b * Math.max(0.6, rise) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.02 * (r() * 2 - 1));
+    jit9 += ((r() * 2 - 1) - jit9) * 0.002;   // 표본마다 튀던 떨림(0.02 · 흰 잡음처럼 들렸다) → 느린 떨림(2026-11-09 여섯째, 지적: "테란 보병들 죽음에 잡음 섞임")
+    const f0 = f0b * Math.max(0.6, rise) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.04 * jit9);
     ph += f0 / SFX_RATE9; ph2 += (f0 * 0.5) / SFX_RATE9;
     const p = ph % 1;
     const glot = p < 0.35 ? Math.sin(Math.PI * p / 0.35) : 0;
     const sub = Math.sin(2 * Math.PI * ph2) * subK;
     const rasp = 0.7 + 0.3 * Math.sin(2 * Math.PI * rf9 * t + 3 * Math.sin(2 * Math.PI * 11 * t));
-    const src = ((glot - 0.22) * 1.5 + sub) * rasp + (r() * 2 - 1) * 0.18;
-    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.85 + f3.run(src) * 0.5 + hpN.run(r() * 2 - 1) * 0.12 + (female ? 0 : chest.run(src) * 0.9);
-    return sat9(voc * ad9(t, 0.02, 2.0) * 3.4, female ? 2.1 : 2.6);
+    const src = ((glot - 0.22) * 1.5 + sub) * rasp + (r() * 2 - 1) * 0.04;   // 숨 잡음 0.18 → 0.04(같은 지적)
+    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.85 + f3.run(src) * 0.5 + hpN.run(r() * 2 - 1) * 0.03 + (female ? 0 : chest.run(src) * 0.9);
+    return sat9(voc * ad9(t, 0.02, 2.0) * 3.4, female ? 1.8 : 2.0);   // 포화 2.1/2.6 → 1.8/2.0(갈라짐 줄임 · 같은 지적)
   }), female ? 0.42 : 0.58);
 }
 
@@ -259,15 +265,15 @@ function tossDie9(v: number): Float32Array {
   /* 훨씬 낮게(2026-11-09 다섯째, 요청: "질럿 죽음 소리 이상해 훨씬 더 낮은 소리여야 해") — 옛 620 → 150Hz 떨림음이 높아 새소리 같았다. 이제 **낮은 신음**:
      205 → 55Hz 로 가라앉는 배음 넷(1 · 0.6 · 0.4 · 0.25 · lp 800 — 폰 스피커에도 들리게) + 5Hz 떨림 + 400Hz 아래 숨 + 낮고 듬성한 알갱이(900Hz) · 0.9초 · 포화 1.6. */
   const r = rng9(2501 + v);
-  const lpT = new Biquad9("lp", 800, 0.7);
-  const lpB = new Biquad9("lp", 400, 0.7);
-  const gS = new Grain9(900, 2.2);
+  const lpT = new Biquad9("lp", 620, 0.7);
+  const lpB = new Biquad9("lp", 300, 0.7);
+  const gS = new Grain9(700, 2.2);
   let ph = 0;
   return finish9(render9(0.9, (t) => {
-    const f = 55 + (150 + v * 12) * exp9(t, 3);
-    ph += (f * (1 + 0.06 * Math.sin(2 * Math.PI * 5 * t))) / SFX_RATE9;
+    const f = 44 + (16 + v * 2) * exp9(t, 2.5);   // 205 → 55Hz → **60 → 44Hz**(2026-11-09 여섯째, 요청: "질럿 사망 소리 더 많이 낮고 톤 변화 적게")
+    ph += (f * (1 + 0.025 * Math.sin(2 * Math.PI * 4 * t))) / SFX_RATE9;
     const w = 2 * Math.PI * ph;
-    const tone = lpT.run(Math.sin(w) + Math.sin(2 * w) * 0.6 + Math.sin(3 * w) * 0.4 + Math.sin(4 * w) * 0.25) * ad9(t, 0.03, 3.2);
+    const tone = lpT.run(Math.sin(w) + Math.sin(2 * w) * 0.7 + Math.sin(3 * w) * 0.5 + Math.sin(4 * w) * 0.35 + Math.sin(5 * w) * 0.2 + Math.sin(6 * w) * 0.12) * ad9(t, 0.03, 3.2);   // 44Hz 바탕이라 배음을 더(폰에서 들리게)
     const breath = lpB.run(r() * 2 - 1) * ad9(t, 0.01, 5) * 0.6;
     const shimmer = gS.run(r() < 0.006 ? (r() * 2 - 1) : 0) * exp9(t, 3) * 0.4;
     return sat9(tone + breath + shimmer, 1.6);
@@ -712,20 +718,20 @@ function spine9(v: number): Float32Array {
 /** ★ 질럿 — **창으로 찌르는 쇠 마찰**(2026-11-09, 요청: "질럿 공격 소리 — 창으로 찌르는 쇠 마찰 소리로") — 옛: 다크와 같은 칼질(blade9). 찌르는 휙(2→5kHz 로 오르는 띠 잡음) +
  *  쇠 긁힘(좁은 띠 두 겹 2.9 · 4.7kHz 가 아래로 미끄러짐) + 쇠 울림(어긋난 배음 1830 · 2710 · 4190Hz 가 0.25초에 걸쳐 잦아듦) + 박히는 퍽. */
 function zealotStab9(v: number): Float32Array {
+  /* 울림 없이 '챙챙'(2026-11-09 여섯째, 요청: "질럿 공격 소리 울림 없애고 챙챙 느낌만 · 음은 살짝 낮게") — 옛: 휙 + 긁힘(좁은 띠 Q 9 · 2.9/4.7kHz) + 쇠 울림 사인 셋(1.8/2.7/4.2kHz · 오래 남음).
+     이제 사인 울림을 걷고, 쇠 부딪힘 두 번(질럿 칼 둘 · 0.075초 사이 · 둘째는 조금 작게) — 넓은 띠 잡음 두 갈래(2.3 · 3.6kHz · Q 4 — 덜 음정) · 빨리 사그라짐(k 30) · 짧은 휙. 0.22초. */
   const r = rng9(2401 + v);
-  const bpW = new Biquad9("bp", 2000, 1.4);
-  const bp1 = new Biquad9("bp", 2900, 9);
-  const bp2 = new Biquad9("bp", 4700, 9);
-  const k9 = 1 + v * 0.03;
-  return finish9(render9(0.32, (t) => {
+  const bpW = new Biquad9("bp", 1700, 1.4);
+  const bp1 = new Biquad9("bp", 2300, 4);
+  const bp2 = new Biquad9("bp", 3600, 4);
+  return finish9(render9(0.22, (t) => {
     const n = r() * 2 - 1;
-    const swish = bpW.run(n) * ad9(t, 0.01, 22) * 0.7;
-    const ts = t - 0.035;
-    const scrape = ts > 0 ? (bp1.run(n) + bp2.run(n) * 0.8) * ad9(ts, 0.004, 9) * 2.4 : 0;
-    const ring = ts > 0 ? (Math.sin(2 * Math.PI * 1830 * k9 * ts) * 0.5 + Math.sin(2 * Math.PI * 2710 * k9 * ts) * 0.35 + Math.sin(2 * Math.PI * 4190 * k9 * ts) * 0.22) * exp9(ts, 11) * 0.45 : 0;
-    const thud = ts > 0 ? Math.sin(2 * Math.PI * 150 * ts) * exp9(ts, 35) * 0.5 : 0;
-    return sat9(swish + scrape + ring + thud, 1.3);
-  }, (t) => { bpW.set(2000 + t * 12000); bp1.set(2900 - t * 2600); bp2.set(4700 - t * 3800); }), 0.27);   // 0.5 → 0.38 → 0.27(2026-11-09 둘째 · 셋째 "질럿 소리 좀 더 줄여야 해")
+    const swish = bpW.run(n) * ad9(t, 0.006, 30) * 0.45;
+    const hit9 = (ts: number, g: number): number => (ts > 0 ? ad9(ts, 0.002, 30) * g : 0);
+    const e9 = hit9(t - 0.02, 1) + hit9(t - 0.095, 0.8);
+    const clash = (bp1.run(n) + bp2.run(n) * 0.7) * e9 * 2.6;
+    return sat9(swish + clash, 1.15);
+  }, (t) => { bpW.set(1700 + t * 8000); }), 0.27);
 }
 
 /** ★ 가시가 땅을 뚫고 솟음(성큰·럴커 · 2026-11-02, 요청: "성큰 럴커 가시가 땅을 뚫고 솟는 소리") — 흙 깨지는 바스락(갈색 잡음 + 듬성한 알갱이) 위로
