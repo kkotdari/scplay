@@ -5865,10 +5865,18 @@
 /* ★ 가로 화면의 중계 자막은 **위 · 화면 주인 이름표 자리**(2026-11-09, 요청: "자막 위치 — 세로 레이아웃 현행 유지 · 가로 레이아웃(프레임 · 전체화면 · PC · 폰)은 위쪽으로(화면 주인 위치) ·
    자막은 중계 때만 나와 겹칠 일 없으니 괜찮") — 창이 가로로 길면(orientation landscape) 이름표와 같은 위 여백(PC 28 · 폰 18 · dk) · 좌우는 같은 줄의 단추(뒤로 · 모드 토글 · 배율 · fps)를
    비킨 몫(--cap-tops9 · RMP capPlace9) · 그 안에서 가운데. 세로 창은 종전(독 위 · --cap-bot9). 무게는 넓은 배치 · 2단 접기 규칙보다 높게. */
-@media (orientation: landscape) {
-  .scr-motion .scr-fs-solo > .scr-cast-caption.scr-cast-caption.scr-cast-caption {
-    top: round(nearest, calc(18px * var(--dk)), 2px); bottom: auto;
-    left: var(--cap-tops9, 0px); right: var(--cap-tops9, 0px); max-width: none;
-  }
-  .scr-motion.scr-motion-pc9 .scr-fs-solo > .scr-cast-caption.scr-cast-caption.scr-cast-caption { top: round(nearest, calc(28px * var(--dk) / 1.35), 2px); }
+/* 세로도 위(2026-11-09 둘째, 요청: "세로일 때도 자막 위로 올리고 대신 뒤로가기 · 중계 토글은 미니맵 위까지 · 배율 · 테스트 단추는 독 위까지") — 방향 조건을 걷었다. */
+.scr-motion .scr-fs-solo > .scr-cast-caption.scr-cast-caption.scr-cast-caption {
+  top: round(nearest, calc(18px * var(--dk)), 2px); bottom: auto;
+  left: var(--cap-tops9, 0px); right: var(--cap-tops9, 0px); max-width: none;
 }
+.scr-motion.scr-motion-pc9 .scr-fs-solo > .scr-cast-caption.scr-cast-caption.scr-cast-caption { top: round(nearest, calc(28px * var(--dk) / 1.35), 2px); }
+/* 전체화면이면 노치 몫은 겹층(.scr-fs-solo)이 이미 내려 둔다. */
+
+/* ★ 위 오버레이를 아래로(2026-11-09 · RMP capPlace9 is-ovlow9 ★) — 왼쪽 묶음(뒤로 · 모드 토글)은 미니맵(그 폭의 독 요소) 위 · 오른쪽 묶음(배율 원 · fps/feat/diag)은 독 요소 · 배속 다이얼 위.
+   값이 서기 전(is-ovlow9 없음)은 옛 위 자리. 테스터 목록은 위로 연다. 무게는 전체화면 · 넓은 배치 규칙보다 높게. */
+.scr-fs-layer.is-ovlow9 :is(.scr-fs-back, .scr-modetog-stage):is(.scr-fs-back, .scr-modetog-stage) { top: auto; bottom: var(--ov-l-bot9); }
+.scr-fs-layer.is-ovlow9 :is(.scr-zoomdial, .scr-zoomfps):is(.scr-zoomdial, .scr-zoomfps) { top: auto; bottom: var(--ov-r-bot9); }
+.scr-fs-layer.is-ovlow9 .scr-testmode { top: auto; bottom: calc(100% + 6px * var(--sdk)); }
+/* 채팅은 왼쪽 묶음 위(묶음이 미니맵 위로 내려와 채팅 자리에 섰다). */
+.scr-fs-layer.is-ovlow9 .scr-fs-chat.scr-fs-chat { bottom: var(--ov-l-top9); }

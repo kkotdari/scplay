@@ -13478,6 +13478,12 @@ export default function ReplayMotionPlayer({
     const stg9 = tRowRef9.current?.offsetParent as HTMLElement | null; if (stg9) bot9 = Math.min(bot9, stg9.getBoundingClientRect().bottom);
     const low9 = tRowRef9.current?.closest(".scr-fs-layer")?.querySelector<HTMLElement>(".scr-fs-lower") ?? null;
     if (low9) { const l9 = low9.getBoundingClientRect(); if (l9.height > 0 && l9.left < r9.right && l9.right > r9.left && l9.top > r9.top) bot9 = Math.min(bot9, l9.top); }
+    /* 오버레이를 아래로 내린 뒤(is-ovlow9 · capPlace9 ★)는 목록이 **위로** 열린다 — 목록 아래끝에서 판 상자 위끝까지. */
+    if (tRowRef9.current?.closest(".scr-fs-layer.is-ovlow9")) {
+      const top9 = Math.max(0, stg9 ? stg9.getBoundingClientRect().top : 0);
+      pn9.style.maxHeight = `${Math.max(80, Math.floor(r9.bottom - top9 - 8))}px`;
+      return;
+    }
     pn9.style.maxHeight = `${Math.max(80, Math.floor(bot9 - r9.top - 8))}px`;
   }, [tMenu9]);
   const [testSel9, setTestSel9] = useState<Set<string>>(() => new Set(hashToks9().filter((t9) => TEST_FLAGS9.some(([k9]) => k9 === t9))));
@@ -23252,6 +23258,31 @@ export default function ReplayMotionPlayer({
         top9 = fab9 ? fab9.getBoundingClientRect().bottom - gap9 : lay9.getBoundingClientRect().bottom - (low9 ? parseFloat(getComputedStyle(low9).paddingBottom) || 0 : 0);
       }
       lay9.style.setProperty("--cap-bot9", `${(stB9 - top9 + gap9).toFixed(1)}px`);
+      /* ★ 위 오버레이를 **아래로**(2026-11-09, 요청: "뒤로가기 버튼과 중계 토글은 미니맵 위까지 · 배율 오버레이와 프레임 테스트 버튼들은 독 위까지 내리기" · 가로도 같게 —
+         "가로 모드에서도 뒤로가기 … 미니맵 위까지" · "배율 테스트 버튼도") — 왼쪽 묶음(뒤로 · 모드 토글)은 그 가로 폭에 걸친 독 요소(미니맵 · 재생바 · 인포창 · 채팅…) 가운데 가장 높은 것 위,
+         오른쪽 묶음(배율 원 · fps/feat/diag)은 그 폭에 걸친 독 요소와 **배속 다이얼** 위. 무대 바닥 기준 px(--ov-l-bot9 · --ov-r-bot9)를 적고 층에 is-ovlow9 를 단다(CSS). 가로 범위는
+         요소의 left/right 라 아래로 옮겨도 그대로다. 걸치는 것이 없으면 아래 안전영역 위. */
+      {
+        let hl9 = 0;   // 왼쪽 묶음 키(채팅을 그 위로 · --ov-l-top9)
+        const xr9 = (sel9: string, left9 = false): [number, number] | null => {
+          let a9 = Infinity; let b9 = -Infinity;
+          lay9.querySelectorAll<HTMLElement>(sel9).forEach((el9) => { if (!shown9(el9)) return; const r9 = el9.getBoundingClientRect(); a9 = Math.min(a9, r9.left); b9 = Math.max(b9, r9.right); if (left9) hl9 = Math.max(hl9, r9.height); });
+          return a9 < b9 ? [a9, b9] : null;
+        };
+        const floorOf9 = (x9: [number, number] | null, extra9: (HTMLElement | null)[]): number => {
+          const bl9 = [...cands9, ...extra9.filter(shown9)];
+          let t9 = Math.min(stB9, lay9.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(lay9).getPropertyValue("--wbot")) || 0));   // 프레임은 독이 무대 밖(아래)이라 무대 바닥까지
+          if (x9) for (const el9 of bl9) { const r9 = el9.getBoundingClientRect(); if (r9.right > x9[0] && r9.left < x9[1]) t9 = Math.min(t9, r9.top); }
+          return stB9 - t9 + gap9;
+        };
+        const xl9 = xr9(".scr-fs-back, .scr-modetog-stage", true);
+        const xrr9 = xr9(".scr-zoomdial, .scr-zoomfps");
+        const lb9 = floorOf9(xl9, []);   // 채팅은 셈에 안 넣는다(줄 수에 따라 단추가 들썩인다) — 채팅이 단추 위로 간다(--ov-l-top9)
+        lay9.style.setProperty("--ov-l-bot9", `${lb9.toFixed(1)}px`);
+        lay9.style.setProperty("--ov-l-top9", `${(lb9 + hl9 + gap9).toFixed(1)}px`);
+        lay9.style.setProperty("--ov-r-bot9", `${floorOf9(xrr9, [lay9.querySelector<HTMLElement>(".scr-speeddial")]).toFixed(1)}px`);
+        lay9.classList.add("is-ovlow9");
+      }
       /* ★ 가로 화면의 자막은 **위 · 화면 주인 자리**(2026-11-09, 요청: "자막 위치 — 세로 레이아웃 현행 유지 · 가로 레이아웃(프레임 · 전체화면 · PC · 폰)은 위쪽으로(화면 주인 위치)") —
          CSS @media (orientation: landscape). 같은 줄의 왼위(뒤로 · 모드 토글) · 오른위(배율 · fps) 단추를 비키는 좌우 몫(--cap-tops9 · 가운데 맞춤이라 두 쪽 중 큰 값)을 잰다. */
       const solo9 = lay9.querySelector<HTMLElement>(".scr-fs-solo");
