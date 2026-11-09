@@ -264,39 +264,55 @@ function scream9(v: number, female: boolean, pk = 1): Float32Array {
 /** ★ 프로토스 보병 죽음(질럿 · 다크 · 하이템플러 · 아콘 · 2026-11-09, 지적: "질럿 죽을 때 소리에도 지직거림이 있는 듯") — 옛: 전기 지지직(zap9 · 한 표본 방전 펄스 + 네모 윙 +
  *  포화 2.5)이라 갈라졌다. 이제 **사이오닉이 흩어지는** 소리: 620 → 150Hz 로 떨어지는 떨리는 음(6Hz 떨림 · 부드러운 2배음) + 숨 섞인 낮은 잡음(900Hz 아래) +
  *  둥근 반짝이 알갱이(Grain9 · 2.4kHz 아래 · 듬성) — 포화 1.2 · 0.7초. */
+/** Klatt 공명기(포먼트 하나) — 중심 f · 대역폭 bw(Hz). 목소리 합성용(질럿 사망 '흐어'). */
+class Reso9 {
+  private a = 0; private b = 0; private c = 0; private y1 = 0; private y2 = 0;
+  constructor(f: number, bw: number) { this.set(f, bw); }
+  set(f: number, bw: number): void {
+    const T = 1 / SFX_RATE9;
+    this.c = -Math.exp(-2 * Math.PI * bw * T);
+    this.b = 2 * Math.exp(-Math.PI * bw * T) * Math.cos(2 * Math.PI * f * T);
+    this.a = 1 - this.b - this.c;
+  }
+  run(x: number): number { const y = this.a * x + this.b * this.y1 + this.c * this.y2; this.y2 = this.y1; this.y1 = y; return y; }
+}
 function tossDie9(v: number): Float32Array {
-  /* ★ 질럿 사망 '흐어~~'(2026-11-09 열넷째, 요청: "질럿 소리 흐어~~ 이거로 변경 · 울림 있는") — 옛 판들: 신음(일곱째) · '오~'(여덟째) · '스아~'(열째 ~ 열셋째).
-     낮은 남자 목소리(기본음 96 → 80Hz · 톤 변화 적게) · 모음 'ㅓ'(포먼트 600 · 980 · 2450Hz) · 앞머리 'ㅎ' = 같은 모음 꼴로 거른 숨(소리 없는 바람)이 0.18초 동안 목소리로 넘어간다.
-     세 겹 합창(±0.6%) · 성문 펄스 둥글게(0.6) · 1.8kHz 위 깎음 · 배경 겹(빛 울림 · 숨 잡음)은 없다. 울림 = 빗살 되먹임 셋(37 · 53 · 71ms · 0.45)을 섞은 짧은 잔향 + 메아리 0.17초. 1.2초. */
+  /* ★ 질럿 사망 — **사람 목소리 '흐어~'**(2026-11-09 열다섯째, 지적: "질럿 죽음 목소리로 흐어야 · 저런 게 아니라") — 열넷째 판은 띠 거르개(Q 3~4 · 넓음)에 80Hz 펄스라
+     목소리가 아니라 '웅' 하는 기계음이었다. 이제 **목소리 합성**(Klatt 꼴):
+       · 성대 = Rosenberg 펄스(열림 60% · 닫힘 날카롭게) → 한 극 저역(−6dB/옥) · 기본음 128 → 92Hz(신음처럼 천천히 가라앉음) · 느린 떨림(지터 · 진폭 흔들림)
+       · 숨 = 성대 주기에 맞춰 출렁이는 잡음(숨 섞인 목소리 · 끝으로 갈수록 숨이 많아짐)
+       · 성도 = 공명기 넷 차례로(**ㅓ**: 570/80 · 860/90 · 2450/140 · 3400/220 Hz) — 좁은 대역폭이라 모음이 또렷하다
+       · 앞머리 **ㅎ** = 같은 성도를 지나는 숨만 0.14초 → 목소리가 그 위로 차오른다
+     울림 = 짧은 잔향(빗살 셋) + 메아리. 1.15초. */
   const r = rng9(2501 + v);
-  const fA = new Biquad9("bp", 600, 3); const fB = new Biquad9("bp", 980, 4); const fC = new Biquad9("bp", 2450, 6);
-  const hA = new Biquad9("bp", 600, 2); const hB = new Biquad9("bp", 980, 2.5); const hC = new Biquad9("bp", 2450, 3);
-  const lpV = new Biquad9("lp", 1800, 0.7);
-  const det = [1, 1.006, 0.994];
-  const ph = [0, 0, 0];
-  const raw = render9(1.2, (t) => {
-    const f = (80 + 16 * exp9(t, 2) + v * 3) * (1 + 0.01 * Math.sin(2 * Math.PI * 4.5 * t));
-    let src = 0;
-    for (let k = 0; k < 3; k += 1) { ph[k] += (f * det[k]) / SFX_RATE9; const p = ph[k] % 1; src += (p < 0.6 ? Math.sin(Math.PI * p / 0.6) : 0) - 0.38; }
-    src /= 3;
-    const venv = t < 0.06 ? 0 : (t < 0.3 ? Math.sin((Math.PI / 2) * (t - 0.06) / 0.24) ** 2 : Math.exp(-(t - 0.3) * 2.2));
-    const henv = t < 0.05 ? t / 0.05 : Math.max(0, 1 - (t - 0.05) / 0.2);
-    const n = r() * 2 - 1;
-    const hh = (hA.run(n) + hB.run(n) * 0.7 + hC.run(n) * 0.35) * henv * 0.55;
-    const voice = lpV.run(fA.run(src) * 1.2 + fB.run(src) * 0.75 + fC.run(src) * 0.12) * venv * 2.2;
-    return (voice + hh) * 0.6;
+  const R = [new Reso9(570, 80), new Reso9(860, 90), new Reso9(2450, 140), new Reso9(3400, 220)];
+  const G = [1, 0.7, 0.35, 0.15];
+  let ph = 0; let tilt = 0; let jit = 0; let shm = 0;
+  const raw = render9(1.15, (t) => {
+    jit += ((r() * 2 - 1) - jit) * 0.003; shm += ((r() * 2 - 1) - shm) * 0.004;
+    const f0 = (92 + 36 * exp9(t, 2.4) + v * 3) * (1 + 0.012 * jit + 0.008 * Math.sin(2 * Math.PI * 5 * t));
+    ph += f0 / SFX_RATE9;
+    const p = ph % 1;
+    const glot = p < 0.4 ? 0.5 * (1 - Math.cos(Math.PI * p / 0.4)) : p < 0.6 ? Math.cos((Math.PI / 2) * (p - 0.4) / 0.2) : 0;
+    tilt += (glot - tilt) * 0.35;
+    const voiced = t < 0.08 ? 0 : (t < 0.28 ? Math.sin((Math.PI / 2) * (t - 0.08) / 0.2) ** 2 : Math.exp(-(t - 0.28) * 1.9));
+    const breathK = t < 0.14 ? Math.min(1, t / 0.03) : 0.22 + 0.25 * Math.min(1, (t - 0.14) / 0.9);
+    const breath = (r() * 2 - 1) * (t < 0.14 ? 1 : 0.4 + 0.6 * glot) * breathK * (t < 0.14 ? 1 : Math.exp(-(t - 0.14) * 1.6)) * 0.35;
+    const src = (tilt - 0.3) * voiced * (1 + 0.06 * shm) + breath;
+    let y = 0; let x = src;
+    for (let k = 0; k < 4; k += 1) { x = R[k].run(x); y += x * G[k] * (k === 0 ? 1 : 0.6); }
+    return y;
   });
-  /* 울림 — 빗살 셋을 나란히(짧은 잔향) 섞고 메아리 하나. */
-  const out = new Float32Array(raw.length + Math.round(0.6 * SFX_RATE9));
+  const out = new Float32Array(raw.length + Math.round(0.55 * SFX_RATE9));
   out.set(raw);
   const wet = new Float32Array(out.length);
-  for (const [ms, fb] of [[37, 0.45], [53, 0.43], [71, 0.4]] as const) {
+  for (const [ms, fb] of [[37, 0.42], [53, 0.4], [71, 0.38]] as const) {
     const d = Math.round(ms / 1000 * SFX_RATE9); const c = new Float32Array(out.length);
     for (let i = 0; i < out.length; i += 1) c[i] = out[i] + (i >= d ? c[i - d] * fb : 0);
     for (let i = 0; i < out.length; i += 1) wet[i] += c[i] / 3;
   }
-  for (let i = 0; i < out.length; i += 1) out[i] = out[i] * 0.65 + wet[i] * 0.45;
-  return finish9(echo9(out, 0.17, 0.22), 0.5);
+  for (let i = 0; i < out.length; i += 1) out[i] = out[i] * 0.7 + wet[i] * 0.4;
+  return finish9(echo9(out, 0.17, 0.2), 0.5);
 }
 
 /** 전기 지지직(프로브·아콘·질럿 사이오닉) — 낮은 윙 + 듬성한 방전 펄스 + 높은 쉬익. */
