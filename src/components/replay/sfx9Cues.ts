@@ -55,6 +55,8 @@ export class SfxCues9 {
   private prev = new Set<string>();
   /** 스톰 씨앗 → 마지막으로 울린 때(실시간 ms · 위 storm ★). */
   private stormAt = new Map<string, number>();
+  /** 용접 · 드릴 번갈이(아래 weld ★). */
+  private weldAt = -1e9; private weldAlt = false;
   private buried = new Map<string, boolean>();
   /** 맞은 몸마다 앞 장의 피격 위상 — 같은 몸이 잇달아 맞으면 열쇠가 그대로라 위상이 0 으로 돌아온 것으로 새 타를 가른다. */
   private hitPh = new Map<number, number>();
@@ -108,12 +110,12 @@ export class SfxCues9 {
           let k: SfxKind9;
           // 고치(알·번데기)의 터짐은 부화·변태의 끝이다 — 폭발이 아니라 퍽(2026-10-22 · 실측: 초반 알 깨짐마다 생체 폭발이 났다)
           // → 부드러운 전용 '뽁'(eggPop · 2026-10-26, 요청: "저그 부화소리 거슬려서 좀 부드럽게").
-          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggPop" : "boomBig";
+          if (op.bld) k = mat === "zerg" ? "bioBoom" : mat === "cocoon" ? "eggSplashLow" : "boomBig";   // 공사 고치 터짐 = 낮은 촤락(2026-11-09 일곱째 · 옛 eggPop)
           /* 몸마다(2026-11-02, 요청: "메딕은 여자라 좀 고음 죽는 소리 · 파뱃은 마린보다 낮은 죽는 소리 · 드라군 사망 시 기계(스프링 망가지는) 소리") — op.by = 죽은 몸(engine9).
              옛: 생체는 30% 여자 비명(무작위). */
           else if (mat === "bio") k = op.by === "Medic" ? "screamHi" : op.by === "Firebat" ? "screamLow" : "screamM";
           else if (mat === "zerg") k = op.by === "Lurker" ? "lurkerDie" : op.by === "Mutalisk" ? "squealMuta" : op.by && ZERG_SMALL9.has(op.by) ? "squealHi" : "squeal";   // 뮤탈 훨씬 높게 · 소형 조금 높게(2026-11-02)   // 럴커 — 낮은 비명 + 폭발(2026-11-02)
-          else if (mat === "cocoon") { if (op.sub === "done") break; k = "eggHatch"; }   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
+          else if (mat === "cocoon") { if (op.sub === "done") break; k = op.by === "Egg" ? "eggSplash" : "eggSplashLow"; }   // 알 = 촤락 · 번데기(고치 · 럴커 알 · 뮤탈 고치) = 낮은 촤락(2026-11-09 일곱째 · 옛 eggHatch)   // 알·고치 깨짐 — 낮은 생체(2026-11-02 · 옛 eggPop) · 건물 완공 부화(sub done)는 zergDone 이 낸다
           else if (mat === "toss") k = op.by === "Dragoon" ? "springBreak" : op.by === "Reaver" ? "reaverBreak" : op.by === "Observer" ? "obsBoom" : op.tmech ? "boom" : "tossDie";   // 보병 — 사이오닉 흩어짐(2026-11-09 · 옛 zap 지지직)   // 리버 — 드라군보다 울림 있게(2026-11-02)
           else k = op.by === "Science Vessel" ? "vesselBoom" : "boom";   // 베슬 — 둥둥둥 세 번(2026-11-02)
           play(k, op.fx, op.fy);
@@ -228,7 +230,7 @@ export class SfxCues9 {
       else if (u.kind === "warpin") { hum = true; hx = u.fx; hy = u.fy; }
       if (done) play("warpEnd", u.fx, u.fy);
       if (unfold) play("fleshUnfold", u.fx, u.fy);
-      if (ripe) play("zergDone", u.fx, u.fy);
+      if (ripe) play("eggSplashLow", u.fx, u.fy);   // 공사 고치 완공 = 낮은 촤락(2026-11-09 일곱째 · 옛 zergDone 팍 · 고치 터짐 burst 와 같은 갈래라 간격이 하나로 묶는다)
       if (eggGo) play("eggStart", u.fx, u.fy);
       if (clang) play("metalClang", u.fx, u.fy);
       /* ★ 마인 발동(2026-11-02, 요청: "마인 발동 소리 중간 높이의 기계음") — 유닛 op 의 arm(engine9 · 터지기 0.45초 앞)이 선 첫 장. 터질 때는 종전대로 boom(dom mine). */
@@ -248,7 +250,8 @@ export class SfxCues9 {
       }
     }
     /* 이어지는 소리(용접·채집·소환구 웅웅·공사 고치 심장)는 **당겨 들어가 볼 때만**(r 있음 = 지도 일부만 보임) — 지도 전체를 보면 어딘가에서 늘 캐고 지으므로 쉼 없이 갈린다. */
-    if (r && weld) play("weld", wx, wy);
+    /* 건설 · 수리 = 용접과 **낮은 드릴**을 번갈아(2026-11-09 일곱째, 요청: "테란 건설이나 리페어에 지금 소리랑 교차로 낮은 드릴 소리 넣기") — 0.72초마다 한 번씩 차례를 바꾼다. */
+    if (r && weld) { const n9 = performance.now(); if (n9 - this.weldAt > 720) { this.weldAt = n9; play(this.weldAlt ? "drillLow" : "weld", wx, wy); this.weldAlt = !this.weldAlt; } }
     if (r) for (const [k, [x, y]] of mine) play(k, x, y);
     if (r && hum) play("warpHum", hx, hy);
     if (r && beat) play("heart", bx, by);   // 고치는 0.9초마다 부푼다(engine9 hopP9) — 간격 880ms

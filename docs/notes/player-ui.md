@@ -3333,3 +3333,9 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 질럿 공격 `zealotStab9`: 사인 쇠 울림 셋 걷고 '챙챙'(칼 둘 · 0.075초 사이 · 띠 잡음 2.3/3.6kHz Q4 · k30 · 0.22초).
 - 탱크: `cannon9`(시즈·탱크 맞음) 흰 잡음 걷고 갈색만 1.1kHz 아래 + 쿵 90→55Hz · 포화 1.15 · `boom9`(시즈 착탄 tankboom · 기계 죽음) 흰 잡음 0.35 → 0.12 · 파편 알갱이 반 · 900Hz.
 - 버로우(`burrow9`)는 첫 판(45ff7d32) 그대로다 — "예전이 좋았음" 은 무엇과 견준 것인지 되물었다.
+
+## 알 부화 '촤락' · 건설 낮은 드릴(2026-11-09 일곱째)
+- 요청: "저그 알 부화 소리 촤락 약간 양수 터지는 소리 · 공사 고치나 번데기도 다 그 소리로 하되 좀 낮게" → `eggSplash9(v, pk)`(잡음 띠 2.2k→600 '촤' + 출렁이는 저역 '락' + 물방울 14 + 낮은 퍽 · 0.65초).
+  알(burst cocoon · by Egg) = eggSplash · 고치·럴커 알·뮤탈 고치(by ≠ Egg) · 공사 고치 터짐(bld cocoon · 옛 eggPop) · 공사 고치 완공(ripe · 옛 zergDone) = eggSplashLow(pk 0.72).
+  옛 eggHatch · eggPop · zergDone 갈래는 표에 남았다(안 울린다).
+- 요청: "테란 건설이나 리페어에 지금 소리랑 교차로 낮은 드릴 소리" → `drillLow9`(92Hz 톱니 모터 lp 600 + bp 380 갈림 · 28Hz 떨림 · 0.55초 · GAIN 0.4) · sfx9Cues weld 가 0.72초마다 weld ↔ drillLow 를 번갈아.

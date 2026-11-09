@@ -1123,13 +1123,53 @@ function stim9(v: number): Float32Array {
   return finish9(echo9(raw9, 0.07, 0.22), 0.85);
 }
 
+/** ★ 알 부화 '촤락'(2026-11-09 일곱째, 요청: "저그 알 부화 소리 촤락 · 약간 양수 터지는 소리 · 공사 고치나 번데기도 다 그 소리로 하되 좀 낮게") — 막이 찢기는 젖은 터짐:
+ *  잡음 띠(2.2kHz → 600Hz 로 닫힘 · Q 0.9)의 '촤' + 뒤따라 흘러내리는 '락'(저역 잡음을 느린 출렁임으로) + 물방울(위로 휘는 짧은 사인 · 처음 몰리고 사그라짐) + 낮은 '퍽' 몸.
+ *  pk 는 음높이 배(알 1 · 고치 · 번데기 · 공사 고치 0.72). 0.65초. */
+function eggSplash9(v: number, pk: number): Float32Array {
+  const r = rng9(3101 + v + (pk !== 1 ? 17 : 0)); const br = brown9(r);
+  const bpS = new Biquad9("bp", 2200 * pk, 0.9);
+  const lpF = new Biquad9("lp", 700 * pk, 0.7);
+  const drops: { t0: number; f: number; a: number }[] = [];
+  for (let k = 0; k < 14; k += 1) { const t0 = 0.03 + Math.pow(r(), 1.8) * 0.45; drops.push({ t0, f: (500 + r() * 900) * pk, a: (0.25 + r() * 0.35) * Math.exp(-t0 * 3) }); }
+  let ph = 0;
+  return finish9(render9(0.65, (t) => {
+    const n = br() * 0.7 + (r() * 2 - 1) * 0.5;
+    const chwa = bpS.run(n) * ad9(t, 0.004, 11) * 1.5;
+    const rak = lpF.run(n) * ad9(Math.max(0, t - 0.04), 0.03, 5) * (0.75 + 0.25 * Math.sin(2 * Math.PI * 9 * t)) * (t > 0.04 ? 1 : 0) * 0.9;
+    let dr = 0;
+    for (const d of drops) { const u = t - d.t0; if (u > 0 && u < 0.03) dr += Math.sin(2 * Math.PI * d.f * (1 + u * 18) * u) * Math.sin(Math.PI * u / 0.03) * d.a; }
+    ph += (60 + 70 * exp9(t, 14)) * pk / SFX_RATE9;
+    const puk = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.4) * ad9(t, 0.003, 13) * 0.8;
+    return sat9(chwa + rak + dr + puk, 1.2);
+  }, (t) => { bpS.set((600 + 1600 * exp9(t, 9)) * pk); }), 0.5);
+}
+
+/** ★ 낮은 드릴(2026-11-09 일곱째, 요청: "테란 건설이나 리페어에 지금 소리랑 교차로 낮은 드릴 소리 넣기") — 용접(weld9)과 번갈아(sfx9Cues). 모터 웅(92Hz 톱니를 lp 600 · 갈리는 28Hz 떨림) +
+ *  갈리는 잡음(bp 380Hz · 같은 떨림) · 켜졌다 꺼지는 꼴(0.06초 차오름 · 끝 0.1초 접힘) · 0.55초. */
+function drillLow9(v: number): Float32Array {
+  const r = rng9(3201 + v); const br = brown9(r);
+  const lpM = new Biquad9("lp", 600, 0.8);
+  const bpG = new Biquad9("bp", 380, 1.2);
+  let ph = 0;
+  return finish9(render9(0.55, (t) => {
+    const f = 92 * (t < 0.08 ? 0.7 + 0.3 * (t / 0.08) : 1) * (1 + 0.015 * Math.sin(2 * Math.PI * 6 * t));
+    ph += f / SFX_RATE9;
+    const grind = 0.65 + 0.35 * Math.sin(2 * Math.PI * 28 * t);
+    const motor = lpM.run(2 * (ph % 1) - 1) * grind * 0.9;
+    const chip = bpG.run(br() * 0.8 + (r() * 2 - 1) * 0.3) * grind * 0.9;
+    const env = Math.min(1, t / 0.06) * Math.min(1, (0.55 - t) / 0.1);
+    return sat9((motor + chip) * env, 1.3);
+  }), 0.24);
+}
+
 /* ── 갈래 표 ───────────────────────────────────────────────────────────────── */
 
 export type SfxKind9 =
   | "gun" | "cannon" | "boom" | "boomBig" | "bioBoom" | "squeal" | "screamM" | "screamF" | "zap" | "missile"
   | "liftOff" | "landing" | "photon" | "photonC" | "mine" | "thunder" | "puff" | "glaive" | "weld" | "load" | "unload"
   | "burrow" | "unburrow" | "warp" | "flame" | "slash" | "blade" | "claw" | "spine" | "warpHum" | "warpEnd" | "heart" | "mineScv" | "mineProbe" | "eggPop"
-  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie" | "dragoonHit";
+  | "screamLow" | "screamHi" | "spikeEarth" | "guardHum" | "springBreak" | "scanHum" | "warpCharge" | "zlingHit" | "ultraHit" | "missileLow" | "missileHi" | "fleshUnfold" | "zergDone" | "eggStart" | "eggHatch" | "metalClang" | "mineArm" | "reaverBreak" | "vesselBoom" | "bioLoad" | "bioUnload" | "obsBoom" | "lurkerDie" | "squealHi" | "squealMuta" | "stim" | "gunShot" | "dragoonShot" | "zealotStab" | "tossDie" | "dragoonHit" | "eggSplash" | "eggSplashLow" | "drillLow";
 
 /** 종류 → [갈래 수, 굽는 함수]. ★ **갈래는 모두 1**(2026-11-03, 요청: "모든 효과음은 갈래 없애고 앞에거 1개만 쓰기") — 늘 v = 0(첫 갈래)을 굽는다. */
 export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array]> = {
@@ -1152,6 +1192,7 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   bioLoad: [1, (v) => bioHold9(v, true)], bioUnload: [1, (v) => bioHold9(v, false)],
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
   stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9], dragoonHit: [1, dragoonHit9],
+  eggSplash: [1, (v) => eggSplash9(v, 1)], eggSplashLow: [1, (v) => eggSplash9(v, 0.72)], drillLow: [1, drillLow9],   // 2026-11-09 일곱째
 };
 
 /* ★ **묶음별 크기 맞춤**(2026-11-09, 요청: "모든 공격 소리끼리 · 죽음 소리끼리 데시벨을 노멀라이징 해 줘") — 옛 판은 갈래마다 봉우리(finish9 peak)만 맞춰,
