@@ -3775,7 +3775,7 @@ const EVFLAG_W9 = 960;
 /** 아랫변을 윗변보다 좁히는 몫(원근 · 위에서 내려다보니 아랫변이 멀다 · 2026-11-09 열한째). */
 const EVFLAG_KEY9 = 0;
 /** 그늘 띠가 위에서 아래로 기우는 몫(깃발 폭 배 · 비스듬한 빛 · 2026-11-09 열다섯째). */
-const EVFLAG_SLANT9 = 0.15;   // 0.12 → 0(열셋째, 요청: "이 상태에서"(여덟째 꼴 샷) — 원근 좁힘 걷음 · 손잡이는 남김)
+const EVFLAG_SLANT9 = 0.2;   // 들어간 결에서만 기운다(열여섯째) — 0.15 → 0.2   // 0.12 → 0(열셋째, 요청: "이 상태에서"(여덟째 꼴 샷) — 원근 좁힘 걷음 · 손잡이는 남김)
 const EVFLAG_H9 = 240;
 let evFlagCv9: HTMLCanvasElement | null = null;
 let evFlagFontTried9 = false;
@@ -3909,10 +3909,12 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
         }
         if (R9 === 1) {
           /* 띠 한 장 · 세로 그러데이션(멈춤 7 개) — 칸으로 칠하면 바둑판처럼 보였다. */
+          /* ★ 사선은 **쏙 들어간 결에만**(열여섯째, 요청: "앞으로 튀어나온 경계면은 수직으로 떨어지고 쏙 들어간 쪽이 사선") — 들어간 몫(깊이 −)에 비례해 기울이고 나온 결(깊이 +)은 0. */
           const RS9 = 6; const xm9 = (i9 + 0.5) * dx9;
+          const rec9 = Math.max(0, Math.min(1, -dep9(xm9) / Math.max(1e-6, amp9 * 0.6)));
           const g9 = ctx.createLinearGradient(0, 0, 0, ha9);
           for (let r9 = 0; r9 <= RS9; r9 += 1) {
-            const xs9 = xm9 - (r9 / RS9) * fl9 * EVFLAG_SLANT9;
+            const xs9 = xm9 - (r9 / RS9) * fl9 * EVFLAG_SLANT9 * rec9;
             g9.addColorStop(r9 / RS9, shOf9((dep9(xs9 + dx9 / 2) - dep9(xs9 - dx9 / 2)) / dx9) ?? "rgba(0,0,0,0)");
           }
           ctx.save();
