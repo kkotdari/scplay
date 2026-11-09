@@ -1125,6 +1125,19 @@ if (has("--cropprobe")) console.log("[캔버스 자르기]", await page.evaluate
   return { 왜: window.__crop9?.v ?? "(없음)", 상자: r(box), 상자css: box ? [box.clientWidth, box.clientHeight] : null, 무대: r(st), 창: [innerWidth, innerHeight],
     캔버스: [...(box?.querySelectorAll(":scope > .scr-motion-unitlayer") ?? [])].map((c) => ({ cls: c.className.split(" ").pop(), rect: r(c), back: [c.width, c.height], crop: c.dataset.crop ?? "-", style: c.getAttribute("style")?.slice(0, 120) })) };
 }));
+/* --togprobe(2026-11-09) — 자유/중계 토글을 여섯 번 눌러 누를 때마다 뒤 2.5초의 긴 작업(longtask) 합 · 최대를 찍는다(지적: "중계로 켤 때마다 느림"). */
+if (has("--togprobe")) {
+  for (let k = 0; k < 240; k += 1) { if (!(await page.evaluate(() => /모델 준비/.test(document.body.innerText)))) break; await page.waitForTimeout(1000); }
+  await page.evaluate(() => { const b = [...document.querySelectorAll(".scr-motion-askmode button, .scr-ask button")].find((e) => /자유/.test(e.textContent || "")); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(3000);
+  await page.evaluate(() => { window.__lt9 = []; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt9.push([e.startTime, e.duration]); }).observe({ entryTypes: ["longtask"] }); } catch {} });
+  for (let k = 0; k < 6; k += 1) {
+    const t0 = await page.evaluate(() => { const b = document.querySelector(".scr-modetog-stage"); const t = performance.now(); if (b instanceof HTMLElement) b.click(); return t; });
+    await page.waitForTimeout(2500);
+    const r = await page.evaluate((t0) => { const xs = window.__lt9.filter(([s]) => s >= t0 && s < t0 + 2500); return [xs.reduce((a, [, d]) => a + d, 0), Math.max(0, ...xs.map(([, d]) => d)), document.querySelector(".scr-modetog-stage")?.getAttribute("aria-checked")]; }, t0);
+    console.log("[토글]", k + 1, "중계=" + r[2], "긴작업 합", Math.round(r[0]), "ms · 최대", Math.round(r[1]), "ms");
+  }
+}
 /* --cropcmp <파일머리>(2026-11-09) — 모델 준비가 끝나길 기다려 멈춘 뒤 잘린 그림(-a.png)과 #crop=0 그림(-b.png)을 같은 순간에 찍어 견준다. */
 if (has("--cropcmp")) {
   const pre9 = String(flag("--cropcmp"));
