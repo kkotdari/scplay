@@ -24,7 +24,8 @@ const HIT9: Record<string, SfxKind9 | null> = {
 };
 /** 근접(무기 갈래 없음)의 때린 몸 → 타격 소리(op.by · 2026-10-22). 없는 것은 칼질. */
 const MELEE9: Record<string, SfxKind9> = {
-  Zealot: "zealotStab", "Dark Templar": "blade",   // 질럿 = 창 찌름 쇠 마찰(2026-11-09) · 다크는 옛 칼질 Zergling: "claw", Ultralisk: "claw", Broodling: "claw",
+  // 질럿 = 창 찌름 쇠 마찰(2026-11-09) · 다크는 옛 칼질
+  Zealot: "zealotStab", "Dark Templar": "blade", Zergling: "claw", Ultralisk: "claw", Broodling: "claw",
 };
 /** ★ **휘두르는 박자마다** 내는 근접(2026-11-02, 요청: "저글링 둥둥둥 치는 소리 · 울트라 팍팍 치는 소리 · 공속업글(아드레날린)에 따라 속도 빨라져야") —
  *  맞은 몸의 체력 키는 띄엄띄엄이라 그 순간에만 내면 박자가 안 산다. 유닛 op 의 자세 박자(pz = [4, 시작, 쿨다운] · engine9 — 쿨다운에 아드레날린이 들었다)로

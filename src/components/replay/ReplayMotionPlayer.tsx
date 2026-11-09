@@ -23579,7 +23579,12 @@ export default function ReplayMotionPlayer({
         const lb9 = floorOf9(xl9, []);   // 채팅은 셈에 안 넣는다(줄 수에 따라 단추가 들썩인다) — 채팅이 단추 위로 간다(--ov-l-top9)
         lay9.style.setProperty("--ov-l-bot9", `${lb9.toFixed(1)}px`);
         lay9.style.setProperty("--ov-l-top9", `${(lb9 + hl9 + gap9).toFixed(1)}px`);
-        lay9.style.setProperty("--ov-r-bot9", `${floorOf9(xrr9, [lay9.querySelector<HTMLElement>(".scr-speeddial")]).toFixed(1)}px`);
+        /* ★ 배속 다이얼도 **독 바로 위**(2026-11-09 다섯째, 요청: "배속부터 해서 더 내릴 수 있잖아") — 세로 배치의 다이얼은 아래 자막 두 줄 몫(--over-cap) 위에 떠 있었는데 자막이 위로
+           올라가 그 몫이 비었다. 다이얼 폭에 걸친 독 요소 위(--ov-sd-bot9 · CSS 는 넓은 배치가 아닐 때만 — 넓은 배치는 dockFit pushDial9 가 맡는다). 먼저 적고 나서 오른쪽 묶음을 잰다
+           (다이얼 상자가 새 자리로 선 뒤). */
+        const sd9 = lay9.querySelector<HTMLElement>(".scr-speeddial");
+        if (sd9 && shown9(sd9)) { const q9 = sd9.getBoundingClientRect(); lay9.style.setProperty("--ov-sd-bot9", `${floorOf9([q9.left, q9.right], []).toFixed(1)}px`); }
+        lay9.style.setProperty("--ov-r-bot9", `${floorOf9(xrr9, [sd9]).toFixed(1)}px`);
         lay9.dataset.ovlow9 = "1";   // ⚠ 클래스가 아니라 data 속성 — 뿌리 className 은 React 가 다시 칠할 때(is-idle 따위) 통째로 덮어 손으로 단 클래스가 빠졌다(2026-11-09, 지적: "중계 토글만 한 번 움직이는 걸로 보여")
       }
       /* ★ 가로 화면의 자막은 **위 · 화면 주인 자리**(2026-11-09, 요청: "자막 위치 — 세로 레이아웃 현행 유지 · 가로 레이아웃(프레임 · 전체화면 · PC · 폰)은 위쪽으로(화면 주인 위치)") —

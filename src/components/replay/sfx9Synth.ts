@@ -227,24 +227,28 @@ function squeal9(v: number, pk = 1): Float32Array {
  *  아래음 0.3) · 숨 잡음 · 밝은 꼭지(F1 950 · F2 1500 · F3 3000 · 넓게). female 이면 높다 · pk 높낮이 배수(메딕 · 파뱃). */
 function scream9(v: number, female: boolean, pk = 1): Float32Array {
   const r = rng9((female ? 551 : 501) + v + (pk !== 1 ? 37 : 0));
-  const f0b = (female ? 760 + v * 30 : 380 + v * 25) * pk;
-  const s = (female ? 1.15 : 1) * Math.sqrt(pk);
+  /* 남자 굵게(2026-11-09 다섯째, 요청: "마린 등 남자 보병 죽음 소리도 더 굵은 소리로") — 남자 기본음 380 → 240Hz · 포먼트 ×0.85 · 아래 옥타브 0.3 → 0.55 ·
+     가슴 울림(bp 320Hz) · 포화 2.1 → 2.6. 여자(메딕)는 그대로. */
+  const f0b = (female ? 760 + v * 30 : 240 + v * 16) * pk;
+  const s = (female ? 1.15 : 0.85) * Math.sqrt(pk);
   const f1 = new Biquad9("bp", 950 * s, 4); const f2 = new Biquad9("bp", 1500 * s, 5); const f3 = new Biquad9("bp", 3000 * s, 6);
+  const chest = new Biquad9("bp", 320 * Math.sqrt(pk), 1.5);
   const hpN = new Biquad9("hp", 1800, 0.7);
   let ph = 0; let ph2 = 0;
   const dur = 0.85;
   const rf9 = 40 + r() * 30;
+  const subK = female ? 0.3 : 0.55;
   return finish9(render9(dur, (t) => {
     const rise = t < 0.12 ? 0.85 + (t / 0.12) * 0.45 : t < 0.55 ? 1.3 - (t - 0.12) * 0.25 : 1.19 - (t - 0.55) * 1.8;
     const f0 = f0b * Math.max(0.6, rise) * (1 + 0.05 * Math.sin(2 * Math.PI * 7 * t) + 0.02 * (r() * 2 - 1));
     ph += f0 / SFX_RATE9; ph2 += (f0 * 0.5) / SFX_RATE9;
     const p = ph % 1;
     const glot = p < 0.35 ? Math.sin(Math.PI * p / 0.35) : 0;
-    const sub = Math.sin(2 * Math.PI * ph2) * 0.3;
+    const sub = Math.sin(2 * Math.PI * ph2) * subK;
     const rasp = 0.7 + 0.3 * Math.sin(2 * Math.PI * rf9 * t + 3 * Math.sin(2 * Math.PI * 11 * t));
     const src = ((glot - 0.22) * 1.5 + sub) * rasp + (r() * 2 - 1) * 0.18;
-    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.85 + f3.run(src) * 0.5 + hpN.run(r() * 2 - 1) * 0.12;
-    return sat9(voc * ad9(t, 0.02, 2.0) * 3.4, 2.1);
+    const voc = f1.run(src) * 1.0 + f2.run(src) * 0.85 + f3.run(src) * 0.5 + hpN.run(r() * 2 - 1) * 0.12 + (female ? 0 : chest.run(src) * 0.9);
+    return sat9(voc * ad9(t, 0.02, 2.0) * 3.4, female ? 2.1 : 2.6);
   }), female ? 0.42 : 0.58);
 }
 
@@ -252,17 +256,21 @@ function scream9(v: number, female: boolean, pk = 1): Float32Array {
  *  포화 2.5)이라 갈라졌다. 이제 **사이오닉이 흩어지는** 소리: 620 → 150Hz 로 떨어지는 떨리는 음(6Hz 떨림 · 부드러운 2배음) + 숨 섞인 낮은 잡음(900Hz 아래) +
  *  둥근 반짝이 알갱이(Grain9 · 2.4kHz 아래 · 듬성) — 포화 1.2 · 0.7초. */
 function tossDie9(v: number): Float32Array {
+  /* 훨씬 낮게(2026-11-09 다섯째, 요청: "질럿 죽음 소리 이상해 훨씬 더 낮은 소리여야 해") — 옛 620 → 150Hz 떨림음이 높아 새소리 같았다. 이제 **낮은 신음**:
+     205 → 55Hz 로 가라앉는 배음 넷(1 · 0.6 · 0.4 · 0.25 · lp 800 — 폰 스피커에도 들리게) + 5Hz 떨림 + 400Hz 아래 숨 + 낮고 듬성한 알갱이(900Hz) · 0.9초 · 포화 1.6. */
   const r = rng9(2501 + v);
-  const lpB = new Biquad9("lp", 900, 0.7);
-  const gS = new Grain9(2400, 2.2);
+  const lpT = new Biquad9("lp", 800, 0.7);
+  const lpB = new Biquad9("lp", 400, 0.7);
+  const gS = new Grain9(900, 2.2);
   let ph = 0;
-  return finish9(render9(0.7, (t) => {
-    const f = 150 + (470 + v * 30) * exp9(t, 4.5);
-    ph += (f * (1 + 0.04 * Math.sin(2 * Math.PI * 6 * t))) / SFX_RATE9;
-    const tone = (Math.sin(2 * Math.PI * ph) + Math.sin(4 * Math.PI * ph) * 0.3) * ad9(t, 0.02, 4.2) * 0.8;
-    const breath = lpB.run(r() * 2 - 1) * ad9(t, 0.01, 6) * 0.5;
-    const shimmer = gS.run(r() < 0.01 ? (r() * 2 - 1) : 0) * exp9(t, 3.5) * 0.6;
-    return sat9(tone + breath + shimmer, 1.2);
+  return finish9(render9(0.9, (t) => {
+    const f = 55 + (150 + v * 12) * exp9(t, 3);
+    ph += (f * (1 + 0.06 * Math.sin(2 * Math.PI * 5 * t))) / SFX_RATE9;
+    const w = 2 * Math.PI * ph;
+    const tone = lpT.run(Math.sin(w) + Math.sin(2 * w) * 0.6 + Math.sin(3 * w) * 0.4 + Math.sin(4 * w) * 0.25) * ad9(t, 0.03, 3.2);
+    const breath = lpB.run(r() * 2 - 1) * ad9(t, 0.01, 5) * 0.6;
+    const shimmer = gS.run(r() < 0.006 ? (r() * 2 - 1) : 0) * exp9(t, 3) * 0.4;
+    return sat9(tone + breath + shimmer, 1.6);
   }), 0.5);
 }
 
@@ -1141,3 +1149,41 @@ export const SFX_RECIPES9: Record<SfxKind9, [number, (v: number) => Float32Array
   obsBoom: [1, obsBoom9], lurkerDie: [1, lurkerDie9], squealHi: [1, (v) => squeal9(v, 1.35)], squealMuta: [1, (v) => squeal9(v, 2.2)],
   stim: [1, stim9], gunShot: [1, gunShot9], dragoonShot: [1, dragoonShot9], zealotStab: [1, zealotStab9], tossDie: [1, tossDie9], dragoonHit: [1, dragoonHit9],
 };
+
+/* ★ **묶음별 크기 맞춤**(2026-11-09, 요청: "모든 공격 소리끼리 · 죽음 소리끼리 데시벨을 노멀라이징 해 줘") — 옛 판은 갈래마다 봉우리(finish9 peak)만 맞춰,
+   짧고 뾰족한 소리(질럿 찌름 · 칼질)는 작게, 길고 꽉 찬 소리(대포 · 비명)는 크게 들렸다. 이제 **들리는 크기**로 잰다: 귀 무게(100Hz 아래 덜 · 1.5kHz 위 +4dB —
+   K 무게 흉내) 를 씌운 **가장 큰 100ms 창의 RMS**(단 소리는 판 전체). 묶음마다 한 목표(LOUD_ATK9 · LOUD_DIE9 — 맞추기 전 묶음의 가운데 값)로 곱하되,
+   봉우리가 0.95 를 넘으면 거기서 멈춘다. 공격 = 쏨 · 맞음 · 근접 · 휘두름(연사 한 발 gunShot 포함) · 죽음 = 유닛 죽음(건물 터짐 boomBig · bioBoom · 알 깨짐은 뺀다).
+   묶음에 든 갈래는 sfx9 GAIN9 손 배수를 안 탄다. 🔎 재는 판: 이 모듈의 loud9 를 esbuild 로 묶어 SFX_RECIPES9 를 돌린다(docs/notes/player-ui.md '효과음 크기 맞춤'). */
+export const LOUD_ATK_KINDS9: readonly SfxKind9[] = [
+  "gun", "gunShot", "cannon", "zap", "flame", "spine", "spikeEarth", "glaive", "slash", "blade", "claw", "zealotStab", "zlingHit", "ultraHit",
+  "missile", "missileLow", "missileHi", "photon", "photonC", "guardHum", "dragoonShot", "dragoonHit",
+];
+export const LOUD_DIE_KINDS9: readonly SfxKind9[] = [
+  "screamM", "screamF", "screamLow", "screamHi", "squeal", "squealHi", "squealMuta", "lurkerDie", "tossDie", "springBreak", "reaverBreak", "obsBoom", "vesselBoom", "boom",
+];
+const LOUD_ATK9 = 0.15;   // 맞추기 전 공격 묶음(GAIN9 곱한 값)의 가운데 0.16 · 연사 한 발(gunShot) 0.047 · 질럿 0.10 · 저글링 0.24
+const LOUD_DIE9 = 0.2;   // 맞추기 전 죽음 묶음의 가운데 0.18 · 비명 0.37 · 베슬 0.14
+/** 들리는 크기(위 ★) — 귀 무게 씌운 가장 큰 100ms 창의 RMS. */
+export function loud9(b: Float32Array): number {
+  const hp = new Biquad9("hp", 100, 0.7); const sh = new Biquad9("hp", 1500, 0.7);
+  const W = Math.round(0.1 * SFX_RATE9);
+  const sq = new Float32Array(b.length);
+  for (let i = 0; i < b.length; i += 1) { const x = hp.run(b[i]); const y = x + 0.585 * sh.run(x); sq[i] = y * y; }
+  let acc = 0; let best = 0;
+  for (let i = 0; i < sq.length; i += 1) { acc += sq[i]; if (i >= W) acc -= sq[i - W]; if (i >= W - 1) best = Math.max(best, acc / W); }
+  if (sq.length < W) best = acc / Math.max(1, sq.length);
+  return Math.sqrt(best);
+}
+function loudTo9(b: Float32Array, target: number): Float32Array {
+  const l = loud9(b);
+  let m = 0;
+  for (let i = 0; i < b.length; i += 1) m = Math.max(m, Math.abs(b[i]));
+  if (l <= 0 || m <= 0) return b;
+  const k = Math.min(target / l, 0.95 / m);
+  for (let i = 0; i < b.length; i += 1) b[i] *= k;
+  return b;
+}
+for (const [ks, tg] of [[LOUD_ATK_KINDS9, LOUD_ATK9], [LOUD_DIE_KINDS9, LOUD_DIE9]] as const) {
+  for (const k of ks) { const [n, mk] = SFX_RECIPES9[k]; SFX_RECIPES9[k] = [n, (v) => loudTo9(mk(v), tg)]; }
+}

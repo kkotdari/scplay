@@ -5889,6 +5889,7 @@
 .scr-fs-layer[data-ovlow9] :is(.scr-fs-back, .scr-modetog-stage):is(.scr-fs-back, .scr-modetog-stage) { top: auto; bottom: var(--ov-l-bot9); }
 .scr-fs-layer[data-ovlow9] :is(.scr-zoomdial, .scr-zoomfps):is(.scr-zoomdial, .scr-zoomfps) { top: auto; bottom: var(--ov-r-bot9); }
 .scr-fs-layer:not([data-ovlow9]) :is(.scr-fs-back, .scr-modetog-stage, .scr-zoomdial, .scr-zoomfps) { visibility: hidden; }
+.scr-fs-layer[data-ovlow9]:not(.is-wide) .scr-speeddial.scr-speeddial { bottom: var(--ov-sd-bot9, var(--over-cap)); }   /* 배속 다이얼 — 독 바로 위(같은 날 다섯째 · 옛 자막 두 줄 몫 --over-cap 위) */
 .scr-fs-layer[data-ovlow9] .scr-testmode { top: auto; bottom: calc(100% + 6px * var(--sdk)); }
 /* 채팅은 왼쪽 묶음 위(묶음이 미니맵 위로 내려와 채팅 자리에 섰다). */
 .scr-fs-layer[data-ovlow9] .scr-fs-chat.scr-fs-chat { bottom: var(--ov-l-top9); }
