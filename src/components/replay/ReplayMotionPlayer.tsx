@@ -4011,7 +4011,16 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
       /* 응원 전광판(위 evBoardSpr9 ★) — 깃발 자리(지붕에서 발자국 폭 × 0.75 위가 판 가운데) · 폭 W9 × 0.95 · 판 비율 그대로(위 40도 내려다봄은 높이 × 0.9 로만). */
       const bw9 = W9 * 0.95; const bh9 = bw9 * (EVB_H9 / EVB_W9) * 0.9;
       ctx.globalAlpha = 1;
-      ctx.drawImage(evBoardSpr9(u0), ax - bw9 / 2, ay - W9 * 0.75 - bh9 / 2, bw9, bh9);
+      const bx9 = ax - bw9 / 2; const by9 = ay - W9 * 0.75 - bh9 / 2;
+      /* ★ 윗면(2026-11-09, 요청: "윗면이 내려다보여서 입체감 주기") — 판을 두께 있는 상자로: 위 40도에서 내려다보니 앞면 바로 위에 윗면이 띠로 보인다(깊이 = 앞면 높이 × 0.32 ·
+         세로로 접힘 sin 40도 몫은 그 값에 든다). 쇠 빛 — 앞 모서리가 밝고(빛이 위에서) 뒤로 갈수록 어둡다 · 앞 모서리 밝은 줄 한 가닥 · 뒤 모서리 어두운 줄. */
+      const dt9 = bh9 * 0.32;
+      const gt9 = ctx.createLinearGradient(0, by9 - dt9, 0, by9);
+      gt9.addColorStop(0, "#2f333a"); gt9.addColorStop(1, "#7a808a");
+      ctx.fillStyle = gt9; ctx.fillRect(bx9 + bw9 * 0.006, by9 - dt9, bw9 * 0.988, dt9 + 1);
+      ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(bx9 + bw9 * 0.006, by9 - Math.max(1, bh9 * 0.012), bw9 * 0.988, Math.max(1, bh9 * 0.012));
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(bx9 + bw9 * 0.006, by9 - dt9, bw9 * 0.988, Math.max(1, bh9 * 0.012));
+      ctx.drawImage(evBoardSpr9(u0), bx9, by9, bw9, bh9);
       break;
     }
     case "eventflag": {
