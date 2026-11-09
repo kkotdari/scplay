@@ -294,14 +294,15 @@ function tossDie9(v: number): Float32Array {
      울림 = 짧은 잔향(빗살 셋) + 메아리. 1.15초. */
   const r = rng9(2501 + v);
   /* (열일곱째, 요청: "짧게 · 더 음 변화 없고 낮게") — 기본음 128 → 92 를 **88 → 82Hz**(거의 평탄) · 공명 ×0.92(더 굵게) · 1.15 → 0.6초 · 'ㅎ' 0.14 → 0.08초 · 잔향 꼬리 짧게. */
-  const R = [new Reso9(525, 80), new Reso9(790, 90), new Reso9(2250, 140), new Reso9(3130, 220)];
+  /* (스물한째, 요청: "질럿 죽음 음 자체가 더 높아야 할 듯") — 기본음 82 → 112Hz(오르내림 꼴은 그대로 · 112 → 129 → 101) · 공명 ×0.92 를 걷어 옛 'ㅓ'(570/860/2450/3400)로. */
+  const R = [new Reso9(570, 80), new Reso9(860, 90), new Reso9(2450, 140), new Reso9(3400, 220)];
   const G = [1, 0.7, 0.35, 0.15];
   let ph = 0; let tilt = 0; let jit = 0; let shm = 0;
   const raw = render9(0.6, (t) => {
     jit += ((r() * 2 - 1) - jit) * 0.003; shm += ((r() * 2 - 1) - shm) * 0.004;
     /* 조금 올라갔다 내려오기(열아홉째, 요청: "질럿 목소리는 좀 올라가다가 내려오기") — 82Hz 에서 0.15초에 +15%(94Hz)까지 오르고 끝(0.6초)엔 −10%(74Hz)로. */
     const cont9 = t < 0.15 ? 1 + 0.15 * Math.sin((Math.PI / 2) * (t / 0.15)) : 1.15 - (t - 0.15) * 0.55;
-    const f0 = (82 + v * 2) * cont9 * (1 + 0.008 * jit + 0.004 * Math.sin(2 * Math.PI * 5 * t));
+    const f0 = (112 + v * 2) * cont9 * (1 + 0.008 * jit + 0.004 * Math.sin(2 * Math.PI * 5 * t));
     ph += f0 / SFX_RATE9;
     const p = ph % 1;
     const glot = p < 0.4 ? 0.5 * (1 - Math.cos(Math.PI * p / 0.4)) : p < 0.6 ? Math.cos((Math.PI / 2) * (p - 0.4) / 0.2) : 0;
