@@ -13374,10 +13374,11 @@ export default function ReplayMotionPlayer({
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
   /* ★ 고르는 순간 보이던 자리에 머문다(2026-11-09, 실기 지적: "자유 선택 시 첫 장면 위치가 이상함") — 판 뒤에서 돌던 중계 카메라(편성표 자리)를 그대로 넘겨받는다(stopCast9 · 중계 끄기와 같은 문).
      옛: setCastOn(false) 만 해서 배율은 중계 것인데 이동(pan)은 옛 손 자리라 엉뚱한 귀퉁이가 떴다. */
+  /* (같은 날 둘째, 실기 지적: "아직도 자유 모드 선택 시 엉뚱한 데가 나와") — 판 뒤 중계 카메라는 첫 토막이 귀퉁이 본진이라, 넘겨받아도 손 카메라의 팬 한계에 걸려 본진이
+     화면 귀퉁이에 걸린 어두운 자리가 떴다(판에 가려 그 자리를 본 적도 없다). 자유는 **지도 전체**(배율 1 · 가운데)에서 시작한다 — 손으로 고를 자리를 다 보여 준다. */
   const pickFree9 = (): void => {
     setModeAsk9(false);
-    const tc9 = trackCamRef.current;   // 마지막으로 그린 중계 카메라(사람 · 장소 토막 어느 것이든)
-    if (castOn && tc9.raw !== null && Number.isFinite(tc9.z) && tc9.z > 0) setView9(tc9.z, { ...tc9.pan });
+    setView9(1, { x: 0, y: 0 });
     setCastOn(false);
     bgmKickRef9.current();
   };
