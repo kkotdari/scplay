@@ -13478,8 +13478,8 @@ export default function ReplayMotionPlayer({
     const stg9 = tRowRef9.current?.offsetParent as HTMLElement | null; if (stg9) bot9 = Math.min(bot9, stg9.getBoundingClientRect().bottom);
     const low9 = tRowRef9.current?.closest(".scr-fs-layer")?.querySelector<HTMLElement>(".scr-fs-lower") ?? null;
     if (low9) { const l9 = low9.getBoundingClientRect(); if (l9.height > 0 && l9.left < r9.right && l9.right > r9.left && l9.top > r9.top) bot9 = Math.min(bot9, l9.top); }
-    /* 오버레이를 아래로 내린 뒤(is-ovlow9 · capPlace9 ★)는 목록이 **위로** 열린다 — 목록 아래끝에서 판 상자 위끝까지. */
-    if (tRowRef9.current?.closest(".scr-fs-layer.is-ovlow9")) {
+    /* 오버레이를 아래로 내린 뒤(data-ovlow9 · capPlace9 ★)는 목록이 **위로** 열린다 — 목록 아래끝에서 판 상자 위끝까지. */
+    if (tRowRef9.current?.closest(".scr-fs-layer[data-ovlow9]")) {
       const top9 = Math.max(0, stg9 ? stg9.getBoundingClientRect().top : 0);
       pn9.style.maxHeight = `${Math.max(80, Math.floor(r9.bottom - top9 - 8))}px`;
       return;
@@ -23263,7 +23263,7 @@ export default function ReplayMotionPlayer({
       lay9.style.setProperty("--cap-bot9", `${(stB9 - top9 + gap9).toFixed(1)}px`);
       /* ★ 위 오버레이를 **아래로**(2026-11-09, 요청: "뒤로가기 버튼과 중계 토글은 미니맵 위까지 · 배율 오버레이와 프레임 테스트 버튼들은 독 위까지 내리기" · 가로도 같게 —
          "가로 모드에서도 뒤로가기 … 미니맵 위까지" · "배율 테스트 버튼도") — 왼쪽 묶음(뒤로 · 모드 토글)은 그 가로 폭에 걸친 독 요소(미니맵 · 재생바 · 인포창 · 채팅…) 가운데 가장 높은 것 위,
-         오른쪽 묶음(배율 원 · fps/feat/diag)은 그 폭에 걸친 독 요소와 **배속 다이얼** 위. 무대 바닥 기준 px(--ov-l-bot9 · --ov-r-bot9)를 적고 층에 is-ovlow9 를 단다(CSS). 가로 범위는
+         오른쪽 묶음(배율 원 · fps/feat/diag)은 그 폭에 걸친 독 요소와 **배속 다이얼** 위. 무대 바닥 기준 px(--ov-l-bot9 · --ov-r-bot9)를 적고 층에 data-ovlow9 를 단다(CSS). 가로 범위는
          요소의 left/right 라 아래로 옮겨도 그대로다. 걸치는 것이 없으면 아래 안전영역 위. */
       {
         let hl9 = 0;   // 왼쪽 묶음 키(채팅을 그 위로 · --ov-l-top9)
@@ -23290,7 +23290,7 @@ export default function ReplayMotionPlayer({
         lay9.style.setProperty("--ov-l-bot9", `${lb9.toFixed(1)}px`);
         lay9.style.setProperty("--ov-l-top9", `${(lb9 + hl9 + gap9).toFixed(1)}px`);
         lay9.style.setProperty("--ov-r-bot9", `${floorOf9(xrr9, [lay9.querySelector<HTMLElement>(".scr-speeddial")]).toFixed(1)}px`);
-        lay9.classList.add("is-ovlow9");
+        lay9.dataset.ovlow9 = "1";   // ⚠ 클래스가 아니라 data 속성 — 뿌리 className 은 React 가 다시 칠할 때(is-idle 따위) 통째로 덮어 손으로 단 클래스가 빠졌다(2026-11-09, 지적: "중계 토글만 한 번 움직이는 걸로 보여")
       }
       /* ★ 가로 화면의 자막은 **위 · 화면 주인 자리**(2026-11-09, 요청: "자막 위치 — 세로 레이아웃 현행 유지 · 가로 레이아웃(프레임 · 전체화면 · PC · 폰)은 위쪽으로(화면 주인 위치)") —
          CSS @media (orientation: landscape). 같은 줄의 왼위(뒤로 · 모드 토글) · 오른위(배율 · fps) 단추를 비키는 좌우 몫(--cap-tops9 · 가운데 맞춤이라 두 쪽 중 큰 값)을 잰다. */
@@ -23354,7 +23354,7 @@ export default function ReplayMotionPlayer({
            (배율 원 아래 ~ 전광판 위끝)에 다이얼 키가 안 들면 다이얼은 오른아래 바닥까지 내리고 전광판 · 재생바의 오른끝을 다이얼 폭 + 틈만큼 왼쪽으로(--wdial-push). */
         const dial9 = lay9.querySelector<HTMLElement>(".scr-speeddial");
         /* 자리 셈(2026-11-09 셋째, 지적: "가로 모드에서 배속판 위의 배율 버튼이 아예 안 나오는 경우 · 자리가 모자라면 배속판을 바로 아래로") — 배율 원이 배속판 **위**에 서므로
-           (capPlace9 is-ovlow9 ★) 전광판 위에 [틈 · 배속판 · 틈 · 배율 원 · 위 틈]이 다 들어야 한다. 배율 원의 지금 자리는 다이얼을 따라 움직여 못 쓴다(옛 셈이 그것을 재 돌았다) — 키만 쓴다. */
+           (capPlace9 data-ovlow9 ★) 전광판 위에 [틈 · 배속판 · 틈 · 배율 원 · 위 틈]이 다 들어야 한다. 배율 원의 지금 자리는 다이얼을 따라 움직여 못 쓴다(옛 셈이 그것을 재 돌았다) — 키만 쓴다. */
         const zd9 = lay9.querySelector<HTMLElement>(".scr-zoomdial");
         const sd9 = gap9 * (10 / 6);   // --sd-gap(10·sdk) ≈ --wgap(6·dk) × 10/6
         const dialH9 = dial9?.offsetHeight ?? 0;
@@ -23391,6 +23391,7 @@ export default function ReplayMotionPlayer({
       /* ★ 접힌 독(is-fold · display none)은 폭이 0 이라 셈이 헛돈다 — 마지막 맞춤은 그대로 두고 받침 솟음만 0 으로(2026-10-09, 지적: "독 접었다 펼 때 재생기가 잠깐
          안전영역까지 내려갔다 다시 올라옴" — 접힌 동안 0 폭으로 셈한 작은 키가 펼 때 한 프레임 보였다). 펼치면 의존성(dockFoldOn9)으로 이 effect 가 칠하기 전에 다시 돈다. */
       if (row9.clientWidth === 0) {
+        capPlace9();   // 접힌 채 들어와도 위 오버레이 자리(data-ovlow9)는 선다 — 안 서면 단추가 숨은 채다(CSS)
         setDockFit9((p9) => (p9.lift === 0 ? p9 : { ...p9, lift: 0 }));
         fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift", "0px");
         fr9.closest<HTMLElement>(".scr-fs-layer")?.style.setProperty("--dock-lift-r", "0px");
