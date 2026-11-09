@@ -23576,7 +23576,8 @@ export default function ReplayMotionPlayer({
         if (!xlM9) hl9 = Math.max(hl9, parseFloat(getComputedStyle(st9).getPropertyValue("--sd-w")) || 36);
         const xl9: [number, number] = xlM9 ?? [sb9.left, sb9.left + 1];
         const xrr9: [number, number] = xrM9 ?? [sb9.right - 1, sb9.right];
-        const lb9 = floorOf9(xl9, []);   // 채팅은 셈에 안 넣는다(줄 수에 따라 단추가 들썩인다) — 채팅이 단추 위로 간다(--ov-l-top9)
+        /* 미니맵 옆이 비어도 그 옆 바닥으로 내리지 않는다 — 늘 **미니맵 위**(2026-11-09 다섯째, 요청: "중계 토글은 미니맵 왼쪽 자리 나도 거기로 보내지 않기 · 미니맵 위에 놓기"). */
+        const lb9 = Math.max(floorOf9(xl9, []), mini9 && shown9(mini9) ? stB9 - mini9.getBoundingClientRect().top + gap9 : 0);   // 채팅은 셈에 안 넣는다(줄 수에 따라 단추가 들썩인다) — 채팅이 단추 위로 간다(--ov-l-top9)
         lay9.style.setProperty("--ov-l-bot9", `${lb9.toFixed(1)}px`);
         lay9.style.setProperty("--ov-l-top9", `${(lb9 + hl9 + gap9).toFixed(1)}px`);
         /* ★ 배속 다이얼도 **독 바로 위**(2026-11-09 다섯째, 요청: "배속부터 해서 더 내릴 수 있잖아") — 세로 배치의 다이얼은 아래 자막 두 줄 몫(--over-cap) 위에 떠 있었는데 자막이 위로

@@ -3324,3 +3324,4 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - 덤: `MELEE9` 줄 주석이 Zergling·Ultralisk·Broodling 을 삼키고 있었다(브루들링이 칼질로 울림) — 주석을 윗줄로.
 - 배속 다이얼(세로 · 넓은 배치 아닐 때): 자막이 위로 올라가 비게 된 아래 자막 두 줄 몫(--over-cap) 위 → 다이얼 폭에 걸친 독 요소 바로 위(`--ov-sd-bot9` · capPlace9). 오른쪽 묶음(배율 · 테스터)은 그 위.
 - 🔎 크기 재기: `SFX_RECIPES9`·`loud9` 를 esbuild 로 묶어 갈래마다 `loud9(mk(0))` 를 찍는다.
+- 왼쪽 묶음(뒤로 · 중계 토글): 미니맵 왼쪽이 비어도 그 바닥으로 안 내린다 — 늘 미니맵 위(`lb9 = max(그 폭 바닥, 미니맵 위끝)` · capPlace9).
