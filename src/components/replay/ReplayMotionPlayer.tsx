@@ -13374,11 +13374,12 @@ export default function ReplayMotionPlayer({
   /** 자유 보기(2026-10-23, 요청: "처음 선택 팝업 자유 보기도 추가(자동 중계 X)") — 1배속 · 자동 중계 끔 · 카메라는 손으로. */
   /* ★ 고르는 순간 보이던 자리에 머문다(2026-11-09, 실기 지적: "자유 선택 시 첫 장면 위치가 이상함") — 판 뒤에서 돌던 중계 카메라(편성표 자리)를 그대로 넘겨받는다(stopCast9 · 중계 끄기와 같은 문).
      옛: setCastOn(false) 만 해서 배율은 중계 것인데 이동(pan)은 옛 손 자리라 엉뚱한 귀퉁이가 떴다. */
-  /* (같은 날 둘째, 실기 지적: "아직도 자유 모드 선택 시 엉뚱한 데가 나와") — 판 뒤 중계 카메라는 첫 토막이 귀퉁이 본진이라, 넘겨받아도 손 카메라의 팬 한계에 걸려 본진이
-     화면 귀퉁이에 걸린 어두운 자리가 떴다(판에 가려 그 자리를 본 적도 없다). 자유는 **지도 전체**(배율 1 · 가운데)에서 시작한다 — 손으로 고를 자리를 다 보여 준다. */
+  /* (되물림 · 같은 날 셋째, 지적: "아니 위가 본진이 잘려서 나오잖아 · 원래 안 그랬는데") — 지도 전체로 물러나는 것은 걷고 다시 판 뒤 중계 카메라를 넘겨받는다. 잘림은 가운데 잡기의
+     위 한계(centerTop9)가 맨 윗줄 몇 칸 안에서만 그림 여유를 열어, 위 귀퉁이 본진(가운데 ≈ 6 줄)은 지붕이 지도 윗변 밖이라 잘렸던 것 — centerTop9 에서 고친다. */
   const pickFree9 = (): void => {
     setModeAsk9(false);
-    setView9(1, { x: 0, y: 0 });
+    const tc9 = trackCamRef.current;   // 마지막으로 그린 중계 카메라(사람 · 장소 토막 어느 것이든)
+    if (castOn && tc9.raw !== null && Number.isFinite(tc9.z) && tc9.z > 0) setView9(tc9.z, { ...tc9.pan });
     setCastOn(false);
     bgmKickRef9.current();
   };
@@ -14242,7 +14243,9 @@ export default function ReplayMotionPlayer({
    *  검색 · 보던 자리 지키기 · 미니맵 짚기)은 그 몫을 안 쓴다. 다만 데려오는 자리(타일 y = ty)가 지도 맨 위 BAND_TILES 줄 안이면 그만큼 연다(맨 윗줄 = 다 ·
    *  BAND_TILES 줄 아래 = 0). 손으로 끄는 길(드래그·관성·확대)은 종전대로 여유까지 다 쓴다. */
   const centerTop9 = (lim: { yTop: number; band: number }, ty: number): number => {
-    const need9 = Math.max(0, Math.min(1, (BAND_TILES - ty) / BAND_TILES));
+    /* ★ 데려오는 자리는 대개 **몸 가운데**다 — 4×3 본진 가운데가 6 줄이면 지붕은 지도 윗변 밖까지 솟는다(2026-11-09, 실기 지적: "위가 본진이 잘려서 나오잖아"). 여유를 여는 줄을
+       넓힌다: 0~6 줄 다 · 6~10 줄은 비례 · 10 줄 아래 0(옛: 0~4 줄 비례 · 4 줄 아래 0 — 본진 가운데 6 줄이면 0 이었다). */
+    const need9 = Math.max(0, Math.min(1, (2.5 * BAND_TILES - ty) / BAND_TILES));
     return lim.yTop - lim.band * (1 - need9);
   };
   /* ★ 추적을 켤 때 맞출 배율 — **4배 고정**이다(요청: "추적모드 선택 시 기본 배율을 타일 수로 계산하던 걸

@@ -1213,7 +1213,8 @@ if (has("--ask")) {
     await page.waitForTimeout(800);
     console.log(`[판 동안 막힘] ${await pe9()}\n  키 + c Space w 앞 ${b9} → 뒤 ${await st9()} · 뒤에 건 키 판에 닿은 수 ${await page.evaluate(() => window.__askKeys9)}(0 이어야 한다)`);
   }
-  await page.locator(".scr-mode-ask-btn").nth(Number(flag("--askpick", 0)) || 0).click();   // --askpick N = N 번째 단추(0 자유 · 1 풀 · 2 요약 · 2026-10-24 차례 바뀜 · 요약은 --hash digest=1 일 때만 선다 · 2026-10-25)
+  for (let k9 = 0; k9 < 240; k9 += 1) { if (!(await page.evaluate(() => /모델 준비/.test(document.body.innerText)))) break; await page.waitForTimeout(1000); }   // 모델 준비가 끝나야 판 단추가 눌린다
+  await page.evaluate((n9) => { const b9 = document.querySelectorAll(".scr-mode-ask-btn")[n9]; if (b9 instanceof HTMLElement) b9.click(); }, Number(flag("--askpick", 0)) || 0);   // --askpick N = N 번째 단추(0 자유 · 1 풀 · 2 요약 · 2026-10-24 차례 바뀜 · 요약은 --hash digest=1 일 때만 선다 · 2026-10-25)
   let last9 = "";
   for (let i9 = 0; i9 < secs9 * 2; i9 += 1) {
     await page.waitForTimeout(500);
