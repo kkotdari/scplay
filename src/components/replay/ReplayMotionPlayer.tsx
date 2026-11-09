@@ -12363,7 +12363,15 @@ export default function ReplayMotionPlayer({
     const tm9 = window.setTimeout(() => setSearchWarm9(true), 60);   // 입력칸·키보드가 먼저 서게 한 박자 뒤
     return () => window.clearTimeout(tm9);
   }, [searchNeed9, searchWarm9]);
-  const planWant9 = castOn || searchWarm9;
+  /* ★ 편성표는 **미리 굽는다**(2026-11-09, 지적: "자유 → 중계 토글 시는 아직 느리네") — 자유로 시작하면 편성표(castPlan9 · 8인 20분 판에 데스크톱 200ms · 폰은 몇 배)를 중계를 처음 켤 때
+     구워 토글이 그만큼 멎었다. 참값이 서면 곧(대개 아직 로딩 가림 중) 한 번 굽는다 — 중계를 켤 때는 이미 있다. */
+  const [castWarm9, setCastWarm9] = useState(false);
+  useEffect(() => {
+    if (castWarm9 || !entData || !truth) return undefined;
+    const id9 = window.setTimeout(() => setCastWarm9(true), 30);
+    return () => window.clearTimeout(id9);
+  }, [entData, truth, castWarm9]);
+  const planWant9 = castOn || searchWarm9 || castWarm9;
   /** ★ 검색 결과의 **장면 잡기**(2026-10-12, 지적: "키워드 검색이랑 중계가 섞여서 문제 — 검색을 해도 그 장면이 나오는 게 아니라 중계 장면이 나오네") — 결과로 가면
    *  그 결과의 자리·사람·장면 길로 [from, to] 동안 중계 토막을 **대신한다**(아래 searchSeg9 · castSeg9). 창이 끝나거나(to) 손으로 딴 데 감거나 검색을 취소하면 중계로 돌아간다. */
   const [searchFocus9, setSearchFocus9] = useState<{ from: number; to: number; label: string; x?: number; y?: number; raw?: string; spot?: [number, number, number][] } | null>(null);
@@ -14303,14 +14311,17 @@ export default function ReplayMotionPlayer({
          댓글부가 이어진다. 그런데 그 높이(약 81px)를 예산에서 빼면 지도가 그만큼 작아진
          채로 **못 박힌다** — 되찾을 길이 없다.
          남는 것은 숨 쉴 자리 하나(12)와 안전 영역(위 ★)뿐이다. */
-      const below9 = 12 + safeBottomOf9();
+      /* ★ 앱이 판 **아래에 둘 것**의 몫(--scr-frame-below · 2026-11-09, 실기 지적: "헤더 로우가 완전 가려짐 · 더 위로 올려야 해 · 재생기 줄이고") — sg-web 게임 상세(폰)가 머리 줄을
+         재생기 아래로 옮기며 그 키를 CSS 변수로 준다. 그 몫이 있으면 판을 펴진 바 밑까지 늘리지 않는다(아래 lvh 반 · --scr-bar-under) — 늘리면 아래 줄이 다시 바 밑으로 깔린다. */
+      const res9 = parseFloat(getComputedStyle(el).getPropertyValue("--scr-frame-below")) || 0;
+      const below9 = 12 + safeBottomOf9() + res9;
       let ih9 = window.innerHeight;
       if (window.matchMedia?.("(pointer: coarse)").matches) {
         /* ★ 폰의 innerHeight 는 **주소창·탭바가 펴진 때의 작은 높이**다(지적: iOS 사파리 "scplayer 하단 너무 남는 문제") —
            iOS 26 의 떠 있는 탭바는 접힌 채 그 몫(100 남짓)이 비어 보이는데도 innerHeight 가 안 커져, 판 아래가 통째로 남았다.
            바를 걷은 높이(100lvh)와의 차의 **반**을 더 쓴다 — 다 쓰면 펴진 바 밑으로 독이 들어가고, 안 쓰면 비어 보인다. */
         const lv9 = lvhOf9();
-        if (lv9 > ih9) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
+        if (lv9 > ih9 && res9 <= 0) ih9 = Math.round(ih9 + (lv9 - ih9) * 0.5);
         if (!vhHold9.current && vhHoldShared9 && performance.now() - vhHoldShared9.t < VH_HOLD_PASS_MS9) {
           vhHold9.current = { w: vhHoldShared9.w, h: vhHoldShared9.h };   // 앞 재생기가 붙든 값을 잇는다(위 vhHoldShared9 ★)
         }

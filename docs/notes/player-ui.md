@@ -3266,3 +3266,5 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   ⚠ 같은 꼴(뿌리 classList 손질)이 is-wide-info · is-wide-noroster 에도 있다 — fit 이 다시 달아 주지만 React 가 칠한 뒤 한 틈은 빠질 수 있다.
 - (일곱째) "토글 반응 속도가 느림" — 자유/중계 토글은 재생기 통째 다시 그리기(편성 · 카메라)가 끝나야 글자가 바뀌었다. 누르면 두 칸 is-on 을 DOM 에서 먼저 뒤집고 일은 rAF → 0ms 로 미룬다 ·
   미룬 일이 돌기 전 두 번째 누름은 버린다(modeBusy9 — 옛 상태로 한 번 더 뒤집혔다).
+- (여덟째) 폰 게임 상세에서 재생기 아래로 옮긴 머리 줄이 브라우저 바 밑에 깔림 — 앱이 `--scr-frame-below`(sg-web: 카드 아래 여백 + 40px)를 주면 frameMaxH 예산에서 빼고 lvh 반 늘림을 끈다.
+- (여덟째) "자유 → 중계 토글 아직 느림" — 자유로 시작하면 편성표(castPlan9)를 중계를 처음 켤 때 구웠다(cast-plan.mjs 8인 20분 195ms · 폰 몇 배). 참값이 서면 곧 한 번 굽는다(castWarm9 → planWant9).
