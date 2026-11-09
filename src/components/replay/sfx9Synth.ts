@@ -363,21 +363,19 @@ function photonC9(v: number): Float32Array {
   return finish9(echo9(raw, 0.085, 0.22), 0.62);
 }
 
-/** ★ 드라군 포 — **휘잉 날아가서 펑**(2026-11-09 셋째, 요청: "드라군 — 휘잉 하고 날아가서 펑 터지는 듯하게") — 쏠 때(이 소리): 낮은 '툭' 발사 + 휘잉(사인 휘파람이
- *  700 → 1200Hz 로 올랐다 900Hz 로 지나가며 · 7Hz 떨림 · 위아래 띠 잡음 바람) 0.42초. 맞을 때는 dragoonHit9(펑). 옛 '낮은 둥' 한 방(같은 날)은 걷었다. */
+/** ★ 드라군 포 — **웅 하고 날아가는 바람**(2026-11-09 다섯째, 요청: "날아가는 소리가 좀 이상해 · 웅 하고 날아가기 · 음은 거의 없고 바람 소리 같은") — 옛 휘잉(사인 휘파람
+ *  700 → 1200Hz)은 음이 또렷해 이상했다. 이제 **음 없는 바람**: 갈색 + 흰 잡음을 낮은 띠(Q 1.1 · 260 → 520 → 340Hz 로 부풀었다 가라앉음)와 저역(lp 180 · 웅 몸)에
+ *  통과시킨다 · 0.06초 부풀고 사그라짐 · 0.45초. 맞을 때는 dragoonHit9(펑). */
 function dragoonShot9(v: number): Float32Array {
-  let ph = 0;
-  const r = rng9(2071 + v);
-  const bpW = new Biquad9("bp", 1000, 1.5);
-  return finish9(render9(0.42, (t) => {
-    const u = t / 0.42;
-    const f = (700 + 500 * Math.sin(Math.PI * Math.min(1, u * 1.3)) + v * 30) * (1 + 0.025 * Math.sin(2 * Math.PI * 7 * t));
-    ph += f / SFX_RATE9;
-    const whistle = Math.sin(2 * Math.PI * ph) * ad9(t, 0.05, 4.5) * 0.55;
-    const wind = bpW.run(r() * 2 - 1) * ad9(t, 0.04, 5) * 0.8;
-    const pop = Math.sin(2 * Math.PI * (160 - t * 900) * t) * exp9(t, 50) * 0.7;
-    return sat9(whistle + wind + pop, 1.3);
-  }, (t) => bpW.set(900 + 900 * Math.sin(Math.PI * Math.min(1, t / 0.32)))), 0.5);
+  const r = rng9(2071 + v); const br = brown9(r);
+  const bpW = new Biquad9("bp", 300, 1.1);
+  const lpB = new Biquad9("lp", 180, 0.7);
+  return finish9(render9(0.45, (t) => {
+    const n9 = br() * 0.8 + (r() * 2 - 1) * 0.35;
+    const wind = bpW.run(n9) * 1.6;
+    const body = lpB.run(n9) * 1.1;
+    return sat9((wind + body) * ad9(t, 0.06, 6), 1.2);
+  }, (t) => { const u9 = Math.min(1, t / 0.3); bpW.set(260 + 260 * Math.sin(Math.PI * u9) + (u9 >= 1 ? 80 : 80 * u9) + v * 20); }), 0.5);
 }
 
 /** ★ 드라군 탄 맞음 — **펑**(2026-11-09 셋째) — 둥근 폭발: 낮은 쿵(110 → 45Hz · 2 · 3 배음으로 폰에서도 들림) + 터지는 잡음(1.4kHz → 300Hz 로 닫히는 저역) + 짧은 메아리 · 0.55초. */
