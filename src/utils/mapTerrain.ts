@@ -193,6 +193,8 @@ const SHOW_WARM_CUT = 0.4;
  *  처음 판은 모든 색에 걸어 눈 · 우주 판 · 잿빛 땅의 푸른 회색까지 하늘 쪽으로 돌았다) — 원작 물 평균은 (38,38,57)처럼 **빨강 = 초록 < 파랑**이라 밝히고 채도를 벌리면 남보라로 섰다.
  *  파랑 몫 bl = max(0, b − (r + g)/2) × k 만큼 초록을 0.55 · 빨강을 −0.35 로 옮겨 하늘 쪽으로 돌린다(잿빛 · 흙 · 풀은 bl ≈ 0 이라 그대로). 물 (38,38,57) → (49,69,89). 0 이면 끔. */
 const SHOW_BLUE_TURN = 0.7;
+/** 물 칸 채도 덧곱(같은 날 다섯째, 실기: "물도 지금 회색으로 보여 거의") — 하늘 쪽으로 돌린 뒤 물만 채도를 한 번 더 벌린다. 물 (38,38,57) → (33,73,113). 1 이면 끔. */
+const SHOW_WATER_SAT = 2.0;
 const SHOW_LUT = ((): Uint8Array => {
   const t = new Uint8Array(256);
   for (let i = 0; i < 256; i += 1) t[i] = Math.round(255 * (i / 255) ** SHOW_GAMMA);
@@ -210,6 +212,10 @@ function showRGB(r0: number, g0: number, b0: number, water = false): [number, nu
   r1 -= y9 * 0.55; g1 -= y9 * 0.35;
   const bl9 = water ? Math.max(0, b1 - (r1 + g1) / 2) * SHOW_BLUE_TURN : 0;
   g1 += bl9 * 0.55; r1 -= bl9 * 0.35;
+  if (water) {
+    const lw9 = 0.299 * r1 + 0.587 * g1 + 0.114 * b1;
+    return [clamp255(lw9 + (r1 - lw9) * SHOW_WATER_SAT), clamp255(lw9 + (g1 - lw9) * SHOW_WATER_SAT), clamp255(lw9 + (b1 - lw9) * SHOW_WATER_SAT)];
+  }
   return [clamp255(r1), clamp255(g1), clamp255(b1)];
 }
 
