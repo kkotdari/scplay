@@ -1245,6 +1245,7 @@ const NO_STAGE_OV9 = typeof location !== "undefined" && /nostageov/.test(locatio
  *  분할 칸 · 3D 눕힘 · PC 는 안 자른다(옛 꼴) · 손짓 중엔 그대로 둔다 · 250ms 마다 다시 잰다. */
 const CROP9 = new WeakMap<HTMLCanvasElement, number>();
 const CROP_WHY9 = { v: "" };
+const CROP_TAIL9 = { tm: 0 };
 function cropLayers9(cv: HTMLCanvasElement, on: boolean, gesture: boolean): void {
   if (scrDiagOn()) (window as unknown as { __crop9?: unknown }).__crop9 = CROP_WHY9;
   const box9 = cv.parentElement; if (!box9) { CROP_WHY9.v = "상자없음"; return; }
@@ -1255,7 +1256,12 @@ function cropLayers9(cv: HTMLCanvasElement, on: boolean, gesture: boolean): void
   if (!on) { off9(); return; }
   if (gesture) return;
   const now9 = performance.now(); const at9 = CROP9.get(cv) ?? -1e9;
-  if (now9 - at9 < 250) return;
+  /* 250ms 안의 두 번째 부름은 건너뛰되 **뒤에 한 번 더 잰다**(2026-11-10, 지적: "독 접었을 때 왜 전체 지도가 아닌 아래 부분만" — 멈춘 채 독을 접으면 접힘 직후의 칠하기가
+     이 문턱에 걸려 건너뛰고, 그 뒤 칠하기가 없어 독을 펼쳤을 때 잰 네모(지도 가운데 띠)가 그대로 남았다). */
+  if (now9 - at9 < 250) {
+    if (!CROP_TAIL9.tm) CROP_TAIL9.tm = window.setTimeout(() => { CROP_TAIL9.tm = 0; SETTLE_KICK9.fn?.(); }, 260 - (now9 - at9));
+    return;
+  }
   CROP9.set(cv, now9);
   CROP_WHY9.v = !cv.closest(".scr-fs-stage") ? "무대밖" : !document.querySelector(".scr-fs-layer.is-fs") ? "전체화면아님" : "잼";
   /* 전체화면에서만(프레임 모드는 스크롤마다 겹치는 몫이 바뀌어 캔버스를 계속 다시 잡는다) · 자르는 자는 **화면(뷰포트)** — 가로 전체화면의 무대 상자는 812×160 처럼 작고
