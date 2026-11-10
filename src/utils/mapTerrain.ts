@@ -189,6 +189,9 @@ const SHOW_GAMMA = 0.78;
 const SHOW_SAT = 1.5;
 /** 누런 기 빼기(2026-11-10 · 위 ★) — 노랑 몫 y = max(0, (r + g)/2 − b) 에서 r 을 y × k × 0.55 · g 를 y × k × 0.35 만큼 덜어 흙을 갈색 쪽으로(풀 · 물 · 눈은 거의 그대로). 0 이면 끔. */
 const SHOW_WARM_CUT = 0.4;
+/** ★ 물을 푸르게(2026-11-10, 실기: "물색이 보라색이야 · 원래 푸른 물색인데") — 원작 물 평균은 (38,38,57)처럼 **빨강 = 초록 < 파랑**이라 밝히고 채도를 벌리면 남보라로 섰다.
+ *  파랑 몫 bl = max(0, b − (r + g)/2) × k 만큼 초록을 0.55 · 빨강을 −0.35 로 옮겨 하늘 쪽으로 돌린다(잿빛 · 흙 · 풀은 bl ≈ 0 이라 그대로). 물 (38,38,57) → (49,69,89). 0 이면 끔. */
+const SHOW_BLUE_TURN = 0.7;
 const SHOW_LUT = ((): Uint8Array => {
   const t = new Uint8Array(256);
   for (let i = 0; i < 256; i += 1) t[i] = Math.round(255 * (i / 255) ** SHOW_GAMMA);
@@ -204,6 +207,8 @@ function showRGB(r0: number, g0: number, b0: number): [number, number, number] {
   let r1 = l + (r - l) * SHOW_SAT; let g1 = l + (g - l) * SHOW_SAT; const b1 = l + (b - l) * SHOW_SAT;
   const y9 = Math.max(0, (r1 + g1) / 2 - b1) * SHOW_WARM_CUT;
   r1 -= y9 * 0.55; g1 -= y9 * 0.35;
+  const bl9 = Math.max(0, b1 - (r1 + g1) / 2) * SHOW_BLUE_TURN;
+  g1 += bl9 * 0.55; r1 -= bl9 * 0.35;
   return [clamp255(r1), clamp255(g1), clamp255(b1)];
 }
 
