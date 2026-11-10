@@ -7880,7 +7880,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
             const bb9 = bltNow9(myTag9);
             if (bb9 === null) return null;
             if (bb9 && Number.isFinite(bb9.t1)) {
-              const fs9 = Math.max(0.03, bb9.t1 - bb9.t0); const u9 = (t - bb9.t0) / fs9;
+              const fs9 = Math.max(0.03, Math.min(bb9.t1 - bb9.t0, Math.max(0.05, dist9 / Math.max(1, shotSpeedOf9(nm9))))); const u9 = (t - bb9.t0) / fs9;   // 어림을 넘지 않게(유닛 쪽 flyEst9 ★)
               shotBr9 = { uw: u9, ur: 1 / fs9, uc: 1e6 };   // 실제 탄은 감아 돌지 않는다(아래 유닛 쪽 ★ 판 17 uc)
               return Math.max(0, Math.min(1, u9));
             }
@@ -10440,7 +10440,11 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
     const slowAcid9 = fxName9 === "acid";
     /* ★ 판 17 탄(2026-11-03, 요청: "탄환 … 연결") — 이 몸의 날고 있는 탄이 있으면 비행 시간·진행을 그 탄(생긴 초 → 사라진 초)으로. */
     const blt9 = fxName9 && PROJECTILE_FX.has(fxName9) ? bltNow9(e.tag) : undefined;   // 탄은 원작이 본체 태그로 적는다(bullet_owner_unit = 포탑의 본체)
-    const flySec9 = blt9 && Number.isFinite(blt9.t1) ? Math.max(0.03, blt9.t1 - blt9.t0) : ((cd9v: number, dist9v: number): number => {
+    /* ★ 실제 탄도 **거리 ÷ 탄속 어림을 넘지 않는다**(2026-11-10, 지적: "미사일류 트레이서가 타깃까지 한참 안 가는 것 같은데?") — 탄 열의 t1 은 닿은 초(th)인데,
+       th 가 없는 판(덤퍼 k 2 이전 분석 · 닿음을 안 적는 탄)은 **사라진 초 = 닿음 + 폭발 그림**이라 비행 시간이 그만큼 길어져 머리가 표적 한참 앞에서 기어갔다.
+       짧은 쪽을 쓴다 — 어림이 더 짧으면 머리가 먼저 닿아 표적에 머문다(u 는 1 에서 죈다). 방어 건물(shotBr9)도 같다. */
+    const flyEst9 = Math.max(0.05, foeDist / Math.max(1, fxName9 === "acid" ? 5 : shotSpeedOf9(fxName9)));
+    const flySec9 = blt9 && Number.isFinite(blt9.t1) ? Math.max(0.03, Math.min(blt9.t1 - blt9.t0, flyEst9)) : ((cd9v: number, dist9v: number): number => {
       const floor9 = Math.min(cd9v * 0.4, slowAcid9 ? 1.0 : 0.4);
       return Math.min(cd9v * 0.9,
         Math.max(0.05, floor9, dist9v / Math.max(1, slowAcid9 ? 5 : shotSpeedOf9(fxName9))));
