@@ -13975,12 +13975,16 @@ export default function ReplayMotionPlayer({
   /** 하단 독 접기 **3단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 평소: 미니맵·플레이바·인포창·전광판·자막·오버레이 다 · 1단: 미니맵·플레이바·자막·오버레이만 ·
    *  2단: 미니맵·자막만") — 0 평소 · 1 독 줄(인포창·전광판) 숨김 · 2 재생바·오버레이(배속·배율·모드 토글·채팅·화면 주인·요약)까지 숨김. 손잡이는 2단에서도 남는다(replay.css is-dockfold2).
    *  옛 판은 켬/끔 둘(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
-  const [dockFold9, setDockFold9] = useState<0 | 1 | 2>(0);
+  /* ★ **한 번에 전부 접기**(2026-11-10, 요청: "독 2단 접기 폐기 · 한 번에 전부 접기로 변경 · 접었을 때 아무것도 안 남고 미니맵, 자막/주인, 배속만 남기기" · "접기 시 지도 크기 다시 계산 필요(1배 다시 계산)"
+     · "접기 시 미니맵은 무시하고 크기 재야 해") — 0 평소 · 1 접힘(옛 2단 자리 · 뿌리 is-dockfold2 · 독 is-fold). 접히면 독이 흐름에서 빠져(replay.css) 무대가 독 자리까지 커지고
+     무대를 다시 재 1배(무대 폭) · 지도 전체 배율(zMin9)이 다시 선다 — 미니맵은 무대 위에 떠 있을 뿐 크기에 안 든다. 옛 3단(0 · 1 독 줄 · 2 재생바 · 오버레이)은 걷었다. */
+  const [dockFold9, setDockFold9] = useState<0 | 1>(0);
   /** 실제로 접혔나 — ★ 분할보기도 **안 접는다**(2026-10, 요청: "분할화면에서 자동으로 독 접지 않기. 계산하느라 버벅임") — 접고
    *  펴는 순간마다 무대 키가 바뀌어 칸 배치·칸 배율·분할 칠하기가 통째로 다시 돌았다(맞대결 자동 분할은 그것이 장면마다였다).
    *  옛 '분할은 늘 접는다(열기 불가)'를 되물렸다 — 독은 칸을 누른 사람의 것을 든다(아래 splitPick9). */
   const dockFoldOn9 = dockFold9 > 0;
-  const dockFold2On9 = dockFold9 === 2;
+  /** 접힘의 숨김 · 펼치기 손잡이(뿌리 is-dockfold2 · .scr-fs-foldfab) — 한 번에 전부 접기라 접힘과 같다(옛 2단 이름 그대로 · 2026-11-10). */
+  const dockFold2On9 = dockFoldOn9;
   /** 인포 팝업이 열려 있으면 닫는다 — 화면 이동·배율 변경의 모든 문에서 부른다(beginGestureXf 주석). */
   const closePicked9 = useCallback((): void => {
     if (pickedRef.current !== null) { setPicked(null); setBoxSel9(null); }
@@ -20482,17 +20486,20 @@ export default function ReplayMotionPlayer({
     /* ★ 단독 중계·개인 화면은 **기본 배율 ↔ 상한**을 오간다(2026-10-27, 지적: "중계중에 더블탭 확대축소 … 안 되는 문제") — 옛: 휠·핀치만 열고(2026-10-19) 더블탭은 잠가 두었다.
        1배 ↔ ZOOM_TAP 은 기본 배율이 1이 아닌 이 화면에 안 맞는다(늘 1배 = 지도 전체로 튄다). 휠 미끄러짐(wheelDriveRef9)으로 몰아 부드럽게 · 자리는 잠긴 카메라가 대상 축으로 잡는다. */
     if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).tapZoom = `${camLockRef9.current ? "잠금" : "자유"} z${zoomRef.current.toFixed(2)} 기본${castZoomFit9().toFixed(2)} 상한${zoomCapRef9.current().toFixed(2)} 몰이${wheelDriveRef9.current ? 1 : 0}`;   // perf-check --dtapprobe
+    /* ★★ **기본 배율 ↔ 지도 전체**(2026-11-10, 요청: "피시 폰 모두 재생기에서 더블클릭 시 기본 배율로 확대 · 다시 더블클릭 시 최소 크기(전체 맵 보기)로 축소 ·
+       최소 배율과 기본 배율의 중간점보다 작은 배율에서 더블클릭 → 기본 배율로 확대 · 반대는 최소 배율로 축소") — 모든 모드(자유 · 중계 · 개인 화면) 같은 규칙.
+       기본 배율 = 배율 원이 돌아가는 값(castZoomFit9) · 최소 = 지도 전체가 들어오는 배율(zMinRef9). 옛: 자유 1배 ↔ ZOOM_TAP(8) · 잠금은 기본 ↔ 상한. */
+    const zMin9 = zMinRef9.current;
+    const zBase9 = Math.max(zMin9, castZoomFit9());
+    const z1 = zoomRef.current < (zMin9 + zBase9) / 2 ? zBase9 : zMin9;
     if (camLockRef9.current) {
-      const fit9 = castZoomFit9();
-      wheelDriveRef9.current?.(zoomRef.current > fit9 * 1.05 ? fit9 : zoomCapRef9.current(), null);
+      wheelDriveRef9.current?.(z1, null);
       return;
     }
     const el = mapRef.current;
     const r = el?.getBoundingClientRect();
     if (!r || r.width < 4 || r.height < 4) return;
     const z0 = zoomRef.current;
-    // 한 번에 뛰는 배율은 ZOOM_TAP(사다리의 한 칸 아래) — 이미 확대돼 있으면 1배로 돌아간다.
-    const z1 = z0 > 1.05 ? 1 : ZOOM_TAP;
     const ox = r.left + r.width / 2;
     const oy = r.top + r.height / 2;
     const ux = (cx - ox - panRef.current.x) / z0;
@@ -23932,13 +23939,13 @@ export default function ReplayMotionPlayer({
      접기 손잡이(2026-09, 요청: "프레임모드에도 독 접기 버튼 추가" · "접기버튼은 유저정보말고 독 프레임 어딘가") — 프레임·전체화면
      둘 다 먹는다(옛 '전체화면에만'을 되물림). ★ 자리는 **틀의 오른 끝 기둥 위쪽**이다(2026-09, 요청: "접기버튼을 독 우상단으로
      이동" · "접은상태 - 미니맵 인포창 접기") — 정보줄이 툴박스로 나가 틀은 [미니맵 | 인포창 | 접기] 한 줄이고, 접으면 그 손잡이 키만 남는다. */
-  /* 3단 순환(0 → 1 → 2 → 0 · 위 dockFold9 ★) — 삼각형은 0·1 단에서 ▼(더 접힘) · 2 단에서 ▲(펼침). 1 단은 ▼ 둘. */
-  const foldLabel9 = dockFold9 === 0 ? "독 접기 1단(인포창 · 전광판 숨김)" : dockFold9 === 1 ? "독 접기 2단(재생바 · 오버레이도 숨김)" : "독 펼치기";
+  /* 접기 · 펼치기 둘(위 dockFold9 ★ · 2026-11-10 · 옛 3단 순환) — 삼각형은 펼친 동안 ▼(접기) · 접힌 동안 ▲(펼치기). */
+  const foldLabel9 = dockFold9 === 0 ? "독 접기(미니맵 · 자막 · 화면 주인 · 배속만 남김)" : "독 펼치기";
   /* 한 탭에 클릭이 둘 들어오면 두 단을 뛴다(2026-11-07, 실기 지적: "1단에서 2단 접기가 안 되고 펼침이 됨" — 1 → 2 → 0) — 400ms 안의 두 번째 클릭은 버린다. */
   const foldAtRef9 = useRef(0);
   const dockFoldNode9 = (
     <button
-      type="button" className={cx("scr-motion-infodock-fold", dockFold9 === 1 && "is-fold1", dockFold2On9 && "is-fold2")}
+      type="button" className={cx("scr-motion-infodock-fold", dockFold2On9 && "is-fold2")}
       aria-label={foldLabel9} aria-pressed={dockFoldOn9}
       title={foldLabel9}
       onPointerDown={(e) => e.stopPropagation()}
@@ -23946,15 +23953,13 @@ export default function ReplayMotionPlayer({
         const now9 = performance.now();
         if (now9 - foldAtRef9.current < 400) return;
         foldAtRef9.current = now9;
-        setDockFold9((v) => ((v + 1) % 3) as 0 | 1 | 2);
+        setDockFold9((v) => (v ? 0 : 1));
       }}
     >
       <svg viewBox="0 0 10 10" aria-hidden>
         {dockFold2On9
           ? <polygon points="0,9.33 10,9.33 5,0.67" fill="currentColor" />
-          : dockFold9 === 1
-            ? <><polygon points="0,0.4 10,0.4 5,4.8" fill="currentColor" /><polygon points="0,5.2 10,5.2 5,9.6" fill="currentColor" /></>
-            : <polygon points="0,0.67 10,0.67 5,9.33" fill="currentColor" />}
+          : <polygon points="0,0.67 10,0.67 5,9.33" fill="currentColor" />}
       </svg>
     </button>
   );

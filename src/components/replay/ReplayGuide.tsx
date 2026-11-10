@@ -55,14 +55,14 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Play size={14} fill="currentColor"/>} name="재생 / 일시정지" keys={<Keys k={["Space"]}/>}/>
           <Row ic={<T s="↔"/>} name="진행바" keys={<Keys k={["←", "→"]}/>}/>
           <Row ic={<T s="×2"/>} name="배속" keys={<Keys k={["↑", "↓"]}/>}>지도 오른쪽 아래 다이얼.</Row>
-          <Row ic={<T s="▼"/>} name="접기">버튼 줄 가운데 단추로 미니맵 · 인포창 · 전광판을 접습니다.</Row>
+          <Row ic={<T s="▼"/>} name="접기">버튼 줄 가운데 단추로 독을 한 번에 접습니다 — 미니맵 · 자막 · 화면 주인 · 배속만 남고 지도가 그 자리까지 커집니다(▲ 로 펼침).</Row>
         </ul>
 
         <h3 className="scr-guide-h3">지도</h3>
         <ul className="scr-guide-legend">
           <Row ic={<T s="↔"/>} name="움직이기" keys={<Keys k={["W", "A", "S", "D"]}/>}>끌기(PC 는 왼쪽 버튼).</Row>
           <Row ic={<T s="▭"/>} name="상자 선택" keys={<Keys k={["Shift", "끌기"]} plus/>}>PC 에서 오른쪽 버튼으로 끌거나 Shift 누른 채 끌면 여러 유닛을 고릅니다(개인 추적 중엔 안 됨).</Row>
-          <Row ic={<T s="휠"/>} name="확대 / 축소">휠 · 핀치 · 두 번 누르기.</Row>
+          <Row ic={<T s="휠"/>} name="확대 / 축소">휠 · 핀치 · 두 번 누르기(기본 배율 ↔ 지도 전체).</Row>
           <Row ic={<MapIcon size={15}/>} name="미니맵" keys={<Keys k={["N"]}/>}>누르면 그 자리로(중계 중에는 잠김) · N 보이기 / 숨기기.</Row>
         </ul>
 
@@ -82,7 +82,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · 결과가 있으면 B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
-          <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵은 남김) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
+          <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵까지) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
           <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]", "\\"]}/>}>[ 작게 · ] 크게 · \ 처음대로.</Row>
         </ul>
 
