@@ -181,9 +181,13 @@ export function terrainGridOfMap(t: MapTerrain): TerrainGrid {
  *  내려와 원작 평균(79,66,49)에 한 걸음 더 다가선다. 유닛 쪽 tone9과 한 결이다. */
 /*  0.78 → 0.68 로 한 걸음 되돌렸다(2026-09, 요청: "예전에 맵 이미지를 좀 어둡게 처리하기로 한 거 같은데 그걸 좀 더 밝게
  *  돌려줄래?") — 흙이 (102,90,72)에서 (115,102,83) 언저리로 다시 오른다. 유닛의 tone9 은 안 건드렸다(요청은 맵 그림이다). */
-const SHOW_GAMMA = 0.68;
-/** 색 벌리기 — 휘도는 그대로 두고 채도만 곱한다(1이면 그대로). 어두워진 만큼 색이 묻히지 않게 1.8 → 2.1 → 2.25 → (밝기를 되돌리며) 2.1. */
-const SHOW_SAT = 2.1;
+/*  0.68 → 0.74 · 채도 2.1 → 1.7 · 누런 기 빼기 0.4(2026-11-10, 지적: "지형색이 실제에 비해 연하고 누런기가 많은 것 같은데" → 견본 A · B · C 중 "B로") —
+ *  밝기 끌어올림이 색을 연하게 하고, 채도 2.1배가 갈색 흙을 노랗게 띄웠다. 견본: 정글 흙 (79,66,49) → 옛 (127,100,61) · 새 (106,86,61). */
+const SHOW_GAMMA = 0.74;
+/** 색 벌리기 — 휘도는 그대로 두고 채도만 곱한다(1이면 그대로). 어두워진 만큼 색이 묻히지 않게 1.8 → 2.1 → 2.25 → (밝기를 되돌리며) 2.1 → 1.7(2026-11-10). */
+const SHOW_SAT = 1.7;
+/** 누런 기 빼기(2026-11-10 · 위 ★) — 노랑 몫 y = max(0, (r + g)/2 − b) 에서 r 을 y × k × 0.55 · g 를 y × k × 0.35 만큼 덜어 흙을 갈색 쪽으로(풀 · 물 · 눈은 거의 그대로). 0 이면 끔. */
+const SHOW_WARM_CUT = 0.4;
 const SHOW_LUT = ((): Uint8Array => {
   const t = new Uint8Array(256);
   for (let i = 0; i < 256; i += 1) t[i] = Math.round(255 * (i / 255) ** SHOW_GAMMA);
@@ -196,11 +200,10 @@ function showRGB(r0: number, g0: number, b0: number): [number, number, number] {
   const b = SHOW_LUT[b0];
   // 휘도는 Rec.601 — 색만 벌리고 밝기는 안 건드린다.
   const l = 0.299 * r + 0.587 * g + 0.114 * b;
-  return [
-    clamp255(l + (r - l) * SHOW_SAT),
-    clamp255(l + (g - l) * SHOW_SAT),
-    clamp255(l + (b - l) * SHOW_SAT),
-  ];
+  let r1 = l + (r - l) * SHOW_SAT; let g1 = l + (g - l) * SHOW_SAT; const b1 = l + (b - l) * SHOW_SAT;
+  const y9 = Math.max(0, (r1 + g1) / 2 - b1) * SHOW_WARM_CUT;
+  r1 -= y9 * 0.55; g1 -= y9 * 0.35;
+  return [clamp255(r1), clamp255(g1), clamp255(b1)];
 }
 
 /** 그리는 쪽(mapTiles.drawMapGrid)이 쓰는 얼굴로 감싼다 — 그쪽이 이 파일을 임포트하면
