@@ -23672,6 +23672,13 @@ export default function ReplayMotionPlayer({
         const tcs9 = getComputedStyle(tb9);
         lay9.style.setProperty("--tb-h9", `${(tb9.getBoundingClientRect().height + (parseFloat(tcs9.marginTop) || 0) + (parseFloat(tcs9.marginBottom) || 0)).toFixed(1)}px`);
       } else lay9.style.removeProperty("--tb-h9");
+      /* ★ 펼치기 손잡이 바닥 = **미니맵 바닥**(2026-11-10, 실기 지적: "접으면 펼치기 버튼이 바닥보다 살짝 위에 올라가 있는데 미니맵하고 바닥 맞춰줘") — 손잡이는 뿌리 오른아래
+         10px + 안전영역에 떠서 미니맵(독 줄 · 우물 여백)과 바닥이 어긋났다. 접힌 동안 미니맵 상자 아래끝에서 손잡이 감싸개의 부모(뿌리) 아래끝까지를 --fab-bot9 로 적는다(CSS). */
+      const fab09 = lay9.querySelector<HTMLElement>(".scr-fs-foldfab");
+      if (fold2L9 && fab09 && mini9 && shown9(mini9) && fab09.offsetParent instanceof HTMLElement) {
+        const pb9 = fab09.offsetParent.getBoundingClientRect().bottom;
+        lay9.style.setProperty("--fab-bot9", `${Math.max(0, pb9 - mini9.getBoundingClientRect().bottom).toFixed(1)}px`);
+      } else lay9.style.removeProperty("--fab-bot9");
       const picks9 = wideL9 ? cands9.filter((el9) => el9 !== mini9) : cands9;
       let top9: number;
       if (picks9.length) top9 = Math.min(...picks9.map((el9) => el9.getBoundingClientRect().top));

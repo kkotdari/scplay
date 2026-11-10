@@ -5814,13 +5814,13 @@
 .scr-fs-layer:not(.is-wide) .scr-fs-root.is-dockfold2 > .scr-fs-lower { position: absolute; left: 0; right: 0; bottom: 0; }
 /* 접힌 동안 배속 다이얼은 펼치기 손잡이(.scr-fs-foldfab · 오른아래 · 30·ui) 위에 선다(2026-11-10 — 접어도 배속은 남긴다 · 옛 2단은 다이얼을 숨겨 겹칠 일이 없었다). 독 위 자리(--over-cap ·
    --ov-sd-bot9 · 넓은 배치 --dock-lift-r)는 펼친 독의 값이라 접히면 손잡이와 겹쳤다. */
-.scr-fs-layer .scr-fs-root.is-dockfold2 > .scr-fs-stage > .scr-speeddial.scr-speeddial { bottom: calc(10px + env(safe-area-inset-bottom, 0px) + 30px * var(--ui, 1) + var(--sd-gap)); }
+.scr-fs-layer .scr-fs-root.is-dockfold2 > .scr-fs-stage > .scr-speeddial.scr-speeddial { bottom: calc(var(--fab-bot9, 10px + env(safe-area-inset-bottom, 0px)) + 30px * var(--ui, 1) + var(--sd-gap)); }
 /* 세로 2단은 **미니맵도 재생바 키만큼 내린다**(2026-11-07 넷째, 실기 요청: "세로모드 시 재생기까지 접은 2단 접기 땐 미니맵도 그만큼 내리기") — 숨긴 재생바(자리는 남는다)의 바깥 키를
    RMP capPlace9 가 --tb-h9 로 층에 적고 우물을 옮긴다(transform — 줄 키는 그대로라 무대가 안 바뀐다). 가로는 재생바가 미니맵 옆이라 안 탄다. */
 .scr-fs-layer:not(.is-wide) .scr-fs-root.is-dockfold2 .scr-fs-dockmain > .scr-fs-minipanel { transform: translateY(var(--tb-h9, 0px)); }
 /* 2단의 펼치기 손잡이는 **뿌리 오른아래에 뜬다**(2026-11-07, 실기 지적: "2단에서 접기 버튼이 안 보여" → "펼치기 버튼은 아래쪽으로" — RMP .scr-fs-foldfab · 재생바 꼬리에서 빠진다) —
    어두운 바탕 · 흰 삼각형 · 흰 테(크리스탈(반투명) 꼴은 지도 위에서 안 보였다). 쇠 · 홀로그램 · 클레이 테마 공통 · 좌우 · 아래 안전영역 안쪽. */
-.scr-fs-foldfab { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 40; pointer-events: auto; }
+.scr-fs-foldfab { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: var(--fab-bot9, calc(10px + env(safe-area-inset-bottom, 0px))); z-index: 40; pointer-events: auto; }   /* 바닥 = 미니맵 바닥(RMP capPlace9 --fab-bot9 · 2026-11-10) */
 .scr-fs-foldfab > .scr-motion-infodock-fold {
   width: calc(30px * var(--ui, 1)); height: calc(30px * var(--ui, 1)); margin: 0; border: none; border-radius: calc(6px * var(--ui, 1));
   background: rgba(8, 10, 14, 0.8); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 4px rgba(0, 0, 0, 0.7);
@@ -6082,3 +6082,21 @@
 .scr-fs-layer.is-holodock .scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(70, 255, 120, 0.24), 0 0 6px rgba(90, 255, 130, 0.8); }
 .scr-fs-layer.is-holodock .scr-modetog-stage > span.is-on { background: #b8ffc8; color: #04140a; }
 .scr-fs-layer.is-holodock :is(.scr-fs-back, .scr-modetog-stage) { border-radius: calc(10px * var(--ui, 1)); }   /* 독 우물(10·dk)과 같은 둥근 귀 · 배율 원은 원 그대로 */
+
+/* ★ 펼치기 손잡이(.scr-fs-foldfab)도 **테마마다**(2026-11-10, 요청: "펼치기 버튼도 각 테마 적용") — 옛: 세 테마 공통 어두운 바탕 · 흰 테.
+   메탈 = 쇠 결(받침 벌 --steel-dark-ped) · 검은 테 · 위 밝은 입술 · 붉은 안쪽 꾸밈선 / 홀로그램 = 재생바 꼬리 접기 단추와 같은 녹색 유리 / 네온 = 짙은 판 + 하늘색 빛 테. */
+.scr-fs-layer:not(.is-holodock) .scr-fs-foldfab > .scr-motion-infodock-fold {
+  background: var(--steel-dark-ped, #2b2e33) #2b2e33;
+  box-shadow: inset 0 0 0 1px #050607, inset 0 0 0 2px var(--sc-trim, rgba(196, 34, 30, 0.78)), inset 0 3px 0 rgba(255, 255, 255, 0.08), 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.scr-fs-layer:not(.is-holodock) .scr-fs-foldfab > .scr-motion-infodock-fold svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.scr-fs-layer.is-holodock .scr-fs-foldfab > .scr-motion-infodock-fold {
+  color: #fff; background: rgba(40, 140, 70, 0.32); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset 0 0 0 1px var(--holo-edge, rgba(120, 255, 160, 0.55)), inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.scr-fs-layer.is-holodock .scr-fs-foldfab > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-foldfab > .scr-motion-infodock-fold {
+  background: rgba(3, 9, 18, 0.85);
+  box-shadow: inset 0 0 0 1px var(--neon, rgba(70, 205, 255, 0.95)), inset 0 0 6px var(--neon-faint, rgba(40, 150, 255, 0.22)), 0 0 8px var(--neon-soft, rgba(40, 165, 255, 0.5));
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-foldfab > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px var(--neon-soft, rgba(40, 165, 255, 0.5))); }
