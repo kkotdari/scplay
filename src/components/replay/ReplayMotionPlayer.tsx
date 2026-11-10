@@ -964,7 +964,7 @@ const ATLAS_WANT9 = (): 8 | 16 | 32 => {
   return TIER9.v === 0 ? 16 : 32;
 };
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
-const THEME_PICK9: { v: "metal" | "holo" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
+const THEME_PICK9: { v: "metal" | "holo" | "neon" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
  *  "최소 줌에서 더 줄이려고 하면 모델이 흐려짐" — 1배에서 휠·핀치로 더 줄이면 배율은 1에 막혀 화면이 그대로인데 손짓은 서서, 지도 전체라 무거운 그 자리의
  *  손짓 한 장 값(xfMsRef9 · 옛 손짓의 값이 남아 있기도 했다)으로 배킹을 0.7~0.4배로 내려 그렸다). beginGestureXf 가 끄고 applyGestureXf 가 켠다. */
@@ -13607,12 +13607,14 @@ export default function ReplayMotionPlayer({
   /* ★ 테마는 **살아 있는 재생기끼리 같다**(2026-10-24, 지적: "처음 재생기 보일 때랑 팝업창 뜰 때부터랑 다른 테마가 나옴") — 상세는 자료를 기다리는 재생기(sg-web
      PlayerLoadShell · pending)를 먼저 세우고 자료가 오면 진짜 재생기로 갈아 끼우는데, 둘이 저마다 주사위를 던져 테마가 바뀌었다. 다른 재생기가 아직 살아 있거나(alive)
      방금(1.5초 안) 내려갔으면 그 테마를 잇고, 그 밖(새로 연 판)만 다시 던진다. */
-  const [modeTheme9] = useState<"metal" | "holo">(() => {
-    const m9 = typeof location !== "undefined" ? /theme=(metal|holo)/.exec(location.hash) : null;
-    if (m9) return m9[1] as "metal" | "holo";
+  /* ★ 셋째 테마 **네온**(2026-11-10, 요청: 기념 콘솔 스킨 사진 — "우리 콘솔 테마로 하나 추가") — 메탈 독 구조 + 남색 쇠 · 하늘색 빛 테(replay.css is-neondock). 무작위 셋 중 하나. */
+  const [modeTheme9] = useState<"metal" | "holo" | "neon">(() => {
+    const m9 = typeof location !== "undefined" ? /theme=(metal|holo|neon)/.exec(location.hash) : null;
+    if (m9) return m9[1] as "metal" | "holo" | "neon";
     const T9 = THEME_PICK9;
     if (T9.v && (T9.alive > 0 || performance.now() - T9.gone < 1500)) return T9.v;
-    T9.v = Math.random() < 0.5 ? "metal" : "holo";
+    const r9 = Math.random();
+    T9.v = r9 < 1 / 3 ? "metal" : r9 < 2 / 3 ? "holo" : "neon";
     return T9.v;
   });
   useEffect(() => {
@@ -24831,7 +24833,7 @@ export default function ReplayMotionPlayer({
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
          포털하므로(아래 fsInner) 뿌리(.scr-motion-root)의 자손이 아니다. 그래서 `.scr-motion-pc9 …` 로 적은 PC 독 규칙(독 몸 키 · 1080p 치수 틀 블록 ·
          로스터 글자)이 전체화면에서는 하나도 안 맞아 폰 자(뿌리 변수)로 떨어졌다 — 그것이 "전체화면에서 독이 작아진" 까닭이다. */
-      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", wide9 && "is-wide", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock", modeAsk9 && "is-asking")}
+      className={cx("scr-motion", "scr-fs-layer", fsOn && "is-fs", wide9 && "is-wide", !fsUi && "is-idle", !uiPhone9 && "scr-motion-pc9", modeTheme9 === "holo" && "is-holodock", modeTheme9 === "neon" && "is-neondock", modeAsk9 && "is-asking")}
       /* 프레임일 때의 크기 — 지도와 같은 가로세로비다(위). 전체화면에서는 CSS가
          화면을 채우므로 이 값이 안 쓰인다(is-fs가 덮는다). */
       /* 프레임 크기 — 비는 **지도 것**이라 크롭 0이 기본이고(지적: PC에서 높이가 낮음),
@@ -25021,7 +25023,7 @@ export default function ReplayMotionPlayer({
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {askShow9 && (
             <div
-              className={cx("scr-mode-ask", `is-${modeTheme9}`)} role="dialog" aria-label="보기 모드"
+              className={cx("scr-mode-ask", modeTheme9 === "neon" ? "is-metal is-neon" : `is-${modeTheme9}`)} role="dialog" aria-label="보기 모드"
               onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
             >
               <span className="scr-mode-ask-title">보기 모드</span>
@@ -25048,7 +25050,7 @@ export default function ReplayMotionPlayer({
           {/* ★ 고른 모드는 **끝까지**(2026-10-24, 요청: "한번 선택한 모드로 끝까지 보기로 하고 토글이나 자동중계로 바꾸는 버튼도 미표시") — 요약/전체 단추는 걷고 요약이 돌 때
               진행(요약 n/N)만 남긴다. 자동중계 스위치·전체 분할 알약(전광판 머리 줄)도 같은 날 걷었다 — 숫자패드 키(0 · . · 9)는 남아 있다. */}
           {castOn && !splitOn9 && digest9 && (
-            <div className={cx("scr-digest-pill", `is-${modeTheme9}`)} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <div className={cx("scr-digest-pill", modeTheme9 === "neon" ? "is-metal is-neon" : `is-${modeTheme9}`)} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
               <span>요약 {digest9.i + 1}/{digest9.wins.length}</span>
             </div>
           )}

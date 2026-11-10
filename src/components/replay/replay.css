@@ -5893,3 +5893,82 @@
 .scr-fs-layer[data-ovlow9] .scr-testmode { top: auto; bottom: calc(100% + 6px * var(--sdk)); }
 /* 채팅은 왼쪽 묶음 위(묶음이 미니맵 위로 내려와 채팅 자리에 섰다). */
 .scr-fs-layer[data-ovlow9] .scr-fs-chat.scr-fs-chat { bottom: var(--ov-l-top9); }
+
+/* ★★ **네온 콘솔 테마**(2026-11-10, 요청: 기념 콘솔 스킨 사진 둘 — "우리 콘솔(독 · 미니맵 · 오버레이 등 다 포함) 테마로 하나 추가") — 원작 행사 스킨의 **분위기만**(짙은 남색 쇠판 ·
+   네온 하늘색으로 빛나는 테두리 · 우물 둘레의 빛 번짐) 따 온 우리 테마다(로고 · 문구 · 그림은 안 쓴다). 구조는 메탈 독 그대로(.is-holodock 이 아니면 메탈 규칙이 다 탄다)이고
+   여기서 쇠 결 · 테 색 · 빛만 덮는다 — 뿌리 is-neondock(RMP modeTheme9 "neon" · 무작위 셋 중 하나 · `#theme=neon`). 무게: 메탈 규칙(넓은 배치의 !important 포함)을 이기게
+   클래스를 겹쳐 쓴다(.is-neondock.is-neondock). */
+.scr-fs-layer.is-neondock.is-neondock {
+  --neon: rgba(70, 205, 255, 0.95);
+  --neon-soft: rgba(40, 165, 255, 0.5);
+  --neon-faint: rgba(40, 150, 255, 0.22);
+  --steel-dark:
+    linear-gradient(104deg, transparent 22%, rgba(120, 200, 255, 0.07) 36%, rgba(120, 200, 255, 0.02) 44%, transparent 56%),
+    repeating-linear-gradient(180deg, transparent 0 7px, rgba(90, 180, 255, 0.035) 7px 8px),
+    linear-gradient(180deg, #2c3748 0%, #1f2836 14%, #18202c 55%, #10151d 100%);
+  --steel-dark-ped:
+    linear-gradient(104deg, transparent 22%, rgba(120, 200, 255, 0.07) 36%, rgba(120, 200, 255, 0.02) 44%, transparent 56%),
+    repeating-linear-gradient(180deg, transparent 0 7px, rgba(90, 180, 255, 0.035) 7px 8px),
+    linear-gradient(180deg, #27313f 0%, #2c3748 100%);
+  --sc-trim: var(--neon);
+}
+/* 쇠판 · 받침 — 윗 입술이 하늘색으로 빛나고 위로 옅게 번진다. */
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-lower::before {
+  background: var(--steel-dark) #18202c;
+  box-shadow: inset 0 1px 0 #03060a, inset 0 2px 0 var(--neon), inset 0 4px 6px var(--neon-faint), inset 0 -1px 0 #03060a, 0 -1px 8px var(--neon-faint);
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-rosterpanel::before {
+  background:
+    linear-gradient(90deg, #03060a 0 1px, var(--neon-soft) 1px 2px, transparent 2px calc(100% - 2px), var(--neon-soft) calc(100% - 2px) calc(100% - 1px), #03060a calc(100% - 1px)) 0 0 / 100% var(--ped-h) no-repeat,
+    var(--steel-dark-ped) #27313f;
+  box-shadow: inset 0 1px 0 #03060a, inset 0 2px 0 var(--neon), inset 0 4px 6px var(--neon-faint), 0 -1px 8px var(--neon-faint);
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-rosterpanel::after,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-minipanel::after {
+  background: var(--steel-dark);
+  box-shadow: inset 1px 0 0 var(--neon-faint), inset -1px 0 0 rgba(0, 0, 0, 0.5);
+}
+/* 우물(미니맵 · 인포창 · 전광판) — 검은 판 + 빛나는 하늘색 테(안팎으로 번짐) · 미니맵도 테를 단다(메탈은 미니맵만 테 없음). */
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+  background: rgba(2, 6, 12, 0.72);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px var(--neon), inset 0 0 10px var(--neon-soft), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 8px var(--neon-soft), 0 0 18px var(--neon-faint) !important;
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmark { color: rgba(170, 225, 255, 0.6); text-shadow: 0 0 6px var(--neon-soft); }
+/* 재생 줄 — 흰 글씨에 하늘색 빛. */
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek { --text: #eaf8ff; --dim: rgba(220, 242, 255, 0.82); --line-soft: rgba(120, 210, 255, 0.3); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px var(--neon-soft)); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px var(--neon-soft); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 5px var(--neon-soft); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek .scr-motion-range::-moz-range-track { box-shadow: 0 0 5px var(--neon-soft); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb-tail > .scr-motion-infodock-fold svg { filter: drop-shadow(0 0 4px var(--neon-soft)); }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb button svg { filter: drop-shadow(0 0 3px var(--neon-faint)); }
+/* 넓은(가로) 배치 — 메탈의 쇠 테(3·dk) 색을 남색 쇠 + 하늘색 빛 테로. */
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-lower > .scr-tb {
+  background: var(--steel-dark) #18202c;
+  box-shadow: inset 0 1px 0 #03060a, inset 0 2px 0 var(--neon), inset 0 -1px 0 #03060a,
+    0 0 0 calc(3px * var(--dk, 1)) #1f2836, 0 0 0 calc(3px * var(--dk, 1) + 1px) var(--neon), 0 0 10px var(--neon-faint) !important;
+}
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel,
+.scr-fs-layer.is-neondock.is-neondock.is-wide.is-wide-info .scr-fs-dockmain > .scr-motion-infodock {
+  box-shadow: 0 0 0 calc(3px * var(--dk, 1)) #1f2836, 0 0 0 calc(3px * var(--dk, 1) + 1px) var(--neon), 0 0 10px var(--neon-faint), inset 0 0 0 1px var(--neon-soft) !important;
+}
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-dockmain > .scr-fs-minipanel {
+  box-shadow: 0 0 0 1px var(--neon), 0 0 10px var(--neon-faint), inset 0 0 0 1px var(--neon-soft) !important;
+}
+/* 오버레이(배속 다이얼 · 배율 원 · 뒤로 · 보기 토글 · 테스터 단추) — 짙은 남색 반투명 + 하늘색 빛 테. */
+.scr-fs-layer.is-neondock.is-neondock :is(.scr-speeddial, .scr-zoomdial, .scr-fs-back, .scr-modetog-stage) {
+  background: rgba(8, 18, 32, 0.55);
+  box-shadow: 0 0 0 1px var(--neon-soft), 0 0 8px var(--neon-faint), inset 0 0 6px var(--neon-faint);
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-speeddial :is(.scr-speeddial-fill, .scr-speeddial-knob) { background: #bfeaff; }
+.scr-fs-layer.is-neondock.is-neondock .scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) var(--neon-faint), 0 0 6px var(--neon); }
+.scr-fs-layer.is-neondock.is-neondock .scr-modetog-stage > span.is-on { background: #bfeaff; color: #06121f; }
+/* 보기 모드 판 · 요약 알약 — 메탈 판(is-metal 도 함께 단다) 위에 하늘색 빛 테. */
+.scr-mode-ask.is-neon, .scr-digest-pill.is-neon {
+  background: linear-gradient(180deg, #2c3748 0%, #1f2836 30%, #141a24 100%);
+  box-shadow: 0 0 0 1px #03060a, inset 0 0 0 1px rgba(70, 205, 255, 0.9), 0 0 10px rgba(40, 165, 255, 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.scr-mode-ask.is-neon .scr-mode-ask-btn, .scr-digest-pill.is-neon .scr-digest-pill-btn { box-shadow: inset 0 0 0 1px rgba(70, 205, 255, 0.55), 0 0 6px rgba(40, 165, 255, 0.3); }
