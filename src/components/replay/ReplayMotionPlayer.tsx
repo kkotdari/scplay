@@ -20500,7 +20500,10 @@ export default function ReplayMotionPlayer({
     const zBase9 = Math.max(zMin9, castZoomFit9());
     const z1 = zoomRef.current < (zMin9 + zBase9) / 2 ? zBase9 : zMin9;
     if (camLockRef9.current) {
-      wheelDriveRef9.current?.(z1, null);
+      /* 잠금(중계 · 개인 화면)도 **곧장**(2026-11-10, 요청: "중계모드 더블클릭도 자유모드처럼 즉시 장면 이동 · 점진적 확대축소 노노") — 옛: 휠 미끄러짐(wheelDriveRef9)으로
+         배율이 0.2초 남짓 미끄러지고 카메라도 따라 미끄러졌다. 배율 원 누름과 같은 길(viewCut9 — 카메라 미끄러짐 끊기 · setView9)로 한 장에 선다. */
+      wheelStopRef9.current(); viewCut9();
+      setView9(z1, panRef.current);
       return;
     }
     const el = mapRef.current;
