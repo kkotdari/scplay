@@ -5972,3 +5972,22 @@
   box-shadow: 0 0 0 1px #03060a, inset 0 0 0 1px rgba(70, 205, 255, 0.9), 0 0 10px rgba(40, 165, 255, 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 .scr-mode-ask.is-neon .scr-mode-ask-btn, .scr-digest-pill.is-neon .scr-digest-pill-btn { box-shadow: inset 0 0 0 1px rgba(70, 205, 255, 0.55), 0 0 6px rgba(40, 165, 255, 0.3); }
+/* ★ **둥근 뼈대**(같은 날 둘째, 지적: "뼈대가 메탈이면 각진 거 아니야?") — 네온은 모서리를 굴린다: 우물(미니맵 · 인포창 · 전광판) 반지름 --neon-r(8·dk) · 받침(솟은 몫) 위 두 모서리
+   1.6배 · 쇠판 위 두 모서리 · 재생바(넓은 배치) · 오버레이. 쇠판 · 받침은 우물 자리를 **네모로** 파 두었으므로(--plate-holes · --ped-in) 둥근 우물의 귀퉁이 밖이 비어
+   지도가 비친다 — 우물 둘레에 쇠 색 띠(4·dk · 둥근 그림자 펼침)를 깔아 그 귀퉁이를 메운다(빛 테 · 번짐은 그 위). */
+.scr-fs-layer.is-neondock.is-neondock { --neon-r: round(nearest, calc(8px * var(--dk, 1)), 2px); }
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-minipanel,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-motion-infodock,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-rosterpanel > .scr-dock-roster {
+  border-radius: var(--neon-r);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px var(--neon), inset 0 0 10px var(--neon-soft), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 8px var(--neon-soft),
+    0 0 0 calc(4px * var(--dk, 1)) #1c2430 !important;
+}
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-minipanel::before,
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-dockmain > .scr-fs-rosterpanel::before { border-radius: calc(var(--neon-r) * 1.6) calc(var(--neon-r) * 1.6) 0 0; }
+.scr-fs-layer.is-neondock.is-neondock .scr-fs-lower::before { border-radius: calc(var(--neon-r) * 1.2) calc(var(--neon-r) * 1.2) 0 0; }
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-lower > .scr-tb,
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-dockmain > .scr-fs-rosterpanel { border-radius: var(--neon-r); }
+.scr-fs-layer.is-neondock.is-neondock.is-wide .scr-fs-dockmain > .scr-fs-minipanel::before { border-radius: calc(var(--neon-r) * 1.4); }
+.scr-fs-layer.is-neondock.is-neondock :is(.scr-fs-back, .scr-modetog-stage) { border-radius: var(--neon-r); }   /* 배율 원(.scr-zoomdial)은 원 그대로 */
+.scr-mode-ask.is-neon, .scr-digest-pill.is-neon { border-radius: calc(12px * var(--ui, 1)); }
