@@ -9139,6 +9139,9 @@ vec4 waterPass() {
     float lit = dot(toW, normalize(vec2(-0.5, -0.45)));   // 둑 낯은 물 쪽을 본다 — 빛(왼위)을 보는 낯(물 아래쪽 · 오른쪽 둑)이 밝다. 옛 부호는 거꾸로라 물 아래·오른쪽에 그림자가 져 물이 땅 위에 얹힌 듯했다
     vec3 wall = uCol.rgb * vec3(1.0, 0.95, 0.88) * (0.9 + 0.4 * lit) * (0.9 + 0.2 * wfbm(tc * 2.5));   // 둑은 땅 색에서 빛 쪽만 밝게 · 반대쪽만 어둡게(평균 땅과 같다)
     float ba = bank * 0.9;
+    // 땅 다각형 길(uWt.z · ⑧ 스텐실) — 물가를 땅 채우기와 **같은 다각형 경계**로 가른다(타일 판 문턱은 땅 경계와 어긋나 두 겹 흐린 테가 됐다).
+    if (uWt.z > 1.5) { float bk = (1.0 - smoothstep(0.75, 1.05, dl)) * 0.9; return vec4(wall * bk, bk); }   // 땅 안 · 둑만
+    if (uWt.z > 0.5) return vec4(col, 1.0);   // 땅 밖 = 물 · 꽉
     return vec4(col * wat + wall * ba * (1.0 - wat), wat + ba * (1.0 - wat));
   }
   float t = uWt.x;
@@ -9470,7 +9473,13 @@ class i8 {
         T(this.land) ? L(this.land, F) : (B(), p(this.land, 1, 0, 0), S(this.land, !1, F)), i.uniform1f(this.loc.uMode, 0);
       }
       const v = c9 >= 0 ? c9 : z9.k;
-      v > 0 && this.cls && this.highp9 && wi < 0 && (i.disable(i.STENCIL_TEST), i.blendFuncSeparate(i.DST_COLOR, i.SRC_COLOR, i.ZERO, i.ONE), i.activeTexture(i.TEXTURE0), i.bindTexture(i.TEXTURE_2D, this.cls), i.uniform1f(this.loc.uMode, 2), i.uniform4f(this.loc.uGr, v, u * I, this.panel9 ? 1 : 0, s.tileRGBA ? 0 : 1), f(0, 0, l, A), i.uniform1f(this.loc.uMode, 0), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), i.enable(i.STENCIL_TEST)), this.wat && this.highp9 && wi < 0 && (i.disable(i.STENCIL_TEST), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), this.waterUniforms(s), i.uniform1f(this.loc.uMode, 4), f(0, 0, l, A), C === 0 && CD() && this.waterFxPasses(f, l, A), i.uniform1f(this.loc.uMode, 0), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), i.enable(i.STENCIL_TEST));
+      if (v > 0 && this.cls && this.highp9 && wi < 0 && (i.disable(i.STENCIL_TEST), i.blendFuncSeparate(i.DST_COLOR, i.SRC_COLOR, i.ZERO, i.ONE), i.activeTexture(i.TEXTURE0), i.bindTexture(i.TEXTURE_2D, this.cls), i.uniform1f(this.loc.uMode, 2), i.uniform4f(this.loc.uGr, v, u * I, this.panel9 ? 1 : 0, s.tileRGBA ? 0 : 1), f(0, 0, l, A), i.uniform1f(this.loc.uMode, 0), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), i.enable(i.STENCIL_TEST)), this.wat && this.highp9 && wi < 0) {
+        if (i.disable(i.STENCIL_TEST), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), this.waterUniforms(s), i.uniform1f(this.loc.uMode, 4), this.land) {
+          const F = performance.now() / 1e3 % 600;
+          i.enable(i.STENCIL_TEST), i.colorMask(!1, !1, !1, !1), T(this.land) ? (i.stencilMask(4), i.stencilFunc(i.ALWAYS, 4, 255), i.stencilOp(i.KEEP, i.KEEP, i.REPLACE), G(this.land, 0, 0)) : p(this.land, 4, 0, 0), i.colorMask(!0, !0, !0, !0), i.stencilMask(0), i.stencilOp(i.KEEP, i.KEEP, i.KEEP), i.stencilFunc(i.EQUAL, 0, 4), i.uniform4f(this.loc.uWt, F, 1, 1, 0), f(0, 0, l, A), i.stencilFunc(i.EQUAL, 4, 4), i.uniform4f(this.loc.uWt, F, 1, 2, 0), f(0, 0, l, A), i.colorMask(!1, !1, !1, !1), i.stencilMask(4), i.stencilFunc(i.ALWAYS, 0, 255), i.stencilOp(i.KEEP, i.KEEP, i.ZERO), f(0, 0, l, A), i.colorMask(!0, !0, !0, !0), i.stencilMask(255), i.uniform4f(this.loc.uWt, F, 1, 0, 0), i.disable(i.STENCIL_TEST);
+        } else f(0, 0, l, A);
+        C === 0 && CD() && this.waterFxPasses(f, l, A), i.uniform1f(this.loc.uMode, 0), i.blendFunc(i.ONE, i.ONE_MINUS_SRC_ALPHA), i.enable(i.STENCIL_TEST);
+      }
     }
     if (r && C !== 1 && r.tile) {
       const Z = r.tile;
@@ -42746,7 +42755,7 @@ function DX({
       h += 1, k += W.width * W.height * 4;
     });
     const E = j0();
-    return `판${"11-11 07:58".slice(6)} ${Math.round(Qn.current)}초 ×${fl.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (E ? ` GL${E.canvas.width}×${E.canvas.height} 아틀라스${E.sprFixedMB.toFixed(0)} 메시${E.stat.meshes} 판${E.sprStat.pages}${E.lost ? " 잃음" : ""}` : "");
+    return `판${"11-11 08:26".slice(6)} ${Math.round(Qn.current)}초 ×${fl.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (E ? ` GL${E.canvas.width}×${E.canvas.height} 아틀라스${E.sprFixedMB.toFixed(0)} 메시${E.stat.meshes} 판${E.sprStat.pages}${E.lost ? " 잃음" : ""}` : "");
   }, ks(() => {
     Lr(to ? "전체화면 켬" : "전체화면 끔");
   }, [to]), ks(() => {
@@ -42764,7 +42773,7 @@ function DX({
         });
         let ot = 0;
         for (const Dt of Ae.current.values()) ot += Dt.buf.byteLength;
-        const it = j0(), ut = (Dt) => (Dt / 1048576).toFixed(0), gt = (W = performance.memory) == null ? void 0 : W.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-11 07:58 · 재생${Math.round(Qn.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${fl.current.speed} 배율${fl.current.zoom.toFixed(1)} · 메모리${Dr()}단 ${lu()}방 · 캔버스${$}장 ${ut(q)}MB` + (it ? ` · GL배킹${it.canvas.width}×${it.canvas.height} 메시${it.stat.meshes}/${it.meshMax} ${ut(it.stat.bytes)}MB 2D판${it.sprStat.pages}장×${it.sprPageMB9().toFixed(0)}MB 아틀라스${it.sprFixedMB.toFixed(0)}MB 칸${it.sprStat.cells}` : " · GL없음") + ` · 설계도${Ae.current.size}장 ${ut(ot)}MB · 안개갈무리${Ke.current.length} · 효과판${ut(GA.n)}MB · 캔버스생성${Cg.n}` + (gt ? ` · 힙${ut(gt)}MB` : "");
+        const it = j0(), ut = (Dt) => (Dt / 1048576).toFixed(0), gt = (W = performance.memory) == null ? void 0 : W.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-11 08:26 · 재생${Math.round(Qn.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${fl.current.speed} 배율${fl.current.zoom.toFixed(1)} · 메모리${Dr()}단 ${lu()}방 · 캔버스${$}장 ${ut(q)}MB` + (it ? ` · GL배킹${it.canvas.width}×${it.canvas.height} 메시${it.stat.meshes}/${it.meshMax} ${ut(it.stat.bytes)}MB 2D판${it.sprStat.pages}장×${it.sprPageMB9().toFixed(0)}MB 아틀라스${it.sprFixedMB.toFixed(0)}MB 칸${it.sprStat.cells}` : " · GL없음") + ` · 설계도${Ae.current.size}장 ${ut(ot)}MB · 안개갈무리${Ke.current.length} · 효과판${ut(GA.n)}MB · 캔버스생성${Cg.n}` + (gt ? ` · 힙${ut(gt)}MB` : "");
         localStorage.setItem(H3, lt);
       } catch {
       }
@@ -45772,7 +45781,7 @@ function DX({
         " · UI ",
         nn.ui,
         " · 판 ",
-        "11-11 07:58",
+        "11-11 08:26",
         nn.ss !== 1 ? ` · 초해상 ×${nn.ss.toFixed(2)}` : "",
         Math.abs(nn.unitScale - nn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${nn.unitScale.toFixed(4)})` : nn.scale > 0 && Math.abs(nn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${nn.scale.toFixed(4)})` : "",
         nn.allocOk ? "" : " · ⚠배킹확보 실패"
