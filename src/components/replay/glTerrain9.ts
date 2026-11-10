@@ -217,22 +217,21 @@ vec4 waterPass() {
   float dz = clamp((d - 0.3) / 10.0, 0.0, 1.0);
   vec2 tc = vTc;
   if (uMode < 4.5) {
-    vec3 sand = uCol.rgb;
+    vec3 sand = mix(vec3(0.463, 0.408, 0.306), uCol.rgb, 0.25);   // 바닥은 시안의 맑은 모래빛에 땅 색을 조금만(풀밭 땅 색을 그대로 깔면 물이 검푸르게 탁했다)
     float pb = smoothstep(0.55, 0.7, wfbm(tc * 0.9 + 11.0)); float rk = smoothstep(0.62, 0.75, wfbm(tc * 0.25 + 4.0));
-    vec3 floorC = mix(mix(sand, sand * vec3(0.74, 0.76, 0.80), pb), vec3(dot(sand, vec3(0.3, 0.5, 0.2))) * 0.62, rk) * (0.75 + 0.5 * wfbm(tc * 2.2)) * (1.0 - 0.35 * dz);
-    vec3 absorb = exp(-vec3(0.42, 0.16, 0.08) * (0.25 + dz * 2.2));   // 가장 얕은 물도 물빛이 조금 낀다(0.25)
+    vec3 floorC = mix(mix(sand, sand * vec3(0.74, 0.76, 0.80), pb), vec3(0.243, 0.251, 0.235), rk) * (0.75 + 0.5 * wfbm(tc * 2.2)) * (1.0 - 0.35 * dz);
+    vec3 absorb = exp(-vec3(0.42, 0.16, 0.08) * (0.08 + dz * 2.0));   // 시안대로 얕은 물은 바닥이 거의 그대로(0.25 → 0.08)
     vec3 col = floorC * absorb + uWd.rgb * (1.0 - absorb);
-    col = mix(col, uWd.rgb * 1.7, 0.18);   // 물 자체의 푸른 기(얕은 물이 흙빛만 남지 않게)
+    col = mix(col, uWd.rgb * 1.7, 0.08);   // 물 자체의 푸른 기(0.18 → 0.08 · 탁했다)
     float landUp = 1.0 - texture2D(uTex, vUv + vec2(-0.5, -0.45) * uWpx * 2.2).r;   // 왼위가 땅(둑)이면 그 그림자가 물에 진다
-    col *= 1.0 - 0.38 * smoothstep(0.3, 0.9, landUp);
-    col *= 1.0 - 0.22 * (1.0 - smoothstep(0.55, 0.80, mr));   // 물가 선 — 물 쪽 가장자리를 가늘게 어둡혀 땅과 물을 또렷이 가른다
+    col *= 1.0 - 0.28 * smoothstep(0.3, 0.9, landUp);   // 0.38 → 0.28(어두웠다)
     float gx = texture2D(uTex, vUv + vec2(uWpx.x, 0.0)).r - texture2D(uTex, vUv - vec2(uWpx.x, 0.0)).r;
     float gy = texture2D(uTex, vUv + vec2(0.0, uWpx.y)).r - texture2D(uTex, vUv - vec2(0.0, uWpx.y)).r;
     vec2 toW = normalize(vec2(gx, gy) + vec2(1e-5));
     float dl = m.b * 6.0;
     float bank = (1.0 - smoothstep(0.60, 0.90, dl)) * (1.0 - wat);   // 땅 쪽 둑 — 물가에서 ⅓칸 남짓의 좁은 벽(1.3칸에 걸쳐 스러지면 땅이 뿌옇게 번졌다)
-    float lit = dot(toW, normalize(vec2(0.5, 0.45)));
-    vec3 wall = sand * vec3(0.92, 0.86, 0.80) * (0.62 + 0.38 * lit) * (0.85 + 0.3 * wfbm(tc * 2.5));
+    float lit = dot(toW, normalize(vec2(-0.5, -0.45)));   // 둑 낯은 물 쪽을 본다 — 빛(왼위)을 보는 낯(물 아래쪽 · 오른쪽 둑)이 밝다. 옛 부호는 거꾸로라 물 아래·오른쪽에 그림자가 져 물이 땅 위에 얹힌 듯했다
+    vec3 wall = uCol.rgb * vec3(1.0, 0.95, 0.88) * (0.9 + 0.4 * lit) * (0.9 + 0.2 * wfbm(tc * 2.5));   // 둑은 땅 색에서 빛 쪽만 밝게 · 반대쪽만 어둡게(평균 땅과 같다)
     float ba = bank * 0.9;
     return vec4(col * wat + wall * ba * (1.0 - wat), wat + ba * (1.0 - wat));
   }
