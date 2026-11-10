@@ -945,7 +945,7 @@ export class GlTerrain9 {
           gl.colorMask(true, true, true, true);
         };
         const ld9 = G.land.rgb;
-        sh9(-0.16, -0.14, () => col([Math.min(255, ld9[0] * 1.25 + 14), Math.min(255, ld9[1] * 1.2 + 12), Math.min(255, ld9[2] * 1.12 + 8)], 0.85));   // 빛 받는 둑(물 아래·오른쪽 물가)
+        void ld9;   // (걷음 2026-11-10, 지적: "물둑의 좌상방향 경계 저 초록색 띠라인은 뭐야? 없는 게 나을 듯") 빛 받는 둑(땅 색 ×1.2 · 물 아래·오른쪽 물가) — 풀밭 땅에서 형광 띠로 읽혔다
         sh9(0.30, 0.27, () => col([0, 0, 0], 0.26));   // 둑 그림자(물 왼·위 물가)
         gl.uniform1f(this.loc.uMode, 4); this.waterUniforms(G);
         gl.colorMask(false, false, false, false); gl.stencilMask(0x04); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);

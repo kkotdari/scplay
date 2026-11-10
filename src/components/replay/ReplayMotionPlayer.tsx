@@ -24123,6 +24123,10 @@ export default function ReplayMotionPlayer({
                  (유닛·GL·지형·효과·안개 — .scr-motion-unitlayer 의 bottom) 독 키에서 상자가 이미 내려간 몫을 뺀 만큼 아래로 늘린다. 1배에서는 지도 아랫변이 무대 아랫변이라
                  더 그릴 게 없고, 당기거나 끌면 지도가 독 뒤로 이어진다(PC 와 같은 몫). */
               ["--map-ext" as string]: `${Math.max(0, Math.round(rowsH - (fsCoverH - stage.h) / 2))}px`,
+              /* ★ 상자가 무대보다 낮으면 **위로도** 그 틈만큼 늘린다(2026-11-10, 지적: 폰 세로 · 독 접힘 · 확대 — 무대 위쪽이 밤하늘 띠로 비었다) — 상자는 무대 가운데(위 top)라
+                 무대 키 > 상자 키(폰 세로에서 독을 접으면 무대만 길어진다)면 상자 위 (무대 − 상자)/2 가 캔버스 밖이었다. 아래는 --map-ext 가 이미 그 몫을 든다.
+                 붓들은 offsetTop 으로 위 띠를 되읽고(paint · terrPaint9 · splitPaint9) 자르기(cropLayers9)도 이 값을 읽는다. 배율과 무관한 값이라 손짓에 안 흔들린다. */
+              ["--scr-mapband" as string]: `${Math.max(0, Math.round((stage.h - fsCoverH) / 2))}px`,
               /* (걷어냄 · 2026-10-09) translate(−50% + --snx) 가운데 맞춤 — 위 ★★. 변환은 없다. */
               /* 높이도 **정수로 못 박는다** — aspectRatio 로 두면 정사각이 아닌 지도에서 소수 px 가 되어 캔버스가 통째로 보간된다
                  (위 fsCoverW 의 ★★). 폭·높이가 다 서므로 aspectRatio 는 이 갈래에서 안 먹는다. */
