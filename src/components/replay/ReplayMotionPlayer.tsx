@@ -62,7 +62,7 @@ import SG_LOGO_SRC9 from "./assets/sg-logo-white.png?inline";   // 맵 가운데
 import { CUR_ARROW_D9, CUR_CARRY_SEC9, CUR_FOE9, CUR_GROUND9, CUR_OWN9, CUR_RES9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, TERR_WATER9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -1755,6 +1755,7 @@ if (DEV9.name === "pc") { FOG_EYE_Q9.px = 12; FOG_EYE_Q9.max = 24; } else { FOG_
 FOG_EYE_Q9.ver += 1;
 /* 지형 질감 결(glTerrain9 TERR_GRAIN9 ★) — PC 는 전 단 켬 · 폰은 낮음 끔(지도 화면 전체를 한 겹 더 칠하는 패스 · 위 폰 발열 ★) · 보통부터 켬(PHONE_TIERS9 terrGrain). */
 TERR_GRAIN9.k = 1;   // ★ 폰 낮음도 켬(2026-11-02, 요청: "폰도 타일 질감 넣으면 성능적으로?" → "ㅇㅇ 진행해" — 지형 판 재사용으로 카메라가 멈춘 장은 결 몫이 0 · 움직일 때만 한 겹. 옛: 폰 낮음 0)
+TERR_WATER9.fx = !smallDevice9;   // 투명한 물의 물결 · 반짝임 · 물거품(장마다 얹는 몫)은 폰이면 끈다(2026-11-10, 요청: "폰은 추천대로 물결 · 물거품 끄기" · 바닥 · 둑 · 그림자는 판에 구워 다 켬)
 /* 메인의 굽기 환경 — DOM 캔버스(계수기 newCanvas9·창고 takeStored9)와 기기 한도(DEV9). 위 BAKE_ENV9 참고. */
 BAKE_ENV9.mk = newCanvas9;
 BAKE_ENV9.out = (w9, h9, tag9) => {
