@@ -13864,6 +13864,8 @@ export default function ReplayMotionPlayer({
      좁은 자리 이동 자세 4배·자세히 8배. 더블탭은 둘째 위 칸(4). 맨 위 8은 굽기 상한 안이라 또렷하다. */
   /* ★ 16배 칸 추가(요청) — 더블클릭·더블탭은 '둘째 위 칸'(ZOOM_TAP)이라 4 → 8로 저절로 오른다(같은 요청: "더블클릭 시
      4배가 아니라 8배"). PC는 판 상한을 4096으로 열어 16배도 제 크기로 굽는다(DEV9.bakeSideMax). */
+  /** 배율 하한(아래 fsCoverW 의 ★★ · 2026-11-10) — 지도 전체가 무대에 들어오는 배율. 휠 · 핀치 · 관성 · 한 손 줌 · 단추 · 접기가 이 아래로 안 간다. */
+  const zMinRef9 = useRef(1);
   const ZOOM_STEPS = ZOOM_MAX > 8 ? [1, 2, 4, 8, ZOOM_MAX] : [1, 2, 4, 8];   // 맨 위 칸 = 상한(12 · 2026-10-23 · 옛 16) · 0단은 8 까지(2026-10-24 위 ZOOM_MAX ★)
   /** 더블클릭·더블탭이 **한 번에 뛰는** 배율(요청: "더블클릭 시 맨 위가 아니라 한 칸
    *  아래로") — 이어서 늘리는 길(휠·핀치·한 손 줌)의 상한은 ZOOM_MAX 그대로다. 한 번에
@@ -13887,7 +13889,9 @@ export default function ReplayMotionPlayer({
   const zoomNext = (z9: number, up9: boolean): number | null => {
     const EPS9 = 1e-3;
     if (up9) return ZOOM_STEPS.find((v9) => v9 > z9 + EPS9) ?? null;
-    return [...ZOOM_STEPS].reverse().find((v9) => v9 < z9 - EPS9) ?? null;
+    const dn9 = [...ZOOM_STEPS].reverse().find((v9) => v9 < z9 - EPS9);
+    if (dn9 !== undefined) return dn9;
+    return zMinRef9.current < z9 - EPS9 ? zMinRef9.current : null;   // 1 아래 = 지도 전체(zMin9 · 2026-11-10)
   };
   /* 확대 길은 넷이다 — PC 휠 · 모바일 핀치 · 한 손 줌(탭-홀드-세로끌기) · **더블클릭**.
      ★ 더블클릭이 PC에도 돌아왔다(요청: "피시도 더블클릭으로 확대 축소 가능하게") —
@@ -14910,10 +14914,14 @@ export default function ReplayMotionPlayer({
      크롬 플래그(--force-device-scale-factor=1)였고, 소수 CSS 상자는 가운데 맞춤(-50%)을 소수 자리에 떨어뜨려 **선택이 바뀌어 다시 그릴
      때마다 상자가 기기 화소 하나씩 흔들렸다**(지적: "중계모드에서 선택이 바뀔때 같은 화면안에 있는데도 미묘하게 화면이 흔들려" ·
      `#cvsnap=0` 으로 사라짐). 상자는 **정수 CSS px** 그대로다 — 소수 dpr 에서 유닛·GL 캔버스의 ×0.9998 재표본은 눈에 안 드는 몫이다. */
-  const fsCoverW = stage.w > 0
-    ? evenIf9(Math.round(Math.max(stage.w, (fitH9 * grid.width) / Math.max(1, grid.height))))
-    : 0;
+  /* ★★ **1배 = 무대 가로 폭**(2026-11-10, 요청: "프레임/전체화면 모드에서 폰에서 왜 이렇게 배율 차이가 크지" → "1번으로 하되 PC 도 똑같이 해서 최소 배율에서
+     전체 맵이 화면에 한 번에 다 보이게") — 옛: 덮기(max(무대 폭, 무대 키 × 지도비))라 세로로 긴 무대(폰 세로 전체화면)는 키에 맞춰 같은 배율의 타일이
+     프레임보다 1.5~2배 컸다. 이제 늘 **폭에 맞춘다** — 같은 배율이면 프레임 · 전체화면 · 폰 · PC 가 같은 타일 크기(무대 폭 ÷ 격자 폭 × 배율).
+     세로로 긴 무대는 1배에서 지도 위아래가 비고(상자는 가운데 · 밤하늘), 가로로 넓은 무대는 1배 아래(zMin9 · 지도 전체가 들어오는 배율)까지 줄일 수 있다. */
+  const fsCoverW = stage.w > 0 ? evenIf9(Math.round(stage.w)) : 0;
   const fsCoverH = fsCoverW > 0 ? evenIf9(Math.round((fsCoverW * grid.height) / Math.max(1, grid.width))) : 0;
+  /** 배율 하한 — 지도 전체가 무대(세로)에 들어오는 배율(1 이하 · 위 ★★). */
+  zMinRef9.current = fsCoverH > 0 ? Math.min(1, fitH9 / fsCoverH) : 1;
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
      낡은 한계로 죄인다). 셋이 한 자리에 있는 것이 요점이다: 갈리면 끌기가 어긋난다. */
@@ -15518,7 +15526,7 @@ export default function ReplayMotionPlayer({
            누르지도 않은 조작을 안 된다고 말하면 그게 더 이상하다. 자리(z·cx·cy)는 그대로
            살린다 — 못 주는 것은 각 하나뿐이다. */
         setPitchDeg(pitchAllowed() ? deg : PITCH_DEGS[0]);
-        z9 = Math.min(ZOOM_MAX, Math.max(1, initialView.z));
+        z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, initialView.z));
         zoomRef.current = z9; setZoom(z9);
         raf = requestAnimationFrame(step);
         return;
@@ -16344,7 +16352,7 @@ export default function ReplayMotionPlayer({
          자연수 사다리는 칸 사이가 늘 1 이라 곱으로 쌓으면 1 에서는 두 틱이 걸리고 4 에서는
          한 틱에 두 칸(5.6 → 6)을 넘는다. 보통 휠 한 틱(100px)이 정확히 **한 칸**이다. */
       const raw0 = zoomRawRef.current > 0 ? zoomRawRef.current : z0;
-      const raw1 = Math.min(zoomCapRef9.current(), Math.max(1, raw0 - dy9 * WHEEL_STEP_PER_PX9));
+      const raw1 = Math.min(zoomCapRef9.current(), Math.max(zMinRef9.current, raw0 - dy9 * WHEEL_STEP_PER_PX9));
       zoomRawRef.current = raw1;
       /* (옛 기록 — 아래 ★ 의 '칸으로 끊지 않는다'는 1·2·4·8·16 사다리의 스냅을 걷은 말이고, 지금은 그
          자리에 **자연수 반올림**이 든다. 연속 렌더는 그대로다 — 굴리는 동안 정수 칸을 하나씩 지난다.)
@@ -17245,7 +17253,7 @@ export default function ReplayMotionPlayer({
       const now9 = performance.now(); const dt9 = Math.min(50, now9 - f9.at); f9.at = now9;
       let z9 = zoomRef.current; let p9 = panRef.current;
       if (f9.vz) {
-        const z1 = Math.min(zoomCapRef9.current(), Math.max(1, z9 * Math.exp(f9.vz * dt9)));
+        const z1 = Math.min(zoomCapRef9.current(), Math.max(zMinRef9.current, z9 * Math.exp(f9.vz * dt9)));
         if (Math.abs(z1 - z9) < 1e-6) f9.vz = 0;   // 배율 끝에 닿았다
         p9 = { x: f9.ax - (z1 * (f9.ax - p9.x)) / z9, y: f9.ay - (z1 * (f9.ay - p9.y)) / z9 };   // 닻 아래 지도 점이 그 자리에 남게
         z9 = z1;
@@ -17663,7 +17671,7 @@ export default function ReplayMotionPlayer({
       // 상한 12 → 20(재요청: 더 높게) — 그 위는 선명도가 배킹 한계(4096px)에 막혀 무의미하다.
       // 핀치도 자연수다(요청: "마우스나 핀치로 줌할때 자연수 배수만 사용하기") — 벌린 비를 반올림한다.
       /* 단독 중계·개인 화면은 자연수로 끊지 않는다(2026-10-19 · 사진처럼 — 기본 배율이 4.84 같은 소수라 반올림하면 칸마다 15~20% 씩 튄다). */
-      const zc9 = Math.min(ZOOM_MAX, Math.max(1, (pinch.z * dist(e.touches)) / pinch.d));
+      const zc9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, (pinch.z * dist(e.touches)) / pinch.d));
       /* ★ 핀치는 **연속**이다(2026-10-24, 지적: "줌인아웃에서 사진처럼 자연스럽지 않고 단계적으로 되는 느낌") — 옛 자연수 반올림(2026-09 요청)은 지형·판을 배율 칸으로
          굽던 때의 값이고, 지금은 지형이 GL(배율 무관)·몸이 한 장짜리 판이라 끊을 까닭이 없다. 되물린 값: Math.round(zc9). */
       const z = Math.min(zoomCapRef9.current(), zc9);
@@ -18076,7 +18084,7 @@ export default function ReplayMotionPlayer({
       return;
     }
     if (byFold9 && fsCoverW > 0 && p9.cw > 0 && !camHeld9) {                  // ④
-      const z19 = Math.max(1, (z09 * p9.cw) / fsCoverW);
+      const z19 = Math.max(zMinRef9.current, (z09 * p9.cw) / fsCoverW);
       const k9 = (fsCoverW * z19) / (p9.cw * z09);
       setView9(z19, { x: p09.x * k9, y: p09.y * k9 - (stage.h - p9.h) / 2 });   // 접기는 사람이 한 일이다 — 링크가 쥔 자리를 놓는다
       return;
@@ -20361,7 +20369,7 @@ export default function ReplayMotionPlayer({
       const rQ = elQ.getBoundingClientRect();
       if (rQ.width < 4 || rQ.height < 4) return;
       // 300px 끌면 약 11배(e^2.4) — 폰 화면 한 뼘으로 1배↔상한을 오간다. 위가 +다.
-      const zQ = Math.min(zoomCapRef9.current(), Math.max(1, qz9.z0 * Math.exp(-dyQ * 0.008)));   // 상한은 휠·핀치와 한 자(단독 중계는 기본 배율 × 2)
+      const zQ = Math.min(zoomCapRef9.current(), Math.max(zMinRef9.current, qz9.z0 * Math.exp(-dyQ * 0.008)));   // 상한은 휠·핀치와 한 자(단독 중계는 기본 배율 × 2)
       const oxQ = rQ.left + rQ.width / 2;
       const oyQ = rQ.top + rQ.height / 2;
       const uxQ = (qz9.ax - oxQ - qz9.px0) / qz9.z0;
