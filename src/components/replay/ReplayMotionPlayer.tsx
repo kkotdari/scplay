@@ -1044,6 +1044,8 @@ function suitFist(
  *  주인 없는 전체 보기는 null(아무도 초록이 아니다).
  *  ⚠ 첫 판은 같은 편을 노랑·적을 빨강까지 입혔다 — "그건 주인공 모드"(지적)라 걷고, 이어 "내 UI 만 녹색 · 팀은 제 색"으로 다시 세웠다. */
 const UI_OWN9 = "#10fc18";
+/** 원작 게임 화면(타일) — 640 × 400(콘솔 위) ÷ 32. 잠금 미니맵의 형광 녹색 네모(lockViews9 ★) 크기. */
+const ORIG_VIEW9 = { w: 20, h: 12.5 };
 /** ★ 명령 줄(2026-11-03, 요청: "이동 명령 · 공격 명령 · 패트롤 명령에도 선을 보여 주고 싶은데 · 구분이 돼야 하는데 화살표 모양이라던지" → "추적 모드도 색은 녹색 원래대로 통일") —
  *  명령을 받은 유닛 몸에서 명령 자리까지 ORD_LINE_SEC9 초 동안 줄(스러짐). 꼴: 이동 = 실선 + 끝 화살촉 · 공격 = 실선 + 끝 ✕ · 패트롤 = 점선 + 양 끝 화살촉.
  *  색: 추적(화면 주인 있음) = 원작 초록(UI_OWN9) · 주인 것만 · 자유·중계 = 그 임자 색 · 모두. 붓이 도는 동안만 ORD_NOW9 가 선다(태그 → [x 분수, y 분수, 꼴 0·1·2, 지난 초]). */
@@ -24644,22 +24646,16 @@ export default function ReplayMotionPlayer({
          눌린 만큼 작게 나와, 끌 수 있는 자리와 표시가 어긋난다. */
     h: fsCoverH > 0 ? fitH9 / (fsCoverH * z9) : 1,
   });
-  /** ★ 잠금(단독 중계 · 개인 화면)에서 배율을 바꿨으면 **두 네모**(2026-11-10, 요청: "중계와 개인화면에서 확대축소 시 미니맵에 주인색은 실제 보여야 할 화면을, 흰색은 내가 보고 있는 화면 프레임") —
-   *  주인색 = 기본 배율(castZoomFit9 · 배율 원이 돌아가는 값)에서 카메라 대상(camFocusRef9)을 가운데 둔 창(지도 끝이면 팬 한계로 죈다 · 카메라와 같은 자) · 색은 화면 주인의 임자색
-   *  (modeColor · 색 모드 따름 · 사람 없는 사건 자리면 화면 주인 초록 UI_OWN9) / 흰색 = 지금 보는 창(fsViewAt). 기본 배율 그대로면(±3%) 둘이 같아 흰 네모 하나(옛 꼴). */
+  /** ★ 잠금(단독 중계 · 개인 화면)의 미니맵 **두 네모**(2026-11-10, 요청: "중계와 개인화면에서 확대축소 시 미니맵에 주인색은 실제 보여야 할 화면을, 흰색은 내가 보고 있는 화면 프레임"
+   *  → "원작 크기로 바꾸고 중계 개인 모두 원작 주인색(형광 녹색)") — ① 원작 화면 = 640 × 400(콘솔 위 게임 화면 · 20 × 12.5 타일 · ORIG_VIEW9)을 카메라 대상(camFocusRef9)
+   *  가운데에 두되 지도 밖으로 안 나가게 죈 네모 · 화면 주인 형광 녹색(UI_OWN9 · 선택 링과 같은 색) ② 흰색 = 지금 보는 창(fsViewAt). 잠금이면 늘 둘 다(크기가 기본 배율과 달라 늘 갈린다). */
   const lockViews9 = (z9: number, p9: { x: number; y: number }): { cx: number; cy: number; w: number; h: number; color: string }[] | null => {
     if (!camLockRef9.current) return null;
-    const zb9 = Math.max(zMinRef9.current, castZoomFit9());
-    if (!(zb9 > 0) || Math.abs(z9 / zb9 - 1) < 0.03) return null;
     const f9 = camFocusRef9.current;
-    if (!f9 || !(fsCoverW > 0) || !(fsCoverH > 0)) return null;
-    const lim9 = panLimit(zb9);
-    const pb9 = {
-      x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - f9.fx) * fsCoverW * zb9)),
-      y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - f9.fy) * fsCoverH * zb9)),
-    };
-    const own9 = camRaw9 ? modeColor(camRaw9, teamOfRaw(camRaw9)) : UI_OWN9;
-    return [{ ...fsViewAt(zb9, pb9), color: own9 }, { ...fsViewAt(z9, p9), color: "rgba(255,255,255,.92)" }];
+    if (!f9) return null;
+    const ow9 = Math.min(1, ORIG_VIEW9.w / Math.max(1, grid.width)); const oh9 = Math.min(1, ORIG_VIEW9.h / Math.max(1, grid.height));
+    const ocx9 = Math.min(1 - ow9 / 2, Math.max(ow9 / 2, f9.fx)); const ocy9 = Math.min(1 - oh9 / 2, Math.max(oh9 / 2, f9.fy));
+    return [{ cx: ocx9, cy: ocy9, w: ow9, h: oh9, color: UI_OWN9 }, { ...fsViewAt(z9, p9), color: "rgba(255,255,255,.92)" }];
   };
   /* (걷어냄) normViewAt·normSeek — 평소 배치 전용 미니맵이 읽던 창·끌기다. 판이
      하나가 되면서 미니맵도 하나가 됐다(fsViewAt·fsSeek) — 무대 크기는 프레임이든
