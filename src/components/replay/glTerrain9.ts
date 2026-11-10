@@ -206,10 +206,10 @@ float wfbm(vec2 p) { return vn(p) * 0.5 + vn(p * 2.03 + 1.7) * 0.25 + vn(p * 4.1
 vec4 waterPass() {
   vec4 m = texture2D(uTex, vUv);
   // 물가는 타일 계단이 아니라 둥글게 — 물 판을 반 타일 둘레로 한 번 흐려 문턱을 넓게 잡는다.
-  vec2 o9 = uWpx * 0.6;
+  vec2 o9 = uWpx * 0.3;   // 0.6 → 0.3 · 문턱 0.30~0.70 → 0.45~0.55 — 물가가 한 칸 넘게 번져 흐렸다(2026-11-10)
   float mr = (m.r * 2.0 + texture2D(uTex, vUv + vec2(o9.x, 0.0)).r + texture2D(uTex, vUv - vec2(o9.x, 0.0)).r
     + texture2D(uTex, vUv + vec2(0.0, o9.y)).r + texture2D(uTex, vUv - vec2(0.0, o9.y)).r) / 6.0;
-  float wat = smoothstep(0.30, 0.70, mr);
+  float wat = smoothstep(0.45, 0.55, mr);
   float d = m.g * 16.0;
   float dz = clamp((d - 0.3) / 10.0, 0.0, 1.0);
   vec2 tc = vTc;
@@ -222,14 +222,15 @@ vec4 waterPass() {
     col = mix(col, uWd.rgb * 1.7, 0.18);   // 물 자체의 푸른 기(얕은 물이 흙빛만 남지 않게)
     float landUp = 1.0 - texture2D(uTex, vUv + vec2(-0.5, -0.45) * uWpx * 2.2).r;   // 왼위가 땅(둑)이면 그 그림자가 물에 진다
     col *= 1.0 - 0.38 * smoothstep(0.3, 0.9, landUp);
+    col *= 1.0 - 0.22 * (1.0 - smoothstep(0.55, 0.80, mr));   // 물가 선 — 물 쪽 가장자리를 가늘게 어둡혀 땅과 물을 또렷이 가른다
     float gx = texture2D(uTex, vUv + vec2(uWpx.x, 0.0)).r - texture2D(uTex, vUv - vec2(uWpx.x, 0.0)).r;
     float gy = texture2D(uTex, vUv + vec2(0.0, uWpx.y)).r - texture2D(uTex, vUv - vec2(0.0, uWpx.y)).r;
     vec2 toW = normalize(vec2(gx, gy) + vec2(1e-5));
     float dl = m.b * 6.0;
-    float bank = (1.0 - smoothstep(0.0, 1.3, dl)) * (1.0 - wat);   // 땅 쪽 둑(물에서 1.3칸 안)
+    float bank = (1.0 - smoothstep(0.60, 0.90, dl)) * (1.0 - wat);   // 땅 쪽 둑 — 물가에서 ⅓칸 남짓의 좁은 벽(1.3칸에 걸쳐 스러지면 땅이 뿌옇게 번졌다)
     float lit = dot(toW, normalize(vec2(0.5, 0.45)));
     vec3 wall = sand * vec3(0.92, 0.86, 0.80) * (0.62 + 0.38 * lit) * (0.85 + 0.3 * wfbm(tc * 2.5));
-    float ba = bank * 0.85;
+    float ba = bank * 0.9;
     return vec4(col * wat + wall * ba * (1.0 - wat), wat + ba * (1.0 - wat));
   }
   float t = uWt.x;
