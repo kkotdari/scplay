@@ -71,6 +71,10 @@ let volume9 = Number(read9(VOL_KEY9) ?? "0.6");
 if (!Number.isFinite(volume9)) volume9 = 0.6;
 /** 음량 손잡이를 안 세운 기기(iOS — 배경 음악 <audio>.volume 을 못 바꿔 슬라이더를 숨긴다)는 효과음도 최대(1)로(아래 setSfxFullVolume9). */
 let full9 = false;
+/** ★ 음악 대비 효과음 몫(2026-11-10, 지적: "음악에 비해 효과음이 너무 큰데 아이폰만 그래?") — 음악(<audio>)과 효과음(주 GainNode)은 같은 손잡이(volume9 · iOS 는 둘 다 1)를 타서
+ *  비는 기기마다 같다. 다만 11-09 묶음 크기 맞춤(sfx9Synth LOUD_*)으로 작던 공격음(연사 · 칼질 · 질럿)이 커져 음악을 덮었다 — 효과음 전체를 0.55(−5dB)로. 아이폰은 작은 스피커가
+ *  음악의 낮은 몫을 못 내 더 도드라진다. */
+const SFX_MIX9 = 0.55;
 let ctx9: AudioContext | null = null;
 let master9: GainNode | null = null;
 const subs9 = new Set<() => void>();
@@ -129,7 +133,7 @@ function ctxOf9(): AudioContext | null {
        오디오 스레드가 제때 못 채우면(언더런) 출력이 끊겨 지직거렸다. 재생기 효과음은 수십 ms 늦어도 티가 안 나므로 "playback"(큰 버퍼). 연사 줄기는 AudioContext 시계로 미리 박으니 그대로 고르다. */
     try { ctx9 = new C9({ latencyHint: "playback" }); } catch { try { ctx9 = new C9(); } catch { return null; } }
     master9 = ctx9.createGain();
-    master9.gain.value = full9 ? 1 : volume9;
+    master9.gain.value = (full9 ? 1 : volume9) * SFX_MIX9;
     /* ★ 출력 앞 리미터(2026-11-08, 지적: "효과음 잡음 — 저그만 그런 건 아닌데") — 소리 하나는 봉우리 0.75 안팎인데 교전에서 여섯 소리(VOICES9) + 연사 줄기가 겹치면 합이
        1 을 넘어 **잘려(클리핑) 지글거렸다**. 압축기를 리미터로(문턱 −8dB · 무릎 6 · 비 12 · 공격 3ms · 놓음 0.2초) — 겹칠 때만 눌리고 혼자 나는 소리는 그대로다. */
     try {
@@ -301,7 +305,7 @@ export function setSfxOn9(on: boolean): void {
 }
 export function setSfxVolume9(v: number): void {
   volume9 = Math.max(0, Math.min(1, v));
-  if (master9) master9.gain.value = full9 ? 1 : volume9;
+  if (master9) master9.gain.value = (full9 ? 1 : volume9) * SFX_MIX9;
   write9(VOL_KEY9, String(volume9));
   emit9();
 }
@@ -310,6 +314,6 @@ export function setSfxVolume9(v: number): void {
  *  재생기가 volumeOk 가 거짓이면 켠다 — 그때 주 GainNode 는 1(옛 <audio> 효과음의 iOS 크기와 같다). */
 export function setSfxFullVolume9(on: boolean): void {
   full9 = on;
-  if (master9) master9.gain.value = full9 ? 1 : volume9;
+  if (master9) master9.gain.value = (full9 ? 1 : volume9) * SFX_MIX9;
 }
 export const subscribeSfx9 = (f: () => void): (() => void) => { subs9.add(f); return () => { subs9.delete(f); }; };
