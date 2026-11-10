@@ -233,6 +233,9 @@ vec4 waterPass() {
     float lit = dot(toW, normalize(vec2(-0.5, -0.45)));   // 둑 낯은 물 쪽을 본다 — 빛(왼위)을 보는 낯(물 아래쪽 · 오른쪽 둑)이 밝다. 옛 부호는 거꾸로라 물 아래·오른쪽에 그림자가 져 물이 땅 위에 얹힌 듯했다
     vec3 wall = uCol.rgb * vec3(1.0, 0.95, 0.88) * (0.9 + 0.4 * lit) * (0.9 + 0.2 * wfbm(tc * 2.5));   // 둑은 땅 색에서 빛 쪽만 밝게 · 반대쪽만 어둡게(평균 땅과 같다)
     float ba = bank * 0.9;
+    // 땅 다각형 길(uWt.z · ⑧ 스텐실) — 물가를 땅 채우기와 **같은 다각형 경계**로 가른다(타일 판 문턱은 땅 경계와 어긋나 두 겹 흐린 테가 됐다).
+    if (uWt.z > 1.5) { float bk = (1.0 - smoothstep(0.75, 1.05, dl)) * 0.9; return vec4(wall * bk, bk); }   // 땅 안 · 둑만
+    if (uWt.z > 0.5) return vec4(col, 1.0);   // 땅 밖 = 물 · 꽉
     return vec4(col * wat + wall * ba * (1.0 - wat), wat + ba * (1.0 - wat));
   }
   float t = uWt.x;
@@ -921,7 +924,21 @@ export class GlTerrain9 {
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       this.waterUniforms(G);
       gl.uniform1f(this.loc.uMode, 4);
-      rect(0, 0, W, H);
+      if (this.land) {
+        /* 물가 = 땅 다각형 경계(2026-11-10 · "물가 경계 또렷하게") — 땅 채우기 다각형을 스텐실 0x04 에 찍고, 밖엔 물 몸(꽉) · 안엔 둑만 칠한다.
+           타일 판 문턱만으로 가르면 땅 다각형(깎은 고리)과 어긋나 땅 테 · 물가 그늘 · 물 테가 두 겹으로 번져 보였다. */
+        const t9 = (performance.now() / 1000) % 600;
+        gl.enable(gl.STENCIL_TEST); gl.colorMask(false, false, false, false);
+        if (tri(this.land)) { gl.stencilMask(0x04); gl.stencilFunc(gl.ALWAYS, 0x04, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE); triGeom(this.land, 0, 0); }
+        else fanStencil(this.land, 0x04, 0, 0);
+        gl.colorMask(true, true, true, true); gl.stencilMask(0x00); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+        gl.stencilFunc(gl.EQUAL, 0, 0x04); gl.uniform4f(this.loc.uWt, t9, 1, 1, 0); rect(0, 0, W, H);
+        gl.stencilFunc(gl.EQUAL, 0x04, 0x04); gl.uniform4f(this.loc.uWt, t9, 1, 2, 0); rect(0, 0, W, H);
+        gl.colorMask(false, false, false, false); gl.stencilMask(0x04); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);
+        gl.colorMask(true, true, true, true); gl.stencilMask(0xff);
+        gl.uniform4f(this.loc.uWt, t9, 1, 0, 0);
+        gl.disable(gl.STENCIL_TEST);
+      } else rect(0, 0, W, H);
       // ⑨ 물결 · 반짝임 · 물거품 — 판을 안 쓰는 길(part 0)에서만 여기서. 판 길은 GlTerrCanvas9 가 판 뒤에 drawWaterFx 로.
       if (part === 0 && waterFx9()) this.waterFxPasses(rect, W, H);
       gl.uniform1f(this.loc.uMode, 0);
