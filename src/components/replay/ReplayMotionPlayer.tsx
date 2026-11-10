@@ -24644,6 +24644,23 @@ export default function ReplayMotionPlayer({
          눌린 만큼 작게 나와, 끌 수 있는 자리와 표시가 어긋난다. */
     h: fsCoverH > 0 ? fitH9 / (fsCoverH * z9) : 1,
   });
+  /** ★ 잠금(단독 중계 · 개인 화면)에서 배율을 바꿨으면 **두 네모**(2026-11-10, 요청: "중계와 개인화면에서 확대축소 시 미니맵에 주인색은 실제 보여야 할 화면을, 흰색은 내가 보고 있는 화면 프레임") —
+   *  주인색 = 기본 배율(castZoomFit9 · 배율 원이 돌아가는 값)에서 카메라 대상(camFocusRef9)을 가운데 둔 창(지도 끝이면 팬 한계로 죈다 · 카메라와 같은 자) · 색은 화면 주인의 임자색
+   *  (modeColor · 색 모드 따름 · 사람 없는 사건 자리면 화면 주인 초록 UI_OWN9) / 흰색 = 지금 보는 창(fsViewAt). 기본 배율 그대로면(±3%) 둘이 같아 흰 네모 하나(옛 꼴). */
+  const lockViews9 = (z9: number, p9: { x: number; y: number }): { cx: number; cy: number; w: number; h: number; color: string }[] | null => {
+    if (!camLockRef9.current) return null;
+    const zb9 = Math.max(zMinRef9.current, castZoomFit9());
+    if (!(zb9 > 0) || Math.abs(z9 / zb9 - 1) < 0.03) return null;
+    const f9 = camFocusRef9.current;
+    if (!f9 || !(fsCoverW > 0) || !(fsCoverH > 0)) return null;
+    const lim9 = panLimit(zb9);
+    const pb9 = {
+      x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - f9.fx) * fsCoverW * zb9)),
+      y: Math.min(lim9.yTop, Math.max(-lim9.y, (0.5 - f9.fy) * fsCoverH * zb9)),
+    };
+    const own9 = camRaw9 ? modeColor(camRaw9, teamOfRaw(camRaw9)) : UI_OWN9;
+    return [{ ...fsViewAt(zb9, pb9), color: own9 }, { ...fsViewAt(z9, p9), color: "rgba(255,255,255,.92)" }];
+  };
   /* (걷어냄) normViewAt·normSeek — 평소 배치 전용 미니맵이 읽던 창·끌기다. 판이
      하나가 되면서 미니맵도 하나가 됐다(fsViewAt·fsSeek) — 무대 크기는 프레임이든
      전체화면이든 같은 자(stage)로 재므로 셈이 갈릴 자리가 없다.
@@ -25215,7 +25232,7 @@ export default function ReplayMotionPlayer({
                        앞 둘은 viewAt(fsViewAt — 지금 카메라 = 중계·개인 화면의 카메라) 흰 네모 · 분할은 고른 사람마다 칸의 창(splitViewRef9)을 그 사람 임자색(modeColor · 색 모드 따름)으로. */
                     viewsAt={splitOn9
                       ? (() => castSel9.flatMap((r9) => { const v9 = splitViewRef9.current.get(r9); return v9 ? [{ ...v9, color: modeColor(r9, teamOfRaw(r9)) }] : []; }))
-                      : undefined}
+                      : lockViews9}
                     zoom={zoom} pan={pan}
                     ownRaw={splitOn9 ? splitPick9 : uiOwnerRef9.current}
                     ownColor={UI_OWN9}
