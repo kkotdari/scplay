@@ -206,9 +206,12 @@ float wfbm(vec2 p) { return vn(p) * 0.5 + vn(p * 2.03 + 1.7) * 0.25 + vn(p * 4.1
 vec4 waterPass() {
   vec4 m = texture2D(uTex, vUv);
   // 물가는 타일 계단이 아니라 둥글게 — 물 판을 반 타일 둘레로 한 번 흐려 문턱을 넓게 잡는다.
-  vec2 o9 = uWpx * 0.3;   // 0.6 → 0.3 · 문턱 0.30~0.70 → 0.45~0.55 — 물가가 한 칸 넘게 번져 흐렸다(2026-11-10)
+  // 둥글기는 흐림 둘레가, 또렷함은 문턱 폭이 정한다 — 둘레는 넓게(0.6 · 대각 넷 더해 아홉 점) 문턱은 좁게(0.45~0.55). 옛 0.30~0.70 은 물가가 한 칸 넘게 번져 흐렸다(2026-11-10).
+  vec2 o9 = uWpx * 0.6; vec2 q9 = uWpx * 0.42;
   float mr = (m.r * 2.0 + texture2D(uTex, vUv + vec2(o9.x, 0.0)).r + texture2D(uTex, vUv - vec2(o9.x, 0.0)).r
-    + texture2D(uTex, vUv + vec2(0.0, o9.y)).r + texture2D(uTex, vUv - vec2(0.0, o9.y)).r) / 6.0;
+    + texture2D(uTex, vUv + vec2(0.0, o9.y)).r + texture2D(uTex, vUv - vec2(0.0, o9.y)).r
+    + texture2D(uTex, vUv + q9).r + texture2D(uTex, vUv - q9).r
+    + texture2D(uTex, vUv + vec2(q9.x, -q9.y)).r + texture2D(uTex, vUv + vec2(-q9.x, q9.y)).r) / 10.0;
   float wat = smoothstep(0.45, 0.55, mr);
   float d = m.g * 16.0;
   float dz = clamp((d - 0.3) / 10.0, 0.0, 1.0);
