@@ -1149,6 +1149,9 @@ const RING_W_KIND9 = new Map<string, number>();
 const RING_LW_K9 = 0.03;
 const RING_LW_MAX9 = 2.2;
 const RING_LW_MIN9 = 0.6;
+/** ★ **폰 UI 선 배율 — 한 상수**(2026-11-10, 요청: "그것들은 하나의 상수로 폰 배율을 관리해 줘") — 선택 링 · 클릭 마커(테 · 가운데 점 · X) · 랠리 · 명령 줄이 다 이 값 하나를 탄다.
+ *  JS 쪽은 ringLineW9(아래) · CSS 쪽은 뿌리의 `--ui-line-k`(uiVars9 · .scr-motion-clickfx 의 --ckdot 가 곱한다). 11-03 1.6 → 11-10 1.25("둔탁해 보여"). 바닥(RING_LW_MIN9)은 안 탄다. */
+export const PHONE_UI_LINE_K9 = 1.25;
 /** ★ 땅 위 UI 선(선택 링·마우스 마커·분할 칸 자국)의 굵기 — **배율(타일 폭)에만** 따른다(2026-10-14, 요청: "선택링 · 마우스 마커 · 핑 등 UI 요소들"도
  *  배율 따라 → "링의 지름과는 무관해야 해 · 같은 배율이면 넥서스든 질럿이든 같은 두께"). 자국은 저배율에서도 보이게 **크기에 바닥**(PC 24·dks px · 폰 4배)이
  *  있으니 크기에서 굵기를 내면 저·중배율 굵기가 멈춘다 — 그래서 크기가 아니라 **실제 타일 폭**(화면 px · 배율 그대로)에서 낸다. 값은 타일 × 0.65 × 0.03
@@ -1160,7 +1163,7 @@ function ringLineW9(diamPx: number, bd: number): number {
   /* ★ 폰은 1.6배(2026-11-03, 지적: "명령 선 · 모바일에서 잘 안 보이는 단점 · 마커 선택 링과 함께 선 굵기 조절") — 화면이 작고 손에 들고 보니 같은 CSS px 이 더 가늘게 읽힌다.
      선택 링·클릭 마커·랠리·명령 줄이 다 이 자(uiLineW9)를 쓴다. 상한·하한도 같은 비로. */
   /* (2026-11-10, 지적: "폰에서 선택 링 · 마커 · 명령 선 · 커서 등 최소 두께 준 거 좀 더 얇게 · 너무 둔탁해 보여") — 폰 배 1.6 → 1.25 · **바닥은 배를 안 탄다**(0.96 → 0.6px). */
-  const k9 = smallDevice9 ? 1.25 : 1;
+  const k9 = smallDevice9 ? PHONE_UI_LINE_K9 : 1;
   return Math.min(RING_LW_MAX9 * k9, Math.max(RING_LW_MIN9, 0.7 / Math.max(1, bd), diamPx * RING_LW_K9 * k9));   // dpr 1 은 0.7px(테 AA 가 70% 로 칠한다 · 0.32 처럼 안 사라진다)
 }
 function ringWidth9(gl: GlUnits9, kind: string, meshNow: Parameters<GlUnits9["footOf"]>[0], lod: number, cam: Parameters<GlUnits9["footOf"]>[2]): number {
@@ -14146,6 +14149,7 @@ export default function ReplayMotionPlayer({
     "--ui": ui9.k,
     "--dk": uiPhone9 ? ui9.k : 1.8 * ui9.k,
     "--dk-roster": uiPhone9 ? 1.2 * ui9.k : 2.16 * ui9.k,
+    "--ui-line-k": smallDevice9 ? PHONE_UI_LINE_K9 : 1,   // 폰 UI 선 배율 한 상수(위 PHONE_UI_LINE_K9 ★)
   }) as React.CSSProperties, [ui9.k, uiPhone9]);
   SCR_DIAG.ui = `${ui9.name} ×${ui9.k} · dk ${(uiPhone9 ? ui9.k : 1.8 * ui9.k).toFixed(2)} · ${smallDevice9 ? "화면" : "창"} ${ui9.w}×${ui9.h}${uiPhone9 && !smallDevice9 ? " · 좁은 창(폰 UI)" : ""}`;
   /* 사용법 덮개(요청: 공통) — 열면 history에 한 칸 밀어 뒤로가기(폰의 제스처 포함)가 덮개를 닫게 한다. 닫기 버튼은 그

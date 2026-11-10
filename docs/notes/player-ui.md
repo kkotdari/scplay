@@ -3372,3 +3372,4 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
 - `ringLineW9`(선택 링 · 클릭 마커 테 · 랠리 · 명령 줄): 폰 배 1.6 → **1.25** · 바닥(RING_LW_MIN9 0.6px)은 배를 안 탄다(옛 0.96px).
 - 클릭 마커 폰 CSS(`.scr-motion-root:not(.scr-motion-pc9) .scr-motion-clickfx`): --ckline max(1.6px, ×0.064) → max(1px, ×0.045) · --ckdot max(2.4px, ×0.16) → max(1.8px, ×0.12).
 - 선수 커서(화살표 · 고리 svg)는 한때 폰 ×0.72 로 얇혔다가 되물림("선수 커서는 굳이? 왜 바꿈") — 그대로 둔다.
+- 한 상수(같은 날 둘째, 요청: "그것들은 하나의 상수로 폰 배율을 관리"): RMP `PHONE_UI_LINE_K9`(1.25) — ringLineW9(링 · 클릭 마커 테 · 랠리 · 명령 줄) + 뿌리 CSS 변수 `--ui-line-k`(uiVars9) → .scr-motion-clickfx --ckdot 이 곱한다. 폰 클릭 마커 따로 규칙(--ckline 은 인라인에 져 죽은 값)은 걷었다.

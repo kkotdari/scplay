@@ -1947,7 +1947,7 @@
   /* 가운데 점도 같은 결로 바닥을 깐다 — 지름이 10px일 때 0.18배면 1.8px, 그 절반인
      세로는 0.9px이라 납작한 점이 선처럼 흐려졌다. */
   /* 점 0.18 → 0.10 · X 는 지름의 0.54 폭을 제 변수로(2026-10-09, 요청: "X자와 가운데 점 모두 너무 두꺼워 둘 다 더 얇게"). */
-  --ckdot: max(1.5px, calc(var(--ckw, 9px) * 0.10));
+  --ckdot: max(1.5px, calc(var(--ckw, 9px) * 0.10 * var(--ui-line-k, 1)));   /* 폰 배율은 뿌리 --ui-line-k 하나(RMP PHONE_UI_LINE_K9 · 2026-11-10) */
   --ckx: max(5px, calc(var(--ckw, 9px) * 0.54));
 }
 /* 핑도 같은 함정을 지난다 — 그쪽 규칙은 핑 블록에 제 자리로 있다(아래 --mz 되돌림). */
@@ -5759,7 +5759,7 @@
 .scr-fs-ownstat-l { font-size: calc(9px * var(--ui, 1)); color: rgba(255, 255, 255, 0.62); letter-spacing: 0.02em; }
 .scr-fs-ownstat-v { font-size: calc(13px * var(--ui, 1)); font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* ★ 폰 클릭 마커 테 1.6배(2026-11-03, 지적: "명령 선 · 모바일에서 잘 안 보임 · 마커 선택 링과 함께 선 굵기 조절") — 선택 링·명령 줄(ringLineW9 폰 ×1.6)과 같은 비. 폰 = 재생기 뿌리에 .scr-motion-pc9 가 없음. */
-.scr-motion-root:not(.scr-motion-pc9) .scr-motion-clickfx { --ckline: max(1px, calc(var(--ckw, 9px) * 0.045)); --ckdot: max(1.8px, calc(var(--ckw, 9px) * 0.12));   /* 1.6px · 0.064 · 2.4px · 0.16 → 얇게(2026-11-10 "폰 최소 두께 둔탁") */ }
+/* (폰 클릭 마커 따로 굵기 — 걷음 2026-11-10: --ckline 은 인라인 uiLineW9 가 이겨 죽은 값이었고 --ckdot 은 위 기본 식이 --ui-line-k 를 곱한다.) */
 /* ★ 가로(넓은 꼴) 채팅(2026-11-03, 요청: "가로모드에서 채팅을 좌측에 안전영역 확보와 미니맵 창에 안 가려지게 조정") — 왼끝은 미니맵과 같은 자(--wl = 왼 안전영역 + 틈) ·
    바닥은 미니맵 판 위(--wbot + 미니맵 키 + 틈)로 올린다. 오른쪽 몫은 종전 식(--sd-room) 그대로. */
 .scr-fs-layer.is-wide .scr-fs-chat {
