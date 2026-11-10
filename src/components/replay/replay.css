@@ -5351,7 +5351,7 @@
 }
 /* 요약 중 독의 재생 줄 · 접기 단추 — 쇠 위 음각 잉크(어두운 글자 + 아래 흰 한 줄 · 위 .scr-tb-seek)를 홀로그램 위 **흰 잉크 + 녹색 번짐**으로 뒤집는다
    (녹색 판에선 어두운 잉크가 묻혔다 · 실측). 접기 단추는 판 홈 대신 홀로그램 테 정사각. */
-.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek { --text: #fff; --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
+.scr-fs-layer.is-holodock .scr-tb .scr-tb-seek { --text: var(--scr-sc-green, #64dc5a); --dim: rgba(255, 255, 255, 0.82); --line-soft: rgba(255, 255, 255, 0.22); }
 .scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-play { filter: drop-shadow(0 0 4px rgba(90, 255, 130, 0.6)); }
 .scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-clock { text-shadow: 0 0 6px rgba(90, 255, 130, 0.6); }
 .scr-fs-layer.is-holodock .scr-tb .scr-tb-seek .scr-motion-range::-webkit-slider-runnable-track { box-shadow: 0 0 4px rgba(90, 255, 130, 0.35); }
@@ -6078,9 +6078,11 @@
   box-shadow: inset 0 0 0 1px var(--holo-edge), var(--holo-hi), 0 0 12px rgba(70, 255, 120, 0.22);
   color: var(--holo-text);
 }
-.scr-fs-layer.is-holodock .scr-speeddial :is(.scr-speeddial-fill, .scr-speeddial-knob) { background: #b8ffc8; }
+/* 하이라이트는 한 색(2026-11-10, 지적: "테마의 하이라이트 색이 안 맞는 문제") — 켜진 단추(--crystal-press = 화면 주인 초록 --scr-sc-green)에 맞춘다: 배속 채움 · 손잡이 · 보기 토글 켜진 칸 ·
+   재생 단추 · 탐색바 채움 · 손잡이(재생 줄 --text). 옛: 토글 · 다이얼은 옅은 민트 #b8ffc8 · 재생 줄은 흰색이라 셋이 따로 놀았다. 시계는 --dim(흰) 그대로. */
+.scr-fs-layer.is-holodock .scr-speeddial :is(.scr-speeddial-fill, .scr-speeddial-knob) { background: var(--scr-sc-green, #64dc5a); }
 .scr-fs-layer.is-holodock .scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(70, 255, 120, 0.24), 0 0 6px rgba(90, 255, 130, 0.8); }
-.scr-fs-layer.is-holodock .scr-modetog-stage > span.is-on { background: #b8ffc8; color: #04140a; }
+.scr-fs-layer.is-holodock .scr-modetog-stage > span.is-on { background: var(--scr-sc-green, #64dc5a); color: #06260a; }
 .scr-fs-layer.is-holodock :is(.scr-fs-back, .scr-modetog-stage) { border-radius: calc(10px * var(--ui, 1)); }   /* 독 우물(10·dk)과 같은 둥근 귀 · 배율 원은 원 그대로 */
 
 /* ★ 펼치기 손잡이(.scr-fs-foldfab)도 **테마마다**(2026-11-10, 요청: "펼치기 버튼도 각 테마 적용") — 옛: 세 테마 공통 어두운 바탕 · 흰 테.
