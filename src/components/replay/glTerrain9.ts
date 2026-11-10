@@ -224,7 +224,7 @@ vec4 waterPass() {
     vec3 col = floorC * absorb + uWd.rgb * (1.0 - absorb);
     col = mix(col, uWd.rgb * 1.7, 0.08);   // 물 자체의 푸른 기(0.18 → 0.08 · 탁했다)
     float landUp = 1.0 - texture2D(uTex, vUv + vec2(-0.5, -0.45) * uWpx * 2.2).r;   // 왼위가 땅(둑)이면 그 그림자가 물에 진다
-    col *= 1.0 - 0.28 * smoothstep(0.3, 0.9, landUp);   // 0.38 → 0.28(어두웠다)
+    col *= 1.0 - 0.28 * smoothstep(0.3, 0.9, landUp) * step(uWt.z, 0.5);   // 0.38 → 0.28(어두웠다) · 땅 다각형 길(uWt.z 1)은 ⑧ 이 민 다각형으로 또렷이 칠한다
     float gx = texture2D(uTex, vUv + vec2(uWpx.x, 0.0)).r - texture2D(uTex, vUv - vec2(uWpx.x, 0.0)).r;
     float gy = texture2D(uTex, vUv + vec2(0.0, uWpx.y)).r - texture2D(uTex, vUv - vec2(0.0, uWpx.y)).r;
     vec2 toW = normalize(vec2(gx, gy) + vec2(1e-5));
@@ -234,7 +234,6 @@ vec4 waterPass() {
     vec3 wall = uCol.rgb * vec3(1.0, 0.95, 0.88) * (0.9 + 0.4 * lit) * (0.9 + 0.2 * wfbm(tc * 2.5));   // 둑은 땅 색에서 빛 쪽만 밝게 · 반대쪽만 어둡게(평균 땅과 같다)
     float ba = bank * 0.9;
     // 땅 다각형 길(uWt.z · ⑧ 스텐실) — 물가를 땅 채우기와 **같은 다각형 경계**로 가른다(타일 판 문턱은 땅 경계와 어긋나 두 겹 흐린 테가 됐다).
-    if (uWt.z > 1.5) { float bk = (1.0 - smoothstep(0.75, 1.05, dl)) * 0.9; return vec4(wall * bk, bk); }   // 땅 안 · 둑만
     if (uWt.z > 0.5) return vec4(col, 1.0);   // 땅 밖 = 물 · 꽉
     return vec4(col * wat + wall * ba * (1.0 - wat), wat + ba * (1.0 - wat));
   }
@@ -933,7 +932,22 @@ export class GlTerrain9 {
         else fanStencil(this.land, 0x04, 0, 0);
         gl.colorMask(true, true, true, true); gl.stencilMask(0x00); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
         gl.stencilFunc(gl.EQUAL, 0, 0x04); gl.uniform4f(this.loc.uWt, t9, 1, 1, 0); rect(0, 0, W, H);
-        gl.stencilFunc(gl.EQUAL, 0x04, 0x04); gl.uniform4f(this.loc.uWt, t9, 1, 2, 0); rect(0, 0, W, H);
+        /* 둑 빛 · 둑 그림자도 **땅 다각형을 민 모양**으로(2026-11-10, 되지적: "곡선은 다른 지형과 같은데 흐려 보이지 않게") — 옛 둑(땅 안 · 거리 판 smoothstep)과
+           물에 진 그림자(타일 판 LINEAR 표본)는 칸 해상도의 부드러운 그러데이션이라 물가에 번짐으로 읽혔다. 이제 땅 다각형을 빛 쪽으로 민 것(빛 받는 둑 · 물 아래·오른쪽 물가)과
+           빛 반대로 민 것(그림자 · 물 왼·위 물가)을 스텐실 0x08 에 찍어 물(0x04 밖) 위에만 단색을 칠한다 — 경계가 땅과 같은 곡선으로 또렷하다. */
+        const sh9 = (ox: number, oy: number, paint: () => void): void => {
+          gl.colorMask(false, false, false, false);
+          if (tri(this.land!)) { gl.stencilMask(0x08); gl.stencilFunc(gl.ALWAYS, 0x08, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE); triGeom(this.land!, ox, oy); }
+          else fanStencil(this.land!, 0x08, ox, oy);
+          gl.colorMask(true, true, true, true); gl.stencilMask(0x00); gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+          gl.stencilFunc(gl.EQUAL, 0x08, 0x0c); gl.uniform1f(this.loc.uMode, 0); paint(); rect(0, 0, W, H);
+          gl.colorMask(false, false, false, false); gl.stencilMask(0x08); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);
+          gl.colorMask(true, true, true, true);
+        };
+        const ld9 = G.land.rgb;
+        sh9(-0.16, -0.14, () => col([Math.min(255, ld9[0] * 1.25 + 14), Math.min(255, ld9[1] * 1.2 + 12), Math.min(255, ld9[2] * 1.12 + 8)], 0.85));   // 빛 받는 둑(물 아래·오른쪽 물가)
+        sh9(0.30, 0.27, () => col([0, 0, 0], 0.26));   // 둑 그림자(물 왼·위 물가)
+        gl.uniform1f(this.loc.uMode, 4); this.waterUniforms(G);
         gl.colorMask(false, false, false, false); gl.stencilMask(0x04); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);
         gl.colorMask(true, true, true, true); gl.stencilMask(0xff);
         gl.uniform4f(this.loc.uWt, t9, 1, 0, 0);

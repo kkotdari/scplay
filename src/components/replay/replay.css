@@ -6084,6 +6084,19 @@
 .scr-fs-layer.is-holodock .scr-speeddial-knob { box-shadow: 0 0 0 calc(3px * var(--sdk)) rgba(70, 255, 120, 0.24), 0 0 6px rgba(90, 255, 130, 0.8); }
 .scr-fs-layer.is-holodock .scr-modetog-stage > span.is-on { background: var(--scr-sc-green, #64dc5a); color: #06260a; }
 .scr-fs-layer.is-holodock :is(.scr-fs-back, .scr-modetog-stage) { border-radius: calc(10px * var(--ui, 1)); }   /* 독 우물(10·dk)과 같은 둥근 귀 · 배율 원은 원 그대로 */
+/* ★ 메탈 · 네온도 하이라이트 한 색(2026-11-10, 요청: "메탈이랑 네온 테마도 하이라이트 색 맞춰줘") — 홀로그램처럼 켜진 단추 · 보기 토글 켜진 칸 · 배속 다이얼 ·
+   재생 단추 · 탐색바를 한 색으로. 메탈 = 밝은 쇠(#eef1f4 → #aeb5bd · 토글 · 다이얼이 이미 쓰던 색 — 켜진 단추는 옛 '쏙 들어간 어두운 반투명'이라 따로 놀았다) ·
+   네온 = 옅은 하늘색 #bfeaff(토글 · 다이얼 색 — 켜진 단추는 네온 단추 판 !important 에 묻혀 켜짐이 안 보였고 재생 줄은 흰색 #eaf8ff). 클레이(라이트 요약)는 제 꼴. */
+.scr-fs-layer:not(.is-holodock):not(.is-neondock):not(.is-clay) :is(.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns, .scr-tb.is-one > .scr-motion-mapbtns, .scr-tb .scr-tb-speed) button.scr-motion-mapbtn.is-on:not(.is-team):not(.is-hero) {
+  background: linear-gradient(180deg, #eef1f4, #aeb5bd); color: #15171a; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px #050607;
+}
+.scr-fs-layer:not(.is-holodock):not(.is-neondock):not(.is-clay) :is(.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns, .scr-tb.is-one > .scr-motion-mapbtns, .scr-tb .scr-tb-speed) button.scr-motion-mapbtn.is-on:not(.is-team):not(.is-hero) svg { filter: none; }
+.scr-fs-layer:not(.is-holodock):not(.is-neondock):not(.is-clay) .scr-tb .scr-tb-seek { --text: #dfe4ea; }
+.scr-fs-layer.is-neondock.is-neondock :is(.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns, .scr-tb.is-one > .scr-motion-mapbtns, .scr-tb .scr-tb-speed) button.scr-motion-mapbtn.is-on:not(.is-team):not(.is-hero) {
+  background: #bfeaff !important; color: #06121f !important; box-shadow: inset 0 0 0 1px var(--neon), 0 0 8px var(--neon-soft) !important;
+}
+.scr-fs-layer.is-neondock.is-neondock :is(.scr-tb .scr-tb-btnrow > .scr-motion-mapbtns, .scr-tb.is-one > .scr-motion-mapbtns, .scr-tb .scr-tb-speed) button.scr-motion-mapbtn.is-on:not(.is-team):not(.is-hero) svg { filter: none; }
+.scr-fs-layer.is-neondock.is-neondock .scr-tb .scr-tb-seek { --text: #bfeaff; }
 
 /* ★ 펼치기 손잡이(.scr-fs-foldfab)도 **테마마다**(2026-11-10, 요청: "펼치기 버튼도 각 테마 적용") — 옛: 세 테마 공통 어두운 바탕 · 흰 테.
    메탈 = 쇠 결(받침 벌 --steel-dark-ped) · 검은 테 · 위 밝은 입술 · 붉은 안쪽 꾸밈선 / 홀로그램 = 재생바 꼬리 접기 단추와 같은 녹색 유리 / 네온 = 짙은 판 + 하늘색 빛 테. */
