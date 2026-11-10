@@ -24414,7 +24414,6 @@ export default function ReplayMotionPlayer({
             const own9 = ownCol9(raw9);
             const col9 = own9 ?? modeColor(raw9, teamOfRaw(raw9));
             const sz9 = uiPhone9 ? 16 : Math.round(22 * (ui9.k / 0.75));
-            const cw9 = uiPhone9 ? 0.72 : 1;   // 폰 커서 선 굵기 ×0.72(2026-11-10 · 같은 지적 "둔탁해 보여")
             const dark9 = "color-mix(in srgb, currentColor 38%, black)";
             const out9: React.ReactNode[] = [];
             /* 건설 칸 판(위 cursorBuild9 ★) — 이 사람의 다음 건설 명령까지 CUR_CARRY_SEC9 안이면, 커서 가운데 · 타일에 맞춘 발자국 칸마다 초록(놓을 수 있음) · 빨강(막힘). 엔진의 고스트 모델과 같은 자리 셈. */
@@ -24460,7 +24459,7 @@ export default function ReplayMotionPlayer({
             const arc9 = `M ${(R9 * Math.cos(a09)).toFixed(1)} ${(R9 * Math.sin(a09)).toFixed(1)} A ${R9} ${R9} 0 1 1 ${(R9 * Math.cos(a19)).toFixed(1)} ${(R9 * Math.sin(a19)).toFixed(1)}`;
             const da9 = (r: number): string => `${((Math.PI * r) / 2 - 6).toFixed(2)} 6`;
             const tabs9 = (sw: number, dark: boolean): React.ReactNode => [0, 90, 180, 270].map((g9) => (
-              <path key={g9} d="M 29 0 H 39" transform={`rotate(${g9 + 45})`} style={{ stroke: dark ? dark9 : "currentColor" }} strokeWidth={sw * cw9} />));
+              <path key={g9} d="M 29 0 H 39" transform={`rotate(${g9 + 45})`} style={{ stroke: dark ? dark9 : "currentColor" }} strokeWidth={sw} />));
             const boxSt9 = ((): React.CSSProperties => {
               if (!c9.box) return { display: "none" };
               const [bx09, by09] = posFrac(Math.min(c9.box[0], c9.x), Math.min(c9.box[1], c9.y));
@@ -24472,13 +24471,13 @@ export default function ReplayMotionPlayer({
               <svg key={`curring-${raw9}`} data-cur="ring" data-cur-raw={raw9} data-cur-col={col9} className={cx("scr-motion-pcring", c9.press && "is-press")} viewBox="-60 -60 120 120" width={dPx9 * 120 / 98} height={dPx9 * 120 / 98} aria-hidden
                 style={{ ...(c9.ring ? posStyle(c9.ring.x, c9.ring.y) : { display: "none" }), color: rc9, zIndex: 21 }}>
                 <g transform="scale(1 0.6)" fill="none">
-                  <path d={arc9} style={{ stroke: dark9 }} strokeWidth={10 * cw9} />
-                  <path d={arc9} stroke="currentColor" strokeWidth={7 * cw9} />
+                  <path d={arc9} style={{ stroke: dark9 }} strokeWidth={10} />
+                  <path d={arc9} stroke="currentColor" strokeWidth={7} />
                   <g transform="rotate(45)">
-                    <circle r={37} style={{ stroke: dark9 }} strokeWidth={4.6 * cw9} strokeDasharray={da9(74)} strokeDashoffset={-3} />
-                    <circle r={31} style={{ stroke: dark9 }} strokeWidth={4.6 * cw9} strokeDasharray={da9(62)} strokeDashoffset={-3} />
-                    <circle r={37} stroke="currentColor" strokeWidth={2.4 * cw9} strokeDasharray={da9(74)} strokeDashoffset={-3} />
-                    <circle r={31} stroke="currentColor" strokeWidth={2.4 * cw9} strokeDasharray={da9(62)} strokeDashoffset={-3} />
+                    <circle r={37} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                    <circle r={31} style={{ stroke: dark9 }} strokeWidth={4.6} strokeDasharray={da9(62)} strokeDashoffset={-3} />
+                    <circle r={37} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(74)} strokeDashoffset={-3} />
+                    <circle r={31} stroke="currentColor" strokeWidth={2.4} strokeDasharray={da9(62)} strokeDashoffset={-3} />
                   </g>
                   {tabs9(7, true)}{tabs9(4.4, false)}
                 </g>
@@ -24488,9 +24487,9 @@ export default function ReplayMotionPlayer({
             out9.push(
               <svg key={`cur-${raw9}`} data-cur="arrow" data-cur-raw={raw9} className={cx("scr-motion-pcursor", c9.press && "is-press")} viewBox="-2 -2 32 32" width={sz9} height={sz9} aria-hidden
                 style={{ ...(c9.ring ? { display: "none" } : posStyle(c9.x, c9.y)), color: col9, zIndex: 21 }}>
-                <path d={CUR_ARROW_D9} style={{ fill: dark9, fillOpacity: 0.78, stroke: dark9 }} strokeWidth={3.8 * cw9} strokeLinejoin="miter" strokeMiterlimit={10} />
-                <path d={CUR_ARROW_D9} fill="none" stroke="currentColor" strokeWidth={2.3 * cw9} strokeLinejoin="miter" strokeMiterlimit={10} />
-                <path d="M2.3 5 L1.9 21" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.8 * cw9} />
+                <path d={CUR_ARROW_D9} style={{ fill: dark9, fillOpacity: 0.78, stroke: dark9 }} strokeWidth={3.8} strokeLinejoin="miter" strokeMiterlimit={10} />
+                <path d={CUR_ARROW_D9} fill="none" stroke="currentColor" strokeWidth={2.3} strokeLinejoin="miter" strokeMiterlimit={10} />
+                <path d="M2.3 5 L1.9 21" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.8} />
               </svg>,
             );
             return out9;
