@@ -9,7 +9,7 @@ import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
 import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, CloudRain, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -15888,7 +15888,7 @@ export default function ReplayMotionPlayer({
   /* ★ 배속·확대·음악 버튼은 누르면 **위로 목록이 펼쳐진다**(요청: "누르면 선택지가 위로 나오는 형태" · "노래도 목록으로") —
      누를 때마다 한 칸씩 돌던 것을 걷었다: 원하는 값으로 한 번에 간다. 바깥을 누르거나 Esc면 닫힌다(붙잡기 단계에서 듣는다 —
      지도의 손짓이 사건을 삼켜도 먼저 온다). 한 번에 하나만 열린다. */
-  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | null>(null);
+  const [pick9, setPick9] = useState<"speed" | "zoom" | "bgm" | "cast" | "layers" | null>(null);
   useEffect(() => {
     if (!pick9) return;
     const off9 = (e9: Event): void => {
@@ -22807,7 +22807,7 @@ export default function ReplayMotionPlayer({
   /** 항목의 `key` 는 글귀가 겹칠 수 있는 목록(사람 이름)에서 준다 · `dot` 은 글귀 앞의 색점(그 사람 색). */
   /** left9 — 줄의 **왼쪽 끝** 단추(TV)의 목록 · 오른쪽 맞춤이면 화면 왼쪽 밖으로 넘친다(replay.css 의 is-left ★). */
   const pickMenu9 = (
-    kind9: "speed" | "zoom" | "bgm" | "cast",
+    kind9: "speed" | "zoom" | "bgm" | "cast" | "layers",
     items9: { label: string; on: boolean; act: () => void; key?: string; dot?: string; keep?: boolean }[], list9 = false, left9 = false,
     /** 목록 맨 아래에 붙는 줄(2026-10-10 · 음악의 음량 슬라이더 + 끄기). */
     tail9?: React.ReactNode,
@@ -22828,7 +22828,7 @@ export default function ReplayMotionPlayer({
       {tail9 && <li className="scr-motion-picktail">{tail9}</li>}
     </ul>
   ) : null);
-  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
+  const pickToggle9 = (kind9: "speed" | "zoom" | "bgm" | "cast" | "layers"): void => setPick9((p9) => (p9 === kind9 ? null : kind9));
   /* ★★ **배속 다이얼**(2026-10-10, 요청: "화면 우하단에 반투명 오버레이로 배속 다이얼 · 배경은 둥근 네모 거의 투명에 내용 선과 글자는 흰색 · 세로로 긴 선에 배속 눈금 ·
      터치나 다이얼 드래그로 부드럽게 조절 · PC 에서는 그 위에서 스크롤로도") — 무대 오른아래(받침 솟음 위). 상자 어디를 눌러도 그 높이의 배속으로 가고 끌면 따라온다
      (눈금 곁에서는 붙는다 · uSpd9). 휠은 제 것으로 받는다(판 뿌리 휠 손잡이가 .scr-speeddial 은 흘려보낸다 · 아래 effect 가 passive:false 로 막는다). 손짓이 무대의
@@ -23119,39 +23119,26 @@ export default function ReplayMotionPlayer({
           </div>
         ) : undefined)}
       </span>
-      {/* ★ 마우스(위 cursorOn9 ★ · 2026-11-05, 요청: "이 옆 왼쪽에 마우스 토글 버튼 추가") — 선수 마우스 커서를 켜고 끈다(켜졌을 때 is-on · 기본 끔). 선 단추 바로 왼쪽. */}
-      {!uiPhone9 && <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn", cursorOn9 && "is-on")}
-        onClick={toggleCursor9}
-        aria-pressed={cursorOn9}
-        aria-label={cursorOn9 ? "마우스 끄기 — 선수 마우스 커서" : "마우스 켜기 — 선수 마우스 커서"}
-        title={cursorOn9 ? "마우스 끄기" : "마우스 켜기"}
-      >
-        <MousePointer2 size={18} style={cursorOn9 ? undefined : { opacity: 0.45 }} />
-      </button>}
-      {/* ★ 선 끄기(위 LINES_OFF9 ★ · 2026-11-04, 요청: "재생기에 선 끄기 버튼 · 단축키는 L") — 명령 줄 · 랠리 번쩍 줄을 끄고 켠다(켜졌을 때 is-on). */}
-      {!uiPhone9 && <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn", !linesOff9 && "is-on")}
-        onClick={toggleLines9}
-        aria-pressed={!linesOff9}
-        aria-label={linesOff9 ? "선 켜기 (L) — 명령 · 랠리 줄" : "선 끄기 (L) — 명령 · 랠리 줄"}
-        title={linesOff9 ? "선 켜기 (L)" : "선 끄기 (L)"}
-      >
-        <Route size={18} style={linesOff9 ? { opacity: 0.45 } : undefined} />
-      </button>}
-      {/* ★ 날씨(위 wxOn9 ★ · 2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 비 · 눈 · 바닥 웅덩이 · 빗소리 · 천둥을 함께 끄고 켠다(켜졌을 때 is-on · 기기에 기억). */}
-      <button
-        type="button"
-        className={cx("scr-motion-litbtn scr-motion-mapbtn", wxOn9 && "is-on")}
-        onClick={toggleWx9}
-        aria-pressed={wxOn9}
-        aria-label={wxOn9 ? "날씨 끄기 — 비 · 눈 · 천둥" : "날씨 켜기 — 비 · 눈 · 천둥"}
-        title={wxOn9 ? "날씨 끄기" : "날씨 켜기"}
-      >
-        <CloudRain size={18} style={wxOn9 ? undefined : { opacity: 0.45 }} />
-      </button>
+      {/* ★ **표시 겹 한 단추**(2026-11-11, 요청: "선수 커서 · 명령 선 · 날씨 효과 세 개를 하나의 아이콘 안에 넣을게 · on/off 스위치 · 아이콘은 UI 적인 요소라는 걸 알려 주는 걸로" →
+          Layers 추천 → "ㅇㅇ") — 소리 단추와 같은 꼴(누르면 목록 · 줄마다 켜고 끄기 · 목록은 열린 채). 하나라도 켜져 있으면 단추가 is-on. 옛 마우스(커서) · 선(L) · 날씨 단추 셋을 갈음 ·
+          폰에도 선다(옛 커서 · 선 단추는 PC 만이었다). 단축키 L 은 그대로. */}
+      <span className="scr-motion-pick">
+        <button
+          type="button"
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", (cursorOn9 || !linesOff9 || wxOn9) && "is-on")}
+          onClick={() => pickToggle9("layers")}
+          aria-haspopup="menu" aria-expanded={pick9 === "layers"}
+          aria-label="표시 — 선수 커서 · 명령 선 · 날씨 켜고 끄기"
+          title="표시(선수 커서 · 명령 선 · 날씨)"
+        >
+          <Layers size={18} style={cursorOn9 || !linesOff9 || wxOn9 ? undefined : { opacity: 0.45 }} />
+        </button>
+        {pickMenu9("layers", [
+          { label: "선수 커서", on: cursorOn9, keep: true, act: toggleCursor9 },
+          { label: "명령 선 (L)", on: !linesOff9, keep: true, act: toggleLines9 },
+          { label: "날씨", on: wxOn9, keep: true, act: toggleWx9 },
+        ], true, true)}
+      </span>
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
           1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].
