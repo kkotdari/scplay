@@ -946,7 +946,10 @@ export class GlTerrain9 {
         };
         const ld9 = G.land.rgb;
         void ld9;   // (걷음 2026-11-10, 지적: "물둑의 좌상방향 경계 저 초록색 띠라인은 뭐야? 없는 게 나을 듯") 빛 받는 둑(땅 색 ×1.2 · 물 아래·오른쪽 물가) — 풀밭 땅에서 형광 띠로 읽혔다
-        sh9(0.30, 0.27, () => col([0, 0, 0], 0.26));   // 둑 그림자(물 왼·위 물가)
+        /* 둑 그림자는 **바로 아래로**(2026-11-11, 지적: "좌상에서 우하 대각선이 아닌 상에서 하로 · 다른 지형도 다 그렇게 높이 표현 중") — 고도 단 벽띠(③)와 같은 자:
+           땅 다각형을 아래로 wallUnit × 0.45 (검정 0.30) · wallUnit (0.14) 두 겹 민 것. 옛: 대각(0.30, 0.27) 한 겹 0.26. */
+        sh9(0, wallUnit * 0.45, () => col([0, 0, 0], 0.30));
+        sh9(0, wallUnit, () => col([0, 0, 0], 0.14));
         gl.uniform1f(this.loc.uMode, 4); this.waterUniforms(G);
         gl.colorMask(false, false, false, false); gl.stencilMask(0x04); gl.stencilFunc(gl.ALWAYS, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO); rect(0, 0, W, H);
         gl.colorMask(true, true, true, true); gl.stencilMask(0xff);
