@@ -323,7 +323,7 @@ function rainBufOf9(c9: AudioContext): AudioBuffer {
 function thunderBufOf9(c9: AudioContext): AudioBuffer {
   if (thunderBuf9) return thunderBuf9;
   /* 더 길게(2026-11-11, 요청: "천둥소리 좀 더 크고 길게") — 5 → 8초 · 스러짐 1.6 → 2.8초 · 1.6초 뒤 한 번 더 굴러온다(우르릉 두 번). */
-  const n = Math.floor(SFX_RATE9 * 13);   // 8 → 13초(같은 날 "길게") const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);
+  const n = Math.floor(SFX_RATE9 * 13); const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);   // 8 → 13초(같은 날 "길게")
   let seed = 0x13579b; const rnd = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   let l1 = 0; let l2 = 0; let peak = 0;
   for (let i = 0; i < n; i += 1) {
