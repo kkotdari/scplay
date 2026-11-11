@@ -14,6 +14,8 @@ export interface WxPlan9 {
   clear?: boolean; eps0?: WxPlan9["eps"]; bolts0?: number[];
 }
 
+/** 눈 켬(2026-11-11 · 잠깐 끔). */
+export const WX_SNOW_ON9 = false;
 /** 문자열 → 32비트 씨앗(FNV-1a). */
 function seed9(s: string): number {
   let h = 0x811c9dc5;
@@ -37,8 +39,9 @@ export function wxPlan9(key: string, total: number): WxPlan9 {
   const r = rng9(seed9(`wx|${key}`));
   /* 맑음 5 · 눈 2 · 비 3(2026-11-11, 요청: "맑은 경기도 있어야 해 · 맑음 5 눈 2 비 3 비율") — 맑으면 토막이 없다(clear). 종류는 그대로 하나 뽑아 둔다(#wxkind 시험이 쓴다). */
   const roll = r();
-  const clear = roll < 0.5;
-  const kind: WxKind9 = roll < 0.7 && !clear ? "snow" : clear ? (r() < 0.4 ? "snow" : "rain") : "rain";
+  /* 눈은 잠깐 끔 · 맑음 4 · 비 6(2026-11-11, 요청: "비만 살리고 눈은 잠깐 꺼 둬 · 비율은 맑음 4 비 6") — WX_SNOW_ON9 를 켜면 옛 맑음 5 · 눈 2 · 비 3. #wxkind=snow 시험은 그대로. */
+  const clear = WX_SNOW_ON9 ? roll < 0.5 : roll < 0.4;
+  const kind: WxKind9 = !WX_SNOW_ON9 ? "rain" : roll < 0.7 && !clear ? "snow" : clear ? (r() < 0.4 ? "snow" : "rain") : "rain";
   const eps: WxPlan9["eps"] = [];
   const bolts: number[] = [];
   let t = r() < 0.34 ? -(WX_RAMP9 + 5 + r() * 60) : 20 + r() * 120;
