@@ -7,9 +7,9 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
-import { wxAt9, wxGround9, wxGroundAt9, wxPlan9, wxTiles9 } from "./weather9";
+import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, CloudRain, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -10952,7 +10952,9 @@ export default function ReplayMotionPlayer({
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
   /* 테스터만(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게") — 테스터가 아니면 늘 끔 · 목록 줄도 안 선다. */
   /* ★ 모두에게 · 켬끔 단추 없이(2026-11-11, 요청: "작업 다 하면 날씨 일반에 오픈 · 대신 끄고/켜기 버튼 없이") — 옛: 테스터만 · 소리 목록 '날씨' 줄. `#wx=0` 이면 끔(시험). */
-  const wxOn9 = !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash));   // 테스터 표는 앱이 늦게 줄 수 있다
+  /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험). */
+  const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
+  const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
   /** 바닥에 남는 몫(물웅덩이 · 눈 쌓임 — weather9 wxGround9 ★) — 일정에서 한 번 쌓아 둔다. */
@@ -23139,6 +23141,17 @@ export default function ReplayMotionPlayer({
       >
         <Route size={18} style={linesOff9 ? { opacity: 0.45 } : undefined} />
       </button>}
+      {/* ★ 날씨(위 wxOn9 ★ · 2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 비 · 눈 · 바닥 웅덩이 · 빗소리 · 천둥을 함께 끄고 켠다(켜졌을 때 is-on · 기기에 기억). */}
+      <button
+        type="button"
+        className={cx("scr-motion-litbtn scr-motion-mapbtn", wxOn9 && "is-on")}
+        onClick={toggleWx9}
+        aria-pressed={wxOn9}
+        aria-label={wxOn9 ? "날씨 끄기 — 비 · 눈 · 천둥" : "날씨 켜기 — 비 · 눈 · 천둥"}
+        title={wxOn9 ? "날씨 끄기" : "날씨 켜기"}
+      >
+        <CloudRain size={18} style={wxOn9 ? undefined : { opacity: 0.45 }} />
+      </button>
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
           1/N 으로 바로 이동 및 UI 전환 · 팝오버 없음 · 추천어 없음"). 셋의 꼴:
             쉼 — 돋보기 하나 · 입력 — [돋보기 | 입력칸](옆으로 펴짐 · 곧장 입력) · 결과 — [돋보기 | ‹ n/N › | ✕].

@@ -134,7 +134,7 @@ export function wxTiles9(): { rain: string; snow: string } | null {
 const WX_KEY9 = "scr.wx";
 export function wxOnStored9(): boolean {
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])wx=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  try { return localStorage.getItem(WX_KEY9) === "1"; } catch { return false; }   // 기본 끔(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게")
+  try { return localStorage.getItem(WX_KEY9) !== "0"; } catch { return true; }   // 기본 켬(2026-11-11 · 명령 선 옆 날씨 단추가 끈 것만 기억한다)
 }
 export function wxStore9(on: boolean): void { try { localStorage.setItem(WX_KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
