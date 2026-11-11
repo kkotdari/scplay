@@ -2531,6 +2531,43 @@ function creep17Layer9(t9: number): HTMLCanvasElement | null {
   CREEP17_9.cv = cv9; CREEP17_9.dim = dim9; CREEP17_9.key = key9;
   return cv9;
 }
+/** ★ 맵 로고도 **안개를 탄다**(2026-11-11, 지적: "아직 안개가 걷히지 않은 부분의 로고가 이미 보임") — 로고는 몸 캔버스(안개 층 위)에 깔려 안개를 무시했다.
+ *  크립 판(creep17Layer9)과 같은 칸 기록(판 17 · 화면 주인 눈 mask)으로 로고 자리의 칸마다 알파를 매긴다 — 보임 1 · 본 적만 0.47 · 못 봄 0 — 그 칸 판을 로고 판 크기로
+ *  부드럽게 늘려 destination-in 으로 오린다. 칸 기록이 없거나(옛 자료) 안개를 껐으면(visAll) 로고 그대로. 열쇠(칸 기록 장 · mask)가 같으면 다시 안 굽는다. */
+const LOGO_FOG9: { key: string; cv: HTMLCanvasElement | null; src: HTMLCanvasElement | null; m: HTMLCanvasElement | null } = { key: "", cv: null, src: null, m: null };
+function mapLogoFogged9(lg9: HTMLCanvasElement, t9: number): HTMLCanvasElement {
+  const tl9 = CREEP17_9.tiles;
+  if (!tl9 || CREEP17_9.visAll || typeof document === "undefined") return lg9;
+  const st9 = tl9.stateAt(t9);
+  const key9 = `${tl9.at}|${CREEP17_9.mask}`;
+  if (LOGO_FOG9.cv && LOGO_FOG9.key === key9 && LOGO_FOG9.src === lg9) return LOGO_FOG9.cv;
+  const W9 = tl9.w; const H9 = tl9.h; const m9 = CREEP17_9.mask;
+  const lwT9 = MAP_LOGO_TILES9; const lhT9 = (lwT9 * lg9.height) / lg9.width;
+  const lx9 = W9 / 2 - lwT9 / 2; const ly9 = H9 / 2 - lhT9 / 2;
+  const x0 = Math.max(0, Math.floor(lx9) - 1); const y0 = Math.max(0, Math.floor(ly9) - 1);
+  const x1 = Math.min(W9, Math.ceil(lx9 + lwT9) + 1); const y1 = Math.min(H9, Math.ceil(ly9 + lhT9) + 1);
+  const mw9 = Math.max(1, x1 - x0); const mh9 = Math.max(1, y1 - y0);
+  const mc9 = LOGO_FOG9.m ?? document.createElement("canvas");
+  if (mc9.width !== mw9 || mc9.height !== mh9) { mc9.width = mw9; mc9.height = mh9; }
+  const mx9 = mc9.getContext("2d"); if (!mx9) return lg9;
+  const id9 = mx9.createImageData(mw9, mh9);
+  for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
+    const v9 = st9[y * W9 + x] ?? 0;
+    const vis9 = ((~v9 >>> 8) & 0xff & m9) !== 0; const exp9 = (~v9 & 0xff & m9) !== 0;
+    id9.data[((y - y0) * mw9 + (x - x0)) * 4 + 3] = vis9 ? 255 : exp9 ? 120 : 0;
+  }
+  mx9.putImageData(id9, 0, 0);
+  const cv9 = LOGO_FOG9.cv ?? document.createElement("canvas");
+  if (cv9.width !== lg9.width || cv9.height !== lg9.height) { cv9.width = lg9.width; cv9.height = lg9.height; }
+  const c9 = cv9.getContext("2d"); if (!c9) return lg9;
+  c9.globalCompositeOperation = "source-over"; c9.clearRect(0, 0, cv9.width, cv9.height); c9.drawImage(lg9, 0, 0);
+  const k9 = lg9.width / lwT9;
+  c9.globalCompositeOperation = "destination-in"; c9.imageSmoothingEnabled = true; c9.imageSmoothingQuality = "high";
+  c9.drawImage(mc9, 0, 0, mw9, mh9, (x0 - lx9) * k9, (y0 - ly9) * k9, mw9 * k9, mh9 * k9);
+  c9.globalCompositeOperation = "source-over";
+  LOGO_FOG9.cv = cv9; LOGO_FOG9.m = mc9; LOGO_FOG9.src = lg9; LOGO_FOG9.key = key9;
+  return cv9;
+}
 function creepTex9(): HTMLCanvasElement | null {
   if (CREEP_TEX9 !== undefined) return CREEP_TEX9;
   CREEP_TEX9 = null;
@@ -7944,7 +7981,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (lg9) {
           const lw9 = (tilePx ?? mw9 / 128) * MAP_LOGO_TILES9 * zoom; const lh9 = lw9 * (lg9.height / lg9.width);
           ctx.save(); ctx.globalAlpha = MAP_LOGO_ALPHA9;
-          ctx.drawImage(lg9, zx(0.5) - lw9 / 2, zy(0.5) - lh9 / 2, lw9, lh9);
+          ctx.drawImage(mapLogoFogged9(lg9, CREEP17_9.t), zx(0.5) - lw9 / 2, zy(0.5) - lh9 / 2, lw9, lh9);
           ctx.restore();
         }
       }
@@ -20530,9 +20567,11 @@ export default function ReplayMotionPlayer({
     const ux = (cx - ox - panRef.current.x) / z0;
     const uy = (cy - oy - panRef.current.y) / z0;
     const lim = panLimit(z1);
+    /* ★ 누른 자리를 **화면 가운데로**(2026-11-11, 지적: "더블클릭 줌인 시 클릭한 부분이 화면 중앙으로 안 옴") — 옛: 커서 아래 지점이 커서 아래에 남게(휠과 같은 닻) 팬을 풀었다.
+       상자 가운데 = 무대 가운데(상자는 무대 가운데에 앉는다)라 팬 = −배율 × 그 지점. 지도 끝이면 팬 한계로 죈다. */
     setView9(z1, {
-      x: Math.min(lim.x, Math.max(-lim.x, cx - ox - z1 * ux)),
-      y: Math.min(lim.yTop, Math.max(-lim.y, cy - oy - z1 * uy)),
+      x: Math.min(lim.x, Math.max(-lim.x, -z1 * ux)),
+      y: Math.min(lim.yTop, Math.max(-lim.y, -z1 * uy)),
     });
   };
   const onMapPointerUp = (e: React.PointerEvent) => {
