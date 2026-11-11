@@ -5773,8 +5773,8 @@
    (자막·화면 주인 머리·모드 토글·배율·배속·채팅·테스터 단추…)과 무대 밖 형제(독·툴박스 .scr-fs-lower · 품질 알림)를 **자리는 둔 채** 안 보이게 하고 누름도 안 받는다
    (레이아웃이 안 바뀌어 지도가 안 흔들린다). K 는 자막(.scr-cast-caption) · 채팅 · 화면 주인 이름표(단독 .scr-fs-solo · 분할 칸 머리 .scr-split-cap). J 는 독 통째(.scr-fs-lower — 쇠판 · 재생부까지 · 쇠판 ::before 도 visibility 를 물려받는다).
    지도 안의 링·명령 줄·클릭 표시는 지도 그림이라 남는다. */
-.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under),
-.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-split-under) *,
+.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under),
+.scr-fs-root.is-uihide-all > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under) *,
 .scr-fs-root.is-uihide-all > :not(.scr-fs-stage),
 .scr-fs-root.is-uihide-all > :not(.scr-fs-stage) *,
 .scr-fs-root.is-uihide-cap :is(.scr-fs-solo, .scr-fs-chat, .scr-split-cap, .scr-cast-caption),
@@ -5799,8 +5799,8 @@
    무대 밖 형제는 독(미니맵만 · 위 .scr-fs-dockrow.is-fold)과 펼치기 손잡이(.scr-fs-foldfab)만 · 재생바 숨김 · 쇠판 켜 걷음. */
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb,
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb *,
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask),
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask) *,
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask),
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask) *,
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab),
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab) * {
   visibility: hidden !important;
@@ -6131,15 +6131,15 @@
   background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat;
   will-change: transform; animation: scr-wx-fall var(--dur) linear infinite;
 }
-.scr-wx-rain .scr-wx-l1 { --ts: calc(330px * var(--wxs, 1)); --dur: 0.38s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-rain .scr-wx-l1 { --ts: calc(330px * var(--wxs, 1)); --dur: 0.38s; opacity: calc(0.95 * clamp(0.55, var(--wk, 1) * 1.6, 1)); }
 .scr-wx-rain .scr-wx-l2 { --ts: calc(230px * var(--wxs, 1)); --dur: 0.46s; opacity: calc(0.6 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
 .scr-wx-rain .scr-wx-l3 { --ts: calc(150px * var(--wxs, 1)); --dur: 0.58s; opacity: calc(0.38 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
-.scr-wx-snow .scr-wx-l1 { --ts: calc(300px * var(--wxs, 1)); --dur: 8s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-snow .scr-wx-l1 { --ts: calc(300px * var(--wxs, 1)); --dur: 8s; opacity: calc(0.95 * clamp(0.55, var(--wk, 1) * 1.6, 1)); }
 .scr-wx-snow .scr-wx-l2 { --ts: calc(210px * var(--wxs, 1)); --dur: 12s; opacity: calc(0.7 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
 .scr-wx-snow .scr-wx-l3 { --ts: calc(140px * var(--wxs, 1)); --dur: 17s; opacity: calc(0.5 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
 @keyframes scr-wx-fall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, var(--ts), 0); } }
 @keyframes scr-wx-sway { from { transform: translate3d(-22px, 0, 0); } to { transform: translate3d(22px, 0, 0); } }
 .scr-wx.is-paused .scr-wx-tilt, .scr-wx.is-paused .scr-wx-tilt > i { animation-play-state: paused; }
-.scr-wx-flash { position: absolute; inset: 0; background: rgb(215, 228, 255); opacity: 0; mix-blend-mode: screen; }
+.scr-wx-flash { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 3; pointer-events: none; background: rgb(236, 242, 255); opacity: 0; }   /* 무대 전체 · 밝게(붓이 0 ~ 0.75) */
 @media (pointer: coarse) { .scr-wx-tilt > i.scr-wx-l3 { display: none; } }
-@media (prefers-reduced-motion: reduce) { .scr-wx { display: none; } }
+@media (prefers-reduced-motion: reduce) { .scr-wx-tilt, .scr-wx-tilt > i { animation-duration: calc(var(--dur, 1s) * 3) !important; } }   /* 동작 줄이기면 느리게만(옛: 겹 통째로 숨김 — 그 기기에선 빗줄기가 아예 안 보였다 · 2026-11-11) */

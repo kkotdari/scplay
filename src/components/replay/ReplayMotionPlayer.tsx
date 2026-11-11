@@ -7,7 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
-import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
+import { wxAt9, wxGround9, wxGroundAt9, wxPlan9, wxTiles9 } from "./weather9";
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -10954,9 +10954,8 @@ export default function ReplayMotionPlayer({
   /* ★ 꾸밈 날씨(weather9 ★ · 2026-11-11) — 경기 열쇠(clockKey = 경기 번호)로 짠 일정 하나(비 · 눈 중 한 종류) · 켬은 소리 목록의 '날씨' 줄(기기에 저장). 그림은 무대의 .scr-wx 겹 ·
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
   /* 테스터만(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게") — 테스터가 아니면 늘 끔 · 목록 줄도 안 선다. */
-  const wxForce9 = typeof location !== "undefined" && /(?:^|[#&,])wx=1/.test(location.hash);   // 시험(perf-check --hash wx=1)
-  const [wxOn9, setWxOn9] = useState<boolean>(() => (isTester || wxForce9) && wxOnStored9());
-  useEffect(() => { setWxOn9((isTester || wxForce9) && wxOnStored9()); }, [isTester, wxForce9]);   // 테스터 표는 앱이 늦게 줄 수 있다
+  /* ★ 모두에게 · 켬끔 단추 없이(2026-11-11, 요청: "작업 다 하면 날씨 일반에 오픈 · 대신 끄고/켜기 버튼 없이") — 옛: 테스터만 · 소리 목록 '날씨' 줄. `#wx=0` 이면 끔(시험). */
+  const wxOn9 = !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash));   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
   /** 바닥에 남는 몫(물웅덩이 · 눈 쌓임 — weather9 wxGround9 ★) — 일정에서 한 번 쌓아 둔다. */
@@ -20024,7 +20023,7 @@ export default function ReplayMotionPlayer({
     /* 양(가랑비 ~ 소나기 · 2026-11-11) — 겹 투명도는 오르내림만(k × 4 · 0.25 넘으면 다 보임) · 몇 겹이 얼마나 서는지는 --wk(CSS 의 겹마다 문턱 · 하늘 어둡기)가 정한다. */
     if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? Math.min(1, k9 * 4).toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; el9.style.setProperty("--wk", k9.toFixed(3)); st9.k = k9; }
     const fl9 = on9 && wxPlanNow9.kind === "rain" ? w9.flash * Math.min(1, k9 * 1.4) : 0;
-    if (Math.abs(fl9 - st9.fl) > 0.01 && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = (fl9 * 0.5).toFixed(3); st9.fl = fl9; }
+    if (Math.abs(fl9 - st9.fl) > 0.01 && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = (fl9 * 0.75).toFixed(3); st9.fl = fl9; }
     const pz9 = cm9.playing ? 0 : 1;
     if (pz9 !== st9.paused) { el9.classList.toggle("is-paused", pz9 === 1); st9.paused = pz9; }
     setRain9(on9 && cm9.playing && wxPlanNow9.kind === "rain" ? k9 : 0);
@@ -22999,7 +22998,6 @@ export default function ReplayMotionPlayer({
           ...(bgm.count > 0 ? [{ label: "배경 음악", on: bgm.on, keep: true, act: () => { if (bgm.on) bgm.off(); else bgm.toggle(); } }] : []),
           { label: "효과음", on: sfxOnNow9, keep: true, act: () => { const nv9 = !sfxOnNow9; setSfxOn9(nv9); if (nv9) { unlockSfx9(); prebakeSfx9(); } } },
           /* 꾸밈 날씨(위 wxPlanNow9 ★) — 비 · 눈 그림과 빗소리 · 천둥을 함께 끄고 켠다(기기에 저장). */
-          ...(isTester ? [{ label: "날씨", on: wxOn9, keep: true, act: () => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) setRain9(0); } }] : []),
           /* 왼쪽 무리(인물·색 다음)의 단추라 목록은 **오른쪽으로** 자란다(지적: "음악 선택 목록 화면 밖으로 나감"). */
         ], true, true, bgm.volumeOk ? (
           <div className="scr-motion-pickvol">
@@ -25156,9 +25154,10 @@ export default function ReplayMotionPlayer({
                  굳은 배율(상태)로만 바꾼다 — 손짓 중 장마다 바꾸면 무늬 겹을 장마다 다시 그린다. 너무 키우면 256 칸 무늬가 뭉개져 2.2 에서 멈춘다. */
               style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})`, ["--wxs" as string]: Math.max(0.5, Math.min(2.2, zoomK9)).toFixed(2) } as React.CSSProperties}>
               <div className="scr-wx-tilt"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div>
-              <div ref={wxFlashRef9} className="scr-wx-flash" />
             </div>
           )}
+          {/* 번개 — **무대 전체**를 밝게 번쩍(2026-11-11, 요청: "번개 칠 때 전체 화면이 깜빡여야 할 듯 · 밝게") · 날씨 겹(세기 투명도) 밖이라 가랑비 투명도에 안 묻힌다. */}
+          {wxTile9 && wxPlanNow9.kind === "rain" && <div ref={wxFlashRef9} className="scr-wx-flash" aria-hidden />}
           {/* (걷어냄 · 2026-10-09, 요청 3) 폰 단독 중계·추적의 화면 주인 현황(.scr-fs-ownerst · 무대 아래 가운데 두 줄) — 독 로스터가 든다. */}
           {splitLay9 && (
             /* 분할보기 밑 층 — 칸마다 그 사람 화면의 **땅**(splitPaint9 가 카메라가 갈릴 때만 칠한다). 몸·효과는 그 위의 본 지도
