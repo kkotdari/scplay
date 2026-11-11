@@ -2146,6 +2146,19 @@ if (has("--pickprobe")) {
   }
   console.log("[집기]", JSON.stringify(out9));
 }
+/* --cvprobe(2026-11-11 · 독 접힘 뒤 캔버스 자리) — 지도 상자 안 캔버스들의 top · height · 배킹과 자르기 까닭(__crop9)을 0.4초마다 다섯. */
+if (has("--cvprobe")) {
+  for (let k = 0; k < 5; k += 1) {
+    console.log("[캔버스] " + await page.evaluate(() => {
+      const m = document.querySelector(".scr-motion-map"); if (!m) return "상자 없음";
+      const cs = getComputedStyle(m);
+      const rows = Array.from(m.querySelectorAll("canvas.scr-motion-unitlayer")).map((c) => `${c.className.replace("scr-motion-unitlayer", "").trim() || "unit"}:${c.style.top || "-"}/${c.offsetTop},${c.clientHeight}h·${c.width}x${c.height}`);
+      const st = document.querySelector(".scr-fs-stage"); const sr = st ? st.getBoundingClientRect() : null; const mr = m.getBoundingClientRect();
+      return `무대 ${sr ? Math.round(sr.top) + "+" + Math.round(sr.height) : "-"} · 상자 ${Math.round(mr.top)}+${Math.round(mr.height)} 띠 ${cs.getPropertyValue("--scr-mapband")} 늘림 ${cs.getPropertyValue("--map-ext")} · 자르기 ${(window.__crop9 || {}).v || "-"} · ${rows.join(" | ")}`;
+    }));
+    await page.waitForTimeout(400);
+  }
+}
 /* --wxprobe(2026-11-11 · 날씨 겹이 움직이나) — .scr-wx 겹의 클래스 · 투명도 · 맨 앞 겹의 transform 을 0.3초마다 넷. */
 if (has("--wxprobe")) {
   const rows9 = [];

@@ -6901,7 +6901,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            가르는 자는 발자리다: 발이 상자 안(vy0 ≥ 여유)이면 그 몸이 위로 아무리 솟아도
            다 그린다 — 그 유닛은 지금 보이는 것이고, 발을 누르면 잡힌다. 발이 상자 위끝
            보다 위면 그 유닛은 창 밖이라 한 톨도 안 그린다. 배율·이동과 무관한 한 줄이다. */
-        if (band9 > 0 && vy0 < band9 - 0.5) return false;
+        /* (걷음 2026-11-11, 실기: "독 접었을 때 위에 지형은 그려지는데 모델은 잘리는 영역 발생") — 띠(--scr-mapband)는 이제 **무대 안**의 상자 위 틈(폰 세로 · 독 접힘)이라
+           그 자리 지도는 화면에 보인다. 발이 띠에 있는 몸을 버리던 이 줄이 그 띠의 유닛 · 건물만 지웠다. 화면 밖 거르기는 아래 캔버스 경계가 한다. */
         const pc9 = PAINT_CLIP9;   // 분할보기 칸의 오림 네모(위 PAINT_CLIP9) — 그 밖의 몸은 안 그린다
         if (pc9) return vx0 >= pc9[0] - ex0 && vx0 <= pc9[2] + ex0 && vy0 >= pc9[1] - ex0 && vy0 <= pc9[3] + ex0;
         return vx0 >= -ex0 && vx0 <= cw + ex0 && vy0 >= -ex0 && vy0 <= ch + ex0;
