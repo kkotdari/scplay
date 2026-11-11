@@ -32,6 +32,11 @@ import { TEAM_COLOR } from "./markers";
      .doneAt). 여태 화면은 이 값을 몰라 '착공 + 표의 건설 시간'으로 어림했고, 테란은
      공사가 멈춰 서면 그 어림이 틀려 별도 유추(bldWork)를 돌렸다. 참값이 말하므로 둘 다
      필요 없다. */
+/** ★ 피격 효과(불티 · 피 · 파편 · 소총 불꽃)의 크기는 **맞는 몸과 무관한 한 값**(2026-11-11, 요청: "피격효과를 유닛크기에 비례해서 키우면 안 될 듯 · 공격력 자체는 변하지 않으니까") —
+ *  옛: 맞는 몸의 보이는 폭 × 0.69(건물은 상자 폭 × 0.45)라 울트라 · 건물은 크게 · 저글링은 작게 터졌다. 이제 이 칸 수 × 0.69 하나(중간 몸 폭 남짓). 튀는 자리(dist)는
+ *  여전히 몸에 비례(몸 가장자리 쪽) · 실드 막(몸을 감싼다)과 스플래시(쏘는 무기의 자)는 그대로. */
+const HIT_REF_TILES9 = 0.75;
+
 export type BuildRow = [number, number, number, string, string, number, number?, number?];
 /** [초, x, y, 기술 영문명, raw] — 좌표가 남는 마법 한 줄(스톰·스웜·리콜…). */
 export type CastRow = [number, number, number, string, string];
@@ -5062,6 +5067,8 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
     const pitchFlat = view.pitchFlat;
     const tilePx = view.tilePx;
     const mapW9 = view.mapW;
+    /** 피격 효과의 자(배율 1 px) — 맞는 몸 크기와 **무관한** 한 값(HIT_REF_TILES9 ★). */
+    const hitW9 = (HIT_REF_TILES9 * mapW9) / Math.max(1, grid.width);
     const mapH9 = view.mapH;
     /** 건물 몸 가운데가 효과 앵커(발자국 한가운데)에서 얼마나 위인가(px) — 위 bldMidK9 주석. 그리는 변은 발자국
      *  폭 × BLD_DRAW_K × 종류 보정(완성 건물 op의 drawK와 같은 식). */
@@ -6087,7 +6094,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const wp9 = o.style ? { style: o.style, ...(o.by ? { by: o.by } : {}) } : o.by ? { by: o.by } : {};   // 무기 갈래 + 쏜 몸(효과음이 드라군 탄 '펑'을 가른다 · 2026-11-09)
       if (o.rifle) {   // 소총 불티(유닛 쪽 ★ 소총 불티와 같은 op · 벙커 사수)
         fxOps.push({
-          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * 0.69, ...(d9 ? { dist: w9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
+          kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: hitW9 * 0.69, ...(d9 ? { dist: w9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }),
           ph: s9 / 0.25, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - s9) * 13), ...(o.gg && o.cp ? { gg: o.gg, cp: o.cp } : {}), ...ok9, ...wp9,
         });
         return;
@@ -6100,7 +6107,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       const rc9 = raceOfName9(nm9);
       const mat9: "bio" | "mech" | "toss" | "zerg" = rc9 === "저그" ? "zerg" : rc9 === "프로토스" ? "toss" : nm9 && BIONIC_UNITS.has(nm9) ? "bio" : "mech";
       fxOps.push({
-        kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: w9 * (bk9 ? 0.45 : 0.69), mat: mat9,
+        kind: "hit", fx: fx9, fy: fy9, lift: lift9, size: hitW9 * 0.69, mat: mat9,
         ...(d9 ? { dist: w9 * 0.25, dx: d9[0], dy: d9[1] } : { dist: 0 }),
         ph: s9 / 0.14, pr: 1 / 0.14, ...ok9, ...wp9,
       });
@@ -7138,7 +7145,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
                → 0.45(요청: "건물 피격효과가 너무 큰듯") — 유닛보다 상자가 커서 같은 비로도
                불티가 건물 폭만 하게 텄다. */
             // 튀는 자리도 몸 가운데 가까이(0.3 → 0.1) — 유닛과 같은 까닭(트레이서 끝과 겹치게).
-            size: bw9 * 0.45, dist: bw9 * 0.1, mat: bMat9,
+            size: hitW9 * 0.69, dist: bw9 * 0.1, mat: bMat9,
             ph: (t - bldHp.hurt) / 0.18, pr: 1 / 0.18,
             ...(bWpn9 ? { style: bWpn9 } : {}),
             ...(bHitDir9 ? { dx: bHitDir9[0], dy: bHitDir9[1] } : {}),
@@ -10239,7 +10246,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
            맞은 부분에 나와서 어색") — 트레이서 끝점은 몸 가운데(조준 높이)라, 불티가 표면(0.32)에서 터지면
            줄기가 닿지 않은 자리에서 튀는 그림이 된다. 0.1로 당겨 줄기 끝과 겹치게 한다. 파편이 날아가는
            방향(dx·dy)은 그대로라 '어느 쪽에서 맞았나'는 남는다. */
-        size: fxPx * (modelInkOf(kindMain) / 16) * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.1,
+        size: hitW9 * 0.69, dist: fxPx * (modelInkOf(kindMain) / 16) * 0.1,
         /* ★ **자폭을 맞은 쪽은 제 결로 터진다**(2026-09, 요청: "자폭 공격 성공 시 맞은 상대방이 자기의
            피격효과를 내") — 여기 있던 `/scourge/i` 갈래는 때린 쪽(스커지)의 저그 결로 덮어써서, 맞은
            프로토스·테란이 남의 결로 터졌다. 그 갈래를 낸 옛 지적("스커지가 죽을 때 프로토스 효과")의
@@ -10964,7 +10971,7 @@ replayTrack에서 문턱을 뒀다(초당 0.4타일 미만은 안 걷는 것으�
                보이는 몸 폭의 0.3 만큼. 너무 멀면(14칸 밖) 몸 가운데. (같은 날 "위치를 좀 더 피격 대상 몸 중심 쪽으로(안쪽으로)" → 0.3 → 0.18 · 벙커 사수 몫도 ·
                2026-11-05 "유닛의 더 안쪽으로 많이" → 0.06) */
             ...((d9) => (d9 ? { dist: vW9 * 0.06, dx: d9[0], dy: d9[1] } : { dist: 0, dx: 0, dy: 0 }))(hitDirOf9(ax3, ay3, foe.bx, foe.by)),
-            size: vW9 * 0.69,
+            size: hitW9 * 0.69,
             ph: rp9, pr: 1 / 0.25, rifle: 1, ro: true, rs: Math.floor((t - ph9 * fxCd) * 13), seed: e.tag,
             ...(GUN_ROUNDS9[fxUnit] ? { gg: fxCdRaw / GUN_ROUNDS9[fxUnit], cp: FIRES9.has(holdKey) ? fxCdRaw : fxCd } : {}),
           });
