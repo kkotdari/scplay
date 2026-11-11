@@ -114,10 +114,10 @@ export function wxTiles9(): { rain: string; snow: string } | null {
   return tiles9;
 }
 
-/** 켬 · 끔(소리 목록의 '날씨' 줄 · 기기에 저장 · 기본 켬). `#wx=0|1` 로 못 박는다. */
+/** 켬 · 끔(소리 목록의 '날씨' 줄 · 테스터만 · 기기에 저장 · 기본 끔). `#wx=0|1` 로 못 박는다. */
 const WX_KEY9 = "scr.wx";
 export function wxOnStored9(): boolean {
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])wx=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  try { return localStorage.getItem(WX_KEY9) !== "0"; } catch { return true; }
+  try { return localStorage.getItem(WX_KEY9) === "1"; } catch { return false; }   // 기본 끔(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게")
 }
 export function wxStore9(on: boolean): void { try { localStorage.setItem(WX_KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }

@@ -10863,9 +10863,11 @@ export default function ReplayMotionPlayer({
   const [playing, setPlaying] = useState(true);
   /* ★ 꾸밈 날씨(weather9 ★ · 2026-11-11) — 경기 열쇠(clockKey = 경기 번호)로 짠 일정 하나(비 · 눈 중 한 종류) · 켬은 소리 목록의 '날씨' 줄(기기에 저장). 그림은 무대의 .scr-wx 겹 ·
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
-  const [wxOn9, setWxOn9] = useState<boolean>(wxOnStored9);
+  /* 테스터만(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게") — 테스터가 아니면 늘 끔 · 목록 줄도 안 선다. */
+  const [wxOn9, setWxOn9] = useState<boolean>(() => isTester && wxOnStored9());
+  useEffect(() => { setWxOn9(isTester && wxOnStored9()); }, [isTester]);   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total), [clockKey, gridIn.width, gridIn.height, total]);
-  const wxTile9 = typeof document !== "undefined" ? wxTiles9() : null;
+  const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
   const wxElRef9 = useRef<HTMLDivElement | null>(null);
   const wxFlashRef9 = useRef<HTMLDivElement | null>(null);
   const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1 });
@@ -22886,7 +22888,7 @@ export default function ReplayMotionPlayer({
           ...(bgm.count > 0 ? [{ label: "배경 음악", on: bgm.on, keep: true, act: () => { if (bgm.on) bgm.off(); else bgm.toggle(); } }] : []),
           { label: "효과음", on: sfxOnNow9, keep: true, act: () => { const nv9 = !sfxOnNow9; setSfxOn9(nv9); if (nv9) { unlockSfx9(); prebakeSfx9(); } } },
           /* 꾸밈 날씨(위 wxPlanNow9 ★) — 비 · 눈 그림과 빗소리 · 천둥을 함께 끄고 켠다(기기에 저장). */
-          { label: "날씨", on: wxOn9, keep: true, act: () => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) setRain9(0); } },
+          ...(isTester ? [{ label: "날씨", on: wxOn9, keep: true, act: () => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) setRain9(0); } }] : []),
           /* 왼쪽 무리(인물·색 다음)의 단추라 목록은 **오른쪽으로** 자란다(지적: "음악 선택 목록 화면 밖으로 나감"). */
         ], true, true, bgm.volumeOk ? (
           <div className="scr-motion-pickvol">
@@ -25039,7 +25041,9 @@ export default function ReplayMotionPlayer({
           {/* 꾸밈 날씨(위 wxPlanNow9 ★) — 무대 위 화면 겹(지도 위 · 글자 · 단추 아래 · 누름은 지나간다). 세기·번쩍임은 붓이 style 로(wxTickRef9). */}
           {wxTile9 && (
             <div ref={wxElRef9} className={cx("scr-wx", `scr-wx-${wxPlanNow9.kind}`)} aria-hidden
-              style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})` } as React.CSSProperties}>
+              /* 크기는 **배율을 탄다**(2026-11-11, 요청: "배율과 무관하게 크기가 똑같구나 · 배율 적용하려면 부담되나") — 기본 배율 대비(zoomK9)를 0.5~2.2 로 죄어 무늬 칸(--wxs)에 곱한다.
+                 굳은 배율(상태)로만 바꾼다 — 손짓 중 장마다 바꾸면 무늬 겹을 장마다 다시 그린다. 너무 키우면 256 칸 무늬가 뭉개져 2.2 에서 멈춘다. */
+              style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})`, ["--wxs" as string]: Math.max(0.5, Math.min(2.2, zoomK9)).toFixed(2) } as React.CSSProperties}>
               <div className="scr-wx-tilt"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div>
               <div ref={wxFlashRef9} className="scr-wx-flash" />
             </div>

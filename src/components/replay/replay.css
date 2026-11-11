@@ -6131,12 +6131,12 @@
   background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat;
   will-change: transform; animation: scr-wx-fall var(--dur) linear infinite;
 }
-.scr-wx-rain .scr-wx-l1 { --ts: 330px; --dur: 0.38s; opacity: 0.95; }
-.scr-wx-rain .scr-wx-l2 { --ts: 230px; --dur: 0.46s; opacity: 0.6; }
-.scr-wx-rain .scr-wx-l3 { --ts: 150px; --dur: 0.58s; opacity: 0.38; }
-.scr-wx-snow .scr-wx-l1 { --ts: 300px; --dur: 8s; opacity: 0.95; }
-.scr-wx-snow .scr-wx-l2 { --ts: 210px; --dur: 12s; opacity: 0.7; }
-.scr-wx-snow .scr-wx-l3 { --ts: 140px; --dur: 17s; opacity: 0.5; }
+.scr-wx-rain .scr-wx-l1 { --ts: calc(330px * var(--wxs, 1)); --dur: 0.38s; opacity: 0.95; }
+.scr-wx-rain .scr-wx-l2 { --ts: calc(230px * var(--wxs, 1)); --dur: 0.46s; opacity: 0.6; }
+.scr-wx-rain .scr-wx-l3 { --ts: calc(150px * var(--wxs, 1)); --dur: 0.58s; opacity: 0.38; }
+.scr-wx-snow .scr-wx-l1 { --ts: calc(300px * var(--wxs, 1)); --dur: 8s; opacity: 0.95; }
+.scr-wx-snow .scr-wx-l2 { --ts: calc(210px * var(--wxs, 1)); --dur: 12s; opacity: 0.7; }
+.scr-wx-snow .scr-wx-l3 { --ts: calc(140px * var(--wxs, 1)); --dur: 17s; opacity: 0.5; }
 @keyframes scr-wx-fall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, var(--ts), 0); } }
 @keyframes scr-wx-sway { from { transform: translate3d(-22px, 0, 0); } to { transform: translate3d(22px, 0, 0); } }
 .scr-wx.is-paused .scr-wx-tilt, .scr-wx.is-paused .scr-wx-tilt > i { animation-play-state: paused; }
