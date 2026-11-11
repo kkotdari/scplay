@@ -19916,7 +19916,8 @@ export default function ReplayMotionPlayer({
     const w9 = wxAt9(wxPlanNow9, tNow9);
     const on9 = wxOn9 && active !== false;
     const k9 = on9 ? w9.k : 0;
-    if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? k9.toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; st9.k = k9; }
+    /* 양(가랑비 ~ 소나기 · 2026-11-11) — 겹 투명도는 오르내림만(k × 4 · 0.25 넘으면 다 보임) · 몇 겹이 얼마나 서는지는 --wk(CSS 의 겹마다 문턱 · 하늘 어둡기)가 정한다. */
+    if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? Math.min(1, k9 * 4).toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; el9.style.setProperty("--wk", k9.toFixed(3)); st9.k = k9; }
     const fl9 = on9 && wxPlanNow9.kind === "rain" ? w9.flash * Math.min(1, k9 * 1.4) : 0;
     if (Math.abs(fl9 - st9.fl) > 0.01 && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = (fl9 * 0.5).toFixed(3); st9.fl = fl9; }
     const pz9 = cm9.playing ? 0 : 1;

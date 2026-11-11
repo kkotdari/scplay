@@ -28,24 +28,30 @@ function rng9(a: number): () => number {
   };
 }
 
-/** 비 55% · 눈 45%. 첫 토막은 20초~2분 20초 사이에 시작 · 토막 3~7분 · 사이 1.5~4.5분(비는 꽤 자주 · 길게). 번개는 센 비(세기 0.65 넘음)에서 25~80초마다. */
+/** 비 55% · 눈 45%. 셋에 하나는 **처음부터** 내린다(첫 토막이 0초 전에 시작 · 2026-11-11, 요청: "시작부터 내리는 판도 있게") · 아니면 20초~2분 20초 사이에.
+ *  토막 3~7분 · 사이 1.5~4.5분. 세기(양)는 토막마다 **가랑비 ~ 소나기**(0.15~1 · 한가운데가 두터운 고른 분포 · 같은 요청 "눈 비 양 랜덤하게") · 토막 안에서도 천천히 출렁인다(wxAt9).
+ *  번개는 세기 0.45 넘는 비에서 12~40초마다(같은 요청 "번개 더 자주" · 옛: 0.65 넘음 · 25~80초). */
 export function wxPlan9(key: string, total: number): WxPlan9 {
   const r = rng9(seed9(`wx|${key}`));
   const kind: WxKind9 = r() < 0.55 ? "rain" : "snow";
   const eps: WxPlan9["eps"] = [];
   const bolts: number[] = [];
-  let t = 20 + r() * 120;
+  let t = r() < 0.34 ? -(WX_RAMP9 + 5 + r() * 60) : 20 + r() * 120;
   const end9 = Math.max(60, total);
+  /* 양은 판 안에서도 갈린다 — 넷에 하나는 **늘 같은 양**(그 판의 한 값) · 나머지는 토막마다 새로(같은 요청 "같은 판 안에서도 다양할 수 있고 같을 수도 있고"). */
+  const amt9 = (): number => 0.15 + 0.85 * ((r() + r()) / 2);
+  const same9 = r() < 0.25 ? amt9() : -1;
   while (t < end9) {
     const dur = 180 + r() * 240;
-    const pk = 0.5 + r() * 0.5;
+    const pk = same9 >= 0 ? same9 : amt9();
     eps.push({ a: t, b: t + dur, pk });
-    if (kind === "rain" && pk > 0.65) {
-      let bt = t + 30 + r() * 40;
-      while (bt < t + dur - 15) { bolts.push(bt); bt += 25 + r() * 55; }
+    if (kind === "rain" && pk > 0.45) {
+      let bt = Math.max(2, t + 8 + r() * 20);
+      while (bt < t + dur - 10) { bolts.push(bt); bt += 12 + r() * 28 * (1.3 - pk); }
     }
     t += dur + 90 + r() * 180;
   }
+  bolts.sort((x, y) => x - y);
   return { kind, eps, bolts };
 }
 
@@ -54,13 +60,15 @@ const WX_RAMP9 = 25;
 /** 번개 번쩍임(초). */
 const WX_FLASH9 = 0.7;
 
-/** 그 시각의 세기(0~1) · 번쩍임(0~1) · 바로 앞 번개 시각(없으면 −1). */
+/** 그 시각의 세기(0~1) · 번쩍임(0~1) · 바로 앞 번개 시각(없으면 −1). 세기는 토막 안에서 ±20% 천천히 출렁인다(두 사인 · 토막마다 다른 위상). */
 export function wxAt9(p: WxPlan9, t: number): { k: number; flash: number; bolt: number } {
   let k = 0;
   for (const e of p.eps) {
     if (t <= e.a || t >= e.b) continue;
     const ramp = Math.min(1, (t - e.a) / WX_RAMP9, (e.b - t) / WX_RAMP9);
-    k = Math.max(k, e.pk * ramp * ramp * (3 - 2 * ramp));
+    const ph = e.a * 0.37;
+    const wob = 1 + 0.2 * (0.6 * Math.sin(t / 23 + ph) + 0.4 * Math.sin(t / 9.7 + ph * 2.1));
+    k = Math.max(k, Math.min(1, e.pk * wob) * ramp * ramp * (3 - 2 * ramp));
   }
   let bolt = -1;
   for (const b of p.bolts) { if (b <= t) bolt = b; else break; }

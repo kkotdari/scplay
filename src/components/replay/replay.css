@@ -6121,8 +6121,8 @@
    하늘을 조금 어둡게 · 번개는 흰 막(.scr-wx-flash)의 투명도를 붓이 올린다. 눈은 느리게 + 좌우로 흔들. 세기 = 겹의 opacity(붓). 멈추면 is-paused 로 흐름도 멈춘다.
    폰(굵은 손가락)은 먼 겹(l3)을 뺀다 · 움직임 줄이기면 안 띄운다. 독 접힘(is-dockfold2)에서도 남는다(위 숨김 목록의 :not(.scr-wx)). */
 .scr-wx { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 2; pointer-events: none; overflow: hidden; contain: strict; }
-.scr-wx-rain { background: rgba(12, 22, 38, 0.24); }
-.scr-wx-snow { background: rgba(190, 205, 228, 0.05); }
+.scr-wx-rain { background: rgba(12, 22, 38, calc(0.32 * var(--wk, 0.7))); }   /* 하늘은 양만큼 어둡게(가랑비 0.05 · 소나기 0.32) */
+.scr-wx-snow { background: rgba(190, 205, 228, calc(0.08 * var(--wk, 0.7))); }
 .scr-wx-tilt { position: absolute; inset: -22%; }
 .scr-wx-rain > .scr-wx-tilt { transform: rotate(9deg); }
 .scr-wx-snow > .scr-wx-tilt { animation: scr-wx-sway 7s ease-in-out infinite alternate; }
@@ -6131,12 +6131,12 @@
   background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat;
   will-change: transform; animation: scr-wx-fall var(--dur) linear infinite;
 }
-.scr-wx-rain .scr-wx-l1 { --ts: calc(330px * var(--wxs, 1)); --dur: 0.38s; opacity: 0.95; }
-.scr-wx-rain .scr-wx-l2 { --ts: calc(230px * var(--wxs, 1)); --dur: 0.46s; opacity: 0.6; }
-.scr-wx-rain .scr-wx-l3 { --ts: calc(150px * var(--wxs, 1)); --dur: 0.58s; opacity: 0.38; }
-.scr-wx-snow .scr-wx-l1 { --ts: calc(300px * var(--wxs, 1)); --dur: 8s; opacity: 0.95; }
-.scr-wx-snow .scr-wx-l2 { --ts: calc(210px * var(--wxs, 1)); --dur: 12s; opacity: 0.7; }
-.scr-wx-snow .scr-wx-l3 { --ts: calc(140px * var(--wxs, 1)); --dur: 17s; opacity: 0.5; }
+.scr-wx-rain .scr-wx-l1 { --ts: calc(330px * var(--wxs, 1)); --dur: 0.38s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-rain .scr-wx-l2 { --ts: calc(230px * var(--wxs, 1)); --dur: 0.46s; opacity: calc(0.6 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
+.scr-wx-rain .scr-wx-l3 { --ts: calc(150px * var(--wxs, 1)); --dur: 0.58s; opacity: calc(0.38 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
+.scr-wx-snow .scr-wx-l1 { --ts: calc(300px * var(--wxs, 1)); --dur: 8s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-snow .scr-wx-l2 { --ts: calc(210px * var(--wxs, 1)); --dur: 12s; opacity: calc(0.7 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
+.scr-wx-snow .scr-wx-l3 { --ts: calc(140px * var(--wxs, 1)); --dur: 17s; opacity: calc(0.5 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
 @keyframes scr-wx-fall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, var(--ts), 0); } }
 @keyframes scr-wx-sway { from { transform: translate3d(-22px, 0, 0); } to { transform: translate3d(22px, 0, 0); } }
 .scr-wx.is-paused .scr-wx-tilt, .scr-wx.is-paused .scr-wx-tilt > i { animation-play-state: paused; }
