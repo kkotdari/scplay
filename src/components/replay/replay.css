@@ -6129,6 +6129,7 @@
    겹마다 고정 거리 키프레임 · 배율 맞춤(--wxs)은 겹 통째(.scr-wx-tilt)의 scale 로 — 0.5 배에도 화면을 덮게 바깥 여유를 넓힌다(−70%). 흔들림(눈)은 안쪽 .scr-wx-sway. */
 .scr-wx-tilt { position: absolute; left: 0; top: 0; width: calc(100% / var(--wxs, 1)); height: calc(100% / var(--wxs, 1)); transform-origin: 0 0; transform: scale(var(--wxs, 1)); }
 .scr-wx-sway { position: absolute; inset: 0 -30px; }
+.scr-wx-cv { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }   /* 빗방울 캔버스(RMP 흐름 effect ★ · 2026-11-11) */
 .scr-wx-sway > i {
   position: absolute; left: 0; right: 0; top: calc(-1 * var(--ts)); bottom: 0;
   background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat; background-position: var(--wx-bx, 0px) var(--wx-by, 0px);

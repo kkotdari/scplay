@@ -10961,6 +10961,9 @@ export default function ReplayMotionPlayer({
   /** 바닥에 남는 몫(물웅덩이 · 눈 쌓임 — weather9 wxGround9 ★) — 일정에서 한 번 쌓아 둔다. */
   const wxGnd9 = useMemo(() => wxGround9(wxPlanNow9, total), [wxPlanNow9, total]);
   const wxElRef9 = useRef<HTMLDivElement | null>(null);
+  /** 빗방울 캔버스(아래 흐름 effect ★) · 지도 자(겹 안에서 지도 왼위 · 타일 한 칸 화면 px · 겹 크기) — 붓이 장마다 심는다. */
+  const wxCvRef9 = useRef<HTMLCanvasElement | null>(null);
+  const wxGeoRef9 = useRef({ mx: 0, my: 0, tp: 0, w: 0, h: 0 });
   const wxFlashRef9 = useRef<HTMLDivElement | null>(null);
   const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1, geo: "" });
   /* 멈춤 · 숨김 · 날씨 끔 · 내려감이면 빗소리를 곧장 멎는다(멈춘 판은 붓이 안 돌 수 있다) · 켜고 끄면 겹을 다시 맞춘다. */
@@ -10982,6 +10985,44 @@ export default function ReplayMotionPlayer({
       const el9 = wxElRef9.current; if (!el9 || wxStRef9.current.k <= 0.005) return;
       const kind9 = el9.classList.contains("scr-wx-snow") ? "snow" : "rain";
       const sec9 = performance.now() / 1000;
+      /* ★ **빗방울은 떨어져서 땅에 닿는다**(2026-11-11, 지적: "비나 눈이 화면 위에서 아래까지 내려 · 어느 정도 내려오면 땅에 닿아서 없어져야") — 흐르는 무늬를 걷고 방울을 하나씩 셈한다.
+         지도 칸(화면 22px 남짓 · 2 의 거듭제곱 타일)마다 방울 하나 · 세기 몫만 산다 · 떨어지는 곳(지도 자리 · 칸 안 무작위)에서 높이 H 위에서 출발해 75% 동안 떨어지고 닿으면
+         나머지 25% 동안 눌린 고리로 튄다. 높이 · 줄 길이는 타일 폭을 따르되 화면 px 로 죈다(멀리 보면 작게 · 가까이 보면 크게). 캔버스 한 장 · 줄 · 고리 각 한 경로. */
+      const cv9 = wxCvRef9.current;
+      if (kind9 === "rain" && cv9) {
+        const g9 = wxGeoRef9.current; const k9 = wxStRef9.current.k;
+        const dpr9 = Math.min(2, window.devicePixelRatio || 1);
+        const W9 = Math.max(1, Math.round(g9.w * dpr9)); const H9 = Math.max(1, Math.round(g9.h * dpr9));
+        if (cv9.width !== W9 || cv9.height !== H9) { cv9.width = W9; cv9.height = H9; }
+        const c9 = cv9.getContext("2d"); if (!c9 || g9.tp <= 0) return;
+        c9.setTransform(dpr9, 0, 0, dpr9, 0, 0); c9.clearRect(0, 0, g9.w, g9.h);
+        const cT9 = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 22 / g9.tp)))));   // 칸(타일) — 화면 22px 남짓
+        const cs9 = cT9 * g9.tp;
+        const fall9 = Math.max(26, Math.min(150, g9.tp * 2.4)); const len9 = Math.max(6, Math.min(26, fall9 * 0.2));
+        const hsh9 = (a: number, b: number): number => { const v = Math.sin(a * 127.1 + b * 311.7 + cT9 * 17.3) * 43758.5453; return v - Math.floor(v); };
+        const ix0 = Math.floor(-g9.mx / cs9) - 1; const ix1 = Math.ceil((g9.w - g9.mx) / cs9) + 1;
+        const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fall9 - g9.my) / cs9) + 1;
+        if ((ix1 - ix0) * (iy1 - iy0) > 12000) return;
+        c9.lineCap = "round";
+        const streak9 = new Path2D(); const ring9 = new Path2D();
+        for (let iy = iy0; iy < iy1; iy += 1) for (let ix = ix0; ix < ix1; ix += 1) {
+          if (hsh9(ix, iy) >= k9 * 0.9) continue;
+          const per9 = 0.5 + 0.35 * hsh9(ix + 3.3, iy + 1.1);
+          const life9 = (sec9 / per9 + hsh9(ix + 7.7, iy + 5.5)) % 1;
+          const lx9 = g9.mx + (ix + 0.15 + 0.7 * hsh9(ix + 2.2, iy + 9.9)) * cs9; const ly9 = g9.my + (iy + 0.15 + 0.7 * hsh9(ix + 4.4, iy + 6.6)) * cs9;
+          if (life9 < 0.75) {
+            const f9 = life9 / 0.75; const yb9 = ly9 - (1 - f9) * fall9;
+            if (yb9 < -len9 || yb9 - len9 > g9.h || lx9 < -4 || lx9 > g9.w + 4) continue;
+            streak9.moveTo(lx9, yb9 - len9); streak9.lineTo(lx9, yb9);
+          } else {
+            if (ly9 < -8 || ly9 > g9.h + 8 || lx9 < -8 || lx9 > g9.w + 8) continue;
+            const q9 = (life9 - 0.75) / 0.25; const r9 = Math.max(1, (1 + 4 * q9) * Math.min(2, g9.tp / 20 + 0.4));
+            ring9.moveTo(lx9 + r9, ly9); ring9.ellipse(lx9, ly9, r9, r9 * 0.5, 0, 0, Math.PI * 2);
+          }
+        }
+        c9.strokeStyle = "rgba(205,220,240,0.5)"; c9.lineWidth = Math.max(0.8, Math.min(1.6, g9.tp / 24)); c9.stroke(streak9);
+        c9.strokeStyle = "rgba(190,205,225,0.35)"; c9.lineWidth = Math.max(0.6, Math.min(1.2, g9.tp / 32)); c9.stroke(ring9);
+      }
       const ls9 = el9.querySelectorAll<HTMLElement>(".scr-wx-sway > i");
       const sp9 = SPEC9[kind9];
       ls9.forEach((l9, i9) => {
@@ -20037,7 +20078,7 @@ export default function ReplayMotionPlayer({
       TERR_WX9.wet = wxPlanNow9.kind === "rain" ? g9 : 0;
       TERR_WX9.snow = wxPlanNow9.kind === "snow" ? g9 : 0;
       TERR_WX9.rk = wxPlanNow9.kind === "rain" && cmdNowRef9.current.playing ? k09 : 0;
-      TERR_WX9.splash = !smallDevice9;
+      TERR_WX9.splash = false;   // 땅 튐은 빗방울 캔버스가 떨어진 자리에서 낸다(아래 흐름 effect ★ · 2026-11-11) — 지형 셰이더 · 크립 튐은 끔
       TERR_WX9.sq = pitched ? 1 : 0.5;   // 땅 위 고리 눌림(평면 = 클릭 마커와 같은 0.5)
     }
     const el9 = wxElRef9.current; if (!el9) return;
@@ -20055,6 +20096,7 @@ export default function ReplayMotionPlayer({
         const x0 = Math.max(0, X0); const y0 = Math.max(0, Y0);
         const x1 = Math.min(sw9.w, X0 + cv9.w * z9); const y1 = Math.min(sw9.h * 1.5, Y0 + cv9.h * z9);
         const s9 = Math.max(0.5, Math.min(2.2, castZoomFit9() > 0 ? z9 / castZoomFit9() : 1));
+        wxGeoRef9.current = { mx: X0 - Math.round(x0), my: Y0 - Math.round(y0), tp: (cv9.w * z9) / Math.max(1, grid.width), w: Math.max(0, Math.round(x1 - x0)), h: Math.max(0, Math.round(y1 - y0)) };
         const k09 = `${Math.round(x0)},${Math.round(y0)},${Math.round(x1 - x0)},${Math.round(y1 - y0)}|${((X0 - x0) / s9).toFixed(1)},${((Y0 - y0) / s9).toFixed(1)}|${s9.toFixed(2)}`;
         if (k09 !== st9.geo) {
           st9.geo = k09;
@@ -25197,7 +25239,9 @@ export default function ReplayMotionPlayer({
               /* 크기는 **배율을 탄다**(2026-11-11, 요청: "배율과 무관하게 크기가 똑같구나 · 배율 적용하려면 부담되나") — 기본 배율 대비(zoomK9)를 0.5~2.2 로 죄어 무늬 칸(--wxs)에 곱한다.
                  굳은 배율(상태)로만 바꾼다 — 손짓 중 장마다 바꾸면 무늬 겹을 장마다 다시 그린다. 너무 키우면 256 칸 무늬가 뭉개져 2.2 에서 멈춘다. */
               style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})` } as React.CSSProperties}>
-              <div className="scr-wx-tilt"><div className="scr-wx-sway"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div></div>
+              {wxPlanNow9.kind === "rain"
+                ? <canvas ref={wxCvRef9} className="scr-wx-cv" />
+                : <div className="scr-wx-tilt"><div className="scr-wx-sway"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div></div>}
             </div>
           )}
           {/* 번개 — **무대 전체**를 밝게 번쩍(2026-11-11, 요청: "번개 칠 때 전체 화면이 깜빡여야 할 듯 · 밝게") · 날씨 겹(세기 투명도) 밖이라 가랑비 투명도에 안 묻힌다. */}
