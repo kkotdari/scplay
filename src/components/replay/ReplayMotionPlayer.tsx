@@ -14519,18 +14519,27 @@ export default function ReplayMotionPlayer({
       const dn9 = z * (pg9.q * pg9.C * (pg9.hPre / 2 - vB9) - pg9.cy);         // 위로 끌 수 있는 최대(= 아랫줄을 본다)
       return { x: x9, y: Math.max(0, dn9), yTop: Math.max(0, up9) + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
     }
-    const y9 = Math.max(0, (cov.h * k9 * z - winH) / 2);
-    return { x: x9, y: y9, yTop: y9 + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
+    /* ★ 덩이(위 여유 + 지도)로 세운다(2026-11-11 · 위 zMinRef9 ★) — 지도 세로가 창보다 작아도(최소 배율 언저리) 위 여유를 더한 덩이가 창보다 크면 그 덩이 안에서만
+       끌린다(아래 끝 = 지도 아랫변이 창 아래끝 · 위 끝 = 여유 윗변이 창 윗끝). 덩이도 창보다 작으면 덩이 가운데에 못 박는다(팬 = 여유/2 · 지도가 그만큼 내려와
+       위 여유와 지도가 함께 가운데). 하한 쪽 값 y 가 음수일 수 있다 — 받는 쪽은 늘 max(−y, …) 로 죈다. 지도가 창보다 크면 종전 식 그대로. */
+    const raw9 = (cov.h * k9 * z - winH) / 2;
+    const bd9 = Math.max(0, band9);
+    if (raw9 < 0) {
+      if (2 * raw9 + bd9 >= 0) return { x: x9, y: raw9, yTop: raw9 + bd9, winW, winH, band: bd9 };
+      return { x: x9, y: -bd9 / 2, yTop: bd9 / 2, winW, winH, band: bd9 };
+    }
+    const y9 = raw9;
+    return { x: x9, y: y9, yTop: y9 + bd9, winW, winH, band: bd9 };
   }, []);
   /** ★ **가운데 잡기의 위 한계 — 맨 위 그림 여유는 빼고 잡는다**(2026-10-19, 요청: "화면 중앙 잡는거에서 맨위 여유공간은 빼고 잡기 · 거기에 유닛이 있으면
    *  어쩔수없지만") — 여유(band)는 맨 윗줄에 선 키 큰 몸이 잘리지 않게 위로 더 끌 수 있게 둔 몫이라, 무엇을 가운데로 데려오는 셈(중계·추적 카메라 · 링크 ·
    *  검색 · 보던 자리 지키기 · 미니맵 짚기)은 그 몫을 안 쓴다. 다만 데려오는 자리(타일 y = ty)가 지도 맨 위 BAND_TILES 줄 안이면 그만큼 연다(맨 윗줄 = 다 ·
    *  BAND_TILES 줄 아래 = 0). 손으로 끄는 길(드래그·관성·확대)은 종전대로 여유까지 다 쓴다. */
-  const centerTop9 = (lim: { yTop: number; band: number }, ty: number): number => {
+  const centerTop9 = (lim: { y: number; yTop: number; band: number }, ty: number): number => {
     /* ★ 데려오는 자리는 대개 **몸 가운데**다 — 4×3 본진 가운데가 6 줄이면 지붕은 지도 윗변 밖까지 솟는다(2026-11-09, 실기 지적: "위가 본진이 잘려서 나오잖아"). 여유를 여는 줄을
        넓힌다: 0~6 줄 다 · 6~10 줄은 비례 · 10 줄 아래 0(옛: 0~4 줄 비례 · 4 줄 아래 0 — 본진 가운데 6 줄이면 0 이었다). */
     const need9 = Math.max(0, Math.min(1, (2.5 * BAND_TILES - ty) / BAND_TILES));
-    return lim.yTop - lim.band * (1 - need9);
+    return Math.max(-lim.y, lim.yTop - lim.band * (1 - need9));   // 아래 끝(−y) 밑으로는 안 간다 — 덩이가 창보다 작아 팬이 한 값에 못 박힌 때(panLimit ★ 덩이 · 2026-11-11)
   };
   /* ★ 추적을 켤 때 맞출 배율 — **4배 고정**이다(요청: "추적모드 선택 시 기본 배율을 타일 수로 계산하던 걸
      취소하고 4배로 고정할게 · 수동으로 변경은 계속 오픈") ─────────────────────────────────────────────
@@ -14936,7 +14945,11 @@ export default function ReplayMotionPlayer({
   const fsCoverW = stage.w > 0 ? evenIf9(Math.round(stage.w)) : 0;
   const fsCoverH = fsCoverW > 0 ? evenIf9(Math.round((fsCoverW * grid.height) / Math.max(1, grid.width))) : 0;
   /** 배율 하한 — 지도 전체가 무대(세로)에 들어오는 배율(1 이하 · 위 ★★). */
-  zMinRef9.current = fsCoverH > 0 ? Math.min(1, fitH9 / fsCoverH) : 1;
+  /* ★ 하한은 **위 여유(band · 맨 윗줄 키 큰 몸 몫)까지 든 세로**로 잰다(2026-11-11, 지적: PC 전체화면 최소 배율 — "위에 안전 여백 생각 안 해서 아래가 잘려" →
+     "최소 배율에서 위 여백까지 포함해서 꽉 차게") — 옛: 지도 세로만 창에 맞춰, 위 여유만큼 끌린 팬이 지도를 내려 아랫줄을 잘랐다. 이제 (지도 + 여유) 가 창에 꼭 든다 —
+     팬 한계(panLimit)가 그 덩이를 창에 맞춰 세운다(아래 ★ 덩이). 여유 자는 bandRef 와 같은 식(BAND_TILES 칸 · 배율 1) — bandRef 는 이 아래에서 서므로 그 앞 값을 쓰고 없으면 평면 식. */
+  const band1Z9 = bandRef.current > 0 ? bandRef.current : (fsCoverW > 0 ? (BAND_TILES * fsCoverW) / Math.max(1, grid.width) : 0);
+  zMinRef9.current = fsCoverH > 0 ? Math.min(1, fitH9 / (fsCoverH + band1Z9)) : 1;
 
   /* 팬 한계가 읽는 자 셋 — 그리는 값과 **같은 렌더에서** 심는다(한 박자 늦으면 손짓이
      낡은 한계로 죄인다). 셋이 한 자리에 있는 것이 요점이다: 갈리면 끌기가 어긋난다. */
