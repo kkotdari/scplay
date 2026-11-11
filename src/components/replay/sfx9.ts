@@ -296,11 +296,83 @@ export function hushSfx9(): void {
   gunRun9.n = 0;
 }
 
+
+/* ★ 날씨 소리(2026-11-11 · weather9 ★) — 빗소리는 **줄기 하나**(4초 잡음 판 되풀이 · 높은 띠 거름 + 빗방울 톡톡)를 세기(0~1)로 서서히 올리고 내린다 · 천둥은 번개마다 한 번(우르릉 낮은 잡음 ·
+   앞의 딱 소리 · 4초 남짓 스러짐 · 거리만큼 늦게). 둘 다 효과음 주 GainNode(master9 · 효과음 음량 · 끄기)를 탄다. 효과음을 끄면 빗소리도 멎는다. */
+let rainSrc9: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let rainLv9 = 0;
+let rainBuf9: AudioBuffer | null = null;
+let thunderBuf9: AudioBuffer | null = null;
+function rainBufOf9(c9: AudioContext): AudioBuffer {
+  if (rainBuf9) return rainBuf9;
+  const n = SFX_RATE9 * 4; const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);
+  let lp = 0; let seed = 0x2468ace;
+  const rnd = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < n; i += 1) { const w = rnd() * 2 - 1; lp += (w - lp) * 0.45; d[i] = lp * 0.55 + w * 0.12; }
+  /* 빗방울 — 짧게 톡(감쇠 3~8ms) · 초에 120개 남짓 · 세기 흔들림 */
+  const drops = Math.floor(4 * 120);
+  for (let k = 0; k < drops; k += 1) {
+    const at = Math.floor(rnd() * n); const len = Math.floor(SFX_RATE9 * (0.003 + rnd() * 0.005)); const amp = 0.15 + rnd() * 0.35;
+    for (let j = 0; j < len && at + j < n; j += 1) d[at + j] += (rnd() * 2 - 1) * amp * Math.exp(-j / (len * 0.35));
+  }
+  /* 되풀이 이음매 — 끝 50ms 를 앞과 섞는다 */
+  const xf = Math.floor(SFX_RATE9 * 0.05);
+  for (let i = 0; i < xf; i += 1) { const w = i / xf; d[n - xf + i] = d[n - xf + i] * (1 - w) + d[i] * w; }
+  rainBuf9 = b; return b;
+}
+function thunderBufOf9(c9: AudioContext): AudioBuffer {
+  if (thunderBuf9) return thunderBuf9;
+  const n = Math.floor(SFX_RATE9 * 5); const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);
+  let seed = 0x13579b; const rnd = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  let l1 = 0; let l2 = 0; let peak = 0;
+  for (let i = 0; i < n; i += 1) {
+    const t = i / SFX_RATE9; const w = rnd() * 2 - 1;
+    l1 += (w - l1) * 0.06; l2 += (l1 - l2) * 0.08;   // 아주 낮은 우르릉(두 겹 거름)
+    const env = Math.min(1, t / 0.25) * Math.exp(-t / 1.6) * (0.75 + 0.25 * Math.sin(t * 7.3 + Math.sin(t * 2.1) * 2));
+    const crack = t < 0.18 ? w * Math.exp(-t / 0.05) * 0.5 : 0;   // 앞의 딱
+    d[i] = l2 * 6 * env + crack;
+    peak = Math.max(peak, Math.abs(d[i]));
+  }
+  if (peak > 0) for (let i = 0; i < n; i += 1) d[i] *= 0.8 / peak;
+  thunderBuf9 = b; return b;
+}
+/** 빗소리 세기(0~1) — 같은 값이면 아무것도 안 한다. 0 이면 0.8초에 걸쳐 멎는다. */
+export function setRain9(lv: number): void {
+  const want = enabled9 ? Math.max(0, Math.min(1, lv)) : 0;
+  if (Math.abs(want - rainLv9) < 0.02 && (want > 0.001) === !!rainSrc9) return;
+  rainLv9 = want;
+  if (want <= 0.001) {
+    if (rainSrc9 && ctx9) { const r = rainSrc9; rainSrc9 = null; const t9 = ctx9.currentTime; r.gain.gain.cancelScheduledValues(t9); r.gain.gain.setTargetAtTime(0, t9, 0.25); try { r.src.stop(t9 + 1); } catch { /* 이미 멎음 */ } }
+    return;
+  }
+  const c9 = ctxOf9(); if (!c9 || !master9) return;
+  if (!rainSrc9) {
+    const src = c9.createBufferSource(); src.buffer = rainBufOf9(c9); src.loop = true;
+    const hp = c9.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 420;
+    const lp = c9.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200;
+    const g = c9.createGain(); g.gain.value = 0;
+    src.connect(hp).connect(lp).connect(g).connect(master9);
+    src.start();
+    rainSrc9 = { src, gain: g };
+  }
+  rainSrc9.gain.gain.setTargetAtTime(want * 0.3, c9.currentTime, 0.5);
+}
+/** 천둥 한 번 — delay 초 뒤(번쩍임 뒤 소리가 늦게 온다) · 크기 0~1. */
+export function thunderClap9(delay: number, amp = 1): void {
+  if (!enabled9) return;
+  const c9 = ctxOf9(); if (!c9 || !master9) return;
+  const src = c9.createBufferSource(); src.buffer = thunderBufOf9(c9);
+  const lp = c9.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+  const g = c9.createGain(); g.gain.value = 0.55 * Math.max(0, Math.min(1, amp));
+  src.connect(lp).connect(g).connect(master9);
+  try { src.start(c9.currentTime + Math.max(0, delay)); } catch { /* 닫힌 판 */ }
+}
+
 export const sfxOn9 = (): boolean => enabled9;
 export function setSfxOn9(on: boolean): void {
   enabled9 = on;
   write9(KEY9, on ? "1" : "0");
-  if (!on) hushSfx9();
+  if (!on) { hushSfx9(); setRain9(0); }
   emit9();
 }
 export function setSfxVolume9(v: number): void {
