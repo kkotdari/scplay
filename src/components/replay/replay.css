@@ -6142,5 +6142,5 @@
 .scr-wx-snow .scr-wx-l2 { --ts: 210px; --dur: 6.5s; opacity: calc(0.7 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
 .scr-wx-snow .scr-wx-l3 { --ts: 140px; --dur: 9s; opacity: calc(0.5 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
 /* (걷음 2026-11-11, 실기: "피시 크롬에서 눈이랑 비 안 움직인 건데?") 멈춤이면 흐름도 멈추던 것 — 날씨는 배경이라 멈춘 화면에서도 내린다(소리만 멎는다). */
-.scr-wx-flash { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 3; pointer-events: none; background: rgb(236, 242, 255); opacity: 0; }   /* 무대 전체 · 밝게(붓이 0 ~ 0.75) */
+.scr-wx-flash { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 3; pointer-events: none; background: rgb(236, 242, 255); opacity: 0; will-change: opacity; contain: strict; transform: translateZ(0); }   /* 늘 제 합성 층(2026-11-11, 지적: "천둥 번개 시 끝나고 한 번 렉" — 투명도 0 ↔ 양수마다 층이 생기고 사라지며 무대를 통째로 다시 칠했다) */   /* 무대 전체 · 밝게(붓이 0 ~ 0.75) */
 @media (pointer: coarse) { .scr-wx-sway > i.scr-wx-l3 { display: none; } }

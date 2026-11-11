@@ -358,6 +358,7 @@ export function setRain9(lv: number): void {
     rainSrc9 = { src, gain: g };
   }
   rainSrc9.gain.gain.setTargetAtTime(want * 0.3, c9.currentTime, 0.5);
+  if (!thunderBuf9) window.setTimeout(() => { if (ctx9) thunderBufOf9(ctx9); }, 50);   // 천둥 판은 비가 올 때 미리 굽는다(첫 천둥 순간 굽기 멈칫 · 2026-11-11)
 }
 /** 천둥 한 번 — delay 초 뒤(번쩍임 뒤 소리가 늦게 온다) · 크기 0~1. */
 export function thunderClap9(delay: number, amp = 1): void {

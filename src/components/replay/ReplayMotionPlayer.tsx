@@ -20132,7 +20132,7 @@ export default function ReplayMotionPlayer({
     }
     if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? Math.min(1, k9 * 4).toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; el9.style.setProperty("--wk", k9.toFixed(3)); st9.k = k9; }
     const fl9 = on9 && wxPlanNow9.kind === "rain" ? w9.flash * Math.min(1, k9 * 1.4) : 0;
-    if (Math.abs(fl9 - st9.fl) > 0.01 && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = (fl9 * 0.75).toFixed(3); st9.fl = fl9; }
+    if ((Math.abs(fl9 - st9.fl) > 0.01 || (fl9 === 0 && st9.fl !== 0)) && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = fl9 > 0.005 ? (fl9 * 0.75).toFixed(3) : "0"; st9.fl = fl9 > 0.005 ? fl9 : 0; }
     const pz9 = cm9.playing ? 0 : 1;
     if (pz9 !== st9.paused) { el9.classList.toggle("is-paused", pz9 === 1); st9.paused = pz9; }
     setRain9(on9 && cm9.playing && wxPlanNow9.kind === "rain" ? k9 : 0);
