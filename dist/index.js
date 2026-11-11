@@ -1958,15 +1958,15 @@ function Ev(t) {
 }
 function Yv(t) {
   if (xy) return xy;
-  const s = Math.floor(Vn * 5), o = t.createBuffer(1, s, Vn), n = o.getChannelData(0);
+  const s = Math.floor(Vn * 8), o = t.createBuffer(1, s, Vn), n = o.getChannelData(0);
   let g = 1267611;
   const e = () => (g = Math.imul(g, 1664525) + 1013904223 >>> 0, g / 4294967296);
   let i = 0, r = 0, c = 0;
   for (let C = 0; C < s; C += 1) {
     const I = C / Vn, A = e() * 2 - 1;
     i += (A - i) * 0.06, r += (i - r) * 0.08;
-    const l = Math.min(1, I / 0.25) * Math.exp(-I / 1.6) * (0.75 + 0.25 * Math.sin(I * 7.3 + Math.sin(I * 2.1) * 2)), a = I < 0.18 ? A * Math.exp(-I / 0.05) * 0.5 : 0;
-    n[C] = r * 6 * l + a, c = Math.max(c, Math.abs(n[C]));
+    const l = 0.55 * Math.exp(-((I - 1.6) * (I - 1.6)) / 0.5), a = (Math.min(1, I / 0.25) * Math.exp(-I / 2.8) + l) * (0.75 + 0.25 * Math.sin(I * 7.3 + Math.sin(I * 2.1) * 2)), u = I < 0.18 ? A * Math.exp(-I / 0.05) * 0.5 : 0;
+    n[C] = r * 6 * a + u, c = Math.max(c, Math.abs(n[C]));
   }
   if (c > 0) for (let C = 0; C < s; C += 1) n[C] *= 0.8 / c;
   return xy = o, o;
@@ -2009,9 +2009,9 @@ function Nv(t, s = 1) {
   const n = o.createBufferSource();
   n.buffer = Yv(o);
   const g = o.createBiquadFilter();
-  g.type = "lowpass", g.frequency.value = 700;
+  g.type = "lowpass", g.frequency.value = 850;
   const e = o.createGain();
-  e.gain.value = 0.55 * Math.max(0, Math.min(1, s)), n.connect(g).connect(e).connect(p0);
+  e.gain.value = 1.7 * Math.max(0, Math.min(1, s)), n.connect(g).connect(e).connect(p0);
   try {
     n.start(o.currentTime + Math.max(0, t));
   } catch {
@@ -43175,7 +43175,7 @@ function Az({
       h += 1, k += Y.width * Y.height * 4;
     });
     const v = iI();
-    return `판${"11-12 05:01".slice(6)} ${Math.round(Xo.current)}초 ×${ZA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
+    return `판${"11-12 07:37".slice(6)} ${Math.round(Xo.current)}초 ×${ZA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
   }, Gs(() => {
     Fr(to ? "전체화면 켬" : "전체화면 끔");
   }, [to]), Gs(() => {
@@ -43193,7 +43193,7 @@ function Az({
         });
         let ot = 0;
         for (const bt of Ke.current.values()) ot += bt.buf.byteLength;
-        const et = iI(), At = (bt) => (bt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, at = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 05:01 · 재생${Math.round(Xo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${ZA.current.speed} 배율${ZA.current.zoom.toFixed(1)} · 메모리${Er()}단 ${bl()}방 · 캔버스${U}장 ${At(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${At(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ke.current.size}장 ${At(ot)}MB · 안개갈무리${wg.current.length} · 효과판${At(jl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${At(gt)}MB` : "");
+        const et = iI(), At = (bt) => (bt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, at = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 07:37 · 재생${Math.round(Xo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${ZA.current.speed} 배율${ZA.current.zoom.toFixed(1)} · 메모리${Er()}단 ${bl()}방 · 캔버스${U}장 ${At(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${At(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ke.current.size}장 ${At(ot)}MB · 안개갈무리${wg.current.length} · 효과판${At(jl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${At(gt)}MB` : "");
         localStorage.setItem(yk, at);
       } catch {
       }
@@ -46227,7 +46227,7 @@ function Az({
         " · UI ",
         nn.ui,
         " · 판 ",
-        "11-12 05:01",
+        "11-12 07:37",
         nn.ss !== 1 ? ` · 초해상 ×${nn.ss.toFixed(2)}` : "",
         Math.abs(nn.unitScale - nn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${nn.unitScale.toFixed(4)})` : nn.scale > 0 && Math.abs(nn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${nn.scale.toFixed(4)})` : "",
         nn.allocOk ? "" : " · ⚠배킹확보 실패"
