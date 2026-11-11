@@ -10962,7 +10962,7 @@ export default function ReplayMotionPlayer({
   const wxGnd9 = useMemo(() => wxGround9(wxPlanNow9, total), [wxPlanNow9, total]);
   const wxElRef9 = useRef<HTMLDivElement | null>(null);
   const wxFlashRef9 = useRef<HTMLDivElement | null>(null);
-  const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1 });
+  const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1, geo: "" });
   /* 멈춤 · 숨김 · 날씨 끔 · 내려감이면 빗소리를 곧장 멎는다(멈춘 판은 붓이 안 돌 수 있다) · 켜고 끄면 겹을 다시 맞춘다. */
   useEffect(() => {
     if (!playing || active === false || !wxOn9) setRain9(0);
@@ -17034,6 +17034,7 @@ export default function ReplayMotionPlayer({
   /** 손짓이 마지막으로 화면을 옮긴 시각 — 1.2초 넘게 안 옮긴 손짓은 파수꾼이 접는다. */
   const xfApplyAtRef9 = useRef(0);
   const applyGestureXf = useCallback((repaint = true): void => {
+    wxTickRef9.current(tLiveRef9.current);   // 날씨 겹도 손짓 장마다 지도 네모를 따른다(꾸밈 날씨 ★ · 지도에 못 박음)
     /* ★ 손짓이 끝난 뒤의 늦은 부름은 무시한다(실측: 감기 중 React 붓 팬 (−634.4,−1091.6) = 옛 손끝, 틱 붓 panRef 별개) ──
        드래그·핀치는 마지막 한 장을 rAF에 실어 두는데, 손을 떼는 처리(endGestureXf)가 그 rAF보다 먼저 돌면 뒤늦게 온 rAF가
        xfLive를 되살리고 panRef를 옮겼다. 정지·감기 중엔 상태가 안 바뀌어 xfLive가 지워질 기회가 없어, React 붓(xfLive)과
@@ -20021,6 +20022,24 @@ export default function ReplayMotionPlayer({
     const on9 = on09;
     const k9 = on9 ? w9.k : 0;
     /* 양(가랑비 ~ 소나기 · 2026-11-11) — 겹 투명도는 오르내림만(k × 4 · 0.25 넘으면 다 보임) · 몇 겹이 얼마나 서는지는 --wk(CSS 의 겹마다 문턱 · 하늘 어둡기)가 정한다. */
+    /* 지도 네모에 못 박음(위 CSS ★) — 지도 왼위 = 무대 가운데 + 팬 − 덮는 판 × 배율 / 2 · 겹 = 그 네모와 무대(+ 독 뒤 반 화면)가 겹치는 몫 · 무늬 원점 = 지도 왼위(배율 나눈 자). */
+    {
+      const sw9 = stageSizeRef.current; const cv9 = coverRef.current; const z9 = zoomRef.current; const p9 = panRef.current;
+      if (sw9.w > 0 && cv9.w > 0) {
+        const X0 = sw9.w / 2 + p9.x - (cv9.w * z9) / 2; const Y0 = sw9.h / 2 + p9.y - (cv9.h * z9) / 2;
+        const x0 = Math.max(0, X0); const y0 = Math.max(0, Y0);
+        const x1 = Math.min(sw9.w, X0 + cv9.w * z9); const y1 = Math.min(sw9.h * 1.5, Y0 + cv9.h * z9);
+        const s9 = Math.max(0.5, Math.min(2.2, castZoomFit9() > 0 ? z9 / castZoomFit9() : 1));
+        const k09 = `${Math.round(x0)},${Math.round(y0)},${Math.round(x1 - x0)},${Math.round(y1 - y0)}|${((X0 - x0) / s9).toFixed(1)},${((Y0 - y0) / s9).toFixed(1)}|${s9.toFixed(2)}`;
+        if (k09 !== st9.geo) {
+          st9.geo = k09;
+          el9.style.left = `${Math.round(x0)}px`; el9.style.top = `${Math.round(y0)}px`;
+          el9.style.width = `${Math.max(0, Math.round(x1 - x0))}px`; el9.style.height = `${Math.max(0, Math.round(y1 - y0))}px`;
+          el9.style.setProperty("--wx-bx", `${((X0 - x0) / s9).toFixed(1)}px`); el9.style.setProperty("--wx-by", `${((Y0 - y0) / s9).toFixed(1)}px`);
+          el9.style.setProperty("--wxs", s9.toFixed(2));
+        }
+      }
+    }
     if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? Math.min(1, k9 * 4).toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; el9.style.setProperty("--wk", k9.toFixed(3)); st9.k = k9; }
     const fl9 = on9 && wxPlanNow9.kind === "rain" ? w9.flash * Math.min(1, k9 * 1.4) : 0;
     if (Math.abs(fl9 - st9.fl) > 0.01 && wxFlashRef9.current) { wxFlashRef9.current.style.opacity = (fl9 * 0.75).toFixed(3); st9.fl = fl9; }
@@ -25152,7 +25171,7 @@ export default function ReplayMotionPlayer({
             <div ref={wxElRef9} className={cx("scr-wx", `scr-wx-${wxPlanNow9.kind}`)} aria-hidden
               /* 크기는 **배율을 탄다**(2026-11-11, 요청: "배율과 무관하게 크기가 똑같구나 · 배율 적용하려면 부담되나") — 기본 배율 대비(zoomK9)를 0.5~2.2 로 죄어 무늬 칸(--wxs)에 곱한다.
                  굳은 배율(상태)로만 바꾼다 — 손짓 중 장마다 바꾸면 무늬 겹을 장마다 다시 그린다. 너무 키우면 256 칸 무늬가 뭉개져 2.2 에서 멈춘다. */
-              style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})`, ["--wxs" as string]: Math.max(0.5, Math.min(2.2, zoomK9)).toFixed(2) } as React.CSSProperties}>
+              style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})` } as React.CSSProperties}>
               <div className="scr-wx-tilt"><div className="scr-wx-sway"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div></div>
             </div>
           )}

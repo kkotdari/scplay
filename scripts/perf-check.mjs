@@ -2153,7 +2153,7 @@ if (has("--wxprobe")) {
     rows9.push(await page.evaluate(() => {
       const w = document.querySelector(".scr-wx"); if (!w) return "겹 없음";
       const i = w.querySelector("i"); const cs = i ? getComputedStyle(i) : null;
-      return `${w.className} op ${getComputedStyle(w).opacity} vis ${getComputedStyle(w).visibility} wk ${w.style.getPropertyValue("--wk")} · i ${cs ? cs.transform + " " + cs.animationName + " " + cs.animationPlayState + " op " + cs.opacity : "-"}`;
+      return `${w.style.left},${w.style.top} ${w.style.width}x${w.style.height} bx ${w.style.getPropertyValue("--wx-bx")} by ${w.style.getPropertyValue("--wx-by")} s ${w.style.getPropertyValue("--wxs")} · ${w.className} op ${getComputedStyle(w).opacity} vis ${getComputedStyle(w).visibility} wk ${w.style.getPropertyValue("--wk")} · i ${cs ? cs.transform + " " + cs.animationName + " " + cs.animationPlayState + " op " + cs.opacity : "-"}`;
     }));
     await page.waitForTimeout(300);
   }

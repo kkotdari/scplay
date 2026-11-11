@@ -6120,18 +6120,19 @@
    **CSS 로 흘린다**(transform 만 · 합성기가 돌려 장마다 JS 가 칠하지 않는다) — 판 한 칸(--ts)만큼 내려가면 처음과 같아 이음매 없이 되풀이. 비는 겹을 통째로 9° 돌려 비스듬히 ·
    하늘을 조금 어둡게 · 번개는 흰 막(.scr-wx-flash)의 투명도를 붓이 올린다. 눈은 느리게 + 좌우로 흔들. 세기 = 겹의 opacity(붓). 멈추면 is-paused 로 흐름도 멈춘다.
    폰(굵은 손가락)은 먼 겹(l3)을 뺀다 · 움직임 줄이기면 안 띄운다. 독 접힘(is-dockfold2)에서도 남는다(위 숨김 목록의 :not(.scr-wx)). */
-.scr-wx { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 2; pointer-events: none; overflow: hidden; contain: strict; }
+/* ★ **지도 안에만 · 지도에 못 박음**(2026-11-11, 요청: "지도 안에만 내리게 · 겉 우주 배경은 X · 맵 이동 시 같이 움직이게 맵에 위치 고정") — 붓(wxTickRef9)이 장마다 겹의 자리 · 크기를
+   지도 네모(무대와 겹치는 몫)로 놓고(인라인 left · top · width · height) 무늬의 원점을 지도 왼위에 맞춘다(--wx-bx · --wx-by · 배율 나눈 자). 비 기울임(회전)은 걷었다(곧게 내린다). */
+.scr-wx { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2; pointer-events: none; overflow: hidden; contain: strict; }
 .scr-wx-rain { background: rgba(12, 22, 38, calc(0.32 * var(--wk, 0.7))); }   /* 하늘은 양만큼 어둡게(가랑비 0.05 · 소나기 0.32) */
 .scr-wx-snow { background: rgba(190, 205, 228, calc(0.08 * var(--wk, 0.7))); }
 /* ★ 키프레임엔 **변수 없이**(2026-11-11, 실기: "눈송이가 안 내리고 멈춰 있음 · 비도") — 사파리는 @keyframes 안의 var()(--ts)를 못 움직여 겹이 그 자리에 섰다(크롬은 됐다).
    겹마다 고정 거리 키프레임 · 배율 맞춤(--wxs)은 겹 통째(.scr-wx-tilt)의 scale 로 — 0.5 배에도 화면을 덮게 바깥 여유를 넓힌다(−70%). 흔들림(눈)은 안쪽 .scr-wx-sway. */
-.scr-wx-tilt { position: absolute; inset: -70%; transform: scale(var(--wxs, 1)); }
-.scr-wx-rain > .scr-wx-tilt { transform: rotate(9deg) scale(var(--wxs, 1)); }
-.scr-wx-sway { position: absolute; inset: 0; }
+.scr-wx-tilt { position: absolute; left: 0; top: 0; width: calc(100% / var(--wxs, 1)); height: calc(100% / var(--wxs, 1)); transform-origin: 0 0; transform: scale(var(--wxs, 1)); }
+.scr-wx-sway { position: absolute; inset: 0 -30px; }
 .scr-wx-snow .scr-wx-sway { animation: scr-wx-sway 6s ease-in-out infinite alternate; }
 .scr-wx-sway > i {
   position: absolute; left: 0; right: 0; top: calc(-1 * var(--ts)); bottom: 0;
-  background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat;
+  background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat; background-position: var(--wx-bx, 0px) var(--wx-by, 0px);
   will-change: transform;
 }
 .scr-wx-rain .scr-wx-l1 { --ts: 330px; --dur: 0.38s; animation: scr-wx-f330 0.38s linear infinite; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
