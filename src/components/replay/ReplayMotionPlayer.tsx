@@ -2008,8 +2008,12 @@ const zoomCap9 = (z: number): number => (DEV9.name === "phone" && z < ZCAP_Z9 ? 
 const drsFloor9 = (z: number): number => (DEV9.name === "phone" ? (z < ZCAP_Z9 ? DRS_LO9 : DRS_HI9) : 1);
 /** 배킹을 고르는 배율 — 손짓 중에는 손짓 앞 값을 지킨다(위 ★). */
 const BZ9 = { z: 0 };
+/** ★ 번개 앞뒤는 배킹 조절이 안 잰다(2026-11-11, 실기: "천둥 번개 시 끝나고 한 번 렉 · 천둥소리 중에 생기기도 · 아이폰 화면이 멈칫") — 번쩍(무대 전체 막)의 무거운 몇 장을
+ *  배킹 조절(DRS9)이 '느리다'로 읽어 배킹을 내리면 캔버스 · GL 렌더 버퍼(MRT · 깊이 · 번짐)를 통째로 다시 잡아 그 순간 멈칫하고, 몇 초 뒤 되올리며 또 멈칫했다. 번개마다 3초 쉰다. */
+const WX_HUSH9 = { until: 0 };
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
+  if (now < WX_HUSH9.until) { DRS9.slow = 0; return; }
   const tgt9 = Math.max(16.7, target);
   if (DRS9.t0 === 0) DRS9.t0 = now;
   /* 기준 박자(위 ①) — 빠른 간격엔 곧장 붙고, 느린 쪽으로는 **고른 박자**(최근 평균 ±12% 안이 45장 이어짐 = 화면 박자에 묶인 꼴)일 때만 옮긴다.
@@ -20136,6 +20140,7 @@ export default function ReplayMotionPlayer({
     const pz9 = cm9.playing ? 0 : 1;
     if (pz9 !== st9.paused) { el9.classList.toggle("is-paused", pz9 === 1); st9.paused = pz9; }
     setRain9(on9 && cm9.playing && wxPlanNow9.kind === "rain" ? k9 : 0);
+    if (w9.flash > 0) WX_HUSH9.until = Math.max(WX_HUSH9.until, performance.now() + 3000);   // 번쩍 동안 · 뒤 3초는 배킹 조절이 안 잰다(위 WX_HUSH9 ★)
     if (on9 && cm9.playing && w9.bolt >= 0 && w9.bolt !== st9.bolt && w9.bolt > st9.t - 0.05 && tNow9 - w9.bolt < 1 && cm9.speed <= 4 && k9 > 0.2) {
       const d9 = 0.25 + ((Math.floor(w9.bolt * 977) % 100) / 100) * 1.4;   // 번개마다 다른 거리(같은 경기 같은 값)
       thunderClap9(d9 / Math.max(1, cm9.speed), Math.min(1, k9 * 1.2) * (1.15 - d9 * 0.35));
