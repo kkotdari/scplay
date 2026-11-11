@@ -323,14 +323,14 @@ function rainBufOf9(c9: AudioContext): AudioBuffer {
 function thunderBufOf9(c9: AudioContext): AudioBuffer {
   if (thunderBuf9) return thunderBuf9;
   /* 더 길게(2026-11-11, 요청: "천둥소리 좀 더 크고 길게") — 5 → 8초 · 스러짐 1.6 → 2.8초 · 1.6초 뒤 한 번 더 굴러온다(우르릉 두 번). */
-  const n = Math.floor(SFX_RATE9 * 8); const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);
+  const n = Math.floor(SFX_RATE9 * 13);   // 8 → 13초(같은 날 "길게") const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);
   let seed = 0x13579b; const rnd = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   let l1 = 0; let l2 = 0; let peak = 0;
   for (let i = 0; i < n; i += 1) {
     const t = i / SFX_RATE9; const w = rnd() * 2 - 1;
     l1 += (w - l1) * 0.06; l2 += (l1 - l2) * 0.08;   // 아주 낮은 우르릉(두 겹 거름)
-    const roll = 0.55 * Math.exp(-((t - 1.6) * (t - 1.6)) / 0.5);
-    const env = (Math.min(1, t / 0.25) * Math.exp(-t / 2.8) + roll) * (0.75 + 0.25 * Math.sin(t * 7.3 + Math.sin(t * 2.1) * 2));
+    const roll = 0.55 * Math.exp(-((t - 1.6) * (t - 1.6)) / 0.5) + 0.38 * Math.exp(-((t - 3.8) * (t - 3.8)) / 0.9) + 0.22 * Math.exp(-((t - 6.5) * (t - 6.5)) / 1.6);   // 굴림 셋(멀어지며 작게)
+    const env = (Math.min(1, t / 0.25) * Math.exp(-t / 4.5) + roll) * Math.min(1, (13 - t) / 1.5) * (0.75 + 0.25 * Math.sin(t * 7.3 + Math.sin(t * 2.1) * 2));
     const crack = t < 0.18 ? w * Math.exp(-t / 0.05) * 0.5 : 0;   // 앞의 딱
     d[i] = l2 * 6 * env + crack;
     peak = Math.max(peak, Math.abs(d[i]));
