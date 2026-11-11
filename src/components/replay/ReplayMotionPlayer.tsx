@@ -2534,14 +2534,23 @@ function creep17Layer9(t9: number): HTMLCanvasElement | null {
 /** ★ 맵 로고도 **안개를 탄다**(2026-11-11, 지적: "아직 안개가 걷히지 않은 부분의 로고가 이미 보임") — 로고는 몸 캔버스(안개 층 위)에 깔려 안개를 무시했다.
  *  크립 판(creep17Layer9)과 같은 칸 기록(판 17 · 화면 주인 눈 mask)으로 로고 자리의 칸마다 알파를 매긴다 — 보임 1 · 본 적만 0.47 · 못 봄 0 — 그 칸 판을 로고 판 크기로
  *  부드럽게 늘려 destination-in 으로 오린다. 칸 기록이 없거나(옛 자료) 안개를 껐으면(visAll) 로고 그대로. 열쇠(칸 기록 장 · mask)가 같으면 다시 안 굽는다. */
-const LOGO_FOG9: { key: string; cv: HTMLCanvasElement | null; src: HTMLCanvasElement | null; m: HTMLCanvasElement | null } = { key: "", cv: null, src: null, m: null };
+const LOGO_FOG9: { key: string; cv: HTMLCanvasElement | null; src: HTMLCanvasElement | null; m: HTMLCanvasElement | null; visRef: Uint8Array | null } = { key: "", cv: null, src: null, m: null, visRef: null };
+/** 칸 기록 없는 자료의 로고 안개 근거(렌더가 심는다) — 안개 켬 · 칸마다 처음 본 초 · 지금 덮임(128 = 경계) · 격자. */
+const LOGO_EXP9: { on: boolean; exp: Uint16Array | null; vis: Uint8Array | null; w: number; h: number } = { on: false, exp: null, vis: null, w: 0, h: 0 };
 function mapLogoFogged9(lg9: HTMLCanvasElement, t9: number): HTMLCanvasElement {
   const tl9 = CREEP17_9.tiles;
-  if (!tl9 || CREEP17_9.visAll || typeof document === "undefined") return lg9;
-  const st9 = tl9.stateAt(t9);
-  const key9 = `${tl9.at}|${CREEP17_9.mask}`;
-  if (LOGO_FOG9.cv && LOGO_FOG9.key === key9 && LOGO_FOG9.src === lg9) return LOGO_FOG9.cv;
-  const W9 = tl9.w; const H9 = tl9.h; const m9 = CREEP17_9.mask;
+  /* 편 비트는 **칸 안개(FOG17_9)의 것**(2026-11-11, 되지적: "아직도 로고가 안개 위에") — 크립 자(CREEP17_9.visAll)는 자유·중계 보기에서 '다 보임'이라 로고가 늘 그대로 빠졌다.
+     칸 안개처럼 안개가 켜졌으면(FOG17_9.on) 자유·중계 = 모든 선수 시야의 합(FOG17_9.want). */
+  if (typeof document === "undefined") return lg9;
+  /* 칸 기록(판 17)이 없는 자료는 칸 안개 대신 **눈 안개의 칸 판**(exploredAt · visNow — 미니맵 안개와 같은 근거 · LOGO_EXP9)으로 같은 셈을 한다. 안개가 꺼졌으면 그대로. */
+  const t17 = !!tl9 && FOG17_9.on && !!FOG17_9.want;
+  const ex9 = LOGO_EXP9;
+  if (!t17 && !(ex9.on && ex9.exp && ex9.vis && ex9.w > 0)) return lg9;
+  const st9 = t17 ? tl9!.stateAt(t9) : null;
+  const key9 = t17 ? `${tl9!.at}|${FOG17_9.want}` : `e|${Math.floor(t9 * 4)}|${ex9.w}x${ex9.h}`;
+  if (LOGO_FOG9.cv && LOGO_FOG9.key === key9 && LOGO_FOG9.src === lg9 && (t17 || LOGO_FOG9.visRef === ex9.vis)) return LOGO_FOG9.cv;
+  LOGO_FOG9.visRef = t17 ? null : ex9.vis;
+  const W9 = t17 ? tl9!.w : ex9.w; const H9 = t17 ? tl9!.h : ex9.h; const m9 = FOG17_9.want;
   const lwT9 = MAP_LOGO_TILES9; const lhT9 = (lwT9 * lg9.height) / lg9.width;
   const lx9 = W9 / 2 - lwT9 / 2; const ly9 = H9 / 2 - lhT9 / 2;
   const x0 = Math.max(0, Math.floor(lx9) - 1); const y0 = Math.max(0, Math.floor(ly9) - 1);
@@ -2552,8 +2561,9 @@ function mapLogoFogged9(lg9: HTMLCanvasElement, t9: number): HTMLCanvasElement {
   const mx9 = mc9.getContext("2d"); if (!mx9) return lg9;
   const id9 = mx9.createImageData(mw9, mh9);
   for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
-    const v9 = st9[y * W9 + x] ?? 0;
-    const vis9 = ((~v9 >>> 8) & 0xff & m9) !== 0; const exp9 = (~v9 & 0xff & m9) !== 0;
+    let vis9: boolean; let exp9: boolean;
+    if (st9) { const v9 = st9[y * W9 + x] ?? 0; vis9 = ((~v9 >>> 8) & 0xff & m9) !== 0; exp9 = (~v9 & 0xff & m9) !== 0; }
+    else { const i9 = y * W9 + x; vis9 = (ex9.vis![i9] ?? 0) >= 128; exp9 = (ex9.exp![i9] ?? 65535) <= t9; }
     id9.data[((y - y0) * mw9 + (x - x0)) * 4 + 3] = vis9 ? 255 : exp9 ? 120 : 0;
   }
   mx9.putImageData(id9, 0, 0);
@@ -20145,6 +20155,7 @@ export default function ReplayMotionPlayer({
   const visNow = frame9.visNow ?? (fogSeenRef9.current ? null : fogHold9?.visNow) ?? null;
   /* GL 안개의 켬·끔(위 fogGlRef9) — 안개 층이 설 조건과 같다. GL 지형층이 서 있으면 안개도 GL 로(옛 캔버스는 안 그린다). 첫 판이 오기 전엔 고리 없음·눈 없음 = 전부 안개. */
   fogShowRef9.current = fogOn && !!exploredAt && !!visNow;
+  LOGO_EXP9.on = fogShowRef9.current; LOGO_EXP9.exp = exploredAt; LOGO_EXP9.vis = visNow; LOGO_EXP9.w = gw9; LOGO_EXP9.h = gh9;   // 맵 로고 안개 — 칸 기록 없는 자료의 길(mapLogoFogged9 ★)
   const glFogOn9 = glTerrOn9 && fogShowRef9.current;
   if (!glFogOn9) fogGlRef9.current = null;
   else if (!fogGlRef9.current) fogGlRef9.current = { loops: [], key: 0, eyes: null, rgb: FOG_RGB_ARR9, dim: FOG_DIM9 };
