@@ -25153,7 +25153,7 @@ export default function ReplayMotionPlayer({
               /* 크기는 **배율을 탄다**(2026-11-11, 요청: "배율과 무관하게 크기가 똑같구나 · 배율 적용하려면 부담되나") — 기본 배율 대비(zoomK9)를 0.5~2.2 로 죄어 무늬 칸(--wxs)에 곱한다.
                  굳은 배율(상태)로만 바꾼다 — 손짓 중 장마다 바꾸면 무늬 겹을 장마다 다시 그린다. 너무 키우면 256 칸 무늬가 뭉개져 2.2 에서 멈춘다. */
               style={{ opacity: 0, visibility: "hidden", ["--wx-img" as string]: `url(${wxPlanNow9.kind === "rain" ? wxTile9.rain : wxTile9.snow})`, ["--wxs" as string]: Math.max(0.5, Math.min(2.2, zoomK9)).toFixed(2) } as React.CSSProperties}>
-              <div className="scr-wx-tilt"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div>
+              <div className="scr-wx-tilt"><div className="scr-wx-sway"><i className="scr-wx-l1" /><i className="scr-wx-l2" /><i className="scr-wx-l3" /></div></div>
             </div>
           )}
           {/* 번개 — **무대 전체**를 밝게 번쩍(2026-11-11, 요청: "번개 칠 때 전체 화면이 깜빡여야 할 듯 · 밝게") · 날씨 겹(세기 투명도) 밖이라 가랑비 투명도에 안 묻힌다. */}
