@@ -11006,16 +11006,16 @@ export default function ReplayMotionPlayer({
         const LEN9 = [1, 0.75, 0.55]; const SPD9 = [870, 500, 260]; const ALP9 = [0.95, 0.6, 0.38]; const WID9 = [1, 0.85, 0.7]; const HGT9 = [1, 0.8, 0.6];
         const fallMax9 = 260 * s9;
         /* 바람(2026-11-11, 요청: "약간 대각선 · 좌우 방향과 각도도 랜덤하게 변해야 자연스러울 듯") — 판 전체 기울기가 천천히 좌우로 오간다(±16° · 두 사인) · 방울마다 ±4° 흔들. */
-        const wind9 = (0.16 * Math.sin(sec9 / 9.3) + 0.12 * Math.sin(sec9 / 3.7 + 1.3)) / 0.28 * 0.28;   // 라디안 ≈ ±16°
+        const wind9 = 0.17 * Math.sin(sec9 / 61) + 0.1 * Math.sin(sec9 / 37 + 1.3);   // 라디안 ≈ ±15° · 아주 천천히(2026-11-11, 요청: "각도는 아주 천천히 바뀌게" — 옛 9.3 · 3.7초 주기)
         const ix0 = Math.floor(-g9.mx / cs9) - 1; const ix1 = Math.ceil((g9.w - g9.mx) / cs9) + 1;
         const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fallMax9 - g9.my) / cs9) + 1;
         if ((ix1 - ix0) * (iy1 - iy0) > 12000) return;
         c9.lineCap = "round";
         const paths9: Path2D[] = [0, 1, 2, 3, 4, 5].map(() => new Path2D());   // 겹 × 밝음 둘
         const ring9 = new Path2D();
-        for (let iy0b = iy0; iy0b < iy1; iy0b += 1) for (let ix0b = ix0; ix0b < ix1; ix0b += 1) for (let d9 = 0; d9 < 3; d9 += 1) {   // 칸마다 방울 셋(옛 무늬의 빽빽함)
+        for (let iy0b = iy0; iy0b < iy1; iy0b += 1) for (let ix0b = ix0; ix0b < ix1; ix0b += 1) for (let d9 = 0; d9 < 2; d9 += 1) {   // 칸마다 방울 둘(셋 → 둘 · 2026-11-11, 요청: "비 최대 양을 줄여 줘 · 비로 인해 게임이 안 보이는 지경")
           const ix = ix0b + d9 * 0.371; const iy = iy0b + d9 * 0.613;   // 해시 씨앗만 갈린다(자리는 아래 칸 ix0b · iy0b)
-          if (hsh9(ix, iy) >= k9 * 0.9) continue;
+          if (hsh9(ix, iy) >= k9 * 0.45) continue;   // 산 몫 0.9 → 0.45(같은 요청)
           const lr9 = hsh9(ix + 8.8, iy + 2.7); const L9 = lr9 < 0.4 ? 0 : lr9 < 0.75 ? 1 : 2;
           const H9f = (140 + 120 * hsh9(ix + 1.3, iy + 4.9)) * s9 * HGT9[L9];
           const sp9 = SPD9[L9] * s9;
@@ -11038,11 +11038,11 @@ export default function ReplayMotionPlayer({
           }
         }
         for (let L9 = 0; L9 < 3; L9 += 1) for (let b9 = 0; b9 < 2; b9 += 1) {
-          c9.strokeStyle = `rgba(205,222,245,${((b9 ? 0.3 : 0.18) * ALP9[L9]).toFixed(3)})`;   // 더 투명하게(0.42 · 0.26 → 0.3 · 0.18 · 같은 요청)
+          c9.strokeStyle = `rgba(205,222,245,${((b9 ? 0.24 : 0.14) * ALP9[L9]).toFixed(3)})`;   // 더 투명하게(0.42 · 0.26 → 0.3 · 0.18 · 같은 요청)
           c9.lineWidth = (b9 ? 1.4 : 0.9) * WID9[L9];
           c9.stroke(paths9[L9 * 2 + b9]);
         }
-        c9.strokeStyle = "rgba(190,205,225,0.32)"; c9.lineWidth = 0.8; c9.stroke(ring9);
+        c9.strokeStyle = "rgba(190,205,225,0.24)"; c9.lineWidth = 0.8; c9.stroke(ring9);
       }
       const ls9 = el9.querySelectorAll<HTMLElement>(".scr-wx-sway > i");
       const sp9 = SPEC9[kind9];

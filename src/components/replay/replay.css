@@ -6123,7 +6123,7 @@
 /* ★ **지도 안에만 · 지도에 못 박음**(2026-11-11, 요청: "지도 안에만 내리게 · 겉 우주 배경은 X · 맵 이동 시 같이 움직이게 맵에 위치 고정") — 붓(wxTickRef9)이 장마다 겹의 자리 · 크기를
    지도 네모(무대와 겹치는 몫)로 놓고(인라인 left · top · width · height) 무늬의 원점을 지도 왼위에 맞춘다(--wx-bx · --wx-by · 배율 나눈 자). 비 기울임(회전)은 걷었다(곧게 내린다). */
 .scr-wx { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2; pointer-events: none; overflow: hidden; contain: strict; }
-.scr-wx-rain { background: rgba(12, 22, 38, calc(0.32 * var(--wk, 0.7))); }   /* 하늘은 양만큼 어둡게(가랑비 0.05 · 소나기 0.32) */
+.scr-wx-rain { background: rgba(12, 22, 38, calc(0.2 * var(--wk, 0.7))); }   /* 하늘은 양만큼 어둡게(가랑비 0.05 · 소나기 0.32) */
 .scr-wx-snow { background: rgba(190, 205, 228, calc(0.08 * var(--wk, 0.7))); }
 /* ★ 키프레임엔 **변수 없이**(2026-11-11, 실기: "눈송이가 안 내리고 멈춰 있음 · 비도") — 사파리는 @keyframes 안의 var()(--ts)를 못 움직여 겹이 그 자리에 섰다(크롬은 됐다).
    겹마다 고정 거리 키프레임 · 배율 맞춤(--wxs)은 겹 통째(.scr-wx-tilt)의 scale 로 — 0.5 배에도 화면을 덮게 바깥 여유를 넓힌다(−70%). 흔들림(눈)은 안쪽 .scr-wx-sway. */
