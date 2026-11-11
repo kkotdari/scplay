@@ -5971,7 +5971,7 @@ function mD(t, s) {
     let _ = _t.length - 1;
     for (; _ > 0 && _t[_ - 1].raw === tt; ) _ -= 1;
     return _t[_].at;
-  }, Mt = /* @__PURE__ */ new Set(), vs = (tt, _) => {
+  }, St = /* @__PURE__ */ new Set(), vs = (tt, _) => {
     const yt = _t.length > 0 ? Math.max(tt, ms() + S2) : tt;
     let pt = s.introCycle && tt <= 0 && _t.length === 0 ? Os(0).length : 0;
     for (let Dt = yt; Dt < _ - S2; Dt += pt > 0 ? s.introCycle : D2) {
@@ -5982,7 +5982,7 @@ function mD(t, s) {
       }
       const Jt = Yt.find((Rt) => {
         const cs = aa(Rt, Dt, Dt + D2);
-        return !!cs && !Mt.has(cs);
+        return !!cs && !St.has(cs);
       });
       let Zt, Wt = 0;
       if (s.event)
@@ -5991,7 +5991,7 @@ function mD(t, s) {
           cs && cs.rank >= Ct.build && cs.rank > Wt && (Zt = Rt, Wt = cs.rank);
         }
       const zt = Zt && Wt >= Ct.tactic ? Zt : Jt ?? Zt;
-      zt && zt === Jt && Mt.add(aa(Jt, Dt, Dt + D2)), Ln(Dt, zt ?? Us(Yt), "순환 중계", !0, 0);
+      zt && zt === Jt && St.add(aa(Jt, Dt, Dt + D2)), Ln(Dt, zt ?? Us(Yt), "순환 중계", !0, 0);
     }
   }, Js = (tt) => tt === "Scarab" || tt === "Reaver" ? "리버" : tt.startsWith("Siege Tank") ? "탱크" : q0[tt] ?? R0[tt] ?? tt, zs = /* @__PURE__ */ new Map(), Rn = { r: 4.5, gap: 40 }, ro = /* @__PURE__ */ new Set(["Larva", "Egg", "Cocoon", "Lurker Egg", "Interceptor", "Scarab", "Spider Mine", "Vulture Spider Mine", "Nuclear Missile"]), mn = (tt, _) => {
     qr(_);
@@ -7867,7 +7867,7 @@ function o8({
             for (let hn = Ln; hn <= Es; hn += 1) {
               const Tn = hn + 0.5 - Bs, ms = Tn * Tn, Ms = hn * Ss;
               for (let $s = gn; $s <= rn; $s += 1) {
-                const Mt = $s + 0.5 - Rs, vs = Mt * Mt + ms;
+                const St = $s + 0.5 - Rs, vs = St * St + ms;
                 if (vs >= Hs) continue;
                 const Js = Ms + $s;
                 if (hs[Js] === 255) continue;
@@ -8420,8 +8420,8 @@ function A8({
         else {
           let Us = 1 / 0, gn = -1 / 0, rn = 1 / 0, Ln = -1 / 0;
           for (const [ms, Ms] of [[0, 0], [J, 0], [J, X], [0, X]]) {
-            const [$s, Mt] = Bs(ms, Ms);
-            $s < Us && (Us = $s), $s > gn && (gn = $s), Mt < rn && (rn = Mt), Mt > Ln && (Ln = Mt);
+            const [$s, St] = Bs(ms, Ms);
+            $s < Us && (Us = $s), $s > gn && (gn = $s), St < rn && (rn = St), St > Ln && (Ln = St);
           }
           const Es = ut - Ct, Vs = rt - Ot;
           Ct < Us && (Ct = Us, ut = Math.min(gn, Us + Es)), ut > gn && (ut = gn, Ct = Math.max(Us, gn - Es)), Ot < rn && (Ot = rn, rt = Math.min(Ln, rn + Vs)), rt > Ln && (rt = Ln, Ot = Math.max(rn, Ln - Vs));
@@ -8429,8 +8429,8 @@ function A8({
           let Hs = J, on = 0, hn = X, Tn = 0;
           for (let ms = 0; ms <= X; ms += xn)
             for (let Ms = 0; Ms <= J; Ms += xn) {
-              const [$s, Mt] = Bs(Ms, ms);
-              $s < Ct || $s > ut || Mt < Ot || Mt > rt || (Ms < Hs && (Hs = Ms), Ms > on && (on = Ms), ms < hn && (hn = ms), ms > Tn && (Tn = ms));
+              const [$s, St] = Bs(Ms, ms);
+              $s < Ct || $s > ut || St < Ot || St > rt || (Ms < Hs && (Hs = Ms), Ms > on && (on = Ms), ms < hn && (hn = ms), ms > Tn && (Tn = ms));
             }
           on <= Hs || Tn <= hn ? (lt = 0, Kt = J, kt = 0, xt = X) : (lt = Math.max(0, Hs - xn), Kt = Math.min(J, on + xn), kt = Math.max(0, hn - xn), xt = Math.min(X, Tn + xn));
         }
@@ -10783,7 +10783,7 @@ function $0(t, s, o, n, g, e, i, r, c, C, I) {
   return A;
 }
 const xc = /* @__PURE__ */ new Map(), n3 = 12e4;
-function St(t) {
+function Mt(t) {
   const s = t.length, o = new Float64Array(s * 2);
   let n = "";
   for (let g = 0; g < s; g += 1) {
@@ -10829,7 +10829,7 @@ function ci(t, s, o, n = !0, g) {
   for (let I = 0; I < e; I += 1) {
     const A = (I + 1) % e, l = (t[I][0] + t[A][0]) / 2 - i, a = (t[I][1] + t[A][1]) / 2 - r, u = Math.hypot(l, a) || 1, { visible: d, face: w } = tn(l / u, a / u);
     if (!d || g && g((t[I][0] + t[A][0]) / 2, (t[I][1] + t[A][1]) / 2, s + o / 2)) continue;
-    const f = St([
+    const f = Mt([
       [t[I][0], t[I][1], s],
       [t[A][0], t[A][1], s],
       [t[A][0], t[A][1], s + o],
@@ -10838,7 +10838,7 @@ function ci(t, s, o, n = !0, g) {
     C.push(fs(f), ...w(f));
   }
   if (n) {
-    const I = St(t.map(([A, l]) => [A, l, s + o]));
+    const I = Mt(t.map(([A, l]) => [A, l, s + o]));
     C.push(fs(I), cn(I, BI.topSoft));
   }
   return W(C, ct(i, r) + Math.min(o, c));
@@ -10861,7 +10861,7 @@ function PY(t, s, o, n, g = !0) {
   for (let l = 0; l < e; l += 1) {
     const a = (l + 1) % e, u = (t[l][0] + t[a][0]) / 2 - i, d = (t[l][1] + t[a][1]) / 2 - r, w = (o[l][0] + o[a][0]) / 2 - i, f = (o[l][1] + o[a][1]) / 2 - r, m = (u + w) / 2, p = (d + f) / 2, D = Math.hypot(m, p) || 1, b = Math.hypot(u, d), M = Math.hypot(w, f);
     I.push({
-      d: St([
+      d: Mt([
         [t[l][0], t[l][1], s],
         [t[a][0], t[a][1], s],
         [o[a][0], o[a][1], n],
@@ -10879,7 +10879,7 @@ function PY(t, s, o, n, g = !0) {
     a && A.push(fs(l.d), ...u(l.d));
   }
   if (g) {
-    const l = St(o.map(([a, u]) => [a, u, n]));
+    const l = Mt(o.map(([a, u]) => [a, u, n]));
     A.push(fs(l), cn(l, BI.topSoft));
   }
   return W(A, ct(i, r) + Math.min(Math.abs(c), C));
@@ -10896,7 +10896,7 @@ function jd(t, s, o, n = !0, g = !1) {
   for (let A = 0; A < e; A += 1) {
     const l = (A + 1) % e, a = (t[A][0] + t[l][0]) / 2 - i, u = (t[A][1] + t[l][1]) / 2 - r, d = Math.hypot(a, u) || 1, w = a / d, f = u / d, { visible: m, face: p } = tn(w, 0, f);
     if (!m) continue;
-    const D = St([
+    const D = Mt([
       [t[A][0], s, t[A][1]],
       [t[l][0], s, t[l][1]],
       [t[l][0], s + o, t[l][1]],
@@ -10906,7 +10906,7 @@ function jd(t, s, o, n = !0, g = !1) {
   }
   const I = (A, l) => {
     if (xs(0, l) <= 0.02) return;
-    const a = t.map(([d, w]) => [d, A, w]), u = St(l > 0 ? a : [...a].reverse());
+    const a = t.map(([d, w]) => [d, A, w]), u = Mt(l > 0 ? a : [...a].reverse());
     C.push(fs(u), ...tn(0, l).face(u));
   };
   return n && I(s + o, 1), g && I(s, -1), W(C, ct(i, s + o / 2) + Math.min(c, o));
@@ -10933,10 +10933,10 @@ function Il(t, s, o, n, g, e = 0, i = 0.6, r, c) {
     A[y][0] > 0 || A[y][1] > 0 ? u.push(O, K) : u.push(O);
   }
   u.unshift(u.pop());
-  const d = u.length, w = (y) => u.map(([O, K]) => [t + O, s + K, y]), f = w(l), m = w(e), p = St(f), D = u.map((y, O) => {
+  const d = u.length, w = (y) => u.map(([O, K]) => [t + O, s + K, y]), f = w(l), m = w(e), p = Mt(f), D = u.map((y, O) => {
     const K = u[(O + 1) % d], B = K[0] - y[0], G = K[1] - y[1], L = Math.hypot(B, G) || 1;
     return {
-      d: St([f[O], f[(O + 1) % d], m[(O + 1) % d], m[O]]),
+      d: Mt([f[O], f[(O + 1) % d], m[(O + 1) % d], m[O]]),
       n: [-G / L, B / L]
     };
   }), b = [], M = [p], S = D.map((y) => ({ f: y, k: xs(y.n[0], y.n[1]) })).sort((y, O) => y.k - O.k).map(({ f: y }) => y);
@@ -10967,11 +10967,11 @@ function Ne(t, s, o, n, g, e, i, r = 0, c, C) {
     [t + D / 2, s + b / 2, M],
     [t + D / 2, s - b / 2, M],
     [t - D / 2, s - b / 2, M]
-  ], l = A(o, n, r), a = A(g, e, I), u = St(a), d = (D, b) => (D - b) / (Math.hypot(i, D - b) || 1), w = [
-    { d: St([a[0], a[1], l[1], l[0]]), n: [0, 1], nz: d(n / 2, e / 2) },
-    { d: St([a[1], a[2], l[2], l[1]]), n: [1, 0], nz: d(o / 2, g / 2) },
-    { d: St([a[2], a[3], l[3], l[2]]), n: [0, -1], nz: d(n / 2, e / 2) },
-    { d: St([a[3], a[0], l[0], l[3]]), n: [-1, 0], nz: d(o / 2, g / 2) }
+  ], l = A(o, n, r), a = A(g, e, I), u = Mt(a), d = (D, b) => (D - b) / (Math.hypot(i, D - b) || 1), w = [
+    { d: Mt([a[0], a[1], l[1], l[0]]), n: [0, 1], nz: d(n / 2, e / 2) },
+    { d: Mt([a[1], a[2], l[2], l[1]]), n: [1, 0], nz: d(o / 2, g / 2) },
+    { d: Mt([a[2], a[3], l[3], l[2]]), n: [0, -1], nz: d(n / 2, e / 2) },
+    { d: Mt([a[3], a[0], l[0], l[3]]), n: [-1, 0], nz: d(o / 2, g / 2) }
   ], f = [], m = C ? [] : [u], p = w.map((D) => ({ f: D, k: xs(D.n[0], D.n[1]) })).sort((D, b) => D.k - b.k).map(({ f: D }) => D);
   for (const D of p) {
     if (o3(c, D.n[0], D.n[1])) continue;
@@ -13603,13 +13603,13 @@ function gW(t, s, o, n, g, e = 10) {
   for (let A = 0; A < e; A += 1) {
     const l = Math.PI * (A + 0.5) / e, { visible: a, face: u } = tn(0, Math.cos(l), Math.sin(l));
     if (!a) continue;
-    const [d, w] = I(A), [f, m] = I(A + 1), p = St([[c, d, w], [C, d, w], [C, f, m], [c, f, m]]);
+    const [d, w] = I(A), [f, m] = I(A + 1), p = Mt([[c, d, w], [C, d, w], [C, f, m], [c, f, m]]);
     r.push(p), i.push(...u(p));
   }
   for (const A of [1, -1]) {
     const { visible: l, face: a } = tn(A, 0);
     if (!l) continue;
-    const u = St(Array.from({ length: e + 1 }, (d, w) => {
+    const u = Mt(Array.from({ length: e + 1 }, (d, w) => {
       const [f, m] = I(w);
       return [A > 0 ? C : c, f, m];
     }));
@@ -13625,13 +13625,13 @@ function IW(t, s, o, n, g, e, i = 10) {
   for (let I = 0; I < i; I += 1) {
     const A = Math.PI * (I + 0.5) / i, [l, a] = c(I, C), [u, d] = c(I + 1, C), w = tn(0, Math.cos(A), Math.sin(A));
     if (w.visible) {
-      const f = St([[t - g, l, a], [t + g, l, a], [t + g, u, d], [t - g, u, d]]);
+      const f = Mt([[t - g, l, a], [t + g, l, a], [t + g, u, d], [t - g, u, d]]);
       r.push(fs(f), ...w.face(f));
     }
     for (const f of [1, -1]) {
       const m = tn(f, 0);
       if (!m.visible) continue;
-      const [p, D] = c(I, n), [b, M] = c(I + 1, n), S = t + f * g, y = St([[S, p, D], [S, l, a], [S, u, d], [S, b, M]]);
+      const [p, D] = c(I, n), [b, M] = c(I + 1, n), S = t + f * g, y = Mt([[S, p, D], [S, l, a], [S, u, d], [S, b, M]]);
       r.push(fs(y), ...m.face(y));
     }
   }
@@ -13882,7 +13882,7 @@ function pC(t, s, o, n, g, e, i, r, c, C = 0.56) {
   if (xs(n, g) < 0.12) return [];
   const I = g, A = -n, l = e / i, a = l * C, u = [], d = (w, f, m, p) => {
     const D = t + I * (w - f) + n * p, b = s + A * (w - f) + g * p, M = t + I * (w + f) + n * p, S = s + A * (w + f) + g * p;
-    return St([
+    return Mt([
       [D, b, o - m],
       [M, S, o - m],
       [M, S, o + m],
@@ -13994,16 +13994,16 @@ function yC(t, s, o, n, g, e = {}) {
     return [t + Math.cos(D) * m * A, p, o + Math.sin(D) * m];
   }, a = tn(0, -1, 0), u = [], d = [];
   for (let f = 0; f < C; f += 1) {
-    const m = f + 1, p = St([l(f, n, s), l(m, n, s), l(m, r, s), l(f, r, s)]);
+    const m = f + 1, p = Mt([l(f, n, s), l(m, n, s), l(m, r, s), l(f, r, s)]);
     I.push(...a.visible ? [[p, 1, e.fill ?? "#6d757f"], ...a.face(p)] : []);
-    const D = (f + 0.5) / C * Math.PI * 2, b = [l(f, r, s), l(m, r, s), l(m, r, s + c), l(f, r, s + c)], M = St(b);
+    const D = (f + 0.5) / C * Math.PI * 2, b = [l(f, r, s), l(m, r, s), l(m, r, s + c), l(f, r, s + c)], M = Mt(b);
     tn(-Math.cos(D), 0, -Math.sin(D)).visible && (u.push(M), d.push(b.flatMap((y) => y0(y[0], y[1], y[2]))));
   }
   if (u.length > 0) {
     const f = u.join(" ");
     fe(f, d), I.push([f, 1, "#272c34"]);
   }
-  const w = St(Array.from({ length: C }, (f, m) => l(m, r, s + c)));
+  const w = Mt(Array.from({ length: C }, (f, m) => l(m, r, s + c)));
   return I.push([w, 1, "#1a1e24"]), W(I, g);
 }
 function MW(t, s, o, n, g = {}) {
@@ -14012,16 +14012,16 @@ function MW(t, s, o, n, g = {}) {
     return [t + Math.cos(m) * w, s + Math.sin(m) * w, o - f];
   }, A = [], l = tn(0, 0, 1), a = [], u = [];
   for (let d = 0; d < c; d += 1) {
-    const w = d + 1, f = St([I(d, n, 0), I(w, n, 0), I(w, i, 0), I(d, i, 0)]);
+    const w = d + 1, f = Mt([I(d, n, 0), I(w, n, 0), I(w, i, 0), I(d, i, 0)]);
     A.push([f, 1, g.fill ?? "#6d757f"], ...l.visible ? l.face(f) : []);
     const m = (d + 0.5) / c * Math.PI * 2 + C, p = [I(d, i, 0), I(w, i, 0), I(w, i, r), I(d, i, r)];
-    tn(-Math.cos(m), -Math.sin(m), 0).visible && (a.push(St(p)), u.push(p.flatMap((b) => y0(b[0], b[1], b[2]))));
+    tn(-Math.cos(m), -Math.sin(m), 0).visible && (a.push(Mt(p)), u.push(p.flatMap((b) => y0(b[0], b[1], b[2]))));
   }
   if (a.length > 0) {
     const d = a.join(" ");
     fe(d, u), A.push([d, 1, "#1d2127"]);
   }
-  return A.push([St(Array.from({ length: c }, (d, w) => I(w, i, r))), 1, "#121519"]), A;
+  return A.push([Mt(Array.from({ length: c }, (d, w) => I(w, i, r))), 1, "#121519"]), A;
 }
 function SW(t, s, o, n = {}) {
   const g = Math.hypot(s[0], s[1], s[2]) || 1, e = [s[0] / g, s[1] / g, s[2] / g], i = Math.abs(e[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0], r = i[0] * e[0] + i[1] * e[1] + i[2] * e[2];
@@ -14033,16 +14033,16 @@ function SW(t, s, o, n = {}) {
     return [t[0] + c[0] * K + I[0] * B - e[0] * S, t[1] + c[1] * K + I[1] * B - e[1] * S, t[2] + c[2] * K + I[2] * B - e[2] * S];
   }, f = [], m = tn(e[0], e[1], e[2]), p = [], D = [];
   for (let b = 0; b < u; b += 1) {
-    const M = b + 1, S = St([w(b, o, 0), w(M, o, 0), w(M, l, 0), w(b, l, 0)]);
+    const M = b + 1, S = Mt([w(b, o, 0), w(M, o, 0), w(M, l, 0), w(b, l, 0)]);
     f.push(n.fill === null ? [S, 1] : [S, 1, n.fill ?? "#6d757f"], ...m.visible ? m.face(S) : []);
     const y = (b + 0.5) / u * Math.PI * 2 + d, O = -(c[0] * Math.cos(y) + I[0] * Math.sin(y)), K = -(c[1] * Math.cos(y) + I[1] * Math.sin(y)), B = -(c[2] * Math.cos(y) + I[2] * Math.sin(y)), G = [w(b, l, 0), w(M, l, 0), w(M, l, a), w(b, l, a)];
-    tn(O, K, B).visible && (p.push(St(G)), D.push(G.flatMap((L) => y0(L[0], L[1], L[2]))));
+    tn(O, K, B).visible && (p.push(Mt(G)), D.push(G.flatMap((L) => y0(L[0], L[1], L[2]))));
   }
   if (p.length > 0) {
     const b = p.join(" ");
     fe(b, D), f.push([b, 1, "#2a1512"]);
   }
-  return f.push([St(Array.from({ length: u }, (b, M) => w(M, l, a))), 1, "#170a08"]), f;
+  return f.push([Mt(Array.from({ length: u }, (b, M) => w(M, l, a))), 1, "#170a08"]), f;
 }
 function Ei(t, s, o, n, g, e, i = 1, r = 1) {
   const c = g === "terran" ? "#ff8a1e" : "#5fb8ff", C = g === "terran" ? "#ffe066" : "#eaf8ff", I = g === "terran" ? "#ffb347" : "#a8d8ff", A = (w, f, m, p = 0.2) => w.map(([D, b, , M, S, y]) => [D, Math.max(p, b * m), f, M, S, y]), l = i === 1 ? {} : { oval: i, ref: [0, 0, 1] }, a = (w, f, m, p) => A(Ht({
@@ -14168,19 +14168,19 @@ function qn(t, s, o) {
 }
 const W4 = "\0acc";
 function F4(t, s, o, n, g) {
-  const r = St([[-t, s, 0.06], [t, s, 0.06], [t, s, o], [-t, s, o]]), c = [[-t, s, 0.06]];
+  const r = Mt([[-t, s, 0.06], [t, s, 0.06], [t, s, o], [-t, s, o]]), c = [[-t, s, 0.06]];
   for (let A = 0; A <= 6; A += 1) {
     const l = -t + 2 * t * A / 6;
     c.push([l, Math.max(s + 0.2, n(l, 0.06)), 0.06]);
   }
   c.push([t, s, 0.06]);
-  const C = St(c), I = (A) => {
+  const C = Mt(c), I = (A) => {
     const l = [[A, s, 0.06]];
     for (let a = 0; a <= 5; a += 1) {
       const u = 0.06 + (o - 0.06) * a / 5;
       l.push([A, Math.max(s + 0.2, n(A, u)), u]);
     }
-    return l.push([A, s, o]), St(A < 0 ? l : l.slice().reverse());
+    return l.push([A, s, o]), Mt(A < 0 ? l : l.slice().reverse());
   };
   return [
     [r, 1, g],
@@ -14216,7 +14216,7 @@ function fu(t, s, o, n) {
   const g = [];
   for (let e = 0; e < t; e += 1) {
     const i = (e + 1) % t;
-    g.push(fs(St([n(o, e), n(o, i), n(s, i), n(s, e)])));
+    g.push(fs(Mt([n(o, e), n(o, i), n(s, i), n(s, e)])));
   }
   return g;
 }
@@ -14303,7 +14303,7 @@ function Ht(t) {
       }
       const nt = J !== void 0 ? (K[T][2] + K[x][2] + B[T][2] + B[x][2]) / 4 * r1() : (L[2] - G[2]) * 0.02, P = (K[T][2] + K[x][2] + B[T][2] + B[x][2]) / 4;
       f.push({
-        d: St(X),
+        d: Mt(X),
         nx: z,
         ny: H,
         nz: J,
@@ -14316,7 +14316,7 @@ function Ht(t) {
   const m = I(0), p = I(1), D = t.caps ?? "both", b = (S, y) => {
     const O = tn(y[0], y[1], y[2]);
     if (!O.visible) return;
-    const K = i(S), B = St(d(S));
+    const K = i(S), B = Mt(d(S));
     f.push({
       d: B,
       nx: 0,
@@ -14370,7 +14370,7 @@ const dg = "#d9c344", P4 = "#9d93c4", Ci = "#e4f6ff", jb = (t) => 0.78 - 0.5 * t
   return [t, jb(e) + r + g, s];
 };
 function J4(t, s = 0, o = 1, n) {
-  const g = s, e = (r, c, C, I) => St(
+  const g = s, e = (r, c, C, I) => Mt(
     Array.from({ length: 20 }, (A, l) => {
       const a = l / 20 * Math.PI * 2, u = Math.cos(a), d = Math.sin(a), w = 1 / (Math.abs(u) + Math.abs(d) || 1), f = (c + C) / 2, m = (C - c) / 2;
       return F2(r * u * w, f + m * d * w + g, g, o, I);
@@ -14399,11 +14399,11 @@ function J4(t, s = 0, o = 1, n) {
       ), t), ct(0, 0.9) * 1.6 + 0.8));
     }
     i.push(...W([
-      [St(Array.from({ length: 12 }, (r, c) => {
+      [Mt(Array.from({ length: 12 }, (r, c) => {
         const C = c / 12 * Math.PI * 2;
         return F2(Math.cos(C) * 0.12 * o, 5.296 + g + Math.sin(C) * 0.084 * o, g, o, 0.075 * o);
       })), 1, n],
-      [St(Array.from({ length: 12 }, (r, c) => {
+      [Mt(Array.from({ length: 12 }, (r, c) => {
         const C = c / 12 * Math.PI * 2;
         return F2(Math.cos(C) * 0.055 * o, 5.296 + g + Math.sin(C) * 0.0384 * o, g, o, 0.09 * o);
       })), 0.9, "#ffffff"]
@@ -14437,18 +14437,18 @@ function OW(t = 0, s = 1) {
   for (let y = 0; y < 10; y += 1) {
     const O = d(y), K = d(y + 1);
     for (let B = 0; B < 6; B += 1) {
-      const G = -1 + 2 * B / 6, L = -1 + 2 * (B + 1) / 6, T = St([b(O, G, !0), b(O, L, !0), b(K, L, !0), b(K, G, !0)]);
+      const G = -1 + 2 * B / 6, L = -1 + 2 * (B + 1) / 6, T = Mt([b(O, G, !0), b(O, L, !0), b(K, L, !0), b(K, G, !0)]);
       M.push([T, 1, dg], ...tn(0, 0, 1).face(T));
-      const x = St([b(O, L, !1), b(O, G, !1), b(K, G, !1), b(K, L, !1)]);
+      const x = Mt([b(O, L, !1), b(O, G, !1), b(K, G, !1), b(K, L, !1)]);
       M.push([x, 1, "#8a7a3a"]);
     }
     for (const B of [-1, 1]) {
-      const G = St([b(O, B, !0), b(K, B, !0), b(K, B, !1), b(O, B, !1)]);
+      const G = Mt([b(O, B, !0), b(K, B, !0), b(K, B, !1), b(O, B, !1)]);
       M.push([G, 1, dg], ...tn(B, 0, -0.4).face(G));
     }
   }
   for (const [y, O] of [[0.74, 1], [-0.85, -1]]) {
-    const K = St([b(y, -O, !0), b(y, -O, !1), b(y, O, !1), b(y, O, !0)]);
+    const K = Mt([b(y, -O, !0), b(y, -O, !1), b(y, O, !1), b(y, O, !0)]);
     M.push([K, 1, dg], ...tn(0, O, 0).face(K));
   }
   return W(M, S);
@@ -14468,7 +14468,7 @@ function $d(t, s = 0, o = 1) {
     widthOf: r
   });
   if (e.push(...W(t ? it(c, t) : c, ct(0, 0.5) * 1.6 + 0.7)), e.push(...OW(g, o)), xs(0, 1) > 0.08) {
-    const C = (A, l, a) => St(
+    const C = (A, l, a) => Mt(
       Array.from({ length: 12 }, (u, d) => {
         const w = d / 12 * Math.PI * 2, f = Math.cos(w) * l, m = Math.sin(w) * a, p = Math.cos(0.28), D = Math.sin(0.28), b = A * 0.19 * o + A * (f * p - m * D), M = 5.16 + n + Jn * (f * D + m * p), S = Math.max(0, Math.min(1, (M - 4.76 - n) / 0.84)), y = r(S), O = Math.sqrt(Math.max(0, y * y - b * b));
         return [b, i(S) + O + 0.012 * o, M];
@@ -14867,7 +14867,7 @@ function Ig(t, s, o, n, g, e, i, r = 0, c = 1) {
   }, y = [], O = (L) => {
     const T = L.length, x = L.reduce((Z, F) => Z + F[0], 0) / T, E = L.reduce((Z, F) => Z + F[1], 0) / T, N = L.reduce((Z, F) => Z + F[2], 0) / T, R = Math.hypot(x - t, E - s, N - o) || 1;
     y.push({
-      d: St(L),
+      d: Mt(L),
       n: [(x - t) / R, (E - s) / R, (N - o) / R],
       dep: ct(x, E)
     });
@@ -14882,7 +14882,7 @@ function Ig(t, s, o, n, g, e, i, r = 0, c = 1) {
   const K = [];
   for (let L = 0; L <= b; L += 1) K.push(S(0, L));
   y.push({
-    d: St(K),
+    d: Mt(K),
     n: [-I, -A, -l],
     dep: ct(t, s) - n * 0.5
   });
@@ -14890,7 +14890,7 @@ function Ig(t, s, o, n, g, e, i, r = 0, c = 1) {
   for (let L = 0; L <= D; L += 1) B.push(S(L / D, 0));
   for (let L = D; L >= 0; L -= 1) B.push(S(L / D, b));
   y.push({
-    d: St(B),
+    d: Mt(B),
     n: [-f, -m, -p],
     dep: ct(t, s) - n * 0.4
   }), y.sort((L, T) => L.dep - T.dep);
@@ -14973,7 +14973,7 @@ function W3(t, s) {
 }
 function z2(t, s, o, n, g, e) {
   const i = Math.hypot(g, e) || 1, r = -e / i, c = g / i;
-  return St(Array.from({ length: 12 }, (C, I) => {
+  return Mt(Array.from({ length: 12 }, (C, I) => {
     const A = I / 12 * Math.PI * 2;
     return [
       t + r * Math.cos(A) * n,
@@ -15060,7 +15060,7 @@ function ww(t, s, o, n) {
       w + (r - w) * g
     ]);
   }
-  const C = St([...t, ...[...c].reverse()]), I = [[C, 1, o], On(C, (n == null ? void 0 : n.shade) ?? 0.16)], A = (n == null ? void 0 : n.rib) ?? 0.09, l = W3(o, 0.58);
+  const C = Mt([...t, ...[...c].reverse()]), I = [[C, 1, o], On(C, (n == null ? void 0 : n.shade) ?? 0.16)], A = (n == null ? void 0 : n.rib) ?? 0.09, l = W3(o, 0.58);
   for (const a of s) {
     let u = t[0], d = 1 / 0;
     for (const b of t) {
@@ -15096,11 +15096,11 @@ function sO(t) {
     const m = f / I, p = t.ang * m, D = a(m);
     return Array.from({ length: A }, (b, M) => l(p, M / A * Math.PI * 2, D));
   }, w = Array.from({ length: I + 1 }, (f, m) => d(m));
-  t.back && u.push([St(w[I].slice().reverse()), 1, t.rim]), u.push([St(w[1]), 1, t.core]);
+  t.back && u.push([Mt(w[I].slice().reverse()), 1, t.rim]), u.push([Mt(w[1]), 1, t.core]);
   for (let f = 1; f < I; f += 1) {
     const m = (f + 0.5) / I, p = f === I - 1 ? t.rim : m < 0.3 ? t.core : t.fill;
     for (let D = 0; D < A; D += 1) {
-      const b = (D + 1) % A, M = St([w[f][D], w[f][b], w[f + 1][b], w[f + 1][D]]);
+      const b = (D + 1) % A, M = Mt([w[f][D], w[f][b], w[f + 1][b], w[f + 1][D]]);
       u.push([M, 1, p]);
     }
   }
@@ -15109,7 +15109,7 @@ function sO(t) {
 function ai(t) {
   const s = Math.hypot(t.nx, t.ny) || 1, o = t.nx / s, n = t.ny / s;
   if (xs(o, n) <= 0.02) return [];
-  const g = -n, e = o, i = (t.bulge ?? 0.25) * t.r, r = (t.tiltDeg ?? 0) * Math.PI / 180, c = -Math.sin(r), C = Math.cos(r), I = (d, w, f) => St(
+  const g = -n, e = o, i = (t.bulge ?? 0.25) * t.r, r = (t.tiltDeg ?? 0) * Math.PI / 180, c = -Math.sin(r), C = Math.cos(r), I = (d, w, f) => Mt(
     Array.from({ length: 17 }, (m, p) => {
       const D = p / 16 * Math.PI * 2, b = Math.cos(D) * t.r * d, M = Math.sin(D) * t.r * d;
       return [
@@ -15197,7 +15197,7 @@ function Yi(t, s, o = 1, n = Ju) {
       const p = Math.PI * m / 12;
       f.push([C * Math.cos(p), a - C * Math.sin(p), d]);
     }
-    g.push(...H0(it([[St(f), 1]], n)));
+    g.push(...H0(it([[Mt(f), 1]], n)));
   }
   g.push(...B1(it(Ht({
     x: 0,
@@ -15357,7 +15357,7 @@ function V2(t) {
   if (P3) return s;
   for (const o of [0, 45, 90, 135, 180, 225, 270, 315]) {
     const n = o * Math.PI / 180, g = Math.sin(n), e = Math.cos(n), i = Math.cos(n), r = -Math.sin(n);
-    s.push(On(St([
+    s.push(On(Mt([
       [g * t * 0.3 + i * 0.9, e * t * 0.3 + r * 0.9, 0.096],
       [g * t, e * t, 0.096],
       [g * t * 0.3 - i * 0.9, e * t * 0.3 - r * 0.9, 0.096]
@@ -15451,25 +15451,25 @@ function jW(t, s, o, n, g) {
       p.push([m, r + Math.cos(M) * e, i + Math.sin(M) * i]);
     }
     return p;
-  }, I = C(t - g / 2), A = C(t + g / 2), l = (m, p) => ct(m, p) * 1.6, a = (s + o) / 2, u = IM(t, a, g), d = [...W([fs(St(I))], l(t - g / 2, a))], w = I.length;
+  }, I = C(t - g / 2), A = C(t + g / 2), l = (m, p) => ct(m, p) * 1.6, a = (s + o) / 2, u = IM(t, a, g), d = [...W([fs(Mt(I))], l(t - g / 2, a))], w = I.length;
   for (let m = 0; m < w; m += 1) {
     const p = (m + 1) % w;
     d.push(...W(
-      [fs(St([I[m], I[p], A[p], A[m]]))],
+      [fs(Mt([I[m], I[p], A[p], A[m]]))],
       // 맨 윗 띠(뒤 반원 끝 → 앞 반원 첫)만은 달림면이라 벽 위로 올린다.
       m === w - 1 ? u + 0.05 : l(t, (I[m][1] + I[p][1]) / 2)
     ));
   }
   d.push(...W(
-    [cn(St([I[w - 1], I[0], A[0], A[w - 1]]), 0.15)],
+    [cn(Mt([I[w - 1], I[0], A[0], A[w - 1]]), 0.15)],
     u + 0.1
-  )), d.push(...W([fs(St(A))], l(t + g / 2, a)));
+  )), d.push(...W([fs(Mt(A))], l(t + g / 2, a)));
   const f = xs(1, 0);
   return f > 0.05 ? d.push(...W(
-    [On(St(A), 0.14 * Math.min(1, f * 2))],
+    [On(Mt(A), 0.14 * Math.min(1, f * 2))],
     l(t + g / 2, a) + 0.01
   )) : f < -0.05 && d.push(...W(
-    [On(St(I), 0.14 * Math.min(1, -f * 2))],
+    [On(Mt(I), 0.14 * Math.min(1, -f * 2))],
     l(t - g / 2, a) + 0.01
   )), d;
 }
@@ -15490,12 +15490,12 @@ function il(t) {
   for (let M = 0; M < o.length - 1; M += 1) {
     const S = m(o[M]), y = m(o[M + 1]), O = o[M + 1] <= 0;
     for (let K = 0; K < s; K += 1) {
-      const B = St(O ? [S[K], S[K + 1], y[0]] : [S[K], S[K + 1], y[K + 1], y[K]]);
+      const B = Mt(O ? [S[K], S[K + 1], y[0]] : [S[K], S[K + 1], y[K + 1], y[K]]);
       p.push(t.fill ? [B, 1, t.fill] : fs(B)), D + b > 0 && p.push(On(B, D + M * b));
     }
   }
   if (o[o.length - 1] > 0) {
-    const M = St(m(o[o.length - 1]).slice(0, s)), S = t.capFill ?? t.fill;
+    const M = Mt(m(o[o.length - 1]).slice(0, s)), S = t.capFill ?? t.fill;
     p.push(S ? [M, 1, S] : fs(M));
   }
   return p;
@@ -15504,12 +15504,12 @@ function j2(t, s, o, n, g, e, i = 4) {
   const r = [...it(ln(t, s, o, n, g, e), "#e8c33a")], c = e + g + 8e-3;
   for (let C = 0; C < i; C += 1) {
     const I = -o / 2 + (C + 0.15) * (o / i), A = I + o / i * 0.45;
-    r.push([St([
+    r.push([Mt([
       [t + I, s - n / 2, c],
       [t + A, s - n / 2, c],
       [t + A + n * 0.35, s + n / 2, c],
       [t + I + n * 0.35, s + n / 2, c]
-    ]), 1, "#1c1f24"]), xs(0, 1) > 0.08 && r.push([St([
+    ]), 1, "#1c1f24"]), xs(0, 1) > 0.08 && r.push([Mt([
       [t + I, s + n / 2 + 0.01, e],
       [t + A, s + n / 2 + 0.01, e],
       [t + A + g * 0.35, s + n / 2 + 0.01, e + g],
@@ -15520,7 +15520,7 @@ function j2(t, s, o, n, g, e, i = 4) {
 }
 function c9(t, s, o, n, g, e = 4) {
   if (xs(0, 1) <= 0.05) return [];
-  const r = [[St([
+  const r = [[Mt([
     [t - n, s, o + g],
     [t + n, s, o + g],
     [t + n, s, o - g],
@@ -15528,7 +15528,7 @@ function c9(t, s, o, n, g, e = 4) {
   ]), 1, "#d8b52a"]], c = n * 2 / (e * 2 + 1), C = n * 1.6 / (e * 2 + 1), I = (A) => Math.max(t - n, Math.min(t + n, A));
   for (let A = 0; A < e; A += 1) {
     const l = t - n + c * (A * 2 + 0.5);
-    r.push([St([
+    r.push([Mt([
       [I(l + g * 0.9), s, o + g],
       [I(l + C + g * 0.9), s, o + g],
       [I(l + c), s, o - g],
@@ -15562,7 +15562,7 @@ function nO(t, s = -3.6, o = 3.6, n = 2.08) {
       ], R = O % 2 === 0 ? "#4b5158" : "#3f444a", Z = [], F = [], z = (H, J, X, nt) => {
         F.push({ r: xs(J, X) + nt * 0.8, path: H, nz: nt, fl: tn(J, X, nt) });
       };
-      z(St([N(-1, -1, 1), N(1, -1, 1), N(1, 1, 1), N(-1, 1, 1)]), 0, L, T), z(St([N(1, -1, 0), N(1, 1, 0), N(1, 1, 1), N(1, -1, 1)]), 1, 0, 0), z(St([N(-1, -1, 0), N(-1, 1, 0), N(-1, 1, 1), N(-1, -1, 1)]), -1, 0, 0), z(St([N(-1, 1, 0), N(1, 1, 0), N(1, 1, 1), N(-1, 1, 1)]), 0, x, E), z(St([N(-1, -1, 0), N(1, -1, 0), N(1, -1, 1), N(-1, -1, 1)]), 0, -x, -E), F.sort((H, J) => H.r - J.r);
+      z(Mt([N(-1, -1, 1), N(1, -1, 1), N(1, 1, 1), N(-1, 1, 1)]), 0, L, T), z(Mt([N(1, -1, 0), N(1, 1, 0), N(1, 1, 1), N(1, -1, 1)]), 1, 0, 0), z(Mt([N(-1, -1, 0), N(-1, 1, 0), N(-1, 1, 1), N(-1, -1, 1)]), -1, 0, 0), z(Mt([N(-1, 1, 0), N(1, 1, 0), N(1, 1, 1), N(-1, 1, 1)]), 0, x, E), z(Mt([N(-1, -1, 0), N(1, -1, 0), N(1, -1, 1), N(-1, -1, 1)]), 0, -x, -E), F.sort((H, J) => H.r - J.r);
       for (const H of F)
         Z.push([H.path, 1, R], ...H.fl.visible ? H.fl.face(H.path) : [On(H.path, 0.2)]), H.nz > 0.6 && Z.push(cn(H.path, 0.12));
       r.push(...W(Z, (T > 0.95 ? c : Math.max(ct(t, B) * 1.6, c - 0.3)) + 0.2));
@@ -15598,7 +15598,7 @@ function _2() {
     Wr
     // 폭 2.2 → 2.0(재요청)
   ), s)), t.push(...W(it(ln(0, 0.92, 2.02, 0.16, 1.696, 0.4), "#4a5058"), ct(0, 0.92) * 1.6 + 0.62));
-  const o = St([
+  const o = Mt([
     // 윗변을 차체 윗면 앞 모서리(y 2.6, z 2.85)에 맞춘다(지적: 앞판 위쪽이 동체보다 높게 나옴) — 차체 앞면과 한 평면.
     // 앞 구간 폭 2.6에 맞춰 좁힌다(±1.62 → ±1.3, 윗변 ±1.15).
     [-1, 3.22, 0.48],
@@ -15639,12 +15639,12 @@ function _2() {
          살끼리의 차례만 i로 가른다. */
     ), oO() + 0.9 + n * 0.01));
   for (const n of [-1, 1]) {
-    const g = St([
+    const g = Mt([
       [n * 0.45, 2.95, 2.208],
       [n * 1.95, 2.7, 2.208],
       [n * 1.85, 1.85, 2.208],
       [n * 0.52, 2, 2.208]
-    ]), e = St([
+    ]), e = Mt([
       [n * 0.55, 2.82, 2.224],
       [n * 1.8, 2.62, 2.224],
       [n * 1.72, 1.96, 2.224],
@@ -15678,14 +15678,14 @@ function iM(t, s) {
   {
     const x = 1.35 * I * 0.72, E = a.map(([z, H]) => f(z, H, w)), N = a.map(([z, H]) => f(z, H, w + x)), R = [], Z = [];
     for (let z = 0; z < a.length; z += 1) {
-      const H = (z + 1) % a.length, J = a[H][0] - a[z][0], X = a[H][1] - a[z][1], nt = Math.hypot(J, X) || 1, P = tn(-X / nt, J / nt, 0), $ = St([E[z], E[H], N[H], N[z]]);
+      const H = (z + 1) % a.length, J = a[H][0] - a[z][0], X = a[H][1] - a[z][1], nt = Math.hypot(J, X) || 1, P = tn(-X / nt, J / nt, 0), $ = Mt([E[z], E[H], N[H], N[z]]);
       Z.push({ d: ct((a[z][0] + a[H][0]) / 2, (a[z][1] + a[H][1]) / 2), q: $, fl: P });
     }
     Z.sort((z, H) => z.d - H.d);
     for (const z of Z) R.push([z.q, 1, Wr], ...z.fl.visible ? z.fl.face(z.q) : [On(z.q, 0.25)]);
-    const F = St(N);
+    const F = Mt(N);
     if (R.push([F, 1, Wr], cn(F, 0.2)), n && o.push(...W(R, r(0, 0) + 0.3)), n) {
-      const z = w + x, H = (nt, P) => f(nt, P, z + 0.02), J = [], X = St([
+      const z = w + x, H = (nt, P) => f(nt, P, z + 0.02), J = [], X = Mt([
         H(0, 0.78 * I),
         H(0.52 * I, -0.3 * I),
         H(-0.52 * I, -0.3 * I)
@@ -15728,7 +15728,7 @@ function iM(t, s) {
       for (let Pt = 0; Pt + 1 < Lt.length; Pt += 1) {
         const Vt = Lt[Pt], Qt = Lt[Pt + 1];
         if (Qt - Vt < 1e-4) continue;
-        const es = (Vt + Qt) / 2, Gt = Math.floor((es - vt) / q) % 2 === 0 ? "#d8b52a" : "#22262b", Nt = St([lt(Vt, dt), lt(Qt, dt), lt(Qt, ht), lt(Vt, ht)]), _t = lt(es, (dt + ht) / 2);
+        const es = (Vt + Qt) / 2, Gt = Math.floor((es - vt) / q) % 2 === 0 ? "#d8b52a" : "#22262b", Nt = Mt([lt(Vt, dt), lt(Qt, dt), lt(Qt, ht), lt(Vt, ht)]), _t = lt(es, (dt + ht) / 2);
         Bt.push({ d: ct(_t[0], _t[1]), f: [Nt, 1, Gt] });
       }
     }
@@ -15949,7 +15949,7 @@ function IO(t, s) {
   return s * Math.cos(Math.PI / 6) / Math.cos(o * Math.PI / 180);
 }
 function iO(t, s, o) {
-  const n = [], g = (i) => St(
+  const n = [], g = (i) => Mt(
     Array.from({ length: 28 }, (r, c) => {
       const C = c / 28 * Math.PI * 2;
       return [t + Math.cos(C) * o * i, s + Math.sin(C) * o * i, 0.064];
@@ -16200,7 +16200,7 @@ function Mw(t, s = "#1b1e23", o = { n: 3, w: 0.54, h: 2 }, n = 0.5, g = "#3a3f46
         for (const Ct of [8, 9, 10, 11, 0, 1, 2, 3]) {
           const ut = K + (Ct + 0.5) / H * Math.PI * 2, Ot = Math.cos(ut), rt = Math.sin(ut);
           if (xs(j.u[0] * Ot + j.v[0] * rt, j.u[1] * Ot + j.v[1] * rt) <= 0.06) continue;
-          const lt = St([
+          const lt = Mt([
             nt(j, It, Ct),
             nt(j, It, Ct + 1),
             nt(Q, st, Ct + 1),
@@ -16603,13 +16603,13 @@ const Cn = {
         const es = tn(0, 0, Qt), Gt = (_t) => {
           ht.push([_t, 1, t], ...es.visible ? es.face(_t) : []);
         }, Nt = Math.max(0.5, Vt - 0.95);
-        Gt(St(Array.from({ length: 16 }, (_t, qt) => {
+        Gt(Mt(Array.from({ length: 16 }, (_t, qt) => {
           const rs = qt * Math.PI * 2 / 16;
           return [Math.sin(rs) * Nt, Math.cos(rs) * Nt, Pt];
         })));
         for (let _t = 0; _t < 16; _t += 1) {
           const qt = _t * Math.PI * 2 / 16, rs = (_t + 1) * Math.PI * 2 / 16, bs = (qt + rs) / 2;
-          Math.abs((bs + Math.PI) % (Math.PI * 2) - Math.PI) <= C || Gt(St([
+          Math.abs((bs + Math.PI) % (Math.PI * 2) - Math.PI) <= C || Gt(Mt([
             [Math.sin(qt) * Nt, Math.cos(qt) * Nt, Pt],
             [Math.sin(qt) * Vt, Math.cos(qt) * Vt, Pt],
             [Math.sin(rs) * Vt, Math.cos(rs) * Vt, Pt],
@@ -16715,7 +16715,7 @@ const Cn = {
       for (let Rs = 0; Rs + 1 < bs.length; Rs += 1)
         for (let Bs = 0; Bs < 7; Bs += 1) {
           const Us = ht - vt + vt * 2 * Bs / 7, gn = ht - vt + vt * 2 * (Bs + 1) / 7;
-          ks(St([
+          ks(Mt([
             hs(Us, bs[Rs], Qt),
             hs(gn, bs[Rs], Qt),
             hs(gn, bs[Rs + 1], Qt),
@@ -16726,7 +16726,7 @@ const Cn = {
         const Bs = ht + Rs * vt, Us = tn(Rs * Math.cos(Bs), -Rs * Math.sin(Bs));
         if (Us.visible)
           for (let gn = 0; gn + 1 < bs.length; gn += 1) {
-            const rn = St([
+            const rn = Mt([
               hs(Bs, bs[gn], _t(bs[gn])),
               hs(Bs, bs[gn], Qt),
               hs(Bs, bs[gn + 1], Qt),
@@ -16735,12 +16735,12 @@ const Cn = {
             ks(rn, Us.face(rn));
           }
       }
-      const Ks = St([...Ss(Pt, Qt, !1), ...Ss(Pt, _t(Pt), !0)]);
+      const Ks = Mt([...Ss(Pt, Qt, !1), ...Ss(Pt, _t(Pt), !0)]);
       if (ks(Ks, [cn(Ks, 0.16)]), Gt !== void 0) {
-        const Rs = Gt - Vt(Lt), Bs = St([...Ss(Lt, Qt, !1), ...Ss(Lt, Rs, !0)]);
+        const Rs = Gt - Vt(Lt), Bs = Mt([...Ss(Lt, Qt, !1), ...Ss(Lt, Rs, !0)]);
         ks(Bs, [cn(Bs, 0.16)]);
       } else {
-        const Rs = St([...Ss(Lt, _t(Lt), !1), ...Ss(Lt, Qt, !0)]);
+        const Rs = Mt([...Ss(Lt, _t(Lt), !1), ...Ss(Lt, Qt, !0)]);
         ks(Rs, [On(Rs, 0.22)]);
       }
       return Os;
@@ -16792,7 +16792,7 @@ const Cn = {
         const Os = [];
         for (let ks = 0; ks + 1 < rs.length; ks += 1)
           for (let Ks = 0; Ks + 1 < Ss.length; Ks += 1)
-            Os.push(fs(St([
+            Os.push(fs(Mt([
               qt(Ss[Ks], rs[ks]),
               qt(Ss[Ks + 1], rs[ks]),
               qt(Ss[Ks + 1], rs[ks + 1]),
@@ -16844,7 +16844,7 @@ const Cn = {
         if (!tn(Nt, _t).visible) continue;
         const qt = (Nt ? Gt(Vt) : es(Vt)) * 0.72, rs = (Nt ? es(Vt) : Gt(Vt)) + 0.02, bs = (Os, ks, Ks, Rs, Bs) => {
           const Us = rs + Bs, gn = (rn, Ln) => Nt ? [Nt * Us, rn, Ln] : [rn, _t * Us, Ln];
-          return St((Nt || -_t) > 0 ? [gn(Os, Ks), gn(ks, Ks), gn(ks, Rs), gn(Os, Rs)] : [gn(ks, Ks), gn(Os, Ks), gn(Os, Rs), gn(ks, Rs)]);
+          return Mt((Nt || -_t) > 0 ? [gn(Os, Ks), gn(ks, Ks), gn(ks, Rs), gn(Os, Rs)] : [gn(ks, Ks), gn(Os, Ks), gn(Os, Rs), gn(ks, Rs)]);
         }, hs = [[bs(-qt, qt, Lt, Pt, 0), 1, "#1b1f24"]], Ss = qt * 2 / 9;
         for (let Os = 0; Os < 9; Os += 1)
           hs.push([bs(
@@ -16870,7 +16870,7 @@ const Cn = {
         }, Gt = (_t) => [Math.sin(_t) * ht, Math.cos(_t) * ht, Lt], Nt = Pt * 2;
         for (let _t = 0; _t < Nt; _t += 1) {
           const qt = _t / Nt * Math.PI * 2, rs = (_t + 1) / Nt * Math.PI * 2;
-          Qt.push(...it([fs(St([es(qt), es(rs), Gt(rs), Gt(qt)]))], g));
+          Qt.push(...it([fs(Mt([es(qt), es(rs), Gt(rs), Gt(qt)]))], g));
         }
         c.push(...W(Qt, Vt - 0.1));
       }
@@ -16889,7 +16889,7 @@ const Cn = {
     }
     const $ = a + 0.36, j = 1.15, Q = 0.92, It = j / Math.tan(75 * Math.PI / 180), st = 1.05, Ct = b(a + 0.36) + 0.06, ut = Ct - It, Ot = $ + Q;
     {
-      const ht = [], vt = St([
+      const ht = [], vt = Mt([
         [-st, ut, Ot],
         [st, ut, Ot],
         [st, Ct, $],
@@ -16897,7 +16897,7 @@ const Cn = {
       ]), Lt = Math.hypot(It, j) || 1, Pt = tn(0, j / Lt, It / Lt);
       ht.push(fs(vt), ...Pt.visible ? Pt.face(vt) : [On(vt, 0.3)]);
       for (const Vt of [-1, 1]) {
-        const Qt = St([
+        const Qt = Mt([
           [Vt * st, ut, Ot],
           [Vt * st, ut, $],
           [Vt * st, Ct, $]
@@ -16928,7 +16928,7 @@ const Cn = {
       for (let Ks = 0; Ks < hs; Ks += 1) {
         const Rs = Ks / hs * (Math.PI / 2), Bs = (Ks + 1) / hs * (Math.PI / 2);
         for (let Us = 0; Us < Ss; Us += 1) {
-          const gn = -Math.PI / 2 + Us / Ss * Math.PI, rn = -Math.PI / 2 + (Us + 1) / Ss * Math.PI, Ln = St([Os(Rs, gn), Os(Rs, rn), Os(Bs, rn), Os(Bs, gn)]), Es = (Rs + Bs) / 2, Vs = (gn + rn) / 2, xn = Math.sin(Es), Hs = Qt * xn * Math.cos(Vs) + Gt * xn * Math.sin(Vs), on = es * xn * Math.cos(Vs) + Nt * xn * Math.sin(Vs), hn = tn(Hs, on, Math.cos(Es));
+          const gn = -Math.PI / 2 + Us / Ss * Math.PI, rn = -Math.PI / 2 + (Us + 1) / Ss * Math.PI, Ln = Mt([Os(Rs, gn), Os(Rs, rn), Os(Bs, rn), Os(Bs, gn)]), Es = (Rs + Bs) / 2, Vs = (gn + rn) / 2, xn = Math.sin(Es), Hs = Qt * xn * Math.cos(Vs) + Gt * xn * Math.sin(Vs), on = es * xn * Math.cos(Vs) + Nt * xn * Math.sin(Vs), hn = tn(Hs, on, Math.cos(Es));
           hn.visible && ks.push(fs(Ln), ...hn.face(Ln));
         }
       }
@@ -16937,9 +16937,9 @@ const Cn = {
     if (nt) {
       const ht = 0.8400000000000001, vt = a + 0.36, Lt = 3.05, Pt = 0.3, Vt = (Hs) => Hs < i + 0.64 ? 5.15 + 0.25 * ((Hs - i) / 0.64) : Hs < i + 0.752 ? 5.16 : Hs < i + 0.88 ? 5.4 : Hs < a ? 5.46 : b(Hs), Qt = (Hs, on) => Math.sqrt(Math.max(0.01, Vt(Hs) ** 2 - on * on)), es = 3, Gt = i, Nt = [
         // 뒷벽(어두움) — 선체 밑에서 인방까지
-        [St([[-ht, Lt, Gt], [ht, Lt, Gt], [ht, Lt, vt], [-ht, Lt, vt]]), 1, "#22262c"],
+        [Mt([[-ht, Lt, Gt], [ht, Lt, Gt], [ht, Lt, vt], [-ht, Lt, vt]]), 1, "#22262c"],
         // 뒷벽 위 푸른 빛띠
-        [St([
+        [Mt([
           [-ht + 0.1, Lt + 0.01, vt - 0.272],
           [ht - 0.1, Lt + 0.01, vt - 0.272],
           [ht - 0.1, Lt + 0.01, vt - 0.144],
@@ -16947,7 +16947,7 @@ const Cn = {
         ]), 0.55, "#7fc9ff"],
         /* ★ 활성이면 **속에서 노란 불이 샌다**(요청) — 팩토리 격납구와 같은 손이다(그 자리의 ★ 주석).
            뒷벽에 박힌 판 하나를 `glowLit` 로 켜고, 벽에서 0.03 앞으로 띄워 z 싸움을 피한다. */
-        [St([
+        [Mt([
           [-ht + 0.14, Lt - 0.03, Gt + (vt - Gt) * 0.12],
           [ht - 0.14, Lt - 0.03, Gt + (vt - Gt) * 0.12],
           [ht - 0.14, Lt - 0.03, Gt + (vt - Gt) * 0.72],
@@ -16955,7 +16955,7 @@ const Cn = {
         ]), 1, ge("#ffce4a", "#22262c")]
       ];
       for (const Hs of [-1, 1])
-        xs(-Hs, 0) <= 0.12 || Nt.push([St([
+        xs(-Hs, 0) <= 0.12 || Nt.push([Mt([
           [Hs * ht, Lt, Gt],
           [Hs * ht, Qt(Gt, ht), Gt],
           [Hs * ht, Qt(vt, ht), vt],
@@ -16965,15 +16965,15 @@ const Cn = {
         on * _t,
         qt + (Os - qt) * Hs,
         Hs >= ks ? 0 : rs * (1 - Hs / ks)
-      ], Rs = (bs - qt) / (Os - qt), Bs = St([Ks(0, -1), Ks(0, 1), Ks(Rs, 1), Ks(Rs, -1)]);
+      ], Rs = (bs - qt) / (Os - qt), Bs = Mt([Ks(0, -1), Ks(0, 1), Ks(Rs, 1), Ks(Rs, -1)]);
       Nt.push([Bs, 1, t], cn(Bs, 0.16)), We && Nt.push([Bs, 0.42, eg("#ffce4a")]);
       const Us = (Hs) => {
-        const on = St([Ks(Hs, -1), Ks(Hs, 1), Ks(Hs + 0.018, 1), Ks(Hs + 0.018, -1)]), hn = St([Ks(Hs + 0.018, -1), Ks(Hs + 0.018, 1), Ks(Hs + 0.034, 1), Ks(Hs + 0.034, -1)]);
+        const on = Mt([Ks(Hs, -1), Ks(Hs, 1), Ks(Hs + 0.018, 1), Ks(Hs + 0.018, -1)]), hn = Mt([Ks(Hs + 0.018, -1), Ks(Hs + 0.018, 1), Ks(Hs + 0.034, 1), Ks(Hs + 0.034, -1)]);
         return [[on, 0.28, "#000", 0, 2], [hn, 0.22, "#fff", 0, 2]];
       }, gn = [];
       if (We) {
         const Hs = Math.min(1, Rs + 0.22);
-        gn.push([St([Ks(Rs, -1), Ks(Rs, 1), Ks(Hs, 1), Ks(Hs, -1)]), 0.3, eg("#ffce4a")]);
+        gn.push([Mt([Ks(Rs, -1), Ks(Rs, 1), Ks(Hs, 1), Ks(Hs, -1)]), 0.3, eg("#ffce4a")]);
       }
       for (let Hs = 1; Hs <= 6; Hs += 1) {
         const on = Hs / 7.2;
@@ -16981,17 +16981,17 @@ const Cn = {
       }
       c.push(...W(Nt, es));
       {
-        const Hs = St([Ks(Rs, -1), Ks(Rs, 1), Ks(1, 1), Ks(1, -1)]), on = 0.144, hn = (ms, Ms) => {
+        const Hs = Mt([Ks(Rs, -1), Ks(Rs, 1), Ks(1, 1), Ks(1, -1)]), on = 0.144, hn = (ms, Ms) => {
           const $s = Ks(ms, Ms);
           return [$s[0], $s[1], $s[2] - on];
         }, Tn = [];
         for (const ms of [-1, 1]) {
           if (xs(ms, 0) < 0.05) continue;
-          const Ms = St([Ks(Rs, ms), Ks(1, ms), hn(1, ms), hn(Rs, ms)]);
+          const Ms = Mt([Ks(Rs, ms), Ks(1, ms), hn(1, ms), hn(Rs, ms)]);
           Tn.push([Ms, 1, t], On(Ms, 0.42));
         }
         {
-          const ms = St([Ks(1, -1), Ks(1, 1), hn(1, 1), hn(1, -1)]);
+          const ms = Mt([Ks(1, -1), Ks(1, 1), hn(1, 1), hn(1, -1)]);
           Tn.push([ms, 1, t], On(ms, 0.3));
         }
         c.push(...W(
@@ -16999,8 +16999,8 @@ const Cn = {
           ct(0, Os) + 0.5
         ));
       }
-      const rn = [], Ln = (Hs, on, hn, Tn, ms, Ms, $s = [null, null], Mt = 0.012) => {
-        const vs = Vt(Hs) + Mt, Js = Vt(on - 1e-4) + Mt, zs = (jn, Ie) => Math.asin(Math.max(-0.999, Math.min(0.999, jn / Ie))), Rn = $s[0] ?? zs(hn, vs), ro = $s[1] ?? zs(Tn, vs), mn = $s[0] ?? zs(hn, Js), yo = $s[1] ?? zs(Tn, Js), Vo = Hs < a ? 16 : 14, se = [Rn], xe = [mn];
+      const rn = [], Ln = (Hs, on, hn, Tn, ms, Ms, $s = [null, null], St = 0.012) => {
+        const vs = Vt(Hs) + St, Js = Vt(on - 1e-4) + St, zs = (jn, Ie) => Math.asin(Math.max(-0.999, Math.min(0.999, jn / Ie))), Rn = $s[0] ?? zs(hn, vs), ro = $s[1] ?? zs(Tn, vs), mn = $s[0] ?? zs(hn, Js), yo = $s[1] ?? zs(Tn, Js), Vo = Hs < a ? 16 : 14, se = [Rn], xe = [mn];
         for (let jn = -Vo; jn <= Vo; jn += 1) {
           const Ie = Math.PI / 2 - (jn + 0.5) * Math.PI * 2 / Vo;
           Ie > Math.min(Rn, mn) + 1e-4 && Ie < Math.max(ro, yo) - 1e-4 && (se.push(Ie), xe.push(Ie));
@@ -17009,7 +17009,7 @@ const Cn = {
         for (let jn = 0; jn + 1 < se.length; jn += 1) {
           const Ie = se[jn], Be = se[jn + 1], pg = xe[jn], He = xe[jn + 1];
           if (Be - Ie < 1e-3) continue;
-          const tg = St([
+          const tg = Mt([
             [vs * Math.sin(Ie), vs * Math.cos(Ie), Hs],
             [vs * Math.sin(Be), vs * Math.cos(Be), Hs],
             [Js * Math.sin(He), Js * Math.cos(He), on],
@@ -17031,7 +17031,7 @@ const Cn = {
         }
         const Hs = I(14);
         Ln(vt, a + u / 4, 0, 0, 4, t, [-Hs, Hs], 0);
-        const on = St([
+        const on = Mt([
           [-ht, Lt, vt],
           [ht, Lt, vt],
           [ht, Qt(vt, ht), vt],
@@ -17044,8 +17044,8 @@ const Cn = {
           Ms.push([hn * Math.cos(Js), hn * Math.sin(Js), a]);
         }
         Ms.push([-ht, ms, a], [-ht, Lt, a], [ht, Lt, a]);
-        const $s = St(Ms), Mt = tn(0, 0, 1);
-        rn.push([$s, 1, t], ...Mt.visible ? Mt.face($s) : []);
+        const $s = Mt(Ms), St = tn(0, 0, 1);
+        rn.push([$s, 1, t], ...St.visible ? St.face($s) : []);
       } else {
         for (const [on, hn, Tn] of Vs)
           Ln(on, hn, ht, ht + Es, 2, Tn), Ln(on, hn, -ht - Es, -ht, 2, Tn);
@@ -17056,14 +17056,14 @@ const Cn = {
       const xn = (Hs, on, hn, Tn) => {
         const ms = [];
         for (let $s = 0; $s <= 8; $s += 1) {
-          const Mt = -Tn + Tn * 2 * $s / 8;
-          ms.push([Math.sin(Mt) * on, Math.cos(Mt) * on, hn]);
+          const St = -Tn + Tn * 2 * $s / 8;
+          ms.push([Math.sin(St) * on, Math.cos(St) * on, hn]);
         }
         for (let $s = 8; $s >= 0; $s -= 1) {
-          const Mt = -Tn + Tn * 2 * $s / 8;
-          ms.push([Math.sin(Mt) * Hs, Math.cos(Mt) * Hs, hn]);
+          const St = -Tn + Tn * 2 * $s / 8;
+          ms.push([Math.sin(St) * Hs, Math.cos(St) * Hs, hn]);
         }
-        return St(ms);
+        return Mt(ms);
       };
       C === 0 && c.push(...W([
         /* 부채꼴도 문틀과 같은 폭 감각으로 — 개구부 반폭 + 문틀을 그 반지름의 각으로 옮긴다. */
@@ -17141,21 +17141,21 @@ const Cn = {
     const P = (dt, ht, vt, Lt, Pt, Vt, Qt) => {
       const es = [], Gt = Pt + Vt;
       for (const Os of [-1, 1]) {
-        const ks = St([
+        const ks = Mt([
           [dt + Os * ht, vt, Pt],
           [dt + Os * ht, vt, Gt],
           [dt + Os * ht, Lt, Pt]
         ]), Ks = tn(Os, 0, 0);
         Ks.visible && es.push(fs(ks), ...Ks.face(ks));
       }
-      const Nt = St([
+      const Nt = Mt([
         [dt - ht, vt, Pt],
         [dt + ht, vt, Pt],
         [dt + ht, vt, Gt],
         [dt - ht, vt, Gt]
       ]), _t = tn(0, -1, 0);
       _t.visible && es.push(fs(Nt), ..._t.face(Nt));
-      const qt = Lt - vt, rs = -Vt, bs = Math.hypot(qt, rs) || 1, hs = St([
+      const qt = Lt - vt, rs = -Vt, bs = Math.hypot(qt, rs) || 1, hs = Mt([
         [dt - ht, vt, Gt],
         [dt + ht, vt, Gt],
         [dt + ht, Lt, Pt],
@@ -17165,7 +17165,7 @@ const Cn = {
       for (let Os = 1; Os <= Qt; Os += 1) {
         const ks = Os / (Qt + 1), Ks = (Bs) => [vt + qt * Bs, Gt - Vt * Bs], Rs = (Bs, Us) => {
           const [gn, rn] = Ks(Bs), [Ln, Es] = Ks(Us);
-          return St([
+          return Mt([
             [dt - ht * 0.78, gn, rn],
             [dt + ht * 0.78, gn, rn],
             [dt + ht * 0.78, Ln, Es],
@@ -17178,7 +17178,7 @@ const Cn = {
     }, $ = (dt, ht, vt, Lt, Pt, Vt) => {
       const Qt = Pt + Vt, es = (rs) => [vt + (Lt - vt) * rs, Qt - Vt * rs], Gt = ht * 0.74, Nt = 0.04, _t = (rs, bs, hs = 0) => {
         const [Ss, Os] = es(rs), [ks, Ks] = es(bs);
-        return St([
+        return Mt([
           [dt - Gt, Ss, Os + hs],
           [dt + Gt, Ss, Os + hs],
           [dt + Gt, ks, Ks + hs],
@@ -17217,7 +17217,7 @@ const Cn = {
       t.push(...W(it(ci(Vt, x, 0.4, !0), "#2e3033"), Qt));
       const Gt = 7;
       for (let Nt = 1; Nt <= Gt; Nt += 1) {
-        const _t = -2.5 + 5.6 * Nt / (Gt + 1), qt = (rs, bs) => St([
+        const _t = -2.5 + 5.6 * Nt / (Gt + 1), qt = (rs, bs) => Mt([
           [-0.855 * 0.7, rs, x + 0.4 + 0.04],
           [0.855 * 0.7, rs, x + 0.4 + 0.04],
           [0.855 * 0.7, bs, x + 0.4 + 0.04],
@@ -17234,7 +17234,7 @@ const Cn = {
       const ht = ct(dt * e, b) * 1.6 + 0.3 + (dt > 0 ? 1e-4 : 0), vt = u + w + 0.25, Lt = r / 2 - 0.3;
       for (const Pt of [0]) {
         const Vt = dt * e + Pt;
-        t.push(...W(it([fs(St([
+        t.push(...W(it([fs(Mt([
           [Vt - It, vt, T],
           [Vt + It, vt, T],
           [Vt + It, Lt, T],
@@ -17242,30 +17242,30 @@ const Cn = {
         ]))], Q), ht));
       }
     }
-    const st = eg("#ffe790"), Ct = 0.6, ut = 0.32, Ot = (dt, ht, vt, Lt, Pt, Vt, Qt = Ct) => W(Vt ? it([fs(St([
+    const st = eg("#ffe790"), Ct = 0.6, ut = 0.32, Ot = (dt, ht, vt, Lt, Pt, Vt, Qt = Ct) => W(Vt ? it([fs(Mt([
       [dt, vt, Lt],
       [ht, vt, Lt],
       [ht, vt, Lt + Qt],
       [dt, vt, Lt + Qt]
-    ]))], Vt) : [fs(St([
+    ]))], Vt) : [fs(Mt([
       [dt, vt, Lt],
       [ht, vt, Lt],
       [ht, vt, Lt + Qt],
       [dt, vt, Lt + Qt]
     ]))], Pt), rt = (dt, ht, vt, Lt, Pt, Vt, Qt, es = Ct) => {
-      const Gt = St([
+      const Gt = Mt([
         [dt, ht, Pt],
         [vt, Lt, Pt],
         [vt, Lt, Pt + es],
         [dt, ht, Pt + es]
       ]);
       return W(Qt ? it([fs(Gt)], Qt) : [fs(Gt)], Vt);
-    }, lt = (dt, ht, vt, Lt, Pt, Vt, Qt = Ct) => W(Vt ? it([fs(St([
+    }, lt = (dt, ht, vt, Lt, Pt, Vt, Qt = Ct) => W(Vt ? it([fs(Mt([
       [dt, ht, Lt],
       [dt, vt, Lt],
       [dt, vt, Lt + Qt],
       [dt, ht, Lt + Qt]
-    ]))], Vt) : [fs(St([
+    ]))], Vt) : [fs(Mt([
       [dt, ht, Lt],
       [dt, vt, Lt],
       [dt, vt, Lt + Qt],
@@ -17304,7 +17304,7 @@ const Cn = {
     for (const dt of [1, -1]) {
       if (xs(0, dt) <= 0.12) continue;
       const ht = dt * (I / 2 + 0.03), vt = ct(0, 0) * 1.6 + 0.4;
-      s.push(...W([fs(St([
+      s.push(...W([fs(Mt([
         [-0.68, ht, xt + Ct + 0.096],
         [0.68, ht, xt + Ct + 0.096],
         [0.68, ht, x - 0.92],
@@ -17360,7 +17360,7 @@ const Cn = {
       0,
       a ? [-1, 0] : void 0
     ), n), 0)), a) {
-      const L = (R, Z, F, z) => St([
+      const L = (R, Z, F, z) => Mt([
         [w(F), Z(F), F],
         [w(F), R(F), F],
         [w(z), R(z), z],
@@ -17376,7 +17376,7 @@ const Cn = {
     if (xs(0, 1) > 0.12) {
       const L = [], T = f(0.24) + 0.03, x = f(1.92) + 0.03;
       for (let E = 0; E < 6; E += 1)
-        L.push(On(St([
+        L.push(On(Mt([
           [-3 + E * 1.05, T, 0.24],
           [-2.5 + E * 1.05, T, 0.24],
           [-2.5 + E * 1.05, x, 1.92],
@@ -17393,15 +17393,15 @@ const Cn = {
           L[2] + $ * T[2] + j * x[2]
         ];
       }, F = (nt, P = 24) => Array.from({ length: P }, ($, j) => Z(nt, j / P * Math.PI * 2)), z = [
-        [St(F(E * 1.18)), 1, i],
-        [St(F(E * 1.03)), 1, "#4f4f4f"],
-        [St(F(E)), 1, g]
+        [Mt(F(E * 1.18)), 1, i],
+        [Mt(F(E * 1.03)), 1, "#4f4f4f"],
+        [Mt(F(E)), 1, g]
       ];
       {
         const nt = T[1] * x[2] - T[2] * x[1], P = T[2] * x[0] - T[0] * x[2], $ = T[0] * x[1] - T[1] * x[0], j = Math.hypot(nt, P, $) || 1, Q = nt * L[0] + P * L[1] + $ * L[2] < 0 ? -1 : 1, It = nt / j * Q, st = P / j * Q, Ct = $ / j * Q, ut = E * 0.16, Ot = (kt) => [kt[0] + It * ut, kt[1] + st * ut, kt[2] + Ct * ut], rt = E * 1.18, lt = E * 1.03, Kt = 24;
         for (let kt = 0; kt < Kt; kt += 1) {
           const xt = kt / Kt * Math.PI * 2, q = (kt + 1) / Kt * Math.PI * 2, Bt = Z(rt, xt), ft = Z(rt, q), dt = Z(lt, xt), ht = Z(lt, q);
-          z.push([St([Ot(Bt), Ot(dt), Ot(ht), Ot(ft)]), 1, i]), z.push([St([Bt, ft, Ot(ft), Ot(Bt)]), 1, i]), z.push([St([dt, Ot(dt), Ot(ht), ht]), 1, "#4f4f4f"]);
+          z.push([Mt([Ot(Bt), Ot(dt), Ot(ht), Ot(ft)]), 1, i]), z.push([Mt([Bt, ft, Ot(ft), Ot(Bt)]), 1, i]), z.push([Mt([dt, Ot(dt), Ot(ht), ht]), 1, "#4f4f4f"]);
         }
       }
       const H = 6, J = 4, X = 3 / J;
@@ -17415,9 +17415,9 @@ const Cn = {
           const Ct = st / H;
           j.push(Z(Q(Ct), $ + P * Ct * 0.62 * X + It(Ct)));
         }
-        z.push([St(j), 1, e]);
+        z.push([Mt(j), 1, e]);
       }
-      z.push([St(F(E * 0.24, 14)), 1, wn]), r.push(...W(z, N));
+      z.push([Mt(F(E * 0.24, 14)), 1, wn]), r.push(...W(z, N));
     };
     m([0, 0, d + 0.032], [1, 0, 0], [0, 1, 0], 1.75, 20 + ct(0, 0));
     const p = (L) => 2.8 - u * L, D = 0.55;
@@ -17493,7 +17493,7 @@ const Cn = {
       r.push(...W(ln(K + 0.5, T, 1, M, 0.18, d), x)), B && r.push(...W(ln(K + O / 2, T, O, M, d - G, G), x + 0.05));
     }
     if (l) {
-      const L = "#5cf08a", T = "#39b863", x = "#24412c", E = "#18271c", N = (nt) => w(nt), R = (nt) => w(nt) + A, Z = (nt) => St(nt);
+      const L = "#5cf08a", T = "#39b863", x = "#24412c", E = "#18271c", N = (nt) => w(nt), R = (nt) => w(nt) + A, Z = (nt) => Mt(nt);
       r.push(...W([
         // 뒷벽 — 법선이 아가리(−x)를 본다
         [Z([
@@ -17533,7 +17533,7 @@ const Cn = {
       const F = 0.16, H = F + 0.248, J = 0.225, X = [];
       for (let nt = 0; nt < 7; nt += 1) {
         const P = -2.35 + nt * 0.62;
-        X.push([St([
+        X.push([Mt([
           [b(F), P, F],
           [b(F), P + 0.34, F],
           [b(H), P + 0.34 + J, H],
@@ -17565,17 +17565,17 @@ const Cn = {
     ), 2.2));
     const M = (B) => B <= 1.6 ? 5.4 / 2 + (6.2 / 2 - 5.4 / 2) * ((B - 0.48) / (1.6 - 0.48)) : B <= 3.04 ? 6.2 / 2 : 6.2 / 2 - (6.2 / 2 - 5 / 2) * ((B - 3.04) / (4.72 - 3.04)), S = (B) => B <= 1.6 ? 7 / 2 + (7.4 / 2 - 7 / 2) * ((B - 0.48) / (1.6 - 0.48)) : B <= 3.04 ? 7.4 / 2 : 7.4 / 2 - (7.4 / 2 - 6.6 / 2) * ((B - 3.04) / (4.72 - 3.04)), y = 1.03, O = 0.5;
     {
-      const L = 4.72 - O, T = (H, J, X) => St([
+      const L = 4.72 - O, T = (H, J, X) => Mt([
         [-3.3, J, X],
         [3.3, J, X],
         [3.3, H, X],
         [-3.3, H, X]
-      ]), x = T(y, 2.5, 4.72), E = T(-2.5, -y, 4.72), N = T(-y, y, L), R = St([
+      ]), x = T(y, 2.5, 4.72), E = T(-2.5, -y, 4.72), N = T(-y, y, L), R = Mt([
         [3.3, y, 4.72],
         [-3.3, y, 4.72],
         [-3.3, y, L],
         [3.3, y, L]
-      ]), Z = St([
+      ]), Z = Mt([
         [-3.3, -y, 4.72],
         [3.3, -y, 4.72],
         [3.3, -y, L],
@@ -17607,7 +17607,7 @@ const Cn = {
       };
       for (const Q of [-1, 1])
         for (const [It, st] of J(L, T))
-          j(St(F([
+          j(Mt(F([
             Z(Q * D, 0, It),
             Z(Q * R(It), 0, It),
             Z(Q * R(st), 0, st),
@@ -17616,14 +17616,14 @@ const Cn = {
       for (const [Q, It] of [[L, x], [E, T]])
         if (!(It - Q <= 1e-6))
           for (const [st, Ct] of J(Q, It))
-            j(St(F([
+            j(Mt(F([
               Z(-D, 0, st),
               Z(D, 0, st),
               Z(D, 0, Ct),
               Z(-D, 0, Ct)
             ], z, H, 0)), st, Ct);
       for (const [Q, It] of J(x, E)) {
-        const st = St(F([
+        const st = Mt(F([
           Z(-D, -0.52, Q),
           Z(D, -0.52, Q),
           Z(D, -0.52, It),
@@ -17634,7 +17634,7 @@ const Cn = {
       for (const Q of [-1, 1]) {
         const It = B === "y" ? -Q : 0, st = B === "y" ? 0 : -Q, Ct = tn(It, st, 0);
         for (const [ut, Ot] of J(x, E)) {
-          const rt = St(F([
+          const rt = Mt(F([
             Z(Q * D, 0, ut),
             Z(Q * D, -0.52, ut),
             Z(Q * D, -0.52, Ot),
@@ -17644,7 +17644,7 @@ const Cn = {
         }
       }
       {
-        const Q = St(F([
+        const Q = Mt(F([
           Z(-D, 0, x),
           Z(D, 0, x),
           Z(D, -0.52, x),
@@ -17671,7 +17671,7 @@ const Cn = {
         const E = x * (7.4 / 2 + 0.03);
         for (const N of [-1, 1]) {
           const R = N * T - L / 2, Z = N * T + L / 2;
-          s.push(...W([[St([
+          s.push(...W([[Mt([
             [E, R, G],
             [E, Z, G],
             [E, Z, G + 1.06],
@@ -17682,7 +17682,7 @@ const Cn = {
     }
     if (xs(0, 1) > 0.08)
       for (const B of [-1, 1]) {
-        const G = (L, T, x, E, N = 0.03) => St([
+        const G = (L, T, x, E, N = 0.03) => Mt([
           [B * L, M(x) + N, x],
           [B * T, M(x) + N, x],
           [B * T, M(E) + N, E],
@@ -17696,7 +17696,7 @@ const Cn = {
         ], 2.6)), s.push(...W([[G(2.03, 2.67, 3.84, 4.064, 0.05), 1]], 2.62));
       }
     for (const B of [-2.6, 0, 2.6]) {
-      const G = ct(B, 3.1) * 1.6, L = St([
+      const G = ct(B, 3.1) * 1.6, L = Mt([
         [B - 0.55, 5.4 / 2 - 0.1, 0.736],
         [B + 0.55, 5.4 / 2 - 0.1, 0.736],
         [B + 0.45, 5.4 / 2 + 0.85, 0.112],
@@ -17705,7 +17705,7 @@ const Cn = {
       o.push(...W([
         [L, 1, "#3f3f3f"],
         cn(L, 0.1),
-        [St([
+        [Mt([
           [B - 0.45, 5.4 / 2 + 0.85, 0.112],
           [B + 0.45, 5.4 / 2 + 0.85, 0.112],
           [B + 0.45, 5.4 / 2 + 0.85, 0],
@@ -17719,13 +17719,13 @@ const Cn = {
     if (xs(1, 0) > 0.06) {
       const R = (nt) => S(nt) - 1.55, Z = [
         // 안쪽 벽(어두움)
-        [St([[R(0.72), -1.2, 0.72], [R(0.72), 1.2, 0.72], [R(2.88), 1.2, 2.88], [R(2.88), -1.2, 2.88]]), 1, t],
+        [Mt([[R(0.72), -1.2, 0.72], [R(0.72), 1.2, 0.72], [R(2.88), 1.2, 2.88], [R(2.88), -1.2, 2.88]]), 1, t],
         // 천장(인방)
-        [St([[R(2.88), -1.2, 2.88], [R(2.88), 1.2, 2.88], [S(2.88), 1.2, 2.88], [S(2.88), -1.2, 2.88]]), 1, "#4a4a4a"]
+        [Mt([[R(2.88), -1.2, 2.88], [R(2.88), 1.2, 2.88], [S(2.88), 1.2, 2.88], [S(2.88), -1.2, 2.88]]), 1, "#4a4a4a"]
       ];
       {
         const nt = 1.0655999999999999, P = 0.72 + (2.88 - 0.72) * 0.8, $ = Math.sign(S(2.88) - R(2.88)) || 1, j = (Q) => R(Q) + $ * 0.03;
-        Z.push([St([
+        Z.push([Mt([
           [j(nt), -1.2 + 0.3, nt],
           [j(nt), 1.2 - 0.3, nt],
           [j(P), 1.2 - 0.3, P],
@@ -17733,12 +17733,12 @@ const Cn = {
         ]), 1, ge("#ffce4a", t)]);
       }
       for (const [nt, P] of [[-1.2, 1], [1.2, -1]])
-        xs(0, P) <= 0.04 || Z.push([St([[R(0.72), nt, 0.72], [S(0.72), nt, 0.72], [S(2.88), nt, 2.88], [R(2.88), nt, 2.88]]), 1, Kg]);
-      const F = R(1.2) + 0.05, z = 1.2, H = S(0.72) - 0.05, J = 0.48, X = St([[F, -1.2 + 0.15, z], [F, 1.2 - 0.15, z], [H, 1.2 - 0.15, J], [H, -1.2 + 0.15, J]]);
+        xs(0, P) <= 0.04 || Z.push([Mt([[R(0.72), nt, 0.72], [S(0.72), nt, 0.72], [S(2.88), nt, 2.88], [R(2.88), nt, 2.88]]), 1, Kg]);
+      const F = R(1.2) + 0.05, z = 1.2, H = S(0.72) - 0.05, J = 0.48, X = Mt([[F, -1.2 + 0.15, z], [F, 1.2 - 0.15, z], [H, 1.2 - 0.15, J], [H, -1.2 + 0.15, J]]);
       Z.push([X, 1, "#505050"], cn(X, 0.1));
       for (const nt of [0.3, 0.55, 0.8]) {
         const P = (j) => F + (H - F) * j, $ = (j) => z + (J - z) * j + 0.024;
-        Z.push([St([
+        Z.push([Mt([
           [P(nt + 0.1), 0, $(nt + 0.1)],
           // 정가운데(재지적)
           [P(nt - 0.07), 0.52, $(nt - 0.07)],
@@ -17750,7 +17750,7 @@ const Cn = {
         2.6
       )), m) {
         const nt = [], P = (j, Q, It, st) => {
-          const Ct = St([
+          const Ct = Mt([
             [S(It), j(It), It],
             [S(It), Q(It), It],
             [S(st), Q(st), st],
@@ -17767,7 +17767,7 @@ const Cn = {
         o.push(...W(nt, 2.5));
       } else {
         const nt = [], P = tn(1, 0, 0.3), $ = (Q, It, st, Ct) => {
-          const ut = St([
+          const ut = Mt([
             [S(st) + 0.01, Q(st), st],
             [S(st) + 0.01, It(st), st],
             [S(Ct) + 0.01, It(Ct), Ct],
@@ -17787,7 +17787,7 @@ const Cn = {
           for (let ut = 0; ut + 1 < Ct.length; ut += 1) {
             const Ot = Ct[ut], rt = Ct[ut + 1];
             if (rt - Ot < 1e-3) continue;
-            const lt = St([
+            const lt = Mt([
               [S(Ot) - 1.55 - 0.6, Q * (M(Ot) + 0.01), Ot],
               [S(Ot) + 0.01, Q * (M(Ot) + 0.01), Ot],
               [S(rt) + 0.01, Q * (M(rt) + 0.01), rt],
@@ -17834,12 +17834,12 @@ const Cn = {
         }), t), 3.75));
     }
     {
-      const R = -1.6600000000000001, Z = 4.784 + (5.984 - 4.784) * 0.4, F = St([
+      const R = -1.6600000000000001, Z = 4.784 + (5.984 - 4.784) * 0.4, F = Mt([
         [-0.9, R, Z],
         [0.9, R, Z],
         [0.9, -2.5, 5.984],
         [-0.9, -2.5, 5.984]
-      ]), z = St([
+      ]), z = Mt([
         [-0.9, -1.1, 4.784],
         [0.9, -1.1, 4.784],
         [0.9, R, Z],
@@ -17848,7 +17848,7 @@ const Cn = {
       o.push(...W([
         [F, 1],
         cn(F, 0.55),
-        ...xs(0, -1) > 0.06 ? [[St([
+        ...xs(0, -1) > 0.06 ? [[Mt([
           [-0.9, -2.5, 4.784],
           [0.9, -2.5, 4.784],
           [0.9, -2.5, 5.984],
@@ -17860,7 +17860,7 @@ const Cn = {
         ...[-1, 1].flatMap((H) => {
           const J = H > 0 ? 0.9 : -0.9;
           if (xs(H, 0) <= 0.06) return [];
-          const X = St([[J, -1.1, 4.784], [J, -2.5, 4.784], [J, -2.5, 5.984]]);
+          const X = Mt([[J, -1.1, 4.784], [J, -2.5, 4.784], [J, -2.5, 5.984]]);
           return [[X, 1], On(X, 0.35)];
         })
       ], 3.63));
@@ -17933,7 +17933,7 @@ const Cn = {
       const E = [];
       for (const [N, R] of B) {
         const Z = K(T, N, R);
-        Z.length >= 3 && E.push(St(Z.map(([F, z]) => [F, O(F) + x, z])));
+        Z.length >= 3 && E.push(Mt(Z.map(([F, z]) => [F, O(F) + x, z])));
       }
       return E;
     };
@@ -17968,7 +17968,7 @@ const Cn = {
           d * Ct + z * ut * Q,
           i + C * j
         ];
-      }, X = (j, Q, It, st) => fs(St([J(j, It, 0), J(j, st, 0), J(Q, st, 0), J(Q, It, 0)])), nt = [
+      }, X = (j, Q, It, st) => fs(Mt([J(j, It, 0), J(j, st, 0), J(Q, st, 0), J(Q, It, 0)])), nt = [
         X(R, 1, -1, 1),
         // 인방(위)
         X(0, N, -1, 1)
@@ -17979,7 +17979,7 @@ const Cn = {
         nt.push(X(N, 0.5, Q, It), X(0.5, R, Q, It));
       }
       t.push(...W(it(nt, "#626875"), 4.05));
-      const P = [], $ = (...j) => St(j);
+      const P = [], $ = (...j) => Mt(j);
       for (const j of [-Z, Z])
         for (const [Q, It] of [[N, 0.5], [0.5, R]])
           P.push(...it([fs($(
@@ -18030,7 +18030,7 @@ const Cn = {
           return (5.15 + (4.75 - 5.15) * (1 - Q)) * Math.cos(Math.PI / 8) + 0.03;
         }, F = ($, j, Q) => {
           const It = Z(j), st = Z(Q);
-          return St([
+          return Mt([
             [x * It - N * $, E * It - R * $, j],
             [x * It + N * $, E * It + R * $, j],
             [x * st + N * $, E * st + R * $, Q],
@@ -18124,22 +18124,22 @@ const Cn = {
     for (const m of [0, 90, 180, 270]) {
       const p = m * Math.PI / 180, D = Math.sin(p), b = Math.cos(p), M = Math.cos(p), S = -Math.sin(p), y = (T, x, E) => [D * T + M * x, b * T + S * x, E], O = n, K = [];
       for (let T = 0; T < C; T += 1) {
-        const x = O + (c - O) * T / C, E = O + (c - O) * (T + 1) / C, N = e * (C - T) / C, R = e * (C - T - 1) / C, Z = St([
+        const x = O + (c - O) * T / C, E = O + (c - O) * (T + 1) / C, N = e * (C - T) / C, R = e * (C - T - 1) / C, Z = Mt([
           y(x, r, N),
           y(x, -r, N),
           y(E, -r, N),
           y(E, r, N)
-        ]), F = St([
+        ]), F = Mt([
           y(E, r, N),
           y(E, -r, N),
           y(E, -r, R),
           y(E, r, R)
-        ]), z = St([
+        ]), z = Mt([
           y(x, r, N),
           y(E, r, N),
           y(E, r, 0),
           y(x, r, 0)
-        ]), H = St([
+        ]), H = Mt([
           y(x, -r, N),
           y(E, -r, N),
           y(E, -r, 0),
@@ -18150,7 +18150,7 @@ const Cn = {
       s.push(...W(K, ct(D * ((O + c) / 2), b * ((O + c) / 2)) * 1.6));
       const B = g / Math.hypot(g, o - n), G = (o - n) / Math.hypot(g, o - n), L = tn(D * B, b * B, G);
       if (L.visible) {
-        const T = St([
+        const T = Mt([
           y(o, o, 0),
           y(o, -o, 0),
           y(n, -n, e),
@@ -18159,7 +18159,7 @@ const Cn = {
         for (const Z of [-1, 1])
           for (const F of [0.7, 0.88]) {
             const z = Z * F;
-            x.push([St([
+            x.push([Mt([
               y(a(E), (z - Z * R) * a(E), E),
               y(a(E), (z + Z * R) * a(E), E),
               y(a(N), (z + Z * R) * a(N), N),
@@ -18172,7 +18172,7 @@ const Cn = {
         ));
       }
     }
-    const w = St([
+    const w = Mt([
       [n, n, e],
       [n, -n, e],
       [-n, -n, e],
@@ -18184,7 +18184,7 @@ const Cn = {
       for (let M = 0; M < 8; M += 1) {
         const S = M * 45 * Math.PI / 180, y = Math.sin(S), O = Math.cos(S);
         if (xs(y, O) <= 0.1) continue;
-        const K = Math.cos(S), B = -Math.sin(S), G = u(m) + 0.04, L = u(p) + 0.04, T = St([
+        const K = Math.cos(S), B = -Math.sin(S), G = u(m) + 0.04, L = u(p) + 0.04, T = Mt([
           [y * G - K * D, O * G - B * D, m],
           [y * G + K * D, O * G + B * D, m],
           [y * L + K * D, O * L + B * D, p],
@@ -18197,7 +18197,7 @@ const Cn = {
     const f = [];
     for (let m = 0; m < 8; m += 1) {
       const p = (m * 45 + 14.5) * Math.PI / 180, D = (m * 45 + 30.5) * Math.PI / 180, b = 1, M = 1.95, S = (y) => e + (d(y) - g) * 0.6864;
-      f.push([St([
+      f.push([Mt([
         [Math.sin(p) * b, Math.cos(p) * b, S(b)],
         [Math.sin(D) * b, Math.cos(D) * b, S(b)],
         [Math.sin(D) * M, Math.cos(D) * M, S(M)],
@@ -18236,11 +18236,11 @@ const Cn = {
           Q * Ct + It * ut < 0 && (Q = -Q, It = -It, st = -st);
           const Ot = Math.hypot(Q, It, st) || 1, rt = tn(Q / Ot, It / Ot, st / Ot);
           if (!rt.visible) continue;
-          const lt = St([Z[z], Z[H], F[H], F[z]]);
+          const lt = Mt([Z[z], Z[H], F[H], F[z]]);
           x.push([lt, 1], ...rt.face(lt));
         }
       }
-      const N = St(T[6]);
+      const N = Mt(T[6]);
       return x.push([N, 1], cn(N, 0.18)), x;
     }, g = 5.12 * 1.2, e = 1.6, i = 0.2, r = 0.1, c = 3.5, C = 0.3, I = (D) => r * D ** c - C * 4 * D * (1 - D), A = 1.15, l = (D, b) => Pi(0.44, () => H0([
       // 받침 원반도 제 깊이(지적: 기둥 바닥의 원들이 안 가려짐).
@@ -18340,7 +18340,7 @@ const Cn = {
           lt * xt + Kt * q + kt * Bt < 0 && (lt = -lt, Kt = -Kt, kt = -kt);
           const ft = Math.hypot(lt, Kt, kt) || 1, dt = tn(lt / ft, Kt / ft, kt / ft);
           if (!dt.visible) return [];
-          const ht = St(Q ? [P, $, j, Q] : [P, $, j]);
+          const ht = Mt(Q ? [P, $, j, Q] : [P, $, j]);
           return [[ht, 1, X], ...dt.face(ht)];
         };
         return W([
@@ -18360,7 +18360,7 @@ const Cn = {
       p.push(...it(Ne(0, 0, w, w, f, f, 5.12), a)), Pi(0, () => p.push(...it(Ne(0, 0, w + 0.8, w + 0.8, w + 0.2, w + 0.2, 0.44), u)));
       const D = (b) => w / 2 - (w / 2 - f / 2) * (b / 5.12);
       for (const b of [1.12, 2.4, 3.68]) {
-        const M = D(b) - 0.35, S = D(b + 0.48) - 0.35, y = St([
+        const M = D(b) - 0.35, S = D(b + 0.48) - 0.35, y = Mt([
           [-M, D(b), b],
           [M, D(b), b],
           [S, D(b + 0.48), b + 0.48],
@@ -18369,7 +18369,7 @@ const Cn = {
         p.push([y, 1, u]), p.push(cn(y, 0.2));
       }
       if (xs(0, 1) > 0.02) {
-        const { face: b } = tn(0, 1, 0.44), M = (K, B, G, L) => St([
+        const { face: b } = tn(0, 1, 0.44), M = (K, B, G, L) => Mt([
           [-K, D(G) + 0.25, G],
           [K, D(G) + 0.25, G],
           [B, D(L) + 0.25, L],
@@ -18403,13 +18403,13 @@ const Cn = {
               const $ = P / R * T, j = (P + 1) / R * T;
               for (const Q of [-N / 2, N / 2])
                 nt(
-                  St([H($, Q), H(j, Q), J(j, Q), J($, Q)]),
+                  Mt([H($, Q), H(j, Q), J(j, Q), J($, Q)]),
                   Q < 0 ? -1 : 1,
                   0,
                   0
                 );
               nt(
-                St([J($, -N / 2), J($, N / 2), J(j, N / 2), J(j, -N / 2)]),
+                Mt([J($, -N / 2), J($, N / 2), J(j, N / 2), J(j, -N / 2)]),
                 0,
                 G,
                 L
@@ -18451,13 +18451,13 @@ const Cn = {
         for (const x of [0, 90, 180, 270]) {
           const E = x * Math.PI / 180, N = Math.sin(E), R = Math.cos(E), Z = Math.cos(E), F = -Math.sin(E), z = (j, Q, It) => [N * j + Z * Q, R * j + F * Q, It], H = [z(O, -G, 0), z(S, 0, 0), z(O, G, 0)], J = [z(K(M), -B(K(M)), M), z(S, 0, M), z(K(M), B(K(M)), M)], X = (H[0][0] + H[1][0] + H[2][0]) / 3, nt = (H[0][1] + H[1][1] + H[2][1]) / 3, P = [];
           for (let j = 0; j < 3; j += 1) {
-            const Q = (j + 1) % 3, It = St([H[j], H[Q], J[Q], J[j]]), st = J[Q][0] - J[j][0], Ct = J[Q][1] - J[j][1], ut = (J[j][0] + J[Q][0]) / 2 - X, Ot = (J[j][1] + J[Q][1]) / 2 - nt;
+            const Q = (j + 1) % 3, It = Mt([H[j], H[Q], J[Q], J[j]]), st = J[Q][0] - J[j][0], Ct = J[Q][1] - J[j][1], ut = (J[j][0] + J[Q][0]) / 2 - X, Ot = (J[j][1] + J[Q][1]) / 2 - nt;
             let rt = Ct, lt = -st;
             rt * ut + lt * Ot < 0 && (rt = -rt, lt = -lt);
             const Kt = Math.hypot(rt, lt) || 1, kt = tn(rt / Kt, lt / Kt, 0.2);
             kt.visible && P.push([It, 1, u], ...kt.face(It));
           }
-          const $ = St(J);
+          const $ = Mt(J);
           P.push([$, 1, u], cn($, 0.18)), p.push(...W(P, Math.min(ct(X, nt), ct(N * 7.8 * 1.2375, R * 7.8 * 1.2375)) - 0.2));
         }
         const L = "#ebb64f", T = 1.25;
@@ -18465,7 +18465,7 @@ const Cn = {
           const E = x * Math.PI / 180, N = Math.sin(E), R = Math.cos(E), Z = Math.cos(E), F = -Math.sin(E), z = ($, j, Q) => [N * $ + Z * j, R * $ + F * j, Q], H = z(S, 0, M), J = z((8.9 - T * 1.7) * 1.2375, -0.5 * T * 1.2375, M), X = z((8.9 - T * 1.7) * 1.2375, 0.5 * T * 1.2375, M), nt = z((8.9 - T * 1.2) * 1.2375, 0, M + 1.48 * T * 1.2375), P = ($, j, Q) => {
             const It = j[0] - $[0], st = j[1] - $[1], Ct = j[2] - $[2], ut = Q[0] - $[0], Ot = Q[1] - $[1], rt = Q[2] - $[2], lt = st * rt - Ct * Ot, Kt = Ct * ut - It * rt, kt = It * Ot - st * ut, xt = Math.hypot(lt, Kt, kt) || 1, q = tn(lt / xt, Kt / xt, kt / xt);
             if (!q.visible) return [];
-            const Bt = St([$, j, Q]);
+            const Bt = Mt([$, j, Q]);
             return [[Bt, 1, L], ...q.face(Bt)];
           };
           p.push(...W([
@@ -18483,7 +18483,7 @@ const Cn = {
         const { face: S } = tn(b, M, 0.44), y = 0.6, O = 1.92, K = D(y) + 0.25, B = D(O) + 0.25, G = B / K, L = [];
         for (let F = 0; F < 4; F += 1) {
           if (M === 1) continue;
-          const z = -1.65 + F * 1.1, H = 0.34, J = (nt, P, $) => [b * nt - M * P, M * nt + b * P, $], X = St([
+          const z = -1.65 + F * 1.1, H = 0.34, J = (nt, P, $) => [b * nt - M * P, M * nt + b * P, $], X = Mt([
             J(K, z - H, y),
             J(K, z + H, y),
             J(B, (z + H) * G, O),
@@ -18494,7 +18494,7 @@ const Cn = {
         p.push(...W(L, 8 + ct(b * 3.4, M * 3.4) * 0.6));
         const T = 2.8, x = 3.68, E = D(T) + 0.25, N = D(x) + 0.25, R = N / E, Z = [];
         for (let F = 0; F < 4; F += 1) {
-          const z = -1.05 + F * 0.7, H = 0.2, J = (nt, P, $) => [b * nt - M * P, M * nt + b * P, $], X = St([
+          const z = -1.05 + F * 0.7, H = 0.2, J = (nt, P, $) => [b * nt - M * P, M * nt + b * P, $], X = Mt([
             J(E, z - H, T),
             J(E, z + H, T),
             J(N, (z + H) * R, x),
@@ -18516,10 +18516,10 @@ const Cn = {
           const L = l + G / 6 * Math.PI * 2, T = c + Math.cos(L) * I, x = C + Math.sin(L) * I, E = ((T - c) * u + (x - C) * d) / I;
           return [T, x, (0.92 + a) / 2 - E * ((1.15 - a) / 2) + K];
         }
-      ), f = w(-0.256), m = w(0), p = [fs(St(f))], D = f.map((K, B) => {
+      ), f = w(-0.256), m = w(0), p = [fs(Mt(f))], D = f.map((K, B) => {
         const G = (B + 1) % 6, L = (f[B][0] + f[G][0]) / 2 - c, T = (f[B][1] + f[G][1]) / 2 - C, x = Math.hypot(L, T) || 1;
         return {
-          d: St([f[B], f[G], m[G], m[B]]),
+          d: Mt([f[B], f[G], m[G], m[B]]),
           nx: L / x,
           ny: T / x,
           f: xs(L / x, T / x)
@@ -18529,7 +18529,7 @@ const Cn = {
         const B = tn(K.nx, K.ny, 0.3);
         p.push(fs(K.d), ...B.visible ? B.face(K.d) : [On(K.d, 0.46)]);
       }
-      p.push(fs(St(m)), cn(St(m), 0.2));
+      p.push(fs(Mt(m)), cn(Mt(m), 0.2));
       const b = (K, B) => {
         const G = ((K - c) * u + (B - C) * d) / I;
         return (0.92 + a) / 2 - G * ((0.92 - a) / 2);
@@ -18542,7 +18542,7 @@ const Cn = {
       ), S = M(I * 0.52, 0), y = M(I * 0.52, 0.128), O = S.map((K, B) => {
         const G = (B + 1) % 6, L = (S[B][0] + S[G][0]) / 2 - c, T = (S[B][1] + S[G][1]) / 2 - C, x = Math.hypot(L, T) || 1;
         return {
-          d: St([S[B], S[G], y[G], y[B]]),
+          d: Mt([S[B], S[G], y[G], y[B]]),
           nx: L / x,
           ny: T / x,
           f: xs(L / x, T / x)
@@ -18552,7 +18552,7 @@ const Cn = {
         const B = tn(K.nx, K.ny, 0.3);
         p.push(fs(K.d), ...B.visible ? B.face(K.d) : [On(K.d, 0.46)]);
       }
-      p.push(fs(St(y)), cn(St(y), 0.2));
+      p.push(fs(Mt(y)), cn(Mt(y), 0.2));
       for (const [K, B] of [
         [m[3][0] * 0.86 + c * 0.14, m[3][1] * 0.86 + C * 0.14],
         [m[4][0] * 0.86 + c * 0.14, m[4][1] * 0.86 + C * 0.14],
@@ -18641,7 +18641,7 @@ const Cn = {
       }), u = [], d = [];
       for (let w = 0; w < 6; w += 1) {
         const f = a[w], m = a[(w + 1) % 6], p = (f[0] + m[0]) / 2, D = (f[1] + m[1]) / 2 - 0.1, b = Math.hypot(p, D) || 1, M = p / b, S = D / b;
-        d.push({ d: St([f, m, [0, 0.1, 2.64 + 1.24]]), f: xs(M, S), nx: M, ny: S, up: !0 }), d.push({ d: St([f, m, [0, 0.1, 2.64 - 0.76]]), f: xs(M, S), nx: M, ny: S, up: !1 });
+        d.push({ d: Mt([f, m, [0, 0.1, 2.64 + 1.24]]), f: xs(M, S), nx: M, ny: S, up: !0 }), d.push({ d: Mt([f, m, [0, 0.1, 2.64 - 0.76]]), f: xs(M, S), nx: M, ny: S, up: !1 });
       }
       d.sort((w, f) => w.f - f.f);
       for (const w of d)
@@ -18678,7 +18678,7 @@ const Cn = {
         [C + l * (w + 0.02) + a * d, I + a * (w + 0.02) - l * d, p - 0.272],
         [C + l * (w + 0.02) - a * d, I + a * (w + 0.02) + l * d, p - 0.272]
       ];
-      r.push(...W([fs(St(m)), fs(St(D))], ct(C, I) * 1.6 + 0.3));
+      r.push(...W([fs(Mt(m)), fs(Mt(D))], ct(C, I) * 1.6 + 0.3));
     }
     return r;
   },
@@ -18717,7 +18717,7 @@ const Cn = {
           z === 0 && Math.abs(H) === D && x.push([z, H]);
         }
         return x;
-      }, S = M(M(b)), y = xs(i, 0), O = r > 0.5 ? !1 : r < -0.5 ? !0 : y < -0.1, K = (T) => [[-0.7 * d, 0.78 * d], [0, 1.35 * d], [0.7 * d, 0.78 * d]].map(([x, E]) => fs(St([
+      }, S = M(M(b)), y = xs(i, 0), O = r > 0.5 ? !1 : r < -0.5 ? !0 : y < -0.1, K = (T) => [[-0.7 * d, 0.78 * d], [0, 1.35 * d], [0.7 * d, 0.78 * d]].map(([x, E]) => fs(Mt([
         u(-E, x - 0.08, T),
         u(E, x - 0.08, T),
         u(E, x + 0.08, T),
@@ -18726,12 +18726,12 @@ const Cn = {
       for (let T = 0; T < S.length; T += 1) {
         const [x, E] = S[T], [N, R] = S[(T + 1) % S.length];
         B.push([
-          St([u(x, E, l), u(N, R, l), u(N, R, A), u(x, E, A)]),
+          Mt([u(x, E, l), u(N, R, l), u(N, R, A), u(x, E, A)]),
           1,
           "#9a7d1f"
         ]);
       }
-      const G = St(S.map(([T, x]) => u(T, x, l))), L = St(S.map(([T, x]) => u(T, x, A)));
+      const G = Mt(S.map(([T, x]) => u(T, x, l))), L = Mt(S.map(([T, x]) => u(T, x, A)));
       if (O ? B.push([L, 1, n], [G, 1, "#b8921f"]) : B.push(
         [G, 1, "#b8921f"],
         [L, 1, n],
@@ -18772,11 +18772,11 @@ const Cn = {
         t.push(...W(K(l - 0.02), E));
         const R = [];
         for (let Z = 0; Z < 4; Z += 1) {
-          const F = -1.14 + Z * 0.76, z = St([[-0.24, -0.24], [0.24, -0.24], [0.24, 0.24], [-0.24, 0.24]].map(([H, J]) => u(H, F + J, l - 0.03)));
+          const F = -1.14 + Z * 0.76, z = Mt([[-0.24, -0.24], [0.24, -0.24], [0.24, 0.24], [-0.24, 0.24]].map(([H, J]) => u(H, F + J, l - 0.03)));
           R.push([z, 1, ge("#60f2df", "#22776b")], cn(z, 0.35));
         }
         for (let Z = 0; Z < 3; Z += 1) {
-          const F = -0.76 + Z * 0.76, z = St([[-0.5, -0.06], [-0.5, 0.06], [0.5, 0.14], [0.5, 0.02]].map(([H, J]) => u(H, F + J, l - 0.03)));
+          const F = -0.76 + Z * 0.76, z = Mt([[-0.5, -0.06], [-0.5, 0.06], [0.5, 0.14], [0.5, 0.02]].map(([H, J]) => u(H, F + J, l - 0.03)));
           R.push([z, 1, "#7a5f15"]);
         }
         t.push(...W(R, N));
@@ -18797,7 +18797,7 @@ const Cn = {
       for (let H = 0; H < l; H += 1) {
         const J = H / l * Math.PI * 2, X = (H + 1) / l * Math.PI * 2, nt = (J + X) / 2, P = Math.sin(nt), $ = Math.cos(nt);
         if ($ < 0 !== x) continue;
-        const j = (st, Ct) => [Math.sin(st) * E, Math.cos(st) * E, N + Ct], Q = St([j(J, -R), j(X, -R), j(X, R), j(J, R)]), It = tn(P * F, $ * F, 0);
+        const j = (st, Ct) => [Math.sin(st) * E, Math.cos(st) * E, N + Ct], Q = Mt([j(J, -R), j(X, -R), j(X, R), j(J, R)]), It = tn(P * F, $ * F, 0);
         z.push(
           Z ? [Q, 1, Z] : fs(Q),
           ...It.visible ? It.face(Q) : [On(Q, 0.3)]
@@ -18809,7 +18809,7 @@ const Cn = {
       for (let H = 0; H < l; H += 1) {
         const J = H / l * Math.PI * 2, X = (H + 1) / l * Math.PI * 2, nt = (J + X) / 2;
         if (Math.cos(nt) < 0 !== x) continue;
-        const P = (Q, It) => [Math.sin(Q) * It, Math.cos(Q) * It, E], $ = N > 0 ? St([P(J, R), P(J, Z), P(X, Z), P(X, R)]) : St([P(X, R), P(X, Z), P(J, Z), P(J, R)]), j = tn(0, 0, N);
+        const P = (Q, It) => [Math.sin(Q) * It, Math.cos(Q) * It, E], $ = N > 0 ? Mt([P(J, R), P(J, Z), P(X, Z), P(X, R)]) : Mt([P(X, R), P(X, Z), P(J, Z), P(J, R)]), j = tn(0, 0, N);
         z.push(
           F ? [$, 1, F] : fs($),
           ...j.visible ? j.face($) : [On($, 0.3)]
@@ -18841,7 +18841,7 @@ const Cn = {
       for (let j = 0; j < 4; j += 1) {
         const Q = P[j], It = P[(j + 1) % 4];
         for (const [st, Ct] of [[X, 1], [nt, -1]]) {
-          const ut = Ct > 0 ? St([st, Q, It]) : St([st, It, Q]), Ot = N * (Ct > 0 ? 0.72 : 0.3) + Z * (Q[0] + It[0] - 2 * z) * 0.4, rt = R * (Ct > 0 ? 0.72 : 0.3) + F * (Q[1] + It[1] - 2 * H) * 0.4, lt = (Q[2] + It[2] - 2 * n) * 0.9, Kt = tn(Ot, rt, lt);
+          const ut = Ct > 0 ? Mt([st, Q, It]) : Mt([st, It, Q]), Ot = N * (Ct > 0 ? 0.72 : 0.3) + Z * (Q[0] + It[0] - 2 * z) * 0.4, rt = R * (Ct > 0 ? 0.72 : 0.3) + F * (Q[1] + It[1] - 2 * H) * 0.4, lt = (Q[2] + It[2] - 2 * n) * 0.9, Kt = tn(Ot, rt, lt);
           $.push([ut, 1, p], ...Kt.visible ? Kt.face(ut) : [On(ut, 0.34)]);
         }
       }
@@ -18860,12 +18860,12 @@ const Cn = {
       F /= H, z /= H;
       const J = tn(F, z, 0.55);
       if (J.visible) {
-        const nt = St([[0, 0, B], [E, N, K], [R, Z, K]]);
+        const nt = Mt([[0, 0, B], [E, N, K], [R, Z, K]]);
         t.push([nt, 0.6, "#b6faf1"], ...J.face(nt));
       }
       const X = tn(F, z, -0.55);
       if (X.visible) {
-        const nt = St([[0, 0, O], [R, Z, K], [E, N, K]]);
+        const nt = Mt([[0, 0, O], [R, Z, K], [E, N, K]]);
         t.push([nt, 0.6, "#b6faf1"], ...X.face(nt));
       }
     }
@@ -18888,12 +18888,12 @@ const Cn = {
       for (let O = 0; O < 16; O += 1) {
         const K = (O + 0.5) / 16 * Math.PI * 2, B = Math.cos(K), G = Math.sin(K), L = tn(B, G, 0.35);
         if (!L.visible) continue;
-        const T = St([l[O], l[O + 1], d[O + 1], d[O]]);
+        const T = Mt([l[O], l[O + 1], d[O + 1], d[O]]);
         w.push(fs(T), ...L.face(T));
-        const x = St([d[O], d[O + 1], a[O + 1], a[O]]);
+        const x = Mt([d[O], d[O + 1], a[O + 1], a[O]]);
         f.push(fs(x), ...L.face(x));
       }
-      t.push(...W([fs(St(l)), ...w], ct(0, 0) + 2.7)), s.push(...W(f, ct(0, 0) + 2.72));
+      t.push(...W([fs(Mt(l)), ...w], ct(0, 0) + 2.7)), s.push(...W(f, ct(0, 0) + 2.72));
       const m = [];
       {
         const O = (G) => Array.from({ length: 17 }, (L, T) => {
@@ -18904,7 +18904,7 @@ const Cn = {
         for (const G of K) {
           const L = G > 0 ? O(G) : null;
           for (let T = 0; T < 16; T += 1) {
-            const x = (T + 0.5) / 16 * Math.PI * 2, E = St(L ? [B[T], B[T + 1], L[T + 1], L[T]] : [B[T], B[T + 1], [0, 0, A(0, 0)]]), N = Math.sin(x) < 0;
+            const x = (T + 0.5) / 16 * Math.PI * 2, E = Mt(L ? [B[T], B[T + 1], L[T + 1], L[T]] : [B[T], B[T + 1], [0, 0, A(0, 0)]]), N = Math.sin(x) < 0;
             m.push(fs(E), N ? cn(E, 0.16 * -Math.sin(x)) : On(E, 0.14 * Math.sin(x)));
           }
           if (!L) break;
@@ -18923,7 +18923,7 @@ const Cn = {
               return [F, z, A(F, z) + 0.08];
             };
             for (let R = 0; R < 10; R += 1) {
-              const Z = -E + 2 * E * R / 10, F = -E + 2 * E * (R + 1) / 10, z = St([N(Z, -0.12), N(Z, 0.12), N(F, 0.12), N(F, -0.12)]);
+              const Z = -E + 2 * E * R / 10, F = -E + 2 * E * (R + 1) / 10, z = Mt([N(Z, -0.12), N(Z, 0.12), N(F, 0.12), N(F, -0.12)]);
               L.push(fs(z), cn(z, 0.12));
             }
           }
@@ -18934,7 +18934,7 @@ const Cn = {
         return [T, x, A(T * (4.1 / O), x * (4.1 / O)) * G + B];
       }, b = 1 - (1 - u) * (4.2 - 4.1) / 0.32, M = Array.from({ length: 16 }, (O, K) => D(4.2, K, 0, b)), S = Array.from({ length: 16 }, (O, K) => D(3.5, K, 0.08)), y = [];
       for (let O = 0; O < 16; O += 1) {
-        const K = (O + 1) % 16, B = St([M[O], M[K], S[K], S[O]]);
+        const K = (O + 1) % 16, B = Mt([M[O], M[K], S[K], S[O]]);
         y.push(fs(B), cn(B, 0.12));
       }
       t.push(...W(y, ct(0, 0) + 2.76));
@@ -18946,7 +18946,7 @@ const Cn = {
             X + (nt - X) * E + G * N,
             P + ($ - P) * E
           ];
-        }, T = (x, E, N, R, Z) => St([L(x, N, Z), L(E, N, Z), L(E, R, Z), L(x, R, Z)]);
+        }, T = (x, E, N, R, Z) => Mt([L(x, N, Z), L(E, N, Z), L(E, R, Z), L(x, R, Z)]);
         t.push(...W([
           [T(0.14, 0.86, 0.16, 0.9, 0.03), 1, "#2b3026"],
           [T(0.24, 0.76, 0.28, 0.82, 0.06), 1, ge("#8ff7ea", "#5aecd8")],
@@ -18973,10 +18973,10 @@ const Cn = {
         for (let N = 0; N < K.length; N += 1) {
           const R = (N + 1) % K.length, Z = K[R][0] - K[N][0], F = K[R][1] - K[N][1], z = Math.hypot(Z, F) || 1, H = tn(F / z, -Z / z, 0.35);
           if (!H.visible) continue;
-          const J = St([L[N], L[R], T[R], T[N]]);
+          const J = Mt([L[N], L[R], T[R], T[N]]);
           x.push(fs(J), ...H.face(J));
         }
-        const E = St(T);
+        const E = Mt(T);
         x.push(fs(E), cn(E, 0.14)), t.push(...W(x, ct(0, 0) + 2.8));
       }
       for (const O of [45, 135, 225, 315]) {
@@ -19100,7 +19100,7 @@ const Cn = {
           3.19 + (c - 3.19) * L
         ], G = (L, T, x, E, N) => {
           const R = Math.min(x, E), Z = Math.max(x, E);
-          return St([
+          return Mt([
             B(T, R, N),
             B(T, Z, N),
             B(L, Z, N),
@@ -19160,12 +19160,12 @@ const Cn = {
         if (xs(d, w) < 0.05) continue;
         const f = (m, p) => i(d, w, m, p, 0.04);
         c.push(...W([
-          [St([f(0, C), f(1, C), f(1, I), f(0, I)]), 1, "#d9ae35"]
+          [Mt([f(0, C), f(1, C), f(1, I), f(0, I)]), 1, "#d9ae35"]
         ], r));
         for (let m = 0.02; m < 0.93; m += 0.185) {
           const p = Math.min(1, m + 0.09);
           c.push(...W([
-            [St([
+            [Mt([
               f(m, C),
               f(p, C),
               f(Math.min(1, p + 0.055), I),
@@ -19175,7 +19175,7 @@ const Cn = {
         }
         for (const [m, p] of [[C - A - 0.016, C - 0.016], [I + 0.016, I + A + 0.016]])
           c.push(...W([
-            [St([f(0, m), f(1, m), f(1, p), f(0, p)]), 1, "#dfe5ec"]
+            [Mt([f(0, m), f(1, m), f(1, p), f(0, p)]), 1, "#dfe5ec"]
           ], r));
       }
       const l = 3.64 + 0.28, a = 1.5, u = qn(0, 0.4, l + 0.4);
@@ -19316,28 +19316,28 @@ const Cn = {
         const y = M * Jn, O = 0.95 + b * 0.96 - y * 0.27, K = Jn * 6.9 + b * 0.27 + y * 0.96 - e;
         return [t + S * r - K * c, O, e + S * c + K * r];
       };
-      t > 0 && Ye(...C(2.8, 4.4 / 2, 0)), St([
+      t > 0 && Ye(...C(2.8, 4.4 / 2, 0)), Mt([
         C(2.8, 0, -0.75),
         C(2.8, 0, 0.75),
         C(2.8, 4.4, 0.75),
         C(2.8, 4.4, -0.75)
       ]);
-      const I = St([
+      const I = Mt([
         C(-2.8, 0, -0.75),
         C(-2.8, 0, 0.75),
         C(-2.8, 4.4, 0.75),
         C(-2.8, 4.4, -0.75)
-      ]), A = (b) => St([
+      ]), A = (b) => Mt([
         C(2.8, 0, b * 0.75),
         C(2.8, 4.4, b * 0.75),
         C(-2.8, 4.4, b * 0.75),
         C(-2.8, 0, b * 0.75)
-      ]), l = St([
+      ]), l = Mt([
         C(2.8, 4.4, -0.75),
         C(2.8, 4.4, 0.75),
         C(-2.8, 4.4, 0.75),
         C(-2.8, 4.4, -0.75)
-      ]), a = 2.8, u = 2.8 - 0.62, d = (b, M) => tn(b[0], b[1], b[2]).visible ? [fs(St(M))] : [], w = () => [
+      ]), a = 2.8, u = 2.8 - 0.62, d = (b, M) => tn(b[0], b[1], b[2]).visible ? [fs(Mt(M))] : [], w = () => [
         // 윗면 — 기운 판이라 법선은 (0, −sn, c)다.
         ...d([0, -0.27, 0.96], [
           C(a, 4.4 + 0.02, -0.75),
@@ -19368,7 +19368,7 @@ const Cn = {
           [[-0.75, 0], [-0.75, 4.4], [-0.52, K], [-0.52, 0.55]],
           [[0.75, 0], [0.75, 4.4], [0.52, K], [0.52, 0.55]]
         ]) {
-          const N = St(E.map(([R, Z]) => C(2.8, Z, R)));
+          const N = Mt(E.map(([R, Z]) => C(2.8, Z, R)));
           m.push(fs(N), ...p.face(N));
         }
         for (const [E, N] of [
@@ -19377,11 +19377,11 @@ const Cn = {
           [[[-0.52, 0.55], [-0.52, K]], [[-B, L], [-B, G]]],
           [[[0.52, 0.55], [0.52, K]], [[B, L], [B, G]]]
         ])
-          f.push([St([
+          f.push([Mt([
             ...E.map(([R, Z]) => C(2.8, Z, R)),
             ...N.map(([R, Z]) => C(2.8 - T, Z, R))
           ]), 1, Kg]);
-        f.push([St([
+        f.push([Mt([
           C(2.8 - T, G, -B),
           C(2.8 - T, G, B),
           C(2.8 - T, L, B),
@@ -19477,10 +19477,10 @@ const Cn = {
       ], l = A(0), a = A(0).map(([D, b], M) => [D, b, M < 2 ? 1.632 : 1.16]), u = 0.644 * I, d = [
         [c + g * 0.18 * I - i * u, C + e * 0.18 * I - r * u, 1.536],
         [c + g * 0.18 * I + i * u, C + e * 0.18 * I + r * u, 1.536]
-      ], w = [fs(St(l))], f = l.map((D, b) => {
+      ], w = [fs(Mt(l))], f = l.map((D, b) => {
         const M = (b + 1) % 4, S = (l[b][0] + l[M][0]) / 2 - c, y = (l[b][1] + l[M][1]) / 2 - C, O = Math.hypot(S, y) || 1;
         return {
-          d: St([l[b], l[M], a[M], a[b]]),
+          d: Mt([l[b], l[M], a[M], a[b]]),
           nx: S / O,
           ny: y / O,
           f: xs(S / O, y / O)
@@ -19491,7 +19491,7 @@ const Cn = {
         w.push(fs(D.d), ...b.visible ? b.face(D.d) : [On(D.d, 0.46)]);
       }
       t.push(...W(w, ct(c, C) * 1.6));
-      const m = St([a[0], a[1], d[1], d[0]]), p = St([d[0], d[1], a[2], a[3]]);
+      const m = Mt([a[0], a[1], d[1], d[0]]), p = Mt([d[0], d[1], a[2], a[3]]);
       s.push(...W([fs(m), fs(p)], ct(c, C) * 1.6 + 0.4));
     }
     t.push(...Qo(OI, () => W((() => {
@@ -19508,7 +19508,7 @@ const Cn = {
           const M = f(b);
           if (!M) continue;
           const S = (b + 1) % i;
-          m.push({ d: St([w[b], w[S], d[S], d[b]]), ...M });
+          m.push({ d: Mt([w[b], w[S], d[S], d[b]]), ...M });
         }
         m.sort((b, M) => b.f - M.f);
         const p = [];
@@ -19521,9 +19521,9 @@ const Cn = {
         for (let b = 0; b < i; b += 1) {
           if (!f(b)) continue;
           const M = (b + 1) % i;
-          c.push([St([d[b], d[M], D[M], D[b]]), 1, "#2b2513"]);
+          c.push([Mt([d[b], d[M], D[M], D[b]]), 1, "#2b2513"]);
         }
-        I === 0 && A && (c.push([St(r(a * 0.74, l - 0.04, u)), 0.95, "#72ffec"]), c.push([St(r(a * 0.42, l - 0.072, u)), 1, "#cafff8"]));
+        I === 0 && A && (c.push([Mt(r(a * 0.74, l - 0.04, u)), 0.95, "#72ffec"]), c.push([Mt(r(a * 0.42, l - 0.072, u)), 1, "#cafff8"]));
       };
       for (let I = e.length - 1; I >= 0; I -= 1) C(I, !1);
       for (let I = 0; I < e.length; I += 1) C(I, !0);
@@ -20076,12 +20076,12 @@ const Cn = {
       ));
     }
     {
-      const c = St([
+      const c = Mt([
         [-1.6, 3.02, 3.168],
         [1.6, 3.02, 3.168],
         [1.3, 4.75, 2.376],
         [-1.3, 4.75, 2.376]
-      ]), C = St([
+      ]), C = Mt([
         [-1.3, 4.75, 2.376],
         [1.3, 4.75, 2.376],
         [1.3, 4.75, 1.728],
@@ -20111,7 +20111,7 @@ const Cn = {
       const c = [];
       for (let C = 0; C < 9; C += 1) {
         const I = -4.2 + C * 0.52;
-        c.push([St([
+        c.push([Mt([
           [I, 3.02, 0],
           [I + 0.26, 3.02, 0],
           [I + 0.54, 3.02, 0.576],
@@ -20198,8 +20198,8 @@ const Cn = {
       n.push(...W(Hs, ct(on, hn) * 1.6));
     }
     [[1.1, 0], [0.2, 2], [-0.7, 0], [-1.6, 2]].forEach(([Es, Vs]) => {
-      const xn = I + (Es + 0.2) * r, Hs = (xn - I) / r, on = Math.sqrt(Math.max(0.04, e * e - Hs * Hs)), hn = (Mt) => {
-        const vs = Math.PI * Mt;
+      const xn = I + (Es + 0.2) * r, Hs = (xn - I) / r, on = Math.sqrt(Math.max(0.04, e * e - Hs * Hs)), hn = (St) => {
+        const vs = Math.PI * St;
         return [
           Math.cos(vs) * on * i * 1.03,
           xn,
@@ -20207,7 +20207,7 @@ const Cn = {
           Math.sin(vs) * A * (on / e) * 0.824
         ];
       }, Tn = 8, ms = Vs === 2, Ms = 0.42, $s = 0.06;
-      for (let Mt = 0; Mt < Tn; Mt += 1) {
+      for (let St = 0; St < Tn; St += 1) {
         const vs = Ht({
           x: 0,
           y: 0,
@@ -20221,16 +20221,16 @@ const Cn = {
           sides: ms ? 6 : 5,
           hold: 1,
           caps: "none",
-          path: (ro) => hn((Mt + ro) / Tn),
+          path: (ro) => hn((St + ro) / Tn),
           /* ★ 가운데 두 줄은 **보석색**이다(2026-09, 요청: "임자색 데칼부분을 보석색으로 변경") —
              앞 렌즈와 **같은 두 단**(쉬는 아쿠아 · 캤 때 네온)이라 한 재질로 읽힌다. */
           fill: ms ? ge("#a3fff3", "#5fe6d4") : s
-        }), [Js, zs, Rn] = hn((Mt + 0.5) / Tn);
+        }), [Js, zs, Rn] = hn((St + 0.5) / Tn);
         n.push(...W(vs, ct(Js, zs) * 1.6 + Rn * 2.2));
       }
       if (!Vs)
-        for (const Mt of [0.34, 0.5, 0.66]) {
-          const [vs, Js, zs] = hn(Mt);
+        for (const St of [0.34, 0.5, 0.66]) {
+          const [vs, Js, zs] = hn(St);
           n.push(...W(
             // 눈금도 녹색기를 뺀다(요청) — 청록(#31c0ad) → 사이언.
             it(Qs(vs, Js, 0.24, 0.128, zs), o),
@@ -20273,13 +20273,13 @@ const Cn = {
         const on = Math.PI * (Hs / 16);
         xn.push(ks(Math.cos(on) * kt * xt, 0, Math.sin(on) * kt));
       }
-      n.push(...W(it([fs(St(Vs)), fs(St(xn))], hs), ct(0, I + c) * 1.6 + 9.6));
+      n.push(...W(it([fs(Mt(Vs)), fs(Mt(xn))], hs), ct(0, I + c) * 1.6 + 9.6));
     }
     const Bs = "#a8afb8", Us = kt, gn = (Es, Vs, xn, Hs, on) => {
-      const hn = (ms) => [ms[0] + Vs * on, ms[1] + xn * on, ms[2] + Hs * on], Tn = [fs(St(Es.map(hn))), fs(St([...Es].reverse()))];
+      const hn = (ms) => [ms[0] + Vs * on, ms[1] + xn * on, ms[2] + Hs * on], Tn = [fs(Mt(Es.map(hn))), fs(Mt([...Es].reverse()))];
       for (let ms = 0; ms < Es.length; ms += 1) {
         const Ms = (ms + 1) % Es.length;
-        Tn.push(fs(St([Es[ms], Es[Ms], hn(Es[Ms]), hn(Es[ms])])));
+        Tn.push(fs(Mt([Es[ms], Es[Ms], hn(Es[Ms]), hn(Es[ms])])));
       }
       return Tn;
     };
@@ -20300,10 +20300,10 @@ const Cn = {
         Ms.push([Hs + Vs * Math.cos(yo), Vs * Math.sin(yo)]);
       }
       Ms.push([Hs, 0]);
-      const $s = (mn) => hn + (Tn - hn) * ((mn - xn) / (Hs - xn)), Mt = Ms.map(([mn, yo]) => ks(-$s(mn), mn, yo)), vs = Ms.map(([mn, yo]) => ks($s(mn), mn, yo)), Js = [fs(St(Mt)), fs(St([...vs].reverse()))];
+      const $s = (mn) => hn + (Tn - hn) * ((mn - xn) / (Hs - xn)), St = Ms.map(([mn, yo]) => ks(-$s(mn), mn, yo)), vs = Ms.map(([mn, yo]) => ks($s(mn), mn, yo)), Js = [fs(Mt(St)), fs(Mt([...vs].reverse()))];
       for (let mn = 0; mn < Ms.length; mn += 1) {
         const yo = (mn + 1) % Ms.length;
-        Js.push(fs(St([Mt[mn], Mt[yo], vs[yo], vs[mn]])));
+        Js.push(fs(Mt([St[mn], St[yo], vs[yo], vs[mn]])));
       }
       n.push(...W(it(Js, Bs), ct(0, I + c) * 1.6 + 9.4));
       const zs = 10, Rn = [], ro = Us / kt;
@@ -20364,8 +20364,8 @@ const Cn = {
         // 윗뚜껑을 걷는다 — 아가리가 곧 구멍이다
       }), t), 10 + ct(Es, Vs) * 1.6));
       {
-        const hn = 0.24 + xn, Tn = (Ms, $s, Mt) => {
-          const vs = Mt / R * Math.PI * 2 + Math.PI / R, Js = H(vs) * 0.5 * on * Ms, zs = Math.cos(vs) * Js * E, Rn = Math.sin(vs) * Js * 1.6;
+        const hn = 0.24 + xn, Tn = (Ms, $s, St) => {
+          const vs = St / R * Math.PI * 2 + Math.PI / R, Js = H(vs) * 0.5 * on * Ms, zs = Math.cos(vs) * Js * E, Rn = Math.sin(vs) * Js * 1.6;
           return Vs < -2 ? [Es - Rn, Vs + zs, $s] : [Es + zs, Vs + Rn, $s];
         };
         n.push(...W(it(Ht({
@@ -20387,7 +20387,7 @@ const Cn = {
         const ms = [];
         for (let Ms = 0; Ms < R; Ms += 1) {
           const $s = (Ms + 1) % R;
-          ms.push(fs(St([
+          ms.push(fs(Mt([
             Tn(1, hn, Ms),
             Tn(1, hn, $s),
             Tn(F, hn, $s),
@@ -20397,25 +20397,25 @@ const Cn = {
         n.push(...W(it(ms, t), 10 + ct(Es, Vs) * 1.6 + 0.05));
       }
       if (Vs > -2) {
-        const hn = Es < 0 ? -1 : 1, Tn = 0.5 * on * E, ms = 1.2, Ms = ms * 1.2 * 1.25, $s = 0.12, Mt = 10, vs = Es + hn * (Tn - 0.06), Js = [[0, 0]];
-        for (let ro = 0; ro <= Mt; ro += 1) {
-          const mn = ro / Mt * Math.PI / 2;
+        const hn = Es < 0 ? -1 : 1, Tn = 0.5 * on * E, ms = 1.2, Ms = ms * 1.2 * 1.25, $s = 0.12, St = 10, vs = Es + hn * (Tn - 0.06), Js = [[0, 0]];
+        for (let ro = 0; ro <= St; ro += 1) {
+          const mn = ro / St * Math.PI / 2;
           Js.push([Math.cos(mn) * ms, Math.sin(mn) * Ms * Jn]);
         }
         const zs = (ro, mn) => [vs + hn * Js[ro][0], Vs + mn * $s, Js[ro][1]], Rn = [
-          fs(St(Js.map((ro, mn) => zs(mn, 1)))),
-          fs(St(Js.map((ro, mn) => zs(Js.length - 1 - mn, -1))))
+          fs(Mt(Js.map((ro, mn) => zs(mn, 1)))),
+          fs(Mt(Js.map((ro, mn) => zs(Js.length - 1 - mn, -1))))
         ];
         for (let ro = 0; ro < Js.length; ro += 1) {
           const mn = (ro + 1) % Js.length;
-          Rn.push(fs(St([zs(ro, 1), zs(mn, 1), zs(mn, -1), zs(ro, -1)])));
+          Rn.push(fs(Mt([zs(ro, 1), zs(mn, 1), zs(mn, -1), zs(ro, -1)])));
         }
         n.push(...W(it(Rn, t), 10 + ct(Es + hn * 0.7, Vs) * 1.6 + 0.3));
       }
       {
         const Tn = Vs < -2, ms = 0.24 + xn * 0.62;
         g.push(...W(fu(R, ms, ms + 0.36, (Ms, $s) => {
-          const Mt = $s / R * Math.PI * 2 + Math.PI / R, vs = H(Mt) * 0.5 * on * 1.05, Js = Math.cos(Mt) * vs * E, zs = Math.sin(Mt) * vs * 1.6;
+          const St = $s / R * Math.PI * 2 + Math.PI / R, vs = H(St) * 0.5 * on * 1.05, Js = Math.cos(St) * vs * E, zs = Math.sin(St) * vs * 1.6;
           return Tn ? [Es - zs, Vs + Js, Ms] : [Es + Js, Vs + zs, Ms];
         }), 10 + ct(Es, Vs) * 1.6 + 0.2));
       }
@@ -20511,13 +20511,13 @@ const Cn = {
       for (let S = 0; S < u; S += 1) {
         const y = D + (S - (u - 1) / 2) * 52 * Math.PI / 180;
         if (xs(Math.sin(y), Math.cos(y)) <= 0.12) continue;
-        const O = (B, G) => [r + Math.sin(y + B) * b, c + Math.cos(y + B) * b, w + G], K = St([
+        const O = (B, G) => [r + Math.sin(y + B) * b, c + Math.cos(y + B) * b, w + G], K = Mt([
           O(-p, -m),
           O(p, -m),
           O(p, m),
           O(-p, m)
         ]);
-        M.push([K, 1, We ? "#7dff4a" : "#2b3326"]), We && M.push([St([
+        M.push([K, 1, We ? "#7dff4a" : "#2b3326"]), We && M.push([Mt([
           O(-p * 0.45, -f * 0.4),
           O(p * 0.45, -f * 0.4),
           O(p * 0.45, f * 0.4),
@@ -20730,7 +20730,7 @@ const Cn = {
       if (xs(w, f) <= 0.1) continue;
       const m = Math.cos(d), p = -Math.sin(d), D = (b, M, S) => {
         const y = C(M / e) + 0.0375, O = C(S / e) + 0.0375;
-        return St([
+        return Mt([
           [r + w * y - m * b, c + f * y - p * b, M],
           [r + w * y + m * b, c + f * y + p * b, M],
           [r + w * O + m * b, c + f * O + p * b, S],
@@ -20750,7 +20750,7 @@ const Cn = {
         if (xs(S, y) <= 0.15) continue;
         const O = Math.cos(M), K = -Math.sin(M), B = (L, T, x, E) => {
           const N = w + E;
-          return St([
+          return Mt([
             [u + S * N - O * L, d + y * N - K * L, T],
             [u + S * N + O * L, d + y * N + K * L, T],
             [u + S * N + O * L, d + y * N + K * L, x],
@@ -20815,12 +20815,12 @@ const Cn = {
         [2.55, 2.025, 2.112],
         [0.375, 2.025, 2.496]
       ], w = d.map(([f, m, p]) => [f, m, p + 0.2112]);
-      u.push(fs(St(d)));
+      u.push(fs(Mt(d)));
       for (let f = 0; f < 4; f += 1) {
         const m = (f + 1) % 4;
-        u.push(fs(St([d[f], d[m], w[m], w[f]])));
+        u.push(fs(Mt([d[f], d[m], w[m], w[f]])));
       }
-      u.push(fs(St(w)), cn(St(w), 0.18)), o.push(...W(it(u, "#8a6a44"), 1.4 + ct(1.425, 1.275) * 1.6)), o.push(...W([
+      u.push(fs(Mt(w)), cn(Mt(w), 0.18)), o.push(...W(it(u, "#8a6a44"), 1.4 + ct(1.425, 1.275) * 1.6)), o.push(...W([
         ...it(An(0.9, 0.975, 0.315, 0.2304, 2.88), Kg),
         ...it(ln(1.875, 1.425, 0.45, 0.375, 0.384, 2.496), s)
       ], 1.7 + ct(1.425, 1.2) * 1.6));
@@ -20882,7 +20882,7 @@ const Cn = {
       for (let dt = 0; dt < 4; dt += 1) {
         const ht = (dt + 1) % 4, vt = Math.hypot(xt[ht][0] - xt[dt][0], xt[ht][1] - xt[dt][1]) || 1, Lt = -(xt[ht][1] - xt[dt][1]) / vt, Pt = (xt[ht][0] - xt[dt][0]) / vt, Vt = ((xt[dt][0] + xt[ht][0]) / 2 - (q[dt][0] + q[ht][0]) / 2) * Lt + ((xt[dt][1] + xt[ht][1]) / 2 - (q[dt][1] + q[ht][1]) / 2) * Pt, Qt = tn(Lt, Pt, Vt / (Math.hypot(X, Vt) || 1));
         if (!Qt.visible) continue;
-        const es = St([
+        const es = Mt([
           [xt[dt][0], xt[dt][1], nt],
           [xt[ht][0], xt[ht][1], nt],
           [q[ht][0], q[ht][1], kt],
@@ -20890,7 +20890,7 @@ const Cn = {
         ]);
         Bt.push([es, 1, Q], ...Qt.face(es));
       }
-      const ft = St(q.map(([dt, ht]) => [dt, ht, kt]));
+      const ft = Mt(q.map(([dt, ht]) => [dt, ht, kt]));
       return Bt.push([ft, 1, Q], cn(ft, 0.12)), Bt;
     };
     b.push(...W(it(
@@ -20906,7 +20906,7 @@ const Cn = {
       10.4 + ct(N, R) * 1.6
     ));
     {
-      const F = A + x * 0.45, z = l + x * 0.36, H = N + L / 2 - 0.9 * ((F - A) / x), J = 0.85, X = 0.68, nt = H + 0.05, $ = R + T / 2 - 0.35 * ((F - A) / x) - J * 0.85, j = (It, st) => St(
+      const F = A + x * 0.45, z = l + x * 0.36, H = N + L / 2 - 0.9 * ((F - A) / x), J = 0.85, X = 0.68, nt = H + 0.05, $ = R + T / 2 - 0.35 * ((F - A) / x) - J * 0.85, j = (It, st) => Mt(
         Array.from({ length: 17 }, (Ct, ut) => {
           const Ot = ut / 16 * Math.PI * 2;
           return [nt + st, $ + Math.cos(Ot) * J * It, z + Math.sin(Ot) * X * It];
@@ -20930,7 +20930,7 @@ const Cn = {
     }
     if (xs(0, 1) > 0.12) {
       const z = (nt, P = 0.04) => m + u / 2 - 0.4 * ((nt - l) / d) + P, H = [], J = l + 0.44, X = l + 1.04;
-      H.push([St([
+      H.push([Mt([
         [f - 1.75, z(J), J],
         [f + 1.75, z(J), J],
         [f + 1.75, z(X), X],
@@ -20938,7 +20938,7 @@ const Cn = {
       ]), 1, s]);
       for (let nt = 0; nt < 4; nt += 1) {
         const P = f - 1.3 + nt * 0.87, $ = l + 0.544, j = l + 0.936;
-        H.push([St([
+        H.push([Mt([
           [P - 0.28, z($, 0.07), $],
           [P + 0.28, z($, 0.07), $],
           [P + 0.28, z(j, 0.07), j],
@@ -20959,7 +20959,7 @@ const Cn = {
       const nt = z, P = -F, $ = F * (r / 2 + 0.04), j = z * (c / 2 + 0.04), Q = e + 0.128, It = e + I - 0.128, st = [];
       for (let Ct = 0; Ct < H; Ct += 1) {
         const ut = X + (Ct - (H - 1) / 2) * (J / H), Ot = J / H / 3, rt = $ + nt * ut, lt = j + P * ut;
-        st.push([St([
+        st.push([Mt([
           [rt - nt * Ot, lt - P * Ot, Q],
           [rt + nt * Ot, lt + P * Ot, Q],
           [rt + nt * Ot, lt + P * Ot, It],
@@ -21001,12 +21001,12 @@ const Cn = {
       // 앞 팔 모듈의 초록 발광 창(사진).
       ...xs(0, 1) > 0.12 ? [
         [
-          St([[1.7, 1.56, 0.4], [3.1, 1.56, 0.4], [3.1, 1.56, 0.88], [1.7, 1.56, 0.88]]),
+          Mt([[1.7, 1.56, 0.4], [3.1, 1.56, 0.4], [3.1, 1.56, 0.88], [1.7, 1.56, 0.88]]),
           1,
           eg("#4cd86a")
         ],
         [
-          St([[-3.2, 1.36, 0.4], [-1.8, 1.36, 0.4], [-1.8, 1.36, 0.88], [-3.2, 1.36, 0.88]]),
+          Mt([[-3.2, 1.36, 0.4], [-1.8, 1.36, 0.4], [-1.8, 1.36, 0.88], [-3.2, 1.36, 0.88]]),
           1,
           eg("#4cd86a")
         ]
@@ -21024,7 +21024,7 @@ const Cn = {
          통째로 발광색으로 칠했다. 이제 드럼 벽에서 0.22 만 나오는 0.5×0.22×0.5 쇠 토막(테란 기본색)이고, 그 바깥면(+y)에 살 밖 0.03 으로 초록 창 한 장만 얹는다. */
       ...Array.from({ length: 14 }, (o, n) => Qo(-(n / 14) * 360, () => xs(0, 1) > 0.05 ? [
         ...ln(0, 2.2 + 0.11, 0.5, 0.22, 0.5, 1.52),
-        [St([[-0.18, 2.2 + 0.25, 1.6], [0.18, 2.2 + 0.25, 1.6], [0.18, 2.2 + 0.25, 1.94], [-0.18, 2.2 + 0.25, 1.94]]), 1, eg("#4cd86a")]
+        [Mt([[-0.18, 2.2 + 0.25, 1.6], [0.18, 2.2 + 0.25, 1.6], [0.18, 2.2 + 0.25, 1.94], [-0.18, 2.2 + 0.25, 1.94]]), 1, eg("#4cd86a")]
       ] : [])).flat(),
       /* ★ **윗면의 반사광 동그라미 셋은 걷었다**(2026-09, 요청: "아머리 윗면의 반사광 동그라미
          세개 제거") — 드럼 뚜껑 둘레(반지름 2.1)에 흰 0.4 로 얹어 둔 원반 셋(`rim(50·90·130)`)
@@ -21047,7 +21047,7 @@ const Cn = {
            뚜껑이었는데, GL 의 진짜 깊이에서는 드럼 지붕에서 **떠오른 판**으로 읽힌다. 드럼
            윗면(z 2.4) 바로 위(2.46 — 우물 원반 2.44 와 z 싸움을 안 하게 한 뼘)에 수평으로 눕힌다. */
       ...W((() => {
-        const n = St(Array.from({ length: 21 }, (g, e) => {
+        const n = Mt(Array.from({ length: 21 }, (g, e) => {
           const i = e / 20 * Math.PI * 2;
           return [Math.cos(i) * 1.6500000000000001, Math.sin(i) * 1.6500000000000001, 2.46];
         }));
@@ -21078,7 +21078,7 @@ const Cn = {
       const a = [];
       for (let u = 0; u < 6; u += 1) {
         const d = (u * 60 + 8) * (Math.PI / 180), w = (u * 60 + 44) * (Math.PI / 180), f = Math.sin((d + w) / 2), m = Math.cos((d + w) / 2);
-        xs(f, m) <= 0.08 || a.push([St([
+        xs(f, m) <= 0.08 || a.push([Mt([
           [-3.1 + Math.sin(d) * 1.95, 0.4 + Math.cos(d) * 1.95, 1.44],
           [-3.1 + Math.sin(w) * 1.95, 0.4 + Math.cos(w) * 1.95, 1.44],
           [-3.1 + Math.sin(w) * 1.95, 0.4 + Math.cos(w) * 1.95, 1.84],
@@ -21105,7 +21105,7 @@ const Cn = {
     {
       const d = (f) => 0.72 + (f - 0.72) * 0.8, w = 10 + ct(3.15, 0.3) * 1.6;
       if (r.push(...W(Ne(3.15, 0.3, 2.7 * 0.8 * 0.8, 2.6 * 0.8, 2.3 * 0.8 * 0.8, 2.2 * 0.8, 1.84 * 0.8, 0.72), w)), xs(1, 0) > 0.08) {
-        const m = [[St([
+        const m = [[Mt([
           [3.9948, 1.1, d(1.08)],
           [3.9948, -0.5, d(1.08)],
           [3.9948, -0.4440000000000001, d(2.2)],
@@ -21113,7 +21113,7 @@ const Cn = {
         ]), 1, "#22262c"]];
         for (let p = 0; p < 3; p += 1) {
           const D = 0.3 + (0.62 - p * 0.62) * 0.8;
-          m.push([St([
+          m.push([Mt([
             [3.9948 + 0.02, D + 0.14 * 0.8, d(1.2)],
             [3.9948 + 0.02, D - 0.14 * 0.8, d(1.2)],
             [3.9948 + 0.02, D - 0.13 * 0.8, d(2.08)],
@@ -21227,7 +21227,7 @@ const Cn = {
         for (let P = 0; P <= 24; P += 1) X.push(f(H, B + (G - B) * P / 24, J));
         return X;
       }, T = [], x = [], E = [], N = L(b, 1), R = L(D, 1);
-      T.push(fs(St(N)));
+      T.push(fs(Mt(N)));
       const Z = (H) => {
         const J = (H % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
         return J >= Math.PI * 2 - O ? J - Math.PI * 2 : J;
@@ -21241,18 +21241,18 @@ const Cn = {
           f(It, F(J + O * 0.66), X),
           f(It, F(J - O * 0.66), X)
         ], P = nt(b), $ = nt(D);
-        T.push(fs(St(P))), x.push(fs(St([P[3], $[3], $[2], P[2]])));
-        const j = St([P[1], $[1], $[2], P[2]]), Q = St([P[0], $[0], $[3], P[3]]);
-        x.push(fs(j), On(j, 0.18)), x.push(fs(Q), cn(Q, 0.1)), E.push(fs(St($)), ...M.face(St($)));
+        T.push(fs(Mt(P))), x.push(fs(Mt([P[3], $[3], $[2], P[2]])));
+        const j = Mt([P[1], $[1], $[2], P[2]]), Q = Mt([P[0], $[0], $[3], P[3]]);
+        x.push(fs(j), On(j, 0.18)), x.push(fs(Q), cn(Q, 0.1)), E.push(fs(Mt($)), ...M.face(Mt($)));
       }
       for (let H = 0; H < N.length - 1; H += 1)
-        T.push(fs(St([
+        T.push(fs(Mt([
           N[H],
           N[H + 1],
           R[H + 1],
           R[H]
         ])));
-      T.push(...x), T.push(fs(St(R)), ...M.face(St(R))), T.push(...E);
+      T.push(...x), T.push(fs(Mt(R)), ...M.face(Mt(R))), T.push(...E);
       const z = p ? -0.5 : 0.5;
       T.push(...it(Go(D, -0.6, D + z, -0.6, 0.62, 0, !0), s)), n.push(...W(it(T, s), ct(-3.8, -0.6) + Math.min(5, 0.65 * Math.abs(ct(1, 0)) + 1.62 * Math.abs(ct(0, 1)))));
     }
@@ -21315,7 +21315,7 @@ const Cn = {
             I(1.66, c - A),
             I(1.66, c + A),
             I(0.28, c + A * 2)
-          ), i.push([St(C), 0.72, "#0ea591"]);
+          ), i.push([Mt(C), 0.72, "#0ea591"]);
         }
         return i;
       })(), 13.5),
@@ -21365,7 +21365,7 @@ const Cn = {
         for (let T = 0; T < 10; T += 1) {
           const x = 0.12 + T / 10 * 0.76, E = 0.12 + (T + 1) / 10 * 0.76, N = ((x + E) / 2 - 0.5) * Math.PI, R = tn(Math.cos(N), Math.sin(N), 0.1);
           if (!R.visible) continue;
-          const Z = St([
+          const Z = Mt([
             A(G, x, 0.03),
             A(G, E, 0.03),
             A(L, E, 0.03),
@@ -21377,11 +21377,11 @@ const Cn = {
       return y;
     }, a = (b, M, S, y, O) => {
       const K = (M - 0.5) * Math.PI;
-      return xs(Math.cos(K), Math.sin(K)) <= 0.05 ? [] : [[St(Array.from({ length: 14 }, (B, G) => {
+      return xs(Math.cos(K), Math.sin(K)) <= 0.05 ? [] : [[Mt(Array.from({ length: 14 }, (B, G) => {
         const L = G / 14 * Math.PI * 2;
         return A(b + Math.sin(L) * S, M + Math.cos(L) * y, 0.05);
       })), 1, O]];
-    }, u = (b, M, S, y, O) => xs(Math.cos(b), Math.sin(b)) <= 0.05 ? [] : [[St(Array.from({ length: 14 }, (K, B) => {
+    }, u = (b, M, S, y, O) => xs(Math.cos(b), Math.sin(b)) <= 0.05 ? [] : [[Mt(Array.from({ length: 14 }, (K, B) => {
       const G = B / 14 * Math.PI * 2, L = b + Math.cos(G) * S;
       return [Math.cos(L) * (g + 0.05), Math.sin(L) * (g + 0.05), M + Math.sin(G) * y];
     })), 1, O]], d = (b, M, S, y) => {
@@ -21389,7 +21389,7 @@ const Cn = {
       for (let G = 0; G < 12; G += 1) {
         const L = Math.PI / 2 + G / 12 * Math.PI, T = Math.PI / 2 + (G + 1) / 12 * Math.PI, x = (L + T) / 2, E = tn(Math.cos(x), Math.sin(x), 0);
         if (!E.visible) continue;
-        const N = St([B(L, b), B(T, b), B(T, M), B(L, M)]);
+        const N = Mt([B(L, b), B(T, b), B(T, M), B(L, M)]);
         O.push([N, 1, y], ...E.face(N));
       }
       return O;
@@ -21397,7 +21397,7 @@ const Cn = {
       const b = [], M = (K, B) => {
         const G = tn(K[0], K[1], K[2]);
         if (!G.visible) return;
-        const L = St(B);
+        const L = Mt(B);
         b.push(fs(L), ...G.face(L));
       }, S = (K, B) => [Math.cos(K) * g, Math.sin(K) * g, B];
       for (let K = 0; K < w; K += 1) {
@@ -21425,7 +21425,7 @@ const Cn = {
       ge("#c9fff6", "#5aecd8");
       for (let K = 0; K < 4; K += 1) {
         const B = Math.PI / 2 + (K + 0.5) / 4 * Math.PI, G = 0.13, L = (x, E) => [Math.cos(x) * (g + 0.04), Math.sin(x) * (g + 0.04), E];
-        tn(Math.cos(B), Math.sin(B), 0).visible && b.push([St([
+        tn(Math.cos(B), Math.sin(B), 0).visible && b.push([Mt([
           L(B - G, i + 0.4),
           L(B + G, i + 0.4),
           L(B + G, r - 0.4),
@@ -21542,7 +21542,7 @@ const Cn = {
         const b = 0.128, M = (S) => 1.35 * (1 - 0.62 * S * S);
         return Array.from({ length: 5 }, (S, y) => {
           const O = 0.16 + y * 0.16, K = 1.12 + 4.96 * O, B = K + b * 1.6, G = -5.6 + M(O) + 0.02, L = -5.6 + M(O + b * 2 / 6.2) + 0.02;
-          return [St([
+          return [Mt([
             [-b, G, K],
             [b, G, K],
             [b, L, B],
@@ -21586,7 +21586,7 @@ const Cn = {
       납작한 판형 기둥이 세워져 있음. 반구형 뒤쪽에도 얇고 뒤로 길게 판형 꼬리가 세 개."
      이 빌더는 −90도 요잉이라 모델 +y가 화면 오른쪽, −x가 화면 아래다 — 앞(화면 왼아래)은 모델 (−1,−1)/√2, 뒤는 그 반대. */
   archives: () => Qo(-225, () => {
-    const t = "#5aecd8", s = te, o = "#8a6f2a", n = "#f2f4f0", g = [], e = -3 * Math.PI / 4, i = Math.cos(e), r = Math.sin(e), c = (K, B, G = 0) => ct(K, B) * 1.6 + G, C = (K, B) => [i * K - r * B, r * K + i * B], I = (K, B, G, L, T) => St(
+    const t = "#5aecd8", s = te, o = "#8a6f2a", n = "#f2f4f0", g = [], e = -3 * Math.PI / 4, i = Math.cos(e), r = Math.sin(e), c = (K, B, G = 0) => ct(K, B) * 1.6 + G, C = (K, B) => [i * K - r * B, r * K + i * B], I = (K, B, G, L, T) => Mt(
       Array.from({ length: 16 }, (x, E) => {
         const N = E / 16 * Math.PI * 2, [R, Z] = C(Math.cos(N) * G, Math.sin(N) * L);
         return [K + R, B + Z, T];
@@ -21608,16 +21608,16 @@ const Cn = {
     ], c(u, d, 2.5)));
     const w = 2.95, f = 3.4, m = 0.24, p = 1, D = 20, b = (K) => e + Math.PI + (K / D - 0.5) * (Math.PI * 300 / 180), M = (K, B, G) => [Math.cos(K) * B, Math.sin(K) * B, G];
     for (let K = 0; K < D; K += 1) {
-      const B = b(K), G = b(K + 1), L = (B + G) / 2, T = [], x = St([M(B, f, m), M(G, f, m), M(G, f, p), M(B, f, p)]), E = tn(Math.cos(L), Math.sin(L), 0.15);
+      const B = b(K), G = b(K + 1), L = (B + G) / 2, T = [], x = Mt([M(B, f, m), M(G, f, m), M(G, f, p), M(B, f, p)]), E = tn(Math.cos(L), Math.sin(L), 0.15);
       E.visible && T.push([x, 1, s], ...E.face(x));
-      const N = St([M(B, w, m), M(G, w, m), M(G, w, p), M(B, w, p)]), R = tn(-Math.cos(L), -Math.sin(L), 0.15);
+      const N = Mt([M(B, w, m), M(G, w, m), M(G, w, p), M(B, w, p)]), R = tn(-Math.cos(L), -Math.sin(L), 0.15);
       R.visible && T.push([N, 1, s], ...R.face(N));
-      const Z = St([M(B, w, p), M(G, w, p), M(G, f, p), M(B, f, p)]);
+      const Z = Mt([M(B, w, p), M(G, w, p), M(G, f, p), M(B, f, p)]);
       if (T.push([Z, 1, s], cn(Z, 0.2)), K === 0 || K === D - 1) {
-        const H = K === 0 ? B : G, J = St([M(H, w, m), M(H, f, m), M(H, f, p), M(H, w, p)]), X = tn(K === 0 ? Math.sin(H) : -Math.sin(H), K === 0 ? -Math.cos(H) : Math.cos(H), 0.15);
+        const H = K === 0 ? B : G, J = Mt([M(H, w, m), M(H, f, m), M(H, f, p), M(H, w, p)]), X = tn(K === 0 ? Math.sin(H) : -Math.sin(H), K === 0 ? -Math.cos(H) : Math.cos(H), 0.15);
         X.visible && T.push([J, 1, s], ...X.face(J));
       }
-      E.visible && T.push([St([
+      E.visible && T.push([Mt([
         M(B - 0.012, f + 0.02, m + 0.04),
         M(B + 0.012, f + 0.02, m + 0.04),
         M(B + 0.012, f + 0.02, p - 0.024),
@@ -21640,16 +21640,16 @@ const Cn = {
       }, Ot = [];
       for (let rt = 0; rt <= It; rt += 1) Ot.push(st(Q[rt], 1, 0));
       for (let rt = It; rt >= 0; rt -= 1) Ot.push(st(Q[rt], -1, 0));
-      ut(St(Ot), -G[0], -G[1], -G[2]);
+      ut(Mt(Ot), -G[0], -G[1], -G[2]);
       for (let rt = 0; rt < It; rt += 1) {
         const lt = Q[rt], Kt = Q[rt + 1], kt = ($(Kt) - $(lt)) / (Z * (Kt - lt));
         let xt = G[0] - F * kt, q = G[1] - z * kt, Bt = G[2] - H * kt;
         const ft = Math.hypot(xt, q, Bt) || 1;
-        xt /= ft, q /= ft, Bt /= ft, ut(St([st(lt, 1, 0.8), st(Kt, 1, 0.8), st(Kt, -1, 0.8), st(lt, -1, 0.8)]), xt, q, Bt);
+        xt /= ft, q /= ft, Bt /= ft, ut(Mt([st(lt, 1, 0.8), st(Kt, 1, 0.8), st(Kt, -1, 0.8), st(lt, -1, 0.8)]), xt, q, Bt);
         for (const dt of [1, -1])
-          ut(St([st(lt, dt, 0), st(Kt, dt, 0), st(Kt, dt, 0.8), st(lt, dt, 0.8)]), J * dt, X * dt, nt * dt);
+          ut(Mt([st(lt, dt, 0), st(Kt, dt, 0), st(Kt, dt, 0.8), st(lt, dt, 0.8)]), J * dt, X * dt, nt * dt);
       }
-      return ut(St([st(0, 1, 0), st(0, -1, 0), st(0, -1, 0.8), st(0, 1, 0.8)]), -F, -z, -H), W(Ct, c((K[0] + B[0]) / 2, (K[1] + B[1]) / 2, x));
+      return ut(Mt([st(0, 1, 0), st(0, -1, 0), st(0, -1, 0.8), st(0, 1, 0.8)]), -F, -z, -H), W(Ct, c((K[0] + B[0]) / 2, (K[1] + B[1]) / 2, x));
     }, y = -r, O = i;
     for (const K of [1, -1]) {
       const [B, G] = C(-3.35, K * 1.5);
@@ -21700,7 +21700,7 @@ const Cn = {
     }, w = [];
     for (let T = 0; T < 7; T += 1) {
       const x = d(T + 1) * Math.PI * 2, E = I * (0.86 + 0.14 * d(T + 21)), N = I * (0.24 + 0.17 * d(T + 41)), R = 7;
-      w.push([St(Array.from({ length: R }, (Z, F) => {
+      w.push([Mt(Array.from({ length: R }, (Z, F) => {
         const z = F / R * Math.PI * 2, H = N * (0.62 + 0.55 * d(T * 17 + F + 3));
         return u(
           Math.max(0.05, Math.min(I, E + Math.cos(z) * H)),
@@ -21715,7 +21715,7 @@ const Cn = {
         const Z = Math.max(0.03, I * (1 - R / p)), F = m / Math.max(0.12, Z);
         E.push(u(Z, x - F, 0.016)), N.push(u(Z, x + F, 0.016));
       }
-      D.push([St([...N, ...E.slice().reverse()]), 1, f]);
+      D.push([Mt([...N, ...E.slice().reverse()]), 1, f]);
     }
     t.push(...W([
       ...il({
@@ -21824,7 +21824,7 @@ const Cn = {
         ]];
       }, vt = (() => {
         const [_t, qt] = ht(Bt), rs = kt(Bt), bs = 0.3 + 0.24;
-        return [fs(St(Array.from({ length: 10 }, (hs, Ss) => {
+        return [fs(Mt(Array.from({ length: 10 }, (hs, Ss) => {
           const Os = Ss / 10 * Math.PI * 2 + Math.PI / 10, ks = Math.cos(Os) * bs, Ks = Math.sin(Os) * bs;
           return [
             rs[0] + _t[0] * ks + qt[0] * Ks,
@@ -21869,7 +21869,7 @@ const Cn = {
           path: (hs) => [_t[0] + (qt[0] - _t[0]) * hs, _t[1] + (qt[1] - _t[1]) * hs, N],
           widthOf: () => G * i,
           cutFace: (hs, Ss, Os) => Os - N
-        }), bs = (hs) => fs(St(Array.from({ length: 9 }, (Ss, Os) => {
+        }), bs = (hs) => fs(Mt(Array.from({ length: 9 }, (Ss, Os) => {
           const ks = Os / 8 * Math.PI;
           return [
             hs[0] + T * Math.cos(ks) * G * i,
@@ -21914,7 +21914,7 @@ const Cn = {
             const [ks, Ks, Rs] = Nt(bs), Bs = (_t(bs) * 0.42 + 0.03) * Os;
             return [ks + T * Bs + Ss * R * hs, Ks + x * Bs + Ss * Z * hs, Rs];
           }, rs = ge("#9cfff0", "#2fc7b2");
-          return [1, -1].map((bs) => [St([
+          return [1, -1].map((bs) => [Mt([
             qt(0.14, 0.17, -bs, bs),
             qt(0.78, 0.11, -bs, bs),
             qt(0.78, 0.11, bs, bs),
@@ -22012,7 +22012,7 @@ const Cn = {
       }, H = A === 3, J = H ? 0.76 : 0.1, X = H ? 0.9 : 0.24, nt = [];
       for (let P = 0; P < 6; P += 1) {
         const $ = P / 6 * Math.PI * 2 + Math.PI / 6, j = (P + 1) / 6 * Math.PI * 2 + Math.PI / 6;
-        nt.push(fs(St([
+        nt.push(fs(Mt([
           z(J, $),
           z(J, j),
           z(X, j),
@@ -22347,7 +22347,7 @@ const Cn = {
           i * d
         ], A = (u, d, w, f) => {
           const m = Math.cos(w) * f, p = -Math.sin(w) * f;
-          return St([
+          return Mt([
             [u[0] + m, u[1] + p, u[2]],
             [d[0] + m, d[1] + p, d[2]],
             [d[0] - m, d[1] - p, d[2]],
@@ -22405,12 +22405,12 @@ const Cn = {
       const C = ct(0, 1.5) * 1.6 + 0.3, I = "#9e3a2e", A = "#d9a27a", l = [], a = (b, M, S, y, O = 0) => {
         const K = tn(M, S, O);
         if (!K.visible) return;
-        const B = St(b);
+        const B = Mt(b);
         l.push([B, 1, y], ...K.face(B));
       }, u = (b, M, S, y, O, K) => {
         if (a([[b[0], b[1], 0], [M[0], M[1], 0], [M[0], M[1], y], [b[0], b[1], S]], O, K, I), !!tn(O, K).visible)
           for (const [G, L] of [[0.33, 0.42], [0.6, 0.68]]) {
-            const T = St([
+            const T = Mt([
               [b[0] + O * 0.02, b[1] + K * 0.02, S * G],
               [M[0] + O * 0.02, M[1] + K * 0.02, y * G],
               [M[0] + O * 0.02, M[1] + K * 0.02, y * L],
@@ -22422,7 +22422,7 @@ const Cn = {
         const O = y > 0 ? [[-1.58, b, 0], [1.58, b, 0], [1.58, b, M - S], [w, b, M], [-w, b, M], [-1.58, b, M - S]] : [[1.58, b, 0], [-1.58, b, 0], [-1.58, b, M - S], [-w, b, M], [w, b, M], [1.58, b, M - S]];
         if (a(O, 0, y, I), !!tn(0, y).visible)
           for (const [B, G] of [[0.33, 0.42], [0.6, 0.68]]) {
-            const L = St([
+            const L = Mt([
               [-1.58, b + y * 0.02, M * B],
               [1.58, b + y * 0.02, M * B],
               [1.58, b + y * 0.02, M * G],
@@ -22441,11 +22441,11 @@ const Cn = {
           0.66
         );
       {
-        const b = St([[-w, 0.08, 3.92], [w, 0.08, 3.92], [w, 5.4, 0.36], [-w, 5.4, 0.36]]);
+        const b = Mt([[-w, 0.08, 3.92], [w, 0.08, 3.92], [w, 5.4, 0.36], [-w, 5.4, 0.36]]);
         l.push([b, 1, "#a8402f"], cn(b, 0.07));
       }
       {
-        const S = Math.hypot(5.32, -3.56) || 1, y = 3.56 / S, O = 5.32 / S, K = 0.3, B = 0.08 + 0.45, G = 5.4 - 0.5, L = (E) => 3.92 + (0.36 - 3.92) * ((E - 0.08) / 5.32), T = (E, N) => [E, N + y * 0.04, L(N) + O * 0.04], x = St([T(-K, B), T(K, B), T(K, G), T(-K, G)]);
+        const S = Math.hypot(5.32, -3.56) || 1, y = 3.56 / S, O = 5.32 / S, K = 0.3, B = 0.08 + 0.45, G = 5.4 - 0.5, L = (E) => 3.92 + (0.36 - 3.92) * ((E - 0.08) / 5.32), T = (E, N) => [E, N + y * 0.04, L(N) + O * 0.04], x = Mt([T(-K, B), T(K, B), T(K, G), T(-K, G)]);
         l.push([x, 1], cn(x, 0.1));
       }
       if (t.push(...W(l, C)), xs(0, 1) > 0.05)
@@ -22598,7 +22598,7 @@ const Cn = {
       ));
     const S = (E, N, R) => {
       const Z = Math.min(m.length - 2, Math.floor(E * (m.length - 1))), F = E * (m.length - 1) - Z, z = (rt, lt) => rt + (lt - rt) * F, H = z(m[Z][0], m[Z + 1][0]), J = z(m[Z][1], m[Z + 1][1]), X = z(m[Z][2], m[Z + 1][2]), nt = z(p[Z][0], p[Z + 1][0]), P = z(p[Z][1], p[Z + 1][1]), $ = m[Z + 1][0] - m[Z][0], j = m[Z + 1][1] - m[Z][1], Q = Math.hypot($, j) || 1, It = 0.42, st = 0.336, Ct = H + (nt - H) * It, ut = J + (P - J) * It, Ot = X * (1 - It);
-      Ot < R * Jn * 1.1 || i.push(...W([[St(Array.from({ length: 15 }, (rt, lt) => {
+      Ot < R * Jn * 1.1 || i.push(...W([[Mt(Array.from({ length: 15 }, (rt, lt) => {
         const Kt = lt / 14 * Math.PI * 2;
         return [
           Ct + $ / Q * Math.cos(Kt) * N,
@@ -22762,7 +22762,7 @@ const Cn = {
     for (const l of [200, 240, 280, 320, 20, 60, 100, 140]) {
       const a = l * Math.PI / 180;
       I.push([
-        St([A(1.55, a), A(3.35, a), A(3.35, a + 0.16), A(1.55, a + 0.16)]),
+        Mt([A(1.55, a), A(3.35, a), A(3.35, a + 0.16), A(1.55, a + 0.16)]),
         1,
         t
       ]);
@@ -22823,7 +22823,7 @@ const Cn = {
       },
       fill: "#b3543a"
     }), ct(0, 3.4) * 1.6)), xs(0, 1) > 0.45) {
-      const c = St(Array.from({ length: 9 }, (C, I) => {
+      const c = Mt(Array.from({ length: 9 }, (C, I) => {
         const A = I / 8 * Math.PI;
         return [Math.cos(A) * 1.2, 0.4 + g(1.12) * 0.86, Math.sin(A) * 1.52];
       }));
@@ -23210,10 +23210,10 @@ const Cn = {
           return z.push([L, F, T]), z;
         }, Z = "#0d1013";
         return [
-          [St([[L, B, x], [L, G, x], [L, G, T], [L, B, T]]), 1, Z],
-          [St(N), 1, Z],
-          [St(R(B)), 1, Z],
-          [St(R(G)), 1, Z]
+          [Mt([[L, B, x], [L, G, x], [L, G, T], [L, B, T]]), 1, Z],
+          [Mt(N), 1, Z],
+          [Mt(R(B)), 1, Z],
+          [Mt(R(G)), 1, Z]
         ];
       };
       o.push(...W(y(1), 1), ...W(y(-1), 1));
@@ -23269,7 +23269,7 @@ const Cn = {
         }
       }
     }
-    const m = ct(0, 2.6) * 1.6, p = (S, y, O, K, B) => St(Array.from({ length: 13 }, (G, L) => {
+    const m = ct(0, 2.6) * 1.6, p = (S, y, O, K, B) => Mt(Array.from({ length: 13 }, (G, L) => {
       const T = L / 12 * Math.PI;
       return [Math.cos(T) * y, S, K + 1 * Math.sin(T) * O];
     }));
@@ -23385,14 +23385,14 @@ const Cn = {
         return -0.6 + Math.sqrt(Math.max(0, d * d - l * l)) - 0.15;
       };
       t.push(...W(F4(2.3, 0, 2.7, c, "#06070a"), 1));
-      const C = ge("#b6ff3a", "#3d5a14"), I = (l, a, u, d, w) => St([[-l, u, w], [l, u, w], [a, d, w], [-a, d, w]]), A = [[0.55, 0.62, 0.09], [0.28, 0.82, 0.082], [0.18, 1, 0.074], [0.11, 1.2, 0.066], [0.06, 1.4, 0.058]];
+      const C = ge("#b6ff3a", "#3d5a14"), I = (l, a, u, d, w) => Mt([[-l, u, w], [l, u, w], [a, d, w], [-a, d, w]]), A = [[0.55, 0.62, 0.09], [0.28, 0.82, 0.082], [0.18, 1, 0.074], [0.11, 1.2, 0.066], [0.06, 1.4, 0.058]];
       t.push(...W([
         ...A.map(([l, a, u]) => [I(1.1 * a, 0.8 * a, 1.7 - 1.2 * a, 1.7 + 1.2 * a, u), l, C]),
         [Ag(0, 3, 0.8, 1.05), 0.2, C]
         // 아가리 앞으로 새는 빛덩이
       ], 1.2));
     }
-    const g = ct(0, 1.9) * 1.6, e = (c, C, I, A, l) => St(
+    const g = ct(0, 1.9) * 1.6, e = (c, C, I, A, l) => Mt(
       [[-C, c, A], [C, c, A], [I, c, l], [-I, c, l]]
     );
     Qn.on || t.push(...W([
@@ -23600,7 +23600,7 @@ const Cn = {
      치마 벽을 달았다. 웅덩이 안쪽 뒤편엔 테두리 그늘, 위로는 마주 굽는 뼈 아치. */
   pool: () => Qo(270, () => {
     const t = "#8a4a2a", s = "#5f3320", o = "#4cd63a", n = [], g = (A, l, a, u, d) => {
-      const f = (m, p = 0, D = 0, b = 0) => St(
+      const f = (m, p = 0, D = 0, b = 0) => Mt(
         Array.from({ length: 28 }, (M, S) => {
           const y = S / 28 * Math.PI * 2;
           return [A + D + Math.cos(y) * a * m, l + b + Math.sin(y) * u * m, 0.096 + p * 0.022];
@@ -23777,7 +23777,7 @@ const Cn = {
       caps: "top",
       path: (e) => [0, 0, 7.12 + 0.56 * e],
       widthOf: (e) => 0.98 - 0.18 * e
-    }), o), 1)), xs(0, 1) > 0.1 && g.push(...W([[St([
+    }), o), 1)), xs(0, 1) > 0.1 && g.push(...W([[Mt([
       [-0.5, 1.02, 4.96],
       [0.5, 1.02, 4.96],
       [0, 1.02, 4.16]
@@ -24535,7 +24535,7 @@ const Cn = {
     }
     for (let I = 0; I < 6; I += 1) {
       const A = 0.03 + 0.32 * I / 6, l = 0.03 + 0.32 * (I + 1) / 6, [, a, u] = i(A), [, d, w] = i(l), f = r(A) + 0.024, m = r(l) + 0.024;
-      s.push(...W([[St([
+      s.push(...W([[Mt([
         [-0.24, a, u + f],
         [0.24, a, u + f],
         [0.24, d, w + m],
@@ -24669,7 +24669,7 @@ const Cn = {
           H * nt + J * P + X * $ < 0 && (H = -H, J = -J, X = -X);
           const j = Math.hypot(H, J, X) || 1, Q = tn(H / j, J / j, X / j);
           if (!Q.visible) return [];
-          const It = St(G);
+          const It = Mt(G);
           return [[It, 1], ...Q.face(It)];
         }, O = [];
         for (let G = 0; G < S.length - 1; G += 1) {
@@ -24687,7 +24687,7 @@ const Cn = {
           return [[G, A, L + 0.035], [G, A - T, L + 0.16 * T + 0.035], [G, A - 2 * T, L + 0.035]];
         }, y = S(0.02), O = S(0.26), K = [];
         for (const [B, G] of [[0, 0.3], [1, -0.3]]) {
-          const L = St([y[B], y[B + 1], O[B + 1], O[B]]), T = tn(0, G, 0.95);
+          const L = Mt([y[B], y[B + 1], O[B + 1], O[B]]), T = tn(0, G, 0.95);
           T.visible && K.push(fs(L), ...T.face(L));
         }
         return K;
@@ -24710,7 +24710,7 @@ const Cn = {
              (y −1.3 → −1.85), 바깥 변은 짧고(−1.6 → −1.85) 뒤끝에서 만나 앞 변이 뒤로 쓸린 깃이 된다. 판이라
              두께가 없다 — 낯 하나에 법선을 재서 빛을 받되, 등진 쪽은 법선을 뒤집어 어느 쪽에서도 보인다. */
           ...[[1, 0], [-1, 0], [0, 1], [0, -1]].flatMap(([G, L]) => {
-            const E = St([
+            const E = Mt([
               [S + G * y, -1.6, M + L * O],
               [S + G * y, -2.75, M + L * O],
               [S + G * (y + 0.36), -2.75, M + L * (O + 0.288)],
@@ -24808,12 +24808,12 @@ const Cn = {
         return [0 + Z * J, 4.95, 4.64 + F * J];
       };
       for (let R = 0; R < 14; R += 1) {
-        const Z = R / 14 * Math.PI * 2, F = (R + 1) / 14 * Math.PI * 2, z = (Z + F) / 2, H = Math.cos(z), J = Math.sin(z), X = (Q, It, st) => [0 + Math.cos(Q) * It, st, 4.64 + Math.sin(Q) * It], nt = St([X(Z, 0.42, 4.95), E(Z), E(F), X(F, 0.42, 4.95)]), P = tn(0, 1, 0);
+        const Z = R / 14 * Math.PI * 2, F = (R + 1) / 14 * Math.PI * 2, z = (Z + F) / 2, H = Math.cos(z), J = Math.sin(z), X = (Q, It, st) => [0 + Math.cos(Q) * It, st, 4.64 + Math.sin(Q) * It], nt = Mt([X(Z, 0.42, 4.95), E(Z), E(F), X(F, 0.42, 4.95)]), P = tn(0, 1, 0);
         P.visible && G.push(...uo([fs(nt)], "terran"), ...P.face(nt));
-        const $ = St([X(Z, 0.42, 4.95), X(F, 0.42, 4.95), X(F, 0.13, 4.33), X(Z, 0.13, 4.33)]), j = tn(-H * (L / x), T / x, -J * (L / x));
+        const $ = Mt([X(Z, 0.42, 4.95), X(F, 0.42, 4.95), X(F, 0.13, 4.33), X(Z, 0.13, 4.33)]), j = tn(-H * (L / x), T / x, -J * (L / x));
         j.visible && G.push([$, 1, "#2f3540"], ...j.face($));
       }
-      const N = St(Array.from({ length: 14 }, (R, Z) => {
+      const N = Mt(Array.from({ length: 14 }, (R, Z) => {
         const F = Z / 14 * Math.PI * 2;
         return [0 + Math.cos(F) * 0.13, 4.33, 4.64 + Math.sin(F) * 0.13];
       }));
@@ -24825,10 +24825,10 @@ const Cn = {
      양옆의 납작한 판 날개, 뒤 엔진 블록. */
   valk: () => {
     const t = [], s = qn, o = 5.2, n = (d) => Jn * (o + (d - o) * 1.5), g = (d, w, f = 0, m = 0) => {
-      const p = [fs(St(d))], D = d.map((b, M) => {
+      const p = [fs(Mt(d))], D = d.map((b, M) => {
         const S = (M + 1) % d.length, y = (d[M][0] + d[S][0]) / 2 - f, O = (d[M][1] + d[S][1]) / 2 - m, K = Math.hypot(y, O) || 1;
         return {
-          d: St([d[M], d[S], w[S], w[M]]),
+          d: Mt([d[M], d[S], w[S], w[M]]),
           nx: y / K,
           ny: O / K,
           f: xs(y / K, O / K)
@@ -24838,7 +24838,7 @@ const Cn = {
         const M = tn(b.nx, b.ny, 0.3);
         p.push(fs(b.d), ...M.visible ? M.face(b.d) : [On(b.d, 0.46)]);
       }
-      return p.push(fs(St(w)), cn(St(w), 0.2)), p;
+      return p.push(fs(Mt(w)), cn(Mt(w), 0.2)), p;
     }, e = 0.55, i = -0.6, r = 1.6;
     t.push(...W(uo(ln(0, e, r * 2, 2.3, n(6.3) - n(5.2), n(5.2)), "terran"), s(0, e, n(5.75))));
     const c = (n(6.9) - n(6.3)) * 0.75;
@@ -24862,7 +24862,7 @@ const Cn = {
          눕힌다. 면이 하나뿐이라 어느 각도에서도 두께가 안 보이고, 돔이 그 위를 덮는다. */
       ...Array.from({ length: 24 }, (d, w) => {
         const f = w / 24 * Math.PI * 2, m = (w + 1) / 24 * Math.PI * 2, p = n(6.3) + c + 0.056;
-        return fs(St([
+        return fs(Mt([
           [Math.sin(f) * 1, e + Math.cos(f) * 1, p],
           [Math.sin(f) * 1.13, e + Math.cos(f) * 1.13, p],
           [Math.sin(m) * 1.13, e + Math.cos(m) * 1.13, p],
@@ -24928,7 +24928,7 @@ const Cn = {
         ));
     }
     for (const d of [-1, 1]) {
-      const w = d * (C + 0.05), f = d * 3, m = [w, -0.75, n(5.25)], p = [w, -1.95, n(5.25)], D = [w, -0.75, n(6.57)], b = [w, -1.95, n(6.57)], M = [f, -0.91, n(5.45)], S = [f, -1.79, n(5.45)], y = [f, -0.91, n(5.75)], O = [f, -1.79, n(5.75)], K = St([D, b, O, y]), B = St([m, p, S, M]), G = St([m, D, y, M]), L = St([p, b, O, S]), T = St([M, S, O, y]), x = [fs(B), On(B, 0.4)], E = [[L, 0, -1], [T, d, 0], [G, 0, 1]].map(([P, $, j]) => ({ d9: P, nx9: $, ny9: j, f: xs($, j) })).sort((P, $) => P.f - $.f);
+      const w = d * (C + 0.05), f = d * 3, m = [w, -0.75, n(5.25)], p = [w, -1.95, n(5.25)], D = [w, -0.75, n(6.57)], b = [w, -1.95, n(6.57)], M = [f, -0.91, n(5.45)], S = [f, -1.79, n(5.45)], y = [f, -0.91, n(5.75)], O = [f, -1.79, n(5.75)], K = Mt([D, b, O, y]), B = Mt([m, p, S, M]), G = Mt([m, D, y, M]), L = Mt([p, b, O, S]), T = Mt([M, S, O, y]), x = [fs(B), On(B, 0.4)], E = [[L, 0, -1], [T, d, 0], [G, 0, 1]].map(([P, $, j]) => ({ d9: P, nx9: $, ny9: j, f: xs($, j) })).sort((P, $) => P.f - $.f);
       for (const { d9: P, nx9: $, ny9: j } of E) {
         const Q = tn($, j, 0.2);
         x.push(fs(P), ...Q.visible ? Q.face(P) : [On(P, 0.46)]);
@@ -24943,12 +24943,12 @@ const Cn = {
           [F(j + Q, P), N - 0.62 * $, j + Q]
         ];
       }, H = z(0, 1), J = z(0.2, 1), X = [];
-      X.push(...uo([fs(St(H))], "terran"));
+      X.push(...uo([fs(Mt(H))], "terran"));
       for (let P = 0; P < 4; P += 1) {
-        const $ = (P + 1) % 4, j = St([H[P], H[$], J[$], J[P]]);
+        const $ = (P + 1) % 4, j = Mt([H[P], H[$], J[$], J[P]]);
         X.push(...uo([fs(j), On(j, P === 2 ? 0.05 : 0.3)], "terran"));
       }
-      X.push(fs(St(J))), X.push(...uo([fs(St(z(0.205, 0.74)))], "terran"));
+      X.push(fs(Mt(J))), X.push(...uo([fs(Mt(z(0.205, 0.74)))], "terran"));
       const nt = s(d * 2.1, -1.35, n(5.8));
       t.push(...W(X, xs(d, 0) > 0.15 ? nt + 0.2 : nt - 0.2));
     }
@@ -25099,7 +25099,7 @@ const Cn = {
         for (; K < C.length - 1 && S > o[K + 1][0]; ) K += 1;
         const B = C[K], G = S - B.x0, L = y - c(S, 1), T = O - c(S, 2), x = B.jx + G * B.c - T * B.s, E = B.jz + G * B.s + T * B.c - s;
         return [A * x, r + L * e - E * i, Jn * (s + L * i + E * e)];
-      }, a = l(...o[0]), u = l(...o[1]), d = l(...o[2]), w = l(...o[3]), f = l(1.55, -1.9, 7.15), m = l(3.1, -1.85, 6.95), p = l(4.7, -1.35, 8.15), D = St([
+      }, a = l(...o[0]), u = l(...o[1]), d = l(...o[2]), w = l(...o[3]), f = l(1.55, -1.9, 7.15), m = l(3.1, -1.85, 6.95), p = l(4.7, -1.35, 8.15), D = Mt([
         a,
         u,
         d,
@@ -25271,7 +25271,7 @@ const Cn = {
        가운데(POSE_ATK_L·2) 0·쉼(0) −0.5 — 끝(tip)만 fl9에 비례해 오르내린다(뿌리 축을 도는 근사). 판이라 두께가
        없다: 법선을 재서 빛을 받되 등진 쪽은 뒤집어 어느 쪽에서도 보인다. POSE_KINDS.guardian.flap이 컷을 낸다. */
     ...[-1, 1].flatMap((t) => {
-      const s = Sn === 1 ? 1 : Sn === Fm ? -1 : Sn === Ug || Sn === 2 ? 0 : -0.5, o = 4.84 + 0.52 * s, n = St([
+      const s = Sn === 1 ? 1 : Sn === Fm ? -1 : Sn === Ug || Sn === 2 ? 0 : -0.5, o = 4.84 + 0.52 * s, n = Mt([
         [t * 0.9, -1, 4.88],
         [t * 0.7, -1.8, 4.76],
         [t * 2.2, -2.9, o - 0.04],
@@ -25421,7 +25421,7 @@ const Cn = {
         for (let B = 0; B < f; B += 1)
           for (let G = 0; G < m; G += 1) {
             const L = B === 0 ? M > 0 ? [O(0, 0), O(1, G + 1), O(1, G)] : [O(0, 0), O(1, G), O(1, G + 1)] : M > 0 ? [O(B, G), O(B, G + 1), O(B + 1, G + 1), O(B + 1, G)] : [O(B, G + 1), O(B, G), O(B + 1, G), O(B + 1, G + 1)];
-            K.push([St(L), 1]);
+            K.push([Mt(L), 1]);
           }
         n.push(...W(it(K, "#6c5d3d"), 6.3 + ct(M * 1.6, 0) * 0.2));
       }
@@ -25565,7 +25565,7 @@ const Cn = {
     ));
     const C = (I, A) => [1 - I, 1.6 * (6.05 + 0.1) - A];
     for (const I of [-1, 1]) {
-      const A = [I * 0.45, 0.5, 4.92], l = [I * 1.7, ...C(1.1, 4.84 + 0.56)], a = [I * 2.6, ...C(-0.9, 4.84 + 0.8)], u = [I * 0.3, ...C(-0.7, 4.84 - 0.04)], d = St([A, l, a, [I * 1.3, ...C(-1, 4.84 + 0.28)], u]), w = ct(I * 1.4, 0.1) * 1.6;
+      const A = [I * 0.45, 0.5, 4.92], l = [I * 1.7, ...C(1.1, 4.84 + 0.56)], a = [I * 2.6, ...C(-0.9, 4.84 + 0.8)], u = [I * 0.3, ...C(-0.7, 4.84 - 0.04)], d = Mt([A, l, a, [I * 1.3, ...C(-1, 4.84 + 0.28)], u]), w = ct(I * 1.4, 0.1) * 1.6;
       n.push(...W([
         [d, 1],
         I > 0 ? On(d, 0.16) : cn(d, 0.12),
@@ -25884,7 +25884,7 @@ const Cn = {
                    **팔이 그대로 타고 간다**(위 ★★).
                  ⚠ 오목 다각형이 되지만 GL 은 귀 자르기로 삼각화하므로 그대로 선다(넥서스 표창의 그 규약). */
               ...W((() => {
-                const S = St([
+                const S = Mt([
                   A,
                   l,
                   ...f(l, a, m),
@@ -26103,7 +26103,7 @@ const Cn = {
       ), qn(g * 0.7, 3.6, 5.04)));
     }
     {
-      const I = St([
+      const I = Mt([
         [-0.13, -2, 4.89],
         [0.13, -2, 4.89],
         [0.64, -3.88, 5.12],
@@ -26139,11 +26139,11 @@ const Cn = {
       }, xt = 14, q = (Pt) => -1 + 2 * Pt / xt, Bt = [], ft = [];
       for (let Pt = 0; Pt <= xt; Pt += 1) ft.push([q(Pt), Q(q(Pt))]);
       for (let Pt = xt; Pt >= 0; Pt -= 1) ft.push([q(Pt), $(q(Pt))]);
-      ft.push(ft[0]), Bt.push(...it([fs(St(
+      ft.push(ft[0]), Bt.push(...it([fs(Mt(
         ft.slice(0, -1).map(([Pt, Vt]) => kt(Pt, Vt, It(Pt, Vt)))
       ))], t));
       for (let Pt = 0; Pt < xt; Pt += 1) {
-        const Vt = q(Pt), Qt = q(Pt + 1), es = St([
+        const Vt = q(Pt), Qt = q(Pt + 1), es = Mt([
           kt(Vt, Q(Vt), It(Vt, Q(Vt))),
           kt(Qt, Q(Qt), It(Qt, Q(Qt))),
           kt(Qt, $(Qt), It(Qt, $(Qt))),
@@ -26153,7 +26153,7 @@ const Cn = {
       }
       for (let Pt = 0; Pt + 1 < ft.length; Pt += 1) {
         const [Vt, Qt] = ft[Pt], [es, Gt] = ft[Pt + 1], Nt = kt(Vt, Qt, It(Vt, Qt)), _t = kt(es, Gt, It(es, Gt)), qt = _t[0] - Nt[0], rs = _t[1] - Nt[1], bs = _t[2] - Nt[2], hs = G + T(F((Vt + es) / 2)) * L, Ss = Math.cos(hs), Os = Math.sin(hs), ks = rs * Os, Ks = bs * Ss - qt * Os, Rs = -rs * Ss, Bs = Math.hypot(ks, Ks, Rs) || 1;
-        tn(ks / Bs, Ks / Bs, Rs / Bs).visible && Bt.push(...it([[St([
+        tn(ks / Bs, Ks / Bs, Rs / Bs).visible && Bt.push(...it([[Mt([
           Nt,
           _t,
           kt(es, Gt, 0.01, !0),
@@ -26171,12 +26171,12 @@ const Cn = {
             Jn * (o + Math.sin(Nt) * Lt)
           ]);
         }
-        Bt.push([St(Qt), 0.92]);
+        Bt.push([Mt(Qt), 0.92]);
       }
       if (B.win) {
         const Pt = B.win, Vt = 1.7 / Pt, Qt = 0.075;
         for (let es = 0; es < Pt; es += 1) {
-          const Gt = -0.85 + Vt * (es + 0.5), Nt = Gt - Vt * 0.14, _t = Gt + Vt * 0.14, qt = Q(Gt) - Qt - 0.1, rs = (hs, Ss) => kt(hs, Ss, It(hs, Ss) + 0.02), bs = (hs) => St([
+          const Gt = -0.85 + Vt * (es + 0.5), Nt = Gt - Vt * 0.14, _t = Gt + Vt * 0.14, qt = Q(Gt) - Qt - 0.1, rs = (hs, Ss) => kt(hs, Ss, It(hs, Ss) + 0.02), bs = (hs) => Mt([
             rs(Gt + (Nt - Gt) * hs, qt + Qt * hs),
             rs(Gt + (_t - Gt) * hs, qt + Qt * hs),
             rs(Gt + (_t - Gt) * hs, qt - Qt * hs),
@@ -26423,7 +26423,7 @@ const Cn = {
         const l = A / c * Math.PI * 2;
         return [r, 0.2307 + Math.cos(l) * 0.76131, 10.98132 + Math.sin(l) * 0.36912];
       });
-      return W([fs(St(C))], ct(r, 0.2307) + 1.6);
+      return W([fs(Mt(C))], ct(r, 0.2307) + 1.6);
     }, n = 0.6921, g = (i) => W(it(Ht({
       x: 0,
       y: 0,
@@ -26595,7 +26595,7 @@ const Cn = {
     ), 24 + ct(-0.4, -0.5))), xs(0, 1) > 0.12) {
       const s = (e) => 0.9 - (e - 1.16) / 1.2 * 0.45 - 0.02, o = s(1.52), n = s(2), g = [];
       for (const e of [-1.2, -0.4, 0.4])
-        g.push([St([
+        g.push([Mt([
           [e - 0.26, o, 1.52],
           [e + 0.26, o, 1.52],
           [e + 0.26, n, 2],
@@ -26677,7 +26677,7 @@ const Cn = {
     if (s(1.5, -1, 2, 2.4, 1.7, 24 + ct(1.5, -1)), s(-0.2, 1.2, 1.5, 1.8, 1.2, 26 + ct(-0.2, 1.2)), s(-2.1, -0.6, 1.15, 1.5, 0.95, 24 + ct(-2.1, -0.6)), xs(0.6, 0.8) > 0.15) {
       const o = 2 * Math.cos(Math.PI / 12), n = (e, i) => [1.5 + Math.sin(e) * o, -1 + Math.cos(e) * o, i], g = [];
       for (const e of [-0.28, 0, 0.28])
-        g.push([St([
+        g.push([Mt([
           n(e - 0.09, 1.52),
           n(e + 0.09, 1.52),
           n(e + 0.09, 2.4),
@@ -26740,7 +26740,7 @@ const Cn = {
       }), "#505050"), 20.2 + ct(r, c)));
     }
     if (t.push(...W(it(ln(0, 0.2, 4.4, 3.4, 1.84, 0.44), n), s(0, 0.2))), t.push(...W(it(ln(0.2, -0.1, 3.4, 2.6, 0.28, 2.28), "#737373"), s(0.2, -0.1, 0.3))), xs(0, 1) > 0.1) {
-      const e = [[St([
+      const e = [[Mt([
         [-1.5, 1.92, 0.72],
         [0.4, 1.92, 0.72],
         [0.4, 1.92, 2.08],
@@ -26748,7 +26748,7 @@ const Cn = {
       ]), 1, We ? eg("#ff9a3c") : "#d2762a"]];
       for (let i = 0; i < 8; i += 1) {
         const r = -1.32 + i * 0.22;
-        e.push([St([
+        e.push([Mt([
           [r, 1.94, 0.84],
           [r + 0.13, 1.94, 0.84],
           [r + 0.13, 1.94, 1.96],
@@ -26759,7 +26759,7 @@ const Cn = {
     }
     t.push(...W([
       ...it(ln(-2.45, 0.3, 0.5, 1.4, 0.72, 0.96), "#505050"),
-      ...xs(-1, 0) > 0.1 ? [[St([
+      ...xs(-1, 0) > 0.1 ? [[Mt([
         [-2.71, -0.2, 1.2],
         [-2.71, 0.8, 1.2],
         [-2.71, 0.8, 1.4],
@@ -26782,7 +26782,7 @@ const Cn = {
       for (let I = 0; I < 10; I += 1) {
         const A = I / 10 * Math.PI * 2 - Y2(10) * 2, l = A + Math.PI * 2 / 10 * 0.45, a = (A + l) / 2;
         if (Math.sin(a) < -0.25) continue;
-        const u = (m, p, D) => [1.55 + Math.cos(m) * p, D, 2.48 + Math.sin(m) * p], d = St([u(A, 1.22, -0.8), u(l, 1.22, -0.8), u(l, 1.22, 0.6), u(A, 1.22, 0.6)]), w = St([u(A, 0.93, -0.8), u(A, 1.22, -0.8), u(A, 1.22, 0.6), u(A, 0.93, 0.6)]), f = St([u(l, 0.93, -0.8), u(l, 1.22, -0.8), u(l, 1.22, 0.6), u(l, 0.93, 0.6)]);
+        const u = (m, p, D) => [1.55 + Math.cos(m) * p, D, 2.48 + Math.sin(m) * p], d = Mt([u(A, 1.22, -0.8), u(l, 1.22, -0.8), u(l, 1.22, 0.6), u(A, 1.22, 0.6)]), w = Mt([u(A, 0.93, -0.8), u(A, 1.22, -0.8), u(A, 1.22, 0.6), u(A, 0.93, 0.6)]), f = Mt([u(l, 0.93, -0.8), u(l, 1.22, -0.8), u(l, 1.22, 0.6), u(l, 0.93, 0.6)]);
         e.push(
           fs(w),
           On(w, 0.4),
@@ -26823,7 +26823,7 @@ const Cn = {
     if (xs(0, 1) > 0.12) {
       const o = [];
       for (const g of [-1.65, -1.05, -0.45, 0.15])
-        o.push([St([
+        o.push([Mt([
           [g, 1.9125, 2.08],
           [g + 0.3, 1.9125, 2.08],
           [g + 0.3, 1.9125, 2.8],
@@ -26873,7 +26873,7 @@ const Cn = {
       ...W(it(ln(0, 0.2, 5.6, 4.4, 0.48), "#3d3d3d"), ct(0, 0.2))
     ], s = (o, n, g = 0) => 22 + ct(o, n) + g;
     if (t.push(...W(it(ln(0, 0, 5, 3.4, 1.04, 0.48), "#737373"), s(0, 0))), xs(0, 1) > 0.08) {
-      const o = St([[-2.5, 1.7, 0.48], [2.5, 1.7, 0.48], [2.5, 2.3, 0.48], [-2.5, 2.3, 0.48]]), n = St([[-2.5, 2.3, 0.48], [2.5, 2.3, 0.48], [2.5, 1.7, 1.52], [-2.5, 1.7, 1.52]]);
+      const o = Mt([[-2.5, 1.7, 0.48], [2.5, 1.7, 0.48], [2.5, 2.3, 0.48], [-2.5, 2.3, 0.48]]), n = Mt([[-2.5, 2.3, 0.48], [2.5, 2.3, 0.48], [2.5, 1.7, 1.52], [-2.5, 1.7, 1.52]]);
       t.push(...W([
         [o, 1, "#505050"],
         [n, 1, wn],
@@ -26884,7 +26884,7 @@ const Cn = {
         ...(() => {
           const g = (r) => 1.7 + (1.52 - r) * 0.5769230769230769 + 0.026, e = (r) => r + 0.015, i = (r, c) => [r, g(c), e(c)];
           return [[
-            St([i(-2.2, 1.02), i(2.2, 1.02), i(2.2, 1.44), i(-2.2, 1.44)]),
+            Mt([i(-2.2, 1.02), i(2.2, 1.02), i(2.2, 1.44), i(-2.2, 1.44)]),
             1,
             We ? eg("#4cd86a") : "#245c31"
           ]];
@@ -26892,12 +26892,12 @@ const Cn = {
       ], s(0, 1.9, 0.5)));
     }
     for (const o of [-1, 1]) {
-      const n = St([
+      const n = Mt([
         [o * 2.4, -1.3, 1.52],
         [o * 2.4, 1.2, 1.52],
         [o * 1.2, 1, 2.48],
         [o * 1.2, -1.1, 2.48]
-      ]), g = St([
+      ]), g = Mt([
         [o * 2.5, -1.4, 1.48],
         [o * 2.5, 1.3, 1.48],
         [o * 2.4, 1.2, 1.52],
@@ -26931,7 +26931,7 @@ const Cn = {
         if (xs(Math.sin(r), Math.cos(r)) <= 0.12) continue;
         const c = (C, I) => [o + Math.sin(r + C) * g, n + Math.cos(r + C) * g, I];
         e.push([
-          St([c(-0.13, 1.4), c(0.13, 1.4), c(0.13, 1.72), c(-0.13, 1.72)]),
+          Mt([c(-0.13, 1.4), c(0.13, 1.4), c(0.13, 1.72), c(-0.13, 1.72)]),
           1,
           We ? eg("#7fd0ff") : "#22262c"
         ]);
@@ -27190,10 +27190,10 @@ const Cn = {
         [c[0] + (I[0] - c[0]) * 0.22, c[1] + (I[1] - c[1]) * 0.22, r],
         [c[0] + (A[0] - c[0]) * 0.22, c[1] + (A[1] - c[1]) * 0.22, r]
       ];
-    }), n = o(0), g = o(0.8), e = [fs(St(n))], i = n.map((r, c) => {
+    }), n = o(0), g = o(0.8), e = [fs(Mt(n))], i = n.map((r, c) => {
       const C = (c + 1) % n.length, I = (n[c][0] + n[C][0]) / 2, A = (n[c][1] + n[C][1]) / 2, l = Math.hypot(I, A) || 1;
       return {
-        d: St([n[c], n[C], g[C], g[c]]),
+        d: Mt([n[c], n[C], g[C], g[c]]),
         nx: I / l,
         ny: A / l,
         f: xs(I / l, A / l)
@@ -27203,7 +27203,7 @@ const Cn = {
       const c = tn(r.nx, r.ny, 0.3);
       e.push(fs(r.d), ...c.visible ? c.face(r.d) : [On(r.d, 0.46)]);
     }
-    e.push(fs(St(g)), cn(St(g), 0.2)), t.push(...W(uo(e, "terran"), qn(0, 0, 0.4)));
+    e.push(fs(Mt(g)), cn(Mt(g), 0.2)), t.push(...W(uo(e, "terran"), qn(0, 0, 0.4)));
     for (const r of [-1, 1])
       t.push(...W(
         it(Qs(r * 0.7, 0.55, 0.55, 0.4, 0.8), wn),
@@ -27211,7 +27211,7 @@ const Cn = {
       ));
     return t.push(...W([
       [vn(0, 0.9, 0.824, 0.2), 1, ge("#ff4a4a", "#7a1f1f")]
-    ], qn(0, 0.9, 0.88))), t.push(...W([fs(St([
+    ], qn(0, 0.9, 0.88))), t.push(...W([fs(Mt([
       // 모따기 윗면 안에 든다(지적: 몸을 벗어남) — 아랫변 y −1.2에서 허용 폭 ±1.35, 위 ±1.3.
       [-1.2, -1.2, 0.808],
       [1.2, -1.2, 0.808],
@@ -27229,7 +27229,7 @@ const Cn = {
           const R = a(x), [Z, F] = u(M, R), [z, H] = u(M + 1, R);
           return [x, Z + (z - Z) * E + y * N, F + (H - F) * E + O * N];
         };
-        D.push([St([K(f, 0, 0.02), K(m, 0, 0.02), K(m, 1, 0.02), K(f, 1, 0.02)]), 1, "#d9ae35"]);
+        D.push([Mt([K(f, 0, 0.02), K(m, 0, 0.02), K(m, 1, 0.02), K(f, 1, 0.02)]), 1, "#d9ae35"]);
         const B = M * b, G = (x, E) => x + p * (B + E * b), L = Math.min(G(f, 0), G(f, 1)), T = Math.max(G(m, 0), G(m, 1));
         for (let x = Math.floor(L / r) * r; x < T; x += r) {
           let E = [[f, 0], [m, 0], [m, 1], [f, 1]];
@@ -27244,7 +27244,7 @@ const Cn = {
             }
             E = Z;
           };
-          N((R) => G(R[0], R[1]) - x), E.length >= 3 && N((R) => x + c - G(R[0], R[1])), !(E.length < 3) && D.push([St(E.map(([R, Z]) => K(R, Z, 0.035))), 1, "#1b1e23"]);
+          N((R) => G(R[0], R[1]) - x), E.length >= 3 && N((R) => x + c - G(R[0], R[1])), !(E.length < 3) && D.push([Mt(E.map(([R, Z]) => K(R, Z, 0.035))), 1, "#1b1e23"]);
         }
       }
       return D;
@@ -27257,7 +27257,7 @@ const Cn = {
       if (!(D < -0.05) && !(Math.abs(D) < 0.3 && xs(0, p) < 0.05))
         for (const [b, M] of [[s, l], [l, o]]) {
           const [S, y] = u(f, a(b)), [O, K] = u(f + 1, a(b)), [B, G] = u(f, a(M)), [L, T] = u(f + 1, a(M));
-          d.push({ d: St([[b, S, y], [M, B, G], [M, L, T], [b, O, K]]), ny: p, nz: D });
+          d.push({ d: Mt([[b, S, y], [M, B, G], [M, L, T], [b, O, K]]), ny: p, nz: D });
         }
     }
     d.sort((f, m) => f.nz + xs(0, f.ny) - (m.nz + xs(0, m.ny)));
@@ -27271,7 +27271,7 @@ const Cn = {
         }
     for (const [f, m] of [[s, -1], [o, 1]]) {
       if (xs(m, 0) < 0.05) continue;
-      const p = St(Array.from({ length: 8 }, (D, b) => {
+      const p = Mt(Array.from({ length: 8 }, (D, b) => {
         const [M, S] = u(b, a(f));
         return [f, M, S];
       }));
@@ -27367,7 +27367,7 @@ const Cn = {
       }), K = (B, G) => {
         const [L, T] = I(b, B), [x, E] = I(b, G), N = Math.hypot(x - L, E - T) || 1, R = -(E - T) / N, Z = (x - L) / N, F = 0.46 * g, z = 0.368 * g, H = 0.42 * g, J = 0.336 * g, X = 3.696, nt = [];
         nt.push(...W(
-          [[St([
+          [[Mt([
             [L + R * H, T + Z * H, X + z],
             [L - R * H, T - Z * H, X + z],
             [x - R * H, E - Z * H, X + z],
@@ -27378,7 +27378,7 @@ const Cn = {
         for (const P of [1, -1]) {
           const $ = R * P * F, j = Z * P * F;
           nt.push(...W(
-            [[St([
+            [[Mt([
               [L + $, T + j, X + J],
               [x + $, E + j, X + J],
               [x + $, E + j, X - J],
@@ -27462,12 +27462,12 @@ const Cn = {
   /* 프로브(실물 참고) — 팔각 보석 몸(밝은 윗판 층층) + 방사 가시들. */
   probe: () => H1(() => {
     const t = [], s = 0.6645161290322581, o = 0.75, n = s * o, g = (p, D, b, M, S, y, O, K = 1, B = 0, G = 0, L = "", T = 0.272 * K, x = 0.224 * K) => {
-      const E = p * Math.PI / 180, N = Math.sin(E), R = Math.cos(E), Z = Math.cos(E), F = -Math.sin(E), z = N * D + Z * G, H = R * D + F * G, J = N * (D + b) + Z * G, X = R * (D + b) + F * G, nt = F > 0 ? 1 : -1, P = (lt, Kt, kt) => lt - Kt * nt * B * kt, $ = St([
+      const E = p * Math.PI / 180, N = Math.sin(E), R = Math.cos(E), Z = Math.cos(E), F = -Math.sin(E), z = N * D + Z * G, H = R * D + F * G, J = N * (D + b) + Z * G, X = R * (D + b) + F * G, nt = F > 0 ? 1 : -1, P = (lt, Kt, kt) => lt - Kt * nt * B * kt, $ = Mt([
         [z - Z * M, H - F * M, P(y, -1, M)],
         [z + Z * M, H + F * M, P(y, 1, M)],
         [J + Z * S, X + F * S, P(O, 1, S)],
         [J - Z * S, X - F * S, P(O, -1, S)]
-      ]), j = (lt) => St([
+      ]), j = (lt) => Mt([
         [z + lt * Z * M, H + lt * F * M, P(y, lt, M)],
         [J + lt * Z * S, X + lt * F * S, P(O, lt, S)],
         [J + lt * Z * S, X + lt * F * S, P(O - x, lt, S)],
@@ -27475,17 +27475,17 @@ const Cn = {
       ]), Q = [];
       for (const lt of [1, -1])
         tn(lt * Z, lt * F, 0).visible && Q.push(j(lt));
-      const It = y - T, st = O - x, Ct = St([
+      const It = y - T, st = O - x, Ct = Mt([
         [z - Z * M, H - F * M, P(It, -1, M)],
         [J - Z * S, X - F * S, P(st, -1, S)],
         [J + Z * S, X + F * S, P(st, 1, S)],
         [z + Z * M, H + F * M, P(It, 1, M)]
-      ]), ut = St([
+      ]), ut = Mt([
         [J - Z * S, X - F * S, P(O, -1, S)],
         [J + Z * S, X + F * S, P(O, 1, S)],
         [J + Z * S, X + F * S, P(st, 1, S)],
         [J - Z * S, X - F * S, P(st, -1, S)]
-      ]), Ot = St([
+      ]), Ot = Mt([
         [z - Z * M, H - F * M, P(y, -1, M)],
         [z - Z * M, H - F * M, P(It, -1, M)],
         [z + Z * M, H + F * M, P(It, 1, M)],
@@ -27681,7 +27681,7 @@ const Cn = {
   /* 다리 −10%(zk 0.94)만큼 몸통도 내린다(지적: "다리 수정에 맞게 그 위의 부품들
      높이 내려야지") — 골반 z 2.36×0.94 ≈ 2.22가 새 다리 꼭대기다. */
   inf: () => FW(2.0064, 1.6016, () => {
-    const s = kg(), o = (A) => -0.16 * s * A, n = Sn === 2 ? 1 : 0, g = (A, l) => A + (l - A) * n, e = "#eef1f3", i = "#d8362c", r = St([
+    const s = kg(), o = (A) => -0.16 * s * A, n = Sn === 2 ? 1 : 0, g = (A, l) => A + (l - A) * n, e = "#eef1f3", i = "#d8362c", r = Mt([
       [-0.44, 0.5, 2.684],
       [0.44, 0.5, 2.684],
       [0.34, 0.7, 0.748],
@@ -27691,12 +27691,12 @@ const Cn = {
       [-0.14, 0.7, 0.748],
       [-0.26, 0.7, 0.8448],
       [-0.34, 0.7, 0.748]
-    ]), c = (A) => St([
+    ]), c = (A) => Mt([
       [A * 0.3 - 0.015, 0.51, 2.596],
       [A * 0.3 + 0.015, 0.51, 2.596],
       [A * 0.38 + 0.02, 0.71, 0.924],
       [A * 0.38 - 0.02, 0.71, 0.924]
-    ]), C = St([
+    ]), C = Mt([
       [-0.36, 0.69, 1.2496],
       [0.36, 0.69, 1.2496],
       [0.35, 0.69, 1.0384],
@@ -27713,7 +27713,7 @@ const Cn = {
         const B = [];
         for (let L = 0; L < 3; L += 1) {
           const T = -S + 2 * S * L / 3, x = -S + 2 * S * (L + 1) / 3, E = K ? [b(-M, T), b(M, T), b(M, x), b(-M, x)] : [b(T, -M), b(x, -M), b(x, M), b(T, M)];
-          B.push([St(E), 1, i]);
+          B.push([Mt(E), 1, i]);
         }
         return B;
       }, O = b(0, 0);
@@ -27735,19 +27735,19 @@ const Cn = {
         ...Ne(0, -0.72, 1.06, 0.52, 1.22, 0.56, 0.924, 2.596),
         ...Ne(0, -0.74, 1.22, 0.56, 0.82, 0.4, 0.2992, 3.52),
         ...xs(0, -1) > 0.1 ? [
-          [St([
+          [Mt([
             [-0.16, -1.02, 3.476],
             [0.16, -1.02, 3.476],
             [0.16, -1.02, 2.728],
             [-0.16, -1.02, 2.728]
           ]), 1, "#dfe3e6"],
-          [St([
+          [Mt([
             [-0.42, -1.02, 3.2736],
             [0.42, -1.02, 3.2736],
             [0.42, -1.02, 3.0272],
             [-0.42, -1.02, 3.0272]
           ]), 1, "#dfe3e6"],
-          [St([
+          [Mt([
             [-0.4, -1.02, 2.7104],
             [0.4, -1.02, 2.7104],
             [0.4, -1.02, 2.6224],
@@ -28019,13 +28019,13 @@ const Cn = {
         if (xs(I, 0) < 0.12) return [];
         const { hip: A, knee: l } = Y3(I, 0.62, 0.28 * g), a = (S) => [A[0] + (l[0] - A[0]) * S, A[1] + (l[1] - A[1]) * S, A[2] + (l[2] - A[2]) * S], u = a(0.18), d = a(0.78), w = d[1] - u[1], f = d[2] - u[2], m = Math.hypot(w, f) || 1, p = f / m * 0.11, D = -w / m * 0.11, b = I * 0.295, M = (S, y) => [S[0] + b, S[1] + y * p, S[2] + y * D];
         return W(
-          [[St([M(u, 1), M(u, -1), M(d, -1), M(d, 1)]), 1, n]],
+          [[Mt([M(u, 1), M(u, -1), M(d, -1), M(d, 1)]), 1, n]],
           ct(u[0] + b, u[1]) * 1.6 - 0.6
         );
       })),
       /* ② 가슴 한복판을 흐르는 붉은 줄 — 앞을 볼 때만. 모델 좌표의 세로 판이라
          요잉·앞숙임을 몸과 똑같이 탄다. */
-      ...xs(0, 1) > 0.1 ? W([[St([
+      ...xs(0, 1) > 0.1 ? W([[Mt([
         [-0.1, 0.42, 3.696],
         [0.1, 0.42, 3.696],
         [0.1, 0.46, 2.3936],
@@ -28205,7 +28205,7 @@ const Cn = {
          몸과 똑같이 탄다. */
       ...[-1, 1].flatMap((m) => {
         if (xs(m, 0) < 0.12) return [];
-        const D = St([
+        const D = Mt([
           [-0.42, 0],
           [-0.39, 0.18],
           [-0.27, 0.36],
@@ -28343,7 +28343,7 @@ const Cn = {
         for (let B = 0; B + 1 < M.length; B += 1) {
           const G = M[B], L = M[B + 1];
           for (let T = 0; T < S; T += 1) {
-            const x = -1 + 2 * T / S, E = -1 + 2 * (T + 1) / S, N = St([
+            const x = -1 + 2 * T / S, E = -1 + 2 * (T + 1) / S, N = Mt([
               b(G, x, 0),
               b(G, E, 0),
               b(L, E, 0),
@@ -28359,7 +28359,7 @@ const Cn = {
         for (let B = M.length - 2; B >= 1; B -= 1) K.push([M[B], -1]);
         for (let B = 0; B + 1 < K.length; B += 1) {
           const [G, L] = K[B], [T, x] = K[B + 1];
-          O.push([St([
+          O.push([Mt([
             b(G, L, 0),
             b(T, x, 0),
             b(T, x, -0.11),
@@ -28691,14 +28691,14 @@ const Cn = {
           for (let L = 0; L < y; L += 1) {
             const T = -1 + 2 * L / y, x = -1 + 2 * (L + 1) / y;
             for (let E = 0; E < O; E += 1) {
-              const N = E / O, R = (E + 1) / O, Z = St([D(T, N), D(x, N), D(x, R), D(T, R)]);
+              const N = E / O, R = (E + 1) / O, Z = Mt([D(T, N), D(x, N), D(x, R), D(T, R)]);
               S.push([Z, 1, M], On(Z, 0.18));
             }
           }
           const K = 0.86, B = 0.105, G = 0.02;
           for (const L of [-1, 1])
             for (let T = 0; T < O; T += 1) {
-              const x = G + (1 - G) * T / O, E = G + (1 - G) * (T + 1) / O, N = St([
+              const x = G + (1 - G) * T / O, E = G + (1 - G) * (T + 1) / O, N = Mt([
                 b(L * (K - B), x),
                 b(L * (K + B), x),
                 b(L * (K + B), E),
@@ -28801,7 +28801,7 @@ const Cn = {
          **몸통 축보다 앞이면 이기고 뒤면 진다** — 앞에서는 천이 몸통을 덮고, 뒤로 돌면 몸통이
          천을 덮는다(앞가리개가 등에 비치지 않는다). */
       ...W((() => {
-        const g = St([
+        const g = Mt([
           [-0.42, 0.18, 5.12],
           [0.42, 0.18, 5.12],
           [0.34, 0.3, 2.3200000000000003],
@@ -28893,7 +28893,7 @@ const Cn = {
         }, I = [];
         for (let u = 0; u < 7; u += 1)
           for (let d = 0; d < 8; d += 1) {
-            const w = St([
+            const w = Mt([
               C(u / 7, d / 8),
               C((u + 1) / 7, d / 8),
               C((u + 1) / 7, (d + 1) / 8),
@@ -28905,7 +28905,7 @@ const Cn = {
         return W(I, ct(a[0], a[1]) * 1.6 + 0.4);
       }),
       /* 로브 앞의 파란 기 줄(사진 1) — 앞가리개 위를 흐르는 가는 세로 줄 둘. */
-      ...W(xs(0, 1) > 0.1 ? [-1, 1].map((g) => [St([
+      ...W(xs(0, 1) > 0.1 ? [-1, 1].map((g) => [Mt([
         [g * 0.18 - 0.03, 0.21, 3.68 + 1.28],
         [g * 0.18 + 0.03, 0.21, 3.68 + 1.28],
         [g * 0.14 + 0.03, 0.33, 1.28 + 1.28],
@@ -28959,8 +28959,8 @@ const Cn = {
         [G - f * x + p * x, L - m * x + D * x, T + b * x * Jn],
         [G - f * x - p * x, L - m * x - D * x, T - b * x * Jn],
         [G + f * x - p * x, L + m * x - D * x, T - b * x * Jn]
-      ], y = S(e, i, r, A), O = S(c, C, I, l), K = (G) => St([y[G], y[(G + 1) % 4], O[(G + 1) % 4], O[G]]), B = [];
-      return B.push(fs(K(2)), On(K(2))), B.push(fs(K(1)), On(K(1))), B.push(fs(K(3)), On(K(3))), B.push(fs(K(0)), cn(K(0))), B.push(fs(St(O)), Se(St(O))), B;
+      ], y = S(e, i, r, A), O = S(c, C, I, l), K = (G) => Mt([y[G], y[(G + 1) % 4], O[(G + 1) % 4], O[G]]), B = [];
+      return B.push(fs(K(2)), On(K(2))), B.push(fs(K(1)), On(K(1))), B.push(fs(K(3)), On(K(3))), B.push(fs(K(0)), cn(K(0))), B.push(fs(Mt(O)), Se(Mt(O))), B;
     }, s = kg(), o = (e) => {
       const i = e * Math.PI / 180, r = Math.sin(i), c = Math.cos(i), C = e === 45 || e === 225 ? 1 : -1, I = s * C * 0.85, A = wW(C) * 0.42, l = [r * 3.45, c * 3.45 + I * 0.35, 4.12], a = [r * 4.05, c * 4.05 + I, (0.25 + A) * Jn], u = ct(r * 2.4, c * 2.4);
       return W(it([
@@ -29060,7 +29060,7 @@ const Cn = {
           it(Qs(0, 0.35, 0.6, 0.76, 4.96), q2),
           ct(0, 0.35) * 1.6 + 3.4
         ),
-        ...W([[St([
+        ...W([[Mt([
           [-0.13, 0.9, 5.824],
           [0.13, 0.9, 5.824],
           [0.09, 0.97, 5.08],
@@ -29074,7 +29074,7 @@ const Cn = {
          플라즈마 구슬이 드러난다. 드라군은 팔다리로 때리지 않으므로, 이 한 동작이
          곧 '쏜다'다. */
       ...Sn === 2 ? [
-        Se(St([
+        Se(Mt([
           [-0.5, 1.4, 4.16],
           [0.5, 1.4, 4.16],
           [0.42, 2.02, 4.76],
@@ -29084,7 +29084,7 @@ const Cn = {
           it(Qs(0, 1.34, 0.44, 0.336, 3.824), Ci),
           ct(0, 1.34) * 1.6 + 4
         )
-      ] : [Se(St([
+      ] : [Se(Mt([
         [-0.5, 1.4, 4.16],
         [0.5, 1.4, 4.16],
         [0.36, 1.56, 3.8],
@@ -29446,7 +29446,7 @@ const Cn = {
       ), Wg), 6.3 + C));
     }
     for (const C of [-1, 1]) {
-      const I = [C * 0.32, -0.5, 2.84], A = St([
+      const I = [C * 0.32, -0.5, 2.84], A = Mt([
         I,
         [C * 1.7, -2.5, 4.32],
         [C * 1.1, -3.3, 3.76],
@@ -29512,7 +29512,7 @@ const Cn = {
       }
       for (let w = 0; w < 2; w += 1) {
         const f = [C[0], C[1] + 0.06, C[2] - 0.04];
-        d.push(fs(St([f, u(a[w], 0.55), u(a[w + 1], 0.55)]))), d.push(fs(St([f, u(a[w + 1], 0.55), u(a[w], 0.55)])));
+        d.push(fs(Mt([f, u(a[w], 0.55), u(a[w + 1], 0.55)]))), d.push(fs(Mt([f, u(a[w + 1], 0.55), u(a[w], 0.55)])));
       }
       return W([...d.slice(0, d.length - 4), ...it(d.slice(d.length - 4), t)], l);
     };
@@ -30556,7 +30556,7 @@ const Cn = {
       ...O([-B, 2.6, L], [0, 2.6, T], [B, 2.6, L], 8),
       ...O([B, 2.6, L], [2.6, 2.6, 4.56], [2.6, 2.6 - K, 4.56], 5),
       ...N
-    ], Z = St(R);
+    ], Z = Mt(R);
     t.push(...W([
       /* 옆면 띠 — 윤곽의 마디마다 겉면(위) → 겉면 − ED9(아래) 네모 한 장. 보이는 쪽만
          그린다(메시 기록 중엔 faceLight().visible 이 늘 참이라 한 바퀴가 다 실리고 깊이가 가른다). */
@@ -30565,7 +30565,7 @@ const Cn = {
         if (Q < 1e-6) return [];
         const It = tn(-j / Q, $ / Q);
         if (!It.visible) return [];
-        const st = St([X, P, [P[0], P[1], P[2] - c], [X[0], X[1], X[2] - c]]);
+        const st = Mt([X, P, [P[0], P[1], P[2] - c], [X[0], X[1], X[2] - c]]);
         return [[st, 1, wn], ...It.face(st)];
       }),
       [Z, 1, wn],
@@ -30591,7 +30591,7 @@ const Cn = {
         ].sort((ut, Ot) => ut - Ot).filter((ut, Ot, rt) => Ot === 0 || ut - rt[Ot - 1] > 1e-3), Ct = [];
         for (let ut = 0; ut + 1 < st.length; ut += 1) {
           const Ot = st[ut], rt = st[ut + 1], lt = Math.max(-1.1, E((Ot + rt) / 2)), Kt = Math.min(2.1, x(Ot)), kt = Math.min(2.1, x(rt));
-          Ct.push(fs(St([[Ot, Kt, $(Ot)], [rt, kt, $(rt)], [rt, lt, $(rt)], [Ot, lt, $(Ot)]])));
+          Ct.push(fs(Mt([[Ot, Kt, $(Ot)], [rt, kt, $(rt)], [rt, lt, $(rt)], [Ot, lt, $(Ot)]])));
         }
         return Ct;
       })()
@@ -30611,12 +30611,12 @@ const Cn = {
         const dt = Math.PI - lt + lt * ft / 8;
         Kt.push([1.425 * Math.cos(dt), 1.825 - 1.215 * Math.sin(dt)]);
       }
-      const kt = (ft) => C(ft) + Ot, xt = (ft) => C(ft) - rt, q = St(Kt.map(([ft, dt]) => [ft, dt, kt(ft)])), Bt = Kt.flatMap((ft, dt) => {
+      const kt = (ft) => C(ft) + Ot, xt = (ft) => C(ft) - rt, q = Mt(Kt.map(([ft, dt]) => [ft, dt, kt(ft)])), Bt = Kt.flatMap((ft, dt) => {
         const ht = Kt[(dt + 1) % Kt.length], vt = ht[0] - ft[0], Lt = ht[1] - ft[1], Pt = Math.hypot(vt, Lt);
         if (Pt < 1e-6) return [];
         const Vt = tn(-Lt / Pt, vt / Pt);
         if (!Vt.visible) return [];
-        const Qt = St([
+        const Qt = Mt([
           [ft[0], ft[1], kt(ft[0])],
           [ht[0], ht[1], kt(ht[0])],
           [ht[0], ht[1], xt(ht[0])],
@@ -30693,15 +30693,15 @@ const Cn = {
           Vt(Kt, lt, 6.16)
         ];
       }, Bt = (ft, dt, ht) => {
-        const vt = [fs(St(ft)), On(St(ft), 0.26)], Lt = ft.reduce((Qt, es) => Qt + es[0], 0) / ft.length, Pt = ft.reduce((Qt, es) => Qt + es[1], 0) / ft.length, Vt = ft.map((Qt, es) => {
+        const vt = [fs(Mt(ft)), On(Mt(ft), 0.26)], Lt = ft.reduce((Qt, es) => Qt + es[0], 0) / ft.length, Pt = ft.reduce((Qt, es) => Qt + es[1], 0) / ft.length, Vt = ft.map((Qt, es) => {
           const Gt = (es + 1) % ft.length, Nt = (ft[es][0] + ft[Gt][0]) / 2 - Lt, _t = (ft[es][1] + ft[Gt][1]) / 2 - Pt, qt = Math.hypot(Nt, _t) || 1;
           return {
-            d: St([ft[es], ft[Gt], dt[Gt], dt[es]]),
+            d: Mt([ft[es], ft[Gt], dt[Gt], dt[es]]),
             f: xs(Nt / qt, _t / qt)
           };
         }).sort((Qt, es) => Qt.f - es.f);
         for (const Qt of Vt) vt.push(fs(Qt.d), On(Qt.d, Qt.f >= 0 ? 0.2 : 0.4));
-        return vt.push(fs(St(dt)), cn(St(dt), ht)), vt;
+        return vt.push(fs(Mt(dt)), cn(Mt(dt), ht)), vt;
       };
       return [
         ...it(Bt(st(4.88), st(4.88 + 0.144), 0.16), wn),
@@ -30732,9 +30732,9 @@ const Cn = {
       ], r = (A) => 3.08 - 0.24 * Math.max(0, Math.abs(A) - 2.1), c = i.map(([A, l]) => [A, l, r(A)]), C = i.map(([A, l]) => [A, l, r(A) + 0.24]), I = [];
       for (let A = 0; A < c.length; A += 1) {
         const l = (A + 1) % c.length;
-        I.push([St([c[A], c[l], C[l], C[A]]), 1, te]);
+        I.push([Mt([c[A], c[l], C[l], C[A]]), 1, te]);
       }
-      I.push([St(C), 1, te], cn(St(C), 0.16)), o.push(...W(I, qn(g * 2.3, -0.9, 3.08)));
+      I.push([Mt(C), 1, te], cn(Mt(C), 0.16)), o.push(...W(I, qn(g * 2.3, -0.9, 3.08)));
     }
     o.push(...W(Qs(0, -0.6, 2.8, 0.496, 3.04), qn(0, -0.6, 3.28))), o.push(cn(vn(-2.3, -0.3, 3.12, 0.4, 0.55), 0.4)), o.push(cn(vn(2.3, -0.3, 3.12, 0.4, 0.55), 0.4)), o.push(...it(Qs(0, -2.3, 0.95, 0.64, 3.36), te));
     {
@@ -30782,7 +30782,7 @@ const Cn = {
         for (let p = 0; p < I; p += 1) {
           const D = a[p], b = a[(p + 1) % I], M = Math.sin((D + b) / 2) > 0.85;
           for (let S = 0; S + 1 < w.length; S += 1) {
-            const y = w[S], O = w[S + 1], K = St([A(y, D), A(O, D), A(O, b), A(y, b)]);
+            const y = w[S], O = w[S + 1], K = Mt([A(y, D), A(O, D), A(O, b), A(y, b)]);
             f.push([K, 1, te]), M && f.push(cn(K, 0.14));
           }
         }
@@ -30923,7 +30923,7 @@ const Cn = {
               I(w, a + m * b),
               I(w, a + m * D)
             ], S = (M[0][0] + M[2][0]) / 2, y = (M[0][1] + M[2][1]) / 2;
-            t.push(...W([fs(St(M))], ct(S, y) * 1.6 + 0.5));
+            t.push(...W([fs(Mt(M))], ct(S, y) * 1.6 + 0.5));
           }
         }
       }
@@ -31041,7 +31041,7 @@ const Cn = {
         phase: 0
       }), t), I));
       const w = c * 0.72, f = 24, p = w - 0.34, D = p * 0.5, b = Math.max(0.06, p * 0.14), M = (G) => G / f * Math.PI * 2, S = (G, L, T) => [i + Math.cos(L) * G, r + Math.sin(L) * G, T], y = (G, L, T, x) => Array.from({ length: f }, (E, N) => [
-        St([S(G, M(N), T), S(G, M(N + 1), T), S(L, M(N + 1), T), S(L, M(N), T)]),
+        Mt([S(G, M(N), T), S(G, M(N + 1), T), S(L, M(N + 1), T), S(L, M(N), T)]),
         1,
         x(N)
       ]), O = xl(t, g, 0.86);
@@ -31068,7 +31068,7 @@ const Cn = {
         }
         const N = T * x[x.length - 1];
         o.push(...H0(W([[
-          St(Array.from({ length: f }, (R, Z) => S(N, M(Z), B))),
+          Mt(Array.from({ length: f }, (R, Z) => S(N, M(Z), B))),
           1,
           E(x[x.length - 1] / 2)
         ]], I + 0.6)));
@@ -31142,7 +31142,7 @@ Cn.interceptor = () => {
     ], ct(c * 1.15, 1.45) + 0.3) : [],
     /* 양 동체 바깥의 **아주 작은 사다리꼴 날개**(요청) — 통 옆구리에서 바깥으로 짧게. */
     ...(() => {
-      const C = St([
+      const C = Mt([
         [c * 1.75, -0.55, 4.64],
         [c * 1.75, 0.75, 4.64],
         [c * 2.3, 0.4, 4.64],
@@ -31509,7 +31509,7 @@ function CA(t, s, o, n = 1) {
 }
 function Df(t, s, o, n = 1, g = "#59626d") {
   const e = 1.35 * n, i = 1.08 * n, r = [...it(ln(t, s, e, e, i, o), g)];
-  r.push([St([
+  r.push([Mt([
     [t - e * 0.42, s - e * 0.42, o + i + 0.016],
     [t + e * 0.42, s - e * 0.42, o + i + 0.016],
     [t + e * 0.42, s + e * 0.42, o + i + 0.016],
@@ -31518,7 +31518,7 @@ function Df(t, s, o, n = 1, g = "#59626d") {
   for (const [c, C] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
     if (xs(c, C) <= 0.12) continue;
     const I = -C, A = c, l = e / 2 + 0.02;
-    r.push([St([
+    r.push([Mt([
       [t + I * e * 0.42 + c * l, s + A * e * 0.42 + C * l, o + e * 0.08],
       [t - I * e * 0.42 + c * l, s - A * e * 0.42 + C * l, o + e * 0.08],
       [t - I * e * 0.42 + c * l, s - A * e * 0.42 + C * l, o + e * 0.72],
@@ -32220,11 +32220,11 @@ function tk(t, s, o, n = 1 / 0) {
         ), C(0.31) + 0.03));
     }
   const A = 0.95, l = (M, S, y, O, K, B) => {
-    const G = (E, N, R) => [t + E * M, s + (N < 0 ? S : y), (N < 0 ? O : K) + R], L = St([G(-1, -1, B), G(1, -1, B), G(1, 1, B), G(-1, 1, B)]), T = St([G(-1, -1, 0), G(-1, 1, 0), G(1, 1, 0), G(1, -1, 0)]), x = [[L, 1, "#767e87"], cn(L, 0.16), [T, 1, c]];
+    const G = (E, N, R) => [t + E * M, s + (N < 0 ? S : y), (N < 0 ? O : K) + R], L = Mt([G(-1, -1, B), G(1, -1, B), G(1, 1, B), G(-1, 1, B)]), T = Mt([G(-1, -1, 0), G(-1, 1, 0), G(1, 1, 0), G(1, -1, 0)]), x = [[L, 1, "#767e87"], cn(L, 0.16), [T, 1, c]];
     for (const E of [-1, 1])
-      x.push([St([G(E, -1, 0), G(E, -1, B), G(E, 1, B), G(E, 1, 0)]), 1, c]);
+      x.push([Mt([G(E, -1, 0), G(E, -1, B), G(E, 1, B), G(E, 1, 0)]), 1, c]);
     for (const E of [-1, 1])
-      x.push([St([G(-1, E, 0), G(-1, E, B), G(1, E, B), G(1, E, 0)]), 1, c]);
+      x.push([Mt([G(-1, E, 0), G(-1, E, B), G(1, E, B), G(1, E, 0)]), 1, c]);
     return x;
   }, a = Math.max(1, Math.min(n, Math.floor((I - 0.2) / A)));
   for (let M = 1; M <= a; M += 1) {
@@ -39466,8 +39466,8 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
       {
         const ms = `${Ct}x${ut}`, Ms = performance.now(), $s = Kd.get(Q);
         $s ? $s.k !== ms && ($s.k = ms, $s.t = Ms) : Kd.set(Q, { k: ms, t: -1e9 });
-        const Mt = Kd.get(Q);
-        if (Mt && Q.width > 0 && Ms - Cb.t < 1500 && Ms - Mt.t < Rw && Er() >= 1) {
+        const St = Kd.get(Q);
+        if (St && Q.width > 0 && Ms - Cb.t < 1500 && Ms - St.t < Rw && Er() >= 1) {
           Ri.tm || (Fr(`크기 바뀜 ${ms} 기다림`), Ri.tm = window.setTimeout(() => {
             var vs;
             Ri.tm = 0, Fr("크기 자리 잡음 → 다시 그림"), (vs = Ri.fn) == null || vs.call(Ri);
@@ -39502,8 +39502,8 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
         nn.unitScale = ms.width > 0 ? Math.round(Q.width / (ms.width * xt) * 1e4) / 1e4 : 0;
         const Ms = {};
         for (const $s of st ?? []) {
-          const Mt = `${$s.kind}:${$s.style ?? "-"}`;
-          Ms[Mt] = (Ms[Mt] ?? 0) + 1;
+          const St = `${$s.kind}:${$s.style ?? "-"}`;
+          Ms[St] = (Ms[St] ?? 0) + 1;
         }
         nn.fx = Ms, window.__scrDiag = nn;
       }
@@ -39526,12 +39526,11 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
       const bs = f !== void 0 ? P < f : !!w, hs = m === void 0 || P >= m;
       DF(j), E1(Gt), Gt.setTransform(Lt, 0, 0, Lt, 0, 0), pB(Gt, Ct, ut), d9 = !!Nt;
       const Ss = (ms) => (ms - 0.5) * lt * P + lt / 2 + $.x + Kt, Os = (ms) => (ms - 0.5) * rt * P + rt / 2 + $.y + kt, ks = 160, Ks = (ms) => {
-        const Ms = (ms.wFrac !== void 0 ? Math.max(ms.wFrac, ms.hFrac ?? 0) * lt : ms.sizePx) * P + ks, $s = Ss(ms.fx), Mt = Os(ms.fy);
+        const Ms = (ms.wFrac !== void 0 ? Math.max(ms.wFrac, ms.hFrac ?? 0) * lt : ms.sizePx) * P + ks, $s = Ss(ms.fx), St = Os(ms.fy);
         if (ms.clipWalk)
-          return $s >= -Ms && $s <= Ct + Ms && Mt >= -Ms && Mt <= ut + Ms;
-        if (Ot > 0 && Mt < Ot - 0.5) return !1;
+          return $s >= -Ms && $s <= Ct + Ms && St >= -Ms && St <= ut + Ms;
         const vs = P0;
-        return vs ? $s >= vs[0] - Ms && $s <= vs[2] + Ms && Mt >= vs[1] - Ms && Mt <= vs[3] + Ms : $s >= -Ms && $s <= Ct + Ms && Mt >= -Ms && Mt <= ut + Ms;
+        return vs ? $s >= vs[0] - Ms && $s <= vs[2] + Ms && St >= vs[1] - Ms && St <= vs[3] + Ms : $s >= -Ms && $s <= Ct + Ms && St >= -Ms && St <= ut + Ms;
       };
       J.current.src !== It && (J.current = {
         src: It,
@@ -39542,9 +39541,9 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
         if (!Rs && !Bs) return ms;
         const Ms = [];
         for (const $s of ms) {
-          let Mt = $s;
-          if (Rs && (Mt.kind === "tankgun" || Mt.kind === "tanksiegegun" || Mt.kind === "tankturret0")) continue;
-          let vs = Mt.kind, Js = Mt.pose ?? 0, zs = Mt.rotDeg, Rn = Mt.viewYaw;
+          let St = $s;
+          if (Rs && (St.kind === "tankgun" || St.kind === "tanksiegegun" || St.kind === "tankturret0")) continue;
+          let vs = St.kind, Js = St.pose ?? 0, zs = St.rotDeg, Rn = St.viewYaw;
           if (Bs && Rn && (Rn = P < 1.5 || Us >= 1 ? 0 : Math.round(Rn / 18) * 18), Rs) {
             vs === "tankbody" ? vs = "tank" : vs === "tanksiegebody" && (vs = "tanksiege");
             const Vo = cA[vs];
@@ -39560,9 +39559,9 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
             }
             zs = (se % 360 + 360) % 360;
           }
-          let ro = Mt.headDeg, mn = Mt.lit, yo = Mt.spin;
-          Us >= 1 && !h9.has(vs) && (ro = void 0, mn = !1, yo = 0), (vs !== Mt.kind || Js !== (Mt.pose ?? 0) || zs !== Mt.rotDeg || Rn !== Mt.viewYaw || ro !== Mt.headDeg || mn !== Mt.lit || yo !== Mt.spin) && (Mt = {
-            ...Mt,
+          let ro = St.headDeg, mn = St.lit, yo = St.spin;
+          Us >= 1 && !h9.has(vs) && (ro = void 0, mn = !1, yo = 0), (vs !== St.kind || Js !== (St.pose ?? 0) || zs !== St.rotDeg || Rn !== St.viewYaw || ro !== St.headDeg || mn !== St.lit || yo !== St.spin) && (St = {
+            ...St,
             kind: vs,
             pose: Js,
             ...zs !== void 0 ? { rotDeg: zs } : {},
@@ -39570,7 +39569,7 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
             headDeg: ro,
             lit: mn,
             spin: yo
-          }), Ms.push(Mt);
+          }), Ms.push(St);
         }
         return Ms;
       })(), Es = (() => {
@@ -39578,7 +39577,7 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
           return kc.n = 0, kc.drew = 0, Ln;
         const ms = (zs) => h9.has(zs.kind) && !T(zs.pickKey), Ms = Math.max(2, (i ?? 8) * P * 0.7);
         Eu.size > 8e3 && Eu.clear();
-        const $s = /* @__PURE__ */ new Map(), Mt = [], vs = [], Js = [];
+        const $s = /* @__PURE__ */ new Map(), St = [], vs = [], Js = [];
         for (let zs = Ln.length - 1; zs >= 0; zs -= 1) {
           const Rn = Ln[zs];
           if (!ms(Rn)) {
@@ -39593,7 +39592,7 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
               if (tg)
                 for (let c0 = 0; c0 < tg.length; c0 += 1) {
                   const ig = tg[c0];
-                  if (Math.abs(Mt[ig] - ro) < Vo && Math.abs(vs[ig] - mn) < Vo) {
+                  if (Math.abs(St[ig] - ro) < Vo && Math.abs(vs[ig] - mn) < Vo) {
                     jn = !0;
                     break;
                   }
@@ -39601,75 +39600,75 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
             }
           if (yo !== void 0 && (jn ? Eu.set(yo, 1) : Eu.delete(yo)), jn) continue;
           const Ie = (xe & 65535) * 65536 + (se & 65535), Be = $s.get(Ie);
-          Be ? Be.push(Mt.length) : $s.set(Ie, [Mt.length]), Mt.push(ro), vs.push(mn), Js.push(Rn);
+          Be ? Be.push(St.length) : $s.set(Ie, [St.length]), St.push(ro), vs.push(mn), Js.push(Rn);
         }
         return Js.reverse(), kc.n = Ln.length, kc.drew = Js.length, Js;
       })(), Vs = (ms) => {
         var $s;
         const Ms = a !== !1 && !cL && ($e.lv === 0 || !0) && P >= qX && !bs;
         Gt.shadowBlur = 0, Gt.shadowColor = "transparent";
-        for (const Mt of ms) {
-          const vs = Ss(Mt.fx), Js = Os(Mt.fy), zs = Mt.baseFy !== void 0 ? Os(Mt.baseFy) : void 0, Rn = (Mt.wFrac !== void 0 ? Math.max(Mt.wFrac, Mt.hFrac ?? 0) * lt : Mt.sizePx) * P * 2 + (Mt.airPx !== void 0 ? Mt.airPx * P : 0) + 64;
+        for (const St of ms) {
+          const vs = Ss(St.fx), Js = Os(St.fy), zs = St.baseFy !== void 0 ? Os(St.baseFy) : void 0, Rn = (St.wFrac !== void 0 ? Math.max(St.wFrac, St.hFrac ?? 0) * lt : St.sizePx) * P * 2 + (St.airPx !== void 0 ? St.airPx * P : 0) + 64;
           if (vs < -Rn || vs > Ct + Rn || Js < -Rn || Js > ut + Rn) continue;
-          if (bs && !Mt.textGlyph && !Mt.clipWalk) {
-            if (Gt.globalAlpha = Mt.alpha, Gt.fillStyle = Mt.color, Mt.wFrac !== void 0 && Mt.hFrac !== void 0) {
-              const Dn = Mt.kind.startsWith("mineral") ? uX : Mt.kind.startsWith("geyser") ? hX : null;
+          if (bs && !St.textGlyph && !St.clipWalk) {
+            if (Gt.globalAlpha = St.alpha, Gt.fillStyle = St.color, St.wFrac !== void 0 && St.hFrac !== void 0) {
+              const Dn = St.kind.startsWith("mineral") ? uX : St.kind.startsWith("geyser") ? hX : null;
               Dn && (Gt.fillStyle = Dn, Gt.globalAlpha = 1);
-              const Un = Math.max(2, Mt.wFrac * lt * P), bo = Math.max(2, Mt.hFrac * lt * P * 0.72), ne = zs ?? Js + Mt.hFrac * lt * P / 2;
-              Nt && Nt.primOk ? Nt.prim(0, vs, ne - bo / 2, Un / 2, bo / 2, Dn ?? Mt.color, Dn ? 1 : Mt.alpha) : Gt.fillRect(vs - Un / 2, ne - bo, Un, bo);
+              const Un = Math.max(2, St.wFrac * lt * P), bo = Math.max(2, St.hFrac * lt * P * 0.72), ne = zs ?? Js + St.hFrac * lt * P / 2;
+              Nt && Nt.primOk ? Nt.prim(0, vs, ne - bo / 2, Un / 2, bo / 2, Dn ?? St.color, Dn ? 1 : St.alpha) : Gt.fillRect(vs - Un / 2, ne - bo, Un, bo);
             } else {
-              const Dn = Mt.sizePx * P, Un = Math.max(2, Dn * 0.42), bo = Js - (Mt.air ? Dn * 0.45 : 0);
-              Nt && Nt.primOk ? (Nt.prim(1, vs, bo, Un / 2, Un / 2, Mt.color, Mt.alpha), (Mt.selRing || qu(Mt) || T(Mt.pickKey)) && Nt.prim(2, vs, bo, Un / 2 + 1.5, Un / 2 + 1.5, x(Mt), Mt.alpha, 1)) : (Gt.beginPath(), Gt.arc(vs, bo, Un / 2, 0, Math.PI * 2), Gt.fill(), (Mt.selRing || qu(Mt) || T(Mt.pickKey)) && (Gt.strokeStyle = x(Mt), Gt.lineWidth = 1, Gt.beginPath(), Gt.arc(vs, bo, Un / 2 + 1.5, 0, Math.PI * 2), Gt.stroke()));
+              const Dn = St.sizePx * P, Un = Math.max(2, Dn * 0.42), bo = Js - (St.air ? Dn * 0.45 : 0);
+              Nt && Nt.primOk ? (Nt.prim(1, vs, bo, Un / 2, Un / 2, St.color, St.alpha), (St.selRing || qu(St) || T(St.pickKey)) && Nt.prim(2, vs, bo, Un / 2 + 1.5, Un / 2 + 1.5, x(St), St.alpha, 1)) : (Gt.beginPath(), Gt.arc(vs, bo, Un / 2, 0, Math.PI * 2), Gt.fill(), (St.selRing || qu(St) || T(St.pickKey)) && (Gt.strokeStyle = x(St), Gt.lineWidth = 1, Gt.beginPath(), Gt.arc(vs, bo, Un / 2 + 1.5, 0, Math.PI * 2), Gt.stroke()));
             }
             continue;
           }
-          const ro = Mt.air || WR.has(Mt.kind);
-          if (Mt.textGlyph) {
-            Gt.globalAlpha = Mt.alpha, Gt.fillStyle = Mt.color, Gt.font = `700 ${Mt.sizePx * P}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`, Gt.textAlign = "center", Gt.textBaseline = "middle", Gt.fillText(Mt.textGlyph, vs, Js);
+          const ro = St.air || WR.has(St.kind);
+          if (St.textGlyph) {
+            Gt.globalAlpha = St.alpha, Gt.fillStyle = St.color, Gt.font = `700 ${St.sizePx * P}px "SCP Rasheeq", "SCP NanumSquare Neo", sans-serif`, Gt.textAlign = "center", Gt.textBaseline = "middle", Gt.fillText(St.textGlyph, vs, Js);
             continue;
           }
-          if (Mt.wFrac !== void 0 && Mt.hFrac !== void 0) {
-            const Dn = Mt.wFrac * lt * P, Un = Mt.hFrac * lt * P;
-            if (Mt.platePts && Mt.platePts.length >= 8) {
-              const oo = Mt.platePts, Eo = Mt.plateAlpha ?? 0.26;
+          if (St.wFrac !== void 0 && St.hFrac !== void 0) {
+            const Dn = St.wFrac * lt * P, Un = St.hFrac * lt * P;
+            if (St.platePts && St.platePts.length >= 8) {
+              const oo = St.platePts, Eo = St.plateAlpha ?? 0.26;
               Gt.beginPath(), Gt.moveTo(Ss(oo[0]), Os(oo[1]));
               for (let ie = 2; ie + 1 < oo.length; ie += 2) Gt.lineTo(Ss(oo[ie]), Os(oo[ie + 1]));
-              if (Gt.closePath(), Gt.globalAlpha = Eo, Gt.fillStyle = mJ, Gt.fill(), Gt.globalAlpha = 1, !Mt.kind) continue;
+              if (Gt.closePath(), Gt.globalAlpha = Eo, Gt.fillStyle = mJ, Gt.fill(), Gt.globalAlpha = 1, !St.kind) continue;
             }
-            if (Mt.boxFit === "fill") {
-              Nt && Nt.primOk ? Nt.prim(0, vs, Js, Dn / 2, Un / 2, Mt.color, Mt.alpha) : (Gt.globalAlpha = Mt.alpha, Gt.fillStyle = Mt.color, Gt.fillRect(vs - Dn / 2, Js - Un / 2, Dn, Un));
+            if (St.boxFit === "fill") {
+              Nt && Nt.primOk ? Nt.prim(0, vs, Js, Dn / 2, Un / 2, St.color, St.alpha) : (Gt.globalAlpha = St.alpha, Gt.fillStyle = St.color, Gt.fillRect(vs - Dn / 2, Js - Un / 2, Dn, Un));
               continue;
             }
-            const bo = (Mt.fitWidth ? Dn : Math.min(Dn, Un)) * (Mt.drawK ?? 1), Xe = Math.max(4, Math.round(bo * j / P * dt) / dt);
-            if (X1.has(Mt.kind)) {
-              const oo = GH(Mt, dt);
+            const bo = (St.fitWidth ? Dn : Math.min(Dn, Un)) * (St.drawK ?? 1), Xe = Math.max(4, Math.round(bo * j / P * dt) / dt);
+            if (X1.has(St.kind)) {
+              const oo = GH(St, dt);
               if (oo) {
-                const Eo = bo / oo.side * (Mt.pulseK ?? 1), ie = oo.bot / dt * Eo, oe = Math.round((Js + (oo.bot - oo.top) / dt * Eo / 2 - ie) * dt) / dt, be = Math.round((vs - (oo.pad + oo.side / 2) * Eo) * dt) / dt, Pe = Math.round((be + oo.ox / dt * Eo) * dt) / dt, $g = Math.round((oe + oo.oy / dt * Eo) * dt) / dt;
-                Gt.globalAlpha = Mt.alpha, de.blit += 1, Gt.drawImage(oo.cv, Pe, $g, oo.cv.width / dt * Eo, oo.cv.height / dt * Eo);
+                const Eo = bo / oo.side * (St.pulseK ?? 1), ie = oo.bot / dt * Eo, oe = Math.round((Js + (oo.bot - oo.top) / dt * Eo / 2 - ie) * dt) / dt, be = Math.round((vs - (oo.pad + oo.side / 2) * Eo) * dt) / dt, Pe = Math.round((be + oo.ox / dt * Eo) * dt) / dt, $g = Math.round((oe + oo.oy / dt * Eo) * dt) / dt;
+                Gt.globalAlpha = St.alpha, de.blit += 1, Gt.drawImage(oo.cv, Pe, $g, oo.cv.width / dt * Eo, oo.cv.height / dt * Eo);
                 continue;
               }
             }
-            const rg = !!Nt && Nt.sprTint && Vl && !Mt.pitch, Ho = rg ? Qi : fO(Xe), w0 = (oo, Eo) => Eo, cg = rg && x1.has(Mt.kind), C0 = BB || !!Mt.lit, B0 = rg ? { ...Mt, lit: cg ? !1 : C0, spin: w0(Mt.kind, Mt.spin) } : BB ? { ...Mt, lit: !0 } : Mt, ze = Nt ? Nt.bldMesh(B0, Ho) : null, ve = ze && Nt && cg ? Nt.bldMesh({ ...B0, litMask: !0 }, Ho) : null;
-            if (Nt && !ze && XO() && Cn[Mt.kind]) continue;
-            const tI = ze ? _m(!!Mt.pitch, gA, VB(Mt.viewYaw, !0)) : KI, a0 = rg && !!Mt.attach && x1.has(Mt.attach), mg = Mt.attach ? { ...B0, kind: Mt.attach, headDeg: void 0, lit: a0 ? !1 : C0, spin: w0(Mt.attach, Mt.spin) } : null, sg = ze && Nt && mg ? Nt.bldMesh(mg, Ho) : null, me = sg && Nt && mg && a0 ? Nt.bldMesh({ ...mg, litMask: !0 }, Ho) : null, Hg = (ze && Nt && ((Mt.spin ?? 0) !== 0 || (Mt.buildStage ?? 0) !== 0) ? Nt.bldMesh({ ...B0, spin: 0, buildStage: 0 }, Ho) : ze) ?? ze, Nc = (sg && Nt && Mt.attach && ((Mt.spin ?? 0) !== 0 || (Mt.buildStage ?? 0) !== 0) ? Nt.bldMesh({ ...mg ?? B0, spin: 0, buildStage: 0 }, Ho) : sg) ?? sg, go = Hg && Nt ? (() => {
-              const oo = Nt.footOf(Hg, -(Mt.rotDeg ?? 0), tI);
+            const rg = !!Nt && Nt.sprTint && Vl && !St.pitch, Ho = rg ? Qi : fO(Xe), w0 = (oo, Eo) => Eo, cg = rg && x1.has(St.kind), C0 = BB || !!St.lit, B0 = rg ? { ...St, lit: cg ? !1 : C0, spin: w0(St.kind, St.spin) } : BB ? { ...St, lit: !0 } : St, ze = Nt ? Nt.bldMesh(B0, Ho) : null, ve = ze && Nt && cg ? Nt.bldMesh({ ...B0, litMask: !0 }, Ho) : null;
+            if (Nt && !ze && XO() && Cn[St.kind]) continue;
+            const tI = ze ? _m(!!St.pitch, gA, VB(St.viewYaw, !0)) : KI, a0 = rg && !!St.attach && x1.has(St.attach), mg = St.attach ? { ...B0, kind: St.attach, headDeg: void 0, lit: a0 ? !1 : C0, spin: w0(St.attach, St.spin) } : null, sg = ze && Nt && mg ? Nt.bldMesh(mg, Ho) : null, me = sg && Nt && mg && a0 ? Nt.bldMesh({ ...mg, litMask: !0 }, Ho) : null, Hg = (ze && Nt && ((St.spin ?? 0) !== 0 || (St.buildStage ?? 0) !== 0) ? Nt.bldMesh({ ...B0, spin: 0, buildStage: 0 }, Ho) : ze) ?? ze, Nc = (sg && Nt && St.attach && ((St.spin ?? 0) !== 0 || (St.buildStage ?? 0) !== 0) ? Nt.bldMesh({ ...mg ?? B0, spin: 0, buildStage: 0 }, Ho) : sg) ?? sg, go = Hg && Nt ? (() => {
+              const oo = Nt.footOf(Hg, -(St.rotDeg ?? 0), tI);
               if (!Nc) return oo;
-              const Eo = Nt.footOf(Nc, -(Mt.rotDeg ?? 0), tI), ie = Math.min(oo.cx - oo.w / 2, Eo.cx - Eo.w / 2), oe = Math.max(oo.cx + oo.w / 2, Eo.cx + Eo.w / 2);
+              const Eo = Nt.footOf(Nc, -(St.rotDeg ?? 0), tI), ie = Math.min(oo.cx - oo.w / 2, Eo.cx - Eo.w / 2), oe = Math.max(oo.cx + oo.w / 2, Eo.cx + Eo.w / 2);
               return { w: oe - ie, cx: (ie + oe) / 2, bot: Math.max(oo.bot, Eo.bot), top: Math.min(oo.top, Eo.top) };
             })() : null;
-            if (go && !w4.has(y4(Mt.kind, Mt.pitch))) {
-              const oo = xr(Mt.kind) ?? 1;
-              w4.set(y4(Mt.kind, Mt.pitch), [8 + oo * go.cx, 16 + oo * (go.bot - (16 - (Mt.pitch ? 12.6 : 12)))]);
+            if (go && !w4.has(y4(St.kind, St.pitch))) {
+              const oo = xr(St.kind) ?? 1;
+              w4.set(y4(St.kind, St.pitch), [8 + oo * go.cx, 16 + oo * (go.bot - (16 - (St.pitch ? 12.6 : 12)))]);
             }
-            const _I = sm(P) && Ms && !!(ze && Nt) && !fi.has(Mt.kind);
-            if (Mt.groundShadow && l !== !1 && !_I && Fe.lv >= 1) {
-              const Eo = go ? go.w * (bo / 16) * (xr(Mt.kind) ?? 1) : Dn, ie = Mt.pitch ? Math.max(Dn * 0.7, Eo * 0.88) : Eo * 0.72, oe = ie * (Mt.footRatio ?? 0.6) * 0.55;
-              if (Gt.globalAlpha = Mt.alpha * 0.36, Gt.fillStyle = "#000", Gt.beginPath(), Mt.shadowPts && Mt.shadowPts.length >= 6) {
-                const be = Mt.shadowPts;
+            const _I = sm(P) && Ms && !!(ze && Nt) && !fi.has(St.kind);
+            if (St.groundShadow && l !== !1 && !_I && Fe.lv >= 1) {
+              const Eo = go ? go.w * (bo / 16) * (xr(St.kind) ?? 1) : Dn, ie = St.pitch ? Math.max(Dn * 0.7, Eo * 0.88) : Eo * 0.72, oe = ie * (St.footRatio ?? 0.6) * 0.55;
+              if (Gt.globalAlpha = St.alpha * 0.36, Gt.fillStyle = "#000", Gt.beginPath(), St.shadowPts && St.shadowPts.length >= 6) {
+                const be = St.shadowPts;
                 Gt.moveTo(Ss(be[0]), Os(be[1]));
                 for (let Pe = 2; Pe + 1 < be.length; Pe += 2) Gt.lineTo(Ss(be[Pe]), Os(be[Pe + 1]));
                 Gt.closePath();
-              } else Nt && Nt.primOk ? Nt.prim(1, vs, (zs ?? Js + Un / 2) - oe / 2, ie * 0.5, Math.max(2, oe * 0.5), "#000", Mt.alpha * 0.36) : Gt.ellipse(
+              } else Nt && Nt.primOk ? Nt.prim(1, vs, (zs ?? Js + Un / 2) - oe / 2, ie * 0.5, Math.max(2, oe * 0.5), "#000", St.alpha * 0.36) : Gt.ellipse(
                 vs,
                 (zs ?? Js + Un / 2) - oe / 2,
                 ie * 0.5,
@@ -39678,76 +39677,76 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
                 0,
                 Math.PI * 2
               );
-              (!(Nt && Nt.primOk) || Mt.shadowPts && Mt.shadowPts.length >= 6) && Gt.fill();
+              (!(Nt && Nt.primOk) || St.shadowPts && St.shadowPts.length >= 6) && Gt.fill();
             }
             const kI = (oo) => {
-              if (!(u !== !1 && rn && Mt.hpFrac !== void 0 && Mt.hpFrac > 0 && (Mt.hpShow || vB(Mt) || T(Mt.pickKey)))) return;
-              const Eo = Math.max(3, (Mt.hpBarFrac ?? 0) * lt * P), ie = Math.max(RB(P), 5 * (Eo / (Mt.hpBarW ?? 19))), oe = vs - Eo / 2;
+              if (!(u !== !1 && rn && St.hpFrac !== void 0 && St.hpFrac > 0 && (St.hpShow || vB(St) || T(St.pickKey)))) return;
+              const Eo = Math.max(3, (St.hpBarFrac ?? 0) * lt * P), ie = Math.max(RB(P), 5 * (Eo / (St.hpBarW ?? 19))), oe = vs - Eo / 2;
               if (Nt && Nt.primOk) {
                 const be = Nt;
-                be.prim(0, oe + Eo / 2, oo + ie / 2, Eo / 2 + 0.5, ie / 2 + 0.5, "rgba(10, 14, 10, 0.75)", Mt.alpha * 0.9), pb(Mt, oe, oo, Eo, ie, (Pe, $g, sI, GI, $I, Xo) => be.prim(0, Pe + sI / 2, $g + GI / 2, sI / 2, GI / 2, $I, Xo));
+                be.prim(0, oe + Eo / 2, oo + ie / 2, Eo / 2 + 0.5, ie / 2 + 0.5, "rgba(10, 14, 10, 0.75)", St.alpha * 0.9), pb(St, oe, oo, Eo, ie, (Pe, $g, sI, GI, $I, Xo) => be.prim(0, Pe + sI / 2, $g + GI / 2, sI / 2, GI / 2, $I, Xo));
               } else
-                Gt.globalAlpha = Mt.alpha * 0.9, Gt.fillStyle = "rgba(10, 14, 10, 0.75)", Gt.fillRect(oe - 0.5, oo - 0.5, Eo + 1, ie + 1), MK(Gt, Mt, oe, oo, Eo, ie);
+                Gt.globalAlpha = St.alpha * 0.9, Gt.fillStyle = "rgba(10, 14, 10, 0.75)", Gt.fillRect(oe - 0.5, oo - 0.5, Eo + 1, ie + 1), MK(Gt, St, oe, oo, Eo, ie);
             };
             if (ze && go && Nt) {
-              const oo = Mt.mkFrac !== void 0 ? Mt.mkFrac * lt * P : bo * (Mt.pulseK ?? 1) / 16 * (xr(Mt.kind) ?? 1), Eo = Mt.airPx !== void 0 ? Mt.airPx * P : Dn * (Mt.liftK ?? 0), ie = Mt.pulseMid && Mt.pulseK !== void 0 && Mt.pulseK > 0 && go ? oo / Mt.pulseK * (1 - Mt.pulseK) * Math.abs(go.top - go.bot) / 2 : 0, oe = Mt.mkFrac !== void 0 ? Math.round(Js * dt) / dt : Math.round(((zs ?? Js + Un / 2) - Eo - ie) * dt) / dt, be = Math.round(vs * dt) / dt;
-              Mt.pickKey && Mt.mkFrac === void 0 && fM.set(Mt.pickKey, [be + oo * (go.cx - go.w / 2), oe + oo * (go.top - go.bot), be + oo * (go.cx + go.w / 2), oe]);
-              const Pe = _I ? Eo > 0.5 ? { ground: !0, dy: Eo, h: Eo / Math.max(1e-3, oo), alpha: Mt.alpha * id } : { ground: !0, alpha: Mt.alpha * id } : void 0, $g = bo * (Mt.pulseK ?? 1) * 0.707, sI = -8 * oo;
+              const oo = St.mkFrac !== void 0 ? St.mkFrac * lt * P : bo * (St.pulseK ?? 1) / 16 * (xr(St.kind) ?? 1), Eo = St.airPx !== void 0 ? St.airPx * P : Dn * (St.liftK ?? 0), ie = St.pulseMid && St.pulseK !== void 0 && St.pulseK > 0 && go ? oo / St.pulseK * (1 - St.pulseK) * Math.abs(go.top - go.bot) / 2 : 0, oe = St.mkFrac !== void 0 ? Math.round(Js * dt) / dt : Math.round(((zs ?? Js + Un / 2) - Eo - ie) * dt) / dt, be = Math.round(vs * dt) / dt;
+              St.pickKey && St.mkFrac === void 0 && fM.set(St.pickKey, [be + oo * (go.cx - go.w / 2), oe + oo * (go.top - go.bot), be + oo * (go.cx + go.w / 2), oe]);
+              const Pe = _I ? Eo > 0.5 ? { ground: !0, dy: Eo, h: Eo / Math.max(1e-3, oo), alpha: St.alpha * id } : { ground: !0, alpha: St.alpha * id } : void 0, $g = bo * (St.pulseK ?? 1) * 0.707, sI = -8 * oo;
               let GI;
-              const $I = oe - oo * go.bot, Xo = 0.31 / 0.55 * fc(Mt), ti = Math.max(1, go.w * oo * 0.56 / Math.max(1, Dn * 0.62)), Vr = Dn * 0.62 * ti, qr = $I + Math.max(3, Vr * Xo) + zC((i ?? 8) * P, Lt) / 2;
-              if ((Mt.selRing || qu(Mt) || T(Mt.pickKey)) && Nt.primOk && Mt.mkFrac === void 0) {
-                const TI = x(Mt), Cg = { kind: 2, x: vs, y: $I, rx: Vr, ry: Math.max(3, Vr * Xo), color: TI, alpha: Mt.alpha, lineW: zC((i ?? 8) * P, Lt), shear: 0 };
-                ZB(Mt, TI, Vr * 2, Cg.lineW), Eo > 0.5 ? GI = Cg : Nt.prim(Cg.kind, Cg.x, Cg.y, Cg.rx, Cg.ry, Cg.color, Cg.alpha, Cg.lineW);
+              const $I = oe - oo * go.bot, Xo = 0.31 / 0.55 * fc(St), ti = Math.max(1, go.w * oo * 0.56 / Math.max(1, Dn * 0.62)), Vr = Dn * 0.62 * ti, qr = $I + Math.max(3, Vr * Xo) + zC((i ?? 8) * P, Lt) / 2;
+              if ((St.selRing || qu(St) || T(St.pickKey)) && Nt.primOk && St.mkFrac === void 0) {
+                const TI = x(St), Cg = { kind: 2, x: vs, y: $I, rx: Vr, ry: Math.max(3, Vr * Xo), color: TI, alpha: St.alpha, lineW: zC((i ?? 8) * P, Lt), shear: 0 };
+                ZB(St, TI, Vr * 2, Cg.lineW), Eo > 0.5 ? GI = Cg : Nt.prim(Cg.kind, Cg.x, Cg.y, Cg.rx, Cg.ry, Cg.color, Cg.alpha, Cg.lineW);
               }
-              if ((T(Mt.pickKey) || !hb && (Gg === null || Mt.pickRaw === Gg) && Mt.rallyAge !== void 0 && Mt.rallyAge >= 0 && Mt.rallyAge < uR) && Mt.rally && Nt.primOk) {
-                const TI = Ss(Mt.rally[0]), Cg = Os(Mt.rally[1]), jr = zC((i ?? 8) * P, Lt), Wc = x(Mt);
-                TB(Nt, vs, $I, TI, Cg, Wc, Mt.alpha * 0.8, jr), Nt.prim(2, TI, Cg, Math.max(3, (i ?? 8) * P * 0.35), Math.max(2, (i ?? 8) * P * 0.2), Wc, Mt.alpha, jr);
+              if ((T(St.pickKey) || !hb && (Gg === null || St.pickRaw === Gg) && St.rallyAge !== void 0 && St.rallyAge >= 0 && St.rallyAge < uR) && St.rally && Nt.primOk) {
+                const TI = Ss(St.rally[0]), Cg = Os(St.rally[1]), jr = zC((i ?? 8) * P, Lt), Wc = x(St);
+                TB(Nt, vs, $I, TI, Cg, Wc, St.alpha * 0.8, jr), Nt.prim(2, TI, Cg, Math.max(3, (i ?? 8) * P * 0.35), Math.max(2, (i ?? 8) * P * 0.2), Wc, St.alpha, jr);
               }
-              if (Nt.push({ mesh: ze, ax: be, ay: oe, k: oo, yoff: Mt.mkFrac !== void 0 ? 0 : -oo * go.bot, yawDeg: -(Mt.rotDeg ?? 0), color: Mt.color, alpha: Mt.alpha, cam: tI, gradR: $g, gradCy: sI, shadow: Pe, flat: fi.has(Mt.kind), over: !0, ...ve ? { lit: C0, meshLt: ve } : {}, ...Mt.aura && rg ? { aura: !0 } : {}, ...GI ? { ring: GI } : {}, ...Mt.warpK !== void 0 ? { warp: Mt.warpK } : {} }), ze.gas && Nt.gasPush9(ze, be, oe, oo, -oo * go.bot, -(Mt.rotDeg ?? 0), tI, (Mt.spin ?? 0) / Oe, Mt.color, Mt.alpha), Mt.attach) {
-                const TI = Mt.attachRot ?? Mt.rotDeg ?? 0, Cg = sg;
-                Cg && Nt.push({ mesh: Cg, ax: be, ay: oe, k: oo, yoff: -oo * go.bot, yawDeg: -TI, color: Mt.color, alpha: Mt.alpha, cam: tI, gradR: $g, gradCy: sI, flat: fi.has(Mt.kind), over: !0, ...me ? { lit: C0, meshLt: me } : {} });
+              if (Nt.push({ mesh: ze, ax: be, ay: oe, k: oo, yoff: St.mkFrac !== void 0 ? 0 : -oo * go.bot, yawDeg: -(St.rotDeg ?? 0), color: St.color, alpha: St.alpha, cam: tI, gradR: $g, gradCy: sI, shadow: Pe, flat: fi.has(St.kind), over: !0, ...ve ? { lit: C0, meshLt: ve } : {}, ...St.aura && rg ? { aura: !0 } : {}, ...GI ? { ring: GI } : {}, ...St.warpK !== void 0 ? { warp: St.warpK } : {} }), ze.gas && Nt.gasPush9(ze, be, oe, oo, -oo * go.bot, -(St.rotDeg ?? 0), tI, (St.spin ?? 0) / Oe, St.color, St.alpha), St.attach) {
+                const TI = St.attachRot ?? St.rotDeg ?? 0, Cg = sg;
+                Cg && Nt.push({ mesh: Cg, ax: be, ay: oe, k: oo, yoff: -oo * go.bot, yawDeg: -TI, color: St.color, alpha: St.alpha, cam: tI, gradR: $g, gradCy: sI, flat: fi.has(St.kind), over: !0, ...me ? { lit: C0, meshLt: me } : {} });
               }
-              kI(Math.max(oe + 2 + Dn * 0.03, Mt.mkFrac === void 0 ? qr + 1 : -1 / 0));
+              kI(Math.max(oe + 2 + Dn * 0.03, St.mkFrac === void 0 ? qr + 1 : -1 / 0));
               continue;
             }
-            for (const [oo, Eo] of [[Mt.kind, Mt.rotDeg], ...Mt.attach ? [[Mt.attach, Mt.attachRot ?? Mt.rotDeg]] : []]) {
-              const { faces: ie } = wi(oo, Eo, Mt.flat, Mt.viewYaw, Mt.pitch);
+            for (const [oo, Eo] of [[St.kind, St.rotDeg], ...St.attach ? [[St.attach, St.attachRot ?? St.rotDeg]] : []]) {
+              const { faces: ie } = wi(oo, Eo, St.flat, St.viewYaw, St.pitch);
               if (ie) {
-                const oe = (Mt.fitWidth ? Dn : Math.min(Dn, Un)) * (Mt.drawK ?? 1) / 16, be = (zs ?? Js + Un / 2) - (Mt.airPx !== void 0 ? Mt.airPx * P : Dn * (Mt.liftK ?? 0));
+                const oe = (St.fitWidth ? Dn : Math.min(Dn, Un)) * (St.drawK ?? 1) / 16, be = (zs ?? Js + Un / 2) - (St.airPx !== void 0 ? St.airPx * P : Dn * (St.liftK ?? 0));
                 Gt.setTransform(Lt * oe, 0, 0, Lt * oe, Lt * (vs - 8 * oe), Lt * (be - 16 * oe));
                 {
-                  const Pe = xr(Mt.kind);
+                  const Pe = xr(St.kind);
                   Pe !== void 0 && Pe !== 1 && (Gt.translate(8, 16), Gt.scale(Pe, Pe), Gt.translate(-8, -16));
                 }
                 for (const [Pe, $g, sI] of ie)
-                  Gt.globalAlpha = Mt.alpha * Z1($g, sI), Gt.fillStyle = Jr(sI ?? Mt.color), Gt.fill(Ql(Pe));
+                  Gt.globalAlpha = St.alpha * Z1($g, sI), Gt.fillStyle = Jr(sI ?? St.color), Gt.fill(Ql(Pe));
                 Gt.setTransform(Lt, 0, 0, Lt, 0, 0);
               }
             }
-            kI((zs ?? Js + Un / 2) - (Mt.airPx !== void 0 ? Mt.airPx * P : Dn * (Mt.liftK ?? 0)) + 2 + Dn * 0.03);
+            kI((zs ?? Js + Un / 2) - (St.airPx !== void 0 ? St.airPx * P : Dn * (St.liftK ?? 0)) + 2 + Dn * 0.03);
             continue;
           }
-          const yo = !!Nt && Nt.sprTint && Vl && !Mt.pitch ? Qi : fO(Math.max(4, Mt.sizePx * j) * vr(Mt.kind) / 16, mF, bF), Vo = Nt && Cn[Mt.kind] ? Nt.unitMesh(Mt.kind, Mt.pose ?? 0, yo) : null;
-          if (Nt && !Vo && XO() && Cn[Mt.kind] && !Um.has(Mt.kind)) continue;
-          Nt && !Vo && Pw.set(Mt.kind, (Pw.get(Mt.kind) ?? 0) + 1);
-          const { faces: se, rot: xe } = Vo ? { faces: null, rot: 0 } : wi(Mt.kind, Mt.rotDeg, Mt.flat, Mt.viewYaw, Mt.pitch);
+          const yo = !!Nt && Nt.sprTint && Vl && !St.pitch ? Qi : fO(Math.max(4, St.sizePx * j) * vr(St.kind) / 16, mF, bF), Vo = Nt && Cn[St.kind] ? Nt.unitMesh(St.kind, St.pose ?? 0, yo) : null;
+          if (Nt && !Vo && XO() && Cn[St.kind] && !Um.has(St.kind)) continue;
+          Nt && !Vo && Pw.set(St.kind, (Pw.get(St.kind) ?? 0) + 1);
+          const { faces: se, rot: xe } = Vo ? { faces: null, rot: 0 } : wi(St.kind, St.rotDeg, St.flat, St.viewYaw, St.pitch);
           if (!se && !Vo) continue;
-          const jn = Mt.sizePx * P, Ie = vr(Mt.kind) / 16, Be = (Mt.air ? Mt.airPx !== void 0 ? Mt.airPx * P : jn * i3 : 0) + (Mt.rise ?? 0) * jn, pg = Vo && !xe ? Vo : null, He = pg ? _m(!!Mt.pitch, gA, VB(Mt.viewYaw, !1)) : KI, tg = pg && Nt ? Nt.footOf(pg, -(Mt.rotDeg ?? 0), He) : null, c0 = tg ? tg.w * (jn / 16) * j0(Mt.kind) : jn * Ie, ig = tg ? Js - jn * 0.24 + jn / 16 * (j0(Mt.kind) * tg.bot + ((Mt.flat ? 12 : 12.6) - 8)) - 1 : Js + jn * 0.28, Si = tg ? vs + jn / 16 * j0(Mt.kind) * tg.cx : vs, Qr = Js - jn * 0.24 + ((Mt.flat ? 12 : 12.6) - 8) / 16 * jn, CI = sm(P) && !!(pg && Nt && Ms && (Mt.air || P >= NK()));
-          if (ro && !Mt.noShadow && l !== !1 && ($e.lv === 0 || Mt.air) && hs && !Pt && !CI && (Fe.lv >= 1 ? Mt.air : WK())) {
-            const Dn = c0 * (Mt.air ? 0.44 : 0.32);
-            Gt.globalAlpha = Mt.alpha * (Mt.air ? 0.36 : 0.25), Gt.fillStyle = "#000", Gt.beginPath(), Nt && Nt.primOk ? Nt.prim(1, vs, zs ?? Qr, Dn * 1.1, Dn * (Mt.air ? 0.5 : 0.42) * fc(Mt), "#000", Mt.alpha * (Mt.air ? 0.36 : 0.25)) : (Gt.ellipse(vs, zs ?? Qr, Dn * 1.1, Dn * (Mt.air ? 0.5 : 0.42) * fc(Mt), 0, 0, Math.PI * 2), Gt.fill());
-          } else l !== !1 && $e.lv === 0 && Fe.lv < 1 && hs && !Pt && !Mt.air && !Mt.clipWalk && !Mt.noShadow && !CI && WK();
+          const jn = St.sizePx * P, Ie = vr(St.kind) / 16, Be = (St.air ? St.airPx !== void 0 ? St.airPx * P : jn * i3 : 0) + (St.rise ?? 0) * jn, pg = Vo && !xe ? Vo : null, He = pg ? _m(!!St.pitch, gA, VB(St.viewYaw, !1)) : KI, tg = pg && Nt ? Nt.footOf(pg, -(St.rotDeg ?? 0), He) : null, c0 = tg ? tg.w * (jn / 16) * j0(St.kind) : jn * Ie, ig = tg ? Js - jn * 0.24 + jn / 16 * (j0(St.kind) * tg.bot + ((St.flat ? 12 : 12.6) - 8)) - 1 : Js + jn * 0.28, Si = tg ? vs + jn / 16 * j0(St.kind) * tg.cx : vs, Qr = Js - jn * 0.24 + ((St.flat ? 12 : 12.6) - 8) / 16 * jn, CI = sm(P) && !!(pg && Nt && Ms && (St.air || P >= NK()));
+          if (ro && !St.noShadow && l !== !1 && ($e.lv === 0 || St.air) && hs && !Pt && !CI && (Fe.lv >= 1 ? St.air : WK())) {
+            const Dn = c0 * (St.air ? 0.44 : 0.32);
+            Gt.globalAlpha = St.alpha * (St.air ? 0.36 : 0.25), Gt.fillStyle = "#000", Gt.beginPath(), Nt && Nt.primOk ? Nt.prim(1, vs, zs ?? Qr, Dn * 1.1, Dn * (St.air ? 0.5 : 0.42) * fc(St), "#000", St.alpha * (St.air ? 0.36 : 0.25)) : (Gt.ellipse(vs, zs ?? Qr, Dn * 1.1, Dn * (St.air ? 0.5 : 0.42) * fc(St), 0, 0, Math.PI * 2), Gt.fill());
+          } else l !== !1 && $e.lv === 0 && Fe.lv < 1 && hs && !Pt && !St.air && !St.clipWalk && !St.noShadow && !CI && WK();
           let Yc;
           const yg = () => {
-            const Dn = IK[Mt.kind] ?? 1, Un = pg && Nt ? SR(Nt, Mt.kind, pg, yo, He) * (jn / 16) * j0(Mt.kind) : c0, bo = zC((i ?? 8) * P, Lt), ne = (zs ?? Qr) - Be;
-            return { ringW: bo, ringK9: Dn, ringWd9: Un, ringY: ne, ringBot: ne + Un * 0.31 * Dn * fc(Mt) + bo / 2 };
+            const Dn = IK[St.kind] ?? 1, Un = pg && Nt ? SR(Nt, St.kind, pg, yo, He) * (jn / 16) * j0(St.kind) : c0, bo = zC((i ?? 8) * P, Lt), ne = (zs ?? Qr) - Be;
+            return { ringW: bo, ringK9: Dn, ringWd9: Un, ringY: ne, ringBot: ne + Un * 0.31 * Dn * fc(St) + bo / 2 };
           };
-          if (U9 && Nt && Nt.primOk && !Mt.ghost && Mt.pickKey && Mt.pickKey.charCodeAt(0) === 117) {
-            const Dn = U9.get(Number(Mt.pickKey.slice(1)));
+          if (U9 && Nt && Nt.primOk && !St.ghost && St.pickKey && St.pickKey.charCodeAt(0) === 117) {
+            const Dn = U9.get(Number(St.pickKey.slice(1)));
             if (Dn) {
               const { ringW: Un, ringY: bo } = yg(), ne = Ss(Dn[0]), Xe = Os(Dn[1]), vg = ne - vs, rg = Xe - bo, Ho = Math.hypot(vg, rg);
               if (Ho > 6) {
-                const w0 = Dn[3], cg = Mt.alpha * Math.min(1, (Sk - w0) / 0.4) * 0.9, C0 = Gg !== null ? Bc : Mt.color, B0 = vg / Ho, ze = rg / Ho, ve = Math.max(5, Un * 6), tI = (mg, sg, me, Hg) => Nt.prim(3, mg, sg, me, Hg, C0, cg, Un);
+                const w0 = Dn[3], cg = St.alpha * Math.min(1, (Sk - w0) / 0.4) * 0.9, C0 = Gg !== null ? Bc : St.color, B0 = vg / Ho, ze = rg / Ho, ve = Math.max(5, Un * 6), tI = (mg, sg, me, Hg) => Nt.prim(3, mg, sg, me, Hg, C0, cg, Un);
                 Dn[2] === 1 ? tI(vs, bo, ne, Xe) : TB(Nt, vs, bo, ne, Xe, C0, cg, Un);
                 const a0 = (mg, sg, me, Hg) => {
                   tI(mg, sg, mg - me * ve - Hg * ve * 0.55, sg - Hg * ve + me * ve * 0.55), tI(mg, sg, mg - me * ve + Hg * ve * 0.55, sg - Hg * ve - me * ve * 0.55);
@@ -39756,11 +39755,11 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
               }
             }
           }
-          if ((Mt.selRing || qu(Mt) || T(Mt.pickKey)) && !Mt.ghost) {
-            const { ringW: Dn, ringK9: Un, ringWd9: bo, ringY: ne } = yg(), Xe = vs, vg = x(Mt);
-            ZB(Mt, vg, bo, Dn);
+          if ((St.selRing || qu(St) || T(St.pickKey)) && !St.ghost) {
+            const { ringW: Dn, ringK9: Un, ringWd9: bo, ringY: ne } = yg(), Xe = vs, vg = x(St);
+            ZB(St, vg, bo, Dn);
             const rg = () => {
-              Gt.beginPath(), Gt.save(), Gt.translate(Xe, ne), Mt.pitch && Mt.viewYaw && Gt.transform(1, 0, Math.tan(Mt.viewYaw * Math.PI / 180), 1, 0, 0), Gt.ellipse(0, 0, bo * 0.55 * Un, bo * 0.31 * Un * fc(Mt), 0, 0, Math.PI * 2), Gt.restore();
+              Gt.beginPath(), Gt.save(), Gt.translate(Xe, ne), St.pitch && St.viewYaw && Gt.transform(1, 0, Math.tan(St.viewYaw * Math.PI / 180), 1, 0, 0), Gt.ellipse(0, 0, bo * 0.55 * Un, bo * 0.31 * Un * fc(St), 0, 0, Math.PI * 2), Gt.restore();
             };
             if (Nt && Nt.primOk) {
               const Ho = {
@@ -39768,35 +39767,35 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
                 x: Xe,
                 y: ne,
                 rx: bo * 0.55 * Un,
-                ry: bo * 0.31 * Un * fc(Mt),
+                ry: bo * 0.31 * Un * fc(St),
                 color: vg,
-                alpha: Mt.alpha * 0.95,
+                alpha: St.alpha * 0.95,
                 lineW: Dn,
-                shear: Mt.pitch && Mt.viewYaw ? Math.tan(Mt.viewYaw * Math.PI / 180) : 0
+                shear: St.pitch && St.viewYaw ? Math.tan(St.viewYaw * Math.PI / 180) : 0
               };
-              Mt.air && pg ? Yc = Ho : Nt.prim(Ho.kind, Ho.x, Ho.y, Ho.rx, Ho.ry, Ho.color, Ho.alpha, Ho.lineW, Ho.shear);
+              St.air && pg ? Yc = Ho : Nt.prim(Ho.kind, Ho.x, Ho.y, Ho.rx, Ho.ry, Ho.color, Ho.alpha, Ho.lineW, Ho.shear);
             } else
-              Gt.globalAlpha = Mt.alpha * 0.95, Gt.strokeStyle = vg, Gt.lineWidth = Dn, rg(), Gt.stroke();
+              Gt.globalAlpha = St.alpha * 0.95, Gt.strokeStyle = vg, Gt.lineWidth = Dn, rg(), Gt.stroke();
           }
-          if (Mt.tint) {
-            const Dn = c0 * 0.62 * (IK[Mt.kind] ?? 1);
-            Nt && Nt.primOk ? Nt.prim(1, Si, Mt.air ? ig - Be : ig - jn * 0.03, Dn, Dn * 0.564 * fc(Mt), Mt.tint, Mt.alpha * 0.32) : (Gt.globalAlpha = Mt.alpha * 0.32, Gt.fillStyle = Mt.tint, Gt.beginPath(), Gt.ellipse(
+          if (St.tint) {
+            const Dn = c0 * 0.62 * (IK[St.kind] ?? 1);
+            Nt && Nt.primOk ? Nt.prim(1, Si, St.air ? ig - Be : ig - jn * 0.03, Dn, Dn * 0.564 * fc(St), St.tint, St.alpha * 0.32) : (Gt.globalAlpha = St.alpha * 0.32, Gt.fillStyle = St.tint, Gt.beginPath(), Gt.ellipse(
               Si,
-              Mt.air ? ig - Be : ig - jn * 0.03,
+              St.air ? ig - Be : ig - jn * 0.03,
               Dn,
-              Dn * 0.564 * fc(Mt),
+              Dn * 0.564 * fc(St),
               0,
               0,
               Math.PI * 2
             ), Gt.fill());
           }
-          if (u !== !1 && rn && Mt.hpFrac !== void 0 && Mt.hpFrac > 0 && (Mt.hpShow || vB(Mt) || T(Mt.pickKey))) {
-            const Dn = Math.max(3, (Mt.hpBarFrac ?? 0) * lt * P), Un = Math.max(RB(P), 5 * (Dn / (Mt.hpBarW ?? 19))), bo = vs - Dn / 2, ne = Math.max(ig - Be + Math.max(2, jn * 0.11), yg().ringBot + 1);
+          if (u !== !1 && rn && St.hpFrac !== void 0 && St.hpFrac > 0 && (St.hpShow || vB(St) || T(St.pickKey))) {
+            const Dn = Math.max(3, (St.hpBarFrac ?? 0) * lt * P), Un = Math.max(RB(P), 5 * (Dn / (St.hpBarW ?? 19))), bo = vs - Dn / 2, ne = Math.max(ig - Be + Math.max(2, jn * 0.11), yg().ringBot + 1);
             if (Nt && Nt.primOk) {
               const Xe = Nt;
-              Xe.prim(0, bo + Dn / 2, ne + Un / 2, Dn / 2 + 0.5, Un / 2 + 0.5, "rgba(10, 14, 10, 0.75)", Mt.alpha * 0.9), pb(Mt, bo, ne, Dn, Un, (vg, rg, Ho, w0, cg, C0) => Xe.prim(0, vg + Ho / 2, rg + w0 / 2, Ho / 2, w0 / 2, cg, C0));
+              Xe.prim(0, bo + Dn / 2, ne + Un / 2, Dn / 2 + 0.5, Un / 2 + 0.5, "rgba(10, 14, 10, 0.75)", St.alpha * 0.9), pb(St, bo, ne, Dn, Un, (vg, rg, Ho, w0, cg, C0) => Xe.prim(0, vg + Ho / 2, rg + w0 / 2, Ho / 2, w0 / 2, cg, C0));
             } else
-              Gt.globalAlpha = Mt.alpha * 0.9, Gt.fillStyle = "rgba(10, 14, 10, 0.75)", Gt.fillRect(bo - 0.5, ne - 0.5, Dn + 1, Un + 1), MK(Gt, Mt, bo, ne, Dn, Un);
+              Gt.globalAlpha = St.alpha * 0.9, Gt.fillStyle = "rgba(10, 14, 10, 0.75)", Gt.fillRect(bo - 0.5, ne - 0.5, Dn + 1, Un + 1), MK(Gt, St, bo, ne, Dn, Un);
           }
           const Ke = vs, O0 = Js - jn * 0.24 - Be;
           if (xe) {
@@ -39805,21 +39804,21 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
           } else
             hs ? Gt.setTransform(Lt, 0, 0, Lt, Math.round(Lt * Ke), Math.round(Lt * O0)) : Gt.setTransform(Lt, 0, 0, Lt, Lt * Ke, Lt * O0);
           if (pg && Nt) {
-            const Dn = hs ? Math.round(Lt * Ke) / Lt : Ke, Un = hs ? Math.round(Lt * O0) / Lt : O0, bo = jn / 16 * j0(Mt.kind), ne = sm(P) && Ms && (Mt.air || P >= NK()) ? Mt.air ? { ground: !0, dy: Be, h: Be / Math.max(1e-3, bo), alpha: Mt.alpha * id } : { ground: !0, alpha: Mt.alpha * id } : void 0;
-            for (const Xe of [Mt.kind, Mt.attach, Mt.attach2]) {
-              const vg = Xe ? Xe === Mt.kind ? pg : Nt.unitMesh(Xe, Mt.pose ?? 0) : null;
+            const Dn = hs ? Math.round(Lt * Ke) / Lt : Ke, Un = hs ? Math.round(Lt * O0) / Lt : O0, bo = jn / 16 * j0(St.kind), ne = sm(P) && Ms && (St.air || P >= NK()) ? St.air ? { ground: !0, dy: Be, h: Be / Math.max(1e-3, bo), alpha: St.alpha * id } : { ground: !0, alpha: St.alpha * id } : void 0;
+            for (const Xe of [St.kind, St.attach, St.attach2]) {
+              const vg = Xe ? Xe === St.kind ? pg : Nt.unitMesh(Xe, St.pose ?? 0) : null;
               if (!vg) continue;
-              const rg = Xe === Mt.kind ? Mt.rotDeg ?? 0 : Mt.attachRot ?? Mt.rotDeg ?? 0;
+              const rg = Xe === St.kind ? St.rotDeg ?? 0 : St.attachRot ?? St.rotDeg ?? 0;
               let Ho;
-              if (Xe === Mt.kind && st && (($s = Mt.pickKey) == null ? void 0 : $s.charCodeAt(0)) === 117) {
-                const w0 = Number(Mt.pickKey.slice(1));
+              if (Xe === St.kind && st && (($s = St.pickKey) == null ? void 0 : $s.charCodeAt(0)) === 117) {
+                const w0 = Number(St.pickKey.slice(1));
                 for (const cg of st) {
                   if (cg.kind !== "tether" || cg.stag !== w0) continue;
                   const C0 = Math.max(0, Math.min(1, cg.ph ?? 0)), B0 = C0 < 0.7 ? 1 : Math.max(0, (1 - C0) / 0.3), ze = Ss(cg.fx), ve = Os(cg.fy) - cg.lift * P * 0.5;
-                  Math.hypot(Dn - ze, Un - ve) < 2 || ((Ho ?? (Ho = [])).push({ kind: 3, x: ze, y: ve, rx: Dn, ry: Un, color: Dk, alpha: B0 * Mt.alpha, lineW: Ok(P), shear: 0 }), Bk.add(cg));
+                  Math.hypot(Dn - ze, Un - ve) < 2 || ((Ho ?? (Ho = [])).push({ kind: 3, x: ze, y: ve, rx: Dn, ry: Un, color: Dk, alpha: B0 * St.alpha, lineW: Ok(P), shear: 0 }), Bk.add(cg));
                 }
               }
-              Nt.push({ mesh: vg, ax: Dn, ay: Un, k: bo, yoff: jn / 16 * ((Mt.flat ? 12 : 12.6) - 8), yawDeg: -rg, color: Mt.color, alpha: Mt.alpha, cam: He, gradR: jn * 0.707, gradCy: 0, shadow: ne, flat: fi.has(Mt.kind), over: !!Mt.air, ...Mt.solid ? { solid: Mt.solid } : {}, ...Xe === Mt.kind && Yc ? { ring: Yc } : {}, ...Ho ? { lines: Ho } : {} });
+              Nt.push({ mesh: vg, ax: Dn, ay: Un, k: bo, yoff: jn / 16 * ((St.flat ? 12 : 12.6) - 8), yawDeg: -rg, color: St.color, alpha: St.alpha, cam: He, gradR: jn * 0.707, gradCy: 0, shadow: ne, flat: fi.has(St.kind), over: !!St.air, ...St.solid ? { solid: St.solid } : {}, ...Xe === St.kind && Yc ? { ring: Yc } : {}, ...Ho ? { lines: Ho } : {} });
             }
             Gt.setTransform(Lt, 0, 0, Lt, 0, 0);
             continue;
@@ -39828,27 +39827,27 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
           const wg = jn / 16;
           Gt.transform(wg, 0, 0, wg, -8 * wg, -8 * wg);
           {
-            const Dn = j0(Mt.kind);
+            const Dn = j0(St.kind);
             if (Dn !== 1) {
-              const Un = Mt.flat ? 12 : 12.6;
+              const Un = St.flat ? 12 : 12.6;
               Gt.translate(8, Un), Gt.scale(Dn, Dn), Gt.translate(-8, -Un);
             }
           }
           for (const [Dn, Un, bo] of se ?? [])
-            Gt.globalAlpha = Mt.alpha * Z1(Un, bo), Gt.fillStyle = Jr(bo ?? Mt.color), Gt.fill(Ql(Dn));
+            Gt.globalAlpha = St.alpha * Z1(Un, bo), Gt.fillStyle = Jr(bo ?? St.color), Gt.fill(Ql(Dn));
           Gt.setTransform(Lt, 0, 0, Lt, 0, 0);
         }
       }, xn = (() => {
         if (d === !1) return [];
-        const ms = Ln.filter((Mt) => Mt.clipWalk).sort((Mt, vs) => (vs.wFrac ?? 0) - (Mt.wFrac ?? 0));
+        const ms = Ln.filter((St) => St.clipWalk).sort((St, vs) => (vs.wFrac ?? 0) - (St.wFrac ?? 0));
         if (ms.length < 3) return ms;
         const Ms = [], $s = rt / lt;
-        for (const Mt of ms) {
-          const vs = (Mt.wFrac ?? 0) * 0.5, Js = (Mt.hFrac ?? Mt.wFrac ?? 0) * 0.5;
+        for (const St of ms) {
+          const vs = (St.wFrac ?? 0) * 0.5, Js = (St.hFrac ?? St.wFrac ?? 0) * 0.5;
           Ms.some((zs) => {
             const Rn = (zs.wFrac ?? 0) * 0.5, ro = (zs.hFrac ?? zs.wFrac ?? 0) * 0.5;
-            return Math.abs(zs.fx - Mt.fx) + vs <= Rn + 1e-6 && Math.abs(zs.fy - Mt.fy) * $s + Js <= ro + 1e-6;
-          }) || Ms.push(Mt);
+            return Math.abs(zs.fx - St.fx) + vs <= Rn + 1e-6 && Math.abs(zs.fy - St.fy) * $s + Js <= ro + 1e-6;
+          }) || Ms.push(St);
         }
         return Ms;
       })();
@@ -39870,8 +39869,8 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
           Gt.rect(Ss(0), Os(0), lt * P, rt * P);
         if (Gt.clip(), Vs(xn), Hs && (Gt.save(), Gt.globalAlpha = 1, Gt.imageSmoothingEnabled = !0, Gt.drawImage(Hs, Ss(0), Os(0), lt * P, rt * P), Gt.restore()), C && I && I.length > 0) {
           Gt.save(), Gt.globalCompositeOperation = "destination-out", Gt.shadowColor = "transparent", Gt.globalAlpha = 1;
-          for (const [ms, Ms, $s, Mt, vs, Js] of I) {
-            const zs = Ss($s), Rn = Os(Mt), ro = (vs - $s) * lt * P, mn = (Js - Mt) * rt * P;
+          for (const [ms, Ms, $s, St, vs, Js] of I) {
+            const zs = Ss($s), Rn = Os(St), ro = (vs - $s) * lt * P, mn = (Js - St) * rt * P;
             zs + ro < 0 || zs > Ct || Rn + mn < 0 || Rn > ut || Gt.drawImage(C, 0, ms, C.width, Ms, zs, Rn, ro, mn);
           }
           Gt.restore();
@@ -39879,15 +39878,15 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
         if (!b) {
           const ms = Pk(), Ms = ms ? kH(Gt, ms) : null;
           if (ms && Ms) {
-            const $s = i ?? lt / 128, Mt = $s * P * oK / ms.width, vs = $s * P * oK / ms.height;
-            Ms.setTransform(new DOMMatrix([Mt, 0, 0, vs, Ss(0), Os(0)])), Gt.save(), Gt.globalCompositeOperation = "source-atop", Gt.globalAlpha = 1, Gt.fillStyle = Ms, Gt.fillRect(Ss(0), Os(0), lt * P, rt * P), Gt.restore();
+            const $s = i ?? lt / 128, St = $s * P * oK / ms.width, vs = $s * P * oK / ms.height;
+            Ms.setTransform(new DOMMatrix([St, 0, 0, vs, Ss(0), Os(0)])), Gt.save(), Gt.globalCompositeOperation = "source-atop", Gt.globalAlpha = 1, Gt.fillStyle = Ms, Gt.fillRect(Ss(0), Os(0), lt * P, rt * P), Gt.restore();
           }
           if (Tg.on) {
-            const $s = i ?? lt / 128, Mt = Math.max(1, Math.round(lt / $s)), vs = Math.max(1, Math.round(rt / $s)), Js = LH(Mt, vs, Tg.wet, Tg.snow);
+            const $s = i ?? lt / 128, St = Math.max(1, Math.round(lt / $s)), vs = Math.max(1, Math.round(rt / $s)), Js = LH(St, vs, Tg.wet, Tg.snow);
             Gt.save(), Gt.globalCompositeOperation = "source-atop", Gt.globalAlpha = 1, Gt.imageSmoothingEnabled = !0, Js && Gt.drawImage(Js, Ss(0), Os(0), lt * P, rt * P);
             const zs = $s * P;
             if (Tg.rk > 0 && Tg.splash && zs >= 10) {
-              const ro = performance.now() / 1e3 % 600, mn = Math.max(0, Math.floor((0 - Ss(0)) / zs / 0.45)), yo = Math.min(Math.ceil(Mt / 0.45), Math.ceil((Ct - Ss(0)) / zs / 0.45)), Vo = Math.max(0, Math.floor((0 - Os(0)) / zs / 0.45)), se = Math.min(Math.ceil(vs / 0.45), Math.ceil((ut - Os(0)) / zs / 0.45));
+              const ro = performance.now() / 1e3 % 600, mn = Math.max(0, Math.floor((0 - Ss(0)) / zs / 0.45)), yo = Math.min(Math.ceil(St / 0.45), Math.ceil((Ct - Ss(0)) / zs / 0.45)), Vo = Math.max(0, Math.floor((0 - Os(0)) / zs / 0.45)), se = Math.min(Math.ceil(vs / 0.45), Math.ceil((ut - Os(0)) / zs / 0.45));
               Gt.strokeStyle = "rgba(150,165,185,0.55)", Gt.lineWidth = Math.max(0.6, zs * 0.45 * 0.035), Gt.beginPath();
               let xe = 0;
               for (let jn = Vo; jn < se && xe < 4e3; jn += 1) for (let Ie = mn; Ie < yo; Ie += 1) {
@@ -39906,8 +39905,8 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
       if (Nt && st && st.length > 0 && (hs || P >= Yl || P0 !== null))
         for (const ms of st) {
           if (ms.kind !== "dom" || ms.style !== "storm" && ms.style !== "nuke" || P0 === null && P < (c7.has(ms.kind) ? $l[ms.kind] : Math.max($l[ms.kind], m ?? 0)) || Us >= 1 && Yk.has(ms.style ?? "") || Us >= 2 && Nk.has(ms.style ?? "")) continue;
-          const Ms = Ss(ms.fx), $s = Os(ms.fy) - ms.lift * P, Mt = 60 + (ms.size ?? 0) * P * 2;
-          Ms < -Mt || Ms > Ct + Mt || $s < -Mt || $s > ut + Mt || _H(Nt, ms, Ms, $s, P);
+          const Ms = Ss(ms.fx), $s = Os(ms.fy) - ms.lift * P, St = 60 + (ms.size ?? 0) * P * 2;
+          Ms < -St || Ms > Ct + St || $s < -St || $s > ut + St || _H(Nt, ms, Ms, $s, P);
         }
       let on = !1;
       if (Nt) {
@@ -39945,9 +39944,9 @@ function pX({ ops: t, fx: s, opsSrc: o, fxSrc: n, zoom: g, pan: e, tilePx: i, pi
         Nt.clip = ms ? [ms[0] * Lt, ms[1] * Lt, ms[2] * Lt, ms[3] * Lt] : null;
         const Ms = ms ? null : DB(Q, Ct, ut);
         Nt.view = Ms ? [Ms[0] * Lt, Ms[1] * Lt, Ms[2] * Lt, Ms[3] * Lt] : null;
-        const $s = (K == null ? void 0 : K.current) ?? null, Mt = Z.current;
-        if ($s && Mt && A && A.length === 4) {
-          const vs = XD(Mt), Js = [Ss(A[0][0]), Os(A[0][1]), Ss(A[1][0]), Os(A[1][1]), Ss(A[2][0]), Os(A[2][1]), Ss(A[3][0]), Os(A[3][1])], zs = Q.width / Math.max(1, Ct), Rn = ms || $B === 0 || Or.k < 1 ? zs : Math.max(zs, Math.min(
+        const $s = (K == null ? void 0 : K.current) ?? null, St = Z.current;
+        if ($s && St && A && A.length === 4) {
+          const vs = XD(St), Js = [Ss(A[0][0]), Os(A[0][1]), Ss(A[1][0]), Os(A[1][1]), Ss(A[2][0]), Os(A[2][1]), Ss(A[3][0]), Os(A[3][1])], zs = Q.width / Math.max(1, Ct), Rn = ms || $B === 0 || Or.k < 1 ? zs : Math.max(zs, Math.min(
             typeof window < "u" && window.devicePixelRatio || 1,
             $B,
             Math.sqrt(KB() / Math.max(1, Ct * ut))
@@ -41111,13 +41110,13 @@ function Az({
         const as = bt.s, ps = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 16 / bt.tp))))), jt = ps * bt.tp, $t = (zn, lo) => {
           const Mo = Math.sin(zn * 127.1 + lo * 311.7 + ps * 17.3) * 43758.5453;
           return Mo - Math.floor(Mo);
-        }, Zs = [1, 0.75, 0.55], Ps = [870, 500, 260], pn = [0.95, 0.6, 0.38], Mn = [1, 0.85, 0.7], is = [1, 0.8, 0.6], gs = 260 * as, Ds = (0.16 * Math.sin(ot / 9.3) + 0.12 * Math.sin(ot / 3.7 + 1.3)) / 0.28 * 0.28, ds = Math.floor(-bt.mx / jt) - 1, Ts = Math.ceil((bt.w - bt.mx) / jt) + 1, Ys = Math.floor(-bt.my / jt) - 1, en = Math.ceil((bt.h + gs - bt.my) / jt) + 1;
+        }, Zs = [1, 0.75, 0.55], Ps = [870, 500, 260], pn = [0.95, 0.6, 0.38], Mn = [1, 0.85, 0.7], is = [1, 0.8, 0.6], gs = 260 * as, Ds = 0.17 * Math.sin(ot / 61) + 0.1 * Math.sin(ot / 37 + 1.3), ds = Math.floor(-bt.mx / jt) - 1, Ts = Math.ceil((bt.w - bt.mx) / jt) + 1, Ys = Math.floor(-bt.my / jt) - 1, en = Math.ceil((bt.h + gs - bt.my) / jt) + 1;
         if ((Ts - ds) * (en - Ys) > 12e3) return;
         Is.lineCap = "round";
         const qs = [0, 1, 2, 3, 4, 5].map(() => new Path2D()), En = new Path2D();
-        for (let zn = Ys; zn < en; zn += 1) for (let lo = ds; lo < Ts; lo += 1) for (let Mo = 0; Mo < 3; Mo += 1) {
+        for (let zn = Ys; zn < en; zn += 1) for (let lo = ds; lo < Ts; lo += 1) for (let Mo = 0; Mo < 2; Mo += 1) {
           const io = lo + Mo * 0.371, Jo = zn + Mo * 0.613;
-          if ($t(io, Jo) >= wt * 0.9) continue;
+          if ($t(io, Jo) >= wt * 0.45) continue;
           const $o = $t(io + 8.8, Jo + 2.7), Fn = $o < 0.4 ? 0 : $o < 0.75 ? 1 : 2, Me = (140 + 120 * $t(io + 1.3, Jo + 4.9)) * as * is[Fn], Ge = Ps[Fn] * as, qe = Me / Ge, x0 = 0.16, A0 = qe + x0 + 0.05 + 0.12 * $t(io + 3.3, Jo + 1.1), pI = (ot + $t(io + 7.7, Jo + 5.5) * A0) % A0, eI = bt.mx + (lo + 0.05 + 0.9 * $t(io + 2.2, Jo + 9.9)) * jt, yI = bt.my + (zn + 0.05 + 0.9 * $t(io + 4.4, Jo + 6.6)) * jt;
           if (pI < qe) {
             const JI = Ds + ($t(io + 5.2, Jo + 7.4) - 0.5) * 0.14, po = Math.sin(JI), ao = Math.cos(JI), pe = Me * (1 - pI / qe), Ce = eI - po * pe, Ae = yI - ao * pe, Te = Math.min((22 + 28 * $t(io + 6.1, Jo + 3.7)) * as * Zs[Fn], Me * (pI / qe) + 2);
@@ -41131,8 +41130,8 @@ function Az({
           }
         }
         for (let zn = 0; zn < 3; zn += 1) for (let lo = 0; lo < 2; lo += 1)
-          Is.strokeStyle = `rgba(205,222,245,${((lo ? 0.3 : 0.18) * pn[zn]).toFixed(3)})`, Is.lineWidth = (lo ? 1.4 : 0.9) * Mn[zn], Is.stroke(qs[zn * 2 + lo]);
-        Is.strokeStyle = "rgba(190,205,225,0.32)", Is.lineWidth = 0.8, Is.stroke(En);
+          Is.strokeStyle = `rgba(205,222,245,${((lo ? 0.24 : 0.14) * pn[zn]).toFixed(3)})`, Is.lineWidth = (lo ? 1.4 : 0.9) * Mn[zn], Is.stroke(qs[zn * 2 + lo]);
+        Is.strokeStyle = "rgba(190,205,225,0.24)", Is.lineWidth = 0.8, Is.stroke(En);
       }
       const At = U.querySelectorAll(".scr-wx-sway > i"), gt = h[V];
       At.forEach((bt, wt) => {
@@ -41239,7 +41238,7 @@ function Az({
       v && (h[k.name] = v);
     }
     return h;
-  }, [N, q, n]), $s = JSON.stringify(Ms), Mt = Yn(() => {
+  }, [N, q, n]), $s = JSON.stringify(Ms), St = Yn(() => {
     if (y) return !1;
     const h = {};
     for (const k of Object.values(Ms)) h[k] = (h[k] ?? 0) + 1;
@@ -42107,7 +42106,7 @@ function Az({
     return h;
   }, [N, q, Ui, bA, y, Ih, fa, dt, Kt]), KM = He.get(re ?? "") ?? Nw, LM = (h) => {
     var Y;
-    const k = ((Y = N.find((U) => U.key === h)) == null ? void 0 : Y.name) ?? h, v = Mt ? n(h) ?? 0 : 0;
+    const k = ((Y = N.find((U) => U.key === h)) == null ? void 0 : Y.name) ?? h, v = St ? n(h) ?? 0 : 0;
     return v ? `${v}팀 ${k}` : k;
   }, kM = l0 && Nn && an && X >= Nn.from - 1 && (X <= Nn.to || Bo && !P) && l0.caps && l0.caps.length > 0 ? l0.caps : null, GM = kM ?? (ts && _ === null && (le != null && le.caps) && le.caps.length > 0 && (le.capTo === void 0 || X <= le.capTo) ? le.caps : null), ch = (h) => {
     var k;
@@ -42115,9 +42114,9 @@ function Az({
   }, u7 = (h, k) => k === "ga" ? l9(h) : k === "eul" ? uk(h) : k === "wa" ? Ak(h) : k === "ui" ? "의" : "", h7 = Yn(
     () => N.map((h) => LM(h.key)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [N, Mt, Ms]
+    [N, St, Ms]
   ), TM = (h) => {
-    const k = Mt ? n(h) : void 0;
+    const k = St ? n(h) : void 0;
     return k === void 0 ? null : /* @__PURE__ */ Cs("span", { className: "scr-truby", style: { background: vC[k] ?? "#666" }, "aria-hidden": !0, children: [
       k,
       "팀"
@@ -43176,7 +43175,7 @@ function Az({
       h += 1, k += Y.width * Y.height * 4;
     });
     const v = iI();
-    return `판${"11-12 01:36".slice(6)} ${Math.round(Xo.current)}초 ×${ZA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
+    return `판${"11-12 04:37".slice(6)} ${Math.round(Xo.current)}초 ×${ZA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
   }, Gs(() => {
     Fr(to ? "전체화면 켬" : "전체화면 끔");
   }, [to]), Gs(() => {
@@ -43194,7 +43193,7 @@ function Az({
         });
         let ot = 0;
         for (const bt of Ke.current.values()) ot += bt.buf.byteLength;
-        const et = iI(), At = (bt) => (bt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, at = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 01:36 · 재생${Math.round(Xo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${ZA.current.speed} 배율${ZA.current.zoom.toFixed(1)} · 메모리${Er()}단 ${bl()}방 · 캔버스${U}장 ${At(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${At(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ke.current.size}장 ${At(ot)}MB · 안개갈무리${wg.current.length} · 효과판${At(jl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${At(gt)}MB` : "");
+        const et = iI(), At = (bt) => (bt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, at = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 04:37 · 재생${Math.round(Xo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${ZA.current.speed} 배율${ZA.current.zoom.toFixed(1)} · 메모리${Er()}단 ${bl()}방 · 캔버스${U}장 ${At(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${At(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ke.current.size}장 ${At(ot)}MB · 안개갈무리${wg.current.length} · 효과판${At(jl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${At(gt)}MB` : "");
         localStorage.setItem(yk, at);
       } catch {
       }
@@ -46228,7 +46227,7 @@ function Az({
         " · UI ",
         nn.ui,
         " · 판 ",
-        "11-12 01:36",
+        "11-12 04:37",
         nn.ss !== 1 ? ` · 초해상 ×${nn.ss.toFixed(2)}` : "",
         Math.abs(nn.unitScale - nn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${nn.unitScale.toFixed(4)})` : nn.scale > 0 && Math.abs(nn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${nn.scale.toFixed(4)})` : "",
         nn.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -46754,13 +46753,13 @@ function Az({
           fg: String(Xt.color ?? "#fff"),
           tier: ns.n <= hB.s ? "s" : ns.n <= hB.m ? "m" : "l",
           dim: Tt,
-          ...Mt && n(at.key) !== void 0 ? { team: n(at.key) } : {}
+          ...St && n(at.key) !== void 0 ? { team: n(at.key) } : {}
           // 팀 배지(2026-10-11 · 팀전만 · 일대일도 뺀다 — 위 teamBadge9)
         });
       });
     }
     return gt;
-  }, [q, N, LT, ft.width, ft.height, Ui, bA, y, Mt, dy, ji]), hC = (() => {
+  }, [q, N, LT, ft.width, ft.height, Ui, bA, y, St, dy, ji]), hC = (() => {
     if (gc) {
       const Y = nu.find((ot) => ot.pickKey === gc && !ot.ghost);
       if (Y) return [Y];
