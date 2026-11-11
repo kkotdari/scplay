@@ -10963,7 +10963,7 @@ export default function ReplayMotionPlayer({
   const wxElRef9 = useRef<HTMLDivElement | null>(null);
   /** 빗방울 캔버스(아래 흐름 effect ★) · 지도 자(겹 안에서 지도 왼위 · 타일 한 칸 화면 px · 겹 크기) — 붓이 장마다 심는다. */
   const wxCvRef9 = useRef<HTMLCanvasElement | null>(null);
-  const wxGeoRef9 = useRef({ mx: 0, my: 0, tp: 0, w: 0, h: 0 });
+  const wxGeoRef9 = useRef({ mx: 0, my: 0, tp: 0, w: 0, h: 0, s: 1 });
   const wxFlashRef9 = useRef<HTMLDivElement | null>(null);
   const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1, geo: "" });
   /* 멈춤 · 숨김 · 날씨 끔 · 내려감이면 빗소리를 곧장 멎는다(멈춘 판은 붓이 안 돌 수 있다) · 켜고 끄면 겹을 다시 맞춘다. */
@@ -10996,32 +10996,53 @@ export default function ReplayMotionPlayer({
         if (cv9.width !== W9 || cv9.height !== H9) { cv9.width = W9; cv9.height = H9; }
         const c9 = cv9.getContext("2d"); if (!c9 || g9.tp <= 0) return;
         c9.setTransform(dpr9, 0, 0, dpr9, 0, 0); c9.clearRect(0, 0, g9.w, g9.h);
-        const cT9 = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 22 / g9.tp)))));   // 칸(타일) — 화면 22px 남짓
+        /* ★ 줄 모양 · 빠르기 · 길이는 **옛 흐르는 무늬 그대로**(2026-11-11, 요청: "좋은데 비 모양과 속도 길이 등은 그전이 더 좋았어") — 겹 셋(가까이 · 가운데 ·멀리)을
+           방울마다 고른다: 줄 길이 12~32px × (1 · 0.75 · 0.55) · 빠르기 870 · 500 · 260 px/초 · 진하기 0.18~0.5 × (0.95 · 0.6 · 0.38) · 굵기 0.8~1.5px · 다 배율 맞춤 s 를 곱한다.
+           떨어지는 높이(140~260px × 겹)를 그 빠르기로 내려와 착지점에 닿으면 0.16초 눌린 고리 · 그 뒤 잠깐(0.1~0.5초) 쉬었다 다시. */
+        const s9 = g9.s;
+        const cT9 = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 16 / g9.tp)))));   // 칸(타일) — 화면 16px 남짓
         const cs9 = cT9 * g9.tp;
-        const fall9 = Math.max(26, Math.min(150, g9.tp * 2.4)); const len9 = Math.max(6, Math.min(26, fall9 * 0.2));
         const hsh9 = (a: number, b: number): number => { const v = Math.sin(a * 127.1 + b * 311.7 + cT9 * 17.3) * 43758.5453; return v - Math.floor(v); };
+        const LEN9 = [1, 0.75, 0.55]; const SPD9 = [870, 500, 260]; const ALP9 = [0.95, 0.6, 0.38]; const WID9 = [1, 0.85, 0.7]; const HGT9 = [1, 0.8, 0.6];
+        const fallMax9 = 260 * s9;
+        /* 바람(2026-11-11, 요청: "약간 대각선 · 좌우 방향과 각도도 랜덤하게 변해야 자연스러울 듯") — 판 전체 기울기가 천천히 좌우로 오간다(±16° · 두 사인) · 방울마다 ±4° 흔들. */
+        const wind9 = (0.16 * Math.sin(sec9 / 9.3) + 0.12 * Math.sin(sec9 / 3.7 + 1.3)) / 0.28 * 0.28;   // 라디안 ≈ ±16°
         const ix0 = Math.floor(-g9.mx / cs9) - 1; const ix1 = Math.ceil((g9.w - g9.mx) / cs9) + 1;
-        const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fall9 - g9.my) / cs9) + 1;
+        const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fallMax9 - g9.my) / cs9) + 1;
         if ((ix1 - ix0) * (iy1 - iy0) > 12000) return;
         c9.lineCap = "round";
-        const streak9 = new Path2D(); const ring9 = new Path2D();
-        for (let iy = iy0; iy < iy1; iy += 1) for (let ix = ix0; ix < ix1; ix += 1) {
+        const paths9: Path2D[] = [0, 1, 2, 3, 4, 5].map(() => new Path2D());   // 겹 × 밝음 둘
+        const ring9 = new Path2D();
+        for (let iy0b = iy0; iy0b < iy1; iy0b += 1) for (let ix0b = ix0; ix0b < ix1; ix0b += 1) for (let d9 = 0; d9 < 3; d9 += 1) {   // 칸마다 방울 셋(옛 무늬의 빽빽함)
+          const ix = ix0b + d9 * 0.371; const iy = iy0b + d9 * 0.613;   // 해시 씨앗만 갈린다(자리는 아래 칸 ix0b · iy0b)
           if (hsh9(ix, iy) >= k9 * 0.9) continue;
-          const per9 = 0.5 + 0.35 * hsh9(ix + 3.3, iy + 1.1);
-          const life9 = (sec9 / per9 + hsh9(ix + 7.7, iy + 5.5)) % 1;
-          const lx9 = g9.mx + (ix + 0.15 + 0.7 * hsh9(ix + 2.2, iy + 9.9)) * cs9; const ly9 = g9.my + (iy + 0.15 + 0.7 * hsh9(ix + 4.4, iy + 6.6)) * cs9;
-          if (life9 < 0.75) {
-            const f9 = life9 / 0.75; const yb9 = ly9 - (1 - f9) * fall9;
-            if (yb9 < -len9 || yb9 - len9 > g9.h || lx9 < -4 || lx9 > g9.w + 4) continue;
-            streak9.moveTo(lx9, yb9 - len9); streak9.lineTo(lx9, yb9);
-          } else {
+          const lr9 = hsh9(ix + 8.8, iy + 2.7); const L9 = lr9 < 0.4 ? 0 : lr9 < 0.75 ? 1 : 2;
+          const H9f = (140 + 120 * hsh9(ix + 1.3, iy + 4.9)) * s9 * HGT9[L9];
+          const sp9 = SPD9[L9] * s9;
+          const tf9 = H9f / sp9; const tsp9 = 0.16; const per9 = tf9 + tsp9 + 0.05 + 0.12 * hsh9(ix + 3.3, iy + 1.1);
+          const u9 = (sec9 + hsh9(ix + 7.7, iy + 5.5) * per9) % per9;
+          const lx9 = g9.mx + (ix0b + 0.05 + 0.9 * hsh9(ix + 2.2, iy + 9.9)) * cs9; const ly9 = g9.my + (iy0b + 0.05 + 0.9 * hsh9(ix + 4.4, iy + 6.6)) * cs9;
+          if (u9 < tf9) {
+            const an9 = wind9 + (hsh9(ix + 5.2, iy + 7.4) - 0.5) * 0.14;
+            const dx9 = Math.sin(an9); const dy9 = Math.cos(an9);
+            const rem9 = H9f * (1 - u9 / tf9);   // 착지점까지 남은 길(기운 길을 따라)
+            const xb9 = lx9 - dx9 * rem9; const yb9 = ly9 - dy9 * rem9;
+            const len9 = Math.min((22 + 28 * hsh9(ix + 6.1, iy + 3.7)) * s9 * LEN9[L9], H9f * (u9 / tf9) + 2);   // 더 길게(12~32 → 22~50 · 같은 요청) · 처음엔 짧게
+            if (yb9 < -2 || yb9 - len9 > g9.h || xb9 < -len9 || xb9 > g9.w + len9) continue;
+            const pth9 = paths9[L9 * 2 + (hsh9(ix + 9.1, iy + 8.3) < 0.5 ? 0 : 1)];
+            pth9.moveTo(xb9 - dx9 * len9, yb9 - dy9 * len9); pth9.lineTo(xb9, yb9);
+          } else if (u9 < tf9 + tsp9 && L9 < 2) {
             if (ly9 < -8 || ly9 > g9.h + 8 || lx9 < -8 || lx9 > g9.w + 8) continue;
-            const q9 = (life9 - 0.75) / 0.25; const r9 = Math.max(1, (1 + 4 * q9) * Math.min(2, g9.tp / 20 + 0.4));
+            const q9 = (u9 - tf9) / tsp9; const r9 = Math.max(0.8, (1 + 4 * q9) * s9 * (L9 === 0 ? 1 : 0.7));
             ring9.moveTo(lx9 + r9, ly9); ring9.ellipse(lx9, ly9, r9, r9 * 0.5, 0, 0, Math.PI * 2);
           }
         }
-        c9.strokeStyle = "rgba(205,220,240,0.5)"; c9.lineWidth = Math.max(0.8, Math.min(1.6, g9.tp / 24)); c9.stroke(streak9);
-        c9.strokeStyle = "rgba(190,205,225,0.35)"; c9.lineWidth = Math.max(0.6, Math.min(1.2, g9.tp / 32)); c9.stroke(ring9);
+        for (let L9 = 0; L9 < 3; L9 += 1) for (let b9 = 0; b9 < 2; b9 += 1) {
+          c9.strokeStyle = `rgba(205,222,245,${((b9 ? 0.3 : 0.18) * ALP9[L9]).toFixed(3)})`;   // 더 투명하게(0.42 · 0.26 → 0.3 · 0.18 · 같은 요청)
+          c9.lineWidth = (b9 ? 1.4 : 0.9) * WID9[L9];
+          c9.stroke(paths9[L9 * 2 + b9]);
+        }
+        c9.strokeStyle = "rgba(190,205,225,0.32)"; c9.lineWidth = 0.8; c9.stroke(ring9);
       }
       const ls9 = el9.querySelectorAll<HTMLElement>(".scr-wx-sway > i");
       const sp9 = SPEC9[kind9];
@@ -20096,7 +20117,7 @@ export default function ReplayMotionPlayer({
         const x0 = Math.max(0, X0); const y0 = Math.max(0, Y0);
         const x1 = Math.min(sw9.w, X0 + cv9.w * z9); const y1 = Math.min(sw9.h * 1.5, Y0 + cv9.h * z9);
         const s9 = Math.max(0.5, Math.min(2.2, castZoomFit9() > 0 ? z9 / castZoomFit9() : 1));
-        wxGeoRef9.current = { mx: X0 - Math.round(x0), my: Y0 - Math.round(y0), tp: (cv9.w * z9) / Math.max(1, grid.width), w: Math.max(0, Math.round(x1 - x0)), h: Math.max(0, Math.round(y1 - y0)) };
+        wxGeoRef9.current = { mx: X0 - Math.round(x0), my: Y0 - Math.round(y0), tp: (cv9.w * z9) / Math.max(1, grid.width), w: Math.max(0, Math.round(x1 - x0)), h: Math.max(0, Math.round(y1 - y0)), s: s9 };
         const k09 = `${Math.round(x0)},${Math.round(y0)},${Math.round(x1 - x0)},${Math.round(y1 - y0)}|${((X0 - x0) / s9).toFixed(1)},${((Y0 - y0) / s9).toFixed(1)}|${s9.toFixed(2)}`;
         if (k09 !== st9.geo) {
           st9.geo = k09;
