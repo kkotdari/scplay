@@ -8071,11 +8071,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
            지도가 그만큼 위로 늘어난 것처럼 읽히고, 여유의 뜻 자체가 사라진다.
            아래 클립은 지도 좌표(zy)로 잡으므로 배율·이동이 어긋나면 새어 나갈 수 있다.
            그래서 **캔버스 좌표로 한 겹 더** 가둔다 — 여유 띠는 어떤 셈이 틀려도 안 칠해진다. */
-        if (band9 > 0) {
-          ctx.beginPath();
-          ctx.rect(0, band9, cw, ch - band9);
-          ctx.clip();
-        }
+        /* (걷음 2026-11-11, 실기: "윗부분 모델은 나오는데 크립은 아직 안 나와") — 띠는 이제 무대 안 상자 위 틈(보이는 지도)이라 띠를 빼던 캔버스 오림을 걷었다. 지도 밖은 아래 지도 네모 오림이 막는다. */
         ctx.beginPath();
         if (clipQuad && clipQuad.length >= 3) {
           ctx.moveTo(zx(clipQuad[0][0]), zy(clipQuad[0][1]));
