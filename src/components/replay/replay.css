@@ -6129,26 +6129,17 @@
    겹마다 고정 거리 키프레임 · 배율 맞춤(--wxs)은 겹 통째(.scr-wx-tilt)의 scale 로 — 0.5 배에도 화면을 덮게 바깥 여유를 넓힌다(−70%). 흔들림(눈)은 안쪽 .scr-wx-sway. */
 .scr-wx-tilt { position: absolute; left: 0; top: 0; width: calc(100% / var(--wxs, 1)); height: calc(100% / var(--wxs, 1)); transform-origin: 0 0; transform: scale(var(--wxs, 1)); }
 .scr-wx-sway { position: absolute; inset: 0 -30px; }
-.scr-wx-snow .scr-wx-sway { animation: scr-wx-sway 6s ease-in-out infinite alternate; }
 .scr-wx-sway > i {
   position: absolute; left: 0; right: 0; top: calc(-1 * var(--ts)); bottom: 0;
   background-image: var(--wx-img); background-size: var(--ts) var(--ts); background-repeat: repeat; background-position: var(--wx-bx, 0px) var(--wx-by, 0px);
   will-change: transform;
 }
-.scr-wx-rain .scr-wx-l1 { --ts: 330px; --dur: 0.38s; animation: scr-wx-f330 0.38s linear infinite; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
-.scr-wx-rain .scr-wx-l2 { --ts: 230px; --dur: 0.46s; animation: scr-wx-f230 0.46s linear infinite; opacity: calc(0.6 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
-.scr-wx-rain .scr-wx-l3 { --ts: 150px; --dur: 0.58s; animation: scr-wx-f150 0.58s linear infinite; opacity: calc(0.38 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
-.scr-wx-snow .scr-wx-l1 { --ts: 300px; --dur: 4.5s; animation: scr-wx-f300 4.5s linear infinite; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
-.scr-wx-snow .scr-wx-l2 { --ts: 210px; --dur: 6.5s; animation: scr-wx-f210 6.5s linear infinite; opacity: calc(0.7 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
-.scr-wx-snow .scr-wx-l3 { --ts: 140px; --dur: 9s; animation: scr-wx-f140 9s linear infinite; opacity: calc(0.5 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
-@keyframes scr-wx-f330 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 330px, 0); } }
-@keyframes scr-wx-f230 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 230px, 0); } }
-@keyframes scr-wx-f150 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 150px, 0); } }
-@keyframes scr-wx-f300 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 300px, 0); } }
-@keyframes scr-wx-f210 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 210px, 0); } }
-@keyframes scr-wx-f140 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 140px, 0); } }
-@keyframes scr-wx-sway { from { transform: translate3d(-22px, 0, 0); } to { transform: translate3d(22px, 0, 0); } }
+.scr-wx-rain .scr-wx-l1 { --ts: 330px; --dur: 0.38s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-rain .scr-wx-l2 { --ts: 230px; --dur: 0.46s; opacity: calc(0.6 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
+.scr-wx-rain .scr-wx-l3 { --ts: 150px; --dur: 0.58s; opacity: calc(0.38 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
+.scr-wx-snow .scr-wx-l1 { --ts: 300px; --dur: 4.5s; opacity: calc(0.95 * clamp(0.35, var(--wk, 1) * 1.6, 1)); }
+.scr-wx-snow .scr-wx-l2 { --ts: 210px; --dur: 6.5s; opacity: calc(0.7 * clamp(0, (var(--wk, 1) - 0.3) * 2.5, 1)); }
+.scr-wx-snow .scr-wx-l3 { --ts: 140px; --dur: 9s; opacity: calc(0.5 * clamp(0, (var(--wk, 1) - 0.55) * 2.5, 1)); }
 /* (걷음 2026-11-11, 실기: "피시 크롬에서 눈이랑 비 안 움직인 건데?") 멈춤이면 흐름도 멈추던 것 — 날씨는 배경이라 멈춘 화면에서도 내린다(소리만 멎는다). */
 .scr-wx-flash { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 3; pointer-events: none; background: rgb(236, 242, 255); opacity: 0; }   /* 무대 전체 · 밝게(붓이 0 ~ 0.75) */
 @media (pointer: coarse) { .scr-wx-sway > i.scr-wx-l3 { display: none; } }
-@media (prefers-reduced-motion: reduce) { .scr-wx-sway > i { animation-duration: calc(var(--dur, 1s) * 3) !important; } }   /* 동작 줄이기면 느리게만(옛: 겹 통째로 숨김 — 그 기기에선 빗줄기가 아예 안 보였다 · 2026-11-11) */

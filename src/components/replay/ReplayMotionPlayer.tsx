@@ -10970,6 +10970,31 @@ export default function ReplayMotionPlayer({
     wxTickRef9.current(cmdNowRef9.current.t);
   }, [playing, active, wxOn9]);
   useEffect(() => () => { setRain9(0); TERR_WX9.on = false; }, []);
+  /* ★ 흐름은 **JS 가 장마다 옮긴다**(2026-11-11, 실기: "눈 비 안 움직여" — PC 크롬에서도 CSS 키프레임 흐름이 섰다 · 헤드리스는 흘렀다) — CSS 애니메이션을 걷고 rAF 하나가
+     겹마다 transform 만 놓는다(합성만 · 칠하기 없음). 거리 = (벽시계 ÷ 한 바퀴 초) × 판 한 칸을 칸으로 나머지 · 눈은 좌우 흔들(±22px · 12초). 겹이 안 보이면(세기 0) 건너뛴다. */
+  useEffect(() => {
+    if (!wxTile9) return undefined;
+    const SPEC9: Record<string, [number, number][]> = { rain: [[330, 0.38], [230, 0.46], [150, 0.58]], snow: [[300, 4.5], [210, 6.5], [140, 9]] };
+    const slow9 = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches ? 3 : 1;
+    let raf9 = 0;
+    const step9 = (): void => {
+      raf9 = requestAnimationFrame(step9);
+      const el9 = wxElRef9.current; if (!el9 || wxStRef9.current.k <= 0.005) return;
+      const kind9 = el9.classList.contains("scr-wx-snow") ? "snow" : "rain";
+      const sec9 = performance.now() / 1000;
+      const ls9 = el9.querySelectorAll<HTMLElement>(".scr-wx-sway > i");
+      const sp9 = SPEC9[kind9];
+      ls9.forEach((l9, i9) => {
+        const [ts9, dur9] = sp9[i9] ?? sp9[0];
+        const y9 = ((sec9 / (dur9 * slow9)) % 1) * ts9;
+        l9.style.transform = `translate3d(0, ${y9.toFixed(1)}px, 0)`;
+      });
+      const sw9 = el9.querySelector<HTMLElement>(".scr-wx-sway");
+      if (sw9) sw9.style.transform = kind9 === "snow" ? `translate3d(${(22 * Math.sin((sec9 / 12) * Math.PI * 2)).toFixed(1)}px, 0, 0)` : "";
+    };
+    raf9 = requestAnimationFrame(step9);
+    return () => cancelAnimationFrame(raf9);
+  }, [wxTile9]);
   /* 현재 재생 시각 기록(요청: 특정 시간으로 카톡 공유) — 공유 버튼이 이 값을 읽어
      링크에 &t=로 싣는다. 사라질 땐 지워 엉뚱한 경기에 안 붙게 한다. */
   useEffect(() => {
