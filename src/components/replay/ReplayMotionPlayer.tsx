@@ -14520,11 +14520,7 @@ export default function ReplayMotionPlayer({
       return { x: x9, y: Math.max(0, dn9), yTop: Math.max(0, up9) + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
     }
     const y9 = Math.max(0, (cov.h * k9 * z - winH) / 2);
-    /* ★ 위 여유는 **지도가 창보다 큰 몫까지만**(2026-11-11, 지적: PC 전체화면 최소 배율 — "위에 안전 여백 생각 안 해서 아래가 잘려") — 최소 배율은 지도 세로가 창에 꼭 맞아
-       남는 몫이 0 인데, 여유(band)만큼 아래로 더 끌리게 열어 두어 팬이 그 끝에 걸리면(위를 보던 채 축소) 지도가 여유만큼 내려앉아 아랫줄이 잘렸다. 남는 몫(내용 − 창)이
-       여유보다 작으면 그만큼만 연다 — 최소 배율 = 0(가운데 고정) · 확대할수록 종전 여유 그대로. */
-    const bandF9 = Math.max(0, Math.min(band9, cov.h * k9 * z - winH));
-    return { x: x9, y: y9, yTop: y9 + bandF9, winW, winH, band: bandF9 };
+    return { x: x9, y: y9, yTop: y9 + Math.max(0, band9), winW, winH, band: Math.max(0, band9) };
   }, []);
   /** ★ **가운데 잡기의 위 한계 — 맨 위 그림 여유는 빼고 잡는다**(2026-10-19, 요청: "화면 중앙 잡는거에서 맨위 여유공간은 빼고 잡기 · 거기에 유닛이 있으면
    *  어쩔수없지만") — 여유(band)는 맨 윗줄에 선 키 큰 몸이 잘리지 않게 위로 더 끌 수 있게 둔 몫이라, 무엇을 가운데로 데려오는 셈(중계·추적 카메라 · 링크 ·
