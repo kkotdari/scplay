@@ -2146,6 +2146,19 @@ if (has("--pickprobe")) {
   }
   console.log("[집기]", JSON.stringify(out9));
 }
+/* --wxprobe(2026-11-11 · 날씨 겹이 움직이나) — .scr-wx 겹의 클래스 · 투명도 · 맨 앞 겹의 transform 을 0.3초마다 넷. */
+if (has("--wxprobe")) {
+  const rows9 = [];
+  for (let k = 0; k < 4; k += 1) {
+    rows9.push(await page.evaluate(() => {
+      const w = document.querySelector(".scr-wx"); if (!w) return "겹 없음";
+      const i = w.querySelector("i"); const cs = i ? getComputedStyle(i) : null;
+      return `${w.className} op ${getComputedStyle(w).opacity} vis ${getComputedStyle(w).visibility} wk ${w.style.getPropertyValue("--wk")} · i ${cs ? cs.transform + " " + cs.animationName + " " + cs.animationPlayState + " op " + cs.opacity : "-"}`;
+    }));
+    await page.waitForTimeout(300);
+  }
+  console.log("[날씨겹]\n" + rows9.join("\n"));
+}
 if (SHOT) {
   await page.waitForTimeout(1500);
   // 특정 장면 맞추기(--wait ms) — 재생이 실시간이라, 몇 초 뒤 장면은 그만큼 기다려 찍는다.

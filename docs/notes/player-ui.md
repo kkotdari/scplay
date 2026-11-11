@@ -3512,3 +3512,5 @@ perf-check `--terrprobe` 는 load 줄이 없어 빈 줄을 낸다.
   못 움직여 겹이 섰다(헤드리스 크롬은 움직였다). 이제 겹마다 **고정 거리 키프레임**(scr-wx-f330 · f230 · f150 · f300 · f210 · f140) · animation 선언도 변수 없이 ·
   배율 맞춤은 겹 통째(.scr-wx-tilt)의 scale(var(--wxs)) · 바깥 여유 −70%(0.5 배에도 덮음) · 눈 흔들림은 안쪽 .scr-wx-sway. 눈 흐름 8 · 12 · 17 → 4.5 · 6.5 · 9초.
   가랑비 l1 하한 0.55 → 0.35 되돌림.
+- (같은 날) "피시 크롬에서 눈이랑 비 안 움직인 건데?" — 헤드리스 크롬 재생기(perf-check `--wxprobe` · 겹 transform 0.3초마다)는 새 판 · 옛 판 다 흘렀다. 실기와 갈린 것은 재생 멈춤뿐이라
+  멈춤이면 흐름도 멈추던 is-paused 규칙을 걷었다(날씨는 배경 · 소리만 멎는다). 🔎 `perf-check --ios --castoff --t 100 --hash wx=1,wxkind=rain --wxprobe`.

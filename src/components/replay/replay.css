@@ -6147,7 +6147,7 @@
 @keyframes scr-wx-f210 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 210px, 0); } }
 @keyframes scr-wx-f140 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 140px, 0); } }
 @keyframes scr-wx-sway { from { transform: translate3d(-22px, 0, 0); } to { transform: translate3d(22px, 0, 0); } }
-.scr-wx.is-paused .scr-wx-sway, .scr-wx.is-paused .scr-wx-sway > i { animation-play-state: paused; }
+/* (걷음 2026-11-11, 실기: "피시 크롬에서 눈이랑 비 안 움직인 건데?") 멈춤이면 흐름도 멈추던 것 — 날씨는 배경이라 멈춘 화면에서도 내린다(소리만 멎는다). */
 .scr-wx-flash { position: absolute; left: 0; right: 0; top: 0; bottom: calc(-1 * var(--dock-under, 0px)); z-index: 3; pointer-events: none; background: rgb(236, 242, 255); opacity: 0; }   /* 무대 전체 · 밝게(붓이 0 ~ 0.75) */
 @media (pointer: coarse) { .scr-wx-sway > i.scr-wx-l3 { display: none; } }
 @media (prefers-reduced-motion: reduce) { .scr-wx-sway > i { animation-duration: calc(var(--dur, 1s) * 3) !important; } }   /* 동작 줄이기면 느리게만(옛: 겹 통째로 숨김 — 그 기기에선 빗줄기가 아예 안 보였다 · 2026-11-11) */
