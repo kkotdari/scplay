@@ -323,14 +323,14 @@ function rainBufOf9(c9: AudioContext): AudioBuffer {
 function thunderBufOf9(c9: AudioContext): AudioBuffer {
   if (thunderBuf9) return thunderBuf9;
   /* 더 길게(2026-11-11, 요청: "천둥소리 좀 더 크고 길게") — 5 → 8초 · 스러짐 1.6 → 2.8초 · 1.6초 뒤 한 번 더 굴러온다(우르릉 두 번). */
-  const n = Math.floor(SFX_RATE9 * 13); const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);   // 8 → 13초(같은 날 "길게")
+  const n = Math.floor(SFX_RATE9 * 8); const b = c9.createBuffer(1, n, SFX_RATE9); const d = b.getChannelData(0);   // 13 → 8초 되돌림(같은 날 "길이 롤백하고 소리를 크게")
   let seed = 0x13579b; const rnd = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   let l1 = 0; let l2 = 0; let peak = 0;
   for (let i = 0; i < n; i += 1) {
     const t = i / SFX_RATE9; const w = rnd() * 2 - 1;
     l1 += (w - l1) * 0.06; l2 += (l1 - l2) * 0.08;   // 아주 낮은 우르릉(두 겹 거름)
-    const roll = 0.55 * Math.exp(-((t - 1.6) * (t - 1.6)) / 0.5) + 0.38 * Math.exp(-((t - 3.8) * (t - 3.8)) / 0.9) + 0.22 * Math.exp(-((t - 6.5) * (t - 6.5)) / 1.6);   // 굴림 셋(멀어지며 작게)
-    const env = (Math.min(1, t / 0.25) * Math.exp(-t / 4.5) + roll) * Math.min(1, (13 - t) / 1.5) * (0.75 + 0.25 * Math.sin(t * 7.3 + Math.sin(t * 2.1) * 2));
+    const roll = 0.55 * Math.exp(-((t - 1.6) * (t - 1.6)) / 0.5);
+    const env = (Math.min(1, t / 0.25) * Math.exp(-t / 2.8) + roll) * (0.75 + 0.25 * Math.sin(t * 7.3 + Math.sin(t * 2.1) * 2));
     const crack = t < 0.18 ? w * Math.exp(-t / 0.05) * 0.5 : 0;   // 앞의 딱
     d[i] = l2 * 6 * env + crack;
     peak = Math.max(peak, Math.abs(d[i]));
@@ -365,7 +365,7 @@ export function thunderClap9(delay: number, amp = 1): void {
   const c9 = ctxOf9(); if (!c9 || !master9) return;
   const src = c9.createBufferSource(); src.buffer = thunderBufOf9(c9);
   const lp = c9.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 850;
-  const g = c9.createGain(); g.gain.value = 0.95 * Math.max(0, Math.min(1, amp));   // 0.55 → 0.95(같은 요청 · 크게)
+  const g = c9.createGain(); g.gain.value = 1.7 * Math.max(0, Math.min(1, amp));   // 0.55 → 0.95 → 1.7(같은 날 "소리를 크게" · 주 리미터가 봉우리만 누른다)
   src.connect(lp).connect(g).connect(master9);
   try { src.start(c9.currentTime + Math.max(0, delay)); } catch { /* 닫힌 판 */ }
 }
