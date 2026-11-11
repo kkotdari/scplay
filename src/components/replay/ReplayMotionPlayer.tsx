@@ -861,17 +861,15 @@ if (typeof window !== "undefined") {
 const MEM_LIVE_KEY9 = "scr-memlive";
 let memCrashLv9 = -1;
 /** 터짐에서 배운 단(앞서 깨끗이 안 끝난 재생 · 3일 회복) — 한 번만 잰다(이 세션의 '재생 중' 표식을 적기 전에). */
+/* ★ 터짐 학습 걷음(2026-11-11, 요청: "탭 터짐에 대한 로직 없애주고") — 단을 배워 내리던 몫(scr-memlv2 · 3일 회복)을 다 걷었다(11-08 밤부터 이미 단엔 안 먹었다). 남은 것은 진단뿐:
+   지난 세션이 깨끗이 안 끝났으면(재생 중 표식) 블랙박스 마지막 줄 · 사건을 '직전 터짐'으로 옮겨 진단 창에 띄운다 — 화질 · 메모리 상한엔 안 닿는다. 옛 저장 값은 지운다. */
 const memLearned9 = (): number => {
   if (memCrashLv9 >= 0) return memCrashLv9;
-  let st9 = { lv: 0, at: 0 };
   const now9 = Date.now();
   try {
-    const j9 = JSON.parse(localStorage.getItem(MEM_LV_KEY9) ?? "null") as { lv?: number; at?: number } | null;
-    if (j9 && typeof j9.lv === "number") st9 = { lv: j9.lv, at: j9.at ?? 0 };
-    while (st9.lv > 0 && now9 - st9.at > 3 * 864e5) st9 = { lv: st9.lv - 1, at: st9.at + 3 * 864e5 };
+    localStorage.removeItem(MEM_LV_KEY9); localStorage.removeItem("scr-memlv");
     const live9 = JSON.parse(localStorage.getItem(MEM_LIVE_KEY9) ?? "null") as { t?: number } | null;
     if (live9 && typeof live9.t === "number" && now9 - live9.t < 30 * 60e3) {
-      st9 = { lv: Math.min(3, st9.lv + 1), at: now9 };
       /* 블랙박스(아래 BLACKBOX_KEY9 ★) — 터지기 직전 마지막 기록을 '터짐 기록'으로 옮겨 둔다(진단 창 맨 위에 뜬다). */
       const bb9 = localStorage.getItem(BLACKBOX_KEY9);
       if (bb9) localStorage.setItem(CRASHLOG_KEY9, bb9);
@@ -879,9 +877,8 @@ const memLearned9 = (): number => {
       if (ev9) localStorage.setItem("scr-crashevt", ev9);
     }
     localStorage.removeItem(MEM_LIVE_KEY9);
-    localStorage.setItem(MEM_LV_KEY9, JSON.stringify(st9));
-  } catch { /* 저장소가 막혔으면 배우지 않는다 */ }
-  memCrashLv9 = st9.lv;
+  } catch { /* 저장소가 막혔으면 못 옮긴다 */ }
+  memCrashLv9 = 0;
   return memCrashLv9;
 };
 /** 기기 메모리 단(위 ★) — 0 넉넉 ~ 3 아주 빠듯. */
@@ -958,6 +955,9 @@ const sprTune9 = (): void => {
 /** 아틀라스에서 받을 요잉 방향 수(위 요잉 32 ★ · sprAtlas9 want) — PC 32(낮은 단 16) · 앱 폰 16 · 폰 웹 8. 미리 굽기(예열)도 이 칸만 굽는다(나머지는 sprFill). */
 const ATLAS_WANT9 = (): 8 | 16 | 32 => {
   /* ★ 메모리 단(위 memLv9 ★ · 2026-11-08 "기기에 맞게") — 0 단만 32방 · 1 단 16방 · 2 단 이상 8방. 없는 방향은 가까운 칸으로 그린다. */
+  /* ★ 아이폰은 **8방**(2026-11-11, 요청: "아이폰은 8방으로 해야 할 듯" · 지적 "폰 모델 화질 자꾸 낮아지는 거" — 웹킷 탭 한도에 아틀라스 16방이 상한을 꽉 채워 교체 · 손수 굽기가 돌았다).
+     사이 각은 가까운 칸 · 남는 예산의 채우기(sprFill)가 맡는다. */
+  if (IOS9) return 8;
   const lv9 = memLv9();
   if (lv9 >= 2) return 8;
   if (lv9 === 1) return 16;
