@@ -9479,7 +9479,7 @@ class C8 {
           const Q = (X, J, z) => {
             I.colorMask(!1, !1, !1, !1), T(this.land) ? (I.stencilMask(8), I.stencilFunc(I.ALWAYS, 8, 255), I.stencilOp(I.KEEP, I.KEEP, I.REPLACE), G(this.land, X, J)) : p(this.land, 8, X, J), I.colorMask(!0, !0, !0, !0), I.stencilMask(0), I.stencilOp(I.KEEP, I.KEEP, I.KEEP), I.stencilFunc(I.EQUAL, 8, 12), I.uniform1f(this.loc.uMode, 0), z(), f(0, 0, l, A), I.colorMask(!1, !1, !1, !1), I.stencilMask(8), I.stencilFunc(I.ALWAYS, 0, 255), I.stencilOp(I.KEEP, I.KEEP, I.ZERO), f(0, 0, l, A), I.colorMask(!0, !0, !0, !0);
           };
-          s.land.rgb, Q(0.3, 0.27, () => w([0, 0, 0], 0.26)), I.uniform1f(this.loc.uMode, 4), this.waterUniforms(s), I.colorMask(!1, !1, !1, !1), I.stencilMask(4), I.stencilFunc(I.ALWAYS, 0, 255), I.stencilOp(I.KEEP, I.KEEP, I.ZERO), f(0, 0, l, A), I.colorMask(!0, !0, !0, !0), I.stencilMask(255), I.uniform4f(this.loc.uWt, P, 1, 0, 0), I.disable(I.STENCIL_TEST);
+          s.land.rgb, Q(0, Y * 0.45, () => w([0, 0, 0], 0.3)), Q(0, Y, () => w([0, 0, 0], 0.14)), I.uniform1f(this.loc.uMode, 4), this.waterUniforms(s), I.colorMask(!1, !1, !1, !1), I.stencilMask(4), I.stencilFunc(I.ALWAYS, 0, 255), I.stencilOp(I.KEEP, I.KEEP, I.ZERO), f(0, 0, l, A), I.colorMask(!0, !0, !0, !0), I.stencilMask(255), I.uniform4f(this.loc.uWt, P, 1, 0, 0), I.disable(I.STENCIL_TEST);
         } else f(0, 0, l, A);
         C === 0 && aD() && this.waterFxPasses(f, l, A), I.uniform1f(this.loc.uMode, 0), I.blendFunc(I.ONE, I.ONE_MINUS_SRC_ALPHA), I.enable(I.STENCIL_TEST);
       }
@@ -42764,7 +42764,7 @@ function KX({
       h += 1, k += W.width * W.height * 4;
     });
     const Z = j0();
-    return `판${"11-11 09:00".slice(6)} ${Math.round(Qn.current)}초 ×${dl.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (Z ? ` GL${Z.canvas.width}×${Z.canvas.height} 아틀라스${Z.sprFixedMB.toFixed(0)} 메시${Z.stat.meshes} 판${Z.sprStat.pages}${Z.lost ? " 잃음" : ""}` : "");
+    return `판${"11-11 09:19".slice(6)} ${Math.round(Qn.current)}초 ×${dl.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (Z ? ` GL${Z.canvas.width}×${Z.canvas.height} 아틀라스${Z.sprFixedMB.toFixed(0)} 메시${Z.stat.meshes} 판${Z.sprStat.pages}${Z.lost ? " 잃음" : ""}` : "");
   }, ks(() => {
     kr(to ? "전체화면 켬" : "전체화면 끔");
   }, [to]), ks(() => {
@@ -42782,7 +42782,7 @@ function KX({
         });
         let ot = 0;
         for (const Dt of Ae.current.values()) ot += Dt.buf.byteLength;
-        const it = j0(), ut = (Dt) => (Dt / 1048576).toFixed(0), gt = (W = performance.memory) == null ? void 0 : W.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-11 09:00 · 재생${Math.round(Qn.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${dl.current.speed} 배율${dl.current.zoom.toFixed(1)} · 메모리${Or()}단 ${Au()}방 · 캔버스${$}장 ${ut(q)}MB` + (it ? ` · GL배킹${it.canvas.width}×${it.canvas.height} 메시${it.stat.meshes}/${it.meshMax} ${ut(it.stat.bytes)}MB 2D판${it.sprStat.pages}장×${it.sprPageMB9().toFixed(0)}MB 아틀라스${it.sprFixedMB.toFixed(0)}MB 칸${it.sprStat.cells}` : " · GL없음") + ` · 설계도${Ae.current.size}장 ${ut(ot)}MB · 안개갈무리${Ke.current.length} · 효과판${ut(GA.n)}MB · 캔버스생성${Cg.n}` + (gt ? ` · 힙${ut(gt)}MB` : "");
+        const it = j0(), ut = (Dt) => (Dt / 1048576).toFixed(0), gt = (W = performance.memory) == null ? void 0 : W.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-11 09:19 · 재생${Math.round(Qn.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${dl.current.speed} 배율${dl.current.zoom.toFixed(1)} · 메모리${Or()}단 ${Au()}방 · 캔버스${$}장 ${ut(q)}MB` + (it ? ` · GL배킹${it.canvas.width}×${it.canvas.height} 메시${it.stat.meshes}/${it.meshMax} ${ut(it.stat.bytes)}MB 2D판${it.sprStat.pages}장×${it.sprPageMB9().toFixed(0)}MB 아틀라스${it.sprFixedMB.toFixed(0)}MB 칸${it.sprStat.cells}` : " · GL없음") + ` · 설계도${Ae.current.size}장 ${ut(ot)}MB · 안개갈무리${Ke.current.length} · 효과판${ut(GA.n)}MB · 캔버스생성${Cg.n}` + (gt ? ` · 힙${ut(gt)}MB` : "");
         localStorage.setItem(z3, lt);
       } catch {
       }
@@ -45789,7 +45789,7 @@ function KX({
         " · UI ",
         nn.ui,
         " · 판 ",
-        "11-11 09:00",
+        "11-11 09:19",
         nn.ss !== 1 ? ` · 초해상 ×${nn.ss.toFixed(2)}` : "",
         Math.abs(nn.unitScale - nn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${nn.unitScale.toFixed(4)})` : nn.scale > 0 && Math.abs(nn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${nn.scale.toFixed(4)})` : "",
         nn.allocOk ? "" : " · ⚠배킹확보 실패"
