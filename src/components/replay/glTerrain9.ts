@@ -54,7 +54,7 @@ export const TERR_WATER9 = {
  *  ② 빗방울 튐 — 0.45 타일 칸마다 위상 다른 고리(웅덩이 위 동심원 · 땅 위 작은 톡) · rk(0~1)가 칸 몫 · splash 거짓이면(폰) 안 그린다
  *  ③ 눈 쌓임 — 낮은 결 + 고지대 · 고도 경계 덤 · snow(0~1)가 문턱을 내린다 · 얇은 가장자리 푸른 그늘 · 둘레 희끗.
  *  값은 RMP 의 날씨 붓(wxTickRef9)이 장마다 심는다(쌓임 · 마름은 거기서). on 이 거짓이면 아무것도 안 한다. 무늬 판 wxm(r 걷는 땅 · g 고도/3 · b 고도·땅 경계 · LINEAR). */
-export const TERR_WX9 = { on: false, wet: 0, rk: 0, snow: 0, splash: true };
+export const TERR_WX9 = { on: false, wet: 0, rk: 0, snow: 0, splash: true, sq: 0.5 };   // sq = 땅 위 고리의 세로 눌림(평면 0.5 = 클릭 마커 --ckk · 입체 1 — 사영이 이미 눕힌다)
 const waterFx9 = (): boolean => TERR_WATER9.on && (TERR_WATER9.fxHash >= 0 ? TERR_WATER9.fxHash === 1 : TERR_WATER9.fx);
 /** ★ **대비 견줌 손잡이**(2026-10-29, 요청: "지형과 모델이 많이 선명해져서 좋은데 대비가 좀 약한 거 같아 원작에 비해" → "대비 적용 전에 강한 대비 테스트해 볼 수 있는
  *  파라미터 추가") — `#con=k`(배수 · 1 그대로 · 예 1.15 · 1.3) · `#conm=m`(축 · 기본 0.5). 미리곱하기 전 색 c 를 (c − m)·k + m 으로 편다.
@@ -238,7 +238,8 @@ vec4 wxPass() {
     float act = step(h12(id + 3.1), uWx.y * 0.85);
     vec2 cc = vec2(0.25) + 0.5 * vec2(h12(id), h12(id + 7.3));
     float life = fract(uWx.w / 0.85 + h12(id + 1.9));
-    float d = length(f - cc);
+    vec2 dv = f - cc; dv.y /= max(0.2, uWx2.z);   // 눌린 고리(2026-11-11, 지적: "동그라미가 원으로 그려져 · 눌린 원이어야 해 시야상")
+    float d = length(dv);
     float r = life * mix(0.16, 0.42, pud);
     float ring = smoothstep(0.04, 0.0, abs(d - r)) * (1.0 - life) * act;
     float dot1 = smoothstep(0.08, 0.0, d) * step(life, 0.18) * (1.0 - pud) * act;
@@ -761,7 +762,7 @@ export class GlTerrain9 {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.wxm);
     gl.uniform4f(this.loc.uWx, TERR_WX9.wet, TERR_WX9.rk, TERR_WX9.snow, (performance.now() / 1000) % 600);
-    gl.uniform4f(this.loc.uWx2, pxT * (typeof devicePixelRatio === "number" ? devicePixelRatio : 1), TERR_WX9.splash ? 1 : 0, 0, 0);
+    gl.uniform4f(this.loc.uWx2, pxT * (typeof devicePixelRatio === "number" ? devicePixelRatio : 1), TERR_WX9.splash ? 1 : 0, TERR_WX9.sq, 0);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.uniform1f(this.loc.uMode, 7);
     rect(0, 0, W, H);

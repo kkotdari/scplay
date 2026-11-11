@@ -10,6 +10,8 @@ export interface WxPlan9 {
   eps: { a: number; b: number; pk: number }[];
   /** 번개 시각(초 · 비만). */
   bolts: number[];
+  /** 맑은 판(토막 없음) — eps0 · bolts0 는 시험(#wxkind)이 되살릴 원래 일정. */
+  clear?: boolean; eps0?: WxPlan9["eps"]; bolts0?: number[];
 }
 
 /** 문자열 → 32비트 씨앗(FNV-1a). */
@@ -33,7 +35,10 @@ function rng9(a: number): () => number {
  *  번개는 세기 0.45 넘는 비에서 12~40초마다(같은 요청 "번개 더 자주" · 옛: 0.65 넘음 · 25~80초). */
 export function wxPlan9(key: string, total: number): WxPlan9 {
   const r = rng9(seed9(`wx|${key}`));
-  const kind: WxKind9 = r() < 0.55 ? "rain" : "snow";
+  /* 맑음 5 · 눈 2 · 비 3(2026-11-11, 요청: "맑은 경기도 있어야 해 · 맑음 5 눈 2 비 3 비율") — 맑으면 토막이 없다(clear). 종류는 그대로 하나 뽑아 둔다(#wxkind 시험이 쓴다). */
+  const roll = r();
+  const clear = roll < 0.5;
+  const kind: WxKind9 = roll < 0.7 && !clear ? "snow" : clear ? (r() < 0.4 ? "snow" : "rain") : "rain";
   const eps: WxPlan9["eps"] = [];
   const bolts: number[] = [];
   let t = r() < 0.34 ? -(WX_RAMP9 + 5 + r() * 60) : 20 + r() * 120;
@@ -52,7 +57,7 @@ export function wxPlan9(key: string, total: number): WxPlan9 {
     t += dur + 90 + r() * 180;
   }
   bolts.sort((x, y) => x - y);
-  return { kind, eps, bolts };
+  return clear ? { kind, eps: [], bolts: [], clear: true, eps0: eps, bolts0: bolts } : { kind, eps, bolts };
 }
 
 /** 오르내림(초) — 토막 앞뒤로 이만큼 서서히. */

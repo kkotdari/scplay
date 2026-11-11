@@ -1319,7 +1319,8 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
     const v9 = castValue9(e9.kind);
     if (v9 <= 0) continue;
     if (e9.end === "self") {
-      evs9.push({ sec: e9.died, raw: r9, w: v9, why: "자폭" });
+      /* 자막 '자폭'은 **스커지만**(2026-11-11, 지적: "중계 자막 중 자폭은 뭐야? 자폭은 스커지만 하는데") — 'self' 끝은 마인 · 감염된 테란 · 변태알 취소도 든다. 그것들은 장면으로 안 센다. */
+      if (/scourge/i.test(e9.kind)) evs9.push({ sec: e9.died, raw: r9, w: v9, why: "자폭" });
       continue;
     }
     if (e9.end !== "atk") continue;   // morph·own·끝까지 삶은 죽음이 아니다

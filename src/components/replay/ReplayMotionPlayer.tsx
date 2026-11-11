@@ -1157,7 +1157,7 @@ const RING_LW_MAX9 = 2.2;
 const RING_LW_MIN9 = 0.6;
 /** ★ **폰 UI 선 배율 — 한 상수**(2026-11-10, 요청: "그것들은 하나의 상수로 폰 배율을 관리해 줘") — 선택 링 · 클릭 마커(테 · 가운데 점 · X) · 랠리 · 명령 줄이 다 이 값 하나를 탄다.
  *  JS 쪽은 ringLineW9(아래) · CSS 쪽은 뿌리의 `--ui-line-k`(uiVars9 · .scr-motion-clickfx 의 --ckdot 가 곱한다). 11-03 1.6 → 11-10 1.25("둔탁해 보여"). 바닥(RING_LW_MIN9)은 안 탄다. */
-export const PHONE_UI_LINE_K9 = 1.25;
+export const PHONE_UI_LINE_K9 = 1;   // 1.25 → 1(2026-11-11, 요청: "1.25 곱하지 않기")
 /** ★ 폰 UI 선의 **최소 굵기(CSS px)**(2026-11-10, 요청: "최소 몇인지를 상수로 관리") — 같은 선들(링 · 클릭 마커 테 · 랠리 · 명령 줄)이 배율이 낮아도 이 아래로는 안 간다.
  *  PC 는 RING_LW_MIN9(0.6). 11-03 은 0.96(0.6 × 1.6) · 11-10 0.6. dpr 1 화면의 0.7px 바닥(테 AA)은 따로 그대로. */
 export const PHONE_UI_LINE_MIN9 = 0.6;
@@ -2581,6 +2581,64 @@ function mapLogoFogged9(lg9: HTMLCanvasElement, t9: number): HTMLCanvasElement {
   c9.globalCompositeOperation = "source-over";
   LOGO_FOG9.cv = cv9; LOGO_FOG9.m = mc9; LOGO_FOG9.src = lg9; LOGO_FOG9.key = key9;
   return cv9;
+}
+/* ★ **크립 위 바닥 날씨**(2026-11-11, 지적: "크립 위 물튀김 안 나옴 · 물웅덩이 눈쌓임도") — 바닥 날씨(glTerrain9 wxPass)는 지형 캔버스에 그리는데 크립은 그 위 몸 캔버스라 덮었다.
+   크립을 그린 바로 뒤(캔버스엔 아직 크립뿐 · source-atop)에 같은 무늬를 2D 로 한 번 더: ① 웅덩이 · 눈 = 지형 셰이더와 **같은 잡음**(h12 · vn · wf3 을 JS 로 옮김)을 타일 4 칸으로
+   구운 판(세기 0.04 걸음마다 다시) ② 빗방울 튐 = 보이는 칸마다 눌린 고리(장마다 · PC · 확대 10px/타일 이상). 평면만. */
+const wxH12 = (x: number, y: number): number => {
+  let a = (x * 0.1031) % 1; let b = (y * 0.1031) % 1; let c = a; if (a < 0) a += 1; if (b < 0) b += 1; c = a;
+  const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33);
+  a += d; b += d; c += d;
+  const v = ((a + b) * c) % 1; return v < 0 ? v + 1 : v;
+};
+const wxVn = (x: number, y: number): number => {
+  const ix = Math.floor(x); const iy = Math.floor(y); let fx = x - ix; let fy = y - iy;
+  fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = wxH12(ix, iy); const b = wxH12(ix + 1, iy); const c = wxH12(ix, iy + 1); const d = wxH12(ix + 1, iy + 1);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+};
+const wxF3 = (x: number, y: number): number => (wxVn(x, y) * 0.5 + wxVn(x * 2.03 + 1.7, y * 2.03 + 1.7) * 0.25 + wxVn(x * 4.1 + 3.1, y * 4.1 + 3.1) * 0.125) / 0.875;
+const wxSs = (a: number, b: number, v: number): number => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const WX_CREEP9: { key: string; cv: HTMLCanvasElement | null } = { key: "", cv: null };
+function wxCreepCv9(W: number, H: number, wet: number, snow: number): HTMLCanvasElement | null {
+  if (typeof document === "undefined" || W < 1 || H < 1) return null;
+  const qw = Math.round(wet * 25) / 25; const qs = Math.round(snow * 25) / 25;
+  if (qw < 0.01 && qs < 0.01) return null;
+  const key = `${W}x${H}|${qw}|${qs}`;
+  if (WX_CREEP9.cv && WX_CREEP9.key === key) return WX_CREEP9.cv;
+  const S = 4; const cv = WX_CREEP9.cv ?? document.createElement("canvas");
+  if (cv.width !== W * S || cv.height !== H * S) { cv.width = W * S; cv.height = H * S; }
+  const g = cv.getContext("2d"); if (!g) return null;
+  const id = g.createImageData(W * S, H * S); const d = id.data;
+  for (let py = 0; py < H * S; py += 1) for (let px = 0; px < W * S; px += 1) {
+    const tx = (px + 0.5) / S; const ty = (py + 0.5) / S;
+    let r = 0; let gg = 0; let b = 0; let a = 0;
+    if (qw > 0.01) {
+      const pm = wxF3(tx * 0.16 + 7, ty * 0.16 + 7) * 0.78 + wxVn(tx * 0.55 + 2, ty * 0.55 + 2) * 0.22;
+      const thr = 0.72 + (0.50 - 0.72) * qw;
+      const pud = wxSs(thr, thr + 0.02, pm);
+      const halo = wxSs(thr - 0.07, thr, pm) * qw * (1 - pud);
+      const refl = wxF3(tx * 0.08 + 9, ty * 0.08);
+      const rk = wxSs(0.35, 0.75, refl); const rim = wxSs(thr + 0.1, thr + 0.02, pm);
+      r = (0.05 + 0.09 * rk + 0.10 * rim) * pud; gg = (0.07 + 0.11 * rk + 0.12 * rim) * pud; b = (0.10 + 0.14 * rk + 0.13 * rim) * pud;
+      a = pud * 0.68 + halo * 0.3;
+    }
+    if (qs > 0.01) {
+      const s = wxF3(tx * 0.2 + 11, ty * 0.2 + 11) * 0.76 + wxVn(tx * 0.9, ty * 0.9) * 0.18 + wxVn(tx * 2.2, ty * 2.2) * 0.06 - 0.05;
+      const st = 0.80 + (0.34 - 0.80) * qs;
+      const cov = wxSs(st, st + 0.03, s) * 0.95;
+      const sh = wxSs(st, st + 0.12, s); const n = 0.93 + 0.08 * wxVn(tx * 1.7, ty * 1.7);
+      const sr = 0.90 * n * (0.80 + 0.20 * sh); const sg = 0.93 * n * (0.86 + 0.14 * sh); const sb = 0.98 * n * (0.95 + 0.05 * sh);
+      const du = qs * 0.18 * wxSs(st - 0.18, st, s) * (1 - cov);
+      r = sr * cov + (0.86 * du + r * (1 - du)) * (1 - cov); gg = sg * cov + (0.89 * du + gg * (1 - du)) * (1 - cov); b = sb * cov + (0.95 * du + b * (1 - du)) * (1 - cov);
+      a = 1 - (1 - cov) * (1 - du) * (1 - a);
+    }
+    const o = (py * W * S + px) * 4;
+    if (a > 0.003) { d[o] = Math.min(255, (r / a) * 255); d[o + 1] = Math.min(255, (gg / a) * 255); d[o + 2] = Math.min(255, (b / a) * 255); d[o + 3] = Math.min(255, a * 255); }
+  }
+  g.putImageData(id, 0, 0);
+  WX_CREEP9.cv = cv; WX_CREEP9.key = key;
+  return cv;
 }
 function creepTex9(): HTMLCanvasElement | null {
   if (CREEP_TEX9 !== undefined) return CREEP_TEX9;
@@ -8076,6 +8134,35 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             ctx.fillRect(zx(0), zy(0), mw9 * zoom, mh9 * zoom);
             ctx.restore();
           }
+          /* 크립 위 바닥 날씨(위 wxCreepCv9 ★) — 캔버스엔 아직 크립뿐이라 source-atop 이 크립 위에만 얹는다. */
+          if (TERR_WX9.on) {
+            const tp9 = tilePx ?? (mw9 / 128);
+            const gw9 = Math.max(1, Math.round(mw9 / tp9)); const gh9 = Math.max(1, Math.round(mh9 / tp9));
+            const wc9 = wxCreepCv9(gw9, gh9, TERR_WX9.wet, TERR_WX9.snow);
+            ctx.save();
+            ctx.globalCompositeOperation = "source-atop"; ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
+            if (wc9) ctx.drawImage(wc9, zx(0), zy(0), mw9 * zoom, mh9 * zoom);
+            const tz9 = tp9 * zoom;
+            if (TERR_WX9.rk > 0 && TERR_WX9.splash && tz9 >= 10) {   // 빗방울 튐 — 셰이더와 같은 칸(0.45 타일) · 위상 · 눌린 고리
+              const cs9 = 0.45; const tm9 = (performance.now() / 1000) % 600;
+              const x0 = Math.max(0, Math.floor((0 - zx(0)) / tz9 / cs9)); const x1 = Math.min(Math.ceil(gw9 / cs9), Math.ceil((cw - zx(0)) / tz9 / cs9));
+              const y0 = Math.max(0, Math.floor((0 - zy(0)) / tz9 / cs9)); const y1 = Math.min(Math.ceil(gh9 / cs9), Math.ceil((ch - zy(0)) / tz9 / cs9));
+              ctx.strokeStyle = "rgba(150,165,185,0.55)"; ctx.lineWidth = Math.max(0.6, tz9 * cs9 * 0.035);
+              ctx.beginPath();
+              let n9 = 0;
+              for (let iy = y0; iy < y1 && n9 < 4000; iy += 1) for (let ix = x0; ix < x1; ix += 1) {
+                if (wxH12(ix + 3.1, iy + 3.1) >= TERR_WX9.rk * 0.85) continue;
+                const life = (tm9 / 0.85 + wxH12(ix + 1.9, iy + 1.9)) % 1;
+                const cx = (ix + 0.25 + 0.5 * wxH12(ix, iy)) * cs9; const cy = (iy + 0.25 + 0.5 * wxH12(ix + 7.3, iy + 7.3)) * cs9;
+                const rr = Math.max(0.5, life * 0.16 * cs9 * tz9);
+                const sx = zx(0) + cx * tz9; const sy = zy(0) + cy * tz9;
+                ctx.moveTo(sx + rr, sy); ctx.ellipse(sx, sy, rr, rr * TERR_WX9.sq, 0, 0, Math.PI * 2);
+                n9 += 1;
+              }
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
         }
         ctx.restore();
         paintOps(drawList9.filter((o) => !o.clipWalk));
@@ -10867,9 +10954,10 @@ export default function ReplayMotionPlayer({
   /* ★ 꾸밈 날씨(weather9 ★ · 2026-11-11) — 경기 열쇠(clockKey = 경기 번호)로 짠 일정 하나(비 · 눈 중 한 종류) · 켬은 소리 목록의 '날씨' 줄(기기에 저장). 그림은 무대의 .scr-wx 겹 ·
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
   /* 테스터만(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게") — 테스터가 아니면 늘 끔 · 목록 줄도 안 선다. */
-  const [wxOn9, setWxOn9] = useState<boolean>(() => isTester && wxOnStored9());
-  useEffect(() => { setWxOn9(isTester && wxOnStored9()); }, [isTester]);   // 테스터 표는 앱이 늦게 줄 수 있다
-  const wxPlanNow9 = useMemo(() => wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total), [clockKey, gridIn.width, gridIn.height, total]);
+  const wxForce9 = typeof location !== "undefined" && /(?:^|[#&,])wx=1/.test(location.hash);   // 시험(perf-check --hash wx=1)
+  const [wxOn9, setWxOn9] = useState<boolean>(() => (isTester || wxForce9) && wxOnStored9());
+  useEffect(() => { setWxOn9((isTester || wxForce9) && wxOnStored9()); }, [isTester, wxForce9]);   // 테스터 표는 앱이 늦게 줄 수 있다
+  const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
   /** 바닥에 남는 몫(물웅덩이 · 눈 쌓임 — weather9 wxGround9 ★) — 일정에서 한 번 쌓아 둔다. */
   const wxGnd9 = useMemo(() => wxGround9(wxPlanNow9, total), [wxPlanNow9, total]);
@@ -19925,6 +20013,7 @@ export default function ReplayMotionPlayer({
       TERR_WX9.snow = wxPlanNow9.kind === "snow" ? g9 : 0;
       TERR_WX9.rk = wxPlanNow9.kind === "rain" && cmdNowRef9.current.playing ? k09 : 0;
       TERR_WX9.splash = !smallDevice9;
+      TERR_WX9.sq = pitched ? 1 : 0.5;   // 땅 위 고리 눌림(평면 = 클릭 마커와 같은 0.5)
     }
     const el9 = wxElRef9.current; if (!el9) return;
     const st9 = wxStRef9.current;
