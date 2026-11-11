@@ -49,6 +49,12 @@ export const TERR_WATER9 = {
   fx: true,
   fxHash: ((): number => { const m = typeof location !== "undefined" ? /(?:^|[#&,])twfx=([01])/.exec(location.hash) : null; return m ? Number(m[1]) : -1; })(),
 };
+/** ★ 바닥 날씨(2026-11-11, 요청: "피시에서 빗방울 튐 + 곳곳에 물웅덩이 / 곳곳에 눈쌓임" → 시안 → "이대로 넣어줘") — 지형 판 뒤 · 안개 앞에 장마다 한 겹(uMode 7 · wxPass):
+ *  ① 물웅덩이 — 걷는 평지(물 · 절벽 · 고도 경계 2칸 빼고)의 낮은 결 덩이 · wet(0~1)이 문턱을 내려 커진다 · 둘레 젖은 땅 · 하늘 비침 · 가장자리 반짝
+ *  ② 빗방울 튐 — 0.45 타일 칸마다 위상 다른 고리(웅덩이 위 동심원 · 땅 위 작은 톡) · rk(0~1)가 칸 몫 · splash 거짓이면(폰) 안 그린다
+ *  ③ 눈 쌓임 — 낮은 결 + 고지대 · 고도 경계 덤 · snow(0~1)가 문턱을 내린다 · 얇은 가장자리 푸른 그늘 · 둘레 희끗.
+ *  값은 RMP 의 날씨 붓(wxTickRef9)이 장마다 심는다(쌓임 · 마름은 거기서). on 이 거짓이면 아무것도 안 한다. 무늬 판 wxm(r 걷는 땅 · g 고도/3 · b 고도·땅 경계 · LINEAR). */
+export const TERR_WX9 = { on: false, wet: 0, rk: 0, snow: 0, splash: true };
 const waterFx9 = (): boolean => TERR_WATER9.on && (TERR_WATER9.fxHash >= 0 ? TERR_WATER9.fxHash === 1 : TERR_WATER9.fx);
 /** ★ **대비 견줌 손잡이**(2026-10-29, 요청: "지형과 모델이 많이 선명해져서 좋은데 대비가 좀 약한 거 같아 원작에 비해" → "대비 적용 전에 강한 대비 테스트해 볼 수 있는
  *  파라미터 추가") — `#con=k`(배수 · 1 그대로 · 예 1.15 · 1.3) · `#conm=m`(축 · 기본 0.5). 미리곱하기 전 색 c 를 (c − m)·k + m 으로 편다.
@@ -105,6 +111,7 @@ precision highp float;
 uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCon;
 uniform vec4 uGr;
 uniform vec4 uWt; uniform vec4 uWd; uniform vec2 uWpx;
+uniform vec4 uWx; uniform vec4 uWx2;
 varying vec2 vUv; varying vec2 vTc;
 float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 vec2 h22(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
@@ -203,6 +210,54 @@ float grain() {
    uWt = (시각 초, 바닥 결 켬, 0, 0) · uWpx = 타일 하나의 uv. uMode 4 = 판에 굽는 몫(바닥 · 흡수 · 둑 · 그림자 — 미리곱한 알파) · 5 = 물결 곱(2배 곱 · DST·SRC) ·
    6 = 반짝임 · 물거품(미리곱한 알파). 빛은 지형 왼위(지도 x−, y−)에서. */
 float wfbm(vec2 p) { return vn(p) * 0.5 + vn(p * 2.03 + 1.7) * 0.25 + vn(p * 4.1 + 3.1) * 0.125 + vn(p * 8.3 + 5.3) * 0.0625; }
+/* ★ 바닥 날씨(TERR_WX9 ★) — uTex = 무늬 판 wxm · uWx = (wet, 튐 rk, snow, 시각) · uWx2.x = 타일 하나의 화면 기기 px(가장자리 너비) · y = 튐 켬. 미리곱한 알파. */
+float wf3(vec2 p) { return (vn(p) * 0.5 + vn(p * 2.03 + 1.7) * 0.25 + vn(p * 4.1 + 3.1) * 0.125) / 0.875; }
+vec4 wxPass() {
+  vec4 m = texture2D(uTex, vUv);
+  vec2 tc = vTc;
+  float isL = smoothstep(0.3, 0.7, m.r);
+  float ok = smoothstep(0.55, 0.95, m.r) * (1.0 - smoothstep(0.25, 0.6, m.b));
+  float isH = smoothstep(0.1, 0.3, m.g);
+  float aa = clamp(1.6 / max(1.0, uWx2.x), 0.003, 0.06);
+  vec3 rgb = vec3(0.0); float a = 0.0;
+  float wet = uWx.x;
+  float pud = 0.0;
+  if (wet > 0.01) {
+    float pm = wf3(tc * 0.16 + 7.0) * 0.78 + vn(tc * 0.55 + 2.0) * 0.22;
+    float thr = mix(0.72, 0.50, wet);
+    pud = smoothstep(thr, thr + aa, pm) * ok;
+    float halo = smoothstep(thr - 0.07, thr, pm) * ok * wet * (1.0 - pud);
+    float refl = wf3(tc * 0.08 + vec2(9.0, uWx.w * 0.02));
+    vec3 tint = vec3(0.05, 0.07, 0.10) + vec3(0.09, 0.11, 0.14) * smoothstep(0.35, 0.75, refl);
+    tint += vec3(0.10, 0.12, 0.13) * smoothstep(thr + aa * 5.0, thr + aa, pm);
+    rgb = tint * pud;
+    a = pud * 0.68 + halo * 0.3;
+  }
+  if (uWx.y > 0.0 && uWx2.y > 0.5) {
+    vec2 g = tc / 0.45; vec2 id = floor(g); vec2 f = fract(g);
+    float act = step(h12(id + 3.1), uWx.y * 0.85);
+    vec2 cc = vec2(0.25) + 0.5 * vec2(h12(id), h12(id + 7.3));
+    float life = fract(uWx.w / 0.85 + h12(id + 1.9));
+    float d = length(f - cc);
+    float r = life * mix(0.16, 0.42, pud);
+    float ring = smoothstep(0.04, 0.0, abs(d - r)) * (1.0 - life) * act;
+    float dot1 = smoothstep(0.08, 0.0, d) * step(life, 0.18) * (1.0 - pud) * act;
+    rgb += vec3(0.55, 0.62, 0.70) * (ring * mix(0.25, 0.7, pud) + dot1 * 0.5) * isL;
+  }
+  float sw = uWx.z;
+  if (sw > 0.01) {
+    float s = wf3(tc * 0.2 + 11.0) * 0.76 + vn(tc * 0.9) * 0.18 + vn(tc * 2.2) * 0.06 + isH * 0.1 + m.b * isH * 0.06 - 0.05 * (1.0 - isH);
+    float st = mix(0.80, 0.34, sw);
+    float cov = smoothstep(st, st + aa * 3.0, s) * isL;
+    vec3 sn = vec3(0.90, 0.93, 0.98) * (0.93 + 0.08 * vn(tc * 1.7));
+    sn = mix(sn * vec3(0.80, 0.86, 0.95), sn, smoothstep(st, st + 0.12, s));
+    float du = sw * 0.18 * smoothstep(st - 0.18, st, s) * isL * (1.0 - cov);
+    vec3 dc = vec3(0.86, 0.89, 0.95);
+    rgb = sn * cov * 0.95 + (dc * du + rgb * (1.0 - du)) * (1.0 - cov * 0.95);
+    a = 1.0 - (1.0 - cov * 0.95) * (1.0 - du) * (1.0 - a);
+  }
+  return vec4(rgb, a);
+}
 vec4 waterPass() {
   vec4 m = texture2D(uTex, vUv);
   // 물가는 타일 계단이 아니라 둥글게 — 물 판을 반 타일 둘레로 한 번 흐려 문턱을 넓게 잡는다.
@@ -255,6 +310,7 @@ vec4 waterPass() {
 }
 void main() {
   vec4 o;
+  if (uMode > 6.5) { gl_FragColor = wxPass(); return; }   // 바닥 날씨(TERR_WX9 ★)
   if (uMode > 3.5) { gl_FragColor = waterPass(); return; }   // 물(TERR_WATER9 ★) — 안개(3) 갈래보다 먼저 가른다
   /* 판 17 칸 안개(GlFog9.tile ★) — uGr = (섞기 f, 밝힌 자리 어둑함, 1/칸 수 w, 1/칸 수 h) · uCol.rgb = 안개 색. 다섯 점 흐림 + 문턱으로 둥근 가장자리. */
   if (uMode > 2.5) {
@@ -403,6 +459,8 @@ export class GlTerrain9 {
   private cls: WebGLTexture | null = null;
   /** 물 판(위 TERR_WATER9 ★) — w×h RGBA · r 물 · g 물 쪽 땅까지 거리 ÷ 16 · b 땅 쪽 물까지 거리 ÷ 6(LINEAR) · 물이 없는 지도는 null. */
   private wat: WebGLTexture | null = null;
+  /** 바닥 날씨 무늬 판(위 TERR_WX9 ★) — w×h RGBA · r 걷는 땅 · g 고도/3 · b 고도·땅 경계(2칸 안) · LINEAR. */
+  private wxm: WebGLTexture | null = null;
   private panel9 = false;
   private highp9: boolean;
   private quad: WebGLBuffer;
@@ -428,7 +486,7 @@ export class GlTerrain9 {
     /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
     private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
     this.prog = TERR_SOFT9 ? mkProg(terrSoftVS9(TERR_VS), terrSoftFS9(TERR_FS)) : mkProg(TERR_VS, TERR_FS);
-    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
+    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx", "uWx", "uWx2"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;
     this.nAttr = Math.max(2, Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 8);
@@ -493,6 +551,26 @@ export class GlTerrain9 {
     if (this.tex) { gl.deleteTexture(this.tex); this.tex = null; }
     if (this.cls) { gl.deleteTexture(this.cls); this.cls = null; }
     if (this.wat) { gl.deleteTexture(this.wat); this.wat = null; }
+    if (this.wxm) { gl.deleteTexture(this.wxm); this.wxm = null; }
+    {   // 바닥 날씨 무늬 판(위 TERR_WX9 ★)
+      const Wt = G.w; const Ht = G.h; const n9 = Wt * Ht; const d9 = new Uint8Array(n9 * 4);
+      for (let y = 0; y < Ht; y += 1) for (let x = 0; x < Wt; x += 1) {
+        const i = y * Wt + x; const wk = G.walk[i] === 1; let edge = 0;
+        for (let dy = -2; dy <= 2 && !edge; dy += 1) for (let dx = -2; dx <= 2; dx += 1) {
+          const nx = x + dx; const ny = y + dy; if (nx < 0 || ny < 0 || nx >= Wt || ny >= Ht) continue;
+          const j = ny * Wt + nx; if ((G.walk[j] === 1) !== wk || (G.lvl[j] !== G.lvl[i] && G.ramp[j] !== 1 && G.ramp[i] !== 1)) { edge = 1; break; }
+        }
+        d9[i * 4] = wk ? 255 : 0; d9[i * 4 + 1] = Math.min(255, G.lvl[i] * 85); d9[i * 4 + 2] = edge ? 255 : 0; d9[i * 4 + 3] = 255;
+      }
+      this.wxm = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.wxm);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, Wt, Ht, 0, gl.RGBA, gl.UNSIGNED_BYTE, d9);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
     {   // 물 판(위 TERR_WATER9 ★) — 물 = 못 걷고 고도 0(terrainGeom 의 water 와 같은 자) · 두 쪽 거리는 8방 모따기 거리 두 번 쓸기.
       const n9 = G.w * G.h; const Wt = G.w; const Ht = G.h;
       const isW = new Uint8Array(n9); let anyW = false;
@@ -650,7 +728,8 @@ export class GlTerrain9 {
   }
   /** 판 재사용 길(GlTerrCanvas9 ★ 지형 판)에서 판 뒤에 물결 · 반짝임 · 물거품만 얹는다(안개 앞). 물 판이 없거나 꺼졌으면 아무것도 안 한다. */
   drawWaterFx(G: TerrainGeom9, quad: number[], cw: number, ch: number): void {
-    if (!this.wat || !this.highp9 || !waterFx9() || TERR_DBG9 >= 0) return;
+    const doW9 = !!this.wat && waterFx9(); const doX9 = !!this.wxm && TERR_WX9.on;
+    if (!this.highp9 || TERR_DBG9 >= 0 || (!doW9 && !doX9)) return;
     const gl = this.gl;
     const W = G.w; const H = G.h;
     gl.useProgram(this.prog);
@@ -673,9 +752,19 @@ export class GlTerrain9 {
       gl.vertexAttribPointer(this.aP, 2, gl.FLOAT, false, 8, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6); this.stat.draws += 1;
     };
-    this.waterUniforms(G);
-    this.waterFxPasses(rect, W, H);
+    if (doX9) this.wxPassDraw(rect, W, H, Math.hypot(quad[2] - quad[0], quad[3] - quad[1]) / Math.max(1, W));
+    if (doW9) { this.waterUniforms(G); this.waterFxPasses(rect, W, H); }
     gl.uniform1f(this.loc.uMode, 0);
+  }
+  /** 바닥 날씨 한 겹(위 TERR_WX9 ★) — 블렌드 ONE, 1−a(미리곱한 알파) · pxT = 타일 하나의 화면 CSS px(가장자리 너비 · 기기 px 로 dpr 곱). */
+  private wxPassDraw(rect: (x0: number, y0: number, x1: number, y1: number) => void, W: number, H: number, pxT: number): void {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.wxm);
+    gl.uniform4f(this.loc.uWx, TERR_WX9.wet, TERR_WX9.rk, TERR_WX9.snow, (performance.now() / 1000) % 600);
+    gl.uniform4f(this.loc.uWx2, pxT * (typeof devicePixelRatio === "number" ? devicePixelRatio : 1), TERR_WX9.splash ? 1 : 0, 0, 0);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1f(this.loc.uMode, 7);
+    rect(0, 0, W, H);
   }
   /** 지형 한 장 — 몸보다 먼저, 깊이 없이. `quad` 는 지도 네 귀 (0,0)(W,0)(W,H)(0,H) 의 화면 CSS px(x,y 여덟 수) · `wallScale` 벽띠 배수(평면 2 · 입체 4) ·
    *  `dprK` 기기 px/CSS px(최소 선 굵기 1 기기 px 의 자). 호출자가 판·가위·뷰포트를 걸어 둔 채 부른다. 끝나면 블렌드(ONE, 1−a)·깊이 켬 상태로 돌려 둔다. */
@@ -958,6 +1047,14 @@ export class GlTerrain9 {
       } else rect(0, 0, W, H);
       // ⑨ 물결 · 반짝임 · 물거품 — 판을 안 쓰는 길(part 0)에서만 여기서. 판 길은 GlTerrCanvas9 가 판 뒤에 drawWaterFx 로.
       if (part === 0 && waterFx9()) this.waterFxPasses(rect, W, H);
+      gl.uniform1f(this.loc.uMode, 0);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.STENCIL_TEST);
+    }
+    // ⑩ 바닥 날씨(위 TERR_WX9 ★) — 판 안 쓰는 길(part 0)만 여기서 · 판 길은 drawWaterFx 가 판 뒤에.
+    if (part === 0 && this.wxm && TERR_WX9.on && this.highp9 && TERR_DBG9 < 0) {
+      gl.disable(gl.STENCIL_TEST);
+      this.wxPassDraw(rect, W, H, cssPerTile);
       gl.uniform1f(this.loc.uMode, 0);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.STENCIL_TEST);

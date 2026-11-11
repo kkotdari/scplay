@@ -129,3 +129,26 @@ export function wxOnStored9(): boolean {
   try { return localStorage.getItem(WX_KEY9) === "1"; } catch { return false; }   // 기본 끔(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게")
 }
 export function wxStore9(on: boolean): void { try { localStorage.setItem(WX_KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
+
+/** ★ 바닥에 남는 몫(2026-11-11 · glTerrain9 TERR_WX9 ★) — 비: 물웅덩이(wet 0~1 · 세기 1 이면 4분에 가득 · 그치면 3분에 마름) · 눈: 쌓임(0~1 · 세기 1 이면 6분에 가득 ·
+ *  그치면 8분에 녹음). 재생 시각의 함수라 탐색 · 되감기에도 같다 — 2초 눈금으로 한 번 쌓아 두고(wxGround9) 그 사이는 잇는다(wxGroundAt9). */
+export interface WxGround9 { kind: WxKind9; step: number; v: Float32Array }
+export function wxGround9(p: WxPlan9, total: number): WxGround9 {
+  const step = 2; const n = Math.max(2, Math.ceil(Math.max(60, total) / step) + 2);
+  const v = new Float32Array(n);
+  const up = p.kind === "rain" ? 1 / 240 : 1 / 360; const dn = p.kind === "rain" ? 1 / 180 : 1 / 480;
+  let x = 0;
+  /* 0초 전에 시작한 토막(처음부터 내리는 판)은 0초에 이미 그만큼 쌓여 있다 */
+  for (let t = -120; t < 0; t += step) { const k = wxAt9(p, t).k; x = Math.max(0, Math.min(1, x + (k > 0.05 ? k * up : -dn) * step)); }
+  for (let i = 0; i < n; i += 1) {
+    v[i] = x;
+    const k = wxAt9(p, i * step).k;
+    x = Math.max(0, Math.min(1, x + (k > 0.05 ? k * up : -dn) * step));
+  }
+  return { kind: p.kind, step, v };
+}
+export function wxGroundAt9(g: WxGround9, t: number): number {
+  const f = Math.max(0, t) / g.step; const i = Math.floor(f);
+  if (i >= g.v.length - 1) return g.v[g.v.length - 1];
+  return g.v[i] + (g.v[i + 1] - g.v[i]) * (f - i);
+}

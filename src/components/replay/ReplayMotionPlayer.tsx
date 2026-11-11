@@ -7,7 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
-import { wxAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
+import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Maximize, Minimize, MousePointer2, Palette, Pause, Play, RotateCcw, Route, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -63,7 +63,7 @@ import SG_LOGO_SRC9 from "./assets/sg-logo-white.png?inline";   // 맵 가운데
 import { CUR_ARROW_D9, CUR_CARRY_SEC9, CUR_FOE9, CUR_GROUND9, CUR_OWN9, CUR_RES9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, TERR_WATER9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, TERR_WATER9, TERR_WX9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -10868,6 +10868,8 @@ export default function ReplayMotionPlayer({
   useEffect(() => { setWxOn9(isTester && wxOnStored9()); }, [isTester]);   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total), [clockKey, gridIn.width, gridIn.height, total]);
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
+  /** 바닥에 남는 몫(물웅덩이 · 눈 쌓임 — weather9 wxGround9 ★) — 일정에서 한 번 쌓아 둔다. */
+  const wxGnd9 = useMemo(() => wxGround9(wxPlanNow9, total), [wxPlanNow9, total]);
   const wxElRef9 = useRef<HTMLDivElement | null>(null);
   const wxFlashRef9 = useRef<HTMLDivElement | null>(null);
   const wxStRef9 = useRef({ k: -1, fl: -1, paused: -1, bolt: -1, t: -1 });
@@ -10877,7 +10879,7 @@ export default function ReplayMotionPlayer({
     wxStRef9.current.k = -1; wxStRef9.current.paused = -1;
     wxTickRef9.current(cmdNowRef9.current.t);
   }, [playing, active, wxOn9]);
-  useEffect(() => () => setRain9(0), []);
+  useEffect(() => () => { setRain9(0); TERR_WX9.on = false; }, []);
   /* 현재 재생 시각 기록(요청: 특정 시간으로 카톡 공유) — 공유 버튼이 이 값을 읽어
      링크에 &t=로 싣는다. 사라질 땐 지워 엉뚱한 경기에 안 붙게 한다. */
   useEffect(() => {
@@ -19910,11 +19912,22 @@ export default function ReplayMotionPlayer({
   }, []);
   /** 날씨 한 장(위 wxPlanNow9 ★) — 겹 투명도(세기) · 번쩍임 · 멈춤 표 · 빗소리 세기 · 천둥(번개 시각을 지날 때 · 4배속 넘게 감거나 되감으면 안 친다). */
   wxTickRef9.current = (tNow9: number): void => {
+    const on09 = wxOn9 && active !== false;
+    /* 바닥 날씨(glTerrain9 TERR_WX9 ★ · 2026-11-11) — 물웅덩이 · 눈 쌓임은 시각의 함수(wxGnd9) · 빗방울 튐은 지금 세기 · 폰은 튐 없이. */
+    {
+      const g9 = on09 ? wxGroundAt9(wxGnd9, tNow9) : 0;
+      const k09 = on09 ? wxAt9(wxPlanNow9, tNow9).k : 0;
+      TERR_WX9.on = on09 && (g9 > 0.005 || k09 > 0.02);
+      TERR_WX9.wet = wxPlanNow9.kind === "rain" ? g9 : 0;
+      TERR_WX9.snow = wxPlanNow9.kind === "snow" ? g9 : 0;
+      TERR_WX9.rk = wxPlanNow9.kind === "rain" && cmdNowRef9.current.playing ? k09 : 0;
+      TERR_WX9.splash = !smallDevice9;
+    }
     const el9 = wxElRef9.current; if (!el9) return;
     const st9 = wxStRef9.current;
     const cm9 = cmdNowRef9.current;
     const w9 = wxAt9(wxPlanNow9, tNow9);
-    const on9 = wxOn9 && active !== false;
+    const on9 = on09;
     const k9 = on9 ? w9.k : 0;
     /* 양(가랑비 ~ 소나기 · 2026-11-11) — 겹 투명도는 오르내림만(k × 4 · 0.25 넘으면 다 보임) · 몇 겹이 얼마나 서는지는 --wk(CSS 의 겹마다 문턱 · 하늘 어둡기)가 정한다. */
     if (Math.abs(k9 - st9.k) > 0.01) { el9.style.opacity = k9 > 0.005 ? Math.min(1, k9 * 4).toFixed(3) : "0"; el9.style.visibility = k9 > 0.005 ? "" : "hidden"; el9.style.setProperty("--wk", k9.toFixed(3)); st9.k = k9; }
