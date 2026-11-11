@@ -18331,7 +18331,7 @@ export default function ReplayMotionPlayer({
           커밋이 두 번 나므로 그 사이엔 자리를 얼려 둔다(holdRef).
      ★ (옛 · 보던 자리 지키기) 링크가 준 자리를 아직 쥐고 있으면 재중심은 물러난다(지적: PC에서 공유 링크가 늘 정가운데) — PC는 첫 몇 초에 무대가 일곱 번
        다시 서는데, 그때마다 기억한 자리(링크가 앉기 전 = 지도 한가운데)로 걷어찼다. */
-  const geomRef9 = useRef({ fold: dockFoldOn9, fs: fsOn, pitch: pitchDeg, w: 0, h: 0, cw: 0, foldAt: 0 });
+  const geomRef9 = useRef({ fold: dockFoldOn9, fs: fsOn, pitch: pitchDeg, w: 0, h: 0, cw: 0, foldAt: 0, fit: 0 });
   /** 전체화면 갈림 때 판 폭·배율(아래 ⑤ 의 ★ 타일 크기 지키기) — 판 폭이 바뀐 커밋에 쓰고 걷는다. */
   const fsZoomPend9 = useRef<{ cw: number; z: number; at: number } | null>(null);
   useLayoutEffect(() => {
@@ -18340,7 +18340,7 @@ export default function ReplayMotionPlayer({
     const w19 = Math.round(stage.w); const h19 = Math.round(stage.h);
     if (g9.w === w19 && g9.h === h19 && g9.cw === fsCoverW && g9.fs === fsOn && g9.pitch === pitchDeg) return;
     const p9 = { ...g9 };
-    g9.w = w19; g9.h = h19; g9.cw = fsCoverW; g9.fs = fsOn; g9.pitch = pitchDeg;
+    g9.w = w19; g9.h = h19; g9.cw = fsCoverW; g9.fs = fsOn; g9.pitch = pitchDeg; g9.fit = castZoomFit9();
     const byFold9 = p9.foldAt > 0 && performance.now() - p9.foldAt < 1500 && p9.fs === fsOn && p9.pitch === pitchDeg;
     g9.foldAt = 0;
     if (p9.w === 0 && p9.h === 0) return;   // 처음 잰 무대 — 다시 셈할 옛 자가 없다
@@ -18349,7 +18349,10 @@ export default function ReplayMotionPlayer({
     if (splitOn9) return;                                                      // ②
     const z09 = zoomRef.current; const p09 = panRef.current;
     if (camHeld9 && fsCoverW > 0 && p9.cw > 0) {                              // ③
-      const z19 = castZoomFit9();
+      /* ★ 사람이 바꾼 배율은 **기본 대비 그대로**(2026-11-11, 지적: "독 접고 펼 때 배율이 기본 배율로 돌아가는 문제") — 옛: 무대가 바뀌면 늘 새 기본 배율(castZoomFit9)로 당겼다.
+         이제 바뀌기 전 배율 ÷ 바뀌기 전 기본 배율(배율 원이 보이는 ×값)을 새 기본에 곱한다 — 손대지 않았으면(×1) 종전처럼 새 기본. */
+      const fitNew9 = g9.fit; const fitOld9 = p9.fit > 0 ? p9.fit : fitNew9;
+      const z19 = Math.max(zMinRef9.current, Math.min(ZOOM_MAX, fitNew9 * (fitOld9 > 0 ? z09 / fitOld9 : 1)));
       const k9 = z09 > 0 ? (fsCoverW * z19) / (p9.cw * z09) : 1;
       const sc9 = (q9: { x: number; y: number }): { x: number; y: number } => ({ x: q9.x * k9, y: q9.y * k9 });
       const tc9 = trackCamRef.current;
