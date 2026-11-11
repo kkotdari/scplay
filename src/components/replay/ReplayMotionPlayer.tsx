@@ -18181,7 +18181,12 @@ export default function ReplayMotionPlayer({
     if (byFold9 && fsCoverW > 0 && p9.cw > 0 && !camHeld9) {                  // ④
       const z19 = Math.max(zMinRef9.current, (z09 * p9.cw) / fsCoverW);
       const k9 = (fsCoverW * z19) / (p9.cw * z09);
-      setView9(z19, { x: p09.x * k9, y: p09.y * k9 - (stage.h - p9.h) / 2 });   // 접기는 사람이 한 일이다 — 링크가 쥔 자리를 놓는다
+      /* ★ 새 무대의 팬 한계로 **죈다**(2026-11-11, 지적: 폰 · 1배 — "지도 무대가 독 접기에 반대로 적용된 느낌": 펼치면 지도가 독 밑까지 내려앉고 접으면 위에 붙어 아래가 빈다) —
+         팬 죄기 effect(위 useLayoutEffect · panLimit)는 이 effect 보다 **먼저** 돌아, 여기서 놓은 팬(위끝 지키기 = 무대 키 차의 반만큼 밀기)이 안 죄인 채 남았다. 지도가
+         무대보다 작은 배율(1배 언저리)에서는 그 밂이 곧 '접기 전 자리 그대로'라 접고 펼 때마다 거꾸로 보였다. 죄면 작은 지도는 덩이 가운데(panLimit ★ 덩이) · 큰 지도는 위끝 지킴 그대로. */
+      const lim9 = panLimit(z19);
+      const q9 = { x: p09.x * k9, y: p09.y * k9 - (stage.h - p9.h) / 2 };
+      setView9(z19, { x: Math.min(lim9.x, Math.max(-lim9.x, q9.x)), y: Math.min(lim9.yTop, Math.max(-lim9.y, q9.y)) });   // 접기는 사람이 한 일이다 — 링크가 쥔 자리를 놓는다
       return;
     }
     const want = holdRef.current ?? centerRef.current;                        // ⑤
