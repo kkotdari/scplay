@@ -134,7 +134,8 @@ export function wxTiles9(): { rain: string; snow: string } | null {
 const WX_KEY9 = "scr.wx";
 export function wxOnStored9(): boolean {
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])wx=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  try { return localStorage.getItem(WX_KEY9) !== "0"; } catch { return true; }   // 기본 켬(2026-11-11 · 명령 선 옆 날씨 단추가 끈 것만 기억한다)
+  // ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켠 기기만("1") 켠다 · 옛(2026-11-11): 기본 켬 · 끈 것만 기억.
+  try { return localStorage.getItem(WX_KEY9) === "1"; } catch { return false; }
 }
 export function wxStore9(on: boolean): void { try { localStorage.setItem(WX_KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 

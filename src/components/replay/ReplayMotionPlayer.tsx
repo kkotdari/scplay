@@ -10991,7 +10991,8 @@ export default function ReplayMotionPlayer({
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
   /* 테스터만(2026-11-11, 요청: "날씨는 테스트 기능으로만 켤 수 있게") — 테스터가 아니면 늘 끔 · 목록 줄도 안 선다. */
   /* ★ 모두에게 · 켬끔 단추 없이(2026-11-11, 요청: "작업 다 하면 날씨 일반에 오픈 · 대신 끄고/켜기 버튼 없이") — 옛: 테스터만 · 소리 목록 '날씨' 줄. `#wx=0` 이면 끔(시험). */
-  /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험). */
+  /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험).
+     ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켜면 기기에 기억("1")하고 그 기기만 켠다(weather9 wxOnStored9). */
   const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
   const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
