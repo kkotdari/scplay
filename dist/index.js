@@ -43205,7 +43205,7 @@ function yz({
       h += 1, k += Y.width * Y.height * 4;
     });
     const v = oI();
-    return `판${"11-12 07:57".slice(6)} ${Math.round(Qo.current)}초 ×${EA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
+    return `판${"11-12 11:36".slice(6)} ${Math.round(Qo.current)}초 ×${EA.current.speed} 캔버스${h}장${(k / 1048576).toFixed(0)}MB` + (v ? ` GL${v.canvas.width}×${v.canvas.height} 아틀라스${v.sprFixedMB.toFixed(0)} 메시${v.stat.meshes} 판${v.sprStat.pages}${v.lost ? " 잃음" : ""}` : "");
   }, Ks(() => {
     Rr($n ? "전체화면 켬" : "전체화면 끔");
   }, [$n]), Ks(() => {
@@ -43223,7 +43223,7 @@ function yz({
         });
         let ot = 0;
         for (const Mt of Ve.current.values()) ot += Mt.buf.byteLength;
-        const et = oI(), ht = (Mt) => (Mt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 07:57 · 재생${Math.round(Qo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${EA.current.speed} 배율${EA.current.zoom.toFixed(1)} · 메모리${Wr()}단 ${wl()}방 · 캔버스${j}장 ${ht(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${ht(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ve.current.size}장 ${ht(ot)}MB · 안개갈무리${Jn.current.length} · 효과판${ht(Vl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${ht(gt)}MB` : "");
+        const et = oI(), ht = (Mt) => (Mt / 1048576).toFixed(0), gt = (Y = performance.memory) == null ? void 0 : Y.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-12 11:36 · 재생${Math.round(Qo.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${EA.current.speed} 배율${EA.current.zoom.toFixed(1)} · 메모리${Wr()}단 ${wl()}방 · 캔버스${j}장 ${ht(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${ht(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Ve.current.size}장 ${ht(ot)}MB · 안개갈무리${Jn.current.length} · 효과판${ht(Vl.n)}MB · 캔버스생성${hg.n}` + (gt ? ` · 힙${ht(gt)}MB` : "");
         localStorage.setItem(Sk, lt);
       } catch {
       }
@@ -44186,7 +44186,7 @@ function yz({
     if (h.foldAt = 0, Y.w === 0 && Y.h === 0 || (Ya(), cC.current) || Mo) return;
     const V = Wn.current, ot = hn.current;
     if (Zp && jo > 0 && Y.cw > 0) {
-      const gt = h.fit, lt = Y.fit > 0 ? Y.fit : gt, Mt = Math.max(ni.current, Math.min(ic, gt * (lt > 0 ? V / lt : 1))), wt = V > 0 ? jo * Mt / (Y.cw * V) : 1, xt = (ts) => ({ x: ts.x * wt, y: ts.y * wt }), Xt = je.current;
+      const gt = h.fit, lt = Y.fit > 0 ? Y.fit : gt, Mt = j ? Math.max(ni.current, Math.min(ic, gt * (lt > 0 ? V / lt : 1))) : gt, wt = V > 0 ? jo * Mt / (Y.cw * V) : 1, xt = (ts) => ({ x: ts.x * wt, y: ts.y * wt }), Xt = je.current;
       Xt.raw && (je.current = { ...Xt, z: Mt, pan: xt(Xt.pan) }), n0(Mt, xt(ot));
       return;
     }
@@ -46257,7 +46257,7 @@ function yz({
         " · UI ",
         gn.ui,
         " · 판 ",
-        "11-12 07:57",
+        "11-12 11:36",
         gn.ss !== 1 ? ` · 초해상 ×${gn.ss.toFixed(2)}` : "",
         Math.abs(gn.unitScale - gn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${gn.unitScale.toFixed(4)})` : gn.scale > 0 && Math.abs(gn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${gn.scale.toFixed(4)})` : "",
         gn.allocOk ? "" : " · ⚠배킹확보 실패"
