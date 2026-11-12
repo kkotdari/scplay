@@ -10994,7 +10994,7 @@ export default function ReplayMotionPlayer({
       const cv9 = wxCvRef9.current;
       if (kind9 === "rain" && cv9) {
         const g9 = wxGeoRef9.current; const k9 = wxStRef9.current.k;
-        const dpr9 = Math.min(2, window.devicePixelRatio || 1);
+        const dpr9 = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(16e6 / Math.max(1, g9.w * g9.h)));   // 사파리 캔버스 넓이 한도(4096² 남짓)를 넘으면 안 그려진다(2026-11-12)
         const W9 = Math.max(1, Math.round(g9.w * dpr9)); const H9 = Math.max(1, Math.round(g9.h * dpr9));
         if (cv9.width !== W9 || cv9.height !== H9) { cv9.width = W9; cv9.height = H9; }
         const c9 = cv9.getContext("2d"); if (!c9 || g9.tp <= 0) return;
@@ -11003,7 +11003,11 @@ export default function ReplayMotionPlayer({
            방울마다 고른다: 줄 길이 12~32px × (1 · 0.75 · 0.55) · 빠르기 870 · 500 · 260 px/초 · 진하기 0.18~0.5 × (0.95 · 0.6 · 0.38) · 굵기 0.8~1.5px · 다 배율 맞춤 s 를 곱한다.
            떨어지는 높이(140~260px × 겹)를 그 빠르기로 내려와 착지점에 닿으면 0.16초 눌린 고리 · 그 뒤 잠깐(0.1~0.5초) 쉬었다 다시. */
         const s9 = g9.s;
-        const cT9 = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 16 / g9.tp)))));   // 칸(타일) — 화면 16px 남짓
+        let cT9 = Math.pow(2, Math.round(Math.log2(Math.max(0.125, Math.min(8, 16 / g9.tp)))));   // 칸(타일) — 화면 16px 남짓
+        /* ★ 큰 화면은 칸을 키운다(2026-11-12, 실기: "맥 앱 전체화면에서 비가 안 보임 · 번개는 침") — 옛: 칸 수가 12000 을 넘으면 그 장을 통째로 건너뛰어 1440p 넘는 전체화면은
+           비가 한 방울도 안 그려졌다. 이제 칸 수가 예산 안에 들 때까지 칸을 두 배로(방울은 성기지만 끊기지 않는다). */
+        const cellsOf9 = (c: number): number => (Math.ceil(g9.w / (c * g9.tp)) + 3) * (Math.ceil((g9.h + 260 * g9.s) / (c * g9.tp)) + 3);
+        while (cellsOf9(cT9) > 26000 && cT9 < 64) cT9 *= 2;
         const cs9 = cT9 * g9.tp;
         const hsh9 = (a: number, b: number): number => { const v = Math.sin(a * 127.1 + b * 311.7 + cT9 * 17.3) * 43758.5453; return v - Math.floor(v); };
         const LEN9 = [1, 0.75, 0.55]; const SPD9 = [870, 500, 260]; const ALP9 = [0.95, 0.6, 0.38]; const WID9 = [1, 0.85, 0.7]; const HGT9 = [1, 0.8, 0.6];
@@ -11012,7 +11016,7 @@ export default function ReplayMotionPlayer({
         const wind9 = 0.17 * Math.sin(sec9 / 61) + 0.1 * Math.sin(sec9 / 37 + 1.3);   // 라디안 ≈ ±15° · 아주 천천히(2026-11-11, 요청: "각도는 아주 천천히 바뀌게" — 옛 9.3 · 3.7초 주기)
         const ix0 = Math.floor(-g9.mx / cs9) - 1; const ix1 = Math.ceil((g9.w - g9.mx) / cs9) + 1;
         const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fallMax9 - g9.my) / cs9) + 1;
-        if ((ix1 - ix0) * (iy1 - iy0) > 12000) return;
+        if ((ix1 - ix0) * (iy1 - iy0) > 30000) return;
         c9.lineCap = "round";
         const paths9: Path2D[] = [0, 1, 2, 3, 4, 5].map(() => new Path2D());   // 겹 × 밝음 둘
         const ring9 = new Path2D();
