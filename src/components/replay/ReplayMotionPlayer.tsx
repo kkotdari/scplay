@@ -2011,6 +2011,8 @@ const BZ9 = { z: 0 };
 /** ★ 번개 앞뒤는 배킹 조절이 안 잰다(2026-11-11, 실기: "천둥 번개 시 끝나고 한 번 렉 · 천둥소리 중에 생기기도 · 아이폰 화면이 멈칫") — 번쩍(무대 전체 막)의 무거운 몇 장을
  *  배킹 조절(DRS9)이 '느리다'로 읽어 배킹을 내리면 캔버스 · GL 렌더 버퍼(MRT · 깊이 · 번짐)를 통째로 다시 잡아 그 순간 멈칫하고, 몇 초 뒤 되올리며 또 멈칫했다. 번개마다 3초 쉰다. */
 const WX_HUSH9 = { until: 0 };
+/** 빗방울 좌표 칸(겹 × 밝음 여섯 + 고리) — 장마다 다시 쓴다(GC 없음 · 빗방울 흐름 effect ★). */
+const RAIN_BUF9 = { f: [0, 1, 2, 3, 4, 5, 6].map(() => new Float32Array(4096)), n: [0, 0, 0, 0, 0, 0, 0] };
 function drsNote9(now: number, interval: number, target: number): void {
   if (!DRS9.on || !(interval > 0) || interval > 500) return;
   if (now < WX_HUSH9.until) { DRS9.slow = 0; return; }
@@ -11018,8 +11020,14 @@ export default function ReplayMotionPlayer({
         const iy0 = Math.floor(-g9.my / cs9) - 1; const iy1 = Math.ceil((g9.h + fallMax9 - g9.my) / cs9) + 1;
         if ((ix1 - ix0) * (iy1 - iy0) > 30000) return;
         c9.lineCap = "round";
-        const paths9: Path2D[] = [0, 1, 2, 3, 4, 5].map(() => new Path2D());   // 겹 × 밝음 둘
-        const ring9 = new Path2D();
+        /* ★ 장마다 Path2D 일곱 장을 새로 짓지 않는다(2026-11-12, 실기: "번개 치고 나서 랜덤한 기간 후 렉 한 번" — 센 비(번개가 치는 토막)일수록 장마다 수천 마디 경로가
+           버려져 큰 GC 가 불규칙하게 돌았다) — 겹 × 밝음 여섯 칸 · 고리 한 칸의 좌표를 미리 잡은 Float32Array 에 적고 칸마다 beginPath 한 번으로 긋는다. */
+        const RB9 = RAIN_BUF9; for (let q9 = 0; q9 < 7; q9 += 1) RB9.n[q9] = 0;
+        const put9 = (q9: number, a: number, b: number, c: number, d: number): void => {
+          let f9 = RB9.f[q9]; const n9 = RB9.n[q9];
+          if (n9 + 4 > f9.length) { const g9b = new Float32Array(f9.length * 2); g9b.set(f9); RB9.f[q9] = f9 = g9b; }
+          f9[n9] = a; f9[n9 + 1] = b; f9[n9 + 2] = c; f9[n9 + 3] = d; RB9.n[q9] = n9 + 4;
+        };
         for (let iy0b = iy0; iy0b < iy1; iy0b += 1) for (let ix0b = ix0; ix0b < ix1; ix0b += 1) for (let d9 = 0; d9 < 2; d9 += 1) {   // 칸마다 방울 둘(셋 → 둘 · 2026-11-11, 요청: "비 최대 양을 줄여 줘 · 비로 인해 게임이 안 보이는 지경")
           const ix = ix0b + d9 * 0.371; const iy = iy0b + d9 * 0.613;   // 해시 씨앗만 갈린다(자리는 아래 칸 ix0b · iy0b)
           if (hsh9(ix, iy) >= k9 * 0.45) continue;   // 산 몫 0.9 → 0.45(같은 요청)
@@ -11036,20 +11044,22 @@ export default function ReplayMotionPlayer({
             const xb9 = lx9 - dx9 * rem9; const yb9 = ly9 - dy9 * rem9;
             const len9 = Math.min((22 + 28 * hsh9(ix + 6.1, iy + 3.7)) * s9 * LEN9[L9], H9f * (u9 / tf9) + 2);   // 더 길게(12~32 → 22~50 · 같은 요청) · 처음엔 짧게
             if (yb9 < -2 || yb9 - len9 > g9.h || xb9 < -len9 || xb9 > g9.w + len9) continue;
-            const pth9 = paths9[L9 * 2 + (hsh9(ix + 9.1, iy + 8.3) < 0.5 ? 0 : 1)];
-            pth9.moveTo(xb9 - dx9 * len9, yb9 - dy9 * len9); pth9.lineTo(xb9, yb9);
+            put9(L9 * 2 + (hsh9(ix + 9.1, iy + 8.3) < 0.5 ? 0 : 1), xb9 - dx9 * len9, yb9 - dy9 * len9, xb9, yb9);
           } else if (u9 < tf9 + tsp9 && L9 < 2) {
             if (ly9 < -8 || ly9 > g9.h + 8 || lx9 < -8 || lx9 > g9.w + 8) continue;
             const q9 = (u9 - tf9) / tsp9; const r9 = Math.max(0.8, (1 + 4 * q9) * s9 * (L9 === 0 ? 1 : 0.7));
-            ring9.moveTo(lx9 + r9, ly9); ring9.ellipse(lx9, ly9, r9, r9 * 0.5, 0, 0, Math.PI * 2);
+            put9(6, lx9, ly9, r9, 0);
           }
         }
         for (let L9 = 0; L9 < 3; L9 += 1) for (let b9 = 0; b9 < 2; b9 += 1) {
           c9.strokeStyle = `rgba(205,222,245,${((b9 ? 0.24 : 0.14) * ALP9[L9]).toFixed(3)})`;   // 더 투명하게(0.42 · 0.26 → 0.3 · 0.18 · 같은 요청)
           c9.lineWidth = (b9 ? 1.4 : 0.9) * WID9[L9];
-          c9.stroke(paths9[L9 * 2 + b9]);
+          const q9 = L9 * 2 + b9; const f9 = RB9.f[q9]; const n9 = RB9.n[q9]; if (n9 === 0) continue;
+          c9.beginPath(); for (let j9 = 0; j9 < n9; j9 += 4) { c9.moveTo(f9[j9], f9[j9 + 1]); c9.lineTo(f9[j9 + 2], f9[j9 + 3]); }
+          c9.stroke();
         }
-        c9.strokeStyle = "rgba(190,205,225,0.24)"; c9.lineWidth = 0.8; c9.stroke(ring9);
+        { const f9 = RB9.f[6]; const n9 = RB9.n[6];
+          if (n9 > 0) { c9.strokeStyle = "rgba(190,205,225,0.24)"; c9.lineWidth = 0.8; c9.beginPath(); for (let j9 = 0; j9 < n9; j9 += 4) { c9.moveTo(f9[j9] + f9[j9 + 2], f9[j9 + 1]); c9.ellipse(f9[j9], f9[j9 + 1], f9[j9 + 2], f9[j9 + 2] * 0.5, 0, 0, Math.PI * 2); } c9.stroke(); } }
       }
       const ls9 = el9.querySelectorAll<HTMLElement>(".scr-wx-sway > i");
       const sp9 = SPEC9[kind9];

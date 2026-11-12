@@ -335,6 +335,8 @@ function thunderBufOf9(c9: AudioContext): AudioBuffer {
     d[i] = l2 * 6 * env + crack;
     peak = Math.max(peak, Math.abs(d[i]));
   }
+  /* 낮은 거름(850Hz)을 판에 구워 둔다(2026-11-12 · 옛: 천둥마다 BiquadFilter 하나를 새로 달았다 — 천둥 순간 할 일을 줄인다). */
+  { const a = 1 - Math.exp((-2 * Math.PI * 850) / SFX_RATE9); let y = 0; for (let i = 0; i < n; i += 1) { y += (d[i] - y) * a; d[i] = y; } }   // 크기는 거르기 전 봉우리로 맞춘다(옛 소리 크기 그대로)
   if (peak > 0) for (let i = 0; i < n; i += 1) d[i] *= 0.8 / peak;
   thunderBuf9 = b; return b;
 }
@@ -365,9 +367,8 @@ export function thunderClap9(delay: number, amp = 1): void {
   if (!enabled9) return;
   const c9 = ctxOf9(); if (!c9 || !master9) return;
   const src = c9.createBufferSource(); src.buffer = thunderBufOf9(c9);
-  const lp = c9.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 850;
   const g = c9.createGain(); g.gain.value = 1.7 * Math.max(0, Math.min(1, amp));   // 0.55 → 0.95 → 1.7(같은 날 "소리를 크게" · 주 리미터가 봉우리만 누른다)
-  src.connect(lp).connect(g).connect(master9);
+  src.connect(g).connect(master9);   // 낮은 거름은 판에 구웠다(thunderBufOf9)
   try { src.start(c9.currentTime + Math.max(0, delay)); } catch { /* 닫힌 판 */ }
 }
 
