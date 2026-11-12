@@ -2605,46 +2605,79 @@ const wxVn = (x: number, y: number): number => {
 };
 const wxF3 = (x: number, y: number): number => (wxVn(x, y) * 0.5 + wxVn(x * 2.03 + 1.7, y * 2.03 + 1.7) * 0.25 + wxVn(x * 4.1 + 3.1, y * 4.1 + 3.1) * 0.125) / 0.875;
 const wxSs = (a: number, b: number, v: number): number => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
-const WX_CREEP9: { key: string; cv: HTMLCanvasElement | null } = { key: "", cv: null };
+/** ★ **잘게 나눠 굽는다**(2026-11-12, 실기: "비 올 때 랜덤하게 렉 한 번 · 소리 꺼도 · 천둥 안 쳐도 · 기기 무관") — 옛: 젖음이 1/25 오를 때마다(몇 초마다) 판 전체(타일 × 4 ·
+ *  256 지도면 100만 화소)를 잡음째 한 장에 다시 구워 메인 스레드가 수백 ms 멈췄다. 이제 ① 잡음 밭(웅덩이 pm · 반사 rk · 눈 s · n)은 지도 크기마다 한 번 · 장마다 3ms 씩
+ *  줄 단위로 ② 젖음 · 눈 걸음이 바뀌면 그 밭에서 색만 셈해(가볍다) 역시 장마다 3ms 씩 뒤 판에 쓰고 다 되면 바꿔 끼운다 — 그동안은 옛 판을 그대로 보인다. */
+const WX_CREEP9: {
+  key: string; cv: HTMLCanvasElement | null; back: HTMLCanvasElement | null;
+  fKey: string; fRow: number; fSnow: boolean; pm: Float32Array | null; rk: Float32Array | null; sn: Float32Array | null; nn: Float32Array | null;
+  job: { key: string; row: number; qw: number; qs: number } | null; id: ImageData | null;
+} = { key: "", cv: null, back: null, fKey: "", fRow: 0, fSnow: false, pm: null, rk: null, sn: null, nn: null, job: null, id: null };
 function wxCreepCv9(W: number, H: number, wet: number, snow: number): HTMLCanvasElement | null {
   if (typeof document === "undefined" || W < 1 || H < 1) return null;
   const qw = Math.round(wet * 25) / 25; const qs = Math.round(snow * 25) / 25;
   if (qw < 0.01 && qs < 0.01) return null;
-  const key = `${W}x${H}|${qw}|${qs}`;
-  if (WX_CREEP9.cv && WX_CREEP9.key === key) return WX_CREEP9.cv;
-  const S = 4; const cv = WX_CREEP9.cv ?? document.createElement("canvas");
-  if (cv.width !== W * S || cv.height !== H * S) { cv.width = W * S; cv.height = H * S; }
-  const g = cv.getContext("2d"); if (!g) return null;
-  const id = g.createImageData(W * S, H * S); const d = id.data;
-  for (let py = 0; py < H * S; py += 1) for (let px = 0; px < W * S; px += 1) {
-    const tx = (px + 0.5) / S; const ty = (py + 0.5) / S;
-    let r = 0; let gg = 0; let b = 0; let a = 0;
-    if (qw > 0.01) {
-      const pm = wxF3(tx * 0.16 + 7, ty * 0.16 + 7) * 0.78 + wxVn(tx * 0.55 + 2, ty * 0.55 + 2) * 0.22;
-      const thr = 0.72 + (0.50 - 0.72) * qw;
-      const pud = wxSs(thr, thr + 0.02, pm);
-      const halo = wxSs(thr - 0.07, thr, pm) * qw * (1 - pud);
-      const refl = wxF3(tx * 0.08 + 9, ty * 0.08);
-      const rk = wxSs(0.35, 0.75, refl); const rim = wxSs(thr + 0.1, thr + 0.02, pm);
-      r = (0.05 + 0.09 * rk + 0.10 * rim) * pud; gg = (0.07 + 0.11 * rk + 0.12 * rim) * pud; b = (0.10 + 0.14 * rk + 0.13 * rim) * pud;
-      a = pud * 0.68 + halo * 0.3;
-    }
-    if (qs > 0.01) {
-      const s = wxF3(tx * 0.2 + 11, ty * 0.2 + 11) * 0.76 + wxVn(tx * 0.9, ty * 0.9) * 0.18 + wxVn(tx * 2.2, ty * 2.2) * 0.06 - 0.05;
-      const st = 0.80 + (0.34 - 0.80) * qs;
-      const cov = wxSs(st, st + 0.03, s) * 0.95;
-      const sh = wxSs(st, st + 0.12, s); const n = 0.93 + 0.08 * wxVn(tx * 1.7, ty * 1.7);
-      const sr = 0.90 * n * (0.80 + 0.20 * sh); const sg = 0.93 * n * (0.86 + 0.14 * sh); const sb = 0.98 * n * (0.95 + 0.05 * sh);
-      const du = qs * 0.18 * wxSs(st - 0.18, st, s) * (1 - cov);
-      r = sr * cov + (0.86 * du + r * (1 - du)) * (1 - cov); gg = sg * cov + (0.89 * du + gg * (1 - du)) * (1 - cov); b = sb * cov + (0.95 * du + b * (1 - du)) * (1 - cov);
-      a = 1 - (1 - cov) * (1 - du) * (1 - a);
-    }
-    const o = (py * W * S + px) * 4;
-    if (a > 0.003) { d[o] = Math.min(255, (r / a) * 255); d[o + 1] = Math.min(255, (gg / a) * 255); d[o + 2] = Math.min(255, (b / a) * 255); d[o + 3] = Math.min(255, a * 255); }
+  const X = WX_CREEP9; const S = 4; const PW = W * S; const PH = H * S; const N = PW * PH;
+  const t0 = performance.now(); const BUD = 3;
+  const fk = `${W}x${H}`;
+  if (X.fKey !== fk || (qs > 0.01 && !X.fSnow)) {
+    X.fKey = fk; X.fRow = 0; X.fSnow = qs > 0.01; X.job = null; X.key = ""; X.cv = null;
+    X.pm = new Float32Array(N); X.rk = new Float32Array(N);
+    X.sn = X.fSnow ? new Float32Array(N) : null; X.nn = X.fSnow ? new Float32Array(N) : null;
   }
-  g.putImageData(id, 0, 0);
-  WX_CREEP9.cv = cv; WX_CREEP9.key = key;
-  return cv;
+  const pmA = X.pm!; const rkA = X.rk!; const snA = X.sn; const nnA = X.nn;
+  while (X.fRow < PH) {   // ① 잡음 밭
+    const py = X.fRow; const ty = (py + 0.5) / S;
+    for (let px = 0; px < PW; px += 1) {
+      const tx = (px + 0.5) / S; const o = py * PW + px;
+      pmA[o] = wxF3(tx * 0.16 + 7, ty * 0.16 + 7) * 0.78 + wxVn(tx * 0.55 + 2, ty * 0.55 + 2) * 0.22;
+      rkA[o] = wxSs(0.35, 0.75, wxF3(tx * 0.08 + 9, ty * 0.08));
+      if (snA && nnA) { snA[o] = wxF3(tx * 0.2 + 11, ty * 0.2 + 11) * 0.76 + wxVn(tx * 0.9, ty * 0.9) * 0.18 + wxVn(tx * 2.2, ty * 2.2) * 0.06 - 0.05; nnA[o] = 0.93 + 0.08 * wxVn(tx * 1.7, ty * 1.7); }
+    }
+    X.fRow += 1;
+    if (performance.now() - t0 > BUD) return X.cv;
+  }
+  const key = `${fk}|${qw}|${qs}`;
+  if (X.key === key) return X.cv;
+  if (!X.job || X.job.key !== key) X.job = { key, row: 0, qw, qs };
+  if (!X.id || X.id.width !== PW || X.id.height !== PH) { const g0 = (X.back ?? (X.back = document.createElement("canvas"))).getContext("2d"); if (!g0) return X.cv; X.id = g0.createImageData(PW, PH); }
+  const d = X.id.data; const jb = X.job;
+  const thr = 0.72 + (0.50 - 0.72) * jb.qw; const st = 0.80 + (0.34 - 0.80) * jb.qs;
+  while (jb.row < PH) {   // ② 색
+    const py = jb.row;
+    for (let px = 0; px < PW; px += 1) {
+      const o1 = py * PW + px;
+      let r = 0; let gg = 0; let b = 0; let a = 0;
+      if (jb.qw > 0.01) {
+        const pm = pmA[o1];
+        const pud = wxSs(thr, thr + 0.02, pm);
+        const halo = wxSs(thr - 0.07, thr, pm) * jb.qw * (1 - pud);
+        const rk = rkA[o1]; const rim = wxSs(thr + 0.1, thr + 0.02, pm);
+        r = (0.05 + 0.09 * rk + 0.10 * rim) * pud; gg = (0.07 + 0.11 * rk + 0.12 * rim) * pud; b = (0.10 + 0.14 * rk + 0.13 * rim) * pud;
+        a = pud * 0.68 + halo * 0.3;
+      }
+      if (jb.qs > 0.01 && snA && nnA) {
+        const sv = snA[o1];
+        const cov = wxSs(st, st + 0.03, sv) * 0.95;
+        const sh = wxSs(st, st + 0.12, sv); const n = nnA[o1];
+        const sr = 0.90 * n * (0.80 + 0.20 * sh); const sg = 0.93 * n * (0.86 + 0.14 * sh); const sb = 0.98 * n * (0.95 + 0.05 * sh);
+        const du = jb.qs * 0.18 * wxSs(st - 0.18, st, sv) * (1 - cov);
+        r = sr * cov + (0.86 * du + r * (1 - du)) * (1 - cov); gg = sg * cov + (0.89 * du + gg * (1 - du)) * (1 - cov); b = sb * cov + (0.95 * du + b * (1 - du)) * (1 - cov);
+        a = 1 - (1 - cov) * (1 - du) * (1 - a);
+      }
+      const o = o1 * 4;
+      if (a > 0.003) { d[o] = Math.min(255, (r / a) * 255); d[o + 1] = Math.min(255, (gg / a) * 255); d[o + 2] = Math.min(255, (b / a) * 255); d[o + 3] = Math.min(255, a * 255); }
+      else { d[o] = 0; d[o + 1] = 0; d[o + 2] = 0; d[o + 3] = 0; }
+    }
+    jb.row += 1;
+    if (performance.now() - t0 > BUD) return X.cv;
+  }
+  const bk = X.back ?? (X.back = document.createElement("canvas"));
+  if (bk.width !== PW || bk.height !== PH) { bk.width = PW; bk.height = PH; }
+  const g = bk.getContext("2d"); if (!g) return X.cv;
+  g.putImageData(X.id, 0, 0);
+  X.back = X.cv; X.cv = bk; X.key = key; X.job = null;
+  return X.cv;
 }
 function creepTex9(): HTMLCanvasElement | null {
   if (CREEP_TEX9 !== undefined) return CREEP_TEX9;

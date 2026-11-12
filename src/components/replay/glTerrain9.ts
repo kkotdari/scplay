@@ -216,7 +216,9 @@ vec4 wxPass() {
   vec4 m = texture2D(uTex, vUv);
   vec2 tc = vTc;
   float isL = smoothstep(0.3, 0.7, m.r);
-  float ok = smoothstep(0.55, 0.95, m.r) * (1.0 - smoothstep(0.25, 0.6, m.b));
+  float ed = m.b * 5.0;   // 고도 · 땅 경계까지 타일(판 b ★)
+  float ok = step(0.5, m.r);
+  float shr = 0.45 * (1.0 - smoothstep(0.55, 1.2, ed));   // 경계 가까이선 웅덩이 문턱을 올려 모양째 줄인다(옛: 2칸 앞에서 곧은 줄로 잘림)
   float isH = smoothstep(0.1, 0.3, m.g);
   float aa = clamp(1.6 / max(1.0, uWx2.x), 0.003, 0.06);
   vec3 rgb = vec3(0.0); float a = 0.0;
@@ -225,6 +227,7 @@ vec4 wxPass() {
   if (wet > 0.01) {
     float pm = wf3(tc * 0.16 + 7.0) * 0.78 + vn(tc * 0.55 + 2.0) * 0.22;
     float thr = mix(0.72, 0.50, wet);
+    pm -= shr;
     pud = smoothstep(thr, thr + aa, pm) * ok;
     float halo = smoothstep(thr - 0.07, thr, pm) * ok * wet * (1.0 - pud);
     float refl = wf3(tc * 0.08 + vec2(9.0, uWx.w * 0.02));
@@ -247,7 +250,7 @@ vec4 wxPass() {
   }
   float sw = uWx.z;
   if (sw > 0.01) {
-    float s = wf3(tc * 0.2 + 11.0) * 0.76 + vn(tc * 0.9) * 0.18 + vn(tc * 2.2) * 0.06 + isH * 0.1 + m.b * isH * 0.06 - 0.05 * (1.0 - isH);
+    float s = wf3(tc * 0.2 + 11.0) * 0.76 + vn(tc * 0.9) * 0.18 + vn(tc * 2.2) * 0.06 + isH * 0.1 + (1.0 - smoothstep(0.5, 2.5, ed)) * isH * 0.06 - 0.05 * (1.0 - isH);
     float st = mix(0.80, 0.34, sw);
     float cov = smoothstep(st, st + aa * 3.0, s) * isL;
     vec3 sn = vec3(0.90, 0.93, 0.98) * (0.93 + 0.08 * vn(tc * 1.7));
@@ -555,13 +558,30 @@ export class GlTerrain9 {
     if (this.wxm) { gl.deleteTexture(this.wxm); this.wxm = null; }
     {   // 바닥 날씨 무늬 판(위 TERR_WX9 ★)
       const Wt = G.w; const Ht = G.h; const n9 = Wt * Ht; const d9 = new Uint8Array(n9 * 4);
+      /* ★ b = 고도 · 땅 경계까지 **거리**(타일 · ×51 · 5 타일까지)(2026-11-12, 실기: "비 웅덩이가 경계를 잘 못 땀 · 벽보다 멀리서 끊기네" — 옛 b 는 경계 2칸 안이면 1 인
+         네모 표식이라 웅덩이가 벽 2칸 앞에서 타일 줄로 곧게 잘렸다). 이웃(4방)과 갈래가 다른 칸 = 씨앗(경계까지 0.5) · 8방 모따기 거리 두 번 쓸기. */
+      const diff9 = (i: number, j: number): boolean => (G.walk[j] === 1) !== (G.walk[i] === 1) || (G.lvl[j] !== G.lvl[i] && G.ramp[j] !== 1 && G.ramp[i] !== 1);
+      const ed9 = new Float32Array(n9).fill(1e9);
       for (let y = 0; y < Ht; y += 1) for (let x = 0; x < Wt; x += 1) {
-        const i = y * Wt + x; const wk = G.walk[i] === 1; let edge = 0;
-        for (let dy = -2; dy <= 2 && !edge; dy += 1) for (let dx = -2; dx <= 2; dx += 1) {
-          const nx = x + dx; const ny = y + dy; if (nx < 0 || ny < 0 || nx >= Wt || ny >= Ht) continue;
-          const j = ny * Wt + nx; if ((G.walk[j] === 1) !== wk || (G.lvl[j] !== G.lvl[i] && G.ramp[j] !== 1 && G.ramp[i] !== 1)) { edge = 1; break; }
+        const i = y * Wt + x;
+        if ((x > 0 && diff9(i, i - 1)) || (x < Wt - 1 && diff9(i, i + 1)) || (y > 0 && diff9(i, i - Wt)) || (y < Ht - 1 && diff9(i, i + Wt))) ed9[i] = 0.5;
+      }
+      for (let pass = 0; pass < 2; pass += 1) {
+        for (let y = 0; y < Ht; y += 1) for (let x = 0; x < Wt; x += 1) {
+          const i = y * Wt + x; let v = ed9[i];
+          if (x > 0) v = Math.min(v, ed9[i - 1] + 1); if (y > 0) v = Math.min(v, ed9[i - Wt] + 1);
+          if (x > 0 && y > 0) v = Math.min(v, ed9[i - Wt - 1] + Math.SQRT2); if (x < Wt - 1 && y > 0) v = Math.min(v, ed9[i - Wt + 1] + Math.SQRT2);
+          ed9[i] = v;
         }
-        d9[i * 4] = wk ? 255 : 0; d9[i * 4 + 1] = Math.min(255, G.lvl[i] * 85); d9[i * 4 + 2] = edge ? 255 : 0; d9[i * 4 + 3] = 255;
+        for (let y = Ht - 1; y >= 0; y -= 1) for (let x = Wt - 1; x >= 0; x -= 1) {
+          const i = y * Wt + x; let v = ed9[i];
+          if (x < Wt - 1) v = Math.min(v, ed9[i + 1] + 1); if (y < Ht - 1) v = Math.min(v, ed9[i + Wt] + 1);
+          if (x < Wt - 1 && y < Ht - 1) v = Math.min(v, ed9[i + Wt + 1] + Math.SQRT2); if (x > 0 && y < Ht - 1) v = Math.min(v, ed9[i + Wt - 1] + Math.SQRT2);
+          ed9[i] = v;
+        }
+      }
+      for (let i = 0; i < n9; i += 1) {
+        d9[i * 4] = G.walk[i] === 1 ? 255 : 0; d9[i * 4 + 1] = Math.min(255, G.lvl[i] * 85); d9[i * 4 + 2] = Math.min(255, Math.round(ed9[i] * 51)); d9[i * 4 + 3] = 255;
       }
       this.wxm = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D, this.wxm);
