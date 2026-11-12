@@ -18356,7 +18356,8 @@ export default function ReplayMotionPlayer({
       /* ★ 사람이 바꾼 배율은 **기본 대비 그대로**(2026-11-11, 지적: "독 접고 펼 때 배율이 기본 배율로 돌아가는 문제") — 옛: 무대가 바뀌면 늘 새 기본 배율(castZoomFit9)로 당겼다.
          이제 바뀌기 전 배율 ÷ 바뀌기 전 기본 배율(배율 원이 보이는 ×값)을 새 기본에 곱한다 — 손대지 않았으면(×1) 종전처럼 새 기본. */
       const fitNew9 = g9.fit; const fitOld9 = p9.fit > 0 ? p9.fit : fitNew9;
-      const z19 = Math.max(zMinRef9.current, Math.min(ZOOM_MAX, fitNew9 * (fitOld9 > 0 ? z09 / fitOld9 : 1)));
+      /* 지키는 것은 **독 접기 · 펼치기만**(2026-11-12, 요청: "접기 말고 가로세로 전환 시엔 기본 배율로 가는 게 맞을 듯") — 회전 · 창 크기 · 전체화면은 새 기본 배율. */
+      const z19 = byFold9 ? Math.max(zMinRef9.current, Math.min(ZOOM_MAX, fitNew9 * (fitOld9 > 0 ? z09 / fitOld9 : 1))) : fitNew9;
       const k9 = z09 > 0 ? (fsCoverW * z19) / (p9.cw * z09) : 1;
       const sc9 = (q9: { x: number; y: number }): { x: number; y: number } => ({ x: q9.x * k9, y: q9.y * k9 });
       const tc9 = trackCamRef.current;
