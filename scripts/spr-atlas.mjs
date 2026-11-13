@@ -90,7 +90,7 @@ if (has("--bake")) {
   rmSync(DUMP, { recursive: true, force: true });
   console.log("[아틀라스] 굽기(perf-check --sprdump) …");
   execFileSync("node", [join(ROOT, "scripts/perf-check.mjs"), "--wide", "--cpu", "1", "--warm", "0", "--bloom", "--mrt",
-    "--hash", `sprdump=2,pctier=2,glmesh=4000${ONLY ? `,sprkinds=${ONLY.join("~")}` : ""}`, "--readyms", "900000", "--sprdump", DUMP], { stdio: "inherit" });
+    "--hash", `sprdump=2,pctier=2,glmesh=4000${ONLY ? `,sprkinds=${ONLY.join("~")}` : ""}`, "--readyms", String(flag("--readyms", 900000)), "--dumpwait", String(flag("--dumpwait", 3600000)), "--sprdump", DUMP], { stdio: "inherit" });
 }
 if (!DUMP || !existsSync(join(DUMP, "cells.json"))) { console.error("덤프가 없다(--dump <dir> 또는 --bake)"); process.exit(2); }
 

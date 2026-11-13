@@ -1021,6 +1021,15 @@ if (has("--ask")) {   // 보기 모드 판은 고를 때까지 시계를 세운�
     console.log("  [판 기다림]", await page.evaluate(() => { const d = window.__scrDiag || {}; return `예열 ${d.warm9 ?? "-"} · 그림 ${d.paints ?? "-"}장 · 로딩글 ${document.querySelector(".scr-motion-simnote.is-in")?.textContent ?? "-"}`; }));
   }
 }
+else if (has("--sprdump")) {   // 아틀라스 덤프(2026-11-13 · 클라우드 굽기) — 첫 그림을 기다리는 동안에도 30초마다 예열 줄을 찍는다(진행률 · SwiftShader 는 첫 그림까지 수십 분)
+  const t9 = Date.now(); const lim9 = Number(flag("--readyms", 30000));
+  for (;;) {
+    if (await page.evaluate(() => !!((window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0) || window.__sprDumpDone))) break;
+    if (Date.now() - t9 > lim9) throw new Error("준비가 안 끝났다(--readyms)");
+    await page.waitForTimeout(30000);
+    console.log("  [준비 기다림]", Math.round((Date.now() - t9) / 1000), "s", await page.evaluate(() => (window.__scrDiag || {}).warm9 ?? "-"));
+  }
+}
 else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
 /* --sprdump OUTDIR(2026-10-25 · 서버 아틀라스 굽기 — scripts/spr-atlas.mjs 가 부른다) — 재생기를 `#sprdump=Q` 로 열었을 때 모든 종류의 미리 굽기가 끝나기를(window.__sprDumpDone)
    기다렸다가 gl9 의 동적 판 픽셀(색 · 임자색·켜짐 · 빛 — GL 행 차례)을 OUTDIR/p{i}.{c,t,e}.raw 로, 칸 표를 OUTDIR/cells.json 으로 쓰고 끝난다. */
