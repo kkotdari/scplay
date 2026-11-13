@@ -84,8 +84,14 @@ export const TCON9: [number, number] = ((): [number, number] => {
  *  값 [bp, γ, kn, ks, s] · s 가 0 이면 끈다. 지형은 타일셋마다(terrGrade9) · 몸은 GRADE_BODY9. `#grade=0` 옛 그림(견줌). */
 export type Grade9 = [number, number, number, number, number];
 export const GRADE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])grade=0(?=$|[&,])/.test(location.hash);
-/** 몸(유닛 · 건물) — 시안 B · C 가운데. */
-export const GRADE_BODY9: Grade9 = GRADE_OFF9 ? [0, 1, 1, 1, 0] : [0.105, 1.24, 0.375, 0.40, 1.47];
+/** 몸(유닛 · 건물) — 아래 값(시안 B · 채도 1.1). */
+export const GRADE_BODY9: Grade9 = ((): Grade9 => {
+  if (GRADE_OFF9) return [0, 1, 1, 1, 0];
+  /* `#bgrade=bp,γ,kn,ks,s` — 몸 곡선 견줌(시안 굽기 · model-gl --hash). */
+  const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bgrade=([0-9.~]+)/.exec(location.hash) : null;
+  if (m9) { const v9 = m9[1].split("~").map(Number); if (v9.length === 5 && v9.every((x) => Number.isFinite(x))) return v9 as Grade9; }
+  return [0.08, 1.25, 1, 1, 1.10];   // 시안 B(그늘 진하게 · 광택 그대로 — 밝은 끝 무릎 끔) · 채도 1.1(2026-11-13 · 옛 B·C 가운데 [0.105,1.24,0.375,0.40,1.47]은 광택이 죽고 납작 · 금이 레몬 · 파랑이 형광 — "모델 이상해졌네")
+})();
 /** 지형 — 타일셋마다(0 황무지 · 1 우주 판 · 2 설치 · 3 재 · 4 정글 · 5 사막 · 6 얼음 · 7 황혼). 밝은 끝 무릎은 끈다(땅에는 과노출이 없다 · 눈이 잿빛이 된다).
  *  ① 우주 판 · 설치 — 원작은 무채 회색이라 채도를 **뺀다**(0.85 · 올리면 옅은 푸른 기가 커져 남색이 섰다 — 시안 지적) ② 정글 · 재 — 원래 어두워 밝기는 두고 채도만
  *  ③ 얼음 — 눈은 원작도 밝다(중앙값 0.62) · 얕게 ④ 사막 — 가운데 ⑤ 황무지 · 황혼 — 시안 B · C 가운데 그대로. */
