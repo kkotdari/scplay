@@ -2511,6 +2511,9 @@ const FOG17_WHY9 = { v: "" };
 const FOG17_9: { data: Uint8Array | null; at: number; mask: number; t0: number; fade: number; ver: number; on: boolean; want: number; w: number; h: number; live: boolean; cvVer: number } = { data: null, at: -1, mask: -1, t0: -Infinity, fade: 0, ver: 0, on: false, want: 0, w: 0, h: 0, live: false, cvVer: -1 };
 const CREEP17_9: { tiles: TileTL17 | null; mask: number; visAll: boolean; t: number; key: string; cv: HTMLCanvasElement | null; dim: HTMLCanvasElement | null } = { tiles: null, mask: 0, visAll: true, t: 0, key: "", cv: null, dim: null };
 const CREEP17_PX9 = 8;
+/** 크립 바탕색 — #6b5a72 → #43323d(2026-11-13, 요청: 원작 색감 · 실측 원작 크립 중앙값 (62,47,56) 짙은 보라 갈색 · 우리 (102,89,108) 연보라 — glTerrain9 GRADE ★★).
+ *  ⚠ 옛 #544659 → #6b5a72 는 "크립 색 좀 연하게"(2026-11-02)였다 — 이번 원작 맞춤이 그것을 넘어선다. 엔진의 입체 판(engine9)도 같은 값. */
+const CREEP_COL9 = "#43323d";
 function creep17Layer9(t9: number): HTMLCanvasElement | null {
   const tl9 = CREEP17_9.tiles; if (!tl9 || typeof document === "undefined") return null;
   const st9 = tl9.stateAt(t9);
@@ -2521,7 +2524,7 @@ function creep17Layer9(t9: number): HTMLCanvasElement | null {
   const cv9 = CREEP17_9.cv ?? mk9(); const dim9 = CREEP17_9.dim ?? mk9();
   const c9 = cv9.getContext("2d"); const d9 = dim9.getContext("2d"); if (!c9 || !d9) return null;
   c9.clearRect(0, 0, cv9.width, cv9.height); d9.clearRect(0, 0, dim9.width, dim9.height);
-  const col9 = tone9("#6b5a72"); c9.fillStyle = col9; d9.fillStyle = col9;
+  const col9 = tone9(CREEP_COL9); c9.fillStyle = col9; d9.fillStyle = col9;
   const m9 = CREEP17_9.mask; const all9 = CREEP17_9.visAll;
   const r9 = K9 * 0.72;
   c9.beginPath(); d9.beginPath();

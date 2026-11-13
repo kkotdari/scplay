@@ -13,7 +13,7 @@ import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
 import { SPR_LIFT9 } from "./sprLift.gen";
-import { CON9 } from "./glTerrain9";
+import { CON9, GRADE_BODY9, GRADE_FN9 } from "./glTerrain9";
 
 export interface GlInst9 {
   mesh: GlMesh9;
@@ -1045,7 +1045,7 @@ const SHADOW_K9: [number, number] = [0.12, 0.108];   // (0.367, 0.33) → (0.12,
  *  배수가 아니라 화면 자로 사방 조금씩 밀어 여러 번 깔아야 하는데(진짜 팽창), 그리기가 개체마다 네 번 더 든다.
  *  바닥에 눕힌 실루엣은 원래 해가 만드는 **단단한 그림자**이므로 한 겹으로 둔다 — 대신 알파를 조금 올린다
  *  (고리와 겹쳐 0.31 쯤으로 보이던 속을 한 겹 0.26 으로 맞춘다). */
-export const SHADOW_ALPHA9 = 0.26;
+export const SHADOW_ALPHA9 = 0.45;   // 0.26 → 0.45(2026-11-13, 요청: 원작 색감 — 원작 바닥 그림자는 반쯤 검은 덩어리라 몸이 땅에 붙어 보인다 · 우리 것은 옅어 떠 보였다 · glTerrain9 GRADE ★★)
 
 /* ★ **번짐(블룸)** — 빛나는 낯만 1/4 크기 판에 한 번 더 그리고, 가로·세로로 흐린 뒤 화면에 **더한다**.
    2D 판에는 없던 몫이다(판은 색을 굽는 자라 빛이 새어 나올 수가 없었다). 밝기 문턱으로 고르지 않는 까닭:
@@ -1208,10 +1208,10 @@ layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor
 uniform sampler2D uTex0; uniform sampler2D uTex1; uniform sampler2D uTex2; uniform sampler2D uTex3;
 uniform sampler2D uEm0; uniform sampler2D uEm1; uniform sampler2D uEm2; uniform sampler2D uEm3;
 uniform sampler2D uTn0; uniform sampler2D uTn1; uniform sampler2D uTn2; uniform sampler2D uTn3;
-uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark; uniform vec2 uLook; uniform vec2 uCon;
+uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark; uniform vec2 uLook; uniform vec2 uCon; uniform vec4 uGrd; uniform float uGrs;
 in vec2 vUv; in vec4 vC; in vec3 vS; in vec4 vE; in vec4 vL; flat in int vP;
 /* 판 넷 묶음(SPR_K9 · 2026-10-27) — 개체의 판 자리(vP · 한 개체 안에서 같다)로 고른다. */
-vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
+${GRADE_FN9}vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
 vec4 txE(vec2 u) { if (vP == 0) return texture(uEm0, u, -0.4); if (vP == 1) return texture(uEm1, u, -0.4); if (vP == 2) return texture(uEm2, u, -0.4); return texture(uEm3, u, -0.4); }
 vec4 txT(vec2 u) { if (vP == 0) return texture(uTn0, u, -0.4); if (vP == 1) return texture(uTn1, u, -0.4); if (vP == 2) return texture(uTn2, u, -0.4); return texture(uTn3, u, -0.4); }
 void main() {
@@ -1241,6 +1241,7 @@ void main() {
   vec4 o = vC.z > 0.5 ? vec4(vS * c.a, c.a) * vC.x : c * vC.x;
   /* 대비 견줌(glTerrain9 CON9 · #con=k) — 미리곱하기 전 색에. 빛 판(emitColor)은 안 탄다. */
   if (uCon.x != 0.0 && o.a > 0.0) o.rgb = clamp((o.rgb / o.a - uCon.y) * (1.0 + uCon.x) + uCon.y, 0.0, 1.0) * o.a;
+  if (uGrs > 0.0 && o.a > 0.0) o.rgb = grade9(o.rgb / o.a, uGrd, uGrs) * o.a;   // 원작 색감 곡선(glTerrain9 GRADE ★★ · 메시와 같은 값)
   fragColor = o;
   emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? txE(vUv) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
   if (lt9 > 0.0 && vC.z < 0.5) emitColor.rgb += lt9 * vL.rgb * c.a * vC.x;   // 켜진 창은 빛이다(bake9 winLit 의 EMIT_FILL9 과 같은 몫)
@@ -1563,11 +1564,13 @@ export class GlUnits9 implements VecSink9 {
     /* 몸 대비(BODY_CON9 = 굽는 대비 SPR_BCON9 × 견줌 CON9 · #con=k) — 메시 FS 의 마지막 색 줄 앞에 글자로 끼운다.
        굽는 동안(sprBake9)은 굽는 대비만 — 판에는 그것이 들고 견줌(CON9)은 붙일 때(SPR_FS9) 얹는다. */
     /* 안 그림자 갈래는 WebGL2 만(깊이 판·highp) — ES 1.00 은 대비만 끼운다. */
-    const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;")
-      .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
-    const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9;\nuniform highp sampler2D uShTex; uniform highp vec4 uShP;")
+    /* ★ 원작 색감 곡선(glTerrain9 GRADE ★★ · GRADE_BODY9) — 대비 다음에 같은 자리로 끼운다(글자 주입 · 아틀라스 해시 밖). 굽는 동안(sprBake9)은 끈다(uGrs9 0). */
+    const grd9 = "\n  if (uGrs9 > 0.0) c = grade9(c, uGrd9, uGrs9);";
+    const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9)
+      .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
+    const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9 + "uniform highp sampler2D uShTex; uniform highp vec4 uShP;")
       .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
-      .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);\n  gl_FragColor = vec4(c * a9, a9);");
+      .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
     const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
       .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
@@ -1587,8 +1590,8 @@ export class GlUnits9 implements VecSink9 {
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut"]) this.loc[u] = gl.getUniformLocation(p, u);
-    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut", "uGrd9", "uGrs9"]) this.loc[u] = gl.getUniformLocation(p, u);
+    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); this.grade9(true);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -1651,6 +1654,7 @@ export class GlUnits9 implements VecSink9 {
           uCanvasD: gl.getUniformLocation(q, "uCanvasD"),
           uTex: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTex" + k)), uEm: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uEm" + k)), uTn: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTn" + k)),
           uHasEm: gl.getUniformLocation(q, "uHasEm4"), uHasTn: gl.getUniformLocation(q, "uHasTn4"), uMark: gl.getUniformLocation(q, "uMark"), uLook: gl.getUniformLocation(q, "uLook"), uCon: gl.getUniformLocation(q, "uCon"),
+          uGrd: gl.getUniformLocation(q, "uGrd"), uGrs: gl.getUniformLocation(q, "uGrs"),
         };
         /* 임자색 켜 프로그램(위 ★★) — 못 세우면 분리 없이 옛 길(열쇠에 임자색). */
         if (GL_TINT9) {
@@ -1751,7 +1755,7 @@ export class GlUnits9 implements VecSink9 {
   /** 마지막 flush 의 기기 px/CSS px — 미리 굽기가 kc 를 낼 때 쓴다(없으면 devicePixelRatio). */
   private lastDprK = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number; aSF: number;
-    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null; uLook: WebGLUniformLocation | null; uCon: WebGLUniformLocation | null } | null = null;
+    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null; uLook: WebGLUniformLocation | null; uCon: WebGLUniformLocation | null; uGrd: WebGLUniformLocation | null; uGrs: WebGLUniformLocation | null } | null = null;
   private sprPages: SprPage9[] = [];
   /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
   private sprFixed: SprPage9[] = [];
@@ -2216,7 +2220,16 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, ISH_BIAS9);
     return true;
   }
+  /** 몸 색감 곡선(GRADE_BODY9) 켬 · 끔 — 굽는 동안은 끈다(판에는 안 든다 · 붙일 때 SPR_FS9 가 얹는다). 메시 프로그램이 쓰이는 중이어야 한다. */
+  private grade9(on: boolean): void {
+    const gl = this.gl; const g9 = GRADE_BODY9;
+    gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, on ? g9[4] : 0);
+  }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
+    { const gl = this.gl; gl.useProgram(this.prog); this.grade9(false); }
+    try { this.sprBake9b(jobs, dprK); } finally { this.gl.useProgram(this.prog); this.grade9(true); }
+  }
+  private sprBake9b(jobs: SprJob9[], dprK: number): void {
     if (BODY_CON9[0] === BCON9) { this.sprBakeRun9(jobs, dprK); return; }
     // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 굽는 대비(BCON9 · 위 SPR_ISH9 ★)로 돌리고 CON9 는 붙일 때(SPR_FS9) 얹는다.
     const gl = this.gl; gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, BCON9, CON9[1]);
@@ -2685,6 +2698,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform1f(sp.uMark, mark ? 1 : 0);
     gl.uniform2f(sp.uLook, LOOK9[0], LOOK9[1]);
     gl.uniform2f(sp.uCon, CON9[0], CON9[1]);
+    gl.uniform4f(sp.uGrd, GRADE_BODY9[0], GRADE_BODY9[1], GRADE_BODY9[2], GRADE_BODY9[3]); gl.uniform1f(sp.uGrs, GRADE_BODY9[4]);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.qvbo);
     gl.enableVertexAttribArray(sp.aQ); gl.vertexAttribPointer(sp.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(sp.aQ, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.ivbo);
