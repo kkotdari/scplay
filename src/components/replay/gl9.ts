@@ -13,7 +13,8 @@ import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
 import { SPIN_ANIM9, type UnitDrawOp } from "./engine9";
 import { SPR_LIFT9 } from "./sprLift.gen";
-import { CON9, GRADE_BODY9, GRADE_FN9 } from "./glTerrain9";
+import { CON9 } from "./glTerrain9";
+import { GRADE_FN9, GRADE_OFF9, bodyGradeHash9 } from "../../utils/grade9";
 
 export interface GlInst9 {
   mesh: GlMesh9;
@@ -1211,10 +1212,10 @@ layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 emitColor
 uniform sampler2D uTex0; uniform sampler2D uTex1; uniform sampler2D uTex2; uniform sampler2D uTex3;
 uniform sampler2D uEm0; uniform sampler2D uEm1; uniform sampler2D uEm2; uniform sampler2D uEm3;
 uniform sampler2D uTn0; uniform sampler2D uTn1; uniform sampler2D uTn2; uniform sampler2D uTn3;
-uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark; uniform vec2 uLook; uniform vec2 uCon; uniform vec4 uGrd; uniform float uGrs;
+uniform vec4 uHasEm4; uniform vec4 uHasTn4; uniform float uMark; uniform vec2 uLook; uniform vec2 uCon;
 in vec2 vUv; in vec4 vC; in vec3 vS; in vec4 vE; in vec4 vL; flat in int vP;
 /* 판 넷 묶음(SPR_K9 · 2026-10-27) — 개체의 판 자리(vP · 한 개체 안에서 같다)로 고른다. */
-${GRADE_FN9}vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
+vec4 txC(vec2 u) { if (vP == 0) return texture(uTex0, u, -0.4); if (vP == 1) return texture(uTex1, u, -0.4); if (vP == 2) return texture(uTex2, u, -0.4); return texture(uTex3, u, -0.4); }
 vec4 txE(vec2 u) { if (vP == 0) return texture(uEm0, u, -0.4); if (vP == 1) return texture(uEm1, u, -0.4); if (vP == 2) return texture(uEm2, u, -0.4); return texture(uEm3, u, -0.4); }
 vec4 txT(vec2 u) { if (vP == 0) return texture(uTn0, u, -0.4); if (vP == 1) return texture(uTn1, u, -0.4); if (vP == 2) return texture(uTn2, u, -0.4); return texture(uTn3, u, -0.4); }
 void main() {
@@ -1244,7 +1245,6 @@ void main() {
   vec4 o = vC.z > 0.5 ? vec4(vS * c.a, c.a) * vC.x : c * vC.x;
   /* 대비 견줌(glTerrain9 CON9 · #con=k) — 미리곱하기 전 색에. 빛 판(emitColor)은 안 탄다. */
   if (uCon.x != 0.0 && o.a > 0.0) o.rgb = clamp((o.rgb / o.a - uCon.y) * (1.0 + uCon.x) + uCon.y, 0.0, 1.0) * o.a;
-  if (uGrs > 0.0 && o.a > 0.0) o.rgb = grade9(o.rgb / o.a, uGrd, uGrs) * o.a;   // 원작 색감 곡선(glTerrain9 GRADE ★★ · 메시와 같은 값)
   fragColor = o;
   emitColor = (uHasEm > 0.5 && vC.z < 0.5) ? txE(vUv) * vC.x : vec4(0.0, 0.0, 0.0, o.a);
   if (lt9 > 0.0 && vC.z < 0.5) emitColor.rgb += lt9 * vL.rgb * c.a * vC.x;   // 켜진 창은 빛이다(bake9 winLit 의 EMIT_FILL9 과 같은 몫)
@@ -1286,6 +1286,10 @@ const SPR_LOOK9: [number, number] = [0.5, 0.5];
  *  같은 대비를 탄다(BODY_CON9) — 메시 길에는 안 그림자가 없다(칸마다 깊이 판을 찍는 값이 굽기 몫이다). 바꾸면 아틀라스를 다시 굽는다(SPR_ 줄은 판 해시에 든다).
  *  견줌: #ishadow=s(0 이면 끔) · #bcon=k(1 이면 끔) · #litdir=x,y,z(빛 한 벌을 갈아 끼움) · #ishl=x,y,z(안 그림자 빛만). */
 const SPR_ISH9 = 0.7;   // 0.4 → 0.7(2026-10-30, 요청: 시안 "그림자 0.7 광택 1.5" — 대비 대신 부품 그늘로 입체감)
+/** ★ 몸 원작 색감 곡선(utils/grade9 ★★) — [검은점 · 감마 · 무릎 · 기울기 · 채도] · **아틀라스에 굽는다**(메시 FS · 판 해시에 든다 — SPR_ 이름).
+ *  시안 B · 채도 1.1(2026-11-13 · 옛 B·C 가운데 [0.105,1.24,0.375,0.40,1.47]은 광택이 죽고 납작 — "모델 이상해졌네"). 붙이는 SPR_FS9 는 안 셈한다(기기 부하 없음). */
+const SPR_GRADE9 = [0.08, 1.25, 1, 1, 1.10] as const;
+const BODY_GRADE9: readonly number[] = GRADE_OFF9 ? [0, 1, 1, 1, 0] : (bodyGradeHash9() ?? SPR_GRADE9);
 const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
 /** 안 그림자 깊이 치우침(빛 판 깊이 자 0~1) — 0.006 → 0.028(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데" — 기둥 위 마디 낯에 그림자 여드름(빛 판 텍셀 계단 톱니).
  *  ishadow=0 이면 톱니가 사라짐을 확인 · 치우침을 올려 텍셀 계단이 제 낯을 가리지 않게). */
@@ -1567,7 +1571,7 @@ export class GlUnits9 implements VecSink9 {
     /* 몸 대비(BODY_CON9 = 굽는 대비 SPR_BCON9 × 견줌 CON9 · #con=k) — 메시 FS 의 마지막 색 줄 앞에 글자로 끼운다.
        굽는 동안(sprBake9)은 굽는 대비만 — 판에는 그것이 들고 견줌(CON9)은 붙일 때(SPR_FS9) 얹는다. */
     /* 안 그림자 갈래는 WebGL2 만(깊이 판·highp) — ES 1.00 은 대비만 끼운다. */
-    /* ★ 원작 색감 곡선(glTerrain9 GRADE ★★ · GRADE_BODY9) — 대비 다음에 같은 자리로 끼운다(글자 주입 · 아틀라스 해시 밖). 굽는 동안(sprBake9)은 끈다(uGrs9 0). */
+    /* ★ 원작 색감 곡선(utils/grade9 ★★ · SPR_GRADE9) — 대비 다음에 같은 자리로 끼운다(글자 주입). **굽는 동안에도 켠다** — 판에 구워지고 붙이는 SPR_FS9 는 안 셈한다. */
     const grd9 = "\n  if (uGrs9 > 0.0) c = grade9(c, uGrd9, uGrs9);";
     const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9)
       .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
@@ -1657,7 +1661,6 @@ export class GlUnits9 implements VecSink9 {
           uCanvasD: gl.getUniformLocation(q, "uCanvasD"),
           uTex: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTex" + k)), uEm: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uEm" + k)), uTn: [0, 1, 2, 3].map((k) => gl.getUniformLocation(q, "uTn" + k)),
           uHasEm: gl.getUniformLocation(q, "uHasEm4"), uHasTn: gl.getUniformLocation(q, "uHasTn4"), uMark: gl.getUniformLocation(q, "uMark"), uLook: gl.getUniformLocation(q, "uLook"), uCon: gl.getUniformLocation(q, "uCon"),
-          uGrd: gl.getUniformLocation(q, "uGrd"), uGrs: gl.getUniformLocation(q, "uGrs"),
         };
         /* 임자색 켜 프로그램(위 ★★) — 못 세우면 분리 없이 옛 길(열쇠에 임자색). */
         if (GL_TINT9) {
@@ -1758,7 +1761,7 @@ export class GlUnits9 implements VecSink9 {
   /** 마지막 flush 의 기기 px/CSS px — 미리 굽기가 kc 를 낼 때 쓴다(없으면 devicePixelRatio). */
   private lastDprK = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
   private spr: { prog: WebGLProgram; qvbo: WebGLBuffer; ivbo: WebGLBuffer; aQ: number; aSA: number; aSB: number; aSC: number; aSD: number; aSE: number; aSF: number;
-    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null; uLook: WebGLUniformLocation | null; uCon: WebGLUniformLocation | null; uGrd: WebGLUniformLocation | null; uGrs: WebGLUniformLocation | null } | null = null;
+    uCanvasD: WebGLUniformLocation | null; uTex: (WebGLUniformLocation | null)[]; uEm: (WebGLUniformLocation | null)[]; uHasEm: WebGLUniformLocation | null; uTn: (WebGLUniformLocation | null)[]; uHasTn: WebGLUniformLocation | null; uMark: WebGLUniformLocation | null; uLook: WebGLUniformLocation | null; uCon: WebGLUniformLocation | null } | null = null;
   private sprPages: SprPage9[] = [];
   /** ★ 미리 구운 판(서버 아틀라스 · 위 SprPage9.fixed ★)과 그 칸들 — sprReset9 가 sprMap 을 비워도 칸을 되살린다. */
   private sprFixed: SprPage9[] = [];
@@ -2223,16 +2226,12 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, ISH_BIAS9);
     return true;
   }
-  /** 몸 색감 곡선(GRADE_BODY9) 켬 · 끔 — 굽는 동안은 끈다(판에는 안 든다 · 붙일 때 SPR_FS9 가 얹는다). 메시 프로그램이 쓰이는 중이어야 한다. */
+  /** 몸 색감 곡선(BODY_GRADE9) — 메시 프로그램이 쓰이는 중이어야 한다. 굽기 · 메시 길 둘 다 켠다(위 ★). */
   private grade9(on: boolean): void {
-    const gl = this.gl; const g9 = GRADE_BODY9;
+    const gl = this.gl; const g9 = BODY_GRADE9;
     gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, on ? g9[4] : 0);
   }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
-    { const gl = this.gl; gl.useProgram(this.prog); this.grade9(false); }
-    try { this.sprBake9b(jobs, dprK); } finally { this.gl.useProgram(this.prog); this.grade9(true); }
-  }
-  private sprBake9b(jobs: SprJob9[], dprK: number): void {
     if (BODY_CON9[0] === BCON9) { this.sprBakeRun9(jobs, dprK); return; }
     // 대비 견줌(CON9)은 판에 굽지 않는다 — 굽는 동안 메시 FS 의 대비를 굽는 대비(BCON9 · 위 SPR_ISH9 ★)로 돌리고 CON9 는 붙일 때(SPR_FS9) 얹는다.
     const gl = this.gl; gl.useProgram(this.prog); gl.uniform2f(this.loc.uCon9, BCON9, CON9[1]);
@@ -2701,7 +2700,6 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform1f(sp.uMark, mark ? 1 : 0);
     gl.uniform2f(sp.uLook, LOOK9[0], LOOK9[1]);
     gl.uniform2f(sp.uCon, CON9[0], CON9[1]);
-    gl.uniform4f(sp.uGrd, GRADE_BODY9[0], GRADE_BODY9[1], GRADE_BODY9[2], GRADE_BODY9[3]); gl.uniform1f(sp.uGrs, GRADE_BODY9[4]);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.qvbo);
     gl.enableVertexAttribArray(sp.aQ); gl.vertexAttribPointer(sp.aQ, 2, gl.FLOAT, false, 0, 0); this.divisor(sp.aQ, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, sp.ivbo);

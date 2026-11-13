@@ -77,38 +77,7 @@ export const TCON9: [number, number] = ((): [number, number] => {
   return [k - 1, CON9[1]];
 })();
 
-/** ★★ **원작 색감 곡선**(2026-11-13, 요청: "원작 스샷과 색 농도 · 색감 · 명암 대비 차이가 커" → 시안 A · B · C 중 "B · C 중간이 적당 · 세부적으로 다른 부분은 수정 ·
- *  모델은 모델대로") — 실측(원작 11장 · 재생기 4장 · 같은 자): 원작 밝기 중앙값 0.16~0.22 · 어두운 끝(p5) 0.05~0.09 · 채도 평균 0.38 / 재생기 0.30~0.37 · 0.20 · 0.21.
- *  붙일 때 켜마다 같은 곡선을 얹는다(CON9 와 같은 자리 · 지형 TERR_FS · 몸 메시 FS · 스프라이트 SPR_FS9 — 굽는 판에는 안 든다 · 아틀라스 해시 밖).
- *  곡선(차례대로): 채도 s(휘도 둘레) → 검은점 bp((c − bp) ÷ (1 − bp)) → 중간톤 감마 γ → 밝은 끝 무릎(kn 위는 기울기 ks — 과노출 흰 금색 · 흰 회색 누름).
- *  값 [bp, γ, kn, ks, s] · s 가 0 이면 끈다. 지형은 타일셋마다(terrGrade9) · 몸은 GRADE_BODY9. `#grade=0` 옛 그림(견줌). */
-export type Grade9 = [number, number, number, number, number];
-export const GRADE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])grade=0(?=$|[&,])/.test(location.hash);
-/** 몸(유닛 · 건물) — 아래 값(시안 B · 채도 1.1). */
-export const GRADE_BODY9: Grade9 = ((): Grade9 => {
-  if (GRADE_OFF9) return [0, 1, 1, 1, 0];
-  /* `#bgrade=bp,γ,kn,ks,s` — 몸 곡선 견줌(시안 굽기 · model-gl --hash). */
-  const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bgrade=([0-9.~]+)/.exec(location.hash) : null;
-  if (m9) { const v9 = m9[1].split("~").map(Number); if (v9.length === 5 && v9.every((x) => Number.isFinite(x))) return v9 as Grade9; }
-  return [0.08, 1.25, 1, 1, 1.10];   // 시안 B(그늘 진하게 · 광택 그대로 — 밝은 끝 무릎 끔) · 채도 1.1(2026-11-13 · 옛 B·C 가운데 [0.105,1.24,0.375,0.40,1.47]은 광택이 죽고 납작 · 금이 레몬 · 파랑이 형광 — "모델 이상해졌네")
-})();
-/** 지형 — 타일셋마다(0 황무지 · 1 우주 판 · 2 설치 · 3 재 · 4 정글 · 5 사막 · 6 얼음 · 7 황혼). 밝은 끝 무릎은 끈다(땅에는 과노출이 없다 · 눈이 잿빛이 된다).
- *  ① 우주 판 · 설치 — 원작은 무채 회색이라 채도를 **뺀다**(0.85 · 올리면 옅은 푸른 기가 커져 남색이 섰다 — 시안 지적) ② 정글 · 재 — 원래 어두워 밝기는 두고 채도만
- *  ③ 얼음 — 눈은 원작도 밝다(중앙값 0.62) · 얕게 ④ 사막 — 가운데 ⑤ 황무지 · 황혼 — 시안 B · C 가운데 그대로. */
-export function terrGrade9(ts: number): Grade9 {
-  if (GRADE_OFF9) return [0, 1, 1, 1, 0];
-  switch (ts) {
-    case 1: case 2: return [0.105, 1.24, 1, 1, 0.85];
-    case 3: return [0.03, 1.06, 1, 1, 1.30];
-    case 4: return [0, 1, 1, 1, 1.35];
-    case 5: return [0.07, 1.14, 1, 1, 1.30];
-    case 6: return [0.05, 1.08, 1, 1, 1.15];
-    default: return [0.105, 1.24, 1, 1, 1.40];
-  }
-}
-/** 곡선 GLSL(위 ★★) — g = (bp, γ, kn, ks) · s = 채도(0 이면 부르는 쪽이 건너뛴다). ES 1.00 · 3.00 둘 다. */
-export const GRADE_FN9 = "vec3 grade9(vec3 c, vec4 g, float s) { float L9 = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = vec3(L9) + (c - vec3(L9)) * s; c = clamp((c - vec3(g.x)) / (1.0 - g.x), 0.0, 1.0); c = pow(c, vec3(g.y)); return mix(c, vec3(g.z) + (c - vec3(g.z)) * g.w, step(vec3(g.z), c)); }\n";
-
+/* 원작 색감 곡선(src/utils/grade9 ★★)은 지형 색에 **구워 둔다**(terrainGeom) — 이 셰이더는 화소마다 셈하지 않는다(2026-11-13). */
 const TERR_VS = `
 attribute vec2 aP; attribute vec2 aN;
 uniform mat3 uH; uniform vec2 uCanvas; uniform vec2 uOff; uniform float uHalfW; uniform vec2 uWH;
@@ -140,7 +109,7 @@ precision mediump float;
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #endif
-uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCon; uniform vec4 uGrd; uniform float uGrs;
+uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCon;
 uniform vec4 uGr;
 uniform vec4 uWt; uniform vec4 uWd; uniform vec2 uWpx;
 uniform vec4 uWx; uniform vec4 uWx2;
@@ -344,7 +313,7 @@ vec4 waterPass() {
   float al = clamp((sp + foam) * wat, 0.0, 1.0);
   return vec4(vec3(0.88, 0.93, 0.96) * al, al);
 }
-${GRADE_FN9}void main() {
+void main() {
   vec4 o;
   if (uMode > 6.5) { gl_FragColor = wxPass(); return; }   // 바닥 날씨(TERR_WX9 ★)
   if (uMode > 3.5) { gl_FragColor = waterPass(); return; }   // 물(TERR_WATER9 ★) — 안개(3) 갈래보다 먼저 가른다
@@ -364,7 +333,6 @@ ${GRADE_FN9}void main() {
   else o = uCol;
   // 대비(CON9) — 미리곱하기 전 색에.
   if (uCon.x != 0.0 && o.a > 0.0) o.rgb = clamp((o.rgb / o.a - uCon.y) * (1.0 + uCon.x) + uCon.y, 0.0, 1.0) * o.a;
-  if (uGrs > 0.0 && o.a > 0.0) o.rgb = grade9(o.rgb / o.a, uGrd, uGrs) * o.a;   // 원작 색감 곡선(위 GRADE ★★ · 타일셋마다)
   gl_FragColor = o;
   //__EMIT0__
 }`;
@@ -523,7 +491,7 @@ export class GlTerrain9 {
     /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
     private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
     this.prog = TERR_SOFT9 ? mkProg(terrSoftVS9(TERR_VS), terrSoftFS9(TERR_FS)) : mkProg(TERR_VS, TERR_FS);
-    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx", "uWx", "uWx2", "uGrd", "uGrs"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
+    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx", "uWx", "uWx2"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;
     this.nAttr = Math.max(2, Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 8);
@@ -794,7 +762,6 @@ export class GlTerrain9 {
     gl.uniform1f(this.loc.uHalfW, 0);
     gl.uniform1i(this.loc.uTex, 0);
     gl.uniform2f(this.loc.uCon, TCON9[0], TCON9[1]);
-    { const g9 = terrGrade9(G.tileset); gl.uniform4f(this.loc.uGrd, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs, g9[4]); }
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.disable(gl.CULL_FACE); gl.disable(gl.STENCIL_TEST);
     gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD);
     for (let i = 0; i < this.nAttr; i += 1) { gl.disableVertexAttribArray(i); this.divisor(i, 0); }
@@ -845,7 +812,6 @@ export class GlTerrain9 {
     gl.uniform1f(this.loc.uMode, 0);
     gl.uniform1i(this.loc.uTex, 0);
     gl.uniform2f(this.loc.uCon, TCON9[0], TCON9[1]);   // 지형 몫(위 TCON9 ★ — 기본 1.2 · 몸은 CON9)
-    { const g9 = terrGrade9(G.tileset); gl.uniform4f(this.loc.uGrd, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs, g9[4]); }
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
     gl.disable(gl.CULL_FACE);
     gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

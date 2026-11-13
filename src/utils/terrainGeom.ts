@@ -9,6 +9,7 @@
  * 두 붓이 **한 기하**를 쓰므로 미니맵·PNG 와 재생 화면이 같은 선을 긋는다.
  *
  * 좌표 규약 — 모든 고리는 **타일 단위**다(정수 = 타일 경계). 그리는 쪽이 배율을 곱한다. */
+import { gradeRgb9, terrGrade9 } from "./grade9";
 import { maskLoops, type Loop } from "./contour";
 
 export type Rgb9 = [number, number, number];
@@ -276,6 +277,25 @@ function buildGeom9(mt: MapTerrainLike, fill: TerrFill9): TerrainGeom9 {
       const c = softenRGB9([rr[i], gg[i], bb[i]]);
       tileCol[i] = colOf9(c);
       tileRGBA[i * 4] = c[0]; tileRGBA[i * 4 + 1] = c[1]; tileRGBA[i * 4 + 2] = c[2]; tileRGBA[i * 4 + 3] = 255;
+    }
+  }
+  /* ★ 원작 색감 곡선을 **색에 구워 둔다**(utils/grade9 ★★ · 2026-11-13 — 지형 셰이더가 화소마다 셈하지 않게) — 갈래 색 · 타일 실색을 타일셋 곡선에 한 번 태운다. */
+  {
+    const g9 = terrGrade9(ts);
+    if (g9[4] > 0) {
+      const gc9 = (o: { rgb: Rgb9; col: string }): void => { if (!o.col) return; const c9 = gradeRgb9(o.rgb, g9) as Rgb9; o.rgb = c9; o.col = colOf9(c9); };
+      gc9(water); gc9(land);
+      for (const l9 of levels) gc9(l9);
+      for (const l9 of cliffs) gc9(l9);
+      for (const l9 of ramps) gc9(l9);
+      if (tileRGBA && tileCol) {
+        for (let i = 0; i < n9; i += 1) {
+          if (!tileRGBA[i * 4 + 3]) continue;
+          const c9 = gradeRgb9([tileRGBA[i * 4], tileRGBA[i * 4 + 1], tileRGBA[i * 4 + 2]], g9);
+          tileRGBA[i * 4] = c9[0]; tileRGBA[i * 4 + 1] = c9[1]; tileRGBA[i * 4 + 2] = c9[2];
+          tileCol[i] = colOf9(c9 as Rgb9);
+        }
+      }
     }
   }
   const ms = typeof performance !== "undefined" ? performance.now() - t0 : 0;
