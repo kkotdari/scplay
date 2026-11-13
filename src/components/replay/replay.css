@@ -5746,6 +5746,8 @@
 /* ★ 전체화면 위 안전영역 한 뼘 더(2026-11-02, 실기 요청: "세로 버전 전체화면도 위 안전영역 더 필요") — 노치·다이내믹 아일랜드가 있는 기기(inset > 0)만 +14px(min 으로 inset 0 인
    PC·가로 화면은 그대로). 모드 토글·배율 원·fps·화면 주인 덮개·분할 머리가 다 --safe-top 을 읽는다. */
 .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 14px)); }
+/* 홈 화면 앱(PWA)은 + 20(2026-11-13, 실기: "PWA 에서 위 노티 영역 흐림에 들어가는 부분 · 전수조사") — 투명 상태바 아래 띠(안전 영역 + 20)에 iOS 가 흐림을 겹친다(sg-web --safe-top-ui 와 같은 값). */
+@media (display-mode: standalone) { .scr-fs-layer.is-fs { --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 20px)); } }
 
 /* ★ 폰 개인 화면 현황(2026-11-03 · RMP .scr-fs-rosterpanel 안 첫 자식) — 로스터 판 바로 위 **바깥**에 네 칸 · 위 라벨(옅게) · 아래 값(흰 글씨 · 그림자로 지도 위에서도 읽힘).
    판의 위 가장자리에 붙여 띄우고(bottom 100%) 판 폭 안에서 고르게 나눈다. 누름은 지도로 흘린다. */
