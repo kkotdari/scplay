@@ -46,7 +46,7 @@ function bundle() {
   const dir = mkdtempSync(join(tmpdir(), "muzzle-"));
   const src = join(dir, "entry.ts"); const out = join(dir, "entry.mjs");
   writeFileSync(src, ENTRY);
-  esbuild9([src, "--bundle", "--format=esm",
+  esbuild9([src, "--bundle", "--format=esm", "--loader:.png=dataurl",   // 재생기가 로고 PNG 를 끌어온다(tier-table 과 같은 까닭 · 2026-11-14)
     "--log-level=error", "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${out}`]);
   return readFileSync(out, "utf8");
 }

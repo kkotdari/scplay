@@ -48,7 +48,7 @@ const head = readFileSync(ebin).subarray(0, 4);
 const magic = ((head[0] << 24) | (head[1] << 16) | (head[2] << 8) | head[3]) >>> 0;
 const native = magic === 0x7f454c46 || (head[0] === 0x4d && head[1] === 0x5a)
   || magic === 0xcffaedfe || magic === 0xcefaedfe || magic === 0xcafebabe;
-const args = [src, "--bundle", "--format=esm", "--log-level=error",
+const args = [src, "--bundle", "--format=esm", "--log-level=error", "--loader:.png=dataurl",   // 재생기가 로고 PNG 를 끌어온다(2026-11-09 맵 가운데 로고 — 로더가 없어 이 자가 죽어 있었다 · 2026-11-14)
   "--define:process.env.NODE_ENV=\"production\"", "--define:import.meta.env={}", `--outfile=${out}`];
 execFileSync(native ? ebin : process.execPath, native ? args : [ebin, ...args],
   { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] });

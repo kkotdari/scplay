@@ -930,7 +930,8 @@ const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
      ⚠ 윤기 바닥도 0.10 → 0.05 로 내렸다(등진 낯의 몫) — 넓어진 봉우리가 그 자리를 대신 메운다. */
 /* (2026-11-03, 지적: "테란 프로토스 반사광이 너무 누렇게 보이는데 너무 강해서 그런건가? 그럼 좀 낮춰야할듯") — 봉우리 0.24 → 0.20 · 윤기 0.16 → 0.13(약 −18%). */
 /* (2026-11-04 시안 D · "테란 프로토스 둘 다 면 반사 좀 낮추고 싶은데") — 봉우리 · 윤기 ×0.75: 테란 0.20 → 0.15 · 0.13 → 0.0975 · 토스 0.21 → 0.1575 · 0.17 → 0.1275(면 빛무리 0.5 → 0.3 도 함께). */
-const GLOSS_TERRAN9: Gloss9 = [4.0, 0.15, 0.55, 0.0975, 0.85, LIT_STEEL9, 1.0];
+/* (2026-11-14 원작 대조 · 시안 E1 "테란저그 추천대로") — 봉우리 0.15 → 0.12 · 윤기 0.0975 → 0.078(×0.8): 낯이 통째로 밝아지는 몫을 줄이고 밝은 부분은 안 광택(SPR_IGL9 ★)이 진다. */
+const GLOSS_TERRAN9: Gloss9 = [4.0, 0.12, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
 /* ★★ **금빛 광택이 약한 것은 세기가 아니라 '물듦'이 임자다**(2026-09, 지적: "프로토스 금색의 광이
    너무 약함 — 금색으로 줘서 그런가, 테란처럼 더 흰빛으로 줘야 하나") — 그 물음이 답이다. 물듦 0.70 은
    봉우리를 **제 바탕색(금)으로** 물들이는데, 금 위에 금을 얹으면 밝기 차가 거의 없어 광이 안 선다.
@@ -943,7 +944,8 @@ const GLOSS_TERRAN9: Gloss9 = [4.0, 0.15, 0.55, 0.0975, 0.85, LIT_STEEL9, 1.0];
 /* (2026-11-03 같은 지적 "반사광이 누렇게 · 너무 강해") — 봉우리 0.26 → 0.21 · 윤기 0.21 → 0.17 · 얼룩 0.70 → 0.60 · 약한 쪽 금 물듦 0.35 → 0.25(금 위 금빛 광이 누런 막으로 읽혔다). */
 /* (2026-11-13, 요청: 원작 색감 — "금색은 색을 바꿔야 하고 광택은 더 강하게" → 시안 "좁고 날카롭게 3.0") — 날카로움 5 → 12 · 봉우리 · 윤기 ×2(0.1575 → 0.315 · 0.1275 → 0.255).
    금이 G2 황토(#c8964a)로 짙어져 좁은 봉우리가 원작처럼 번쩍인다. 테란은 그대로(넓히면 윗면이 허옇게 바랬다 · 좁히면 다면체 몇 낯만 하얗게 튀었다). */
-const GLOSS_TOSS9: Gloss9 = [12.0, 0.315, 0.25, 0.255, 0.35, LIT_WHITE9, 0.60];
+/* (2026-11-14 원작 대조 · 시안 "프로토스는 e1") — 봉우리 0.315 → 0.27 · 윤기 0.255 → 0.19: 금 낯이 통째로 하얗게 뜨는 몫을 줄인다(밝은 부분은 안 광택 SPR_IGL9 ★). */
+const GLOSS_TOSS9: Gloss9 = [12.0, 0.27, 0.25, 0.19, 0.35, LIT_WHITE9, 0.60];
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
@@ -1289,7 +1291,22 @@ const SPR_ISH9 = 0.7;   // 0.4 → 0.7(2026-10-30, 요청: 시안 "그림자 0.7
 /** ★ 몸 원작 색감 곡선(utils/grade9 ★★) — [검은점 · 감마 · 무릎 · 기울기 · 채도] · **아틀라스에 굽는다**(메시 FS · 판 해시에 든다 — SPR_ 이름).
  *  시안 B · 채도 1.1(2026-11-13 · 옛 B·C 가운데 [0.105,1.24,0.375,0.40,1.47]은 광택이 죽고 납작 — "모델 이상해졌네"). 붙이는 SPR_FS9 는 안 셈한다(기기 부하 없음). */
 const SPR_GRADE9 = [0.08, 1.25, 1, 1, 1.10] as const;
-const BODY_GRADE9: readonly number[] = GRADE_OFF9 ? [0, 1, 1, 1, 0] : (bodyGradeHash9() ?? SPR_GRADE9);
+/* ★ **종족별 몸 곡선**(2026-11-14, 요청: 원작(SC:R) 스샷 대조 "유닛 — 종족 기본색 · 광택강도 · 대비 · 색농도 전반 대조" → 시안 1 ~ 3차 → "테란저그 추천대로 프로토스는 e1") —
+   원작은 몸이 훨씬 어둡다(배럭 밝기 중앙 0.15 · 우리 0.30 · 해처리 0.12 / 0.18 — 굽는 판 기준). 한 벌 곡선으로는 종족마다 다른 차이를 못 맞춰 종족마다 둔다:
+   테란 E1 [감마 1.5 · 무릎 0.5 · 기울기 0.55](배럭 0.16) · 저그 E2 [1.72 · 0.415 · 0.475](해처리 0.13) · 프로토스 E1 [1.45 · 무릎 없음 · 채도 1.08](금에 무릎을 걸면 밝은 낯이 크림색으로 바랜다).
+   종족 없는 몸(자원 · 중립 · 효과)은 위 SPR_GRADE9 그대로. 종족은 광택 자(mesh.gloss)로 가른다(재질 결 uMat 과 같은 자). 굽는 그림을 바꾼다 — SPR_ 줄이라 판 해시에 든다. */
+const SPR_GRADE_T9 = [0.08, 1.5, 0.5, 0.55, 1.0] as const;
+const SPR_GRADE_Z9 = [0.08, 1.72, 0.415, 0.475, 1.0] as const;
+const SPR_GRADE_P9 = [0.08, 1.45, 1, 1, 1.08] as const;
+/** 견줌 — #grade=0 이면 끔 · #bgrade=… 이면 모든 종족을 그 곡선으로(시안 굽기). */
+const BODY_GRADE_OV9: readonly number[] | null = GRADE_OFF9 ? [0, 1, 1, 1, 0] : bodyGradeHash9();
+const gradeOf9 = (g: Gloss9): readonly number[] => BODY_GRADE_OV9 ?? (g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? SPR_GRADE_T9 : g === GLOSS_TOSS9 ? SPR_GRADE_P9 : g === GLOSS_ZERG9 ? SPR_GRADE_Z9 : SPR_GRADE9);
+/** 메시의 몸 곡선 — **발광 몸**(GL_GLOW_KINDS9 — 핵 폭발 · 핵 구름 · 아콘 · 폭풍 · 소환)은 종족 곡선을 안 타고 SPR_GRADE9 그대로다: 테란 곡선의 무릎이 폭발의 흰 속을 0.78 에서 자른다
+ *  (2026-11-14 잰 값 — 핵 폭발 밝기 중앙 0.68 → 0.54 · p95 0.92 → 0.72 · 요청은 몸 색이지 효과가 아니다). 메시마다 한 번 셈해 붙여 둔다(bindMesh9 가 걸 때마다 부른다). */
+const gradeOfMesh9 = (m: GlMesh9): readonly number[] => { const mm9 = m as GlMesh9 & { grd9?: readonly number[] }; return mm9.grd9 ?? (mm9.grd9 = BODY_GRADE_OV9 ?? (GL_GLOW_KINDS9.has(m.key.slice(m.key.indexOf(":") + 1).split(":")[0]) ? SPR_GRADE9 : gradeOf9(m.gloss))); };
+/** 임자색 배수(붙일 때 · 굽는 그림과 무관 — 판 해시 밖) — 저그 ×0.9(시안 E2 · 원작의 임자색은 우리보다 어둡다 0.40 → 0.23 · 테란 · 프로토스는 시안에서 그대로 골랐다). */
+const TEAM_GAIN_Z9 = 0.9;
+const teamGain9 = (g: Gloss9): number => (g === GLOSS_ZERG9 ? TEAM_GAIN_Z9 : 1);
 const SPR_BCON9 = 0;   // 0.1 → 0(같은 날 되물림, 요청: "지형과 모델 굽기에서 대비를 뺄려고 해 · 폰에서 보니까 대비가 너무 심해 · 차라리 내부 그림자를" → "그림자 세기 지금 유지하고 대비만 빼기")
 /** 안 그림자 깊이 치우침(빛 판 깊이 자 0~1) — 0.006 → 0.028(2026-11-03, 지적: "게이트웨이 기둥 면이 어긋나는데" — 기둥 위 마디 낯에 그림자 여드름(빛 판 텍셀 계단 톱니).
  *  ishadow=0 이면 톱니가 사라짐을 확인 · 치우침을 올려 텍셀 계단이 제 낯을 가리지 않게). */
@@ -1299,25 +1316,60 @@ const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:
 /** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */
 const BODY_CON9: [number, number] = [(1 + CON9[0]) * (1 + BCON9) - 1, CON9[1]];
 const ISH_RES9 = 1024;
-/** ★ **안 광택 시안**(2026-11-14 · #igloss=세기~반지름~깊이~문턱[~폭] · 기본 끔 — 링크 때 글자로 끼워 판 해시가 안 움직인다 · ⚠ 이 파일 주석에 역따옴표를 쓰지 마라(판 해시가 역따옴표 짝을 센다)) — 요청: "밝은 부분(면단위)로 하면 다시 전체가 떠보이니까
- *  포인트에 밝은 광택이나 반사광 글로우들 표현할 방법 연구 · 내부그림자 줬듯 내부광택". 안 그림자의 빛 판(빛 쪽에서 본 깊이)을 한 번 더 읽어 **빛 쪽으로 튀어나온 자리**만 밝힌다:
- *  화소 둘레 여섯 방향 짝의 빛 깊이가 제 깊이보다 얼마나 먼가(둘레가 꺼졌나)를 잰 '볼록함'(평평한 낯 · 고른 비탈 0 · 모서리 ⅓ 안팎 · 꼭짓점 ½ ~ ¾ · 뾰족한 끝 · 작은 부품 1).
- *  문턱을 모서리 값 위에 두면 꼭짓점 · 끝 · 작은 부품에만 부드러운 점으로 맺히고, 낮추면 빛 쪽 가장자리에서 안으로 번지는 띠가 된다(낯 한가운데는 0 — 면이 통째로 뜨지 않는다). 반지름 · 깊이는 모형 반지름의 몫.
- *  색감 곡선 **뒤에** 더한다(어둡게 누른 몸 위에 그대로 밝게). 굽기(안 그림자 빛 판이 있는 칸)만 — 메시 길에는 없다(안 그림자와 같다). */
-const IGL9 = ((): number[] | null => {
+/** 빛 판 찍을 때의 기울기 몫 밀기(polygonOffset 첫 값 — 텍셀당 깊이 기울기 × 이 값만큼 빛에서 멀게 찍힌다 · 그림자 여드름 막기). 안 광택이 같은 값으로 제 낯 몫을 되뺀다(아래 IGL_POF9). SPR_ 이름이라 판 해시에 든다 — 바꾸면 그림자 · 안 광택이 달라져 다시 굽는다. */
+const SPR_ISH_POF9 = 2.5;
+/** ★ **안 광택**(2026-11-14, 요청: "밝은 부분(면단위)로 하면 다시 전체가 떠보이니까 포인트에 밝은 광택이나 반사광 글로우들 표현할 방법 연구 · 내부그림자 줬듯 내부광택" → 시안 D1 ~ D3 →
+ *  "d2가 맞는데") — 몸을 원작처럼 어둡게 누르면(위 SPR_GRADE_T9 ★) 밝은 데가 없어지고, 광택을 올리면 낯이 통째로 떠서 다시 밝아진다(낯마다 법선이 하나). 그래서 안 그림자의 빛 판
+ *  (빛 쪽에서 본 깊이)을 한 번 더 읽어 **빛 쪽으로 튀어나온 자리**만 밝힌다: 화소 둘레 여섯 방향 짝의 빛 깊이가 제 깊이보다 얼마나 먼가(둘레가 꺼졌나)를 잰 '볼록함'
+ *  (평평한 낯 · 고른 비탈 0 · 빛 쪽 가장자리 ½ 안팎 · 꼭짓점 ¾ · 뾰족한 끝 · 작은 부품 1). 문턱 넘은 몫을 종족 광 색으로 **색감 곡선 뒤에** 더한다 — 빛 쪽 가장자리에서 안으로 번지는
+ *  띠 · 꼭짓점 · 발톱 끝에만 맺히고 낯 한가운데는 0 이다. 같은 몫 × 빛무리 값을 굽는 빛무리 원천(gEm9)에도 싣는다.
+ *  값 = [세기 · 반지름 · 깊이 · 문턱 · 폭 · 둘째 자(0 끔) · 지수 · 빛무리] — 반지름 · 깊이는 **모형 반지름의 몫**(모형 칸으로 주면 작은 유닛에서 얼룩이 몸만 해진다).
+ *  굽기(안 그림자 빛 판이 있는 칸)만 — 메시 길에는 없다(안 그림자와 같다). 견줌: #igloss=0(끔) · #igloss=세기~반지름~깊이~문턱[~폭~둘째 자~지수~빛무리] · #iglk=0(종류 배수 표 끔) · #iglb=0(아래 되빼기 끔).
+ *  ⚠ 빛 판은 그림자 여드름을 막느라 기울기 몫만큼 빛에서 멀게 밀려 찍힌다(SPR_ISH_POF9 × 텍셀당 깊이 기울기) — 그대로 읽으면 빛에 스치는 낯(80° 넘게 누운 낯)은 제 이웃이 다 '꺼진' 것으로 읽혀
+ *  낯이 통째로 뜬다(봉우리 86° · +0.11). 제 낯의 밀림(화면 미분으로 잰 낯의 깊이 기울기)을 제 깊이에 더해 되뺀다 — 같은 낯의 이웃은 정확히 0. 고른 시안의 열다섯 종은 거의 그대로다
+ *  (몸 평균 밝기 −0.002 ~ −0.009 · 0.15 넘게 달라진 화소 1% 아래).
+ *  SPR_ 줄 · 아래 템플릿이라 판 해시에 든다 — 바꾸면 아틀라스를 다시 굽는다. ⚠ 이 파일 주석에 역따옴표를 쓰지 마라(판 해시가 역따옴표 짝을 센다). */
+const SPR_IGL9 = [0.55, 0.10, 0.10, 0.25, 0.5, 0, 2, 1.0] as const;
+/** 종류마다 안 광택 세기 배수(없는 종류는 1 · 끝 숫자를 뗀 이름으로도 찾는다 — creeppatch2 → creeppatch) — 재는 자(반지름 = 모형 반지름의 1할)보다 좁은 판(날개 · 지느러미 · 접시 · 가는 다리)과
+ *  몸에서 떨어진 작은 부품(시즈 발판 · 딸림 접시)은 둘레가 다 꺼져 통째로 '끝'으로 읽힌다 — 점이 아니라 낯이 뜬다(요청이 물린 바로 그 꼴). 전 종류 훑기(2026-11-14 · 138종 · 굽는 길 · 배수 1 과 끔의 화소 차):
+ *  고른 시안의 열다섯 종은 몸 평균 밝기 오름 0.006 ~ 0.063 · 뭉친 얼룩(0.15 넘게 뜬 화소가 두 화소 깎아도 남는 몫) 0 ~ 2.8%(가시뿐인 스파이어만 4.6%). 그 테두리(평균 0.063 · 뭉친 3%)를
+ *  넘는 종을 그 안으로 누른다(0.05 눈금 · 스커지 · 디파일러 · 뮤탈 · 드론은 눈으로 한 번 더 골랐다). 바닥 그림(크립 조각 · 버로우 구멍)은 0 — 땅에 흰 테가 맺힌다.
+ *  발광 몸(GL_GLOW_KINDS9 — 아콘 · 폭풍 · 핵 구름)은 표 없이 0. 한 줄로 둔다(판 해시가 이 줄을 센다). 기록: docs/notes/gl-renderer.md '모델 색 적용'. */
+const SPR_IGL_KIND9: Record<string, number> = { creeppatch: 0, burrowhole: 0, lurkerburrow: 0, lurkerfire: 0, comsat: 0.15, comsatdish: 0.15, ctower: 0.15, tanksiegelegs: 0.12, tanksiegelegsF: 0.12, devourer: 0.2, scourge: 0.2, dollbird: 0.25, nuke: 0.25, covert: 0.3, queen: 0.3, muta: 0.3, defiler: 0.3, ultra: 0.35, wraith: 0.4, turrethead: 0.45, drone: 0.5, droneMin: 0.5, droneGas: 0.5, mineralb: 0.55, vessel: 0.55, htemp: 0.6, guardian: 0.7, scv: 0.7, scvMin: 0.7, scvGas: 0.7, mshop: 0.75, lurker: 0.85, sbattery: 0.85 };
+/** 견줌 — #iglk=0 이면 종류 배수 표를 안 탄다(전 종류 훑기가 배수 1 의 그림을 잰다 · 발광 몸은 그대로 0). */
+const IGL_KIND_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])iglk=0(?:[&,]|$)/.test(location.hash);
+const iglKind9 = (key: string): number => { const k9 = key.slice(key.indexOf(":") + 1).split(":")[0]; return GL_GLOW_KINDS9.has(k9) ? 0 : IGL_KIND_OFF9 ? 1 : (SPR_IGL_KIND9[k9] ?? SPR_IGL_KIND9[k9.replace(/[0-9]+$/, "")] ?? 1); };
+const IGL9 = ((): readonly number[] | null => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])igloss=([0-9.~]+)/.exec(location.hash) : null;
-  if (!m9) return null;
+  if (!m9) return SPR_IGL9;
   const v9 = m9[1].split("~").map(Number);
-  return v9.length >= 4 && v9.every((x) => Number.isFinite(x)) && v9[0] > 0 ? [v9[0], v9[1], v9[2], v9[3], v9[4] ?? 0.3, v9[5] ?? 0, v9[6] ?? 2, v9[7] ?? 0] : null;
+  if (!(v9[0] > 0)) return null;
+  return v9.length >= 4 && v9.every((x) => Number.isFinite(x)) ? [v9[0], v9[1], v9[2], v9[3], v9[4] ?? 0.3, v9[5] ?? 0, v9[6] ?? 2, v9[7] ?? 0] : SPR_IGL9;
 })();
-/* 볼록함을 두 자로 잰다(여섯째 값 > 0 — 둘째 반지름 = 첫 반지름 × 그 값): 작은 자만 쓰면 무한궤도의 이랑 · 가는 관처럼 **잔 부품이 통째로** 켜진다 — 큰 자에서도 볼록해야(둘 중 작은 값)
-   덩어리의 꼭짓점 · 끝만 남는다. 일곱째 값 = 문턱 넘은 몫의 지수(2 면 가운데만 뜨겁다). */
-const IGL_FS_A9 = "\n  float ig9 = 0.0;\n  if (uShP.x > 0.5 && uIg.x > 0.0) {\n    highp float ia9 = 0.0; highp float ib9 = 0.0;\n    for (int k9 = 0; k9 < 6; k9++) {\n      float an9 = float(k9) * 0.5236;\n      highp vec2 o9 = vec2(cos(an9), sin(an9)) * uIg.y;\n"
-  + "      ia9 += clamp(texture2D(uShTex, vLs.xy + o9).r - vLs.z, -uIg.z, uIg.z) + clamp(texture2D(uShTex, vLs.xy - o9).r - vLs.z, -uIg.z, uIg.z);\n"
-  + "      if (uIgM.x > 0.0) { highp float cz9 = uIg.z * uIgM.x; ib9 += clamp(texture2D(uShTex, vLs.xy + o9 * uIgM.x).r - vLs.z, -cz9, cz9) + clamp(texture2D(uShTex, vLs.xy - o9 * uIgM.x).r - vLs.z, -cz9, cz9); }\n    }\n"
-  + "    float cv9 = clamp(ia9 / (12.0 * uIg.z), 0.0, 1.0);\n    if (uIgM.x > 0.0) cv9 = min(cv9, clamp(ib9 / (12.0 * uIg.z * uIgM.x), 0.0, 1.0));\n"
-  + "    float lit9 = vLs.z - uShP.w > texture2D(uShTex, vLs.xy).r ? 0.0 : 1.0;\n    ig9 = pow(smoothstep(uIg.w, uIg.w + uIgC.a, cv9), uIgM.y) * lit9 * vLs.w * uIg.x;\n  }";
-const IGL_FS_B9 = "\n  c += uIgC.rgb * ig9;";
+/** 안 광택이 되빼는 빛 판 밀림 — 기본은 찍을 때 민 그 값(SPR_ISH_POF9). 견줌: #iglb=0 이면 안 뺀다(2026-11-14 첫 시안의 꼴 — 빛에 스치는 낯이 통째로 뜬다). */
+const IGL_POF9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:^|[#&,])iglb=([0-9.]+)/.exec(location.hash) : null; return m9 ? Number(m9[1]) : SPR_ISH_POF9; })();
+/* 볼록함을 두 자로 잴 수도 있다(여섯째 값 > 0 — 둘째 반지름 = 첫 반지름 × 그 값 · 둘 중 작은 값) — 시안에서 건물이 거의 안 켜져 기본은 끔. 일곱째 값 = 문턱 넘은 몫의 지수(2 면 가운데만 뜨겁다). */
+const IGL_FS_A9 = `
+  float ig9 = 0.0;
+  highp vec2 ux9 = dFdx(vLs.xy); highp vec2 uy9 = dFdy(vLs.xy); highp float zx9 = dFdx(vLs.z); highp float zy9 = dFdy(vLs.z);
+  if (uShP.x > 0.5 && uIg.x > 0.0) {
+    highp float dt9 = abs(ux9.x * uy9.y - ux9.y * uy9.x);
+    highp float pb9 = dt9 < 1e-12 ? 1.0 : uIgM.z * uShP.z * max(abs(zx9 * uy9.y - zy9 * ux9.y), abs(zy9 * ux9.x - zx9 * uy9.x)) / dt9;
+    highp float zf9 = vLs.z + pb9;
+    highp float ia9 = 0.0; highp float ib9 = 0.0;
+    for (int k9 = 0; k9 < 6; k9++) {
+      float an9 = float(k9) * 0.5236;
+      highp vec2 o9 = vec2(cos(an9), sin(an9)) * uIg.y;
+      ia9 += clamp(texture2D(uShTex, vLs.xy + o9).r - zf9, -uIg.z, uIg.z) + clamp(texture2D(uShTex, vLs.xy - o9).r - zf9, -uIg.z, uIg.z);
+      if (uIgM.x > 0.0) { highp float cz9 = uIg.z * uIgM.x; ib9 += clamp(texture2D(uShTex, vLs.xy + o9 * uIgM.x).r - zf9, -cz9, cz9) + clamp(texture2D(uShTex, vLs.xy - o9 * uIgM.x).r - zf9, -cz9, cz9); }
+    }
+    float cv9 = clamp(ia9 / (12.0 * uIg.z), 0.0, 1.0);
+    if (uIgM.x > 0.0) cv9 = min(cv9, clamp(ib9 / (12.0 * uIg.z * uIgM.x), 0.0, 1.0));
+    float lit9 = vLs.z - uShP.w > texture2D(uShTex, vLs.xy).r ? 0.0 : 1.0;
+    ig9 = pow(smoothstep(uIg.w, uIg.w + uIgC.a, cv9), uIgM.y) * lit9 * vLs.w * uIg.x;
+  }`;
+const IGL_FS_B9 = `
+  c += uIgC.rgb * ig9;`;
 /** 빛 한 벌 견줌 — #litdir=x,y,z(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 그 하나로 낸다. 없으면 LIGHT · SHADOW_K9. */
 const LIGHT_OV9 = ((): [number, number, number] | null => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])litdir=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
@@ -1597,7 +1649,7 @@ export class GlUnits9 implements VecSink9 {
     const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9 + "uniform highp sampler2D uShTex; uniform highp vec4 uShP;")
       .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
       .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + (IGL9 ? IGL_FS_A9 : "") + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + (IGL9 ? IGL_FS_B9 : "") + "\n  gl_FragColor = vec4(c * a9, a9);")
-      .replace("uniform highp sampler2D uShTex; uniform highp vec4 uShP;", IGL9 ? "uniform highp sampler2D uShTex; uniform highp vec4 uShP; uniform highp vec4 uIg; uniform vec4 uIgC; uniform highp vec2 uIgM;" : "uniform highp sampler2D uShTex; uniform highp vec4 uShP;");
+      .replace("uniform highp sampler2D uShTex; uniform highp vec4 uShP;", IGL9 ? "uniform highp sampler2D uShTex; uniform highp vec4 uShP; uniform highp vec4 uIg; uniform vec4 uIgC; uniform highp vec3 uIgM;" : "uniform highp sampler2D uShTex; uniform highp vec4 uShP;");
     const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
       .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
@@ -1611,7 +1663,7 @@ export class GlUnits9 implements VecSink9 {
     /* 시안 손잡이 #edgeshine=0(2026-11-03, 요청: "모바일용 아틀라스 해상도로 모서리 광택 없는 버전 시안 · 저해상도에서 모서리가 화질을 안 좋게 보이게 하는 것 같아") —
        링크 때 글자로 모서리 광택 몫(과 그 빛무리)을 0 으로. 역따옴표 밖이라 아틀라스 판 해시가 안 움직인다. 기본 켬. */
     const fsE0 = EDGE_OFF9 ? fsM9.replace("vec3 sh9 = k9 * 0.70 * e9", "vec3 sh9 = 0.0 * k9 * 0.70 * e9") : fsM9;
-    /* 안 광택 시안의 빛무리(위 IGL9 ★ · 여덟째 값) — 굽는 빛무리 원천(gEm9)에 안 광택 × 그 값을 더한다(빛무리 패스도 칸마다 빛 판을 다시 찍는다 — renderBatch). */
+    /* 안 광택의 빛무리(위 SPR_IGL9 ★ · 여덟째 값) — 굽는 빛무리 원천(gEm9)에 안 광택 × 그 값을 더한다(빛무리 패스도 칸마다 빛 판을 다시 찍는다 — renderBatch). */
     const fsE9 = IGL9 && IGL9[7] > 0 && this.gl2 ? fsE0.replace("gl_FragColor = vec4((gEm9 + ", "gl_FragColor = vec4((gEm9 + uIgC.rgb * ig9 * " + IGL9[7].toFixed(3) + " + ") : fsE0;
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsE9)); gl.linkProgram(p);
@@ -1981,6 +2033,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
     gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
+    { const g9 = gradeOfMesh9(mesh); gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, g9[4]); }   // 종족별 몸 곡선(위 SPR_GRADE_T9 ★ · 발광 몸은 SPR_GRADE9)
     if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
       const g = mesh.gloss;
       gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
@@ -2235,7 +2288,7 @@ export class GlUnits9 implements VecSink9 {
     gl.disable(gl.BLEND);
     gl.uniform1f(this.loc.uShPass, 1);
     /* 그림자 여드름(같은 낯이 제 깊이에 가려 줄무늬로 어두워짐)을 막는 기울기 몫 밀기 — 빛에 비스듬한 낯일수록 더 민다. */
-    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2.5, 6);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(SPR_ISH_POF9, 6);
     this.drawRec(0, m.n, inst, 1);
     gl.disable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(0, 0);
     gl.uniform1f(this.loc.uShPass, 0);
@@ -2246,17 +2299,17 @@ export class GlUnits9 implements VecSink9 {
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, sb9.tex); gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.loc.uShTex, 7);
     gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, ISH_BIAS9);
-    if (IGL9 && this.loc.uIg) {   // 안 광택 시안(위 IGL9 ★) — 반지름 · 깊이는 **모형 반지름의 몫**(빛 판 uv 는 지름 2R 이 1 · 깊이도 같다) — 모형 칸으로 주면 작은 유닛에서 얼룩이 몸만 해진다
+    if (IGL9 && this.loc.uIg) {   // 안 광택(위 SPR_IGL9 ★) — 반지름 · 깊이는 **모형 반지름의 몫**(빛 판 uv 는 지름 2R 이 1 · 깊이도 같다) — 모형 칸으로 주면 작은 유닛에서 얼룩이 몸만 해진다
       const lc9 = m.gloss[5];
-      gl.uniform4f(this.loc.uIg, IGL9[0], IGL9[1] / 2, IGL9[2] / 2, IGL9[3]);
+      gl.uniform4f(this.loc.uIg, IGL9[0] * iglKind9(m.key), IGL9[1] / 2, IGL9[2] / 2, IGL9[3]);
       gl.uniform4f(this.loc.uIgC, lc9[0], lc9[1], lc9[2], IGL9[4]);
-      gl.uniform2f(this.loc.uIgM, IGL9[5], IGL9[6]);
+      gl.uniform3f(this.loc.uIgM, IGL9[5], IGL9[6], IGL_POF9);
     }
     return true;
   }
-  /** 몸 색감 곡선(BODY_GRADE9) — 메시 프로그램이 쓰이는 중이어야 한다. 굽기 · 메시 길 둘 다 켠다(위 ★). */
+  /** 몸 색감 곡선의 첫 값(종족 없는 몸 SPR_GRADE9) — 메시 프로그램이 쓰이는 중이어야 한다. 메시를 걸 때(bindMesh9)마다 그 종족 곡선으로 갈아 건다(위 SPR_GRADE_T9 ★). */
   private grade9(on: boolean): void {
-    const gl = this.gl; const g9 = BODY_GRADE9;
+    const gl = this.gl; const g9 = BODY_GRADE_OV9 ?? SPR_GRADE9;
     gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, on ? g9[4] : 0);
   }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
@@ -3564,7 +3617,7 @@ export class GlUnits9 implements VecSink9 {
       a[o + 8] = it.gradR; a[o + 9] = it.gradCy;
       a[o + 10] = it.k >= 11 && GL_SHADE9 >= 1 ? it.mesh.gloss[4] * GL_GRAIN9 : 0;
       a[o + 11] = it.warp !== undefined ? 2 + Math.min(0.999, Math.max(0, it.warp)) : it.solid ? 1 : 0;   // ≥ 2 는 소환 드러남(셰이더 vG0)
-      const tc = this.colOf(it.color); a[o + 12] = tc[0]; a[o + 13] = tc[1]; a[o + 14] = tc[2];
+      const tc = this.colOf(it.color); const tk9 = teamGain9(it.mesh.gloss); a[o + 12] = tc[0] * tk9; a[o + 13] = tc[1] * tk9; a[o + 14] = tc[2] * tk9;
       if (it.solid) { const sc = hexRgb(it.solid); a[o + 15] = sc[0]; a[o + 16] = sc[1]; a[o + 17] = sc[2]; } else { a[o + 15] = 0; a[o + 16] = 0; a[o + 17] = 0; }
       if (shadow && it.shadow) { a[o + 18] = it.shadow.ground ? 1 : 0; a[o + 19] = it.shadow.h ?? 0; a[o + 20] = it.shadow.dy ?? 0; a[o + 21] = it.shadow.alpha; }
       else { a[o + 18] = 0; a[o + 19] = 0; a[o + 20] = 0; a[o + 21] = 0; }
@@ -3625,7 +3678,7 @@ export class GlUnits9 implements VecSink9 {
     if (sprB) {
       const P = SPR_PAGE9;
       let o9 = 0;
-      const put = (c: SprCell9, s9: number, AX: number, AY: number, alpha: number, depth: number, mode: number, over: boolean, solid: string | undefined, team: string | null, lit: [number, number, number] | null = null): void => {
+      const put = (c: SprCell9, s9: number, AX: number, AY: number, alpha: number, depth: number, mode: number, over: boolean, solid: string | undefined, team: string | null, lit: [number, number, number] | null = null, tk9 = 1): void => {
         if ((o9 + 1) * SPR_F9 > this.sprArr.length) { const nx = new Float32Array(this.sprArr.length * 2); nx.set(this.sprArr); this.sprArr = nx; }
         const a = this.sprArr; const o = o9 * SPR_F9;
         if (Math.abs(s9 - 1) < 0.004) { a[o] = Math.round(AX) + c.x0; a[o + 1] = Math.round(AY) + c.y0; a[o + 2] = c.w; a[o + 3] = c.h; }
@@ -3636,7 +3689,7 @@ export class GlUnits9 implements VecSink9 {
         if (solid) { const sc = hexRgb(solid); a[o + 12] = sc[0]; a[o + 13] = sc[1]; a[o + 14] = sc[2]; } else { a[o + 12] = 0; a[o + 13] = 0; a[o + 14] = 0; }
         a[o + 15] = 0;
         /* 임자색(분리 ★★) — 임자색 낯이 있는 몸의 칸에만 켠다(그림자·단색은 0). */
-        if (team && c.page.tnTex) { const tc = this.colOf(team); a[o + 16] = tc[0]; a[o + 17] = tc[1]; a[o + 18] = tc[2]; a[o + 19] = 1; } else { a[o + 16] = 0; a[o + 17] = 0; a[o + 18] = 0; a[o + 19] = 0; }
+        if (team && c.page.tnTex) { const tc = this.colOf(team); a[o + 16] = tc[0] * tk9; a[o + 17] = tc[1] * tk9; a[o + 18] = tc[2] * tk9; a[o + 19] = 1; } else { a[o + 16] = 0; a[o + 17] = 0; a[o + 18] = 0; a[o + 19] = 0; }
         /* 켜짐(켜짐 켜 ★) — 켜진 건물의 몸 칸에만(그림자 0). */
         if (lit && c.page.tnTex) { a[o + 20] = lit[0]; a[o + 21] = lit[1]; a[o + 22] = lit[2]; a[o + 23] = 1; } else { a[o + 20] = 0; a[o + 21] = 0; a[o + 22] = 0; a[o + 23] = 0; }
         sprPg[o9] = c.page; o9 += 1;
@@ -3661,7 +3714,7 @@ export class GlUnits9 implements VecSink9 {
         const b9 = sprB[i]; if (!b9) continue;
         const it = q[i];
         put(b9[0], b9[1], it.ax * dprK9, (it.ay + it.yoff) * dprK9, it.alpha, 1 - slot * (slotOf[i] + 1), it.solid ? 1 : 0, !!it.over, it.solid, it.mesh.team && !it.solid ? it.color : null,
-          it.lit && !it.solid && it.meshLt?.litColor ? it.meshLt.litColor : it.aura && !it.solid ? auraLit9(it.mesh.key) : null);
+          it.lit && !it.solid && it.meshLt?.litColor ? it.meshLt.litColor : it.aura && !it.solid ? auraLit9(it.mesh.key) : null, teamGain9(it.mesh.gloss));
       }
       nSpr = o9 - nSprSh;
       this.sprStat.body = nSpr; this.sprStat.shadow = nSprSh;
