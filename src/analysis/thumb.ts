@@ -6,8 +6,9 @@ import { drawMapGrid } from "../utils/mapTiles";
 import { decodeMapTerrain, terrainFace } from "../utils/mapTerrain";
 
 /** 썸네일 판 — 1 타일 = 1px. 판을 바꾸면 서버가 다시 굽는다(저장 열쇠 `map-thumbs/{hash}-{판}.png`).
-    2(2026-11-14): 원작 색감 곡선이 지형 색에 구워져(utils/grade9 · terrainGeom) 같은 붓(drawMapGrid)을 쓰는 썸네일도 색이 달라졌다 — 옛 그림과 섞이지 않게 올린다. */
-export const MAP_THUMB_VER = 2;
+    2(2026-11-14): 원작 색감 곡선이 지형 색에 구워져(utils/grade9 · terrainGeom) 같은 붓(drawMapGrid)을 쓰는 썸네일도 색이 달라졌다 — 옛 그림과 섞이지 않게 올린다. 
+    3(같은 날): 우주 판 지형 색이 밝기 표로 바뀌었다(grade9 TERR_TONE9 — 더 밝고 무채 · 판 대비 큼). */
+export const MAP_THUMB_VER = 3;
 
 export interface MapThumbGrid {
   hash: string;

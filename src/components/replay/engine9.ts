@@ -8359,7 +8359,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
       boxFit: "meet", fitWidth: true,
       // 자리는 상자가 아니라 잉크가 정한다(위 inkCenter 주석).
       inkCenter: true,
-      color: "#43323d",   // #544659 → 연하게(2026-11-02, 요청: "크립 색 좀 연하게")
+      color: "#3a2d34",   // #544659 → 연하게(2026-11-02, 요청: "크립 색 좀 연하게") → #43323d(2026-11-13 원작 색감) → #3a2d34(2026-11-14 원작 실측 · RMP CREEP_COL9 ★ 와 같은 값)
       alpha: (goneAt > 0 && t >= goneAt ? Math.max(0, 1 - (t - goneAt) / 1.2) : 1)
         * (cSeen9 === 1 ? 0.5 : 1),
       noShadow: true,
@@ -8398,7 +8398,7 @@ export function createEngine9(world: EngineWorld9, view0: EngineView9) {
           hFrac: ((w9 * 0.953) / grid.width) * mk9,
           boxFit: "meet", fitWidth: true,
           inkCenter: true,
-          color: "#43323d",
+          color: "#3a2d34",   // RMP CREEP_COL9 ★ 와 같은 값(2026-11-14)
           alpha: cSeen9 === 1 ? 0.5 : 1,
           noShadow: true,
           clipWalk: true,

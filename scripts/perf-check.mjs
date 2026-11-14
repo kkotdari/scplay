@@ -12,6 +12,9 @@
  *   node scripts/perf-check.mjs --wide --press ".scr-kakao-share-btn" --shot x.png   그 요소를 눌러 둔 채(:active) 찍는다(크리스탈 단추 누름 꼴 · 2026-10-23)
  *   node scripts/perf-check.mjs --wide --ask 30 [--theme metal|holo] [--light] --shot x.png   (--theme = 재생기 테마 못 박기 · 없으면 무작위 · --light = 앱 라이트 테마 깃발 · 재생기 테마와 무관)   보기 모드 판(요약 · 풀 · 2026-10-23 · 꼴은 무작위 — --theme 로 못 박는다) — 링크 없이 열어 판을 찍고 [요약]을 눌러 N초 동안
  *                                                                               요약 알약(n/N)·시계·배속을 찍는다(창 사이 건너뜀 · 마지막 창 끝 멈춤 검산)
+ *   node scripts/perf-check.mjs --wide --warm 0 --glblit --v17 --tileset 1 --tilergb space --players 2 --units 6 --zoom 4 --cx 0.16 --cy 0.80 --t 100 --pause --castoff
+ *                                 --secs 1 --readyms 800000 --atlas spr --shot x.png   우주 판(실색 바둑판) 위 저그 본진 — 지형 색 곡선 · 판 질감 · 크립 견줌(2026-11-14 ·
+ *                                                                               사람 · 유닛을 줄여야 헤드리스가 1분 안에 선다 — 다섯 사람 기본은 미리 굽기로 10분 넘게 걸리기도)
  *   node scripts/perf-check.mjs --wide --vw 1920 --vh 1080 --glblit --shot x.png   해상도 단([UI단] 줄 · PC 는 창 세로: 1080 FHD 0.75 · 1440 QHD 1 ·
  *                                                                               2160 UHD 1.5 · 폰은 기기 짧은 변: --ios --vw 430 --vh 932 큰 폰 1.1 ·
  *                                                                               --vw 755 --vh 905 폴드 1.3 · --vw/--vh 없는 PC 돌림은 ui=1 로 못 박는다)
@@ -637,13 +640,25 @@ const makeTerrain = () => {
       }
     }
   }
+  /* --tileset N(0 황무지 · 1 우주 판 · 2 설치(기본) …) · --tilergb space(2026-11-14 — 우주 판 색 곡선 · 질감 견줌): 타일 실색 층(판 3)을 원작 우주 판의 2×2칸 바둑판으로
+     싣는다. 색은 실제 지도에서 되짚은 **원본 값**(운영 스샷의 판 색을 곡선 → 누그림 → 화면 곡선(mapTerrain showRGB) 앞으로 되돌림 — 어두운 판 (46,50,58) · 밝은 판 (55,59,67) ·
+     못 걷는 칸(벽) (37,38,41) · 화면 곡선 · 누그림 뒤 (66,72,84) · (76,82,94) · (56,58,62) · notes gl-renderer '우주 판 밝기 표'). */
+  const rgbKind = flag("--tilergb", null);
   const head = Buffer.alloc(11);
   head.write("OBWM", 0, "ascii");
-  head[4] = 1;
+  head[4] = rgbKind ? 3 : 1;
   head.writeUInt16LE(W, 5);
   head.writeUInt16LE(H, 7);
-  head[9] = 2;                                           // install — 잿빛
-  return deflateSync(Buffer.concat([head, tile, wb])).toString("base64");
+  head[9] = Number(flag("--tileset", 2));                // 기본 install — 잿빛
+  if (!rgbKind) return deflateSync(Buffer.concat([head, tile, wb])).toString("base64");
+  const rgb = Buffer.alloc(W * H * 3);
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      const c = !(tile[y * W + x] & 1) ? [37, 38, 41] : ((x >> 1) + (y >> 1)) & 1 ? [55, 59, 67] : [46, 50, 58];
+      rgb[(y * W + x) * 3] = c[0]; rgb[(y * W + x) * 3 + 1] = c[1]; rgb[(y * W + x) * 3 + 2] = c[2];
+    }
+  }
+  return deflateSync(Buffer.concat([head, tile, wb, rgb])).toString("base64");
 };
 const ENTRY = `
 import React from "react";

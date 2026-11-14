@@ -624,3 +624,7 @@ min(다음 명령 · 재명령 · +GHOST_CANCEL_SEC9)에 끝내 스러지게 했
 배포 때 분석기(`dist/analyzer.mjs`)가 달라진 것을 보고 알았다 — 판을 안 올리면 서버에 저장된 옛 썸네일(옛 색)과 새로 굽는 썸네일(새 색)이 섞인다.
 `src/analysis/thumb.ts MAP_THUMB_VER` 1 → 2 · sg-api `analyzer.MAP_THUMB_VER` 도 함께(저장 열쇠에 든다 — 서버가 다시 굽는다).
 ⚠ 지형 색(타일셋 표 · 곡선 · 갈래 색)을 만지면 재생기만이 아니라 미니맵 · 내려받는 PNG · 썸네일이 같이 바뀐다 — 썸네일 판을 함께 올린다.
+
+## 지도 썸네일 판 3(2026-11-14)
+우주 판 지형 색이 밝기 표로 바뀌었다(gl-renderer.md '우주 판 밝기 표 · 크립 색 · 판 질감 다시 진하게') — 같은 붓을 쓰는 썸네일도 달라져 `src/analysis/thumb.ts MAP_THUMB_VER` 2 → 3.
+⚠ 배포 때 sg-api 에서 `sh scripts/vendor-analyzer.sh ../scplay` 와 함께 `analyzer.MAP_THUMB_VER` 도 3 으로 올린다(저장 열쇠 — 안 올리면 옛 색 썸네일이 남는다).

@@ -2512,8 +2512,10 @@ const FOG17_9: { data: Uint8Array | null; at: number; mask: number; t0: number; 
 const CREEP17_9: { tiles: TileTL17 | null; mask: number; visAll: boolean; t: number; key: string; cv: HTMLCanvasElement | null; dim: HTMLCanvasElement | null } = { tiles: null, mask: 0, visAll: true, t: 0, key: "", cv: null, dim: null };
 const CREEP17_PX9 = 8;
 /** 크립 바탕색 — #6b5a72 → #43323d(2026-11-13, 요청: 원작 색감 · 실측 원작 크립 중앙값 (62,47,56) 짙은 보라 갈색 · 우리 (102,89,108) 연보라 — glTerrain9 GRADE ★★).
- *  ⚠ 옛 #544659 → #6b5a72 는 "크립 색 좀 연하게"(2026-11-02)였다 — 이번 원작 맞춤이 그것을 넘어선다. 엔진의 입체 판(engine9)도 같은 값. */
-const CREEP_COL9 = "#43323d";
+ *  ⚠ 옛 #544659 → #6b5a72 는 "크립 색 좀 연하게"(2026-11-02)였다 — 이번 원작 맞춤이 그것을 넘어선다. 엔진의 입체 판(engine9)도 같은 값.
+ *  ★ #43323d → **#3a2d34**(2026-11-14, 원작(SC:R) 스샷과 같은 자리 실측 · "(같이 올리자)") — 우리 가운데 #43313e(색상 318~325°) / 원작 #3a2d34(330° · 덜 보랏빛 · 한 단 어둡다).
+ *  밝은 맥 · 연주황 타원도 함께 낮췄다(아래 creepTex9 ★ 원작 맞춤 — 밝은 끝 p95 0.32~0.39 → 원작 0.24). */
+const CREEP_COL9 = "#3a2d34";
 function creep17Layer9(t9: number): HTMLCanvasElement | null {
   const tl9 = CREEP17_9.tiles; if (!tl9 || typeof document === "undefined") return null;
   const st9 = tl9.stateAt(t9);
@@ -2761,7 +2763,7 @@ function creepTex9(): HTMLCanvasElement | null {
     const og9 = new Float32Array(N9);
     const on9 = vn9(24, 31);
     for (let e = 0; e < 34; e += 1) {
-      const ex = rnd9() * S9; const ey = rnd9() * S9; const ea = rnd9() * Math.PI; const er = 3.5 + rnd9() * 6; const ar = 1.5 + rnd9() * 1.0; const eo = 0.12 + rnd9() * 0.12;
+      const ex = rnd9() * S9; const ey = rnd9() * S9; const ea = rnd9() * Math.PI; const er = 3.5 + rnd9() * 6; const ar = 1.5 + rnd9() * 1.0; const eo = 0.08 + rnd9() * 0.08;   // 타원 진하기 0.12~0.24 → 0.08~0.16(아래 ★ 원작 맞춤)
       const ca = Math.cos(ea); const sa = Math.sin(ea); const R9 = Math.ceil(er * ar) + 3;
       for (let yy = -R9; yy <= R9; yy += 1) for (let xx = -R9; xx <= R9; xx += 1) {
         const u = (xx * ca + yy * sa) / (er * ar); const w = (-xx * sa + yy * ca) / er;
@@ -2774,14 +2776,18 @@ function creepTex9(): HTMLCanvasElement | null {
     const img9 = c9.createImageData(S9, S9);
     for (let i = 0; i < N9; i += 1) {
       /* 그늘/빛(v) 위에 연주황 타원(og9)을 덮어(over) 한 화소로 — 알파 섞기. */
+      /* ★ 원작 맞춤(2026-11-14 · 위 CREEP_COL9 ★ — 같은 자리 실측: 우리 밝은 끝 p95 0.32~0.39 · 잔무늬 0.040 / 원작 0.24 · 0.022) — 원작 크립은 어두운 골이 진 덩어리이고 밝은 데가
+         은은한 갈색이다. 우리 것은 흰 보라 맥(235,205,235 · 진하기 ×0.8)과 연주황 타원(226,168,128 · 0.12~0.24)이 떠서 밝은 끝이 높았다 →
+         맥은 바랜 장밋빛(150,118,128) · 진하기 ×0.32, 타원은 갈색(150,105,88) · 0.08~0.16. 그늘(골)은 ×0.5 → ×0.42(어두운 끝 p5 0.116 → 원작 0.13 · 원작도 골은 어둡다). 기와 겹침 차례(위 ★)는 안 건드린다.
+         합성 지도 실측(perf-check --tileset 1 --tilergb space --v17): 가운데 #392c33 · p95 0.24(원작 #3a2d34 · 0.24). */
       const v = v9[i]; const o = i * 4;
-      const a1 = v < 0 ? Math.min(1, -v) * 0.5 : Math.min(1, v * 0.8);   // 그늘 ×0.5(2026-11-02 "크립의 그림자가 너무 진해")
-      const r1 = v < 0 ? 18 : 235; const g1 = v < 0 ? 4 : 205; const b1 = v < 0 ? 24 : 235;
+      const a1 = v < 0 ? Math.min(1, -v) * 0.42 : Math.min(1, v * 0.32);   // 그늘 ×0.5(2026-11-02 "크립의 그림자가 너무 진해") → ×0.42 · 빛 ×0.8 → ×0.32(위 ★)
+      const r1 = v < 0 ? 18 : 150; const g1 = v < 0 ? 4 : 118; const b1 = v < 0 ? 24 : 128;
       const ao = og9[i]; const A = ao + a1 * (1 - ao);
       if (A <= 0) continue;
-      img9.data[o] = Math.round((226 * ao + r1 * a1 * (1 - ao)) / A);
-      img9.data[o + 1] = Math.round((168 * ao + g1 * a1 * (1 - ao)) / A);
-      img9.data[o + 2] = Math.round((128 * ao + b1 * a1 * (1 - ao)) / A);
+      img9.data[o] = Math.round((150 * ao + r1 * a1 * (1 - ao)) / A);
+      img9.data[o + 1] = Math.round((105 * ao + g1 * a1 * (1 - ao)) / A);
+      img9.data[o + 2] = Math.round((88 * ao + b1 * a1 * (1 - ao)) / A);
       img9.data[o + 3] = Math.round(A * 255);
     }
     c9.putImageData(img9, 0, 0);

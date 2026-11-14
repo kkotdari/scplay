@@ -20,13 +20,46 @@ export function bodyGradeHash9(): Grade9 | null {
 export function terrGrade9(ts: number): Grade9 {
   if (GRADE_OFF9) return [0, 1, 1, 1, 0];
   switch (ts) {
-    case 1: case 2: return [0.105, 1.24, 1, 1, 0.85];
+    case 1: case 2: return [0.105, 1.24, 1, 1, 0.85];   // 우주 판(1)은 아래 밝기 표(TERR_TONE9)가 먼저다 — 이 값은 표를 걷으면 돌아가는 옛 곡선(2026-11-13) · 설치(2)는 이 값 그대로
     case 3: return [0.03, 1.06, 1, 1, 1.30];
     case 4: return [0, 1, 1, 1, 1.35];
     case 5: return [0.07, 1.14, 1, 1, 1.30];
     case 6: return [0.05, 1.08, 1, 1, 1.15];
     default: return [0.105, 1.24, 1, 1, 1.40];
   }
+}
+/** ★ **우주 판 밝기 표**(2026-11-14, 요청: "지형 — 색상, 대비, 질감 등 차이 대조 필요" → 원작(SC:R) 스샷 3쌍 · 같은 자리 실측 → "(같이 올리자)") —
+ *  같은 자리 여섯 군데가 다 같았다: 우리(곡선 [0.105, 1.24, –, –, 0.85] 뒤) 어두운 판 #1d222c · 밝은 판 #272c36 · 벽 #16181b /
+ *  원작 어두운 판 #24262b · 밝은 판 #34363b · 벽 평균 #1f1d1c — 원작이 **더 밝고(중앙값 0.145 → 0.175) · 훨씬 무채(채도 0.31 → 0.15) · 판끼리 대비가 크다**(밝은 ÷ 어두운 1.28 → 1.42).
+ *  판 대비만 키우는 곡선은 다섯 수(검은점 · 감마 · 무릎)로는 안 나온다: 검은점을 올려 맞추면(bp 0.21 · γ 0.80 — 판 색 오차 0.9/255) 벽이 검게 뭉개지고(0.09 → 0.05 · 원작 0.10),
+ *  무릎을 기울기 1.4 로 세우면 밝은 타일이 3할 더 밝아진다. 그래서 **잰 자리를 그대로 잇는 꺾은선**(곡선 앞 휘도 → 뒤 휘도)을 둔다:
+ *    0.105 → 0(옛 검은점) · 0.229(벽) → 0.105 · 0.281(어두운 판) → 0.149 · 0.320(밝은 판) → 0.212 · 그 위는 옛 곡선의 값(0.52 → 0.386 · 0.75 → 0.666 · 1 → 1).
+ *  색은 휘도 비로 통째 늘리고(색상 · 채도가 안 흔들린다 — 검은점을 빼는 옛 식은 어두울수록 채도가 올랐다) 그 뒤 채도 s 0.62(판 색 오차 0.3/255).
+ *  지형은 지도를 열 때 JS 로 한 번 굽는 색이라(위 ★ 굽는다) 셰이더 식(GRADE_FN9)에 안 묶인다. 설치(2)는 재지 않아 그대로. `#grade=0` 이면 끔. */
+export interface Tone9 { readonly pts: readonly (readonly [number, number])[]; readonly s: number }
+const TERR_TONE9: Readonly<Record<number, Tone9>> = {
+  1: { pts: [[0, 0], [0.105, 0], [0.229, 0.105], [0.281, 0.149], [0.32, 0.212], [0.52, 0.386], [0.75, 0.666], [1, 1]], s: 0.62 },
+};
+/** 색 하나(0~255)를 밝기 표에 태운다 — 휘도를 꺾은선으로 옮기고(색은 그 비로) 채도를 s 배. */
+export function toneRgb9(c: readonly number[], t: Tone9): [number, number, number] {
+  const r = c[0] / 255; const g = c[1] / 255; const b = c[2] / 255;
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const p = t.pts;
+  let L2 = p[p.length - 1][1];
+  for (let i = 1; i < p.length; i += 1) {
+    if (L <= p[i][0]) { const w = p[i][0] - p[i - 1][0]; L2 = p[i - 1][1] + (w > 0 ? (L - p[i - 1][0]) / w : 0) * (p[i][1] - p[i - 1][1]); break; }
+  }
+  const k = L > 1e-4 ? L2 / L : 0;
+  const f = (v: number): number => Math.round(Math.min(1, Math.max(0, L2 + (v * k - L2) * t.s)) * 255);
+  return [f(r), f(g), f(b)];
+}
+/** 지형 색을 굽는 함수(terrainGeom 이 지도를 열 때 쓴다) — 밝기 표가 있는 타일셋은 표로, 아니면 다섯 수 곡선으로. 꺼졌으면 null. */
+export function terrGradeOf9(ts: number): ((c: readonly number[]) => [number, number, number]) | null {
+  if (GRADE_OFF9) return null;
+  const t9 = TERR_TONE9[ts];
+  if (t9) return (c) => toneRgb9(c, t9);
+  const g9 = terrGrade9(ts);
+  return g9[4] > 0 ? (c) => gradeRgb9(c, g9) : null;
 }
 /** 색 하나(0~255)를 곡선에 태운다 — GLSL GRADE_FN9 와 같은 식. */
 export function gradeRgb9(c: readonly number[], g: Grade9): [number, number, number] {
