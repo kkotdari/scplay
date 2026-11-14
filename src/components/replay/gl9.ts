@@ -1299,6 +1299,25 @@ const BCON9 = ((): number => { const m9 = typeof location !== "undefined" ? /(?:
 /** 메시 길의 몸 대비 — 붙일 때의 견줌(CON9)과 굽는 대비를 곱한 것(판 = 굽는 대비 위에 CON9 를 얹으므로 같은 그림). */
 const BODY_CON9: [number, number] = [(1 + CON9[0]) * (1 + BCON9) - 1, CON9[1]];
 const ISH_RES9 = 1024;
+/** ★ **안 광택 시안**(2026-11-14 · #igloss=세기~반지름~깊이~문턱[~폭] · 기본 끔 — 링크 때 글자로 끼워 판 해시가 안 움직인다 · ⚠ 이 파일 주석에 역따옴표를 쓰지 마라(판 해시가 역따옴표 짝을 센다)) — 요청: "밝은 부분(면단위)로 하면 다시 전체가 떠보이니까
+ *  포인트에 밝은 광택이나 반사광 글로우들 표현할 방법 연구 · 내부그림자 줬듯 내부광택". 안 그림자의 빛 판(빛 쪽에서 본 깊이)을 한 번 더 읽어 **빛 쪽으로 튀어나온 자리**만 밝힌다:
+ *  화소 둘레 여섯 방향 짝의 빛 깊이가 제 깊이보다 얼마나 먼가(둘레가 꺼졌나)를 잰 '볼록함'(평평한 낯 · 고른 비탈 0 · 모서리 ⅓ 안팎 · 꼭짓점 ½ ~ ¾ · 뾰족한 끝 · 작은 부품 1).
+ *  문턱을 모서리 값 위에 두면 꼭짓점 · 끝 · 작은 부품에만 부드러운 점으로 맺히고, 낮추면 빛 쪽 가장자리에서 안으로 번지는 띠가 된다(낯 한가운데는 0 — 면이 통째로 뜨지 않는다). 반지름 · 깊이는 모형 반지름의 몫.
+ *  색감 곡선 **뒤에** 더한다(어둡게 누른 몸 위에 그대로 밝게). 굽기(안 그림자 빛 판이 있는 칸)만 — 메시 길에는 없다(안 그림자와 같다). */
+const IGL9 = ((): number[] | null => {
+  const m9 = typeof location !== "undefined" ? /(?:^|[#&,])igloss=([0-9.~]+)/.exec(location.hash) : null;
+  if (!m9) return null;
+  const v9 = m9[1].split("~").map(Number);
+  return v9.length >= 4 && v9.every((x) => Number.isFinite(x)) && v9[0] > 0 ? [v9[0], v9[1], v9[2], v9[3], v9[4] ?? 0.3, v9[5] ?? 0, v9[6] ?? 2, v9[7] ?? 0] : null;
+})();
+/* 볼록함을 두 자로 잰다(여섯째 값 > 0 — 둘째 반지름 = 첫 반지름 × 그 값): 작은 자만 쓰면 무한궤도의 이랑 · 가는 관처럼 **잔 부품이 통째로** 켜진다 — 큰 자에서도 볼록해야(둘 중 작은 값)
+   덩어리의 꼭짓점 · 끝만 남는다. 일곱째 값 = 문턱 넘은 몫의 지수(2 면 가운데만 뜨겁다). */
+const IGL_FS_A9 = "\n  float ig9 = 0.0;\n  if (uShP.x > 0.5 && uIg.x > 0.0) {\n    highp float ia9 = 0.0; highp float ib9 = 0.0;\n    for (int k9 = 0; k9 < 6; k9++) {\n      float an9 = float(k9) * 0.5236;\n      highp vec2 o9 = vec2(cos(an9), sin(an9)) * uIg.y;\n"
+  + "      ia9 += clamp(texture2D(uShTex, vLs.xy + o9).r - vLs.z, -uIg.z, uIg.z) + clamp(texture2D(uShTex, vLs.xy - o9).r - vLs.z, -uIg.z, uIg.z);\n"
+  + "      if (uIgM.x > 0.0) { highp float cz9 = uIg.z * uIgM.x; ib9 += clamp(texture2D(uShTex, vLs.xy + o9 * uIgM.x).r - vLs.z, -cz9, cz9) + clamp(texture2D(uShTex, vLs.xy - o9 * uIgM.x).r - vLs.z, -cz9, cz9); }\n    }\n"
+  + "    float cv9 = clamp(ia9 / (12.0 * uIg.z), 0.0, 1.0);\n    if (uIgM.x > 0.0) cv9 = min(cv9, clamp(ib9 / (12.0 * uIg.z * uIgM.x), 0.0, 1.0));\n"
+  + "    float lit9 = vLs.z - uShP.w > texture2D(uShTex, vLs.xy).r ? 0.0 : 1.0;\n    ig9 = pow(smoothstep(uIg.w, uIg.w + uIgC.a, cv9), uIgM.y) * lit9 * vLs.w * uIg.x;\n  }";
+const IGL_FS_B9 = "\n  c += uIgC.rgb * ig9;";
 /** 빛 한 벌 견줌 — #litdir=x,y,z(세계 자 · 빛 쪽 · x 오른 · y 앞(아래 화면) · z 위)면 방향광·낯 명암·광택·안 그림자·바닥 그림자를 그 하나로 낸다. 없으면 LIGHT · SHADOW_K9. */
 const LIGHT_OV9 = ((): [number, number, number] | null => {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])litdir=(-?[0-9.]+),(-?[0-9.]+),(-?[0-9.]+)/.exec(location.hash) : null;
@@ -1577,7 +1596,8 @@ export class GlUnits9 implements VecSink9 {
       .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
     const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9 + "uniform highp sampler2D uShTex; uniform highp vec4 uShP;")
       .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
-      .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
+      .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + (IGL9 ? IGL_FS_A9 : "") + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + (IGL9 ? IGL_FS_B9 : "") + "\n  gl_FragColor = vec4(c * a9, a9);")
+      .replace("uniform highp sampler2D uShTex; uniform highp vec4 uShP;", IGL9 ? "uniform highp sampler2D uShTex; uniform highp vec4 uShP; uniform highp vec4 uIg; uniform vec4 uIgC; uniform highp vec2 uIgM;" : "uniform highp sampler2D uShTex; uniform highp vec4 uShP;");
     const vsSh9 = !this.gl2 ? VS : VS.replace("varying vec4 vEm;\nvoid main() {", "varying vec4 vEm;\nvarying highp vec4 vLs; uniform float uShPass; uniform mat3 uLsM; uniform vec2 uLsK;\nvoid main() {")
       .replace("  float pz = aPos.z * (1.0 - uShadow.z);", "  float pz = aPos.z * (1.0 - uShadow.z);\n" + ISH_VS_POS9)
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
@@ -1590,14 +1610,16 @@ export class GlUnits9 implements VecSink9 {
       .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4((gEm9 + (uMat.x > 1.5 && uMat.x < 2.5 ? vEm.rgb * vEm.a * 0.8 : vec3(0.0))) * a9, a9);");   // 프로토스 발광 낯(보석·수정)도 빛무리 원천(2026-11-03 "보석 자체가 발광")   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
     /* 시안 손잡이 #edgeshine=0(2026-11-03, 요청: "모바일용 아틀라스 해상도로 모서리 광택 없는 버전 시안 · 저해상도에서 모서리가 화질을 안 좋게 보이게 하는 것 같아") —
        링크 때 글자로 모서리 광택 몫(과 그 빛무리)을 0 으로. 역따옴표 밖이라 아틀라스 판 해시가 안 움직인다. 기본 켬. */
-    const fsE9 = EDGE_OFF9 ? fsM9.replace("vec3 sh9 = k9 * 0.70 * e9", "vec3 sh9 = 0.0 * k9 * 0.70 * e9") : fsM9;
+    const fsE0 = EDGE_OFF9 ? fsM9.replace("vec3 sh9 = k9 * 0.70 * e9", "vec3 sh9 = 0.0 * k9 * 0.70 * e9") : fsM9;
+    /* 안 광택 시안의 빛무리(위 IGL9 ★ · 여덟째 값) — 굽는 빛무리 원천(gEm9)에 안 광택 × 그 값을 더한다(빛무리 패스도 칸마다 빛 판을 다시 찍는다 — renderBatch). */
+    const fsE9 = IGL9 && IGL9[7] > 0 && this.gl2 ? fsE0.replace("gl_FragColor = vec4((gEm9 + ", "gl_FragColor = vec4((gEm9 + uIgC.rgb * ig9 * " + IGL9[7].toFixed(3) + " + ") : fsE0;
     const p = gl.createProgram()!;
     gl.attachShader(p, sh(gl.VERTEX_SHADER, vsM9)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsE9)); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("링크: " + gl.getProgramInfoLog(p));
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut", "uGrd9", "uGrs9"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut", "uGrd9", "uGrs9", "uIg", "uIgC", "uIgM"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); this.grade9(true);
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -2224,6 +2246,12 @@ export class GlUnits9 implements VecSink9 {
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, sb9.tex); gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.loc.uShTex, 7);
     gl.uniform4f(this.loc.uShP, 1, ISH9, 1 / ISH_RES9, ISH_BIAS9);
+    if (IGL9 && this.loc.uIg) {   // 안 광택 시안(위 IGL9 ★) — 반지름 · 깊이는 **모형 반지름의 몫**(빛 판 uv 는 지름 2R 이 1 · 깊이도 같다) — 모형 칸으로 주면 작은 유닛에서 얼룩이 몸만 해진다
+      const lc9 = m.gloss[5];
+      gl.uniform4f(this.loc.uIg, IGL9[0], IGL9[1] / 2, IGL9[2] / 2, IGL9[3]);
+      gl.uniform4f(this.loc.uIgC, lc9[0], lc9[1], lc9[2], IGL9[4]);
+      gl.uniform2f(this.loc.uIgM, IGL9[5], IGL9[6]);
+    }
     return true;
   }
   /** 몸 색감 곡선(BODY_GRADE9) — 메시 프로그램이 쓰이는 중이어야 한다. 굽기 · 메시 길 둘 다 켠다(위 ★). */
