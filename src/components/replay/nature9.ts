@@ -12,6 +12,10 @@
  *   · 우주 판(타일셋 1) — 나무 · 풀 · 폭포 · 새는 없고, 우주(물) 칸 위로 별똥별이 한 개 또는 여럿 떨어진다.
  * 설치(2) · 잿빛(3) 판은 자연물이 없다. 유닛이 서는 자리(걷는 땅)에는 낮은 것(풀 · 꽃)만 둔다 — 경기 읽기를 안 가린다. */
 import type { TerrainGeom9 } from "../../utils/terrainGeom";
+import { drawBirds9, drawMeteors9, type Species9 } from "./sky9";
+
+/** 나무 · 풀 · 꽃 · 폭포를 그리나 — 끔(2026-11-15, 요청: "물이나 비 효과 수준으로 디테일하고 사실적으로 · 일단 유성과 새만") — 자리 뽑기 · 판은 남겨 두고 그리지 않는다. */
+const NATURE_PROPS9 = false;
 
 const KEY9 = "scr.nature";
 export function natureOnStored9(): boolean {
@@ -23,8 +27,8 @@ export function natureOnStored9(): boolean {
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
 /** 그리는 쪽이 읽는 상태 — 재생기가 켬 · 지형 기하를 넣는다(TERR_WX9 와 같은 꼴). */
-export const NATURE9: { on: boolean; geom: TerrainGeom9 | null; rgb: Uint8Array | null; hash: string; playing: boolean; chirp: ((pan: number) => void) | null } =
-  { on: false, geom: null, rgb: null, hash: "", playing: false, chirp: null };
+export const NATURE9: { on: boolean; geom: TerrainGeom9 | null; rgb: Uint8Array | null; hash: string; playing: boolean; call: ((sp: Species9, pan: number, vol: number) => void) | null } =
+  { on: false, geom: null, rgb: null, hash: "", playing: false, call: null };
 
 type Kind9 = "tree" | "pine" | "bush" | "grass" | "reed" | "flower";
 interface Prop9 { k: Kind9; x: number; y: number; s: number; v: number; ph: number }
@@ -206,20 +210,6 @@ function flowerSpr9(col: string): HTMLCanvasElement {
   SPR9.set(key, c); return c;
 }
 
-/* ── 새 · 별똥별(시간의 함수 — 씨앗 + 시각 칸으로 정한다) ───────────────────────────────────────────────────────────── */
-const BIRD_COL9 = ["#3d8ef0", "#f5c518", "#ef4b3f", "#ff8a2a", "#f5f5f5"];
-interface Flock9 { t0: number; dur: number; x0: number; y0: number; x1: number; y1: number; n: number; col: string; id: number }
-function flockOf9(slot: number, w: number, h: number): Flock9 | null {
-  const R = rng9("bird" + slot);
-  if (R() < 0.35) return null;   // 빈 칸(새 없는 동안)
-  const side = Math.floor(R() * 4); const a = R(); const b = R();
-  const p0: [number, number] = side === 0 ? [-4, a * h] : side === 1 ? [w + 4, a * h] : side === 2 ? [a * w, -4] : [a * w, h + 4];
-  const p1: [number, number] = side === 0 ? [w + 4, b * h] : side === 1 ? [-4, b * h] : side === 2 ? [b * w, h + 4] : [b * w, -4];
-  const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-  return { t0: slot * 14 + R() * 6, dur: len / (3.2 + R() * 1.6), x0: p0[0], y0: p0[1], x1: p1[0], y1: p1[1], n: 3 + Math.floor(R() * 4), col: BIRD_COL9[Math.floor(R() * BIRD_COL9.length)], id: slot };
-}
-const chirped9 = new Set<number>();
-
 /**
  * 한 장 그리기 — ctx 는 유닛 2D 캔버스(현재 변환 = 기기 화소 배수 · 평행이동만), ox · oy = 지도 (0, 0) 의 화면 자리(CSS px) · tp = 타일 한 칸의 화면 CSS px ·
  * cw · ch = 캔버스 CSS 크기. tSec = 실 시각(초 · 흔들림 · 새 · 별똥별).
@@ -230,9 +220,10 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   const M = ctx.getTransform();
   const inView = (x: number, y: number, m: number): boolean => { const sx = ox + x * tp; const sy = oy + y * tp; return sx > -m && sx < cw + m && sy > -m && sy < ch + m; };
   ctx.save();
-  /* 우주 판도 새는 같이 난다(같은 날, 요청: "우주에도 새는 똑같이 추가"). */
-  if (P.space) { drawMeteors9(ctx, P, ox, oy, tp, tSec); drawBirds9(ctx, P, ox, oy, tp, cw, ch, tSec); ctx.restore(); return; }
-  const leaf = LEAF9[P.ts]; if (!leaf) { ctx.restore(); return; }
+  /* 우주 판 — 유성(sky9 ★) · 모든 판 — 새 그림자(새 몸은 몸 위 층 drawNatureSky9). 설치 · 잿빛 판도 새는 난다("우주에도 새는 똑같이"). */
+  if (P.space) drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);
+  drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
+  const leaf = LEAF9[P.ts]; if (P.space || !leaf || !NATURE_PROPS9) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)
   /* ① 폭포 — 물줄기(위에서 아래로 흐르는 줄) + 아래 물보라. */
   for (const f of P.falls) {
@@ -276,60 +267,11 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
     ctx.drawImage(img, -wp / 2, -hp, wp, hp);
     ctx.setTransform(M);
   }
-  /* ③ 새 — 지금 시각에 걸친 무리 칸들(14초 칸 · 앞뒤 몇 칸). */
-  drawBirds9(ctx, P, ox, oy, tp, cw, ch, tSec);
   ctx.restore();
 }
 
-function drawBirds9(ctx: CanvasRenderingContext2D, P: Plan9, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
-  const slot0 = Math.floor(tSec / 14);
-  for (let s = slot0 - 6; s <= slot0; s += 1) {
-    const F = flockOf9(s, P.w, P.h); if (!F) continue;
-    const u = (tSec - F.t0) / F.dur; if (u < 0 || u > 1) continue;
-    const cx = F.x0 + (F.x1 - F.x0) * u; const cy = F.y0 + (F.y1 - F.y0) * u;
-    const dx = (F.x1 - F.x0) / Math.hypot(F.x1 - F.x0, F.y1 - F.y0); const dy = (F.y1 - F.y0) / Math.hypot(F.x1 - F.x0, F.y1 - F.y0);
-    const sx = ox + cx * tp; const sy = oy + cy * tp;
-    const vis = sx > -40 && sx < cw + 40 && sy > -40 && sy < ch + 40;
-    if (vis && NATURE9.playing && !chirped9.has(F.id) && NATURE9.chirp) { chirped9.add(F.id); NATURE9.chirp(Math.max(-1, Math.min(1, (sx / Math.max(1, cw)) * 2 - 1))); }
-    if (!vis) continue;
-    const R = rng9("flock" + F.id);
-    const bs = Math.max(4, tp * 0.34);
-    for (let i = 0; i < F.n; i += 1) {
-      const back = (i === 0 ? 0 : 0.8 + R() * 1.4) * Math.ceil(i / 2); const sideK = (i % 2 ? 1 : -1) * (0.6 + R() * 0.6) * Math.ceil(i / 2);
-      const bx = sx + (-dx * back - dy * sideK) * tp * 0.7 + Math.sin(tSec * 2 + i) * tp * 0.08;
-      const by = sy + (-dy * back + dx * sideK) * tp * 0.7 + Math.cos(tSec * 2.3 + i) * tp * 0.08;
-      const flap = Math.sin(tSec * 14 + i * 1.7);
-      /* 그림자(땅에 · 아래로 비킨) */
-      ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(bx + tp * 0.6, by + tp * 1.2, bs * 0.6, bs * 0.25, 0, 0, 6.283); ctx.fill();
-      ctx.strokeStyle = F.col; ctx.lineWidth = Math.max(1.2, bs * 0.32); ctx.lineCap = "round"; ctx.lineJoin = "round";
-      const wy = -flap * bs * 0.55;
-      ctx.beginPath(); ctx.moveTo(bx - bs, by + wy); ctx.quadraticCurveTo(bx - bs * 0.4, by - bs * 0.2 + wy * 0.3, bx, by); ctx.quadraticCurveTo(bx + bs * 0.4, by - bs * 0.2 + wy * 0.3, bx + bs, by + wy); ctx.stroke();
-      ctx.fillStyle = F.col; ctx.beginPath(); ctx.arc(bx, by, bs * 0.28, 0, 6.283); ctx.fill();
-    }
-  }
-}
-
-function drawMeteors9(ctx: CanvasRenderingContext2D, P: Plan9, ox: number, oy: number, tp: number, tSec: number): void {
-  if (!P.spaceTiles.length) return;
-  /* 4초 칸마다 — 셋 중 둘은 하나 · 가끔(1할) 서넛이 한꺼번에(유성우). 한 줄기 0.9초. */
-  const slot0 = Math.floor(tSec / 4);
-  for (let s = slot0 - 1; s <= slot0; s += 1) {
-    const R = rng9("meteor" + s + ":" + P.w);
-    const r0 = R(); const n = r0 < 0.3 ? 0 : r0 < 0.9 ? 1 : 3 + Math.floor(R() * 3);
-    for (let i = 0; i < n; i += 1) {
-      const t0 = s * 4 + R() * 3.2; const u = (tSec - t0) / 0.9; if (u < 0 || u > 1) { R(); R(); R(); continue; }
-      const ti = P.spaceTiles[Math.floor(R() * P.spaceTiles.length)];
-      const x0 = ti % P.w; const y0 = Math.floor(ti / P.w); const ang = 0.5 + R() * 0.5; const len = 5 + R() * 6;
-      const hx = x0 + Math.cos(ang) * len * u; const hy = y0 + Math.sin(ang) * len * u;
-      const tail = Math.min(u, 0.55) * len; const fade = u < 0.8 ? 1 : (1 - u) / 0.2;
-      const X = ox + hx * tp; const Y = oy + hy * tp; const TX = X - Math.cos(ang) * tail * tp; const TY = Y - Math.sin(ang) * tail * tp;
-      const gr = ctx.createLinearGradient(TX, TY, X, Y);
-      gr.addColorStop(0, "rgba(160,200,255,0)"); gr.addColorStop(1, `rgba(235,245,255,${0.9 * fade})`);
-      ctx.strokeStyle = gr; ctx.lineWidth = Math.max(1.5, tp * 0.12); ctx.lineCap = "round";
-      ctx.beginPath(); ctx.moveTo(TX, TY); ctx.lineTo(X, Y); ctx.stroke();
-      const hg = ctx.createRadialGradient(X, Y, 0, X, Y, tp * 0.5);
-      hg.addColorStop(0, `rgba(255,255,255,${fade})`); hg.addColorStop(1, "rgba(180,210,255,0)");
-      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(X, Y, tp * 0.5, 0, 6.283); ctx.fill();
-    }
-  }
+/** 몸 위 층(새 몸) — 유닛 캔버스 위에 따로 선 하늘 캔버스에 그린다(재생기 UnitLayer 의 skyRef). 울음은 재생 중에만. */
+export function drawNatureSky9(ctx: CanvasRenderingContext2D, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
+  const G = NATURE9.geom; if (!NATURE9.on || !G || tp < 2) return;
+  drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
 }

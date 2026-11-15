@@ -6,9 +6,11 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { birdChirp9, hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
+import { birdCall9, hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
 import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
-import { NATURE9, drawNature9, natureOnStored9 } from "./nature9";
+import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9 } from "./nature9";
+/** 하늘 캔버스(새 몸 · sky9 ★)를 세울지 — 자연 겹은 시험 주소(#nature=1)에서만이라 모듈을 들일 때 한 번 정한다. */
+const SKY_CV_ON9 = natureOnStored9();
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -6673,6 +6675,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     return () => { setTimeout(() => { if (!c9.isConnected) glTerrRelease9(c9); }, 0); };
   }, []);
   const fxRef = useRef<HTMLCanvasElement>(null);
+  /** 하늘 캔버스 — 새 몸(sky9 ★)을 GL 몸 위에 그린다. 유닛 2D 캔버스와 같은 상자 · 배킹 · 변환을 베낀다(장마다). */
+  const skyRef = useRef<HTMLCanvasElement>(null);
   /** 효과 캔버스를 세울지 — GL 심(glctx9)이 효과를 맡으면 이 층은 늘 비어 있어 **안 세운다**(폰 DPR 3 이면 캔버스 한 장이 수 MB 다).
    *  붓이 첫 장에서 `gl9.vecOk` 가 거짓인 것을 보면 켠다(그 한 장은 유닛 캔버스에 그린다). */
   const [fxCvOn9, setFxCvOn9] = useState(false);
@@ -8099,8 +8103,18 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          자체가 안 걸려 크립이 맵 밖으로 샜다. 이제 크립이 있으면 늘 가둔다. */
       /** 자연 겹(nature9 ★) — 크립 위 · 몸 아래 · 평면만(맵 로고와 같은 규약). 타일 한 칸 = 지도 폭 ÷ 타일 수. */
       const natureDraw9 = (): void => {
-        const G9 = NATURE9.geom;
-        if (!NATURE9.on || !G9 || pitchedProp) return;
+        const G9 = NATURE9.geom; const sky9 = skyRef.current;
+        const on9 = NATURE9.on && !!G9 && !pitchedProp;
+        if (sky9) {   // 하늘 캔버스 — 유닛 캔버스의 배킹 · 꼴(자리 · 잘림 · 손짓 변환)을 그대로 베끼고 같은 변환으로 새 몸을 그린다
+          if (sky9.width !== cv.width || sky9.height !== cv.height) { sky9.width = cv.width; sky9.height = cv.height; }
+          if (sky9.style.cssText !== cv.style.cssText) sky9.style.cssText = cv.style.cssText;
+          const sc9 = sky9.getContext("2d");
+          if (sc9) {
+            sc9.setTransform(1, 0, 0, 1, 0, 0); sc9.clearRect(0, 0, sky9.width, sky9.height);
+            if (on9 && G9) { sc9.setTransform(ctx.getTransform()); drawNatureSky9(sc9, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000); }
+          }
+        }
+        if (!on9 || !G9) return;
         drawNature9(ctx, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000);
       };
       /* 맵 정중앙 로고(위 mapLogoSpr9 ★) — 바닥 페인트라 크립 **아래** · 평면만. */
@@ -8382,6 +8396,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
     {GL_ON9 && GL_TERR9 ? <canvas ref={terrRef} className="scr-motion-unitlayer scr-motion-terr9" aria-hidden /> : null}
     <canvas ref={ref} className="scr-motion-unitlayer" aria-hidden />
     {GL_ON9 ? <canvas ref={glHoldRef} className="scr-motion-unitlayer scr-motion-gl9" style={GL_BLIT9 ? (GL_FILTER9 ? { filter: "contrast(1.001)" } : undefined) : GL_HIDE9} aria-hidden /> : null}
+    {SKY_CV_ON9 ? <canvas ref={skyRef} className="scr-motion-unitlayer scr-motion-sky9" aria-hidden /> : null}
     {GL_ON9 && fxCvOn9 ? <canvas ref={fxRef} className="scr-motion-unitlayer scr-motion-fx9" aria-hidden /> : null}
   </>;
 }
@@ -11015,7 +11030,7 @@ export default function ReplayMotionPlayer({
   /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · 기본 켬 · 끄면 기기에 기억(scr.nature "0"). */
   /* 재생기엔 아직 안 싣는다(같은 날, 요청: "자연효과는 일단 기능만 만들고 재생기에 넣진 말기") — 시험 주소 #nature=1 에서만 켜고 표시 단추 줄은 걷었다. */
   const natureOn9 = useMemo(() => natureOnStored9(), []);
-  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.chirp = birdChirp9;
+  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9;
   const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;

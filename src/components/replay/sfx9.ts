@@ -372,26 +372,48 @@ export function thunderClap9(delay: number, amp = 1): void {
   try { src.start(c9.currentTime + Math.max(0, delay)); } catch { /* 닫힌 판 */ }
 }
 
-/** ★ 새 지저귐(2026-11-15 · 자연 겹 nature9 ★) — 짧은 음절 둘 ~ 다섯(2.4 ~ 5.2kHz 로 오르내리는 사인 · 30 ~ 90ms) · 좌우 pan(−1 ~ 1). 효과음 주 음량을 탄다 · 작게. */
-export function birdChirp9(pan = 0): void {
+/** ★ 새 울음(2026-11-15 · sky9 ★ — "물이나 비 효과 수준으로 사실적으로") — 종마다 다른 노래를 진동자로 짓는다(판 없이 그 자리에서 · 몇 초에 한 번이라 가볍다).
+ *  참새: 짧은 '짹' 둘 ~ 넷(바탕 + 2배음 · 빠르게 내렸다 오르는 휨 · 거친 떨림) · 제비: 빠른 지저귐(짧은 삑 여덟 ~ 열넷 · 높이 흩어짐 · 떨림) ·
+ *  방울새: 노래하듯 오르내리는 넷 ~ 다섯 음(미끄럼) · 파랑새: 낮고 부드러운 휘파람 셋(세모파 · 느린 떨림).
+ *  pan −1 ~ 1(화면 자리) · vol 0 ~ 1(배율 — 가까울수록 크게). 효과음 주 음량을 탄다. */
+export function birdCall9(sp: "sparrow" | "swallow" | "finch" | "bluebird", pan = 0, vol = 1): void {
   if (!enabled9) return;
   const c9 = ctxOf9(); if (!c9 || !master9) return;
-  const out = c9.createGain(); out.gain.value = 0.11;
-  let node: AudioNode = out;
-  if (typeof c9.createStereoPanner === "function") { const p9 = c9.createStereoPanner(); p9.pan.value = Math.max(-1, Math.min(1, pan)); out.connect(p9); node = p9; }
+  const out = c9.createGain(); out.gain.value = 0.13 * Math.max(0.15, Math.min(1, vol));
+  const bp = c9.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = 1400;   // 낮은 웅웅 거름(작은 새 소리는 높다)
+  out.connect(bp);
+  let node: AudioNode = bp;
+  if (typeof c9.createStereoPanner === "function") { const p9 = c9.createStereoPanner(); p9.pan.value = Math.max(-1, Math.min(1, pan)); bp.connect(p9); node = p9; }
   node.connect(master9);
-  const n = 2 + Math.floor(Math.random() * 4); let t = c9.currentTime + 0.02;
-  const base = 2400 + Math.random() * 1600;
-  for (let i = 0; i < n; i += 1) {
-    const d = 0.03 + Math.random() * 0.06;
-    const o = c9.createOscillator(); o.type = "sine";
-    const f0 = base * (0.9 + Math.random() * 0.25); const f1 = f0 * (Math.random() < 0.5 ? 1.35 : 0.72);
-    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
-    const g = c9.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + d);
-    o.connect(g).connect(out); o.start(t); o.stop(t + d + 0.02);
-    t += d + 0.03 + Math.random() * 0.07;
+  const rnd = Math.random; let t = c9.currentTime + 0.03;
+  /** 한 음 — f0 → f1 휨 · 길이 d · 배음 h2(0 ~ 1) · 떨림(Hz · 깊이) · 파형. */
+  const note = (f0: number, f1: number, d: number, amp: number, h2: number, vibHz: number, vibD: number, type: OscillatorType): void => {
+    const g = c9.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + Math.min(0.012, d * 0.2)); g.gain.setValueAtTime(amp * 0.8, t + d * 0.6); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+    g.connect(out);
+    const parts: [number, number][] = h2 > 0 ? [[1, 1], [2, h2]] : [[1, 1]];
+    for (const [mul, a] of parts) {
+      const o = c9.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(f0 * mul, t); o.frequency.exponentialRampToValueAtTime(Math.max(200, f1 * mul), t + d);
+      let dst: AudioNode = g;
+      if (a < 1) { const ga = c9.createGain(); ga.gain.value = a; ga.connect(g); dst = ga; }
+      if (vibHz > 0) { const lfo = c9.createOscillator(); lfo.frequency.value = vibHz; const lg = c9.createGain(); lg.gain.value = f0 * mul * vibD; lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + d + 0.02); }
+      o.connect(dst); o.start(t); o.stop(t + d + 0.02);
+    }
+  };
+  if (sp === "sparrow") {
+    const n = 2 + Math.floor(rnd() * 3);
+    for (let i = 0; i < n; i += 1) { const f = 3600 + rnd() * 900; note(f * 1.15, f * 0.82, 0.06 + rnd() * 0.04, 1, 0.45, 70, 0.04, "sawtooth"); t += 0.11 + rnd() * 0.12; }
+  } else if (sp === "swallow") {
+    const n = 8 + Math.floor(rnd() * 7);
+    for (let i = 0; i < n; i += 1) { const f = 3800 + rnd() * 2400; note(f, f * (0.85 + rnd() * 0.35), 0.022 + rnd() * 0.02, 0.8, 0.25, 0, 0, "sine"); t += 0.035 + rnd() * 0.03; }
+    note(5200, 3400, 0.16, 0.7, 0.2, 38, 0.05, "sine");
+  } else if (sp === "finch") {
+    const tune = [3100, 4300, 3600, 5000, 4100]; const n = 4 + Math.floor(rnd() * 2);
+    for (let i = 0; i < n; i += 1) { const f = tune[i % tune.length] * (0.95 + rnd() * 0.1); note(f, f * (i % 2 ? 0.86 : 1.12), 0.075 + rnd() * 0.04, 0.9, 0.15, 24, 0.03, "sine"); t += 0.1 + rnd() * 0.04; }
+  } else {
+    const n = 3; for (let i = 0; i < n; i += 1) { const f = 2300 + rnd() * 700; note(f, f * (1.08 + rnd() * 0.12), 0.15 + rnd() * 0.08, 0.85, 0, 7, 0.02, "triangle"); t += 0.22 + rnd() * 0.1; }
   }
-  window.setTimeout(() => { try { node.disconnect(); out.disconnect(); } catch { /* 이미 끊김 */ } }, (t - c9.currentTime + 0.3) * 1000);
+  window.setTimeout(() => { try { node.disconnect(); bp.disconnect(); out.disconnect(); } catch { /* 이미 끊김 */ } }, (t - c9.currentTime + 0.4) * 1000);
 }
 
 export const sfxOn9 = (): boolean => enabled9;
