@@ -112,7 +112,7 @@ function planOf9(G: TerrainGeom9, hash: string): Plan9 {
         for (let k = 1; k <= 4; k += 1) { const j = at(x, y + k); if (j < 0) break; if (isWater(j) || (isWalk(j) && lvl[j] < lvl[top])) { y1 = y + k; break; } if (walk[j] === 1) break; }
         if (y1 < 0) continue;
         if (!isWalk(at(x - 1, y - 1)) || !isWalk(at(x + 1, y - 1))) continue;   // 위 땅이 넓은 자리(벽 끝 모서리는 뺀다)
-        cand.push({ x: x + 0.5, y0: y - 0.05, y1: y1 + 0.15, w: (1.0 + R() * 1.0) * (isWater(at(x, y1)) ? 1 : -1), ph: R() * 10 });   // 폭 부호 — 물에 떨어지면 + (glTerrain9 fallPass 물결 고리)
+        cand.push({ x: x + 0.5, y0: y - 0.05, y1: y1 + 0.15, w: isWater(at(x, y1)) ? 0.7 + 1.5 * R() ** 1.3 : -(0.3 + 0.55 * R() ** 1.2), ph: R() * 10 });   // 폭 — 물에 떨어지면 + 0.7 ~ 2.2 · 땅이면 − 0.3 ~ 0.85(좁게 · 2026-11-15 ★ 폭 다양화) · 부호는 glTerrain9 fallPass 물결 고리
       }
       for (let n = 0; n < cand.length * 3 && falls.length < 10; n += 1) {
         const c = cand[Math.floor(R() * cand.length)];

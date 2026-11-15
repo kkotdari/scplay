@@ -28,160 +28,207 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 const smooth = (v: number): number => { const x = clamp01(v); return x * x * (3 - 2 * x); };
 
 /* ── 새 ────────────────────────────────────────────────────────────────────────────────────────────────────── */
-export type Species9 = "sparrow" | "swallow" | "finch" | "bluebird";
+export type Species9 = "sparrow" | "swallow" | "finch" | "bluebird" | "dove";
 interface Spec9 {
   back: string; back2: string; belly: string; cap: string; wing: string; prim: string; bar: string | null; tail: string; beak: string;
+  /** 날개 아랫면(카메라를 등진 날개 · 꼬리) */
+  under: string;
   /** 몸 길이 · 날개 편 폭(타일) · 날개 길쭉함(1 둥근 날개 · 1.4 뾰족) · 꼬리 갈래 */
   len: number; span: number; point: number; fork: boolean; streak: boolean;
   /** 날갯짓(Hz) · 한 번 치는 시간(초) · 접고 미끄러지는 시간(초) · 활공(제비) */
   hz: number; flap: number; rest: number; glide: boolean; speed: number;
 }
 const SPEC9: Record<Species9, Spec9> = {
-  sparrow: { back: "#8b5e3c", back2: "#5d3b22", belly: "#d9cbb4", cap: "#7a6a5c", wing: "#9a6a43", prim: "#3e2a1c", bar: "#efe4cf", tail: "#5d4330", beak: "#3a3430",
+  sparrow: { back: "#8b5e3c", back2: "#5d3b22", belly: "#d9cbb4", cap: "#7a6a5c", wing: "#9a6a43", prim: "#3e2a1c", bar: "#efe4cf", tail: "#5d4330", beak: "#3a3430", under: "#cdbb9f",
     len: 0.42, span: 0.58, point: 1.0, fork: false, streak: true, hz: 11, flap: 0.5, rest: 0.32, glide: false, speed: 3.6 },
-  swallow: { back: "#1c2950", back2: "#0f1730", belly: "#efe8dc", cap: "#22325e", wing: "#1a2444", prim: "#0c1226", bar: null, tail: "#141d3a", beak: "#1a1a1a",
+  swallow: { back: "#1c2950", back2: "#0f1730", belly: "#efe8dc", cap: "#22325e", wing: "#1a2444", prim: "#0c1226", bar: null, tail: "#141d3a", beak: "#1a1a1a", under: "#56596a",
     len: 0.46, span: 0.78, point: 1.5, fork: true, streak: false, hz: 6.5, flap: 0.7, rest: 0.9, glide: true, speed: 5.4 },
-  finch: { back: "#e8b820", back2: "#b9850f", belly: "#f6e27a", cap: "#1d1b18", wing: "#262420", prim: "#151412", bar: "#f4f1e6", tail: "#22201c", beak: "#e9a36a",
+  finch: { back: "#e8b820", back2: "#b9850f", belly: "#f6e27a", cap: "#1d1b18", wing: "#262420", prim: "#151412", bar: "#f4f1e6", tail: "#22201c", beak: "#e9a36a", under: "#a8a294",
     len: 0.36, span: 0.52, point: 1.0, fork: false, streak: false, hz: 12, flap: 0.42, rest: 0.36, glide: false, speed: 3.4 },
-  bluebird: { back: "#2f63c8", back2: "#1d3f8a", belly: "#e58a4e", cap: "#3a74dc", wing: "#2a58b6", prim: "#152e66", bar: null, tail: "#24489a", beak: "#2a2a2a",
+  bluebird: { back: "#2f63c8", back2: "#1d3f8a", belly: "#e58a4e", cap: "#3a74dc", wing: "#2a58b6", prim: "#152e66", bar: null, tail: "#24489a", beak: "#2a2a2a", under: "#9db0d6",
     len: 0.44, span: 0.62, point: 1.1, fork: false, streak: false, hz: 9, flap: 0.55, rest: 0.3, glide: false, speed: 3.9 },
+  /* 흰 새(2026-11-15 ★ "흰 새 추가") — 흰 비둘기 꼴 · 크고 느린 날갯짓 · 길게 미끄러진다 · 날개깃 끝만 엷은 잿빛 */
+  dove: { back: "#f4f3ef", back2: "#dedcd5", belly: "#fbfbf9", cap: "#f7f6f2", wing: "#f5f4f0", prim: "#d2d2cd", bar: null, tail: "#ecebe6", beak: "#e3a06a", under: "#f2f1ec",
+    len: 0.5, span: 0.92, point: 1.15, fork: false, streak: false, hz: 5, flap: 0.9, rest: 0.75, glide: true, speed: 4.4 },
 };
-const SPECIES9: Species9[] = ["sparrow", "swallow", "finch", "bluebird"];
+const SPECIES9: Species9[] = ["sparrow", "swallow", "finch", "bluebird", "dove"];
 
-/** 한 칸 그림 — 머리가 +x · 날개가 ±y. S = 판 한 변 px(새 날개 편 폭이 판의 0.86). */
-const BIRD_PX9 = 160;
-const FRAMES9 = 16;
-const birdSpr9 = new Map<string, HTMLCanvasElement>();
-function shadeHex9(hex: string, k: number): string {
-  const n = parseInt(hex.slice(1), 16); const f = (v: number): number => Math.max(0, Math.min(255, Math.round(k >= 1 ? v + (255 - v) * (k - 1) : v * k)));
-  return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
+/* ★ 새는 3D 로 세워 45도 위에서 내려다본 그림으로 그린다(2026-11-15, 지적: "날개가 좀더 자연스러운 곡선으로 · 흰 새 추가 · 새는 투사각 45도 위쪽임을 잊지말기").
+   옛 판(위에서 똑바로 본 평면 스프라이트를 화면에서 돌림)은 날갯짓이 '날개 폭이 줄었다 늘었다'로만 보였고 날개 꼴이 꺾은선 톱니였다.
+   이제 몸 자(앞 x · 오른 y · 위 z)에 날개 꼴을 매끈한 곡선(앞전 활 · 둥근 끝 · 첫째 날개깃 손가락)으로 세우고, 어깨에서 위아래로 치는 각(팔 θ1 · 손 θ2 —
+   손이 팔보다 늦게 따라와 날개가 휜다)으로 접은 뒤, 요잉 · 기울임을 주고 모델과 같은 사선 사영(바닥 y × sin45 · 높이 z × cos45 위로)으로 화면에 놓는다.
+   날개가 카메라를 등지면 아랫면 색(under) · 빛(왼위)에 따라 낯 밝기. 몸통은 타원체 둘(가슴 · 허리)을 정확히 사영한 타원. */
+const VIEW_S9 = Math.SQRT1_2;   // 바닥 눌림 sin45
+const VIEW_C9 = Math.SQRT1_2;   // 높이 cos45
+const SUN9 = ((): [number, number, number] => { const v: [number, number, number] = [-0.5, -0.45, 0.75]; const l = Math.hypot(...v); return [v[0] / l, v[1] / l, v[2] / l]; })();
+const CAM9: [number, number, number] = [0, VIEW_C9, VIEW_S9];   // 장면 → 카메라(남쪽 위 45도)
+function hexRgb9(hex: string): [number, number, number] { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgbK9(hex: string, k: number, a = 1): string {
+  const [r, g, b] = hexRgb9(hex); const f = (v: number): number => Math.max(0, Math.min(255, Math.round(k >= 1 ? v + (255 - v) * (k - 1) : v * k)));
+  return a >= 1 ? `rgb(${f(r)},${f(g)},${f(b)})` : `rgba(${f(r)},${f(g)},${f(b)},${a})`;
+}
+/** 몸 자 → 화면 — 몸 자(앞 · 오른 · 위, 타일) 를 기울임(bank) · 방향(hx, hy) 으로 돌려 사영한다. 돌려준 [화면 dx, dy(타일) · 깊이(+ 카메라 쪽)]. */
+interface Pose9 { hx: number; hy: number; cb: number; sb: number }
+function proj9(P: Pose9, f: number, r: number, u: number): [number, number, number] {
+  const r2 = r * P.cb - u * P.sb; const u2 = r * P.sb + u * P.cb;
+  const X = f * P.hx - r2 * P.hy; const Y = f * P.hy + r2 * P.hx;
+  return [X, Y * VIEW_S9 - u2 * VIEW_C9, Y * VIEW_C9 + u2 * VIEW_S9];
+}
+function dir9(P: Pose9, f: number, r: number, u: number): [number, number, number] {
+  const r2 = r * P.cb - u * P.sb; const u2 = r * P.sb + u * P.cb;
+  return [f * P.hx - r2 * P.hy, f * P.hy + r2 * P.hx, u2];
+}
+const dot3 = (a: [number, number, number], b: [number, number, number]): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/** 날개 자세 — θ1 팔(어깨) · θ2 손(손목 밖) 치켜 각(라디안 · + 위) · open(0 접음 ~ 1 펼침) · sweep(끝이 뒤로 젖힘). */
+interface Wing9 { t1: number; t2: number; open: number; sweep: number }
+export function wingPose9(mode: number, ph: number): Wing9 {
+  if (mode === 1) return { t1: 0.07, t2: 0.15, open: 1, sweep: 0.12 };        // 활공
+  if (mode === 2) return { t1: 0.1, t2: 0.0, open: 0.06, sweep: 1 };          // 접고 튀기
+  const c = Math.cos(ph * TAU); const s = Math.sin(ph * TAU);
+  const t1 = 0.18 + 0.72 * c;                // ph 0 맨 위(≈ 52°) · 0.5 맨 아래(≈ −31°)
+  const up = clamp01(-s);                     // 올려치기(0.5 ~ 1) — 손을 접어 끌어올린다
+  return { t1, t2: t1 + 0.5 * s, open: 1 - 0.38 * up, sweep: 0.18 + 0.5 * up };
+}
+/** 날개 위 한 점 — q(0 어깨 ~ 1 끝) · c(0 앞전 ~ 1 뒷전). 몸 자(앞 · 오른 · 위)로 돌려준다. side −1 왼 · +1 오. */
+function wingPt9(sp: Spec9, W: Wing9, L: number, sHalf: number, side: number, q: number, c: number): [number, number, number] {
+  const reach = sHalf * (0.2 + 0.8 * W.open);
+  /* 앞전 — 어깨에서 손목까지 앞으로 부푼 활 · 끝으로 갈수록 뒤로 젖힌다 */
+  const back = L * (0.08 + 0.36 * W.sweep) * Math.sqrt(sp.point);
+  const xle = L * 0.1 + L * 0.06 * Math.sin(Math.PI * Math.min(1, q * 1.15)) - back * q * q;
+  /* 날개 폭(시위) — 뿌리에서 넓고 끝은 둥글게(제비는 길고 뾰족하게) */
+  const c0 = L * 0.38 * (1 - 0.14 * (sp.point - 1)) * (0.72 + 0.28 * W.open);
+  const pe = 0.5 + 0.35 * (sp.point - 1);
+  const ch = c0 * Math.pow(Math.max(0, 1 - Math.pow(q, 2.2 / sp.point)), pe) + L * 0.02 * (1 - q);
+  let xte = xle - ch;
+  if (c > 0.999) {
+    /* 뒷전 — 첫째 날개깃 손가락(둥근 끝 · 펼칠수록 벌어진다) · 둘째 날개깃의 잔 물결 */
+    if (sp.point < 1.3 && q > 0.55) { const k = (q - 0.55) / 0.45; xte += L * 0.04 * W.open * (1 - Math.pow(Math.abs(Math.sin(Math.PI * 4.5 * k)), 0.35)) * smooth(k * 5) * (1 - k * 0.5); }
+    if (q < 0.58) xte += L * 0.009 * (1 - Math.pow(Math.abs(Math.sin((Math.PI * 6 * q) / 0.58)), 0.5));
+  }
+  const x = xle + (xte - xle) * c;
+  /* 펼친 길이를 굽은 날개로 — 각이 어깨 θ1 에서 손 θ2 로 매끈히 옮아간다(적분) */
+  const N = 10; let yy = 0; let zz = 0; const s1 = q * reach;
+  for (let i = 0; i < N; i += 1) { const qq = (q * (i + 0.5)) / N; const th = W.t1 + (W.t2 - W.t1) * smooth((qq - 0.25) / 0.5); yy += Math.cos(th) * s1 / N; zz += Math.sin(th) * s1 / N; }
+  return [x, side * (L * 0.07 + yy), zz + L * 0.02];
+}
+/** 낯 빛 — 위낯 법선(팔 · 손의 평균 각)이 카메라를 보면 윗면 색 · 아니면 아랫면. 밝기는 왼위 빛. */
+function wingFace9(P: Pose9, side: number, th: number): { top: boolean; k: number } {
+  const n = dir9(P, 0, -side * Math.sin(th), Math.cos(th));
+  const top = dot3(n, CAM9) >= 0; const nn: [number, number, number] = top ? n : [-n[0], -n[1], -n[2]];
+  return { top, k: 0.72 + 0.42 * Math.max(0, dot3(nn, SUN9)) };
+}
+/** 몸 자의 타원체(가운데 c · 반지름 a 앞 · b 옆 · h 위) → 화면 타원(가운데 · 두 축 · 회전). */
+function ellipse9(P: Pose9, cx: number, cz: number, a: number, b: number, h: number): [number, number, number, number, number, number] {
+  const [x0, y0, d0] = proj9(P, cx, 0, cz);
+  const ca = proj9(P, a, 0, 0); const cb = proj9(P, 0, b, 0); const cc = proj9(P, 0, 0, h);
+  const pa = [ca[0] - 0, ca[1] - 0]; const pb = [cb[0], cb[1]]; const pc = [cc[0], cc[1]];
+  /* 사영 타원 = A Aᵀ 의 고유 분해(A = 세 축의 화면 상) — 상수 항(proj 원점 0)이라 위 상은 축 벡터 그대로 */
+  const m11 = pa[0] * pa[0] + pb[0] * pb[0] + pc[0] * pc[0]; const m12 = pa[0] * pa[1] + pb[0] * pb[1] + pc[0] * pc[1]; const m22 = pa[1] * pa[1] + pb[1] * pb[1] + pc[1] * pc[1];
+  const tr = (m11 + m22) / 2; const df = Math.sqrt(Math.max(0, ((m11 - m22) / 2) ** 2 + m12 * m12));
+  const l1 = tr + df; const l2 = Math.max(1e-9, tr - df);
+  const rot = Math.atan2(l1 - m11, m12 || 1e-9);
+  return [x0, y0, Math.sqrt(l1), Math.sqrt(l2), Math.abs(m12) < 1e-9 ? (m11 >= m22 ? 0 : Math.PI / 2) : rot, d0];
 }
 /**
- * 날개 꼴(위에서 본 한쪽 · side −1 왼 / +1 오) — open(0 접음 ~ 1 펼침) · sweep(끝이 뒤로 젖힘 0 ~ 1) · lift(위로 치켜 짧아 보임 0 ~ 1).
- * 자 — L = 몸 길이(머리 ~ 꼬리 뿌리) · s = 반 날개 폭. 어깨 → 앞전(손목에서 살짝 앞으로 굽음) → 끝 → 뒷전(첫째 날개깃 다섯의 갈라진 끝 · 둘째 날개깃의 둥근 톱니) → 겨드랑이.
+ * 한 마리 그리기 — (sx, sy) = 몸 가운데의 화면 자리 · px = 타일 하나의 화면 px · L 몸 길이 · sHalf 반 날개 폭(타일).
+ * 차례: 깊이(카메라 쪽 +)가 낮은 것부터 — 먼 날개 · 꼬리 · 몸 · 머리 · 가까운 날개.
  */
-function drawWing9(g: CanvasRenderingContext2D, sp: Spec9, side: number, open: number, sweep: number, lift: number, L: number, sHalf: number): void {
-  const reach = sHalf * (0.18 + 0.82 * open) * (1 - 0.3 * lift);
-  const back = L * (0.06 + 0.32 * sweep) * (0.8 + 0.2 * sp.point);
-  const chord = L * (0.36 - 0.07 * (sp.point - 1)) * (0.75 + 0.25 * open);
-  const rx = L * 0.12; const ry = side * L * 0.1;                         // 어깨(앞전 뿌리)
-  const wx = L * 0.14 - back * 0.3; const wy = side * reach * 0.42;       // 손목
-  const tx = -back - L * 0.05 * sp.point; const ty = side * reach;        // 날개 끝
-  const ax = rx - chord; const ay = side * L * 0.08;                      // 겨드랑이(뒷전 뿌리)
-  const pts: [number, number][] = [];
-  const P = (x: number, y: number): void => { pts.push([x, y]); };
-  /* 앞전 — 어깨 → 손목(살짝 앞으로 부푼 곡선) → 끝 */
-  for (let k = 0; k <= 6; k += 1) { const a = k / 6; P(rx + (wx - rx) * a + L * 0.03 * Math.sin(Math.PI * a), ry + (wy - ry) * a); }
-  for (let k = 1; k <= 6; k += 1) { const a = k / 6; P(wx + (tx - wx) * a + L * 0.02 * Math.sin(Math.PI * a), wy + (ty - wy) * a); }
-  /* 뒷전 — 끝 → 첫째 날개깃 끝 다섯(갈라짐) → 둘째 날개깃(톱니) → 겨드랑이 */
-  const pe: [number, number] = [tx - chord * 0.55, side * reach * 0.62];   // 첫째 · 둘째 날개깃 경계
-  const nP = 5;
-  for (let k = 1; k <= nP; k += 1) {
-    const a = k / nP; const x = tx + (pe[0] - tx) * a; const y = ty + (pe[1] - ty) * a;
-    const nx = -(pe[1] - ty); const ny = pe[0] - tx; const nl = Math.hypot(nx, ny) || 1;   // 뒷전 바깥 법선
-    const dep = L * 0.035 * (1 - 0.5 * a) * open;
-    P(x - (nx / nl) * dep * side * 0.4 + (pe[0] - tx) * 0.06, y - (ny / nl) * dep * side * 0.4);
-    P(x, y);
-  }
-  const nS = 6;
-  for (let k = 1; k <= nS; k += 1) {
-    const a = k / nS; const x = pe[0] + (ax - pe[0]) * a; const y = pe[1] + (ay - pe[1]) * a;
-    P(x - L * 0.018, y + side * L * 0.006); P(x, y);
-  }
-  const trace = (): void => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const q of pts) g.lineTo(q[0], q[1]); g.closePath(); };
-  /* 바탕 — 덮깃(앞) 밝게 · 뒤로 짙게 */
-  const grd = g.createLinearGradient(rx, 0, ax - chord * 0.2, 0);
-  grd.addColorStop(0, shadeHex9(sp.wing, 1.2)); grd.addColorStop(0.5, sp.wing); grd.addColorStop(1, shadeHex9(sp.wing, 0.7));
-  g.fillStyle = grd; trace(); g.fill();
-  g.save(); trace(); g.clip();
-  /* 첫째 날개깃(날개 바깥 · 짙게) */
-  const pg = g.createLinearGradient(0, ry, 0, ty);
-  pg.addColorStop(0, "rgba(0,0,0,0)"); pg.addColorStop(0.5, "rgba(0,0,0,0)"); pg.addColorStop(0.62, sp.prim); pg.addColorStop(1, shadeHex9(sp.prim, 0.85));
-  g.fillStyle = pg; g.fillRect(-L * 2, -L * 2, L * 4, L * 4);
-  /* 둘째 날개깃(뒷전 쪽 · 조금 짙게) */
-  const sg = g.createLinearGradient(rx, 0, ax, 0);
-  sg.addColorStop(0, "rgba(0,0,0,0)"); sg.addColorStop(0.55, "rgba(0,0,0,0)"); sg.addColorStop(1, "rgba(0,0,0,0.28)");
-  g.fillStyle = sg; g.fillRect(-L * 2, -L * 2, L * 4, L * 4);
-  /* 날개 띠(흰 줄) — 덮깃 끝을 가로지른다 */
-  if (sp.bar) {
-    g.strokeStyle = sp.bar; g.lineWidth = L * 0.035; g.globalAlpha = 0.85;
-    g.beginPath(); g.moveTo(rx - chord * 0.45, ry); g.quadraticCurveTo(wx - chord * 0.45, wy, tx + (rx - tx) * 0.25 - chord * 0.2, ty * 0.72); g.stroke();
-    g.globalAlpha = 1;
-  }
-  /* 깃 결 — 뒷전 톱니에서 날개 안쪽으로 가는 줄 */
-  g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = Math.max(0.6, L * 0.006);
-  for (let k = 1; k <= nP; k += 1) { const a = k / nP; const x = tx + (pe[0] - tx) * a; const y = ty + (pe[1] - ty) * a; g.beginPath(); g.moveTo(x, y); g.lineTo(x + chord * 0.55, y - side * reach * 0.08); g.stroke(); }
-  for (let k = 1; k <= nS; k += 1) { const a = k / nS; const x = pe[0] + (ax - pe[0]) * a; const y = pe[1] + (ay - pe[1]) * a; g.beginPath(); g.moveTo(x, y); g.lineTo(x + chord * 0.45, y); g.stroke(); }
-  g.restore();
-  /* 앞전 밝은 테(빛 왼위 — 왼 날개가 더 밝다) · 뒷전 어두운 테 */
-  g.strokeStyle = shadeHex9(sp.wing, 1.5); g.lineWidth = Math.max(0.8, L * 0.012); g.globalAlpha = side < 0 ? 0.7 : 0.3;
-  g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k <= 12; k += 1) g.lineTo(pts[k][0], pts[k][1]); g.stroke();
-  g.globalAlpha = 1;
-}
-function drawBody9(g: CanvasRenderingContext2D, sp: Spec9, L: number, tailSpread: number): void {
-  const bw = L * 0.13;
-  /* 꼬리 — 부채(깃 일곱) · 제비는 깊은 갈래 */
-  const tb = -L * 0.28; const tl = L * (sp.fork ? 0.62 : 0.38); const tw = L * (0.08 + 0.1 * tailSpread) * (sp.fork ? 1.2 : 1);
-  const tg = g.createLinearGradient(tb, 0, tb - tl, 0); tg.addColorStop(0, shadeHex9(sp.tail, 1.1)); tg.addColorStop(1, shadeHex9(sp.tail, 0.75));
-  g.fillStyle = tg; g.beginPath(); g.moveTo(tb + L * 0.04, -bw * 0.6);
-  if (sp.fork) { g.lineTo(tb - tl, -tw * 1.3); g.lineTo(tb - tl * 0.42, -tw * 0.25); g.lineTo(tb - tl * 0.38, 0); g.lineTo(tb - tl * 0.42, tw * 0.25); g.lineTo(tb - tl, tw * 1.3); }
-  else { for (let k = 0; k <= 6; k += 1) { const a = -1 + (2 * k) / 6; g.lineTo(tb - tl * (0.92 + 0.08 * Math.cos(a * 1.5)), a * tw); g.lineTo(tb - tl * 0.88, (a + (k < 6 ? 1 / 6 : 0)) * tw); } }
-  g.lineTo(tb + L * 0.04, bw * 0.6); g.closePath(); g.fill();
-  g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = Math.max(0.5, L * 0.005);
-  for (let k = 1; k < 6; k += 1) { const a = -1 + (2 * k) / 6; g.beginPath(); g.moveTo(tb, a * bw * 0.4); g.lineTo(tb - tl * 0.85, a * tw * 0.9); g.stroke(); }
-  /* 몸통 — 앞이 굵고 뒤로 가늘어지는 물방울 꼴 · 등 짙게 · 옆구리 밝게 */
-  const body = (): void => {
-    g.beginPath(); g.moveTo(L * 0.3, 0);
-    g.bezierCurveTo(L * 0.3, -bw * 1.05, L * 0.05, -bw * 1.1, -L * 0.12, -bw * 0.85);
-    g.bezierCurveTo(-L * 0.25, -bw * 0.6, -L * 0.32, -bw * 0.35, -L * 0.33, 0);
-    g.bezierCurveTo(-L * 0.32, bw * 0.35, -L * 0.25, bw * 0.6, -L * 0.12, bw * 0.85);
-    g.bezierCurveTo(L * 0.05, bw * 1.1, L * 0.3, bw * 1.05, L * 0.3, 0); g.closePath();
+function drawBird3d9(g: CanvasRenderingContext2D, sp: Spec9, P: Pose9, W: Wing9, sx: number, sy: number, px: number, L: number, sHalf: number, tailSpread: number): void {
+  const S = (p: [number, number, number]): [number, number] => [sx + p[0] * px, sy + p[1] * px];
+  const wingDraw = (side: number): void => {
+    const pt = (q: number, c: number): [number, number] => { const w = wingPt9(sp, W, L, sHalf, side, q, c); return S(proj9(P, w[0], w[1], w[2])); };
+    const region = (q0: number, q1: number, c0: number, c1: number, n: number): void => {
+      g.beginPath();
+      for (let i = 0; i <= n; i += 1) { const p = pt(q0 + ((q1 - q0) * i) / n, c0); if (i === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); }
+      for (let i = n; i >= 0; i -= 1) { const p = pt(q0 + ((q1 - q0) * i) / n, c1); g.lineTo(p[0], p[1]); }
+      g.closePath();
+    };
+    const arm = wingFace9(P, side, W.t1); const hand = wingFace9(P, side, (W.t1 + W.t2) / 2 + (W.t2 - W.t1) * 0.3);
+    const col = (f: { top: boolean; k: number }, hex: string, under: string): string => rgbK9(f.top ? hex : under, f.k);
+    /* 바탕 — 팔 · 손 따로(손이 다른 낯을 보이면 색이 갈린다) */
+    g.fillStyle = col(arm, sp.wing, sp.under); region(0, 0.56, 0, 1, 24); g.fill();
+    g.fillStyle = col(hand, sp.wing, sp.under); region(0.5, 1, 0, 1, 40); g.fill();
+    if (arm.top || hand.top) {
+      /* 윗면 — 덮깃(앞) 밝게 · 첫째 날개깃(끝) 짙게 · 둘째 날개깃(뒷전) 조금 짙게 · 날개 띠 */
+      if (arm.top) { g.fillStyle = rgbK9(sp.wing, arm.k * 1.12, 0.55); region(0, 0.6, 0, 0.42, 20); g.fill(); g.fillStyle = rgbK9(sp.prim, arm.k, 0.35); region(0.04, 0.56, 0.68, 1, 20); g.fill(); }
+      if (hand.top) { g.fillStyle = rgbK9(sp.prim, hand.k); region(0.54, 1, 0.3, 1, 36); g.fill(); g.fillStyle = rgbK9(sp.prim, hand.k, 0.5); region(0.5, 0.58, 0.3, 1, 4); g.fill(); }
+      if (sp.bar && arm.top) { g.fillStyle = rgbK9(sp.bar, arm.k, 0.85); region(0.06, 0.62, 0.42, 0.5, 16); g.fill(); }
+      /* 깃대 — 첫째 날개깃의 가는 줄 */
+      if (hand.top) {
+        g.strokeStyle = "rgba(0,0,0,0.22)"; g.lineWidth = Math.max(0.5, L * px * 0.008);
+        for (let k = 0; k < 5; k += 1) { const q = 0.6 + k * 0.085; const a = pt(q - 0.04, 0.32); const b = pt(q, 0.98); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+      }
+      /* 앞전 밝은 테 */
+      g.strokeStyle = rgbK9(sp.wing, 1.45, 0.55); g.lineWidth = Math.max(0.6, L * px * 0.012);
+      g.beginPath(); for (let i = 0; i <= 24; i += 1) { const p = pt(i / 24, 0); if (i === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); } g.stroke();
+    } else {
+      /* 아랫면 — 겨드랑이 그늘 · 날개깃 끝만 조금 짙게 */
+      g.fillStyle = rgbK9(sp.prim, hand.k, 0.3); region(0.62, 1, 0.45, 1, 24); g.fill();
+    }
   };
-  const bg = g.createLinearGradient(0, -bw, 0, bw);
-  bg.addColorStop(0, sp.belly); bg.addColorStop(0.25, sp.back); bg.addColorStop(0.7, sp.back2); bg.addColorStop(1, shadeHex9(sp.belly, 0.85));
-  g.fillStyle = bg; body(); g.fill();
-  if (sp.streak) {
-    g.save(); body(); g.clip();
-    g.strokeStyle = "rgba(35,18,8,0.6)"; g.lineWidth = Math.max(0.6, L * 0.012);
-    for (let k = -2; k <= 2; k += 1) { g.beginPath(); g.moveTo(L * 0.18, k * bw * 0.28); g.quadraticCurveTo(0, k * bw * 0.36, -L * 0.3, k * bw * 0.22); g.stroke(); }
-    g.restore();
-  }
-  const sh = g.createRadialGradient(L * 0.05, -bw * 0.5, bw * 0.1, 0, 0, L * 0.34);
-  sh.addColorStop(0, "rgba(255,255,255,0.3)"); sh.addColorStop(0.55, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,0.3)");
-  g.fillStyle = sh; body(); g.fill();
-  /* 머리 — 작게 · 정수리 빛 · 눈 · 부리 */
-  const hx = L * 0.33; const hr = L * 0.105;
-  const hg = g.createRadialGradient(hx - hr * 0.3, -hr * 0.4, hr * 0.1, hx, 0, hr);
-  hg.addColorStop(0, shadeHex9(sp.cap, 1.4)); hg.addColorStop(0.6, sp.cap); hg.addColorStop(1, shadeHex9(sp.cap, 0.7));
-  g.fillStyle = hg; g.beginPath(); g.ellipse(hx, 0, hr * 1.05, hr * 0.92, 0, 0, TAU); g.fill();
-  g.fillStyle = sp.beak; g.beginPath(); g.moveTo(hx + hr * 0.85, -hr * 0.3); g.lineTo(hx + hr * 1.6, 0); g.lineTo(hx + hr * 0.85, hr * 0.3); g.closePath(); g.fill();
-  for (const sd of [-1, 1]) {
-    g.fillStyle = "#0a0a0a"; g.beginPath(); g.arc(hx + hr * 0.4, sd * hr * 0.62, Math.max(0.7, hr * 0.16), 0, TAU); g.fill();
-    g.fillStyle = "rgba(255,255,255,0.8)"; g.beginPath(); g.arc(hx + hr * 0.45, sd * hr * 0.62 - hr * 0.05, Math.max(0.35, hr * 0.05), 0, TAU); g.fill();
-  }
-}
-/** 칸: 0 ~ 15 날갯짓 · 16 활공(펼침) · 17 접음. 위에서 본 날갯짓 — 내려치기 가운데(φ 0.25)에 가장 넓고, 올려치기(φ 0.75)에 날개가 접혀 위로 들려 좁다. */
-export function birdFrame9(sp: Species9, f: number): HTMLCanvasElement {
-  const key = sp + f; const got = birdSpr9.get(key); if (got) return got;
-  const S = BIRD_PX9; const c = document.createElement("canvas"); c.width = S; c.height = S;
-  const g = c.getContext("2d") as CanvasRenderingContext2D;
-  const s = SPEC9[sp]; const sHalf = S * 0.43; const L = (sHalf * 2 * s.len) / s.span;
-  g.translate(S * 0.5 + L * 0.05, S * 0.5); g.lineJoin = "round"; g.lineCap = "round";
-  let open = 1; let sweep = 0.25; let lift = 0; let tail = 0.6;
-  if (f < FRAMES9) {
-    const ph = f / FRAMES9;
-    const down = Math.sin(ph * TAU);            // + 내려치기
-    open = 0.62 + 0.38 * Math.max(0, down) + 0.12 * Math.min(0, down);
-    lift = clamp01(-down * 1.1);
-    sweep = 0.18 + 0.4 * clamp01(-down);
-    tail = 0.45 + 0.3 * clamp01(down);
-  } else if (f === FRAMES9) { open = 1; sweep = 0.12; lift = 0; tail = 0.9; }
-  else { open = 0.08; sweep = 1; lift = 0.2; tail = 0.25; }
-  /* 몸 아래 날개를 먼저(뒷쪽 · 몸에 가려지는 뿌리) */
-  drawWing9(g, s, -1, open, sweep, lift, L, sHalf);
-  drawWing9(g, s, 1, open, sweep, lift, L, sHalf);
-  drawBody9(g, s, L, tail);
-  birdSpr9.set(key, c); return c;
+  const tailDraw = (): void => {
+    const tb = -L * 0.26; const tl = L * (sp.fork ? 0.6 : 0.36); const tw = L * (0.07 + 0.1 * tailSpread) * (sp.fork ? 1.2 : 1);
+    const pts: [number, number][] = [];
+    const T = (f: number, r: number): void => { pts.push(S(proj9(P, f, r, -L * 0.01 + (f - tb) * 0.06))); };
+    T(tb + L * 0.04, -L * 0.07);
+    if (sp.fork) { for (let i = 0; i <= 8; i += 1) { const a = i / 8; T(tb - tl * (0.42 + 0.58 * Math.pow(1 - a, 1.6)), -tw * (0.25 + 1.05 * Math.pow(1 - a, 0.8))); } T(tb - tl * 0.38, 0); for (let i = 8; i >= 0; i -= 1) { const a = i / 8; T(tb - tl * (0.42 + 0.58 * Math.pow(1 - a, 1.6)), tw * (0.25 + 1.05 * Math.pow(1 - a, 0.8))); } }
+    else { for (let i = 0; i <= 16; i += 1) { const a = -1 + (2 * i) / 16; T(tb - tl * (0.86 + 0.14 * Math.cos(a * 1.4)) + L * 0.012 * Math.abs(Math.sin(a * Math.PI * 3.5)), a * tw); } }
+    T(tb + L * 0.04, L * 0.07);
+    const up = dot3(dir9(P, 0, 0, 1), CAM9) >= 0;
+    g.fillStyle = rgbK9(up ? sp.tail : sp.under, 0.95); g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts) g.lineTo(p[0], p[1]); g.closePath(); g.fill();
+  };
+  const bodyDraw = (): void => {
+    const bw = L * 0.13;
+    const up = S(proj9(P, 0, 0, bw)); const dn = S(proj9(P, 0, 0, -bw));
+    for (const [cx, a, b] of [[-L * 0.12, L * 0.21, bw * 0.78], [L * 0.06, L * 0.24, bw]] as [number, number, number][]) {
+      const e = ellipse9(P, cx, 0, a, b, b * 0.92);
+      const gr = g.createLinearGradient(up[0], up[1], dn[0], dn[1] + (dn[1] - up[1]) * 0.2);
+      gr.addColorStop(0, rgbK9(sp.back, 1.08)); gr.addColorStop(0.5, sp.back2); gr.addColorStop(1, sp.belly);
+      g.fillStyle = gr; g.beginPath(); g.ellipse(sx + e[0] * px, sy + e[1] * px, e[2] * px, e[3] * px, e[4], 0, TAU); g.fill();
+    }
+    if (sp.streak) {
+      g.strokeStyle = "rgba(35,18,8,0.55)"; g.lineWidth = Math.max(0.5, L * px * 0.012);
+      for (const r of [-0.45, 0, 0.45]) { g.beginPath(); for (let i = 0; i <= 6; i += 1) { const f = L * (0.2 - i * 0.075); const p = S(proj9(P, f, r * bw * (1 - i * 0.08), bw * 0.9)); if (i === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); } g.stroke(); }
+    }
+    /* 등 빛(왼위) */
+    const e = ellipse9(P, -L * 0.02, 0, L * 0.3, bw, bw * 0.92);
+    const hx = sx + (e[0] - 0.25 * e[2] * 0.5) * px; const hy = sy + (e[1] - 0.25 * e[3]) * px;
+    const sh = g.createRadialGradient(hx, hy, 0, sx + e[0] * px, sy + e[1] * px, e[2] * px * 1.05);
+    sh.addColorStop(0, "rgba(255,255,255,0.28)"); sh.addColorStop(0.5, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,0.22)");
+    g.fillStyle = sh; g.beginPath(); g.ellipse(sx + e[0] * px, sy + e[1] * px, e[2] * px, e[3] * px, e[4], 0, TAU); g.fill();
+  };
+  const headDraw = (): void => {
+    const hr = L * 0.105; const hc = proj9(P, L * 0.33, 0, L * 0.03); const [cx, cy] = S(hc);
+    const fw = dir9(P, 1, 0, 0);
+    const beak = (): void => {
+      const b0 = S(proj9(P, L * 0.33 + hr * 0.8, -hr * 0.3, L * 0.02)); const b1 = S(proj9(P, L * 0.33 + hr * 1.65, 0, L * 0.015)); const b2 = S(proj9(P, L * 0.33 + hr * 0.8, hr * 0.3, L * 0.02));
+      const b3 = S(proj9(P, L * 0.33 + hr * 0.8, 0, L * 0.03 + hr * 0.28));
+      g.fillStyle = sp.beak; g.beginPath(); g.moveTo(b0[0], b0[1]); g.lineTo(b3[0], b3[1]); g.lineTo(b2[0], b2[1]); g.lineTo(b1[0], b1[1]); g.closePath(); g.fill();
+    };
+    if (dot3(fw, CAM9) < 0) beak();   // 부리가 등을 보이면 머리 뒤(먼저)
+    const hg = g.createRadialGradient(cx - hr * px * 0.35, cy - hr * px * 0.4, hr * px * 0.1, cx, cy, hr * px);
+    hg.addColorStop(0, rgbK9(sp.cap, 1.35)); hg.addColorStop(0.6, sp.cap); hg.addColorStop(1, rgbK9(sp.cap, 0.72));
+    g.fillStyle = hg; g.beginPath(); g.arc(cx, cy, hr * px, 0, TAU); g.fill();
+    for (const sd of [-1, 1]) {
+      const e = proj9(P, L * 0.33 + hr * 0.42, sd * hr * 0.72, L * 0.03 + hr * 0.22);
+      if (e[2] < hc[2] - hr * 0.1) continue;   // 머리 뒤로 돈 눈은 안 보인다
+      const [ex, ey] = S(e); const er = Math.max(0.5, hr * px * 0.16);
+      g.fillStyle = "#0a0a0a"; g.beginPath(); g.arc(ex, ey, er, 0, TAU); g.fill();
+      g.fillStyle = "rgba(255,255,255,0.8)"; g.beginPath(); g.arc(ex - er * 0.3, ey - er * 0.35, er * 0.35, 0, TAU); g.fill();
+    }
+    if (dot3(fw, CAM9) >= 0) beak();
+  };
+  /* 깊이 차례 — 날개마다 가운데 깊이 */
+  const depth = (side: number): number => { let d = 0; for (const q of [0.3, 0.6, 0.9]) { const w = wingPt9(sp, W, L, sHalf, side, q, 0.5); d += proj9(P, w[0], w[1], w[2])[2]; } return d / 3; };
+  const dl = depth(-1); const dr = depth(1);
+  const parts: [number, () => void][] = [
+    [dl, () => wingDraw(-1)], [dr, () => wingDraw(1)],
+    [-1e-6 + Math.min(0, proj9(P, -L * 0.4, 0, 0)[2]), tailDraw], [0, bodyDraw], [proj9(P, L * 0.33, 0, L * 0.03)[2] + 1e-6, headDraw],
+  ];
+  parts.sort((a, b) => a[0] - b[0]);
+  g.lineJoin = "round"; g.lineCap = "round";
+  for (const [, f] of parts) f();
 }
 
 /** 무리 — 14초 칸마다(빈 칸 30%) · 종 하나 · 3 ~ 7마리. 길은 지도 한 변에서 맞은 변으로 굽이친다. */
@@ -208,7 +255,7 @@ function flockAt9(F: Flock9, u: number): [number, number, number, number] {
   return [x, y, (x1 - x) / hl, (y1 - y) / hl];
 }
 /** 한 마리의 지금 — 자리(타일) · 방향 · 높이(타일) · 칸 · 돌기(−1 ~ 1). */
-interface BirdNow9 { x: number; y: number; hx: number; hy: number; z: number; frame: number; bank: number; sp: Species9; scale: number }
+interface BirdNow9 { x: number; y: number; hx: number; hy: number; z: number; mode: number; ph: number; bank: number; sp: Species9; scale: number }
 function birdsOf9(F: Flock9, tSec: number): BirdNow9[] {
   const out: BirdNow9[] = [];
   const s = SPEC9[F.sp]; const R = rngOf9("bf" + F.id);
@@ -224,10 +271,10 @@ function birdsOf9(F: Flock9, tSec: number): BirdNow9[] {
     const bx = x - hy * (lat + wob) + hx * wob2; const by = y + hx * (lat + wob) + hy * wob2;
     /* 날갯짓 박자 — 튀는 비행: [치기 flap 초][접음/활공 rest 초] */
     const cyc = s.flap + s.rest; const tc = ((t + ph) % cyc + cyc) % cyc;
-    let frame: number; let z = F.alt;
-    if (tc < s.flap) { frame = Math.floor(((tc * s.hz) % 1) * FRAMES9); z += 0.35 * smooth(tc / s.flap); }
-    else { frame = s.glide ? FRAMES9 : FRAMES9 + 1; z += 0.35 * (1 - smooth((tc - s.flap) / s.rest)); }
-    out.push({ x: bx, y: by, hx, hy, z, frame, bank, sp: F.sp, scale: sc });
+    let mode = 0; let fph = 0; let z = F.alt;
+    if (tc < s.flap) { fph = (tc * s.hz) % 1; z += 0.35 * smooth(tc / s.flap); }
+    else { mode = s.glide ? 1 : 2; z += 0.35 * (1 - smooth((tc - s.flap) / s.rest)); }
+    out.push({ x: bx, y: by, hx, hy, z, mode, ph: fph, bank, sp: F.sp, scale: sc });
   }
   return out;
 }
@@ -239,7 +286,6 @@ export const SKY9 = { lastCall: new Map<number, number>() };
  */
 export function drawBirds9(ctx: CanvasRenderingContext2D, w: number, h: number, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number, shadow: boolean,
   call: ((sp: Species9, pan: number, vol: number) => void) | null): void {
-  const M = ctx.getTransform();
   const slot0 = Math.floor(tSec / 14);
   for (let sl = slot0 - 8; sl <= slot0; sl += 1) {
     const F = flockOf9(sl, w, h); if (!F) continue;
@@ -260,24 +306,18 @@ export function drawBirds9(ctx: CanvasRenderingContext2D, w: number, h: number, 
       if (size < 2) continue;
       if (shadow) {
         const sx = ox + (b.x + b.z * 0.55) * tp; const sy = oy + (b.y + b.z * 0.7) * tp;
-        const sw = size * (b.frame === FRAMES9 + 1 ? 0.25 : 0.45); const blur = 1 + b.z * 0.12;
+        const sw = size * (b.mode === 2 ? 0.25 : 0.45); const blur = 1 + b.z * 0.12;
         const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, sw * blur);
         gr.addColorStop(0, `rgba(0,0,0,${0.22 / blur})`); gr.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, sw * blur, sw * blur * 0.55, Math.atan2(b.hy, b.hx) + Math.PI / 2, 0, TAU); ctx.fill();
         continue;
       }
-      const img = birdFrame9(b.sp, b.frame);
       const sx = ox + b.x * tp; const sy = oy + (b.y - b.z * 0.35) * tp;   // 높이는 화면 위로(평면 보기의 눌림)
-      const k = size / (BIRD_PX9 * 0.86);
-      const cs = b.hx; const sn = b.hy;
-      /* 돌 때 기울임 — 날개 축(로컬 y)을 줄여 원근(안쪽 날개가 짧아 보인다 · 단순히 폭 눌림) */
-      const ky = k * (1 - 0.35 * Math.abs(b.bank));
-      ctx.setTransform(
-        M.a * cs * k, M.b + M.d * sn * k, M.c - M.a * sn * ky, M.d * cs * ky,
-        M.e + M.a * sx, M.f + M.d * sy,
-      );
-      ctx.drawImage(img, -BIRD_PX9 / 2, -BIRD_PX9 / 2);
-      ctx.setTransform(M);
+      const k = b.scale * (1 + b.z * 0.03);
+      const W = wingPose9(b.mode, b.ph);
+      const roll = -b.bank * 0.6;   // 오른쪽으로 돌면 오른 날개가 내려간다
+      const tail = b.mode === 1 ? 0.9 : b.mode === 2 ? 0.25 : 0.45 + 0.3 * clamp01(Math.sin(b.ph * TAU));
+      drawBird3d9(ctx, s, { hx: b.hx, hy: b.hy, cb: Math.cos(roll), sb: Math.sin(roll) }, W, sx, sy, tp, s.len * k, (s.span / 2) * k, tail);
     }
   }
 }
@@ -384,4 +424,10 @@ export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[]
     }
   }
   ctx.restore();
+}
+
+/** 한 마리를 바로 그린다(시험 판 · 도록용) — 방향(hx, hy) · mode 0 날갯짓(ph) · 1 활공 · 2 접음 · px = 타일 화면 px. */
+export function drawBirdOne9(g: CanvasRenderingContext2D, sp: Species9, hx: number, hy: number, mode: number, ph: number, sx: number, sy: number, px: number, bank = 0): void {
+  const s = SPEC9[sp]; const roll = -bank * 0.6; const l = Math.hypot(hx, hy) || 1;
+  drawBird3d9(g, s, { hx: hx / l, hy: hy / l, cb: Math.cos(roll), sb: Math.sin(roll) }, wingPose9(mode, ph), sx, sy, px, s.len, s.span / 2, mode === 1 ? 0.9 : 0.5);
 }

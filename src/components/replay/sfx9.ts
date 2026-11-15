@@ -376,11 +376,11 @@ export function thunderClap9(delay: number, amp = 1): void {
  *  참새: 짧은 '짹' 둘 ~ 넷(바탕 + 2배음 · 빠르게 내렸다 오르는 휨 · 거친 떨림) · 제비: 빠른 지저귐(짧은 삑 여덟 ~ 열넷 · 높이 흩어짐 · 떨림) ·
  *  방울새: 노래하듯 오르내리는 넷 ~ 다섯 음(미끄럼) · 파랑새: 낮고 부드러운 휘파람 셋(세모파 · 느린 떨림).
  *  pan −1 ~ 1(화면 자리) · vol 0 ~ 1(배율 — 가까울수록 크게). 효과음 주 음량을 탄다. */
-export function birdCall9(sp: "sparrow" | "swallow" | "finch" | "bluebird", pan = 0, vol = 1): void {
+export function birdCall9(sp: "sparrow" | "swallow" | "finch" | "bluebird" | "dove", pan = 0, vol = 1): void {
   if (!enabled9) return;
   const c9 = ctxOf9(); if (!c9 || !master9) return;
   const out = c9.createGain(); out.gain.value = 0.13 * Math.max(0.15, Math.min(1, vol));
-  const bp = c9.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = 1400;   // 낮은 웅웅 거름(작은 새 소리는 높다)
+  const bp = c9.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = sp === "dove" ? 280 : 1400;   // 낮은 웅웅 거름(작은 새 소리는 높다)
   out.connect(bp);
   let node: AudioNode = bp;
   if (typeof c9.createStereoPanner === "function") { const p9 = c9.createStereoPanner(); p9.pan.value = Math.max(-1, Math.min(1, pan)); bp.connect(p9); node = p9; }
@@ -410,6 +410,10 @@ export function birdCall9(sp: "sparrow" | "swallow" | "finch" | "bluebird", pan 
   } else if (sp === "finch") {
     const tune = [3100, 4300, 3600, 5000, 4100]; const n = 4 + Math.floor(rnd() * 2);
     for (let i = 0; i < n; i += 1) { const f = tune[i % tune.length] * (0.95 + rnd() * 0.1); note(f, f * (i % 2 ? 0.86 : 1.12), 0.075 + rnd() * 0.04, 0.9, 0.15, 24, 0.03, "sine"); t += 0.1 + rnd() * 0.04; }
+  } else if (sp === "dove") {
+    /* 흰 새(비둘기 꼴) — 낮고 둥근 '구우 · 구구우'(2026-11-15 ★ 흰 새) */
+    const n = 2 + Math.floor(rnd() * 2); const f = 520 + rnd() * 80;
+    for (let i = 0; i < n; i += 1) { const d = i === 0 ? 0.42 : 0.24; note(f * (i === 0 ? 0.92 : 1.0), f * (i === 0 ? 1.04 : 0.9), d, 1.3, 0.3, 5, 0.012, "triangle"); t += d + 0.08; }
   } else {
     const n = 3; for (let i = 0; i < n; i += 1) { const f = 2300 + rnd() * 700; note(f, f * (1.08 + rnd() * 0.12), 0.15 + rnd() * 0.08, 0.85, 0, 7, 0.02, "triangle"); t += 0.22 + rnd() * 0.1; }
   }

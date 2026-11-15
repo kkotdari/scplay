@@ -294,52 +294,50 @@ vec4 fallPass() {
   vec3 foamC = vec3(0.88, 0.93, 0.96);
   vec3 rgb = vec3(0.0); float a = 0.0;
   if (v < 1.04) {
+    /* ★ 부드럽고 투명하게(2026-11-15, 지적: "물은 좀더 부드럽고 투명한 느낌으로 지금 물 효과처럼") — 옛 줄기는 흰 거품이 알파 0.62~0.97 로 덮어 벽이 안 비쳤다.
+       이제 맑은 물이 알파 0.30 남짓(뒤 벽이 비친다) · 결은 물결 곱처럼 밝기만 은은히 일렁이고(0.88 ~ 1.12) · 흰 물은 굵고 느린 줄로 0.75 만 섞는다 · 가장자리는 부드럽게 스러진다. */
     float vv = clamp(v, 0.0, 1.0);
-    float wid = 1.0 + 0.32 * vv * vv;
-    /* 줄기 가로 흔들림 · 가장자리 찢김(아래로 갈수록 거칠고 바깥으로 튄 물가루) */
-    float sway = (wfbm(vec2(tc.y * 0.8 - t * 1.1, uFl.x)) - 0.5) * 0.18 * vv;
+    float wid = 1.0 + 0.22 * vv * vv;
+    float sway = (wfbm(vec2(tc.y * 0.5 - t * 0.6, uFl.x)) - 0.5) * 0.10 * vv;
     float uu = (u0 - sway) / wid;
-    float rag = (wfbm(vec2(tc.y * 2.6 - t * 3.6, sign(uu) * 3.7 + uFl.x)) - 0.5) * (0.25 + 0.55 * vv);
+    float rag = (wfbm(vec2(tc.y * 1.4 - t * 2.0, sign(uu) * 3.7 + uFl.x)) - 0.5) * (0.16 + 0.30 * vv);
     float u = abs(uu);
-    float body = 1.0 - smoothstep(0.72 + rag, 1.0 + rag, u);
-    float top = smoothstep(-0.05, 0.03, v) * (1.0 - smoothstep(1.0, 1.04, v));
-    /* 흐르는 결 — 세로로 늘인 무늬 둘(굵은 다발 · 가는 실)이 아래로(떨어질수록 빨라진다) */
-    float fall = t * (2.4 + 2.0 * vv);
-    float s1 = wfbm(vec2(uu * 5.0 * hw + uFl.x * 3.1, (tc.y - uFl.y) * 0.32 - fall * 0.42));    // 굵은 다발(세로로 길게)
-    float s2 = wfbm(vec2(uu * 13.0 * hw + 4.0 + uFl.x, (tc.y - uFl.y) * 0.75 - fall * 0.95));   // 가는 실
-    float streak = s1 * 0.6 + s2 * 0.4;
-    float lip = smoothstep(0.16, 0.0, vv);                                                      // 넘어오는 매끈한 혀
-    float air = smoothstep(0.30, 0.62, streak) * (0.35 + 0.65 * smoothstep(0.02, 0.6, vv)) * (1.0 - lip * 0.85);   // 공기 머금은 흰 물
-    /* 물빛 — 혀 · 맑은 줄기는 기존 물(uWd)처럼 투명하게 뒤 벽이 비치고, 공기 머금은 줄기는 물거품 빛으로 탁하다 */
-    vec3 clear = deep * 1.55 + vec3(0.04, 0.07, 0.08);
-    vec3 c = mix(clear, foamC, air);
-    float shade = 1.05 - 0.18 * uu;                                                              // 빛 왼위
-    c *= shade;
-    /* 혀의 밝은 테(굽은 수면이 하늘을 비친다) · 혀 아래 짙은 띠 */
-    float rim = smoothstep(0.10, 0.03, abs(vv - 0.05)) * (1.0 - smoothstep(0.55, 0.95, u));
-    c = mix(c, vec3(0.80, 0.88, 0.94), rim * (0.55 + 0.25 * sin(t * 2.2 + tc.x * 4.0)));
-    c *= 1.0 - 0.18 * smoothstep(0.05, 0.14, vv) * smoothstep(0.24, 0.14, vv);
-    /* 반짝임 — waterPass 수면 반짝임과 같은 셈(결이 아래로 흐른다) */
-    vec2 w = vec2(tc.x * 1.2, (tc.y - uFl.y) * 0.45 - t * 1.4);
+    float body = 1.0 - smoothstep(0.50 + rag, 1.0 + rag, u);
+    float top = smoothstep(-0.05, 0.04, v) * (1.0 - smoothstep(0.94, 1.04, v));
+    /* 흐르는 결 — 세로로 길게 늘인 무늬 둘(굵은 다발 · 가는 실)이 아래로(떨어질수록 빨라진다) */
+    float fall = t * (1.6 + 1.4 * vv);
+    float s1 = wfbm(vec2(uu * 3.2 * hw + uFl.x * 3.1, (tc.y - uFl.y) * 0.22 - fall * 0.30));
+    float s2 = wfbm(vec2(uu * 7.0 * hw + 4.0 + uFl.x, (tc.y - uFl.y) * 0.50 - fall * 0.65));
+    float streak = s1 * 0.65 + s2 * 0.35;
+    float lip = smoothstep(0.14, 0.0, vv);                                                      // 넘어오는 매끈한 혀
+    float air = smoothstep(0.36, 0.74, streak) * (0.25 + 0.75 * smoothstep(0.05, 0.8, vv)) * (1.0 - lip);   // 공기 머금은 흰 물(굵고 느린 줄)
+    /* 물빛 — 기존 물(uWd)처럼 투명하게 뒤 벽이 비친다 · 밝기 일렁임은 물결 곱(uMode 5)과 같은 폭 */
+    vec3 clear = deep * 1.35 + vec3(0.03, 0.05, 0.06);
+    vec3 c = mix(clear * (0.88 + 0.24 * streak), foamC, air * 0.75);
+    c *= 1.03 - 0.10 * uu;                                                                       // 빛 왼위
+    float rim = smoothstep(0.10, 0.03, abs(vv - 0.05)) * (1.0 - smoothstep(0.5, 0.95, u));       // 혀의 밝은 테(굽은 수면이 하늘을 비친다)
+    c = mix(c, vec3(0.80, 0.88, 0.94), rim * 0.35);
+    float al = body * top * (0.34 + 0.34 * air + 0.12 * lip);
+    rgb = c * al; a = al;
+    /* 반짝임 — waterPass 수면 반짝임과 같은 셈(굵고 느리게 · 결이 아래로 흐른다) · 더하는 빛 */
+    vec2 w = vec2(tc.x * 0.8, (tc.y - uFl.y) * 0.30 - t * 0.9);
     float na = wfbm(w); float nb = wfbm(w + vec2(0.7, 0.0)); float nc = wfbm(w + vec2(0.0, 0.7));
     vec3 nrm = normalize(vec3(-vec2(nb - na, nc - na) * 5.0, 1.0));
-    float sp = pow(max(dot(nrm, normalize(vec3(-0.5, -0.45, 0.75) + vec3(0.0, 0.0, 1.0))), 0.0), 40.0) * 0.4;
-    c += foamC * sp * (1.0 - air);
-    float al = body * top * mix(0.62, 0.97, max(air, lip * 0.6));
-    rgb = c * al; a = al;
+    float sp = pow(max(dot(nrm, normalize(vec3(-0.5, -0.45, 0.75) + vec3(0.0, 0.0, 1.0))), 0.0), 60.0) * 0.22;
+    rgb += foamC * sp * body * top;
   }
   /* 아래 — 물웅덩이 물거품(바닥에 눕는 타원 · 들끓음) + 퍼지는 물결 고리 + 물보라(위로 피어 흐려짐) */
   float bx = u0 / 1.25; float by = (tc.y - uFl.z) / max(0.35, hw * 0.75);
   float r = length(vec2(bx, by * 1.6));
   float boil = wfbm(tc * 2.8 + vec2(t * 0.9, -t * 1.3)) * 0.6 + wfbm(tc * 6.0 - vec2(0.0, t * 2.0)) * 0.4;
-  float foam = (1.0 - smoothstep(0.30, 1.05, r + (boil - 0.5) * 0.45)) * (0.55 + 0.45 * boil);
+  float foam = (1.0 - smoothstep(0.20, 1.05, r + (boil - 0.5) * 0.45)) * (0.35 + 0.45 * boil) * 0.75;   // 물웅덩이 거품도 물 판 물거품(0.6)처럼 옅게
   float ring = 0.0;
   for (int k = 0; k < 3; k++) {
     float ph = fract(t * 0.45 + float(k) / 3.0);
     float rr = 0.9 + ph * 1.4;
-    ring += smoothstep(0.09, 0.0, abs(r - rr)) * (1.0 - ph) * 0.35 * pool;
+    ring += smoothstep(0.12, 0.0, abs(r - rr)) * (1.0 - ph) * 0.22 * pool;
   }
-  float mist = (1.0 - smoothstep(0.0, 1.0, length(vec2(u0 / 2.0, (tc.y - uFl.z + 0.35 * hw) / (1.1 * max(0.5, hw)))))) * (0.4 + 0.6 * wfbm(tc * 1.4 + vec2(t * 0.25, t * 0.7))) * 0.5;
+  float mist = (1.0 - smoothstep(0.0, 1.0, length(vec2(u0 / 2.0, (tc.y - uFl.z + 0.35 * hw) / (1.1 * max(0.5, hw)))))) * (0.4 + 0.6 * wfbm(tc * 1.4 + vec2(t * 0.25, t * 0.7))) * 0.32;
   float fa = clamp(foam * 0.9 + ring + mist, 0.0, 1.0) * (1.0 - a);
   rgb += foamC * fa; a += fa;
   return vec4(rgb, a);
