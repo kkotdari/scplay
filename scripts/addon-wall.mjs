@@ -72,9 +72,16 @@ const table = {};
 for (const [kind, parts] of Object.entries(out)) {
   const [mode, zlo, zhi] = ROLE[kind];
   const pts = []; const all = [];
-  for (const part of parts) for (const p of part.polys) for (let i = 0; i + 2 < p.length; i += 3) {
-    all.push([p[i], p[i + 1], p[i + 2]]);
-    if (part.solid) pts.push([p[i], p[i + 1], p[i + 2]]);
+  /* ★ 변을 잘게 쪼개 잰다(2026-11-15 · 설계도 −10°) — 꼭짓점만 재면 비스듬한 벽(돌린 건물)은 0.5 칸마다 꼭짓점이 안 떨어져 그 칸이
+     비거나 건너편 꼭짓점의 x 를 집었다(커맨드 가운데 칸이 −5.15 → 통로가 커맨드를 가로질러 길게 뻗었다). 변 위 점(0.1 칸 간격)을 함께 넣는다. */
+  for (const part of parts) for (const p of part.polys) {
+    const nv = p.length / 3;
+    for (let i = 0; i < nv; i += 1) {
+      const a = [p[i * 3], p[i * 3 + 1], p[i * 3 + 2]]; const b = [p[((i + 1) % nv) * 3], p[((i + 1) % nv) * 3 + 1], p[((i + 1) % nv) * 3 + 2]];
+      all.push(a);
+      const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / 0.1));
+      if (part.solid) for (let t = 0; t < steps; t += 1) { const f = t / steps; pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]); }
+    }
   }
   if (!pts.length) throw new Error(`${kind}: 꼭짓점 없음`);
   // 화면 잉크 바닥 — footOf.bot 과 **같은 식**이다(요잉을 먹인 ry·sin − z·cos 의 최대).
