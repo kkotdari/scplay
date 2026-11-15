@@ -3809,10 +3809,7 @@ export const TERRAN_STEEL_D = RACE_BASE_TONE.terran;    // 관·부속·그늘�
    테란 강철(TERRAN_STEEL)과 같은 해법 — 손칠 금을 **이름 셋**으로 모은다. 값은 기본색과 같은 색상각이고
    밝기 단만 다르다: 몸판은 기본색 그대로, 날개·부속은 한 단, 추진부·그늘진 부속은 두 단 짙다.
    여기 한 줄만 고치면 프로토스 유닛 전체가 함께 바뀐다. */
-export const TOSS_GOLD = RACE_BASE_TONE.toss;
-/** ★ 게이트웨이 두 높은 기둥의 금(2026-11-15, 지적: "게이트 기둥은 왜케 진해?") — 기둥은 서 있는 낯(옆 · 안으로 누운 낯)뿐이라 빛을 덜 받고, 발판 윗면은 위를 보아
- *  재질 결(MATX)의 윗면 빛까지 받아 크림색으로 뜬다 — 같은 금인데 기둥만 짙은 주황으로 읽혔다. 기둥 살만 한 단 밝게 칠한다(시안 · 아래 값). */
-export const GATE_PILLAR9 = "#d7c568";   // 몸판·겉껍데기(= 기본색)
+export const TOSS_GOLD = RACE_BASE_TONE.toss;   // 몸판·겉껍데기(= 기본색)
 export const TOSS_GOLD_M = "#b09d41";   // #a58a4c → #b09d41(2026-11-15 금 A+ — 아래 RACE_BASE_TONE ★)   // #aa7f3f → #a58a4c(2026-11-14 원작 대조 — 누런 금의 한 단 짙은 금)   // #c1ab3e → #aa7f3f(같은 날 · G2 의 한 단 짙은 금)          // 한 단 짙은 금(날개·부속) — 기본색 ×0.9
 export const TOSS_GOLD_D = "#918235";   // #88723e → #918235(2026-11-15 금 A+)   // #8c6934 → #88723e(같은 날 — 두 단 짙은 금)   // #a08e34 → #8c6934(같은 날 · G2 의 두 단 짙은 금)          // 두 단 짙은 금(추진부·그늘진 부속) — 기본색 ×0.75
 /** 몸에는 종족 바탕색을 입히고, 뒤에 붙이는 accent 면만 개인색으로 남긴다(규칙 1·4).
@@ -10553,7 +10550,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /** 깎기 전 굵기 — 밑동에서 굵고 끝으로 갈수록 가늘다. */
       const base9 = (t9: number): number => (t9 <= HOLD9 ? W0_9
         : W1_9 + (W0_9 - W1_9) * (1 - (t9 - HOLD9) / (1 - HOLD9)) ** 1.5);
-      out.push(...tagKey(paintBase(spirePillar({
+      out.push(...tagKey(spirePillar({
         // 끝은 뾰족이 아니라 뭉뚝하게 잘린 면(지적) — tipW 0.12 → 0.55.
         /* ⚠ `tipW` 를 줘야 **위 뚜껑이 난다**(2026-09, 지적: "게이트 기둥 윗면이 뚫려 보임") — 굵기는 widthOf 가
            그리지만 뚜껑의 문은 여전히 `tipW > 0.01` 을 본다(프로브에서 적어 둔 그 함정). 안 주면 끝이 열린 관이라
@@ -10568,7 +10565,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           hz9 - 0.28 + AXIS9z9 * t9,
         ],
         widthOf: (t9: number): number => base9(t9) * (1 - CUT_K9 * cut9(t9)),
-      }), GATE_PILLAR9), 30 + depthNow(mx9, 0) * 1.6));   // 기둥만 한 단 밝은 금(아래 GATE_PILLAR9 ★)
+      }), 30 + depthNow(mx9, 0) * 1.6));
       /* 옆면(바깥쪽 면) 임자색 데칼 위·아래 둘(요청, 사진의 옆면 색판) — 축 위 t 자리의 단면 폭 절반만큼
          바깥으로 나간 면에 얇은 네모를 붙인다. 칠하지 않아 임자 색이 들고, 흰 덮개도 없다(포톤 톱니와 같은
          결). 키는 제 기둥 바로 위. */
