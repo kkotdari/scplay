@@ -304,6 +304,11 @@ export function legAndFoot(
  *  색으로"). 값은 여태 zergFace 안에 박혀 있던 것 그대로다. 임자 색은 이 살 위에
  *  얹히는 무늬(데칼)로만 든다. */
 export const ZERG_FLESH = "#8a5f43";
+/* ★ **저그 종족색 둘**(2026-11-15 밤, 요청: "C 가 맞아 · 그런데 문제는 저그는 종족색이 두 개여야 해 — 복숭아 살색(해처리 · 히드라덴 막 · 커널 · 뮤탈 몸 · 스커지 날개 막)과
+   갈색(스파이어 · 성큰 몸 · 마운드 · 울트라 · 히드라 · 저글링 · 디바우러 · 럴커 몸 등등)") — 갈색은 RACE_BASE_TONE.zerg(= ZERG_FLESH 값 #8a5f43 · raceBase 가 입히는 기본) ·
+   복숭아 살색은 이 이름 하나로(시안 C #f0a585 — "탁한 살색이 아닌 생기 도는 복숭아 느낌"). 짙은 단은 테 · 고리 같은 딸린 살. */
+export const ZERG_PEACH = "#f0a585";
+export const ZERG_PEACH_D = "#c9806a";
 export const IVORY = "#eae3d2";
 /* 진한 상아색(요청: 하이브 가시·옆띠). */
 export const IVORY_DEEP = "#cdc0a0";
@@ -3741,7 +3746,7 @@ export function paintBase(faces: ShapeFace[], base: string): ShapeFace[] {
    밝기는 종족별 몸 곡선(gl9 SPR_GRADE_T9 ★)이 함께 누른다. 값 · 되물린 값은 notes gl-renderer '모델 색 시안' · '모델 색 적용'. */
 /* (2026-11-15, 요청: "프로토스 금색 황토끼 줄이기" → 시안 A(맑은 금) → "a인데 좀더 레몬색으로" → A+) — 토스 #c2a359 → #cfba4c(노란 쪽으로 8° · 채도 ×1.25 · 밝기 그대로 ·
    짙은 금 · 장식 금도 같은 비율). 되물릴 값: A #ccb04e · A++ #d2c549. */
-export const RACE_BASE_TONE = { terran: "#585d67", toss: "#c9ba80", zerg: "#bd8571" } as const;   // 저그 #964c32 → #bd8571(2026-11-15 밤, 요청: "저그 B + 종족색을 더 밝은 살색 톤으로" — 원작 살 밝은 띠 #a06864 · 최고 #d09793 분홍 살빛)   // 토스 #cfba4c → #c9ba80(2026-11-15 밤 원작 대조 — 색상 · 밝기는 그대로 채도만 ×0.55: 원작 금 밝은 띠 채도 26 ~ 34 · 우리 57 — "프토도 너무 탁하고" 의 까닭이 곡선 채도 0.4 였다 · 곡선은 되돌리고 금을 옅게)   // 토스 #e8cb5e → #c8964a(2026-11-13, 요청: 원작 색감 — 원작 금 실측 중앙값 (140,115,60) · 밝은 쪽 (230,195,115) 주황빛 황토 · 우리 금은 레몬 노랑이라 채도를 올리면 더 노래졌다 · 시안 G2)   // 토스 #e6d063 → #e8cb5e(요청: 기본 골드를 살짝 붉은 톤으로)   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈 → 살짝 차갑고 한 단 진하게(요청: #616161 → #565961 → 한 번 더 차갑게 #555a64 · 휘도는 그대로)
+export const RACE_BASE_TONE = { terran: "#585d67", toss: "#c9ba80", zerg: "#8a5f43" } as const;   // 저그 #bd8571 → #8a5f43(2026-11-15 밤, 요청: "저그는 종족색이 두 개여야 해 · 복숭아 살색과 갈색" — 이 값이 **갈색**(스파이어 · 성큰 · 마운드 · 울트라 · 히드라 · 저글링 · 디바우러 · 럴커 …) · 복숭아 살색은 아래 ZERG_PEACH)   // 저그 #964c32 → #bd8571(2026-11-15 밤, 요청: "저그 B + 종족색을 더 밝은 살색 톤으로" — 원작 살 밝은 띠 #a06864 · 최고 #d09793 분홍 살빛)   // 토스 #cfba4c → #c9ba80(2026-11-15 밤 원작 대조 — 색상 · 밝기는 그대로 채도만 ×0.55: 원작 금 밝은 띠 채도 26 ~ 34 · 우리 57 — "프토도 너무 탁하고" 의 까닭이 곡선 채도 0.4 였다 · 곡선은 되돌리고 금을 옅게)   // 토스 #e8cb5e → #c8964a(2026-11-13, 요청: 원작 색감 — 원작 금 실측 중앙값 (140,115,60) · 밝은 쪽 (230,195,115) 주황빛 황토 · 우리 금은 레몬 노랑이라 채도를 올리면 더 노래졌다 · 시안 G2)   // 토스 #e6d063 → #e8cb5e(요청: 기본 골드를 살짝 붉은 톤으로)   // 테란: 푸른 은색(#6b778d) → 따뜻한 건메탈 → 살짝 차갑고 한 단 진하게(요청: #616161 → #565961 → 한 번 더 차갑게 #555a64 · 휘도는 그대로)
 /* ★ **때 얼룩** — 칠 안 한 테란 면마다 쇠색 네 벌 중 하나를 **결정적으로** 고른다.
    무작위면 굽을 때마다 판이 달라져 캐시가 거짓말이 된다 — 면의 경로 문자열을 해시해
    같은 면은 언제나 같은 얼룩을 받는다. 네 벌은 기준(#575c63)의 위아래 5%와, 갈빛이
@@ -5093,7 +5098,7 @@ export function hatcheryMoundFaces(
     out.push(...tagKey(paintBase(withModelSpin(-35, () => spirePillar({
       x: 0, y: 0, z0: 0, h: MND_H, w: MND_RB, tipW: MND_RT,
       segs: 9, sides: 6, hold: 0, taper: MND_P,
-    })), RACE_BASE_TONE.zerg), 0));
+    })), ZERG_PEACH), 0));   // 복숭아 살색(2026-11-15 밤 ★ 저그 종족색 둘 · 옛 RACE_BASE_TONE.zerg)
     /* ★★ **옥상 볏은 퀸즈 네스트의 갈고리 열이다 — 빙 둘러서 서로를 마주 본다**(2026-09, 요청: "지붕 위쪽의 작은 뿔
        모양 변경 · 퀸즈네스트처럼 서로 마주보는 모양으로 빙 두르기 · 해처리는 3개 레어는 4개 하이브는 크게 한 개임") —
        앞 판은 뒤로 벌어져 눕는 **곧은 뿔 한 쌍**(spikeHorn)이라 옥상 장식이 아니라 뒤통수의 더듬이로 읽혔다. 퀸즈
@@ -17144,7 +17149,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     }
     for (let k9 = 0; k9 + 1 < MA.length; k9 += 1) {
       out.push(...membraneFaces(
-        [MA[k9], MA[k9 + 1]], [MC[k9], MC[k9 + 1]], RACE_BASE_TONE.zerg,
+        [MA[k9], MA[k9 + 1]], [MC[k9], MC[k9 + 1]], ZERG_PEACH,   // 막 — 복숭아 살색(2026-11-15 밤 ★ 저그 종족색 둘)
         { shade: 0.16, notch: 0.34, key: panelKey(k9) },
       ));
     }
@@ -18052,7 +18057,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: -0.6, z0: 0, h: 3.36, w: 4.4, tipW: 1.5,
       segs: MESH9.on ? 12 : 7, sides: MESH9.on ? 36 : 14, hold: 0, taper: 0.6, cutFace: nydSkip9, caps: MESH9.on ? "top" : "both",
-    }), "#6b4732"), 0));
+    }), ZERG_PEACH), 0));   // 둔덕 — 복숭아 살색(2026-11-15 밤 ★ 저그 종족색 둘 · 옛 #6b4732)
     if (MESH9.on) {
       // 둔덕 옆선: 반지름 r(t) = 1.5 + 2.9·(1−t)^0.6 (w 4.4 · tipW 1.5 · taper 0.6) · 축 y = −0.6 · z = 3.36t
       const nydFront9 = (x9: number, z9: number): number => {
@@ -20735,7 +20740,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
            꼬리가 몽둥이였다. 몸은 0.34 → 1.05 로 가늘어지되, 끝 0.22 구간에 종 모양 부풀림(0.3·e^{−(t/0.11)²})을 얹어 발사구가
            도톰하게 맺힌다(끝 0.64 · t 0.2 에서 0.5 · 그 뒤 몸 굵기). */
         widthOf: (t9: number): number => 0.34 + 0.71 * t9 + 0.3 * Math.exp(-(t9 / 0.11) * (t9 / 0.11)),
-        fill: "#6b4732",
+        fill: ZERG_PEACH,   // 몸 — 복숭아 살색(2026-11-15 밤 ★ 저그 종족색 둘 · 옛 #6b4732)
       }), depthNow(0, 1) * 1.6 + 12),
       /* ★ **글레이브 구멍** — 꽁무니 끝 뚜껑 위에 앉는 어두운 짧은 관(반지름 0.3 · 끝 방향(0, 0.891, 0.454) = 꼬리 접선의
          반대)이다: 뚜껑(살색 0.5)이 테두리로 남고 그 안이 검게 패어 구멍으로 읽힌다. 끝을 0.03 밖으로 내어 z 싸움을 피한다.
@@ -20755,14 +20760,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const cx9 = Math.cos(th) * 0.42; const sy9 = Math.sin(th) * 0.42;
           return [cx9, 2.6 + 0.891 * 0.06 + 0.454 * sy9, 2.96 + 0.454 * 0.06 - 0.891 * sy9];
         },
-        fill: "#5a3b29",
+        fill: ZERG_PEACH_D,   // 구멍 테 — 짙은 복숭아(옛 #5a3b29)
       }), depthNow(0, 1) * 1.6 + 12.5),
       // 글레이브 웜은 **몸통 끝**(앞아래로 휜 기둥의 가는 끝 = 위 path(0))에서 난다(지적: "뮤탈·디버러는 몸통 끝에서 나옴").
       ...((): ShapeFace[] => { markMuzzle9(0, 2.6, 2.96); return []; })(),
       /* 몸통 꼭대기의 동그란 머리와 작은 가시 둘(요청) — 기둥 끝(x 0 · y 0.1 · z 6.9)에
          반구를 씌워 머리로 만들고, 그 뒤위로 짧은 상아 가시 한 쌍을 세운다. 기둥이
          앞으로 휘어 끝이 y 0.1에 있으므로 머리도 그 자리에 앉힌다. */
-      ...tagKey(paintBase(domeFaces3(0, 0.1, 1, 0.8, 5.12), "#6b4732"),
+      ...tagKey(paintBase(domeFaces3(0, 0.1, 1, 0.8, 5.12), ZERG_PEACH),
         depthNow(0, 0.1) * 1.6 + 13),
       /* 얼굴 — 저그 지상 유닛과 같은 것(요청: "가디언과 뮤탈에도 저글링 얼굴을 복사해
          크기 맞게 붙인다 / 눈을 추가한다"). 머리 반구 앞아래에 물려 박는다. 머리가
@@ -21144,7 +21149,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       const web9 = polyPath3([S, EL, TP, [m9 * 1.3, ...PV9(-1.0, Z9z9 + 0.28)], BK]);
       const k9 = depthNow(m9 * 1.4, 0.1) * 1.6;
       out.push(...tagKey([
-        [web9, 1] as ShapeFace, m9 > 0 ? sideFace(web9, 0.16) : topFace(web9, 0.12),   // 막 — 임자색
+        [web9, 1, ZERG_PEACH] as ShapeFace, m9 > 0 ? sideFace(web9, 0.16) : topFace(web9, 0.12),   // 막 — 복숭아 살색(2026-11-15 밤, 요청: "스커지 날개 막" · 옛 임자색)
         ...paintBase(rodFaces(S[0], S[1], S[2], EL[0], EL[1], EL[2], 0.26), BODY),
         ...paintBase(spikeHorn(EL[0], EL[1], EL[2], TP[0], TP[1], TP[2], 0.22, undefined, 6, 0.1, 0, -0.6), BODY),
         // 손톱 — 팔 끝에서 앞·아래로 굽는 상아 갈고리 하나
