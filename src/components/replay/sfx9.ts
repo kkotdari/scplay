@@ -372,6 +372,28 @@ export function thunderClap9(delay: number, amp = 1): void {
   try { src.start(c9.currentTime + Math.max(0, delay)); } catch { /* 닫힌 판 */ }
 }
 
+/** ★ 새 지저귐(2026-11-15 · 자연 겹 nature9 ★) — 짧은 음절 둘 ~ 다섯(2.4 ~ 5.2kHz 로 오르내리는 사인 · 30 ~ 90ms) · 좌우 pan(−1 ~ 1). 효과음 주 음량을 탄다 · 작게. */
+export function birdChirp9(pan = 0): void {
+  if (!enabled9) return;
+  const c9 = ctxOf9(); if (!c9 || !master9) return;
+  const out = c9.createGain(); out.gain.value = 0.11;
+  let node: AudioNode = out;
+  if (typeof c9.createStereoPanner === "function") { const p9 = c9.createStereoPanner(); p9.pan.value = Math.max(-1, Math.min(1, pan)); out.connect(p9); node = p9; }
+  node.connect(master9);
+  const n = 2 + Math.floor(Math.random() * 4); let t = c9.currentTime + 0.02;
+  const base = 2400 + Math.random() * 1600;
+  for (let i = 0; i < n; i += 1) {
+    const d = 0.03 + Math.random() * 0.06;
+    const o = c9.createOscillator(); o.type = "sine";
+    const f0 = base * (0.9 + Math.random() * 0.25); const f1 = f0 * (Math.random() < 0.5 ? 1.35 : 0.72);
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+    const g = c9.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g).connect(out); o.start(t); o.stop(t + d + 0.02);
+    t += d + 0.03 + Math.random() * 0.07;
+  }
+  window.setTimeout(() => { try { node.disconnect(); out.disconnect(); } catch { /* 이미 끊김 */ } }, (t - c9.currentTime + 0.3) * 1000);
+}
+
 export const sfxOn9 = (): boolean => enabled9;
 export function setSfxOn9(on: boolean): void {
   enabled9 = on;

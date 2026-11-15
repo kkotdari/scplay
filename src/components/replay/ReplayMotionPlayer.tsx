@@ -6,8 +6,9 @@ import {
 } from "./perf9";
 import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
-import { hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
+import { birdChirp9, hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
 import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
+import { NATURE9, drawNature9, natureOnStored9, natureStore9 } from "./nature9";
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -8096,6 +8097,12 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       /* 클립은 벽 마스크와 무관하다(재지적: 3D에서 아직도 미니맵을 벗어남) — 전에는
          마스크가 있을 때만 이 갈래로 들어와, 마스크가 아직 안 구워진 판에서는 클립
          자체가 안 걸려 크립이 맵 밖으로 샜다. 이제 크립이 있으면 늘 가둔다. */
+      /** 자연 겹(nature9 ★) — 크립 위 · 몸 아래 · 평면만(맵 로고와 같은 규약). 타일 한 칸 = 지도 폭 ÷ 타일 수. */
+      const natureDraw9 = (): void => {
+        const G9 = NATURE9.geom;
+        if (!NATURE9.on || !G9 || pitchedProp) return;
+        drawNature9(ctx, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000);
+      };
       /* 맵 정중앙 로고(위 mapLogoSpr9 ★) — 바닥 페인트라 크립 **아래** · 평면만. */
       if (MAP_LOGO_ON9 && !pitchedProp) {
         const lg9 = mapLogoSpr9();
@@ -8210,8 +8217,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
         }
         ctx.restore();
+        natureDraw9();
         paintOps(drawList9.filter((o) => !o.clipWalk));
       } else {
+        natureDraw9();
         paintOps(drawList9);
       }
       /* ── 전투 효과(요청: 이펙트 캔버스 이관) — 몸을 다 그린 위에 얹는다. CSS 키프레임
@@ -11003,6 +11012,10 @@ export default function ReplayMotionPlayer({
   /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험).
      ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켜면 기기에 기억("1")하고 그 기기만 켠다(weather9 wxOnStored9). */
   const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
+  /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" · nature9 ★) — 표시 단추의 한 줄 · 기본 끔 · 켜면 기기에 기억(scr.nature). */
+  const [natureOn9, setNatureOn9] = useState<boolean>(() => natureOnStored9());
+  const toggleNature9 = (): void => { const nv9 = !natureOn9; setNatureOn9(nv9); natureStore9(nv9); NATURE9.on = nv9 && active !== false; window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };
+  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.chirp = birdChirp9;
   const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
@@ -19731,6 +19744,7 @@ export default function ReplayMotionPlayer({
       // GL 붓이 서야 지형층도 선다(열다 실패한 문맥이면 옛 층) — 붓이 뒤에 죽으면 UnitLayer 가 terrainOff 로 알린다.
       if (!glAlive9()) { glTerrRef9.current = null; setGlTerrOn9(false); return; }
       glTerrRef9.current = terrainGeom9(grid.hash, terrainFace(m9), terrainFill);
+      NATURE9.geom = glTerrRef9.current; NATURE9.hash = grid.hash; NATURE9.rgb = m9.rgb;   // 자연 겹(nature9 ★)이 이 기하로 자리를 뽑는다
       setGlTerrOn9(true);
     });
     return () => { dead9 = true; };
@@ -23191,18 +23205,19 @@ export default function ReplayMotionPlayer({
       <span className="scr-motion-pick">
         <button
           type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", (cursorOn9 || !linesOff9 || wxOn9) && "is-on")}
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", (cursorOn9 || !linesOff9 || wxOn9 || natureOn9) && "is-on")}
           onClick={() => pickToggle9("layers")}
           aria-haspopup="menu" aria-expanded={pick9 === "layers"}
-          aria-label="표시 — 선수 커서 · 명령 선 · 날씨 켜고 끄기"
-          title="표시(선수 커서 · 명령 선 · 날씨)"
+          aria-label="표시 — 선수 커서 · 명령 선 · 날씨 · 자연 켜고 끄기"
+          title="표시(선수 커서 · 명령 선 · 날씨 · 자연)"
         >
-          <Layers size={18} style={cursorOn9 || !linesOff9 || wxOn9 ? undefined : { opacity: 0.45 }} />
+          <Layers size={18} style={cursorOn9 || !linesOff9 || wxOn9 || natureOn9 ? undefined : { opacity: 0.45 }} />
         </button>
         {pickMenu9("layers", [
           { label: "선수 커서", on: cursorOn9, keep: true, act: toggleCursor9 },
           { label: "명령 선 (L)", on: !linesOff9, keep: true, act: toggleLines9 },
           { label: "날씨", on: wxOn9, keep: true, act: toggleWx9 },
+          { label: "자연", on: natureOn9, keep: true, act: toggleNature9 },
         ], true, true)}
       </span>
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면
