@@ -897,6 +897,13 @@ const LIT_WHITE9 = [1, 1, 1] as const;
    ⚠ 휘도를 1 로 **맞춰 둔다**(0.299·0.82 + 0.587·1.02 + 0.114·1.36 = 1.00) — 색만 바꾸고 밝기는
      안 건드리므로 gl-check 밝기비도 0.5 선도 안 흔들린다. 색을 더 세게 하려면 이 비를 지키며 기울여라. */
 const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
+/* ★ **종족 광 색을 원작에서 잰 값으로**(2026-11-15 밤, 지적: "테란 종족 색 자체가 이상한 듯 · 은색인데 우린 청회색 · 프토도 너무 탁하고 저그도 너무 어둡네 ·
+   전체 밝기가 아닌 부분의 색상까지 비교해야 함") — 감마 낮춘 원작 스샷의 몸 화소를 밝기 다섯 띠로 갈라 Lab 으로 견주니, 가장 밝은 띠(광택 · 안 광택이 내는 몫)가
+   테란은 원작 따뜻한 은빛(b +6.7)인데 우리는 찬 강철빛(b −11) · 프로토스는 원작 맑은 금빛(#eeeca7 · 채도 34)인데 우리는 흰빛(채도 2 — 하얗게 바래 탁해 보였다) ·
+   저그는 원작 분홍 살빛(#d09793)인데 우리는 흰빛이었다. 광택 · 안 광택의 색(Gloss9 여섯째)을 그 색으로 — 휘도는 1 근처로 맞춘다(색만 바뀐다). */
+const LIT_SILVER9 = [1.02, 1.0, 0.95] as const;   // 테란 · 애드온 관(옛 LIT_STEEL9 찬 강철빛)
+const LIT_GOLD9 = [1.06, 1.02, 0.68] as const;    // 프로토스(옛 흰빛)
+const LIT_FLESH9 = [1.15, 0.94, 0.92] as const;   // 저그(옛 흰빛)
 /* 결은 **테란이 제일 세다**(옛 규약: 긁힌 강철은 테란의 결이다). 프로토스 금은 닦은 면이라 옅게,
    저그 살점·그 밖은 안 긁는다. */
 /* ★ 봉우리를 한 번 **1.45배 올렸다**(2026-09, 지적: "봉우리가 좀 강해야 할 거 같은데") — 허옇게 뜨는 것은
@@ -941,7 +948,7 @@ const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
 /* (2026-11-04 시안 D · "테란 프로토스 둘 다 면 반사 좀 낮추고 싶은데") — 봉우리 · 윤기 ×0.75: 테란 0.20 → 0.15 · 0.13 → 0.0975 · 토스 0.21 → 0.1575 · 0.17 → 0.1275(면 빛무리 0.5 → 0.3 도 함께). */
 /* (2026-11-14 원작 대조 · 시안 E1 "테란저그 추천대로") — 봉우리 0.15 → 0.12 · 윤기 0.0975 → 0.078(×0.8): 낯이 통째로 밝아지는 몫을 줄이고 밝은 부분은 안 광택(SPR_IGL9 ★)이 진다. */
 /* 봉우리 0.12 → 0.054(2026-11-15 시안 "광택 45" — 세 종족 봉우리 ×0.45 · 명암 L1 과 함께 · 밝은 점은 안 광택이 진다). */
-const GLOSS_TERRAN9: Gloss9 = [4.0, 0.054, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
+const GLOSS_TERRAN9: Gloss9 = [4.0, 0.054, 0.55, 0.078, 0.85, LIT_SILVER9, 1.0];
 /* ★★ **금빛 광택이 약한 것은 세기가 아니라 '물듦'이 임자다**(2026-09, 지적: "프로토스 금색의 광이
    너무 약함 — 금색으로 줘서 그런가, 테란처럼 더 흰빛으로 줘야 하나") — 그 물음이 답이다. 물듦 0.70 은
    봉우리를 **제 바탕색(금)으로** 물들이는데, 금 위에 금을 얹으면 밝기 차가 거의 없어 광이 안 선다.
@@ -955,15 +962,15 @@ const GLOSS_TERRAN9: Gloss9 = [4.0, 0.054, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
 /* (2026-11-13, 요청: 원작 색감 — "금색은 색을 바꿔야 하고 광택은 더 강하게" → 시안 "좁고 날카롭게 3.0") — 날카로움 5 → 12 · 봉우리 · 윤기 ×2(0.1575 → 0.315 · 0.1275 → 0.255).
    금이 G2 황토(#c8964a)로 짙어져 좁은 봉우리가 원작처럼 번쩍인다. 테란은 그대로(넓히면 윗면이 허옇게 바랬다 · 좁히면 다면체 몇 낯만 하얗게 튀었다). */
 /* (2026-11-14 원작 대조 · 시안 "프로토스는 e1") — 봉우리 0.315 → 0.27 · 윤기 0.255 → 0.19: 금 낯이 통째로 하얗게 뜨는 몫을 줄인다(밝은 부분은 안 광택 SPR_IGL9 ★). */
-const GLOSS_TOSS9: Gloss9 = [12.0, 0.122, 0.25, 0.19, 0.35, LIT_WHITE9, 0.60];   // 봉우리 0.27 → 0.122(2026-11-15 ×0.45)
+const GLOSS_TOSS9: Gloss9 = [12.0, 0.122, 0.25, 0.19, 0.35, LIT_GOLD9, 0.60];   // 봉우리 0.27 → 0.122(2026-11-15 ×0.45)
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
 /* (2026-11-13 · 같은 요청) 젖은 살 윤기 — 날카로움 3.5 → 8 · 봉우리 · 윤기 ×1.5(프로토스보다 한 단 약하게 · 옛 7 은 알이 허옇게 떴다 — 세기를 덜 올린다). */
-const GLOSS_ZERG9: Gloss9 = [8.0, 0.054, 0.15, 0.12, 0, LIT_WHITE9, 0.60];   // 봉우리 0.12 → 0.054(2026-11-15 ×0.45)
+const GLOSS_ZERG9: Gloss9 = [8.0, 0.054, 0.15, 0.12, 0, LIT_FLESH9, 0.60];   // 봉우리 0.12 → 0.054(2026-11-15 ×0.45)
 const GLOSS_NONE9: Gloss9 = [4.0, 0.04, 0.30, 0.06, 0.15, LIT_WHITE9, 0.50];
 /** 애드온 연결관(2026-11-03) — 테란 광택의 ⅓ 남짓(봉우리 0.24 → 0.08 · 윤기 0.55 → 0.35 · 얼룩 0.16 → 0.06). 해저드 띠(노랑·검정)가 테란 광택에 하얗게·푸르게 바랬다. 재질 종족은 테란(uMat.x 1). */
-const GLOSS_LINK9: Gloss9 = [4.0, 0.08, 0.35, 0.06, 0.5, LIT_STEEL9, 1.0];
+const GLOSS_LINK9: Gloss9 = [4.0, 0.08, 0.35, 0.06, 0.5, LIT_SILVER9, 1.0];
 const GLOSS_BY_KIND9 = new Map<string, Gloss9>();
 const glossOf9 = (kind: string): Gloss9 => {
   if (GLOSS_BY_KIND9.size === 0) {
@@ -1311,11 +1318,22 @@ const SPR_GRADE9 = [0.08, 1.25, 1, 1, 1.10] as const;
    옛 곡선: 테란 0.290 · 0.593 · 0.28(밝다) · 저그 0.143 · 0.459 · 0.64(어둡고 짙다) · 프로토스 0.592 · 0.941 · 0.62(훨씬 밝고 짙다) /
    새 곡선: 테란 0.242 · 0.549 · 0.32 · 저그 0.235 · 0.539 · 0.55 · 프로토스 0.359 · 0.824 · 0.47.
    옛 값: 테란 [0.08, 1.5, 0.5, 0.55, 1.0] · 저그 [0.08, 1.72, 0.415, 0.475, 1.0] · 프로토스 [0.08, 1.45, 1, 1, 1.08]. */
-/* (같은 날 둘째, 지적: "테란 어두운데 원작보다") — 원작 팩토리 상자가 거의 그늘이라(중앙 0.099) 테란 평균을 끌어내렸다. 팩토리를 빼면 원작 0.266 · 0.528 · 0.33 —
-   감마 1.68 → 1.55 로 0.273 · 0.536 · 0.34(1.68 은 0.227 · 커맨드 0.144 로 어두웠다 · 1.6 은 0.258). */
-const SPR_GRADE_T9 = [0.08, 1.55, 0.55, 0.5, 1.12] as const;
-const SPR_GRADE_Z9 = [0.08, 1.3, 0.45, 0.5, 0.88] as const;
-const SPR_GRADE_P9 = [0.08, 3.0, 0.6, 0.55, 0.4] as const;
+/* (같은 날 둘째, 지적: "테란 어두운데 원작보다") — 원작 팩토리 상자가 거의 그늘이라 테란 평균을 끌어내렸다 → 테란 감마 1.68 → 1.55.
+   ★★ (같은 날 셋째, 지적: "테란 종족 색 자체가 이상한 듯 · 은색인데 우린 청회색 · 프토도 너무 탁하고 저그도 너무 어둡네 · 전체 밝기가 아닌 부분의 색상까지 비교해야 함") —
+   몸 화소를 밝기 다섯 띠(0 ~ 25 · 25 ~ 50 · 50 ~ 75 · 75 ~ 95 · 95 ~ 100 분위)로 갈라 띠마다 Lab 평균을 원작과 견주었다. 옛 곡선의 탈:
+     테란 — 밝은 띠가 푸르다(b −10 · 원작 +3) · 프로토스 채도 0.4 · 감마 3 이 임자색을 거의 검게(#0b050b) · 푸른 수정까지 잿빛으로 눌러 탁했다 ·
+     저그 — 어두운 띠는 너무 짙은 주황(채도 36 · 원작 22) · 밝은 띠는 회백(원작 분홍 살빛).
+   그래서 곡선을 열세 수로 넓혔다 — [검은점 · 감마 · 무릎 · 기울기 · 채도 · 이득 r g b · 채널 감마 r g b · 따뜻한 색 채도 · 따뜻한 색 밝기]:
+     ① 곡선 앞 — 따뜻한 색(빨강이 파랑보다 크고 초록이 빨강을 안 넘는 색 = 금 · 살 · 녹)만 채도 · 밝기를 따로(임자색 자홍 · 푸른 수정 · 녹색 점액은 안 탄다)
+     ② 옛 곡선 ③ 곡선 뒤 채널마다 감마 · 이득(색 기울임 — 테란 따뜻하게 · 저그 분홍으로 · 프로토스 덜 푸르게).
+   값은 밝기 표처럼 맞췄다 — 곡선을 끈 굽기(#grade=0)를 한 번 찍어 파이썬에서 곡선만 바꿔 가며 다섯 띠 Lab 오차를 줄이고(Nelder–Mead) 실제 굽기로 확인.
+   가장 밝은 띠는 곡선이 아니라 광택 · 안 광택 색(위 LIT_SILVER9 · LIT_GOLD9 · LIT_FLESH9)이 맞춘다. 프로토스 금 바탕도 채도 ×0.55(bake9).
+   옛 값: 테란 [0.08, 1.55, 0.55, 0.5, 1.12] · 저그 [0.08, 1.3, 0.45, 0.5, 0.88] · 프로토스 [0.08, 3.0, 0.6, 0.55, 0.4]. */
+/* 맞춘 뒤 실제 굽기로 다듬음(오프라인 셈은 안 광택 · 안 그림자를 안 탄다): 테란 감마 1.7 · 기울기 0.55 · 채도 0.9 · 따뜻한 색 채도 1.5 / 저그 이득 r 1.35 · g 0.82 · b 0.9 · 따뜻한 채도 0.5 ·
+   감마 1.45 · 기울기 0.42 / 프로토스 검은점 0.08 · 감마 1.85 · 무릎 0.5 · 기울기 0.35 · 채도 1.1 · 이득 r 1.26 · g 0.99 · b 0.80 · 따뜻한 밝기 0.72. 결과는 gl-renderer.md '종족 색 띠 맞춤'. */
+const SPR_GRADE_T9 = [0.066, 1.7, 0.333, 0.55, 0.9, 1.029, 1.057, 1.019, 0.905, 1, 1.008, 1.5, 1.0] as const;
+const SPR_GRADE_Z9 = [0.062, 1.45, 0.37, 0.42, 0.812, 1.35, 0.82, 0.9, 0.95, 1, 1.108, 0.5, 0.971] as const;
+const SPR_GRADE_P9 = [0.08, 1.85, 0.5, 0.35, 1.1, 1.26, 0.99, 0.80, 1.022, 1, 0.987, 0.25, 0.72] as const;
 /** 견줌 — #grade=0 이면 끔 · #bgrade=… 이면 모든 종족을 그 곡선으로(시안 굽기). */
 const BODY_GRADE_OV9: readonly number[] | null = GRADE_OFF9 ? [0, 1, 1, 1, 0] : bodyGradeHash9();
 const gradeOf9 = (g: Gloss9): readonly number[] => BODY_GRADE_OV9 ?? (g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? SPR_GRADE_T9 : g === GLOSS_TOSS9 ? SPR_GRADE_P9 : g === GLOSS_ZERG9 ? SPR_GRADE_Z9 : SPR_GRADE9);
@@ -1666,10 +1684,10 @@ export class GlUnits9 implements VecSink9 {
        굽는 동안(sprBake9)은 굽는 대비만 — 판에는 그것이 들고 견줌(CON9)은 붙일 때(SPR_FS9) 얹는다. */
     /* 안 그림자 갈래는 WebGL2 만(깊이 판·highp) — ES 1.00 은 대비만 끼운다. */
     /* ★ 원작 색감 곡선(utils/grade9 ★★ · SPR_GRADE9) — 대비 다음에 같은 자리로 끼운다(글자 주입). **굽는 동안에도 켠다** — 판에 구워지고 붙이는 SPR_FS9 는 안 셈한다. */
-    const grd9 = "\n  if (uGrs9 > 0.0) c = grade9(c, uGrd9, uGrs9);";
-    const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9)
+    const grd9 = "\n  if (uGrs9 > 0.0) { float L9w = dot(c, vec3(0.2126, 0.7152, 0.0722)); float w9w = clamp((c.r - c.b) * 4.0, 0.0, 1.0) * clamp(1.0 - (c.g - c.r) * 4.0, 0.0, 1.0); c = clamp((vec3(L9w) + (c - vec3(L9w)) * (1.0 + (uGrv9.x - 1.0) * w9w)) * (1.0 + (uGrv9.y - 1.0) * w9w), 0.0, 1.0); c = grade9(c, uGrd9, uGrs9); c = clamp(pow(c, uGrq9) * uGrw9, 0.0, 1.0); }";   // 따뜻한 색(금 · 살)만 채도 · 밝기 → 곡선 → 채널마다 감마 · 이득(색 맞춤 · 아래 SPR_GRADE_T9 ★ 둘째)
+    const fsCon0 = FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9; uniform vec3 uGrw9; uniform vec3 uGrq9; uniform vec2 uGrv9;\n" + GRADE_FN9)
       .replace("gl_FragColor = vec4(c * a9, a9);", "if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + "\n  gl_FragColor = vec4(c * a9, a9);");
-    const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9;\n" + GRADE_FN9 + "uniform highp sampler2D uShTex; uniform highp vec4 uShP;")
+    const fsCon9 = !this.gl2 ? fsCon0 : FS.replace("precision mediump float;", "precision mediump float;\nuniform vec2 uCon9; uniform vec4 uGrd9; uniform float uGrs9; uniform vec3 uGrw9; uniform vec3 uGrq9; uniform vec2 uGrv9;\n" + GRADE_FN9 + "uniform highp sampler2D uShTex; uniform highp vec4 uShP;")
       .replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vLs;")
       .replace("gl_FragColor = vec4(c * a9, a9);", ISH_FS9 + (IGL9 ? IGL_FS_A9 : "") + "\n  if (uCon9.x != 0.0) c = clamp((c - uCon9.y) * (1.0 + uCon9.x) + uCon9.y, 0.0, 1.0);" + grd9 + (IGL9 ? IGL_FS_B9 : "") + "\n  gl_FragColor = vec4(c * a9, a9);")
       .replace("uniform highp sampler2D uShTex; uniform highp vec4 uShP;", IGL9 ? "uniform highp sampler2D uShTex; uniform highp vec4 uShP; uniform highp vec4 uIg; uniform vec4 uIgC; uniform highp vec3 uIgM;" : "uniform highp sampler2D uShTex; uniform highp vec4 uShP;");
@@ -1694,7 +1712,7 @@ export class GlUnits9 implements VecSink9 {
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uMatTw", "uGlowOut", "uGrd9", "uGrs9", "uIg", "uIgC", "uIgM"]) this.loc[u] = gl.getUniformLocation(p, u);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uMatTw", "uGlowOut", "uGrd9", "uGrs9", "uGrw9", "uGrq9", "uGrv9", "uIg", "uIgC", "uIgM"]) this.loc[u] = gl.getUniformLocation(p, u);
     gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); this.grade9(true); if (this.loc.uMatTw) gl.uniform2f(this.loc.uMatTw, 1, 0);   // 결 되돌림 기본(안 돈 메시) — 유니폼 기본값 0 이면 결 자리가 통째로 0 이 된다
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
@@ -2056,7 +2074,7 @@ export class GlUnits9 implements VecSink9 {
     gl.uniform4f(this.loc.uGloss, mesh.gloss[0], mesh.gloss[1] * gk, mesh.gloss[2], mesh.gloss[3] * gk);
     gl.uniform3f(this.loc.uSpecTint, mesh.gloss[5][0], mesh.gloss[5][1], mesh.gloss[5][2]);
     gl.uniform1f(this.loc.uGlintK, mesh.gloss[6]);
-    { const g9 = gradeOfMesh9(mesh); gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, g9[4]); }   // 종족별 몸 곡선(위 SPR_GRADE_T9 ★ · 발광 몸은 SPR_GRADE9)
+    { const g9 = gradeOfMesh9(mesh); gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, g9[4]); this.gradeRgb9(g9); }   // 종족별 몸 곡선(위 SPR_GRADE_T9 ★ · 발광 몸은 SPR_GRADE9)
     if (MATX9 > 0 && this.loc.uMat) {   // 재질 결 시안 — 종족(광택 자로 가른다) · 세기
       const g = mesh.gloss;
       gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
@@ -2334,7 +2352,14 @@ export class GlUnits9 implements VecSink9 {
   /** 몸 색감 곡선의 첫 값(종족 없는 몸 SPR_GRADE9) — 메시 프로그램이 쓰이는 중이어야 한다. 메시를 걸 때(bindMesh9)마다 그 종족 곡선으로 갈아 건다(위 SPR_GRADE_T9 ★). */
   private grade9(on: boolean): void {
     const gl = this.gl; const g9 = BODY_GRADE_OV9 ?? SPR_GRADE9;
-    gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, on ? g9[4] : 0);
+    gl.uniform4f(this.loc.uGrd9, g9[0], g9[1], g9[2], g9[3]); gl.uniform1f(this.loc.uGrs9, on ? g9[4] : 0); this.gradeRgb9(g9);
+  }
+  /** 곡선 뒤 채널마다 이득(5 ~ 7) · 감마(8 ~ 10) · 곡선 앞 따뜻한 색 채도 · 밝기(11 · 12) — 없으면 1(옛 다섯 수 곡선 · 종족 없는 몸). */
+  private gradeRgb9(g9: readonly number[]): void {
+    const gl = this.gl;
+    if (this.loc.uGrw9) gl.uniform3f(this.loc.uGrw9, g9[5] ?? 1, g9[6] ?? 1, g9[7] ?? 1);
+    if (this.loc.uGrq9) gl.uniform3f(this.loc.uGrq9, g9[8] ?? 1, g9[9] ?? 1, g9[10] ?? 1);
+    if (this.loc.uGrv9) gl.uniform2f(this.loc.uGrv9, g9[11] ?? 1, g9[12] ?? 1);
   }
   private sprBake9(jobs: SprJob9[], dprK: number): void {
     if (BODY_CON9[0] === BCON9) { this.sprBakeRun9(jobs, dprK); return; }

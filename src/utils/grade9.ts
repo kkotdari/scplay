@@ -7,12 +7,12 @@
 export type Grade9 = readonly [number, number, number, number, number];
 /** `#grade=0` — 지형 곡선 끔 · 몸 메시 길 끔(견줌 · 판에 구운 몸은 그대로). */
 export const GRADE_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])grade=0(?=$|[&,])/.test(location.hash);
-/** `#bgrade=bp~γ~kn~ks~s` — 몸 곡선 견줌(model-gl 시안 굽기). */
+/** `#bgrade=bp~γ~kn~ks~s[~이득 r~g~b~감마 r~g~b~따뜻한 채도~따뜻한 밝기]` — 몸 곡선 견줌(model-gl 시안 굽기). */
 export function bodyGradeHash9(): Grade9 | null {
   const m9 = typeof location !== "undefined" ? /(?:^|[#&,])bgrade=([0-9.~]+)/.exec(location.hash) : null;
   if (!m9) return null;
   const v9 = m9[1].split("~").map(Number);
-  return v9.length === 5 && v9.every((x) => Number.isFinite(x)) ? (v9 as unknown as Grade9) : null;
+  return (v9.length === 5 || v9.length === 13) && v9.every((x) => Number.isFinite(x)) ? (v9 as unknown as Grade9) : null;   // 13 = 곡선 + 채널 이득 셋 · 감마 셋 · 따뜻한 색 채도 · 밝기(gl9 SPR_GRADE_T9 ★★)
 }
 /** 지형 — 타일셋마다(0 황무지 · 1 우주 판 · 2 설치 · 3 재 · 4 정글 · 5 사막 · 6 얼음 · 7 황혼). 무릎은 끈다(땅엔 과노출이 없다 · 눈이 잿빛이 된다).
  *  ① 우주 판 · 설치 — 원작은 무채 회색이라 채도를 **뺀다**(0.85 · 올리면 옅은 푸른 기가 남색으로 섰다) ② 정글 · 재 — 원래 어두워 밝기는 두고 채도만
