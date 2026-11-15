@@ -7,7 +7,7 @@
    · 조명은 면 법선(뉴얼) 한 방향광 양면 — 2D 의 흑백 덧칠 면은 메시에서 뺐다(mesh9.isOverlay9).
    · 임자색 면(fill 없음)은 정점의 team 깃발로 표시하고 uTeam 으로 칠한다.
    한계(시제): 유닛만(건물·데칼·그림자·체력바는 캔버스가 그대로), 평면 시점만(pitch 면 캔버스로), 머리 요잉·불빛·회전 깃발은 0. */
-import { SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldLitMaskSet9, litColorTake9, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, auraFocusRec9, type AuraFocus9, tone9, autoTier } from "./bake9";
+import { BLD_TWIST9, BLD_TWIST_KINDS9, SHAPE_BUILDERS, SHAPE_GALLERY, poseSet9, poseNow, headYawSet, headYawNow, headAimNow, bldLitSet, bldLitNow, bldLitMaskSet9, litColorTake9, bldSpinRawSet9, bldSpinNow, bldBlinkSet9, stageFaces, headTag, litTag, spinTag, glSpinTag9, gasEmitTake9, gasPuffFrames9, type GasEmit9, auraFocusRec9, type AuraFocus9, tone9, autoTier } from "./bake9";
 import { lodFilter, PITCH_LEAN9, BILL_CENTER9, MODEL_PERSP, type ShapeFace } from "../../utils/shapeOblique";
 import { collectMesh9 } from "../../utils/mesh9";
 import { GlCtx9, type VecSink9 } from "./glctx9";
@@ -108,7 +108,7 @@ const MESH_MAX9 = 600;   // 메시 상한 기본(종류×자세×LOD + 건물 �
  *  그늘이 얕아지면 입체의 결이 눕고 그것이 '흐림'으로 읽힌다. 눈으로 가르는 자다 · 기본 1 = 지금 값). 셰이더 글자에 접혀 든다. */
 const GL_SOFT9 = ((): number => { const m = typeof location !== "undefined" ? /glsoft=(\d)/.exec(location.hash) : null; return m ? Number(m[1]) : 1; })();
 const SOFT_K9 = GL_SOFT9 === 0 ? "1.0" : "0.7";
-const SOFT_B9 = GL_SOFT9 === 0 ? "0.82 + 0.26 * nd" : "0.86 + 0.22 * nd";
+const SOFT_B9 = GL_SOFT9 === 0 ? "0.82 + 0.26 * nd" : "0.89 + 0.16 * nd";   // 0.86 + 0.22 → 0.89 + 0.16(2026-11-15 시안 L1 · 위 낯 명암 ★) — ⚠ 이 값은 템플릿 밖이라 혼자 바꾸면 아틀라스 판 해시가 안 움직인다
 const VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aRgb; attribute float aTeam; attribute float aAlpha; attribute vec2 aOv; attribute float aOrd; attribute float aBb;
 /* ★★ **개체별 값은 유니폼이 아니라 인스턴스 속성이다**(2026-09, 요청: "gl2로") — 같은 메시의 개체 N 기를 **한 드로 콜**
@@ -236,8 +236,9 @@ void main() {
      ⚠ 효과(uFlat)·진단 끄기(uDbg)에서는 안 든다 — aOv 와 같은 문을 쓴다. */
   if (uDbg >= 1.0 && uFlat < 0.5) {
     float dL9 = dot(n.xy, uLight.xy) * 1.41863;
-    if (dL9 > 0.3) ov.x = min(0.7, ov.x + min(0.2, (dL9 - 0.3) * 0.3 + 0.08) * 1.25);
-    else if (dL9 < -0.1) ov.y = min(0.7, ov.y + min(0.38, (-dL9 - 0.1) * 0.45 + 0.12) * 1.25);
+    /* (2026-11-15, 요청: "밝게 비치는 면은 좀더 어둡게 · 빛방향 반대라 어둡게 그려지는 부분은 좀더 밝게 · 내부그림자와 내부 반사광 광택은 그대로" → 시안 L1) — 흰 몫 ×0.65 · 검은 몫 ×0.6 · 방향광 폭 0.86~1.08 → 0.89~1.05(SOFT_B9). */
+    if (dL9 > 0.3) ov.x = min(0.7, ov.x + min(0.2, (dL9 - 0.3) * 0.3 + 0.08) * 1.25 * 0.65);
+    else if (dL9 < -0.1) ov.y = min(0.7, ov.y + min(0.38, (-dL9 - 0.1) * 0.45 + 0.12) * 1.25 * 0.6);
   }
   vec3 col = mix(base, vec3(1.0), clamp(ov.x, 0.0, 1.0));
   /* ★ **어두운 몫은 0.7 배로 눅인다**(2026-09, 요청: "모델들 음영의 어두운부분 좀 밝게 되나 — 음(영) 약화") —
@@ -591,10 +592,12 @@ const MATX_VS9 = `
     /* 보석·유리(2026-11-01, 물음: "보석이나 유리 종류에 광택 줬어?") — 청록~파랑 · 채도 · 밝은 낯(수정 · 창 · 렌즈)은 종족과 무관하게 7.
        이 재질은 투영이 필요 없어 vMn.xyz 에 **세계 자**의 빛 몫을 싣는다: x 날카로운 반짝임(반각과 낯) · y 빛을 마주 본 정도 · z 시선과 비스듬함(가장자리 빛). */
     if (uMat.x > 0.5 && aTeam < 0.5 && uFlat < 0.5 && uShade.a <= 0.0 && uEmit < 0.5 && ((hu9 > 150.0 && hu9 < 228.0 && st9 > 0.30 && lm9 > 0.33) || (aAlpha < 0.95 && lm9 > 0.30))) cls9 = 7.0;   // 반투명 밝은 낯(파일런 수정 · 창)은 색과 무관하게 유리
-    vMx = vec4(aPos, uScale.x);
+    /* 설계도 −10° 건물(bake9 BLD_TWIST9 ★)은 결을 **돌리기 전 자**로 잰다(2026-11-15, 지적: "테란 건물의 면 내의 판무늬는 요잉을 안 먹었네") — 결은 모형 축에 맞춰 판을 긋는데
+       모형만 돌고 축은 그대로라 판 줄이 낯과 10° 어긋났다. uMatTw = (cos, sin)(되돌리는 각 · 안 돈 메시는 (1, 0)). */
+    vMx = vec4(aPos.x * uMatTw.x - aPos.y * uMatTw.y, aPos.x * uMatTw.y + aPos.y * uMatTw.x, aPos.z, uScale.x);
     /* 유닛의 쇠는 1.25(같은 날 "마린도 … 너무 검정색" — 위에서 보는 유닛은 거의 윗면이라 건물용 윗면 누름이 몸을 통째로 눌렀다) · 조각에서 int(+0.5) 는 그대로 1 이고 vMn.w 로 가른다. */
     if (cls9 == 1.0 && uMat.y < 0.5) cls9 = 1.25;
-    vMn = vec4(aNrm, cls9);
+    vMn = vec4(aNrm.x * uMatTw.x - aNrm.y * uMatTw.y, aNrm.x * uMatTw.y + aNrm.y * uMatTw.x, aNrm.z, cls9);
     vLt = max(dot(n, uLight), 0.0);   // 빛을 마주 본 정도(세계 자) — 모서리 광택이 빛 받는 낯에만(edgeShine9 ★)
     if (cls9 > 6.5) {
       float hh9 = max(dot(n, uHalf), 0.0);
@@ -931,7 +934,8 @@ const LIT_STEEL9 = [0.82, 1.02, 1.36] as const;
 /* (2026-11-03, 지적: "테란 프로토스 반사광이 너무 누렇게 보이는데 너무 강해서 그런건가? 그럼 좀 낮춰야할듯") — 봉우리 0.24 → 0.20 · 윤기 0.16 → 0.13(약 −18%). */
 /* (2026-11-04 시안 D · "테란 프로토스 둘 다 면 반사 좀 낮추고 싶은데") — 봉우리 · 윤기 ×0.75: 테란 0.20 → 0.15 · 0.13 → 0.0975 · 토스 0.21 → 0.1575 · 0.17 → 0.1275(면 빛무리 0.5 → 0.3 도 함께). */
 /* (2026-11-14 원작 대조 · 시안 E1 "테란저그 추천대로") — 봉우리 0.15 → 0.12 · 윤기 0.0975 → 0.078(×0.8): 낯이 통째로 밝아지는 몫을 줄이고 밝은 부분은 안 광택(SPR_IGL9 ★)이 진다. */
-const GLOSS_TERRAN9: Gloss9 = [4.0, 0.12, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
+/* 봉우리 0.12 → 0.054(2026-11-15 시안 "광택 45" — 세 종족 봉우리 ×0.45 · 명암 L1 과 함께 · 밝은 점은 안 광택이 진다). */
+const GLOSS_TERRAN9: Gloss9 = [4.0, 0.054, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
 /* ★★ **금빛 광택이 약한 것은 세기가 아니라 '물듦'이 임자다**(2026-09, 지적: "프로토스 금색의 광이
    너무 약함 — 금색으로 줘서 그런가, 테란처럼 더 흰빛으로 줘야 하나") — 그 물음이 답이다. 물듦 0.70 은
    봉우리를 **제 바탕색(금)으로** 물들이는데, 금 위에 금을 얹으면 밝기 차가 거의 없어 광이 안 선다.
@@ -945,12 +949,12 @@ const GLOSS_TERRAN9: Gloss9 = [4.0, 0.12, 0.55, 0.078, 0.85, LIT_STEEL9, 1.0];
 /* (2026-11-13, 요청: 원작 색감 — "금색은 색을 바꿔야 하고 광택은 더 강하게" → 시안 "좁고 날카롭게 3.0") — 날카로움 5 → 12 · 봉우리 · 윤기 ×2(0.1575 → 0.315 · 0.1275 → 0.255).
    금이 G2 황토(#c8964a)로 짙어져 좁은 봉우리가 원작처럼 번쩍인다. 테란은 그대로(넓히면 윗면이 허옇게 바랬다 · 좁히면 다면체 몇 낯만 하얗게 튀었다). */
 /* (2026-11-14 원작 대조 · 시안 "프로토스는 e1") — 봉우리 0.315 → 0.27 · 윤기 0.255 → 0.19: 금 낯이 통째로 하얗게 뜨는 몫을 줄인다(밝은 부분은 안 광택 SPR_IGL9 ★). */
-const GLOSS_TOSS9: Gloss9 = [12.0, 0.27, 0.25, 0.19, 0.35, LIT_WHITE9, 0.60];
+const GLOSS_TOSS9: Gloss9 = [12.0, 0.122, 0.25, 0.19, 0.35, LIT_WHITE9, 0.60];   // 봉우리 0.27 → 0.122(2026-11-15 ×0.45)
 /* ⚠ 저그를 처음에 [7.2, 0.28] 로 뒀더니 **알·고치가 허옇게 떴다**(눈으로 확인 · 밝기비 lurkeregg 1.17 → 1.40).
    날카로움 7 은 봉우리가 아니라 **또 하나의 환경광**이다 — 젖은 살은 '넓게 밝은' 것이 아니라 '한 자리가 번들거리는' 것이다.
    그래서 봉우리를 좁히고(14) 세기를 내렸다. 그래도 테란·토스보다는 두 배 넓다. */
 /* (2026-11-13 · 같은 요청) 젖은 살 윤기 — 날카로움 3.5 → 8 · 봉우리 · 윤기 ×1.5(프로토스보다 한 단 약하게 · 옛 7 은 알이 허옇게 떴다 — 세기를 덜 올린다). */
-const GLOSS_ZERG9: Gloss9 = [8.0, 0.12, 0.15, 0.12, 0, LIT_WHITE9, 0.60];
+const GLOSS_ZERG9: Gloss9 = [8.0, 0.054, 0.15, 0.12, 0, LIT_WHITE9, 0.60];   // 봉우리 0.12 → 0.054(2026-11-15 ×0.45)
 const GLOSS_NONE9: Gloss9 = [4.0, 0.04, 0.30, 0.06, 0.15, LIT_WHITE9, 0.50];
 /** 애드온 연결관(2026-11-03) — 테란 광택의 ⅓ 남짓(봉우리 0.24 → 0.08 · 윤기 0.55 → 0.35 · 얼룩 0.16 → 0.06). 해저드 띠(노랑·검정)가 테란 광택에 하얗게·푸르게 바랬다. 재질 종족은 테란(uMat.x 1). */
 const GLOSS_LINK9: Gloss9 = [4.0, 0.08, 0.35, 0.06, 0.5, LIT_STEEL9, 1.0];
@@ -1303,6 +1307,9 @@ const BODY_GRADE_OV9: readonly number[] | null = GRADE_OFF9 ? [0, 1, 1, 1, 0] : 
 const gradeOf9 = (g: Gloss9): readonly number[] => BODY_GRADE_OV9 ?? (g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? SPR_GRADE_T9 : g === GLOSS_TOSS9 ? SPR_GRADE_P9 : g === GLOSS_ZERG9 ? SPR_GRADE_Z9 : SPR_GRADE9);
 /** 메시의 몸 곡선 — **발광 몸**(GL_GLOW_KINDS9 — 핵 폭발 · 핵 구름 · 아콘 · 폭풍 · 소환)은 종족 곡선을 안 타고 SPR_GRADE9 그대로다: 테란 곡선의 무릎이 폭발의 흰 속을 0.78 에서 자른다
  *  (2026-11-14 잰 값 — 핵 폭발 밝기 중앙 0.68 → 0.54 · p95 0.92 → 0.72 · 요청은 몸 색이지 효과가 아니다). 메시마다 한 번 셈해 붙여 둔다(bindMesh9 가 걸 때마다 부른다). */
+/** 재질 결을 돌리기 전 자로 되돌리는 (cos, sin) — 설계도를 돌린 건물(bake9 BLD_TWIST_KINDS9)만 −BLD_TWIST9 각 · 나머지 (1, 0). 메시마다 한 번 셈해 붙여 둔다. */
+const TWIST_SET9 = new Set(BLD_TWIST_KINDS9);
+const matTwistOf9 = (m: GlMesh9): readonly [number, number] => { const mm9 = m as GlMesh9 & { tw9?: readonly [number, number] }; if (mm9.tw9) return mm9.tw9; const a9 = TWIST_SET9.has(m.key.slice(m.key.indexOf(":") + 1).split(":")[0]) ? (-BLD_TWIST9 * Math.PI) / 180 : 0; return (mm9.tw9 = [Math.cos(a9), Math.sin(a9)]); };
 const gradeOfMesh9 = (m: GlMesh9): readonly number[] => { const mm9 = m as GlMesh9 & { grd9?: readonly number[] }; return mm9.grd9 ?? (mm9.grd9 = BODY_GRADE_OV9 ?? (GL_GLOW_KINDS9.has(m.key.slice(m.key.indexOf(":") + 1).split(":")[0]) ? SPR_GRADE9 : gradeOf9(m.gloss))); };
 /** 임자색 배수(붙일 때 · 굽는 그림과 무관 — 판 해시 밖) — 저그 ×0.9(시안 E2 · 원작의 임자색은 우리보다 어둡다 0.40 → 0.23 · 테란 · 프로토스는 시안에서 그대로 골랐다). */
 const TEAM_GAIN_Z9 = 0.9;
@@ -1655,7 +1662,7 @@ export class GlUnits9 implements VecSink9 {
       .replace("  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;", "  if (dot(n, vec3(0.0, uCam.y, uCam.x)) < 0.0) n = -n;\n" + ISH_VS_NRM9);
     /* 재질 결 시안(#matx · 위 MATX_VS9 ★) — 켰을 때만 varying 둘·유니폼 둘을 더한 변형으로 짓는다. */
     const mx9 = MATX9 > 0 && this.gl2;   // 모서리 마모가 fwidth(ES 3.00)를 쓴다 — WebGL1 은 시안 없이
-    const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt; uniform vec2 uMat; attribute vec4 aEdg;\n")
+    const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt; uniform vec2 uMat; uniform vec2 uMatTw; attribute vec4 aEdg;\n")
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
     const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;")   // glA9 — 유리 투명(MATX_FS9 cl 7)
@@ -1671,8 +1678,8 @@ export class GlUnits9 implements VecSink9 {
     this.prog = p;
     this.stat.depthBits = Number(gl.getParameter(gl.DEPTH_BITS)) || 0;
     this.stencilBits = Number(gl.getParameter(gl.STENCIL_BITS)) || 0;
-    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uGlowOut", "uGrd9", "uGrs9", "uIg", "uIgC", "uIgM"]) this.loc[u] = gl.getUniformLocation(p, u);
-    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); this.grade9(true);
+    for (const u of ["uCanvas", "uCam", "uLight", "uDepthK", "uPersp", "uLean", "uDbg", "uFlat", "uShadowK", "uShZ", "uEmit", "uGloss", "uSpecTint", "uGlint", "uGlintK", "uHalf", "uKg", "uCon9", "uShTex", "uShP", "uShPass", "uLsM", "uLsK", "uMat", "uMatK", "uMatTw", "uGlowOut", "uGrd9", "uGrs9", "uIg", "uIgC", "uIgM"]) this.loc[u] = gl.getUniformLocation(p, u);
+    gl.useProgram(p); gl.uniform2f(this.loc.uCon9, BODY_CON9[0], BODY_CON9[1]); this.grade9(true); if (this.loc.uMatTw) gl.uniform2f(this.loc.uMatTw, 1, 0);   // 결 되돌림 기본(안 돈 메시) — 유니폼 기본값 0 이면 결 자리가 통째로 0 이 된다
     for (const a of ["aPos", "aNrm", "aRgb", "aTeam", "aAlpha", "aOv", "aOrd", "aBb", "aInA", "aInB", "aInC", "aTeamC", "aSolidC", "aShad", "aEdg"]) this.att[a] = gl.getAttribLocation(p, a);
     /* 번짐 프로그램·사각 — 한 번만 짓는다(실패하면 번짐만 끈다). */
     try {
@@ -2038,6 +2045,7 @@ export class GlUnits9 implements VecSink9 {
       const g = mesh.gloss;
       gl.uniform2f(this.loc.uMat, g === GLOSS_TERRAN9 || g === GLOSS_LINK9 ? 1 : g === GLOSS_TOSS9 ? 2 : g === GLOSS_ZERG9 ? 3 : 0, mesh.key.startsWith("b:pyramidWide") ? 2 : mesh.key.startsWith("b:") ? 1 : 0);   // y = 건물 · 2 넥서스(프로토스 띠 무늬는 넥서스만)
       gl.uniform1f(this.loc.uMatK, MATX9);
+      if (this.loc.uMatTw) { const t9 = matTwistOf9(mesh); gl.uniform2f(this.loc.uMatTw, t9[0], t9[1]); }   // 설계도 −10° 건물의 결(위 MATX_VS9 uMatTw ★)
     }
   }
   /** 카메라 유니폼 — 납작비·높이·숙임·밀림과 반각 H(시선이 카메라의 것이라 카메라가 바뀔 때만). */
