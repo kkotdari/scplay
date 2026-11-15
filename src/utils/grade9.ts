@@ -36,9 +36,13 @@ export function terrGrade9(ts: number): Grade9 {
  *    0.105 → 0(옛 검은점) · 0.229(벽) → 0.105 · 0.281(어두운 판) → 0.149 · 0.320(밝은 판) → 0.212 · 그 위는 옛 곡선의 값(0.52 → 0.386 · 0.75 → 0.666 · 1 → 1).
  *  색은 휘도 비로 통째 늘리고(색상 · 채도가 안 흔들린다 — 검은점을 빼는 옛 식은 어두울수록 채도가 올랐다) 그 뒤 채도 s 0.62(판 색 오차 0.3/255).
  *  지형은 지도를 열 때 JS 로 한 번 굽는 색이라(위 ★ 굽는다) 셰이더 식(GRADE_FN9)에 안 묶인다. 설치(2)는 재지 않아 그대로. `#grade=0` 이면 끔. */
+/* ★ 다시 잼(2026-11-15 밤, 요청: "아까 게임의 감마를 낮추고 측정해서 다시 ㄱㄱ" — 원작(SC:R) 감마를 낮춘 스샷 3장 · 2000×1125) —
+ *  원작 맨바닥(유닛 · 안개 없는 칸 패치 중앙값 · 두 무리): 어두운 판 #26292e(0.160) · 밝은 판 #33363b(0.211) · 비 1.32 · 채도 0.15 · 크립 가운데 #392c33(우리와 같다).
+ *  우리(×1.07 뒤 · 같은 자): 어두운 #2e2e33(0.185) · 밝은 #373a3f(0.226) · 비 1.22 · 채도 0.12~0.13 — 더 밝고 판 대비가 작았다.
+ *  → 우주 판은 ×1.07 을 안 타고(밝은 판이 그대로 맞는다) 어두운 판 점 0.149 → 0.138 · 채도 0.62 → 0.72. */
 export interface Tone9 { readonly pts: readonly (readonly [number, number])[]; readonly s: number }
 const TERR_TONE9: Readonly<Record<number, Tone9>> = {
-  1: { pts: [[0, 0], [0.105, 0], [0.229, 0.105], [0.281, 0.149], [0.32, 0.212], [0.52, 0.386], [0.75, 0.666], [1, 1]], s: 0.62 },
+  1: { pts: [[0, 0], [0.105, 0], [0.229, 0.105], [0.281, 0.124], [0.32, 0.218], [0.52, 0.386], [0.75, 0.666], [1, 1]], s: 0.66 },   // 2026-11-15 다시 잼(아래 ★) — 어두운 판 0.149 → 0.124 · 밝은 판 0.212 → 0.218 · 채도 0.62 → 0.66 · 지형 ×1.07(TERR_LIFT9) 안 탐
 };
 /** 색 하나(0~255)를 밝기 표에 태운다 — 휘도를 꺾은선으로 옮기고(색은 그 비로) 채도를 s 배. */
 export function toneRgb9(c: readonly number[], t: Tone9): [number, number, number] {
@@ -61,7 +65,7 @@ const lift9 = (c: [number, number, number]): [number, number, number] =>
 export function terrGradeOf9(ts: number): ((c: readonly number[]) => [number, number, number]) | null {
   if (GRADE_OFF9) return null;
   const t9 = TERR_TONE9[ts];
-  if (t9) return (c) => lift9(toneRgb9(c, t9));
+  if (t9) return (c) => toneRgb9(c, t9);   // 밝기 표는 원작을 잰 값 그대로(TERR_LIFT9 안 탐 · 2026-11-15 다시 잼)
   const g9 = terrGrade9(ts);
   return g9[4] > 0 ? (c) => lift9(gradeRgb9(c, g9)) : (c) => lift9([c[0], c[1], c[2]]);
 }

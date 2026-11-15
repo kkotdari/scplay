@@ -631,3 +631,4 @@ min(다음 명령 · 재명령 · +GHOST_CANCEL_SEC9)에 끝내 스러지게 했
 
 ## 지도 썸네일 판 4(2026-11-15)
 지형 색 ×1.07(gl-renderer.md '지형 살짝 연하게 ×1.07') — `src/analysis/thumb.ts MAP_THUMB_VER` 3 → 4 · sg-api `analyzer.MAP_THUMB_VER` 도 4.
+같은 날 밤 판 5 — 우주 판 밝기 표 다시 잼(gl-renderer.md '우주 판 밝기 표 다시 잼').
