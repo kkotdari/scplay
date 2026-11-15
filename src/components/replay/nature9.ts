@@ -16,7 +16,8 @@ import type { TerrainGeom9 } from "../../utils/terrainGeom";
 const KEY9 = "scr.nature";
 export function natureOnStored9(): boolean {
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])nature=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  try { return localStorage.getItem(KEY9) === "1"; } catch { return false; }
+  /* 기본 켬(2026-11-15 같은 날, 요청: "자연모드는 일단 기본 on으로 시작") — 끈 기기("0")만 끈다. 옛(첫 판): 기본 끔 · 켠 기기("1")만 켬. */
+  try { return localStorage.getItem(KEY9) !== "0"; } catch { return true; }
 }
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
@@ -228,7 +229,8 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   const M = ctx.getTransform();
   const inView = (x: number, y: number, m: number): boolean => { const sx = ox + x * tp; const sy = oy + y * tp; return sx > -m && sx < cw + m && sy > -m && sy < ch + m; };
   ctx.save();
-  if (P.space) { drawMeteors9(ctx, P, ox, oy, tp, tSec); ctx.restore(); return; }
+  /* 우주 판도 새는 같이 난다(같은 날, 요청: "우주에도 새는 똑같이 추가"). */
+  if (P.space) { drawMeteors9(ctx, P, ox, oy, tp, tSec); drawBirds9(ctx, P, ox, oy, tp, cw, ch, tSec); ctx.restore(); return; }
   const leaf = LEAF9[P.ts]; if (!leaf) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)
   /* ① 폭포 — 물줄기(위에서 아래로 흐르는 줄) + 아래 물보라. */

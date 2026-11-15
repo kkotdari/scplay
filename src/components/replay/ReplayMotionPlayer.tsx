@@ -11012,7 +11012,7 @@ export default function ReplayMotionPlayer({
   /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험).
      ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켜면 기기에 기억("1")하고 그 기기만 켠다(weather9 wxOnStored9). */
   const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
-  /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" · nature9 ★) — 표시 단추의 한 줄 · 기본 끔 · 켜면 기기에 기억(scr.nature). */
+  /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · 기본 켬 · 끄면 기기에 기억(scr.nature "0"). */
   const [natureOn9, setNatureOn9] = useState<boolean>(() => natureOnStored9());
   const toggleNature9 = (): void => { const nv9 = !natureOn9; setNatureOn9(nv9); natureStore9(nv9); NATURE9.on = nv9 && active !== false; window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };
   NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.chirp = birdChirp9;
