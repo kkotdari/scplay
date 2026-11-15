@@ -15,9 +15,10 @@ import type { TerrainGeom9 } from "../../utils/terrainGeom";
 
 const KEY9 = "scr.nature";
 export function natureOnStored9(): boolean {
+  /* ★ 재생기엔 아직 안 싣는다(2026-11-15 같은 날, 요청: "자연효과는 일단 기능만 만들고 재생기에 넣진 말기 · 아직 모델링이 많이 부족") — 시험 주소 `#nature=1` 일 때만 켠다.
+     표시 단추의 '자연' 줄도 걷었다. 옛(같은 날): 기본 켬(끈 기기 "0" 만 끔) → 그 앞 첫 판: 기본 끔 · 켠 기기("1")만 켬. */
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])nature=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  /* 기본 켬(2026-11-15 같은 날, 요청: "자연모드는 일단 기본 on으로 시작") — 끈 기기("0")만 끈다. 옛(첫 판): 기본 끔 · 켠 기기("1")만 켬. */
-  try { return localStorage.getItem(KEY9) !== "0"; } catch { return true; }
+  return false;
 }
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
