@@ -4790,7 +4790,7 @@ export const EVENT_PLACARD9 = false;
 export const EVENT_FLAG9 = false;   // (2026-11-09, 요청: "깃발은 넣어 두고 대신 전광판(응원용)으로") — 끈다. 그림 · 자리 셈은 남긴다(다시 켤 때 true).
 /** ★ 응원 전광판(2026-11-09, 요청: "까만 배경에 전광판 글자(도트 느낌) · 같은 내용 · 깜빡임 · 슬라이딩") — 깃발과 같은 자리(시작 본진 위에 뜬다)에 dom "eventboard".
  *  그림은 RMP evBoardSpr9 · 글귀는 RMP EVENT_FLAG_TEXT9(깃발과 같은 표). 끄려면 false. */
-export const EVENT_BOARD9 = true;
+export const EVENT_BOARD9 = false;   // (2026-11-15 밤, 요청: "환영 전광판 제거") — 끈다. 그림 · 자리 셈은 남긴다(다시 켤 때 true).
 const START_HALL_BY_RAW9 = new WeakMap<object, Map<string, string>>();
 /** 임자(raw) → 시작 본진 줄의 열쇠 `${sec}|${unit}|${x}|${y}` — 배열이 같은 동안 한 번만 센다. */
 function startHallKeys9(rows: readonly (readonly [number, number, number, string, string, ...unknown[]])[]): Map<string, string> {

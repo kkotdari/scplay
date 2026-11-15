@@ -8,9 +8,11 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { birdCall9, hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
 import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
-import { NATURE9, drawNature9, drawNatureSky9, natureFallList9, natureOnStored9 } from "./nature9";
+import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9, natureStore9 } from "./nature9";
 /** 하늘 캔버스(새 몸 · sky9 ★)를 세울지 — 자연 겹은 시험 주소(#nature=1)에서만이라 모듈을 들일 때 한 번 정한다. */
-const SKY_CV_ON9 = natureOnStored9();
+/** 하늘 캔버스(새 · 2026-11-15) — 표시 단추로 켜고 끄므로 늘 세운다(끈 동안은 한 번 지우고 손대지 않는다 · skyDirty9). */
+const SKY_CV_ON9 = true;
+let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
@@ -8108,10 +8110,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
         if (sky9) {   // 하늘 캔버스 — 유닛 캔버스의 배킹 · 꼴(자리 · 잘림 · 손짓 변환)을 그대로 베끼고 같은 변환으로 새 몸을 그린다
           if (sky9.width !== cv.width || sky9.height !== cv.height) { sky9.width = cv.width; sky9.height = cv.height; }
           if (sky9.style.cssText !== cv.style.cssText) sky9.style.cssText = cv.style.cssText;
-          const sc9 = sky9.getContext("2d");
+          const sc9 = on9 || skyDirty9 ? sky9.getContext("2d") : null;
           if (sc9) {
-            sc9.setTransform(1, 0, 0, 1, 0, 0); sc9.clearRect(0, 0, sky9.width, sky9.height);
-            if (on9 && G9) { sc9.setTransform(ctx.getTransform()); drawNatureSky9(sc9, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000); }
+            sc9.setTransform(1, 0, 0, 1, 0, 0); sc9.clearRect(0, 0, sky9.width, sky9.height); skyDirty9 = false;
+            if (on9 && G9) { sc9.setTransform(ctx.getTransform()); drawNatureSky9(sc9, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000); skyDirty9 = true; }
           }
         }
         if (!on9 || !G9) return;
@@ -11028,9 +11030,10 @@ export default function ReplayMotionPlayer({
      ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켜면 기기에 기억("1")하고 그 기기만 켠다(weather9 wxOnStored9). */
   const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
   /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · 기본 켬 · 끄면 기기에 기억(scr.nature "0"). */
-  /* 재생기엔 아직 안 싣는다(같은 날, 요청: "자연효과는 일단 기능만 만들고 재생기에 넣진 말기") — 시험 주소 #nature=1 에서만 켜고 표시 단추 줄은 걷었다. */
-  const natureOn9 = useMemo(() => natureOnStored9(), []);
-  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9; TERR_FALLS9.on = NATURE9.on;
+  /* ★ 자연 겹(새 · 유성) — 기본 켬 · 표시 단추 '자연' 줄로 끄면 기기에 기억(nature9 natureOnStored9 ★ 2026-11-15 밤 출시). 폭포는 걷었다(TERR_FALLS9 늘 끔 · 같은 요청 "폭포 제거"). */
+  const [natureOn9, setNatureOn9] = useState<boolean>(() => natureOnStored9());
+  const toggleNature9 = (): void => { const nv9 = !natureOn9; setNatureOn9(nv9); natureStore9(nv9); window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };
+  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9; TERR_FALLS9.on = false;
   const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
@@ -19760,7 +19763,7 @@ export default function ReplayMotionPlayer({
       if (!glAlive9()) { glTerrRef9.current = null; setGlTerrOn9(false); return; }
       glTerrRef9.current = terrainGeom9(grid.hash, terrainFace(m9), terrainFill);
       NATURE9.geom = glTerrRef9.current; NATURE9.hash = grid.hash; NATURE9.rgb = m9.rgb;
-      TERR_FALLS9.list = natureFallList9();   // 폭포 자리(지형 GL 층이 그린다 · TERR_FALLS9 ★)   // 자연 겹(nature9 ★)이 이 기하로 자리를 뽑는다
+      // 폭포(TERR_FALLS9 · natureFallList9)는 걷었다(2026-11-15 밤 "폭포 제거") — 셰이더 갈래(uMode 8)는 남기고 목록을 안 채운다   // 자연 겹(nature9 ★)이 이 기하로 자리를 뽑는다
       setGlTerrOn9(true);
     });
     return () => { dead9 = true; };
@@ -23221,18 +23224,19 @@ export default function ReplayMotionPlayer({
       <span className="scr-motion-pick">
         <button
           type="button"
-          className={cx("scr-motion-litbtn scr-motion-mapbtn", (cursorOn9 || !linesOff9 || wxOn9) && "is-on")}
+          className={cx("scr-motion-litbtn scr-motion-mapbtn", (cursorOn9 || !linesOff9 || wxOn9 || natureOn9) && "is-on")}
           onClick={() => pickToggle9("layers")}
           aria-haspopup="menu" aria-expanded={pick9 === "layers"}
-          aria-label="표시 — 선수 커서 · 명령 선 · 날씨 켜고 끄기"
-          title="표시(선수 커서 · 명령 선 · 날씨)"
+          aria-label="표시 — 선수 커서 · 명령 선 · 날씨 · 자연 켜고 끄기"
+          title="표시(선수 커서 · 명령 선 · 날씨 · 자연)"
         >
-          <Layers size={18} style={cursorOn9 || !linesOff9 || wxOn9 ? undefined : { opacity: 0.45 }} />
+          <Layers size={18} style={cursorOn9 || !linesOff9 || wxOn9 || natureOn9 ? undefined : { opacity: 0.45 }} />
         </button>
         {pickMenu9("layers", [
           { label: "선수 커서", on: cursorOn9, keep: true, act: toggleCursor9 },
           { label: "명령 선 (L)", on: !linesOff9, keep: true, act: toggleLines9 },
           { label: "날씨", on: wxOn9, keep: true, act: toggleWx9 },
+          { label: "자연", on: natureOn9, keep: true, act: toggleNature9 },   // 새 · 유성(2026-11-15 밤 출시 · 기본 켬)
         ], true, true)}
       </span>
       {/* ★★ 검색(2026-10-12 · 위 searchHits9 ★★) — 왼쪽 무리 끝의 돋보기 **한 알약**이다(되요청: "검색창 단순화 — 돋보기 누르면 옆으로 늘어나며 입력 상태 · 입력하면

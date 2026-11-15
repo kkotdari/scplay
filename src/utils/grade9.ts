@@ -54,12 +54,16 @@ export function toneRgb9(c: readonly number[], t: Tone9): [number, number, numbe
   return [f(r), f(g), f(b)];
 }
 /** 지형 색을 굽는 함수(terrainGeom 이 지도를 열 때 쓴다) — 밝기 표가 있는 타일셋은 표로, 아니면 다섯 수 곡선으로. 꺼졌으면 null. */
+/** ★ 지형 살짝 연하게(2026-11-15 밤, 요청: "지형 색 살짝만 연하게 해서 배포") — 곡선 · 밝기 표 뒤에 모든 타일셋 색을 ×1.07(밝은 끝은 255 에서 멈춤). 1 이면 끔. */
+export const TERR_LIFT9: number = 1.07;
+const lift9 = (c: [number, number, number]): [number, number, number] =>
+  (TERR_LIFT9 === 1 ? c : [Math.min(255, Math.round(c[0] * TERR_LIFT9)), Math.min(255, Math.round(c[1] * TERR_LIFT9)), Math.min(255, Math.round(c[2] * TERR_LIFT9))]);
 export function terrGradeOf9(ts: number): ((c: readonly number[]) => [number, number, number]) | null {
   if (GRADE_OFF9) return null;
   const t9 = TERR_TONE9[ts];
-  if (t9) return (c) => toneRgb9(c, t9);
+  if (t9) return (c) => lift9(toneRgb9(c, t9));
   const g9 = terrGrade9(ts);
-  return g9[4] > 0 ? (c) => gradeRgb9(c, g9) : null;
+  return g9[4] > 0 ? (c) => lift9(gradeRgb9(c, g9)) : (c) => lift9([c[0], c[1], c[2]]);
 }
 /** 색 하나(0~255)를 곡선에 태운다 — GLSL GRADE_FN9 와 같은 식. */
 export function gradeRgb9(c: readonly number[], g: Grade9): [number, number, number] {

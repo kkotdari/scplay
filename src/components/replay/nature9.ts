@@ -1,7 +1,7 @@
 /* ★ **자연 겹**(2026-11-15, 요청: "자연 레이어 추가(기본 off) · 우주맵 — 별똥별 떨어지기(1개 또는 여러개) · 자연 종류 맵 — 나무(가을 단풍과 녹색류 · 크기 다양) ·
  *  풀숲(흔들리는 덤불 · 긴 잔디 · 갈대) · 꽃무리 · 높이 단차 있는 벽에 폭포 · 날아다니는 작고 예쁜 새와 소리") ─────────────────────────────────────────────
  *
- * 꾸밈 날씨(weather9)처럼 **표시 단추(Layers)의 한 줄**이고 기본 끔(기기 `scr.nature` = "1" 일 때만 · `#nature=0|1` 시험).
+ * 꾸밈 날씨(weather9)처럼 **표시 단추(Layers)의 한 줄**이고 기본 켬(2026-11-15 밤 출시 · 끈 기기 `scr.nature` = "0" 만 끔 · `#nature=0|1` 시험) · 지금 그리는 것은 새와 유성뿐.
  * 지형 기하(terrainGeom9 의 lvl · walk · ramp)에서 **지도마다 한 번** 자리를 뽑고(지도 해시 씨앗 — 같은 지도는 늘 같은 숲), 유닛 2D 캔버스(크립과 같은 층 —
  * 지형 위 · 유닛 몸 아래)에 장마다 그린다. 평면 보기만(맵 로고와 같은 규약 — 입체는 아핀 자리가 안 맞는다).
  *   · 나무 — 못 걷는 땅(물 · 절벽이 아닌 칸: 정글 덩굴 · 바위 덤불 자리)에 숲으로. 녹색 활엽 · 단풍(주황 · 빨강 · 노랑) · 침엽 셋 × 크기 0.8 ~ 1.9.
@@ -19,10 +19,10 @@ const NATURE_PROPS9 = false;
 
 const KEY9 = "scr.nature";
 export function natureOnStored9(): boolean {
-  /* ★ 재생기엔 아직 안 싣는다(2026-11-15 같은 날, 요청: "자연효과는 일단 기능만 만들고 재생기에 넣진 말기 · 아직 모델링이 많이 부족") — 시험 주소 `#nature=1` 일 때만 켠다.
-     표시 단추의 '자연' 줄도 걷었다. 옛(같은 날): 기본 켬(끈 기기 "0" 만 끔) → 그 앞 첫 판: 기본 끔 · 켠 기기("1")만 켬. */
+  /* ★ 출시 · 기본 켬(2026-11-15 밤, 요청: "폭포 제거하고 새랑 유성만 있는 상태로 자연 레이어 출시 · 기본 on 상태로 배포") — 표시 단추(Layers)의 '자연' 줄로 끄면
+     기기에 "0" 을 기억해 그 기기만 끈다 · `#nature=0|1` 은 시험(기억보다 앞선다). 옛(같은 날 낮): 재생기에 안 싣고 `#nature=1` 일 때만("아직 모델링이 많이 부족"). */
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])nature=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  return false;
+  try { return localStorage.getItem(KEY9) !== "0"; } catch { return true; }
 }
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
@@ -121,6 +121,9 @@ function planOf9(G: TerrainGeom9, hash: string): Plan9 {
     }
     props.sort((a, b) => a.y - b.y);
   }
+  /* ★ 유성은 모든 맵에(2026-11-15 밤, 지적: "빨무맵에서 유성우가 안내림") — 옛: 우주 판(타일셋 1)의 우주 칸 위에만. 우주 판이 아니거나 우주 칸이 지도의 2% 도 안 되면
+     지도 전체를 하늘로 친다(유성은 하늘 층이라 땅 위로 지나가도 된다). */
+  if (spaceTiles.length < w * h * 0.02) { spaceTiles.length = 0; for (let i = 0; i < w * h; i += 1) spaceTiles.push(i); }
   plan9 = { props, falls, space, spaceTiles, w, h, ts }; planKey9 = key;
   return plan9;
 }
@@ -221,7 +224,7 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   const inView = (x: number, y: number, m: number): boolean => { const sx = ox + x * tp; const sy = oy + y * tp; return sx > -m && sx < cw + m && sy > -m && sy < ch + m; };
   ctx.save();
   /* 우주 판 — 유성(sky9 ★) · 모든 판 — 새 그림자(새 몸은 몸 위 층 drawNatureSky9). 설치 · 잿빛 판도 새는 난다("우주에도 새는 똑같이"). */
-  if (P.space) drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);
+  drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);   // 모든 맵(위 planOf9 ★ 유성은 모든 맵에)
   drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
   const leaf = LEAF9[P.ts]; if (P.space || !leaf || !NATURE_PROPS9) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)

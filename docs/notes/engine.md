@@ -628,3 +628,6 @@ min(다음 명령 · 재명령 · +GHOST_CANCEL_SEC9)에 끝내 스러지게 했
 ## 지도 썸네일 판 3(2026-11-14)
 우주 판 지형 색이 밝기 표로 바뀌었다(gl-renderer.md '우주 판 밝기 표 · 크립 색 · 판 질감 다시 진하게') — 같은 붓을 쓰는 썸네일도 달라져 `src/analysis/thumb.ts MAP_THUMB_VER` 2 → 3.
 ⚠ 배포 때 sg-api 에서 `sh scripts/vendor-analyzer.sh ../scplay` 와 함께 `analyzer.MAP_THUMB_VER` 도 3 으로 올린다(저장 열쇠 — 안 올리면 옛 색 썸네일이 남는다).
+
+## 지도 썸네일 판 4(2026-11-15)
+지형 색 ×1.07(gl-renderer.md '지형 살짝 연하게 ×1.07') — `src/analysis/thumb.ts MAP_THUMB_VER` 3 → 4 · sg-api `analyzer.MAP_THUMB_VER` 도 4.
