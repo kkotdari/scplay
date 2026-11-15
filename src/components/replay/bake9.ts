@@ -5040,6 +5040,9 @@ export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
   }
   return out;
 }
+/** 해처리 · 레어 옆 갈비의 임자색 띠(위 seamBands ★) — 가는 둘 · 하이브는 HIVE_BANDS9. */
+export const HATCH_BANDS9: readonly (readonly [number, number])[] = [[0.3, 0.37], [0.64, 0.71]];
+export const HIVE_BANDS9: readonly (readonly [number, number])[] = [[0.3, 0.6]];
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
@@ -5051,6 +5054,10 @@ export function hatcheryMoundFaces(
   ringColor = "#3a3f46",
   /** 옆 갈비(삼각 단면 옆기둥 여섯)의 크기 배수 — 굵기·끝 굵기·드러난 등 높이·아가리 테를 함께 곱한다. 하이브 1.5(2026-11-01, 요청: "하이브 옆등을 따라 삼각 튀어나온 것들 6개 레어보다 1.5배 정도 커야 함"). */
   seamK = 1,
+  /** ★ 옆 갈비의 임자색 띠 — 등마루를 따라 [시작 · 끝](0 밑동 ~ 1 꼭대기). 2026-11-15 밤, 지적: "해처리류 옆 등줄기의 색은 검정이 대부분이고 임자색 부분은 훨씬
+   *  듬성듬성 · 단 하이브는 임자색 띠 두께가 훨씬 두껍고 한두 개만 들어감" — 옛 넷(0.05–0.19 · 0.3–0.43 · 0.52–0.65 · 0.74–0.87)은 갈비가 줄무늬로 읽혔다.
+   *  해처리 · 레어는 가는 둘 · 하이브는 부르는 쪽이 굵게 준다. */
+  seamBands: readonly (readonly [number, number])[] = HATCH_BANDS9,
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5494,9 +5501,7 @@ export function hatcheryMoundFaces(
            비었고, 낯 다섯(등마루 둘레 ±75도)만 덮어 옆벽 아래가 맨살로 남았다. 띠를 하나 더 내려
            깔고, 덮는 낯을 **살에 묻히는 두 모서리 너머**(255도 ~ 105도)까지 넓힌다 — 살 속에 든
            몫은 어차피 안 보이므로 '모자라게 덮는' 쪽보다 넘치게 두는 것이 옳다. */
-        for (const [t0, t1] of [
-          [0.05, 0.19], [0.3, 0.43], [0.52, 0.65], [0.74, 0.87],
-        ] as [number, number][]) {
+        for (const [t0, t1] of seamBands) {
           const FA = seamFrame9(t0);
           const FB = seamFrame9(t1);
           /* ★ **마디가 아니라 낯 위의 평면 데칼이다**(2026-09, 요청: "옆기둥 데칼은 단순하게 그냥 면 위에
@@ -18274,7 +18279,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5));   // 옆 갈비 1.5배(seamK ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
