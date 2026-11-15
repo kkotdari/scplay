@@ -112,7 +112,7 @@ function planOf9(G: TerrainGeom9, hash: string): Plan9 {
         for (let k = 1; k <= 4; k += 1) { const j = at(x, y + k); if (j < 0) break; if (isWater(j) || (isWalk(j) && lvl[j] < lvl[top])) { y1 = y + k; break; } if (walk[j] === 1) break; }
         if (y1 < 0) continue;
         if (!isWalk(at(x - 1, y - 1)) || !isWalk(at(x + 1, y - 1))) continue;   // 위 땅이 넓은 자리(벽 끝 모서리는 뺀다)
-        cand.push({ x: x + 0.5, y0: y - 0.05, y1: y1 + 0.15, w: 1.0 + R() * 1.0, ph: R() * 10 });
+        cand.push({ x: x + 0.5, y0: y - 0.05, y1: y1 + 0.15, w: (1.0 + R() * 1.0) * (isWater(at(x, y1)) ? 1 : -1), ph: R() * 10 });   // 폭 부호 — 물에 떨어지면 + (glTerrain9 fallPass 물결 고리)
       }
       for (let n = 0; n < cand.length * 3 && falls.length < 10; n += 1) {
         const c = cand[Math.floor(R() * cand.length)];
@@ -225,26 +225,7 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
   const leaf = LEAF9[P.ts]; if (P.space || !leaf || !NATURE_PROPS9) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)
-  /* ① 폭포 — 물줄기(위에서 아래로 흐르는 줄) + 아래 물보라. */
-  for (const f of P.falls) {
-    if (!inView(f.x, (f.y0 + f.y1) / 2, tp * 4)) continue;
-    const x = ox + f.x * tp; const y0 = oy + f.y0 * tp; const y1 = oy + f.y1 * tp; const hw = (f.w * tp) / 2;
-    const gr = ctx.createLinearGradient(0, y0, 0, y1);
-    gr.addColorStop(0, "rgba(170,215,240,0.85)"); gr.addColorStop(1, "rgba(225,242,255,0.92)");
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(x - hw, y0); ctx.lineTo(x + hw, y0); ctx.lineTo(x + hw * 1.15, y1); ctx.lineTo(x - hw * 1.15, y1); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = Math.max(0.8, tp * 0.04);
-    const len = y1 - y0; const sp = (tSec * 2.2 + f.ph) % 1;
-    ctx.beginPath();
-    for (let k = 0; k < 7; k += 1) {
-      const xx = x - hw + (2 * hw * (k + 0.5)) / 7; const off = ((sp + k * 0.37) % 1) * len;
-      ctx.moveTo(xx, y0 + off); ctx.lineTo(xx, Math.min(y1, y0 + off + len * 0.22));
-    }
-    ctx.stroke();
-    for (let k = 0; k < 5; k += 1) {
-      const a = tSec * 3 + k * 1.3 + f.ph; const rr = tp * (0.18 + 0.12 * ((Math.sin(a) + 1) / 2));
-      ctx.fillStyle = "rgba(240,248,255,0.55)"; ctx.beginPath(); ctx.ellipse(x + (k - 2) * hw * 0.55, y1 + Math.sin(a * 1.3) * tp * 0.05, rr, rr * 0.55, 0, 0, 6.283); ctx.fill();
-    }
-  }
+  /* ① 폭포는 GL 지형 층이 그린다(glTerrain9 TERR_FALLS9 · 기존 물 질감 — 2026-11-15 "폭포 추가 · 물 질감은 기존 물 사용") — 자리만 natureFallList9 로 넘긴다. */
   /* ② 나무 · 풀 · 꽃(뒤에서 앞으로 — 자리 y 로 정렬해 뒀다). 흔들림 = 밑동을 잡은 기울임. */
   const sway = (ph: number, amp: number): number => Math.sin(tSec * 1.6 + ph) * amp + Math.sin(tSec * 2.9 + ph * 1.7) * amp * 0.35;
   for (const p of P.props) {
@@ -274,4 +255,12 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
 export function drawNatureSky9(ctx: CanvasRenderingContext2D, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
   const G = NATURE9.geom; if (!NATURE9.on || !G || tp < 2) return;
   drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
+}
+
+/** 폭포 자리 — (가운데 x, 위 y, 아래 y, 폭) 넷씩 · 타일. 지형 GL 층(TERR_FALLS9)이 그린다. 자연 판(타일셋)이 아니거나 기하가 없으면 빈 배열. */
+export function natureFallList9(): number[] {
+  const G = NATURE9.geom; if (!G) return [];
+  const P = planOf9(G, NATURE9.hash); const out: number[] = [];
+  for (const f of P.falls) out.push(f.x, f.y0, f.y1, f.w);
+  return out;
 }

@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useBgm } from "./useBgm";
 import { birdCall9, hushSfx9, prebakeSfx9, setRain9, setSfxFullVolume9, setSfxOn9, setSfxVolume9, sfxOn9, subscribeSfx9, thunderClap9, unlockSfx9 } from "./sfx9";
 import { wxAt9, wxGround9, wxGroundAt9, wxOnStored9, wxPlan9, wxStore9, wxTiles9 } from "./weather9";
-import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9 } from "./nature9";
+import { NATURE9, drawNature9, drawNatureSky9, natureFallList9, natureOnStored9 } from "./nature9";
 /** 하늘 캔버스(새 몸 · sky9 ★)를 세울지 — 자연 겹은 시험 주소(#nature=1)에서만이라 모듈을 들일 때 한 번 정한다. */
 const SKY_CV_ON9 = natureOnStored9();
 import { SfxCues9 } from "./sfx9Cues";
@@ -66,7 +66,7 @@ import SG_LOGO_SRC9 from "./assets/sg-logo-white.png?inline";   // 맵 가운데
 import { CUR_ARROW_D9, CUR_CARRY_SEC9, CUR_FOE9, CUR_GROUND9, CUR_OWN9, CUR_RES9, cursorAt9, cursorPathsOf9 } from "./cursor9";
 import { drawMapGrid, terrainFill, type MapTerrainLike } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
-import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, TERR_WATER9, TERR_WX9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
+import { FOG_EYE_Q9, GL_TERR9, TERR_GRAIN9, TERR_FALLS9, TERR_WATER9, TERR_WX9, glTerrCanvas9, glTerrLast9, glTerrRelease9, type GlFog9 } from "./glTerrain9";
 /* 자취는 이제 서버가 굽는다 — 브라우저는 풀어서 읽기만 한다(tools/openbw/README.md).
    여태 이 자리에서 돌던 시뮬(legacy/simCore·simClient)은 명령에서 **유추**하던 것이라,
    참값이 생긴 뒤로는 견줄 것도 없어 통째로 걷었다. legacy는 유물로 남긴다. */
@@ -11030,7 +11030,7 @@ export default function ReplayMotionPlayer({
   /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · 기본 켬 · 끄면 기기에 기억(scr.nature "0"). */
   /* 재생기엔 아직 안 싣는다(같은 날, 요청: "자연효과는 일단 기능만 만들고 재생기에 넣진 말기") — 시험 주소 #nature=1 에서만 켜고 표시 단추 줄은 걷었다. */
   const natureOn9 = useMemo(() => natureOnStored9(), []);
-  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9;
+  NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9; TERR_FALLS9.on = NATURE9.on;
   const toggleWx9 = (): void => { const nv9 = !wxOn9; setWxOn9(nv9); wxStore9(nv9); if (!nv9) { setRain9(0); TERR_WX9.on = false; } window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };   // 멈춘 판도 한 장 다시(바닥 날씨 겹)   // 테스터 표는 앱이 늦게 줄 수 있다
   const wxPlanNow9 = useMemo(() => { const p9 = wxPlan9(clockKey ?? `${gridIn.width}x${gridIn.height}|${Math.round(total)}`, total); const k9 = typeof location !== "undefined" ? /wxkind=(rain|snow)/.exec(location.hash) : null; return k9 ? { ...p9, kind: k9[1] as "rain" | "snow", ...(p9.clear ? { eps: p9.eps0 ?? [], bolts: p9.bolts0 ?? [] } : {}) } : p9; }, [clockKey, gridIn.width, gridIn.height, total]);   // #wxkind= 시험
   const wxTile9 = wxOn9 && typeof document !== "undefined" ? wxTiles9() : null;
@@ -19759,7 +19759,8 @@ export default function ReplayMotionPlayer({
       // GL 붓이 서야 지형층도 선다(열다 실패한 문맥이면 옛 층) — 붓이 뒤에 죽으면 UnitLayer 가 terrainOff 로 알린다.
       if (!glAlive9()) { glTerrRef9.current = null; setGlTerrOn9(false); return; }
       glTerrRef9.current = terrainGeom9(grid.hash, terrainFace(m9), terrainFill);
-      NATURE9.geom = glTerrRef9.current; NATURE9.hash = grid.hash; NATURE9.rgb = m9.rgb;   // 자연 겹(nature9 ★)이 이 기하로 자리를 뽑는다
+      NATURE9.geom = glTerrRef9.current; NATURE9.hash = grid.hash; NATURE9.rgb = m9.rgb;
+      TERR_FALLS9.list = natureFallList9();   // 폭포 자리(지형 GL 층이 그린다 · TERR_FALLS9 ★)   // 자연 겹(nature9 ★)이 이 기하로 자리를 뽑는다
       setGlTerrOn9(true);
     });
     return () => { dead9 = true; };

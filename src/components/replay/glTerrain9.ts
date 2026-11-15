@@ -54,6 +54,9 @@ export const TERR_WATER9 = {
  *  ② 빗방울 튐 — 0.45 타일 칸마다 위상 다른 고리(웅덩이 위 동심원 · 땅 위 작은 톡) · rk(0~1)가 칸 몫 · splash 거짓이면(폰) 안 그린다
  *  ③ 눈 쌓임 — 낮은 결 + 고지대 · 고도 경계 덤 · snow(0~1)가 문턱을 내린다 · 얇은 가장자리 푸른 그늘 · 둘레 희끗.
  *  값은 RMP 의 날씨 붓(wxTickRef9)이 장마다 심는다(쌓임 · 마름은 거기서). on 이 거짓이면 아무것도 안 한다. 무늬 판 wxm(r 걷는 땅 · g 고도/3 · b 고도·땅 경계 · LINEAR). */
+/** ★ 폭포(2026-11-15, 요청: "폭포 추가 · 물 질감은 기존 물 사용") — 자연 겹(nature9)이 고른 자리(가운데 x, 위 y, 아래 y, 폭 — 타일 · 넷씩)를 장마다 지형 판 뒤 ·
+ *  안개 앞에 그린다(uMode 8 · fallPass — 물빛 uWd · 물거품 빛 · 반짝임 셈이 waterPass 와 같다). on 이 거짓이거나 목록이 비면 안 그린다. */
+export const TERR_FALLS9: { on: boolean; list: number[] } = { on: false, list: [] };
 export const TERR_WX9 = { on: false, wet: 0, rk: 0, snow: 0, splash: true, sq: 0.5 };   // sq = 땅 위 고리의 세로 눌림(평면 0.5 = 클릭 마커 --ckk · 입체 1 — 사영이 이미 눕힌다)
 const waterFx9 = (): boolean => TERR_WATER9.on && (TERR_WATER9.fxHash >= 0 ? TERR_WATER9.fxHash === 1 : TERR_WATER9.fx);
 /** ★ **대비 견줌 손잡이**(2026-10-29, 요청: "지형과 모델이 많이 선명해져서 좋은데 대비가 좀 약한 거 같아 원작에 비해" → "대비 적용 전에 강한 대비 테스트해 볼 수 있는
@@ -113,6 +116,7 @@ uniform vec4 uCol; uniform sampler2D uTex; uniform float uMode; uniform vec2 uCo
 uniform vec4 uGr;
 uniform vec4 uWt; uniform vec4 uWd; uniform vec2 uWpx;
 uniform vec4 uWx; uniform vec4 uWx2;
+uniform vec4 uFl;
 varying vec2 vUv; varying vec2 vTc;
 float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 vec2 h22(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
@@ -276,6 +280,70 @@ vec4 wxPass() {
   }
   return vec4(rgb, a);
 }
+/* ★ 폭포(TERR_FALLS9 ★) — uFl = (가운데 x, 위 y, 아래 y, 폭 — 타일) · 물빛(uWd)과 물거품 빛 · 반짝임은 waterPass 와 같은 자(기존 물 질감).
+   위 입술(매끈하게 넘어오는 혀 · 밝은 테) → 떨어지며 공기를 머금어 희어지는 줄기(아래로 흐르는 결 · 가장자리 찢김) → 아래 물웅덩이 물거품 · 물보라. 미리곱한 알파. */
+vec4 fallPass() {
+  float t = uWt.x;
+  vec2 tc = vTc;
+  float pool = step(0.0, uFl.w);   // 폭 부호 — + 물에 떨어짐(물결 고리) · − 땅에 떨어짐(물보라만)
+  float hw = abs(uFl.w) * 0.5;
+  float H = max(0.4, uFl.z - uFl.y);
+  float v = (tc.y - uFl.y) / H;
+  float u0 = (tc.x - uFl.x) / hw;
+  vec3 deep = uWd.rgb;
+  vec3 foamC = vec3(0.88, 0.93, 0.96);
+  vec3 rgb = vec3(0.0); float a = 0.0;
+  if (v < 1.04) {
+    float vv = clamp(v, 0.0, 1.0);
+    float wid = 1.0 + 0.32 * vv * vv;
+    /* 줄기 가로 흔들림 · 가장자리 찢김(아래로 갈수록 거칠고 바깥으로 튄 물가루) */
+    float sway = (wfbm(vec2(tc.y * 0.8 - t * 1.1, uFl.x)) - 0.5) * 0.18 * vv;
+    float uu = (u0 - sway) / wid;
+    float rag = (wfbm(vec2(tc.y * 2.6 - t * 3.6, sign(uu) * 3.7 + uFl.x)) - 0.5) * (0.25 + 0.55 * vv);
+    float u = abs(uu);
+    float body = 1.0 - smoothstep(0.72 + rag, 1.0 + rag, u);
+    float top = smoothstep(-0.05, 0.03, v) * (1.0 - smoothstep(1.0, 1.04, v));
+    /* 흐르는 결 — 세로로 늘인 무늬 둘(굵은 다발 · 가는 실)이 아래로(떨어질수록 빨라진다) */
+    float fall = t * (2.4 + 2.0 * vv);
+    float s1 = wfbm(vec2(uu * 5.0 * hw + uFl.x * 3.1, (tc.y - uFl.y) * 0.32 - fall * 0.42));    // 굵은 다발(세로로 길게)
+    float s2 = wfbm(vec2(uu * 13.0 * hw + 4.0 + uFl.x, (tc.y - uFl.y) * 0.75 - fall * 0.95));   // 가는 실
+    float streak = s1 * 0.6 + s2 * 0.4;
+    float lip = smoothstep(0.16, 0.0, vv);                                                      // 넘어오는 매끈한 혀
+    float air = smoothstep(0.30, 0.62, streak) * (0.35 + 0.65 * smoothstep(0.02, 0.6, vv)) * (1.0 - lip * 0.85);   // 공기 머금은 흰 물
+    /* 물빛 — 혀 · 맑은 줄기는 기존 물(uWd)처럼 투명하게 뒤 벽이 비치고, 공기 머금은 줄기는 물거품 빛으로 탁하다 */
+    vec3 clear = deep * 1.55 + vec3(0.04, 0.07, 0.08);
+    vec3 c = mix(clear, foamC, air);
+    float shade = 1.05 - 0.18 * uu;                                                              // 빛 왼위
+    c *= shade;
+    /* 혀의 밝은 테(굽은 수면이 하늘을 비친다) · 혀 아래 짙은 띠 */
+    float rim = smoothstep(0.10, 0.03, abs(vv - 0.05)) * (1.0 - smoothstep(0.55, 0.95, u));
+    c = mix(c, vec3(0.80, 0.88, 0.94), rim * (0.55 + 0.25 * sin(t * 2.2 + tc.x * 4.0)));
+    c *= 1.0 - 0.18 * smoothstep(0.05, 0.14, vv) * smoothstep(0.24, 0.14, vv);
+    /* 반짝임 — waterPass 수면 반짝임과 같은 셈(결이 아래로 흐른다) */
+    vec2 w = vec2(tc.x * 1.2, (tc.y - uFl.y) * 0.45 - t * 1.4);
+    float na = wfbm(w); float nb = wfbm(w + vec2(0.7, 0.0)); float nc = wfbm(w + vec2(0.0, 0.7));
+    vec3 nrm = normalize(vec3(-vec2(nb - na, nc - na) * 5.0, 1.0));
+    float sp = pow(max(dot(nrm, normalize(vec3(-0.5, -0.45, 0.75) + vec3(0.0, 0.0, 1.0))), 0.0), 40.0) * 0.4;
+    c += foamC * sp * (1.0 - air);
+    float al = body * top * mix(0.62, 0.97, max(air, lip * 0.6));
+    rgb = c * al; a = al;
+  }
+  /* 아래 — 물웅덩이 물거품(바닥에 눕는 타원 · 들끓음) + 퍼지는 물결 고리 + 물보라(위로 피어 흐려짐) */
+  float bx = u0 / 1.25; float by = (tc.y - uFl.z) / max(0.35, hw * 0.75);
+  float r = length(vec2(bx, by * 1.6));
+  float boil = wfbm(tc * 2.8 + vec2(t * 0.9, -t * 1.3)) * 0.6 + wfbm(tc * 6.0 - vec2(0.0, t * 2.0)) * 0.4;
+  float foam = (1.0 - smoothstep(0.30, 1.05, r + (boil - 0.5) * 0.45)) * (0.55 + 0.45 * boil);
+  float ring = 0.0;
+  for (int k = 0; k < 3; k++) {
+    float ph = fract(t * 0.45 + float(k) / 3.0);
+    float rr = 0.9 + ph * 1.4;
+    ring += smoothstep(0.09, 0.0, abs(r - rr)) * (1.0 - ph) * 0.35 * pool;
+  }
+  float mist = (1.0 - smoothstep(0.0, 1.0, length(vec2(u0 / 2.0, (tc.y - uFl.z + 0.35 * hw) / (1.1 * max(0.5, hw)))))) * (0.4 + 0.6 * wfbm(tc * 1.4 + vec2(t * 0.25, t * 0.7))) * 0.5;
+  float fa = clamp(foam * 0.9 + ring + mist, 0.0, 1.0) * (1.0 - a);
+  rgb += foamC * fa; a += fa;
+  return vec4(rgb, a);
+}
 vec4 waterPass() {
   vec4 m = texture2D(uTex, vUv);
   // 물가는 타일 계단이 아니라 둥글게 — 물 판을 반 타일 둘레로 한 번 흐려 문턱을 넓게 잡는다.
@@ -328,6 +396,7 @@ vec4 waterPass() {
 }
 void main() {
   vec4 o;
+  if (uMode > 7.5) { gl_FragColor = fallPass(); return; }   // 폭포(TERR_FALLS9 ★)
   if (uMode > 6.5) { gl_FragColor = wxPass(); return; }   // 바닥 날씨(TERR_WX9 ★)
   if (uMode > 3.5) { gl_FragColor = waterPass(); return; }   // 물(TERR_WATER9 ★) — 안개(3) 갈래보다 먼저 가른다
   /* 판 17 칸 안개(GlFog9.tile ★) — uGr = (섞기 f, 밝힌 자리 어둑함, 1/칸 수 w, 1/칸 수 h) · uCol.rgb = 안개 색. 다섯 점 흐림 + 문턱으로 둥근 가장자리. */
@@ -504,7 +573,7 @@ export class GlTerrain9 {
     /** 인스턴스 그리기(gl2 drawArraysInstanced · ANGLE) — 없으면 눈 원을 옛 길로. */
     private readonly drawInst: ((mode: number, first: number, count: number, n: number) => void) | null = null) {
     this.prog = TERR_SOFT9 ? mkProg(terrSoftVS9(TERR_VS), terrSoftFS9(TERR_FS)) : mkProg(TERR_VS, TERR_FS);
-    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx", "uWx", "uWx2"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
+    for (const u of ["uH", "uCanvas", "uOff", "uHalfW", "uWH", "uCol", "uTex", "uMode", "uCon", "uGr", "uWt", "uWd", "uWpx", "uWx", "uWx2", "uFl"]) this.loc[u] = gl.getUniformLocation(this.prog, u);
     this.aP = gl.getAttribLocation(this.prog, "aP"); this.aN = gl.getAttribLocation(this.prog, "aN");
     this.quad = gl.createBuffer()!;
     this.nAttr = Math.max(2, Number(gl.getParameter(gl.MAX_VERTEX_ATTRIBS)) || 8);
@@ -763,8 +832,8 @@ export class GlTerrain9 {
   }
   /** 판 재사용 길(GlTerrCanvas9 ★ 지형 판)에서 판 뒤에 물결 · 반짝임 · 물거품만 얹는다(안개 앞). 물 판이 없거나 꺼졌으면 아무것도 안 한다. */
   drawWaterFx(G: TerrainGeom9, quad: number[], cw: number, ch: number): void {
-    const doW9 = !!this.wat && waterFx9(); const doX9 = !!this.wxm && TERR_WX9.on;
-    if (!this.highp9 || TERR_DBG9 >= 0 || (!doW9 && !doX9)) return;
+    const doW9 = !!this.wat && waterFx9(); const doX9 = !!this.wxm && TERR_WX9.on; const doF9 = TERR_FALLS9.on && TERR_FALLS9.list.length >= 4;
+    if (!this.highp9 || TERR_DBG9 >= 0 || (!doW9 && !doX9 && !doF9)) return;
     const gl = this.gl;
     const W = G.w; const H = G.h;
     gl.useProgram(this.prog);
@@ -789,7 +858,19 @@ export class GlTerrain9 {
     };
     if (doX9) this.wxPassDraw(rect, W, H, Math.hypot(quad[2] - quad[0], quad[3] - quad[1]) / Math.max(1, W));
     if (doW9) { this.waterUniforms(G); this.waterFxPasses(rect, W, H); }
+    if (doF9) { this.waterUniforms(G); this.fallPasses(rect); }
     gl.uniform1f(this.loc.uMode, 0);
+  }
+  /** 폭포 한 벌(TERR_FALLS9 ★) — 하나씩 uFl 을 걸고 그 둘레 네모(옆 0.9 폭 · 위 0.15 · 아래 1.1 타일)만 칠한다. 미리곱한 알파. */
+  private fallPasses(rect: (x0: number, y0: number, x1: number, y1: number) => void): void {
+    const gl = this.gl; const L = TERR_FALLS9.list;
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1f(this.loc.uMode, 8);
+    for (let i = 0; i + 3 < L.length; i += 4) {
+      const x = L[i]; const y0 = L[i + 1]; const y1 = L[i + 2]; const w = Math.abs(L[i + 3]);
+      gl.uniform4f(this.loc.uFl, x, y0, y1, L[i + 3]);
+      rect(x - w * 1.0, y0 - 0.15, x + w * 1.0, y1 + Math.max(1.1, w * 0.8));
+    }
   }
   /** 바닥 날씨 한 겹(위 TERR_WX9 ★) — 블렌드 ONE, 1−a(미리곱한 알파) · pxT = 타일 하나의 화면 CSS px(가장자리 너비 · 기기 px 로 dpr 곱). */
   private wxPassDraw(rect: (x0: number, y0: number, x1: number, y1: number) => void, W: number, H: number, pxT: number): void {
@@ -1083,6 +1164,14 @@ export class GlTerrain9 {
       // ⑨ 물결 · 반짝임 · 물거품 — 판을 안 쓰는 길(part 0)에서만 여기서. 판 길은 GlTerrCanvas9 가 판 뒤에 drawWaterFx 로.
       if (part === 0 && waterFx9()) this.waterFxPasses(rect, W, H);
       gl.uniform1f(this.loc.uMode, 0);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.STENCIL_TEST);
+    }
+    // ⑨' 폭포(위 TERR_FALLS9 ★) — 판 안 쓰는 길(part 0)만 여기서 · 판 길은 drawWaterFx 가 판 뒤에. 물이 없는 판에도 선다.
+    if (part === 0 && TERR_FALLS9.on && TERR_FALLS9.list.length >= 4 && this.highp9 && TERR_DBG9 < 0) {
+      gl.disable(gl.STENCIL_TEST);
+      this.waterUniforms(G); this.fallPasses(rect);
+      gl.uniform1f(this.loc.uMode, 0); gl.uniform4f(this.loc.uWt, (performance.now() / 1000) % 600, 1, 0, 0);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.STENCIL_TEST);
     }
