@@ -1342,13 +1342,15 @@ const SPR_ISH_POF9 = 2.5;
  *  낯이 통째로 뜬다(봉우리 86° · +0.11). 제 낯의 밀림(화면 미분으로 잰 낯의 깊이 기울기)을 제 깊이에 더해 되뺀다 — 같은 낯의 이웃은 정확히 0. 고른 시안의 열다섯 종은 거의 그대로다
  *  (몸 평균 밝기 −0.002 ~ −0.009 · 0.15 넘게 달라진 화소 1% 아래).
  *  SPR_ 줄 · 아래 템플릿이라 판 해시에 든다 — 바꾸면 아틀라스를 다시 굽는다. ⚠ 이 파일 주석에 역따옴표를 쓰지 마라(판 해시가 역따옴표 짝을 센다). */
-const SPR_IGL9 = [0.55, 0.10, 0.10, 0.25, 0.5, 0, 2, 1.0] as const;
+/* (2026-11-15, 요청: "안 광택을 더 강화 — 크기나 강도" → 시안 강도 ↑ · 크기 ↑ · 둘 다 → "강도 말고 크기만 더 올린 버전" → "1.4 에 강도는 그대로") — 반지름 · 깊이 0.10 → 0.14 · 문턱 0.25 → 0.22 · 폭 0.5 → 0.55. 되물릴 값: 크기 ×1.8 0.18 · ×2.2 0.22(작은 부품이 덩어리째 뜬다) · 강도 0.85. */
+const SPR_IGL9 = [0.55, 0.14, 0.14, 0.22, 0.55, 0, 2, 1.0] as const;
 /** 종류마다 안 광택 세기 배수(없는 종류는 1 · 끝 숫자를 뗀 이름으로도 찾는다 — creeppatch2 → creeppatch) — 재는 자(반지름 = 모형 반지름의 1할)보다 좁은 판(날개 · 지느러미 · 접시 · 가는 다리)과
  *  몸에서 떨어진 작은 부품(시즈 발판 · 딸림 접시)은 둘레가 다 꺼져 통째로 '끝'으로 읽힌다 — 점이 아니라 낯이 뜬다(요청이 물린 바로 그 꼴). 전 종류 훑기(2026-11-14 · 138종 · 굽는 길 · 배수 1 과 끔의 화소 차):
  *  고른 시안의 열다섯 종은 몸 평균 밝기 오름 0.006 ~ 0.063 · 뭉친 얼룩(0.15 넘게 뜬 화소가 두 화소 깎아도 남는 몫) 0 ~ 2.8%(가시뿐인 스파이어만 4.6%). 그 테두리(평균 0.063 · 뭉친 3%)를
  *  넘는 종을 그 안으로 누른다(0.05 눈금 · 스커지 · 디파일러 · 뮤탈 · 드론은 눈으로 한 번 더 골랐다). 바닥 그림(크립 조각 · 버로우 구멍)은 0 — 땅에 흰 테가 맺힌다.
- *  발광 몸(GL_GLOW_KINDS9 — 아콘 · 폭풍 · 핵 구름)은 표 없이 0. 한 줄로 둔다(판 해시가 이 줄을 센다). 기록: docs/notes/gl-renderer.md '모델 색 적용'. */
-const SPR_IGL_KIND9: Record<string, number> = { creeppatch: 0, burrowhole: 0, lurkerburrow: 0, lurkerfire: 0, comsat: 0.15, comsatdish: 0.15, ctower: 0.15, tanksiegelegs: 0.12, tanksiegelegsF: 0.12, devourer: 0.2, scourge: 0.2, dollbird: 0.25, nuke: 0.25, covert: 0.3, queen: 0.3, muta: 0.3, defiler: 0.3, ultra: 0.35, wraith: 0.4, turrethead: 0.45, drone: 0.5, droneMin: 0.5, droneGas: 0.5, mineralb: 0.55, vessel: 0.55, htemp: 0.6, guardian: 0.7, scv: 0.7, scvMin: 0.7, scvGas: 0.7, mshop: 0.75, lurker: 0.85, sbattery: 0.85 };
+ *  발광 몸(GL_GLOW_KINDS9 — 아콘 · 폭풍 · 핵 구름)은 표 없이 0. 한 줄로 둔다(판 해시가 이 줄을 센다). 기록: docs/notes/gl-renderer.md '모델 색 적용'.
+ *  (2026-11-15 크기 ×1.4 뒤 다시 훑기 — 고른 종 최대 뭉친 7.6% 를 넘은 열여섯 종을 더 눌렀다: 벌처 · SCV 셋 · 베슬 · 뮤탈 · 발판 · 레이스 · 미네랄 b · 가디언 …) */
+const SPR_IGL_KIND9: Record<string, number> = { burrowhole: 0, creeppatch: 0, lurkerburrow: 0, lurkerfire: 0, tanksiegelegs: 0.12, tanksiegelegsF: 0.12, comsat: 0.15, comsatdish: 0.15, ctower: 0.15, devourer: 0.2, muta: 0.2, scourge: 0.2, dollbird: 0.25, nuke: 0.25, queen: 0.25, vessel: 0.25, wraith: 0.25, covert: 0.3, defiler: 0.3, ultra: 0.3, mineralb: 0.35, scv: 0.35, scvGas: 0.35, scvMin: 0.35, vulture: 0.35, scaffold: 0.45, turrethead: 0.45, drone: 0.5, droneGas: 0.5, droneMin: 0.5, guardian: 0.5, htemp: 0.6, bc: 0.65, sbattery: 0.65, mshop: 0.75, interceptor: 0.8, shuttle: 0.8, lurker: 0.85 };
 /** 견줌 — #iglk=0 이면 종류 배수 표를 안 탄다(전 종류 훑기가 배수 1 의 그림을 잰다 · 발광 몸은 그대로 0). */
 const IGL_KIND_OFF9 = typeof location !== "undefined" && /(?:^|[#&,])iglk=0(?:[&,]|$)/.test(location.hash);
 const iglKind9 = (key: string): number => { const k9 = key.slice(key.indexOf(":") + 1).split(":")[0]; return GL_GLOW_KINDS9.has(k9) ? 0 : IGL_KIND_OFF9 ? 1 : (SPR_IGL_KIND9[k9] ?? SPR_IGL_KIND9[k9.replace(/[0-9]+$/, "")] ?? 1); };
