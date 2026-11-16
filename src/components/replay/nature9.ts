@@ -19,10 +19,10 @@ const NATURE_PROPS9 = false;
 
 const KEY9 = "scr.nature";
 export function natureOnStored9(): boolean {
-  /* ★ 출시 · 기본 켬(2026-11-15 밤, 요청: "폭포 제거하고 새랑 유성만 있는 상태로 자연 레이어 출시 · 기본 on 상태로 배포") — 표시 단추(Layers)의 '자연' 줄로 끄면
-     기기에 "0" 을 기억해 그 기기만 끈다 · `#nature=0|1` 은 시험(기억보다 앞선다). 옛(같은 날 낮): 재생기에 안 싣고 `#nature=1` 일 때만("아직 모델링이 많이 부족"). */
+  /* ★ 기본 끔(2026-11-16, 요청: "자연 기본 off 로 배포") — 표시 단추(Layers)의 '자연' 줄로 켜면 기기에 "1" 을 기억해 그 기기만 켠다 · `#nature=0|1` 은 시험(기억보다 앞선다).
+     옛(2026-11-15 밤 출시 "기본 on 상태로 배포"): 기본 켬 · 끈 기기 "0" 만 끔. 그 전(같은 날 낮): 재생기에 안 싣고 `#nature=1` 일 때만("아직 모델링이 많이 부족"). */
   if (typeof location !== "undefined") { const m = /(?:^|[#&,])nature=([01])/.exec(location.hash); if (m) return m[1] === "1"; }
-  try { return localStorage.getItem(KEY9) !== "0"; } catch { return true; }
+  try { return localStorage.getItem(KEY9) === "1"; } catch { return false; }
 }
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 

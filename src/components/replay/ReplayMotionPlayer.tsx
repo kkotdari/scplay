@@ -11029,8 +11029,8 @@ export default function ReplayMotionPlayer({
   /* 끄기 단추(2026-11-11, 요청: "날씨 끄기 버튼 추가 · 명령 선 옆") — 기본 켬 · 끈 것은 기기에 기억(scr.wx) · `#wx=0` 이면 끔(시험).
      ★ 기본 끔(2026-11-13, 요청: "날씨효과 기본 OFF로 · 켜면 기억하는건 괜찮") — 표시 단추에서 켜면 기기에 기억("1")하고 그 기기만 켠다(weather9 wxOnStored9). */
   const [wxOn9, setWxOn9] = useState<boolean>(() => !(typeof location !== "undefined" && /(?:^|[#&,])wx=0/.test(location.hash)) && wxOnStored9());
-  /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · 기본 켬 · 끄면 기기에 기억(scr.nature "0"). */
-  /* ★ 자연 겹(새 · 유성) — 기본 켬 · 표시 단추 '자연' 줄로 끄면 기기에 기억(nature9 natureOnStored9 ★ 2026-11-15 밤 출시). 폭포는 걷었다(TERR_FALLS9 늘 끔 · 같은 요청 "폭포 제거"). */
+  /* ★ 자연 겹(2026-11-15, 요청: "자연 레이어 추가(기본 off)" → 같은 날 "기본 on으로 시작" · nature9 ★) — 표시 단추의 한 줄 · (그때) 기본 켬 · 끄면 기기에 기억(scr.nature "0") · 2026-11-16 기본 끔으로 되물림(아래 줄). */
+  /* ★ 자연 겹(새 · 유성) — 기본 끔(2026-11-16 · 옛 2026-11-15 밤 출시 땐 기본 켬) · 표시 단추 '자연' 줄로 켜면 기기에 기억(nature9 natureOnStored9). 폭포는 걷었다(TERR_FALLS9 늘 끔 · 같은 요청 "폭포 제거"). */
   const [natureOn9, setNatureOn9] = useState<boolean>(() => natureOnStored9());
   const toggleNature9 = (): void => { const nv9 = !natureOn9; setNatureOn9(nv9); natureStore9(nv9); window.setTimeout(() => SETTLE_KICK9.fn?.(), 0); };
   NATURE9.on = natureOn9 && active !== false; NATURE9.playing = !!playing; NATURE9.call = birdCall9; TERR_FALLS9.on = false;
