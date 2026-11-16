@@ -149,13 +149,16 @@ float fd(float f) { return clamp((uGr.y / f - 1.6) * 0.5, 0.0, 1.0); }
 /* ★ 판마다 밝기 걷음 · 금 둘레 얼룩 · 마름모는 고르게(2026-11-16, 요청: "우주 배경 타일에서 타일 무늬별로 판의 색이 조금씩 다르잖아 · 얼룩처럼 · 멀리서 보면 균일하지 않아 보여 ·
    그걸 제거하고 대신 금 주위에 얼룩을 균일하게 · 타일도 마름모가 기본인데 간혹가다가 마름모에 변형이 있는 경우가 있어 · 사진 참조") —
    옛: 판(마름모)마다 밝기 ±0.095(SP_PLATE 0.19) · 짧은 홈 자리 판마다 ±0.28칸 흔듦 · 중간 얼룩 m3 0.18. 이제 판 밝기 0 · 홈 둘레 SP_GRW 칸 안을 고르게 어둡게(잔결로 흐트려 때처럼 ·
-   양쪽 같은 세기라 엠보싱이 아니다 — 2026-11-03 "너무 엠보싱" 되물림) · 짧은 홈은 제자리, SP_ODD 몫의 판만 흔든다 · m3 0.18 → 0.10. */
+   양쪽 같은 세기라 엠보싱이 아니다 — 2026-11-03 "너무 엠보싱" 되물림) · m3 0.18 → 0.10. 마름모 변형은 아래 ★ 꺾인 옆 모서리. */
 #define SP_GRIME 0.13
 #define SP_GRW 0.07
-#define SP_ODD 0.12
-#define SP_ARC 0.07
-/* 짧은 홈 자리 흔들기(위 SP_ODD ★) — 대부분 제자리(고른 마름모) · SP_ODD 몫의 홈만 ±0.3칸(가끔 긴 판 · 짧은 판). */
-float spJit(float k, float c) { float h = h12(vec2(k, c) + 1.3); return h < SP_ODD ? (h / SP_ODD - 0.5) * 0.6 : 0.0; }
+/* ★ 꺾인 옆 모서리(2026-11-16, 요청: "롤백하고 다시 · 규칙성 있게 나타나는 변칙 패턴 · 노란색으로 표현한 모양 · 세로 모서리가 한 번 꺾여지는(╱‾)" · 원작 우주 판 스샷) —
+   옛(같은 날 되물림): 짧은 홈을 판마다 무작위로 ±0.3칸 흔듦(SP_ODD 0.12) · 판 안을 가로지르는 아치 · 휜 사선(SP_ARC 0.07).
+   원작을 타일마다 평균 내 재 보니(바둑 칸 색 둘 따로 · 24칸씩) 무늬는 **한 타일마다 똑같이 되풀이**된다: 긴 홈 0.5칸 간격(타일 모서리를 지난다 · 옛 0.55) ·
+   짧은 홈은 줄을 따라 2칸에 셋(ww 0 · 0.7 · 1.4 — 판 폭 0.7 · 0.7 · 0.6 · 옛 1칸에 하나 · 0.95) · 줄마다 반 칸 엇갈림. 가운데 홈(0.7)이 꺾인 모서리다 —
+   아래 7할은 보통 기울기로 오르다 위 3할(SP_KT)에서 수평으로 위 홈까지(원작 실측 ww 0.78 → 0.82 → 0.90 · fv 0.35 → 0.2 → 0.08).
+   거리는 |F| ÷ |∇F| — 보통 홈 1.118 · 수평 토막 2.0(∇F = ∇ww + 0.5 ∇fv = (0, 2)). */
+#define SP_KT 0.3
 float grain() {
   // 옥타브는 fd(f) > 0 일 때만 잰다(uGr.y > 1.6·f) — 멀리 본 화면에서 잔 무늬·금(worley 아홉 칸)을 아예 안 센다. 유니폼 갈림이라 화소마다 같은 길이다.
   vec2 tc = vTc; vec4 w = texture2D(uTex, vUv); float P = uGr.y;
@@ -193,26 +196,15 @@ float grain() {
          홈은 가늘게(0.010칸 · 한 화소 아래면 화소 폭), 판은 도드라진 철판: 위·왼쪽 테는 밝게, 아래·오른쪽 테는 어둡게(홈에서 0.09칸에 걸쳐 잦아든다).
          짧은 홈 자리는 판마다 ±0.28칸 흔들어 폭이 제각각. 표면은 판 결(긴 홈 방향)로 늘인 잔결 + 판마다 밝기. */
       float px = 1.0 / P;
-      float v = (tc.y - 0.5 * tc.x) / 0.55; float k = floor(v); float fv = fract(v);   // 긴 홈 0.55칸 간격(사진 실측) · fv 0 = 위 홈 · 1 = 아래 홈
-      float dT = fv * 0.55 / 1.118; float dB = (1.0 - fv) * 0.55 / 1.118;
-      float ww = (tc.y + 0.45 * tc.x + 0.475 * k) / 0.95; float c = floor(ww); float f = fract(ww);   // 짧은 홈 — 긴 홈의 거울 기울기 · 가로 1칸 · 줄마다 반 칸 엇갈림
-      float b0 = spJit(k, c); float b1 = 1.0 + spJit(k, c + 1.0);
-      float bm = -1.0 + spJit(k, c - 1.0); float bp = 2.0 + spJit(k, c + 2.0);
-      float pid = c; float lo = b0; float hi = b1;
-      if (f < b0) { pid = c - 1.0; lo = bm; hi = b0; } else if (f > b1) { pid = c + 1.0; lo = b1; hi = bp; }
-      float dL = (f - lo) * 0.95 / 1.097; float dR = (hi - f) * 0.95 / 1.097;
+      float v = tc.y * 2.0 - tc.x; float k = floor(v); float fv = fract(v);   // 긴 홈 0.5칸 간격(타일에 맞춤 · 위 ★ 꺾인 옆 모서리) · fv 0 = 위 홈 · 1 = 아래 홈
+      float dT = fv / 2.236; float dB = (1.0 - fv) / 2.236;
+      float ww = tc.y + 0.5 * tc.x + 0.5 * k;   // 짧은 홈 자리 — 긴 홈의 거울 기울기 · 줄마다 반 칸 엇갈림(위 ★ 꺾인 옆 모서리 · 옛 0.45 · 0.95 · 0.475)
+      float n2 = floor(ww * 0.5); float wq = ww - n2 * 2.0;   // 2칸 주기 안 자리 0~2 · 홈 0 · 0.7(꺾임) · 1.4
+      float e1 = 0.7 + max(SP_KT - fv, 0.0) * 0.5; float g1 = fv < SP_KT ? 2.0 : 1.118;
+      float lo = 0.0; float hi = e1; float glo = 1.118; float ghi = g1; float pid = n2 * 3.0;
+      if (wq >= 1.4) { lo = 1.4; hi = 2.0; ghi = 1.118; pid += 2.0; } else if (wq >= e1) { lo = e1; hi = 1.4; glo = g1; ghi = 1.118; pid += 1.0; }
+      float dL = (wq - lo) / glo; float dR = (hi - wq) / ghi;
       float d0 = min(min(dT, dB), min(dL, dR));
-      /* ★ 휜 금(2026-11-16, 요청: "길이만이 아니라 약간 다르게 금이 가는 경우가 있어" · 원작 스샷 images/111 — 판 안을 가로지르는 아치(◠) · 살짝 휜 사선) —
-         SP_ARC 몫의 판만. 판 안 자리(u 길이 방향 0 ~ 1 · fv 폭 방향 0 위 홈 ~ 1 아래 홈)에서 곡선까지 거리를 재어 홈 · 때와 같이 칠한다. */
-      float hv = h12(vec2(k, pid) + 7.9);
-      if (hv < SP_ARC) {
-        float u = clamp((f - lo) / max(hi - lo, 0.05), 0.0, 1.0);
-        bool arch = hv < SP_ARC * 0.55;
-        float va = arch ? 0.9 - 0.62 * sin(3.14159 * u) : 0.1 + 0.8 * u + 0.1 * sin(6.28318 * u);
-        float sl = arch ? -0.62 * 3.14159 * cos(3.14159 * u) : 0.8 + 0.1 * 6.28318 * cos(6.28318 * u);
-        float ph = 0.55 / 1.118; float pw = max((hi - lo) * 0.95 / 1.097, 0.05);   // 판 폭 · 길이(칸)
-        d0 = min(d0, abs(fv - va) * ph / sqrt(1.0 + (sl * ph / pw) * (sl * ph / pw)));
-      }
       float gw = max(SP_GW, px * SP_GPX);   // 얇은 선(같은 날 ★ 은은한 얼룩 · 옛 max(0.010, px·0.5) → max(0.005, px·0.3)) → 2026-11-14 위 SP_ ★
       float groove = 1.0 - smoothstep(gw, gw + px, d0);
       float grime = (1.0 - smoothstep(gw, gw + SP_GRW, d0)) * (0.75 + 0.5 * vn(tc * 9.0 + 4.4));   // 금 둘레 때(위 SP_GRIME ★) — 양쪽 같은 세기 · 잔결로 흐트림
