@@ -14958,7 +14958,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [discPath3(2.2, -0.6, 4.096, 0.86), 0.95, CYAN] as ShapeFace,
       topFace(discPath3(2.2, -0.6, 4.144, 0.45), 0.5),
     ], depthNow(2.2, -0.6) + 3.5));
-    const SDX9 = 0.9; const SDY9 = 2.25;   // 작은 돔의 자리(아래 ★)
+    const SDX9 = -1.4; const SDY9 = 2.0;   // 작은 돔의 자리(아래 ★) · (0.9, 2.25) → (−1.4, 2.0)(2026-11-16, 요청: "낮은 돔을 기둥들 옆까지 앞으로 댕기기" — 모형 −x 가 화면 앞왼쪽 · 커진 뿔탑 · 관 팔 앞에 붙는다 · 큰 돔과 4.4 떨어져 눈이 온전하다)
     /* 작은 돔 — 같은 눈을 인다. 자리는 **가운데 목 옆·큰 돔 앞**이다(2026-09, 요청: "포지의
        작은 돔을 중간의 목 옆으로 이동(큰 돔 앞)") — 옛 자리 (2.6, 2.4)는 큰 돔의 앞오른쪽
        바깥이라 두 돔이 나란히 선 쌍으로 읽혔다. 관 팔(목 · x −2.1~1.4 · y −1.6~0.2)의 앞
@@ -14972,13 +14972,14 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       [discPath3(SDX9, SDY9, 1.664, 0.62), 0.95, CYAN] as ShapeFace,
     ], depthNow(SDX9, SDY9) + 1.6));
     /* 왼쪽 황금 뿔탑 셋(사진) — 밑동이 굵고 끝이 뾰족한 첨탑. 세로 골이 있다. */
+    const FSP9 = 1.5;   // ★ 뿔탑 크기(2026-11-16, 요청: "포지 중간에 기둥들 크기 1.5배") — 키 · 굵기 · 끝을 함께(자리는 그대로)
     for (const [tx, ty, th, tw] of [
       [-3, -1.2, 4.32, 0.95], [-1.9, -1.9, 5.12, 1.05], [-0.8, -1.2, 3.68, 0.85],
     ] as [number, number, number, number][]) {
       out.push(...tagKey(paintBase(spirePillar({
-        x: tx, y: ty, z0: 0.24, h: th, w: tw, tipW: 0.1,
+        x: tx, y: ty, z0: 0.24, h: th * FSP9, w: tw * FSP9, tipW: 0.1 * FSP9,
         segs: 5, sides: 8, hold: 0.18, taper: 1.4,
-      }), GOLD), depthNow(tx, ty) + tw));
+      }), GOLD), depthNow(tx, ty) + tw * FSP9));
     }
     /* 뿔탑에서 큰 돔으로 건너가는 관 팔 넷 — 마디진 황금 관. */
     // 장식 축소(요청: 과도한 장식 제거) — 관 팔 넷 → 둘.
