@@ -223,8 +223,7 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   const M = ctx.getTransform();
   const inView = (x: number, y: number, m: number): boolean => { const sx = ox + x * tp; const sy = oy + y * tp; return sx > -m && sx < cw + m && sy > -m && sy < ch + m; };
   ctx.save();
-  /* 우주 판 — 유성(sky9 ★) · 모든 판 — 새 그림자(새 몸은 몸 위 층 drawNatureSky9). 설치 · 잿빛 판도 새는 난다("우주에도 새는 똑같이"). */
-  drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);   // 모든 맵(위 planOf9 ★ 유성은 모든 맵에)
+  /* 모든 판 — 새 그림자(바닥 · 새 몸과 유성은 몸 위 층 drawNatureSky9). 설치 · 잿빛 판도 새는 난다("우주에도 새는 똑같이"). */
   drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
   const leaf = LEAF9[P.ts]; if (P.space || !leaf || !NATURE_PROPS9) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)
@@ -257,6 +256,9 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
 /** 몸 위 층(새 몸) — 유닛 캔버스 위에 따로 선 하늘 캔버스에 그린다(재생기 UnitLayer 의 skyRef). 울음은 재생 중에만. */
 export function drawNatureSky9(ctx: CanvasRenderingContext2D, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
   const G = NATURE9.geom; if (!NATURE9.on || !G || tp < 2) return;
+  /* ★ 유성도 몸 위 층(2026-11-16, 요청: "유성이나 새는 다른 모델들보다 가장 위에") — 옛: 바닥 층(drawNature9 · 크립 위 · 몸 아래)이라 건물 · 유닛에 가렸다. 모든 맵(planOf9 ★). */
+  const P = planOf9(G, NATURE9.hash);
+  drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);
   drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
 }
 

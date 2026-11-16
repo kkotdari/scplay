@@ -62,10 +62,16 @@ export function toneRgb9(c: readonly number[], t: Tone9): [number, number, numbe
 export const TERR_LIFT9: number = 1.07;
 const lift9 = (c: [number, number, number]): [number, number, number] =>
   (TERR_LIFT9 === 1 ? c : [Math.min(255, Math.round(c[0] * TERR_LIFT9)), Math.min(255, Math.round(c[1] * TERR_LIFT9)), Math.min(255, Math.round(c[2] * TERR_LIFT9))]);
+/** ★ 우주 판 밝게(2026-11-16, 요청: "우주 지형 타일색 아직 어두움") — 밝기 표(TERR_TONE9) 뒤에 색마다 × 이 값(밝은 끝은 255 에서 멈춤) · 1 이면 표 그대로.
+ *  표는 감마를 낮춘 원작 스샷으로 쟀다(2026-11-15) — 보통 감마로 보는 앱에서는 그만큼 어둡다. 시안은 #slift=1.2 꼴로 덮는다(바꾸면 analysis/thumb MAP_THUMB_VER 를 올린다). */
+const SLIFT_HASH9 = typeof location !== "undefined" ? /(?:^|[#&,])slift=([0-9.]+)/.exec(location.hash) : null;
+export const TERR_SPACE_LIFT9: number = SLIFT_HASH9 ? Number(SLIFT_HASH9[1]) : 1.0;
+const mul9 = (c: [number, number, number], k: number): [number, number, number] =>
+  (k === 1 ? c : [Math.min(255, Math.round(c[0] * k)), Math.min(255, Math.round(c[1] * k)), Math.min(255, Math.round(c[2] * k))]);
 export function terrGradeOf9(ts: number): ((c: readonly number[]) => [number, number, number]) | null {
   if (GRADE_OFF9) return null;
   const t9 = TERR_TONE9[ts];
-  if (t9) return (c) => toneRgb9(c, t9);   // 밝기 표는 원작을 잰 값 그대로(TERR_LIFT9 안 탐 · 2026-11-15 다시 잼)
+  if (t9) return (c) => mul9(toneRgb9(c, t9), TERR_SPACE_LIFT9);   // 밝기 표는 원작을 잰 값(TERR_LIFT9 안 탐 · 2026-11-15 다시 잼) · 그 뒤 우주 판 밝게(TERR_SPACE_LIFT9)
   const g9 = terrGrade9(ts);
   return g9[4] > 0 ? (c) => lift9(gradeRgb9(c, g9)) : (c) => lift9([c[0], c[1], c[2]]);
 }
