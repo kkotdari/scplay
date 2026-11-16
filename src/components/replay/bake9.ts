@@ -307,8 +307,8 @@ export const ZERG_FLESH = "#8a5f43";
 /* ★ **저그 종족색 둘**(2026-11-15 밤, 요청: "C 가 맞아 · 그런데 문제는 저그는 종족색이 두 개여야 해 — 복숭아 살색(해처리 · 히드라덴 막 · 커널 · 뮤탈 몸 · 스커지 날개 막)과
    갈색(스파이어 · 성큰 몸 · 마운드 · 울트라 · 히드라 · 저글링 · 디바우러 · 럴커 몸 등등)") — 갈색은 RACE_BASE_TONE.zerg(= ZERG_FLESH 값 #8a5f43 · raceBase 가 입히는 기본) ·
    복숭아 살색은 이 이름 하나로(시안 C #f0a585 — "탁한 살색이 아닌 생기 도는 복숭아 느낌"). 짙은 단은 테 · 고리 같은 딸린 살. */
-export const ZERG_PEACH = "#f0a585";
-export const ZERG_PEACH_D = "#c9806a";
+export const ZERG_PEACH = "#ff9789";   // #f0a585 → #ff9789(2026-11-16, 요청: "저그 복숭아 살색은 좀더 붉은기 필요" → 시안 Z3 — Lab a +14 · b −3)
+export const ZERG_PEACH_D = "#d9726e";   // #c9806a → #d9726e(같은 날 · 같은 만큼)
 export const IVORY = "#eae3d2";
 /* 진한 상아색(요청: 하이브 가시·옆띠). */
 export const IVORY_DEEP = "#cdc0a0";
