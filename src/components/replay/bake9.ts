@@ -24797,6 +24797,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
   /* 마린(실물 참고) — 큰 어깨 뽕 한 쌍의 파워드 아머, 금빛 바이저 머리, 가슴 앞에
      가로로 든 가우스 소총. */
   gunner: () => {
+    /* ★ 어두운 손칠 걷음(2026-11-16, 요청: "커맨드랑 마린 어둡게 손칠한 부분 없애기") — 전투복(옛 SUIT_SILVER #59606a) · 손(#4d4d4d) · 등판 원반(#3d3d3d)을
+       테란 바탕(TERRAN_STEEL → 유닛 밝은 단 TERRAN_BASE_LT)으로 — 바탕을 밝히면 같이 밝아진다. 헬멧 유리 앞(짙은 검정 · 옛 요청)과 총(GUN_BLACK)은 그대로. */
     /* 몸은 뿔기둥 넷으로 짠다(요청) — 다리·몸통·목·어깨보호구. 칠하지 않은 면은
        임자 색이라, 마린의 전투복 자체가 개인색이고 헬멧 껍데기만 은색이다. */
     /* ★ 임자 색과 은색을 **맞바꾼다**(요청: "마린 어깨랑 허리띠가 임자색이고 나머지
@@ -24896,16 +24898,16 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 다리도 짙은 은색 — suitLegs의 셋째 자리(_kneeFill)는 지금 쓰이지 않는 값이라
          (그 함수의 이름 앞 밑줄) 여기 은색을 적어 두어도 아무 데도 안 든다. 고스트가
          하듯 바깥에서 칠한다 — 군화처럼 제 색을 가진 조각은 paintBase가 안 덮는다. */
-      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 0.9), SUIT_SILVER),   // 다리통 지름 −10%(요청: "마린 파뱃 다리통 지름 10프로 줄이기")
+      ...paintBase(suitLegs(1, 1, undefined, 0.3 * wd, 0.9), TERRAN_STEEL),   // 다리통 지름 −10%(요청: "마린 파뱃 다리통 지름 10프로 줄이기")
       // 어깨 위는 통째로 허리에서 비튼다(tw9 · 쏠 때만) — 다리만 위에 남는다.
       ...withModelSpin(tw9, (): ShapeFace[] => [
       // 몸 너비 +10%(요청: "마린 파뱃 몸 너비 10프로 증가") — 공통 −20% 위에 얹는다.
       /* 가슴을 더 넓게(사진: 흉갑이 어깨만큼 벌어진다) — 1.1 → 1.28. 허리 잘록함은
          몸통 프로필(SUIT_TORSO_W)이 그대로 진다. */
-      ...paintBase(suitTorso(1, { ...SUIT_TROOPER, wide: 1.28 }), SUIT_SILVER),
+      ...paintBase(suitTorso(1, { ...SUIT_TROOPER, wide: 1.28 }), TERRAN_STEEL),
       // 허리띠 — 칠하지 않는다(= 임자 색).
       ...suitBelt(1, undefined, 1.28, SUIT_TROOPER.oval, SUIT_TROOPER.chest),
-      ...paintBase(suitNeck(1), SUIT_SILVER),
+      ...paintBase(suitNeck(1), TERRAN_STEEL),
       // 어깨판 — 색을 안 넘기면 paleTeam으로 든다(임자 색의 한 단 밝은 판).
       // 어깨판은 아래 팔 묶음에서 상완 방향과 함께 낸다(요청: 팔 자세 따라 돌게).
       // 헬멧 — 1.4배(요청: "마린 파뱃 헬멧 크기 1.4배"). 0.65 → 0.91.
@@ -24929,7 +24931,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       ...(facingRatio(0, 1) > 0.1
         ? ([-1, 1] as const).flatMap((m8) => tagKey([
           // 가슴판 위 좌우(사진) — 목에 안 걸리게 조금 작고 낮게, 앞면 밖으로.
-          [wallDisc(m8 * 0.44, 0.56, 3.2736, 0.14, 0, 1), 1, "#3d3d3d"] as ShapeFace,
+          [wallDisc(m8 * 0.44, 0.56, 3.2736, 0.14, 0, 1), 1, TERRAN_STEEL] as ShapeFace,
           [wallDisc(m8 * 0.44, 0.58, 3.2736, 0.075, 0, 1), 0.8, "#727272"] as ShapeFace,
         ], depthNow(m8 * 0.46, 0.47) * 1.6 + 1.7))
         : []),
@@ -24991,8 +24993,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         return [
           ...suitPauldron(-1, 1, undefined, true, dirOf(shR, eR)),
           ...suitPauldron(1, 1, undefined, true, dirOf(shL, eL)),
-          ...armChain(shR, eR, hR, { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#4d4d4d" }),
-          ...armChain(shL, eL, hL, { upper: 0.28, fore: 0.33, fill: SUIT_SILVER, handFill: "#4d4d4d" }),
+          ...armChain(shR, eR, hR, { upper: 0.28, fore: 0.33, fill: TERRAN_STEEL, handFill: TERRAN_STEEL }),
+          ...armChain(shL, eL, hL, { upper: 0.28, fore: 0.33, fill: TERRAN_STEEL, handFill: TERRAN_STEEL }),
         ];
       })(),
       /* 가우스 소총 — 사진(marine1)의 그 총이다: **좌우로 얇고 위아래로 큰** 판형
@@ -30286,7 +30288,10 @@ for (const k of Object.keys(SHAPE_BUILDERS)) {
  *  ★ 푸른기를 한 단 덜었다(요청: "테란 유닛색2 푸른 기운 살짝만 줄이자") — 밝기는 그대로
  *    두고 파랑-빨강 차만 36 → 28로 좁힌다(#66718a → #6a7286). 색조만 중성 쪽으로 민 것이라
  *    한 단 낮은 기본색과의 밝기 차(두 단을 가르는 구실)는 안 줄어든다. */
-export const TERRAN_BASE_LT = "#6a7286";
+/* ★ 바탕색을 **따라간다**(2026-11-16, 요청: "테란 프로토스 너무 어두워 · 특히 테란" → 시안에서 커맨드 · 마린만 안 밝아짐 → "커맨드랑 마린 어둡게 손칠한 부분 없애기") —
+   옛: 손으로 적은 #6a7286 이라 RACE_BASE_TONE.terran 을 밝혀도 커맨드 몸통 · 테란 유닛 전부가 그대로였다. 이제 바탕 + 같은 차(+18 · +21 · +31 — 지금 바탕 #585d67 이면 옛 값 그대로). */
+const TERRAN_LT_DELTA9 = [0x12, 0x15, 0x1f] as const;
+export const TERRAN_BASE_LT = "#" + [1, 3, 5].map((i, j) => Math.min(255, parseInt(RACE_BASE_TONE.terran.slice(i, i + 2), 16) + TERRAN_LT_DELTA9[j]).toString(16).padStart(2, "0")).join("");
 /** 추진체(노즐 블록)의 단 — 기본색보다 뚜렷이 어둡다(요청: "배틀·발키리 추진체 색 더
  *  어둡게"). 함체와 같은 색을 쓰면 꽁무니가 몸에 섞여 '뿜는 자리'가 안 읽힌다.
  *  ★ 기본색 값이 아니므로 TERRAN_LT_KINDS9의 갈아끼기를 안 탄다 — 유닛이 둘째 단으로
