@@ -9975,10 +9975,20 @@ float fd(float f) { return clamp((uGr.y / f - 1.6) * 0.5, 0.0, 1.0); }
 #define SP_GPX 0.5
 #define SP_M1 0.05
 #define SP_M2 0.06
-#define SP_M3 0.18
+#define SP_M3 0.10
 #define SP_FINE 0.20
-#define SP_PLATE 0.19
+#define SP_PLATE 0.0
 #define SP_BRUSH 0.10
+/* ★ 판마다 밝기 걷음 · 금 둘레 얼룩 · 마름모는 고르게(2026-11-16, 요청: "우주 배경 타일에서 타일 무늬별로 판의 색이 조금씩 다르잖아 · 얼룩처럼 · 멀리서 보면 균일하지 않아 보여 ·
+   그걸 제거하고 대신 금 주위에 얼룩을 균일하게 · 타일도 마름모가 기본인데 간혹가다가 마름모에 변형이 있는 경우가 있어 · 사진 참조") —
+   옛: 판(마름모)마다 밝기 ±0.095(SP_PLATE 0.19) · 짧은 홈 자리 판마다 ±0.28칸 흔듦 · 중간 얼룩 m3 0.18. 이제 판 밝기 0 · 홈 둘레 SP_GRW 칸 안을 고르게 어둡게(잔결로 흐트려 때처럼 ·
+   양쪽 같은 세기라 엠보싱이 아니다 — 2026-11-03 "너무 엠보싱" 되물림) · 짧은 홈은 제자리, SP_ODD 몫의 판만 흔든다 · m3 0.18 → 0.10. */
+#define SP_GRIME 0.13
+#define SP_GRW 0.07
+#define SP_ODD 0.12
+#define SP_ARC 0.07
+/* 짧은 홈 자리 흔들기(위 SP_ODD ★) — 대부분 제자리(고른 마름모) · SP_ODD 몫의 홈만 ±0.3칸(가끔 긴 판 · 짧은 판). */
+float spJit(float k, float c) { float h = h12(vec2(k, c) + 1.3); return h < SP_ODD ? (h / SP_ODD - 0.5) * 0.6 : 0.0; }
 float grain() {
   // 옥타브는 fd(f) > 0 일 때만 잰다(uGr.y > 1.6·f) — 멀리 본 화면에서 잔 무늬·금(worley 아홉 칸)을 아예 안 센다. 유니폼 갈림이라 화소마다 같은 길이다.
   vec2 tc = vTc; vec4 w = texture2D(uTex, vUv); float P = uGr.y;
@@ -10019,19 +10029,31 @@ float grain() {
       float v = (tc.y - 0.5 * tc.x) / 0.55; float k = floor(v); float fv = fract(v);   // 긴 홈 0.55칸 간격(사진 실측) · fv 0 = 위 홈 · 1 = 아래 홈
       float dT = fv * 0.55 / 1.118; float dB = (1.0 - fv) * 0.55 / 1.118;
       float ww = (tc.y + 0.45 * tc.x + 0.475 * k) / 0.95; float c = floor(ww); float f = fract(ww);   // 짧은 홈 — 긴 홈의 거울 기울기 · 가로 1칸 · 줄마다 반 칸 엇갈림
-      float b0 = (h12(vec2(k, c) + 1.3) - 0.5) * 0.56; float b1 = 1.0 + (h12(vec2(k, c + 1.0) + 1.3) - 0.5) * 0.56;
-      float bm = -1.0 + (h12(vec2(k, c - 1.0) + 1.3) - 0.5) * 0.56; float bp = 2.0 + (h12(vec2(k, c + 2.0) + 1.3) - 0.5) * 0.56;
+      float b0 = spJit(k, c); float b1 = 1.0 + spJit(k, c + 1.0);
+      float bm = -1.0 + spJit(k, c - 1.0); float bp = 2.0 + spJit(k, c + 2.0);
       float pid = c; float lo = b0; float hi = b1;
       if (f < b0) { pid = c - 1.0; lo = bm; hi = b0; } else if (f > b1) { pid = c + 1.0; lo = b1; hi = bp; }
       float dL = (f - lo) * 0.95 / 1.097; float dR = (hi - f) * 0.95 / 1.097;
       float d0 = min(min(dT, dB), min(dL, dR));
+      /* ★ 휜 금(2026-11-16, 요청: "길이만이 아니라 약간 다르게 금이 가는 경우가 있어" · 원작 스샷 images/111 — 판 안을 가로지르는 아치(◠) · 살짝 휜 사선) —
+         SP_ARC 몫의 판만. 판 안 자리(u 길이 방향 0 ~ 1 · fv 폭 방향 0 위 홈 ~ 1 아래 홈)에서 곡선까지 거리를 재어 홈 · 때와 같이 칠한다. */
+      float hv = h12(vec2(k, pid) + 7.9);
+      if (hv < SP_ARC) {
+        float u = clamp((f - lo) / max(hi - lo, 0.05), 0.0, 1.0);
+        bool arch = hv < SP_ARC * 0.55;
+        float va = arch ? 0.9 - 0.62 * sin(3.14159 * u) : 0.1 + 0.8 * u + 0.1 * sin(6.28318 * u);
+        float sl = arch ? -0.62 * 3.14159 * cos(3.14159 * u) : 0.8 + 0.1 * 6.28318 * cos(6.28318 * u);
+        float ph = 0.55 / 1.118; float pw = max((hi - lo) * 0.95 / 1.097, 0.05);   // 판 폭 · 길이(칸)
+        d0 = min(d0, abs(fv - va) * ph / sqrt(1.0 + (sl * ph / pw) * (sl * ph / pw)));
+      }
       float gw = max(SP_GW, px * SP_GPX);   // 얇은 선(같은 날 ★ 은은한 얼룩 · 옛 max(0.010, px·0.5) → max(0.005, px·0.3)) → 2026-11-14 위 SP_ ★
       float groove = 1.0 - smoothstep(gw, gw + px, d0);
+      float grime = (1.0 - smoothstep(gw, gw + SP_GRW, d0)) * (0.75 + 0.5 * vn(tc * 9.0 + 4.4));   // 금 둘레 때(위 SP_GRIME ★) — 양쪽 같은 세기 · 잔결로 흐트림
       /* 판 테 음영(위·왼쪽 빛 +0.09 · 아래·오른쪽 그늘 −0.10 · 0.09칸)은 걷었다(같은 날 ★ — "너무 엠보싱 · 주변 그림자 지우고 얇은 선으로"). 홈 어둡기 0.24 → 0.18. */
       vec2 ax = vec2(0.894, 0.447); vec2 ay = vec2(-0.447, 0.894);
       float brush = vn(vec2(dot(tc, ax) * 3.0, dot(tc, ay) * 40.0) + pid * 7.1) - 0.5;
       float plate = (h12(vec2(k, pid) + 3.7) - 0.5) * SP_PLATE;
-      g += (-groove * SP_GROOVE + plate + brush * SP_BRUSH * fd(40.0)) * gk;
+      g += (-groove * SP_GROOVE - grime * SP_GRIME + plate + brush * SP_BRUSH * fd(40.0)) * gk;
     }
     d += w.b * g;
   } else if (w.b > 0.02) {
@@ -44206,7 +44228,7 @@ function sV({
       h += 1, T += N.width * N.height * 4;
     });
     const Z = Ci();
-    return `판${"11-16 14:45".slice(6)} ${Math.round(ae.current)}초 ×${qA.current.speed} 캔버스${h}장${(T / 1048576).toFixed(0)}MB` + (Z ? ` GL${Z.canvas.width}×${Z.canvas.height} 아틀라스${Z.sprFixedMB.toFixed(0)} 메시${Z.stat.meshes} 판${Z.sprStat.pages}${Z.lost ? " 잃음" : ""}` : "");
+    return `판${"11-16 17:46".slice(6)} ${Math.round(ae.current)}초 ×${qA.current.speed} 캔버스${h}장${(T / 1048576).toFixed(0)}MB` + (Z ? ` GL${Z.canvas.width}×${Z.canvas.height} 아틀라스${Z.sprFixedMB.toFixed(0)} 메시${Z.stat.meshes} 판${Z.sprStat.pages}${Z.lost ? " 잃음" : ""}` : "");
   }, Ts(() => {
     _r(no ? "전체화면 켬" : "전체화면 끔");
   }, [no]), Ts(() => {
@@ -44224,7 +44246,7 @@ function sV({
         });
         let ot = 0;
         for (const bt of fn.current.values()) ot += bt.buf.byteLength;
-        const et = Ci(), lt = (bt) => (bt / 1048576).toFixed(0), gt = (N = performance.memory) == null ? void 0 : N.usedJSHeapSize, Ct = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-16 14:45 · 재생${Math.round(ae.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${qA.current.speed} 배율${qA.current.zoom.toFixed(1)} · 메모리${Vr()}단 ${Ll()}방 · 캔버스${j}장 ${lt(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${lt(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${fn.current.size}장 ${lt(ot)}MB · 안개갈무리${so.current.length} · 효과판${lt(oA.n)}MB · 캔버스생성${a0.n}` + (gt ? ` · 힙${lt(gt)}MB` : "");
+        const et = Ci(), lt = (bt) => (bt / 1048576).toFixed(0), gt = (N = performance.memory) == null ? void 0 : N.usedJSHeapSize, Ct = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-16 17:46 · 재생${Math.round(ae.current)}초(켠 뒤 ${Math.round((performance.now() - h) / 1e3)}초) ×${qA.current.speed} 배율${qA.current.zoom.toFixed(1)} · 메모리${Vr()}단 ${Ll()}방 · 캔버스${j}장 ${lt(V)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${lt(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${fn.current.size}장 ${lt(ot)}MB · 안개갈무리${so.current.length} · 효과판${lt(oA.n)}MB · 캔버스생성${a0.n}` + (gt ? ` · 힙${lt(gt)}MB` : "");
         localStorage.setItem(u7, Ct);
       } catch {
       }
@@ -47258,7 +47280,7 @@ function sV({
         " · UI ",
         nn.ui,
         " · 판 ",
-        "11-16 14:45",
+        "11-16 17:46",
         nn.ss !== 1 ? ` · 초해상 ×${nn.ss.toFixed(2)}` : "",
         Math.abs(nn.unitScale - nn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${nn.unitScale.toFixed(4)})` : nn.scale > 0 && Math.abs(nn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${nn.scale.toFixed(4)})` : "",
         nn.allocOk ? "" : " · ⚠배킹확보 실패"
