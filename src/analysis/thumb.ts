@@ -9,8 +9,9 @@ import { decodeMapTerrain, terrainFace } from "../utils/mapTerrain";
     2(2026-11-14): 원작 색감 곡선이 지형 색에 구워져(utils/grade9 · terrainGeom) 같은 붓(drawMapGrid)을 쓰는 썸네일도 색이 달라졌다 — 옛 그림과 섞이지 않게 올린다. 
     3(같은 날): 우주 판 지형 색이 밝기 표로 바뀌었다(grade9 TERR_TONE9 — 더 밝고 무채 · 판 대비 큼).
     4(2026-11-15): 지형 색 ×1.07(grade9 TERR_LIFT9 — "지형 색 살짝만 연하게").
-    5(같은 날 밤): 우주 판 밝기 표를 다시 잼(감마 낮춘 원작 스샷 · ×1.07 안 탐). */
-export const MAP_THUMB_VER = 5;
+    5(같은 날 밤): 우주 판 밝기 표를 다시 잼(감마 낮춘 원작 스샷 · ×1.07 안 탐).
+    6(2026-11-16): 우주 판을 밝기 표 뒤 ×1.45(grade9 TERR_SPACE_LIFT9 — "우주 지형 타일색 아직 어두움" → S3). */
+export const MAP_THUMB_VER = 6;
 
 export interface MapThumbGrid {
   hash: string;

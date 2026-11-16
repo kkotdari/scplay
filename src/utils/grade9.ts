@@ -65,7 +65,7 @@ const lift9 = (c: [number, number, number]): [number, number, number] =>
 /** ★ 우주 판 밝게(2026-11-16, 요청: "우주 지형 타일색 아직 어두움") — 밝기 표(TERR_TONE9) 뒤에 색마다 × 이 값(밝은 끝은 255 에서 멈춤) · 1 이면 표 그대로.
  *  표는 감마를 낮춘 원작 스샷으로 쟀다(2026-11-15) — 보통 감마로 보는 앱에서는 그만큼 어둡다. 시안은 #slift=1.2 꼴로 덮는다(바꾸면 analysis/thumb MAP_THUMB_VER 를 올린다). */
 const SLIFT_HASH9 = typeof location !== "undefined" ? /(?:^|[#&,])slift=([0-9.]+)/.exec(location.hash) : null;
-export const TERR_SPACE_LIFT9: number = SLIFT_HASH9 ? Number(SLIFT_HASH9[1]) : 1.0;
+export const TERR_SPACE_LIFT9: number = SLIFT_HASH9 ? Number(SLIFT_HASH9[1]) : 1.45;   // 1.0 → 1.45(2026-11-16, 시안 S3 — 화면 평균 밝기 53 → 71 · 되물린 시안: S1 1.15 · S2 1.3)
 const mul9 = (c: [number, number, number], k: number): [number, number, number] =>
   (k === 1 ? c : [Math.min(255, Math.round(c[0] * k)), Math.min(255, Math.round(c[1] * k)), Math.min(255, Math.round(c[2] * k))]);
 export function terrGradeOf9(ts: number): ((c: readonly number[]) => [number, number, number]) | null {
