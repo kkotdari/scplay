@@ -22,7 +22,7 @@ export interface PracticeRoomProps {
   className?: string;
 }
 
-type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow";
+type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm";
 const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "move", label: "이동", def: "M", hint: "다음 클릭 자리로 이동(적을 무시)" },
   { key: "attack", label: "공격", def: "A", hint: "다음 클릭 — 적이면 그 적 · 땅이면 가며 싸우기" },
@@ -34,7 +34,12 @@ const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "load", label: "태우기", def: "L", hint: "다음 클릭한 수송선에 탄다(수송선은 클릭한 유닛을 태운다)" },
   /* 버로우(2026-11-17 둘째) — 원작 럴커는 땅속에서만 쏜다. 원작 키는 버로우 B · 해제 U 인데 U 가 하차와 겹쳐 한 키로 오간다. */
   { key: "burrow", label: "버로우", def: "B", hint: "럴커 — 땅속으로(땅속에서만 쏜다) · 다시 누르면 나온다" },
+  /* 하템 · 탱크 드랍(2026-11-17 넷째, 요청: "하템 리버 탱크 드랍이 주라 필수야") — 원작 키 그대로(시즈 O · 스톰 T). */
+  { key: "siege", label: "시즈", def: "O", hint: "시즈 탱크 — 시즈 모드(사거리 12타일 · 최소 2타일 · 제 편도 튄다) · 다시 누르면 탱크 모드" },
+  { key: "storm", label: "스톰", def: "T", hint: "하이 템플러 — 다음 클릭 자리에 사이오닉 스톰(에너지 75 · 9타일 · 고른 하템 모두가 쓴다)" },
 ];
+/** 누르면 곧바로 되는 명령(자리를 안 기다림). */
+const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege"]);
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
 const KEYS_LS9 = "scr.prac.keys";
@@ -43,7 +48,7 @@ const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.ge
 const saveJson9 = (k: string, v: unknown): void => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 사생활 모드 */ } };
 const DEF_KEYS9 = Object.fromEntries(ACTS9.map((a) => [a.key, a.def])) as Record<Act9, string>;
 /** 기본 — 수송선 1 · 유닛 0(2026-11-17, 요청: "선택창에서 기본값은 수송선 1마리에 유닛 0으로" · 옛 4대 · 마린 16 · 메딕 8). */
-const DEF_SETUP9: PracSetup9 = { myRace: "T", foeRace: "P", ships: 1, cargo: {}, mySpot: "BL", foeSpot: "TR", ups: true, lv: 0 };
+const DEF_SETUP9: PracSetup9 = { myRace: "T", foeRace: "P", ships: 1, cargo: {}, mySpot: "BL", foeSpot: "TR", ups: true, lv: 0, fullEnergy: true };
 /** 물리 키 → 글자(KeyU → U · Digit1 → 1) — e.key 는 한글 입력 상태에서 'ㅕ' 같은 낱자로 와서 키 지정 · 단축키가 안 먹었다(2026-11-17, 지적: "연습실 키설정이 안됨"). */
 const keyOf9 = (e: KeyboardEvent): string | null => {
   const m = /^(?:Key([A-Z])|Digit([0-9])|Numpad([0-9]))$/.exec(e.code);
@@ -173,7 +178,13 @@ function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onS
         {[0, 1, 2, 3].map((v) => (
           <button key={v} type="button" className={`scr-prac-pill is-sm${(setup.lv ?? 0) === v ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, lv: v }))}>{v}</button>
         ))}
-        <span className="scr-prac-dim">두 편 같다 · 연구 = 속업 · 사업 · 스캐럽 · 리버 칸 · 키틴질</span>
+        <span className="scr-prac-dim">두 편 같다 · 연구 = 속업 · 사업 · 스톰 · 시즈 · 스캐럽 · 리버 칸 · 에너지 · 키틴질</span>
+      </div>
+      <div className="scr-prac-row">
+        <span className="scr-prac-lab">시작 에너지</span>
+        <button type="button" className={`scr-prac-pill${setup.fullEnergy !== false ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, fullEnergy: true }))}>가득</button>
+        <button type="button" className={`scr-prac-pill${setup.fullEnergy === false ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, fullEnergy: false }))}>막 뽑음</button>
+        <span className="scr-prac-dim">하템 · 메딕 — 가득 = 드랍 전에 모아 둔 상태 · 막 뽑음 = 원작 새 유닛(최대의 1/4)</span>
       </div>
       <div className="scr-prac-row is-top">
         <span className="scr-prac-lab">위치</span>
@@ -273,6 +284,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const mg = m.getContext("2d"); if (mg) drawMapGrid(mg, map, terrainFace(terrain), 2, false);
     miniImg.current = m;
     const names = Array.from(new Set(sim.ents.map((e) => e.def.name)));
+    if (names.includes("Siege Tank")) names.push("Siege Tank (Siege Mode)");   // 시즈 모드 그림도 미리
     setToBake(names.length);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let n = 0;
@@ -316,6 +328,12 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const us = mySel(); const ids = us.map((e) => e.id);
     if (!ids.length) return;
     if (a === "stop") { sim.stop(ids); return; }
+    if (a === "siege") {
+      const tk = us.filter((e) => e.def.name === "Siege Tank" || e.def.name === "Siege Tank (Siege Mode)");
+      const up = tk.some((e) => e.def.name === "Siege Tank");
+      sim.order(tk.filter((e) => e.def.name === (up ? "Siege Tank" : "Siege Tank (Siege Mode)")).map((e) => e.id), { t: up ? "siege" : "unsiege" }, q);
+      return;
+    }
     if (a === "burrow") {
       const lk = us.filter((e) => e.def.burrowShoot);
       const down = lk.some((e) => !e.burrowed);
@@ -325,6 +343,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
     const t = sim.pick(wx, wy);
+    if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
     else if (a === "attack") {
       if (t && t.owner === 1 && t.def.name !== "Mineral Field") sim.order(ids, { t: "attack", id: t.id }, q);
@@ -369,7 +388,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       const act = ACTS9.find((a) => keys[a.key] === k);
       if (act && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        if (act.key === "stop" || act.key === "hold" || act.key === "burrow") doAct(act.key, null, null, e.shiftKey);
+        if (INSTANT9.has(act.key)) doAct(act.key, null, null, e.shiftKey);
         else setMode(act.key);
       }
     };
@@ -520,6 +539,25 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     for (const u of air) { if (selSet.has(u.id)) ring(u); body(u); }
     /* 스캐럽 — 땅을 기는 작은 불씨. */
     for (const sc of sim.scarabs) { g.beginPath(); g.arc(sc.x, sc.y, 3, 0, Math.PI * 2); g.fillStyle = "#ffb347"; g.fill(); }
+    /* 스톰 — 반지름 48 의 푸른 번개 마당(남은 시간만큼 옅어진다). */
+    for (const st of sim.storms) {
+      const k = Math.max(0, st.life) / 56;
+      g.beginPath(); g.arc(st.x, st.y, 48, 0, Math.PI * 2);
+      g.fillStyle = `rgba(90, 140, 255, ${0.18 + 0.22 * k})`; g.fill();
+      g.strokeStyle = `rgba(190, 215, 255, ${0.5 + 0.4 * k})`; g.lineWidth = 1.5 / z; g.stroke();
+      g.beginPath();
+      for (let i = 0; i < 6; i += 1) {
+        const a0 = ((st.life * 0.9 + i * 61) % 360) * (Math.PI / 180); const r0 = 8 + ((i * 17 + st.life * 3) % 36);
+        g.moveTo(st.x + Math.cos(a0) * r0, st.y + Math.sin(a0) * r0);
+        g.lineTo(st.x + Math.cos(a0 + 0.6) * (r0 * 0.5), st.y + Math.sin(a0 + 0.6) * (r0 * 0.5));
+      }
+      g.strokeStyle = "rgba(230, 240, 255, 0.85)"; g.lineWidth = 1.2 / z; g.stroke();
+    }
+    /* 스톰 겨눔 — 자리를 기다리는 동안 마우스 자리에 반지름 48 고리. */
+    if (modeRef.current === "storm" && mouse.current.in) {
+      const [mx, my] = toWorld(mouse.current.x, mouse.current.y);
+      g.beginPath(); g.arc(mx, my, 48, 0, Math.PI * 2); g.strokeStyle = "rgba(140, 190, 255, 0.9)"; g.lineWidth = 1.5 / z; g.stroke();
+    }
     for (const b of sim.booms) {
       const k = 1 - b.t / 24;
       g.beginPath(); g.arc(b.x, b.y, b.r * (0.5 + k), 0, Math.PI * 2);
@@ -632,7 +670,11 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
           {ships.length === 0 && selUnits.length > 0 && (
             <div className="scr-prac-sellist">
               {Object.entries(selUnits.reduce<Record<string, number>>((m, u) => { m[u.def.ko] = (m[u.def.ko] ?? 0) + 1; return m; }, {})).map(([n, c]) => (
-                <span key={n} className={`scr-prac-chip${selUnits[0].owner === 1 ? " is-foe" : ""}`}>{n} ×{c}</span>
+                <span key={n} className={`scr-prac-chip${selUnits[0].owner === 1 ? " is-foe" : ""}`}>{n} ×{c}{(() => {
+                  /* 에너지(하템 · 메딕) — 스톰 75 를 셀 수 있게 기마다. */
+                  const en = selUnits.filter((u) => u.def.ko === n && sim.maxEnergy(u.def) > 0).map((u) => Math.floor(u.en / 256));
+                  return en.length ? ` · 에너지 ${en.join("/")}` : "";
+                })()}</span>
               ))}
             </div>
           )}
@@ -640,7 +682,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
         <div className="scr-prac-cmds">
           {ACTS9.map((a) => (
             <button key={a.key} type="button" title={a.hint} className={`scr-prac-cmd${mode === a.key ? " is-on" : ""}`}
-              onClick={() => { if (a.key === "stop" || a.key === "hold" || a.key === "burrow") doAct(a.key, null, null, false); else setMode(a.key); }}>
+              onClick={() => { if (INSTANT9.has(a.key)) doAct(a.key, null, null, false); else setMode(a.key); }}>
               <b>{keys[a.key]}</b>{a.label}
             </button>
           ))}

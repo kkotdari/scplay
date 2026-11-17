@@ -14,8 +14,10 @@
        그 자리에서 Unload 로 바뀌고 이동 목표는 그대로라 가던 길을 날며 떨군다(낙하산) · 수송선이 터지면 화물도 죽고 벙커는 내려놓는다.
      · 적 — 캐논은 파일런 전원(psi_field_mask) 안에서만 쏜다 · 다크 템플러 · 버로우한 럴커는 탐지기(캐논 · 터렛 · 스포어 시야) 곁에서만 맞는다 ·
        벙커는 마린 넷을 태우고 쏜다 · 일꾼은 75프레임 캐고 나른다.
+   ★ 하템 · 리버 · 탱크 드랍(2026-11-17 넷째, 요청: "하템 리버 탱크 드랍이 주라 필수야") — 사이오닉 스톰(OpenBW order_Spell · bullet_state_damage_over_time ·
+     storm_timer) · 시즈/언시즈(order_Sieging · order_Unsieging · morph_unit) · 내린 유닛 spell_cooldown 30 을 넣었다(아래 STORM_ · SIEGE_ 상수).
    일부러 줄인 것: 시야 · 안개 없음 · 총알 날아가는 시간 없음(맞는 순간 피해 · 스캐럽만 날아간다) · 지상 유닛끼리 밀어내기는 가벼운 떼어 놓기 ·
-   기술(스톰 · 스팀 · 시즈)은 없음 · 리버 스캐럽은 원작 시간(105프레임)으로 저절로 채운다(빨무라 돈은 무한) · 럴커 버로우 시간은 재생기와 같은 어림(0.9초). */
+   스팀 · 시야 기술은 없음 · 리버 스캐럽은 원작 시간(105프레임)으로 저절로 채운다(빨무라 돈은 무한) · 럴커 버로우 시간은 재생기와 같은 어림(0.9초). */
 import type { MapTerrain } from "../../utils/mapTerrain";
 import { TILE } from "../../utils/mapTerrain";
 import {
@@ -53,7 +55,7 @@ export interface UnitDef9 {
 const LIST9: [string, string, PracRace9, number][] = [
   ["Dropship", "드랍십", "T", 0], ["Shuttle", "셔틀", "P", 0], ["Overlord", "오버로드", "Z", 0],
   ["Marine", "마린", "T", 1], ["Firebat", "파이어뱃", "T", 1], ["Medic", "메딕", "T", 1], ["Ghost", "고스트", "T", 1],
-  ["Vulture", "벌처", "T", 2], ["Siege Tank", "시즈 탱크", "T", 4], ["Goliath", "골리앗", "T", 2],
+  ["Vulture", "벌처", "T", 2], ["Siege Tank", "시즈 탱크", "T", 4], ["Siege Tank (Siege Mode)", "시즈 탱크(시즈 모드)", "T", 4], ["Goliath", "골리앗", "T", 2],
   ["Zealot", "질럿", "P", 2], ["Dragoon", "드라군", "P", 4], ["High Templar", "하이 템플러", "P", 2], ["Dark Templar", "다크 템플러", "P", 2],
   ["Reaver", "리버", "P", 4], ["Archon", "아콘", "P", 4],
   ["Zergling", "저글링", "Z", 1], ["Hydralisk", "히드라리스크", "Z", 2], ["Lurker", "럴커", "Z", 4], ["Ultralisk", "울트라리스크", "Z", 4], ["Defiler", "디파일러", "Z", 2],
@@ -114,6 +116,7 @@ export interface PracSetup9 {
   mySpot: string; foeSpot: string;
   /** 연구 다 됨(속업 · 사업 · 스캐럽 · 키틴질 · 리버 칸 …) — 두 편 같다. */ ups: boolean;
   /** 공방 단계 0~3 — 두 편 같다. */ lv: number;
+  /** 시작 에너지 가득(드랍 전에 모아 둔 하템) — false 면 원작 새로 뽑은 값(최대 / 4 · OpenBW create_unit). */ fullEnergy?: boolean;
 }
 
 export type Order9 =
@@ -127,7 +130,11 @@ export type Order9 =
   /** Unload — 하나씩 내린다(15프레임마다). 이동은 건드리지 않는다. */
   | { t: "unload" }
   | { t: "hold" }
-  | { t: "burrow" } | { t: "unburrow" };
+  | { t: "burrow" } | { t: "unburrow" }
+  /** 시즈 모드 · 탱크 모드(Tank Siege Mode 연구). */
+  | { t: "siege" } | { t: "unsiege" }
+  /** 사이오닉 스톰 — 그 자리(288px 안으로 걸어가 에너지 75). */
+  | { t: "storm"; x: number; y: number };
 
 export interface Ent9 {
   id: number; def: UnitDef9; owner: 0 | 1;
@@ -150,11 +157,15 @@ export interface Ent9 {
   /** 일꾼 채취 — 0 캐러 감 · 1 캐는 중 · 2 돌아감 · 3 넘겨주는 중. */ work: number; workT: number; slot: number;
   /** 버로우 — 들어감 · 파는/나오는 남은 프레임. */ burrowed: boolean; burrowT: number;
   /** 리버 스캐럽 수 · 다음 하나까지 남은 프레임. */ scarabs: number; scarabT: number;
+  /** 기술 쿨다운(spell_cooldown) · 스톰 면역(storm_timer · 8프레임 상태 틱마다 1 줄어든다). */ spellCd: number; stormT: number;
+  /** 시즈 전환 남은 프레임 · 끝나면 바뀔 모습(언시즈 = 끝에 바뀐다). */ xT: number; xTo: string | null;
   dead: boolean; hitT: number;
 }
 export interface Shot9 { x1: number; y1: number; x2: number; y2: number; t: number; air: boolean; col: string }
 export interface Boom9 { x: number; y: number; t: number; r: number }
 export interface Scarab9 { x: number; y: number; tid: number; owner: 0 | 1; life: number; from: number }
+/** 스톰 마당 — life 는 남은 프레임(OpenBW bullet remaining_time). */
+export interface Storm9 { x: number; y: number; owner: 0 | 1; life: number; from: number }
 export interface PracStats9 { workers: number; defense: number; buildings: number; lost: number; tick: number }
 
 /** 한 프레임(ms) — 가장 빠름 23.81 fps. */
@@ -177,6 +188,18 @@ const ENERGY_REGEN9 = 8; const SHIELD_REGEN9 = 7; const ZERG_REGEN9 = 4;
 const MEDIC_HEAL9 = 200; const MEDIC_RANGE9 = 30;
 /** 버로우(파기 · 나오기) — 원작 애니메이션 길이를 못 열어 재생기 BURROW_DIG_SEC 0.9초와 같은 어림. */
 const BURROW_FRAMES9 = Math.round(0.9 / FRAME_SEC);
+/** 사이오닉 스톰 — 에너지 75(techdata) · 사거리 288 · 반지름 48 · 한 번 14(방어 무시 · weapons.dat).
+ *  지속(weapons.dat lifetime)은 이 환경에서 원본을 못 열었다 — OpenBW bullet_state_damage_over_time 이 남은 시간이 7 의 배수일 때마다 치므로
+ *  알려진 총합 112(= 14 × 8)를 내는 값은 50~56 뿐이고, 옛 공략의 "4초 동안(보통 속도 15fps)" 에 맞는 56 을 쓴다 [유도 · 어림]. */
+const STORM_ENERGY9 = 75; const STORM_LIFE9 = 56; const STORM_EVERY9 = 7; const STORM_R9 = 48;
+/** 내린 유닛의 spell_cooldown(OpenBW unit_unload). */
+const UNLOAD_SPELL_CD9 = 30;
+/** 시즈 · 언시즈 애니메이션 — iscript 를 못 열어 재생기 SIEGE_XF_SEC 1.5초와 같은 어림. */
+const SIEGE_FRAMES9 = Math.round(1.5 / FRAME_SEC);
+/** 포탑으로 쏘는 것 — 몸을 표적 쪽으로 안 돌려도 쏜다. */
+const TURRET9 = new Set(["Siege Tank", "Siege Tank (Siege Mode)", "Goliath"]);
+/** 에너지를 쓰는 유닛 · 최대 에너지 연구(Khaydarin Amulet · Caduceus · Moebius · Metasynaptic). */
+const CASTERS9 = new Set(["High Templar", "Medic", "Ghost", "Defiler"]);
 /** 적 일꾼 수 · 벙커 안 마린 수. */
 const WORKERS9 = 50; const BUNKER_MARINES9 = 4;
 
@@ -212,6 +235,7 @@ export class PracticeSim9 {
   shots: Shot9[] = [];
   booms: Boom9[] = [];
   scarabs: Scarab9[] = [];
+  storms: Storm9[] = [];
   stats: PracStats9 = { workers: 0, defense: 0, buildings: 0, lost: 0, tick: 0 };
   private nextId = 1;
   private walk: Uint8Array; private cw: number; private ch: number;
@@ -254,6 +278,8 @@ export class PracticeSim9 {
   }
   private buildable: (tx: number, ty: number) => boolean;
   private rand(): number { this.seed = (Math.imul(this.seed, 22695477) + 1) >>> 0; return (this.seed >>> 16) & 0x7fff; }
+  /** 최대 에너지(fp8) — 연구 다면 250(에너지 연구) · 아니면 200 · 쓰지 않는 유닛 0. */
+  maxEnergy(def: UnitDef9): number { return CASTERS9.has(def.name) ? fp(this.ups ? 250 : 200) : 0; }
   /** 공방 단계(두 편 같다). */
   private lv(): number { return Math.max(0, Math.min(3, Math.round(this.setup.lv ?? 0))); }
 
@@ -262,12 +288,12 @@ export class PracticeSim9 {
     const def = UNIT_DEFS9[name];
     const mv = def.speed > 0 ? moveDynOf(name, this.ups ? SPEED_UPS9 : []) : null;
     const e: Ent9 = {
-      id: this.nextId++, def, owner, x, y, hp: fp(def.hp), sh: fp(def.sh), en: fp(50),
+      id: this.nextId++, def, owner, x, y, hp: fp(def.hp), sh: fp(def.sh), en: this.setup.fullEnergy === false ? Math.floor(this.maxEnergy(def) / 4) : this.maxEnergy(def),
       face: Math.PI / 2, course: Math.PI / 2, spd: 0, mv,
       orders: [], goal: null, arrived: true, path: null, pathTo: null,
       gcd: 0, acd: 0, timer: 0, target: null, hitBy: null, cargo: [], inside: null, para: false, ost: 0,
       work: 0, workT: 0, slot: 0, burrowed: false, burrowT: 0,
-      scarabs: def.reaver ? (this.ups ? 10 : 5) : 0, scarabT: 0,
+      scarabs: def.reaver ? (this.ups ? 10 : 5) : 0, scarabT: 0, spellCd: 0, stormT: 0, xT: 0, xTo: null,
       dead: false, hitT: 0,
     };
     this.ents.push(e); this.byId.set(e.id, e);
@@ -491,7 +517,10 @@ export class PracticeSim9 {
   order(ids: number[], o: Order9, queue: boolean): void {
     for (const id of ids) {
       const e = this.byId.get(id); if (!e || e.dead || e.owner !== 0 || e.inside !== null) continue;
-      if (!e.mv && o.t !== "hold") continue;
+      /* 붙박이(시즈 모드)는 홀드 · 공격 · 언시즈만 받는다(원작: 움직이는 명령은 안 먹는다 · 태우기도 못 한다). */
+      if (!e.mv && o.t !== "hold" && o.t !== "attack" && o.t !== "unsiege") continue;
+      if ((o.t === "siege" && (e.def.name !== "Siege Tank" || !this.ups)) || (o.t === "unsiege" && e.def.name !== "Siege Tank (Siege Mode)")) continue;
+      if (o.t === "storm" && (e.def.name !== "High Templar" || !this.ups)) continue;
       if ((o.t === "moveunload" || o.t === "unload" || o.t === "pickup") && !e.def.cargo) continue;
       if (o.t === "load" && (e.def.cargo || !e.def.slots)) continue;
       if ((o.t === "burrow" || o.t === "unburrow") && !e.def.burrowShoot) continue;
@@ -528,6 +557,8 @@ export class PracticeSim9 {
       if (e.gcd > 0) e.gcd -= 1;
       if (e.acd > 0) e.acd -= 1;
       if (e.timer > 0) e.timer -= 1;
+      if (e.spellCd > 0) e.spellCd -= 1;
+      if (e.stormT > 0 && (this.stats.tick + e.id) % 8 === 0) e.stormT -= 1;   // update_unit_status_timers — 8프레임마다
       if (e.inside !== null) continue;
       if (e.hitT > 0) e.hitT -= 1;
       this.regen(e);
@@ -539,6 +570,7 @@ export class PracticeSim9 {
       this.drive(e);
     }
     this.scarabFly();
+    this.stormTick();
     this.separate();
     for (const s of this.shots) s.t -= 1;
     this.shots = this.shots.filter((s) => s.t > 0);
@@ -549,10 +581,8 @@ export class PracticeSim9 {
   private regen(e: Ent9): void {
     if (e.def.sh > 0 && e.sh < fp(e.def.sh)) e.sh = Math.min(fp(e.def.sh), e.sh + SHIELD_REGEN9);
     if (e.def.race === "Z" && !e.def.bld && e.hp < fp(e.def.hp)) e.hp = Math.min(fp(e.def.hp), e.hp + ZERG_REGEN9);
-    if (e.def.heal || e.def.name === "High Templar" || e.def.name === "Defiler" || e.def.name === "Ghost") {
-      const max = fp(this.ups && e.def.heal ? 250 : 200);
-      if (e.en < max) e.en = Math.min(max, e.en + ENERGY_REGEN9);
-    }
+    const max = this.maxEnergy(e.def);
+    if (max > 0 && e.en < max) e.en = Math.min(max, e.en + ENERGY_REGEN9);
   }
 
   private unitTick(e: Ent9): void {
@@ -560,6 +590,12 @@ export class PracticeSim9 {
     if (e.burrowT > 0) {
       e.burrowT -= 1;
       if (e.burrowT === 0) { const o = e.orders[0]; if (o?.t === "burrow") { e.burrowed = true; this.next(e); } else if (o?.t === "unburrow") { e.burrowed = false; this.next(e); } }
+      return;
+    }
+    if (e.xT > 0) {
+      /* 시즈 전환 — 서서 애니메이션이 끝날 때까지 아무것도 안 한다(order_Sieging state 3 · order_Unsieging). */
+      e.xT -= 1;
+      if (e.xT === 0) { if (e.xTo) this.morph(e, e.xTo); e.xTo = null; this.next(e); }
       return;
     }
     if (e.def.heal && this.healTick(e)) return;
@@ -589,6 +625,28 @@ export class PracticeSim9 {
       case "unburrow":
         if (!e.burrowed) { this.next(e); return; }
         e.burrowT = BURROW_FRAMES9; return;
+      case "siege":
+        /* order_Sieging — 서고 · 몸과 포탑이 제 방향을 보면 시즈 모드로 바뀌고(morph) · 애니메이션 끝까지 기다린다. */
+        if (e.def.name !== "Siege Tank") { this.next(e); return; }
+        e.goal = null; e.path = null; e.spd = 0; this.morph(e, "Siege Tank (Siege Mode)"); e.xT = SIEGE_FRAMES9; e.xTo = null; return;
+      case "unsiege":
+        /* order_Unsieging — 애니메이션이 끝나야 탱크 모드로 바뀐다. */
+        if (e.def.name !== "Siege Tank (Siege Mode)") { this.next(e); return; }
+        e.xT = SIEGE_FRAMES9; e.xTo = "Siege Tank"; return;
+      case "storm": {
+        /* order_Spell — 에너지가 모자라면 그만 · 288px(+정지 거리) 안까지 걸어가 서서 · spell_cooldown 이 0 이면 에너지 75 를 쓰고 쿨다운 45 + 흔들림. */
+        if (e.en < fp(STORM_ENERGY9)) { this.next(e); return; }
+        const reach = WEAPONS.Psionic_Storm.rangePx;
+        if (xyLen9(o.x - e.x, o.y - e.y) > reach) { this.setGoal(e, o.x, o.y); return; }
+        e.goal = null; e.path = null;
+        e.face = Math.atan2(o.y - e.y, o.x - e.x);
+        if (e.spellCd > 0) return;
+        e.en -= fp(STORM_ENERGY9);
+        e.spellCd = cooldownFrames(WEAPONS.Psionic_Storm) + (this.rand() & 3) - 1;
+        this.storms.push({ x: o.x, y: o.y, owner: e.owner, life: STORM_LIFE9, from: e.id });
+        this.next(e);
+        return;
+      }
       case "load": {
         /* EnterTransport — 수송선이 움직일 수 있으면 그쪽에 PickupTransport 를 앞에 끼운다(마중) · 상자 사이 1px 이면 탄다. */
         const t = this.byId.get(o.id);
@@ -603,7 +661,7 @@ export class PracticeSim9 {
       }
       case "pickup": {
         const u = this.byId.get(o.id);
-        if (!u || u.dead || u.inside !== null || u.owner !== e.owner || !u.def.slots || this.usedSlots(e) + u.def.slots > e.def.cargo) { this.next(e); return; }
+        if (!u || u.dead || u.inside !== null || u.owner !== e.owner || !u.def.slots || !u.mv || this.usedSlots(e) + u.def.slots > e.def.cargo) { this.next(e); return; }
         if (e.timer === 0) {
           e.timer = PICKUP_TIMER9;
           if (this.dist(e, u) <= 1) {
@@ -654,6 +712,7 @@ export class PracticeSim9 {
       else {
         if (u.def.g) u.gcd = cooldownFrames(u.def.g);
         if (u.def.a) u.acd = cooldownFrames(u.def.a);
+        u.spellCd = UNLOAD_SPELL_CD9;
       }
     }
     return true;
@@ -908,7 +967,7 @@ export class PracticeSim9 {
     e.goal = null; e.path = null;
     if (e.mv?.ctrl === 2) e.spd = 0;
     const want = Math.atan2(t.y - e.y, t.x - e.x);
-    if (e.mv && !e.def.bld) {
+    if (e.mv && !e.def.bld && !TURRET9.has(e.def.name)) {
       e.face = turnTo9(e.face, want, (e.mv.turnBody * FRAME_SEC * Math.PI) / 180);
       if (Math.abs(angDiff9(e.face, want)) > Math.PI / 8) return;
     } else e.face = want;
@@ -1017,6 +1076,32 @@ export class PracticeSim9 {
       this.fire(m, t, w, b.x + ((id % 3) - 1) * 8, b.y - 6);
       if (t.dead) break;
     }
+  }
+  /** morph_unit — 종류를 바꾼다(체력 · 실드 비율은 그대로 · 이동 물리 다시). */
+  private morph(e: Ent9, name: string): void {
+    const def = UNIT_DEFS9[name]; if (!def) return;
+    e.def = def;
+    e.mv = def.speed > 0 ? moveDynOf(name, this.ups ? SPEED_UPS9 : []) : null;
+    e.goal = null; e.path = null; e.spd = 0; e.target = null;
+  }
+  /** 스톰 — 남은 시간이 7 의 배수인 프레임마다 반지름 48 안(몸 상자까지)의 건물 아닌 모든 몸에 14(방어 무시 · 제 편 · 시전자 포함) ·
+   *  한 번 맞은 몸은 다음 상태 틱(8프레임마다)까지 다른 스톰을 안 맞는다(storm_timer · 겹쳐도 안 쌓인다). */
+  private stormTick(): void {
+    const w = WEAPONS.Psionic_Storm;
+    for (const st of this.storms) {
+      const old = st.life; st.life -= 1;
+      if (old === 0) continue;
+      if (st.life % STORM_EVERY9 !== 0) continue;
+      const shooter = this.byId.get(st.from) ?? ({ owner: st.owner, def: UNIT_DEFS9["High Templar"], inside: null, id: -1 } as unknown as Ent9);
+      for (const o of this.ents) {
+        if (o.dead || o.inside !== null || o.def.bld || o.def.name === "Mineral Field") continue;
+        if (this.distTo(o, st.x, st.y) > STORM_R9) continue;
+        if (o.stormT > 0) continue;
+        o.stormT = 1;
+        this.hitUnit(shooter, o, w, 1, 1);
+      }
+    }
+    this.storms = this.storms.filter((st) => st.life >= 0);
   }
   /** 리버 — 스캐럽을 원작 시간(105프레임)마다 하나씩 채운다(빨무라 돈은 무한). */
   private scarabTick(e: Ent9): void {
