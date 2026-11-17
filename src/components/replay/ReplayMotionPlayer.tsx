@@ -4842,15 +4842,17 @@ function drawGasCloud9(ctx: CanvasRenderingContext2D, p: { x: number; y: number;
     // 몸 — 가운데 초록에서 테로 짙어지며 투명. ⚠ 빛 자리를 그러데이션 안쪽 원 중심으로 비키면 GL 심은 그 비킴을 못 탄다(바깥 원 중심으로 부채를 편다) —
     //   그래서 몸과 빛(아래)을 **제 중심을 가진 두 원**으로 가른다.
     const g9 = ctx.createRadialGradient(cx9, cy9, 0, cx9, cy9, rr9);
-    g9.addColorStop(0, "rgba(120,228,106,0.92)");
+    g9.addColorStop(0, "rgba(150,236,136,0.92)");   // 120,228,106 → 한 단 밝게(2026-11-17 "흰 부분 비중 더 크게")
     g9.addColorStop(0.55, "rgba(70,182,72,0.8)");
     g9.addColorStop(0.82, "rgba(44,132,50,0.3)");   // 0.45 면 혹마다 짙은 테가 겹쳐 금이 섰다(실측)
     g9.addColorStop(1, "rgba(30,100,40,0)");
     ctx.fillStyle = g9; ctx.beginPath(); ctx.arc(cx9, cy9, rr9, 0, Math.PI * 2); ctx.fill();
     // 빛 — 위·왼쪽으로 비킨 밝은 연두(혹마다 볼록하게)
-    const hx9 = cx9 - rr9 * 0.3; const hy9 = cy9 - rr9 * 0.34; const hr9 = rr9 * 0.58;
+    /* 흰 부분을 크게(2026-11-17, 요청: "가스는 2D 로 바꾸면서 흰 부분 비중이 더 커지게") — 빛 원 반지름 0.58 → 0.8 · 비킴 0.3/0.34 → 0.24/0.28 ·
+       가운데 #deffd0 0.85 → 거의 흰 #fcfffa 1 · 0.45 자리 연두 흰빛 0.75(지도에서 덩이는 반지름 15 ~ 40px 라 진하게). */
+    const hx9 = cx9 - rr9 * 0.24; const hy9 = cy9 - rr9 * 0.28; const hr9 = rr9 * 0.8;
     const h9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, hr9);
-    h9.addColorStop(0, "rgba(222,255,208,0.85)"); h9.addColorStop(0.5, "rgba(170,246,150,0.45)"); h9.addColorStop(1, "rgba(150,236,130,0)");
+    h9.addColorStop(0, "rgba(252,255,250,1)"); h9.addColorStop(0.45, "rgba(222,255,210,0.75)"); h9.addColorStop(1, "rgba(170,246,150,0)");
     ctx.fillStyle = h9; ctx.beginPath(); ctx.arc(hx9, hy9, hr9, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
