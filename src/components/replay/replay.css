@@ -6165,68 +6165,75 @@
 
 /* ★★ 수송선 드랍 연습실(PracticeRoom · practiceSim9 · 2026-11-17, 요청: "연습실 기능 추가 · 수송선 드랍 연습") — 설정 판 · 놀이 판(캔버스 + 위 줄 + 아래 줄). */
 .scr-prac { position: relative; width: 100%; height: 100%; min-height: 560px; background: #07080c; color: #e8ecf2; font-size: 13px; display: flex; flex-direction: column; }
-.scr-prac-setup { max-width: 920px; margin: 0 auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.scr-prac-h { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
+.scr-prac:fullscreen { width: 100vw; height: 100vh; }
+.scr-prac-setup { max-width: 760px; width: 100%; margin: 0 auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-sizing: border-box; }
+.scr-prac-setup.is-modal { margin: 0; max-height: calc(100% - 32px); border-radius: 12px; border: 1px solid #2a3140; background: #0d1017; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+.scr-prac-modal { position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(3,4,8,0.62); padding: 16px; box-sizing: border-box; }
+.scr-prac-hrow { display: flex; align-items: center; gap: 8px; }
+.scr-prac-h { margin: 0; font-size: 18px; font-weight: 800; flex: 1 1 auto; }
+.scr-prac-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #3a4150; background: #141821; color: #dfe5ee; font-size: 18px; line-height: 1; cursor: pointer; }
 .scr-prac-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
 .scr-prac-row.is-top { align-items: flex-start; }
 .scr-prac-lab { flex: none; width: 72px; font-weight: 700; color: #aeb6c4; }
 .scr-prac-dim { color: #8a93a2; font-size: 12px; }
-.scr-prac-dim.is-warn { color: #ffb14a; }
-.scr-prac-num { min-width: 3em; }
 .scr-prac-pill { padding: 4px 12px; border-radius: 999px; border: 1px solid #3a4150; background: #141821; color: #dfe5ee; cursor: pointer; font-weight: 600; }
 .scr-prac-pill.is-sm { padding: 2px 8px; font-size: 12px; }
 .scr-prac-pill.is-on { background: #e8ecf2; color: #10151a; border-color: #e8ecf2; }
-.scr-prac-pill.is-foe.is-on { background: #e8402f; color: #fff; border-color: #e8402f; }
-.scr-prac-cargo { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; flex: 1 1 0; min-width: 0; }
-.scr-prac-cargo-item { display: inline-flex; align-items: center; gap: 6px; }
-.scr-prac-cargo-item i { margin-left: 4px; font-style: normal; color: #8a93a2; font-size: 11px; }
-.scr-prac-stepper { display: inline-flex; align-items: center; border: 1px solid #3a4150; border-radius: 6px; overflow: hidden; }
-.scr-prac-stepper button { width: 24px; height: 26px; border: 0; background: #1a1f2a; color: #dfe5ee; cursor: pointer; }
-.scr-prac-stepper input { width: 42px; height: 26px; border: 0; background: #0d1016; color: #fff; text-align: center; font-variant-numeric: tabular-nums; }
-.scr-prac-spots { display: flex; flex-wrap: wrap; gap: 12px; flex: 1 1 0; min-width: 0; }
-.scr-prac-spotmap { position: relative; width: 256px; height: 256px; flex: none; }
-.scr-prac-spotmap canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; border-radius: 4px; }
-.scr-prac-spot { position: absolute; transform: translate(-50%, -50%); padding: 1px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.4); background: rgba(10,12,18,0.8); color: #dfe5ee; font-size: 11px; cursor: pointer; }
-.scr-prac-spot.is-me { background: #3a7bff; border-color: #fff; color: #fff; font-weight: 800; }
-.scr-prac-spot.is-foe { background: #e8402f; border-color: #fff; color: #fff; font-weight: 800; }
-.scr-prac-spotlist { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.scr-prac-spotlist > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.scr-prac-spotlist > div > .scr-prac-dim { width: 52px; }
-.scr-prac-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+/* 내 자리 — 지도 위 깃발을 끌어(또는 누른 자리) 가장 가까운 사람 스타팅으로. 나머지 스타팅은 적 기지(종족 글자). */
+.scr-prac-spotmap { position: relative; width: 320px; height: 320px; max-width: 100%; aspect-ratio: 1; flex: none; cursor: grab; touch-action: none; user-select: none; }
+.scr-prac-spotmap:active { cursor: grabbing; }
+.scr-prac-spotmap canvas { width: 100%; height: 100%; display: block; border-radius: 6px; }
+.scr-prac-base { position: absolute; transform: translate(-50%, -50%); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff; background: rgba(232, 64, 47, 0.88); border: 1px solid rgba(255,255,255,0.7); pointer-events: none; }
+.scr-prac-base.is-near { box-shadow: 0 0 0 3px rgba(58, 123, 255, 0.85); }
+.scr-prac-flag { position: absolute; transform: translate(-4px, -29px); pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.9)); transition: left 0.12s, top 0.12s; }
+.scr-prac-flag.is-drag { transition: none; }
+.scr-prac-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; flex: 1 1 0; min-width: 0; }
 .scr-prac-keyrow { display: inline-flex; align-items: center; gap: 6px; }
 .scr-prac-key { min-width: 34px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid #4a5263; background: #1a1f2a; color: #fff; font-weight: 800; cursor: pointer; }
 .scr-prac-key.is-listen { border-color: #ffd04a; color: #ffd04a; }
-.scr-prac-err { margin: 0; color: #ff6a5a; }
 .scr-prac-start { padding: 10px 28px; border-radius: 8px; border: 0; background: #e8ecf2; color: #10151a; font-size: 15px; font-weight: 800; cursor: pointer; }
 .scr-prac-start:disabled { opacity: 0.5; cursor: default; }
 .scr-prac-game { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; user-select: none; }
-.scr-prac-canvas { flex: 1 1 auto; min-height: 0; width: 100%; display: block; }
-.scr-prac-top { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 14px; padding: 6px 10px; background: linear-gradient(180deg, rgba(5,6,10,0.85), rgba(5,6,10,0)); pointer-events: none; font-variant-numeric: tabular-nums; }
+/* 층 셋 — GL 지형 · GL 몸 · 위 2D(체력 막대 · 총알 · 표식 · 손짓을 받는다). 같은 자리 · 같은 크기. */
+.scr-prac-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; }
+.scr-prac-layer, .scr-prac-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scr-prac-layer { pointer-events: none; }
+.scr-prac-top { position: absolute; left: 0; right: 0; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 6px 10px; background: linear-gradient(180deg, rgba(5,6,10,0.85), rgba(5,6,10,0)); pointer-events: none; font-variant-numeric: tabular-nums; }
 .scr-prac-top > * { pointer-events: auto; }
 .scr-prac-top .is-loss b { color: #ff7a6a; }
 .scr-prac-top button { padding: 3px 10px; border-radius: 6px; border: 1px solid #3a4150; background: rgba(20,24,33,0.9); color: #dfe5ee; cursor: pointer; }
+.scr-prac-top .scr-prac-gear { font-size: 16px; line-height: 1; padding: 3px 8px; }
 .scr-prac-sp { flex: 1 1 auto; }
 .scr-prac-mode { color: #ffd04a; font-weight: 700; }
 .scr-prac-bottom { flex: none; display: flex; gap: 10px; align-items: stretch; padding: 8px; background: #0b0d13; border-top: 1px solid #222836; height: 196px; box-sizing: border-box; }
 .scr-prac-mini { flex: none; width: 180px; height: 180px; image-rendering: pixelated; cursor: pointer; border: 1px solid #222836; }
 .scr-prac-selbox { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.scr-prac-ship { display: flex; align-items: center; gap: 8px; }
+.scr-prac-ship, .scr-prac-bld { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .scr-prac-shipname { flex: none; width: 92px; color: #9be8ff; font-weight: 700; font-size: 12px; }
-/* 화물 칸 — 재생기 인포창 짐칸과 같은 꼴(4칸 격자 · dense · 칸 테 옅은 파랑 · 검은 바탕 · 모델 실루엣) — 2026-11-17 "수송선 안의 유닛 글자말고 모델로 인포창처럼". */
+.scr-prac-bld .scr-prac-shipname { width: auto; min-width: 92px; }
 .scr-prac-slots { display: grid; grid-template-columns: repeat(4, 34px); grid-auto-rows: 34px; grid-auto-flow: row dense; gap: 3px; }
-.scr-prac-slot { box-sizing: border-box; padding: 2px; border-radius: 4px; border: 1px solid rgba(120, 170, 255, 0.35); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.scr-prac-slot img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-.scr-prac-slot i { font-style: normal; }
-.scr-prac-slot.is-empty { cursor: default; }
-@media (hover: hover) { button.scr-prac-slot:hover { border-color: #6fe36f; } }
+.scr-prac-slot, .scr-prac-qslot { box-sizing: border-box; padding: 2px; border-radius: 4px; border: 1px solid rgba(120, 170, 255, 0.35); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.scr-prac-slot img, .scr-prac-qslot img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.scr-prac-slot i, .scr-prac-qslot i { font-style: normal; text-align: center; line-height: 1.1; }
+.scr-prac-slot.is-empty, .scr-prac-qslot.is-empty { cursor: default; }
+/* 생산 · 연구 줄 — 다섯 칸 · 첫 칸 아래 진행 막대 · 누르면 무르기. */
+.scr-prac-queue { display: flex; gap: 4px; }
+.scr-prac-qslot { position: relative; width: 44px; height: 44px; }
+.scr-prac-qbar { position: absolute; left: 0; bottom: 0; height: 3px; background: #9be8ff; }
+@media (hover: hover) { button.scr-prac-slot:hover, button.scr-prac-qslot:hover { border-color: #6fe36f; } }
 .scr-prac-sellist { display: flex; flex-wrap: wrap; gap: 4px; }
 .scr-prac-chip { padding: 3px 8px; border-radius: 4px; background: #142446; color: #fff; font-size: 12px; }
 .scr-prac-chip.is-foe { background: #46161a; }
-.scr-prac-cmds { flex: none; display: grid; grid-template-columns: repeat(3, 64px); gap: 4px; align-content: start; }
-.scr-prac-cmd { height: 52px; border-radius: 6px; border: 1px solid #3a4150; background: #141821; color: #dfe5ee; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-.scr-prac-cmd b { font-size: 15px; color: #fff; }
+.scr-prac-cmds { flex: none; display: grid; grid-template-columns: repeat(4, 60px); gap: 4px; align-content: start; }
+.scr-prac-cmd { position: relative; height: 52px; border-radius: 6px; border: 1px solid #3a4150; background: #141821; color: #dfe5ee; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; }
+.scr-prac-cmd b { font-size: 15px; color: #fff; position: relative; }
+.scr-prac-cmd span { position: relative; text-align: center; line-height: 1.1; }
+.scr-prac-cmd img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); object-fit: contain; opacity: 0.32; pointer-events: none; }
+.scr-prac-cmd.is-res { border-color: #3b4a63; }
+.scr-prac-cmd.is-done { color: #6fe36f; }
+.scr-prac-cmd:disabled { opacity: 0.45; cursor: default; }
 .scr-prac-cmd.is-on { border-color: #ffd04a; color: #ffd04a; }
-/* 갇힌 커서(2026-11-17 · 원작처럼 커서를 게임 화면 안에 가둔다 — PracticeRoom SCROLL_ 머리말) — 끝점이 커서 자리 · 스크롤 화살은 가운데가 자리. */
 .scr-prac-cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 30; display: none; }
 .scr-prac-cursor > svg { position: absolute; display: none; overflow: visible; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8)); }
 .scr-prac-cursor[data-k="arrow"] > .is-arrow { display: block; left: 0; top: 0; }

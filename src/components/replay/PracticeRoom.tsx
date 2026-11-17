@@ -1,20 +1,36 @@
-/* ★★ 수송선 드랍 연습실 화면(2026-11-17 · practiceSim9 ★ 머리말의 요청) — 설정 → 그림 굽기 → 놀이.
+/* ★★ 수송선 드랍 연습실 화면(2026-11-17 · practiceSim9 ★ 머리말의 요청) — 설정 → 모델 굽기 → 놀이.
    조작은 원작 손버릇을 따른다: 왼클릭 고르기 · 끌어 상자 · Shift 더하기 · 오른클릭 알아서(적 → 공격 · 내 수송선 → 타기 · 수송선이 내 유닛 → 태우기 · 땅 → 이동) ·
    Shift + 오른클릭 · Shift + 명령은 예약 · Ctrl + 숫자 부대 지정 · 숫자 부대 부르기(두 번이면 화면 이동) · 화살표 · 화면 가장자리 · 미니맵으로 화면 이동.
    ★ 보이는 화면은 **원작 크기**(2026-11-17, 요청: "원작 정보를 그대로 … 연습실은 보이는 화면의 크기도") — 콘솔 위 게임 화면 640 × 400 게임 px
    (20 × 12.5 타일 · 재생기 ORIG_VIEW9 와 같은 자)를 캔버스에 맞춰 늘이고 남는 곳은 검게 둔다. 휠 확대는 걷었다(원작에 없다).
-   명령 키(이동 · 공격 · 정지 · 홀드 · 하차 · 낙하산 · 태우기)는 설정에서 바꾼다(기기에 기억). 하차(U) 다음 땅을 누르면 그 자리로 가서 다 내리고, 수송선 자기를 누르면 그 자리에서 내린다.
-   낙하산(D)은 가던 길을 멈추지 않고 한 기씩 떨군다 — Shift + 오른클릭으로 이어 갈 길을 예약해 두면 내리면서 그대로 간다. 화물 칸을 누르면 그 한 기만 지금 자리에 내린다. */
-import { useEffect, useMemo, useRef, useState } from "react";
+   명령 키(이동 · 공격 · 정지 · 홀드 · 하차 · 태우기 …)는 설정에서 바꾼다(기기에 기억). 하차(U) 다음 땅을 누르면 그 자리로 가서 다 내리고, 수송선 자기를 누르면 낙하산 —
+   가던 길을 멈추지 않고 한 기씩 떨군다(Shift + 오른클릭으로 이어 갈 길을 예약해 두면 내리면서 그대로 간다). 화물 칸을 누르면 그 한 기만 지금 자리에 내린다.
+   ★★ 셋째 판(2026-11-17, 요청: "우리 홈피의 드랍연습도 맵하고 똑같이 · 초중반 선택과 종족, 자리 선택등은 처음에 선택하거나 중간에 톱니바퀴 눌러서 · 키 변경도 계속 ·
+   유닛이나 셔틀은 직접 뽑게 설정창에서 제거 · 위치도 지도에서 깃발 옮기기로 · 라디오버튼류 제거 · 설정창은 단순하고 꼭 필요한거만 · 시프트 f234랑 컨트롤 숫자 단축키 ·
+   지형과 모델 화질 재생기수준으로"):
+     · 설정 = 내 종족 · 적 타워(초반/중반) · 내 자리(지도 위 깃발을 끌어 사람 스타팅 여섯 중 하나에) · 명령 키. 처음에 뜨고 놀이 중엔 톱니(⚙)로 연다(그동안 멈춤).
+       종족 · 자리를 바꾸면 새 판 · 적 타워만 바꾸면 적만 새로(맵 비컨처럼 내 기지 · 내 유닛은 그대로).
+     · 내 기지는 생산 · 테크 건물이 다 지어진 채 — 건물을 고르면 명령 카드에 생산 · 연구(원작 단축키 글자) · 시간 1/24 · 돈 무한.
+     · Shift + F2 · F3 · F4 = 지금 화면 기억 · F2 · F3 · F4 = 그 화면으로. Ctrl + 숫자는 브라우저가 탭 바꾸기로 가로채므로 시작하면 전체 화면 + 키보드 잠금
+       (navigator.keyboard.lock — 크롬 · 엣지)으로 받는다(못 잠그는 곳은 Alt + 숫자도 같은 지정).
+     · 그림 = 재생기와 같은 GL 붓 — 지형은 GL 지형층(glTerrain9 · 벡터 등고선 · 화면 밀도 그대로), 몸은 GL 메시(gl9 GlUnits9 · 명암 · 바닥 그림자 · 번짐)를 그 자리에서
+       화면 배율 그대로 그린다(옛: 지형 24px/타일 2D 판을 늘여 붙임 · 몸은 16방 판을 굽고 늘여 찍음 → 흐렸다). 체력 막대 · 총알 · 표식은 위 2D 층. */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReplayMapGrid } from "./mapGrid";
 import { decodeMapTerrain, terrainFace, type MapTerrain } from "../../utils/mapTerrain";
-import { drawMapGrid } from "../../utils/mapTiles";
+import { drawMapGrid, terrainFill } from "../../utils/mapTiles";
+import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
 import { FRAME_SEC, fp } from "../../utils/bwUnits";
 import {
-  CARGO_UNITS9, PRAC_RACES9, PRAC_SPOTS9, PRAC_TICK_MS9, PracticeSim9, UNIT_DEFS9,
-  type Ent9, type PracRace9, type PracSetup9,
+  PRAC_RACES9, PRAC_SPOTS9, PRAC_TICK_MS9, PROD9, PracticeSim9, UNIT_DEFS9,
+  type Ent9, type PracRace9, type PracSetup9, type PracStage9, type ProdItem9,
 } from "./practiceSim9";
-import { PRAC_COLORS9, bakePracSprite9, type PracSprite9 } from "./practiceSpr9";
+import { PRAC_MAP9 } from "./practiceMap9.gen";
+import { PRAC_COLORS9, pracWorldPx9 } from "./practiceSpr9";
+import { CAM_TOP9, GL_GLOW_KINDS9, GlUnits9, SHADOW_ALPHA9, glIconRequest9 } from "./gl9";
+import { glTerrCanvas9 } from "./glTerrain9";
+import { BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { STORM_STAGES } from "./bake9";
 
 export interface PracticeRoomProps {
   /** 빨무 지도(앱이 받아 준다 · 지형 terrain 이 있어야 걷는 칸을 안다). */
@@ -22,74 +38,81 @@ export interface PracticeRoomProps {
   className?: string;
 }
 
-type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm";
+type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm" | "morph";
 const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "move", label: "이동", def: "M", hint: "다음 클릭 자리로 이동(적을 무시)" },
   { key: "attack", label: "공격", def: "A", hint: "다음 클릭 — 적이면 그 적 · 땅이면 가며 싸우기" },
   { key: "stop", label: "정지", def: "S", hint: "하던 일과 예약을 모두 멈춘다" },
   { key: "hold", label: "홀드", def: "H", hint: "그 자리에서 사거리 안만 쏜다" },
-  /* ★ 낙하산은 따로 키가 없다(2026-11-17, 지적: "낙하산은 따로 키가 있는게 아니라 자기 수송선에 내리기를 찍는걸 말하는거야") — 하차 키 뒤 **자기 수송선을 찍으면** 낙하산
-     (멈추지 않고 가던 길에 한 기씩 떨군다 · Shift + 오른클릭 예약 길을 그대로 간다). 옛(같은 날 첫 판): 낙하산 키 D. */
+  /* ★ 낙하산은 따로 키가 없다(2026-11-17, 지적: "낙하산은 따로 키가 있는게 아니라 자기 수송선에 내리기를 찍는걸 말하는거야") — 하차 키 뒤 **자기 수송선을 찍으면** 낙하산. */
   { key: "unload", label: "하차", def: "U", hint: "다음 클릭 자리로 가서 다 내린다 · 자기 수송선을 찍으면 낙하산(멈추지 않고 가던 길에 한 기씩 · Shift 예약 길 그대로)" },
   { key: "load", label: "태우기", def: "L", hint: "다음 클릭한 수송선에 탄다(수송선은 클릭한 유닛을 태운다)" },
-  /* 버로우(2026-11-17 둘째) — 원작 럴커는 땅속에서만 쏜다. 원작 키는 버로우 B · 해제 U 인데 U 가 하차와 겹쳐 한 키로 오간다. */
+  /* 버로우 — 원작 럴커는 땅속에서만 쏜다. 원작 키는 버로우 B · 해제 U 인데 U 가 하차와 겹쳐 한 키로 오간다. */
   { key: "burrow", label: "버로우", def: "B", hint: "럴커 — 땅속으로(땅속에서만 쏜다) · 다시 누르면 나온다" },
-  /* 하템 · 탱크 드랍(2026-11-17 넷째, 요청: "하템 리버 탱크 드랍이 주라 필수야") — 원작 키 그대로(시즈 O · 스톰 T). */
-  { key: "siege", label: "시즈", def: "O", hint: "시즈 탱크 — 시즈 모드(사거리 12타일 · 최소 2타일 · 제 편도 튄다) · 다시 누르면 탱크 모드" },
-  { key: "storm", label: "스톰", def: "T", hint: "하이 템플러 — 다음 클릭 자리에 사이오닉 스톰(에너지 75 · 9타일 · 고른 하템 모두가 쓴다)" },
+  { key: "siege", label: "시즈", def: "O", hint: "시즈 탱크 — 시즈 모드(머신 샵 연구) · 다시 누르면 탱크 모드" },
+  { key: "storm", label: "스톰", def: "T", hint: "하이 템플러 — 다음 클릭 자리에 사이오닉 스톰(템플러 아카이브 연구 · 에너지 75)" },
+  /* 셋째 판 — 유닛을 직접 뽑으니 럴커 · 아콘도 직접 만든다(원작 키: 아콘 합체 R · 럴커 변태 L 은 태우기와 겹쳐 R 하나로). */
+  { key: "morph", label: "변태·합체", def: "R", hint: "히드라 → 럴커(히드라 덴 연구) · 하이 템플러 둘 → 아콘" },
 ];
 /** 누르면 곧바로 되는 명령(자리를 안 기다림). */
-const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege"]);
+const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege", "morph"]);
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
-/* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — 원작 실행 파일을 푼 KopruluSector(n0madic/KopruluSector ·
-   native/kp_core/src/ui/kp_ui_scroll.c · docs/research/atlas/p34.md)의 UpdateMapScroll 0x49bf10 · GetEdgeScrollCursorId 0x43e7b0 · 속도표 0x509390 을 옮겼다:
-   · 가장자리 = 커서가 화면(640 × 480 · 콘솔 포함) 끝 2px 안(x ≤ 1 · x ≥ 638 · y ≤ 1 · y ≥ 478) — 원작은 커서가 창 안에 갇혀 있어 밀면 끝에 붙는다.
-     그래서 여기서도 마우스를 가둔다(Pointer Lock · 게임 화면을 누르면 갇히고 Esc 로 푼다 · 갇힌 동안은 우리 커서를 그린다).
-   · 한 걸음마다 가속 단계 0 → 6 · 그 단계의 픽셀만큼(속도 3 = 옵션 기본: 8 · 8 · 16 · 24 · 24 · 32) · 화면 자리는 8px 칸 · 키(화살표)가 먼저고 키로 밀었으면
-     커서가 움직일 때까지 가장자리는 쉰다 · 상자 끌기 중엔 안 민다. 걸음은 GameLoop 0x4451f0 이 GetTickCount 로 10ms 를 넘길 때마다(atlas p15) —
-     윈도 틱 해상도가 15.625ms 라 실제로는 그만큼마다 한 걸음이다(최고 단계 32px → 초당 약 2048px). */
+/* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — KopruluSector(kp_ui_scroll.c)의 UpdateMapScroll 0x49bf10 ·
+   GetEdgeScrollCursorId 0x43e7b0 · 속도표 0x509390: 가장자리 = 커서가 화면 끝 2px 안 · 한 걸음마다 가속 단계 0 → 6 · 그 단계의 픽셀만큼(속도 3) · 화면 자리는 8px 칸 ·
+   키(화살표)가 먼저 · 상자 끌기 중엔 안 민다 · 걸음은 15.625ms 마다(윈도 틱). 커서는 게임 화면을 누르면 갇힌다(Pointer Lock · Esc 로 푼다). */
 const SCROLL_SPEEDS9 = [
   [0, 0, 8, 8, 16, 16, 16], [0, 0, 8, 8, 16, 16, 24], [0, 8, 8, 16, 16, 24, 24], [0, 8, 8, 16, 24, 24, 32],
   [0, 8, 16, 16, 24, 32, 40], [0, 8, 16, 24, 32, 40, 48], [0, 8, 24, 32, 40, 56, 64],
 ];
 const SCROLL_SPEED9 = 3; const SCROLL_MS9 = 15.625; const EDGE_GAME_PX9 = 2;
-/** 우클릭 대상 고리 깜빡임(원작 selectionTimer = 31 · 매 프레임 1 씩 · 남은 값의 8 비트가 켜졌을 때만 고리 — 두 번 깜빡). */
+/** 우클릭 대상 고리 깜빡임(원작 selectionTimer = 31 · 남은 값의 8 비트가 켜졌을 때만 고리 — 두 번 깜빡). */
 const FLASH_FRAMES9 = 31;
-/* ★ 좌 · 우클릭 원작 그대로(2026-11-17, 요청: "우클릭 좌클릭 등 다 구현 필요(땅이나 유닛 등 모두)") — KopruluSector kp_ui_input.c(ClickSelectAtPoint 0x4bbe70 ·
-   BoxSelectUnits 0x4bc2d0 · FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClick 0x445d70) · kp_selection.c(kp_mark_target ·
-   kp_move_placement_cursor):
-   · 우클릭 · 겨눈 좌클릭 — 유닛을 찍으면 그 고리 깜빡임(31프레임), 땅을 찍으면 **이동 표식**(원작 커서 표식 스프라이트 하나 — 새로 찍으면 옮겨 간다).
-     미니맵 우클릭은 유닛을 안 고르고 늘 땅(표식). 하나만 고른 유닛이 제 몸을 우클릭하면 아무 일 없음. 남의 유닛을 고른 채 우클릭도 아무 일 없음.
-   · 좌클릭 — 빈 땅은 고른 것 그대로(지우지 않는다) · 유닛은 그 하나 · Shift 는 넣고 빼기(내 유닛 · 건물 아닌 것끼리만 · 12 까지) ·
-     Ctrl(또는 고른 유닛 더블클릭)은 **화면 안** 같은 종류(버로우 상태도 같은 것) 전부 · Shift+Ctrl 은 그것을 더한다.
-   · 상자 — 내 유닛(건물 빼고)만 앞(아래)부터 12 까지 · 없으면 상자 안 하나(남의 것 · 건물) · 아무것도 없으면 고른 것 그대로 · Shift 는 더한다.
-   · 표식의 꼴 · 길이는 iscript 를 못 열어 어림(초록 타원이 0.5초 동안 오므라든다). */
+/* ★ 좌 · 우클릭 원작 그대로(2026-11-17 · KopruluSector kp_ui_input.c ClickSelectAtPoint · BoxSelectUnits · FilterSelectableUnits · RightClickInGame · TargetingLeftClick):
+   우클릭 · 겨눈 좌클릭은 유닛이면 깜빡임 · 땅이면 이동 표식 · 미니맵 우클릭은 늘 땅 · 좌클릭 빈 땅은 그대로 · Shift 넣고 빼기 · Ctrl/더블클릭 화면 안 같은 종류 ·
+   상자는 내 유닛(건물 빼고) 12 까지(없으면 하나). 셋째 판: 내 생산 건물을 고른 채 우클릭은 **모이는 자리**. */
 const SEL_MAX9 = 12;
 const MARK_FRAMES9 = 12;
 const KEYS_LS9 = "scr.prac.keys";
-const SETUP_LS9 = "scr.prac.setup2";   // 2 — 기본값을 수송선 1 · 유닛 0 으로(2026-11-17 요청) 바꾸며 옛 기억(scr.prac.setup)은 버린다
+const SETUP_LS9 = "scr.prac.setup3";   // 3 — 셋째 판(종족 · 자리 · 적 타워만)으로 옛 기억(setup2 · 수송선 수 · 태울 유닛 · 적 종족 …)은 버린다
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
 const saveJson9 = (k: string, v: unknown): void => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 사생활 모드 */ } };
 const DEF_KEYS9 = Object.fromEntries(ACTS9.map((a) => [a.key, a.def])) as Record<Act9, string>;
-/** 기본 — 수송선 1 · 유닛 0(2026-11-17, 요청: "선택창에서 기본값은 수송선 1마리에 유닛 0으로" · 옛 4대 · 마린 16 · 메딕 8). */
-const DEF_SETUP9: PracSetup9 = { myRace: "T", foeRace: "P", ships: 1, cargo: {}, mySpot: "BL", foeSpot: "TR", ups: true, lv: 0, fullEnergy: true };
+const DEF_SETUP9: PracSetup9 = { myRace: "T", mySpot: "BL", stage: "early" };
+/** 설정 기억을 다듬는다(옛 값 · 사람 자리가 아닌 자리). */
+const cleanSetup9 = (s: PracSetup9): PracSetup9 => ({
+  myRace: PRAC_RACES9.some((r) => r.key === s.myRace) ? s.myRace : "T",
+  mySpot: PRAC_SPOTS9.some((p) => p.key === s.mySpot) ? s.mySpot : "BL",
+  stage: s.stage === "mid" ? "mid" : "early",
+});
 /** 물리 키 → 글자(KeyU → U · Digit1 → 1) — e.key 는 한글 입력 상태에서 'ㅕ' 같은 낱자로 와서 키 지정 · 단축키가 안 먹었다(2026-11-17, 지적: "연습실 키설정이 안됨"). */
 const keyOf9 = (e: KeyboardEvent): string | null => {
   const m = /^(?:Key([A-Z])|Digit([0-9])|Numpad([0-9]))$/.exec(e.code);
   return m ? (m[1] ?? m[2] ?? m[3]) : null;
 };
-const TP9 = 24;   // 지형 그림 칸(px/타일)
+/** 전체 화면에서 잠가 받는 키 — Ctrl + 숫자(탭 바꾸기) · F2 ~ F4(F3 찾기). Esc 는 안 잠근다(전체 화면 · 커서 가둠 풀기). */
+const LOCK_KEYS9 = ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9", "Digit0", "F2", "F3", "F4"];
+type KbLock9 = { keyboard?: { lock?: (codes?: string[]) => Promise<void>; unlock?: () => void } };
+/** 전체 화면 + 키보드 잠금 — 사용자 손짓 안에서만 걸린다. 못 하는 곳은 조용히 그대로. */
+const enterFull9 = (el: HTMLElement | null): void => {
+  if (!el) return;
+  const kb = (navigator as unknown as KbLock9).keyboard;
+  const lock = (): void => { try { void kb?.lock?.(LOCK_KEYS9)?.catch(() => undefined); } catch { /* 못 잠금 */ } };
+  if (document.fullscreenElement) { lock(); return; }
+  try { const r = el.requestFullscreen?.(); if (r) r.then(lock).catch(() => undefined); } catch { /* 막힌 곳 */ }
+};
 
 /** 게임 시계 — 프레임 × 1/23.81초(가장 빠름). */
 const fmtTime9 = (tick: number): string => { const s = Math.floor(tick * FRAME_SEC); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const RACE_KO9: Record<PracRace9, string> = { T: "테란", P: "프로토스", Z: "저그" };
 
 export default function PracticeRoom({ map, className }: PracticeRoomProps) {
   const [phase, setPhase] = useState<"setup" | "loading" | "play">("setup");
-  const [setup, setSetup] = useState<PracSetup9>(() => loadJson9(SETUP_LS9, DEF_SETUP9));
+  const [setup, setSetup] = useState<PracSetup9>(() => cleanSetup9(loadJson9(SETUP_LS9, DEF_SETUP9)));
   const [keys, setKeys] = useState<Record<Act9, string>>(() => loadJson9(KEYS_LS9, DEF_KEYS9));
   const [terrain, setTerrain] = useState<MapTerrain | null | undefined>(undefined);
-  const [err, setErr] = useState("");
+  const [gear, setGear] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => { saveJson9(SETUP_LS9, setup); }, [setup]);
   useEffect(() => { saveJson9(KEYS_LS9, keys); }, [keys]);
   useEffect(() => {
@@ -99,36 +122,54 @@ export default function PracticeRoom({ map, className }: PracticeRoomProps) {
     decodeMapTerrain(map.terrain).then((t) => { if (live) setTerrain(t); }).catch(() => { if (live) setTerrain(null); });
     return () => { live = false; };
   }, [map]);
+  /** 판 번호 — 종족 · 자리가 바뀌거나 '다시'면 새 판. 판이 쥔 설정(종족 · 자리)은 판을 열 때의 것. */
   const [run, setRun] = useState(0);
-  const start = (): void => {
-    if (!terrain || !map) { setErr("지도 지형을 아직 못 받았어요"); return; }
-    if (setup.mySpot === setup.foeSpot) { setErr("내 위치와 적 위치가 같아요"); return; }
-    setErr(""); setPhase("loading"); setRun((r) => r + 1);
+  const [runSetup, setRunSetup] = useState<PracSetup9>(setup);
+  const sizeOk = !!terrain && terrain.w === PRAC_MAP9.w && terrain.h === PRAC_MAP9.h;
+  const start = (s: PracSetup9): void => {
+    setSetup(s); setRunSetup(s); setGear(false);
+    setPhase("loading"); setRun((r) => r + 1);
+    enterFull9(rootRef.current);
+  };
+  /** 톱니에서 적용 — 종족 · 자리가 바뀌면 새 판 · 적 타워만이면 그 판 그대로(PracGame 이 stage 를 받아 적만 새로). */
+  const apply = (s: PracSetup9): void => {
+    if (s.myRace !== runSetup.myRace || s.mySpot !== runSetup.mySpot) { start(s); return; }
+    setSetup(s); setGear(false);
   };
   return (
-    <div className={`scr-prac${className ? ` ${className}` : ""}`}>
+    <div ref={rootRef} className={`scr-prac${className ? ` ${className}` : ""}`}>
       {phase === "setup" && (
-        <PracSetupPanel setup={setup} setSetup={setSetup} keys={keys} setKeys={setKeys} map={map} terrain={terrain} err={err} onStart={start} />
+        <PracSetupPanel setup={setup} keys={keys} setKeys={setKeys} map={map} terrain={terrain} inGame={false}
+          ready={sizeOk} onApply={start} />
       )}
       {phase !== "setup" && map && terrain && (
-        <PracGame key={run} map={map} terrain={terrain} setup={setup} keys={keys}
-          onReady={() => setPhase("play")} onSetup={() => setPhase("setup")} onRestart={() => { setPhase("loading"); setRun((r) => r + 1); }} loading={phase === "loading"} />
+        <PracGame key={run} map={map} terrain={terrain} setup={runSetup} stage={setup.stage} keys={keys} paused={gear}
+          onReady={() => setPhase("play")} onGear={() => setGear(true)} onRestart={() => start(setup)}
+          onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} />
+      )}
+      {phase !== "setup" && gear && (
+        <div className="scr-prac-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setGear(false); }}>
+          <PracSetupPanel setup={setup} keys={keys} setKeys={setKeys} map={map} terrain={terrain} inGame ready={sizeOk}
+            onApply={apply} onClose={() => setGear(false)} />
+        </div>
       )}
     </div>
   );
 }
 
-/* ── 설정 ──────────────────────────────────────────────────────────────────── */
-function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onStart }: {
-  setup: PracSetup9; setSetup: (f: (s: PracSetup9) => PracSetup9) => void;
+/* ── 설정(처음 · 톱니) ─────────────────────────────────────────────────────── */
+function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onApply, onClose }: {
+  setup: PracSetup9;
   keys: Record<Act9, string>; setKeys: (f: (k: Record<Act9, string>) => Record<Act9, string>) => void;
-  map: ReplayMapGrid | null; terrain: MapTerrain | null | undefined; err: string; onStart: () => void;
+  map: ReplayMapGrid | null; terrain: MapTerrain | null | undefined; inGame: boolean; ready: boolean;
+  onApply: (s: PracSetup9) => void; onClose?: () => void;
 }) {
+  const [draft, setDraft] = useState<PracSetup9>(setup);
   const [listen, setListen] = useState<Act9 | null>(null);
   useEffect(() => {
     if (!listen) return undefined;
     const onKey = (e: KeyboardEvent): void => {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       if (e.key === "Escape") { setListen(null); return; }
       const k = keyOf9(e);
       if (!k) return;
@@ -142,104 +183,87 @@ function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onS
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [listen, setKeys]);
-  const units = CARGO_UNITS9[setup.myRace];
-  const slots = units.reduce((s, n) => s + (setup.cargo[n] ?? 0) * UNIT_DEFS9[n].slots, 0);
-  const cap = setup.ships * 8;
+  /* Esc — 톱니 창이면 닫는다(키 듣는 중이 아니면). */
+  useEffect(() => {
+    if (!inGame || !onClose) return undefined;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape" && !listen) { e.preventDefault(); onClose(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inGame, onClose, listen]);
+  /* 지도 — 깃발을 끌어(또는 누른 자리에서) 가장 가까운 사람 스타팅으로. 나머지 스타팅은 적 기지(맵이 정한 종족). */
   const mini = useRef<HTMLCanvasElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<[number, number] | null>(null);
   useEffect(() => {
     const c = mini.current; if (!c || !map) return;
     const g = c.getContext("2d"); if (!g) return;
-    c.width = map.width * 2; c.height = map.height * 2;
-    drawMapGrid(g, map, terrain ? terrainFace(terrain) : null, 2, false);
+    c.width = map.width * 3; c.height = map.height * 3;
+    drawMapGrid(g, map, terrain ? terrainFace(terrain) : null, 3, false);
   }, [map, terrain]);
-  const setCargo = (n: string, v: number): void => setSetup((s) => ({ ...s, cargo: { ...s.cargo, [n]: Math.max(0, Math.min(96, Math.round(v) || 0)) } }));
-  const race = (r: PracRace9): void => setSetup((s) => ({
-    ...s, myRace: r,
-    cargo: Object.fromEntries(CARGO_UNITS9[r].map((n) => [n, s.myRace === r ? (s.cargo[n] ?? 0) : 0])),
-  }));
+  const W = PRAC_MAP9.w * 32; const H = PRAC_MAP9.h * 32;
+  const fracOf = (e: { clientX: number; clientY: number }): [number, number] | null => {
+    const b = box.current?.getBoundingClientRect(); if (!b) return null;
+    return [Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)), Math.max(0, Math.min(1, (e.clientY - b.top) / b.height))];
+  };
+  const snap = (f: [number, number]): string => {
+    let best = PRAC_SPOTS9[0].key; let bd = Infinity;
+    for (const p of PRAC_SPOTS9) { const d = (p.x / W - f[0]) ** 2 + (p.y / H - f[1]) ** 2; if (d < bd) { bd = d; best = p.key; } }
+    return best;
+  };
+  const onDown = (e: React.PointerEvent): void => {
+    const f = fracOf(e); if (!f) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    setDrag(f);
+  };
+  const onMove = (e: React.PointerEvent): void => { if (!drag) return; const f = fracOf(e); if (f) setDrag(f); };
+  const onUp = (e: React.PointerEvent): void => {
+    if (!drag) return;
+    const f = fracOf(e) ?? drag; setDrag(null);
+    const k = snap(f); setDraft((d) => ({ ...d, mySpot: k }));
+  };
+  const me = PRAC_SPOTS9.find((p) => p.key === draft.mySpot) ?? PRAC_SPOTS9[0];
+  const flagAt: [number, number] = drag ?? [me.x / W, me.y / H];
+  const hover = drag ? snap(drag) : null;
   return (
-    <div className="scr-prac-setup">
-      <h2 className="scr-prac-h">수송선 드랍 연습</h2>
+    <div className={`scr-prac-setup${inGame ? " is-modal" : ""}`}>
+      <div className="scr-prac-hrow">
+        <h2 className="scr-prac-h">빨무 드랍 연습</h2>
+        {inGame && onClose && <button type="button" className="scr-prac-x" onClick={onClose} aria-label="닫기">×</button>}
+      </div>
       <div className="scr-prac-row">
         <span className="scr-prac-lab">내 종족</span>
         {PRAC_RACES9.map((r) => (
-          <button key={r.key} type="button" className={`scr-prac-pill${setup.myRace === r.key ? " is-on" : ""}`} onClick={() => race(r.key)}>{r.label}</button>
+          <button key={r.key} type="button" className={`scr-prac-pill${draft.myRace === r.key ? " is-on" : ""}`} onClick={() => setDraft((d) => ({ ...d, myRace: r.key }))}>{r.label}</button>
         ))}
-        <span className="scr-prac-dim">수송선: {UNIT_DEFS9[PRAC_RACES9.find((r) => r.key === setup.myRace)!.transport].ko}</span>
       </div>
       <div className="scr-prac-row">
-        <span className="scr-prac-lab">수송선 수</span>
-        <input type="range" min={1} max={12} value={setup.ships} onChange={(e) => setSetup((s) => ({ ...s, ships: Number(e.target.value) }))} />
-        <b className="scr-prac-num">{setup.ships}대</b>
+        <span className="scr-prac-lab">적 타워</span>
+        {([["early", "초반"], ["mid", "중반"]] as [PracStage9, string][]).map(([k, l]) => (
+          <button key={k} type="button" className={`scr-prac-pill${draft.stage === k ? " is-on" : ""}`} onClick={() => setDraft((d) => ({ ...d, stage: k }))}>{l}</button>
+        ))}
+        <span className="scr-prac-dim">{draft.stage === "mid" ? "가장자리까지 도배" : "본진 둘레"}</span>
       </div>
       <div className="scr-prac-row is-top">
-        <span className="scr-prac-lab">태울 유닛</span>
-        <div className="scr-prac-cargo">
-          {units.map((n) => (
-            <label key={n} className="scr-prac-cargo-item">
-              <span>{UNIT_DEFS9[n].ko}<i>{UNIT_DEFS9[n].slots}칸</i></span>
-              <span className="scr-prac-stepper">
-                <button type="button" onClick={() => setCargo(n, (setup.cargo[n] ?? 0) - 1)}>−</button>
-                <input type="number" min={0} max={96} value={setup.cargo[n] ?? 0} onChange={(e) => setCargo(n, Number(e.target.value))} />
-                <button type="button" onClick={() => setCargo(n, (setup.cargo[n] ?? 0) + 1)}>+</button>
+        <span className="scr-prac-lab">내 자리</span>
+        <div className="scr-prac-spotmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)}>
+          <canvas ref={mini} />
+          {PRAC_MAP9.starts.map((st) => {
+            if (st.key === draft.mySpot && !drag) return null;
+            const near = hover === st.key;
+            return (
+              <span key={st.key} className={`scr-prac-base is-${st.race.toLowerCase()}${near ? " is-near" : ""}`}
+                style={{ left: `${(st.hall[0] / W) * 100}%`, top: `${(st.hall[1] / H) * 100}%` }} title={`${st.name} · 적 ${RACE_KO9[st.race]}`}>
+                {st.race}
               </span>
-            </label>
-          ))}
-          <span className={`scr-prac-dim${slots > cap ? " is-warn" : ""}`}>칸 {slots} / {cap}{slots > cap ? " — 다 못 태워요(남는 유닛은 땅에 남아요)" : ""}</span>
-        </div>
-      </div>
-      <div className="scr-prac-row">
-        <span className="scr-prac-lab">적 종족</span>
-        {PRAC_RACES9.map((r) => (
-          <button key={r.key} type="button" className={`scr-prac-pill${setup.foeRace === r.key ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, foeRace: r.key }))}>{r.label}</button>
-        ))}
-        <span className="scr-prac-dim">방어선 · 일꾼 50 · 본진</span>
-      </div>
-      <div className="scr-prac-row">
-        <span className="scr-prac-lab">업그레이드</span>
-        <button type="button" className={`scr-prac-pill${setup.ups ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, ups: true }))}>연구 다</button>
-        <button type="button" className={`scr-prac-pill${!setup.ups ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, ups: false }))}>연구 없음</button>
-        <span className="scr-prac-dim">공방</span>
-        {[0, 1, 2, 3].map((v) => (
-          <button key={v} type="button" className={`scr-prac-pill is-sm${(setup.lv ?? 0) === v ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, lv: v }))}>{v}</button>
-        ))}
-        <span className="scr-prac-dim">두 편 같다 · 연구 = 속업 · 사업 · 스톰 · 시즈 · 스캐럽 · 리버 칸 · 에너지 · 키틴질</span>
-      </div>
-      <div className="scr-prac-row">
-        <span className="scr-prac-lab">시작 에너지</span>
-        <button type="button" className={`scr-prac-pill${setup.fullEnergy !== false ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, fullEnergy: true }))}>가득</button>
-        <button type="button" className={`scr-prac-pill${setup.fullEnergy === false ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, fullEnergy: false }))}>막 뽑음</button>
-        <span className="scr-prac-dim">하템 · 메딕 — 가득 = 드랍 전에 모아 둔 상태 · 막 뽑음 = 원작 새 유닛(최대의 1/4)</span>
-      </div>
-      <div className="scr-prac-row is-top">
-        <span className="scr-prac-lab">위치</span>
-        <div className="scr-prac-spots">
-          <div className="scr-prac-spotmap">
-            <canvas ref={mini} />
-            {PRAC_SPOTS9.map((p) => {
-              const me = setup.mySpot === p.key; const foe = setup.foeSpot === p.key;
-              return (
-                <button key={p.key} type="button" title={p.label}
-                  className={`scr-prac-spot${me ? " is-me" : ""}${foe ? " is-foe" : ""}`}
-                  style={{ left: `${(p.x / 4096) * 100}%`, top: `${(p.y / 4096) * 100}%` }}
-                  onClick={(e) => setSetup((s) => (e.shiftKey || s.mySpot === p.key ? { ...s, foeSpot: p.key } : { ...s, mySpot: p.key }))}
-                  onContextMenu={(e) => { e.preventDefault(); setSetup((s) => ({ ...s, foeSpot: p.key })); }}>
-                  {me ? "나" : foe ? "적" : p.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="scr-prac-spotlist">
-            <div><span className="scr-prac-dim">내 위치</span>{PRAC_SPOTS9.map((p) => (
-              <button key={p.key} type="button" className={`scr-prac-pill is-sm${setup.mySpot === p.key ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, mySpot: p.key }))}>{p.label}</button>))}</div>
-            <div><span className="scr-prac-dim">적 위치</span>{PRAC_SPOTS9.map((p) => (
-              <button key={p.key} type="button" className={`scr-prac-pill is-sm is-foe${setup.foeSpot === p.key ? " is-on" : ""}`} onClick={() => setSetup((s) => ({ ...s, foeSpot: p.key }))}>{p.label}</button>))}</div>
-            <p className="scr-prac-dim">지도: 누르면 내 위치 · 오른클릭(또는 Shift)이면 적 위치</p>
-          </div>
+            );
+          })}
+          <span className={`scr-prac-flag${drag ? " is-drag" : ""}`} style={{ left: `${flagAt[0] * 100}%`, top: `${flagAt[1] * 100}%` }} aria-label="내 자리">
+            <svg width="26" height="30" viewBox="0 0 26 30"><path d="M4 29 V2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" /><path d="M5 3 L23 8 L5 14 Z" fill="#3a7bff" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+          </span>
         </div>
       </div>
       <div className="scr-prac-row is-top">
-        <span className="scr-prac-lab">키 지정</span>
+        <span className="scr-prac-lab">명령 키</span>
         <div className="scr-prac-keys">
           {ACTS9.map((a) => (
             <div key={a.key} className="scr-prac-keyrow" title={a.hint}>
@@ -250,46 +274,57 @@ function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onS
           <button type="button" className="scr-prac-pill is-sm" onClick={() => setKeys(() => ({ ...DEF_KEYS9 }))}>기본값</button>
         </div>
       </div>
-      {err && <p className="scr-prac-err">{err}</p>}
       <div className="scr-prac-row">
-        <button type="button" className="scr-prac-start" onClick={onStart} disabled={!map || !terrain}>
-          {!map ? "지도를 기다리는 중…" : terrain === undefined ? "지형 푸는 중…" : !terrain ? "이 지도는 지형 자료가 없어요" : "시작"}
+        <button type="button" className="scr-prac-start" onClick={() => onApply(draft)} disabled={!ready && !inGame}>
+          {inGame ? (draft.myRace !== setup.myRace || draft.mySpot !== setup.mySpot ? "새로 시작" : "적용") : !map ? "지도를 기다리는 중…" : terrain === undefined ? "지형 푸는 중…" : !ready ? "이 지도는 빨무 지형이 아니에요" : "시작"}
         </button>
       </div>
-      <p className="scr-prac-dim">왼클릭 고르기 · 끌어 상자 · 오른클릭 알아서(적 공격 · 수송선 타기 · 이동) · Shift 예약 · Ctrl+숫자 부대 · 화살표/가장자리/미니맵 화면 이동 · Esc 취소 · 화면은 원작 크기(640 × 400)</p>
+      <p className="scr-prac-dim">건물을 고르면 생산 · 연구(시간 1/24 · 돈 무한) · Shift+F2~F4 화면 기억 · F2~F4 불러오기 · Ctrl+숫자 부대(전체 화면) · 톱니(⚙)로 이 창</p>
     </div>
   );
 }
 
+/* ── 그리는 종류 ───────────────────────────────────────────────────────────── */
+/** 건물 모델 종류(맵 꾸밈 포함). */
+const bldKind9 = (name: string): string => (name === "Mineral Field" ? "mineral" : name === "Vespene Geyser" ? "geyser" : SHAPE_KIND[name] ?? "tomb");
+/** 유닛 모델 종류(땅속 럴커는 그 별본). */
+const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
+
 /* ── 놀이 ──────────────────────────────────────────────────────────────────── */
-function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, loading }: {
-  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; keys: Record<Act9, string>;
-  onReady: () => void; onSetup: () => void; onRestart: () => void; loading: boolean;
+function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onReady, onGear, onRestart, onFull, loading }: {
+  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; stage: PracStage9; keys: Record<Act9, string>; paused: boolean;
+  onReady: () => void; onGear: () => void; onRestart: () => void; onFull: () => void; loading: boolean;
 }) {
-  const sim = useMemo(() => new PracticeSim9(terrain, setup), [terrain, setup]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sim = useMemo(() => new PracticeSim9(terrain, setup), [terrain]);
+  /* 적 타워 단계 — 톱니에서 바꾸면 적만 새로(내 기지 · 내 유닛은 그대로). */
+  useEffect(() => { if (sim.setup.stage !== stage) sim.setStage(stage); }, [sim, stage]);
   /* 검진 손잡이 — 시험 판(perf · 하네스)이 window.__pracDebug 를 켜 두면 셈 몸을 내준다. */
   const camDbg = useRef({ x: 0, y: 0, z: 1 });
-  useEffect(() => { const w = window as unknown as { __pracDebug?: boolean; __pracSim?: PracticeSim9; __pracCam?: unknown }; if (w.__pracDebug) { w.__pracSim = sim; w.__pracCam = camDbg.current; (w as unknown as { __pracCur?: unknown }).__pracCur = cur.current; } }, [sim]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cvRef = useRef<HTMLCanvasElement>(null);
+  const glCvRef = useRef<HTMLCanvasElement>(null);
+  const terrCvRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
-  const sprites = useRef(new Map<string, PracSprite9>());
-  const terrImg = useRef<HTMLCanvasElement | null>(null);
   const miniImg = useRef<HTMLCanvasElement | null>(null);
-  const [baked, setBaked] = useState(0);
-  const [toBake, setToBake] = useState(1);
+  const glRef = useRef<GlUnits9 | null>(null);
+  const terrGeom = useRef<TerrainGeom9 | null>(null);
+  const [warm, setWarm] = useState({ done: 0, all: 1 });
   const [sel, setSel] = useState<number[]>([]);
   const selRef = useRef<number[]>([]); selRef.current = sel;
   const [mode, setModeState] = useState<Act9 | null>(null);
-  /* 고르기 판(키를 누른 뒤 자리를 기다림) — 뜻은 ref 가 곧바로 쥔다(같은 손짓 안의 다음 클릭이 옛 값을 읽지 않게 · 하차 뒤 곧바로 Shift+오른클릭이 '취소'로 먹히던 것). */
+  /* 고르기 판(키를 누른 뒤 자리를 기다림) — 뜻은 ref 가 곧바로 쥔다(같은 손짓 안의 다음 클릭이 옛 값을 읽지 않게). */
   const modeRef = useRef<Act9 | null>(null);
   const setMode = (v: Act9 | null): void => { modeRef.current = v; setModeState(v); };
   const [hud, setHud] = useState(0);
   const [paused, setPaused] = useState(false);
-  const pausedRef = useRef(false); pausedRef.current = paused;
+  const pausedRef = useRef(false); pausedRef.current = paused || gearPaused;
+  const gearRef = useRef(false); gearRef.current = gearPaused;
   const cam = camDbg;
   const groups = useRef<Record<string, number[]>>({});
   const lastGroup = useRef<{ k: string; t: number }>({ k: "", t: 0 });
+  /** 화면 기억(Shift + F2 · F3 · F4). */
+  const views = useRef<Record<string, [number, number]>>({});
   const mouse = useRef({ x: 0, y: 0, in: false, down: false, sx: 0, sy: 0, box: false });
   /** 커서(게임 틀 기준 css px) · 창 안에 있나 · 갇혔나(Pointer Lock). */
   const cur = useRef({ x: -1, y: -1, inWin: true });
@@ -302,33 +337,60 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
   const flashes = useRef(new Map<number, number>());
   const curEl = useRef<HTMLDivElement>(null);
   const keysDown = useRef(new Set<string>());
+  useEffect(() => { const w = window as unknown as { __pracDebug?: boolean; __pracSim?: PracticeSim9; __pracCam?: unknown; __pracCur?: unknown; __pracGl?: unknown }; if (w.__pracDebug) { w.__pracSim = sim; w.__pracCam = camDbg.current; w.__pracCur = cur.current; w.__pracGl = glRef; } }, [sim]);
+  /* 톱니 창이 열리면 커서 가둠을 푼다(창의 단추를 누를 수 있게). */
+  useEffect(() => { if (gearPaused && document.pointerLockElement) document.exitPointerLock(); }, [gearPaused]);
 
-  /* 처음 화면 — 내 수송선 가운데 */
+  /* 처음 화면 — 내 본진(홀) 가운데 */
   useEffect(() => {
-    const mine = sim.ents.filter((e) => e.owner === 0);
-    if (mine.length) { cam.current.x = mine.reduce((s, e) => s + e.x, 0) / mine.length; cam.current.y = mine.reduce((s, e) => s + e.y, 0) / mine.length; }
-  }, [sim]);
+    const hall = sim.ents.find((e) => e.owner === 0 && /^(Command Center|Nexus|Hive)$/.test(e.def.name));
+    if (hall) { cam.current.x = hall.x; cam.current.y = hall.y + 60; }
+  }, [sim, cam]);
 
-  /* 지형 그림 · 그림판 굽기 */
+  /* 지형 기하(재생기와 같은 GL 지형층) · 미니맵 그림 */
   useEffect(() => {
-    const t = document.createElement("canvas"); t.width = map.width * TP9; t.height = map.height * TP9;
-    const g = t.getContext("2d");
-    if (g) drawMapGrid(g, map, terrainFace(terrain), TP9, false);
-    terrImg.current = t;
+    terrGeom.current = terrainGeom9(map.hash, terrainFace(terrain), terrainFill);
     const m = document.createElement("canvas"); m.width = map.width * 2; m.height = map.height * 2;
     const mg = m.getContext("2d"); if (mg) drawMapGrid(mg, map, terrainFace(terrain), 2, false);
     miniImg.current = m;
-    const names = Array.from(new Set(sim.ents.map((e) => e.def.name)));
-    if (names.includes("Siege Tank")) names.push("Siege Tank (Siege Mode)");   // 시즈 모드 그림도 미리
-    setToBake(names.length);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    let n = 0;
-    for (const nm of names) {
-      if (sprites.current.has(nm)) { n += 1; setBaked(n); continue; }
-      bakePracSprite9(nm, dpr, (s) => { sprites.current.set(nm, s); n += 1; setBaked(n); });
-    }
-  }, [map, terrain, sim]);
-  useEffect(() => { if (loading && baked >= toBake) onReady(); }, [loading, baked, toBake, onReady]);
+  }, [map, terrain]);
+  /* GL 붓 — 이 판의 캔버스에 제 문맥(재생기 싱글턴과 따로). 판이 끝나면 문맥을 놓는다. */
+  useEffect(() => {
+    const cv = glCvRef.current; if (!cv) return undefined;
+    let g: GlUnits9 | null = null;
+    try { g = new GlUnits9(cv, 600, true, true, true); } catch (e) { console.warn("[prac] GL", e); g = null; }
+    glRef.current = g;
+    return () => { glRef.current = null; try { (g?.gl.getExtension("WEBGL_lose_context") as { loseContext?: () => void } | null)?.loseContext?.(); } catch { /* 이미 잃음 */ } };
+  }, []);
+  /* 모델 미리 굽기 — 이 판에 나오는 몸 · 내가 뽑을 수 있는 몸을 몇 개씩 나눠 굽는다(첫 장면이 멎지 않게). */
+  useEffect(() => {
+    if (!loading) return undefined;
+    const jobs: (() => void)[] = [];
+    const seen = new Set<string>();
+    const addU = (kind: string): void => { if (seen.has(`u:${kind}`)) return; seen.add(`u:${kind}`); jobs.push(() => { glRef.current?.unitMesh(kind, 0, 3); }); };
+    const addB = (kind: string, lit: boolean): void => {
+      const key = `b:${kind}:${lit ? 1 : 0}`; if (seen.has(key)) return; seen.add(key);
+      jobs.push(() => { glRef.current?.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: PRAC_COLORS9[0], alpha: 1, rotDeg: BUILDING_BASE_YAW, spin: 0, ...(lit ? { lit: true } : {}) } as UnitDrawOp, 3); });
+    };
+    for (const e of sim.ents) { if (e.def.bld) addB(bldKind9(e.def.name), false); else addU(UNIT_3D[e.def.name] ?? "gunner"); }
+    for (const e of sim.ents) if (e.owner === 0 && PROD9[e.def.name]) addB(bldKind9(e.def.name), true);
+    for (const e of sim.ents) if (e.owner === 0) for (const it of PROD9[e.def.name] ?? []) if (it.k === "unit") addU(UNIT_3D[it.name] ?? "gunner");
+    if (setup.myRace === "T") addU("tanksiege");
+    if (setup.myRace === "Z") { addU("lurker"); addU("lurkerburrow"); }
+    if (setup.myRace === "P") addU("archon");
+    setWarm({ done: 0, all: jobs.length });
+    let i = 0; let raf = 0; let dead = false;
+    const tick = (): void => {
+      if (dead) return;
+      const t0 = performance.now();
+      while (i < jobs.length && performance.now() - t0 < 24) { try { jobs[i](); } catch (e) { console.warn("[prac] 굽기", e); } i += 1; }
+      setWarm({ done: i, all: jobs.length });
+      if (i < jobs.length) raf = requestAnimationFrame(tick); else onReady();
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { dead = true; cancelAnimationFrame(raf); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, sim]);
 
   /* ── 좌표 ─────────────────────────────────────────────────── */
   const view = (): { w: number; h: number } => { const c = cvRef.current; return { w: c?.clientWidth ?? 800, h: c?.clientHeight ?? 600 }; };
@@ -345,12 +407,12 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const tx = Math.max(0, Math.min(sim.W - VIEW_W9, c.x - hw)); const ty = Math.max(0, Math.min(sim.H - VIEW_H9, c.y - hh));
     c.x = Math.floor(tx / 8) * 8 + hw; c.y = Math.floor(ty / 8) * 8 + hh;
   };
-  const flash = (t: Ent9 | null): void => { if (t && t.def.name !== "Mineral Field") flashes.current.set(t.id, performance.now()); };
+  const flash = (t: Ent9 | null): void => { if (t && !t.def.res) flashes.current.set(t.id, performance.now()); };
   /** 땅 표식(원작은 하나 — 새로 찍으면 옮겨 간다). */
   const mark = useRef<{ x: number; y: number; t0: number } | null>(null);
   /** kp_mark_target — 유닛이면 깜빡임 · 땅이면 표식. */
   const markTarget = (wx: number, wy: number, t: Ent9 | null): void => {
-    if (t && t.def.name !== "Mineral Field") flash(t);
+    if (t && !t.def.res) flash(t);
     else mark.current = { x: wx, y: wy, t0: performance.now() };
   };
   /** 여러 기 고르기에 들 수 있나(내 유닛 · 건물 아님 · FilterSelectableUnits). */
@@ -367,22 +429,26 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       list = [t.id, ...sim.alive().filter((u) => u !== t && multiOk(u) && u.def.name === t.def.name && u.burrowed === t.burrowed
         && u.x >= ax && u.x <= bx && u.y >= ay && u.y <= by).sort((a, b) => b.y - a.y).map((u) => u.id)].slice(0, SEL_MAX9);
     }
-    const cur = selRef.current.map((id) => sim.byId.get(id));
-    if (shift && cur.length && cur.every(multiOk) && multiOk(t)) setSel(Array.from(new Set([...selRef.current, ...list])).slice(0, SEL_MAX9));
+    const cur0 = selRef.current.map((id) => sim.byId.get(id));
+    if (shift && cur0.length && cur0.every(multiOk) && multiOk(t)) setSel(Array.from(new Set([...selRef.current, ...list])).slice(0, SEL_MAX9));
     else setSel(list);
   };
 
   /* ── 명령 ─────────────────────────────────────────────────── */
   const mySel = (): Ent9[] => selRef.current.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null && e.owner === 0);
+  /** 고른 것이 내 건물 하나면 그 건물(명령 카드 = 생산 · 연구). */
+  const selBld = (): Ent9 | null => { const us = mySel(); return us.length === 1 && us[0].def.bld ? us[0] : null; };
   /** 우클릭(RightClickInGame) — ground 면 유닛을 안 고른다(미니맵 우클릭). */
   const smart = (wx: number, wy: number, q: boolean, ground = false): void => {
     const us = mySel(); if (!us.length) return;   // 남의 유닛을 고른 채 우클릭 — 아무 일 없음
+    const b = selBld();
+    if (b) { if (PROD9[b.def.name]?.some((it) => it.k === "unit")) { sim.setRally(b.id, wx, wy); markTarget(wx, wy, null); } return; }   // 생산 건물 — 모이는 자리
     const t = ground ? null : sim.pick(wx, wy);
     if (us.length === 1 && t && t.id === us[0].id) return;   // 하나 고른 유닛이 제 몸을 우클릭 — 아무 일 없음
     if (!t && !us.some((e) => e.mv)) return;   // 땅인데 움직일 것이 없으면 그만
     markTarget(wx, wy, t);   // 유닛이면 고리 깜빡임(selectionTimer 31) · 땅이면 이동 표식
     const ids = us.map((e) => e.id);
-    if (t && t.owner === 1 && t.def.name !== "Mineral Field") { sim.order(ids, { t: "attack", id: t.id }, q); return; }
+    if (t && t.owner === 1 && !t.def.res) { sim.order(ids, { t: "attack", id: t.id }, q); return; }
     if (t && t.owner === 0 && t.def.cargo && !us.includes(t)) { sim.order(ids, { t: "load", id: t.id }, q); return; }
     if (t && t.owner === 0 && !t.def.cargo && t.def.slots) {
       const ships = us.filter((e) => e.def.cargo);
@@ -391,7 +457,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     sim.order(ids, { t: "move", x: wx, y: wy }, q);
   };
   const doAct = (a: Act9, wx: number | null, wy: number | null, q: boolean, ground = false): void => {
-    const us = mySel(); const ids = us.map((e) => e.id);
+    const us = mySel().filter((e) => !e.def.bld); const ids = us.map((e) => e.id);
     if (!ids.length) return;
     if (a === "stop") { sim.stop(ids); return; }
     if (a === "siege") {
@@ -406,6 +472,19 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       sim.order(lk.map((e) => e.id), { t: down ? "burrow" : "unburrow" }, q);
       return;
     }
+    if (a === "morph") {
+      /* 히드라 → 럴커 · 하템은 가까운 것끼리 둘씩 아콘(원작 Archon Warp 도 고른 하템을 짝지어 준다). */
+      sim.order(us.filter((e) => e.def.name === "Hydralisk").map((e) => e.id), { t: "lurker" }, q);
+      const left = us.filter((e) => e.def.name === "High Templar");
+      while (left.length >= 2) {
+        const a0 = left.shift()!;
+        let bi = 0; let bd = Infinity;
+        left.forEach((o, i) => { const d = Math.hypot(o.x - a0.x, o.y - a0.y); if (d < bd) { bd = d; bi = i; } });
+        const b0 = left.splice(bi, 1)[0];
+        sim.order([a0.id], { t: "archon", id: b0.id }, false); sim.order([b0.id], { t: "archon", id: a0.id }, false);
+      }
+      return;
+    }
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
     const t = ground ? null : sim.pick(wx, wy);
@@ -413,11 +492,11 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
     else if (a === "attack") {
-      if (t && t.owner === 1 && t.def.name !== "Mineral Field") sim.order(ids, { t: "attack", id: t.id }, q);
+      if (t && t.owner === 1 && !t.def.res) sim.order(ids, { t: "attack", id: t.id }, q);
       else sim.order(ids, { t: "amove", x: wx, y: wy }, q);
     } else if (a === "unload") {
       const ships = us.filter((e) => e.def.cargo);
-      /* 자기(고른) 수송선을 찍으면 낙하산 — 고른 수송선 모두가 가던 길에 한 기씩(위 ACTS9 ★). */
+      /* 자기(고른) 수송선을 찍으면 낙하산 — 고른 수송선 모두가 가던 길에 한 기씩. */
       if (t && ships.some((s) => s.id === t.id)) { sim.paradrop(ships.map((s) => s.id), q); return; }
       for (const s of ships) sim.order([s.id], { t: "moveunload", x: wx, y: wy }, q);
     } else if (a === "load") {
@@ -425,21 +504,36 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       else if (t && t.owner === 0 && t.def.slots) { const s = us.find((e) => e.def.cargo); if (s) sim.order([s.id], { t: "pickup", id: t.id }, q); }
     }
   };
+  /** 명령 카드 한 칸(생산 · 연구) — 고른 건물에 건다. */
+  const trainKey = (b: Ent9, it: ProdItem9): void => { sim.train(b.id, it.name); setHud((x) => x + 1); };
 
   /* ── 키 ───────────────────────────────────────────────────── */
   useEffect(() => {
     if (loading) return undefined;
     const onDown = (e: KeyboardEvent): void => {
+      if (gearRef.current) return;   // 톱니 창 — 창이 키를 받는다
       const tg = e.target as HTMLElement | null;
       if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+      /* 화면 기억 — Shift + F2 · F3 · F4 = 지금 화면 · F2 · F3 · F4 = 그 화면으로(원작 그대로). */
+      if (/^F[234]$/.test(e.code)) {
+        e.preventDefault();
+        if (e.shiftKey) views.current[e.code] = [cam.current.x, cam.current.y];
+        else { const v = views.current[e.code]; if (v) { cam.current.x = v[0]; cam.current.y = v[1]; clampCam(); } }
+        return;
+      }
       const k = keyOf9(e) ?? e.key;
       keysDown.current.add(e.key);
       if (k.startsWith("Arrow")) e.preventDefault();   // 화살표는 화면 이동 — 바깥 쪽이 같이 굴러가지 않게
-      if (k === "Escape") { setMode(null); return; }
+      if (k === "Escape") {
+        if (modeRef.current) { setMode(null); return; }
+        const b = selBld(); if (b && b.queue.length) sim.cancel(b.id, b.queue.length - 1);   // 원작: 건물 고른 채 Esc = 마지막 칸 무르기
+        return;
+      }
       if (/^[0-9]$/.test(k)) {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) { groups.current[k] = [...selRef.current]; return; }
-        if (e.shiftKey) { setSel((s) => Array.from(new Set([...s, ...(groups.current[k] ?? [])]))); return; }
+        /* Ctrl + 숫자 = 지정(Alt + 숫자도 — 키보드를 못 잠그는 브라우저에서 Ctrl + 숫자는 탭 바꾸기로 먹힌다). */
+        if (e.ctrlKey || e.metaKey || e.altKey) { groups.current[k] = [...selRef.current]; return; }
+        if (e.shiftKey) { setSel((s) => Array.from(new Set([...s, ...(groups.current[k] ?? [])])).slice(0, SEL_MAX9)); return; }
         const g = (groups.current[k] ?? []).filter((id) => { const u = sim.byId.get(id); return u && !u.dead; });
         if (!g.length) return;
         setSel(g);
@@ -451,9 +545,17 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
         lastGroup.current = { k, t: now };
         return;
       }
-      if (k === "F10" || k === "P") { setPaused((p) => !p); return; }
+      if (k === "F10") { setPaused((p) => !p); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      /* 건물을 고른 채 — 그 건물 명령 카드의 원작 글자(생산 · 연구)가 먼저다. */
+      const b = selBld();
+      if (b) {
+        const it = (PROD9[b.def.name] ?? []).find((x) => x.key === k);
+        if (it) { e.preventDefault(); trainKey(b, it); }
+        return;
+      }
       const act = ACTS9.find((a) => keys[a.key] === k);
-      if (act && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (act) {
         e.preventDefault();
         if (INSTANT9.has(act.key)) doAct(act.key, null, null, e.shiftKey);
         else setMode(act.key);
@@ -499,16 +601,16 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const m = mouse.current; if (!m.down || button !== 0) return;
     gMove();
     m.down = false;
-    const cur = selRef.current.map((id) => sim.byId.get(id));
+    const cur0 = selRef.current.map((id) => sim.byId.get(id));
     if (m.box) {
       /* BoxSelectUnits — 상자와 겹치는 몸 · 내 유닛(건물 빼고) 앞부터 12 · 없으면 하나(남의 것 · 건물) · 아무것도 없으면 그대로. */
       m.box = false;
       const [ax, ay] = toWorld(Math.min(m.sx, m.x), Math.min(m.sy, m.y)); const [bx, by] = toWorld(Math.max(m.sx, m.x), Math.max(m.sy, m.y));
-      const cands = sim.alive().filter((u) => u.def.name !== "Mineral Field" && sim.visibleTo(u, 0)
+      const cands = sim.alive().filter((u) => !u.def.res && sim.visibleTo(u, 0)
         && u.x - u.def.box[0] <= bx && u.x + u.def.box[2] >= ax && u.y - u.def.box[1] <= by && u.y + u.def.box[3] >= ay).sort((a, b) => b.y - a.y);
       const own = cands.filter(multiOk).slice(0, SEL_MAX9).map((u) => u.id);
       if (!own.length) { if (cands[0]) setSel([cands[0].id]); return; }
-      if (shift && cur.length && cur.every(multiOk)) setSel(Array.from(new Set([...selRef.current, ...own])).slice(0, SEL_MAX9));
+      if (shift && cur0.length && cur0.every(multiOk)) setSel(Array.from(new Set([...selRef.current, ...own])).slice(0, SEL_MAX9));
       else setSel(own);
       return;
     }
@@ -518,9 +620,9 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const t = sim.pick(wx, wy);
     if (!t || !sim.visibleTo(t, 0)) return;
     if (ctrl) { typeSelect(t, shift); return; }
-    if (!shift || !cur.length) { setSel([t.id]); return; }
+    if (!shift || !cur0.length) { setSel([t.id]); return; }
     if (selRef.current.includes(t.id)) { setSel(selRef.current.filter((id) => id !== t.id)); return; }
-    if (cur.length >= SEL_MAX9 || !cur.every(multiOk) || !multiOk(t)) return;
+    if (cur0.length >= SEL_MAX9 || !cur0.every(multiOk) || !multiOk(t)) return;
     setSel([...selRef.current, t.id]);
   };
   /** 더블클릭 — 고른 유닛이면 화면 안 같은 종류(ClickSelectAtPoint 의 double_click). */
@@ -550,11 +652,11 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const fromEvent = (e: MouseEvent): void => {
       const c = cur.current;
       if (document.pointerLockElement === wrap) {   // lockedRef 는 pointerlockchange 가 와야 바뀐다 — 그 사이의 움직임도 갇힌 셈으로
-        /* 갇힌 뒤 첫 움직임에 크롬이 엉뚱하게 큰 movementX 를 싣는 일이 있다 — 그 한 번은 버린다(커서가 끝으로 튀어 화면이 밀리던 것). */
+        /* 갇힌 뒤 첫 움직임에 크롬이 엉뚱하게 큰 movementX 를 싣는 일이 있다 — 그 한 번은 버린다. */
         if (Math.abs(e.movementX) > 300 || Math.abs(e.movementY) > 300) return;
         c.x = Math.max(0, Math.min(wrap.clientWidth - 1, c.x + e.movementX)); c.y = Math.max(0, Math.min(wrap.clientHeight - 1, c.y + e.movementY));
       } else {
-        /* 갇히고 풀리는 틈에 브라우저가 (0, 0) 자리의 가짜 mousemove 를 쏘는 일이 있다 — 커서가 왼쪽 위 끝으로 튀어 화면이 밀리지 않게 버린다. */
+        /* 갇히고 풀리는 틈에 브라우저가 (0, 0) 자리의 가짜 mousemove 를 쏘는 일이 있다 — 버린다. */
         if (e.type === "mousemove" && e.clientX === 0 && e.clientY === 0) return;
         const a = wrap.getBoundingClientRect(); c.x = e.clientX - a.left; c.y = e.clientY - a.top;
       }
@@ -565,6 +667,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       if (miniDrag.current) { const [wx, wy] = miniXY(); cam.current.x = wx; cam.current.y = wy; clampCam(); }
     };
     const onDown = (e: MouseEvent): void => {
+      if (gearRef.current) return;
       const el = lockedRef.current ? underCursor() : (e.target as Element | null);
       if (!lockedRef.current) fromEvent(e);
       if (el === cvRef.current) {
@@ -615,7 +718,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sim]);
-  /** 한 걸음 — 원작 UpdateMapScroll(키 먼저 · 아니면 가장자리 · 가속 단계 · 속도표). 가장자리면 그 방향을 돌려준다(커서 그림). */
+  /** 한 걸음 — 원작 UpdateMapScroll(키 먼저 · 아니면 가장자리 · 가속 단계 · 속도표). */
   const scrollStep = (): void => {
     const sc = scr.current; const kd = keysDown.current; const m = mouse.current;
     if (m.down && m.box) { sc.step = 0; return; }   // 상자 끌기 중엔 안 민다
@@ -636,9 +739,9 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       cam.current.x += sc.dx * n; cam.current.y += sc.dy * n; clampCam();
     }
   };
-  /** 가장자리 방향 — 갇힌 커서는 틀 끝 2 게임 px · 풀린 커서는 틀 안 끝 띠, 또는 창 밖으로 나간 마지막 자리가 끝 곁이면 그 쪽. */
+  /** 가장자리 방향 — 갇힌 커서는 틀 끝 2 게임 px · 풀린 커서는 틀 안 끝 띠, 또는 창 밖으로 나간 마지막 자리가 끝 곁이면 그 쪽. 톱니 창 동안은 안 민다. */
   const edgeDir = (): [number, number] => {
-    const w = wrapRef.current; if (!w) return [0, 0];
+    const w = wrapRef.current; if (!w || gearRef.current) return [0, 0];
     const W = w.clientWidth; const H = w.clientHeight; const c = cur.current;
     if (c.x < 0 && c.y < 0) return [0, 0];
     const band = Math.max(2, EDGE_GAME_PX9 * fitZ());
@@ -659,12 +762,12 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const loop = (now: number): void => {
       const dt = Math.min(250, now - last); last = now;
       if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9) { sim.step(); acc -= PRAC_TICK_MS9; } }
-      /* 화면 이동 — 원작 걸음(15.625ms 마다 · 위 SCROLL_ 머리말) */
+      /* 화면 이동 — 원작 걸음(15.625ms 마다) */
       const sc = scr.current; sc.acc += dt;
       let k = 0; while (sc.acc >= SCROLL_MS9 && k < 30) { sc.acc -= SCROLL_MS9; scrollStep(); k += 1; }
       if (k === 30) sc.acc = 0;
       clampCam();
-      draw();
+      draw(now);
       /* 갇힌 커서 그림 — 보통 화살 · 겨눔 · 가장자리 스크롤 화살 */
       const ce = curEl.current;
       if (ce) {
@@ -685,135 +788,198 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sim]);
 
-  const draw = (): void => {
+  const draw = (nowMs: number): void => {
     const cv = cvRef.current; if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = cv.clientWidth; const H = cv.clientHeight;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const g = cv.getContext("2d"); if (!g) return;
+    if (!W || !H) return;
+    const bw = Math.round(W * dpr); const bh = Math.round(H * dpr);
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
     clampCam();
     const { x: cx, y: cy, z } = cam.current;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
-    /* 원작 화면 밖(남는 띠)은 검게 — 그 안만 그린다. */
-    const vx = (W - VIEW_W9 * z) / 2; const vy = (H - VIEW_H9 * z) / 2;
-    g.save(); g.beginPath(); g.rect(vx, vy, VIEW_W9 * z, VIEW_H9 * z); g.clip();
-    g.fillStyle = "#05060a"; g.fillRect(vx, vy, VIEW_W9 * z, VIEW_H9 * z);
-    g.setTransform(dpr * z, 0, 0, dpr * z, dpr * (W / 2 - cx * z), dpr * (H / 2 - cy * z));
-    const ti = terrImg.current;
-    if (ti) { g.imageSmoothingEnabled = true; g.drawImage(ti, 0, 0, sim.W, sim.H); }
-    const [vx0, vy0] = toWorld(-80, -80); const [vx1, vy1] = toWorld(W + 80, H + 80);
-    const vis = sim.alive().filter((u) => u.x >= vx0 && u.x <= vx1 && u.y >= vy0 && u.y <= vy1);
+    const sxOf = (wx: number): number => W / 2 + (wx - cx) * z;
+    const syOf = (wy: number): number => H / 2 + (wy - cy) * z;
+    /* 원작 화면 네모(CSS px) — 그 밖은 위 2D 층이 검게 덮는다. */
+    const vx = (W - VIEW_W9 * z) / 2; const vy = (H - VIEW_H9 * z) / 2; const vw = VIEW_W9 * z; const vh = VIEW_H9 * z;
+    const t = nowMs / 1000;
+    /* ① 지형 — 재생기와 같은 GL 지형층(지도 네 귀를 화면에 · 벽띠 평면 2 · 또렷이 0.5). 판 재사용은 지형층이 열쇠(네 귀 · 배킹)로 한다. */
+    const tcv = terrCvRef.current; const G = terrGeom.current;
+    if (tcv && G) {
+      const tc = glTerrCanvas9(tcv);
+      const x0 = sxOf(0); const y0 = syOf(0); const x1 = sxOf(sim.W); const y1 = syOf(sim.H);
+      tc?.draw(G, [x0, y0, x1, y0, x1, y1, x0, y1], bw, bh, W, H, 2, null, null, 0.5, [vx, vy, vx + vw, vy + vh], null);
+    }
+    /* ② 몸 — GL 메시(재생기 붓) · 고리는 바닥 도형(prim · 몸보다 먼저) · 공중 고리는 제 깊이 칸(ring). */
+    const g = glRef.current;
+    const [wx0, wy0] = toWorld(vx - 96, vy - 96); const [wx1, wy1] = toWorld(vx + vw + 96, vy + vh + 96);
+    const vis = sim.alive().filter((u) => u.x >= wx0 && u.x <= wx1 && u.y >= wy0 && u.y <= wy1);
     const selSet = new Set(selRef.current);
-    const ring = (u: Ent9): void => {
-      g.beginPath(); g.ellipse(u.x, u.y + (u.def.air ? 0 : u.def.rad * 0.25), u.def.rad + 3, (u.def.rad + 3) * 0.62, 0, 0, Math.PI * 2);
-      g.strokeStyle = u.owner === 0 ? "#4dff7a" : "#ff4a3a"; g.lineWidth = 1.6 / z; g.stroke();
-    };
-    const body = (u: Ent9): void => {
-      const sp = sprites.current.get(u.def.name);
-      const cell = sp ? sp.cells[u.owner][sp.dirs === 1 ? 0 : ((Math.round((u.face / (Math.PI * 2)) * sp.dirs) % sp.dirs) + sp.dirs) % sp.dirs] : null;
-      if (cell && sp) {
-        const s = sp.worldPx;
-        /* 은신(다크) · 땅속 럴커는 원작처럼 비쳐 보인다(내 것). */
-        g.globalAlpha = sim.cloaked(u) ? (u.burrowed ? 0.4 : 0.5) : u.hitT > 0 ? 0.75 : 1;
-        g.drawImage(cell, u.x - s / 2, u.y - s / 2, s, s);
-        g.globalAlpha = 1;
-      } else {
-        g.beginPath(); g.arc(u.x, u.y, u.def.rad, 0, Math.PI * 2);
-        g.fillStyle = u.def.name === "Mineral Field" ? "#56c7ff" : PRAC_COLORS9[u.owner]; g.fill();
-        g.fillStyle = "#fff"; g.font = `${Math.max(9, u.def.rad * 0.8)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
-        g.fillText(u.def.ko.slice(0, 2), u.x, u.y);
-      }
-      const hpMax = fp(u.def.hp); const shMax = fp(u.def.sh);
-      if (u.def.name !== "Mineral Field" && (u.hp < hpMax || u.sh < shMax || selSet.has(u.id))) {
-        const bw = Math.max(18, u.def.rad * 1.6); const by = u.y - u.def.rad - 8;
-        g.fillStyle = "rgba(0,0,0,0.7)"; g.fillRect(u.x - bw / 2 - 1, by - 1, bw + 2, 5);
-        const f = Math.max(0, u.hp) / hpMax;
-        g.fillStyle = f > 0.6 ? "#3ce26a" : f > 0.3 ? "#f2c23c" : "#ff4a3a"; g.fillRect(u.x - bw / 2, by, bw * f, 3);
-        if (shMax > 0) { g.fillStyle = "#57a9ff"; g.fillRect(u.x - bw / 2, by - 2, bw * (u.sh / shMax), 1.5); }
-      }
-      if (u.def.cargo && u.cargo.length) {
-        const n = u.cargo.length;
-        for (let i = 0; i < n; i += 1) { g.fillStyle = u.para ? "#ffd04a" : "#9be8ff"; g.fillRect(u.x - n * 3 + i * 6, u.y + u.def.rad + 2, 4, 4); }
-      }
-    };
-    const ground = vis.filter((u) => !u.def.air).sort((a, b) => (a.def.bld === b.def.bld ? a.y - b.y : a.def.bld ? -1 : 1));
-    /* 고리 — 고른 것 · 우클릭 대상 깜빡임(남은 값의 8 비트가 켜진 동안만 · 고른 것도 깜빡임 동안은 함께 꺼졌다 켜진다). */
-    const nowMs = performance.now();
     const ringOn = (u: Ent9): boolean => {
       const t0 = flashes.current.get(u.id);
       if (t0 !== undefined) {
-        const t = FLASH_FRAMES9 - 1 - Math.floor((nowMs - t0) / PRAC_TICK_MS9);
-        if (t > 0) return (t & 8) !== 0;
+        const tt = FLASH_FRAMES9 - 1 - Math.floor((nowMs - t0) / PRAC_TICK_MS9);
+        if (tt > 0) return (tt & 8) !== 0;
         flashes.current.delete(u.id);
       }
       return selSet.has(u.id);
     };
-    for (const u of ground) if (ringOn(u)) ring(u);
-    for (const u of ground) body(u);
-    /* 땅 표식(우클릭 · 겨눈 좌클릭이 땅을 찍었을 때 · 원작 커서 표식) — 초록 타원 둘이 0.5초 동안 오므라들며 흐려진다(꼴 · 길이 어림 · 위 MARK_ 머리말). */
+    const glOk = !!g && !g.lost;
+    if (g && glOk) {
+      g.view = [vx * dpr, vy * dpr, (vx + vw) * dpr, (vy + vh) * dpr];
+      const order = [...vis].sort((a, b) => (a.def.air === b.def.air ? a.y - b.y : a.def.air ? 1 : -1));
+      /* 크립 — 저그 건물 밑 얼룩(재생기 크립 판 creeppatch 세 무늬 · 같은 색) · 몸보다 먼저 민다(바닥). 크기는 홀 12 · 콜로니 6 · 나머지 5 타일(어림). */
+      for (const u of vis) {
+        if (!u.def.bld || u.def.race !== "Z" || u.def.res) continue;
+        const wT = /^(Hive|Hatchery|Lair)$/.test(u.def.name) ? 12 : /Colony$/.test(u.def.name) ? 6 : 5;
+        const cm = g.bldMesh({ kind: u.id % 3 === 0 ? "creeppatch" : u.id % 3 === 1 ? "creeppatch2" : "creeppatch3", fx: 0, fy: 0, z: 0, sizePx: 16, color: "#3a2d34", alpha: 1, rotDeg: 0, spin: 0 } as UnitDrawOp, 3);
+        if (!cm) continue;
+        const cf = g.footOf(cm, 0, CAM_TOP9); const ck = (wT * 32 * z) / Math.max(1e-3, cf.w);
+        g.push({ mesh: cm, ax: sxOf(u.x) - ck * cf.cx, ay: syOf(u.y) - (ck * (cf.top + cf.bot)) / 2, k: ck, yoff: 0, yawDeg: 0, color: "#3a2d34", alpha: 1, cam: CAM_TOP9, gradR: 1e9, gradCy: 0 });
+      }
+      for (const u of order) {
+        const sx = sxOf(u.x); const sy = syOf(u.y);
+        const col = PRAC_COLORS9[u.owner];
+        const alpha = sim.cloaked(u) ? (u.burrowed ? 0.45 : 0.55) : u.morphT > 0 ? 0.55 + 0.45 * (1 - u.morphT / Math.max(1, u.morphMax)) : 1;
+        const ringCol = u.owner === 0 ? "#4dff7a" : u.def.res ? "#f2e14a" : "#ff4a3a";
+        const rr = (u.def.rad + 3) * z; const ry = rr * 0.62; const ryOff = (u.def.air ? 0 : u.def.rad * 0.25) * z;
+        const rOn = ringOn(u);
+        const lw = Math.max(1.2, z * 0.8);
+        if (u.def.bld) {
+          /* 건물 — 재생기 붓과 같은 앉히기: 잉크 바닥을 발자국 아랫변(지면선)에 · 배수는 발자국 폭 × 종류 배수(BLD_NORM — 모델 잉크를 16-상자에 맞춘 값).
+             재생기의 키움(BLD_DRAW_K 1.2)은 안 탄다(원작 크기 — 2026-11-17 둘째 요청). 고리는 모델 원점(그 건물이 선 땅 한가운데)에 발자국만 하게. */
+          const kind = bldKind9(u.def.name);
+          const lit = u.queue.length > 0;
+          const mesh = g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: col, alpha: 1, rotDeg: BUILDING_BASE_YAW, spin: 0, ...(lit ? { lit: true } : {}) } as UnitDrawOp, 3);
+          const [fw, fh] = u.def.foot ?? [2, 2];
+          if (!mesh) { if (rOn) g.prim(2, sx, sy, fw * 16 * z, fh * 16 * z, ringCol, 1, lw); continue; }
+          const k = ((fw * 32 * z) / 16) * bldNormOf(kind);
+          const ft = g.footOf(mesh, -BUILDING_BASE_YAW, CAM_TOP9);
+          const gy = sy + fh * 16 * z;
+          const oy = gy - k * ft.bot;
+          if (rOn) g.prim(2, sx, oy, Math.max(fw * 16, u.def.rad) * z * 0.92, Math.max(fw * 16, u.def.rad) * z * 0.92 * 0.56, ringCol, 1, lw);
+          g.push({ mesh, ax: sx, ay: gy, k, yoff: -k * ft.bot, yawDeg: -BUILDING_BASE_YAW, color: col, alpha, cam: CAM_TOP9, gradR: fw * 32 * z * 0.707, gradCy: -8 * k,
+            shadow: { ground: true, alpha: SHADOW_ALPHA9 }, over: true });
+          continue;
+        }
+        const kind = unitKind9(u);
+        const pk = POSE_KINDS[kind];
+        const moving = u.spd > 0.05;
+        const pose = pk?.flap ? walkCutOf9(kind, pk.flap, t) : pk?.move && moving ? walkCutOf9(kind, 4, t) : 0;
+        const mesh = g.unitMesh(kind, pose, 3) ?? g.unitMesh(kind, 0, 3);
+        if (!mesh) continue;
+        /* 유닛 — 16-상자 가운데를 몸 자리에(원점 (8, 12) → 아래로 4칸 · 옛 판 그림과 같은 자리) · 배수는 잉크가 units.dat 상자만 하게(pracWorldPx9). */
+        const k = (pracWorldPx9(u.def.name) * z) / 16;
+        const yaw = 90 - (u.face * 180) / Math.PI;
+        if (u.def.air) {
+          g.push({ mesh, ax: sx, ay: sy + 4 * k, k, yoff: 0, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0,
+            flat: GL_GLOW_KINDS9.has(kind), shadow: { dy: 24 * z, alpha: 0.3 }, over: true,
+            ...(rOn ? { ring: { kind: 2 as const, x: sx, y: sy + ryOff, rx: rr, ry, color: ringCol, alpha: 1, lineW: lw, shear: 0 } } : {}) });
+        } else {
+          if (rOn) g.prim(2, sx, sy + ryOff, rr, ry, ringCol, 1, lw);
+          g.push({ mesh, ax: sx, ay: sy + 4 * k, k, yoff: 0, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0,
+            flat: GL_GLOW_KINDS9.has(kind), shadow: { ground: true, alpha: SHADOW_ALPHA9 } });
+        }
+      }
+      /* 스톰 — 재생기 GL 스톰 모델(벼락 무리 · 더하기 합성 · 칸 21/초) · 반지름 48 의 마당. */
+      for (const st of sim.storms) {
+        const age = (56 - Math.max(0, st.life)) * FRAME_SEC;
+        const mesh = g.fxMesh("storm", Math.floor(age * 21) % (2 * STORM_STAGES)); if (!mesh) continue;
+        const bx = g.footOf(mesh, 0, CAM_TOP9); const Wd = 48 * 2.2 * z;
+        const k = Math.min(Wd / Math.max(1e-3, bx.w), Wd / Math.max(1e-3, bx.bot - bx.top));
+        g.push({ mesh, ax: sxOf(st.x) - k * bx.cx, ay: syOf(st.y) - (k * (bx.top + bx.bot)) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha: 1, cam: CAM_TOP9, gradR: 1e9, gradCy: 0, add: true, flat: true });
+      }
+      g.flush(bw, bh, W, H);
+    }
+    /* ③ 위 2D 층 — 체력 막대 · 총알 · 표식 · 길 · 상자 · 원작 화면 밖 검정. */
+    const c2 = cv.getContext("2d"); if (!c2) return;
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c2.clearRect(0, 0, W, H);
+    c2.save(); c2.beginPath(); c2.rect(vx, vy, vw, vh); c2.clip();
+    c2.setTransform(dpr * z, 0, 0, dpr * z, dpr * (W / 2 - cx * z), dpr * (H / 2 - cy * z));
+    if (!glOk) {
+      /* GL 이 못 선 곳 — 동그라미로라도(옛 폴백). */
+      for (const u of vis) { c2.beginPath(); c2.arc(u.x, u.y, u.def.rad, 0, Math.PI * 2); c2.fillStyle = u.def.res ? "#56c7ff" : PRAC_COLORS9[u.owner]; c2.fill(); }
+      for (const st of sim.storms) { c2.beginPath(); c2.arc(st.x, st.y, 48, 0, Math.PI * 2); c2.fillStyle = "rgba(90, 140, 255, 0.3)"; c2.fill(); }
+    }
+    for (const u of vis) {
+      if (u.def.res) continue;
+      const hpMax = fp(u.def.hp); const shMax = fp(u.def.sh);
+      if (u.hp < hpMax || u.sh < shMax || selSet.has(u.id)) {
+        const bwid = Math.max(18, u.def.rad * 1.6); const by = u.y - u.def.rad - (u.def.air ? 14 : 8);
+        c2.fillStyle = "rgba(0,0,0,0.7)"; c2.fillRect(u.x - bwid / 2 - 1, by - 1, bwid + 2, 5);
+        const f = Math.max(0, u.hp) / hpMax;
+        c2.fillStyle = f > 0.6 ? "#3ce26a" : f > 0.3 ? "#f2c23c" : "#ff4a3a"; c2.fillRect(u.x - bwid / 2, by, bwid * f, 3);
+        if (shMax > 0) { c2.fillStyle = "#57a9ff"; c2.fillRect(u.x - bwid / 2, by - 2, bwid * (u.sh / shMax), 1.5); }
+      }
+      if (u.def.bld && u.owner === 0 && u.queue.length && u.prodMax > 0) {
+        /* 만드는 중 — 건물 아래 진행 막대. */
+        const bwid = Math.max(28, u.def.rad * 1.4); const by = u.y + u.def.rad * 0.6;
+        c2.fillStyle = "rgba(0,0,0,0.7)"; c2.fillRect(u.x - bwid / 2 - 1, by - 1, bwid + 2, 4);
+        c2.fillStyle = "#9be8ff"; c2.fillRect(u.x - bwid / 2, by, bwid * (1 - u.prodT / u.prodMax), 2);
+      }
+      if (u.def.cargo && u.cargo.length) {
+        const n = u.cargo.length;
+        for (let i = 0; i < n; i += 1) { c2.fillStyle = u.para ? "#ffd04a" : "#9be8ff"; c2.fillRect(u.x - n * 3 + i * 6, u.y + u.def.rad + 2, 4, 4); }
+      }
+    }
+    /* 검진 — window.__pracFoot 이면 발자국(건물) · 몸 상자(유닛)를 겹쳐 그린다(모델 자리 맞춤 확인용). */
+    if ((window as unknown as { __pracFoot?: boolean }).__pracFoot) {
+      c2.lineWidth = 1 / z;
+      for (const u of vis) {
+        c2.strokeStyle = u.def.bld ? "rgba(255,255,0,0.9)" : "rgba(0,255,255,0.9)";
+        if (u.def.bld && u.def.foot) c2.strokeRect(u.x - u.def.foot[0] * 16, u.y - u.def.foot[1] * 16, u.def.foot[0] * 32, u.def.foot[1] * 32);
+        else c2.strokeRect(u.x - u.def.box[0], u.y - u.def.box[1], u.def.box[0] + u.def.box[2] + 1, u.def.box[1] + u.def.box[3] + 1);
+      }
+    }
+    /* 땅 표식 — 초록 타원 둘이 0.5초 동안 오므라들며 흐려진다. */
     const mk = mark.current;
     if (mk) {
       const f = (nowMs - mk.t0) / PRAC_TICK_MS9;
       if (f >= MARK_FRAMES9) mark.current = null;
       else {
-        const k = f / MARK_FRAMES9; const r = 14 * (1 - 0.6 * k);
-        g.strokeStyle = `rgba(77, 255, 122, ${0.95 - 0.7 * k})`; g.lineWidth = 1.6 / z;
-        g.beginPath(); g.ellipse(mk.x, mk.y, r, r * 0.62, 0, 0, Math.PI * 2); g.stroke();
-        g.beginPath(); g.ellipse(mk.x, mk.y, r * 0.45, r * 0.45 * 0.62, 0, 0, Math.PI * 2); g.stroke();
+        const kk = f / MARK_FRAMES9; const r = 14 * (1 - 0.6 * kk);
+        c2.strokeStyle = `rgba(77, 255, 122, ${0.95 - 0.7 * kk})`; c2.lineWidth = 1.6 / z;
+        c2.beginPath(); c2.ellipse(mk.x, mk.y, r, r * 0.62, 0, 0, Math.PI * 2); c2.stroke();
+        c2.beginPath(); c2.ellipse(mk.x, mk.y, r * 0.45, r * 0.45 * 0.62, 0, 0, Math.PI * 2); c2.stroke();
       }
     }
-    /* 공중 — 그림자 뒤 몸 */
-    const air = vis.filter((u) => u.def.air).sort((a, b) => a.y - b.y);
-    for (const u of air) { g.beginPath(); g.ellipse(u.x + 8, u.y + 26, u.def.rad * 0.8, u.def.rad * 0.4, 0, 0, Math.PI * 2); g.fillStyle = "rgba(0,0,0,0.35)"; g.fill(); }
     for (const s of sim.shots) {
-      g.strokeStyle = s.col; g.globalAlpha = Math.min(1, s.t / 3); g.lineWidth = 2 / z;
-      g.beginPath(); g.moveTo(s.x1, s.y1); g.lineTo(s.x2, s.y2); g.stroke(); g.globalAlpha = 1;
+      c2.strokeStyle = s.col; c2.globalAlpha = Math.min(1, s.t / 3); c2.lineWidth = 2 / z;
+      c2.beginPath(); c2.moveTo(s.x1, s.y1); c2.lineTo(s.x2, s.y2); c2.stroke(); c2.globalAlpha = 1;
     }
-    for (const u of air) { if (ringOn(u)) ring(u); body(u); }
-    /* 스캐럽 — 땅을 기는 작은 불씨. */
-    for (const sc of sim.scarabs) { g.beginPath(); g.arc(sc.x, sc.y, 3, 0, Math.PI * 2); g.fillStyle = "#ffb347"; g.fill(); }
-    /* 스톰 — 반지름 48 의 푸른 번개 마당(남은 시간만큼 옅어진다). */
-    for (const st of sim.storms) {
-      const k = Math.max(0, st.life) / 56;
-      g.beginPath(); g.arc(st.x, st.y, 48, 0, Math.PI * 2);
-      g.fillStyle = `rgba(90, 140, 255, ${0.18 + 0.22 * k})`; g.fill();
-      g.strokeStyle = `rgba(190, 215, 255, ${0.5 + 0.4 * k})`; g.lineWidth = 1.5 / z; g.stroke();
-      g.beginPath();
-      for (let i = 0; i < 6; i += 1) {
-        const a0 = ((st.life * 0.9 + i * 61) % 360) * (Math.PI / 180); const r0 = 8 + ((i * 17 + st.life * 3) % 36);
-        g.moveTo(st.x + Math.cos(a0) * r0, st.y + Math.sin(a0) * r0);
-        g.lineTo(st.x + Math.cos(a0 + 0.6) * (r0 * 0.5), st.y + Math.sin(a0 + 0.6) * (r0 * 0.5));
-      }
-      g.strokeStyle = "rgba(230, 240, 255, 0.85)"; g.lineWidth = 1.2 / z; g.stroke();
-    }
-    /* 스톰 겨눔 — 자리를 기다리는 동안 마우스 자리에 반지름 48 고리. */
+    for (const sc of sim.scarabs) { c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
     if (modeRef.current === "storm" && mouse.current.in) {
       const [mx, my] = toWorld(mouse.current.x, mouse.current.y);
-      g.beginPath(); g.arc(mx, my, 48, 0, Math.PI * 2); g.strokeStyle = "rgba(140, 190, 255, 0.9)"; g.lineWidth = 1.5 / z; g.stroke();
+      c2.beginPath(); c2.arc(mx, my, 48, 0, Math.PI * 2); c2.strokeStyle = "rgba(140, 190, 255, 0.9)"; c2.lineWidth = 1.5 / z; c2.stroke();
     }
     for (const b of sim.booms) {
-      const k = 1 - b.t / 24;
-      g.beginPath(); g.arc(b.x, b.y, b.r * (0.5 + k), 0, Math.PI * 2);
-      g.fillStyle = `rgba(255, ${Math.round(170 - 120 * k)}, 60, ${Math.max(0, 0.7 - k * 0.7)})`; g.fill();
+      const kk = 1 - b.t / 24;
+      c2.beginPath(); c2.arc(b.x, b.y, b.r * (0.5 + kk), 0, Math.PI * 2);
+      c2.fillStyle = `rgba(255, ${Math.round(170 - 120 * kk)}, 60, ${Math.max(0, 0.7 - kk * 0.7)})`; c2.fill();
     }
-    /* 예약된 길 — 고른 내 유닛 */
-    g.setLineDash([6 / z, 6 / z]); g.lineWidth = 1.2 / z;
+    /* 예약된 길 — 고른 내 유닛 · 생산 건물의 모이는 자리 */
+    c2.setLineDash([6 / z, 6 / z]); c2.lineWidth = 1.2 / z;
     for (const u of mySel()) {
-      if (!u.orders.length) continue;
-      g.beginPath(); g.moveTo(u.x, u.y);
-      for (const o of u.orders) {
-        if (o.t === "move" || o.t === "amove" || (o.t === "moveunload" && !o.self)) { g.lineTo(o.x, o.y); }
+      if (u.def.bld) {
+        if (u.rally) { c2.beginPath(); c2.moveTo(u.x, u.y); c2.lineTo(u.rally[0], u.rally[1]); c2.strokeStyle = "rgba(120,255,140,0.7)"; c2.stroke(); }
+        continue;
       }
-      g.strokeStyle = u.def.cargo ? "rgba(255,210,74,0.75)" : "rgba(120,255,140,0.6)"; g.stroke();
-      for (const o of u.orders) if (o.t === "moveunload" && !o.self) { g.beginPath(); g.arc(o.x, o.y, 10, 0, Math.PI * 2); g.strokeStyle = "rgba(255,210,74,0.9)"; g.stroke(); }
+      if (!u.orders.length) continue;
+      c2.beginPath(); c2.moveTo(u.x, u.y);
+      for (const o of u.orders) if (o.t === "move" || o.t === "amove" || (o.t === "moveunload" && !o.self)) c2.lineTo(o.x, o.y);
+      c2.strokeStyle = u.def.cargo ? "rgba(255,210,74,0.75)" : "rgba(120,255,140,0.6)"; c2.stroke();
+      for (const o of u.orders) if (o.t === "moveunload" && !o.self) { c2.beginPath(); c2.arc(o.x, o.y, 10, 0, Math.PI * 2); c2.strokeStyle = "rgba(255,210,74,0.9)"; c2.stroke(); }
     }
-    g.setLineDash([]);
-    g.restore();
+    c2.setLineDash([]);
+    c2.restore();
+    /* 원작 화면 밖 — 검정(지형 · 몸 층은 캔버스 가득 그린다). */
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c2.fillStyle = "#000";
+    if (vy > 0) { c2.fillRect(0, 0, W, vy); c2.fillRect(0, vy + vh, W, H - vy - vh); }
+    if (vx > 0) { c2.fillRect(0, vy, vx, vh); c2.fillRect(vx + vw, vy, W - vx - vw, vh); }
     /* 상자 */
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const m = mouse.current;
-    if (m.down && m.box) { g.strokeStyle = "#4dff7a"; g.lineWidth = 1; g.strokeRect(Math.min(m.sx, m.x) + 0.5, Math.min(m.sy, m.y) + 0.5, Math.abs(m.x - m.sx), Math.abs(m.y - m.sy)); }
+    if (m.down && m.box) { c2.strokeStyle = "#4dff7a"; c2.lineWidth = 1; c2.strokeRect(Math.min(m.sx, m.x) + 0.5, Math.min(m.sy, m.y) + 0.5, Math.abs(m.x - m.sx), Math.abs(m.y - m.sy)); }
     drawMini();
   };
   const drawMini = (): void => {
@@ -824,45 +990,58 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const k = c.width / sim.W;
     g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(img, 0, 0, c.width, c.height);
     for (const u of sim.alive()) {
-      if (u.def.name === "Mineral Field") continue;
-      g.fillStyle = u.owner === 0 ? "#4d8dff" : "#ff4a3a";
+      g.fillStyle = u.def.name === "Vespene Geyser" ? "#3fd07a" : u.def.res ? "#56c7ff" : u.owner === 0 ? "#4d8dff" : "#ff4a3a";
       const r = Math.max(1.5, u.def.rad * k * (u.def.bld ? 1 : 1.4));
       g.fillRect(u.x * k - r, u.y * k - r, r * 2, r * 2);
     }
-    const { w, h } = view(); const [ax, ay] = toWorld(0, 0); const [bx, by] = toWorld(w, h);
+    const { w, h } = view(); const z = cam.current.z;
+    const vw = Math.min(w, VIEW_W9 * z); const vh = Math.min(h, VIEW_H9 * z);
+    const [ax, ay] = toWorld((w - vw) / 2, (h - vh) / 2); const [bx, by] = toWorld((w + vw) / 2, (h + vh) / 2);
     g.strokeStyle = "#fff"; g.lineWidth = Math.max(1, dpr); g.strokeRect(ax * k, ay * k, (bx - ax) * k, (by - ay) * k);
   };
 
-  /* ── 화물 칸 그림 — 그림판의 정면 칸(아래 보기)을 잉크 상자로 잘라 체력색으로 물들인다(재생기 인포창의 실루엣과 같은 결) ── */
+  /* ── 화물 칸 · 카드 그림 — 재생기 도록과 같은 GL 모델(정면)을 한 번 구워 체력색으로 물들인다(인포창의 실루엣과 같은 결) ── */
+  const iconBase = useRef(new Map<string, HTMLCanvasElement | null>());
   const icons = useRef(new Map<string, string>());
-  const iconOf = (name: string, col: string): string | null => {
+  const [, setIconN] = useState(0);
+  const iconOf = useCallback((name: string, col: string): string | null => {
     const key = `${name}|${col}`; const hit = icons.current.get(key); if (hit) return hit;
-    const sp = sprites.current.get(name); const cell = sp?.cells[0][sp.dirs === 1 ? 0 : Math.round(sp.dirs / 4)];
-    if (!cell) return null;
-    const w = cell.width; const h = cell.height; const g0 = cell.getContext("2d"); if (!g0) return null;
-    const px = g0.getImageData(0, 0, w, h).data;
-    let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
-    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) if (px[(y * w + x) * 4 + 3] > 16) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    if (x1 < 0) return null;
-    const side = Math.max(x1 - x0, y1 - y0) + 4; const c = document.createElement("canvas"); c.width = 64; c.height = 64;
-    const g = c.getContext("2d"); if (!g) return null;
-    const k = 60 / side; const dw = (x1 - x0 + 1) * k; const dh = (y1 - y0 + 1) * k;
-    g.drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, (64 - dw) / 2, (64 - dh) / 2, dw, dh);
-    g.globalCompositeOperation = "screen"; g.fillStyle = "rgba(90, 90, 90, 1)"; g.fillRect(0, 0, 64, 64);
-    g.globalCompositeOperation = "color"; g.fillStyle = col; g.fillRect(0, 0, 64, 64);
-    g.globalCompositeOperation = "destination-in"; g.drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, (64 - dw) / 2, (64 - dh) / 2, dw, dh);
+    const base = iconBase.current.get(name);
+    if (base === undefined) {
+      iconBase.current.set(name, null);
+      const bld = !!UNIT_DEFS9[name]?.bld;
+      glIconRequest9({
+        kind: bld ? bldKind9(name) : UNIT_3D[name] ?? "gunner", bld, rotDeg: bld ? BUILDING_BASE_YAW : 0, pose: 0, spin: 0, w: 64, h: 64, color: PRAC_COLORS9[0], pad: 0.06,
+        blit: (src, sx, sy, sw, sh) => { const c = document.createElement("canvas"); c.width = sw; c.height = sh; c.getContext("2d")?.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh); iconBase.current.set(name, c); },
+        done: () => setIconN((n) => n + 1),
+      });
+      return null;
+    }
+    if (!base) return null;
+    const c = document.createElement("canvas"); c.width = 64; c.height = 64;
+    const gx = c.getContext("2d"); if (!gx) return null;
+    gx.drawImage(base, 0, 0, 64, 64);
+    gx.globalCompositeOperation = "screen"; gx.fillStyle = "rgba(90, 90, 90, 1)"; gx.fillRect(0, 0, 64, 64);
+    gx.globalCompositeOperation = "color"; gx.fillStyle = col; gx.fillRect(0, 0, 64, 64);
+    gx.globalCompositeOperation = "destination-in"; gx.drawImage(base, 0, 0, 64, 64);
     const url = c.toDataURL(); icons.current.set(key, url); return url;
-  };
+  }, []);
 
-  /* ── 고른 것 · 화물 ───────────────────────────────────────── */
+  /* ── 고른 것 · 화물 · 명령 카드 ─────────────────────────────── */
   void hud;
   const selUnits = sel.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null);
   const ships = selUnits.filter((e) => e.owner === 0 && e.def.cargo);
+  const bld = selUnits.length === 1 && selUnits[0].owner === 0 && selUnits[0].def.bld ? selUnits[0] : null;
+  const card = bld ? PROD9[bld.def.name] ?? [] : null;
   const st = sim.stats;
   return (
     <div className={`scr-prac-game${locked ? " is-locked" : ""}`} ref={wrapRef}>
-      <canvas ref={cvRef} className="scr-prac-canvas" onContextMenu={(e) => e.preventDefault()}
-        style={{ cursor: mode ? "crosshair" : "default" }} />
+      <div className="scr-prac-stage">
+        <canvas ref={terrCvRef} className="scr-prac-layer" aria-hidden />
+        <canvas ref={glCvRef} className="scr-prac-layer" aria-hidden />
+        <canvas ref={cvRef} className="scr-prac-canvas" onContextMenu={(e) => e.preventDefault()}
+          style={{ cursor: mode ? "crosshair" : "default" }} />
+      </div>
       {/* 갇힌 동안의 커서(원작은 커서가 창 안에 갇혀 있다) — 보통 화살 · 겨눔 · 가장자리 스크롤 화살 */}
       <div ref={curEl} className="scr-prac-cursor" data-k="arrow" aria-hidden>
         <svg className="is-arrow" width="18" height="24" viewBox="0 0 18 24"><path d="M1 1 L1 19 L6 14 L10 23 L13 22 L9 13 L16 13 Z" fill="#7dff8f" stroke="#04210a" strokeWidth="1.5" strokeLinejoin="round" /></svg>
@@ -871,7 +1050,8 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       </div>
       <div className="scr-prac-top">
         <b>{fmtTime9(st.tick)}</b>
-        <span>일꾼 <b>{st.workers}</b>/50</span>
+        <span>{RACE_KO9[setup.myRace]} · {PRAC_SPOTS9.find((p) => p.key === sim.setup.mySpot)?.label} · 적 타워 {sim.setup.stage === "mid" ? "중반" : "초반"}</span>
+        <span>일꾼 <b>{st.workers}</b>/{sim.foeWorkers}</span>
         <span>방어 <b>{st.defense}</b></span>
         <span>건물 <b>{st.buildings}</b></span>
         <span className="is-loss">손실 <b>{st.lost}</b></span>
@@ -880,17 +1060,37 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
         <span className="scr-prac-sp" />
         <button type="button" onClick={() => setPaused((p) => !p)}>{paused ? "계속" : "멈춤"}</button>
         <button type="button" onClick={onRestart}>다시</button>
-        <button type="button" onClick={onSetup}>설정</button>
+        <button type="button" onClick={onFull} title="전체 화면 — Ctrl+숫자 · F3 를 게임이 받아요">전체 화면</button>
+        <button type="button" className="scr-prac-gear" onClick={onGear} title="설정(종족 · 자리 · 적 타워 · 키)" aria-label="설정">⚙</button>
       </div>
       <div className="scr-prac-bottom">
         <canvas ref={miniRef} className="scr-prac-mini" onContextMenu={(e) => e.preventDefault()} />
         <div className="scr-prac-selbox">
-          {selUnits.length === 0 && <span className="scr-prac-dim">유닛을 고르세요 — 수송선을 고르면 화물 칸이 보여요(칸을 누르면 그 한 기만 내림)</span>}
-          {ships.length > 0 && ships.slice(0, 6).map((s) => (
+          {selUnits.length === 0 && <span className="scr-prac-dim">건물을 고르면 생산 · 연구 · 유닛을 고르면 명령 — 수송선을 고르면 화물 칸(칸을 누르면 그 한 기만 내림)</span>}
+          {bld && (
+            <div className="scr-prac-bld">
+              <span className="scr-prac-shipname">{bld.def.ko}{sim.disabled(bld) ? " · 전원 없음" : ""}</span>
+              <span className="scr-prac-queue">
+                {Array.from({ length: 5 }, (_, i) => {
+                  const it = bld.queue[i];
+                  if (!it) return <span key={i} className="scr-prac-qslot is-empty" />;
+                  const url = it.k === "unit" ? iconOf(it.name, "#6fe36f") : null;
+                  const pct = i === 0 && bld.prodMax > 0 ? Math.round((1 - bld.prodT / bld.prodMax) * 100) : 0;
+                  return (
+                    <button key={i} type="button" className="scr-prac-qslot" title={`${it.ko} — 눌러서 무르기`} onClick={() => sim.cancel(bld.id, i)}>
+                      {url ? <img src={url} alt={it.ko} draggable={false} /> : <i>{it.ko}</i>}
+                      {i === 0 && <span className="scr-prac-qbar" style={{ width: `${pct}%` }} />}
+                    </button>
+                  );
+                })}
+              </span>
+              {card?.some((it) => it.k === "unit") && <span className="scr-prac-dim">{bld.rally ? "모이는 자리 있음 · 우클릭으로 옮김" : "우클릭 = 모이는 자리"}</span>}
+            </div>
+          )}
+          {!bld && ships.length > 0 && ships.slice(0, 6).map((s) => (
             <div key={s.id} className="scr-prac-ship">
               <span className="scr-prac-shipname">{s.def.ko}{s.para ? " · 낙하산" : ""}</span>
-              {/* ★ 화물 칸 — 글자 대신 **모델**(2026-11-17, 요청: "수송선 안의 유닛 글자말고 모델로 인포창처럼") — 재생기 인포창의 짐칸과 같은 꼴:
-                  4칸 격자 · 칸이 수송 공간만큼(2 = 1×2 · 4 = 2×2) · 그림은 체력색으로 물들인 모델 실루엣 · 남는 자리는 빈 칸. 칸을 누르면 그 한 기만 지금 자리에 내린다. */}
+              {/* ★ 화물 칸 — 재생기 인포창의 짐칸과 같은 꼴(4칸 격자 · 칸이 수송 공간만큼 · 체력색 모델 실루엣) · 칸을 누르면 그 한 기만 지금 자리에 내린다. */}
               <span className="scr-prac-slots">
                 {s.cargo.map((id) => { const u = sim.byId.get(id); if (!u) return null;
                   const sp = Math.min(4, u.def.slots); const f = (u.hp + u.sh) / fp(u.def.hp + u.def.sh);
@@ -906,12 +1106,12 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
               </span>
             </div>
           ))}
-          {ships.length === 0 && selUnits.length > 0 && (
+          {!bld && ships.length === 0 && selUnits.length > 0 && (
             <div className="scr-prac-sellist">
               {Object.entries(selUnits.reduce<Record<string, number>>((m, u) => { m[u.def.ko] = (m[u.def.ko] ?? 0) + 1; return m; }, {})).map(([n, c]) => (
                 <span key={n} className={`scr-prac-chip${selUnits[0].owner === 1 ? " is-foe" : ""}`}>{n} ×{c}{(() => {
                   /* 에너지(하템 · 메딕) — 스톰 75 를 셀 수 있게 기마다. */
-                  const en = selUnits.filter((u) => u.def.ko === n && sim.maxEnergy(u.def) > 0).map((u) => Math.floor(u.en / 256));
+                  const en = selUnits.filter((u) => u.def.ko === n && sim.maxEnergy(u.def, u.owner) > 0).map((u) => Math.floor(u.en / 256));
                   return en.length ? ` · 에너지 ${en.join("/")}` : "";
                 })()}</span>
               ))}
@@ -919,15 +1119,28 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
           )}
         </div>
         <div className="scr-prac-cmds">
-          {ACTS9.map((a) => (
+          {card && bld && card.map((it) => {
+            const lv = it.k === "unit" ? 0 : sim.lvOf(0, it.name); const max = it.k === "tech" ? 1 : it.k === "up" ? sim.maxLv(it.name) : 0;
+            const done = it.k !== "unit" && lv >= max;
+            const ok = sim.canQueue(bld, it);
+            const url = it.k === "unit" ? iconOf(it.name, "#d8e2f0") : null;
+            return (
+              <button key={it.name} type="button" className={`scr-prac-cmd${done ? " is-done" : ""}${it.k !== "unit" ? " is-res" : ""}`} disabled={!ok}
+                title={`${it.ko}${it.k === "up" && max > 1 ? ` (${lv}/${max})` : ""}${done ? " — 다 했음" : ""}`} onClick={() => trainKey(bld, it)}>
+                {url && <img src={url} alt="" draggable={false} />}
+                <b>{it.key}</b><span>{it.ko}{it.k === "up" && max > 1 ? ` ${lv}/${max}` : done ? " ✓" : ""}</span>
+              </button>
+            );
+          })}
+          {!card && ACTS9.map((a) => (
             <button key={a.key} type="button" title={a.hint} className={`scr-prac-cmd${mode === a.key ? " is-on" : ""}`}
               onClick={() => { if (INSTANT9.has(a.key)) doAct(a.key, null, null, false); else setMode(a.key); }}>
-              <b>{keys[a.key]}</b>{a.label}
+              <b>{keys[a.key]}</b><span>{a.label}</span>
             </button>
           ))}
         </div>
       </div>
-      {loading && <div className="scr-prac-loading">유닛 그림 굽는 중… {baked}/{toBake}</div>}
+      {loading && <div className="scr-prac-loading">모델 굽는 중… {warm.done}/{warm.all}</div>}
     </div>
   );
 }
