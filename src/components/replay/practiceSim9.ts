@@ -19,7 +19,7 @@
    일부러 줄인 것: 시야 · 안개 없음 · 총알 날아가는 시간 없음(맞는 순간 피해 · 스캐럽만 날아간다) · 지상 유닛끼리 밀어내기는 가벼운 떼어 놓기 ·
    스팀 · 시야 기술은 없음 · 리버 스캐럽은 원작 시간(105프레임)으로 저절로 채운다(빨무라 돈은 무한) · 럴커 버로우 시간은 재생기와 같은 어림(0.9초). */
 import type { MapTerrain } from "../../utils/mapTerrain";
-import { TILE } from "../../utils/mapTerrain";
+import { TILE, levelAt } from "../../utils/mapTerrain";
 import {
   BUILD_FRAMES, FIREBAT_HITS_ON_ONE_TARGET, FP, FRAME_SEC, LURKER_SPINE_TRAVEL_PX, WEAPONS,
   acquireTiles, attackOnce, cooldownFrames, fp, moveDynOf, splashDivisor, unitOf, weaponRangePx,
@@ -216,6 +216,7 @@ export interface Ent9 {
   /** 드랍 단계에 내린 몸(이 몸의 처치만 점수 · 준비 30초에 내린 것은 아니다). */ dropOk: boolean;
   /** 도망 — 줄에 서서 기다리는 프레임 · 가는 기지. */ fleeT: number; fleeTo: number;
   /** 디펜시브 매트릭스 — 남은 막이(fp8) · 남은 프레임. 이레디에이트 — 남은 상태 틱 · 건 베슬의 점수 자격. */ dm: number; dmT: number; irrT: number; irrOk: boolean;
+  /** 내 편이 한 번이라도 봤나(안개 속 건물 · 자원은 본 대로 남는다 — 원작 기억). */ seen: boolean;
   /** 변태 · 소환 남은 프레임(럴커 알 · 아콘 합체 — 그동안 아무것도 안 한다) · 끝나면 바뀔 모습. */ morphT: number; morphMax: number; morphTo: string | null;
 }
 export interface Shot9 { x1: number; y1: number; x2: number; y2: number; t: number; air: boolean; col: string }
@@ -371,6 +372,45 @@ export class PracticeSim9 {
   /** 적 기지들(내 자리 말고 모든 스타팅). */
   bases: FoeBase9[] = [];
   /** 적 일꾼 처음 수(HUD 의 분모). */ foeWorkers = 0;
+  /* ★ 안개(2026-11-17, 요청: "안개적용필요") — 내 편만(적은 타워 · 일꾼이라 안개 셈이 없다). 원작 세 단: 안 가 본 곳 · 가 본 곳 · 지금 보는 곳.
+     보는 곳 = 내 몸(건물 포함 · 수송선 안 빼고)의 시야 원(units.dat sight 타일 · 오버로드 시야업 +2) 안 타일 — 지상 몸은 저보다 높은 땅을 못 본다(원작 그대로 ·
+     공중은 다 본다). 6프레임마다 다시 잰다(앞 · 지금 두 장을 GL 안개가 그 사이를 섞는다). 안 보이는 적 몸은 안 그리고 · 못 고르고 · 못 겨눈다. */
+  readonly tw: number; readonly th: number;
+  private lvl: Uint8Array;
+  fogVis: Uint8Array; fogPrev: Uint8Array; fogExp: Uint8Array;
+  fogVer = 0; fogAt = 0;
+  /** 그 자리 타일을 내 편이 지금 보나. */
+  sees(x: number, y: number): boolean {
+    const tx = Math.floor(x / 32); const ty = Math.floor(y / 32);
+    return tx >= 0 && ty >= 0 && tx < this.tw && ty < this.th && this.fogVis[ty * this.tw + tx] === 1;
+  }
+  /** 그 자리를 가 봤나. */
+  explored(x: number, y: number): boolean {
+    const tx = Math.floor(x / 32); const ty = Math.floor(y / 32);
+    return tx >= 0 && ty >= 0 && tx < this.tw && ty < this.th && this.fogExp[ty * this.tw + tx] === 1;
+  }
+  private updateFog(): void {
+    const tw = this.tw; const th = this.th;
+    this.fogPrev.set(this.fogVis); this.fogVis.fill(0);
+    for (const e of this.ents) {
+      if (e.dead || e.owner !== 0 || e.inside !== null || e.def.res) continue;
+      const r = e.def.uc.sight + (e.def.name === "Overlord" && this.has(0, "Antennae") ? 2 : 0);
+      const cx = Math.floor(e.x / 32); const cy = Math.floor(e.y / 32);
+      const myLv = cx >= 0 && cy >= 0 && cx < tw && cy < th ? this.lvl[cy * tw + cx] : 0;
+      const r2 = (r + 0.5) * (r + 0.5);
+      for (let dy = -r; dy <= r; dy += 1) {
+        const ty = cy + dy; if (ty < 0 || ty >= th) continue;
+        for (let dx = -r; dx <= r; dx += 1) {
+          const tx = cx + dx; if (tx < 0 || tx >= tw || dx * dx + dy * dy > r2) continue;
+          const k = ty * tw + tx;
+          if (!e.def.air && this.lvl[k] > myLv) continue;
+          this.fogVis[k] = 1; this.fogExp[k] = 1;
+        }
+      }
+    }
+    for (const e of this.ents) if (!e.seen && !e.dead && e.inside === null && this.sees(e.x, e.y)) e.seen = true;
+    this.fogVer += 1; this.fogAt = this.stats.tick;
+  }
   /** 턴 단계 · 점수 · 첫 드랍 프레임(-1 아직) · 내 본진 네모(px — 여기서 내린 것은 드랍이 아니다). */
   phase: PracPhase9 = "prep";
   score: PracScore9 = { kills: 0, lostPts: 0, lostN: 0, score: 0 };
@@ -401,12 +441,17 @@ export class PracticeSim9 {
         this.walk[cy * this.cw + cx] = walkMini(mx, my) && walkMini(mx + 1, my) && walkMini(mx, my + 1) && walkMini(mx + 1, my + 1) ? 1 : 0;
       }
     }
+    this.tw = mt.w; this.th = mt.h;
+    this.lvl = new Uint8Array(mt.w * mt.h);
+    for (let ty = 0; ty < mt.h; ty += 1) for (let tx = 0; tx < mt.w; tx += 1) this.lvl[ty * mt.w + tx] = levelAt(mt, tx, ty);
+    this.fogVis = new Uint8Array(mt.w * mt.h); this.fogPrev = new Uint8Array(mt.w * mt.h); this.fogExp = new Uint8Array(mt.w * mt.h);
     this.buildable = (tx: number, ty: number): boolean => {
       if (tx < 0 || ty < 0 || tx >= mt.w || ty >= mt.h) return false;
       const f = mt.tile[ty * mt.w + tx];
       return (f & TILE.walkable) !== 0 && (f & TILE.unbuildable) === 0 && (f & TILE.partial) === 0;
     };
     this.populate();
+    this.updateFog(); this.fogPrev.set(this.fogVis);
   }
   private buildable: (tx: number, ty: number) => boolean;
   private rand(): number { this.seed = (Math.imul(this.seed, 22695477) + 1) >>> 0; return (this.seed >>> 16) & 0x7fff; }
@@ -510,7 +555,7 @@ export class PracticeSim9 {
       scarabs: 0, scarabT: 0, spellCd: 0, stormT: 0, xT: 0, xTo: null,
       dead: false, hitT: 0,
       queue: [], prodT: 0, prodMax: 0, rally: null, base: -1, morphT: 0, morphMax: 0, morphTo: null,
-      dropOk: false, fleeT: 0, fleeTo: -1, dm: 0, dmT: 0, irrT: 0, irrOk: false,
+      dropOk: false, fleeT: 0, fleeTo: -1, dm: 0, dmT: 0, irrT: 0, irrOk: false, seen: owner === 0,
     };
     this.ents.push(e); this.byId.set(e.id, e);
     if (def.bld && def.foot) this.markBlock(e, 1);
@@ -722,6 +767,7 @@ export class PracticeSim9 {
     let best: Ent9 | null = null; let bd = Infinity;
     for (const e of this.ents) {
       if (e.dead || e.inside !== null || e.def.res) continue;
+      if (e.owner === 1 && !this.sees(e.x, e.y)) continue;   // 안개 속 적은 못 고른다
       const [l, u, r, d] = e.def.box;
       if (x < e.x - l - pad || x > e.x + r + pad || y < e.y - u - pad || y > e.y + d + pad) continue;
       const dd = Math.hypot(e.x - x, e.y - y);
@@ -744,6 +790,7 @@ export class PracticeSim9 {
   cloaked(e: Ent9): boolean { return e.def.cloak || e.burrowed; }
   /** 그 편이 이 몸을 볼 수 있나 — 은신이면 그 편 탐지기(시야 안 · 켜진 것)가 있어야. */
   visibleTo(e: Ent9, owner: 0 | 1): boolean {
+    if (owner === 0 && e.owner === 1 && !this.sees(e.x, e.y)) return false;   // 안개 — 내 편이 못 보는 적은 못 겨눈다
     if (!this.cloaked(e)) return true;
     for (const d of this.ents) {
       if (d.dead || d.inside !== null || d.owner !== owner || !d.def.detector || this.disabled(d)) continue;
@@ -805,6 +852,7 @@ export class PracticeSim9 {
     this.side[0] = []; this.side[1] = [];
     for (const e of this.ents) if (!e.dead && e.inside === null && !e.def.res) this.side[e.owner].push(e);
     this.alertTick();
+    if (this.stats.tick % 6 === 0) this.updateFog();
     for (const e of this.ents) {
       if (e.dead) continue;
       if (e.gcd > 0) e.gcd -= 1;

@@ -29,7 +29,9 @@ import { PRAC_MAP9 } from "./practiceMap9.gen";
 import { PRAC_COLORS9, pracWorldPx9 } from "./practiceSpr9";
 import { CAM_TOP9, GL_GLOW_KINDS9, GlUnits9, SHADOW_ALPHA9, glIconRequest9 } from "./gl9";
 import { glTerrCanvas9 } from "./glTerrain9";
-import { BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { BLD_DRAW_TUNE, BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { DIM as FOG_DIM9 } from "./ReplayFogLayer";
+import type { GlFog9 } from "./glTerrain9";
 import { STORM_STAGES } from "./bake9";
 
 export interface PracticeRoomProps {
@@ -357,6 +359,29 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const miniImg = useRef<HTMLCanvasElement | null>(null);
   const glRef = useRef<GlUnits9 | null>(null);
   const terrGeom = useRef<TerrainGeom9 | null>(null);
+  /* 안개 — 재생기 GL 안개(판 17 칸 안개 · GlFog9.tile)에 셈의 타일 보임(앞 · 지금) · 밝힘을 실어 지형층이 그린다 · 미니맵은 작은 판을 덮는다. */
+  const fogRef = useRef<{ ver: number; fog: GlFog9 | null; mini: HTMLCanvasElement | null }>({ ver: -1, fog: null, mini: null });
+  const fogOf = (): GlFog9 => {
+    const f = fogRef.current;
+    if (f.ver !== sim.fogVer || !f.fog) {
+      const n = sim.tw * sim.th; const data = f.fog?.tile?.data.length === n * 4 ? f.fog.tile.data : new Uint8Array(n * 4);
+      for (let i = 0; i < n; i += 1) { data[i * 4] = sim.fogPrev[i] * 255; data[i * 4 + 1] = sim.fogVis[i] * 255; data[i * 4 + 2] = sim.fogExp[i] * 255; data[i * 4 + 3] = 255; }
+      f.fog = { loops: [], key: 0, eyes: null, rgb: [5, 8, 14], dim: FOG_DIM9, tile: { w: sim.tw, h: sim.th, data, ver: sim.fogVer, f: 0 } };
+      /* 미니맵 덮개 — 안 가 본 곳 짙게 · 가 본 곳 옅게. */
+      const mc = f.mini ?? document.createElement("canvas"); f.mini = mc; mc.width = sim.tw; mc.height = sim.th;
+      const mg = mc.getContext("2d");
+      if (mg) {
+        const im = mg.createImageData(sim.tw, sim.th);
+        for (let i = 0; i < n; i += 1) { im.data[i * 4 + 3] = sim.fogVis[i] ? 0 : sim.fogExp[i] ? 110 : 225; }
+        mg.putImageData(im, 0, 0);
+      }
+      f.ver = sim.fogVer;
+    }
+    f.fog!.tile!.f = Math.max(0, Math.min(1, (sim.stats.tick - sim.fogAt) / 6));
+    return f.fog!;
+  };
+  /** 내 편 눈에 지금 그릴 몸인가 — 적 유닛은 보이는 타일만 · 적 건물 · 자원은 한 번 봤으면(안개 속은 옅게). */
+  const shown = (u: Ent9): boolean => u.owner === 0 || sim.sees(u.x, u.y) || ((u.def.bld || !!u.def.res) && u.seen);
   const [warm, setWarm] = useState({ done: 0, all: 1 });
   const [sel, setSel] = useState<number[]>([]);
   const selRef = useRef<number[]>([]); selRef.current = sel;
@@ -861,12 +886,12 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     if (tcv && G) {
       const tc = glTerrCanvas9(tcv);
       const x0 = sxOf(0); const y0 = syOf(0); const x1 = sxOf(sim.W); const y1 = syOf(sim.H);
-      tc?.draw(G, [x0, y0, x1, y0, x1, y1, x0, y1], bw, bh, W, H, 2, null, null, 0.5, [vx, vy, vx + vw, vy + vh], null);
+      tc?.draw(G, [x0, y0, x1, y0, x1, y1, x0, y1], bw, bh, W, H, 2, null, fogOf(), 0.5, [vx, vy, vx + vw, vy + vh], null);
     }
     /* ② 몸 — GL 메시(재생기 붓) · 고리는 바닥 도형(prim · 몸보다 먼저) · 공중 고리는 제 깊이 칸(ring). */
     const g = glRef.current;
     const [wx0, wy0] = toWorld(vx - 96, vy - 96); const [wx1, wy1] = toWorld(vx + vw + 96, vy + vh + 96);
-    const vis = sim.alive().filter((u) => u.x >= wx0 && u.x <= wx1 && u.y >= wy0 && u.y <= wy1);
+    const vis = sim.alive().filter((u) => u.x >= wx0 && u.x <= wx1 && u.y >= wy0 && u.y <= wy1 && shown(u));
     const selSet = new Set(selRef.current);
     const ringOn = (u: Ent9): boolean => {
       const t0 = flashes.current.get(u.id);
@@ -893,10 +918,11 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       for (const u of order) {
         const sx = sxOf(u.x); const sy = syOf(u.y);
         const col = PRAC_COLORS9[u.owner];
-        const alpha = sim.cloaked(u) ? (u.burrowed ? 0.45 : 0.55) : u.morphT > 0 ? 0.55 + 0.45 * (1 - u.morphT / Math.max(1, u.morphMax)) : 1;
+        const fogged = u.owner === 1 && !sim.sees(u.x, u.y);   // 안개 속 기억(건물 · 자원) — 재생기처럼 반쯤
+        const alpha = fogged ? 0.5 : sim.cloaked(u) ? (u.burrowed ? 0.45 : 0.55) : u.morphT > 0 ? 0.55 + 0.45 * (1 - u.morphT / Math.max(1, u.morphMax)) : 1;
         const ringCol = u.owner === 0 ? "#4dff7a" : u.def.res ? "#f2e14a" : "#ff4a3a";
         const rr = (u.def.rad + 3) * z; const ry = rr * 0.62; const ryOff = (u.def.air ? 0 : u.def.rad * 0.25) * z;
-        const rOn = ringOn(u);
+        const rOn = ringOn(u) && !fogged;
         const lw = Math.max(1.2, z * 0.8);
         if (u.def.bld) {
           /* 건물 — 재생기 붓과 같은 앉히기: 잉크 바닥을 발자국 아랫변(지면선)에 · 배수는 발자국 폭 × 종류 배수(BLD_NORM — 모델 잉크를 16-상자에 맞춘 값).
@@ -906,7 +932,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
           const mesh = g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: col, alpha: 1, rotDeg: BUILDING_BASE_YAW, spin: 0, ...(lit ? { lit: true } : {}) } as UnitDrawOp, 3);
           const [fw, fh] = u.def.foot ?? [2, 2];
           if (!mesh) { if (rOn) g.prim(2, sx, sy, fw * 16 * z, fh * 16 * z, ringCol, 1, lw); continue; }
-          const k = ((fw * 32 * z) / 16) * bldNormOf(kind);
+          const k = ((fw * 32 * z) / 16) * bldNormOf(kind) * (BLD_DRAW_TUNE[kind] ?? 1);   // 재생기 종류별 크기 손보기(tune · 2026-11-17 지적 "유닛 크기 tune 적용안된거같음")
           const ft = g.footOf(mesh, -BUILDING_BASE_YAW, CAM_TOP9);
           const gy = sy + fh * 16 * z;
           const oy = gy - k * ft.bot;
@@ -936,6 +962,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       }
       /* 스톰 — 재생기 GL 스톰 모델(벼락 무리 · 더하기 합성 · 칸 21/초) · 반지름 48 의 마당. */
       for (const st of sim.storms) {
+        if (!sim.sees(st.x, st.y)) continue;
         const age = (56 - Math.max(0, st.life)) * FRAME_SEC;
         const mesh = g.fxMesh("storm", Math.floor(age * 21) % (2 * STORM_STAGES)); if (!mesh) continue;
         const bx = g.footOf(mesh, 0, CAM_TOP9); const Wd = 48 * 2.2 * z;
@@ -956,7 +983,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       for (const st of sim.storms) { c2.beginPath(); c2.arc(st.x, st.y, 48, 0, Math.PI * 2); c2.fillStyle = "rgba(90, 140, 255, 0.3)"; c2.fill(); }
     }
     for (const u of vis) {
-      if (u.def.res) continue;
+      if (u.def.res || (u.owner === 1 && !sim.sees(u.x, u.y))) continue;
       const hpMax = fp(u.def.hp); const shMax = fp(u.def.sh);
       if (u.hp < hpMax || u.sh < shMax || selSet.has(u.id)) {
         const bwid = Math.max(18, u.def.rad * 1.6); const by = u.y - u.def.rad - (u.def.air ? 14 : 8);
@@ -998,12 +1025,14 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       }
     }
     for (const s of sim.shots) {
+      if (!sim.sees(s.x2, s.y2) && !sim.sees(s.x1, s.y1)) continue;
       c2.strokeStyle = s.col; c2.globalAlpha = Math.min(1, s.t / 3); c2.lineWidth = 2 / z;
       c2.beginPath(); c2.moveTo(s.x1, s.y1); c2.lineTo(s.x2, s.y2); c2.stroke(); c2.globalAlpha = 1;
     }
-    for (const sc of sim.scarabs) { c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
+    for (const sc of sim.scarabs) { if (!sim.sees(sc.x, sc.y)) continue; c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
     /* 디스럽션 웹 — 보랏빛 그물 마당(반지름 64) · 매트릭스 — 몸 둘레 푸른 막 · 이레디 — 몸 둘레 녹색 빛. */
     for (const w of sim.webs) {
+      if (!sim.sees(w.x, w.y)) continue;
       const k = Math.min(1, w.life / 48);
       c2.save(); c2.globalAlpha = 0.55 * k;
       c2.beginPath(); c2.arc(w.x, w.y, 64, 0, Math.PI * 2); c2.fillStyle = "rgba(150, 110, 255, 0.28)"; c2.fill();
@@ -1020,6 +1049,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       c2.beginPath(); c2.arc(mx, my, modeRef.current === "storm" ? 48 : 64, 0, Math.PI * 2); c2.strokeStyle = "rgba(140, 190, 255, 0.9)"; c2.lineWidth = 1.5 / z; c2.stroke();
     }
     for (const b of sim.booms) {
+      if (!sim.sees(b.x, b.y)) continue;
       const kk = 1 - b.t / 24;
       c2.beginPath(); c2.arc(b.x, b.y, b.r * (0.5 + kk), 0, Math.PI * 2);
       c2.fillStyle = `rgba(255, ${Math.round(170 - 120 * kk)}, 60, ${Math.max(0, 0.7 - kk * 0.7)})`; c2.fill();
@@ -1057,10 +1087,13 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     const k = c.width / sim.W;
     g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(img, 0, 0, c.width, c.height);
     for (const u of sim.alive()) {
+      if (!shown(u)) continue;
       g.fillStyle = u.def.name === "Vespene Geyser" ? "#3fd07a" : u.def.res ? "#56c7ff" : u.owner === 0 ? "#4d8dff" : "#ff4a3a";
       const r = Math.max(1.5, u.def.rad * k * (u.def.bld ? 1 : 1.4));
       g.fillRect(u.x * k - r, u.y * k - r, r * 2, r * 2);
     }
+    const fm = fogRef.current.mini;
+    if (fm) { g.imageSmoothingEnabled = true; g.drawImage(fm, 0, 0, c.width, c.height); }
     const { w, h } = view(); const z = cam.current.z;
     const vw = Math.min(w, VIEW_W9 * z); const vh = Math.min(h, VIEW_H9 * z);
     const [ax, ay] = toWorld((w - vw) / 2, (h - vh) / 2); const [bx, by] = toWorld((w + vw) / 2, (h + vh) / 2);
