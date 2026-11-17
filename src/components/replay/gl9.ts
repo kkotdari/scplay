@@ -1340,6 +1340,9 @@ const SPR_GRADE_T9 = [0.066, 1.45, 0.45, 0.65, 0.9, 1.029, 1.057, 1.019, 0.905, 
    저그 이득 r 1.25 → 1.04(붉은기) · 채도 0.72 → 0.8 · 바탕 #964c32 → 밝은 살색(bake9 RACE_BASE_TONE) / 프로토스 그늘 채널 감마(r 1.06 · b 0.82 — 그늘의 갈색 물듦을 덜고) · 따뜻한 채도 1.15 · 광택 되살림(GLOSS_TOSS9). */
 /* (같은 날 여섯째, 요청: "저그 탁한 살색이 아닌 좀더 생기 도는 복숭아 느낌 살색" → 시안 C) — 감마 1.35 · 무릎 0.45/0.5 · 채도 0.95 · 이득 r 1.05 g 0.97 b 0.96 · 따뜻한 색 채도 1.15 · 밝기 ×1.12. */
 const SPR_GRADE_Z9 = [0.06, 1.35, 0.45, 0.5, 0.95, 1.05, 0.97, 0.96, 0.97, 1, 1.03, 1.15, 1.12] as const;
+/** 저그 뼈(상아 · 재질 결 cl 4)의 곡선 — [감마 · 섞음](2026-11-17 · 아래 메시 FS 의 grd9b ★). 검은점은 종족 곡선 그대로 · 무릎 · 채널 기울기 없음. 아틀라스에 구워지므로 SPR_ 이름(판 해시에 든다). */
+const SPR_BONE_GRADE9 = [1.15, 1.0] as const;
+const BONE_GRADE9 = SPR_BONE_GRADE9;
 /* (2026-11-16, 요청: "플토 지금 유지 + 좀만 밝게") — 따뜻한 색 밝기 0.78 → 0.82(금 띠 L +3 ~ 4 · 색상 그대로 · 수정 · 임자색은 안 탄다). 되물린 시안: 0.85 · 주황 걷은 노란 금 P1 ~ P3(qg 0.92 ~ 0.96). */
 /* (2026-11-16, 요청: "테란 프로토스 너무 어두워" → 시안 P2) — 따뜻한 색 밝기 0.82 → 0.98. 되물린 시안: P1 0.9 / P3 감마 1.6 · 무릎 0.66/0.55 · 밝기 1.0. */
 const SPR_GRADE_P9 = [0.1, 1.75, 0.62, 0.5, 1.0, 1.05, 1.0, 0.96, 1.06, 1, 0.82, 1.15, 0.98] as const;
@@ -1707,7 +1710,13 @@ export class GlUnits9 implements VecSink9 {
     const mx9 = MATX9 > 0 && this.gl2;   // 모서리 마모가 fwidth(ES 3.00)를 쓴다 — WebGL1 은 시안 없이
     const vsM9 = !mx9 ? vsSh9 : vsSh9.replace("varying vec4 vEm;\n", "varying vec4 vEm;\nvarying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt; uniform vec2 uMat; uniform vec2 uMatTw; attribute vec4 aEdg;\n")
       .replace("  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);", "  vec3 base = mix(mix(aRgb, uTeam, aTeam), uSolid.rgb, uSolid.a);\n  vMx = vec4(0.0); vMn = vec4(0.0); vEd = aEdg; vLt = 0.0;\n" + MATX_VS9);
-    const fsM9 = !mx9 ? fsCon9 : fsCon9.replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
+    /* ★ **저그 뼈(상아)는 종족 곡선의 무릎·붉은 기울기를 안 탄다**(2026-11-17, 요청: "저그 상아색이 너무 살색톤이네 · 좀 더 연한 아이보리에 가까워야") —
+       저그 곡선(SPR_GRADE_Z9: 무릎 0.45 · 기울기 0.5 · 이득 r 1.05 g 0.97 b 0.96)은 밝은 끝을 0.72 언저리에서 누르고 붉게 기울여, 상아 바탕(#eae3d2)이 어느 값이든
+       분홍 베이지(#d6c8bd 언저리)로 굳었다(실측: 바탕을 네 갈래로 바꿔도 결과가 거의 같았다 · 곡선을 끄면 #e3dcd4). 재질 결이 뼈로 가른 낯(vMn.w 4 — 저그 · 바탕 밝기 0.5 넘고
+       채도 0.4 아래)만 곡선 앞 색(c09)을 검은점은 같게 · 감마 BONE_GRADE9.x · 무릎 없이 · 채널 기울기 없이 다시 태워 BONE_GRADE9.y 만큼 섞는다. 복숭아 살(채도 0.46 넘음) ·
+       갈색 살은 뼈가 아니라 그대로. 재질 결을 끈 변형(#matx=0)은 옛 곡선 그대로다. 아틀라스에 굽는다(판 해시). */
+    const grd9b = grd9.replace("if (uGrs9 > 0.0) { ", "if (uGrs9 > 0.0) { vec3 c09 = c; ").replace(/ }$/, " if (int(vMn.w + 0.5) == 4) { vec3 cb9 = grade9(c09, vec4(uGrd9.x, " + BONE_GRADE9[0].toFixed(3) + ", 1.0, 1.0), 1.0); c = mix(c, cb9, " + BONE_GRADE9[1].toFixed(3) + "); } }");
+    const fsM9 = !mx9 ? fsCon9 : fsCon9.split(grd9).join(grd9b).replace("varying vec4 vG0; varying vec4 vEm;", "varying vec4 vG0; varying vec4 vEm; varying highp vec4 vMx; varying vec4 vMn; varying vec4 vEd; varying float vLt;\n" + MATX_FN9)
       .replace("  float a9 = vCol.a;", MATX_FS9 + "  float a9 = vCol.a * glA9;")   // glA9 — 유리 투명(MATX_FS9 cl 7)
       .replace("  gl_FragColor = vec4(c * a9, a9);", "  gl_FragColor = vec4(c * a9, a9);\n  if (uGlowOut > 0.5) gl_FragColor = vec4((gEm9 + (uMat.x > 1.5 && uMat.x < 2.5 ? vEm.rgb * vEm.a * 0.8 : vec3(0.0))) * a9, a9);");   // 프로토스 발광 낯(보석·수정)도 빛무리 원천(2026-11-03 "보석 자체가 발광")   // 빛무리 원천만(굽기 · GLOW_FS9 ★) — 가린 낯은 제 원천(대개 0)으로 덮는다
     /* 시안 손잡이 #edgeshine=0(2026-11-03, 요청: "모바일용 아틀라스 해상도로 모서리 광택 없는 버전 시안 · 저해상도에서 모서리가 화질을 안 좋게 보이게 하는 것 같아") —

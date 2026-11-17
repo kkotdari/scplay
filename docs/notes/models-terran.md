@@ -1063,3 +1063,8 @@ U 굽이로 만나 줄기 하나가 꽁무니로 간다. 등판 위를 앞뒤로
 - 마린(gunner): 전투복 · 팔 · 다리 · 목 `SUIT_SILVER` → `TERRAN_STEEL`(→ 밝은 단) · 손 #4d4d4d · 등판 원반 #3d3d3d → `TERRAN_STEEL`.
   헬멧 유리 앞 #101318(옛 요청 "짙은 검정")과 총(`GUN_BLACK`)은 그대로. `SUIT_SILVER` 는 이제 안 쓴다(지우지 않음).
 - 🔎 `model-gl --bake 2 --kinds tomb,gunner --rots 45 --color '#9b3299' --bg '#2c2e33' --hash glbloom=0`(아틀라스 길).
+
+## 서플라이 · 아카데미 · 아머리 −10° 되돌림(2026-11-17)
+요청: "서플 아카데미 아모리 +10도 요잉(지난번 −10도를 되돌림)" — `BLD_TWIST_KINDS9` 에서 trapezoid · academy · armory 를 뺐다(원 설계도 0°). 나머지 명단은 −10° 그대로.
+등급표 다시 뽑음(차 없음) · 애드온 · 총구 없는 셋이라 addon-wall · muzzle-table 은 안 탄다 · BLD_NORM · 잉크 중심표는 −10° 때처럼 그대로. 아틀라스 다시 굽기.
+🔎 `node scripts/model-gl.mjs --kinds trapezoid,academy,armory --rots 45 --cell 300 --fit 0.9 --lit`

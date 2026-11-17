@@ -309,9 +309,9 @@ export const ZERG_FLESH = "#8a5f43";
    복숭아 살색은 이 이름 하나로(시안 C #f0a585 — "탁한 살색이 아닌 생기 도는 복숭아 느낌"). 짙은 단은 테 · 고리 같은 딸린 살. */
 export const ZERG_PEACH = "#ff9789";   // #f0a585 → #ff9789(2026-11-16, 요청: "저그 복숭아 살색은 좀더 붉은기 필요" → 시안 Z3 — Lab a +14 · b −3)
 export const ZERG_PEACH_D = "#d9726e";   // #c9806a → #d9726e(같은 날 · 같은 만큼)
-export const IVORY = "#eae3d2";
+export const IVORY = "#f3eedd";   // #eae3d2 → #f3eedd(2026-11-17, 요청: "저그 상아색이 너무 살색톤 · 좀 더 연한 아이보리" — 바탕만이 아니라 gl9 뼈 곡선(SPR_BONE_GRADE9)이 함께 · 되물린 시안: 곡선만 · 바탕 #eae3d2)
 /* 진한 상아색(요청: 하이브 가시·옆띠). */
-export const IVORY_DEEP = "#cdc0a0";
+export const IVORY_DEEP = "#d9d0b6";   // #cdc0a0 → #d9d0b6(같은 날 · 같은 만큼 연하게)
 /* 테란 화기 금속색(요청: 총구·포신은 어두운 회색). */
 export const GUNMETAL = "#76808f";   // = 테란 기본색(요청: 손칠 줄이고 기본색)
 /** 총의 검정(지적: "마린 총 거의 검정색 / 고스트 총도") — 건메탈(#4b5058)은 부품
@@ -30154,8 +30154,9 @@ for (const k of TERRAN_LT_KINDS9) {
    · 빌더 안에서 다른 명단 빌더를 부르면(레어 → 해처리 · 컴샛 → 밑동) 두 번 돌지 않게 바깥 한 번만 돈다(twistDepth9).
    · 두 표(SHAPE_FACES) 스냅샷보다 앞이어야 2D 판도 같이 돈다. 바꾸면 등급표 · 애드온 벽 표 · 아틀라스를 다시 뽑는다. 기록: models-terran.md '설계도 −10°'. */
 export const BLD_TWIST9 = -10;
-export const BLD_TWIST_KINDS9: readonly string[] = ["tomb", "comsat", "comsatbase", "nsilo", "trapezoid", "refinery", "cube", "ebay", "academy", "factory", "mshop", "plane",
-  "ctower", "armory", "scifac", "covert", "physlab", "hatchery", "lair", "hive"];
+/* 서플라이(trapezoid) · 아카데미 · 아머리는 뺐다(2026-11-17, 요청: "서플 아카데미 아모리 +10도 요잉 — 지난번 −10도를 되돌림") — 그 셋은 원 설계도 그대로(0°). */
+export const BLD_TWIST_KINDS9: readonly string[] = ["tomb", "comsat", "comsatbase", "nsilo", "refinery", "cube", "ebay", "factory", "mshop", "plane",
+  "ctower", "scifac", "covert", "physlab", "hatchery", "lair", "hive"];
 let twistDepth9 = 0;
 for (const k9 of BLD_TWIST_KINDS9) {
   const b9 = SHAPE_BUILDERS[k9];
