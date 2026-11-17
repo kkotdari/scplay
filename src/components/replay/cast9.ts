@@ -34,6 +34,7 @@
  */
 import { BUILDING_KO, UNIT_KO } from "../../utils/replayNames";
 import { researchKo } from "../../utils/replayTechNames";
+import { koRo9 as koRoShared9 } from "../../utils/koJosa";
 import { BUILDING_BOX, BUILDING_FOOT, costOf, raceOfBwKind9, sightTiles, speedOfUnit, SUPPLY_CAP, supplyEvents9, unitOf, UPGRADE_TIME, upgradeSeconds } from "../../utils/bwUnits";
 import { kN, kT, kX, kY, keyJump, posAtTruth, SEL_KIND9, tkN, tkT, tkV, type TruthTrack } from "../../utils/openbwTracks";
 import type { TruthWorld } from "../../utils/truthLives";
@@ -2256,12 +2257,7 @@ export function castPlan9(world: TruthWorld, opts: CastPlanOpts9): CastPlan9 {
   };
   /* (걷어냄 · 2026-10-10, 요청: "저글링 러시 이런 거는 화면 보면 아니까 굳이 설명 x") 저글링러시 이름(zlRush9 — 초반 장면의 킬이 대개 저글링). */
   /** 로/으로 — 받침(ㄹ 아닌)이 있으면 "으로" · 없거나 ㄹ 이면 "로"(한글 아닌 이름은 "로"). */
-  const koRo9 = (s9: string): string => {
-    const c9 = s9.charCodeAt(s9.length - 1);
-    if (c9 < 0xac00 || c9 > 0xd7a3) return "로";
-    const jong9 = (c9 - 0xac00) % 28;
-    return jong9 === 0 || jong9 === 8 ? "로" : "으로";
-  };
+  const koRo9 = koRoShared9;   // 라틴 · 숫자 이름도 읽는 소리로(2026-11-17 · utils/koJosa koJong9 ★ · 옛: 한글 아니면 늘 "로")
   /* ★ **팀 전원이면 "1팀 전원"**(2026-10-10, 요청: "팀 전원이 등장할 때는 나열하지 말고 1팀 전원 A를 공격 이런 식으로") — 칩 무리가 그때(capSec9) 살아 있는 한 팀
      사람 전부(둘 이상)면 칩 대신 글귀 하나다. 조사는 '전원'의 받침(ㄴ)으로 붙인다. */
   let capSec9 = 0;
