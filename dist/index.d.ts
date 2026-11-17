@@ -265,6 +265,14 @@ export declare const PENDING_GRID9: ReplayMapGrid;
  *  t를 계속 적어 두면, 공유 버튼이 링크에 &t=로 실어 보낸다. */
 export declare const playbackClockOf: Map<string, number>;
 
+export declare function PracticeRoom({ map, className }: PracticeRoomProps): JSX_2.Element;
+
+export declare interface PracticeRoomProps {
+    /** 빨무 지도(앱이 받아 준다 · 지형 terrain 이 있어야 걷는 칸을 안다). */
+    map: ReplayMapGrid | null;
+    className?: string;
+}
+
 export declare type Race = "테란" | "프로토스" | "저그" | "랜덤";
 
 declare type RacePick = ModelCatalogRace;
