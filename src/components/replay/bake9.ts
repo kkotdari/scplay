@@ -550,8 +550,8 @@ export function auraFocus9(x: number, y: number, z: number, r: number): void {
   AURA_FOCUS9.push({ x: bx, y: by, z: bz, r: Math.hypot(rx - bx, ry - by) });
 }
 /** 시각 u0(바퀴의 몫 0~1)에 살아 있는 덩이들 — 자리·반지름·짙기. 2D 굽기(gasPuffs9)와 붓(gl9 gasPush9)이 **같은 식**을 본다. */
-export function gasPuffFrames9(o: GasEmit9, u0: number): { x: number; y: number; z: number; rr: number; a: number }[] {
-  const out: { x: number; y: number; z: number; rr: number; a: number }[] = [];
+export function gasPuffFrames9(o: GasEmit9, u0: number): { x: number; y: number; z: number; rr: number; a: number; k: number }[] {
+  const out: { x: number; y: number; z: number; rr: number; a: number; k: number }[] = [];
   for (let k = 0; k < o.n; k += 1) {
     // 덩이 k 는 바퀴의 (위상 + k·duty/(n−1)) 에 나서 life 만큼 산다 — 그 밖의 시각에는 없다(쉼).
     const born9 = o.phase + (o.n > 1 ? (k * o.duty) / (o.n - 1) : 0);
@@ -562,7 +562,7 @@ export function gasPuffFrames9(o: GasEmit9, u0: number): { x: number; y: number;
     const z = o.z + o.h * (0.06 + 0.94 * Math.pow(u, 0.85));
     const a = o.a * Math.min(1, 0.2 + u * 5) * Math.pow(1 - u, 1.4);
     if (a < 0.03) continue;
-    out.push({ x: o.x, y: o.y, z, rr, a });
+    out.push({ x: o.x, y: o.y, z, rr, a, k });   // k — 덩이 차례(붓이 구름 꼴 셋을 번갈아 고른다 · gaspuff ★★)
   }
   return out;
 }
@@ -18254,7 +18254,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const HIVE_IVORY = "#7a5733";
     /* 갈색 #7d5c31 → 상아 → **황토**(2026-11-01, 요청: "하이브 뿔기둥 색이 너무 진해짐 원래 상아색" → 원작 그림을 보이며 "상아색이 아니고 황토?") —
        재질 결(#matx)이 저그 색을 휘도·채도로 살/뼈로 가르는데(휘도 > 0.5 · 채도 < 0.4 = 뼈) 진한 황토는 살로 쳐 붉은 속살 비침이 얹힌다. 뼈 문턱 안의 황토(휘도 0.59 · 채도 0.37)라 뿔 결(줄결·구멍)을 탄다. */
-    const HIVE_HORN = "#624622";   // 황토 #a8946a → 붉은 갈색 #9a5f3e(같은 날 "색은 더 붉은 갈색 · 뿔기둥 색") → 어둡게 #7a4a30 → #5c3826(같은 날 "하이브 뿔기둥 좀 더 어둡게") → 노란 톤 강화 #624622(색상 21° → 34° · "+노란톤 강화") — 살로 쳐 속살 비침을 탄다
+    const HIVE_HORN = "#4f5f2b";   // #624622 → 올리브 #4f5f2b(2026-11-17, 요청: "하이브는 올리브색" — 시안 #5c5e2a 겨자 · #465626 짙은 풀색 · #57632e 카키 · 저그 곡선의 따뜻한 색 올림이 노랑을 주황으로 미니 초록 쪽으로 · 되물린 값 #624622) · 옛: 황토 #a8946a → 붉은 갈색 #9a5f3e(같은 날 "색은 더 붉은 갈색 · 뿔기둥 색") → 어둡게 #7a4a30 → #5c3826(같은 날 "하이브 뿔기둥 좀 더 어둡게") → 노란 톤 강화 #624622(색상 21° → 34° · "+노란톤 강화") — 살로 쳐 속살 비침을 탄다
     const HIVE_SPIKE9 = "#e0c85a";   // 뿔 안쪽 가시 — 노란 상아(요청)
     const HIVE_GOO9 = "#3f8f28";     // 뿔 안쪽 초록 물질 — 바닥 연못(zergPond9)의 초록(아래 ★)
     /* ★ 뿔 셋은 레어와 같은 자다 — 기둥 **사이**(−175·−55·65)의 구멍에서 ㄴ자로 나와 오른다(`mouthHorn9`).
@@ -29772,40 +29772,88 @@ SHAPE_BUILDERS.scarab = () => {
 
 /* ★ 가스 덩이 한 벌(2026-09, gasPuffs9 의 ★★) — 반지름 1 의 저해상도 구(위도 4·경도 8). 붓이 굴뚝표(GasEmit9)로
    프레임마다 자리·배율·알파를 인스턴스에 실어 놓는다(gl9 gasPush9 · 도록은 glIconFlush9). 색은 베스핀 초록 하나다. */
-/* ★ **테두리는 그 색 · 가운데로 갈수록 희게**(2026-11-17, 요청: "간헐천과 가스건물의 가스연기 색 변경 — 지금 색은 테두리에 · 가운데로 갈수록
-   밝고 흰 느낌으로 그라데이션 주기") — 옛 덩이는 위도 8 · 경도 16 구의 낯 전부 #8cff86 한 색이었다.
-   덩이는 이제 **카메라를 보는 원반**(빌보드 · billPoly3)을 동심 고리 열둘 + 가운데 한 장으로 나눠, 테두리 PUFF_RIM9(옛 그 색)에서 가운데
-   PUFF_CORE9(흰빛 도는 연두)로 섞는다(섞음 0.95 · (1 − 고리 가운데 반지름)^1.15 · 빛 없이 — gl9 GL_GLOW_KINDS9 · gasPush9 flat). 고리는 서로 안 겹쳐 z 싸움이 없고, 빌보드라 낯 법선이 하나라
-   빛이 원반 전체에 고르게 앉는다 — 그라데이션이 그대로 보인다. 둘레는 32각이라 어느 자리에서나 둥글다.
-   ⚠ 처음엔 구의 낯마다 '카메라를 보는 몫'으로 색을 구웠다 — 빛(방향광)이 낯마다 달리 앉아 흰 가운데가 회색으로 죽고 낯이 조각보로 읽혔다(실측).
-   붓은 그대로(gl9 gasPush9 · 도록 gasDraws9 — 자리·배율·알파). 2D(메시 기록 밖)는 옛 한 색 원. */
+/* ★★ **베스핀 가스는 뭉게구름**(2026-11-17 둘째, 요청: 원작 간헐천 그림과 함께 "베스핀가스의 가스모양은 저런 식이야 · 자연스런 연기구름") ──────────────
+   첫째 판(같은 날 · "테두리는 지금 색 · 가운데로 갈수록 밝고 흰 느낌")은 빌보드 **동그란** 원반에 동심 고리 그라데이션이었다 — 공 하나로 읽혔다.
+   이제 덩이 하나가 **혹 여섯이 뭉친 구름**이다: 카메라를 보는 판(billPoly3) 위에서 방향마다 혹 원들의 가장 먼 테(R(θ))가 바깥선이고(울퉁불퉁 · 살짝 떨림),
+   그 바깥선을 고리 열넷 + 가운데로 나눠 칠한다(96 방위 · 고리는 서로 안 겹쳐 z 싸움이 없다 · 바깥 고리 알파 0.3 · 0.6 · 0.85 — 가장자리가 연기처럼 풀린다).
+   낯 색은 낯 가운데에서 셈한다: 그 자리를 맨 앞에서 덮는 혹을 반구로 보고 그 법선에 위·왼쪽 빛(원작처럼 위가 밝고 아래·혹 사이 골이 짙다) →
+   짙은 초록 #1d5f27 → #36a03f → #6ad964 → 옛 테 색 #8cff86 → 연두 흰빛 #c8ffbe → #f0fff0(혹 꼭대기만 — 첫째 판의 '가운데로 희게'는 혹마다 산다) · 몫 = 빛^2 − 0.3·(바깥 몫)².
+   모양은 셋(gaspuff · gaspuff2 · gaspuff3)이고 붓이 덩이 차례(k)로 번갈아 쓴다(gl9 gasPush9 · 도록 gasDraws9) — 같은 꼴이 줄지어 오르지 않게.
+   빛 없이 그린다(gl9 GL_GLOW_KINDS9 · 인스턴스 flat). ⚠ 원반 가운데를 원점에 두면 새까맣다(빌보드 법선 자리 normalize → NaN) — z 0.01.
+   2D(메시 기록 밖)는 옛 한 색 원. */
 const PUFF_RIM9 = "#8cff86";
-const PUFF_CORE9 = "#f2fff0";
-SHAPE_BUILDERS.gaspuff = () => {
+const PUFF_RAMP9: [number, string][] = [[0, "#1d5f27"], [0.35, "#36a03f"], [0.62, "#6ad964"], [0.82, PUFF_RIM9], [0.93, "#c8ffbe"], [1, "#f0fff0"]];
+/** 혹 [u, v, 반지름] — v 가 위(+) · 원반 반지름 1 언저리. */
+const PUFF_LOBES9: [number, number, number][][] = [
+  [[0, 0, 0.6], [-0.42, -0.12, 0.42], [0.44, -0.1, 0.44], [-0.2, 0.36, 0.42], [0.24, 0.38, 0.4], [0.02, -0.38, 0.38]],
+  [[0, 0.05, 0.58], [-0.48, 0.05, 0.38], [0.42, 0.12, 0.46], [-0.12, 0.42, 0.4], [0.3, -0.36, 0.36], [-0.3, -0.34, 0.38]],
+  [[0, 0, 0.62], [-0.4, 0.22, 0.4], [0.46, -0.02, 0.4], [0.12, 0.44, 0.38], [-0.38, -0.3, 0.36], [0.28, -0.38, 0.34]],
+];
+function puffCloud9(lobes: [number, number, number][], seed: number): ShapeFace[] {
   const [sx, sy] = project(0, 0, 0);
   const d = screenCircle(sx, sy, 1);
   if (!MESH9.on) return tagKey([[d, 1, PUFF_RIM9] as ShapeFace], partKey(0, 0, 0));
-  const RS9 = Array.from({ length: 13 }, (_, i9) => 1 - i9 * 0.0767);   // 고리 가장자리(바깥 1 → 안 0.08 · 열둘 — 일곱이면 띠가 보였다)
   /* 원반 가운데는 원점에서 한 뼘 위 — 셰이더가 빌보드 법선 자리(aNrm)에 실린 **원반 가운데**를 normalize 하므로 (0, 0, 0) 이면 NaN 이라 원반이 새까맣다(실측). */
   const CZ9 = 0.01;
-  const SEG9 = 32;
-  const at9 = (r9: number, j9: number): [number, number] => {
-    const t9 = (j9 / SEG9) * Math.PI * 2; return [Math.cos(t9) * r9, Math.sin(t9) * r9];
+  const SEG9 = 96;
+  /** 방향 θ 의 바깥선 — 혹 원들 가운데 가장 먼 테 + 잔 떨림. */
+  const rimAt9 = (th9: number): number => {
+    const dx9 = Math.cos(th9); const dy9 = Math.sin(th9);
+    let best9 = 0.3;
+    for (const [cu9, cv9, cr9] of lobes) {
+      const b9 = dx9 * cu9 + dy9 * cv9; const disc9 = cr9 * cr9 - (cu9 * cu9 + cv9 * cv9 - b9 * b9);
+      if (disc9 >= 0) best9 = Math.max(best9, b9 + Math.sqrt(disc9));
+    }
+    return best9 * (1 + 0.035 * Math.sin(th9 * 7 + seed) + 0.02 * Math.sin(th9 * 13 + seed * 2.3));
   };
-  const colAt9 = (m9: number): string => mixHex(PUFF_RIM9, PUFF_CORE9, 0.95 * (1 - m9) ** 1.15);
+  const RIM9 = Array.from({ length: SEG9 + 1 }, (_, j9) => rimAt9((j9 / SEG9) * Math.PI * 2));
+  const at9 = (s9: number, j9: number): [number, number] => {
+    const t9 = (j9 / SEG9) * Math.PI * 2; const r9 = s9 * RIM9[j9];
+    return [Math.cos(t9) * r9, Math.sin(t9) * r9];
+  };
+  const ramp9 = (t9: number): string => {
+    for (let i9 = 1; i9 < PUFF_RAMP9.length; i9 += 1) {
+      const [t1, c1] = PUFF_RAMP9[i9]; const [t0, c0] = PUFF_RAMP9[i9 - 1];
+      if (t9 <= t1) return mixHex(c0, c1, (t9 - t0) / (t1 - t0));
+    }
+    return PUFF_RAMP9[PUFF_RAMP9.length - 1][1];
+  };
+  /** 낯 가운데(u, v)의 색 — 그 자리를 **맨 앞에서 덮는 혹**(혹을 반구로 보고 높이가 가장 큰 것 · 위 혹이 조금 앞)의 구면 법선으로 위·왼쪽 빛을 받는다.
+   *  혹 가운데는 밝고(흰빛) 혹 사이 골·아래 테는 짙은 초록 — 뭉게구름의 결이다. 바깥선 떨림으로 어느 혹에도 안 드는 테 몇 낯은 가장 짙게. */
+  const LX9 = -0.45; const LY9 = 0.62; const LZ9 = 0.64; const LN9 = Math.hypot(LX9, LY9, LZ9);
+  const colAt9 = (u9: number, v9: number, dr9: number): string => {
+    /* 덮는 혹을 하나로 딱 고르면 혹 경계에서 낯 칸이 톱니로 갈렸다(실측) — 높이로 부드럽게 무게를 나눈다(exp(12·h) · 높은 혹이 거의 다 가진다). */
+    let wsum9 = 0; let sh9 = 0;
+    for (const [cu9, cv9, cr9] of lobes) {
+      const du9 = (u9 - cu9) / cr9; const dv9 = (v9 - cv9) / cr9; const q9 = du9 * du9 + dv9 * dv9;
+      if (q9 >= 1) continue;
+      const nz9 = Math.sqrt(1 - q9);
+      const w9 = Math.exp(12 * (nz9 * cr9 + cv9 * 0.15));
+      wsum9 += w9; sh9 += w9 * (du9 * LX9 + dv9 * LY9 + nz9 * LZ9) / LN9;
+    }
+    sh9 = wsum9 > 0 ? sh9 / wsum9 : -0.6;
+    // 바깥으로 갈수록 짙게(− 0.3·dr²) — 테의 옅은 알파 낯이 밝으면 잿빛 테로 바랬다(실측).
+    return ramp9(Math.min(1, Math.max(0, 0.04 + 0.96 * ((sh9 + 1) / 2) ** 2.0 - 0.3 * dr9 * dr9)));
+  };
+  // 고리 열넷(바깥 → 안) — 여덟이면 등고선처럼 띠가 섰다(실측). 바깥 셋은 알파가 풀린다(연기 가장자리).
+  const RS9 = Array.from({ length: 15 }, (_, i9) => 1 - i9 * 0.0643);
   const faces: ShapeFace[] = [];
   for (let i9 = 0; i9 + 1 < RS9.length; i9 += 1) {
-    const ro9 = RS9[i9]; const ri9 = RS9[i9 + 1];
-    const col9 = colAt9(i9 === 0 ? ro9 : (ro9 + ri9) / 2);
+    const ro9 = RS9[i9]; const ri9 = RS9[i9 + 1]; const a9 = i9 === 0 ? 0.3 : i9 === 1 ? 0.6 : i9 === 2 ? 0.85 : 1;
     for (let j9 = 0; j9 < SEG9; j9 += 1) {
+      const q9 = [at9(ri9, j9), at9(ri9, j9 + 1), at9(ro9, j9 + 1), at9(ro9, j9)];
+      const cu9 = (q9[0][0] + q9[1][0] + q9[2][0] + q9[3][0]) / 4; const cv9 = (q9[0][1] + q9[1][1] + q9[2][1] + q9[3][1]) / 4;
       // 감는 차례는 시계 방향(화면) — 반대로 감으면 낯 법선이 카메라 반대·아래를 봐 빛을 못 받고 새까맣다(실측).
-      faces.push([billPoly3(0, 0, CZ9, [at9(ri9, j9), at9(ri9, j9 + 1), at9(ro9, j9 + 1), at9(ro9, j9)]), 1, col9] as ShapeFace);
+      faces.push([billPoly3(0, 0, CZ9, q9), a9, colAt9(cu9, cv9, (ro9 + ri9) / 2)] as ShapeFace);
     }
   }
   const rc9 = RS9[RS9.length - 1];
-  faces.push([billPoly3(0, 0, CZ9, Array.from({ length: SEG9 }, (_, j9) => at9(rc9, SEG9 - j9))), 1, colAt9(0)] as ShapeFace);
+  faces.push([billPoly3(0, 0, CZ9, Array.from({ length: SEG9 }, (_, j9) => at9(rc9, SEG9 - j9))), 1, colAt9(0, 0, 0)] as ShapeFace);
   return tagKey(faces, partKey(0, 0, 0));
-};
+}
+SHAPE_BUILDERS.gaspuff = () => puffCloud9(PUFF_LOBES9[0], 1.3);
+SHAPE_BUILDERS.gaspuff2 = () => puffCloud9(PUFF_LOBES9[1], 2.9);
+SHAPE_BUILDERS.gaspuff3 = () => puffCloud9(PUFF_LOBES9[2], 4.7);
 
 /* 크립 블롭 세 변형(요청: 저그 건물 아래 크립) — 씨앗만 다른 같은 생물 카펫. */
 SHAPE_BUILDERS.creeppatch = () => creepBlobFaces(0.7);

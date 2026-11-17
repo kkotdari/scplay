@@ -907,3 +907,10 @@ z 8.65 로 크레스트(≈7.8)보다 높고 뿌리 반폭 1.5 가 목(0.85)을 
 - 되물린 시안: 곡선만(바탕 그대로 — 평균 #e1d9ce · 조금 더 희다).
 - 🔎 `node scripts/model-gl.mjs --bake 2 --kinds ultra,zling,lurker --rots 45 --cell 300 --hash glbloom=0 --bg '#2c2e33'` · 밝은 저채도 화소 평균은 scratch `ivtry.sh`.
   아틀라스 다시 굽기(SPR_BONE_GRADE9 는 판 해시에 든다).
+
+## 하이브 뿔기둥 올리브 · 럴커 1.1배(2026-11-17)
+- 요청: "하이브는 올리브색" — 뿔기둥 셋 `HIVE_HORN` #624622 → **#4f5f2b**(올리브). 저그 곡선의 따뜻한 색 올림(빨강 > 파랑 · 초록이 빨강을 안 넘는 색)이 노랑을 주황으로 밀고
+  재질 결이 살로 쳐 붉은 속살 비침을 얹어, 올리브를 노랑 쪽(#6b6a2c · #7d7a38 · #5c5e2a)으로 고르면 화면에서 **겨자색**이 됐다 — 초록 쪽으로 비킨 값이 올리브로 남는다.
+  되물린 시안: #465626(짙은 풀색 · 살 아닌 껍질 결) · #57632e(카키). 뿔 안쪽 초록(HIVE_GOO9) · 가시 · 옆 갈비(HIVE_IVORY)는 그대로.
+- 요청: "럴커 크기 1.1배" — engine9 `UNIT_SIZE_TUNE.lurker` 1.1(표에 없던 1 → 1.1). 버로우 구멍(lurkerburrow · lurkerfire)도 같은 sizeKind 라 함께 커진다.
+- 🔎 `node scripts/model-gl.mjs --bake 2 --kinds hive --rots 45 --cell 360 --hash glbloom=0 --bg '#2c2e33'` · 아틀라스 다시 굽기(크기표 해시도 바뀐다).

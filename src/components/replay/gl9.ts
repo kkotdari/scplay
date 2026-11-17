@@ -873,8 +873,8 @@ export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0,
 /** 캔버스(판)에 남기는 종류 — 화면 전용 효과(빛무리·번개·폭발 고리)와 반투명 구 겹으로 그린 아콘: 3D 로 옮기면 뜻이 달라진다. */
 export const GL_CANVAS_KINDS9 = new Set<string>([]);
 /** 발광 효과 종류 — 반투명 면이 곧 몸(mesh9 glow)이고 음영 없이 제 색으로 그린다(flat). 폭풍·핵은 더하기 합성(add)까지. */
-/* gaspuff(가스 덩이 · 2026-11-17) — 빌보드 고리 원반이라 법선 자리에 원반 가운데가 실린다(빛을 못 받는다) · 색 그라데이션을 그대로 보이게 빛 없이 · 종족 곡선 없이. */
-export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon", "gaspuff"]);
+/* gaspuff · gaspuff2 · gaspuff3(가스 구름 덩이 · 2026-11-17) — 빌보드 판이라 법선 자리에 판 가운데가 실린다(빛을 못 받는다) · 제 색을 그대로 보이게 빛 없이 · 종족 곡선 없이. */
+export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon", "gaspuff", "gaspuff2", "gaspuff3"]);
 /* ★ **광택 자(gloss)는 종족이 든다**(2026-09) — 낯마다 재질을 적으면 빌더 154종을 다 만져야 하고,
    색으로 짐작하면 틀린다(이 파일이 이미 겪은 자리다 — "색만 보고는 빛과 진한 물감을 못 가른다").
    그래서 **종류 → 종족** 한 자를 쓴다: 도록 표(SHAPE_GALLERY)가 154종을 이미 종족으로 갈라 놓았다.
@@ -3430,14 +3430,33 @@ export class GlUnits9 implements VecSink9 {
    *  개체는 그 위). 칸이 없으니 프레임 수에 상한이 없다. */
   gasPush9(mesh: GlMesh9, ax: number, ay: number, k: number, yoff: number, yawDeg: number, cam: GlCam9, u0: number, color: string, alpha: number, over = true): void {
     const gas = mesh.gas; if (!gas || k < 1.2) return;
-    const pm = this.unitMesh("gaspuff", 0, 3); if (!pm) return;
+    const pm0 = this.unitMesh("gaspuff", 0, 3); if (!pm0) return;
+    const pms = [pm0, this.unitMesh("gaspuff2", 0, 3) ?? pm0, this.unitMesh("gaspuff3", 0, 3) ?? pm0];   // 구름 꼴 셋 — 덩이 차례로 번갈아(bake9 gaspuff ★★)
     const u = ((u0 % 1) + 1) % 1;
+    let ei = 0;
     for (const e of gas) {
+      ei += 1;
       for (const f of gasPuffFrames9(e, u)) {
+        const pm = pms[(f.k + ei) % 3];
         const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, yawDeg, cam);
         const kk = k * f.rr;
         // flat — 덩이는 빌보드 고리 원반이라 빛 없이 제 그라데이션 그대로(bake9 gaspuff ★ · 2026-11-17)
         this.push({ mesh: pm, ax: ax + k * X, ay: ay + yoff + k * Y, k: kk, yoff: 0, yawDeg: 0, color, alpha: alpha * f.a, cam, gradR: kk * 1.2, gradCy: 0, over, flat: true });
+      }
+    }
+  }
+  /** ★ **지도 위 가스 연기는 2D 구름 붓**(2026-11-17, 요청: 원작 그림 "베스핀 가스 모양은 저런 식 · 자연스런 연기구름" → "가스는 그냥 css 로 그리는 게 나을 수도") —
+   *  메시 덩이(빌보드 원반 · 구름 판)는 낯이 칸으로 갈려 띠·톱니가 남았다. 덩이 자리·크기·알파만 gasPush9 와 **같은 식**으로 풀어 out 에 싣고,
+   *  붓(RMP drawGasCloud9)이 효과 캔버스에 방사 그러데이션 혹 여럿으로 그린다(몸을 다 그린 뒤 · 효과 앞). 도록 칸(gasDraws9)은 GL 판이라 메시 구름 그대로. */
+  gasPuffs2d9(mesh: GlMesh9, ax: number, ay: number, k: number, yoff: number, yawDeg: number, cam: GlCam9, u0: number, alpha: number, out: { x: number; y: number; r: number; a: number; v: number }[]): void {
+    const gas = mesh.gas; if (!gas || k < 1.2) return;
+    const u = ((u0 % 1) + 1) % 1;
+    let ei = 0;
+    for (const e of gas) {
+      ei += 1;
+      for (const f of gasPuffFrames9(e, u)) {
+        const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, yawDeg, cam);
+        out.push({ x: ax + k * X, y: ay + yoff + k * Y, r: k * f.rr, a: alpha * f.a, v: f.k + ei });
       }
     }
   }
@@ -4249,11 +4268,14 @@ function gasDraws9(it: IconCell9, body: GlMesh9): void {
   const g = iconGl9; const r = it.req;
   if (!g || !body.gas) return;
   const pm = g.unitMesh("gaspuff", 0, 3); if (!pm) return;
+  const pms = [pm, g.unitMesh("gaspuff2", 0, 3) ?? pm, g.unitMesh("gaspuff3", 0, 3) ?? pm];   // 지도와 같은 번갈이(gasPush9)
   const u = (((r.spin % SPIN_ANIM9) + SPIN_ANIM9) % SPIN_ANIM9) / SPIN_ANIM9;
+  let ei = 0;
   for (const e of body.gas) {
+    ei += 1;
     for (const f of gasPuffFrames9(e, u)) {
       const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, -r.rotDeg, CAM_TOP9);
-      it.draws.push({ mesh: pm, yawDeg: 0, dx: X, dy: Y, k: f.rr, alpha: f.a, flat: true });
+      it.draws.push({ mesh: pms[(f.k + ei) % 3], yawDeg: 0, dx: X, dy: Y, k: f.rr, alpha: f.a, flat: true });
     }
     const [tX, tY] = GlUnits9.modelXY9(e.x, e.y, e.z + e.h, -r.rotDeg, CAM_TOP9);
     it.boxes.push(pm); it.boxOff.push([tX, tY]); it.boxK.push(e.r * 1.9);

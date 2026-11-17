@@ -4813,6 +4813,48 @@ function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement
   CLOUD9.set(k9, out9);
   return out9;
 }
+/** 이 장의 가스 덩이(화면 px) — 몸 루프가 싣고(gl9 gasPuffs2d9) 효과를 칠하기 전에 비운다. */
+const GAS2D9: { x: number; y: number; r: number; a: number; v: number }[] = [];
+/** 구름 꼴 셋 — 혹 [u, v(위 +), 반지름](덩이 반지름 1 자). 덩이 차례(v)로 번갈아. */
+const GAS_LOBES9: [number, number, number][][] = [
+  [[0, -0.05, 0.62], [-0.46, -0.16, 0.44], [0.46, -0.12, 0.46], [-0.2, 0.34, 0.44], [0.24, 0.36, 0.42], [0.02, 0.62, 0.32]],
+  [[0, 0, 0.6], [-0.5, 0.02, 0.4], [0.44, 0.1, 0.48], [-0.14, 0.42, 0.42], [0.3, -0.34, 0.38], [-0.32, -0.32, 0.4]],
+  [[0, 0, 0.64], [-0.42, 0.22, 0.42], [0.48, -0.02, 0.42], [0.12, 0.46, 0.4], [-0.4, -0.3, 0.38], [0.3, -0.38, 0.36]],
+];
+/** ★ **베스핀 가스 구름**(2026-11-17, 요청: 원작 그림 "자연스런 연기구름" · "가스는 그냥 css 로 그리는 게 나을 수도") — 덩이 하나 = 혹 여섯의 뭉게구름.
+ *  ① 바닥 그늘 — 덩이만 한 짙은 초록 빛무리(가장자리 투명) ② 혹마다 방사 그러데이션: 빛 자리를 위·왼쪽으로 비킨 밝은 연두 → 초록 → 짙은 초록 → 투명.
+ *  아래 혹부터 칠해 위 혹이 덮는다(뭉게뭉게 쌓인 결) · 가장자리는 늘 투명으로 풀려 연기처럼 번진다. 덩이 알파(a)는 굴뚝표 그대로(gl9 gasPuffs2d9).
+ *  방사 그러데이션 · 원뿐이라 GL 심(glctx9)이 그대로 받는다. 옛 GL 덩이(gaspuff 메시)는 도록 칸에만 남는다. */
+function drawGasCloud9(ctx: CanvasRenderingContext2D, p: { x: number; y: number; r: number; a: number; v: number }): void {
+  if (p.a <= 0.02 || p.r < 1) return;
+  const L9 = GAS_LOBES9[((p.v % 3) + 3) % 3];
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, p.a * 1.15);
+  // ① 바닥 그늘
+  const g0 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 1.25);
+  g0.addColorStop(0, "rgba(40,120,48,0.55)"); g0.addColorStop(0.6, "rgba(34,104,42,0.35)"); g0.addColorStop(1, "rgba(30,90,38,0)");
+  ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 1.25, 0, Math.PI * 2); ctx.fill();
+  // ② 혹 — 아래(v 작은 것)부터
+  const order9 = L9.map((l9, i9) => [l9[1], i9] as [number, number]).sort((x9, y9) => x9[0] - y9[0]);
+  for (const [, i9] of order9) {
+    const [u9, v9, r9] = L9[i9];
+    const cx9 = p.x + u9 * p.r; const cy9 = p.y - v9 * p.r; const rr9 = r9 * p.r * 1.25;   // 1.12 면 혹이 포도알처럼 갈렸다(실측)
+    // 몸 — 가운데 초록에서 테로 짙어지며 투명. ⚠ 빛 자리를 그러데이션 안쪽 원 중심으로 비키면 GL 심은 그 비킴을 못 탄다(바깥 원 중심으로 부채를 편다) —
+    //   그래서 몸과 빛(아래)을 **제 중심을 가진 두 원**으로 가른다.
+    const g9 = ctx.createRadialGradient(cx9, cy9, 0, cx9, cy9, rr9);
+    g9.addColorStop(0, "rgba(120,228,106,0.92)");
+    g9.addColorStop(0.55, "rgba(70,182,72,0.8)");
+    g9.addColorStop(0.82, "rgba(44,132,50,0.3)");   // 0.45 면 혹마다 짙은 테가 겹쳐 금이 섰다(실측)
+    g9.addColorStop(1, "rgba(30,100,40,0)");
+    ctx.fillStyle = g9; ctx.beginPath(); ctx.arc(cx9, cy9, rr9, 0, Math.PI * 2); ctx.fill();
+    // 빛 — 위·왼쪽으로 비킨 밝은 연두(혹마다 볼록하게)
+    const hx9 = cx9 - rr9 * 0.3; const hy9 = cy9 - rr9 * 0.34; const hr9 = rr9 * 0.58;
+    const h9 = ctx.createRadialGradient(hx9, hy9, 0, hx9, hy9, hr9);
+    h9.addColorStop(0, "rgba(222,255,208,0.85)"); h9.addColorStop(0.5, "rgba(170,246,150,0.45)"); h9.addColorStop(1, "rgba(150,236,130,0)");
+    ctx.fillStyle = h9; ctx.beginPath(); ctx.arc(hx9, hy9, hr9, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
 /** ★ **시즈 전차포의 불꽃 둘**(2026-11-17, 요청: "시즈 트레이서 중 포구 쪽 것을 지금 타원형에서 불꽃형으로 포구 방향에 맞게 그리기 ·
  *  탄 날아가는 효과 제거하고 맞은 쪽만 스플래시 좀 더 밝은 타원형 불꽃 아름답게") — 옛 그림은 둘 다 FX_IMPACT 의 방사 그러데이션 타원 한 장이었다
  *  (포구 siege · 착탄 tankboom). 날아가던 에너지포(tankshell)는 시즈만 걷었다(engine9 · 도록 — 탱크 모드의 탄은 그대로).
@@ -7036,6 +7078,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const vec9 = gl9 && gl9.vecOk ? gl9.vecCtx() : null;
       if (gl9 && !vec9 && !fxCvOn9) setFxCvOn9(true);   // 심이 없는 문맥 — 효과 캔버스를 세운다(다음 렌더부터)
       const fxCtx9 = vec9 ? (vec9 as unknown as CanvasRenderingContext2D) : (fctx9 ?? ctx);
+      GAS2D9.length = 0;   // 가스 구름 자리는 이 장의 몸 루프가 새로 싣는다(drawGasCloud9 ★ · 칠하는 자리를 못 지난 장의 남은 것이 쌓이지 않게)
       if (fctx9 && fcv9) {
         // 심이 그리는 동안 효과 캔버스는 빈 채로 둔다 — 비우기는 한 번이면 된다(프레임마다 온 화면을 지우는 값을 안 치른다).
         if (!vec9 || !FX_CLEAN9.has(fcv9)) { clipEnd9(fctx9); fctx9.setTransform(Bd, 0, 0, Bd, 0, 0); clipBegin9(fctx9, cw, ch); }
@@ -7741,7 +7784,8 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
             }
             gl9.push({ mesh: glB9, ax: gax9, ay: gay9, k: gk9, yoff: op.mkFrac !== undefined ? 0 : -gk9 * glBf9.bot, yawDeg: -(op.rotDeg ?? 0), color: op.color, alpha: op.alpha, cam: glBcam9, gradR: gR9, gradCy: gCy9, shadow: gsh9, flat: GL_GLOW_KINDS9.has(op.kind), over: true, ...(glBlt9 ? { lit: litOn9, meshLt: glBlt9 } : {}), ...(op.aura && sprFlatB9 ? { aura: true } : {}), ...(bRing9 ? { ring: bRing9 } : {}), ...(op.warpK !== undefined ? { warp: op.warpK } : {}) });
             /* ★ 가스 연기는 메시가 아니라 **프레임마다 놓는 덩이**다(2026-09, gl9 gasPush9) — 회전 칸이 소수(엔진)라 시계가 이어진다. */
-            if (glB9.gas) gl9.gasPush9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.color, op.alpha);
+            /* (2026-11-17) 덩이는 GL 인스턴스가 아니라 2D 구름 붓으로 — 자리만 모아 두고 효과를 칠하기 전에 그린다(gl9 gasPuffs2d9 · drawGasCloud9 ★). */
+            if (glB9.gas) gl9.gasPuffs2d9(glB9, gax9, gay9, gk9, -gk9 * glBf9.bot, -(op.rotDeg ?? 0), glBcam9, (op.spin ?? 0) / SPIN_ANIM9, op.alpha, GAS2D9);
             if (op.attach) {
               /* ★ 딸림 부품은 **제 요잉**을 가질 수 있다(attachRot · bake9 turret 의 ★★) — 도는 머리를
                  그것으로 돌리면 각이 셰이더 유니폼이라 **메시 열쇠에 안 든다**(터렛 48벌 → 1벌).
@@ -8443,6 +8487,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           }
         }
         /* 효과 삼각형은 flush 안에서 그려지므로 **그 전에** 붓이 다 말해야 한다(심이 모아 둔 꼭짓점을 flush 가 민다). */
+        if (vec9 && GAS2D9.length) { for (const p9 of GAS2D9) drawGasCloud9(fxCtx9, p9); GAS2D9.length = 0; }   // 가스 구름 — 몸 뒤 · 효과 앞(drawGasCloud9 ★)
         if (vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
           paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9, splitView9: PAINT_CLIP9 !== null });
         }
@@ -8491,6 +8536,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           SCR_DIAG.gl = `on${gl9.gl2 ? "2" : "1"}${gl9.instOn ? "" : "·인스턴싱 없음"} 죄기${gl9.view ? "켬" : "끔"}·다시${VIS_KICK9.n} 개체 ${gl9.stat.inst} 드로 ${gl9.stat.draws}[바닥${gl9.stat.dp.p} 판${gl9.stat.dp.s} 효과${gl9.stat.dp.v} 스웜${gl9.stat.dp.w} 번짐${gl9.stat.dp.f} 메시${gl9.stat.draws - gl9.stat.dp.p - gl9.stat.dp.s - gl9.stat.dp.v - gl9.stat.dp.w - gl9.stat.dp.f}] 삼각 ${gl9.stat.tris} 메시 ${gl9.stat.meshes}/${gl9.meshMax}(${gl9.stat.bakeMs.toFixed(0)}ms·${(gl9.stat.bytes / 1048576).toFixed(1)}MB${gl9.stat.evict ? "·버림 " + gl9.stat.evict : ""}${gl9.stat.lazy ? `·나중${gl9.stat.lazy}·지음${gl9.stat.lazyBuilt}` : ""}) 깊이칸 ${gl9.stat.slots}/${gl9.stat.depthBits}bit 번짐 ${gl9.stat.bloom} 바닥 ${gl9.stat.prims} 효과△ ${gl9.stat.fxTris}${miss9 ? " 판으로 " + miss9 : ""}${glTerrLast9 && terrain?.current ? ` 지형${glTerrLast9.cacheStat.hit ? "(판)" : ""}·베낌${glTerrLast9.cacheStat.copies}·삼각${glTerrLast9.terr.stat.triN}(${glTerrLast9.terr.stat.triMs.toFixed(0)}ms) 드로${glTerrLast9.terr.stat.draws}·정점${(glTerrLast9.terr.stat.verts / 1000).toFixed(0)}k·${(glTerrLast9.terr.stat.bytes / 1048576).toFixed(1)}MB(올림${glTerrLast9.terr.stat.buildMs.toFixed(0)}ms·기하${terrain.current.ms.toFixed(0)}ms)${fog?.current ? ` 칸안개[${FOG17_WHY9.v || "v" + FOG17_9.ver}] 안개 눈${glTerrLast9.terr.stat.fogEyes}${glTerrLast9.terr.stat.fogFull ? "(덮음)" : ""}·${(glTerrLast9.terr.stat.fogVerts / 1000).toFixed(0)}k정점·고리${fog.current.loops.length}` : ""}` : ""}${gl9.sprOn ? ` 2D판 몸${gl9.sprStat.body}·그림자${gl9.sprStat.shadow}·굽기${gl9.sprStat.bake}(미리${gl9.sprStat.warm}·채움${gl9.sprStat.fill})·교체대기${gl9.sprStat.swapWait}${((sw9) => (sw9 ? `·교체${sw9.n}/내림${sw9.drop}` : ""))(sprSwapStat9(gl9))}·늘임${gl9.sprStat.scaled}·메시${gl9.sprStat.mesh} 칸${gl9.sprStat.cells}/판${gl9.sprStat.pages}(상한${gl9.sprPageCap9()}·장${gl9.sprPageMB9().toFixed(0)}MB·예산${gl9.sprBudget}·MSAA${gl9.sprMsaa}) 놓침${gl9.sprStat.missN}[${gl9.sprStat.missLog.join(" ")}] 비움${gl9.sprStat.evict} 예열[${SCR_DIAG.warm9}] 아틀라스[${SCR_DIAG.atlas || "-"} 고정판${gl9.sprStat.fixed}]` : ""}`;
         }
       }
+      if (GAS2D9.length) { for (const p9 of GAS2D9) drawGasCloud9(fxCtx9, p9); GAS2D9.length = 0; }   // 심이 없는 판(2D 효과 캔버스) — 같은 붓
       if (!vec9 && fx && fx.length > 0 && (detail || zoom >= TRACER_MIN_ZOOM || PAINT_CLIP9 !== null)) {
         /* 효과 붓은 **모듈 함수**다(paintFxList9 의 ★) — 도록이 같은 붓으로 한 발을 그린다. */
         paintFxList9(fxCtx9, fx, { zoom, tilePx, zx, zy, cw, ch, Bd, trim9, detailAt, swarmDone9, splitView9: PAINT_CLIP9 !== null });
