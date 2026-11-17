@@ -4922,6 +4922,32 @@ function drawSiegeFire9(ctx: CanvasRenderingContext2D, kind: "muzzle" | "boom", 
   }
   ctx.restore();
 }
+/** ★ **탱크 포구 연기**(2026-11-17, 요청: "탱크 … 포구 쪽은 작은 불꽃과 연기") — 회색 덩이 넷이 겨눈 쪽(rot · 화면 라디안)으로 밀려 나가며
+ *  위로 오르고 부풀었다 스러진다. 덩이마다 조금씩 늦게 나고(0.06씩) 옆으로 흔들린다(씨앗). 방사 그러데이션 원뿐이라 GL 심이 그대로 받는다. */
+function drawTankSmoke9(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, p: number, rot: number, seed: number): void {
+  if (R < 0.5 || p >= 1) return;
+  const hh9 = (k: number): number => { let v = Math.imul((seed + k * 7919) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; v ^= v >>> 13; v = Math.imul(v, 0xc2b2ae35) >>> 0; v ^= v >>> 16; return (v >>> 0) / 4294967296; };
+  const dx9 = Math.cos(rot); const dy9 = Math.sin(rot);
+  ctx.save();
+  for (let i9 = 0; i9 < 4; i9 += 1) {
+    const t9 = Math.max(0, Math.min(1, (p - i9 * 0.06) / (1 - i9 * 0.06)));
+    if (t9 <= 0 || t9 >= 1) continue;
+    const e9 = 1 - (1 - t9) * (1 - t9);
+    const d9 = R * (0.35 + 0.38 * i9) * (0.35 + 0.65 * e9);
+    const l9 = (hh9(i9) - 0.5) * R * 0.35 * (0.4 + e9);
+    const px9 = x + dx9 * d9 - dy9 * l9;
+    const py9 = y + dy9 * d9 + dx9 * l9 - R * 0.7 * e9;
+    const rr9 = R * (0.36 + 0.1 * i9 + 0.08 * hh9(10 + i9)) * (0.55 + 1.0 * e9);
+    ctx.globalAlpha = 0.85 * (t9 < 0.12 ? t9 / 0.12 : 1) * (1 - t9) ** 1.2;
+    const g9 = ctx.createRadialGradient(px9, py9, 0, px9, py9, rr9);
+    g9.addColorStop(0, "rgba(210,205,196,0.92)");
+    g9.addColorStop(0.55, "rgba(165,160,152,0.62)");
+    g9.addColorStop(1, "rgba(130,128,124,0)");
+    ctx.fillStyle = g9;
+    ctx.beginPath(); ctx.arc(px9, py9, rr9, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
 function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number, tz9 = zoom): void {
   const W = Math.max(3, (f.size ?? 4) * zoom);
   /* ★ 파편의 **수는 몸집 단으로, 크기는 조금만**(요청: "유닛간 크기 차이에 따라 파편 크기를 배율로 키우기보다는 크기는
@@ -5565,11 +5591,14 @@ export function paintFxList9(
       // 깃발로 가른다(재지적: "스플래시는 트레이서에 가깝고 피격효과는 나야지") — 같은 무기에
       // **맞아서 체력이 깎인** 피격(splash 없음)은 아래 파편으로 간다.
       /* 시즈 전차포 — 포구 불꽃(siege · deg = 겨눈 쪽)·착탄 불꽃(tankboom)은 제 붓(drawSiegeFire9 ★). 씨앗은 지도 자리라 한 발 내내 같은 꽃잎이다. */
-      if (im9 && f.splash && (f.style === "siege" || f.style === "tankboom")) {
+      /* 탱크 모드(2026-11-17 · 즉시 피격) — 포구 작은 불꽃 tankmz · 연기 tanksmoke · 표적 작은 불꽃 폭발 tankhit 도 같은 붓(작게) · 연기는 drawTankSmoke9. */
+      if (im9 && f.splash && (f.style === "siege" || f.style === "tankboom" || f.style === "tankmz" || f.style === "tankhit" || f.style === "tanksmoke")) {
         const sd9 = (Math.round(f.fx * 9973) * 31 + Math.round(f.fy * 9967) * 17) | 0;
-        if (f.style === "siege") {
-          drawSiegeFire9(ctx, "muzzle", hx9, hy9, r9 * im9.r * 0.62, p9, a9, f.deg !== undefined ? (f.deg * Math.PI) / 180 + Math.PI / 2 : 0, sd9);
-        } else drawSiegeFire9(ctx, "boom", hx9, hy9, r9 * im9.r, p9, a9, 0, sd9);
+        const rot9 = f.deg !== undefined ? (f.deg * Math.PI) / 180 + Math.PI / 2 : 0;
+        if (f.style === "siege" || f.style === "tankmz") {
+          drawSiegeFire9(ctx, "muzzle", hx9, hy9, r9 * im9.r * (f.style === "siege" ? 0.62 : 0.9), p9, a9, rot9, sd9);
+        } else if (f.style === "tanksmoke") drawTankSmoke9(ctx, hx9, hy9, r9 * im9.r, p9, rot9, sd9);
+        else drawSiegeFire9(ctx, "boom", hx9, hy9, r9 * im9.r, p9, a9, 0, sd9);
         continue;
       }
       if (im9 && f.splash) {
@@ -8999,40 +9028,29 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
     if (style !== "erupt" && style !== "spike" && style !== "dig" && style !== "scarab"
       && (NO_BEAM_FX.has(style) || TARGET_FX.has(style))) {
       if (MUZZLE_BURST_FX9.has(style) || SHELL_ONLY_FX9.has(style)) {
-        // 탄만 나는 갈래(일반 탱크)는 포구 불꽃·착탄 폭발을 안 낸다(engine9 의 ★★).
         const burst9 = MUZZLE_BURST_FX9.has(style);
-        /* 전차포 — 지도와 같은 셋이다(engine9 의 ★★): 포구 불꽃 · 포물선을 나는 에너지포 ·
-           착탄 스플래시. 한 바퀴 1.1초 중 **앞 0.16초**가 나는 몫이다(거의 동시에 맞는다).
-           ★ 탄만 나는 일반 탱크는 **도록에서 0.6초를 난다**(지적: "탱크모드 탱크의 트레이서가 아예
-             사라짐") — 지도의 0.16초를 그대로 두면 한 바퀴의 15%만 보여 빈 칸으로 읽힌다. 불꽃·폭발이
-             나머지를 채우는 시즈와 달리 이 갈래는 탄 하나가 전부라, 보여 주는 자리에서만 늘린다. */
+        /* 전차포 — 지도와 같은 자리·같은 박자(engine9 사격 자리의 ★★ 둘). 한 바퀴 1.1초.
+           · 시즈: 앞 0.16초 포구 불꽃(siege) → 착탄 불꽃(tankboom · 0.5초). 날아가는 탄은 없다(2026-11-17).
+           · 탱크 모드: 쏘는 순간 포구 작은 불꽃(tankmz 0.14초) · 연기(tanksmoke 0.7초) · 표적 작은 불꽃 폭발(tankhit 0.32초)이 함께 선다(2026-11-17 · 즉시 피격).
+             옛 판은 도록에서만 0.6초를 나는 에너지포 하나였다(지적: "탱크모드 탱크의 트레이서가 아예 사라짐" 의 그 늘림 — 이제 불꽃·연기가 칸을 채워 걷었다). */
         const cyc9 = 1.1;
         const el9 = ((t % cyc9) + cyc9) % cyc9;
-        const fly9 = burst9 ? 0.16 : 0.6;
+        const fly9 = 0.16;
         const u9 = Math.min(1, el9 / fly9);
         const tvx9 = ux9 * dist9;
         const tvy9 = uy9 * dist9;
-        const arc9 = dist9 * 0.12;
-        if (u9 < 1) {
+        if (!burst9) {
+          if (el9 < 0.7) put9(0, 0, hs9 * 0.5, "tanksmoke", el9 / 0.7, deg9);
+          if (el9 < 0.14) put9(0, 0, hs9 * 0.3, "tankmz", 0.12 + (el9 / 0.14) * 0.88, deg9);
+          if (el9 < 0.32) put9(tvx9, tvy9, hs9 * 0.5, "tankhit", el9 / 0.32);
+        } else if (u9 < 1) {
           // 포구 불꽃은 **작다** — 크면 중심이 총구여도 몸을 덮어 '몸 한가운데'로 읽힌다(지적).
-          if (burst9) put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
-          // 빠르게 나가 가운데에서 살짝 느려졌다 다시 가속(engine9 의 그 식과 같다).
-          const e9 = u9 + (0.55 * Math.sin(2 * Math.PI * u9)) / (2 * Math.PI);
-          /* 자·각 다 지도의 것 — 곧은 선 · 두 배(engine9 의 그 자리).
-             ★ 시즈의 에너지포는 길을 **가로지르는 원반**(+90)이고, 탱크의 광전포는 **길 따라 길쭉**(요청:
-               "타원형 광전포 나가게 수정 근데 얘는 이동방향으로 길쭉")이라 각을 안 돌린다.
-             탱크 모드의 포탄은 훨씬 작다(engine9 의 ⚠: 시즈 0.68 · 탱크 0.26 → 도록은 0.34). */
-          // 시즈는 날아가는 탄을 안 그린다(2026-11-17, 요청: "탄 날아가는 효과 제거" — 지도와 같다 · drawSiegeFire9 ★). 탱크 모드의 탄만 난다.
-          if (!burst9) put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3, (Math.atan2(-tvx9, tvy9) * 180) / Math.PI);
+          put9(0, 0, hs9 * 0.38, style, 0.12 + u9 * 0.88, deg9);
         } else {
-          /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
-             변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
-             방향은 안 준다: 땅에 퍼지는 폭발은 어느 쪽도 안 가리킨다. */
+          /* 착탄 — 자는 지도의 것(engine9 의 ⚠: 1.5 → 1.0 → 0.75)에 **도록 몫 0.6**을 더 건다 — 시즈는 몸이
+             4타일이라 그 폭발이 칸을 통째로 덮는다(실측 트레이서 판). 무기의 자는 안 건드리고 보여 주는 자리에서만 줄이는 그 규약이다. */
           const sp9 = (el9 - fly9) / 0.5;
-          /* 자는 지도의 것(engine9 의 ⚠: 1.5 → 1.0 → 0.75)에 **도록 몫 0.6**을 더 건다 — 시즈는 몸이
-             4타일이라 그 1.55배 폭발이 칸을 통째로 주황 안개로 덮는다(실측 트레이서 판). 무기의
-             자는 안 건드리고 보여 주는 자리에서만 줄이는 그 규약이다. */
-          if (burst9 && sp9 <= 1) put9(tvx9, tvy9, hs9 * (style === "siege" ? 0.75 : 0.6) * 0.6, "tankboom", sp9);   // 지도와 함께 ×0.75(2026-10-19)
+          if (sp9 <= 1) put9(tvx9, tvy9, hs9 * 0.75 * 0.6, "tankboom", sp9);   // 지도와 함께 ×0.75(2026-10-19)
         }
       } else {
         put9(ux9 * dist9, uy9 * dist9, hs9, style, age9);
