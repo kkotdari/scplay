@@ -24,7 +24,7 @@ import {
   BUILD_FRAMES, FIREBAT_HITS_ON_ONE_TARGET, FP, FRAME_SEC, LURKER_SPINE_TRAVEL_PX, WEAPONS,
   acquireTiles, attackOnce, cooldownFrames, fp, moveDynOf, splashDivisor, unitOf, weaponRangePx,
   type DmgTarget, type MoveDyn, type UnitCombat, type Weapon,
-  UPGRADE_TIME,
+  UPGRADE_TIME, costOf,
 } from "../../utils/bwUnits";
 import { PRAC_MAP9, type PracStartData9 } from "./practiceMap9.gen";
 
@@ -61,6 +61,8 @@ const LIST9: [string, string, PracRace9, number][] = [
   ["Vulture", "벌처", "T", 2], ["Siege Tank", "시즈 탱크", "T", 4], ["Siege Tank (Siege Mode)", "시즈 탱크(시즈 모드)", "T", 4], ["Goliath", "골리앗", "T", 2],
   ["Zealot", "질럿", "P", 2], ["Dragoon", "드라군", "P", 4], ["High Templar", "하이 템플러", "P", 2], ["Dark Templar", "다크 템플러", "P", 2],
   ["Reaver", "리버", "P", 4], ["Archon", "아콘", "P", 4],
+  /* 중반 준비 유닛(2026-11-17 넷째 판 — 커세어 · 사이언스 베슬 · 뮤탈) */
+  ["Corsair", "커세어", "P", 0], ["Science Vessel", "사이언스 베슬", "T", 0], ["Mutalisk", "뮤탈리스크", "Z", 0],
   ["Zergling", "저글링", "Z", 1], ["Hydralisk", "히드라리스크", "Z", 2], ["Lurker", "럴커", "Z", 4], ["Ultralisk", "울트라리스크", "Z", 4], ["Defiler", "디파일러", "Z", 2],
   ["SCV", "SCV", "T", 1], ["Probe", "프로브", "P", 1], ["Drone", "드론", "Z", 1],
   ["Command Center", "커맨드 센터", "T", 0], ["Nexus", "넥서스", "P", 0], ["Hatchery", "해처리", "Z", 0],
@@ -159,7 +161,8 @@ const TECH_FRAMES9: Record<string, number> = { "Tank Siege Mode": 1200, "Psionic
 /** UPGRADE_TIME 에 빠진 셋(upgrades.dat 기본 시간). */
 const UP_FRAMES9: Record<string, number> = { "Charon Boosters": 2000, "Caduceus Reactor": 2500, "Khaydarin Amulet": 2500, "Anabolic Synthesis": 2000, "Chitinous Plating": 2000 };
 /** 최대 에너지 연구(캐스터마다). */
-const ENERGY_UP9: Record<string, string> = { "High Templar": "Khaydarin Amulet", Medic: "Caduceus Reactor", Ghost: "Moebius Reactor", Defiler: "Metasynaptic Node" };
+const ENERGY_UP9: Record<string, string> = { "High Templar": "Khaydarin Amulet", Medic: "Caduceus Reactor", Ghost: "Moebius Reactor", Defiler: "Metasynaptic Node",
+  Corsair: "Argus Jewel", "Science Vessel": "Titan Reactor" };
 /** 원작 build time(프레임) — 표에 없는 것은 어림. */
 const BUILD9 = (name: string): number => BUILD_FRAMES[name] ?? ({ Archon: 300, Lurker: 600 } as Record<string, number>)[name] ?? 600;
 
@@ -180,7 +183,9 @@ export type Order9 =
   /** 사이오닉 스톰 — 그 자리(288px 안으로 걸어가 에너지 75). */
   | { t: "storm"; x: number; y: number }
   /** 럴커 변태(히드라 · Lurker Aspect) · 아콘 합체(하템 둘 — 서로를 향해 걷다 닿으면 하나가 된다). */
-  | { t: "lurker" } | { t: "archon"; id: number };
+  | { t: "lurker" } | { t: "archon"; id: number }
+  /** 디스럽션 웹(커세어 · 땅 자리) · 디펜시브 매트릭스(베슬 · 몸) · 이레디에이트(베슬 · 몸). */
+  | { t: "web"; x: number; y: number } | { t: "matrix"; id: number } | { t: "irradiate"; id: number };
 
 export interface Ent9 {
   id: number; def: UnitDef9; owner: 0 | 1;
@@ -208,15 +213,39 @@ export interface Ent9 {
   dead: boolean; hitT: number;
   /** 생산 · 연구 줄(건물 · 다섯 칸) · 지금 것의 남은/전체 프레임 · 모이는 자리. */ queue: ProdItem9[]; prodT: number; prodMax: number; rally: [number, number] | null;
   /** 적 일꾼 · 홀의 기지 번호(-1 없음). */ base: number;
+  /** 드랍 단계에 내린 몸(이 몸의 처치만 점수 · 준비 30초에 내린 것은 아니다). */ dropOk: boolean;
+  /** 도망 — 줄에 서서 기다리는 프레임 · 가는 기지. */ fleeT: number; fleeTo: number;
+  /** 디펜시브 매트릭스 — 남은 막이(fp8) · 남은 프레임. 이레디에이트 — 남은 상태 틱 · 건 베슬의 점수 자격. */ dm: number; dmT: number; irrT: number; irrOk: boolean;
   /** 변태 · 소환 남은 프레임(럴커 알 · 아콘 합체 — 그동안 아무것도 안 한다) · 끝나면 바뀔 모습. */ morphT: number; morphMax: number; morphTo: string | null;
 }
 export interface Shot9 { x1: number; y1: number; x2: number; y2: number; t: number; air: boolean; col: string }
 export interface Boom9 { x: number; y: number; t: number; r: number }
-export interface Scarab9 { x: number; y: number; tid: number; owner: 0 | 1; life: number; from: number }
-/** 스톰 마당 — life 는 남은 프레임(OpenBW bullet remaining_time). */
-export interface Storm9 { x: number; y: number; owner: 0 | 1; life: number; from: number }
+export interface Scarab9 { x: number; y: number; tid: number; owner: 0 | 1; life: number; from: number; ok: boolean }
+/** 스톰 마당 — life 는 남은 프레임(OpenBW bullet remaining_time) · ok = 점수가 되는 시전(드랍 단계에 내린 하템). */
+export interface Storm9 { x: number; y: number; owner: 0 | 1; life: number; from: number; ok: boolean }
 export interface PracStats9 { workers: number; defense: number; buildings: number; lost: number; tick: number }
+/** 턴 단계 — 준비(30초 · 드랍해도 점수 없음) · 드랍(30초 · 한 번) · 끝. */
+export type PracPhase9 = "prep" | "drop" | "over";
+/** 한 턴의 점수 — 일꾼 처치(드랍 단계에 내린 몸이 잡은 것) × 10 − 잃은 내 유닛 값(광물 + 가스 ÷ 25 · 수송선 화물 포함). */
+export interface PracScore9 { kills: number; lostPts: number; lostN: number; score: number }
+/** 점수 자 — 일꾼 한 기 · 잃은 유닛 값의 나눗수. */
+export const KILL_PTS9 = 10; export const LOST_DIV9 = 25;
+/** 한 유닛의 값(광물 + 가스) — 럴커는 히드라 몫 더 · 아콘은 하템 둘 · 저글링은 한 쌍 값의 반. */
+export const unitValue9 = (name: string): number => {
+  const c = (n: string): number => { const v = costOf(n); return v[0] + v[1]; };
+  if (name === "Lurker") return c("Hydralisk") + c("Lurker");
+  if (name === "Archon") return 2 * c("High Templar");
+  if (name === "Zergling") return c("Zergling") / 2;
+  if (name === "Siege Tank (Siege Mode)") return c("Siege Tank");
+  return c(name);
+};
+/** 잃은 한 기의 점수(올림 없이 반올림 · 최소 1). */
+export const lostPts9 = (name: string): number => Math.max(1, Math.round(unitValue9(name) / LOST_DIV9));
 
+/** 턴 — 준비("드랍을 준비하세요" · 태우기 · 날아가기 · 이때 한 드랍은 점수 없음) → 드랍 30초("드랍을 성공시키세요" · 한 번) (2026-11-17 요청). */
+export const PRAC_PREP_SEC9 = 15; export const PRAC_DROP_SEC9 = 30;   // 준비 30 → 15초(2026-11-17 넷째 요청 "준비시간 15초로 단축")
+export const PRAC_PREP_FRAMES9 = Math.round(PRAC_PREP_SEC9 / FRAME_SEC);
+export const PRAC_TURN_FRAMES9 = PRAC_PREP_FRAMES9 + Math.round(PRAC_DROP_SEC9 / FRAME_SEC);
 /** 한 프레임(ms) — 가장 빠름 23.81 fps. */
 export const PRAC_TICK_MS9 = FRAME_SEC * 1000;
 export const PRAC_FPS9 = 1 / FRAME_SEC;
@@ -248,7 +277,41 @@ const SIEGE_FRAMES9 = Math.round(1.5 / FRAME_SEC);
 /** 포탑으로 쏘는 것 — 몸을 표적 쪽으로 안 돌려도 쏜다. */
 const TURRET9 = new Set(["Siege Tank", "Siege Tank (Siege Mode)", "Goliath"]);
 /** 에너지를 쓰는 유닛 · 최대 에너지 연구(Khaydarin Amulet · Caduceus · Moebius · Metasynaptic). */
-const CASTERS9 = new Set(["High Templar", "Medic", "Ghost", "Defiler"]);
+const CASTERS9 = new Set(["High Templar", "Medic", "Ghost", "Defiler", "Corsair", "Science Vessel"]);
+/* 기술(techdata · OpenBW) — 디스럽션 웹: 에너지 125 · 9타일 · 그 아래 지상 몸 · 건물은 못 쏜다(360프레임 · 반지름은 어림 64px) ·
+   디펜시브 매트릭스: 100 · 10타일 · 250 을 막는다(168 상태 틱 × 8프레임) · 이레디에이트: 75 · 9타일 · 37 상태 틱 동안 250(방어 · 실드 무시 · 그 몸과 32px 안의 생체 지상). */
+const WEB_ENERGY9 = 125; const WEB_RANGE9 = 9 * 32; const WEB_LIFE9 = 360; const WEB_R9 = 64;
+const DM_ENERGY9 = 100; const DM_RANGE9 = 10 * 32; const DM_HP9 = 250; const DM_FRAMES9 = 168 * 8;
+const IRR_ENERGY9 = 75; const IRR_RANGE9 = 9 * 32; const IRR_TICKS9 = 37; const IRR_R9 = 32;
+
+/* ★★ 준비된 판(2026-11-17 넷째, 요청: "유닛생산 업그레이드를 미리 연습기에서 준비하게 변경 · 이외의 생산 업그레이드 불가") — 모드 · 종족마다 유닛과 연구를 다 해 둔 채
+   시작한다(에너지 가득 · 스캐럽 가득). 중반 = 초반 유닛 네 배 + 공방실드업 2 + 종족마다 더(커세어 웹 · 베슬 디펜시브/이레디 · 뮤탈 · 오버로드 시야). */
+export interface PracLoadout9 { units: [string, number][]; res: string[]; lv: number }
+const UPS_LV9: Record<PracRace9, string[]> = {
+  P: ["Protoss Ground Weapons", "Protoss Ground Armor", "Protoss Plasma Shields", "Protoss Air Weapons", "Protoss Air Armor"],
+  T: ["Terran Infantry Weapons", "Terran Infantry Armor", "Terran Vehicle Weapons", "Terran Vehicle Plating", "Terran Ship Weapons", "Terran Ship Plating"],
+  Z: ["Zerg Melee Attacks", "Zerg Missile Attacks", "Zerg Carapace", "Zerg Flyer Attacks", "Zerg Flyer Carapace"],
+};
+const EARLY9: Record<PracRace9, PracLoadout9> = {
+  /* 셔틀 2(속업) · 하템 4 · 질럿 4 · 리버 4 — 스톰 · 하템 에너지 · 발업 · 스캐럽 개수 · 공격력 · 스캐럽 가득 */
+  P: { units: [["Shuttle", 2], ["High Templar", 4], ["Zealot", 4], ["Reaver", 4]], res: ["Gravitic Drive", "Psionic Storm", "Khaydarin Amulet", "Leg Enhancements", "Reaver Capacity", "Scarab Damage"], lv: 0 },
+  /* 드랍십 2 · 시즈 탱크 4(시즈 모드) */
+  T: { units: [["Dropship", 2], ["Siege Tank", 4]], res: ["Tank Siege Mode"], lv: 0 },
+  /* 오버로드 +2(기지의 셋에 더 · 속업 · 수송업) · 히드라 4 · 럴커 4 */
+  Z: { units: [["Overlord", 2], ["Hydralisk", 4], ["Lurker", 4]], res: ["Pneumatized Carapace", "Ventral Sacs", "Lurker Aspect"], lv: 0 },
+};
+const MID_EXTRA9: Record<PracRace9, PracLoadout9> = {
+  P: { units: [["Corsair", 4]], res: ["Disruption Web", "Argus Jewel"], lv: 2 },
+  T: { units: [["Science Vessel", 2]], res: ["Irradiate", "Titan Reactor"], lv: 2 },
+  Z: { units: [["Mutalisk", 8]], res: ["Antennae"], lv: 2 },
+};
+/** 그 모드 · 종족의 준비 — 중반은 초반 유닛 × 4 에 더. */
+export function pracLoadout9(stage: PracStage9, race: PracRace9): PracLoadout9 {
+  const e = EARLY9[race];
+  if (stage === "early") return e;
+  const m = MID_EXTRA9[race];
+  return { units: [...e.units.map(([n, k]) => [n, k * 4] as [string, number]), ...m.units], res: [...e.res, ...m.res], lv: m.lv };
+}
 /** 벙커 안 마린 수(셋째 판 기지엔 벙커가 없다 — 그릇 규칙만 남긴다). */
 const BUNKER_MARINES9 = 4;
 
@@ -278,7 +341,17 @@ export const inPsi9 = (rx: number, ry: number): boolean => {
 const NEEDS_POWER9 = new Set(["Photon Cannon", "Gateway", "Cybernetics Core", "Stargate", "Forge", "Robotics Facility", "Robotics Support Bay", "Observatory",
   "Citadel of Adun", "Templar Archives", "Fleet Beacon", "Arbiter Tribunal"]);
 /** 적 기지 하나 — 홀 · 미네랄 무더기 · 일꾼이 오가는 두 자리(캐는 곳 · 내려놓는 곳)의 축. */
-interface FoeBase9 { start: PracStartData9; hall: number; mx: number; my: number; ux: number; uy: number; far: boolean }
+interface FoeBase9 {
+  start: PracStartData9; hall: number; mx: number; my: number;
+  /** 수송선(내 몸)을 봤나 · 다음 무리가 떠나기까지 남은 프레임 · 떠난 무리 수. */ alert: boolean; nextT: number; groups: number;
+}
+/** 기지마다 일꾼 수 — 맵 6판은 10 이지만 미니게임(2026-11-17, 요청: "일꾼들이 수송선을 발견시 12마리씩 순서대로 1-2초 차이 두고 다른 기지로 한줄로 도망")은
+ *  무리가 여럿이어야 해서 옛 웹 판의 50(요청: "타겟의 일꾼들도 50기 정도 미네랄 채굴중이게")으로. */
+const BASE_WORKERS9 = 50;
+/** 일꾼이 수송선을 '보는' 거리(px) — 홀에서 12타일(일꾼 시야 7 + 둘레). 맞아도 본다. */
+const ALERT_R9 = 12 * 32;
+/** 도망 — 한 무리 12(원작 한 번에 고르는 수) · 첫 무리 반응 1초 · 무리 사이 1~2초 · 무리 안에서 앞사람과 5프레임(한 줄). */
+const FLEE_GROUP9 = 12; const FLEE_REACT9 = 24; const FLEE_GAP_MIN9 = 24; const FLEE_GAP_MAX9 = 48; const FLEE_STEP9 = 5;
 
 export class PracticeSim9 {
   readonly W: number; readonly H: number;
@@ -288,6 +361,8 @@ export class PracticeSim9 {
   booms: Boom9[] = [];
   scarabs: Scarab9[] = [];
   storms: Storm9[] = [];
+  /** 디스럽션 웹 — 그 아래 상대 편 지상 몸 · 건물은 못 쏜다. */
+  webs: { x: number; y: number; owner: 0 | 1; life: number }[] = [];
   stats: PracStats9 = { workers: 0, defense: 0, buildings: 0, lost: 0, tick: 0 };
   private nextId = 1;
   private walk: Uint8Array; private cw: number; private ch: number;
@@ -296,6 +371,12 @@ export class PracticeSim9 {
   /** 적 기지들(내 자리 말고 모든 스타팅). */
   bases: FoeBase9[] = [];
   /** 적 일꾼 처음 수(HUD 의 분모). */ foeWorkers = 0;
+  /** 턴 단계 · 점수 · 첫 드랍 프레임(-1 아직) · 내 본진 네모(px — 여기서 내린 것은 드랍이 아니다). */
+  phase: PracPhase9 = "prep";
+  score: PracScore9 = { kills: 0, lostPts: 0, lostN: 0, score: 0 };
+  dropAt = -1;
+  private home: [number, number, number, number] = [0, 0, 0, 0];
+  inHome(x: number, y: number): boolean { const [x0, y0, x1, y1] = this.home; return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
   /** 원작 lcg 대신 고정 씨앗 — 같은 판은 같게 돈다. */
   private seed = 0x2545f491;
   /** 연구 · 업그레이드 단계(임자마다) — 기술은 1. */
@@ -361,9 +442,15 @@ export class PracticeSim9 {
     return Math.max(1, Math.round(f / TIME_DIV9));
   }
   /** 이 칸을 지금 걸 수 있나 — 다 했거나 이미 걸렸으면 안 된다 · 줄은 다섯 칸. */
+  /** 초반 모드에서 막힌 연구인가 — 공방업(세 단짜리 공격 · 방어 · 실드)만 막는다(셔틀 · 오버로드 속업 따위는 된다 · 2026-11-17 요청). */
+  blocked(it: ProdItem9): boolean { return this.setup.stage === "early" && it.k === "up" && this.maxLv(it.name) >= 3; }
+  /** 생산 · 연구 — 넷째 판(2026-11-17, 요청: "이외의 생산 업그레이드 불가")부터 막았다 · 연습기가 준비한 판만(pracLoadout9). 셈은 남긴다. */
+  readonly prodOn = false;
   canQueue(b: Ent9, it: ProdItem9): boolean {
+    if (!this.prodOn) return false;
     if (b.dead || b.owner !== 0 || b.queue.length >= 5) return false;
     if (it.k === "unit") return true;
+    if (this.blocked(it)) return false;
     return this.lvOf(0, it.name) + this.queuedOf(0, it.name) < (it.k === "tech" ? 1 : this.maxLv(it.name));
   }
   /** 생산 · 연구를 줄에 건다. */
@@ -423,6 +510,7 @@ export class PracticeSim9 {
       scarabs: 0, scarabT: 0, spellCd: 0, stormT: 0, xT: 0, xTo: null,
       dead: false, hitT: 0,
       queue: [], prodT: 0, prodMax: 0, rally: null, base: -1, morphT: 0, morphMax: 0, morphTo: null,
+      dropOk: false, fleeT: 0, fleeTo: -1, dm: 0, dmT: 0, irrT: 0, irrOk: false,
     };
     this.ents.push(e); this.byId.set(e.id, e);
     if (def.bld && def.foot) this.markBlock(e, 1);
@@ -493,6 +581,7 @@ export class PracticeSim9 {
     const s = this.setup;
     const mine = PRAC_MAP9.starts.find((p) => p.key === s.mySpot && p.human) ?? PRAC_MAP9.starts.find((p) => p.human)!;
     this.setup.mySpot = mine.key;
+    this.home = [mine.box[0] * 32, mine.box[1] * 32, mine.box[2] * 32, mine.box[3] * 32];
     /* 자원 — 모든 스타팅의 미네랄 무더기(사람 자리는 맵 6판이 옮긴 자리) · 가스 · 스타팅 밖 미네랄. */
     for (const st of PRAC_MAP9.starts) this.spawn("Mineral Field", 1, st.mineral[0], st.mineral[1]);
     for (const [x, y] of PRAC_MAP9.minerals) this.spawn("Mineral Field", 1, x, y);
@@ -529,12 +618,48 @@ export class PracticeSim9 {
       ["Spawning Pool", "Evolution Chamber", "Hydralisk Den", "Greater Spire", "Queen's Nest", "Defiler Mound", "Ultralisk Cavern"]
         .forEach((b9, k) => { if (cells[k]) put(b9, cells[k]); });
       this.spawn("Hive", 0, hx, hy);
-      /* 오버로드 셋(맵 6판 저그 트리거 그대로) — 하이브에서 지도 가운데 쪽으로 조금(하이브를 덮지 않게). */
-      const ang = Math.atan2(this.H / 2 - hy, this.W / 2 - hx);
-      for (let i = 0; i < 3; i += 1) {
-        const side = (i - 1) * 56;
-        const o = this.spawn("Overlord", 0, hx + Math.cos(ang) * 150 - Math.sin(ang) * side, hy + Math.sin(ang) * 150 + Math.cos(ang) * side);
-        o.face = ang; o.course = ang;
+    }
+    this.prepare(hx, hy);
+  }
+  /** 연습기가 준비한 판(pracLoadout9) — 연구 · 공방 단계 · 유닛(에너지 · 스캐럽 가득). 공중은 홀 곁 줄 · 지상은 지도 가운데 쪽 앞마당에 줄지어.
+   *  저그는 맵 6판의 오버로드 셋이 기본이고 준비의 오버로드는 그 위에 더한다("오버 +2기"). */
+  private prepare(hx: number, hy: number): void {
+    const race = this.setup.myRace;
+    const lo = pracLoadout9(this.setup.stage, race);
+    const r0 = this.res[0];
+    for (const n of lo.res) r0.set(n, 1);
+    if (lo.lv > 0) for (const n of UPS_LV9[race]) r0.set(n, lo.lv);
+    const units: [string, number][] = race === "Z" ? [["Overlord", 3], ...lo.units] : lo.units;
+    const ang = Math.atan2(this.H / 2 - hy, this.W / 2 - hx);
+    const fx = Math.cos(ang); const fy = Math.sin(ang); const sx = -fy; const sy = fx;
+    /* 지상 자리 — 본진 네모 안 34px 격자 중 건물 · 벽을 비킨 곳을, 홀에서 가운데 쪽 300px 닻에 가까운 차례로(한 덩이로 모인다). */
+    const [bx0, by0, bx1, by1] = this.home;
+    const ax = hx + fx * 300; const ay = hy + fy * 300;
+    const cand: [number, number][] = [];
+    for (let y = by0 + 24; y < by1 - 24; y += 34) for (let x = bx0 + 24; x < bx1 - 24; x += 34) {
+      if (this.free(Math.floor(x / CELL9), Math.floor(y / CELL9)) && this.free(Math.floor((x - 16) / CELL9), Math.floor((y - 16) / CELL9)) && this.free(Math.floor((x + 16) / CELL9), Math.floor((y + 16) / CELL9))) cand.push([x, y]);
+    }
+    cand.sort((p, q) => Math.hypot(p[0] - ax, p[1] - ay) - Math.hypot(q[0] - ax, q[1] - ay));
+    let air = 0;
+    for (const [name, n] of units) {
+      const def = UNIT_DEFS9[name]; if (!def) continue;
+      for (let i = 0; i < n; i += 1) {
+        let x: number; let y: number;
+        if (def.air) {
+          /* 공중 — 홀에서 가운데 쪽 120px 부터 여덟씩 가로줄(56px 간격). */
+          const row = Math.floor(air / 8); const col = (air % 8) - 3.5;
+          x = hx + fx * (120 + row * 56) + sx * col * 56; y = hy + fy * (120 + row * 56) + sy * col * 56; air += 1;
+        } else {
+          const k = cand.findIndex(([cx, cy]) => this.spotOk(def, cx, cy));
+          const p = k >= 0 ? cand.splice(k, 1)[0] : this.placeUnit(def, ax, ay) ?? [ax, ay];
+          x = p[0]; y = p[1];
+        }
+        const e = this.spawn(name, 0, Math.max(40, Math.min(this.W - 40, x)), Math.max(40, Math.min(this.H - 40, y)));
+        e.face = ang; e.course = ang;
+        e.en = this.maxEnergy(def, 0);                     // 모아 둔 에너지(가득)
+        /* 공중 싸움 몸(뮤탈 · 커세어 · 베슬)은 드랍 없이 날아가 싸운다 — 처치 자격을 처음부터 준다(드랍 단계에 잡은 것만 점수인 것은 같다). */
+        if (def.air && !def.cargo) e.dropOk = true;
+        if (def.reaver) e.scarabs = this.has(0, "Reaver Capacity") ? 10 : 5;   // 스캐럽 가득
       }
     }
   }
@@ -545,21 +670,18 @@ export class PracticeSim9 {
       if (st.key === this.setup.mySpot) continue;
       const hall = this.spawn(HALL9[st.race], 1, st.hall[0], st.hall[1]);
       const [mx, my] = st.mineral;
-      const dx = st.hall[0] - mx; const dy = st.hall[1] - my; const d = Math.hypot(dx, dy) || 1;
-      /* 미네랄이 홀에 붙어 있으면(12 · 6시 — 사람이 못 서는 자리라 안 옮겼다) 바깥쪽에서 캐서 홀 옆구리로 나른다. */
-      const ux = dx / d; const uy = dy / d;
-      const gap = d - (Math.abs(ux) * 58 + Math.abs(uy) * 41) - (Math.abs(ux) * 32 + Math.abs(uy) * 16);
       const bi = this.bases.length;
-      this.bases.push({ start: st, hall: hall.id, mx, my, ux, uy, far: gap < 24 });
+      this.bases.push({ start: st, hall: hall.id, mx, my, alert: false, nextT: 0, groups: 0 });
       hall.base = bi;
-      st.workers.forEach(([x, y], i) => {
-        const p = this.nearestWalk(x, y, 4) ?? [x, y];
-        const w = this.spawn(WORKER9[st.race], 1, p[0], p[1]);
-        w.base = bi; w.slot = i; w.work = i % 3 === 0 ? 2 : 0; w.workT = (i * 13) % MINE_FRAMES9;
-      });
-      this.foeWorkers += st.workers.length;
-      for (const [n, x, y] of st.early) this.spawn(n, 1, x, y);
-      if (this.setup.stage === "mid") for (const [n, x, y] of st.mid) this.spawn(n, 1, x, y);
+      /* 일꾼 — 미네랄 무더기(홀 바로 아래 · 원래 빨무) 양옆에서 캐고 홀 아랫변 양쪽으로 나른다(곧은 길 · 원작처럼 캐는 동안은 서로 안 밀어낸다). */
+      for (let i = 0; i < BASE_WORKERS9; i += 1) {
+        const [x, y] = i % 3 === 0 ? this.dropSpot(this.bases[bi], hall, i) : this.mineSpot(this.bases[bi], i);
+        const w = this.spawn(WORKER9[st.race], 1, x, y);
+        w.base = bi; w.slot = i; w.work = i % 3 === 0 ? 3 : 1; w.workT = (i * 13) % MINE_FRAMES9 + 1;
+      }
+      this.foeWorkers += BASE_WORKERS9;
+      for (const [n, x, y] of st.early) this.spawn(n, 1, x, y).base = bi;
+      if (this.setup.stage === "mid") for (const [n, x, y] of st.mid) this.spawn(n, 1, x, y).base = bi;
     }
   }
   /** 초반 ↔ 중반 — 적만 새로 세운다(맵 6판 비컨 그대로: 타워 · 일꾼을 다시 채우고 내 기지 · 내 유닛은 그대로). */
@@ -625,7 +747,8 @@ export class PracticeSim9 {
     if (!this.cloaked(e)) return true;
     for (const d of this.ents) {
       if (d.dead || d.inside !== null || d.owner !== owner || !d.def.detector || this.disabled(d)) continue;
-      if (Math.hypot(d.x - e.x, d.y - e.y) <= d.def.uc.sight * 32) return true;
+      const sight = d.def.uc.sight + (d.def.name === "Overlord" && this.has(owner, "Antennae") ? 2 : 0);   // 오버로드 시야업(Antennae · 9 → 11)
+      if (Math.hypot(d.x - e.x, d.y - e.y) <= sight * 32) return true;
     }
     return false;
   }
@@ -641,8 +764,12 @@ export class PracticeSim9 {
       if (o.t === "storm" && (e.def.name !== "High Templar" || !this.has(0, "Psionic Storm"))) continue;
       if (o.t === "lurker" && (e.def.name !== "Hydralisk" || !this.has(0, "Lurker Aspect"))) continue;
       if (o.t === "archon" && (e.def.name !== "High Templar" || o.id === e.id)) continue;
+      if (o.t === "web" && (e.def.name !== "Corsair" || !this.has(0, "Disruption Web"))) continue;
+      if ((o.t === "matrix" || o.t === "irradiate") && e.def.name !== "Science Vessel") continue;
+      if (o.t === "irradiate" && !this.has(0, "Irradiate")) continue;
       if ((o.t === "moveunload" || o.t === "unload" || o.t === "pickup") && !e.def.cargo) continue;
       if (o.t === "load" && (e.def.cargo || !e.def.slots)) continue;
+      if ((o.t === "load" || o.t === "pickup") && this.dropAt >= 0) continue;   // 드랍은 한 턴에 한 번 — 내린 뒤로는 다시 못 태운다
       if ((o.t === "burrow" || o.t === "unburrow") && !e.def.burrowShoot) continue;
       if (!queue) {
         e.orders = []; e.target = null; e.ost = 0; e.para = false;
@@ -670,11 +797,14 @@ export class PracticeSim9 {
 
   /* ── 프레임 ──────────────────────────────────────────────────────────── */
   step(): void {
+    if (this.phase === "over") return;
     this.stats.tick += 1;
+    if (this.phase === "prep" && this.stats.tick >= PRAC_PREP_FRAMES9) this.phase = "drop";
     this.updatePower();
     /* 편별 몸 — 획득 · 튀김이 상대 편만 훑는다(적 타워 수백 × 내 몸 수십). */
     this.side[0] = []; this.side[1] = [];
     for (const e of this.ents) if (!e.dead && e.inside === null && !e.def.res) this.side[e.owner].push(e);
+    this.alertTick();
     for (const e of this.ents) {
       if (e.dead) continue;
       if (e.gcd > 0) e.gcd -= 1;
@@ -682,6 +812,8 @@ export class PracticeSim9 {
       if (e.timer > 0) e.timer -= 1;
       if (e.spellCd > 0) e.spellCd -= 1;
       if (e.stormT > 0 && (this.stats.tick + e.id) % 8 === 0) e.stormT -= 1;   // update_unit_status_timers — 8프레임마다
+      if (e.dmT > 0 && --e.dmT === 0) e.dm = 0;
+      if (e.irrT > 0 && (this.stats.tick + e.id) % 8 === 0) this.irradiateTick(e);
       if (e.inside !== null) continue;
       if (e.hitT > 0) e.hitT -= 1;
       this.regen(e);
@@ -694,12 +826,14 @@ export class PracticeSim9 {
     }
     this.scarabFly();
     this.stormTick();
+    if (this.webs.length) { for (const w of this.webs) w.life -= 1; this.webs = this.webs.filter((w) => w.life > 0); }
     this.separate();
     for (const s of this.shots) s.t -= 1;
     this.shots = this.shots.filter((s) => s.t > 0);
     for (const b of this.booms) b.t -= 1;
     this.booms = this.booms.filter((b) => b.t > 0);
     if (this.stats.tick % 120 === 0) this.ents = this.ents.filter((e) => !e.dead || e.inside !== null);
+    if (this.stats.tick >= PRAC_TURN_FRAMES9) this.phase = "over";
   }
   private regen(e: Ent9): void {
     if (e.def.sh > 0 && e.sh < fp(e.def.sh)) e.sh = Math.min(fp(e.def.sh), e.sh + SHIELD_REGEN9);
@@ -772,7 +906,27 @@ export class PracticeSim9 {
         if (e.spellCd > 0) return;
         e.en -= fp(STORM_ENERGY9);
         e.spellCd = cooldownFrames(WEAPONS.Psionic_Storm) + (this.rand() & 3) - 1;
-        this.storms.push({ x: o.x, y: o.y, owner: e.owner, life: STORM_LIFE9, from: e.id });
+        this.storms.push({ x: o.x, y: o.y, owner: e.owner, life: STORM_LIFE9, from: e.id, ok: e.dropOk });
+        this.next(e);
+        return;
+      }
+      case "web": case "matrix": case "irradiate": {
+        /* order_Spell — 에너지 · 사거리 안까지 걸어가 서서 · spell_cooldown 이 0 이면 쓴다(스톰과 같은 손). 몸 겨눔은 그 몸이 사라지면 그만. */
+        const cost = o.t === "web" ? WEB_ENERGY9 : o.t === "matrix" ? DM_ENERGY9 : IRR_ENERGY9;
+        if (e.en < fp(cost)) { this.next(e); return; }
+        const t = o.t === "web" ? null : this.byId.get(o.id);
+        if (o.t !== "web" && (!t || t.dead || t.inside !== null)) { this.next(e); return; }
+        const tx = o.t === "web" ? o.x : t!.x; const ty = o.t === "web" ? o.y : t!.y;
+        const reach = o.t === "web" ? WEB_RANGE9 : o.t === "matrix" ? DM_RANGE9 : IRR_RANGE9;
+        if (xyLen9(tx - e.x, ty - e.y) > reach) { this.setGoal(e, tx, ty, o.t !== "web"); return; }
+        e.goal = null; e.path = null;
+        e.face = Math.atan2(ty - e.y, tx - e.x);
+        if (e.spellCd > 0) return;
+        e.en -= fp(cost);
+        e.spellCd = 45 + (this.rand() & 3) - 1;
+        if (o.t === "web") this.webs.push({ x: tx, y: ty, owner: e.owner, life: WEB_LIFE9 });
+        else if (o.t === "matrix") { t!.dm = fp(DM_HP9); t!.dmT = DM_FRAMES9; }
+        else { t!.irrT = IRR_TICKS9; t!.irrOk = e.dropOk; t!.hitBy = t!.owner !== e.owner ? e.id : t!.hitBy; }
         this.next(e);
         return;
       }
@@ -858,6 +1012,11 @@ export class PracticeSim9 {
     t.cargo = t.cargo.filter((id) => id !== uid);
     u.inside = null; u.x = p[0]; u.y = p[1]; u.face = t.face; u.course = t.face; u.spd = 0;
     u.orders = []; u.goal = null; u.path = null; u.arrived = true; u.target = null; u.ost = 0;
+    /* 드랍 — 내 본진 밖에서 내렸나. 드랍 단계면 이 몸의 처치가 점수가 되고 첫 드랍이 '한 번'을 쓴다(그 뒤로는 못 태운다) · 준비 단계면 점수 없음. */
+    if (!t.def.bld && u.owner === 0 && !this.inHome(u.x, u.y)) {
+      if (this.phase === "drop") { u.dropOk = true; if (this.dropAt < 0) this.dropAt = this.stats.tick; }
+      else u.dropOk = false;
+    }
     if (!t.def.bld) {
       if (u.def.reaver) u.timer = REAVER_UNLOAD9;
       else {
@@ -871,9 +1030,10 @@ export class PracticeSim9 {
 
   /* ── 이동(flingy) ────────────────────────────────────────────────────── */
   /** 이동 목표를 건다 — 바뀌었으면 '닿음'을 풀고 지상은 길을 다시 낸다. follow 는 움직이는 표적(길을 자주 다시). */
-  private setGoal(e: Ent9, x: number, y: number, follow = false): void {
+  private setGoal(e: Ent9, x: number, y: number, follow = false, direct = false): void {
     const same = !!e.goal && Math.abs(e.goal[0] - x) < 0.5 && Math.abs(e.goal[1] - y) < 0.5;
     if (!same) { e.goal = [x, y]; e.arrived = false; }
+    if (direct) { e.path = null; e.pathTo = null; return; }   // 곧은 길(일꾼 캐기 — 미네랄 옆 ↔ 홀 아랫변은 막힘이 없다 · 길 찾기 값을 안 치른다)
     if (e.def.air || !e.mv) return;
     const key: [number, number] = [Math.round(x / CELL9), Math.round(y / CELL9)];
     if (!e.path || !e.pathTo || e.pathTo[0] !== key[0] || e.pathTo[1] !== key[1] || (follow && this.stats.tick % 12 === e.id % 12)) {
@@ -1012,7 +1172,7 @@ export class PracticeSim9 {
 
   /** 지상 유닛끼리 살짝 떼어 놓는다(상자가 겹쳐 서지 않게 · 땅속 럴커는 빼고). */
   private separate(): void {
-    const g = this.ents.filter((e) => !e.dead && e.inside === null && !e.def.air && !e.def.bld && e.mv && !e.burrowed);
+    const g = this.ents.filter((e) => !e.dead && e.inside === null && !e.def.air && !e.def.bld && e.mv && !e.burrowed && !(e.owner === 1 && e.def.worker));   // 적 일꾼은 원작처럼 캐는 동안 겹쳐 선다
     for (let i = 0; i < g.length; i += 1) {
       const a = g[i];
       for (let j = i + 1; j < g.length; j += 1) {
@@ -1049,8 +1209,15 @@ export class PracticeSim9 {
   }
   private acqOf(e: Ent9, inBunker = false): number { return acquireTiles(e.def.name, { ups: (n) => this.has(e.owner, n), inBunker }) * 32; }
   /** 그 몸이 지금 쏠 수 있나(땅 위 럴커 · 스캐럽 없는 리버 · 꺼진 캐논은 못 쏜다). */
+  /** 상대 편 디스럽션 웹 아래인가(지상 몸 · 건물). */
+  private webbed(e: Ent9): boolean {
+    if (e.def.air || !this.webs.length) return false;
+    for (const w of this.webs) if (w.owner !== e.owner && Math.hypot(w.x - e.x, w.y - e.y) <= WEB_R9) return true;
+    return false;
+  }
   private canShoot(e: Ent9): boolean {
     if (e.def.burrowShoot && !e.burrowed) return false;
+    if (this.webbed(e)) return false;
     if (e.def.reaver) return e.scarabs > 0;
     if (e.def.name === "Bunker") return e.cargo.length > 0;
     if (this.disabled(e)) return false;
@@ -1125,7 +1292,7 @@ export class PracticeSim9 {
     if (e.def.reaver) {
       if (e.timer > 0 || e.scarabs <= 0) return;
       e.scarabs -= 1; e.timer = REAVER_FIRE9;
-      this.scarabs.push({ x: e.x, y: e.y, tid: t.id, owner: e.owner, life: SCARAB_LIFE9, from: e.id });
+      this.scarabs.push({ x: e.x, y: e.y, tid: t.id, owner: e.owner, life: SCARAB_LIFE9, from: e.id, ok: e.dropOk });
       return;
     }
     if (t.def.air ? e.acd > 0 : e.gcd > 0) return;
@@ -1149,6 +1316,22 @@ export class PracticeSim9 {
       return;
     }
     this.shots.push({ x1: sx, y1: sy - (e.def.air ? 12 : 4), x2: t.x, y2: t.y - (t.def.air ? 12 : 0), t: w.rangePx > 40 ? 5 : 3, air: t.def.air, col });
+    if (w.id === "Glave_Wurm") {
+      /* 뮤탈 글레이브 웜 — 맞은 몸에서 가까운 다른 적에게 두 번 튄다(피해 1/3 · 1/9 · OpenBW bounce · 96px 안 · 같은 몸 다시 안 맞음). */
+      const hit = new Set<number>([t.id]); let cur = t;
+      this.hitUnit(e, t, w, 1, w.hits);
+      for (const div of [3, 9]) {
+        let nx: Ent9 | null = null; let nd = 96;
+        for (const o of this.side[e.owner === 0 ? 1 : 0]) {
+          if (o.dead || hit.has(o.id) || o.inside !== null || o.def.res || !this.visibleTo(o, e.owner) || !this.weaponFor(e, o)) continue;
+          const d = Math.hypot(o.x - cur.x, o.y - cur.y); if (d < nd) { nd = d; nx = o; }
+        }
+        if (!nx) break;
+        this.shots.push({ x1: cur.x, y1: cur.y, x2: nx.x, y2: nx.y, t: 4, air: nx.def.air, col: "#c58cff" });
+        hit.add(nx.id); this.hitUnit(e, nx, w, div, w.hits); cur = nx;
+      }
+      return;
+    }
     if (w.splashKind === "none") { this.hitUnit(e, t, w, 1, w.hits); return; }
     this.splash(e, t, w, t.x, t.y);
   }
@@ -1180,13 +1363,31 @@ export class PracticeSim9 {
     };
     const wl = w.upgrade === "Scarab Damage" ? (this.has(e.owner, "Scarab Damage") ? 1 : 0) : this.lvOf(e.owner, w.upgrade);
     const r = attackOnce(w, tg, { weaponLv: wl, divisor, hits });
+    if (o.dm > 0) {
+      /* 디펜시브 매트릭스 — 들어온 피해를 막이가 먼저 먹는다(체력 → 실드 차례로 되돌린다). */
+      const took = (o.hp + o.sh) - (tg.hp + tg.shield);
+      const ab = Math.min(took, o.dm); o.dm -= ab;
+      let back = ab; const toHp = Math.min(back, o.hp - tg.hp); tg.hp += toHp; back -= toHp; tg.shield += back;
+      r.killed = tg.hp <= 0;
+    }
     o.hp = tg.hp; o.sh = tg.shield; o.hitT = 6;
     if (o.owner !== e.owner) o.hitBy = e.inside !== null ? e.inside : e.id;
-    if (r.killed || o.hp <= 0) this.kill(o);
+    if (r.killed || o.hp <= 0) this.kill(o, e);
   }
-  private kill(t: Ent9): void {
+  /** 내 유닛 하나를 잃었다 — 점수에서 그 값(광물 + 가스 ÷ 25)을 뺀다(수송선이 터져 함께 죽은 화물도 · 2026-11-17 요청). */
+  private lose(u: Ent9): void {
+    if (u.owner !== 0 || u.def.bld) return;
+    this.score.lostPts += lostPts9(u.def.name); this.score.lostN += 1;
+    this.score.score = this.score.kills * KILL_PTS9 - this.score.lostPts;
+  }
+  private kill(t: Ent9, by: Ent9 | null = null): void {
     if (t.dead) return;
     t.dead = true;
+    /* 점수 — 드랍 단계에 잡은 적 일꾼 · 잡은 몸이 그 단계에 내린 것(dropOk · 공중 싸움 몸은 처음부터)이어야(준비 때 한 드랍은 점수 없음). */
+    if (t.owner === 1 && t.def.worker && this.phase === "drop" && by?.owner === 0 && by.dropOk) {
+      this.score.kills += 1; this.score.score = this.score.kills * KILL_PTS9 - this.score.lostPts;
+    }
+    this.lose(t);
     this.booms.push({ x: t.x, y: t.y, t: t.def.bld ? 24 : 14, r: t.def.rad * (t.def.bld ? 1.1 : 1.4) });
     if (t.def.bld) this.markBlock(t, 0);
     if (t.def.name === "Pylon") this.powerDirty = true;
@@ -1204,7 +1405,7 @@ export class PracticeSim9 {
         if (p) { u.inside = null; u.x = p[0]; u.y = p[1]; u.orders = []; u.goal = null; u.arrived = true; continue; }
       }
       u.dead = true; u.inside = null;
-      if (u.owner === 1) this.stats.defense += 1; else this.stats.lost += 1;
+      if (u.owner === 1) this.stats.defense += 1; else { this.stats.lost += 1; this.lose(u); }
     }
     t.cargo = [];
   }
@@ -1243,7 +1444,7 @@ export class PracticeSim9 {
       const old = st.life; st.life -= 1;
       if (old === 0) continue;
       if (st.life % STORM_EVERY9 !== 0) continue;
-      const shooter = this.byId.get(st.from) ?? ({ owner: st.owner, def: UNIT_DEFS9["High Templar"], inside: null, id: -1 } as unknown as Ent9);
+      const shooter = { ...(this.byId.get(st.from) ?? ({ owner: st.owner, def: UNIT_DEFS9["High Templar"], inside: null, id: -1 } as unknown as Ent9)), dropOk: st.ok };   // 점수 자격은 시전 때의 것
       for (const o of this.ents) {
         if (o.dead || o.inside !== null || o.def.bld || o.def.res) continue;
         if (this.distTo(o, st.x, st.y) > STORM_R9) continue;
@@ -1253,6 +1454,19 @@ export class PracticeSim9 {
       }
     }
     this.storms = this.storms.filter((st) => st.life >= 0);
+  }
+  /** 이레디에이트 — 상태 틱(8프레임)마다 250/37 을 그 몸과 32px 안의 생체 지상 몸에(방어 · 실드 무시 · 건물 빼고). 처치는 건 베슬의 것(점수 자격도). */
+  private irradiateTick(e: Ent9): void {
+    e.irrT -= 1;
+    if (e.dead || e.inside !== null) return;
+    const dmg = Math.round(fp(250) / IRR_TICKS9);
+    const caster = { owner: e.owner === 0 ? 1 : 0, dropOk: e.irrOk, inside: null, id: -1 } as unknown as Ent9;
+    for (const o of this.ents) {
+      if (o.dead || o.inside !== null || o.def.bld || o.def.air || !o.def.bio || o.def.res) continue;
+      if (o !== e && this.distTo(o, e.x, e.y) > IRR_R9) continue;
+      o.hp -= dmg; o.hitT = 6;
+      if (o.hp <= 0) this.kill(o, o.owner === 1 ? caster : null);
+    }
   }
   /** 리버 — 스캐럽을 원작 시간(105프레임)마다 하나씩 채운다(빨무라 돈은 무한). */
   private scarabTick(e: Ent9): void {
@@ -1269,7 +1483,7 @@ export class PracticeSim9 {
       if (!t || t.dead || t.inside !== null) { s.life = 0; continue; }
       if (this.distTo(t, s.x, s.y) <= SCARAB_SPEED9) {
         const from = this.byId.get(s.from);
-        const shooter = from ?? ({ owner: s.owner, def: UNIT_DEFS9.Reaver, inside: null, id: -1 } as unknown as Ent9);
+        const shooter = { ...(from ?? ({ owner: s.owner, def: UNIT_DEFS9.Reaver, inside: null, id: -1 } as unknown as Ent9)), dropOk: s.ok };
         this.splash(shooter, t, WEAPONS.Scarab, t.x, t.y);
         this.booms.push({ x: t.x, y: t.y, t: 12, r: 40 });
         s.life = 0; continue;
@@ -1300,39 +1514,89 @@ export class PracticeSim9 {
     return true;
   }
 
-  /* ── 적 일꾼 — 캐고 나르기만 한다 ─────────────────────────────────────────── */
-  /** i 째 일꾼이 캐는 자리 — 미네랄의 홀 쪽 변에 다섯씩 두 줄(홀에 붙은 미네랄이면 바깥 변). */
+  /* ── 적 일꾼 — 캐고 나르기 · 수송선을 보면 다른 기지로 도망 ─────────────────── */
+  /** i 째 일꾼이 캐는 자리 — 미네랄(홀 바로 아래 · 2 × 1 타일)의 왼 · 오른 옆에 다섯 줄. */
   private mineSpot(b: FoeBase9, i: number): [number, number] {
-    const dir = b.far ? -1 : 1; const px = -b.uy; const py = b.ux;
-    const ext = Math.abs(b.ux) * 32 + Math.abs(b.uy) * 16 + 10 + Math.floor(i / 5) * 14;
-    const side = ((i % 5) - 2) * 15;
-    return [b.mx + b.ux * ext * dir + px * side, b.my + b.uy * ext * dir + py * side];
+    const side = i % 2 === 0 ? -1 : 1; const row = (i >> 1) % 5;
+    return [b.mx + side * (32 + 9 + (row % 2) * 6), b.my - 6 + row * 7];
   }
-  /** 나르는 자리 — 홀의 미네랄 쪽 변(붙은 미네랄이면 홀 옆구리 양쪽). */
+  /** 나르는 자리 — 홀 아랫변의 미네랄 양옆(캐던 쪽). */
   private dropSpot(b: FoeBase9, h: Ent9, i: number): [number, number] {
-    const px = -b.uy; const py = b.ux;
-    const along = Math.abs(b.ux) * 58 + Math.abs(b.uy) * 41; const perp = Math.abs(px) * 58 + Math.abs(py) * 41;
-    if (b.far) {
-      const side = i % 2 === 0 ? -1 : 1;
-      return [h.x + px * side * (perp + 12) - b.ux * along * 0.5, h.y + py * side * (perp + 12) - b.uy * along * 0.5];
-    }
-    const side = ((i % 5) - 2) * 15;
-    return [h.x - b.ux * (along + 10) + px * side, h.y - b.uy * (along + 10) + py * side];
+    const side = i % 2 === 0 ? -1 : 1; const k = (i >> 1) % 3;
+    return [h.x + side * (44 + k * 5), h.y + (h.def.foot?.[1] ?? 3) * 16 + 6];
   }
   private workerTick(e: Ent9): void {
+    if (e.work === 4) { this.fleeTick(e); return; }
     const b = this.bases[e.base]; const hall = b ? this.byId.get(b.hall) : undefined;
     if (!b || !hall || hall.dead) { e.goal = null; return; }
     if (e.work === 0) {
       const [sx, sy] = this.mineSpot(b, e.slot);
-      this.setGoal(e, sx, sy);
-      if (e.arrived || Math.hypot(sx - e.x, sy - e.y) <= 6) { e.work = 1; e.workT = MINE_FRAMES9; e.goal = null; }
+      this.setGoal(e, sx, sy, false, true);
+      if (e.arrived || Math.hypot(sx - e.x, sy - e.y) <= 4) { e.work = 1; e.workT = MINE_FRAMES9; e.goal = null; }
     } else if (e.work === 1) {
       e.face = Math.atan2(b.my - e.y, b.mx - e.x);
       if (--e.workT <= 0) e.work = 2;
     } else if (e.work === 2) {
       const [dx, dy] = this.dropSpot(b, hall, e.slot);
-      this.setGoal(e, dx, dy);
-      if (e.arrived || Math.hypot(dx - e.x, dy - e.y) <= 10) { e.work = 3; e.workT = 4; e.goal = null; }
+      this.setGoal(e, dx, dy, false, true);
+      if (e.arrived || Math.hypot(dx - e.x, dy - e.y) <= 4) { e.work = 3; e.workT = 4; e.goal = null; }
     } else if (--e.workT <= 0) e.work = 0;
+  }
+  /** 수송선을 봤나 — 기지마다 8프레임에 한 번: 내 몸(건물 아님)이 홀 12타일 안 · 또는 그 기지 일꾼이 맞았으면. 본 기지는 12기씩 떠나보낸다. */
+  private alertTick(): void {
+    if (this.stats.tick % 8 === 0) {
+      for (const b of this.bases) {
+        if (b.alert) continue;
+        const h = this.byId.get(b.hall); if (!h || h.dead) continue;
+        let seen = false;
+        const bi0 = this.bases.indexOf(b);
+        /* '발견' = 홀 12타일 안 · 또는 그 기지 건물(타워 · 홀)의 시야 안(타워가 수송선을 쏘기 시작하면 일꾼도 안다). */
+        const eyes = this.side[1].filter((o) => o.base === bi0 && o.def.bld);
+        for (const u of this.side[0]) {
+          if (u.def.bld || !this.visibleTo(u, 1)) continue;
+          if (Math.hypot(u.x - h.x, u.y - h.y) <= ALERT_R9 || eyes.some((o) => Math.hypot(u.x - o.x, u.y - o.y) <= o.def.uc.sight * 32)) { seen = true; break; }
+        }
+        if (!seen) for (const w of this.side[1]) if (w.def.worker && w.base === bi0 && w.hitBy !== null && w.work !== 4) { seen = true; break; }
+        if (seen) { b.alert = true; b.nextT = FLEE_REACT9; }
+      }
+    }
+    for (let bi = 0; bi < this.bases.length; bi += 1) {
+      const b = this.bases[bi];
+      if (!b.alert || --b.nextT > 0) continue;
+      const h = this.byId.get(b.hall);
+      const ws = this.side[1].filter((w) => w.def.worker && !w.dead && w.base === bi && w.work !== 4);
+      if (!ws.length || !h) { b.nextT = 1 << 30; continue; }
+      /* 가는 곳 — 아직 안 들킨 가장 가까운 다른 기지의 미네랄(자원 찍고 도망). 없으면 가장 가까운 아무 기지. */
+      let to = -1; let bd = Infinity;
+      for (let k = 0; k < this.bases.length; k += 1) {
+        if (k === bi) continue;
+        const o = this.bases[k]; const oh = this.byId.get(o.hall); if (!oh || oh.dead) continue;
+        const d = Math.hypot(o.mx - b.mx, o.my - b.my) + (o.alert ? 1e5 : 0);
+        if (d < bd) { bd = d; to = k; }
+      }
+      if (to < 0) { b.nextT = 1 << 30; continue; }
+      /* 한 무리 — 미네랄에 가까운 것부터 12 · 한 줄(앞사람과 FLEE_STEP9 프레임 간격) · 길은 무리마다 한 번 낸다. */
+      const grp = ws.sort((p, q) => Math.hypot(p.x - b.mx, p.y - b.my) - Math.hypot(q.x - b.mx, q.y - b.my)).slice(0, FLEE_GROUP9);
+      const o = this.bases[to];
+      const tx = o.mx - 41; const ty = o.my;
+      const path = this.findPath(h.x - 44, h.y + (h.def.foot?.[1] ?? 3) * 16 + 8, tx, ty);
+      grp.forEach((w, k) => {
+        w.work = 4; w.fleeTo = to; w.fleeT = k * FLEE_STEP9; w.goal = null; w.target = null;
+        w.path = [...path]; w.pathTo = [Math.round(tx / CELL9), Math.round(ty / CELL9)];
+      });
+      b.groups += 1;
+      b.nextT = FLEE_GAP_MIN9 + (this.rand() % (FLEE_GAP_MAX9 - FLEE_GAP_MIN9 + 1));
+    }
+  }
+  /** 도망 중 — 줄 차례를 기다렸다가 낸 길을 따라 간다(맞아도 안 선다) · 닿으면 그 기지 일꾼이 되어 캔다. */
+  private fleeTick(e: Ent9): void {
+    if (e.fleeT > 0) { e.fleeT -= 1; e.spd = 0; return; }
+    const o = this.bases[e.fleeTo];
+    if (!o) { e.work = 0; return; }
+    const tx = o.mx - 41; const ty = o.my;
+    if (!e.goal) { e.goal = [tx, ty]; e.arrived = false; }
+    if (e.arrived || Math.hypot(tx - e.x, ty - e.y) <= 12) {
+      e.base = e.fleeTo; e.slot = this.rand() % BASE_WORKERS9; e.work = 0; e.fleeTo = -1; e.goal = null; e.path = null;
+    }
   }
 }

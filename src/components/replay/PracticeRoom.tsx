@@ -22,7 +22,7 @@ import { drawMapGrid, terrainFill } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
 import { FRAME_SEC, fp } from "../../utils/bwUnits";
 import {
-  PRAC_RACES9, PRAC_SPOTS9, PRAC_TICK_MS9, PROD9, PracticeSim9, UNIT_DEFS9,
+  KILL_PTS9, LOST_DIV9, PRAC_DROP_SEC9, PRAC_PREP_FRAMES9, PRAC_PREP_SEC9, PRAC_RACES9, PRAC_SPOTS9, PRAC_TICK_MS9, PRAC_TURN_FRAMES9, PROD9, PracticeSim9, UNIT_DEFS9, pracLoadout9,
   type Ent9, type PracRace9, type PracSetup9, type PracStage9, type ProdItem9,
 } from "./practiceSim9";
 import { PRAC_MAP9 } from "./practiceMap9.gen";
@@ -36,9 +36,19 @@ export interface PracticeRoomProps {
   /** 빨무 지도(앱이 받아 준다 · 지형 terrain 이 있어야 걷는 칸을 안다). */
   map: ReplayMapGrid | null;
   className?: string;
+  /** 개인별 명령 키(앱이 계정에 기억한 것 · 2026-11-17 요청 "개인별 단축키 설정 기억하기") — 오면 그걸 쓴다(없으면 이 기기의 기억). */
+  keys?: Record<string, string> | null;
+  /** 명령 키를 바꿨다 — 앱이 계정에 적는다. */
+  onKeys?: (keys: Record<string, string>) => void;
+  /** 한 턴이 끝났다 — 앱이 기록을 적고 답(내 최고 · 전체 최고 · 갱신)을 돌려준다. */
+  onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
 }
+/** 한 턴의 결과 — 모드(초반/중반)별로 기록한다. */
+export interface PracResult9 { mode: PracStage9; race: PracRace9; spot: string; score: number; kills: number; lostPts: number; lostN: number }
+/** 기록 답 — 이 판 전의 내 최고 · 전체 최고와 이번 판이 갱신했나. */
+export interface PracRecordReply9 { myBest: number | null; top: number | null; topName?: string | null; newMyBest: boolean; newTop: boolean }
 
-type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm" | "morph";
+type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm" | "web" | "irradiate";
 const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "move", label: "이동", def: "M", hint: "다음 클릭 자리로 이동(적을 무시)" },
   { key: "attack", label: "공격", def: "A", hint: "다음 클릭 — 적이면 그 적 · 땅이면 가며 싸우기" },
@@ -51,11 +61,12 @@ const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "burrow", label: "버로우", def: "B", hint: "럴커 — 땅속으로(땅속에서만 쏜다) · 다시 누르면 나온다" },
   { key: "siege", label: "시즈", def: "O", hint: "시즈 탱크 — 시즈 모드(머신 샵 연구) · 다시 누르면 탱크 모드" },
   { key: "storm", label: "스톰", def: "T", hint: "하이 템플러 — 다음 클릭 자리에 사이오닉 스톰(템플러 아카이브 연구 · 에너지 75)" },
-  /* 셋째 판 — 유닛을 직접 뽑으니 럴커 · 아콘도 직접 만든다(원작 키: 아콘 합체 R · 럴커 변태 L 은 태우기와 겹쳐 R 하나로). */
-  { key: "morph", label: "변태·합체", def: "R", hint: "히드라 → 럴커(히드라 덴 연구) · 하이 템플러 둘 → 아콘" },
+  /* 넷째 판 — 중반 준비 유닛의 기술(원작 키: 디스럽션 웹 D · 디펜시브 매트릭스 D · 이레디에이트 I). 옛 변태 · 합체(R)는 생산을 막으며 걷었다. */
+  { key: "web", label: "웹·매트릭스", def: "D", hint: "커세어 — 다음 클릭 자리에 디스럽션 웹(그 아래 지상 몸 · 건물은 못 쏜다) · 사이언스 베슬 — 다음 클릭한 몸에 디펜시브 매트릭스(250 막이)" },
+  { key: "irradiate", label: "이레디", def: "I", hint: "사이언스 베슬 — 다음 클릭한 몸에 이레디에이트(둘레 생체 지상 몸에 250 · SCV · 드론이 녹는다)" },
 ];
 /** 누르면 곧바로 되는 명령(자리를 안 기다림). */
-const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege", "morph"]);
+const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege"]);
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
 /* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — KopruluSector(kp_ui_scroll.c)의 UpdateMapScroll 0x49bf10 ·
@@ -102,14 +113,35 @@ const enterFull9 = (el: HTMLElement | null): void => {
   try { const r = el.requestFullscreen?.(); if (r) r.then(lock).catch(() => undefined); } catch { /* 막힌 곳 */ }
 };
 
-/** 게임 시계 — 프레임 × 1/23.81초(가장 빠름). */
-const fmtTime9 = (tick: number): string => { const s = Math.floor(tick * FRAME_SEC); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const RACE_KO9: Record<PracRace9, string> = { T: "테란", P: "프로토스", Z: "저그" };
+const RES_KO9: Record<string, string> = {
+  "Gravitic Drive": "셔틀 속업", "Psionic Storm": "스톰", "Khaydarin Amulet": "하템 에너지", "Leg Enhancements": "발업", "Reaver Capacity": "스캐럽 10",
+  "Scarab Damage": "스캐럽 공업", "Tank Siege Mode": "시즈 모드", "Pneumatized Carapace": "오버로드 속업", "Ventral Sacs": "오버로드 수송", "Lurker Aspect": "럴커",
+  "Disruption Web": "디스럽션 웹", "Argus Jewel": "커세어 에너지", Irradiate: "이레디에이트", "Titan Reactor": "베슬 에너지", Antennae: "오버로드 시야",
+};
+/** 준비된 판 한 줄 — "셔틀 2 · 하템 4 … · 스톰 · 발업 … · 공방실드 2". */
+const pracLoadoutText9 = (stage: PracStage9, race: PracRace9): string => {
+  const lo = pracLoadout9(stage, race);
+  const us = lo.units.map(([n, k]) => `${UNIT_DEFS9[n]?.ko ?? n} ${race === "Z" && n === "Overlord" ? `+${k}` : k}`);
+  const rs = lo.res.map((r) => RES_KO9[r] ?? r);
+  return [...us, ...rs, ...(lo.lv ? [`공방${race === "P" ? "실드" : ""} ${lo.lv}단`] : ["공방업 없음"])].join(" · ");
+};
 
-export default function PracticeRoom({ map, className }: PracticeRoomProps) {
+export default function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult }: PracticeRoomProps) {
   const [phase, setPhase] = useState<"setup" | "loading" | "play">("setup");
   const [setup, setSetup] = useState<PracSetup9>(() => cleanSetup9(loadJson9(SETUP_LS9, DEF_SETUP9)));
-  const [keys, setKeys] = useState<Record<Act9, string>>(() => loadJson9(KEYS_LS9, DEF_KEYS9));
+  const [keys, setKeysState] = useState<Record<Act9, string>>(() => loadJson9(KEYS_LS9, DEF_KEYS9));
+  /* 계정에 기억된 키가 오면 그것으로(늦게 와도) — 앱에서 온 값은 앱에 되돌려 적지 않는다. */
+  useEffect(() => {
+    if (!keysProp) return;
+    const next = { ...DEF_KEYS9 } as Record<Act9, string>;
+    for (const a of ACTS9) { const v = keysProp[a.key]; if (typeof v === "string" && /^[A-Z0-9]$/.test(v)) next[a.key] = v; }
+    setKeysState(next);
+  }, [keysProp]);
+  const onKeysRef = useRef(onKeys); onKeysRef.current = onKeys;
+  const setKeys = useCallback((f: (k: Record<Act9, string>) => Record<Act9, string>): void => {
+    setKeysState((k) => { const n = f(k); if (n !== k) queueMicrotask(() => onKeysRef.current?.(n)); return n; });
+  }, []);
   const [terrain, setTerrain] = useState<MapTerrain | null | undefined>(undefined);
   const [gear, setGear] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -131,10 +163,10 @@ export default function PracticeRoom({ map, className }: PracticeRoomProps) {
     setPhase("loading"); setRun((r) => r + 1);
     enterFull9(rootRef.current);
   };
-  /** 톱니에서 적용 — 종족 · 자리가 바뀌면 새 판 · 적 타워만이면 그 판 그대로(PracGame 이 stage 를 받아 적만 새로). */
+  /** 톱니에서 적용 — 무엇이든 바뀌었으면 새 턴(턴제 · 2026-11-17) · 키만이면 그 판 그대로. */
   const apply = (s: PracSetup9): void => {
-    if (s.myRace !== runSetup.myRace || s.mySpot !== runSetup.mySpot) { start(s); return; }
-    setSetup(s); setGear(false);
+    if (s.myRace !== runSetup.myRace || s.mySpot !== runSetup.mySpot || s.stage !== runSetup.stage) { start(s); return; }
+    setGear(false);
   };
   return (
     <div ref={rootRef} className={`scr-prac${className ? ` ${className}` : ""}`}>
@@ -143,9 +175,9 @@ export default function PracticeRoom({ map, className }: PracticeRoomProps) {
           ready={sizeOk} onApply={start} />
       )}
       {phase !== "setup" && map && terrain && (
-        <PracGame key={run} map={map} terrain={terrain} setup={runSetup} stage={setup.stage} keys={keys} paused={gear}
+        <PracGame key={run} map={map} terrain={terrain} setup={runSetup} keys={keys} paused={gear}
           onReady={() => setPhase("play")} onGear={() => setGear(true)} onRestart={() => start(setup)}
-          onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} />
+          onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} onResult={onResult} />
       )}
       {phase !== "setup" && gear && (
         <div className="scr-prac-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setGear(false); }}>
@@ -276,10 +308,13 @@ function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onA
       </div>
       <div className="scr-prac-row">
         <button type="button" className="scr-prac-start" onClick={() => onApply(draft)} disabled={!ready && !inGame}>
-          {inGame ? (draft.myRace !== setup.myRace || draft.mySpot !== setup.mySpot ? "새로 시작" : "적용") : !map ? "지도를 기다리는 중…" : terrain === undefined ? "지형 푸는 중…" : !ready ? "이 지도는 빨무 지형이 아니에요" : "시작"}
+          {inGame ? (draft.myRace !== setup.myRace || draft.mySpot !== setup.mySpot || draft.stage !== setup.stage ? "새 턴 시작" : "닫기") : !map ? "지도를 기다리는 중…" : terrain === undefined ? "지형 푸는 중…" : !ready ? "이 지도는 빨무 지형이 아니에요" : "시작"}
         </button>
       </div>
-      <p className="scr-prac-dim">건물을 고르면 생산 · 연구(시간 1/24 · 돈 무한) · Shift+F2~F4 화면 기억 · F2~F4 불러오기 · Ctrl+숫자 부대(전체 화면) · 톱니(⚙)로 이 창</p>
+      <p className="scr-prac-rules">준비된 것({draft.stage === "mid" ? "중반" : "초반"} · {RACE_KO9[draft.myRace]}) — {pracLoadoutText9(draft.stage, draft.myRace)}<br />
+        한 턴 = <b>준비 {PRAC_PREP_SEC9}초</b>(태우기 · 날아가기 — 이때 한 드랍은 점수 없음) → <b>드랍 {PRAC_DROP_SEC9}초</b>(한 번 · 내린 뒤엔 다시 못 태움) ·
+        점수 = 잡은 일꾼 × {KILL_PTS9} − 잃은 내 유닛 값(광물 + 가스 ÷ {LOST_DIV9} · 수송선이 터지면 화물도) · 일꾼은 수송선을 보면 12기씩 다른 기지로 도망 · 생산 · 연구는 없음</p>
+      <p className="scr-prac-dim">Shift+F2~F4 화면 기억 · F2~F4 불러오기 · Ctrl+숫자 부대(전체 화면) · 톱니(⚙)로 이 창</p>
     </div>
   );
 }
@@ -291,14 +326,27 @@ const bldKind9 = (name: string): string => (name === "Mineral Field" ? "mineral"
 const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
 
 /* ── 놀이 ──────────────────────────────────────────────────────────────────── */
-function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onReady, onGear, onRestart, onFull, loading }: {
-  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; stage: PracStage9; keys: Record<Act9, string>; paused: boolean;
+function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGear, onRestart, onFull, loading, onResult }: {
+  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; keys: Record<Act9, string>; paused: boolean;
   onReady: () => void; onGear: () => void; onRestart: () => void; onFull: () => void; loading: boolean;
+  onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
 }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sim = useMemo(() => new PracticeSim9(terrain, setup), [terrain]);
-  /* 적 타워 단계 — 톱니에서 바꾸면 적만 새로(내 기지 · 내 유닛은 그대로). */
-  useEffect(() => { if (sim.setup.stage !== stage) sim.setStage(stage); }, [sim, stage]);
+  /* 턴 — 준비 화면(시작 단추) → 돌림(준비 30초 · 드랍 30초 · 셈이 단계를 넘긴다) → 결과. */
+  const [turn, setTurn] = useState<"ready" | "run" | "over">("ready");
+  const turnRef = useRef(turn); turnRef.current = turn;
+  const [reply, setReply] = useState<PracRecordReply9 | null | "wait">(null);
+  const onResultRef = useRef(onResult); onResultRef.current = onResult;
+  const endTurn = (): void => {
+    if (turnRef.current === "over") return;
+    turnRef.current = "over"; setTurn("over");
+    if (document.pointerLockElement) document.exitPointerLock();
+    const sc = sim.score;
+    const r: PracResult9 = { mode: sim.setup.stage, race: sim.setup.myRace, spot: sim.setup.mySpot, score: sc.score, kills: sc.kills, lostPts: sc.lostPts, lostN: sc.lostN };
+    const p = onResultRef.current?.(r);
+    if (p && typeof (p as Promise<unknown>).then === "function") { setReply("wait"); (p as Promise<PracRecordReply9 | null>).then((x) => setReply(x ?? null)).catch(() => setReply(null)); }
+  };
   /* 검진 손잡이 — 시험 판(perf · 하네스)이 window.__pracDebug 를 켜 두면 셈 몸을 내준다. */
   const camDbg = useRef({ x: 0, y: 0, z: 1 });
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -317,8 +365,8 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
   const modeRef = useRef<Act9 | null>(null);
   const setMode = (v: Act9 | null): void => { modeRef.current = v; setModeState(v); };
   const [hud, setHud] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const pausedRef = useRef(false); pausedRef.current = paused || gearPaused;
+  /* 멈춤은 없다(턴제 · 시간이 점수다) — 톱니 창 · 턴 밖에서만 선다. */
+  const pausedRef = useRef(false); pausedRef.current = gearPaused || turn !== "run";
   const gearRef = useRef(false); gearRef.current = gearPaused;
   const cam = camDbg;
   const groups = useRef<Record<string, number[]>>({});
@@ -442,7 +490,7 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
   const smart = (wx: number, wy: number, q: boolean, ground = false): void => {
     const us = mySel(); if (!us.length) return;   // 남의 유닛을 고른 채 우클릭 — 아무 일 없음
     const b = selBld();
-    if (b) { if (PROD9[b.def.name]?.some((it) => it.k === "unit")) { sim.setRally(b.id, wx, wy); markTarget(wx, wy, null); } return; }   // 생산 건물 — 모이는 자리
+    if (b) { if (sim.prodOn && PROD9[b.def.name]?.some((it) => it.k === "unit")) { sim.setRally(b.id, wx, wy); markTarget(wx, wy, null); } return; }   // 생산 건물 — 모이는 자리(생산을 막은 판엔 없음)
     const t = ground ? null : sim.pick(wx, wy);
     if (us.length === 1 && t && t.id === us[0].id) return;   // 하나 고른 유닛이 제 몸을 우클릭 — 아무 일 없음
     if (!t && !us.some((e) => e.mv)) return;   // 땅인데 움직일 것이 없으면 그만
@@ -472,24 +520,24 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
       sim.order(lk.map((e) => e.id), { t: down ? "burrow" : "unburrow" }, q);
       return;
     }
-    if (a === "morph") {
-      /* 히드라 → 럴커 · 하템은 가까운 것끼리 둘씩 아콘(원작 Archon Warp 도 고른 하템을 짝지어 준다). */
-      sim.order(us.filter((e) => e.def.name === "Hydralisk").map((e) => e.id), { t: "lurker" }, q);
-      const left = us.filter((e) => e.def.name === "High Templar");
-      while (left.length >= 2) {
-        const a0 = left.shift()!;
-        let bi = 0; let bd = Infinity;
-        left.forEach((o, i) => { const d = Math.hypot(o.x - a0.x, o.y - a0.y); if (d < bd) { bd = d; bi = i; } });
-        const b0 = left.splice(bi, 1)[0];
-        sim.order([a0.id], { t: "archon", id: b0.id }, false); sim.order([b0.id], { t: "archon", id: a0.id }, false);
-      }
-      return;
-    }
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
     const t = ground ? null : sim.pick(wx, wy);
     markTarget(wx, wy, t);   // 겨눈 좌클릭(TargetingLeftClick) — 유닛 깜빡임 · 땅 표식
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
+    if (a === "web") {
+      /* 커세어는 땅 자리에 웹 · 베슬은 찍은 몸에 매트릭스(한 기만 — 원작도 고른 것 중 하나가 쓴다). */
+      const cs = us.filter((e) => e.def.name === "Corsair");
+      if (cs.length) { sim.order([cs[0].id], { t: "web", x: wx, y: wy }, q); return; }
+      const vs = us.filter((e) => e.def.name === "Science Vessel");
+      if (vs.length && t) sim.order([vs[0].id], { t: "matrix", id: t.id }, q);
+      return;
+    }
+    if (a === "irradiate") {
+      const vs = us.filter((e) => e.def.name === "Science Vessel");
+      if (vs.length && t && !t.def.res) sim.order([vs[0].id], { t: "irradiate", id: t.id }, q);
+      return;
+    }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
     else if (a === "attack") {
       if (t && t.owner === 1 && !t.def.res) sim.order(ids, { t: "attack", id: t.id }, q);
@@ -512,6 +560,11 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
     if (loading) return undefined;
     const onDown = (e: KeyboardEvent): void => {
       if (gearRef.current) return;   // 톱니 창 — 창이 키를 받는다
+      /* 턴 밖 — Enter · Space 로 시작 · 다음 턴(그 밖의 키는 안 받는다). */
+      if (turnRef.current !== "run") {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (turnRef.current === "ready") setTurn("run"); else onRestart(); }
+        return;
+      }
       const tg = e.target as HTMLElement | null;
       if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
       /* 화면 기억 — Shift + F2 · F3 · F4 = 지금 화면 · F2 · F3 · F4 = 그 화면으로(원작 그대로). */
@@ -545,7 +598,6 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
         lastGroup.current = { k, t: now };
         return;
       }
-      if (k === "F10") { setPaused((p) => !p); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       /* 건물을 고른 채 — 그 건물 명령 카드의 원작 글자(생산 · 연구)가 먼저다. */
       const b = selBld();
@@ -761,7 +813,9 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
     let raf = 0; let last = performance.now(); let acc = 0; let hudT = 0;
     const loop = (now: number): void => {
       const dt = Math.min(250, now - last); last = now;
-      if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9) { sim.step(); acc -= PRAC_TICK_MS9; } }
+      if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9 && sim.phase !== "over") { sim.step(); acc -= PRAC_TICK_MS9; } }
+      else acc = 0;
+      if (sim.phase === "over" && turnRef.current === "run") endTurn();
       /* 화면 이동 — 원작 걸음(15.625ms 마다) */
       const sc = scr.current; sc.acc += dt;
       let k = 0; while (sc.acc >= SCROLL_MS9 && k < 30) { sc.acc -= SCROLL_MS9; scrollStep(); k += 1; }
@@ -948,9 +1002,22 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
       c2.beginPath(); c2.moveTo(s.x1, s.y1); c2.lineTo(s.x2, s.y2); c2.stroke(); c2.globalAlpha = 1;
     }
     for (const sc of sim.scarabs) { c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
-    if (modeRef.current === "storm" && mouse.current.in) {
+    /* 디스럽션 웹 — 보랏빛 그물 마당(반지름 64) · 매트릭스 — 몸 둘레 푸른 막 · 이레디 — 몸 둘레 녹색 빛. */
+    for (const w of sim.webs) {
+      const k = Math.min(1, w.life / 48);
+      c2.save(); c2.globalAlpha = 0.55 * k;
+      c2.beginPath(); c2.arc(w.x, w.y, 64, 0, Math.PI * 2); c2.fillStyle = "rgba(150, 110, 255, 0.28)"; c2.fill();
+      c2.clip(); c2.strokeStyle = "rgba(210, 190, 255, 0.85)"; c2.lineWidth = 1.2 / z; c2.beginPath();
+      for (let i = -64; i <= 64; i += 12) { c2.moveTo(w.x + i - 64, w.y - 64); c2.lineTo(w.x + i + 64, w.y + 64); c2.moveTo(w.x + i + 64, w.y - 64); c2.lineTo(w.x + i - 64, w.y + 64); }
+      c2.stroke(); c2.restore();
+    }
+    for (const u of vis) {
+      if (u.dm > 0) { c2.beginPath(); c2.arc(u.x, u.y, u.def.rad + 6, 0, Math.PI * 2); c2.strokeStyle = "rgba(120, 200, 255, 0.85)"; c2.lineWidth = 2 / z; c2.stroke(); }
+      if (u.irrT > 0) { c2.beginPath(); c2.arc(u.x, u.y, u.def.rad + 4, 0, Math.PI * 2); c2.fillStyle = "rgba(120, 255, 90, 0.28)"; c2.fill(); }
+    }
+    if ((modeRef.current === "storm" || (modeRef.current === "web" && mySel().some((e) => e.def.name === "Corsair"))) && mouse.current.in) {
       const [mx, my] = toWorld(mouse.current.x, mouse.current.y);
-      c2.beginPath(); c2.arc(mx, my, 48, 0, Math.PI * 2); c2.strokeStyle = "rgba(140, 190, 255, 0.9)"; c2.lineWidth = 1.5 / z; c2.stroke();
+      c2.beginPath(); c2.arc(mx, my, modeRef.current === "storm" ? 48 : 64, 0, Math.PI * 2); c2.strokeStyle = "rgba(140, 190, 255, 0.9)"; c2.lineWidth = 1.5 / z; c2.stroke();
     }
     for (const b of sim.booms) {
       const kk = 1 - b.t / 24;
@@ -1032,7 +1099,7 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
   const selUnits = sel.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null);
   const ships = selUnits.filter((e) => e.owner === 0 && e.def.cargo);
   const bld = selUnits.length === 1 && selUnits[0].owner === 0 && selUnits[0].def.bld ? selUnits[0] : null;
-  const card = bld ? PROD9[bld.def.name] ?? [] : null;
+  const card = bld && sim.prodOn ? PROD9[bld.def.name] ?? [] : null;
   const st = sim.stats;
   return (
     <div className={`scr-prac-game${locked ? " is-locked" : ""}`} ref={wrapRef}>
@@ -1049,17 +1116,14 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
         <svg className="is-aim" width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="8" fill="none" stroke="#ffd04a" strokeWidth="2" /><path d="M13 0 V8 M13 18 V26 M0 13 H8 M18 13 H26" stroke="#ffd04a" strokeWidth="2" /></svg>
       </div>
       <div className="scr-prac-top">
-        <b>{fmtTime9(st.tick)}</b>
         <span>{RACE_KO9[setup.myRace]} · {PRAC_SPOTS9.find((p) => p.key === sim.setup.mySpot)?.label} · 적 타워 {sim.setup.stage === "mid" ? "중반" : "초반"}</span>
-        <span>일꾼 <b>{st.workers}</b>/{sim.foeWorkers}</span>
-        <span>방어 <b>{st.defense}</b></span>
-        <span>건물 <b>{st.buildings}</b></span>
-        <span className="is-loss">손실 <b>{st.lost}</b></span>
+        <span>점수 <b>{sim.score.score}</b></span>
+        <span>일꾼 <b>{sim.score.kills}</b></span>
+        <span className="is-loss">잃음 <b>{sim.score.lostN}</b>{sim.score.lostPts ? ` (−${sim.score.lostPts})` : ""}</span>
         {mode && <span className="scr-prac-mode">{ACTS9.find((a) => a.key === mode)?.label} — 자리를 누르세요(Esc 취소)</span>}
         {!locked && !mode && <span className="scr-prac-dim">게임 화면을 누르면 마우스가 화면 안에 갇혀요(원작처럼 가장자리 스크롤) · Esc 로 풀기</span>}
         <span className="scr-prac-sp" />
-        <button type="button" onClick={() => setPaused((p) => !p)}>{paused ? "계속" : "멈춤"}</button>
-        <button type="button" onClick={onRestart}>다시</button>
+        <button type="button" onClick={onRestart} title="이 턴을 버리고 새 턴">턴 다시</button>
         <button type="button" onClick={onFull} title="전체 화면 — Ctrl+숫자 · F3 를 게임이 받아요">전체 화면</button>
         <button type="button" className="scr-prac-gear" onClick={onGear} title="설정(종족 · 자리 · 적 타워 · 키)" aria-label="설정">⚙</button>
       </div>
@@ -1085,6 +1149,7 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
                 })}
               </span>
               {card?.some((it) => it.k === "unit") && <span className="scr-prac-dim">{bld.rally ? "모이는 자리 있음 · 우클릭으로 옮김" : "우클릭 = 모이는 자리"}</span>}
+              {!sim.prodOn && <span className="scr-prac-dim">생산 · 연구는 없어요 — 연습기가 유닛 · 업그레이드를 미리 준비해 둬요</span>}
             </div>
           )}
           {!bld && ships.length > 0 && ships.slice(0, 6).map((s) => (
@@ -1126,13 +1191,13 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
             const url = it.k === "unit" ? iconOf(it.name, "#d8e2f0") : null;
             return (
               <button key={it.name} type="button" className={`scr-prac-cmd${done ? " is-done" : ""}${it.k !== "unit" ? " is-res" : ""}`} disabled={!ok}
-                title={`${it.ko}${it.k === "up" && max > 1 ? ` (${lv}/${max})` : ""}${done ? " — 다 했음" : ""}`} onClick={() => trainKey(bld, it)}>
+                title={`${it.ko}${it.k === "up" && max > 1 ? ` (${lv}/${max})` : ""}${done ? " — 다 했음" : ""}${sim.blocked(it) ? " — 초반 모드는 공방업 불가" : ""}`} onClick={() => trainKey(bld, it)}>
                 {url && <img src={url} alt="" draggable={false} />}
                 <b>{it.key}</b><span>{it.ko}{it.k === "up" && max > 1 ? ` ${lv}/${max}` : done ? " ✓" : ""}</span>
               </button>
             );
           })}
-          {!card && ACTS9.map((a) => (
+          {!bld && ACTS9.map((a) => (
             <button key={a.key} type="button" title={a.hint} className={`scr-prac-cmd${mode === a.key ? " is-on" : ""}`}
               onClick={() => { if (INSTANT9.has(a.key)) doAct(a.key, null, null, false); else setMode(a.key); }}>
               <b>{keys[a.key]}</b><span>{a.label}</span>
@@ -1140,6 +1205,49 @@ function PracGame({ map, terrain, setup, stage, keys, paused: gearPaused, onRead
           ))}
         </div>
       </div>
+      {/* 턴 안내 — 위쪽 가운데 · 남은 시간(준비 30초 → 드랍 30초). */}
+      {turn === "run" && (() => {
+        const prep = sim.phase === "prep";
+        const left = Math.max(0, (prep ? PRAC_PREP_FRAMES9 : PRAC_TURN_FRAMES9) - st.tick) * FRAME_SEC;
+        return (
+          <div className={`scr-prac-banner${prep ? "" : " is-drop"}${left <= 5 ? " is-hurry" : ""}`}>
+            <span className="scr-prac-banner-t">{prep ? "드랍을 준비하세요" : "드랍을 성공시키세요"}</span>
+            <b className="scr-prac-banner-n">{Math.ceil(left)}</b>
+            <span className="scr-prac-banner-s">{prep ? "이때 내린 유닛은 점수가 없어요" : sim.dropAt >= 0 ? "드랍 사용 · 다시 못 태워요" : "드랍은 한 번"}</span>
+          </div>
+        );
+      })()}
+      {!loading && turn === "ready" && (
+        <div className="scr-prac-turn">
+          <h3>{RACE_KO9[setup.myRace]} · {PRAC_SPOTS9.find((p) => p.key === sim.setup.mySpot)?.label} · 적 타워 {sim.setup.stage === "mid" ? "중반" : "초반"}</h3>
+          <p className="scr-prac-loadout">준비된 것 — {pracLoadoutText9(sim.setup.stage, sim.setup.myRace)}</p>
+          <p><b>준비 {PRAC_PREP_SEC9}초</b> — 태우기 · 날아가기(이때 한 드랍은 점수 없음)</p>
+          <p><b>드랍 {PRAC_DROP_SEC9}초</b> — 한 번 드랍해서 일꾼을 잡으세요(내린 뒤엔 다시 못 태워요)</p>
+          <p className="scr-prac-dim">점수 = 잡은 일꾼 × {KILL_PTS9} − 잃은 내 유닛 값(광물 + 가스 ÷ {LOST_DIV9} · 수송선이 터지면 화물도) · 일꾼은 수송선을 보면 12기씩 다른 기지로 도망가요</p>
+          <button type="button" className="scr-prac-start" onClick={() => setTurn("run")}>시작 (Enter)</button>
+        </div>
+      )}
+      {turn === "over" && (
+        <div className="scr-prac-turn is-over">
+          <h3>턴 끝</h3>
+          <div className="scr-prac-score">
+            <span>잡은 일꾼 <b>{sim.score.kills}</b> × {KILL_PTS9}</span><span className="is-plus">+{sim.score.kills * KILL_PTS9}</span>
+            <span>잃은 유닛 <b>{sim.score.lostN}</b>기</span><span className="is-minus">−{sim.score.lostPts}</span>
+            <span className="is-total">점수</span><b className="is-total">{sim.score.score}</b>
+          </div>
+          {reply === "wait" && <p className="scr-prac-dim">기록하는 중…</p>}
+          {reply && reply !== "wait" && (
+            <p className="scr-prac-rec">
+              {reply.newTop ? <b className="is-top">🏆 {sim.setup.stage === "mid" ? "중반" : "초반"} 전체 최고기록!</b> : reply.newMyBest ? <b>내 최고기록 갱신!</b> : null}
+              <span>내 최고 {reply.newMyBest ? sim.score.score : reply.myBest ?? "—"} · 전체 최고 {reply.newTop ? sim.score.score : reply.top ?? "—"}{!reply.newTop && reply.topName ? ` (${reply.topName})` : ""}</span>
+            </p>
+          )}
+          <div className="scr-prac-row">
+            <button type="button" className="scr-prac-start" onClick={onRestart}>다음 턴 (Enter)</button>
+            <button type="button" className="scr-prac-pill" onClick={onGear}>설정</button>
+          </div>
+        </div>
+      )}
       {loading && <div className="scr-prac-loading">모델 굽는 중… {warm.done}/{warm.all}</div>}
     </div>
   );

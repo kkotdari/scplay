@@ -6241,3 +6241,26 @@
 .scr-prac-cursor[data-k="aim"] > .is-aim { display: block; left: -13px; top: -13px; }
 .scr-prac-game.is-locked, .scr-prac-game.is-locked * { cursor: none !important; }
 .scr-prac-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,0.85); font-size: 15px; font-weight: 700; }
+/* ★ 드랍 연습 턴(2026-11-17, 요청: "처음 30초 드랍을 준비하세요 · 이후 30초 드랍을 성공시키세요로 나누기 · 안내 문구 위쪽에 노출 카운터") — 위쪽 가운데 안내 + 남은 초 ·
+   턴 앞(시작) · 뒤(점수 · 기록) 판. */
+.scr-prac-banner { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 22px 10px; border-radius: 12px; background: rgba(6, 9, 16, 0.72); border: 1px solid rgba(120, 170, 255, 0.35); pointer-events: none; text-align: center; }
+.scr-prac-banner-t { font-size: 18px; font-weight: 800; color: #cfe0ff; letter-spacing: 0.02em; }
+.scr-prac-banner-n { font-size: 34px; line-height: 1; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+.scr-prac-banner-s { font-size: 12px; color: #9aa6b8; }
+.scr-prac-banner.is-drop { border-color: rgba(255, 196, 74, 0.55); }
+.scr-prac-banner.is-drop .scr-prac-banner-t { color: #ffd77a; }
+.scr-prac-banner.is-hurry .scr-prac-banner-n { color: #ff6a5a; }
+.scr-prac-turn { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 20; width: min(520px, calc(100% - 32px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 14px; background: rgba(10, 13, 20, 0.94); border: 1px solid #2a3140; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+.scr-prac-turn h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.scr-prac-turn p { margin: 0; line-height: 1.5; }
+.scr-prac-score { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.scr-prac-score .is-plus { color: #6fe36f; font-weight: 800; text-align: right; }
+.scr-prac-score .is-minus { color: #ff7a6a; font-weight: 800; text-align: right; }
+.scr-prac-score .is-total { font-size: 20px; font-weight: 900; border-top: 1px solid #2a3140; padding-top: 6px; }
+.scr-prac-score b.is-total { text-align: right; color: #fff; }
+.scr-prac-rec { display: flex; flex-direction: column; gap: 2px; color: #cfd6e2; }
+.scr-prac-rec .is-top { color: #ffd04a; font-size: 16px; }
+.scr-prac-rules { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(120, 170, 255, 0.08); color: #cfd6e2; font-size: 12.5px; line-height: 1.6; }
+.scr-prac-loadout { padding: 6px 10px; border-radius: 8px; background: rgba(111, 227, 111, 0.08); color: #d8f2d8; font-size: 13px; }
