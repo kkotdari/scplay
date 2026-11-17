@@ -301,17 +301,19 @@ const EARLY9: Record<PracRace9, PracLoadout9> = {
   /* 오버로드 +2(기지의 셋에 더 · 속업 · 수송업) · 히드라 4 · 럴커 4 */
   Z: { units: [["Overlord", 2], ["Hydralisk", 4], ["Lurker", 4]], res: ["Pneumatized Carapace", "Ventral Sacs", "Lurker Aspect"], lv: 0 },
 };
+/* 중반 — 초반 유닛 × MID_MUL9 · 공방(실드) MID_LV9 단. 되물림(2026-11-17 다섯째, 요청: "내 유닛수도 초반의 두배로 축소 · 공방실드도 1업만"): × 4 → × 2 · 2단 → 1단. */
+const MID_MUL9 = 2; const MID_LV9 = 1;
 const MID_EXTRA9: Record<PracRace9, PracLoadout9> = {
-  P: { units: [["Corsair", 4]], res: ["Disruption Web", "Argus Jewel"], lv: 2 },
-  T: { units: [["Science Vessel", 2]], res: ["Irradiate", "Titan Reactor"], lv: 2 },
-  Z: { units: [["Mutalisk", 8]], res: ["Antennae"], lv: 2 },
+  P: { units: [["Corsair", 4]], res: ["Disruption Web", "Argus Jewel"], lv: MID_LV9 },
+  T: { units: [["Science Vessel", 2]], res: ["Irradiate", "Titan Reactor"], lv: MID_LV9 },
+  Z: { units: [["Mutalisk", 8]], res: ["Antennae"], lv: MID_LV9 },
 };
-/** 그 모드 · 종족의 준비 — 중반은 초반 유닛 × 4 에 더. */
+/** 그 모드 · 종족의 준비 — 중반은 초반 유닛 × MID_MUL9 에 더. */
 export function pracLoadout9(stage: PracStage9, race: PracRace9): PracLoadout9 {
   const e = EARLY9[race];
   if (stage === "early") return e;
   const m = MID_EXTRA9[race];
-  return { units: [...e.units.map(([n, k]) => [n, k * 4] as [string, number]), ...m.units], res: [...e.res, ...m.res], lv: m.lv };
+  return { units: [...e.units.map(([n, k]) => [n, k * MID_MUL9] as [string, number]), ...m.units], res: [...e.res, ...m.res], lv: m.lv };
 }
 /** 벙커 안 마린 수(셋째 판 기지엔 벙커가 없다 — 그릇 규칙만 남긴다). */
 const BUNKER_MARINES9 = 4;
@@ -346,6 +348,18 @@ interface FoeBase9 {
   start: PracStartData9; hall: number; mx: number; my: number;
   /** 수송선(내 몸)을 봤나 · 다음 무리가 떠나기까지 남은 프레임 · 떠난 무리 수. */ alert: boolean; nextT: number; groups: number;
 }
+/** 중반에 더 깔 타워 — 맵 6판 중반의 **반**(2026-11-17 다섯째, 요청: "중반의 타워수 반으로 줄이고"). 초반 타워는 다 두고, 중반 전체(초반 + 더 깔리는 것)의
+ *  쏘는 타워 수가 반이 되게 더 깔리는 것을 목록에서 고르게 솎는다(목록 차례 = 맵 셈 차례라 거울 기지끼리 같은 것이 남는다). 프로토스 파일런은 전력 때문에 다 둔다. */
+const midHalf9 = (st: PracStartData9): [string, number, number][] => {
+  const gun = (n: string): boolean => n !== "Pylon";
+  const e = st.early.filter(([n]) => gun(n)).length;
+  const extra = st.mid.filter(([n]) => gun(n));
+  const keep = Math.max(0, Math.round((e + extra.length) / 2) - e);
+  const pick = new Set<number>();
+  for (let i = 0; i < keep; i += 1) pick.add(Math.floor(((i + 0.5) * extra.length) / keep));
+  let gi = 0;
+  return st.mid.filter(([n]) => { if (!gun(n)) return true; const ok = pick.has(gi); gi += 1; return ok; });
+};
 /** 기지마다 일꾼 수 — 맵 6판은 10 이지만 미니게임(2026-11-17, 요청: "일꾼들이 수송선을 발견시 12마리씩 순서대로 1-2초 차이 두고 다른 기지로 한줄로 도망")은
  *  무리가 여럿이어야 해서 옛 웹 판의 50(요청: "타겟의 일꾼들도 50기 정도 미네랄 채굴중이게")으로. */
 const BASE_WORKERS9 = 50;
@@ -726,7 +740,7 @@ export class PracticeSim9 {
       }
       this.foeWorkers += BASE_WORKERS9;
       for (const [n, x, y] of st.early) this.spawn(n, 1, x, y).base = bi;
-      if (this.setup.stage === "mid") for (const [n, x, y] of st.mid) this.spawn(n, 1, x, y).base = bi;
+      if (this.setup.stage === "mid") for (const [n, x, y] of midHalf9(st)) this.spawn(n, 1, x, y).base = bi;
     }
   }
   /** 초반 ↔ 중반 — 적만 새로 세운다(맵 6판 비컨 그대로: 타워 · 일꾼을 다시 채우고 내 기지 · 내 유닛은 그대로). */
