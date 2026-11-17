@@ -56,6 +56,17 @@ const SCROLL_SPEEDS9 = [
 const SCROLL_SPEED9 = 3; const SCROLL_MS9 = 15.625; const EDGE_GAME_PX9 = 2;
 /** 우클릭 대상 고리 깜빡임(원작 selectionTimer = 31 · 매 프레임 1 씩 · 남은 값의 8 비트가 켜졌을 때만 고리 — 두 번 깜빡). */
 const FLASH_FRAMES9 = 31;
+/* ★ 좌 · 우클릭 원작 그대로(2026-11-17, 요청: "우클릭 좌클릭 등 다 구현 필요(땅이나 유닛 등 모두)") — KopruluSector kp_ui_input.c(ClickSelectAtPoint 0x4bbe70 ·
+   BoxSelectUnits 0x4bc2d0 · FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClick 0x445d70) · kp_selection.c(kp_mark_target ·
+   kp_move_placement_cursor):
+   · 우클릭 · 겨눈 좌클릭 — 유닛을 찍으면 그 고리 깜빡임(31프레임), 땅을 찍으면 **이동 표식**(원작 커서 표식 스프라이트 하나 — 새로 찍으면 옮겨 간다).
+     미니맵 우클릭은 유닛을 안 고르고 늘 땅(표식). 하나만 고른 유닛이 제 몸을 우클릭하면 아무 일 없음. 남의 유닛을 고른 채 우클릭도 아무 일 없음.
+   · 좌클릭 — 빈 땅은 고른 것 그대로(지우지 않는다) · 유닛은 그 하나 · Shift 는 넣고 빼기(내 유닛 · 건물 아닌 것끼리만 · 12 까지) ·
+     Ctrl(또는 고른 유닛 더블클릭)은 **화면 안** 같은 종류(버로우 상태도 같은 것) 전부 · Shift+Ctrl 은 그것을 더한다.
+   · 상자 — 내 유닛(건물 빼고)만 앞(아래)부터 12 까지 · 없으면 상자 안 하나(남의 것 · 건물) · 아무것도 없으면 고른 것 그대로 · Shift 는 더한다.
+   · 표식의 꼴 · 길이는 iscript 를 못 열어 어림(초록 타원이 0.5초 동안 오므라든다). */
+const SEL_MAX9 = 12;
+const MARK_FRAMES9 = 12;
 const KEYS_LS9 = "scr.prac.keys";
 const SETUP_LS9 = "scr.prac.setup2";   // 2 — 기본값을 수송선 1 · 유닛 0 으로(2026-11-17 요청) 바꾸며 옛 기억(scr.prac.setup)은 버린다
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
@@ -335,13 +346,41 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     c.x = Math.floor(tx / 8) * 8 + hw; c.y = Math.floor(ty / 8) * 8 + hh;
   };
   const flash = (t: Ent9 | null): void => { if (t && t.def.name !== "Mineral Field") flashes.current.set(t.id, performance.now()); };
+  /** 땅 표식(원작은 하나 — 새로 찍으면 옮겨 간다). */
+  const mark = useRef<{ x: number; y: number; t0: number } | null>(null);
+  /** kp_mark_target — 유닛이면 깜빡임 · 땅이면 표식. */
+  const markTarget = (wx: number, wy: number, t: Ent9 | null): void => {
+    if (t && t.def.name !== "Mineral Field") flash(t);
+    else mark.current = { x: wx, y: wy, t0: performance.now() };
+  };
+  /** 여러 기 고르기에 들 수 있나(내 유닛 · 건물 아님 · FilterSelectableUnits). */
+  const multiOk = (u: Ent9 | undefined): u is Ent9 => !!u && u.owner === 0 && !u.def.bld && !u.dead && u.inside === null;
+  /** 보이는 원작 화면(640 × 400) 안의 세계 사각. */
+  const screenRect = (): [number, number, number, number] => {
+    const c = cam.current; return [c.x - VIEW_W9 / 2, c.y - VIEW_H9 / 2, c.x + VIEW_W9 / 2, c.y + VIEW_H9 / 2];
+  };
+  /** 화면 안 같은 종류(Ctrl · 더블클릭) — 남의 것 · 건물은 그 하나. Shift 면 고른 것에 더한다(12 까지). */
+  const typeSelect = (t: Ent9, shift: boolean): void => {
+    let list: number[] = [t.id];
+    if (multiOk(t)) {
+      const [ax, ay, bx, by] = screenRect();
+      list = [t.id, ...sim.alive().filter((u) => u !== t && multiOk(u) && u.def.name === t.def.name && u.burrowed === t.burrowed
+        && u.x >= ax && u.x <= bx && u.y >= ay && u.y <= by).sort((a, b) => b.y - a.y).map((u) => u.id)].slice(0, SEL_MAX9);
+    }
+    const cur = selRef.current.map((id) => sim.byId.get(id));
+    if (shift && cur.length && cur.every(multiOk) && multiOk(t)) setSel(Array.from(new Set([...selRef.current, ...list])).slice(0, SEL_MAX9));
+    else setSel(list);
+  };
 
   /* ── 명령 ─────────────────────────────────────────────────── */
   const mySel = (): Ent9[] => selRef.current.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null && e.owner === 0);
-  const smart = (wx: number, wy: number, q: boolean): void => {
-    const us = mySel(); if (!us.length) return;
-    const t = sim.pick(wx, wy);
-    flash(t);   // 우클릭이 유닛을 찍으면 그 고리가 깜빡인다(원작 sub_456490 → selectionTimer 31)
+  /** 우클릭(RightClickInGame) — ground 면 유닛을 안 고른다(미니맵 우클릭). */
+  const smart = (wx: number, wy: number, q: boolean, ground = false): void => {
+    const us = mySel(); if (!us.length) return;   // 남의 유닛을 고른 채 우클릭 — 아무 일 없음
+    const t = ground ? null : sim.pick(wx, wy);
+    if (us.length === 1 && t && t.id === us[0].id) return;   // 하나 고른 유닛이 제 몸을 우클릭 — 아무 일 없음
+    if (!t && !us.some((e) => e.mv)) return;   // 땅인데 움직일 것이 없으면 그만
+    markTarget(wx, wy, t);   // 유닛이면 고리 깜빡임(selectionTimer 31) · 땅이면 이동 표식
     const ids = us.map((e) => e.id);
     if (t && t.owner === 1 && t.def.name !== "Mineral Field") { sim.order(ids, { t: "attack", id: t.id }, q); return; }
     if (t && t.owner === 0 && t.def.cargo && !us.includes(t)) { sim.order(ids, { t: "load", id: t.id }, q); return; }
@@ -351,7 +390,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     }
     sim.order(ids, { t: "move", x: wx, y: wy }, q);
   };
-  const doAct = (a: Act9, wx: number | null, wy: number | null, q: boolean): void => {
+  const doAct = (a: Act9, wx: number | null, wy: number | null, q: boolean, ground = false): void => {
     const us = mySel(); const ids = us.map((e) => e.id);
     if (!ids.length) return;
     if (a === "stop") { sim.stop(ids); return; }
@@ -369,8 +408,8 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     }
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
-    const t = sim.pick(wx, wy);
-    if (t && (a === "attack" || a === "load" || a === "unload")) flash(t);
+    const t = ground ? null : sim.pick(wx, wy);
+    markTarget(wx, wy, t);   // 겨눈 좌클릭(TargetingLeftClick) — 유닛 깜빡임 · 땅 표식
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
     else if (a === "attack") {
@@ -456,28 +495,39 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); if (!shift) setMode(null); return; }
     m.down = true; m.sx = m.x; m.sy = m.y; m.box = false;
   };
-  const gUp = (button: number, shift: boolean): void => {
+  const gUp = (button: number, shift: boolean, ctrl = false): void => {
     const m = mouse.current; if (!m.down || button !== 0) return;
     gMove();
     m.down = false;
+    const cur = selRef.current.map((id) => sim.byId.get(id));
     if (m.box) {
+      /* BoxSelectUnits — 상자와 겹치는 몸 · 내 유닛(건물 빼고) 앞부터 12 · 없으면 하나(남의 것 · 건물) · 아무것도 없으면 그대로. */
+      m.box = false;
       const [ax, ay] = toWorld(Math.min(m.sx, m.x), Math.min(m.sy, m.y)); const [bx, by] = toWorld(Math.max(m.sx, m.x), Math.max(m.sy, m.y));
-      const got = sim.alive().filter((u) => u.owner === 0 && !u.def.bld && u.x >= ax - u.def.rad && u.x <= bx + u.def.rad && u.y >= ay - u.def.rad && u.y <= by + u.def.rad).map((u) => u.id);
-      setSel((s) => (shift ? Array.from(new Set([...s, ...got])) : got));
-    } else {
-      const [wx, wy] = toWorld(m.x, m.y);
-      const t = sim.pick(wx, wy);
-      if (!t) { if (!shift) setSel([]); }
-      else if (shift && t.owner === 0) setSel((s) => (s.includes(t.id) ? s.filter((id) => id !== t.id) : [...s, t.id]));
-      else setSel([t.id]);
+      const cands = sim.alive().filter((u) => u.def.name !== "Mineral Field" && sim.visibleTo(u, 0)
+        && u.x - u.def.box[0] <= bx && u.x + u.def.box[2] >= ax && u.y - u.def.box[1] <= by && u.y + u.def.box[3] >= ay).sort((a, b) => b.y - a.y);
+      const own = cands.filter(multiOk).slice(0, SEL_MAX9).map((u) => u.id);
+      if (!own.length) { if (cands[0]) setSel([cands[0].id]); return; }
+      if (shift && cur.length && cur.every(multiOk)) setSel(Array.from(new Set([...selRef.current, ...own])).slice(0, SEL_MAX9));
+      else setSel(own);
+      return;
     }
     m.box = false;
+    /* ClickSelectAtPoint — 빈 땅은 그대로 · Ctrl 은 화면 안 같은 종류 · Shift 는 넣고 빼기. */
+    const [wx, wy] = toWorld(m.x, m.y);
+    const t = sim.pick(wx, wy);
+    if (!t || !sim.visibleTo(t, 0)) return;
+    if (ctrl) { typeSelect(t, shift); return; }
+    if (!shift || !cur.length) { setSel([t.id]); return; }
+    if (selRef.current.includes(t.id)) { setSel(selRef.current.filter((id) => id !== t.id)); return; }
+    if (cur.length >= SEL_MAX9 || !cur.every(multiOk) || !multiOk(t)) return;
+    setSel([...selRef.current, t.id]);
   };
-  const gDbl = (): void => {
+  /** 더블클릭 — 고른 유닛이면 화면 안 같은 종류(ClickSelectAtPoint 의 double_click). */
+  const gDbl = (shift = false): void => {
     gMove(); const [wx, wy] = toWorld(mouse.current.x, mouse.current.y);
-    const t = sim.pick(wx, wy); if (!t || t.owner !== 0) return;
-    const { w, h } = view(); const [ax, ay] = toWorld(0, 0); const [bx, by] = toWorld(w, h);
-    setSel(sim.alive().filter((u) => u.owner === 0 && u.def.name === t.def.name && u.x >= ax && u.x <= bx && u.y >= ay && u.y <= by).map((u) => u.id));
+    const t = sim.pick(wx, wy); if (!t || !selRef.current.includes(t.id)) return;
+    typeSelect(t, shift);
   };
   const miniXY = (): [number, number] => {
     const w = wrapRef.current; const mc = miniRef.current; if (!w || !mc) return [0, 0];
@@ -487,9 +537,10 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
   };
   const miniDown = (button: number, shift: boolean): void => {
     const [wx, wy] = miniXY();
-    if (button === 2) { if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); setMode(null); } else smart(wx, wy, shift); return; }
+    /* 미니맵 — 우클릭은 늘 땅(유닛을 안 고른다 · 표식) · 겨눔 중이면 그 명령을 땅에. */
+    if (button === 2) { if (modeRef.current) { doAct(modeRef.current, wx, wy, shift, true); setMode(null); } else smart(wx, wy, shift, true); return; }
     if (button !== 0) return;
-    if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); if (!shift) setMode(null); return; }
+    if (modeRef.current) { doAct(modeRef.current, wx, wy, shift, true); if (!shift) setMode(null); return; }
     cam.current.x = wx; cam.current.y = wy; clampCam(); miniDrag.current = true;   // 누른 채 끌면 화면이 따라온다(원작 미니맵)
   };
   /* 창 단위로 듣는다 — 커서가 캔버스를 벗어나도(가장자리 · 창 밖) 자리를 놓치지 않게. */
@@ -527,7 +578,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     };
     const onUp = (e: MouseEvent): void => {
       if (!lockedRef.current) fromEvent(e);
-      if (mouse.current.down) gUp(e.button, e.shiftKey);
+      if (mouse.current.down) gUp(e.button, e.shiftKey, e.ctrlKey || e.metaKey);
       miniDrag.current = false;
       if (lockedRef.current && e.button === 0 && btnDown.current) {
         const b = btnDown.current; btnDown.current = null;
@@ -536,7 +587,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     };
     const onDbl = (e: MouseEvent): void => {
       const el = lockedRef.current ? underCursor() : (e.target as Element | null);
-      if (el === cvRef.current) gDbl();
+      if (el === cvRef.current) gDbl(e.shiftKey);
     };
     const onCtx = (e: MouseEvent): void => { if (lockedRef.current || wrap.contains(e.target as Node)) e.preventDefault(); };
     const onOut = (e: MouseEvent): void => { if (!e.relatedTarget) cur.current.inWin = false; };   // 창 밖으로 — 마지막 자리를 쥔다
@@ -700,6 +751,18 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     };
     for (const u of ground) if (ringOn(u)) ring(u);
     for (const u of ground) body(u);
+    /* 땅 표식(우클릭 · 겨눈 좌클릭이 땅을 찍었을 때 · 원작 커서 표식) — 초록 타원 둘이 0.5초 동안 오므라들며 흐려진다(꼴 · 길이 어림 · 위 MARK_ 머리말). */
+    const mk = mark.current;
+    if (mk) {
+      const f = (nowMs - mk.t0) / PRAC_TICK_MS9;
+      if (f >= MARK_FRAMES9) mark.current = null;
+      else {
+        const k = f / MARK_FRAMES9; const r = 14 * (1 - 0.6 * k);
+        g.strokeStyle = `rgba(77, 255, 122, ${0.95 - 0.7 * k})`; g.lineWidth = 1.6 / z;
+        g.beginPath(); g.ellipse(mk.x, mk.y, r, r * 0.62, 0, 0, Math.PI * 2); g.stroke();
+        g.beginPath(); g.ellipse(mk.x, mk.y, r * 0.45, r * 0.45 * 0.62, 0, 0, Math.PI * 2); g.stroke();
+      }
+    }
     /* 공중 — 그림자 뒤 몸 */
     const air = vis.filter((u) => u.def.air).sort((a, b) => a.y - b.y);
     for (const u of air) { g.beginPath(); g.ellipse(u.x + 8, u.y + 26, u.def.rad * 0.8, u.def.rad * 0.4, 0, 0, Math.PI * 2); g.fillStyle = "rgba(0,0,0,0.35)"; g.fill(); }
