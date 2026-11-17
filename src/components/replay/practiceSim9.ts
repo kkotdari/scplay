@@ -777,14 +777,16 @@ export class PracticeSim9 {
     return xyLen9(x - nx, y - ny);
   }
   /** 그 자리의 개체(공중 먼저 · 상자 + 여유). */
-  pick(x: number, y: number, pad = 4): Ent9 | null {
+  /** airLift — 공중 몸이 화면에서 뜬 높이(px · 그리는 쪽이 재생기처럼 띄운다) · 그만큼 위에서 집는다. */
+  pick(x: number, y: number, pad = 4, airLift = 0): Ent9 | null {
     let best: Ent9 | null = null; let bd = Infinity;
     for (const e of this.ents) {
       if (e.dead || e.inside !== null || e.def.res) continue;
       if (e.owner === 1 && !this.sees(e.x, e.y)) continue;   // 안개 속 적은 못 고른다
       const [l, u, r, d] = e.def.box;
-      if (x < e.x - l - pad || x > e.x + r + pad || y < e.y - u - pad || y > e.y + d + pad) continue;
-      const dd = Math.hypot(e.x - x, e.y - y);
+      const ey = e.def.air ? e.y - airLift : e.y;
+      if (x < e.x - l - pad || x > e.x + r + pad || y < ey - u - pad || y > ey + d + pad) continue;
+      const dd = Math.hypot(e.x - x, ey - y);
       if (!best || (e.def.air && !best.def.air) || (e.def.air === best.def.air && dd < bd)) { bd = dd; best = e; }
     }
     return best;

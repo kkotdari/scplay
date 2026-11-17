@@ -29,7 +29,8 @@ import { PRAC_MAP9 } from "./practiceMap9.gen";
 import { PRAC_COLORS9, pracWorldPx9 } from "./practiceSpr9";
 import { CAM_TOP9, GL_GLOW_KINDS9, GlUnits9, SHADOW_ALPHA9, glIconRequest9 } from "./gl9";
 import { glTerrCanvas9 } from "./glTerrain9";
-import { BLD_DRAW_TUNE, BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { AIR_LIFT_K, AIR_LIFT_REF, BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, modelNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { buildingBox } from "../../utils/bwUnits";
 import { DIM as FOG_DIM9 } from "./ReplayFogLayer";
 import type { GlFog9 } from "./glTerrain9";
 import { STORM_STAGES } from "./bake9";
@@ -324,6 +325,8 @@ function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onA
 /* ── 그리는 종류 ───────────────────────────────────────────────────────────── */
 /** 건물 모델 종류(맵 꾸밈 포함). */
 const bldKind9 = (name: string): string => (name === "Mineral Field" ? "mineral" : name === "Vespene Geyser" ? "geyser" : SHAPE_KIND[name] ?? "tomb");
+/** 공중 몸이 뜨는 높이(세계 px) — 재생기 airLiftPxOf 와 같은 한 값(레이스 몸 × AIR_LIFT_K · 몸 크기와 무관). */
+const AIR_LIFT_PX9 = pracWorldPx9(AIR_LIFT_REF) * AIR_LIFT_K;
 /** 유닛 모델 종류(땅속 럴커는 그 별본). */
 const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
 
@@ -516,7 +519,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     const us = mySel(); if (!us.length) return;   // 남의 유닛을 고른 채 우클릭 — 아무 일 없음
     const b = selBld();
     if (b) { if (sim.prodOn && PROD9[b.def.name]?.some((it) => it.k === "unit")) { sim.setRally(b.id, wx, wy); markTarget(wx, wy, null); } return; }   // 생산 건물 — 모이는 자리(생산을 막은 판엔 없음)
-    const t = ground ? null : sim.pick(wx, wy);
+    const t = ground ? null : sim.pick(wx, wy, 4, AIR_LIFT_PX9);
     if (us.length === 1 && t && t.id === us[0].id) return;   // 하나 고른 유닛이 제 몸을 우클릭 — 아무 일 없음
     if (!t && !us.some((e) => e.mv)) return;   // 땅인데 움직일 것이 없으면 그만
     markTarget(wx, wy, t);   // 유닛이면 고리 깜빡임(selectionTimer 31) · 땅이면 이동 표식
@@ -547,7 +550,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     }
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
-    const t = ground ? null : sim.pick(wx, wy);
+    const t = ground ? null : sim.pick(wx, wy, 4, AIR_LIFT_PX9);
     markTarget(wx, wy, t);   // 겨눈 좌클릭(TargetingLeftClick) — 유닛 깜빡임 · 땅 표식
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
     if (a === "web") {
@@ -683,8 +686,9 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       /* BoxSelectUnits — 상자와 겹치는 몸 · 내 유닛(건물 빼고) 앞부터 12 · 없으면 하나(남의 것 · 건물) · 아무것도 없으면 그대로. */
       m.box = false;
       const [ax, ay] = toWorld(Math.min(m.sx, m.x), Math.min(m.sy, m.y)); const [bx, by] = toWorld(Math.max(m.sx, m.x), Math.max(m.sy, m.y));
-      const cands = sim.alive().filter((u) => !u.def.res && sim.visibleTo(u, 0)
-        && u.x - u.def.box[0] <= bx && u.x + u.def.box[2] >= ax && u.y - u.def.box[1] <= by && u.y + u.def.box[3] >= ay).sort((a, b) => b.y - a.y);
+      const cands = sim.alive().filter((u) => { if (u.def.res || !sim.visibleTo(u, 0)) return false;
+        const uy = u.def.air ? u.y - AIR_LIFT_PX9 : u.y;   // 공중은 뜬 자리로(재생기처럼 띄워 그린다)
+        return u.x - u.def.box[0] <= bx && u.x + u.def.box[2] >= ax && uy - u.def.box[1] <= by && uy + u.def.box[3] >= ay; }).sort((a, b) => b.y - a.y);
       const own = cands.filter(multiOk).slice(0, SEL_MAX9).map((u) => u.id);
       if (!own.length) { if (cands[0]) setSel([cands[0].id]); return; }
       if (shift && cur0.length && cur0.every(multiOk)) setSel(Array.from(new Set([...selRef.current, ...own])).slice(0, SEL_MAX9));
@@ -694,7 +698,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     m.box = false;
     /* ClickSelectAtPoint — 빈 땅은 그대로 · Ctrl 은 화면 안 같은 종류 · Shift 는 넣고 빼기. */
     const [wx, wy] = toWorld(m.x, m.y);
-    const t = sim.pick(wx, wy);
+    const t = sim.pick(wx, wy, 4, AIR_LIFT_PX9);
     if (!t || !sim.visibleTo(t, 0)) return;
     if (ctrl) { typeSelect(t, shift); return; }
     if (!shift || !cur0.length) { setSel([t.id]); return; }
@@ -705,7 +709,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   /** 더블클릭 — 고른 유닛이면 화면 안 같은 종류(ClickSelectAtPoint 의 double_click). */
   const gDbl = (shift = false): void => {
     gMove(); const [wx, wy] = toWorld(mouse.current.x, mouse.current.y);
-    const t = sim.pick(wx, wy); if (!t || !selRef.current.includes(t.id)) return;
+    const t = sim.pick(wx, wy, 4, AIR_LIFT_PX9); if (!t || !selRef.current.includes(t.id)) return;
     typeSelect(t, shift);
   };
   const miniXY = (): [number, number] => {
@@ -932,13 +936,18 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
           const mesh = g.bldMesh({ kind, fx: 0, fy: 0, z: 0, sizePx: 16, color: col, alpha: 1, rotDeg: BUILDING_BASE_YAW, spin: 0, ...(lit ? { lit: true } : {}) } as UnitDrawOp, 3);
           const [fw, fh] = u.def.foot ?? [2, 2];
           if (!mesh) { if (rOn) g.prim(2, sx, sy, fw * 16 * z, fh * 16 * z, ringCol, 1, lw); continue; }
-          const k = ((fw * 32 * z) / 16) * bldNormOf(kind) * (BLD_DRAW_TUNE[kind] ?? 1);   // 재생기 종류별 크기 손보기(tune · 2026-11-17 지적 "유닛 크기 tune 적용안된거같음")
+          /* 재생기 붓 그대로(engine9 건물 op · RMP gk9) — 상자 = pracWorldPx9(몸 상자 폭 × 1.2 × tune · 자원은 정한 폭) · 배수 = 상자/16 × BLD_NORM ·
+             잉크 바닥을 지면선에(건물 = 몸 상자 아랫변 · 자원 = 발자국 아랫변) · 가로는 몸 상자 가운데. */
+          const side = pracWorldPx9(u.def.name) * z;
+          const k = (side / 16) * bldNormOf(kind);
+          const [, bh, box, boy] = u.def.res ? [0, fh, 0, 0] : buildingBox(u.def.name);
           const ft = g.footOf(mesh, -BUILDING_BASE_YAW, CAM_TOP9);
-          const gy = sy + fh * 16 * z;
+          const bx = sxOf(u.x + box * 32);
+          const gy = syOf(u.y + (boy + bh / 2) * 32);
           const oy = gy - k * ft.bot;
-          if (rOn) g.prim(2, sx, oy, Math.max(fw * 16, u.def.rad) * z * 0.92, Math.max(fw * 16, u.def.rad) * z * 0.92 * 0.56, ringCol, 1, lw);
-          g.push({ mesh, ax: sx, ay: gy, k, yoff: -k * ft.bot, yawDeg: -BUILDING_BASE_YAW, color: col, alpha, cam: CAM_TOP9, gradR: fw * 32 * z * 0.707, gradCy: -8 * k,
-            shadow: { ground: true, alpha: SHADOW_ALPHA9 }, over: true });
+          if (rOn) g.prim(2, bx, oy, Math.max(fw * 16, u.def.rad) * z * 0.92, Math.max(fw * 16, u.def.rad) * z * 0.92 * 0.56, ringCol, 1, lw);
+          g.push({ mesh, ax: bx, ay: gy, k, yoff: -k * ft.bot, yawDeg: -BUILDING_BASE_YAW, color: u.def.res ? (kind === "geyser" ? "#8f8274" : "#8fb9e8") : col, alpha, cam: CAM_TOP9,
+            gradR: side * 0.707, gradCy: -8 * k, shadow: { ground: true, alpha: SHADOW_ALPHA9 }, over: true });
           continue;
         }
         const kind = unitKind9(u);
@@ -947,17 +956,19 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         const pose = pk?.flap ? walkCutOf9(kind, pk.flap, t) : pk?.move && moving ? walkCutOf9(kind, 4, t) : 0;
         const mesh = g.unitMesh(kind, pose, 3) ?? g.unitMesh(kind, 0, 3);
         if (!mesh) continue;
-        /* 유닛 — 16-상자 가운데를 몸 자리에(원점 (8, 12) → 아래로 4칸 · 옛 판 그림과 같은 자리) · 배수는 잉크가 units.dat 상자만 하게(pracWorldPx9). */
-        const k = (pracWorldPx9(u.def.name) * z) / 16;
+        /* 유닛 — 재생기 붓 그대로(RMP 유닛 GL 갈래): 상자 px = 32 × unitTilesOf × z · 배수 = px/16 × MODEL_NORM · 앵커 = (sx, sy − 0.24·px − 뜬 높이) ·
+           원점 줄 12(평면) → yoff = px/16 × 4 · 공중은 레이스 기준 높이(AIR_LIFT)만큼 띄우고 그림자는 그만큼 내려 바닥에 눕힌다. */
+        const px = pracWorldPx9(u.def.name) * z;
+        const k = (px / 16) * modelNormOf(kind);
+        const lift = u.def.air ? AIR_LIFT_PX9 * z : 0;
         const yaw = 90 - (u.face * 180) / Math.PI;
+        const base = { mesh, ax: sx, ay: sy - px * 0.24 - lift, k, yoff: (px / 16) * 4, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: px * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) };
         if (u.def.air) {
-          g.push({ mesh, ax: sx, ay: sy + 4 * k, k, yoff: 0, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0,
-            flat: GL_GLOW_KINDS9.has(kind), shadow: { dy: 24 * z, alpha: 0.3 }, over: true,
-            ...(rOn ? { ring: { kind: 2 as const, x: sx, y: sy + ryOff, rx: rr, ry, color: ringCol, alpha: 1, lineW: lw, shear: 0 } } : {}) });
+          g.push({ ...base, shadow: { ground: true, dy: lift, h: lift / Math.max(1e-3, k), alpha: SHADOW_ALPHA9 }, over: true,
+            ...(rOn ? { ring: { kind: 2 as const, x: sx, y: sy - lift + ryOff, rx: rr, ry, color: ringCol, alpha: 1, lineW: lw, shear: 0 } } : {}) });
         } else {
           if (rOn) g.prim(2, sx, sy + ryOff, rr, ry, ringCol, 1, lw);
-          g.push({ mesh, ax: sx, ay: sy + 4 * k, k, yoff: 0, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0,
-            flat: GL_GLOW_KINDS9.has(kind), shadow: { ground: true, alpha: SHADOW_ALPHA9 } });
+          g.push({ ...base, shadow: { ground: true, alpha: SHADOW_ALPHA9 } });
         }
       }
       /* 스톰 — 재생기 GL 스톰 모델(벼락 무리 · 더하기 합성 · 칸 21/초) · 반지름 48 의 마당. */
@@ -986,7 +997,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       if (u.def.res || (u.owner === 1 && !sim.sees(u.x, u.y))) continue;
       const hpMax = fp(u.def.hp); const shMax = fp(u.def.sh);
       if (u.hp < hpMax || u.sh < shMax || selSet.has(u.id)) {
-        const bwid = Math.max(18, u.def.rad * 1.6); const by = u.y - u.def.rad - (u.def.air ? 14 : 8);
+        const bwid = Math.max(18, u.def.rad * 1.6); const by = u.y - u.def.rad - (u.def.air ? 8 + AIR_LIFT_PX9 : 8);
         c2.fillStyle = "rgba(0,0,0,0.7)"; c2.fillRect(u.x - bwid / 2 - 1, by - 1, bwid + 2, 5);
         const f = Math.max(0, u.hp) / hpMax;
         c2.fillStyle = f > 0.6 ? "#3ce26a" : f > 0.3 ? "#f2c23c" : "#ff4a3a"; c2.fillRect(u.x - bwid / 2, by, bwid * f, 3);
@@ -1000,7 +1011,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       }
       if (u.def.cargo && u.cargo.length) {
         const n = u.cargo.length;
-        for (let i = 0; i < n; i += 1) { c2.fillStyle = u.para ? "#ffd04a" : "#9be8ff"; c2.fillRect(u.x - n * 3 + i * 6, u.y + u.def.rad + 2, 4, 4); }
+        for (let i = 0; i < n; i += 1) { c2.fillStyle = u.para ? "#ffd04a" : "#9be8ff"; c2.fillRect(u.x - n * 3 + i * 6, u.y - AIR_LIFT_PX9 + u.def.rad + 2, 4, 4); }
       }
     }
     /* 검진 — window.__pracFoot 이면 발자국(건물) · 몸 상자(유닛)를 겹쳐 그린다(모델 자리 맞춤 확인용). */
