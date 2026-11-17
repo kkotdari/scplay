@@ -4813,6 +4813,115 @@ function cloudSpr9(k9: number, orb9: HTMLCanvasElement): { cv: HTMLCanvasElement
   CLOUD9.set(k9, out9);
   return out9;
 }
+/** ★ **시즈 전차포의 불꽃 둘**(2026-11-17, 요청: "시즈 트레이서 중 포구 쪽 것을 지금 타원형에서 불꽃형으로 포구 방향에 맞게 그리기 ·
+ *  탄 날아가는 효과 제거하고 맞은 쪽만 스플래시 좀 더 밝은 타원형 불꽃 아름답게") — 옛 그림은 둘 다 FX_IMPACT 의 방사 그러데이션 타원 한 장이었다
+ *  (포구 siege · 착탄 tankboom). 날아가던 에너지포(tankshell)는 시즈만 걷었다(engine9 · 도록 — 탱크 모드의 탄은 그대로).
+ *  · muzzle — 포구에서 **겨눈 쪽으로 뻗는 혀** 셋(물방울 꼴 · 끝이 뾰족 · 끝으로 주황 → 투명 · 가운데가 길고 양옆 ±13도가 짧아 끝이 갈라진 불꽃)
+ *    + 포구 제퇴기 양옆으로 비스듬히(±54도) 내뿜는 가는 혀 둘 + 흰 속불. ⚠ ±72도 짧은 혀는 뒤로 젖힌 지느러미처럼 읽혔다(실측).
+ *    rot = 진행 방향(화면 라디안 · 로컬 +x 가 앞). 나는 동안 혀가 조금 짧아지며 사그라든다.
+ *  · boom — 땅에 눌린 타원(0.55) 둘레로 **불꽃 꽃잎 열셋**이 피고(길이·각 흔들림은 씨앗) 가운데 흰빛 · 위로 솟는 혀 셋 · 바깥 빛무리.
+ *    옛 판보다 밝게 — 속을 흰빛으로 길게 끌고 빛무리·속불은 더하기(lighter)로 얹는다.
+ *  가지는 경로(beginPath · bezier)와 방사 그러데이션뿐이다 — GL 심(glctx9)이 그대로 받는다(Path2D 금지 규약). */
+function drawSiegeFire9(ctx: CanvasRenderingContext2D, kind: "muzzle" | "boom", x: number, y: number,
+  R: number, p: number, a: number, rot: number, seed: number): void {
+  if (a <= 0.02 || R < 0.5) return;
+  const hh9 = (k: number): number => { let v = Math.imul((seed + k * 7919) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; v ^= v >>> 13; v = Math.imul(v, 0xc2b2ae35) >>> 0; v ^= v >>> 16; return (v >>> 0) / 4294967296; };
+  /** 물방울 꼴 혀 — 밑동 (bx, 0) 에서 +x 로 len 만큼 · 가장 넓은 반폭 wid(밑동에서 30%) · 끝은 뾰족. 지금 경로에 더한다. */
+  const tongue = (bx: number, len: number, wid: number): void => {
+    ctx.moveTo(bx, 0);
+    ctx.bezierCurveTo(bx + len * 0.02, -wid * 0.9, bx + len * 0.3, -wid, bx + len * 0.55, -wid * 0.58);
+    ctx.quadraticCurveTo(bx + len * 0.8, -wid * 0.22, bx + len, 0);
+    ctx.quadraticCurveTo(bx + len * 0.8, wid * 0.22, bx + len * 0.55, wid * 0.58);
+    ctx.bezierCurveTo(bx + len * 0.3, wid, bx + len * 0.02, wid * 0.9, bx, 0);
+    ctx.closePath();
+  };
+  const fireGrad = (cx: number, cy: number, r: number): CanvasGradient => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, "rgba(255,255,248,1)");
+    g.addColorStop(0.24, "rgba(255,248,200,1)");
+    g.addColorStop(0.5, "rgba(255,196,84,0.95)");
+    g.addColorStop(0.78, "rgba(255,120,32,0.62)");
+    g.addColorStop(1, "rgba(230,64,14,0)");
+    return g;
+  };
+  const glow = (cx: number, cy: number, rx: number, ry: number, alpha: number, c0: string, c1: string): void => {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, c0); g.addColorStop(0.45, c1); g.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  };
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = a;
+  if (kind === "muzzle") {
+    ctx.rotate(rot);
+    const L = R * 2 * (1.05 - 0.3 * p);
+    const Wd = R * 0.5 * (1 - 0.25 * p);
+    ctx.fillStyle = fireGrad(L * 0.1, 0, L);
+    ctx.beginPath();
+    tongue(-L * 0.08, L * 1.08, Wd);
+    // 끝이 갈라진 불꽃 — 가운데 혀 양옆으로 조금 짧은 혀 둘(±13도)
+    for (const sd9 of [-1, 1]) {
+      ctx.save();
+      ctx.rotate(sd9 * 0.22);
+      tongue(-L * 0.04, L * 0.8, Wd * 0.55);
+      ctx.restore();
+    }
+    // 포구 제퇴기 양옆 — 앞으로 비스듬히(±54도) 내뿜는 가는 혀 둘
+    for (const sd9 of [-1, 1]) {
+      ctx.save();
+      ctx.translate(L * 0.06, 0);
+      ctx.rotate(sd9 * 0.95);
+      tongue(0, L * 0.48, Wd * 0.3);
+      ctx.restore();
+    }
+    ctx.fill();
+    glow(L * 0.12, 0, L * 0.34, Wd * 0.62, a, "rgba(255,255,255,1)", "rgba(255,240,180,0.7)");
+  } else {
+    const e9 = 1 - (1 - p) * (1 - p);
+    const R1 = R * (0.55 + 0.6 * e9);
+    const SQ9 = 0.55;
+    glow(0, 0, R1 * 1.25, R1 * 1.25 * SQ9, a * 0.7, "rgba(255,214,130,0.75)", "rgba(255,150,60,0.4)");
+    // 꽃잎 — 눌린 판 위에 한 경로로 몰아 한 번 칠한다
+    ctx.save();
+    ctx.scale(1, SQ9);
+    ctx.fillStyle = fireGrad(0, 0, R1);
+    ctx.beginPath();
+    const N9 = 13; const off9 = hh9(1) * Math.PI * 2;
+    for (let i9 = 0; i9 < N9; i9 += 1) {
+      const th9 = off9 + ((i9 + (hh9(10 + i9) - 0.5) * 0.6) / N9) * Math.PI * 2;
+      const ln9 = R1 * (0.74 + 0.28 * hh9(30 + i9));
+      ctx.save();
+      ctx.rotate(th9);
+      tongue(-R1 * 0.08, ln9, R1 * (0.26 + 0.1 * hh9(50 + i9)));
+      ctx.restore();
+    }
+    ctx.fill();
+    ctx.restore();
+    // 위로 솟는 혀 셋 — 나는 동안 조금 떠오르며 짧아진다
+    ctx.save();
+    ctx.translate(0, -R1 * 0.12 * p);
+    ctx.fillStyle = fireGrad(0, -R1 * 0.1, R1);
+    ctx.beginPath();
+    for (let i9 = 0; i9 < 3; i9 += 1) {
+      ctx.save();
+      ctx.translate((i9 - 1) * R1 * 0.24, 0);
+      ctx.rotate(-Math.PI / 2 + (i9 - 1) * 0.36 + (hh9(70 + i9) - 0.5) * 0.25);
+      tongue(-R1 * 0.06, R1 * (0.62 + 0.32 * hh9(80 + i9)) * (1 - 0.35 * p), R1 * 0.2);
+      ctx.restore();
+    }
+    ctx.fill();
+    ctx.restore();
+    glow(0, -R1 * 0.04, R1 * 0.5, R1 * 0.5 * 0.62, a * (1 - 0.55 * p), "rgba(255,255,255,1)", "rgba(255,244,190,0.75)");
+  }
+  ctx.restore();
+}
 function drawBurst9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, ay: number, zoom: number, p: number, tz9 = zoom): void {
   const W = Math.max(3, (f.size ?? 4) * zoom);
   /* ★ 파편의 **수는 몸집 단으로, 크기는 조금만**(요청: "유닛간 크기 차이에 따라 파편 크기를 배율로 키우기보다는 크기는
@@ -5455,6 +5564,14 @@ export function paintFxList9(
          이 갈래만 그것으로 그리고 파편은 안 낸다. */
       // 깃발로 가른다(재지적: "스플래시는 트레이서에 가깝고 피격효과는 나야지") — 같은 무기에
       // **맞아서 체력이 깎인** 피격(splash 없음)은 아래 파편으로 간다.
+      /* 시즈 전차포 — 포구 불꽃(siege · deg = 겨눈 쪽)·착탄 불꽃(tankboom)은 제 붓(drawSiegeFire9 ★). 씨앗은 지도 자리라 한 발 내내 같은 꽃잎이다. */
+      if (im9 && f.splash && (f.style === "siege" || f.style === "tankboom")) {
+        const sd9 = (Math.round(f.fx * 9973) * 31 + Math.round(f.fy * 9967) * 17) | 0;
+        if (f.style === "siege") {
+          drawSiegeFire9(ctx, "muzzle", hx9, hy9, r9 * im9.r * 0.62, p9, a9, f.deg !== undefined ? (f.deg * Math.PI) / 180 + Math.PI / 2 : 0, sd9);
+        } else drawSiegeFire9(ctx, "boom", hx9, hy9, r9 * im9.r, p9, a9, 0, sd9);
+        continue;
+      }
       if (im9 && f.splash) {
         const ir9 = r9 * im9.r * (0.7 + p9 * 0.5);
         const fl9 = im9.flat ?? 1;
@@ -8905,8 +9022,8 @@ export function DocTracer9({ kind, t, className, overlay, box, rotDeg, headDeg, 
              ★ 시즈의 에너지포는 길을 **가로지르는 원반**(+90)이고, 탱크의 광전포는 **길 따라 길쭉**(요청:
                "타원형 광전포 나가게 수정 근데 얘는 이동방향으로 길쭉")이라 각을 안 돌린다.
              탱크 모드의 포탄은 훨씬 작다(engine9 의 ⚠: 시즈 0.68 · 탱크 0.26 → 도록은 0.34). */
-          put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * (burst9 ? 0.68 : 0.34), "tankshell", 0.3,
-            (Math.atan2(-tvx9, tvy9) * 180) / Math.PI + (burst9 ? 90 : 0));
+          // 시즈는 날아가는 탄을 안 그린다(2026-11-17, 요청: "탄 날아가는 효과 제거" — 지도와 같다 · drawSiegeFire9 ★). 탱크 모드의 탄만 난다.
+          if (!burst9) put9(tvx9 * e9, tvy9 * e9 - arc9 * 4 * e9 * (1 - e9), hs9 * 0.34, "tankshell", 0.3, (Math.atan2(-tvx9, tvy9) * 180) / Math.PI);
         } else {
           /* 착탄은 **둥글다**(지적: "포구가 투하되어 폭발하는 거는 타원이 아니라 원형으로
              변경 — 대신 그림자처럼 눌려 보여야 함") — 제 별본(tankboom)이 그 값을 든다.
