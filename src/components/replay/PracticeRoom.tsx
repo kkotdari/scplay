@@ -19,22 +19,29 @@ export interface PracticeRoomProps {
   className?: string;
 }
 
-type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "para" | "load";
+type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load";
 const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
   { key: "move", label: "이동", def: "M", hint: "다음 클릭 자리로 이동(적을 무시)" },
   { key: "attack", label: "공격", def: "A", hint: "다음 클릭 — 적이면 그 적 · 땅이면 가며 싸우기" },
   { key: "stop", label: "정지", def: "S", hint: "하던 일과 예약을 모두 멈춘다" },
   { key: "hold", label: "홀드", def: "H", hint: "그 자리에서 사거리 안만 쏜다" },
-  { key: "unload", label: "하차", def: "U", hint: "다음 클릭 자리로 가서 다 내린다(수송선 자기를 누르면 그 자리)" },
-  { key: "para", label: "낙하산", def: "D", hint: "멈추지 않고 가던 길에 한 기씩 떨군다(Shift + 오른클릭으로 이어 갈 길 예약)" },
+  /* ★ 낙하산은 따로 키가 없다(2026-11-17, 지적: "낙하산은 따로 키가 있는게 아니라 자기 수송선에 내리기를 찍는걸 말하는거야") — 하차 키 뒤 **자기 수송선을 찍으면** 낙하산
+     (멈추지 않고 가던 길에 한 기씩 떨군다 · Shift + 오른클릭 예약 길을 그대로 간다). 옛(같은 날 첫 판): 낙하산 키 D. */
+  { key: "unload", label: "하차", def: "U", hint: "다음 클릭 자리로 가서 다 내린다 · 자기 수송선을 찍으면 낙하산(멈추지 않고 가던 길에 한 기씩 · Shift 예약 길 그대로)" },
   { key: "load", label: "태우기", def: "L", hint: "다음 클릭한 수송선에 탄다(수송선은 클릭한 유닛을 태운다)" },
 ];
 const KEYS_LS9 = "scr.prac.keys";
-const SETUP_LS9 = "scr.prac.setup";
+const SETUP_LS9 = "scr.prac.setup2";   // 2 — 기본값을 수송선 1 · 유닛 0 으로(2026-11-17 요청) 바꾸며 옛 기억(scr.prac.setup)은 버린다
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
 const saveJson9 = (k: string, v: unknown): void => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 사생활 모드 */ } };
 const DEF_KEYS9 = Object.fromEntries(ACTS9.map((a) => [a.key, a.def])) as Record<Act9, string>;
-const DEF_SETUP9: PracSetup9 = { myRace: "T", foeRace: "P", ships: 4, cargo: { Marine: 16, Medic: 8, Firebat: 0, Ghost: 0, Vulture: 0, Goliath: 0, "Siege Tank": 0 }, mySpot: "BL", foeSpot: "TR" };
+/** 기본 — 수송선 1 · 유닛 0(2026-11-17, 요청: "선택창에서 기본값은 수송선 1마리에 유닛 0으로" · 옛 4대 · 마린 16 · 메딕 8). */
+const DEF_SETUP9: PracSetup9 = { myRace: "T", foeRace: "P", ships: 1, cargo: {}, mySpot: "BL", foeSpot: "TR" };
+/** 물리 키 → 글자(KeyU → U · Digit1 → 1) — e.key 는 한글 입력 상태에서 'ㅕ' 같은 낱자로 와서 키 지정 · 단축키가 안 먹었다(2026-11-17, 지적: "연습실 키설정이 안됨"). */
+const keyOf9 = (e: KeyboardEvent): string | null => {
+  const m = /^(?:Key([A-Z])|Digit([0-9])|Numpad([0-9]))$/.exec(e.code);
+  return m ? (m[1] ?? m[2] ?? m[3]) : null;
+};
 const TP9 = 24;   // 지형 그림 칸(px/타일)
 
 const fmtTime9 = (tick: number): string => { const s = Math.floor(tick / 24); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
@@ -85,8 +92,8 @@ function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onS
     const onKey = (e: KeyboardEvent): void => {
       e.preventDefault();
       if (e.key === "Escape") { setListen(null); return; }
-      const k = e.key.length === 1 ? e.key.toUpperCase() : null;
-      if (!k || !/^[A-Z0-9]$/.test(k)) return;
+      const k = keyOf9(e);
+      if (!k) return;
       setKeys((m) => {
         const out = { ...m };
         for (const a of ACTS9) if (out[a.key] === k) out[a.key] = m[listen];   // 겹치면 맞바꾼다
@@ -110,7 +117,7 @@ function PracSetupPanel({ setup, setSetup, keys, setKeys, map, terrain, err, onS
   const setCargo = (n: string, v: number): void => setSetup((s) => ({ ...s, cargo: { ...s.cargo, [n]: Math.max(0, Math.min(96, Math.round(v) || 0)) } }));
   const race = (r: PracRace9): void => setSetup((s) => ({
     ...s, myRace: r,
-    cargo: Object.fromEntries(CARGO_UNITS9[r].map((n, i) => [n, s.myRace === r ? (s.cargo[n] ?? 0) : i === 0 ? Math.min(16, s.ships * 4) : 0])),
+    cargo: Object.fromEntries(CARGO_UNITS9[r].map((n) => [n, s.myRace === r ? (s.cargo[n] ?? 0) : 0])),
   }));
   return (
     <div className="scr-prac-setup">
@@ -290,7 +297,6 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     if (!ids.length) return;
     if (a === "stop") { sim.stop(ids); return; }
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
-    if (a === "para") { sim.paradrop(ids); return; }
     if (wx === null || wy === null) { setMode(a); return; }
     const t = sim.pick(wx, wy);
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
@@ -299,10 +305,9 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       else sim.order(ids, { t: "amove", x: wx, y: wy }, q);
     } else if (a === "unload") {
       const ships = us.filter((e) => e.def.cargo);
-      for (const s of ships) {
-        const here = t && t.id === s.id;
-        sim.order([s.id], { t: "unload", x: here ? s.x : wx, y: here ? s.y : wy }, q);
-      }
+      /* 자기(고른) 수송선을 찍으면 낙하산 — 고른 수송선 모두가 가던 길에 한 기씩(위 ACTS9 ★). */
+      if (t && ships.some((s) => s.id === t.id)) { sim.paradrop(ships.map((s) => s.id)); return; }
+      for (const s of ships) sim.order([s.id], { t: "unload", x: wx, y: wy }, q);
     } else if (a === "load") {
       if (t && t.owner === 0 && t.def.cargo) sim.order(ids.filter((id) => id !== t.id), { t: "load", id: t.id }, q);
       else if (t && t.owner === 0 && t.def.slots) { const s = us.find((e) => e.def.cargo); if (s) sim.order([s.id], { t: "pickup", id: t.id }, q); }
@@ -315,7 +320,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const onDown = (e: KeyboardEvent): void => {
       const tg = e.target as HTMLElement | null;
       if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
-      const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      const k = keyOf9(e) ?? e.key;
       keysDown.current.add(e.key);
       if (k.startsWith("Arrow")) e.preventDefault();   // 화살표는 화면 이동 — 바깥 쪽이 같이 굴러가지 않게
       if (k === "Escape") { setMode(null); return; }
@@ -338,7 +343,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       const act = ACTS9.find((a) => keys[a.key] === k);
       if (act && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        if (act.key === "stop" || act.key === "hold" || act.key === "para") doAct(act.key, null, null, e.shiftKey);
+        if (act.key === "stop" || act.key === "hold") doAct(act.key, null, null, e.shiftKey);
         else setMode(act.key);
       }
     };
@@ -532,6 +537,27 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     g.strokeStyle = "#fff"; g.lineWidth = Math.max(1, dpr); g.strokeRect(ax * k, ay * k, (bx - ax) * k, (by - ay) * k);
   };
 
+  /* ── 화물 칸 그림 — 그림판의 정면 칸(아래 보기)을 잉크 상자로 잘라 체력색으로 물들인다(재생기 인포창의 실루엣과 같은 결) ── */
+  const icons = useRef(new Map<string, string>());
+  const iconOf = (name: string, col: string): string | null => {
+    const key = `${name}|${col}`; const hit = icons.current.get(key); if (hit) return hit;
+    const sp = sprites.current.get(name); const cell = sp?.cells[0][sp.dirs === 1 ? 0 : Math.round(sp.dirs / 4)];
+    if (!cell) return null;
+    const w = cell.width; const h = cell.height; const g0 = cell.getContext("2d"); if (!g0) return null;
+    const px = g0.getImageData(0, 0, w, h).data;
+    let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) if (px[(y * w + x) * 4 + 3] > 16) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    const side = Math.max(x1 - x0, y1 - y0) + 4; const c = document.createElement("canvas"); c.width = 64; c.height = 64;
+    const g = c.getContext("2d"); if (!g) return null;
+    const k = 60 / side; const dw = (x1 - x0 + 1) * k; const dh = (y1 - y0 + 1) * k;
+    g.drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, (64 - dw) / 2, (64 - dh) / 2, dw, dh);
+    g.globalCompositeOperation = "screen"; g.fillStyle = "rgba(90, 90, 90, 1)"; g.fillRect(0, 0, 64, 64);
+    g.globalCompositeOperation = "color"; g.fillStyle = col; g.fillRect(0, 0, 64, 64);
+    g.globalCompositeOperation = "destination-in"; g.drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, (64 - dw) / 2, (64 - dh) / 2, dw, dh);
+    const url = c.toDataURL(); icons.current.set(key, url); return url;
+  };
+
   /* ── 고른 것 · 화물 ───────────────────────────────────────── */
   void hud;
   const selUnits = sel.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null);
@@ -562,11 +588,20 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
           {ships.length > 0 && ships.slice(0, 6).map((s) => (
             <div key={s.id} className="scr-prac-ship">
               <span className="scr-prac-shipname">{s.def.ko}{s.para ? " · 낙하산" : ""}</span>
+              {/* ★ 화물 칸 — 글자 대신 **모델**(2026-11-17, 요청: "수송선 안의 유닛 글자말고 모델로 인포창처럼") — 재생기 인포창의 짐칸과 같은 꼴:
+                  4칸 격자 · 칸이 수송 공간만큼(2 = 1×2 · 4 = 2×2) · 그림은 체력색으로 물들인 모델 실루엣 · 남는 자리는 빈 칸. 칸을 누르면 그 한 기만 지금 자리에 내린다. */}
               <span className="scr-prac-slots">
-                {s.cargo.map((id) => { const u = sim.byId.get(id); return u ? (
-                  <button key={id} type="button" className={`scr-prac-slot is-s${u.def.slots}`} title={`${u.def.ko} — 눌러서 지금 내리기`} onClick={() => sim.unloadOne(s.id, id)}>{u.def.ko.slice(0, 2)}</button>
-                ) : null; })}
-                <i className="scr-prac-free">{8 - sim.usedSlots(s)}칸 남음</i>
+                {s.cargo.map((id) => { const u = sim.byId.get(id); if (!u) return null;
+                  const sp = Math.min(4, u.def.slots); const f = (u.hp + u.sh) / (u.def.hp + u.def.sh);
+                  const col = f > 0.6 ? "#6fe36f" : f > 0.3 ? "#f2c23c" : "#ff5a4a";
+                  const url = iconOf(u.def.name, col);
+                  return (
+                    <button key={id} type="button" className="scr-prac-slot" title={`${u.def.ko} — 눌러서 지금 내리기`} onClick={() => sim.unloadOne(s.id, id)}
+                      style={sp > 1 ? { gridColumn: `span ${sp >= 4 ? 2 : 1}`, gridRow: `span 2` } : undefined}>
+                      {url ? <img src={url} alt={u.def.ko} draggable={false} /> : <i>{u.def.ko.slice(0, 2)}</i>}
+                    </button>
+                  ); })}
+                {Array.from({ length: Math.max(0, 8 - sim.usedSlots(s)) }, (_, k) => <span key={`e${k}`} className="scr-prac-slot is-empty" />)}
               </span>
             </div>
           ))}
@@ -581,7 +616,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
         <div className="scr-prac-cmds">
           {ACTS9.map((a) => (
             <button key={a.key} type="button" title={a.hint} className={`scr-prac-cmd${mode === a.key ? " is-on" : ""}`}
-              onClick={() => { if (a.key === "stop" || a.key === "hold" || a.key === "para") doAct(a.key, null, null, false); else setMode(a.key); }}>
+              onClick={() => { if (a.key === "stop" || a.key === "hold") doAct(a.key, null, null, false); else setMode(a.key); }}>
               <b>{keys[a.key]}</b>{a.label}
             </button>
           ))}
