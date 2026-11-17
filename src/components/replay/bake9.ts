@@ -29394,23 +29394,10 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
         x: cx9, y: cy9, z: h9, r: RI9, depth: DEPTH9, seg: NSEG9, dome: true,
         fill: INNER9, shade0: 0.1, shade: 0.08,
       }), key + 0.55)));
-      // ③ 가스면 — 테 아래 GAP9 · 가장자리에서 가운데로 짙어지는 동심 고리(마르면 없다 — 돌그릇만 남는다).
+      /* ③ 가스면 — 걷었다(2026-11-17, 요청: "간헐천 분화구에 채워진 가스웅덩이는 제거"). 옛: 테 아래 GAP9 의 한 평면 · 동심 고리 여덟 켜
+         (가장자리 GAS → 가운데 GASD9 #1fa843 · 0.72·(1−k)^1.3). 이제 분화구 속은 돌그릇(②)이고 김은 그 높이(zg9)에서 그대로 오른다.
+         마른 간헐천과의 다름은 속 색(②)과 김이다. */
       const zg9 = h9 - GAP9;
-      if (!geyserDry) {
-        const GASD9 = "#1fa843";
-        const ug9 = Math.sqrt(Math.max(0.25, 1 - (GAP9 / DEPTH9) ** 2));
-        const rg9 = RI9 * ug9 * 1.02;
-        const RK9 = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3];   // 켜 여덟 — 띠가 아니라 번짐으로 읽히게 잘게
-        const gasCol9 = (k9: number): string => mixHex(GAS, GASD9, 0.72 * (1 - k9) ** 1.3);
-        for (let i9 = 0; i9 < RK9.length - 1; i9 += 1) {
-          const km9 = (RK9[i9] + RK9[i9 + 1]) / 2;
-          out.push(...shape(tagKey(ringQuads9(rg9 * RK9[i9], rg9 * RK9[i9 + 1], zg9, () => gasCol9(km9)), key + 0.6)));
-        }
-        const rc9 = rg9 * RK9[RK9.length - 1];
-        out.push(...shape(tagKey([[
-          polyPath3(Array.from({ length: NSEG9 }, (_, i9) => at9(rc9, ang9(i9), zg9))), 1, gasCol9(RK9[RK9.length - 1] / 2),
-        ] as ShapeFace], key + 0.6)));
-      }
       /* 초록 김 — **뭉게뭉게 덩이**(2026-09, 요청: "간헐천 … 가스연기를 뭉게뭉게로 바꾸고 애니메이션화
          (간헐천과 어시밀레이터는 가운데와 좌우 가스가 번갈아 나오게하기)") — 옛 세 켜 타원은 정지 그림이었다.
          큰 분화구(가운데)는 위상 0, 작은 둘은 1/4 이라 큰 것이 낼 때 작은 것들은 쉰다(gasPuffs9 의 ★).
@@ -29785,11 +29772,39 @@ SHAPE_BUILDERS.scarab = () => {
 
 /* ★ 가스 덩이 한 벌(2026-09, gasPuffs9 의 ★★) — 반지름 1 의 저해상도 구(위도 4·경도 8). 붓이 굴뚝표(GasEmit9)로
    프레임마다 자리·배율·알파를 인스턴스에 실어 놓는다(gl9 gasPush9 · 도록은 glIconFlush9). 색은 베스핀 초록 하나다. */
+/* ★ **테두리는 그 색 · 가운데로 갈수록 희게**(2026-11-17, 요청: "간헐천과 가스건물의 가스연기 색 변경 — 지금 색은 테두리에 · 가운데로 갈수록
+   밝고 흰 느낌으로 그라데이션 주기") — 옛 덩이는 위도 8 · 경도 16 구의 낯 전부 #8cff86 한 색이었다.
+   덩이는 이제 **카메라를 보는 원반**(빌보드 · billPoly3)을 동심 고리 열둘 + 가운데 한 장으로 나눠, 테두리 PUFF_RIM9(옛 그 색)에서 가운데
+   PUFF_CORE9(흰빛 도는 연두)로 섞는다(섞음 0.95 · (1 − 고리 가운데 반지름)^1.15 · 빛 없이 — gl9 GL_GLOW_KINDS9 · gasPush9 flat). 고리는 서로 안 겹쳐 z 싸움이 없고, 빌보드라 낯 법선이 하나라
+   빛이 원반 전체에 고르게 앉는다 — 그라데이션이 그대로 보인다. 둘레는 32각이라 어느 자리에서나 둥글다.
+   ⚠ 처음엔 구의 낯마다 '카메라를 보는 몫'으로 색을 구웠다 — 빛(방향광)이 낯마다 달리 앉아 흰 가운데가 회색으로 죽고 낯이 조각보로 읽혔다(실측).
+   붓은 그대로(gl9 gasPush9 · 도록 gasDraws9 — 자리·배율·알파). 2D(메시 기록 밖)는 옛 한 색 원. */
+const PUFF_RIM9 = "#8cff86";
+const PUFF_CORE9 = "#f2fff0";
 SHAPE_BUILDERS.gaspuff = () => {
   const [sx, sy] = project(0, 0, 0);
   const d = screenCircle(sx, sy, 1);
-  if (MESH9.on) meshPut9(d, meshSphere9(0, 0, 0, 1, 1, 8, 16));   // 4·8 → 8·16(2026-10-31, 요청: "가스 연기 더 둥글게 구 형태로" — 낯이 각져 보였다)
-  return tagKey([[d, 1, "#8cff86"] as ShapeFace], partKey(0, 0, 0));
+  if (!MESH9.on) return tagKey([[d, 1, PUFF_RIM9] as ShapeFace], partKey(0, 0, 0));
+  const RS9 = Array.from({ length: 13 }, (_, i9) => 1 - i9 * 0.0767);   // 고리 가장자리(바깥 1 → 안 0.08 · 열둘 — 일곱이면 띠가 보였다)
+  /* 원반 가운데는 원점에서 한 뼘 위 — 셰이더가 빌보드 법선 자리(aNrm)에 실린 **원반 가운데**를 normalize 하므로 (0, 0, 0) 이면 NaN 이라 원반이 새까맣다(실측). */
+  const CZ9 = 0.01;
+  const SEG9 = 32;
+  const at9 = (r9: number, j9: number): [number, number] => {
+    const t9 = (j9 / SEG9) * Math.PI * 2; return [Math.cos(t9) * r9, Math.sin(t9) * r9];
+  };
+  const colAt9 = (m9: number): string => mixHex(PUFF_RIM9, PUFF_CORE9, 0.95 * (1 - m9) ** 1.15);
+  const faces: ShapeFace[] = [];
+  for (let i9 = 0; i9 + 1 < RS9.length; i9 += 1) {
+    const ro9 = RS9[i9]; const ri9 = RS9[i9 + 1];
+    const col9 = colAt9(i9 === 0 ? ro9 : (ro9 + ri9) / 2);
+    for (let j9 = 0; j9 < SEG9; j9 += 1) {
+      // 감는 차례는 시계 방향(화면) — 반대로 감으면 낯 법선이 카메라 반대·아래를 봐 빛을 못 받고 새까맣다(실측).
+      faces.push([billPoly3(0, 0, CZ9, [at9(ri9, j9), at9(ri9, j9 + 1), at9(ro9, j9 + 1), at9(ro9, j9)]), 1, col9] as ShapeFace);
+    }
+  }
+  const rc9 = RS9[RS9.length - 1];
+  faces.push([billPoly3(0, 0, CZ9, Array.from({ length: SEG9 }, (_, j9) => at9(rc9, SEG9 - j9))), 1, colAt9(0)] as ShapeFace);
+  return tagKey(faces, partKey(0, 0, 0));
 };
 
 /* 크립 블롭 세 변형(요청: 저그 건물 아래 크립) — 씨앗만 다른 같은 생물 카펫. */

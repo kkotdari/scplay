@@ -873,7 +873,8 @@ export const CAM_TOP9: GlCam9 = { squash: CAM[0], zk: CAM[1], lean: 0, shear: 0,
 /** 캔버스(판)에 남기는 종류 — 화면 전용 효과(빛무리·번개·폭발 고리)와 반투명 구 겹으로 그린 아콘: 3D 로 옮기면 뜻이 달라진다. */
 export const GL_CANVAS_KINDS9 = new Set<string>([]);
 /** 발광 효과 종류 — 반투명 면이 곧 몸(mesh9 glow)이고 음영 없이 제 색으로 그린다(flat). 폭풍·핵은 더하기 합성(add)까지. */
-export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon"]);
+/* gaspuff(가스 덩이 · 2026-11-17) — 빌보드 고리 원반이라 법선 자리에 원반 가운데가 실린다(빛을 못 받는다) · 색 그라데이션을 그대로 보이게 빛 없이 · 종족 곡선 없이. */
+export const GL_GLOW_KINDS9 = new Set(["warpin", "storm", "nukeblast", "nukecloud", "archon", "darchon", "gaspuff"]);
 /* ★ **광택 자(gloss)는 종족이 든다**(2026-09) — 낯마다 재질을 적으면 빌더 154종을 다 만져야 하고,
    색으로 짐작하면 틀린다(이 파일이 이미 겪은 자리다 — "색만 보고는 빛과 진한 물감을 못 가른다").
    그래서 **종류 → 종족** 한 자를 쓴다: 도록 표(SHAPE_GALLERY)가 154종을 이미 종족으로 갈라 놓았다.
@@ -3426,7 +3427,8 @@ export class GlUnits9 implements VecSink9 {
       for (const f of gasPuffFrames9(e, u)) {
         const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, yawDeg, cam);
         const kk = k * f.rr;
-        this.push({ mesh: pm, ax: ax + k * X, ay: ay + yoff + k * Y, k: kk, yoff: 0, yawDeg: 0, color, alpha: alpha * f.a, cam, gradR: kk * 1.2, gradCy: 0, over });
+        // flat — 덩이는 빌보드 고리 원반이라 빛 없이 제 그라데이션 그대로(bake9 gaspuff ★ · 2026-11-17)
+        this.push({ mesh: pm, ax: ax + k * X, ay: ay + yoff + k * Y, k: kk, yoff: 0, yawDeg: 0, color, alpha: alpha * f.a, cam, gradR: kk * 1.2, gradCy: 0, over, flat: true });
       }
     }
   }
@@ -4225,7 +4227,7 @@ export function glIconRequest9(req: GlIconReq9): void {
 type IconCell9 = {
   req: GlIconReq9; x: number; y: number; w: number; h: number;
   /** 이 칸에 그릴 벌들(몸 + 딸림 부품) — 각자 제 요잉과 **제 치우침**을 가진다. */
-  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number; k?: number; alpha?: number }[];
+  draws: { mesh: GlMesh9; yawDeg: number; dx?: number; dy?: number; k?: number; alpha?: number; flat?: boolean }[];
   /** 창을 잴 벌들 — **도는 값을 0 으로 못 박은** 메시다(아래 ★). */
   boxes: GlMesh9[];
   /** 그 벌의 치우침(16-상자 자) — 창을 잴 때 함께 민다(안 밀면 표적이 창 밖으로 잘린다). */
@@ -4242,7 +4244,7 @@ function gasDraws9(it: IconCell9, body: GlMesh9): void {
   for (const e of body.gas) {
     for (const f of gasPuffFrames9(e, u)) {
       const [X, Y] = GlUnits9.modelXY9(f.x, f.y, f.z, -r.rotDeg, CAM_TOP9);
-      it.draws.push({ mesh: pm, yawDeg: 0, dx: X, dy: Y, k: f.rr, alpha: f.a });
+      it.draws.push({ mesh: pm, yawDeg: 0, dx: X, dy: Y, k: f.rr, alpha: f.a, flat: true });
     }
     const [tX, tY] = GlUnits9.modelXY9(e.x, e.y, e.z + e.h, -r.rotDeg, CAM_TOP9);
     it.boxes.push(pm); it.boxOff.push([tX, tY]); it.boxK.push(e.r * 1.9);
@@ -4391,7 +4393,7 @@ function glIconFlush9(): void {
       const ax = it.x + it.w / 2 - k * (box[0] + box[2] / 2 - 8);
       const ay = it.y + it.h / 2 - k * (box[1] + box[3] / 2 - 12);
       for (const d of it.draws) {
-        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k: k * (d.k ?? 1), yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: d.alpha ?? 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: GL_GLOW_KINDS9.has(r.kind) });
+        g.push({ mesh: d.mesh, ax: ax + k * (d.dx ?? 0), ay: ay + k * (d.dy ?? 0), k: k * (d.k ?? 1), yoff: 0, yawDeg: d.yawDeg, color: r.color, alpha: d.alpha ?? 1, cam: CAM_TOP9, gradR: k * 11.31, gradCy: 0, flat: d.flat ?? GL_GLOW_KINDS9.has(r.kind) });
       }
     }
     g.flush(p.w, p.h, p.w, p.h);
