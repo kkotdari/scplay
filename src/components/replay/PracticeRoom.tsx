@@ -42,6 +42,20 @@ const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
 const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege"]);
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
+/* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — 원작 실행 파일을 푼 KopruluSector(n0madic/KopruluSector ·
+   native/kp_core/src/ui/kp_ui_scroll.c · docs/research/atlas/p34.md)의 UpdateMapScroll 0x49bf10 · GetEdgeScrollCursorId 0x43e7b0 · 속도표 0x509390 을 옮겼다:
+   · 가장자리 = 커서가 화면(640 × 480 · 콘솔 포함) 끝 2px 안(x ≤ 1 · x ≥ 638 · y ≤ 1 · y ≥ 478) — 원작은 커서가 창 안에 갇혀 있어 밀면 끝에 붙는다.
+     그래서 여기서도 마우스를 가둔다(Pointer Lock · 게임 화면을 누르면 갇히고 Esc 로 푼다 · 갇힌 동안은 우리 커서를 그린다).
+   · 한 걸음마다 가속 단계 0 → 6 · 그 단계의 픽셀만큼(속도 3 = 옵션 기본: 8 · 8 · 16 · 24 · 24 · 32) · 화면 자리는 8px 칸 · 키(화살표)가 먼저고 키로 밀었으면
+     커서가 움직일 때까지 가장자리는 쉰다 · 상자 끌기 중엔 안 민다. 걸음은 GameLoop 0x4451f0 이 GetTickCount 로 10ms 를 넘길 때마다(atlas p15) —
+     윈도 틱 해상도가 15.625ms 라 실제로는 그만큼마다 한 걸음이다(최고 단계 32px → 초당 약 2048px). */
+const SCROLL_SPEEDS9 = [
+  [0, 0, 8, 8, 16, 16, 16], [0, 0, 8, 8, 16, 16, 24], [0, 8, 8, 16, 16, 24, 24], [0, 8, 8, 16, 24, 24, 32],
+  [0, 8, 16, 16, 24, 32, 40], [0, 8, 16, 24, 32, 40, 48], [0, 8, 24, 32, 40, 56, 64],
+];
+const SCROLL_SPEED9 = 3; const SCROLL_MS9 = 15.625; const EDGE_GAME_PX9 = 2;
+/** 우클릭 대상 고리 깜빡임(원작 selectionTimer = 31 · 매 프레임 1 씩 · 남은 값의 8 비트가 켜졌을 때만 고리 — 두 번 깜빡). */
+const FLASH_FRAMES9 = 31;
 const KEYS_LS9 = "scr.prac.keys";
 const SETUP_LS9 = "scr.prac.setup2";   // 2 — 기본값을 수송선 1 · 유닛 0 으로(2026-11-17 요청) 바꾸며 옛 기억(scr.prac.setup)은 버린다
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
@@ -244,7 +258,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
   const sim = useMemo(() => new PracticeSim9(terrain, setup), [terrain, setup]);
   /* 검진 손잡이 — 시험 판(perf · 하네스)이 window.__pracDebug 를 켜 두면 셈 몸을 내준다. */
   const camDbg = useRef({ x: 0, y: 0, z: 1 });
-  useEffect(() => { const w = window as unknown as { __pracDebug?: boolean; __pracSim?: PracticeSim9; __pracCam?: unknown }; if (w.__pracDebug) { w.__pracSim = sim; w.__pracCam = camDbg.current; } }, [sim]);
+  useEffect(() => { const w = window as unknown as { __pracDebug?: boolean; __pracSim?: PracticeSim9; __pracCam?: unknown }; if (w.__pracDebug) { w.__pracSim = sim; w.__pracCam = camDbg.current; (w as unknown as { __pracCur?: unknown }).__pracCur = cur.current; } }, [sim]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cvRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
@@ -266,6 +280,16 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
   const groups = useRef<Record<string, number[]>>({});
   const lastGroup = useRef<{ k: string; t: number }>({ k: "", t: 0 });
   const mouse = useRef({ x: 0, y: 0, in: false, down: false, sx: 0, sy: 0, box: false });
+  /** 커서(게임 틀 기준 css px) · 창 안에 있나 · 갇혔나(Pointer Lock). */
+  const cur = useRef({ x: -1, y: -1, inWin: true });
+  const lockedRef = useRef(false); const [locked, setLocked] = useState(false);
+  /** 스크롤 — 가속 단계 · 마지막 방향 · 걸음 누적(ms) · 키로 민 뒤 쉬는 중 · 그때의 커서. */
+  const scr = useRef({ step: 0, dx: 0, dy: 0, acc: 0, sup: false, sx: -1, sy: -1 });
+  const miniDrag = useRef(false);
+  const btnDown = useRef<HTMLButtonElement | null>(null);
+  /** 우클릭 대상 깜빡임 — id → 시작(ms). */
+  const flashes = useRef(new Map<number, number>());
+  const curEl = useRef<HTMLDivElement>(null);
   const keysDown = useRef(new Set<string>());
 
   /* 처음 화면 — 내 수송선 가운데 */
@@ -303,18 +327,21 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const { w, h } = view(); const { x, y, z } = cam.current;
     return [x + (sx - w / 2) / z, y + (sy - h / 2) / z];
   };
+  /** 화면 자리 — 왼쪽 위가 8px 칸 위 · 지도 안(원작 SetScreenPosition · & ~7). */
   const clampCam = (): void => {
     const c = cam.current; c.z = fitZ();
     const hw = VIEW_W9 / 2; const hh = VIEW_H9 / 2;
-    c.x = Math.max(Math.min(hw, sim.W / 2), Math.min(Math.max(sim.W - hw, sim.W / 2), c.x));
-    c.y = Math.max(Math.min(hh, sim.H / 2), Math.min(Math.max(sim.H - hh, sim.H / 2), c.y));
+    const tx = Math.max(0, Math.min(sim.W - VIEW_W9, c.x - hw)); const ty = Math.max(0, Math.min(sim.H - VIEW_H9, c.y - hh));
+    c.x = Math.floor(tx / 8) * 8 + hw; c.y = Math.floor(ty / 8) * 8 + hh;
   };
+  const flash = (t: Ent9 | null): void => { if (t && t.def.name !== "Mineral Field") flashes.current.set(t.id, performance.now()); };
 
   /* ── 명령 ─────────────────────────────────────────────────── */
   const mySel = (): Ent9[] => selRef.current.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null && e.owner === 0);
   const smart = (wx: number, wy: number, q: boolean): void => {
     const us = mySel(); if (!us.length) return;
     const t = sim.pick(wx, wy);
+    flash(t);   // 우클릭이 유닛을 찍으면 그 고리가 깜빡인다(원작 sub_456490 → selectionTimer 31)
     const ids = us.map((e) => e.id);
     if (t && t.owner === 1 && t.def.name !== "Mineral Field") { sim.order(ids, { t: "attack", id: t.id }, q); return; }
     if (t && t.owner === 0 && t.def.cargo && !us.includes(t)) { sim.order(ids, { t: "load", id: t.id }, q); return; }
@@ -343,6 +370,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     if (a === "hold") { sim.order(ids, { t: "hold" }, false); return; }
     if (wx === null || wy === null) { setMode(a); return; }
     const t = sim.pick(wx, wy);
+    if (t && (a === "attack" || a === "load" || a === "unload")) flash(t);
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
     else if (a === "attack") {
@@ -399,55 +427,178 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, keys, sim]);
 
-  /* ── 마우스 ───────────────────────────────────────────────── */
-  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>): void => {
-    const r = e.currentTarget.getBoundingClientRect(); const sx = e.clientX - r.left; const sy = e.clientY - r.top;
-    const [wx, wy] = toWorld(sx, sy);
-    if (e.button === 2) {
-      e.preventDefault();
-      if (modeRef.current) { setMode(null); return; }
-      smart(wx, wy, e.shiftKey); return;
-    }
-    if (e.button !== 0) return;
-    if (modeRef.current) { doAct(modeRef.current, wx, wy, e.shiftKey); if (!e.shiftKey) setMode(null); return; }
-    mouse.current = { ...mouse.current, down: true, sx, sy, box: false };
+  /* ── 마우스 ───────────────────────────────────────────────
+     모든 손짓은 '커서 자리(cur)'로 돈다 — 풀린 동안은 진짜 마우스 자리, 갇힌(Pointer Lock) 동안은 움직임을 쌓아 틀 안에 붙잡은 자리.
+     갇힌 동안은 이벤트가 모두 틀(wrap)로 오므로 커서 밑의 요소를 찾아(elementFromPoint) 캔버스 · 미니맵 · 단추로 나눠 준다. */
+  const cvXY = (): [number, number] => {
+    const w = wrapRef.current; const c = cvRef.current; if (!w || !c) return [0, 0];
+    const a = w.getBoundingClientRect(); const b = c.getBoundingClientRect();
+    return [cur.current.x - (b.left - a.left), cur.current.y - (b.top - a.top)];
   };
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>): void => {
-    const r = e.currentTarget.getBoundingClientRect(); const m = mouse.current;
-    m.x = e.clientX - r.left; m.y = e.clientY - r.top; m.in = true;
+  const underCursor = (): Element | null => {
+    const w = wrapRef.current; if (!w) return null;
+    const a = w.getBoundingClientRect();
+    return document.elementFromPoint(a.left + cur.current.x, a.top + cur.current.y);
+  };
+  const gMove = (): void => {
+    const [sx, sy] = cvXY(); const m = mouse.current; const c = cvRef.current;
+    m.x = sx; m.y = sy; m.in = !!c && sx >= 0 && sy >= 0 && sx < c.clientWidth && sy < c.clientHeight;
     if (m.down && (Math.abs(m.x - m.sx) > 5 || Math.abs(m.y - m.sy) > 5)) m.box = true;
   };
-  const onMouseUp = (e: React.MouseEvent<HTMLCanvasElement>): void => {
-    const m = mouse.current; if (!m.down || e.button !== 0) return;
+  const gDown = (button: number, shift: boolean): void => {
+    gMove();
+    const m = mouse.current; const [wx, wy] = toWorld(m.x, m.y);
+    if (button === 2) {
+      if (modeRef.current) { setMode(null); return; }
+      smart(wx, wy, shift); return;
+    }
+    if (button !== 0) return;
+    if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); if (!shift) setMode(null); return; }
+    m.down = true; m.sx = m.x; m.sy = m.y; m.box = false;
+  };
+  const gUp = (button: number, shift: boolean): void => {
+    const m = mouse.current; if (!m.down || button !== 0) return;
+    gMove();
     m.down = false;
     if (m.box) {
       const [ax, ay] = toWorld(Math.min(m.sx, m.x), Math.min(m.sy, m.y)); const [bx, by] = toWorld(Math.max(m.sx, m.x), Math.max(m.sy, m.y));
       const got = sim.alive().filter((u) => u.owner === 0 && !u.def.bld && u.x >= ax - u.def.rad && u.x <= bx + u.def.rad && u.y >= ay - u.def.rad && u.y <= by + u.def.rad).map((u) => u.id);
-      setSel((s) => (e.shiftKey ? Array.from(new Set([...s, ...got])) : got));
+      setSel((s) => (shift ? Array.from(new Set([...s, ...got])) : got));
     } else {
       const [wx, wy] = toWorld(m.x, m.y);
       const t = sim.pick(wx, wy);
-      if (!t) { if (!e.shiftKey) setSel([]); }
-      else if (e.shiftKey && t.owner === 0) setSel((s) => (s.includes(t.id) ? s.filter((id) => id !== t.id) : [...s, t.id]));
+      if (!t) { if (!shift) setSel([]); }
+      else if (shift && t.owner === 0) setSel((s) => (s.includes(t.id) ? s.filter((id) => id !== t.id) : [...s, t.id]));
       else setSel([t.id]);
     }
     m.box = false;
   };
-  const onDouble = (e: React.MouseEvent<HTMLCanvasElement>): void => {
-    const r = e.currentTarget.getBoundingClientRect(); const [wx, wy] = toWorld(e.clientX - r.left, e.clientY - r.top);
+  const gDbl = (): void => {
+    gMove(); const [wx, wy] = toWorld(mouse.current.x, mouse.current.y);
     const t = sim.pick(wx, wy); if (!t || t.owner !== 0) return;
     const { w, h } = view(); const [ax, ay] = toWorld(0, 0); const [bx, by] = toWorld(w, h);
     setSel(sim.alive().filter((u) => u.owner === 0 && u.def.name === t.def.name && u.x >= ax && u.x <= bx && u.y >= ay && u.y <= by).map((u) => u.id));
   };
-  const miniAt = (e: React.MouseEvent<HTMLCanvasElement>): [number, number] => {
-    const r = e.currentTarget.getBoundingClientRect();
-    return [((e.clientX - r.left) / r.width) * sim.W, ((e.clientY - r.top) / r.height) * sim.H];
+  const miniXY = (): [number, number] => {
+    const w = wrapRef.current; const mc = miniRef.current; if (!w || !mc) return [0, 0];
+    const a = w.getBoundingClientRect(); const r = mc.getBoundingClientRect();
+    const fx = Math.max(0, Math.min(1, (cur.current.x - (r.left - a.left)) / r.width)); const fy = Math.max(0, Math.min(1, (cur.current.y - (r.top - a.top)) / r.height));
+    return [fx * sim.W, fy * sim.H];
   };
-  const onMini = (e: React.MouseEvent<HTMLCanvasElement>): void => {
-    const [wx, wy] = miniAt(e);
-    if (e.button === 2) { e.preventDefault(); if (modeRef.current) { doAct(modeRef.current, wx, wy, e.shiftKey); setMode(null); } else smart(wx, wy, e.shiftKey); return; }
-    if (modeRef.current) { doAct(modeRef.current, wx, wy, e.shiftKey); if (!e.shiftKey) setMode(null); return; }
-    cam.current.x = wx; cam.current.y = wy; clampCam();
+  const miniDown = (button: number, shift: boolean): void => {
+    const [wx, wy] = miniXY();
+    if (button === 2) { if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); setMode(null); } else smart(wx, wy, shift); return; }
+    if (button !== 0) return;
+    if (modeRef.current) { doAct(modeRef.current, wx, wy, shift); if (!shift) setMode(null); return; }
+    cam.current.x = wx; cam.current.y = wy; clampCam(); miniDrag.current = true;   // 누른 채 끌면 화면이 따라온다(원작 미니맵)
+  };
+  /* 창 단위로 듣는다 — 커서가 캔버스를 벗어나도(가장자리 · 창 밖) 자리를 놓치지 않게. */
+  useEffect(() => {
+    if (loading) return undefined;
+    const wrap = wrapRef.current; if (!wrap) return undefined;
+    const fromEvent = (e: MouseEvent): void => {
+      const c = cur.current;
+      if (document.pointerLockElement === wrap) {   // lockedRef 는 pointerlockchange 가 와야 바뀐다 — 그 사이의 움직임도 갇힌 셈으로
+        /* 갇힌 뒤 첫 움직임에 크롬이 엉뚱하게 큰 movementX 를 싣는 일이 있다 — 그 한 번은 버린다(커서가 끝으로 튀어 화면이 밀리던 것). */
+        if (Math.abs(e.movementX) > 300 || Math.abs(e.movementY) > 300) return;
+        c.x = Math.max(0, Math.min(wrap.clientWidth - 1, c.x + e.movementX)); c.y = Math.max(0, Math.min(wrap.clientHeight - 1, c.y + e.movementY));
+      } else {
+        /* 갇히고 풀리는 틈에 브라우저가 (0, 0) 자리의 가짜 mousemove 를 쏘는 일이 있다 — 커서가 왼쪽 위 끝으로 튀어 화면이 밀리지 않게 버린다. */
+        if (e.type === "mousemove" && e.clientX === 0 && e.clientY === 0) return;
+        const a = wrap.getBoundingClientRect(); c.x = e.clientX - a.left; c.y = e.clientY - a.top;
+      }
+      c.inWin = true;
+    };
+    const onMove = (e: MouseEvent): void => {
+      fromEvent(e); gMove();
+      if (miniDrag.current) { const [wx, wy] = miniXY(); cam.current.x = wx; cam.current.y = wy; clampCam(); }
+    };
+    const onDown = (e: MouseEvent): void => {
+      const el = lockedRef.current ? underCursor() : (e.target as Element | null);
+      if (!lockedRef.current) fromEvent(e);
+      if (el === cvRef.current) {
+        e.preventDefault(); gDown(e.button, e.shiftKey);
+        /* 원작처럼 커서를 화면 안에 가둔다 — 사용자 손짓(누름) 안에서만 걸 수 있다. */
+        if (!lockedRef.current && wrap.requestPointerLock) { try { const r = wrap.requestPointerLock() as unknown; if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => undefined); } catch { /* 막힌 곳 */ } }
+        return;
+      }
+      if (el === miniRef.current) { e.preventDefault(); miniDown(e.button, e.shiftKey); return; }
+      if (lockedRef.current) { btnDown.current = (el?.closest("button") as HTMLButtonElement | null) ?? null; e.preventDefault(); }
+    };
+    const onUp = (e: MouseEvent): void => {
+      if (!lockedRef.current) fromEvent(e);
+      if (mouse.current.down) gUp(e.button, e.shiftKey);
+      miniDrag.current = false;
+      if (lockedRef.current && e.button === 0 && btnDown.current) {
+        const b = btnDown.current; btnDown.current = null;
+        if (underCursor()?.closest("button") === b) b.click();
+      }
+    };
+    const onDbl = (e: MouseEvent): void => {
+      const el = lockedRef.current ? underCursor() : (e.target as Element | null);
+      if (el === cvRef.current) gDbl();
+    };
+    const onCtx = (e: MouseEvent): void => { if (lockedRef.current || wrap.contains(e.target as Node)) e.preventDefault(); };
+    const onOut = (e: MouseEvent): void => { if (!e.relatedTarget) cur.current.inWin = false; };   // 창 밖으로 — 마지막 자리를 쥔다
+    const onLock = (): void => {
+      const on = document.pointerLockElement === wrap;
+      lockedRef.current = on; setLocked(on);
+      if (on) { const c = cur.current; c.x = Math.max(0, Math.min(wrap.clientWidth - 1, c.x)); c.y = Math.max(0, Math.min(wrap.clientHeight - 1, c.y)); }
+    };
+    window.addEventListener("mousemove", onMove);
+    wrap.addEventListener("mousedown", onDown);
+    window.addEventListener("mouseup", onUp);
+    wrap.addEventListener("dblclick", onDbl);
+    window.addEventListener("contextmenu", onCtx);
+    document.addEventListener("mouseout", onOut);
+    document.addEventListener("pointerlockchange", onLock);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      wrap.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+      wrap.removeEventListener("dblclick", onDbl);
+      window.removeEventListener("contextmenu", onCtx);
+      document.removeEventListener("mouseout", onOut);
+      document.removeEventListener("pointerlockchange", onLock);
+      if (document.pointerLockElement === wrap) document.exitPointerLock();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, sim]);
+  /** 한 걸음 — 원작 UpdateMapScroll(키 먼저 · 아니면 가장자리 · 가속 단계 · 속도표). 가장자리면 그 방향을 돌려준다(커서 그림). */
+  const scrollStep = (): void => {
+    const sc = scr.current; const kd = keysDown.current; const m = mouse.current;
+    if (m.down && m.box) { sc.step = 0; return; }   // 상자 끌기 중엔 안 민다
+    let dx = 0; let dy = 0; let moving = false;
+    if (kd.has("ArrowLeft")) dx = -1; else if (kd.has("ArrowRight")) dx = 1;
+    if (kd.has("ArrowUp")) dy = -1; else if (kd.has("ArrowDown")) dy = 1;
+    if (dx || dy) { moving = true; sc.sup = true; sc.sx = cur.current.x; sc.sy = cur.current.y; }
+    else {
+      [dx, dy] = edgeDir();
+      if (sc.sup) { if (cur.current.x === sc.sx && cur.current.y === sc.sy) { dx = 0; dy = 0; } else sc.sup = false; }
+      moving = dx !== 0 || dy !== 0;
+      if (!moving) sc.step = 0;
+    }
+    if (moving && sc.step < 6) sc.step += 1;
+    if (moving) { sc.dx = dx; sc.dy = dy; }
+    if (sc.step) {
+      const n = SCROLL_SPEEDS9[SCROLL_SPEED9][sc.step];
+      cam.current.x += sc.dx * n; cam.current.y += sc.dy * n; clampCam();
+    }
+  };
+  /** 가장자리 방향 — 갇힌 커서는 틀 끝 2 게임 px · 풀린 커서는 틀 안 끝 띠, 또는 창 밖으로 나간 마지막 자리가 끝 곁이면 그 쪽. */
+  const edgeDir = (): [number, number] => {
+    const w = wrapRef.current; if (!w) return [0, 0];
+    const W = w.clientWidth; const H = w.clientHeight; const c = cur.current;
+    if (c.x < 0 && c.y < 0) return [0, 0];
+    const band = Math.max(2, EDGE_GAME_PX9 * fitZ());
+    if (!lockedRef.current) {
+      const inside = c.x >= 0 && c.y >= 0 && c.x < W && c.y < H;
+      if (!inside && c.inWin) return [0, 0];   // 틀 밖 앱 화면 위 — 안 민다
+      const near = c.inWin ? band : 48;          // 창 밖으로 빠져나갔으면 마지막 자리가 끝 곁(48px)이면 그 쪽으로
+      const x = Math.max(0, Math.min(W - 1, c.x)); const y = Math.max(0, Math.min(H - 1, c.y));
+      return [x <= near ? -1 : x >= W - 1 - near ? 1 : 0, y <= near ? -1 : y >= H - 1 - near ? 1 : 0];
+    }
+    return [c.x <= band ? -1 : c.x >= W - 1 - band ? 1 : 0, c.y <= band ? -1 : c.y >= H - 1 - band ? 1 : 0];
   };
 
   /* ── 돌리기 · 그리기 ───────────────────────────────────────── */
@@ -457,15 +608,24 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
     const loop = (now: number): void => {
       const dt = Math.min(250, now - last); last = now;
       if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9) { sim.step(); acc -= PRAC_TICK_MS9; } }
-      /* 화면 이동 — 화살표 · 가장자리 */
-      const c = cam.current; const kd = keysDown.current; const m = mouse.current; const { w, h } = view();
-      const sp = (900 * dt) / 1000 / Math.max(0.1, c.z);
-      if (kd.has("ArrowLeft") || (m.in && m.x < 8)) c.x -= sp;
-      if (kd.has("ArrowRight") || (m.in && m.x > w - 8)) c.x += sp;
-      if (kd.has("ArrowUp") || (m.in && m.y < 8)) c.y -= sp;
-      if (kd.has("ArrowDown") || (m.in && m.y > h - 8)) c.y += sp;
+      /* 화면 이동 — 원작 걸음(15.625ms 마다 · 위 SCROLL_ 머리말) */
+      const sc = scr.current; sc.acc += dt;
+      let k = 0; while (sc.acc >= SCROLL_MS9 && k < 30) { sc.acc -= SCROLL_MS9; scrollStep(); k += 1; }
+      if (k === 30) sc.acc = 0;
       clampCam();
       draw();
+      /* 갇힌 커서 그림 — 보통 화살 · 겨눔 · 가장자리 스크롤 화살 */
+      const ce = curEl.current;
+      if (ce) {
+        if (!lockedRef.current) ce.style.display = "none";
+        else {
+          const [ex, ey] = edgeDir();
+          ce.style.display = "block";
+          ce.style.transform = `translate(${cur.current.x}px, ${cur.current.y}px)`;
+          ce.dataset.k = ex || ey ? "scroll" : modeRef.current ? "aim" : "arrow";
+          if (ex || ey) ce.style.setProperty("--rot", `${Math.round((Math.atan2(ey, ex) * 180) / Math.PI)}deg`);
+        }
+      }
       hudT += dt; if (hudT > 150) { hudT = 0; setHud((x) => x + 1); }
       raf = requestAnimationFrame(loop);
     };
@@ -527,7 +687,18 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       }
     };
     const ground = vis.filter((u) => !u.def.air).sort((a, b) => (a.def.bld === b.def.bld ? a.y - b.y : a.def.bld ? -1 : 1));
-    for (const u of ground) if (selSet.has(u.id)) ring(u);
+    /* 고리 — 고른 것 · 우클릭 대상 깜빡임(남은 값의 8 비트가 켜진 동안만 · 고른 것도 깜빡임 동안은 함께 꺼졌다 켜진다). */
+    const nowMs = performance.now();
+    const ringOn = (u: Ent9): boolean => {
+      const t0 = flashes.current.get(u.id);
+      if (t0 !== undefined) {
+        const t = FLASH_FRAMES9 - 1 - Math.floor((nowMs - t0) / PRAC_TICK_MS9);
+        if (t > 0) return (t & 8) !== 0;
+        flashes.current.delete(u.id);
+      }
+      return selSet.has(u.id);
+    };
+    for (const u of ground) if (ringOn(u)) ring(u);
     for (const u of ground) body(u);
     /* 공중 — 그림자 뒤 몸 */
     const air = vis.filter((u) => u.def.air).sort((a, b) => a.y - b.y);
@@ -536,7 +707,7 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
       g.strokeStyle = s.col; g.globalAlpha = Math.min(1, s.t / 3); g.lineWidth = 2 / z;
       g.beginPath(); g.moveTo(s.x1, s.y1); g.lineTo(s.x2, s.y2); g.stroke(); g.globalAlpha = 1;
     }
-    for (const u of air) { if (selSet.has(u.id)) ring(u); body(u); }
+    for (const u of air) { if (ringOn(u)) ring(u); body(u); }
     /* 스캐럽 — 땅을 기는 작은 불씨. */
     for (const sc of sim.scarabs) { g.beginPath(); g.arc(sc.x, sc.y, 3, 0, Math.PI * 2); g.fillStyle = "#ffb347"; g.fill(); }
     /* 스톰 — 반지름 48 의 푸른 번개 마당(남은 시간만큼 옅어진다). */
@@ -626,11 +797,15 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
   const ships = selUnits.filter((e) => e.owner === 0 && e.def.cargo);
   const st = sim.stats;
   return (
-    <div className="scr-prac-game" ref={wrapRef}>
-      <canvas ref={cvRef} className="scr-prac-canvas" onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
-        onMouseLeave={() => { mouse.current.in = false; mouse.current.down = false; mouse.current.box = false; }}
-        onDoubleClick={onDouble} onContextMenu={(e) => e.preventDefault()}
+    <div className={`scr-prac-game${locked ? " is-locked" : ""}`} ref={wrapRef}>
+      <canvas ref={cvRef} className="scr-prac-canvas" onContextMenu={(e) => e.preventDefault()}
         style={{ cursor: mode ? "crosshair" : "default" }} />
+      {/* 갇힌 동안의 커서(원작은 커서가 창 안에 갇혀 있다) — 보통 화살 · 겨눔 · 가장자리 스크롤 화살 */}
+      <div ref={curEl} className="scr-prac-cursor" data-k="arrow" aria-hidden>
+        <svg className="is-arrow" width="18" height="24" viewBox="0 0 18 24"><path d="M1 1 L1 19 L6 14 L10 23 L13 22 L9 13 L16 13 Z" fill="#7dff8f" stroke="#04210a" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+        <svg className="is-scroll" width="22" height="22" viewBox="0 0 22 22"><path d="M21 11 L8 2 L8 7 L1 7 L1 15 L8 15 L8 20 Z" fill="#7dff8f" stroke="#04210a" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+        <svg className="is-aim" width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="8" fill="none" stroke="#ffd04a" strokeWidth="2" /><path d="M13 0 V8 M13 18 V26 M0 13 H8 M18 13 H26" stroke="#ffd04a" strokeWidth="2" /></svg>
+      </div>
       <div className="scr-prac-top">
         <b>{fmtTime9(st.tick)}</b>
         <span>일꾼 <b>{st.workers}</b>/50</span>
@@ -638,13 +813,14 @@ function PracGame({ map, terrain, setup, keys, onReady, onSetup, onRestart, load
         <span>건물 <b>{st.buildings}</b></span>
         <span className="is-loss">손실 <b>{st.lost}</b></span>
         {mode && <span className="scr-prac-mode">{ACTS9.find((a) => a.key === mode)?.label} — 자리를 누르세요(Esc 취소)</span>}
+        {!locked && !mode && <span className="scr-prac-dim">게임 화면을 누르면 마우스가 화면 안에 갇혀요(원작처럼 가장자리 스크롤) · Esc 로 풀기</span>}
         <span className="scr-prac-sp" />
         <button type="button" onClick={() => setPaused((p) => !p)}>{paused ? "계속" : "멈춤"}</button>
         <button type="button" onClick={onRestart}>다시</button>
         <button type="button" onClick={onSetup}>설정</button>
       </div>
       <div className="scr-prac-bottom">
-        <canvas ref={miniRef} className="scr-prac-mini" onMouseDown={onMini} onContextMenu={(e) => e.preventDefault()} />
+        <canvas ref={miniRef} className="scr-prac-mini" onContextMenu={(e) => e.preventDefault()} />
         <div className="scr-prac-selbox">
           {selUnits.length === 0 && <span className="scr-prac-dim">유닛을 고르세요 — 수송선을 고르면 화물 칸이 보여요(칸을 누르면 그 한 기만 내림)</span>}
           {ships.length > 0 && ships.slice(0, 6).map((s) => (
