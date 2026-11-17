@@ -1,8 +1,11 @@
 /* 연습실 그림판(2026-11-17 · practiceSim9 ★) — 재생기·도록과 **같은 GL 모델**(glIconRequest9 · 평면 카메라)을 방향 16개 × 임자색 둘로
    한 번 구워 2D 캔버스에 모아 둔다. 놀이 중에는 그 칸을 drawImage 로 찍기만 한다(GL 문맥을 따로 안 연다 · 도록 아이콘 그리개 하나를 빌린다).
-   크기는 재생기와 같은 자: 유닛은 16-상자 = unitTilesOf(원작 치수 × 16 / 잉크) 타일 · 건물은 발자국 폭 × bldDrawK9 × 손보기. */
+   ★ 크기는 **원작 그대로**(2026-11-17 둘째, 요청: "원작 정보를 그대로 조사해서 구현해야해") — 재생기의 그리기 손잡이(UNIT_SIZE_GLOBAL 1.2 ·
+   UNIT_SIZE_TUNE · BLD_DRAW_K 1.2 · BLD_DRAW_TUNE)를 안 탄다: 유닛은 모델 잉크가 units.dat 상자(기하평균 √(폭 × 높이) · UNIT_BW_TILES)만 하게,
+   건물은 16-상자가 발자국 폭(타일 × 32)만 하게. 옛(같은 날 첫 판): unitTilesOf(×1.2 · 손보기) · 발자국 × 1.2 × 손보기 — 게다가 유닛 치수 열쇠를
+   이름(Dropship)으로 넘겨 표를 못 찾고 등급 폴백으로 떨어지고 있었다. */
 import { glIconOk9, glIconRequest9 } from "./gl9";
-import { BLD_DRAW_TUNE, BUILDING_BASE_YAW, FOOTPRINT, SHAPE_KIND, UNIT_3D, UNIT_BULK, bldDrawK9, unitTilesOf } from "./engine9";
+import { BUILDING_BASE_YAW, CLASS_TILES, FOOTPRINT, SHAPE_KIND, UNIT_3D, UNIT_BULK, UNIT_BW_TILES, modelInkOf } from "./engine9";
 import { UNIT_DEFS9 } from "./practiceSim9";
 
 export const PRAC_DIRS9 = 16;
@@ -26,10 +29,10 @@ export function pracWorldPx9(name: string): number {
   if (name === "Mineral Field") return 2 * 32 * 1.15;
   if (bld) {
     const fp = FOOTPRINT[name] ?? UNIT_DEFS9[name]?.foot ?? [3, 2];
-    const tune = BLD_DRAW_TUNE[kind] ?? 1;
-    return fp[0] * 32 * bldDrawK9(kind, fp[0], tune) * tune;
+    return fp[0] * 32;
   }
-  return unitTilesOf(kind, name, UNIT_BULK[name] ?? 1) * 32;
+  const bw = UNIT_BW_TILES[kind] ?? CLASS_TILES[(UNIT_BULK[name] ?? 1) as 0 | 1 | 2];
+  return bw * (16 / modelInkOf(kind)) * 32;
 }
 
 /** 한 종류를 굽는다 — 다 구워지면 done. GL 이 안 서면 곧바로 null 칸으로 done(부르는 쪽이 동그라미로 그린다). */
