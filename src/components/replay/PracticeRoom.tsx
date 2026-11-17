@@ -325,6 +325,8 @@ function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onA
 /* ── 그리는 종류 ───────────────────────────────────────────────────────────── */
 /** 건물 모델 종류(맵 꾸밈 포함). */
 const bldKind9 = (name: string): string => (name === "Mineral Field" ? "mineral" : name === "Vespene Geyser" ? "geyser" : SHAPE_KIND[name] ?? "tomb");
+/** 한 층의 배킹 화소 상한(약 2560 × 1440 · dpr 1 몫). */
+const PRAC_BACK_PX9 = 3.7e6;
 /** 공중 몸이 뜨는 높이(세계 px) — 재생기 airLiftPxOf 와 같은 한 값(레이스 몸 × AIR_LIFT_K · 몸 크기와 무관). */
 const AIR_LIFT_PX9 = pracWorldPx9(AIR_LIFT_REF) * AIR_LIFT_K;
 /** 유닛 모델 종류(땅속 럴커는 그 별본). */
@@ -873,9 +875,11 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
 
   const draw = (nowMs: number): void => {
     const cv = cvRef.current; if (!cv) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = cv.clientWidth; const H = cv.clientHeight;
     if (!W || !H) return;
+    /* 배킹 화소 예산 — 큰 전체 화면(2560 × 1440 · dpr 2 = 1470만 화소)에서 GL 세 층을 다 그리면 한 장이 무거워 손이 둔해진다(2026-11-17 지적 "컨트롤 조금 둔한 느낌").
+       세 층(지형 · 몸 · 위 2D)을 같은 배수로 PRAC_BACK_PX9 안에 둔다 — 그림은 원작 화면(640 × 400)을 늘인 것이라 그 밖은 덮개다. */
+    const dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(PRAC_BACK_PX9 / (W * H)));
     const bw = Math.round(W * dpr); const bh = Math.round(H * dpr);
     if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
     clampCam();
@@ -1255,9 +1259,11 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         const left = Math.max(0, (prep ? PRAC_PREP_FRAMES9 : PRAC_TURN_FRAMES9) - st.tick) * FRAME_SEC;
         return (
           <div className={`scr-prac-banner${prep ? "" : " is-drop"}${left <= 5 ? " is-hurry" : ""}`}>
-            <span className="scr-prac-banner-t">{prep ? "드랍을 준비하세요" : "드랍을 성공시키세요"}</span>
+            {/* 안내(2026-11-17, 요청: "가이드 문구 드랍 준비 · 드랍 GoGo" · 멘트 "드랍을 준비하세요 · 적 기지로 드랍을 가서 일꾼 올을 노리세요 · 일꾼 올을 성공시키세요") —
+                큰 글씨 = 단계 · 그 아래 남은 초 · 멘트(드랍 단계는 드랍 전 · 뒤로 갈린다). */}
+            <span className="scr-prac-banner-t">{prep ? "드랍 준비" : "드랍 GoGo"}</span>
             <b className="scr-prac-banner-n">{Math.ceil(left)}</b>
-            <span className="scr-prac-banner-s">{prep ? "이때 내린 유닛은 점수가 없어요" : sim.dropAt >= 0 ? "드랍 사용 · 다시 못 태워요" : "드랍은 한 번"}</span>
+            <span className="scr-prac-banner-s">{prep ? "드랍을 준비하세요" : sim.dropAt >= 0 ? "일꾼 올을 성공시키세요" : "적 기지로 드랍을 가서 일꾼 올을 노리세요"}</span>
           </div>
         );
       })()}

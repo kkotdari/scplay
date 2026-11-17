@@ -1101,7 +1101,7 @@ export class PracticeSim9 {
     if (e.def.air || !e.mv) return;
     const key: [number, number] = [Math.round(x / CELL9), Math.round(y / CELL9)];
     if (!e.path || !e.pathTo || e.pathTo[0] !== key[0] || e.pathTo[1] !== key[1] || (follow && this.stats.tick % 12 === e.id % 12)) {
-      e.path = this.findPath(e.x, e.y, x, y); e.pathTo = key;
+      e.path = this.sharedPath(e, x, y, key); e.pathTo = key;
     }
   }
   /** 한 프레임 걷기/날기 — 원작 flingy 규칙(가속 · 정지 거리 · 진행 방향 회전) · iscript 구동은 즉발 최고속. */
@@ -1171,6 +1171,28 @@ export class PracticeSim9 {
   }
 
   /** A*(16px 칸 · 8방향) → 시야가 트인 꺾는 점만 남긴다. 못 가면 가장 가까운 칸까지. */
+  /* ★ 길 찾기 값 줄이기(2026-11-17, 지적: "컨트롤(반응속도 나 클릭감 등)이 조금 둔한 느낌") — 무리에게 먼 곳 이동을 찍으면 유닛마다 A*(256 × 256 칸 ·
+     칸 배열 넷을 새로 잡음)를 돌려 그 한 프레임이 150ms 가까이 멎었다(24기 · 헤드리스). ① 같은 프레임 · 같은 목표 칸 · 출발이 4칸(64px) 안이면 앞사람의 길을
+     베껴 쓴다(무리는 한 번만 찾는다) ② 칸 배열은 한 벌을 돌려 쓴다(세대 표식 — 지우지 않는다). */
+  private pathShare = new Map<string, { tick: number; sx: number; sy: number; path: [number, number][] }[]>();
+  private sharedPath(e: Ent9, x: number, y: number, key: [number, number]): [number, number][] {
+    const k = `${key[0]},${key[1]}`;
+    let list = this.pathShare.get(k);
+    if (list && list[0]?.tick !== this.stats.tick) { list = []; this.pathShare.set(k, list); }
+    for (const c of list ?? []) {
+      if (!c.path.length || Math.abs(c.sx - e.x) > 192 || Math.abs(c.sy - e.y) > 192) continue;
+      /* 앞사람 길의 첫 꺾는 점까지 곧게 보이면 그 길을 탄다(무리 이동 — 원작도 무리는 한 길을 나눠 쓴다). */
+      const a = Math.floor(e.y / CELL9) * this.cw + Math.floor(e.x / CELL9);
+      const b = Math.floor(c.path[0][1] / CELL9) * this.cw + Math.floor(c.path[0][0] / CELL9);
+      if (this.free(a % this.cw, (a / this.cw) | 0) && this.los(a, b)) return c.path.map((p) => [p[0], p[1]] as [number, number]);
+    }
+    const path = this.findPath(e.x, e.y, x, y);
+    if (!list) { list = []; this.pathShare.set(k, list); }
+    if (this.pathShare.size > 64) this.pathShare.clear();
+    list.push({ tick: this.stats.tick, sx: e.x, sy: e.y, path: path.map((p) => [p[0], p[1]] as [number, number]) });
+    return path;
+  }
+  private pf: { g: Float32Array; f: Float32Array; from: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number } | null = null;
   private findPath(x0: number, y0: number, x1: number, y1: number): [number, number][] {
     const cw = this.cw;
     const s = this.nearestWalk(x0, y0, 4); const g0 = this.nearestWalk(x1, y1, 8);
@@ -1178,17 +1200,23 @@ export class PracticeSim9 {
     const sx = Math.floor(s[0] / CELL9); const sy = Math.floor(s[1] / CELL9);
     const gx = Math.floor(g0[0] / CELL9); const gy = Math.floor(g0[1] / CELL9);
     const N = cw * this.ch;
-    const gScore = new Float32Array(N).fill(Infinity); const from = new Int32Array(N).fill(-1); const closed = new Uint8Array(N);
-    const heap: number[] = []; const fS = new Float32Array(N);
+    if (!this.pf || this.pf.g.length !== N) this.pf = { g: new Float32Array(N), f: new Float32Array(N), from: new Int32Array(N), seen: new Uint32Array(N), closed: new Uint32Array(N), gen: 0 };
+    const pf = this.pf; pf.gen += 1; const gen = pf.gen;
+    const gS = pf.g; const fS = pf.f; const fromA = pf.from; const seenA = pf.seen; const closedA = pf.closed;
+    /* 세대 표식 — 이번 세대에 안 본 칸은 g = ∞ · from = −1 · 안 닫힘으로 읽는다(배열을 안 지운다). */
+    const gScore = { get: (k: number): number => (seenA[k] === gen ? gS[k] : Infinity) };
+    const from = { get: (k: number): number => (seenA[k] === gen ? fromA[k] : -1) };
+    const heap: number[] = [];
     const push = (k: number): void => { heap.push(k); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (fS[heap[p]] <= fS[heap[i]]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
     const pop = (): number => { const top = heap[0]; const last = heap.pop()!; if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1; const r = l + 1; let m = i; if (l < heap.length && fS[heap[l]] < fS[heap[m]]) m = l; if (r < heap.length && fS[heap[r]] < fS[heap[m]]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
-    const h = (cx: number, cy: number): number => { const dx = Math.abs(cx - gx); const dy = Math.abs(cy - gy); return dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy); };
+    /* 가중 A*(휴리스틱 × 1.4) — 먼 길에서 펼치는 칸이 크게 준다(길은 조금 덜 곧을 수 있다 · 아래 줄이기가 펴 준다). */
+    const h = (cx: number, cy: number): number => { const dx = Math.abs(cx - gx); const dy = Math.abs(cy - gy); return (dx + dy + (Math.SQRT2 - 2) * Math.min(dx, dy)) * 1.4; };
     const sk = sy * cw + sx; const gk = gy * cw + gx;
-    gScore[sk] = 0; fS[sk] = h(sx, sy); push(sk);
+    seenA[sk] = gen; gS[sk] = 0; fromA[sk] = -1; fS[sk] = h(sx, sy); push(sk);
     let best = sk; let bestH = h(sx, sy); let iter = 0;
     while (heap.length && iter < 60000) {
       iter += 1;
-      const k = pop(); if (closed[k]) continue; closed[k] = 1;
+      const k = pop(); if (closedA[k] === gen) continue; closedA[k] = gen;
       if (k === gk) { best = k; break; }
       const cx = k % cw; const cy = (k / cw) | 0;
       const hh = h(cx, cy); if (hh < bestH) { bestH = hh; best = k; }
@@ -1197,13 +1225,13 @@ export class PracticeSim9 {
         const nx = cx + dx; const ny = cy + dy;
         if (!this.free(nx, ny)) continue;
         if (dx && dy && (!this.free(cx + dx, cy) || !this.free(cx, cy + dy))) continue;   // 모서리 자르기 금지
-        const nk = ny * cw + nx; if (closed[nk]) continue;
-        const ng = gScore[k] + (dx && dy ? Math.SQRT2 : 1);
-        if (ng < gScore[nk]) { gScore[nk] = ng; from[nk] = k; fS[nk] = ng + h(nx, ny); push(nk); }
+        const nk = ny * cw + nx; if (closedA[nk] === gen) continue;
+        const ng = gScore.get(k) + (dx && dy ? Math.SQRT2 : 1);
+        if (ng < gScore.get(nk)) { seenA[nk] = gen; gS[nk] = ng; fromA[nk] = k; fS[nk] = ng + h(nx, ny); push(nk); }
       }
     }
     const cells: number[] = [];
-    for (let k = best; k !== -1; k = from[k]) cells.push(k);
+    for (let k = best; k !== -1; k = from.get(k)) cells.push(k);
     cells.reverse();
     /* 줄이기 — 앞 점에서 곧게 보이는 가장 먼 점만. */
     const pts: [number, number][] = [];
