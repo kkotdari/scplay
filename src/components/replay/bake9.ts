@@ -5058,14 +5058,14 @@ export const HIVE_SEAM_E9 = 0.7;
 /** ★ 하이브 갈비 등 높이 — **아치**(2026-11-18, 요청: "아래쪽 높이 더 낮추고 폭도 줄이기 · 중간이 높고 다시 낮아지는 형태"): 밑 1.0 → t 0.45 에서 2.3 → 꼭대기 0.43
  *  (오르내림 모두 코사인). 살 위로 드러나는 갈비 폭은 등 높이 × 옆 죔 × 1.155 라 밑동은 저절로 가늘다(0.44 → 중턱 1.0 → 끝 0.19). */
 export const hiveSeamH9 = (t: number): number => {
-  const HB = 1.0; const HP = 1.75; const TP = 0.45; const HT = 0.43;   // 꼭대기 2.3 → 2.05(2026-11-18, 요청: "갈비 중간 높이 살짝 낮추기") → 1.75(같은 날 "갈비 중간 더 낮추기")
+  const HB = 1.0; const HP = 1.25; const TP = 0.45; const HT = 0.43;   // 꼭대기 2.3 → 2.05(2026-11-18, 요청: "갈비 중간 높이 살짝 낮추기") → 1.75(같은 날 "갈비 중간 더 낮추기") → 1.25(같은 날 "갈비 중간 1.25까지 낮추고")
   return t <= TP ? HB + (HP - HB) * (1 - Math.cos((Math.PI * t) / TP)) / 2 : HT + (HP - HT) * (1 + Math.cos((Math.PI * (t - TP)) / (1 - TP))) / 2;
 };
 /** ★ 하이브 갈비 꼴(아래 seamShape ★) — 등 높이 아치(hiveSeamH9) · 단면 반지름 1.8 → 1.3(등 ≤ 반지름 × 1.5 — 마디마다 셈해 최소 여유 0.1 · t 0.45 ~ 0.5) ·
  *  옆 죔 0.38(폭 줄임 · 옛 0.45) · 지수 1.0.
  *  되물린 값(같은 날 차례로): ① 밑동만 낮춤 hK 1.3 + hDip 0.9(밑 2.26 · t 0.2 2.40 · 위로 되돌린 등) · w 1.95 · tip 1.7 · ov 0.45 — 옆폭 밑 1.17 · 중턱 1.07
  *  ② 고른 등 hBot 2.8 · hTop 2.4 ③ "덜 퍼지게 · 더 높게" w 2.2 · tip 0.9 · hK 1.3(3.16 → 0.43) · ov 0.56 ④ 그 전 seamK 1.5 의 기본(반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33). */
-export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.62, flare: 1.0 };   // 옆 죔 0.62 — 중턱 등 1.75 에서 중턱 폭 1.25 를 지킨다(밑 0.72 · 끝 0.31) · 옛 0.53(등 2.05) · 0.47(등 2.3 · "갈비 폭 좀 늘리기") · 0.38   // 옆 죔 0.47 → 0.53 — 중턱 등을 2.3 → 2.05 로 낮춘 만큼(드러난 폭 = 등 × 옆 죔 × 1.155) 중턱 폭 1.25 를 지킨다 · 밑 0.61 · 끝 0.26 · 옛 0.38 → 0.47(같은 날 "갈비 폭 좀 늘리기")   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
+export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.87, flare: 1.0, mouthLift: [0.68, 0.15] as [number, number] };   // 옆 죔 0.87 — 중턱 등 1.25 에서 중턱 폭 1.25 를 지킨다(밑 1.0 · 끝 0.43) · 옛 0.62(등 1.75) · 0.53(2.05) · 0.47(2.3) · 0.38 / mouthLift ★ 아가리를 바깥 · 조금 위로   // 옆 죔 0.62 — 중턱 등 1.75 에서 중턱 폭 1.25 를 지킨다(밑 0.72 · 끝 0.31) · 옛 0.53(등 2.05) · 0.47(등 2.3 · "갈비 폭 좀 늘리기") · 0.38   // 옆 죔 0.47 → 0.53 — 중턱 등을 2.3 → 2.05 로 낮춘 만큼(드러난 폭 = 등 × 옆 죔 × 1.155) 중턱 폭 1.25 를 지킨다 · 밑 0.61 · 끝 0.26 · 옛 0.38 → 0.47(같은 날 "갈비 폭 좀 늘리기")   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
 export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
@@ -5096,8 +5096,10 @@ export function hatcheryMoundFaces(
    *  ov 옆 죔(0.91 — 작을수록 옆폭이 좁다) · flare 밑동으로 벌어지는 지수(1.6 — 클수록 밑에서 나팔처럼 퍼진다) ·
    *  hBot · hTop 드러난 등 높이를 밑동 · 꼭대기에서 바로(주면 hK 대신 · 2026-11-18 "갈비 높이가 위아래쪽 거의 균일하게") ·
    *  hDip 밑동 쪽만 등 높이를 덜어 내는 몫(t 0 에서 그만큼 · (1 − t)^4 로 줄어 중턱 위는 그대로 · 2026-11-18 "갈비 높이 원복하고 아래쪽만 높이 낮추기") ·
-   *  hAt 등 높이를 통째로(t → 높이 · 주면 위 넷을 다 무시 · 2026-11-18 "중간이 높고 다시 낮아지는 형태"). */
-  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number } = {},
+   *  hAt 등 높이를 통째로(t → 높이 · 주면 위 넷을 다 무시 · 2026-11-18 "중간이 높고 다시 낮아지는 형태") ·
+   *  mouthLift [L, tb] 밑동 끝 tb 만큼을 겉면 법선 쪽으로 들어 올린다(t 0 에서 L · (1 − t/tb)² 로 줄어든다) — 축의 기울기가 바깥으로 꺾여 아가리가 비탈 아래가 아니라
+   *  바깥(·조금 위)을 보고, 묻혔던 단면이 겉으로 드러난다(2026-11-18 "갈비 아래쪽의 입구 구멍이 더 보이게 각도 조절"). */
+  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number; mouthLift?: [number, number] } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5387,7 +5389,8 @@ export function hatcheryMoundFaces(
         const seamAxis = (t9: number): [number, number, number] => {
           const dr9 = -(MND_RB - MND_RT) * MND_P * (1 - t9) ** (MND_P - 1);
           const nl9 = Math.hypot(dr9, MND_H) || 1;
-          const off9 = seamH9(t9) - seamW(t9) * SEAM_UMAX9;
+          const ml9 = seamShape.mouthLift;
+          const off9 = seamH9(t9) - seamW(t9) * SEAM_UMAX9 + (ml9 && t9 < ml9[1] ? ml9[0] * (1 - t9 / ml9[1]) ** 2 : 0);
           const r9 = moundR(t9) * SEAM_OUT9 + (MND_H / nl9) * off9;
           return [dxr * r9, dyr * r9, MND_H * t9 + (-dr9 / nl9) * off9];
         };
@@ -5404,7 +5407,7 @@ export function hatcheryMoundFaces(
              — 곧 등마루가 선 갈비다. ⚠ u/v 가 어느 세계 축인지는 ref 로 못 박아야 안 흔들린다. */
           /* ⚠ 옆으로는 **죈다**(`oval` 0.5) — 안 죄면 밑변이 반지름의 1.73배라 둔덕의 완만한
              밑동에 눕는 **넓적한 판때기**가 된다(실측). 등마루가 솟아야 삼각 튜브로 읽힌다. */
-          segs: MND_P > 3.2 ? Math.ceil((8 * MND_P) / 3.2) : 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9, trueNormal: true,   // 마디는 둔덕과 같은 까닭으로 지수만큼(MND_SEGS9 ★)
+          segs: seamShape.ov !== undefined ? 48 : MND_P > 3.2 ? Math.ceil((8 * MND_P) / 3.2) : 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9, trueNormal: true,   // ★ 꼴을 바꾼 갈비(seamShape · 등 높이가 아치로 굽는다)는 24 마디 — 8 마디면 마디 사이 곧은 낯이 굽은 띠(제 곡선)보다 바깥에 와 띠를 가렸다(2026-11-18 실측) · 마디는 둔덕과 같은 까닭으로 지수만큼(MND_SEGS9 ★)
           radOf: seamRad9,
           hold: SEAM_HOLD, taper: SEAM_FL9,
           /* ⚠⚠ **뚜껑은 `cutFace` 를 안 지난다**(2026-09, 지적: "옆기둥의 단면이 육각형인데 그럼 안 되고
@@ -5416,7 +5419,10 @@ export function hatcheryMoundFaces(
           caps: "top",
           // 둔덕 옆선을 그대로 타는 축 — 표면에 반쯤 묻혀 한 몸으로 이어진다.
           path: (t9: number): [number, number, number] => seamAxis(SEAM_T0_9 + (1 - SEAM_T0_9) * t9),
-          fill: seamColor,
+          /* ★ 꼴을 바꾼 갈비(seamShape)는 임자색 띠를 **갈비 낯 그대로** 칠하지 않아 낸다(fillAt — 띠 구간은 색 없음 = 임자 색) · 2026-11-18 —
+             따로 감싼 띠 토막은 단면 방향을 제 첫 마디에서 세우고 갈비는 앞 마디에서 이어받아(평행 이송) 둘이 어긋나, 띠가 갈비 속에 묻혀 작은 네모로만 비쳤다(실측 · 1.3배로 굵혀야 덮었다). */
+          fill: seamShape.ov !== undefined ? undefined : seamColor,
+          ...(seamShape.ov !== undefined ? { fillAt: (t9: number): string | undefined => (seamBands.some(([b0, b1]) => t9 >= b0 && t9 <= b1) ? undefined : seamColor) } : {}),
           /* ★★ **살 속의 반쪽은 아예 베어 낸다**(2026-09, 요청: "옆 기둥의 아래 반 잘라서 아예 안 보이게 위 반만
              남는 게 맞음") — 축을 겉면 위에 두어 '반쯤 묻힘'을 냈지만 **안쪽 반의 낯이 그대로 있어** 둔덕 살과
              같은 자리에서 z 싸움을 하고 밑동 단면도 온전한 육각으로 드러났다. `cutFace`(음수 = 파낼 쪽)로
@@ -5479,6 +5485,23 @@ export function hatcheryMoundFaces(
             path: (t9: number): [number, number, number] => mouthAt9(t9 * Math.PI * 2, 1),
             cutFace: seamCut9,
           }), depKey9 + 0.02));
+          /* ⓒ 구멍(꼴을 바꾼 갈비만 · 2026-11-18, 요청: "갈비 아래쪽의 입구 구멍이 더 보이게") — 아가리를 바깥으로 꺾어(mouthLift ★) 테가 드러나도
+             굴 속(ⓐ)은 몸 살 속이라 테 안에 몸 살이 비쳤다. 아가리 단면 안쪽(0.86배)에 어두운 판 하나를 대고 몸 살 · 땅 위로 드러난 몫만 남긴다
+             (seamCut9 로 다각형을 벤다 — 변마다 부호가 바뀌는 자리에 끼워 넣는 꼴). */
+          if (seamShape.ov !== undefined) {
+            const HP9: [number, number, number][] = Array.from({ length: 24 }, (_, i9) => mouthAt9((i9 / 24) * Math.PI * 2, 0.86));
+            const cut9: [number, number, number][] = [];
+            for (let i9 = 0; i9 < HP9.length; i9 += 1) {
+              const A9 = HP9[i9]; const B9 = HP9[(i9 + 1) % HP9.length];
+              const fa9 = seamCut9(A9[0], A9[1], A9[2]); const fb9 = seamCut9(B9[0], B9[1], B9[2]);
+              if (fa9 >= 0) cut9.push(A9);
+              if ((fa9 >= 0) !== (fb9 >= 0)) {
+                const k9 = fa9 / (fa9 - fb9);
+                cut9.push([A9[0] + (B9[0] - A9[0]) * k9, A9[1] + (B9[1] - A9[1]) * k9, A9[2] + (B9[2] - A9[2]) * k9]);
+              }
+            }
+            if (cut9.length >= 3) out.push(...tagKey([[polyPath3(cut9), 1, "#15120f"] as ShapeFace], depKey9 + 0.015));
+          }
         }
         /* 지적: "통일하되 옆선기둥들 중간중간에 개인색 띠 넣기" — 몸통을 테마색
            하나로 굳히면 임자 색이 갈 데가 없어진다. 옆선 기둥의 같은 축 위에 짧은
@@ -5554,16 +5577,7 @@ export function hatcheryMoundFaces(
           /* ★ 꼴을 바꾼 갈비(seamShape ★ · 하이브 2026-11-18)는 띠를 **갈비와 같은 기둥 함수로 감싼 한 토막**으로 짓는다 — 같은 축 · 같은 단면(radOf · oval · ref)에
              굵기만 1.03배라 어느 자리에서나 갈비 겉면에 꼭 붙고, 살 속은 갈비처럼 벤다(seamCut9). 칠하지 않는 것이 곧 임자 색이다.
              ⚠ 아래 손 띠(낯 위 네모)를 그대로 쓰면 등을 높이고 옆을 죈 갈비에서 띠가 갈비 가운데 좁은 네모로 줄고 비스듬히 어긋났다(실측 · 자홍 칠). */
-          if (seamShape.ov !== undefined) {
-            out.push(...tagKey(spirePillar({
-              x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 4, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9, trueNormal: true,
-              radOf: seamRad9, caps: "none",
-              path: (t9: number): [number, number, number] => seamAxis(t0 + (t1 - t0) * t9),
-              widthOf: (t9: number): number => seamW(t0 + (t1 - t0) * t9) * 1.03,
-              cutFace: seamCut9,
-            }), depKey9 + 0.01));
-            continue;
-          }
+          if (seamShape.ov !== undefined) continue;   // 갈비 낯에 칠했다(위 fillAt ★)
           const FA = seamFrame9(t0);
           const FB = seamFrame9(t1);
           /* ★ **마디가 아니라 낯 위의 평면 데칼이다**(2026-09, 요청: "옆기둥 데칼은 단순하게 그냥 면 위에
