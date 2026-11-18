@@ -4955,7 +4955,10 @@ export function hornStripe9(
  *  턱 둘**이다: 뿔 끝의 한 뿌리에서 좌우로 갈라져 밖으로 배가 부풀고, 끝에서 서로를 향해 오므라들며 살짝 처진다.
  *  · 자는 셋이다 — 나아가는 쪽 `f`(안쪽·아래 사선) · 벌어지는 쪽 `sv`(f 에 수직인 수평) · 처짐(끝 z −0.22·len).
  *  · 벌어짐은 가운데에서 가장 크고(0.46·len) 끝에서 0.13·len 로 모인다 — 그 사이가 곧 집게의 아가리다.
- *  · 갈래마다 제 임자색 띠를 겉면(벌어진 쪽)에 세운다. */
+ *  · 갈래마다 제 임자색 띠를 겉면(벌어진 쪽)에 세운다.
+ *  ★ **셋째 손가락은 두 턱의 중간각 · 바닥에 수직(위)**(2026-11-18, 요청: "뿔기둥 끝 집게에 … 그 사이에 손가락 하나 더 · 입체적으로 두 손가락의 중간각(바닥에 수직)
+ *    · 손가락 방향은 똑같고 · 그 손가락 색은 임자색") — 같은 베지에를 집게 축 f 둘레로 90도 돌린 자리: 벌어지는 쪽이 sv(수평) 대신 `up9`(ẑ 를 f 에 수직화 ·
+ *    위를 본다)이고 단면도 함께 돈다(ref sv · 납작한 쪽이 벌어지는 쪽 — 두 턱과 같은 꼴). 처짐(끝 z −0.22·len)도 같다. 칠하지 않아 통째로 임자 색 · 띠는 없다. */
 export function hornClaw9(
   base: [number, number, number], dir: [number, number, number], inX: number, inY: number,
   len: number, wMax: number, fill: string, nOut?: [number, number, number],
@@ -4970,19 +4973,29 @@ export function hornClaw9(
   const root: [number, number, number] = [
     base[0] + dir[0] * len * 0.16, base[1] + dir[1] * len * 0.16, base[2] + dir[2] * len * 0.16,
   ];
-  for (const sg of [1, -1]) {
+  /* 셋째(위) 손가락의 벌어지는 쪽 — ẑ 를 f 에 수직화(f 가 아래로 기울어 있어 바깥 · 위를 본다). */
+  const up9: [number, number, number] = [-f[0] * f[2], -f[1] * f[2], 1 - f[2] * f[2]];
+  const upl9 = Math.hypot(up9[0], up9[1], up9[2]) || 1;
+  up9[0] /= upl9; up9[1] /= upl9; up9[2] /= upl9;
+  const FINGERS9: { s: [number, number, number]; ref: [number, number, number]; fill: string | undefined; stripe: boolean }[] = [
+    { s: [sv[0], sv[1], 0], ref: [0, 0, 1], fill, stripe: true },
+    { s: [-sv[0], -sv[1], 0], ref: [0, 0, 1], fill, stripe: true },
+    { s: up9, ref: [sv[0], sv[1], 0], fill: undefined, stripe: false },   // 셋째 · 임자색
+  ];
+  for (const fg of FINGERS9) {
+    const sd = fg.s;
     const P0: [number, number, number] = [
-      root[0] + sv[0] * sg * wMax * 0.42, root[1] + sv[1] * sg * wMax * 0.42, root[2],
+      root[0] + sd[0] * wMax * 0.42, root[1] + sd[1] * wMax * 0.42, root[2] + sd[2] * wMax * 0.42,
     ];
     const C1: [number, number, number] = [
-      root[0] + f[0] * len * 0.52 + sv[0] * sg * len * 0.46,
-      root[1] + f[1] * len * 0.52 + sv[1] * sg * len * 0.46,
-      root[2] + f[2] * len * 0.52,
+      root[0] + f[0] * len * 0.52 + sd[0] * len * 0.46,
+      root[1] + f[1] * len * 0.52 + sd[1] * len * 0.46,
+      root[2] + f[2] * len * 0.52 + sd[2] * len * 0.46,
     ];
     const C2: [number, number, number] = [
-      root[0] + f[0] * len + sv[0] * sg * len * 0.13,
-      root[1] + f[1] * len + sv[1] * sg * len * 0.13,
-      root[2] + f[2] * len - len * 0.22,
+      root[0] + f[0] * len + sd[0] * len * 0.13,
+      root[1] + f[1] * len + sd[1] * len * 0.13,
+      root[2] + f[2] * len + sd[2] * len * 0.13 - len * 0.22,
     ];
     const ax = (t9: number): [number, number, number] => {
       const u9 = 1 - t9;
@@ -4995,10 +5008,10 @@ export function hornClaw9(
     const wf = (t9: number): number => Math.max(0.02, wMax * 0.62 * (1 - t9) ** 0.7);
     out.push(...spirePillar({
       x: 0, y: 0, h: 0.8, w: 1, tipW: 0.02, segs: 12, sides: 8, hold: 0, caps: "none",
-      fill, oval: 0.62, ref: [0, 0, 1], trueNormal: true, path: ax, widthOf: wf,
+      ...(fg.fill !== undefined ? { fill: fg.fill } : {}), oval: 0.62, ref: fg.ref, trueNormal: true, path: ax, widthOf: wf,
     }));
-    if (nOut) {
-      out.push(...hornStripe9(ax, wf, [sv[0] * sg, sv[1] * sg, 0], wMax * 0.2));
+    if (nOut && fg.stripe) {
+      out.push(...hornStripe9(ax, wf, sd, wMax * 0.2));
     }
   }
   return out;
