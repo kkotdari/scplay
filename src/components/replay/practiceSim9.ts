@@ -291,6 +291,8 @@ const STORM_ENERGY9 = 75; const STORM_LIFE9 = 56; const STORM_EVERY9 = 7; const 
 const UNLOAD_SPELL_CD9 = 30;
 /** 시즈 · 언시즈 애니메이션 — iscript 를 못 열어 재생기 SIEGE_XF_SEC 1.5초와 같은 어림. */
 const SIEGE_FRAMES9 = Math.round(1.5 / FRAME_SEC);
+/** 시즈 전환 프레임(화면의 전환 자세가 xT 를 이 값으로 나눈다). */
+export const PRAC_SIEGE_FRAMES9 = SIEGE_FRAMES9;
 /** 포탑으로 쏘는 것 — 몸을 표적 쪽으로 안 돌려도 쏜다. */
 const TURRET9 = new Set(["Siege Tank", "Siege Tank (Siege Mode)", "Goliath"]);
 /** 에너지를 쓰는 유닛 · 최대 에너지 연구(Khaydarin Amulet · Caduceus · Moebius · Metasynaptic). */

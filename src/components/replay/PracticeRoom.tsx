@@ -22,14 +22,14 @@ import { drawMapGrid, terrainFill } from "../../utils/mapTiles";
 import { terrainGeom9, type TerrainGeom9 } from "../../utils/terrainGeom";
 import { FRAME_SEC, fp } from "../../utils/bwUnits";
 import {
-  KILL_PTS9, LOST_DIV9, PRAC_DROP_SEC9, PRAC_PREP_FRAMES9, PRAC_PREP_SEC9, PRAC_RACES9, PRAC_SPOTS9, PRAC_TICK_MS9, PRAC_TURN_FRAMES9, PROD9, PracticeSim9, UNIT_DEFS9, pracLoadout9,
+  KILL_PTS9, LOST_DIV9, PRAC_DROP_SEC9, PRAC_PREP_FRAMES9, PRAC_PREP_SEC9, PRAC_RACES9, PRAC_SIEGE_FRAMES9, PRAC_SPOTS9, PRAC_TICK_MS9, PRAC_TURN_FRAMES9, PROD9, PracticeSim9, UNIT_DEFS9, pracLoadout9,
   type Ent9, type PracRace9, type PracSetup9, type PracStage9, type ProdItem9,
 } from "./practiceSim9";
 import { PRAC_MAP9 } from "./practiceMap9.gen";
 import { PRAC_COLORS9, pracWorldPx9 } from "./practiceSpr9";
 import { CAM_TOP9, GL_GLOW_KINDS9, GlUnits9, SHADOW_ALPHA9, glIconRequest9 } from "./gl9";
 import { glTerrCanvas9 } from "./glTerrain9";
-import { BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, modelNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, SIEGE_TURN_U9, UNIT_3D, bldNormOf, modelNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
 import { buildingBox } from "../../utils/bwUnits";
 import { DIM as FOG_DIM9 } from "./ReplayFogLayer";
 import type { GlFog9 } from "./glTerrain9";
@@ -556,7 +556,12 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     for (const e of sim.ents) { if (e.def.bld) addB(bldKind9(e.def.name), false); else addU(UNIT_3D[e.def.name] ?? "gunner"); }
     for (const e of sim.ents) if (e.owner === 0 && PROD9[e.def.name]) addB(bldKind9(e.def.name), true);
     for (const e of sim.ents) if (e.owner === 0) for (const it of PROD9[e.def.name] ?? []) if (it.k === "unit") addU(UNIT_3D[it.name] ?? "gunner");
-    if (setup.myRace === "T") addU("tanksiege");
+    if (setup.myRace === "T") {
+      addU("tanksiege");
+      /* 시즈 전환 부품(아래 ★ 시즈 전환) — 차체 · 버팀다리 둘 · 전환 포탑의 자세 여섯 칸을 미리. */
+      jobs.push(() => { glRef.current?.unitMesh("tankbody", 0, 3); });
+      for (const pk of ["tanksiegelegs", "tanksiegelegsF", "tankturretxf"]) for (let ps = 0; ps <= 5; ps += 1) jobs.push(() => { glRef.current?.unitMesh(pk, ps, 3); });
+    }
     if (setup.myRace === "Z") { addU("lurker"); addU("lurkerburrow"); }
     if (setup.myRace === "P") {
       addU("archon"); addU("scarab");
@@ -1082,6 +1087,26 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         const lift = u.def.air ? AIR_LIFT_PX9 * z : 0;
         const yaw = 90 - (u.face * 180) / Math.PI;
         const base = { mesh, ax: sx, ay: sy - px * 0.24 - lift, k, yoff: (px / 16) * 4, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: px * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) };
+        /* ★ 시즈 전환(2026-11-18, 지적: "연습실에서 시즈모드 애니메이션이 없던데") — 셈은 시즈를 누르면 이름을 곧바로 시즈 모드로 바꾸고 xT(1.5초) 동안 못 쏘게 할 뿐이라,
+           화면은 합본(tank → tanksiege)을 한 번에 갈아 끼웠다. 그 창 동안은 재생기 · 도록과 같은 부품으로 그린다(RMP docSiegeCell9 · engine9 xfMech9 · gunU9):
+           차체 tankbody + 버팀다리 둘(tanksiegelegs · F · 자세 0~5 = 기계 마디) + 전환 포탑(tankturretxf · 자세 = 창 전체 smoothstep). 앞 35%(SIEGE_TURN_U9)는
+           재생기에선 몸이 도는 몫이지만 연습실 셈은 몸을 안 돌리므로 다리만 그만큼 늦게 편다. 부품 배수는 NORM_PAIR 로 몸과 맞물린다(다 편 순간 구운 시즈 판과 이어진다). */
+        if (u.xT > 0 && u.def.name.startsWith("Siege Tank")) {
+          const toS = u.xTo === null;   // 시즈로(이름은 이미 시즈 모드) · 언시즈는 xTo = "Siege Tank"
+          const uu = Math.min(1, Math.max(0, 1 - u.xT / PRAC_SIEGE_FRAMES9));
+          const cl = (v: number): number => Math.min(1, Math.max(0, v)); const sm = (v: number): number => v * v * (3 - 2 * v);
+          const mech = toS ? cl((uu - SIEGE_TURN_U9) / (1 - SIEGE_TURN_U9)) : 1 - cl(uu / (1 - SIEGE_TURN_U9));
+          const gun = toS ? sm(uu) : 1 - sm(uu);
+          const cut = (v: number): number => Math.max(0, Math.min(5, Math.round(v * 5)));
+          const tpx = pracWorldPx9("Siege Tank") * z;
+          for (const [pk, ps] of [["tankbody", 0], ["tanksiegelegs", cut(mech)], ["tanksiegelegsF", cut(mech)], ["tankturretxf", cut(gun)]] as [string, number][]) {
+            const pm = g.unitMesh(pk, ps, 3) ?? g.unitMesh(pk, 0, 3); if (!pm) continue;
+            const pkk = (tpx / 16) * modelNormOf(pk);
+            g.push({ ...base, mesh: pm, k: pkk, ay: sy - tpx * 0.24, yoff: (tpx / 16) * 4, gradR: tpx * 0.707, shadow: { ground: true, alpha: SHADOW_ALPHA9 } });
+          }
+          if (rOn) g.prim(2, sx, sy + ryOff, rr, ry, ringCol, 1, lw);
+          continue;
+        }
         if (u.def.air) {
           g.push({ ...base, shadow: { ground: true, dy: AIR_SHADOW_PX9 * z, alpha: SHADOW_ALPHA9 }, over: true,   // 그림자는 몸 아래 42px(원작 · 위 AIR_SHADOW_PX9 ★)
             ...(rOn ? { ring: { kind: 2 as const, x: sx, y: sy - lift + ryOff, rx: rr, ry, color: ringCol, alpha: 1, lineW: lw, shear: 0 } } : {}) });
