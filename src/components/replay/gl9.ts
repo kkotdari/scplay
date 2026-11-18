@@ -1611,6 +1611,8 @@ export class GlUnits9 implements VecSink9 {
   private loc: Record<string, WebGLUniformLocation | null> = {};
   private att: Record<string, number> = {};
   readonly meshes = new Map<string, GlMesh9 | null>();
+  /** 효과 메시(폭풍 · 핵 — fxMesh) — LRU 밖에서 쥔다(위 fxMesh ★ 2026-11-18). */
+  readonly fxMeshes = new Map<string, GlMesh9 | null>();
   private queue: GlInst9[] = [];
   /** 번짐 — 전체 화면 사각 프로그램·사각 VBO·1/4 크기 판 둘(핑퐁). 처음 쓸 때 짓고, 크기가 바뀌면 다시 짓는다. */
   private fx: { prog: WebGLProgram; loc: Record<string, WebGLUniformLocation | null>; aXY: number; vbo: WebGLBuffer } | null = null;
@@ -3463,11 +3465,18 @@ export class GlUnits9 implements VecSink9 {
   /** 효과 메시 — 폭풍·핵 폭발·핵 구름(fxModelCv9 의 판 대신): 종류 · 회전 칸(spin = 무늬 씨앗). 발광 규약(glow)으로 모은다. */
   fxMesh(kind: string, spin: number): GlMesh9 | null {
     const b = SHAPE_BUILDERS[kind]; if (!b) return null;
+    /* ★ 효과 메시는 **따로 쥔다**(2026-11-18, 실기 지적: "폰 스톰에서 버벅임 · 미리 구워 논 게 내려간 건지") — 옛 길은 몸 메시와 같은 LRU 보관함(폰 240 ~ 300)이라
+       스톰과 스톰 사이에 스톰 칸(32)이 늙어 버려지고, 다음 스톰에 폰에서 장마다 한 칸씩 다시 지었다. 이제 fxMeshes(버리지 않음 · 칸 수가 작다)에. */
+    const key = `f:${kind}:${spin}`;
+    const got = this.fxMeshes.get(key); if (got !== undefined) return got;
+    if (GL_SCRUB9 && this.scrubMs >= SCRUB_BAKE_MS9) { this.stat.scrubSkip += 1; return null; }
     const pS = bldSpinNow;
-    return this.meshFor(`f:${kind}:${spin}`, () => {
+    const m = this.buildMesh9(key, () => {
       bldSpinRawSet9(spin);
       try { return collectMesh9(b, undefined, true); } finally { bldSpinRawSet9(pS); }
     }, 0, true);
+    this.fxMeshes.set(key, m);
+    return m;
   }
   /** 요잉의 화면 상자 — 모델 16-상자 자. 정점 셰이더와 같은 식으로 모든 꼭짓점을 돌려 재고(메시·각도당 한 번) 기억한다. */
   footOf(mesh: GlMesh9, yawDeg: number, cam: GlCam9 = CAM_TOP9): GlFoot9 {

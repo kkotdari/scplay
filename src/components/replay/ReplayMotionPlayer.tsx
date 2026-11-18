@@ -3810,6 +3810,14 @@ const irradSpr9 = (): HTMLCanvasElement => domSpr9("irrcloud", (c9, S9) => {
 /** 스톰 벼락이 자라는 빠르기(칸/초) — 14 → 21(2026-10-19, 요청: "스톰 이펙트 속도 1.5배 상승시키기"). 한 줄기가 STORM_STAGES(16) 칸에 걸쳐 자라므로
  *  한 줄기 1.14 → 0.76초. GL 판(위 put)과 2D 판(drawDomFx9 storm)이 같은 값을 쓴다. */
 const STORM_FPS9 = 21;
+/** 스톰 칸 — PC 씨앗 2 × 단계 16(32칸 · 21칸/초). ★ 폰은 씨앗 하나 · 짝 단계만(8칸 · 바뀜 10.5칸/초)(2026-11-18, 실기 지적: "폰 스톰에서 버벅임 · 모바일서 스톰의 프레임을 적게") —
+ *  굽는 메시 · 판이 넷에 하나. GL 판(glFxPush9) · 2D 판(drawDomFx9) · 예열(stormSpins9)이 같은 셈. */
+const stormSpin9 = (u0: number): number => {
+  const s9 = Math.floor(u0 * STORM_FPS9);
+  return DEV9.name === "phone" ? (s9 % STORM_STAGES) & ~1 : s9 % (STORM_SEEDS * STORM_STAGES);
+};
+/** 그 기기가 쓰는 스톰 칸 전부(예열용). */
+const stormSpins9 = (): number[] => (DEV9.name === "phone" ? Array.from({ length: STORM_STAGES / 2 }, (_v9, i9) => i9 * 2) : Array.from({ length: STORM_SEEDS * STORM_STAGES }, (_v9, i9) => i9));
 const weldSpr9 = (): HTMLCanvasElement => domSpr9("weld", (c9, S9) => {
   const g9 = c9.createLinearGradient(0, 0, 0, S9);
   g9.addColorStop(0, "#eafcff"); g9.addColorStop(0.65, "#6fe4ff"); g9.addColorStop(1, "rgba(90,230,255,0)");
@@ -3842,7 +3850,7 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
     gl9.push({ mesh, ax: cx - k * bx.cx, ay: cy - k * (bx.top + bx.bot) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha, cam, gradR: 1e9, gradCy: 0, add: true, flat: true });
   };
   if (f.style === "storm") {
-    put("storm", Math.floor(u0 * STORM_FPS9) % (STORM_SEEDS * STORM_STAGES), W9, W9, ax, ay, 1);
+    put("storm", stormSpin9(u0), W9, W9, ax, ay, 1);
     return;
   }
   if (f.style !== "nuke" || u0 < NUKE_FALL_SEC) return;
@@ -4417,7 +4425,7 @@ export function drawDomFx9(ctx: CanvasRenderingContext2D, f: FxOp, ax: number, a
          많이 맞을 때 느려짐"). 번짐 효과라 조금 흐려도 티가 안 난다.
          **더하기(lighter)로** 얹는다(요청: "더 글로우한 느낌") — 옛 DOM 층은 그냥 덮어
          그렸다. 어두운 땅 위에서 후광 겹이 서로 더해져 진짜 빛으로 읽힌다. */
-      const spin9 = Math.floor(u0 * STORM_FPS9) % (STORM_SEEDS * STORM_STAGES);
+      const spin9 = stormSpin9(u0);
       const bud9 = fxRasterMax9() / (STORM_SEEDS * STORM_STAGES * 1.5);
       const want9 = Math.min(W9 * Bd9, Math.sqrt(bud9 / 4), FX_RASTER_CAP);
       const q9 = Math.max(64, Math.ceil(want9 / 64) * 64);   // 64 칸으로 갈무리 — 배율이 조금 달라져도 다시 안 굽는다
@@ -8308,7 +8316,10 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
       const natureDraw9 = (): void => {
         const G9 = NATURE9.geom; const sky9 = skyRef.current;
         const on9 = NATURE9.on && !!G9 && !pitchedProp;
-        if (sky9) {   // 하늘 캔버스 — 유닛 캔버스의 배킹 · 꼴(자리 · 잘림 · 손짓 변환)을 그대로 베끼고 같은 변환으로 새 몸을 그린다
+        /* ★ 꺼진 동안은 배킹을 놓는다(2026-11-18, 실기 지적: "가로모드 전환시 사파리 탭 터짐") — 옛 길은 자연 겹이 꺼져도 하늘 캔버스를 장마다 유닛 캔버스 크기로 맞춰,
+           한 번이라도 켰던 탭은 회전마다 유닛 캔버스만 한 배킹을 하나 더 다시 잡았다. 이제 꺼져 있고 지울 것도 없으면 1×1. */
+        if (sky9 && !on9 && !skyDirty9) { if (sky9.width > 1 || sky9.height > 1) { sky9.width = 1; sky9.height = 1; } }
+        else if (sky9) {   // 하늘 캔버스 — 유닛 캔버스의 배킹 · 꼴(자리 · 잘림 · 손짓 변환)을 그대로 베끼고 같은 변환으로 새 몸을 그린다
           if (sky9.width !== cv.width || sky9.height !== cv.height) { sky9.width = cv.width; sky9.height = cv.height; }
           if (sky9.style.cssText !== cv.style.cssText) sky9.style.cssText = cv.style.cssText;
           const sc9 = on9 || skyDirty9 ? sky9.getContext("2d") : null;
@@ -21907,7 +21918,7 @@ export default function ReplayMotionPlayer({
       turret: ["turretbase", "turrethead"],   // 붓이 그리는 몸·머리(2026-10-29 · 여태 빠져 머리 각마다 재생 중 구웠다)
       geyser: ["geyserdry"],
     };
-    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number; /** 별본(WARM_KIN9)의 본 종류 — 붓은 별본에도 본 종류의 norm 으로 k 를 내므로 실루엣 비도 그걸로. */ baseKind?: string }[] = [];
+    const jobs: { kind: string; rot?: number; table?: boolean; gl?: "u" | "b"; pose?: number; /** 별본(WARM_KIN9)의 본 종류 — 붓은 별본에도 본 종류의 norm 으로 k 를 내므로 실루엣 비도 그걸로. */ baseKind?: string; /** 효과 메시 칸(스톰) — gl9 fxMesh(종류, 칸). */ fx?: number }[] = [];
     /* ★★ 자세 컷까지(2026-10-24, 질문 "PC 에서 아직 재생 중 굽기가 있는 이유" → 놓침 로그가 전부 자세 칸 · "3번이 맞지 않나" = 판 상한을 올리고 다 굽기) — 컷을 가진 종류(POSE_KINDS)는
        걸음 여섯 컷(move·flap·thrust → GAIT_CYCLE9) · 공격 셋(atk → 2·4·5) · 합체(merge → 10) · 시즈 전환 0~5 를 자세마다 한 일감으로(메시 한 벌 + 미리 굽기 칸). 엔진이 이 종류에만
        그 자세를 매기므로(poseTag) 다른 종류는 0 뿐이다. */
@@ -21962,6 +21973,8 @@ export default function ReplayMotionPlayer({
         for (let r9 = 0; r9 < rn9; r9 += 1) jobs.push({ kind: k9, rot: (r9 * 360) / rn9 });
       }
     }
+    /* ★ 하이템플러가 나오는 판은 **스톰 칸을 미리**(2026-11-18, 실기 지적: "폰 스톰에서 버벅임") — 처음 쓸 때 장마다 한 칸씩 짓던 것(gl9 fxMesh · 이제 LRU 밖에서 쥔다). */
+    if (GL_ON9 && GL_WARM9 && kinds.has("htemp")) for (const sp9 of stormSpins9()) jobs.push({ kind: "storm", fx: sp9 });
     // 다른 유닛의 버로우도 맨 구멍을 쓴다 — 저그가 있으면 무조건 데워 둔다(면 몇 장짜리라 값도 없다).
     if ([...kinds].some((k9) => k9 === "zling" || k9 === "hydra" || k9 === "drone")) pushTable9("burrowhole");
     /* ★ **많이 쓰는 종류부터**(위 useN9) — 같은 시간에 화면의 더 많은 몫이 준비된다.
@@ -22048,7 +22061,8 @@ export default function ReplayMotionPlayer({
                미리 구운 720판 중 실제로 쓰인 것이 거의 없었다(캐시 10판이면 되는 장면
                에서 0.7MB를 굽고 최악 프레임 36 → 127ms). 면은 요잉 칸(vq)만 타므로
                훨씬 적은 수로 실제 쓰임을 덮는다. */
-          if (j9.table) tierTableOf(j9.kind);
+          if (j9.fx !== undefined) glNow9()?.fxMesh(j9.kind, j9.fx);
+          else if (j9.table) tierTableOf(j9.kind);
           else if (j9.gl) {
             const g9 = glNow9();
             if (g9) {
