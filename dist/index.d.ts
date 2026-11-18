@@ -291,6 +291,16 @@ export declare interface PracResult9 {
 
 declare type PracStage9 = "early" | "mid";
 
+/** ★ 연습실 공통 단축키 창(2026-11-18, 지적: "연습실에 단축키 설정은 연습실 화면에서 안 보이는 것 같아 · 견제연습 설정이 아니라") — 앱이 연습실 첫 화면(과제 카드)에서 연다.
+ *  창은 놀이판의 그것(PracKeysPanel) 그대로 · 기억도 같다(이 기기 scr.prac.keys2 + 앱 계정 onKeys) — 여기서 바꾸면 견제 연습이 그대로 쓴다. 바깥을 누르거나 Esc 로 닫는다. */
+export declare function PracticeKeys({ keys: keysProp, onKeys, onLog, race, onClose }: {
+    /** 계정에 기억된 키(없으면 이 기기의 기억). */ keys?: Record<string, string> | null;
+    /** 바꿨다 — 앱이 계정에 적는다. */ onKeys?: (keys: Record<string, string>) => void;
+    /** 이용 기록(prac_keys). */ onLog?: (code: PracLogCode9, detail: string) => void;
+    /** 처음 펼칠 종족 탭. */ race?: PracRace9;
+    onClose: () => void;
+}): JSX_2.Element;
+
 export declare function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult, onLog }: PracticeRoomProps): JSX_2.Element;
 
 export declare interface PracticeRoomProps {
