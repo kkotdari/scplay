@@ -5065,7 +5065,7 @@ export const hiveSeamH9 = (t: number): number => {
  *  옆 죔 0.38(폭 줄임 · 옛 0.45) · 지수 1.0.
  *  되물린 값(같은 날 차례로): ① 밑동만 낮춤 hK 1.3 + hDip 0.9(밑 2.26 · t 0.2 2.40 · 위로 되돌린 등) · w 1.95 · tip 1.7 · ov 0.45 — 옆폭 밑 1.17 · 중턱 1.07
  *  ② 고른 등 hBot 2.8 · hTop 2.4 ③ "덜 퍼지게 · 더 높게" w 2.2 · tip 0.9 · hK 1.3(3.16 → 0.43) · ov 0.56 ④ 그 전 seamK 1.5 의 기본(반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33). */
-export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.38, flare: 1.0 };
+export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.47, flare: 1.0 };   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
 export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
