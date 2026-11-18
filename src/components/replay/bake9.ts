@@ -5095,7 +5095,7 @@ export const HIVE_SEAM9 = { w: 1.3, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 
 /** ★ 하이브 바닥 오징어 다리(legShape ★) — 크기 legK 0.7 → HIVE_LEG_K9 · 뿌리 둔덕 높이 t 0.4(옛: 땅) · 옆 휨 절반(2026-11-18, 요청: "갈비 사이의 촉수 같은 거를
  *  하이브만 훨씬 크게 키우고 뿌리 위치도 훨씬 위쪽으로 이동 · 휘어짐은 적게"). */
 export const HIVE_LEG_K9 = 1.8;   // 1.2 → 1.8(같은 날, 요청: "하이브 오징어다리를 1.5배 키우고")
-export const HIVE_LEG9 = { root: 0.72, curl: 0.5 };   // 뿌리 0.4 → 0.72(같은 날 "훨씬 위쪽 옆면에 붙여줘 · 각도도 옆면 각에 맞춰서" — 꼭대기 원통 바로 아래)
+export const HIVE_LEG9 = { root: 0.72, curl: 0.5, len: 0.5 };   // 뿌리 0.4 → 0.72(같은 날 "훨씬 위쪽 옆면에 붙여줘 · 각도도 옆면 각에 맞춰서" — 꼭대기 원통 바로 아래)   // len 0.5(같은 날, 요청: "길이를 반으로 줄이기" — 굵기는 1.8 그대로)
 /** ★ 하이브 둔덕 밑동 반지름 — 5.9 × 0.9(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). */
 export const HIVE_MOUND_RB9 = 5.9 * 0.9;
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
@@ -5137,8 +5137,8 @@ export function hatcheryMoundFaces(
   /** ★ 둔덕 밑동 반지름(기본 5.9) — 하이브 5.31(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). 몸 · 갈비 · 바닥 다리가 이 값을 탄다. */
   moundRB = 5.9,
   /** ★ 바닥 오징어 다리 꼴 — root: 뿌리를 둔덕 겉면 높이 t(0 밑동 ~ 1 꼭대기)에 두고 몸 비탈을 타고 땅으로 흘러내린다(안 주면 옛 꼴 · 땅에서 난다) ·
-   *  curl: 옆으로 S 자로 휘는 몫의 배수(1 = 옛). 하이브 HIVE_LEG9 ★. */
-  legShape: { root?: number; curl?: number } = {},
+   *  curl: 옆으로 S 자로 휘는 몫의 배수(1 = 옛) · len: 길이만 곱하는 배수(굵기는 legK 그대로). 하이브 HIVE_LEG9 ★. */
+  legShape: { root?: number; curl?: number; len?: number } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5713,7 +5713,7 @@ export function hatcheryMoundFaces(
           반지름**이라 관이 땅에 눕는다(끝만 살짝 들림). 굵기는 뿌리 → 끝 0.1 배로 줄며 사인 주름 열넷을 얹는다.
        · 자리는 기둥 사이 중점 중 뿔이 안 쓰는 **5·−115** 그대로다(뿔은 −175·−55·65). */
     for (const [tang, tlen0, tw0] of [[5, 4.6, 0.62], [-115, 4.2, 0.56]] as [number, number, number][]) {
-      const tlen = tlen0 * legK; const tw = tw0 * legK;
+      const tlen = tlen0 * legK * (legShape.len ?? 1); const tw = tw0 * legK;   // 길이만 따로(len ★)
       const ta9 = (tang * Math.PI) / 180;
       const fx9 = Math.sin(ta9); const fy9 = Math.cos(ta9);
       const sx9 = -fy9; const sy9 = fx9;
