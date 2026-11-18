@@ -5058,14 +5058,14 @@ export const HIVE_SEAM_E9 = 0.7;
 /** ★ 하이브 갈비 등 높이 — **아치**(2026-11-18, 요청: "아래쪽 높이 더 낮추고 폭도 줄이기 · 중간이 높고 다시 낮아지는 형태"): 밑 1.0 → t 0.45 에서 2.3 → 꼭대기 0.43
  *  (오르내림 모두 코사인). 살 위로 드러나는 갈비 폭은 등 높이 × 옆 죔 × 1.155 라 밑동은 저절로 가늘다(0.44 → 중턱 1.0 → 끝 0.19). */
 export const hiveSeamH9 = (t: number): number => {
-  const HB = 1.0; const HP = 2.05; const TP = 0.45; const HT = 0.43;   // 꼭대기 2.3 → 2.05(2026-11-18, 요청: "갈비 중간 높이 살짝 낮추기")
+  const HB = 1.0; const HP = 1.75; const TP = 0.45; const HT = 0.43;   // 꼭대기 2.3 → 2.05(2026-11-18, 요청: "갈비 중간 높이 살짝 낮추기") → 1.75(같은 날 "갈비 중간 더 낮추기")
   return t <= TP ? HB + (HP - HB) * (1 - Math.cos((Math.PI * t) / TP)) / 2 : HT + (HP - HT) * (1 + Math.cos((Math.PI * (t - TP)) / (1 - TP))) / 2;
 };
 /** ★ 하이브 갈비 꼴(아래 seamShape ★) — 등 높이 아치(hiveSeamH9) · 단면 반지름 1.8 → 1.3(등 ≤ 반지름 × 1.5 — 마디마다 셈해 최소 여유 0.1 · t 0.45 ~ 0.5) ·
  *  옆 죔 0.38(폭 줄임 · 옛 0.45) · 지수 1.0.
  *  되물린 값(같은 날 차례로): ① 밑동만 낮춤 hK 1.3 + hDip 0.9(밑 2.26 · t 0.2 2.40 · 위로 되돌린 등) · w 1.95 · tip 1.7 · ov 0.45 — 옆폭 밑 1.17 · 중턱 1.07
  *  ② 고른 등 hBot 2.8 · hTop 2.4 ③ "덜 퍼지게 · 더 높게" w 2.2 · tip 0.9 · hK 1.3(3.16 → 0.43) · ov 0.56 ④ 그 전 seamK 1.5 의 기본(반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33). */
-export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.53, flare: 1.0 };   // 옆 죔 0.47 → 0.53 — 중턱 등을 2.3 → 2.05 로 낮춘 만큼(드러난 폭 = 등 × 옆 죔 × 1.155) 중턱 폭 1.25 를 지킨다 · 밑 0.61 · 끝 0.26 · 옛 0.38 → 0.47(같은 날 "갈비 폭 좀 늘리기")   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
+export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.62, flare: 1.0 };   // 옆 죔 0.62 — 중턱 등 1.75 에서 중턱 폭 1.25 를 지킨다(밑 0.72 · 끝 0.31) · 옛 0.53(등 2.05) · 0.47(등 2.3 · "갈비 폭 좀 늘리기") · 0.38   // 옆 죔 0.47 → 0.53 — 중턱 등을 2.3 → 2.05 로 낮춘 만큼(드러난 폭 = 등 × 옆 죔 × 1.155) 중턱 폭 1.25 를 지킨다 · 밑 0.61 · 끝 0.26 · 옛 0.38 → 0.47(같은 날 "갈비 폭 좀 늘리기")   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
 export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
@@ -18397,11 +18397,11 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const topR9 = (t9: number): number => TOP_R9 + (TOP_RT9 - TOP_R9) * t9;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: TOP_Z9, h: TOP_H9, w: TOP_R9, tipW: TOP_RT9, segs: 3, sides: 16, hold: 0, taper: 1, caps: "top",
-    }), "#a35a35"), 3));
+    }), HIVE_HORN), 3));   // 뿔기둥과 같은 올리브(2026-11-18, 요청: "꼭대기 원통 옆면 뿔기둥하고 같은 색(올리브)" · 옛 #a35a35)
     for (let k9 = 0; k9 < 8; k9 += 1) {
       const a9 = ((k9 + 0.5) / 8) * Math.PI * 2;
       out.push(...tagKey(spirePillar({
-        x: 0, y: 0, h: 0.8, w: 0.11, tipW: 0.11, segs: 4, sides: 6, hold: 1, caps: "none", fill: "#6b3a22", trueNormal: true,
+        x: 0, y: 0, h: 0.8, w: 0.11, tipW: 0.11, segs: 4, sides: 6, hold: 1, caps: "none", fill: "#36431d", trueNormal: true,   // 세로 골 — 몸이 올리브라 짙은 올리브(옛 #6b3a22)
         path: (t9: number): [number, number, number] => {
           const z9 = TOP_Z9 + 0.15 + (TOP_H9 - 0.2) * t9; const r9 = topR9((z9 - TOP_Z9) / TOP_H9) + 0.02;
           return [Math.cos(a9) * r9, Math.sin(a9) * r9, z9];
