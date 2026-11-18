@@ -5065,7 +5065,11 @@ export const hiveSeamH9 = (t: number): number => {
  *  옆 죔 0.38(폭 줄임 · 옛 0.45) · 지수 1.0.
  *  되물린 값(같은 날 차례로): ① 밑동만 낮춤 hK 1.3 + hDip 0.9(밑 2.26 · t 0.2 2.40 · 위로 되돌린 등) · w 1.95 · tip 1.7 · ov 0.45 — 옆폭 밑 1.17 · 중턱 1.07
  *  ② 고른 등 hBot 2.8 · hTop 2.4 ③ "덜 퍼지게 · 더 높게" w 2.2 · tip 0.9 · hK 1.3(3.16 → 0.43) · ov 0.56 ④ 그 전 seamK 1.5 의 기본(반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33). */
-export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.87, flare: 1.0, mouthLift: [0.68, 0.15] as [number, number] };   // 옆 죔 0.87 — 중턱 등 1.25 에서 중턱 폭 1.25 를 지킨다(밑 1.0 · 끝 0.43) · 옛 0.62(등 1.75) · 0.53(2.05) · 0.47(2.3) · 0.38 / mouthLift ★ 아가리를 바깥 · 조금 위로   // 옆 죔 0.62 — 중턱 등 1.75 에서 중턱 폭 1.25 를 지킨다(밑 0.72 · 끝 0.31) · 옛 0.53(등 2.05) · 0.47(등 2.3 · "갈비 폭 좀 늘리기") · 0.38   // 옆 죔 0.47 → 0.53 — 중턱 등을 2.3 → 2.05 로 낮춘 만큼(드러난 폭 = 등 × 옆 죔 × 1.155) 중턱 폭 1.25 를 지킨다 · 밑 0.61 · 끝 0.26 · 옛 0.38 → 0.47(같은 날 "갈비 폭 좀 늘리기")   // 옆 죔 0.38 → 0.47(2026-11-18, 요청: "갈비 폭 좀 늘리기" — 드러난 폭 밑 0.44 → 0.54 · 중턱 1.0 → 1.25 · 끝 0.19 → 0.23 · 등 높이 · 받침 여유는 그대로)
+/* 옆 죔(ov) 내력 — 드러난 폭 = 등 × 옆 죔 × 1.155: 0.38(등 2.3 · 중턱 1.0) → 0.47("갈비 폭 좀 늘리기" · 1.25) → 0.53(등 2.05) → 0.62(등 1.75) → 0.87(등 1.25 · 중턱 1.25 를 지키려고)
+   → **0.58**(같은 날 "갈비 폭이 너무 넓자나" — 중턱 0.84 · 밑 0.67 · 끝 0.29). mouthLift ★ 아가리를 바깥 · 조금 위로. */
+export const HIVE_SEAM9 = { w: 1.8, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 1.0, mouthLift: [0.68, 0.15] as [number, number] };
+/** ★ 하이브 둔덕 밑동 반지름 — 5.9 × 0.9(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). */
+export const HIVE_MOUND_RB9 = 5.9 * 0.9;
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
 export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
@@ -5100,6 +5104,8 @@ export function hatcheryMoundFaces(
    *  mouthLift [L, tb] 밑동 끝 tb 만큼을 겉면 법선 쪽으로 들어 올린다(t 0 에서 L · (1 − t/tb)² 로 줄어든다) — 축의 기울기가 바깥으로 꺾여 아가리가 비탈 아래가 아니라
    *  바깥(·조금 위)을 보고, 묻혔던 단면이 겉으로 드러난다(2026-11-18 "갈비 아래쪽의 입구 구멍이 더 보이게 각도 조절"). */
   seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number; mouthLift?: [number, number] } = {},
+  /** ★ 둔덕 밑동 반지름(기본 5.9) — 하이브 5.31(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). 몸 · 갈비 · 바닥 다리가 이 값을 탄다. */
+  moundRB = 5.9,
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5121,7 +5127,7 @@ export function hatcheryMoundFaces(
        0.55로 줘 한 기둥으로 낸다. 옆면 띠도 이 옆선을 그대로 타고 올라 둔덕과 한 몸이
        된다(두 덩이를 겹치지 않는다). */
     const MND_H = 5.28;
-    const MND_RB = 5.9;
+    const MND_RB = moundRB;   // 옛 5.9 고정(moundRB ★)
     const MND_RT = 1.4;
     // 경사 반전(재지적) — 위는 수직에 가깝고 아래로 갈수록 눕는다: taper > 1.
     /* ★ **능선은 밑에서 거의 눕고 갑자기 가팔라진다**(2026-09, 요청: "베이스의 형태가 좀더 드라마틱하게 굽어져야 해 —
@@ -18356,7 +18362,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true, base: [HIVE_TOP9.r * 0.55, HIVE_TOP9.z + HIVE_TOP9.h] }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true, base: [HIVE_TOP9.r * 0.55, HIVE_TOP9.z + HIVE_TOP9.h] }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9, HIVE_MOUND_RB9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
