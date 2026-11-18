@@ -5053,12 +5053,12 @@ export const LAIR_P9 = 3.2;
 export const HIVE_P9 = 1.2;
 /** ★ 하이브 갈비 등 높이 지수(아래 seamE ★) — 작을수록 밑동의 높은 등이 위로 오래 남아 등마루가 위로 볼록해진다. */
 export const HIVE_SEAM_E9 = 0.7;
-/** ★ 하이브 갈비 꼴(아래 seamShape ★) — 등 높이가 위아래 거의 고르고(밑 2.8 · 꼭대기 2.4 · 2026-11-18, 요청: "갈비 높이가 위아래쪽 거의 균일하게") ·
- *  그 등을 받치게 단면 반지름 1.95 → 1.7(⚠ 등 ≤ 반지름 × 1.5 여야 삼각 단면 아래 꼭짓점이 살에 닿는다 — 마디마다 셈해 봄: 최소 여유 0.07) ·
- *  옆 죔 0.45(꼭대기 둘레 9.2 에 여섯이 1.3 씩 — 서로 안 닿게) · 지수 1.0 — 옆폭 밑 1.52 · 끝 1.32(거의 고른 지느러미).
- *  되물린 값: (같은 날 앞 판 "나팔처럼 퍼지지 않게 · 높이는 더 높게") w 2.2 · tip 0.9 · hK 1.3(등 3.16 → 0.43) · ov 0.56 ·
+/** ★ 하이브 갈비 꼴(아래 seamShape ★) — 등 높이는 앞 판(hK 1.3 · 밑 3.16 → 꼭대기 0.43 · 지수 0.7)으로 되돌리고 **밑동 쪽만** 낮춘다(hDip 0.9 · (1 − t)^4 —
+ *  밑 3.16 → 2.26 · t 0.2 에서 2.77 → 2.40 · 중턱 위는 거의 그대로 · 2026-11-18, 요청: "갈비 높이 원복하고 아래쪽만 높이 낮추기").
+ *  단면(반지름 1.95 → 1.7 · 옆 죔 0.45 · 지수 1.0 — 덜 퍼지는 꼴)은 그대로 · 등 ≤ 반지름 × 1.5 여유 최소 0.48(t 0.2).
+ *  되물린 값: (같은 날) 고른 등 hBot 2.8 · hTop 2.4("갈비 높이가 위아래쪽 거의 균일하게") · (그 앞) w 2.2 · tip 0.9 · ov 0.56 ·
  *  (그 전 seamK 1.5 의 기본) 반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33. */
-export const HIVE_SEAM9 = { w: 1.95, tip: 1.7, hBot: 2.8, hTop: 2.4, ov: 0.45, flare: 1.0 };
+export const HIVE_SEAM9 = { w: 1.95, tip: 1.7, hK: 1.3, hDip: 0.9, ov: 0.45, flare: 1.0 };
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
 export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
@@ -5087,8 +5087,9 @@ export function hatcheryMoundFaces(
   /** ★ 옆 갈비 꼴(2026-11-18, 요청: "갈비가 너무 나팔처럼 퍼지지 않게 해줘 높이는 더 높게" — 하이브) — 비우면 옛 꼴 그대로(해처리 · 레어).
    *  w 밑동 반지름(= 등 높이를 받치는 단면 크기 · 기본 1.12·seamK) · tip 끝 반지름(0.42·seamK) · hK 드러난 등 높이 배수(1) ·
    *  ov 옆 죔(0.91 — 작을수록 옆폭이 좁다) · flare 밑동으로 벌어지는 지수(1.6 — 클수록 밑에서 나팔처럼 퍼진다) ·
-   *  hBot · hTop 드러난 등 높이를 밑동 · 꼭대기에서 바로(주면 hK 대신 · 2026-11-18 "갈비 높이가 위아래쪽 거의 균일하게"). */
-  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; ov?: number; flare?: number } = {},
+   *  hBot · hTop 드러난 등 높이를 밑동 · 꼭대기에서 바로(주면 hK 대신 · 2026-11-18 "갈비 높이가 위아래쪽 거의 균일하게") ·
+   *  hDip 밑동 쪽만 등 높이를 덜어 내는 몫(t 0 에서 그만큼 · (1 − t)^4 로 줄어 중턱 위는 그대로 · 2026-11-18 "갈비 높이 원복하고 아래쪽만 높이 낮추기"). */
+  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; ov?: number; flare?: number } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5355,7 +5356,8 @@ export function hatcheryMoundFaces(
         const SEAM_H_BOT9 = seamShape.hBot ?? 1.62 * seamK * (seamShape.hK ?? 1);
         const SEAM_H_TOP9 = seamShape.hTop ?? 0.22 * seamK * (seamShape.hK ?? 1);
         const seamH9 = (t9: number): number => SEAM_H_TOP9
-          + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** seamE;   // 지수 1.4 · 하이브 0.7(위 seamE ★ 2026-11-18)
+          + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** seamE   // 지수 1.4 · 하이브 0.7(위 seamE ★ 2026-11-18)
+          - (seamShape.hDip ?? 0) * (1 - t9) ** 4;              // 밑동 쪽만 덜어 냄(hDip ★)
         /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
            둔덕 밑동은 수평에서 19도로 거의 눕는다. 거기서 축을 **반지름 방향**으로 들면 그 몫이 죄다 **바깥**으로
            가므로 갈비가 발자국 밖으로 비어져 나와 허공에 떴다(실측: 밑동 축이 r 6.40 · 겉면 5.9). 옆선 (r, z)
