@@ -11,7 +11,8 @@
  *
  * 유성 — 머리(흰 핵 + 푸른 흰 광채) · 길게 가늘어지는 꼬리(흰 → 청록 → 끝은 주황빛으로 바래는 세 겹) · 떨어져 나가는 불티 · 지나간 자리에 잠시 남는
  *   흐린 흔적(이온 자국 — 1.5초에 걸쳐 퍼지며 사라짐) · 밝기는 빠르게 오르고 한 번 번쩍한 뒤 꺼진다(가물거림). 드물게 녹색 · 주황 불덩이(크고 느리다).
- *   유성우는 **한 복사점에서 사방으로** 뻗는다(실제 유성우처럼). 더하는 빛('lighter')으로 그린다.
+ *   유성우는 지도 밖 먼 복사점 하나에서 20 ~ 32초 동안 지도 전체에 거의 나란히 빗발친다(2026-11-18 · 옛: 한 점에서 사방으로 4 ~ 7개). 크기는 저마다 다르다.
+ *   더하는 빛('lighter')으로 그린다. 유성은 우주 판에만 · 새는 우주 판 밖에만(nature9 drawNatureSky9).
  *
  * 둘 다 실 시각의 함수(씨앗 + 시각 칸) — 같은 장면은 다시 열어도 같다. 그리는 쪽은 nature9.drawNature9(땅 층 — 유성 · 새 그림자)와
  * drawSky9(몸 위 층 — 새)다.
@@ -279,6 +280,8 @@ function birdsOf9(F: Flock9, tSec: number): BirdNow9[] {
   return out;
 }
 export const SKY9 = { lastCall: new Map<number, number>() };
+/** ★ 새 크기 배수(2026-11-18, 요청: "새 크기 줄이기") — 몸 · 그림자 모두. 옛 1(종마다 펼친 폭 0.52 ~ 0.92 타일). 무리 간격 · 높이는 그대로. */
+const BIRD_K9 = 0.65;
 
 /**
  * 새 그리기 — 땅 층(shadow 참: 그림자만) · 몸 위 층(shadow 거짓: 새). ox · oy = 지도 (0, 0) 의 화면 자리 · tp = 타일 화면 px.
@@ -302,7 +305,7 @@ export function drawBirds9(ctx: CanvasRenderingContext2D, w: number, h: number, 
     }
     const s = SPEC9[F.sp];
     for (const b of birds) {
-      const size = s.span * tp * b.scale * (1 + b.z * 0.03);   // 높을수록 조금 크다(눈에 가깝다)
+      const size = s.span * tp * b.scale * BIRD_K9 * (1 + b.z * 0.03);   // 높을수록 조금 크다(눈에 가깝다)
       if (size < 2) continue;
       if (shadow) {
         const sx = ox + (b.x + b.z * 0.55) * tp; const sy = oy + (b.y + b.z * 0.7) * tp;
@@ -313,7 +316,7 @@ export function drawBirds9(ctx: CanvasRenderingContext2D, w: number, h: number, 
         continue;
       }
       const sx = ox + b.x * tp; const sy = oy + (b.y - b.z * 0.35) * tp;   // 높이는 화면 위로(평면 보기의 눌림)
-      const k = b.scale * (1 + b.z * 0.03);
+      const k = b.scale * BIRD_K9 * (1 + b.z * 0.03);
       const W = wingPose9(b.mode, b.ph);
       const roll = -b.bank * 0.6;   // 오른쪽으로 돌면 오른 날개가 내려간다
       const tail = b.mode === 1 ? 0.9 : b.mode === 2 ? 0.25 : 0.45 + 0.3 * clamp01(Math.sin(b.ph * TAU));
@@ -323,21 +326,52 @@ export function drawBirds9(ctx: CanvasRenderingContext2D, w: number, h: number, 
 }
 
 /* ── 유성 ──────────────────────────────────────────────────────────────────────────────────────────────────── */
-interface Meteor9 { t0: number; dur: number; x0: number; y0: number; dx: number; dy: number; len: number; mag: number; hue: number; seed: number }
-/** 3초 칸마다 — 4할 없음 · 5할 하나 · 1할 유성우(4 ~ 7개 · 한 복사점에서 사방으로). 불덩이(녹 · 주황 · 크고 느림)는 6%. */
+interface Meteor9 { t0: number; dur: number; x0: number; y0: number; dx: number; dy: number; len: number; mag: number; hue: number; seed: number; sz: number }
+/** ★ 크기 다양(2026-11-18, 요청: "유성은 크기는 좀 다양화") — 작은 것이 잦고 큰 것은 드물다(0.45 ~ 1.8 · 가운데 ≈ 0.7). 머리 · 꼬리 폭 · 흔적 · 불티 · 길이를 함께 키운다.
+ *  옛: 크기는 늘 같고 밝기(mag 0.7 ~ 1.5)만 달랐다. */
+const meteorSz9 = (R: () => number): number => 0.45 + 1.35 * Math.pow(R(), 2.4);
+/** 홀로 떨어지는 유성 — 3초 칸마다 4할 없음 · 6할 하나. 불덩이(녹 · 주황 · 크고 느림)는 6%.
+ *  ★ 한 점에서 여럿(옛 1할 — 한 복사점에서 사방으로 4 ~ 7개)은 걷었다(2026-11-18, 요청: "한곳에서 여러개 나오는 유성은 제거하고 대신 유성우를") → showerOf9. */
 function meteorsOf9(slot: number, spaceTiles: number[], w: number): Meteor9[] {
   const R = rngOf9("met" + slot + ":" + w); const out: Meteor9[] = [];
-  const r0 = R(); if (r0 < 0.4 || !spaceTiles.length) return out;
-  const shower = r0 > 0.9; const n = shower ? 4 + Math.floor(R() * 4) : 1;
-  const rad = spaceTiles[Math.floor(R() * spaceTiles.length)]; const rx = rad % w; const ry = Math.floor(rad / w);
-  for (let i = 0; i < n; i += 1) {
-    const fire = !shower && R() < 0.06;
-    let x0: number; let y0: number; let ang: number;
-    if (shower) { ang = R() * TAU; const d0 = 2 + R() * 6; x0 = rx + Math.cos(ang) * d0; y0 = ry + Math.sin(ang) * d0; }
-    else { const ti = spaceTiles[Math.floor(R() * spaceTiles.length)]; x0 = ti % w; y0 = Math.floor(ti / w); ang = 0.35 + R() * 1.0 + (R() < 0.3 ? Math.PI * 0.5 : 0); }
-    out.push({ t0: slot * 3 + (shower ? R() * 2.4 : R() * 2.2), dur: fire ? 1.6 + R() * 0.8 : 0.45 + R() * 0.6, x0, y0, dx: Math.cos(ang), dy: Math.sin(ang),
-      len: fire ? 14 + R() * 10 : 7 + R() * 9, mag: fire ? 2.2 : 0.7 + R() * 0.8, hue: fire ? (R() < 0.6 ? 125 : 28) : 205 + R() * 25, seed: R() * 1000 });
+  if (R() < 0.4 || !spaceTiles.length) return out;
+  const fire = R() < 0.06;
+  const ti = spaceTiles[Math.floor(R() * spaceTiles.length)];
+  const ang = 0.35 + R() * 1.0 + (R() < 0.3 ? Math.PI * 0.5 : 0);
+  const sz = fire ? 1.5 + R() * 0.4 : meteorSz9(R);
+  out.push({ t0: slot * 3 + R() * 2.2, dur: fire ? 1.6 + R() * 0.8 : (0.45 + R() * 0.6) * (0.8 + 0.25 * sz), x0: (ti % w) + R(), y0: Math.floor(ti / w) + R(),
+    dx: Math.cos(ang), dy: Math.sin(ang), len: fire ? 14 + R() * 10 : (5 + R() * 7) * (0.6 + 0.5 * sz), mag: fire ? 2.2 : 0.6 + R() * 0.5 + 0.35 * sz,
+    hue: fire ? (R() < 0.6 ? 125 : 28) : 205 + R() * 25, seed: R() * 1000, sz });
+  return out;
+}
+/** ★ 유성우(2026-11-18) — 60초 칸마다 반 · 20 ~ 32초(칸 안에서 끝난다). 지도 밖 멀리(긴 변의 2.5배) 복사점 하나에서 뻗어 화면에선 **거의 나란히** 빗발친다
+ *  (실제 유성우처럼 복사점에서 멀수록 살짝 벌어진다 · 방향은 화면 아래쪽 반원). 세기는 종 모양(가운데가 가장 잦다) — 한창일 때 우주 칸 200개당 초당 하나(지도 전체 · 적어도 넷 — PC 한 화면에 초당 서넛).
+ *  유성우 유성은 빠르고(0.25 ~ 0.55초) 대개 작다 · 5% 는 밝고 크다. 지도 어디서나 같은 시각에 내린다(실 시각 함수 · 씨앗). */
+const SHOWER_SLOT9 = 60;
+interface Shower9 { id: number; t0: number; dur: number; rx: number; ry: number; hue: number }
+function showerOf9(slot: number, w: number, h: number): Shower9 | null {
+  const R = rngOf9("shw" + slot + ":" + w);
+  if (R() < 0.5) return null;
+  const dur = 20 + R() * 12; const ang = 0.3 + R() * (Math.PI - 0.6); const D = 2.5 * Math.max(w, h);
+  return { id: slot, t0: slot * SHOWER_SLOT9 + R() * (SHOWER_SLOT9 - dur), dur, rx: w / 2 - Math.cos(ang) * D, ry: h / 2 - Math.sin(ang) * D, hue: 200 + R() * 20 };
+}
+const showerMemo9 = new Map<string, Meteor9[]>();
+/** 유성우의 k 번째 1초 — 그 초에 떨어지는 유성들(외워 둔다 · 256 칸). */
+function showerSec9(S: Shower9, k: number, spaceTiles: number[], w: number): Meteor9[] {
+  const key = S.id + ":" + k + ":" + w + ":" + spaceTiles.length;
+  const hit = showerMemo9.get(key); if (hit) return hit;
+  const R = rngOf9("shs" + key); const out: Meteor9[] = [];
+  const I = Math.pow(Math.sin(Math.PI * clamp01((k + 0.5) / S.dur)), 1.6);
+  const n = Math.floor(Math.max(4, spaceTiles.length / 200) * I + R());
+  for (let i = 0; i < n && spaceTiles.length; i += 1) {
+    const ti = spaceTiles[Math.floor(R() * spaceTiles.length)]; const x0 = (ti % w) + R(); const y0 = Math.floor(ti / w) + R();
+    const ex = x0 - S.rx; const ey = y0 - S.ry; const el = Math.hypot(ex, ey) || 1;
+    const bright = R() < 0.05; const sz = bright ? 1.4 + R() * 0.4 : meteorSz9(R) * 0.9;
+    out.push({ t0: S.t0 + k + R(), dur: (0.25 + R() * 0.3) * (0.8 + 0.3 * sz), x0, y0, dx: ex / el, dy: ey / el, len: (4 + R() * 6) * (0.6 + 0.5 * sz),
+      mag: bright ? 1.6 : 0.5 + R() * 0.4 + 0.3 * sz, hue: S.hue + (R() - 0.5) * 14, seed: R() * 1000, sz });
   }
+  showerMemo9.set(key, out);
+  if (showerMemo9.size > 256) { const k0 = showerMemo9.keys().next().value; if (k0 !== undefined) showerMemo9.delete(k0); }
   return out;
 }
 let headSpr9: HTMLCanvasElement | null = null;
@@ -350,16 +384,26 @@ function headGlow9(): HTMLCanvasElement {
   g.fillStyle = gr; g.fillRect(0, 0, S, S);
   headSpr9 = c; return c;
 }
-/** 유성 그리기(땅 층 · 우주 칸 위) — 더하는 빛. */
-export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[], w: number, ox: number, oy: number, tp: number, tSec: number): void {
+/** 유성 그리기(하늘 층 · 우주 칸 위) — 더하는 빛. w · h = 지도 타일 · cw · ch = 캔버스 CSS 크기(화면 밖 유성은 건너뛴다 — 유성우는 지도 전체에 내린다). */
+export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[], w: number, h: number, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
   if (!spaceTiles.length) return;
+  const list: Meteor9[] = [];
+  const slot0 = Math.floor(tSec / 3);
+  for (let sl = slot0 - 2; sl <= slot0; sl += 1) for (const m of meteorsOf9(sl, spaceTiles, w)) list.push(m);
+  const ss0 = Math.floor(tSec / SHOWER_SLOT9);
+  for (let ss = ss0 - 1; ss <= ss0; ss += 1) {
+    const S = showerOf9(ss, w, h); if (!S) continue;
+    const k1 = Math.floor(tSec - S.t0); const kN = Math.ceil(S.dur) - 1;
+    for (let k = Math.max(0, k1 - 4); k <= Math.min(kN, k1); k += 1) for (const m of showerSec9(S, k, spaceTiles, w)) list.push(m);
+  }
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  const slot0 = Math.floor(tSec / 3);
-  for (let sl = slot0 - 2; sl <= slot0; sl += 1) {
-    for (const m of meteorsOf9(sl, spaceTiles, w)) {
+  {
+    for (const m of list) {
       const age = tSec - m.t0; const trainLife = 1.6 * m.mag;
       if (age < 0 || age > m.dur + trainLife) continue;
+      { const mg = (1.2 + m.sz) * tp; const ax = ox + m.x0 * tp; const ay = oy + m.y0 * tp; const bx = ax + m.dx * m.len * tp; const by = ay + m.dy * m.len * tp;
+        if (Math.max(ax, bx) < -mg || Math.min(ax, bx) > cw + mg || Math.max(ay, by) < -mg || Math.min(ay, by) > ch + mg) continue; }
       const u = clamp01(age / m.dur);
       /* 밝기 — 빠르게 오르고(15%) 가운데 한 번 번쩍(flare) · 끝으로 꺼짐 · 가물거림 */
       const R = rngOf9("mf" + m.seed);
@@ -376,7 +420,7 @@ export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[]
         const passed = age - a1 * m.dur;   // 그 자리를 지난 뒤 흐른 시간
         const al = 0.16 * m.mag * Math.exp(-passed / (0.55 * m.mag)) * (1 - a1 * 0.4);
         if (al < 0.01) continue;
-        const wid = tp * (0.05 + 0.1 * Math.min(1, passed / 1.2));
+        const wid = tp * m.sz * (0.05 + 0.1 * Math.min(1, passed / 1.2));
         ctx.strokeStyle = `hsla(${m.hue},70%,70%,${al})`; ctx.lineWidth = Math.max(1, wid); ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(ox + (m.x0 + m.dx * m.len * a0) * tp, oy + (m.y0 + m.dy * m.len * a0) * tp);
         ctx.lineTo(ox + (m.x0 + m.dx * m.len * a1) * tp, oy + (m.y0 + m.dy * m.len * a1) * tp); ctx.stroke();
@@ -393,14 +437,14 @@ export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[]
         const ex = X - m.dx * tail * frac * tp; const ey = Y - m.dy * tail * frac * tp;
         const gr = ctx.createLinearGradient(X, Y, ex, ey); gr.addColorStop(0, c0); gr.addColorStop(1, c1);
         /* 가늘어지는 꼬리 — 머리 쪽 폭 wd · 끝 0 인 사다리꼴 */
-        const nx = -m.dy; const ny = m.dx; const hw = Math.max(0.6, wd * tp * (0.7 + 0.3 * Math.min(1, lum)));
+        const nx = -m.dy; const ny = m.dx; const hw = Math.max(0.6, wd * tp * m.sz * (0.7 + 0.3 * Math.min(1, lum)));
         ctx.fillStyle = gr; ctx.beginPath();
         ctx.moveTo(X + nx * hw, Y + ny * hw); ctx.lineTo(ex, ey); ctx.lineTo(X - nx * hw, Y - ny * hw);
         { const a1 = Math.atan2(-ny, -nx); ctx.arc(X, Y, hw, a1, a1 + Math.PI, false); }   // 머리 앞을 둥글게(−n → 진행 방향 → +n)
         ctx.closePath(); ctx.fill();
       }
       /* ③ 불티 — 꼬리 쪽으로 떨어져 나가 잠깐 빛나다 꺼진다 */
-      const nSp = Math.round(6 * m.mag);
+      const nSp = Math.round(6 * m.mag * Math.min(1.4, m.sz));
       for (let k = 0; k < nSp; k += 1) {
         const born = R() * u; const life = 0.12 + R() * 0.25; const da = (u - born) * m.dur;
         if (da < 0 || da > life) { R(); R(); continue; }
@@ -409,10 +453,10 @@ export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[]
         const px = ox + (bx + (m.dx * 0.3 - m.dy * dr) * da * dv) * tp; const py = oy + (by + (m.dy * 0.3 + m.dx * dr) * da * dv) * tp;
         const a = (1 - da / life) * 0.8 * Math.min(1, lum);
         ctx.fillStyle = `hsla(${k % 3 === 0 ? 35 : m.hue},90%,80%,${a})`;
-        ctx.beginPath(); ctx.arc(px, py, Math.max(0.6, tp * 0.035), 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, Math.max(0.6, tp * 0.035 * m.sz), 0, TAU); ctx.fill();
       }
       /* ④ 머리 — 흰 핵 + 광채(색은 유성 빛깔로 물든다) */
-      const hs = tp * (0.9 + 0.9 * Math.min(1.5, lum));
+      const hs = tp * m.sz * (0.9 + 0.9 * Math.min(1.5, lum));
       ctx.globalAlpha = Math.min(1, lum);
       ctx.drawImage(headGlow9(), X - hs / 2, Y - hs / 2, hs, hs);
       ctx.globalAlpha = 1;

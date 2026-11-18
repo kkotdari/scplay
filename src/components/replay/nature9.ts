@@ -123,7 +123,9 @@ function planOf9(G: TerrainGeom9, hash: string): Plan9 {
   }
   /* ★ 유성은 모든 맵에(2026-11-15 밤, 지적: "빨무맵에서 유성우가 안내림") — 옛: 우주 판(타일셋 1)의 우주 칸 위에만. 우주 판이 아니거나 우주 칸이 지도의 2% 도 안 되면
      지도 전체를 하늘로 친다(유성은 하늘 층이라 땅 위로 지나가도 된다). */
-  if (spaceTiles.length < w * h * 0.02) { spaceTiles.length = 0; for (let i = 0; i < w * h; i += 1) spaceTiles.push(i); }
+  /* ★ 유성은 우주 판에만 · 새는 우주 판 밖에만(2026-11-18, 요청: "우주배경엔 새 없애고 우주배경 아닌맵은 유성 없애고") — 위 '모든 맵' 은 되물렸다.
+     우주 판에서 우주 칸이 2% 도 안 되면 지도 전체를 하늘로 치는 것만 남긴다. */
+  if (space && spaceTiles.length < w * h * 0.02) { spaceTiles.length = 0; for (let i = 0; i < w * h; i += 1) spaceTiles.push(i); }
   plan9 = { props, falls, space, spaceTiles, w, h, ts }; planKey9 = key;
   return plan9;
 }
@@ -223,8 +225,8 @@ export function drawNature9(ctx: CanvasRenderingContext2D, ox: number, oy: numbe
   const M = ctx.getTransform();
   const inView = (x: number, y: number, m: number): boolean => { const sx = ox + x * tp; const sy = oy + y * tp; return sx > -m && sx < cw + m && sy > -m && sy < ch + m; };
   ctx.save();
-  /* 모든 판 — 새 그림자(바닥 · 새 몸과 유성은 몸 위 층 drawNatureSky9). 설치 · 잿빛 판도 새는 난다("우주에도 새는 똑같이"). */
-  drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
+  /* 새 그림자(바닥 · 새 몸과 유성은 몸 위 층 drawNatureSky9) — 우주 판 밖만(2026-11-18 ★ planOf9 · 옛: 모든 판 "우주에도 새는 똑같이"). 설치 · 잿빛 판은 난다. */
+  if (!P.space) drawBirds9(ctx, P.w, P.h, ox, oy, tp, cw, ch, tSec, true, null);
   const leaf = LEAF9[P.ts]; if (P.space || !leaf || !NATURE_PROPS9) { ctx.restore(); return; }
   const small = tp < 7;   // 낮은 배율 — 풀 · 꽃 · 덤불은 건너뛴다(점으로 뭉갠다)
   /* ① 폭포는 GL 지형 층이 그린다(glTerrain9 TERR_FALLS9 · 기존 물 질감 — 2026-11-15 "폭포 추가 · 물 질감은 기존 물 사용") — 자리만 natureFallList9 로 넘긴다. */
@@ -258,8 +260,9 @@ export function drawNatureSky9(ctx: CanvasRenderingContext2D, ox: number, oy: nu
   const G = NATURE9.geom; if (!NATURE9.on || !G || tp < 2) return;
   /* ★ 유성도 몸 위 층(2026-11-16, 요청: "유성이나 새는 다른 모델들보다 가장 위에") — 옛: 바닥 층(drawNature9 · 크립 위 · 몸 아래)이라 건물 · 유닛에 가렸다. 모든 맵(planOf9 ★). */
   const P = planOf9(G, NATURE9.hash);
-  drawMeteors9(ctx, P.spaceTiles, P.w, ox, oy, tp, tSec);
-  drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
+  /* 우주 판 = 유성(새 없음) · 그 밖 = 새(유성 없음) — 2026-11-18 ★ planOf9. */
+  if (P.space) drawMeteors9(ctx, P.spaceTiles, P.w, P.h, ox, oy, tp, cw, ch, tSec);
+  else drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
 }
 
 /** 폭포 자리 — (가운데 x, 위 y, 아래 y, 폭) 넷씩 · 타일. 지형 GL 층(TERR_FALLS9)이 그린다. 자연 판(타일셋)이 아니거나 기하가 없으면 빈 배열. */
