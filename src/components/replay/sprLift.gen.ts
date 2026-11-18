@@ -21,7 +21,7 @@ export const SPR_LIFT9: Record<string, number> = {
   "guardian": 5,   // 늘림 2.34 → 0.98
   "hive": 3,   // 늘림 1.50 → 0.89
   "lair": 3,   // 늘림 1.48 → 0.88
-  "lurker": 2,   // 늘림 1.37 → 0.97
+  "lurker": 3,   // 늘림 1.51 → 0.90
   "muta": 5,   // 늘림 2.21 → 0.93
   "observatory": 1,   // 늘림 1.09 → 0.92
   "ovie": 3,   // 늘림 1.57 → 0.93
@@ -43,4 +43,4 @@ export const SPR_LIFT9: Record<string, number> = {
   "wraith": 1,   // 늘림 1.08 → 0.91
 };
 /** 이 표를 잰 크기표의 해시(scripts/sizeHash.mjs) — spr-atlas --bake 가 견주어 다르면 다시 잰다. */
-export const SPR_LIFT_SRC9 = "4c0a0f9c45fe";
+export const SPR_LIFT_SRC9 = "96b382edc038";
