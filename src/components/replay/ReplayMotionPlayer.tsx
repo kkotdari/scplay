@@ -14,7 +14,8 @@ import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9, natureStore9 } f
 const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Lock, LockOpen, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { mouseLockInstall9, mouseLockStore9, mouseLockStored9, type MouseLock9 } from "./mouseLock9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -5573,8 +5574,12 @@ export function paintFxList9(
        그 바닥 위에 있다(요청: "모든 트레이서류 2배 줌부터") — beam(제자리 번쩍)과
        shot(날아가는 탄)이 곧 무기별 트레이서 전부라, 무기가 무엇이든 유닛이 쏘든
        방어 건물이 쏘든 이 한 줄을 지난다. */
-    if (!env.docView9 && !env.splitView9 && zoom < (FX_NO_FLOOR.has(f.kind)
-      ? FX_MIN_ZOOM[f.kind] : Math.max(FX_MIN_ZOOM[f.kind], detailAt ?? 0))) continue;
+    /* ★ **탱크 사격은 트레이서 칸**(2026-11-18, 지적: "피시 재생기에서 시즈탱크 트레이서가 안나오는긋?") — 탱크 · 시즈의 포구 불꽃 · 연기 · 착탄(엔진 put9)은
+       표적 자리 그림이라 op 갈래가 'hit'(피격)이고, 피격 칸(4배)을 탔다 — 기관총 · 플라즈마 트레이서(beam · shot)는 2배부터 서는데 탱크만 4배 아래에서 통째로 빠졌다.
+       이 다섯 갈래는 무기의 트레이서이므로 문턱 · 죄기를 beam 으로 센다(TANK_FIRE_FX9). 맞은 몸의 피격(splash 없음)은 그대로 피격 칸. */
+    const thK9: FxOp["kind"] = f.kind === "hit" && f.splash && TANK_FIRE_FX9.has(f.style ?? "") ? "beam" : f.kind;
+    if (!env.docView9 && !env.splitView9 && zoom < (FX_NO_FLOOR.has(thK9)
+      ? FX_MIN_ZOOM[thK9] : Math.max(FX_MIN_ZOOM[thK9], detailAt ?? 0))) continue;
     /* 낮은 배율 죄기(위 lowZoomTrim9) — 꾸밈부터 덜고, 심하면 트레이서까지 던다.
        무슨 일이 있었나를 말하는 것(죽음 폭발·소환 섬광·우리·스톰·핵·붕괴)은 남는다. */
     if (trim9 >= 1 || FQ9.lv >= 2) {   // 프레임 사다리 2단(FQ9 ★)도 꾸밈·상처를 던다(트레이서까지 던지는 2단 죄기와는 따로)
@@ -5582,7 +5587,7 @@ export function paintFxList9(
       if (f.kind === "dom" && TRIM1_SKIP9.has(f.style ?? "")) continue;
       if (trim9 >= 2) {
         if (f.kind === "dom" && TRIM2_SKIP9.has(f.style ?? "")) continue;
-        if (f.kind === "beam" || f.kind === "shot" || f.kind === "spike" || f.kind === "erupt") continue;
+        if (thK9 === "beam" || f.kind === "shot" || f.kind === "spike" || f.kind === "erupt") continue;
       }
     }
     const ax = zx(f.fx);
@@ -10536,6 +10541,8 @@ const FX_MIN_ZOOM: Record<FxOp["kind"], number> = {
  *    걸려 폰에서는 8배였다. 그 바닥을 안 타게 한다.
  *  나머지(피격·실드막·승하차 줄)는 꾸밈이라 바닥을 그대로 탄다. */
 const FX_NO_FLOOR = new Set<FxOp["kind"]>(["beam", "shot", "cage", "burst", "wound", "dom"]);
+/** 탱크 · 시즈 사격 그림(포구 불꽃 · 연기 · 착탄) — op 은 'hit' 이지만 무기의 트레이서라 문턱은 beam(2배 · 배치 바닥 없음)으로 센다(paintFxList9 ★ 2026-11-18). */
+const TANK_FIRE_FX9 = new Set(["siege", "tankboom", "tankmz", "tankhit", "tanksmoke"]);
 /* ★ 켠다(지적: "프로토스 실드 피격효과를 금색이 아니라 플라즈마 빛으로") — 꺼 둔 동안 실드 op가 아래 갈래에서
    **안 걸러지고** 총구 번쩍임 기본 갈래(FX_BEAM.base, 금빛)로 흘러 들어갔다. 그 금빛 번쩍임이 곧 '금색 실드
    피격'이었다. 이제 실드 막을 플라즈마 빛(흰 심·시안 테)으로 제대로 그리고, 꺼도 아래로 안 흘러가게 막는다. */
@@ -14505,6 +14512,11 @@ export default function ReplayMotionPlayer({
   const boxElRef9 = useRef<HTMLDivElement | null>(null);
   const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
   useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
+  /** ★ 창모드 마우스 가두기(2026-11-18 · mouseLock9) — 켬(기억 scr.mlock · 손대지 않은 기기는 켬)이면 지도를 누를 때 커서가 재생기 안에 갇히고 가짜 커서가 선다.
+   *  갇힌 커서가 틀 끝 2px 에 닿으면 가장자리 밀기(아래 엣지 effect). 꼬리의 자물쇠 단추가 풀기 · 가두기 토글 · Esc 는 브라우저가 푼다(켬은 그대로). 전체화면은 안 가둔다. */
+  const [mlockOn9, setMlockOn9] = useState<boolean>(() => mouseLockStored9());
+  const [mlocked9, setMlocked9] = useState(false);
+  const mlockRef9 = useRef<MouseLock9 | null>(null);
   /** 하단 독 접기 **3단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 평소: 미니맵·플레이바·인포창·전광판·자막·오버레이 다 · 1단: 미니맵·플레이바·자막·오버레이만 ·
    *  2단: 미니맵·자막만") — 0 평소 · 1 독 줄(인포창·전광판) 숨김 · 2 재생바·오버레이(배속·배율·모드 토글·채팅·화면 주인·요약)까지 숨김. 손잡이는 2단에서도 남는다(replay.css is-dockfold2).
    *  옛 판은 켬/끔 둘(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
@@ -17949,8 +17961,23 @@ export default function ReplayMotionPlayer({
      전체화면은 종전대로 화면 맨 끝 2px(마우스가 더 못 나가니 닿을 수 있다) · 창모드는 마우스가 틀 밖으로 나가 버리므로 **지도 틀 안쪽 18px 띠**가 끝이고,
      틀 밖으로 나가면 민 것을 놓는다(겨눈 속도 0 → 감속). 조작부가 떠 있을 때 안 미는 규칙은 전체화면 몫만(창모드 조종부는 지도 밖에 있다). */
   /* ★★★ 창모드 엣지 스크롤은 **걷었다**(2026-10-25, 요청: "피시 윈도우모드의 엣지투 스크롤 제거") — 다시 전체화면에서만 돈다(아래 창모드 갈래는 fsOn 이 늘 참이라 안 탄다). */
+  /* 가두기 장치(mouseLock9) — PC(마우스) 몫 · 뿌리(.scr-fs-root — 무대 · 독 · 재생바)를 가둔다. 전체화면은 장치가 스스로 푼다. */
   useEffect(() => {
-    if (uiPhone9 || !fsOn) return undefined;
+    if (uiPhone9 || coarse) return undefined;
+    /* 뿌리는 무대 포털(stageHost9) 안에 선다 — 첫 커밋에 아직 없으면 다음 장들에서 다시 본다. */
+    let L9: MouseLock9 | null = null; let raf9 = 0;
+    const tryOn9 = (): void => {
+      const root9 = fsRootRef.current;
+      if (!root9) { raf9 = requestAnimationFrame(tryOn9); return; }
+      L9 = mouseLockInstall9(root9, setMlocked9); mlockRef9.current = L9;
+    };
+    tryOn9();
+    return () => { cancelAnimationFrame(raf9); if (L9) { L9.dispose(); if (mlockRef9.current === L9) mlockRef9.current = null; } setMlocked9(false); };
+  }, [uiPhone9, coarse]);
+  /* ★★★★ 창모드 엣지 스크롤 **다시**(2026-11-18, 요청: "창모드, 전체화면 모두 엣지투스크롤 적용하고 창모드에선 견제엽습실처럼 마우스 가두기") — 창모드는
+     **가둔 커서**(mouseLock9 · 위 mlockOn9 ★)가 재생기 틀 끝 2px 에 닿을 때만 민다(옛 10-24 의 18px 띠는 아니다 — 안 가뒀으면 안 민다 · 연습실과 같다). 전체화면은 그대로. */
+  useEffect(() => {
+    if (uiPhone9) return undefined;
     /* ★ 가장자리는 이제 **화면을 민다**(요청: "피시 전체화면에서 상하좌우 모서리는
        그방향으로 이동(부드럽게) / 기존 오버레이 노출은 클릭으로만") ─────────────────
        원작의 화면 밀기(edge scroll) 그대로다: 마우스가 화면 끝 띠에 들어가 있는 동안
@@ -17974,7 +18001,7 @@ export default function ReplayMotionPlayer({
        빠르기의 자를 **머문 시간**으로 바꾼다: 닿는 순간 520px/s 로 시작해 0.8초 머물면
        1900px/s 에 닿는다. 깊이로 재던 때와 같은 두 끝을 시간 축에 옮긴 것이라, 살짝 밀고
        떼는 손짓은 여전히 느리고 눌러 두면 빨라진다. */
-    const EDGE = fsOn ? 2 : 18;   // 미는 띠 폭(px) — 전체화면은 화면 맨 끝 · 창모드는 지도 틀 안쪽 띠
+    const EDGE = 2;   // 미는 띠 폭(px) — 전체화면 화면 맨 끝(창모드는 가둔 커서 · mouseLock9 MLOCK_EDGE9 · 옛 창모드 18px 띠는 걷음)
     const EDGE_MIN = 520;     // 끝에 닿는 순간의 초당 픽셀
     const EDGE_MAX = 1900;    // 계속 붙어 있을 때의 초당 픽셀
     const EDGE_RAMP = 0.8;    // 밑값에서 최대까지 오르는 데 걸리는 초
@@ -18001,7 +18028,7 @@ export default function ReplayMotionPlayer({
       const dt9 = last9 ? Math.min(0.05, (now9 - last9) / 1000) : 0;
       last9 = now9;
       const el9 = mapRef.current;
-      if (!el9 || mx9 < 0 || dt9 <= 0) return;
+      if (!el9 || dt9 <= 0 || (fsOn && mx9 < 0)) return;
       /* 추적 중에는 가장자리로도 안 민다(요청) — 밀던 중이었으면 그 손짓을 접는다. */
       if (trackLockRef.current || splitOnRef9.current || camLockRef9.current || boxDragRef9.current) {   // 분할보기·카메라 잠금·상자 끌기(boxDragRef9 ★)도 가장자리로 안 민다
         if (edgeOn) { edgeOn = false; vx9 = 0; vy9 = 0; endGestureXf(); }
@@ -18018,14 +18045,9 @@ export default function ReplayMotionPlayer({
           ux9 = mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
           uy9 = my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
         } else {
-          /* 틀이 창 밖으로 나가 있으면(위로 스크롤된 페이지 · 하네스처럼 틀이 창보다 큰 배치) **보이는 끝**이 끝이다 — 틀 상자를 창으로 자른다. */
-          const rb9 = el9.getBoundingClientRect();
-          const r9 = { left: Math.max(0, rb9.left), top: Math.max(0, rb9.top), right: Math.min(window.innerWidth, rb9.right), bottom: Math.min(window.innerHeight, rb9.bottom) };
-          const in9 = mx9 >= r9.left && mx9 <= r9.right && my9 >= r9.top && my9 <= r9.bottom;
-          if (in9) {
-            ux9 = mx9 < r9.left + EDGE ? 1 : mx9 > r9.right - EDGE ? -1 : 0;
-            uy9 = my9 < r9.top + EDGE ? 1 : my9 > r9.bottom - EDGE ? -1 : 0;
-          }
+          /* 창모드 — 가둔 커서의 가장자리(mouseLock9 edgeDir · 틀 = 재생기 뿌리를 창으로 자른 상자 · 끝 2px). 안 가뒀으면 0. 오른쪽 끝(+1)이면 팬은 음수. */
+          const [ex9, ey9] = mlockRef9.current?.edgeDir() ?? [0, 0];
+          ux9 = -ex9; uy9 = -ey9;
         }
       }
       // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
@@ -20849,6 +20871,8 @@ export default function ReplayMotionPlayer({
     };
   }, [fsOn]);
   const onMapPointerDown = (e: React.PointerEvent) => {
+    /* 창모드 가두기(위 mlockOn9 ★) — 진짜 마우스 누름이 가둔다(포인터 잠금은 사용자 손짓 안에서만 걸린다). 이 누름은 그대로 지도 누름이기도 하다(연습실과 같다). */
+    if (mlockOn9 && !fsOn && !uiPhone9 && e.pointerType === "mouse" && e.nativeEvent.isTrusted && !document.pointerLockElement) mlockRef9.current?.request(e.nativeEvent);
     /* 미끄러지던 관성을 붙잡는다 — 그 누름은 멈춤이지 클릭이 아니다(떼도 몸을 안 집는다 · 위 관성 ★). */
     const flung9 = flingRef9.current.raf !== 0;
     flingStop9();
@@ -20896,7 +20920,9 @@ export default function ReplayMotionPlayer({
        오른쪽 끌기 · Alt+왼쪽 끌기 = 지도 이동(잠긴 카메라에선 이동 시도 → 토스트) · 가운데는 아무것도 안 한다. 중계·추적 중에도 같다 · 분할보기는 상자를 안 쓴다 · 손가락은 끌면 이동. */
     /* ★ **마우스 확정**(2026-11-03, 요청: "마우스 좌클릭 드래그는 이동이 맞는 거 같아 · 박스 선택 = 우클릭 드래그 또는 쉬프트 드래그(알트 말고)") — 위 ★★★ 를 뒤집는다:
        왼쪽 끌기 = 지도 이동 · 오른쪽 끌기 · Shift+왼쪽 끌기 = 상자 선택 · 가운데 = 없음. */
-    const selMod9 = e.pointerType === "mouse" && (e.button === 2 || (e.button === 0 && e.shiftKey));
+    /* ★ **되바꿈**(2026-11-18, 요청: "드래그는 이제 선택으로 변경 우클릭 드래그는 이동으로") — 위 '마우스 확정'(왼쪽 = 이동 · 오른쪽 · Shift = 상자)을 뒤집는다:
+       마우스 왼쪽 끌기(Shift 든 아니든) = 상자 선택 · **오른쪽 끌기 = 지도 이동** · 가운데 = 없음. 안 움직이고 떼면 클릭(몸 집기)은 두 버튼 다 그대로. 손가락은 끌면 이동. */
+    const selMod9 = e.pointerType === "mouse" && e.button === 0;
     /* ★ **추적 모드(trackRaw · 개인 추적)는 상자 선택을 안 쓴다**(2026-11-03, 요청: "추적모드에서 선택 사용 X") — 왼쪽 끌기는 이동 시도(잠김 토스트)로 친다. 클릭은 그대로. */
     if (selMod9 && trackRaw !== null) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }
     if (selMod9 && !splitOnRef9.current) {
@@ -20907,12 +20933,12 @@ export default function ReplayMotionPlayer({
     }
     /* ★ 가운데 버튼은 **아무것도 안 한다**(2026-11-03, 요청: "중간 클릭 드래그는 아무기능 없이 제거") — 자동 굴림만 막고 끝(옛: 오른쪽처럼 지도 이동). */
     if (e.pointerType === "mouse" && e.button === 1) { e.preventDefault(); const tpM9 = tapRef.current; if (tpM9) tpM9.moved = true; return; }
-    /** 지도를 끄는 누름 — 마우스 왼쪽(Alt 없음) · 손가락. */
-    const panBtn9 = e.pointerType === "mouse" ? e.button === 0 && !e.shiftKey : e.button === 0;
+    /** 지도를 끄는 누름 — 마우스 오른쪽(2026-11-18 되바꿈 · 옛 왼쪽) · 손가락. */
+    const panBtn9 = e.pointerType === "mouse" ? e.button === 2 : e.button === 0;
     /* 왼쪽 누름은 안 움직이고 떼면 클릭(몸 집기 · onMapPointerUp) — 끌면 tapRef.moved 가 선다(아래 move). 분할보기의 오른쪽·Shift 누름은 위 상자 갈래를 안 타고 아래에서 끝난다. */
     /* 끌 여유가 있으면 1배에도 끈다(위 panRoom) — 지도가 무대보다 크게 깔린 만큼이
        곧 '끌어서 보는 나머지'다. 전체화면이든 프레임이든 같은 물음이다. */
-    if (!panRoom || !panBtn9) return;   // 지도 이동은 왼쪽 끌기(손가락 포함) — 오른쪽·Shift+왼쪽은 위 상자 선택 · 가운데는 위에서 끝
+    if (!panRoom || !panBtn9) return;   // 지도 이동은 오른쪽 끌기 · 손가락 — 왼쪽은 위 상자 선택 · 가운데는 위에서 끝
     // 추적 중에는 끌어도 안 움직인다(요청) — 아예 안 잡는다.
     if (trackLockRef.current || splitOnRef9.current || camLockRef9.current) { lockDragRef9.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY }; return; }   // 분할보기도 안 끈다 · 끌면 토스트(onMapPointerMove)
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -25459,6 +25485,25 @@ export default function ReplayMotionPlayer({
                   <QMarkIcon size={18} />
                 </button>
               )}
+              {/* ★ 마우스 가두기 토글(2026-11-18, 요청: "마우스 풀기 버튼 필요하긴 함" · "풀기 가두기 토글") — PC 창모드만 · 전체화면 단추 왼쪽.
+                  켬 → 끔: 곧장 푼다 · 끔 → 켬: 곧장 가둔다(이 누름이 손짓). 갇힌 동안에도 가짜 커서로 누를 수 있다(mouseLock9). */}
+              {!uiPhone9 && !coarse && !fsOn && (
+                <button
+                  type="button"
+                  className={cx("scr-kakao-share-btn", mlockOn9 && "is-done")}
+                  data-mlock={mlockOn9 ? (mlocked9 ? "locked" : "on") : "off"}
+                  onClick={(e) => {
+                    const L9 = mlockRef9.current;
+                    if (mlockOn9) { setMlockOn9(false); mouseLockStore9(false); L9?.release(); return; }
+                    setMlockOn9(true); mouseLockStore9(true);
+                    if (L9 && e.nativeEvent.isTrusted) L9.request(e.nativeEvent, false);
+                  }}
+                  aria-label={mlockOn9 ? "마우스 풀기" : "마우스 가두기"}
+                  title={mlockOn9 ? "마우스 가두기 켬 — 누르면 풀기 (Esc 는 잠깐 풀기)" : "마우스 가두기 — 지도를 누르면 커서가 재생기 안에 갇혀 화면 끝에서 밀린다"}
+                >
+                  {mlockOn9 ? <Lock size={18} aria-hidden /> : <LockOpen size={18} aria-hidden />}
+                </button>
+              )}
               {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
               <button
                 type="button"
@@ -25526,7 +25571,7 @@ export default function ReplayMotionPlayer({
           onPointerMove={onMapPointerMove}
           onPointerUp={onMapPointerUp}
           onPointerCancel={onMapPointerUp}
-          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 상자 선택(onMapPointerDown) — 차림표를 안 띄운다 */
+          onContextMenu={(e) => e.preventDefault()}   /* 오른쪽 버튼은 지도 이동(onMapPointerDown · 2026-11-18) — 차림표를 안 띄운다 */
         >
           {/* ★ 밤하늘은 **무대의 빈자리**를 채운다 — 처음엔 눕힌 보기 전용이었다(요청: "우주
               배경 만든 건 기존 3D 보기에서 남는 빈 공간 채우는 용으로 쓰고(맵에 병합 X)"):
