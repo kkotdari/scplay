@@ -558,7 +558,12 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     for (const e of sim.ents) if (e.owner === 0) for (const it of PROD9[e.def.name] ?? []) if (it.k === "unit") addU(UNIT_3D[it.name] ?? "gunner");
     if (setup.myRace === "T") addU("tanksiege");
     if (setup.myRace === "Z") { addU("lurker"); addU("lurkerburrow"); }
-    if (setup.myRace === "P") addU("archon");
+    if (setup.myRace === "P") {
+      addU("archon"); addU("scarab");
+      /* ★ 스톰 모델 칸을 **미리**(2026-11-18, 지적: "스톰 쓰면 피시도 버벅임 미리 만들어 놔야 할 듯") — 스톰은 칸 2 × STORM_STAGES 를 21칸/초로 돌려 그리는데(fxMesh storm),
+         처음 시전 때 칸마다 메시를 굽고 올리느라 그 몇 초가 끊겼다. 판을 열 때 다 굽는다. */
+      for (let k = 0; k < 2 * STORM_STAGES; k += 1) jobs.push(() => { glRef.current?.fxMesh("storm", k); });
+    }
     setWarm({ done: 0, all: jobs.length });
     let i = 0; let raf = 0; let dead = false;
     const tick = (): void => {
