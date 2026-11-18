@@ -5053,6 +5053,11 @@ export const LAIR_P9 = 3.2;
 export const HIVE_P9 = 1.2;
 /** ★ 하이브 갈비 등 높이 지수(아래 seamE ★) — 작을수록 밑동의 높은 등이 위로 오래 남아 등마루가 위로 볼록해진다. */
 export const HIVE_SEAM_E9 = 0.7;
+/** ★ 하이브 갈비 꼴(아래 seamShape ★ · 2026-11-18, 요청: "갈비가 너무 나팔처럼 퍼지지 않게 해줘 높이는 더 높게") — 옛(seamK 1.5 의 기본): 반지름 1.68 → 끝 0.63 ·
+ *  지수 1.6 · 옆 죔 0.91 · 등 높이 2.43 → 0.33 — 옆폭(밑 2.65 · 중턱 1.47 · 끝 0.99)이 밑에서 나팔처럼 벌어졌다.
+ *  이제 등 높이 1.3배(3.16 → 0.43) · 그 등을 받치게 단면 반지름 2.2 → 0.9(등 ≤ 반지름 × 1.5 여야 단면 아래가 살에 닿는다) ·
+ *  옆 죔 0.56 · 지수 1.0 — 옆폭 밑 2.13 · 중턱 1.5 · 끝 0.87(덜 벌어지고 고르게 가늘어진다). */
+export const HIVE_SEAM9 = { w: 2.2, tip: 0.9, hK: 1.3, ov: 0.56, flare: 1.0 };
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
@@ -5076,6 +5081,10 @@ export function hatcheryMoundFaces(
   /** ★ 옆 갈비의 드러난 등 높이가 밑동 → 꼭대기로 주는 지수(아래 seamH9) — 기본 1.4. 하이브 0.7(2026-11-18, 위 moundP 와 같은 요청의 "갈비능선이 오히려 위로
    *  볼록한 느낌") — 몸을 1.2 로 펴면 곧은 원뿔에 가까워 등마루가 곧은 금이 된다. 등 높이를 위로 오래 지켜 주면 등마루만 위로 볼록하게 선다(몸은 원뿔 그대로). */
   seamE = 1.4,
+  /** ★ 옆 갈비 꼴(2026-11-18, 요청: "갈비가 너무 나팔처럼 퍼지지 않게 해줘 높이는 더 높게" — 하이브) — 비우면 옛 꼴 그대로(해처리 · 레어).
+   *  w 밑동 반지름(= 등 높이를 받치는 단면 크기 · 기본 1.12·seamK) · tip 끝 반지름(0.42·seamK) · hK 드러난 등 높이 배수(1) ·
+   *  ov 옆 죔(0.91 — 작을수록 옆폭이 좁다) · flare 밑동으로 벌어지는 지수(1.6 — 클수록 밑에서 나팔처럼 퍼진다). */
+  seamShape: { w?: number; tip?: number; hK?: number; ov?: number; flare?: number } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5279,11 +5288,13 @@ export function hatcheryMoundFaces(
            `SEAM_LIFT9 + SEAM_W` 라 반지름을 줄이면 그만큼 내려온다(2.10 → 1.62 · −23%). 다만 반지름을 줄이면
            밑변(= 옆폭)도 함께 줄므로 옆 죔 `oval` 을 그 역수만큼 늦춰 **옆폭은 한 톨도 안 바뀌게** 둔다
            (0.7 × 1.45 = 0.91 × 1.12). 등 높이와 옆폭은 이 두 값이 한 벌로 쥔다. */
-        const SEAM_W = 1.12 * seamK;
+        const SEAM_W = seamShape.w ?? 1.12 * seamK;
+        const SEAM_OV9 = seamShape.ov ?? 0.91;     // 옆 죔(oval) — 기둥 · 굴 속 · 아가리 테 · 띠가 함께 탄다
+        const SEAM_FL9 = seamShape.flare ?? 1.6;   // 밑동으로 벌어지는 지수
         /* ★ 갈비는 살보다 **한 뼘 더 밖에** 선다(2026-09, 요청: "옆기둥이 본체보다 좀더 바깥으로
            나와야 자연스러울 거 같아 조금만 더") — 축의 반지름을 그만큼 늘린다(밑동 5.9 → 6.17). */
         const SEAM_OUT9 = 1.045;
-        const SEAM_TIP = 0.42 * seamK;
+        const SEAM_TIP = seamShape.tip ?? 0.42 * seamK;
         const SEAM_HOLD = 0.08;
         /* ★ 옆선을 둔덕 **겉으로 한 뼘 내민다**(지적: "해처리 45도 요잉해서 보여지잖아
            왼쪽 능선 경계에 있는 옆선 기둥이 잘 안 보이는 문제가 있네") ─────────────────
@@ -5299,7 +5310,7 @@ export function hatcheryMoundFaces(
            0.45 만큼 들면 삼각 단면이 통째로 밖에 서서 두 낯 + 등마루가 다 보인다(살 속 0.05·r 만 남겨
            `cutFace` 가 밑을 깔끔히 벤다). */
         const seamW = (t9: number): number => (t9 <= SEAM_HOLD ? SEAM_W
-          : SEAM_TIP + (SEAM_W - SEAM_TIP) * (1 - (t9 - SEAM_HOLD) / (1 - SEAM_HOLD)) ** 1.6);
+          : SEAM_TIP + (SEAM_W - SEAM_TIP) * (1 - (t9 - SEAM_HOLD) / (1 - SEAM_HOLD)) ** SEAM_FL9);
         /* ★★ **등 높이는 위에서 거의 0 이고 아래로 갈수록 솟는다**(2026-09, 요청: "해처리 옆선 등의 높이도
            위쪽은 거의 높이가 낮고 아래로 갈수록 높아지는 형태야") — 여태 축을 겉면에서 **한 값**(반폭의 0.45배)
            만큼 들어 두어, 드러나는 등 높이가 `들린 몫 + 반폭` 이라 꼭대기에서도 0.9 가 남았다.
@@ -5333,8 +5344,8 @@ export function hatcheryMoundFaces(
         };
         /** 단면이 `+u` 로 가장 멀리 나간 몫(등마루 = 삼각 꼭짓점 자리 · 섞어도 1 그대로) — 등 높이를 그 자리에 맞춘다. */
         const SEAM_UMAX9 = 1;
-        const SEAM_H_BOT9 = 1.62 * seamK;
-        const SEAM_H_TOP9 = 0.22 * seamK;
+        const SEAM_H_BOT9 = 1.62 * seamK * (seamShape.hK ?? 1);
+        const SEAM_H_TOP9 = 0.22 * seamK * (seamShape.hK ?? 1);
         const seamH9 = (t9: number): number => SEAM_H_TOP9
           + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** seamE;   // 지수 1.4 · 하이브 0.7(위 seamE ★ 2026-11-18)
         /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
@@ -5375,9 +5386,9 @@ export function hatcheryMoundFaces(
              — 곧 등마루가 선 갈비다. ⚠ u/v 가 어느 세계 축인지는 ref 로 못 박아야 안 흔들린다. */
           /* ⚠ 옆으로는 **죈다**(`oval` 0.5) — 안 죄면 밑변이 반지름의 1.73배라 둔덕의 완만한
              밑동에 눕는 **넓적한 판때기**가 된다(실측). 등마루가 솟아야 삼각 튜브로 읽힌다. */
-          segs: MND_P > 3.2 ? Math.ceil((8 * MND_P) / 3.2) : 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91, trueNormal: true,   // 마디는 둔덕과 같은 까닭으로 지수만큼(MND_SEGS9 ★)
+          segs: MND_P > 3.2 ? Math.ceil((8 * MND_P) / 3.2) : 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9, trueNormal: true,   // 마디는 둔덕과 같은 까닭으로 지수만큼(MND_SEGS9 ★)
           radOf: seamRad9,
-          hold: SEAM_HOLD, taper: 1.6,
+          hold: SEAM_HOLD, taper: SEAM_FL9,
           /* ⚠⚠ **뚜껑은 `cutFace` 를 안 지난다**(2026-09, 지적: "옆기둥의 단면이 육각형인데 그럼 안 되고
              길이의 위쪽 반만 보여야 해") — 옆 낯은 둔덕 겉면에서 베어 바깥 반쪽만 남는데, 밑동 뚜껑은
              그 문을 안 거쳐 **온전한 육각**으로 남아 기둥이 둔덕에 얹힌 막대로 읽혔다('skipFace 는 옆
@@ -5423,7 +5434,7 @@ export function hatcheryMoundFaces(
           const mouthAt9 = (a9: number, k9: number): [number, number, number] => {
             const r9 = seamW(MT9) * seamRad9(a9) * k9;
             const c9 = Math.cos(a9) * r9;
-            const s9 = Math.sin(a9) * r9 * 0.91;
+            const s9 = Math.sin(a9) * r9 * SEAM_OV9;
             return [
               MP[0] + mUx * c9 + mV[0] * s9,
               MP[1] + mUy * c9 + mV[1] * s9,
@@ -5434,7 +5445,7 @@ export function hatcheryMoundFaces(
              뒷벽까지 그려야 아가리로 들여다본 속이 검게 찬다. */
           out.push(...tagKey(spirePillar({
             x: 0, y: 0, h: 0.8, w: SEAM_W, tipW: SEAM_W,
-            segs: 3, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91,
+            segs: 3, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9,
             radOf: seamRad9, caps: "top", fill: "#15120f",
             path: (t9: number): [number, number, number] => seamAxis(MT9 + 0.16 * t9),
             widthOf: (t9: number): number => seamW(MT9 + 0.16 * t9) * 0.86,
@@ -5500,7 +5511,7 @@ export function hatcheryMoundFaces(
           };
         };
         const N9 = 12;
-        const SQ9 = 0.91;                  // 기둥과 같은 옆 죔(oval)
+        const SQ9 = SEAM_OV9;              // 기둥과 같은 옆 죔(oval)
         const DK9 = 1.035;                 // 낯 위 띄움 — 살 두께의 3.5%(z 싸움만 피하면 된다)
         const ringAt9 = (
           fr: { P: [number, number, number]; u: [number, number, number]; v: [number, number, number] },
@@ -5522,6 +5533,19 @@ export function hatcheryMoundFaces(
            깔고, 덮는 낯을 **살에 묻히는 두 모서리 너머**(255도 ~ 105도)까지 넓힌다 — 살 속에 든
            몫은 어차피 안 보이므로 '모자라게 덮는' 쪽보다 넘치게 두는 것이 옳다. */
         for (const [t0, t1] of seamBands) {
+          /* ★ 꼴을 바꾼 갈비(seamShape ★ · 하이브 2026-11-18)는 띠를 **갈비와 같은 기둥 함수로 감싼 한 토막**으로 짓는다 — 같은 축 · 같은 단면(radOf · oval · ref)에
+             굵기만 1.03배라 어느 자리에서나 갈비 겉면에 꼭 붙고, 살 속은 갈비처럼 벤다(seamCut9). 칠하지 않는 것이 곧 임자 색이다.
+             ⚠ 아래 손 띠(낯 위 네모)를 그대로 쓰면 등을 높이고 옆을 죈 갈비에서 띠가 갈비 가운데 좁은 네모로 줄고 비스듬히 어긋났다(실측 · 자홍 칠). */
+          if (seamShape.ov !== undefined) {
+            out.push(...tagKey(spirePillar({
+              x: 0, y: 0, h: 0.8, w: 1, tipW: 1, segs: 4, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: SEAM_OV9, trueNormal: true,
+              radOf: seamRad9, caps: "none",
+              path: (t9: number): [number, number, number] => seamAxis(t0 + (t1 - t0) * t9),
+              widthOf: (t9: number): number => seamW(t0 + (t1 - t0) * t9) * 1.03,
+              cutFace: seamCut9,
+            }), depKey9 + 0.01));
+            continue;
+          }
           const FA = seamFrame9(t0);
           const FB = seamFrame9(t1);
           /* ★ **마디가 아니라 낯 위의 평면 데칼이다**(2026-09, 요청: "옆기둥 데칼은 단순하게 그냥 면 위에
@@ -18300,7 +18324,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
