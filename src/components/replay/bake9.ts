@@ -5739,9 +5739,15 @@ export function hatcheryMoundFaces(
       /* ★ **마디가 지면 안 된다 — 디파일러 마운드의 그 다리를 그대로 쓴다**(2026-09, 요청: "오징어다리 마디마디
          지지 않은 형태(마운드에 쓴 거 재사용하면 됨)") — 앞 판은 주름 ±18%·낯 7 이라 마디 진 애벌레로 읽혔다.
          마운드의 자는 **주름 ±10% · 낯 10 · 마디 32**(`wT9`)다 — 같은 값으로 맞추면 매끈한 촉수로 선다. */
-      const twf = (t9: number): number => Math.max(0.05,
-        tw * (1 - 0.83 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18))
-        * (LR9 !== undefined ? Math.min(1, 0.25 + (0.75 * t9) / 0.1) : 1));   // 몸에서 나는 다리(root ★)는 뿌리를 가늘게 — 옆면에서 자라 나오듯 눕는다
+      /* 몸에서 나는 다리(root ★)는 **위가 가늘다**(2026-11-18, 요청: "위쪽 너무 두껍지 않게") — 뿌리 0.3 배에서 t 0.45 까지 부드럽게(smoothstep) 차올라
+         가장 굵고, 그 뒤 끝까지 옛 비율(끝 0.17 배)로 준다. 옛: 뿌리 0.25 배 → t 0.1 에서 이미 가장 굵어 꼭대기 아래가 뭉툭했다. */
+      const LUP9 = 0.45;
+      const twf = (t9: number): number => {
+        if (LR9 === undefined) return Math.max(0.05, tw * (1 - 0.83 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18)));
+        const k9 = Math.min(1, t9 / LUP9); const up9 = 0.3 + 0.7 * k9 * k9 * (3 - 2 * k9);
+        const dn9 = 1 - 0.83 * Math.max(0, (t9 - LUP9) / (1 - LUP9));
+        return Math.max(0.05, tw * up9 * dn9 * (1 + 0.1 * Math.sin(t9 * Math.PI * 18)));
+      };
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, tipW: 0.05, segs: 32, sides: 10, hold: 0, caps: "none",
         fill: spikeColor, trueNormal: true, widthOf: twf,
