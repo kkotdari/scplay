@@ -5491,11 +5491,17 @@ export function hatcheryMoundFaces(
             cutFace: (_mx9: number, _my9: number, mz9: number): number => mz9,
           }), depKey9 - 0.02));
           /* ⓑ 테두리 — 아가리 둘레를 한 바퀴 도는 닫힌 관(커널·캐번 입구의 그 문틀과 같은 자).
-             등뼈가 곧 단면 윤곽이라 t 0 과 1 이 같은 점이어서 저절로 닫힌다. */
+             등뼈가 곧 단면 윤곽이라 t 0 과 1 이 같은 점이어서 저절로 닫힌다.
+             ⚠ 꼴을 바꾼 갈비(하이브)는 **이음매를 밑변 한가운데로**(각 π 에서 시작) · 꼭대기는 **마이터**(2026-11-18, 지적: "아가리 테도 위쪽이 끊기는 거") —
+             각 0 에서 시작하면 관의 처음 · 끝이 하필 뾰족한 꼭대기(등마루)에서 만나는데, 끝 마디의 접선은 한쪽만 보고(t 0 · 1) 틀도 따로 굴러와
+             두 다리가 꼭대기에서 엇갈려 뭉툭한 끝이 비어져 나왔다. 밑변은 곧고 땅에 묻히니 이음매가 안 보이고, 꼭대기(t 0.5 = 마디 12)는
+             꺾임 130도라 마이터로 두 낯을 한 모서리에서 만나게 한다(둘레 각 0 · 120 · 240 이 다 마디 자리에 온다). */
+          const RIM_PH9 = seamShape.ov !== undefined ? Math.PI : 0;
           out.push(...tagKey(spirePillar({
             x: 0, y: 0, h: 0.8, w: 0.22 * seamK, tipW: 0.22 * seamK,
             segs: 24, sides: 6, caps: "none", fill: seamColor,
-            path: (t9: number): [number, number, number] => mouthAt9(t9 * Math.PI * 2, 1),
+            path: (t9: number): [number, number, number] => mouthAt9(RIM_PH9 + t9 * Math.PI * 2, 1),
+            ...(seamShape.ov !== undefined ? { mitre: true } : {}),
             cutFace: seamCut9,
           }), depKey9 + 0.02));
           /* ⓒ 구멍(꼴을 바꾼 갈비만 · 2026-11-18, 요청: "갈비 아래쪽의 입구 구멍이 더 보이게") — 아가리를 바깥으로 꺾어(mouthLift ★) 테가 드러나도
