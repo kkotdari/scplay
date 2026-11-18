@@ -3874,3 +3874,13 @@ FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClic
 - `PRAC_PREP_SEC9` · `PRAC_DROP_SEC9` 60 · 60(옛 15 · 30). 맵 7판도 같이(sg-api tools/practice-map).
 - 위 안내 = 알약 한 줄 [단계 · 남은 초 · 멘트] 12px. 옛: 세 줄(18 · 34 · 12px).
 - 🔎 하네스 scratch `prac/k5.cjs`(document.fullscreenElement 를 뿌리로 흉내 → 창 끝으로 마우스 → 카메라가 그쪽으로). 헤드리스는 장이 느려 속도는 실기로 본다.
+
+## 견제 연습 — 12시 · 6시 자리 · 명령선 걷음(2026-11-18)
+- 지적: "자리 선택 시 12시 6시 선택하려고 클릭하면 옆으로 밀려". 까닭: 깃발은 맵의 사람 자리(`human` · 맵 6 · 7판 P1 ~ P6)에만 붙었고
+  12시 · 6시는 맵에서 적 전용이라 가장 가까운 11 · 1 · 5 · 7시로 밀렸다.
+  - 이제 `PRAC_SPOTS9` = 내 기지 칸(`cells`)이 있는 스타팅 여덟. 12시 · 6시 칸은 지도 도구의 같은 셈(practice5.py 칸 11 · 파일런 탐욕 · 컴샛)으로 뽑아
+    `practiceMap9.gen.ts` 에 실었다(sg-api `tools/practice-map/tools/export_web2.py` 가 다시 뽑아도 싣는다). `human` 은 맵의 뜻 그대로 둔다(맵에선 여전히 못 고른다).
+  - 서버 기록(spot)은 원래 T · B 를 받는다.
+- 요청: "견제 연습에서 명령선 안 나오게" — 고른 유닛의 예약 길(이동 · 공격 이동 · 패트롤 · 하차 예약 점선 · 수송선 노랑 · 하차 자리 고리)과
+  생산 건물의 모이는 자리 선을 걷었다(원작처럼 누른 자리 표식 `markTarget` 만). 되돌리려면 그리기 끝의 걷음 주석 자리.
+- 🔎 하네스: 설정에서 12시(지도 위 가운데) · 6시(아래 가운데)를 눌러 시작 → `__pracSim.setup.mySpot` 이 T · B · 적 기지 일곱에 그 자리가 빠졌나.

@@ -1149,20 +1149,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       c2.beginPath(); c2.arc(b.x, b.y, b.r * (0.5 + kk), 0, Math.PI * 2);
       c2.fillStyle = `rgba(255, ${Math.round(170 - 120 * kk)}, 60, ${Math.max(0, 0.7 - kk * 0.7)})`; c2.fill();
     }
-    /* 예약된 길 — 고른 내 유닛 · 생산 건물의 모이는 자리 */
-    c2.setLineDash([6 / z, 6 / z]); c2.lineWidth = 1.2 / z;
-    for (const u of mySel()) {
-      if (u.def.bld) {
-        if (u.rally) { c2.beginPath(); c2.moveTo(u.x, u.y); c2.lineTo(u.rally[0], u.rally[1]); c2.strokeStyle = "rgba(120,255,140,0.7)"; c2.stroke(); }
-        continue;
-      }
-      if (!u.orders.length) continue;
-      c2.beginPath(); c2.moveTo(u.x, u.y);
-      for (const o of u.orders) if (o.t === "move" || o.t === "amove" || o.t === "patrol" || (o.t === "moveunload" && !o.self)) c2.lineTo(o.x, o.y);
-      c2.strokeStyle = u.def.cargo ? "rgba(255,210,74,0.75)" : "rgba(120,255,140,0.6)"; c2.stroke();
-      for (const o of u.orders) if (o.t === "moveunload" && !o.self) { c2.beginPath(); c2.arc(o.x, o.y, 10, 0, Math.PI * 2); c2.strokeStyle = "rgba(255,210,74,0.9)"; c2.stroke(); }
-    }
-    c2.setLineDash([]);
+    /* (걷음 2026-11-18, 요청: "견제 연습에서 명령선 안 나오게") 예약된 길 · 모이는 자리 점선 — 원작처럼 명령은 누른 자리 표식(markTarget)만 보인다.
+       옛: 고른 내 유닛의 이동 · 공격 이동 · 패트롤 · 하차 예약을 점선으로 잇고(수송선 노랑) 하차 자리에 고리 · 생산 건물은 모이는 자리까지 선. */
     c2.restore();
     /* (걷음 2026-11-18) 원작 화면 밖 검정 덮개 — 이제 틀 전체가 보인다. */
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);

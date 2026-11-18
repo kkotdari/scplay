@@ -114,9 +114,10 @@ const HALL9: Record<PracRace9, string> = { T: "Command Center", P: "Nexus", Z: "
      · 시간 1/24(맵의 UNIx · UPGx · TECx 와 같은 자) · 돈 · 보급 무한 · 오버로드 수송(Ventral Sacs)은 처음부터.
      · 적 기지 = 내 자리 말고 모든 스타팅(종족은 맵이 정한 대로) · 홀 · 일꾼 10(캐는 중) · 초반 타워 · 중반이면 가장자리까지 더.
    옛 설정(적 종족 · 적 위치 · 수송선 수 · 태울 유닛 · 연구 다 · 공방 · 시작 에너지)은 걷었다. */
-/** 사람이 설 수 있는 스타팅(맵 6판 P1 ~ P6) — 깃발이 닿는 자리. */
+/** 내가 설 수 있는 스타팅 — 깃발이 닿는 자리. 내 기지 칸(cells)이 있는 여덟 다(맵의 사람 자리 P1 ~ P6 + 웹만 12시 · 6시 · 2026-11-18, 지적:
+ *  "자리 선택 시 12시 6시 선택하려고 클릭하면 옆으로 밀려" — 옛: 맵의 사람 자리(human)만이라 가장 가까운 11 · 1 · 5 · 7시로 붙었다). */
 export const PRAC_SPOTS9: { key: string; label: string; x: number; y: number }[] =
-  PRAC_MAP9.starts.filter((s) => s.human).map((s) => ({ key: s.key, label: s.name, x: s.hall[0], y: s.hall[1] }));
+  PRAC_MAP9.starts.filter((s) => s.cells).map((s) => ({ key: s.key, label: s.name, x: s.hall[0], y: s.hall[1] }));
 export type PracStage9 = "early" | "mid";
 export interface PracSetup9 {
   myRace: PracRace9;
@@ -640,7 +641,7 @@ export class PracticeSim9 {
   }
   private populate(): void {
     const s = this.setup;
-    const mine = PRAC_MAP9.starts.find((p) => p.key === s.mySpot && p.human) ?? PRAC_MAP9.starts.find((p) => p.human)!;
+    const mine = PRAC_MAP9.starts.find((p) => p.key === s.mySpot && p.cells) ?? PRAC_MAP9.starts.find((p) => p.cells)!;
     this.setup.mySpot = mine.key;
     this.home = [mine.box[0] * 32, mine.box[1] * 32, mine.box[2] * 32, mine.box[3] * 32];
     /* 자원 — 모든 스타팅의 미네랄 무더기(사람 자리는 맵 6판이 옮긴 자리) · 가스 · 스타팅 밖 미네랄. */
