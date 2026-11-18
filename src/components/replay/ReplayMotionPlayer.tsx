@@ -3835,7 +3835,9 @@ const CLODS9: [number, number, number, string][] = [
 let glFx9 = false;
 /** 효과 모델을 GL 큐에 넣는다(판 fxModelCv9 의 fit 자와 같다: 모델 상자를 w×h 에 맞춰 가운데에) — 폭풍은 W×W 한 장,
  *  핵은 착탄 뒤 폭발 고리(2.6초)·구름(2.8초). 탄두·섬광·연기는 모델이 아니라 캔버스에 남는다. 더하기 합성(add)·음영 없음(flat). */
-export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: number): void {
+/** 스톰 겹쳐 얹기 자리(배킹 화소 · 돌린 격자 4점) — 아래 glFxPush9 storm ★. */
+const STORM_JIT9: readonly [number, number][] = [[-0.375, -0.125], [0.125, -0.375], [0.375, 0.125], [-0.125, 0.375]];
+export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: number, bd = 1): void {
   const W9 = (f.size ?? 8) * zoom;
   if (W9 < 1) return;
   const u0 = f.age ?? 0;
@@ -3850,7 +3852,11 @@ export function glFxPush9(gl9: GlUnits9, f: FxOp, ax: number, ay: number, zoom: 
     gl9.push({ mesh, ax: cx - k * bx.cx, ay: cy - k * (bx.top + bx.bot) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha, cam, gradR: 1e9, gradCy: 0, add: true, flat: true });
   };
   if (f.style === "storm") {
-    put("storm", stormSpin9(u0), W9, W9, ax, ay, 1);
+    /* ★ **화소 안에서 비켜 네 번 · 각 ¼**(2026-11-18, 지적: "스톰효과 해상도가 낮아보이는데" → "폰뿐 아니라 피시에서도 해상도가 지글거리는 느낌") — 스톰 줄기는 3 ~ 4각 가는 관이라
+       잔가지가 1화소보다 가늘다: MSAA 0(폰 · 보통 단 아래)이면 점선처럼 끊기고 계단이 지며 칸이 바뀔 때마다 번뜩였다(MSAA 2 도 덜할 뿐). 더하기 합성이라 같은 메시를
+       배킹 화소 ±⅜ 돌린 격자로 비켜 네 번 ¼ 세기로 얹으면 곧 4배 표본(SSAA)이다 — MSAA 와 무관 · 새 셰이더 없음. 값은 스톰 삼각형 × 4(스톰이 떠 있는 동안만). */
+    const sp9 = stormSpin9(u0); const px9 = 1 / Math.max(0.5, bd);
+    for (const [jx9, jy9] of STORM_JIT9) put("storm", sp9, W9, W9, ax + jx9 * px9, ay + jy9 * px9, 0.25);
     return;
   }
   if (f.style !== "nuke" || u0 < NUKE_FALL_SEC) return;
@@ -8469,7 +8475,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const ay = zy(f.fy) - f.lift * zoom;
           const fxm9 = 60 + (f.size ?? 0) * zoom * 2;   // 폭풍·핵 구름은 크다 — 가운데가 밖이어도 몸이 든다
           if (ax < -fxm9 || ax > cw + fxm9 || ay < -fxm9 || ay > ch + fxm9) continue;
-          glFxPush9(gl9, f, ax, ay, zoom);
+          glFxPush9(gl9, f, ax, ay, zoom, Bd);
         }
       }
       /** 연기를 마스크와 함께 이미 얹었나 — 그러면 아래 효과 고리에서 다시 안 그린다. */
