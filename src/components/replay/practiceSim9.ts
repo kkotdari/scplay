@@ -224,6 +224,19 @@ export interface Ent9 {
 }
 export interface Shot9 { x1: number; y1: number; x2: number; y2: number; t: number; air: boolean; col: string }
 export interface Boom9 { x: number; y: number; t: number; r: number }
+/** ★ 효과 사건(2026-11-18, 요청: "연습실에 트레이서랑 소리, 피격 사망 효과 구현") — 셈은 피해를 그 프레임에 바로 매기지만, 그림 · 소리는 재생기 붓(paintFxList9) ·
+ *  효과음(SfxCues9)이 읽는 FxOp 로 화면(practiceFx9)이 짓는다. 셈은 일어난 일만 적고(f = 프레임) 화면이 읽고 비운다. */
+export type PracFxEv9 =
+  /** 쏨 — a 쏜 몸(벙커 사수면 그 마린 · 자리는 sx·sy) · t 표적 · cd 쿨다운 프레임. */
+  | { k: "fire"; f: number; a: number; an: string; t: number; tAir: boolean; sx: number; sy: number; tx: number; ty: number; cd: number; bounce?: boolean }
+  /** 럴커 가시 — 몸 자리에서 ang 쪽으로. */
+  | { k: "spike"; f: number; a: number; x: number; y: number; ang: number }
+  /** 맞음 — 맞기 전 실드가 있었나(sh) · 쏜 자리(ax·ay) · 무기 id. */
+  | { k: "hit"; f: number; a: number; an: string; t: number; ax: number; ay: number; w: string; sh: boolean }
+  /** 죽음 · 무너짐. */
+  | { k: "die"; f: number; id: number; n: string; x: number; y: number; air: boolean; bld: boolean; race: PracRace9 }
+  /** 스캐럽 터짐. */
+  | { k: "boom"; f: number; x: number; y: number };
 export interface Scarab9 { x: number; y: number; tid: number; owner: 0 | 1; life: number; from: number; ok: boolean }
 /** 스톰 마당 — life 는 남은 프레임(OpenBW bullet remaining_time) · ok = 점수가 되는 시전(드랍 단계에 내린 하템). */
 export interface Storm9 { x: number; y: number; owner: 0 | 1; life: number; from: number; ok: boolean }
@@ -377,6 +390,8 @@ export class PracticeSim9 {
   byId = new Map<number, Ent9>();
   shots: Shot9[] = [];
   booms: Boom9[] = [];
+  /** 효과 사건(위 PracFxEv9 ★) — 화면이 읽고 비운다(안 읽으면 512 를 넘는 앞부분을 버린다). */
+  fxEv: PracFxEv9[] = [];
   scarabs: Scarab9[] = [];
   storms: Storm9[] = [];
   /** 디스럽션 웹 — 그 아래 상대 편 지상 몸 · 건물은 못 쏜다. */
@@ -651,37 +666,91 @@ export class PracticeSim9 {
     this.buildMine(mine);
     this.spawnFoes();
   }
-  /** 내 기지 — 맵 6판 종족 비컨 트리거와 같은 건물 · 같은 칸(practice5.py T_PLAN · P_BLD · Z_BLD). */
+  /** 내 기지 — 맵 6판 종족 비컨 트리거와 같은 건물(practice5.py T_PLAN · P_BLD · Z_BLD) · 홀 · 컴샛은 맵 자리 그대로.
+   *  ★ 다른 건물은 **한 덩이로**(2026-11-18, 요청: "견제 연습에서 내 건물은 한곳에 몰아서 짓고 유닛들이 처음 화면에서 보이게") — 옛: 맵 비컨 칸(st.cells)에
+   *  본진 곳곳으로 흩었다(맵은 그대로 · 웹만 바뀐다). 덩이 자리는 clusterAt ★. */
   private buildMine(st: PracStartData9): void {
     const race = this.setup.myRace;
-    const cells = st.cells ?? [];
-    const put = (name: string, cell: [number, number]): void => {
-      const [x, y] = PracticeSim9.cellCenter9(cell, UNIT_DEFS9[name].foot ?? [3, 2]);
-      this.spawn(name, 0, x, y);
-    };
-    const slot = (k: number): [number, number] => [(cells[k][0] + 5) * 32, (cells[k][1] + 2) * 32];   // 칸 오른쪽 2×2 가운데
     const [hx, hy] = st.hall;
     if (race === "T") {
       if (st.comsat) this.spawn("Comsat Station", 0, st.comsat[0] * 32 + 32, st.comsat[1] * 32 + 32);
       this.spawn("Command Center", 0, hx, hy);
-      const plan: [string, string | null][] = [["Barracks", null], ["Factory", "Machine Shop"], ["Starport", "Control Tower"], ["Science Facility", "Covert Ops"],
-        ["Science Facility", "Physics Lab"], ["Engineering Bay", null], ["Academy", null], ["Armory", null]];
-      plan.forEach(([b9, ad9], k) => {
-        if (!cells[k]) return;
-        if (ad9) { const [ax, ay] = slot(k); this.spawn(ad9, 0, ax, ay); }
-        put(b9, cells[k]);
-      });
+      this.cluster([["Barracks", null], ["Factory", "Machine Shop"], ["Starport", "Control Tower"], ["Science Facility", "Covert Ops"],
+        ["Science Facility", "Physics Lab"], ["Engineering Bay", null], ["Academy", null], ["Armory", null]], hx, hy);
     } else if (race === "P") {
       this.spawn("Nexus", 0, hx, hy);
-      for (const k of st.pylons ?? []) if (cells[k]) { const [px, py] = slot(k); this.spawn("Pylon", 0, px, py); }
-      ["Gateway", "Stargate", "Forge", "Cybernetics Core", "Robotics Facility", "Robotics Support Bay", "Observatory", "Citadel of Adun",
-        "Templar Archives", "Fleet Beacon", "Arbiter Tribunal"].forEach((b9, k) => { if (cells[k]) put(b9, cells[k]); });
+      /* 파일런 둘을 덩이 한가운데에 먼저 — 건물은 그 둘레에 붙고, 전원 밖에 선 건물이 있으면 그 곁에 하나씩 더(아래). */
+      const blds = this.cluster([["Pylon", null], ["Pylon", null], ["Gateway", null], ["Stargate", null], ["Forge", null], ["Cybernetics Core", null], ["Robotics Facility", null],
+        ["Robotics Support Bay", null], ["Observatory", null], ["Citadel of Adun", null], ["Templar Archives", null], ["Fleet Beacon", null], ["Arbiter Tribunal", null]], hx, hy);
+      for (const b of blds) {
+        if (!NEEDS_POWER9.has(b.def.name)) continue;
+        const pys = this.ents.filter((p) => !p.dead && p.owner === 0 && p.def.name === "Pylon");
+        if (pys.some((p) => inPsi9(b.x - p.x, b.y - p.y))) continue;
+        this.cluster([["Pylon", null]], hx, hy, [b.x, b.y]);
+      }
     } else {
-      ["Spawning Pool", "Evolution Chamber", "Hydralisk Den", "Greater Spire", "Queen's Nest", "Defiler Mound", "Ultralisk Cavern"]
-        .forEach((b9, k) => { if (cells[k]) put(b9, cells[k]); });
+      this.cluster([["Spawning Pool", null], ["Evolution Chamber", null], ["Hydralisk Den", null], ["Greater Spire", null], ["Queen's Nest", null], ["Defiler Mound", null],
+        ["Ultralisk Cavern", null]], hx, hy);
       this.spawn("Hive", 0, hx, hy);
     }
     this.prepare(hx, hy);
+  }
+  /** ★ 덩이 닻 — 홀에서 지도 가운데 **반대** · 두 직각 · 두 뒤 사선 다섯 쪽 중, 그 둘레(8타일) 본진 안에 빈 타일이 가장 많은 쪽 6타일 앞.
+   *  유닛이 서는 앞마당(가운데 쪽)을 비우려는 것이다(prepare 가 홀에서 가운데 쪽으로 세운다). */
+  private clusterAt(hx: number, hy: number): [number, number] {
+    const ang = Math.atan2(this.H / 2 - hy, this.W / 2 - hx);
+    const [bx0, by0, bx1, by1] = this.home;
+    let best: [number, number] = [hx, hy]; let bn = -1;
+    for (const da of [Math.PI, Math.PI / 2, -Math.PI / 2, (Math.PI * 3) / 4, (-Math.PI * 3) / 4]) {
+      const ax = hx + Math.cos(ang + da) * 192; const ay = hy + Math.sin(ang + da) * 192;
+      let n = 0;
+      for (let ty = Math.floor((ay - 256) / 32); ty <= Math.floor((ay + 256) / 32); ty += 1) for (let tx = Math.floor((ax - 256) / 32); tx <= Math.floor((ax + 256) / 32); tx += 1) {
+        const px = tx * 32 + 16; const py = ty * 32 + 16;
+        if (px < bx0 || px >= bx1 || py < by0 || py >= by1 || Math.hypot(px - ax, py - ay) > 256) continue;
+        if (this.tileFree9(tx, ty)) n += 1;
+      }
+      if (n > bn) { bn = n; best = [ax, ay]; }
+    }
+    return best;
+  }
+  /** 타일 하나(32px = 걷는 칸 넷)가 다 걷고 비었나. */
+  private tileFree9(tx: number, ty: number): boolean {
+    return this.free(tx * 2, ty * 2) && this.free(tx * 2 + 1, ty * 2) && this.free(tx * 2, ty * 2 + 1) && this.free(tx * 2 + 1, ty * 2 + 1);
+  }
+  /** 건물(+ 애드온 — 오른쪽 아래 2×2)을 닻에 가장 가까운 빈 자리에 차례로 — 본진 네모 안 · 홀과 한 타일 띄움 · 지도 가운데 쪽으로 나가면 벌점(앞마당 비우기).
+   *  near 를 주면 그 자리가 닻이다(전원 밖 건물 곁 파일런). 지은 건물을 돌려준다. */
+  private cluster(list: [string, string | null][], hx: number, hy: number, near?: [number, number]): Ent9[] {
+    const [ax, ay] = near ?? this.clusterAt(hx, hy);
+    const ang = Math.atan2(this.H / 2 - hy, this.W / 2 - hx); const fx = Math.cos(ang); const fy = Math.sin(ang);
+    const [bx0, by0, bx1, by1] = this.home;
+    const hall = UNIT_DEFS9[HALL9[this.setup.myRace]].foot ?? [4, 3];
+    const hl = Math.floor(hx / 32 - hall[0] / 2) - 1; const ht = Math.floor(hy / 32 - hall[1] / 2) - 1;
+    const hr = hl + hall[0] + 2; const hb = ht + hall[1] + 2;
+    const out: Ent9[] = [];
+    for (const [name, add] of list) {
+      const [w, h] = UNIT_DEFS9[name].foot ?? [3, 2];
+      const W = w + (add ? 2 : 0);
+      let best: [number, number] | null = null; let bs = Infinity;
+      for (let ty = Math.ceil(by0 / 32); ty + h <= Math.floor(by1 / 32); ty += 1) for (let tx = Math.ceil(bx0 / 32); tx + W <= Math.floor(bx1 / 32); tx += 1) {
+        if (tx < hr && tx + W > hl && ty < hb && ty + h > ht) continue;   // 홀 둘레 한 타일
+        const cx = (tx + w / 2) * 32; const cy = (ty + h / 2) * 32;
+        let sc = Math.hypot(cx - ax, cy - ay);
+        if (sc >= bs) continue;
+        const pr = (cx - hx) * fx + (cy - hy) * fy;
+        if (!near && pr > 64) sc += (pr - 64) * 1.5;
+        if (sc >= bs) continue;
+        let ok = true;
+        for (let yy = ty; yy < ty + h && ok; yy += 1) for (let xx = tx; xx < tx + w && ok; xx += 1) if (!this.tileFree9(xx, yy)) ok = false;
+        if (ok && add) for (let yy = ty + h - 2; yy < ty + h && ok; yy += 1) for (let xx = tx + w; xx < tx + w + 2 && ok; xx += 1) if (!this.tileFree9(xx, yy)) ok = false;
+        if (!ok) continue;
+        best = [tx, ty]; bs = sc;
+      }
+      if (!best) continue;
+      const [tx, ty] = best;
+      if (add) this.spawn(add, 0, (tx + w + 1) * 32, (ty + h - 1) * 32);
+      out.push(this.spawn(name, 0, (tx + w / 2) * 32, (ty + h / 2) * 32));
+    }
+    return out;
   }
   /** 연습기가 준비한 판(pracLoadout9) — 연구 · 공방 단계 · 유닛(에너지 · 스캐럽 가득). 공중은 홀 곁 줄 · 지상은 지도 가운데 쪽 앞마당에 줄지어.
    *  저그는 맵 6판의 오버로드 셋이 기본이고 준비의 오버로드는 그 위에 더한다("오버 +2기"). */
@@ -708,9 +777,9 @@ export class PracticeSim9 {
       for (let i = 0; i < n; i += 1) {
         let x: number; let y: number;
         if (def.air) {
-          /* 공중 — 홀에서 가운데 쪽 120px 부터 여덟씩 가로줄(56px 간격). */
+          /* 공중 — 홀에서 가운데 쪽 120px 부터 여덟씩 가로줄(48px 간격 · 2026-11-18 56 → 48: 줄이 첫 화면 높이 400 안에 들게 — 위 처음 화면 ★). */
           const row = Math.floor(air / 8); const col = (air % 8) - 3.5;
-          x = hx + fx * (120 + row * 56) + sx * col * 56; y = hy + fy * (120 + row * 56) + sy * col * 56; air += 1;
+          x = hx + fx * (120 + row * 48) + sx * col * 48; y = hy + fy * (120 + row * 48) + sy * col * 48; air += 1;
         } else {
           const k = cand.findIndex(([cx, cy]) => this.spotOk(def, cx, cy));
           const p = k >= 0 ? cand.splice(k, 1)[0] : this.placeUnit(def, ax, ay) ?? [ax, ay];
@@ -1402,12 +1471,15 @@ export class PracticeSim9 {
     if (t.def.air) e.acd = cd; else e.gcd = cd;
     this.fire(e, t, w, e.x, e.y);
   }
+  /** 효과 사건 하나(위 fxEv ★) — 화면이 안 읽는 동안(하네스 · 숨은 탭) 끝없이 쌓이지 않게 512 에서 앞을 버린다. */
+  private ev(x: PracFxEv9): void { this.fxEv.push(x); if (this.fxEv.length > 512) this.fxEv.splice(0, this.fxEv.length - 512); }
   /** 한 번 쏘기 — 튀김이 없으면 표적에 히트 수만큼 · 있으면 맞은 자리 둘레 링(1/2/4) · 럴커는 가시 줄. */
   private fire(e: Ent9, t: Ent9, w: Weapon, sx: number, sy: number): void {
     const col = e.owner === 0 ? "#ffe08a" : t.def.air ? "#ff6a4a" : "#ffb26a";
     if (w.splashKind === "lurker") {
       /* 가시 — 럴커 자리에서 표적 쪽으로 LURKER_SPINE_TRAVEL_PX 까지 · 줄에서 20px 안 적 지상에 한 번씩(감쇠 없음). */
       const a = Math.atan2(t.y - sy, t.x - sx); const ex = sx + Math.cos(a) * LURKER_SPINE_TRAVEL_PX; const ey = sy + Math.sin(a) * LURKER_SPINE_TRAVEL_PX;
+      this.ev({ k: "spike", f: this.stats.tick, a: e.id, x: sx, y: sy, ang: a });
       const vx = ex - sx; const vy = ey - sy;
       for (const o of this.ents) {
         if (o.dead || o.inside !== null || o.owner === e.owner || o.def.air || o.def.res) continue;
@@ -1418,6 +1490,7 @@ export class PracticeSim9 {
       return;
     }
     this.shots.push({ x1: sx, y1: sy - (e.def.air ? 12 : 4), x2: t.x, y2: t.y - (t.def.air ? 12 : 0), t: w.rangePx > 40 ? 5 : 3, air: t.def.air, col });
+    this.ev({ k: "fire", f: this.stats.tick, a: e.id, an: e.def.name, t: t.id, tAir: t.def.air, sx, sy, tx: t.x, ty: t.y, cd: cooldownFrames(w) });
     if (w.id === "Glave_Wurm") {
       /* 뮤탈 글레이브 웜 — 맞은 몸에서 가까운 다른 적에게 두 번 튄다(피해 1/3 · 1/9 · OpenBW bounce · 96px 안 · 같은 몸 다시 안 맞음). */
       const hit = new Set<number>([t.id]); let cur = t;
@@ -1430,6 +1503,7 @@ export class PracticeSim9 {
         }
         if (!nx) break;
         this.shots.push({ x1: cur.x, y1: cur.y, x2: nx.x, y2: nx.y, t: 4, air: nx.def.air, col: "#c58cff" });
+        this.ev({ k: "fire", f: this.stats.tick, a: cur.id, an: e.def.name, t: nx.id, tAir: nx.def.air, sx: cur.x, sy: cur.y, tx: nx.x, ty: nx.y, cd: cooldownFrames(w), bounce: true });
         hit.add(nx.id); this.hitUnit(e, nx, w, div, w.hits); cur = nx;
       }
       return;
@@ -1464,6 +1538,7 @@ export class PracticeSim9 {
       plasmaLv: o.def.sh > 0 ? this.lvOf(o.owner, "Protoss Plasma Shields") : 0,
     };
     const wl = w.upgrade === "Scarab Damage" ? (this.has(e.owner, "Scarab Damage") ? 1 : 0) : this.lvOf(e.owner, w.upgrade);
+    const sh0 = o.sh;
     const r = attackOnce(w, tg, { weaponLv: wl, divisor, hits });
     if (o.dm > 0) {
       /* 디펜시브 매트릭스 — 들어온 피해를 막이가 먼저 먹는다(체력 → 실드 차례로 되돌린다). */
@@ -1473,6 +1548,8 @@ export class PracticeSim9 {
       r.killed = tg.hp <= 0;
     }
     o.hp = tg.hp; o.sh = tg.shield; o.hitT = 6;
+    const bk = e.inside !== null ? this.byId.get(e.inside) : undefined;   // 벙커 사수는 벙커 자리에서 쏜다
+    this.ev({ k: "hit", f: this.stats.tick, a: e.id, an: e.def.name, t: o.id, ax: bk ? bk.x : e.x, ay: bk ? bk.y : e.y, w: w.id, sh: sh0 > 0 });
     if (o.owner !== e.owner) o.hitBy = e.inside !== null ? e.inside : e.id;
     if (r.killed || o.hp <= 0) this.kill(o, e);
   }
@@ -1491,6 +1568,7 @@ export class PracticeSim9 {
     }
     this.lose(t);
     this.booms.push({ x: t.x, y: t.y, t: t.def.bld ? 24 : 14, r: t.def.rad * (t.def.bld ? 1.1 : 1.4) });
+    if (!t.def.res) this.ev({ k: "die", f: this.stats.tick, id: t.id, n: t.def.name, x: t.x, y: t.y, air: t.def.air, bld: t.def.bld, race: t.def.race });
     if (t.def.bld) this.markBlock(t, 0);
     if (t.def.name === "Pylon") this.powerDirty = true;
     if (t.owner === 1) {
@@ -1588,6 +1666,7 @@ export class PracticeSim9 {
         const shooter = { ...(from ?? ({ owner: s.owner, def: UNIT_DEFS9.Reaver, inside: null, id: -1 } as unknown as Ent9)), dropOk: s.ok };
         this.splash(shooter, t, WEAPONS.Scarab, t.x, t.y);
         this.booms.push({ x: t.x, y: t.y, t: 12, r: 40 });
+        this.ev({ k: "boom", f: this.stats.tick, x: t.x, y: t.y });
         s.life = 0; continue;
       }
       const a = Math.atan2(t.y - s.y, t.x - s.x);

@@ -29,11 +29,16 @@ import { PRAC_MAP9 } from "./practiceMap9.gen";
 import { PRAC_COLORS9, pracWorldPx9 } from "./practiceSpr9";
 import { CAM_TOP9, GL_GLOW_KINDS9, GlUnits9, SHADOW_ALPHA9, glIconRequest9 } from "./gl9";
 import { glTerrCanvas9 } from "./glTerrain9";
-import { AIR_LIFT_K, AIR_LIFT_REF, BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, modelNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
+import { BUILDING_BASE_YAW, POSE_KINDS, SHAPE_KIND, UNIT_3D, bldNormOf, modelNormOf, walkCutOf9, type UnitDrawOp } from "./engine9";
 import { buildingBox } from "../../utils/bwUnits";
 import { DIM as FOG_DIM9 } from "./ReplayFogLayer";
 import type { GlFog9 } from "./glTerrain9";
 import { STORM_STAGES } from "./bake9";
+import { paintFxList9 } from "./ReplayMotionPlayer";
+import { SfxCues9 } from "./sfx9Cues";
+import { prebakeSfx9, unlockSfx9 } from "./sfx9";
+import { PRAC_LENS9, PracFx9 } from "./practiceFx9";
+import type { FxOp } from "./engine9";
 import { CMD_INFO9, TRANS_KEYS9, UNIT_CARDS9, cardSlots9, defaultKeys9, fixKeys9, resolveKey9, selCards9, setKey9, type Cmd9, type KeySlot9, type Keys9 } from "./practiceKeys9";
 
 export interface PracticeRoomProps {
@@ -398,8 +403,11 @@ export function PracticeKeys({ keys: keysProp, onKeys, onLog, race = "T", onClos
 const bldKind9 = (name: string): string => (name === "Mineral Field" ? "mineral" : name === "Vespene Geyser" ? "geyser" : SHAPE_KIND[name] ?? "tomb");
 /** 한 층의 배킹 화소 상한(약 2560 × 1440 · dpr 1 몫). */
 const PRAC_BACK_PX9 = 3.7e6;
-/** 공중 몸이 뜨는 높이(세계 px) — 재생기 airLiftPxOf 와 같은 한 값(레이스 몸 × AIR_LIFT_K · 몸 크기와 무관). */
-const AIR_LIFT_PX9 = pracWorldPx9(AIR_LIFT_REF) * AIR_LIFT_K;
+/** ★ 공중 몸의 높이 — **원작 그대로**(2026-11-18, 요청: "연습실 한정으로 공중유닛 높이 원작수준으로") — 원작은 공중 몸을 **제 자리**(셈의 x · y)에 그리고 그림자를
+ *  42px 아래에 깐다(iscript 공중 유닛 Init 의 `imgul <그림자> 0 42`). 옛: 재생기처럼 레이스 몸 × AIR_LIFT_K(74.8px — 원작 42 의 1.8 배)만큼 몸을 띄우고 그림자를 제 자리에 —
+ *  몸이 셈 자리보다 위에 보여, 수송선 밑에 내린 유닛이 몸이 아니라 그림자 자리에 섰다. 이제 띄움 0 · 그림자 아래 42(재생기는 그대로). */
+const AIR_LIFT_PX9 = 0;
+const AIR_SHADOW_PX9 = 42;
 /** 유닛 모델 종류(땅속 럴커는 그 별본). */
 const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
 
@@ -438,6 +446,11 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const miniRef = useRef<HTMLCanvasElement>(null);
   const miniImg = useRef<HTMLCanvasElement | null>(null);
   const glRef = useRef<GlUnits9 | null>(null);
+  /* 효과(트레이서 · 피격 · 죽음 · 소리 — practiceFx9 ★ · 2026-11-18): 셈의 사건을 재생기 붓 · 효과음이 읽는 FxOp 로. fracRef = 셈 프레임 사이 몫(그리는 순간의 나이). */
+  const fxRef = useRef<PracFx9 | null>(null); if (!fxRef.current) fxRef.current = new PracFx9(AIR_LIFT_PX9);
+  const cuesRef = useRef(new SfxCues9());
+  const fracRef = useRef(0);
+  const stormSeed = useRef(new WeakMap<object, number>()); const stormN = useRef(0);
   const terrGeom = useRef<TerrainGeom9 | null>(null);
   /* 안개 — 재생기 GL 안개(판 17 칸 안개 · GlFog9.tile)에 셈의 타일 보임(앞 · 지금) · 밝힘을 실어 지형층이 그린다 · 미니맵은 작은 판을 덮는다. */
   const fogRef = useRef<{ ver: number; fog: GlFog9 | null; mini: HTMLCanvasElement | null }>({ ver: -1, fog: null, mini: null });
@@ -494,8 +507,23 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   /* 톱니 창이 열리면 커서 가둠을 푼다(창의 단추를 누를 수 있게). */
   useEffect(() => { if (gearPaused && document.pointerLockElement) document.exitPointerLock(); }, [gearPaused]);
 
-  /* 처음 화면 — 내 본진(홀) 가운데 */
+  /* 새 판이면 효과 기록을 비운다 · 소리는 사람의 첫 누름에 깨운다(iOS · 크롬 자동 재생 규칙 — 재생기와 같은 길 · 효과음 켬/끔도 재생기 설정을 따른다). */
+  useEffect(() => { fxRef.current?.clear(); }, [sim]);
   useEffect(() => {
+    const go = (): void => { unlockSfx9(); prebakeSfx9(); };
+    window.addEventListener("pointerdown", go, true); window.addEventListener("keydown", go, true);
+    return () => { window.removeEventListener("pointerdown", go, true); window.removeEventListener("keydown", go, true); };
+  }, []);
+
+  /* 처음 화면 — 내 유닛 덩이 가운데(2026-11-18, 요청: "유닛들이 처음 화면에서 보이게" — 셈 prepare 가 홀 앞마당에 640 × 400 안으로 모아 세운다) ·
+     유닛이 없으면 옛 자리(홀 가운데 + 60). */
+  useEffect(() => {
+    const us = sim.ents.filter((e) => e.owner === 0 && !e.def.bld && !e.dead && e.inside === null);
+    if (us.length) {
+      const xs = us.map((e) => e.x); const ys = us.map((e) => e.y);
+      cam.current.x = (Math.min(...xs) + Math.max(...xs)) / 2; cam.current.y = (Math.min(...ys) + Math.max(...ys)) / 2;
+      return;
+    }
     const hall = sim.ents.find((e) => e.owner === 0 && /^(Command Center|Nexus|Hive)$/.test(e.def.name));
     if (hall) { cam.current.x = hall.x; cam.current.y = hall.y + 60; }
   }, [sim, cam]);
@@ -773,7 +801,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       m.box = false;
       const [ax, ay] = toWorld(Math.min(m.sx, m.x), Math.min(m.sy, m.y)); const [bx, by] = toWorld(Math.max(m.sx, m.x), Math.max(m.sy, m.y));
       const cands = sim.alive().filter((u) => { if (u.def.res || !sim.visibleTo(u, 0)) return false;
-        const uy = u.def.air ? u.y - AIR_LIFT_PX9 : u.y;   // 공중은 뜬 자리로(재생기처럼 띄워 그린다)
+        const uy = u.def.air ? u.y - AIR_LIFT_PX9 : u.y;   // 공중은 그린 자리로(원작은 제 자리 — AIR_LIFT_PX9 0)
         return u.x - u.def.box[0] <= bx && u.x + u.def.box[2] >= ax && uy - u.def.box[1] <= by && uy + u.def.box[3] >= ay; }).sort((a, b) => b.y - a.y);
       const own = cands.filter(multiOk).slice(0, SEL_MAX9).map((u) => u.id);
       if (!own.length) { if (cands[0]) setSel([cands[0].id]); return; }
@@ -928,6 +956,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       const dt = Math.min(250, now - last); last = now;
       if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9 && sim.phase !== "over") { sim.step(); acc -= PRAC_TICK_MS9; } }
       else acc = 0;
+      fracRef.current = acc / PRAC_TICK_MS9;
+      fxRef.current?.take(sim);
       if (sim.phase === "over" && turnRef.current === "run") endTurn();
       /* 화면 이동 — 부드러운 밀기(scrollTick · 2026-11-18 · 옛: 원작 15.625ms 걸음) */
       scrollTick(dt / 1000);
@@ -1048,7 +1078,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         const yaw = 90 - (u.face * 180) / Math.PI;
         const base = { mesh, ax: sx, ay: sy - px * 0.24 - lift, k, yoff: (px / 16) * 4, yawDeg: yaw, color: col, alpha, cam: CAM_TOP9, gradR: px * 0.707, gradCy: 0, flat: GL_GLOW_KINDS9.has(kind) };
         if (u.def.air) {
-          g.push({ ...base, shadow: { ground: true, dy: lift, h: lift / Math.max(1e-3, k), alpha: SHADOW_ALPHA9 }, over: true,
+          g.push({ ...base, shadow: { ground: true, dy: AIR_SHADOW_PX9 * z, alpha: SHADOW_ALPHA9 }, over: true,   // 그림자는 몸 아래 42px(원작 · 위 AIR_SHADOW_PX9 ★)
             ...(rOn ? { ring: { kind: 2 as const, x: sx, y: sy - lift + ryOff, rx: rr, ry, color: ringCol, alpha: 1, lineW: lw, shear: 0 } } : {}) });
         } else {
           if (rOn) g.prim(2, sx, sy + ryOff, rr, ry, ringCol, 1, lw);
@@ -1064,6 +1094,15 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         const k = Math.min(Wd / Math.max(1e-3, bx.w), Wd / Math.max(1e-3, bx.bot - bx.top));
         g.push({ mesh, ax: sxOf(st.x) - k * bx.cx, ay: syOf(st.y) - (k * (bx.top + bx.bot)) / 2, k, yoff: 0, yawDeg: 0, color: "#fff", alpha: 1, cam: CAM_TOP9, gradR: 1e9, gradCy: 0, add: true, flat: true });
       }
+      /* 스캐럽 — 재생기 모델(scarab)이 표적 쪽으로 구른다(옛: 주황 점 · 2026-11-18 트레이서 손질). */
+      for (const sc of sim.scarabs) {
+        if (!sim.sees(sc.x, sc.y)) continue;
+        const mesh = g.unitMesh("scarab", 0, 3); if (!mesh) continue;
+        const tg = sim.byId.get(sc.tid); const ang = tg ? Math.atan2(tg.y - sc.y, tg.x - sc.x) : 0;
+        const px = pracWorldPx9("Scarab") * z; const k = (px / 16) * modelNormOf("scarab");
+        g.push({ mesh, ax: sxOf(sc.x), ay: syOf(sc.y) - px * 0.24, k, yoff: (px / 16) * 4, yawDeg: 90 - (ang * 180) / Math.PI, color: PRAC_COLORS9[sc.owner], alpha: 1, cam: CAM_TOP9,
+          gradR: px * 0.707, gradCy: 0, shadow: { ground: true, alpha: SHADOW_ALPHA9 } });
+      }
       g.flush(bw, bh, W, H);
     }
     /* ③ 위 2D 층 — 체력 막대 · 총알 · 표식 · 길 · 상자 · 원작 화면 밖 검정. */
@@ -1071,11 +1110,29 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
     c2.clearRect(0, 0, W, H);
     c2.save(); c2.beginPath(); c2.rect(vx, vy, vw, vh); c2.clip();
+    /* 효과(트레이서 · 피격 · 죽음) — 재생기 붓(paintFxList9)을 화면 px 로: 자리는 세계 px(zx · zy = 화면 옮김) · 길이는 렌즈 px(세계 × 0.25) · 배율 4·z ·
+       타일 8 렌즈 px(도록 DocTracer9 와 같은 자). 배율 문턱(FX_MIN_ZOOM)은 안 탄다(splitView9 — 연습실은 늘 원작 배율). */
+    const fxNow = (sim.stats.tick + fracRef.current) * FRAME_SEC;
+    const fxOps = fxRef.current ? fxRef.current.ops(sim, fxNow, (x, y) => sim.sees(x, y)) : [];
+    if (fxOps.length) paintFxList9(c2, fxOps, { zoom: z / PRAC_LENS9, tilePx: 8, zx: sxOf, zy: syOf, cw: W, ch: H, Bd: dpr, splitView9: true });
+    {
+      /* 효과음 — 재생기와 같은 신호(SfxCues9 · 새로 나타난 op 의 열쇠)에 스톰(한 번 · 씨앗마다) · 럴커 가시(땅 뚫는 소리 — 성큰 가시와 같은 erupt 열쇠)를 소리 몫으로만 더한다. */
+      const snd: FxOp[] = [...fxOps];
+      for (const st of sim.storms) {
+        if (!sim.sees(st.x, st.y)) continue;
+        let sd = stormSeed.current.get(st); if (sd === undefined) { stormN.current += 1; sd = stormN.current; stormSeed.current.set(st, sd); }
+        snd.push({ kind: "dom", style: "storm", fx: st.x, fy: st.y, lift: 0, seed: sd });
+      }
+      for (const f of fxOps) if (f.kind === "spike" && (f.ph ?? 1) < 0.15) snd.push({ kind: "erupt", fx: f.fx, fy: f.fy, lift: 0 });
+      const [rx0, ry0] = toWorld(vx, vy); const [rx1, ry1] = toWorld(vx + vw, vy + vh);
+      cuesRef.current.run({ t: fxNow, fxOps: snd, unitOps: [] }, { playing: !pausedRef.current, scrubbing: false, speed: 1, rect: { x0: rx0, x1: rx1, y0: ry0, y1: ry1 } });
+    }
     c2.setTransform(dpr * z, 0, 0, dpr * z, dpr * (W / 2 - cx * z), dpr * (H / 2 - cy * z));
     if (!glOk) {
       /* GL 이 못 선 곳 — 동그라미로라도(옛 폴백). */
       for (const u of vis) { c2.beginPath(); c2.arc(u.x, u.y, u.def.rad, 0, Math.PI * 2); c2.fillStyle = u.def.res ? "#56c7ff" : PRAC_COLORS9[u.owner]; c2.fill(); }
       for (const st of sim.storms) { c2.beginPath(); c2.arc(st.x, st.y, 48, 0, Math.PI * 2); c2.fillStyle = "rgba(90, 140, 255, 0.3)"; c2.fill(); }
+      for (const sc of sim.scarabs) { if (!sim.sees(sc.x, sc.y)) continue; c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
     }
     for (const u of vis) {
       if (u.def.res || (u.owner === 1 && !sim.sees(u.x, u.y))) continue;
@@ -1119,12 +1176,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         c2.beginPath(); c2.ellipse(mk.x, mk.y, r * 0.45, r * 0.45 * 0.62, 0, 0, Math.PI * 2); c2.stroke();
       }
     }
-    for (const s of sim.shots) {
-      if (!sim.sees(s.x2, s.y2) && !sim.sees(s.x1, s.y1)) continue;
-      c2.strokeStyle = s.col; c2.globalAlpha = Math.min(1, s.t / 3); c2.lineWidth = 2 / z;
-      c2.beginPath(); c2.moveTo(s.x1, s.y1); c2.lineTo(s.x2, s.y2); c2.stroke(); c2.globalAlpha = 1;
-    }
-    for (const sc of sim.scarabs) { if (!sim.sees(sc.x, sc.y)) continue; c2.beginPath(); c2.arc(sc.x, sc.y, 3, 0, Math.PI * 2); c2.fillStyle = "#ffb347"; c2.fill(); }
+    /* (걷음 2026-11-18) 총알 선(sim.shots) · 스캐럽 점 — 이제 재생기 트레이서(위 효과 붓) · 스캐럽 모델(GL)이 그린다. */
     /* 디스럽션 웹 — 보랏빛 그물 마당(반지름 64) · 매트릭스 — 몸 둘레 푸른 막 · 이레디 — 몸 둘레 녹색 빛. */
     for (const w of sim.webs) {
       if (!sim.sees(w.x, w.y)) continue;
@@ -1143,12 +1195,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       const [mx, my] = toWorld(mouse.current.x, mouse.current.y);
       c2.beginPath(); c2.arc(mx, my, modeRef.current === "storm" ? 48 : 64, 0, Math.PI * 2); c2.strokeStyle = "rgba(140, 190, 255, 0.9)"; c2.lineWidth = 1.5 / z; c2.stroke();
     }
-    for (const b of sim.booms) {
-      if (!sim.sees(b.x, b.y)) continue;
-      const kk = 1 - b.t / 24;
-      c2.beginPath(); c2.arc(b.x, b.y, b.r * (0.5 + kk), 0, Math.PI * 2);
-      c2.fillStyle = `rgba(255, ${Math.round(170 - 120 * kk)}, 60, ${Math.max(0, 0.7 - kk * 0.7)})`; c2.fill();
-    }
+    /* (걷음 2026-11-18) 폭발 원(sim.booms) — 죽음 · 무너짐 · 스플래시는 재생기 파편 폭발 · 착탄 그림(위 효과 붓)이 그린다. */
     /* (걷음 2026-11-18, 요청: "견제 연습에서 명령선 안 나오게") 예약된 길 · 모이는 자리 점선 — 원작처럼 명령은 누른 자리 표식(markTarget)만 보인다.
        옛: 고른 내 유닛의 이동 · 공격 이동 · 패트롤 · 하차 예약을 점선으로 잇고(수송선 노랑) 하차 자리에 고리 · 생산 건물은 모이는 자리까지 선. */
     c2.restore();
