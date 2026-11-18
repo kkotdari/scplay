@@ -4865,28 +4865,40 @@ function drawGasCloud9(ctx: CanvasRenderingContext2D, p: { x: number; y: number;
  *    rot = 진행 방향(화면 라디안 · 로컬 +x 가 앞). 나는 동안 혀가 조금 짧아지며 사그라든다.
  *  · boom — 땅에 눌린 타원(0.55) 둘레로 **불꽃 꽃잎 열셋**이 피고(길이·각 흔들림은 씨앗) 가운데 흰빛 · 위로 솟는 혀 셋 · 바깥 빛무리.
  *    옛 판보다 밝게 — 속을 흰빛으로 길게 끌고 빛무리·속불은 더하기(lighter)로 얹는다.
- *  가지는 경로(beginPath · bezier)와 방사 그러데이션뿐이다 — GL 심(glctx9)이 그대로 받는다(Path2D 금지 규약). */
+ *  가지는 경로(beginPath · bezier)와 방사 그러데이션뿐이다 — GL 심(glctx9)이 그대로 받는다(Path2D 금지 규약).
+ *  ★ 부드러운 가장자리 · 휜 혀(2026-11-18, 요청: "시즈탱크 트레이서들이 너무 직선에 선명해서 이상해 · 가장자리를 반투명하게 그라데이션을 주던지 자연스럽게") —
+ *  혀를 테두리 있는 면(물방울 경로 한 장 · 방사 그러데이션)이 아니라 **가장자리가 투명한 둥근 불빛을 이은 줄**(flame)로 그린다: 밑동은 크고 희며 끝으로 갈수록
+ *  작고 붉고 옅어지고, 끝이 옆으로 휜다(bend · 씨앗). 테두리가 원래부터 번져 칼날 같은 윤곽 · 곧은 가시가 없다.
+ *  ⚠ 같은 면을 크기만 달리해 겹쳐 칠하는 꼴(1.24 → 0.76 네 겹)은 윤곽이 계단처럼 여러 겹 비쳤다(실측 · 걷음). 흐림 필터는 GL 심이 못 받는다. */
 function drawSiegeFire9(ctx: CanvasRenderingContext2D, kind: "muzzle" | "boom", x: number, y: number,
   R: number, p: number, a: number, rot: number, seed: number): void {
   if (a <= 0.02 || R < 0.5) return;
   const hh9 = (k: number): number => { let v = Math.imul((seed + k * 7919) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; v ^= v >>> 13; v = Math.imul(v, 0xc2b2ae35) >>> 0; v ^= v >>> 16; return (v >>> 0) / 4294967296; };
-  /** 물방울 꼴 혀 — 밑동 (bx, 0) 에서 +x 로 len 만큼 · 가장 넓은 반폭 wid(밑동에서 30%) · 끝은 뾰족. 지금 경로에 더한다. */
-  const tongue = (bx: number, len: number, wid: number): void => {
-    ctx.moveTo(bx, 0);
-    ctx.bezierCurveTo(bx + len * 0.02, -wid * 0.9, bx + len * 0.3, -wid, bx + len * 0.55, -wid * 0.58);
-    ctx.quadraticCurveTo(bx + len * 0.8, -wid * 0.22, bx + len, 0);
-    ctx.quadraticCurveTo(bx + len * 0.8, wid * 0.22, bx + len * 0.55, wid * 0.58);
-    ctx.bezierCurveTo(bx + len * 0.3, wid, bx + len * 0.02, wid * 0.9, bx, 0);
-    ctx.closePath();
+  /** 불 빛깔(t 0 = 밑동 흰빛 → 1 = 끝 붉은 주황). */
+  const col = (t: number): [number, number, number] => {
+    const K: [number, number, number, number][] = [[0, 255, 252, 236], [0.3, 255, 228, 150], [0.62, 255, 158, 62], [1, 232, 86, 24]];
+    let k = 1; while (k < K.length - 1 && K[k][0] < t) k += 1;
+    const [t0, r0, g0, b0] = K[k - 1]; const [t1, r1, g1, b1] = K[k]; const u = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+    return [Math.round(r0 + (r1 - r0) * u), Math.round(g0 + (g1 - g0) * u), Math.round(b0 + (b1 - b0) * u)];
   };
-  const fireGrad = (cx: number, cy: number, r: number): CanvasGradient => {
+  /** 둥근 불빛 한 점 — 가운데 진하고 가장자리 투명. */
+  const puff = (cx: number, cy: number, r: number, t: number, al: number): void => {
+    if (r <= 0.2 || al <= 0.01) return;
+    const [r9, g9, b9] = col(t);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, "rgba(255,255,248,1)");
-    g.addColorStop(0.24, "rgba(255,248,200,1)");
-    g.addColorStop(0.5, "rgba(255,196,84,0.95)");
-    g.addColorStop(0.78, "rgba(255,120,32,0.62)");
-    g.addColorStop(1, "rgba(230,64,14,0)");
-    return g;
+    g.addColorStop(0, `rgba(${r9},${g9},${b9},${al})`);
+    g.addColorStop(0.45, `rgba(${r9},${g9},${b9},${al * 0.62})`);
+    g.addColorStop(1, `rgba(${r9},${g9},${b9},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  };
+  /** 불꽃 혀 — 밑동 (bx, 0) 에서 +x 로 len · 밑동 반폭 wid · 끝이 bend 만큼 옆으로 휜다. 끝 쪽 불빛부터 칠해 밑동의 흰빛이 위에 온다. */
+  const flame = (bx: number, len: number, wid: number, bend: number, al: number): void => {
+    const n9 = Math.max(4, Math.min(8, Math.round(len / (wid * 0.4))));   // 혀 하나 불빛 4 ~ 8(시즈 여럿이 한꺼번에 쏴도 가볍게 · 11 이면 착탄 한 번 100 남짓)
+    for (let i9 = n9 - 1; i9 >= 0; i9 -= 1) {
+      const u = i9 / (n9 - 1); const t = Math.pow(u, 0.85);
+      const px = bx + len * (0.08 + 0.86 * t); const py = bend * len * 0.24 * t * t;
+      puff(px, py, wid * (1.15 - 0.8 * t), t, al * (1 - 0.6 * t));
+    }
   };
   const glow = (cx: number, cy: number, rx: number, ry: number, alpha: number, c0: string, c1: string): void => {
     ctx.save();
@@ -4907,61 +4919,53 @@ function drawSiegeFire9(ctx: CanvasRenderingContext2D, kind: "muzzle" | "boom", 
     ctx.rotate(rot);
     const L = R * 2 * (1.05 - 0.3 * p);
     const Wd = R * 0.5 * (1 - 0.25 * p);
-    ctx.fillStyle = fireGrad(L * 0.1, 0, L);
-    ctx.beginPath();
-    tongue(-L * 0.08, L * 1.08, Wd);
-    // 끝이 갈라진 불꽃 — 가운데 혀 양옆으로 조금 짧은 혀 둘(±13도)
-    for (const sd9 of [-1, 1]) {
-      ctx.save();
-      ctx.rotate(sd9 * 0.22);
-      tongue(-L * 0.04, L * 0.8, Wd * 0.55);
-      ctx.restore();
-    }
-    // 포구 제퇴기 양옆 — 앞으로 비스듬히(±54도) 내뿜는 가는 혀 둘
+    // 포구 제퇴기 양옆 — 앞으로 비스듬히(±54도) 내뿜는 가는 혀 둘(앞쪽으로 휜다)
     for (const sd9 of [-1, 1]) {
       ctx.save();
       ctx.translate(L * 0.06, 0);
       ctx.rotate(sd9 * 0.95);
-      tongue(0, L * 0.48, Wd * 0.3);
+      flame(0, L * 0.46, Wd * 0.42, -sd9 * 0.7, 0.75);
       ctx.restore();
     }
-    ctx.fill();
+    // 끝이 갈라진 불꽃 — 가운데 혀 양옆으로 조금 짧은 혀 둘(±13도 · 바깥으로 조금 휜다)
+    for (const sd9 of [-1, 1]) {
+      ctx.save();
+      ctx.rotate(sd9 * 0.24);
+      flame(-L * 0.02, L * 0.8, Wd * 0.62, sd9 * (0.3 + 0.35 * hh9(4 + sd9)), 0.85);
+      ctx.restore();
+    }
+    flame(-L * 0.06, L * 1.05, Wd * 0.95, (hh9(3) - 0.5) * 0.6, 1);
     glow(L * 0.12, 0, L * 0.34, Wd * 0.62, a, "rgba(255,255,255,1)", "rgba(255,240,180,0.7)");
   } else {
     const e9 = 1 - (1 - p) * (1 - p);
     const R1 = R * (0.55 + 0.6 * e9);
     const SQ9 = 0.55;
     glow(0, 0, R1 * 1.25, R1 * 1.25 * SQ9, a * 0.7, "rgba(255,214,130,0.75)", "rgba(255,150,60,0.4)");
-    // 꽃잎 — 눌린 판 위에 한 경로로 몰아 한 번 칠한다
+    // 꽃잎 — 눌린 판 위로 바깥을 향해 피는 불꽃 열하나(길이 · 각 · 휨은 씨앗 — 한 발 내내 같은 꽃)
     ctx.save();
     ctx.scale(1, SQ9);
-    ctx.fillStyle = fireGrad(0, 0, R1);
-    ctx.beginPath();
-    const N9 = 13; const off9 = hh9(1) * Math.PI * 2;
+    const N9 = 11; const off9 = hh9(1) * Math.PI * 2;
     for (let i9 = 0; i9 < N9; i9 += 1) {
       const th9 = off9 + ((i9 + (hh9(10 + i9) - 0.5) * 0.6) / N9) * Math.PI * 2;
-      const ln9 = R1 * (0.74 + 0.28 * hh9(30 + i9));
       ctx.save();
       ctx.rotate(th9);
-      tongue(-R1 * 0.08, ln9, R1 * (0.26 + 0.1 * hh9(50 + i9)));
+      flame(R1 * 0.05, R1 * (0.66 + 0.3 * hh9(30 + i9)), R1 * (0.3 + 0.1 * hh9(50 + i9)), (hh9(90 + i9) - 0.5) * 1.2, 0.9);
       ctx.restore();
     }
-    ctx.fill();
     ctx.restore();
     // 위로 솟는 혀 셋 — 나는 동안 조금 떠오르며 짧아진다
     ctx.save();
     ctx.translate(0, -R1 * 0.12 * p);
-    ctx.fillStyle = fireGrad(0, -R1 * 0.1, R1);
-    ctx.beginPath();
     for (let i9 = 0; i9 < 3; i9 += 1) {
       ctx.save();
       ctx.translate((i9 - 1) * R1 * 0.24, 0);
       ctx.rotate(-Math.PI / 2 + (i9 - 1) * 0.36 + (hh9(70 + i9) - 0.5) * 0.25);
-      tongue(-R1 * 0.06, R1 * (0.62 + 0.32 * hh9(80 + i9)) * (1 - 0.35 * p), R1 * 0.2);
+      flame(-R1 * 0.02, R1 * (0.6 + 0.3 * hh9(80 + i9)) * (1 - 0.35 * p), R1 * 0.24, (hh9(95 + i9) - 0.5) * 1.3, 0.85);
       ctx.restore();
     }
-    ctx.fill();
     ctx.restore();
+    // 가운데 흰 불덩이
+    puff(0, -R1 * 0.05, R1 * 0.52, 0, 1);
     glow(0, -R1 * 0.04, R1 * 0.5, R1 * 0.5 * 0.62, a * (1 - 0.55 * p), "rgba(255,255,255,1)", "rgba(255,244,190,0.75)");
   }
   ctx.restore();
