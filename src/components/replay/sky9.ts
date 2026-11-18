@@ -350,6 +350,9 @@ function meteorsOf9(slot: number, spaceTiles: number[], w: number): Meteor9[] {
 const SHOWER_SLOT9 = 60;
 interface Shower9 { id: number; t0: number; dur: number; rx: number; ry: number; hue: number }
 function showerOf9(slot: number, w: number, h: number): Shower9 | null {
+  /* ★ 첫 2분(페이지 연 뒤 · 실 시각 칸 0 · 1)은 쉰다(같은 날 지적: "유성우때문인가 초반에 엄청 버벅임") — 칸 0 은 씨앗상 늘 유성우였고, 판 받기 · 예열과 겹쳐
+     하늘 캔버스를 장마다 다시 칠했다. */
+  if (slot < 2) return null;
   const R = rngOf9("shw" + slot + ":" + w);
   if (R() < 0.5) return null;
   const dur = 20 + R() * 12; const ang = 0.3 + R() * (Math.PI - 0.6); const D = 2.5 * Math.max(w, h);
@@ -385,13 +388,13 @@ function headGlow9(): HTMLCanvasElement {
   headSpr9 = c; return c;
 }
 /** 유성 그리기(하늘 층 · 우주 칸 위) — 더하는 빛. w · h = 지도 타일 · cw · ch = 캔버스 CSS 크기(화면 밖 유성은 건너뛴다 — 유성우는 지도 전체에 내린다). */
-export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[], w: number, h: number, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number): void {
+export function drawMeteors9(ctx: CanvasRenderingContext2D, spaceTiles: number[], w: number, h: number, ox: number, oy: number, tp: number, cw: number, ch: number, tSec: number, shower = true): void {
   if (!spaceTiles.length) return;
   const list: Meteor9[] = [];
   const slot0 = Math.floor(tSec / 3);
   for (let sl = slot0 - 2; sl <= slot0; sl += 1) for (const m of meteorsOf9(sl, spaceTiles, w)) list.push(m);
   const ss0 = Math.floor(tSec / SHOWER_SLOT9);
-  for (let ss = ss0 - 1; ss <= ss0; ss += 1) {
+  for (let ss = ss0 - 1; ss <= ss0 && shower; ss += 1) {   // shower 거짓 = 장 사다리가 내려간 동안(RMP FQ9 · NATURE9.lite) — 홀로 떨어지는 것만
     const S = showerOf9(ss, w, h); if (!S) continue;
     const k1 = Math.floor(tSec - S.t0); const kN = Math.ceil(S.dur) - 1;
     for (let k = Math.max(0, k1 - 4); k <= Math.min(kN, k1); k += 1) for (const m of showerSec9(S, k, spaceTiles, w)) list.push(m);

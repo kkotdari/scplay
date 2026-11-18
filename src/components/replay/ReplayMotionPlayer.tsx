@@ -8314,7 +8314,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           const sc9 = on9 || skyDirty9 ? sky9.getContext("2d") : null;
           if (sc9) {
             sc9.setTransform(1, 0, 0, 1, 0, 0); sc9.clearRect(0, 0, sky9.width, sky9.height); skyDirty9 = false;
-            if (on9 && G9) { sc9.setTransform(ctx.getTransform()); drawNatureSky9(sc9, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000); skyDirty9 = true; }
+            if (on9 && G9) { NATURE9.lite = FQ9.lv >= 1; sc9.setTransform(ctx.getTransform()); drawNatureSky9(sc9, zx(0), zy(0), (mw9 * zoom) / Math.max(1, G9.w), cw, ch, performance.now() / 1000); skyDirty9 = true; }
           }
         }
         if (!on9 || !G9) return;
@@ -18002,9 +18002,10 @@ export default function ReplayMotionPlayer({
        1900px/s 에 닿는다. 깊이로 재던 때와 같은 두 끝을 시간 축에 옮긴 것이라, 살짝 밀고
        떼는 손짓은 여전히 느리고 눌러 두면 빨라진다. */
     const EDGE = 2;   // 미는 띠 폭(px) — 전체화면 화면 맨 끝(창모드는 가둔 커서 · mouseLock9 MLOCK_EDGE9 · 옛 창모드 18px 띠는 걷음)
-    const EDGE_MIN = 520;     // 끝에 닿는 순간의 초당 픽셀
-    const EDGE_MAX = 1900;    // 계속 붙어 있을 때의 초당 픽셀
-    const EDGE_RAMP = 0.8;    // 밑값에서 최대까지 오르는 데 걸리는 초
+    /* ★ 빠르게(2026-11-18, 지적: "엣지투스크롤이 좀 중간에 뚝뚝 튀는거 같고 속도가 너무 느려") — 520 → 900 · 1900 → 3200 · 0.8 → 0.5초. */
+    const EDGE_MIN = 900;     // 끝에 닿는 순간의 초당 픽셀(옛 520)
+    const EDGE_MAX = 3200;    // 계속 붙어 있을 때의 초당 픽셀(옛 1900)
+    const EDGE_RAMP = 0.5;    // 밑값에서 최대까지 오르는 데 걸리는 초(옛 0.8)
     let mx9 = -1;
     let my9 = -1;
     let hold9 = 0;               // 끝에 붙어 있은 시간(초)
@@ -18025,7 +18026,8 @@ export default function ReplayMotionPlayer({
     };
     const step9 = (now9: number): void => {
       raf9 = requestAnimationFrame(step9);
-      const dt9 = last9 ? Math.min(0.05, (now9 - last9) / 1000) : 0;
+      /* 한 장 상한 0.05 → 0.1초(같은 날 "뚝뚝") — 무거운 장(50ms 넘게)에서 걸음이 깎여 속도가 들쭉날쭉했다. */
+      const dt9 = last9 ? Math.min(0.1, (now9 - last9) / 1000) : 0;
       last9 = now9;
       const el9 = mapRef.current;
       if (!el9 || dt9 <= 0 || (fsOn && mx9 < 0)) return;

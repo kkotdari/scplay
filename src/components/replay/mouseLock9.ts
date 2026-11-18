@@ -57,11 +57,16 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
   document.body.appendChild(cur);
   const arrowEl = cur.children[0] as SVGElement; const scrollEl = cur.children[1] as SVGElement;
 
-  /** 가두는 상자 — 뿌리 상자를 창으로 자른다(위로 굴린 페이지면 보이는 끝이 끝). */
-  const box = (): { l: number; t: number; r: number; b: number } => {
+  /** 가두는 상자 — 뿌리 상자를 창으로 자른다(위로 굴린 페이지면 보이는 끝이 끝). ★ 미리 재 둔다(같은 날 "뚝뚝") — 움직임마다 getBoundingClientRect 는
+   *  손짓 붓이 도는 동안 배치를 강제했다. 가둘 때 · 창 크기 · 굴림 · 0.5초마다만 다시 잰다. */
+  let boxC = { l: 0, t: 0, r: 0, b: 0 }; let boxAt = -1e9;
+  const measure = (): void => {
     const a = root.getBoundingClientRect();
-    return { l: Math.max(0, a.left), t: Math.max(0, a.top), r: Math.min(window.innerWidth, a.right) - 1, b: Math.min(window.innerHeight, a.bottom) - 1 };
+    boxC = { l: Math.max(0, a.left), t: Math.max(0, a.top), r: Math.min(window.innerWidth, a.right) - 1, b: Math.min(window.innerHeight, a.bottom) - 1 };
+    boxAt = performance.now();
   };
+  const box = (): { l: number; t: number; r: number; b: number } => { if (performance.now() - boxAt > 500) measure(); return boxC; };
+  const onResize = (): void => { boxAt = -1e9; };
   const paint = (): void => {
     if (!lockedOn) { cur.style.display = "none"; return; }
     const B = box();
@@ -181,7 +186,7 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
     if (on === lockedOn) return;
     lockedOn = on;
     if (on) {
-      capOff();
+      capOff(); measure();
       if (pend) { if (!pend.up) down = { el: pend.el, button: pend.button, id: pend.id, range: null }; pend = null; }
       window.addEventListener("wheel", onWheel, optA);   // 굴림을 막는 휠 듣기는 갇힌 동안만(안 갇힌 페이지 굴림을 늦추지 않게)
       const B = box(); vx = Math.max(B.l, Math.min(B.r, vx)); vy = Math.max(B.t, Math.min(B.b, vy));
@@ -213,6 +218,8 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
   document.addEventListener("pointerlockchange", onLock);
   document.addEventListener("pointerlockerror", onLockErr);
   document.addEventListener("fullscreenchange", onFs);
+  window.addEventListener("resize", onResize);
+  window.addEventListener("scroll", onResize, { capture: true, passive: true });
 
   return {
     locked: () => lockedOn,
@@ -235,6 +242,8 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
       document.removeEventListener("pointerlockchange", onLock);
       document.removeEventListener("pointerlockerror", onLockErr);
       document.removeEventListener("fullscreenchange", onFs);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize, { capture: true } as EventListenerOptions);
       if (document.pointerLockElement === root) document.exitPointerLock();
       capOn();
       cur.remove();

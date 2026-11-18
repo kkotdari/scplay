@@ -27,8 +27,9 @@ export function natureOnStored9(): boolean {
 export function natureStore9(on: boolean): void { try { localStorage.setItem(KEY9, on ? "1" : "0"); } catch { /* 사생활 모드 */ } }
 
 /** 그리는 쪽이 읽는 상태 — 재생기가 켬 · 지형 기하를 넣는다(TERR_WX9 와 같은 꼴). */
-export const NATURE9: { on: boolean; geom: TerrainGeom9 | null; rgb: Uint8Array | null; hash: string; playing: boolean; call: ((sp: Species9, pan: number, vol: number) => void) | null } =
-  { on: false, geom: null, rgb: null, hash: "", playing: false, call: null };
+/** lite — 장 사다리(RMP FQ9)가 내려간 동안 참: 유성우를 뺀다(2026-11-18). */
+export const NATURE9: { on: boolean; geom: TerrainGeom9 | null; rgb: Uint8Array | null; hash: string; playing: boolean; call: ((sp: Species9, pan: number, vol: number) => void) | null; lite: boolean } =
+  { on: false, geom: null, rgb: null, hash: "", playing: false, call: null, lite: false };
 
 type Kind9 = "tree" | "pine" | "bush" | "grass" | "reed" | "flower";
 interface Prop9 { k: Kind9; x: number; y: number; s: number; v: number; ph: number }
@@ -261,7 +262,7 @@ export function drawNatureSky9(ctx: CanvasRenderingContext2D, ox: number, oy: nu
   /* ★ 유성도 몸 위 층(2026-11-16, 요청: "유성이나 새는 다른 모델들보다 가장 위에") — 옛: 바닥 층(drawNature9 · 크립 위 · 몸 아래)이라 건물 · 유닛에 가렸다. 모든 맵(planOf9 ★). */
   const P = planOf9(G, NATURE9.hash);
   /* 우주 판 = 유성(새 없음) · 그 밖 = 새(유성 없음) — 2026-11-18 ★ planOf9. */
-  if (P.space) drawMeteors9(ctx, P.spaceTiles, P.w, P.h, ox, oy, tp, cw, ch, tSec);
+  if (P.space) drawMeteors9(ctx, P.spaceTiles, P.w, P.h, ox, oy, tp, cw, ch, tSec, !NATURE9.lite);
   else drawBirds9(ctx, G.w, G.h, ox, oy, tp, cw, ch, tSec, false, NATURE9.playing ? NATURE9.call : null);
 }
 
