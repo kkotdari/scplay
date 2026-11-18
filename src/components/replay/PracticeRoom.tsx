@@ -34,6 +34,7 @@ import { buildingBox } from "../../utils/bwUnits";
 import { DIM as FOG_DIM9 } from "./ReplayFogLayer";
 import type { GlFog9 } from "./glTerrain9";
 import { STORM_STAGES } from "./bake9";
+import { CMD_INFO9, TRANS_KEYS9, UNIT_CARDS9, cardSlots9, defaultKeys9, fixKeys9, resolveKey9, selCards9, setKey9, type Cmd9, type KeySlot9, type Keys9 } from "./practiceKeys9";
 
 export interface PracticeRoomProps {
   /** 빨무 지도(앱이 받아 준다 · 지형 terrain 이 있어야 걷는 칸을 안다). */
@@ -51,25 +52,7 @@ export interface PracResult9 { mode: PracStage9; race: PracRace9; spot: string; 
 /** 기록 답 — 이 판 전의 내 최고 · 전체 최고와 이번 판이 갱신했나. */
 export interface PracRecordReply9 { myBest: number | null; top: number | null; topName?: string | null; newMyBest: boolean; newTop: boolean }
 
-type Act9 = "move" | "attack" | "stop" | "hold" | "unload" | "load" | "burrow" | "siege" | "storm" | "web" | "irradiate";
-const ACTS9: { key: Act9; label: string; def: string; hint: string }[] = [
-  { key: "move", label: "이동", def: "M", hint: "다음 클릭 자리로 이동(적을 무시)" },
-  { key: "attack", label: "공격", def: "A", hint: "다음 클릭 — 적이면 그 적 · 땅이면 가며 싸우기" },
-  { key: "stop", label: "정지", def: "S", hint: "하던 일과 예약을 모두 멈춘다" },
-  { key: "hold", label: "홀드", def: "H", hint: "그 자리에서 사거리 안만 쏜다" },
-  /* ★ 낙하산은 따로 키가 없다(2026-11-17, 지적: "낙하산은 따로 키가 있는게 아니라 자기 수송선에 내리기를 찍는걸 말하는거야") — 하차 키 뒤 **자기 수송선을 찍으면** 낙하산. */
-  { key: "unload", label: "하차", def: "U", hint: "다음 클릭 자리로 가서 다 내린다 · 자기 수송선을 찍으면 낙하산(멈추지 않고 가던 길에 한 기씩 · Shift 예약 길 그대로)" },
-  { key: "load", label: "태우기", def: "L", hint: "다음 클릭한 수송선에 탄다(수송선은 클릭한 유닛을 태운다)" },
-  /* 버로우 — 원작 럴커는 땅속에서만 쏜다. 원작 키는 버로우 B · 해제 U 인데 U 가 하차와 겹쳐 한 키로 오간다. */
-  { key: "burrow", label: "버로우", def: "B", hint: "럴커 — 땅속으로(땅속에서만 쏜다) · 다시 누르면 나온다" },
-  { key: "siege", label: "시즈", def: "O", hint: "시즈 탱크 — 시즈 모드(머신 샵 연구) · 다시 누르면 탱크 모드" },
-  { key: "storm", label: "스톰", def: "T", hint: "하이 템플러 — 다음 클릭 자리에 사이오닉 스톰(템플러 아카이브 연구 · 에너지 75)" },
-  /* 넷째 판 — 중반 준비 유닛의 기술(원작 키: 디스럽션 웹 D · 디펜시브 매트릭스 D · 이레디에이트 I). 옛 변태 · 합체(R)는 생산을 막으며 걷었다. */
-  { key: "web", label: "웹·매트릭스", def: "D", hint: "커세어 — 다음 클릭 자리에 디스럽션 웹(그 아래 지상 몸 · 건물은 못 쏜다) · 사이언스 베슬 — 다음 클릭한 몸에 디펜시브 매트릭스(250 막이)" },
-  { key: "irradiate", label: "이레디", def: "I", hint: "사이언스 베슬 — 다음 클릭한 몸에 이레디에이트(둘레 생체 지상 몸에 250 · SCV · 드론이 녹는다)" },
-];
-/** 누르면 곧바로 되는 명령(자리를 안 기다림). */
-const INSTANT9 = new Set<Act9>(["stop", "hold", "burrow", "siege"]);
+/* 명령 키는 공통 칸 + 유닛별 명령 카드(practiceKeys9 · 2026-11-18) — 옛 판 ACTS9(명령 하나에 키 하나 · 서로 다른 유닛도 못 겹침)는 걷었다. */
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
 /* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — KopruluSector(kp_ui_scroll.c)의 UpdateMapScroll 0x49bf10 ·
@@ -87,11 +70,10 @@ const FLASH_FRAMES9 = 31;
    상자는 내 유닛(건물 빼고) 12 까지(없으면 하나). 셋째 판: 내 생산 건물을 고른 채 우클릭은 **모이는 자리**. */
 const SEL_MAX9 = 12;
 const MARK_FRAMES9 = 12;
-const KEYS_LS9 = "scr.prac.keys";
+const KEYS_LS9 = "scr.prac.keys2";   // 2 — 공통 + 유닛별 카드(2026-11-18) · 옛 "scr.prac.keys"(명령 하나에 키 하나)는 안 읽는다
 const SETUP_LS9 = "scr.prac.setup3";   // 3 — 셋째 판(종족 · 자리 · 적 타워만)으로 옛 기억(setup2 · 수송선 수 · 태울 유닛 · 적 종족 …)은 버린다
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
 const saveJson9 = (k: string, v: unknown): void => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 사생활 모드 */ } };
-const DEF_KEYS9 = Object.fromEntries(ACTS9.map((a) => [a.key, a.def])) as Record<Act9, string>;
 const DEF_SETUP9: PracSetup9 = { myRace: "T", mySpot: "BL", stage: "early" };
 /** 설정 기억을 다듬는다(옛 값 · 사람 자리가 아닌 자리). */
 const cleanSetup9 = (s: PracSetup9): PracSetup9 => ({
@@ -133,16 +115,13 @@ const pracLoadoutText9 = (stage: PracStage9, race: PracRace9): string => {
 export default function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult }: PracticeRoomProps) {
   const [phase, setPhase] = useState<"setup" | "loading" | "play">("setup");
   const [setup, setSetup] = useState<PracSetup9>(() => cleanSetup9(loadJson9(SETUP_LS9, DEF_SETUP9)));
-  const [keys, setKeysState] = useState<Record<Act9, string>>(() => loadJson9(KEYS_LS9, DEF_KEYS9));
-  /* 계정에 기억된 키가 오면 그것으로(늦게 와도) — 앱에서 온 값은 앱에 되돌려 적지 않는다. */
-  useEffect(() => {
-    if (!keysProp) return;
-    const next = { ...DEF_KEYS9 } as Record<Act9, string>;
-    for (const a of ACTS9) { const v = keysProp[a.key]; if (typeof v === "string" && /^[A-Z0-9]$/.test(v)) next[a.key] = v; }
-    setKeysState(next);
-  }, [keysProp]);
+  const [keys, setKeysState] = useState<Keys9>(() => { try { const v = localStorage.getItem(KEYS_LS9); return fixKeys9(v ? JSON.parse(v) : null); } catch { return defaultKeys9(); } });
+  /* 계정에 기억된 키가 오면 그것으로(늦게 와도) — 앱에서 온 값은 앱에 되돌려 적지 않는다. 옛 판(명령 하나에 키 하나)이면 원작 기본값으로 선다(fixKeys9). */
+  useEffect(() => { if (keysProp) setKeysState(fixKeys9(keysProp)); }, [keysProp]);
+  /** 단축키 창 — 열린 동안은 그 종족 칸부터(설정 판의 고른 종족 · 놀이 중이면 그 판 종족) · 놀이는 멈춘다. */
+  const [keysOpen, setKeysOpen] = useState<PracRace9 | null>(null);
   const onKeysRef = useRef(onKeys); onKeysRef.current = onKeys;
-  const setKeys = useCallback((f: (k: Record<Act9, string>) => Record<Act9, string>): void => {
+  const setKeys = useCallback((f: (k: Keys9) => Keys9): void => {
     setKeysState((k) => { const n = f(k); if (n !== k) queueMicrotask(() => onKeysRef.current?.(n)); return n; });
   }, []);
   const [terrain, setTerrain] = useState<MapTerrain | null | undefined>(undefined);
@@ -174,18 +153,23 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
   return (
     <div ref={rootRef} className={`scr-prac${className ? ` ${className}` : ""}`}>
       {phase === "setup" && (
-        <PracSetupPanel setup={setup} keys={keys} setKeys={setKeys} map={map} terrain={terrain} inGame={false}
+        <PracSetupPanel setup={setup} onKeys={setKeysOpen} map={map} terrain={terrain} inGame={false}
           ready={sizeOk} onApply={start} />
       )}
       {phase !== "setup" && map && terrain && (
-        <PracGame key={run} map={map} terrain={terrain} setup={runSetup} keys={keys} paused={gear}
-          onReady={() => setPhase("play")} onGear={() => setGear(true)} onRestart={() => start(setup)}
+        <PracGame key={run} map={map} terrain={terrain} setup={runSetup} keys={keys} paused={gear || !!keysOpen}
+          onReady={() => setPhase("play")} onGear={() => setGear(true)} onKeys={() => setKeysOpen(runSetup.myRace)} onRestart={() => start(setup)}
           onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} onResult={onResult} />
       )}
       {phase !== "setup" && gear && (
         <div className="scr-prac-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setGear(false); }}>
-          <PracSetupPanel setup={setup} keys={keys} setKeys={setKeys} map={map} terrain={terrain} inGame ready={sizeOk}
+          <PracSetupPanel setup={setup} onKeys={setKeysOpen} map={map} terrain={terrain} inGame ready={sizeOk}
             onApply={apply} onClose={() => setGear(false)} />
+        </div>
+      )}
+      {keysOpen && (
+        <div className="scr-prac-modal is-keys" onMouseDown={(e) => { if (e.target === e.currentTarget) setKeysOpen(null); }}>
+          <PracKeysPanel keys={keys} setKeys={setKeys} race={keysOpen} onClose={() => setKeysOpen(null)} />
         </div>
       )}
     </div>
@@ -193,38 +177,21 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
 }
 
 /* ── 설정(처음 · 톱니) ─────────────────────────────────────────────────────── */
-function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onApply, onClose }: {
+function PracSetupPanel({ setup, onKeys, map, terrain, inGame, ready, onApply, onClose }: {
   setup: PracSetup9;
-  keys: Record<Act9, string>; setKeys: (f: (k: Record<Act9, string>) => Record<Act9, string>) => void;
+  /** 단축키 창을 연다(그 종족 칸부터). */
+  onKeys: (race: PracRace9) => void;
   map: ReplayMapGrid | null; terrain: MapTerrain | null | undefined; inGame: boolean; ready: boolean;
   onApply: (s: PracSetup9) => void; onClose?: () => void;
 }) {
   const [draft, setDraft] = useState<PracSetup9>(setup);
-  const [listen, setListen] = useState<Act9 | null>(null);
-  useEffect(() => {
-    if (!listen) return undefined;
-    const onKey = (e: KeyboardEvent): void => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.key === "Escape") { setListen(null); return; }
-      const k = keyOf9(e);
-      if (!k) return;
-      setKeys((m) => {
-        const out = { ...m };
-        for (const a of ACTS9) if (out[a.key] === k) out[a.key] = m[listen];   // 겹치면 맞바꾼다
-        out[listen] = k; return out;
-      });
-      setListen(null);
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [listen, setKeys]);
-  /* Esc — 톱니 창이면 닫는다(키 듣는 중이 아니면). */
+  /* Esc — 톱니 창이면 닫는다(단축키 창이 위에 열려 있으면 그 창이 Esc 를 먼저 받아 막는다). */
   useEffect(() => {
     if (!inGame || !onClose) return undefined;
-    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape" && !listen) { e.preventDefault(); onClose(); } };
+    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [inGame, onClose, listen]);
+  }, [inGame, onClose]);
   /* 지도 — 깃발을 끌어(또는 누른 자리에서) 가장 가까운 사람 스타팅으로. 나머지 스타팅은 적 기지(맵이 정한 종족). */
   const mini = useRef<HTMLCanvasElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -297,17 +264,10 @@ function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onA
           </span>
         </div>
       </div>
-      <div className="scr-prac-row is-top">
-        <span className="scr-prac-lab">명령 키</span>
-        <div className="scr-prac-keys">
-          {ACTS9.map((a) => (
-            <div key={a.key} className="scr-prac-keyrow" title={a.hint}>
-              <span>{a.label}</span>
-              <button type="button" className={`scr-prac-key${listen === a.key ? " is-listen" : ""}`} onClick={() => setListen(a.key)}>{listen === a.key ? "키를 누르세요" : keys[a.key]}</button>
-            </div>
-          ))}
-          <button type="button" className="scr-prac-pill is-sm" onClick={() => setKeys(() => ({ ...DEF_KEYS9 }))}>기본값</button>
-        </div>
+      <div className="scr-prac-row">
+        <span className="scr-prac-lab">단축키</span>
+        <button type="button" className="scr-prac-pill" onClick={() => onKeys(draft.myRace)}>단축키 설정</button>
+        <span className="scr-prac-dim">공통(이동 · 정지 · 공격 · 패트롤 · 홀드) 한 칸 + 유닛별 명령 카드</span>
       </div>
       <div className="scr-prac-row">
         <button type="button" className="scr-prac-start" onClick={() => onApply(draft)} disabled={!ready && !inGame}>
@@ -318,6 +278,85 @@ function PracSetupPanel({ setup, keys, setKeys, map, terrain, inGame, ready, onA
         한 턴 = <b>준비 {PRAC_PREP_SEC9}초</b>(태우기 · 날아가기 — 이때 한 드랍은 점수 없음) → <b>드랍 {PRAC_DROP_SEC9}초</b>(한 번 · 내린 뒤엔 다시 못 태움) ·
         점수 = 잡은 일꾼 × {KILL_PTS9} − 잃은 내 유닛 값(광물 + 가스 ÷ {LOST_DIV9} · 수송선이 터지면 화물도) · 일꾼은 수송선을 보면 12기씩 다른 기지로 도망 · 생산 · 연구는 없음</p>
       <p className="scr-prac-dim">Shift+F2~F4 화면 기억 · F2~F4 불러오기 · Ctrl+숫자 부대(전체 화면) · 톱니(⚙)로 이 창</p>
+    </div>
+  );
+}
+
+/* ── 단축키 창(2026-11-18) ─────────────────────────────────────────────────────
+   공통 칸 하나(원작 3 × 3 — 이동 · 정지 · 공격 / 패트롤 · 홀드) + 종족을 골라 그 종족 유닛마다 명령 카드(같은 3 × 3 · 공통은 흐리게 · 고유만 바꾼다).
+   칸을 누르고 키를 누른다(Esc 취소). 규칙은 practiceKeys9 setKey9 — 공통끼리 · 한 카드 안 고유끼리는 맞바꾸고, 고유에 공통 키는 못 준다. */
+function PracKeysPanel({ keys, setKeys, race: race0, onClose }: {
+  keys: Keys9; setKeys: (f: (k: Keys9) => Keys9) => void; race: PracRace9; onClose: () => void;
+}) {
+  const [race, setRace] = useState<PracRace9>(race0);
+  const [listen, setListen] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  /* 창이 열린 동안 키는 이 창이 먼저 받는다(캡처) — Esc 는 듣던 칸을 무르거나 창을 닫는다(밑의 톱니 창까지 닫히지 않게 막는다). */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); if (listen) setListen(null); else onClose(); return; }
+      if (!listen) return;
+      e.preventDefault(); e.stopPropagation();
+      const k = keyOf9(e); if (!k) return;
+      const r = setKey9(keys, listen, k);
+      if ("err" in r) setMsg(r.err); else { setMsg(null); if (r.keys !== keys) setKeys(() => r.keys); }
+      setListen(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [listen, keys, setKeys, onClose]);
+  const grid = (slots: ((KeySlot9 & { common: boolean }) | null)[], edit: (s: KeySlot9 & { common: boolean }) => boolean) => (
+    <div className="scr-prac-kgrid">
+      {slots.map((s, i) => {
+        if (!s) return <span key={i} className="scr-prac-kcell is-empty" />;
+        const on = edit(s); const info = CMD_INFO9[s.cmd];
+        return (
+          <button key={i} type="button" className={`scr-prac-kcell${on ? "" : " is-lock"}${listen === s.id ? " is-listen" : ""}`}
+            title={on ? info.hint : `${info.label} — 위 공통 칸에서 바꿔요`} aria-disabled={!on}
+            onClick={() => { if (!on) return; setListen(s.id); setMsg(null); }}>
+            <b>{listen === s.id ? "?" : keys[s.id]}</b><span>{info.short ?? info.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+  return (
+    <div className="scr-prac-setup is-modal scr-prac-keyset">
+      <div className="scr-prac-hrow">
+        <h2 className="scr-prac-h">단축키</h2>
+        <button type="button" className="scr-prac-x" onClick={onClose} aria-label="닫기">×</button>
+      </div>
+      <p className="scr-prac-dim">칸을 누르고 키를 누르세요(Esc 취소). 공통 명령은 모든 종족 · 모든 유닛이 함께 써요. 유닛 명령은 <b>그 유닛 안에서만</b> 안 겹치면 되고 다른 유닛과는 겹쳐도 돼요.</p>
+      <div className="scr-prac-ksecs">
+        <div className="scr-prac-ksec">
+          <h3>공통 — 모든 유닛</h3>
+          {grid(cardSlots9(null), (s) => s.common)}
+        </div>
+        {/* 수송선 공통(태우기 · 하차) — 드랍십 · 셔틀 · 오버로드가 같은 키(원작) · 아래 수송선 카드에선 흐리게. */}
+        <div className="scr-prac-ksec">
+          <h3>수송선 공통 — 드랍십 · 셔틀 · 오버로드</h3>
+          {grid(cardSlots9(UNIT_CARDS9.find((c) => c.trans)), (s) => TRANS_KEYS9.some((t) => t.id === s.id))}
+        </div>
+      </div>
+      <div className="scr-prac-row">
+        {PRAC_RACES9.map((r) => (
+          <button key={r.key} type="button" className={`scr-prac-pill${race === r.key ? " is-on" : ""}`} onClick={() => { setRace(r.key); setListen(null); }}>{r.label}</button>
+        ))}
+      </div>
+      <div className="scr-prac-kcards">
+        {UNIT_CARDS9.filter((c) => c.race === race).map((c) => (
+          <div key={c.unit} className="scr-prac-kcard">
+            <span className="scr-prac-kname">{UNIT_DEFS9[c.unit]?.ko ?? c.unit}{c.trans ? " · 수송선 공통" : c.specs.length ? "" : " · 공통만"}</span>
+            {grid(cardSlots9(c), (s) => !s.common && !c.trans)}
+          </div>
+        ))}
+      </div>
+      {msg && <p className="scr-prac-kmsg">{msg}</p>}
+      <div className="scr-prac-row">
+        <button type="button" className="scr-prac-pill is-sm" onClick={() => { setKeys(() => defaultKeys9()); setMsg(null); setListen(null); }}>기본값(원작)</button>
+        <span className="scr-prac-sp" />
+        <button type="button" className="scr-prac-start" onClick={onClose}>닫기</button>
+      </div>
     </div>
   );
 }
@@ -333,9 +372,9 @@ const AIR_LIFT_PX9 = pracWorldPx9(AIR_LIFT_REF) * AIR_LIFT_K;
 const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
 
 /* ── 놀이 ──────────────────────────────────────────────────────────────────── */
-function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGear, onRestart, onFull, loading, onResult }: {
-  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; keys: Record<Act9, string>; paused: boolean;
-  onReady: () => void; onGear: () => void; onRestart: () => void; onFull: () => void; loading: boolean;
+function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGear, onKeys, onRestart, onFull, loading, onResult }: {
+  map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; keys: Keys9; paused: boolean;
+  onReady: () => void; onGear: () => void; onKeys: () => void; onRestart: () => void; onFull: () => void; loading: boolean;
   onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
 }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,10 +429,10 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const [warm, setWarm] = useState({ done: 0, all: 1 });
   const [sel, setSel] = useState<number[]>([]);
   const selRef = useRef<number[]>([]); selRef.current = sel;
-  const [mode, setModeState] = useState<Act9 | null>(null);
+  const [mode, setModeState] = useState<Cmd9 | null>(null);
   /* 고르기 판(키를 누른 뒤 자리를 기다림) — 뜻은 ref 가 곧바로 쥔다(같은 손짓 안의 다음 클릭이 옛 값을 읽지 않게). */
-  const modeRef = useRef<Act9 | null>(null);
-  const setMode = (v: Act9 | null): void => { modeRef.current = v; setModeState(v); };
+  const modeRef = useRef<Cmd9 | null>(null);
+  const setMode = (v: Cmd9 | null): void => { modeRef.current = v; setModeState(v); };
   const [hud, setHud] = useState(0);
   /* 멈춤은 없다(턴제 · 시간이 점수다) — 톱니 창 · 턴 밖에서만 선다. */
   const pausedRef = useRef(false); pausedRef.current = gearPaused || turn !== "run";
@@ -534,7 +573,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     }
     sim.order(ids, { t: "move", x: wx, y: wy }, q);
   };
-  const doAct = (a: Act9, wx: number | null, wy: number | null, q: boolean, ground = false): void => {
+  const doAct = (a: Cmd9, wx: number | null, wy: number | null, q: boolean, ground = false): void => {
     const us = mySel().filter((e) => !e.def.bld); const ids = us.map((e) => e.id);
     if (!ids.length) return;
     if (a === "stop") { sim.stop(ids); return; }
@@ -555,10 +594,13 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     const t = ground ? null : sim.pick(wx, wy, 4, AIR_LIFT_PX9);
     markTarget(wx, wy, t);   // 겨눈 좌클릭(TargetingLeftClick) — 유닛 깜빡임 · 땅 표식
     if (a === "storm") { sim.order(us.filter((e) => e.def.name === "High Templar").map((e) => e.id), { t: "storm", x: wx, y: wy }, q); return; }
+    /* 커세어는 땅 자리에 웹 · 베슬은 찍은 몸에 매트릭스(한 기만 — 원작도 고른 것 중 하나가 쓴다). 옛 판은 한 키(웹·매트릭스)였다 — 이제 카드마다 제 키. */
     if (a === "web") {
-      /* 커세어는 땅 자리에 웹 · 베슬은 찍은 몸에 매트릭스(한 기만 — 원작도 고른 것 중 하나가 쓴다). */
       const cs = us.filter((e) => e.def.name === "Corsair");
-      if (cs.length) { sim.order([cs[0].id], { t: "web", x: wx, y: wy }, q); return; }
+      if (cs.length) sim.order([cs[0].id], { t: "web", x: wx, y: wy }, q);
+      return;
+    }
+    if (a === "matrix") {
       const vs = us.filter((e) => e.def.name === "Science Vessel");
       if (vs.length && t) sim.order([vs[0].id], { t: "matrix", id: t.id }, q);
       return;
@@ -569,6 +611,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       return;
     }
     if (a === "move") sim.order(ids, { t: "move", x: wx, y: wy }, q);
+    else if (a === "patrol") sim.order(ids, { t: "patrol", x: wx, y: wy }, q);
     else if (a === "attack") {
       if (t && t.owner === 1 && !t.def.res) sim.order(ids, { t: "attack", id: t.id }, q);
       else sim.order(ids, { t: "amove", x: wx, y: wy }, q);
@@ -636,11 +679,14 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         if (it) { e.preventDefault(); trainKey(b, it); }
         return;
       }
-      const act = ACTS9.find((a) => keys[a.key] === k);
-      if (act) {
+      /* 고른 유닛들의 카드로 푼다 — 공통 먼저 · 그다음 앞 카드부터 고유(서로 다른 유닛의 같은 키는 앞 카드가 이긴다 · practiceKeys9 resolveKey9). */
+      const us = mySel().filter((u) => !u.def.bld);
+      if (!us.length) return;
+      const cmd = resolveKey9(keys, k, selCards9(us.map((u) => u.def.name)));
+      if (cmd) {
         e.preventDefault();
-        if (INSTANT9.has(act.key)) doAct(act.key, null, null, e.shiftKey);
-        else setMode(act.key);
+        if (CMD_INFO9[cmd].instant) doAct(cmd, null, null, e.shiftKey);
+        else setMode(cmd);
       }
     };
     const onUp = (e: KeyboardEvent): void => { keysDown.current.delete(e.key); };
@@ -1078,7 +1124,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       }
       if (!u.orders.length) continue;
       c2.beginPath(); c2.moveTo(u.x, u.y);
-      for (const o of u.orders) if (o.t === "move" || o.t === "amove" || (o.t === "moveunload" && !o.self)) c2.lineTo(o.x, o.y);
+      for (const o of u.orders) if (o.t === "move" || o.t === "amove" || o.t === "patrol" || (o.t === "moveunload" && !o.self)) c2.lineTo(o.x, o.y);
       c2.strokeStyle = u.def.cargo ? "rgba(255,210,74,0.75)" : "rgba(120,255,140,0.6)"; c2.stroke();
       for (const o of u.orders) if (o.t === "moveunload" && !o.self) { c2.beginPath(); c2.arc(o.x, o.y, 10, 0, Math.PI * 2); c2.strokeStyle = "rgba(255,210,74,0.9)"; c2.stroke(); }
     }
@@ -1147,6 +1193,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const selUnits = sel.map((id) => sim.byId.get(id)).filter((e): e is Ent9 => !!e && !e.dead && e.inside === null);
   const ships = selUnits.filter((e) => e.owner === 0 && e.def.cargo);
   const bld = selUnits.length === 1 && selUnits[0].owner === 0 && selUnits[0].def.bld ? selUnits[0] : null;
+  const myCards = selCards9(selUnits.filter((e) => e.owner === 0 && !e.def.bld).map((e) => e.def.name));
   const card = bld && sim.prodOn ? PROD9[bld.def.name] ?? [] : null;
   const st = sim.stats;
   return (
@@ -1168,11 +1215,12 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         <span>점수 <b>{sim.score.score}</b></span>
         <span>일꾼 <b>{sim.score.kills}</b></span>
         <span className="is-loss">잃음 <b>{sim.score.lostN}</b>{sim.score.lostPts ? ` (−${sim.score.lostPts})` : ""}</span>
-        {mode && <span className="scr-prac-mode">{ACTS9.find((a) => a.key === mode)?.label} — 자리를 누르세요(Esc 취소)</span>}
+        {mode && <span className="scr-prac-mode">{CMD_INFO9[mode].label} — 자리를 누르세요(Esc 취소)</span>}
         {!locked && !mode && <span className="scr-prac-dim">게임 화면을 누르면 마우스가 화면 안에 갇혀요(원작처럼 가장자리 스크롤) · Esc 로 풀기</span>}
         <span className="scr-prac-sp" />
         <button type="button" onClick={onRestart} title="이 턴을 버리고 새 턴">턴 다시</button>
         <button type="button" onClick={onFull} title="전체 화면 — Ctrl+숫자 · F3 를 게임이 받아요">전체 화면</button>
+        <button type="button" onClick={onKeys} title="단축키 — 공통 칸 · 유닛별 명령 카드">단축키</button>
         <button type="button" className="scr-prac-gear" onClick={onGear} title="설정(종족 · 자리 · 적 타워 · 키)" aria-label="설정">⚙</button>
       </div>
       <div className="scr-prac-bottom">
@@ -1245,12 +1293,13 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
               </button>
             );
           })}
-          {!bld && ACTS9.map((a) => (
-            <button key={a.key} type="button" title={a.hint} className={`scr-prac-cmd${mode === a.key ? " is-on" : ""}`}
-              onClick={() => { if (INSTANT9.has(a.key)) doAct(a.key, null, null, false); else setMode(a.key); }}>
-              <b>{keys[a.key]}</b><span>{a.label}</span>
+          {/* 명령 카드(원작 3 × 3) — 고른 내 유닛의 앞 카드(고유 명령이 있는 카드가 앞 · selCards9). 다른 카드의 고유 키도 키보드로는 먹는다(resolveKey9). */}
+          {!bld && myCards.length > 0 && cardSlots9(myCards[0]).map((s, i) => (s ? (
+            <button key={i} type="button" title={CMD_INFO9[s.cmd].hint} className={`scr-prac-cmd${mode === s.cmd ? " is-on" : ""}`}
+              onClick={() => { if (CMD_INFO9[s.cmd].instant) doAct(s.cmd, null, null, false); else setMode(s.cmd); }}>
+              <b>{keys[s.id]}</b><span>{CMD_INFO9[s.cmd].short ?? CMD_INFO9[s.cmd].label}</span>
             </button>
-          ))}
+          ) : <span key={i} className="scr-prac-cmd is-empty" />))}
         </div>
       </div>
       {/* 턴 안내 — 위쪽 가운데 · 남은 시간(준비 30초 → 드랍 30초). */}

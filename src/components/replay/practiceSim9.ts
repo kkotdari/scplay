@@ -169,6 +169,8 @@ const BUILD9 = (name: string): number => BUILD_FRAMES[name] ?? ({ Archon: 300, L
 export type Order9 =
   | { t: "move"; x: number; y: number }
   | { t: "amove"; x: number; y: number }
+  /** 패트롤(2026-11-18 · 연습실 공통 칸 "이동 공격 홀드 정지 패트롤") — 가며 싸우기로 그 자리와 처음 자리(ox · oy — 명령이 서는 순간의 제 자리)를 오간다. */
+  | { t: "patrol"; x: number; y: number; ox?: number; oy?: number }
   | { t: "attack"; id: number }
   | { t: "load"; id: number }      // EnterTransport — 유닛 → 수송선에 탄다(수송선도 마중 나온다)
   | { t: "pickup"; id: number }    // PickupTransport — 수송선 → 그 유닛을 태운다
@@ -933,13 +935,20 @@ export class PracticeSim9 {
       return;
     }
     /* 땅속 럴커가 움직이는 명령을 만나면 먼저 나온다. */
-    if (e.burrowed && (o.t === "move" || o.t === "amove" || o.t === "load")) { e.orders.unshift({ t: "unburrow" }); e.ost = 0; return; }
+    if (e.burrowed && (o.t === "move" || o.t === "amove" || o.t === "patrol" || o.t === "load")) { e.orders.unshift({ t: "unburrow" }); e.ost = 0; return; }
     switch (o.t) {
       case "hold": e.goal = null; this.fight(e, false); return;
       case "move": this.setGoal(e, o.x, o.y); if (e.arrived) this.next(e); return;
       case "amove":
         if (this.fight(e, true)) return;
         this.setGoal(e, o.x, o.y); if (e.arrived) this.next(e);
+        return;
+      case "patrol":
+        /* 가며 싸우기(amove 와 같은 손) · 닿으면 끝 둘을 맞바꿔 되돌아간다 — 끝나지 않는다(정지 · 다른 명령까지). */
+        if (o.ox === undefined || o.oy === undefined) { o.ox = e.x; o.oy = e.y; }
+        if (this.fight(e, true)) return;
+        this.setGoal(e, o.x, o.y);
+        if (e.arrived) { const tx = o.x; const ty = o.y; o.x = o.ox; o.y = o.oy; o.ox = tx; o.oy = ty; }
         return;
       case "attack": {
         const t = this.byId.get(o.id);

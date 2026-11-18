@@ -6188,10 +6188,24 @@
 .scr-prac-base.is-near { box-shadow: 0 0 0 3px rgba(58, 123, 255, 0.85); }
 .scr-prac-flag { position: absolute; transform: translate(-4px, -29px); pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.9)); transition: left 0.12s, top 0.12s; }
 .scr-prac-flag.is-drag { transition: none; }
-.scr-prac-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; flex: 1 1 0; min-width: 0; }
-.scr-prac-keyrow { display: inline-flex; align-items: center; gap: 6px; }
-.scr-prac-key { min-width: 34px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid #4a5263; background: #1a1f2a; color: #fff; font-weight: 800; cursor: pointer; }
-.scr-prac-key.is-listen { border-color: #ffd04a; color: #ffd04a; }
+/* ★ 단축키 창(2026-11-18, 요청: "공통 키 칸 하나(3 × 3 원작 그리드) · 나머지는 종족별 유닛별 그리드로") — 옛 한 줄 키 목록(.scr-prac-keys · keyrow · key)을 걷었다.
+   칸 = 원작 명령 카드 한 칸 꼴(위 큰 글자 키 · 아래 이름) · 공통은 유닛 카드에서 흐리게(바꿀 수 없음 · 공통 칸에서) · 듣는 칸은 노랑. 톱니 창 위에 겹친다(z 41). */
+.scr-prac-modal.is-keys { z-index: 41; }
+.scr-prac-keyset { max-width: 820px; }
+.scr-prac-ksecs { display: flex; flex-wrap: wrap; gap: 14px 28px; }
+.scr-prac-ksec h3 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: #cfd6e2; }
+.scr-prac-kgrid { display: grid; grid-template-columns: repeat(3, 58px); grid-auto-rows: 48px; gap: 4px; }
+.scr-prac-kcell { border-radius: 6px; border: 1px solid #4a5263; background: #1a1f2a; color: #dfe5ee; font: inherit; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 2px; overflow: hidden; }
+.scr-prac-kcell b { font-size: 16px; font-weight: 800; color: #fff; line-height: 1.1; }
+.scr-prac-kcell span { line-height: 1.1; text-align: center; word-break: keep-all; }
+.scr-prac-kcell.is-empty { border-style: dashed; border-color: #262c38; background: transparent; cursor: default; }
+.scr-prac-kcell.is-lock { cursor: default; opacity: 0.45; }
+.scr-prac-kcell.is-listen, .scr-prac-kcell.is-listen b { border-color: #ffd04a; color: #ffd04a; }
+@media (hover: hover) { .scr-prac-kcell:not(.is-lock):not(.is-empty):hover { border-color: #8a93a2; } }
+.scr-prac-kcards { display: flex; flex-wrap: wrap; gap: 14px 18px; }
+.scr-prac-kcard { display: flex; flex-direction: column; gap: 5px; }
+.scr-prac-kname { font-weight: 700; color: #aeb6c4; font-size: 12px; }
+.scr-prac-kmsg { margin: 0; color: #ff8a7a; font-size: 12px; }
 .scr-prac-start { padding: 10px 28px; border-radius: 8px; border: 0; background: #e8ecf2; color: #10151a; font-size: 15px; font-weight: 800; cursor: pointer; }
 .scr-prac-start:disabled { opacity: 0.5; cursor: default; }
 .scr-prac-game { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; user-select: none; }
@@ -6225,7 +6239,7 @@
 .scr-prac-sellist { display: flex; flex-wrap: wrap; gap: 4px; }
 .scr-prac-chip { padding: 3px 8px; border-radius: 4px; background: #142446; color: #fff; font-size: 12px; }
 .scr-prac-chip.is-foe { background: #46161a; }
-.scr-prac-cmds { flex: none; display: grid; grid-template-columns: repeat(4, 60px); gap: 4px; align-content: start; }
+.scr-prac-cmds { flex: none; display: grid; grid-template-columns: repeat(3, 60px); gap: 4px; align-content: start; }   /* 원작 명령 카드 3 × 3(2026-11-18 · 옛 4 줄 목록) */
 .scr-prac-cmd { position: relative; height: 52px; border-radius: 6px; border: 1px solid #3a4150; background: #141821; color: #dfe5ee; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; }
 .scr-prac-cmd b { font-size: 15px; color: #fff; position: relative; }
 .scr-prac-cmd span { position: relative; text-align: center; line-height: 1.1; }
@@ -6234,6 +6248,7 @@
 .scr-prac-cmd.is-done { color: #6fe36f; }
 .scr-prac-cmd:disabled { opacity: 0.45; cursor: default; }
 .scr-prac-cmd.is-on { border-color: #ffd04a; color: #ffd04a; }
+.scr-prac-cmd.is-empty { border-style: dashed; border-color: #232833; background: transparent; cursor: default; }
 .scr-prac-cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 30; display: none; }
 .scr-prac-cursor > svg { position: absolute; display: none; overflow: visible; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8)); }
 .scr-prac-cursor[data-k="arrow"] > .is-arrow { display: block; left: 0; top: 0; }
