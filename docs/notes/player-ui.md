@@ -3862,4 +3862,4 @@ FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClic
   점수 = 사용자 점수 점수판(드랍 중 죽은 적 일꾼 × 10 − 잃은 유닛 값 · 마이너스는 빚 데스 칸에 남겨 0 에 머문다) · 중반 타워 반(웹 midHalf9 와 같은 234 자리 — 맞춰 봄).
 - 맵으로 못 하는 것: 공방 1업(중반)은 판마다 못 바꿔 0 · Enter 대신 10초 자동 · 일꾼은 캐지 않고 서 있다 · '내린 뒤 다시 못 태움' 없음 · 잡은 일꾼은 여럿이면 모두가 함께 받는다.
 - ⚠ 스위치 번호와 안내 글 번호를 같은 이름(S_PREP …)으로 두어 덮어쓴 것을 트리거 흉내(sim7.py)가 잡았다 — 글은 TX_* 로 갈랐다.
-- 생성기 · 검사는 세션 스크래치(mapedit/tools/p7_patch.py · p7_trig.py → practice7.py · sim7.py) — 스크래치는 지워질 수 있다.
+- 생성기 · 검사 · 결과물은 **sg-api `tools/practice-map/`**(비공개 — 원본 맵이 다른 제작자의 것이라 공개인 scplay 에 안 둔다 · README 에 다시 만들기).
