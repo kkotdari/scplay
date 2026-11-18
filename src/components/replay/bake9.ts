@@ -18316,19 +18316,63 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          사인 휨을 그대로 더해 뿔 등에 붙인다. */
       /* 가시 셋 → 다섯 · 더 노랗게(2026-09, 요청: "하이브 뿔의 안쪽 가시 좀더 노란색으로 표현하고 수 늘리기") — IVORY_DEEP(#cdc0a0)
          대신 하이브만의 노란 상아 HIVE_SPIKE9. */
-      for (const t of [0.4, 0.52, 0.64, 0.76, 0.88]) {
-        const q9 = h9.at(t);   // 가시는 뿔 축을 그대로 탄다(제 식으로 베끼면 꺾인 뿔에서 뜬다)
-        const px = q9[0];
-        const py = q9[1];
-        const pz = q9[2];
-        const olen = Math.hypot(px, py) || 1;
-        const ox = (px / olen) * 1.7;
-        const oy = (py / olen) * 1.7;
-        out.push(...tagKey(paintBase(
-          hornFaces(px, py, pz, px - ox, py - oy, pz + 0.56, 0.6), HIVE_SPIKE9,
-        ), depthNow(px, py) * 1.6 + 0.2));
+      /* ★★ 가시는 뿔 **옆구리**에서 나와 안으로 감긴다 · 더 크게(2026-11-18, 요청: "옆기둥의 가시들은 안쪽이 아닌 약간 옆쪽에서 나와서 안을 향해야 해 · 크기도 더 크고") —
+         옛: 뿔 축 한가운데에서 본진 쪽으로 곧은 원뿔 다섯(hornFaces · 밑 폭 0.6 · 축에서 1.7 · t 0.4 ~ 0.88) — 안쪽 낯(초록) 한가운데에서 나와 겉으로 나온 몫이
+         0.5 ~ 1.2 뿐이었다. 이제 좌우 옆구리 두 줄(안쪽에서 ±SPK_ANG9 · 줄끼리 엇갈림 · 넷씩)의 겉면 바로 밑(반폭 × 0.8)에서 **옆으로 나가다가 본진 쪽으로
+         감기는** 굽은 가시(3차 베지에 · spirePillar · 밑 반폭 SPK_W9 · 겉으로 약 2). 반폭은 그 자리 뿔 굵기(mouthHorn9 의 tipW 0.4 · taper 1.15 · w × 0.62)를 그대로 셈한다. */
+      const SPK_ANG9 = (55 * Math.PI) / 180;
+      const SPK_W9 = 0.36;
+      const hornR9 = (t9: number): number => 0.4 + (hw * 0.62 - 0.4) * (1 - t9) ** 1.15;
+      for (const [sd9, ts9] of [[1, [0.4, 0.54, 0.68, 0.82]], [-1, [0.47, 0.61, 0.75, 0.89]]] as [number, number[]][]) {
+        for (const t of ts9) {
+          const q9 = h9.at(t);   // 가시는 뿔 축을 그대로 탄다(제 식으로 베끼면 꺾인 뿔에서 뜬다)
+          const ix9 = -dxh; const iy9 = -dyh;                 // 본진 쪽(수평)
+          const sx9 = -iy9 * sd9; const sy9 = ix9 * sd9;     // 옆(수평 · 줄마다 반대)
+          const nx9 = ix9 * Math.cos(SPK_ANG9) + sx9 * Math.sin(SPK_ANG9);
+          const ny9 = iy9 * Math.cos(SPK_ANG9) + sy9 * Math.sin(SPK_ANG9);
+          const r09 = hornR9(t) * 0.8;
+          const P9: [number, number, number][] = [
+            [q9[0] + nx9 * r09, q9[1] + ny9 * r09, q9[2]],
+            [q9[0] + nx9 * (r09 + 1.0), q9[1] + ny9 * (r09 + 1.0), q9[2] + 0.12],
+            [q9[0] + nx9 * (r09 + 1.3) + ix9 * 0.6, q9[1] + ny9 * (r09 + 1.3) + iy9 * 0.6, q9[2] + 0.3],
+            [q9[0] + nx9 * (r09 + 1.0) + ix9 * 1.9, q9[1] + ny9 * (r09 + 1.0) + iy9 * 1.9, q9[2] + 0.55],
+          ];
+          const bz9 = (u: number): [number, number, number] => {
+            const v = 1 - u; const c0 = v * v * v; const c1 = 3 * v * v * u; const c2 = 3 * v * u * u; const c3 = u * u * u;
+            return [0, 1, 2].map((k) => P9[0][k] * c0 + P9[1][k] * c1 + P9[2][k] * c2 + P9[3][k] * c3) as [number, number, number];
+          };
+          out.push(...tagKey(spirePillar({
+            x: 0, y: 0, h: 0.8, w: SPK_W9, tipW: 0.02, segs: 8, sides: 6, hold: 0, taper: 1, caps: "none", fill: HIVE_SPIKE9, trueNormal: true, path: bz9,
+          }), depthNow(q9[0], q9[1]) * 1.6 + 0.2));
+        }
       }
     }
+    /* ★★ **정수리 원통**(2026-11-18, 요청: "하이브 꼭대기에 원통형으로 튀어나와야") — 원작 하이브 정수리의 둥근 통. 뚜껑(z 5.28 · 고리 RING_R9 1.38) 안쪽에서
+       솟는 통(밑 반지름 TOP_R9 · 끝 0.92배 · 높이 TOP_H9 · 밑은 뚜껑 속 0.13) + 세로 골 여덟(어두운 갈색 가는 관 · 통 겉면 바로 밖) +
+       윗테 고리(뚜껑 고리와 같은 갈색) + 윗면 아가리(어두운 원반 · 한 뼘 위). 키는 뚜껑 고리(2) 위 · 볏(+9) 아래. */
+    const TOP_Z9 = 5.15; const TOP_H9 = 1.6; const TOP_R9 = 1.05; const TOP_RT9 = TOP_R9 * 0.92;
+    const topR9 = (t9: number): number => TOP_R9 + (TOP_RT9 - TOP_R9) * t9;
+    out.push(...tagKey(paintBase(spirePillar({
+      x: 0, y: 0, z0: TOP_Z9, h: TOP_H9, w: TOP_R9, tipW: TOP_RT9, segs: 3, sides: 16, hold: 0, taper: 1, caps: "top",
+    }), "#a35a35"), 3));
+    for (let k9 = 0; k9 < 8; k9 += 1) {
+      const a9 = ((k9 + 0.5) / 8) * Math.PI * 2;
+      out.push(...tagKey(spirePillar({
+        x: 0, y: 0, h: 0.8, w: 0.11, tipW: 0.11, segs: 4, sides: 6, hold: 1, caps: "none", fill: "#6b3a22", trueNormal: true,
+        path: (t9: number): [number, number, number] => {
+          const z9 = TOP_Z9 + 0.15 + (TOP_H9 - 0.2) * t9; const r9 = topR9((z9 - TOP_Z9) / TOP_H9) + 0.02;
+          return [Math.cos(a9) * r9, Math.sin(a9) * r9, z9];
+        },
+      }), 3.1));
+    }
+    out.push(...tagKey(spirePillar({
+      x: 0, y: 0, h: 0.8, w: 0.2, tipW: 0.2, segs: 24, sides: 8, hold: 1, caps: "none", trueNormal: true, fill: "#6b4a2c",
+      path: (t9: number): [number, number, number] => {
+        const th9 = t9 * Math.PI * 2;
+        return [Math.cos(th9) * TOP_RT9 * 0.94, Math.sin(th9) * TOP_RT9 * 0.94, TOP_Z9 + TOP_H9];
+      },
+    }), 3.2));
+    out.push(...tagKey([[discPath3(0, 0, TOP_Z9 + TOP_H9 + 0.022, TOP_RT9 * 0.62), 1, "#3a2118"] as ShapeFace], 3.3));
     out.push(...tagKey(hornFaces(-1.321, 5.116, 0.48, -2.697, 6.934, 2.08, 1), depthNow(-2.009, 6.025) * 1.6));
     out.push(...tagKey(hornFaces(3.843, 3.525, 0.48, 5.893, 4.219, 1.92, 1), depthNow(4.868, 3.872) * 1.6));
     return out;
