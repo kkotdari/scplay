@@ -5053,15 +5053,18 @@ export const LAIR_P9 = 3.2;
 export const HIVE_P9 = 1.2;
 /** ★ 하이브 갈비 등 높이 지수(아래 seamE ★) — 작을수록 밑동의 높은 등이 위로 오래 남아 등마루가 위로 볼록해진다. */
 export const HIVE_SEAM_E9 = 0.7;
-/** ★ 하이브 갈비 꼴(아래 seamShape ★ · 2026-11-18, 요청: "갈비가 너무 나팔처럼 퍼지지 않게 해줘 높이는 더 높게") — 옛(seamK 1.5 의 기본): 반지름 1.68 → 끝 0.63 ·
- *  지수 1.6 · 옆 죔 0.91 · 등 높이 2.43 → 0.33 — 옆폭(밑 2.65 · 중턱 1.47 · 끝 0.99)이 밑에서 나팔처럼 벌어졌다.
- *  이제 등 높이 1.3배(3.16 → 0.43) · 그 등을 받치게 단면 반지름 2.2 → 0.9(등 ≤ 반지름 × 1.5 여야 단면 아래가 살에 닿는다) ·
- *  옆 죔 0.56 · 지수 1.0 — 옆폭 밑 2.13 · 중턱 1.5 · 끝 0.87(덜 벌어지고 고르게 가늘어진다). */
-export const HIVE_SEAM9 = { w: 2.2, tip: 0.9, hK: 1.3, ov: 0.56, flare: 1.0 };
+/** ★ 하이브 갈비 꼴(아래 seamShape ★) — 등 높이가 위아래 거의 고르고(밑 2.8 · 꼭대기 2.4 · 2026-11-18, 요청: "갈비 높이가 위아래쪽 거의 균일하게") ·
+ *  그 등을 받치게 단면 반지름 1.95 → 1.7(⚠ 등 ≤ 반지름 × 1.5 여야 삼각 단면 아래 꼭짓점이 살에 닿는다 — 마디마다 셈해 봄: 최소 여유 0.07) ·
+ *  옆 죔 0.45(꼭대기 둘레 9.2 에 여섯이 1.3 씩 — 서로 안 닿게) · 지수 1.0 — 옆폭 밑 1.52 · 끝 1.32(거의 고른 지느러미).
+ *  되물린 값: (같은 날 앞 판 "나팔처럼 퍼지지 않게 · 높이는 더 높게") w 2.2 · tip 0.9 · hK 1.3(등 3.16 → 0.43) · ov 0.56 ·
+ *  (그 전 seamK 1.5 의 기본) 반지름 1.68 → 0.63 · 지수 1.6 · 옆 죔 0.91 · 등 2.43 → 0.33. */
+export const HIVE_SEAM9 = { w: 1.95, tip: 1.7, hBot: 2.8, hTop: 2.4, ov: 0.45, flare: 1.0 };
+/** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
+export const HIVE_TOP9 = { z: 5.15, h: 1.6, r: 1.05 };
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
-  crown: { n: number; w: number; h: number; claw?: string; leaf?: boolean } = { n: 3, w: 0.54, h: 2.0 },
+  crown: { n: number; w: number; h: number; claw?: string; leaf?: boolean; base?: [number, number] } = { n: 3, w: 0.54, h: 2.0 },
   /** 바닥 오징어 다리의 크기 배수 — **해처리 < 레어 < 하이브**(요청) · 셋 다 절반으로(재요청: "오징어다리
    *  크기 50프로 축소" — 비는 그대로 두고 기준만 0.5·0.59·0.7). */
   legK = 0.5,
@@ -5083,8 +5086,9 @@ export function hatcheryMoundFaces(
   seamE = 1.4,
   /** ★ 옆 갈비 꼴(2026-11-18, 요청: "갈비가 너무 나팔처럼 퍼지지 않게 해줘 높이는 더 높게" — 하이브) — 비우면 옛 꼴 그대로(해처리 · 레어).
    *  w 밑동 반지름(= 등 높이를 받치는 단면 크기 · 기본 1.12·seamK) · tip 끝 반지름(0.42·seamK) · hK 드러난 등 높이 배수(1) ·
-   *  ov 옆 죔(0.91 — 작을수록 옆폭이 좁다) · flare 밑동으로 벌어지는 지수(1.6 — 클수록 밑에서 나팔처럼 퍼진다). */
-  seamShape: { w?: number; tip?: number; hK?: number; ov?: number; flare?: number } = {},
+   *  ov 옆 죔(0.91 — 작을수록 옆폭이 좁다) · flare 밑동으로 벌어지는 지수(1.6 — 클수록 밑에서 나팔처럼 퍼진다) ·
+   *  hBot · hTop 드러난 등 높이를 밑동 · 꼭대기에서 바로(주면 hK 대신 · 2026-11-18 "갈비 높이가 위아래쪽 거의 균일하게"). */
+  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; ov?: number; flare?: number } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5160,10 +5164,14 @@ export function hatcheryMoundFaces(
          접선이라 그대로 두고, 끝만 **안쪽**(0.45배)으로 당긴다. 퀸즈 네스트 갈고리와 같은 꼴 — 밖으로 나갔다가
          배가 부풀고 끝이 아가리 쪽으로 돌아온다. 높이는 0.66h 라 곧추선 뿔보다 눕는다. */
       const CR9 = MND_RT * 0.86;
+      /* ★ 뿌리 자리 · 앉는 높이를 부르는 쪽이 줄 수 있다(crown.base = [뿌리 반지름, 앉는 윗면 z] · 2026-11-18, 요청: "꼭대기 장식은 꼭대기 원통 위에 달리기" — 하이브는
+         정수리 원통 윗면). 뻗는 폭(조종점 반지름 CR9 × 2.05 · 1.72)은 그대로 — 뿌리만 옮기고 같은 몸짓으로 나간다. 안 주면 옛 자리(뚜껑 가장자리 살 속 · MND_H). */
+      const CRB9 = crown.base?.[0] ?? CR9;
+      const CZ9 = crown.base?.[1] ?? MND_H;
       const CP: [number, number, number][] = [
-        [cdx * CR9, cdy * CR9, MND_H - 0.3],
-        [cdx * CR9 * 2.05, cdy * CR9 * 2.05, MND_H + crown.h * 0.50],
-        [cdx * CR9 * 1.72, cdy * CR9 * 1.72, MND_H + crown.h * 1.05],
+        [cdx * CRB9, cdy * CRB9, CZ9 - 0.3],
+        [cdx * CR9 * 2.05, cdy * CR9 * 2.05, CZ9 + crown.h * 0.50],
+        [cdx * CR9 * 1.72, cdy * CR9 * 1.72, CZ9 + crown.h * 1.05],
       ];
       const cpath9 = (t9: number): [number, number, number] => {
         const u9 = 1 - t9;
@@ -5344,8 +5352,8 @@ export function hatcheryMoundFaces(
         };
         /** 단면이 `+u` 로 가장 멀리 나간 몫(등마루 = 삼각 꼭짓점 자리 · 섞어도 1 그대로) — 등 높이를 그 자리에 맞춘다. */
         const SEAM_UMAX9 = 1;
-        const SEAM_H_BOT9 = 1.62 * seamK * (seamShape.hK ?? 1);
-        const SEAM_H_TOP9 = 0.22 * seamK * (seamShape.hK ?? 1);
+        const SEAM_H_BOT9 = seamShape.hBot ?? 1.62 * seamK * (seamShape.hK ?? 1);
+        const SEAM_H_TOP9 = seamShape.hTop ?? 0.22 * seamK * (seamShape.hK ?? 1);
         const seamH9 = (t9: number): number => SEAM_H_TOP9
           + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** seamE;   // 지수 1.4 · 하이브 0.7(위 seamE ★ 2026-11-18)
         /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
@@ -18324,7 +18332,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true, base: [HIVE_TOP9.r * 0.55, HIVE_TOP9.z + HIVE_TOP9.h] }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
@@ -18345,7 +18353,8 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
          0.5 ~ 1.2 뿐이었다. 이제 좌우 옆구리 두 줄(안쪽에서 ±SPK_ANG9 · 줄끼리 엇갈림 · 넷씩)의 겉면 바로 밑(반폭 × 0.8)에서 **옆으로 나가다가 본진 쪽으로
          감기는** 굽은 가시(3차 베지에 · spirePillar · 밑 반폭 SPK_W9 · 겉으로 약 2). 반폭은 그 자리 뿔 굵기(mouthHorn9 의 tipW 0.4 · taper 1.15 · w × 0.62)를 그대로 셈한다. */
       const SPK_ANG9 = (55 * Math.PI) / 180;
-      const SPK_W9 = 0.36;
+      const SPK_W9 = 0.31;   // 0.36 → 0.31(2026-11-18, 요청: "뿔기둥의 노란 가시들 크기 살짝만 줄이기" — 길이도 SPK_K9)
+      const SPK_K9 = 0.85;   // 가시 길이 배수(옛 1 — 옆 1.0 · 1.3 · 안 0.6 · 1.9 · 위 0.12 · 0.3 · 0.55)
       const hornR9 = (t9: number): number => 0.4 + (hw * 0.62 - 0.4) * (1 - t9) ** 1.15;
       for (const [sd9, ts9] of [[1, [0.4, 0.54, 0.68, 0.82]], [-1, [0.47, 0.61, 0.75, 0.89]]] as [number, number[]][]) {
         for (const t of ts9) {
@@ -18357,9 +18366,9 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
           const r09 = hornR9(t) * 0.8;
           const P9: [number, number, number][] = [
             [q9[0] + nx9 * r09, q9[1] + ny9 * r09, q9[2]],
-            [q9[0] + nx9 * (r09 + 1.0), q9[1] + ny9 * (r09 + 1.0), q9[2] + 0.12],
-            [q9[0] + nx9 * (r09 + 1.3) + ix9 * 0.6, q9[1] + ny9 * (r09 + 1.3) + iy9 * 0.6, q9[2] + 0.3],
-            [q9[0] + nx9 * (r09 + 1.0) + ix9 * 1.9, q9[1] + ny9 * (r09 + 1.0) + iy9 * 1.9, q9[2] + 0.55],
+            [q9[0] + nx9 * (r09 + 1.0 * SPK_K9), q9[1] + ny9 * (r09 + 1.0 * SPK_K9), q9[2] + 0.12 * SPK_K9],
+            [q9[0] + nx9 * (r09 + 1.3 * SPK_K9) + ix9 * 0.6 * SPK_K9, q9[1] + ny9 * (r09 + 1.3 * SPK_K9) + iy9 * 0.6 * SPK_K9, q9[2] + 0.3 * SPK_K9],
+            [q9[0] + nx9 * (r09 + 1.0 * SPK_K9) + ix9 * 1.9 * SPK_K9, q9[1] + ny9 * (r09 + 1.0 * SPK_K9) + iy9 * 1.9 * SPK_K9, q9[2] + 0.55 * SPK_K9],
           ];
           const bz9 = (u: number): [number, number, number] => {
             const v = 1 - u; const c0 = v * v * v; const c1 = 3 * v * v * u; const c2 = 3 * v * u * u; const c3 = u * u * u;
@@ -18374,7 +18383,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* ★★ **정수리 원통**(2026-11-18, 요청: "하이브 꼭대기에 원통형으로 튀어나와야") — 원작 하이브 정수리의 둥근 통. 뚜껑(z 5.28 · 고리 RING_R9 1.38) 안쪽에서
        솟는 통(밑 반지름 TOP_R9 · 끝 0.92배 · 높이 TOP_H9 · 밑은 뚜껑 속 0.13) + 세로 골 여덟(어두운 갈색 가는 관 · 통 겉면 바로 밖) +
        윗테 고리(뚜껑 고리와 같은 갈색) + 윗면 아가리(어두운 원반 · 한 뼘 위). 키는 뚜껑 고리(2) 위 · 볏(+9) 아래. */
-    const TOP_Z9 = 5.15; const TOP_H9 = 1.6; const TOP_R9 = 1.05; const TOP_RT9 = TOP_R9 * 0.92;
+    const TOP_Z9 = HIVE_TOP9.z; const TOP_H9 = HIVE_TOP9.h; const TOP_R9 = HIVE_TOP9.r; const TOP_RT9 = TOP_R9 * 0.92;
     const topR9 = (t9: number): number => TOP_R9 + (TOP_RT9 - TOP_R9) * t9;
     out.push(...tagKey(paintBase(spirePillar({
       x: 0, y: 0, z0: TOP_Z9, h: TOP_H9, w: TOP_R9, tipW: TOP_RT9, segs: 3, sides: 16, hold: 0, taper: 1, caps: "top",
