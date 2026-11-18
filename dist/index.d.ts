@@ -265,6 +265,8 @@ export declare const PENDING_GRID9: ReplayMapGrid;
  *  t를 계속 적어 두면, 공유 버튼이 링크에 &t=로 실어 보낸다. */
 export declare const playbackClockOf: Map<string, number>;
 
+export declare type PracLogCode9 = "prac_play" | "prac_keys";
+
 declare type PracRace9 = "T" | "P" | "Z";
 
 /** 기록 답 — 이 판 전의 내 최고 · 전체 최고와 이번 판이 갱신했나. */
@@ -289,7 +291,7 @@ export declare interface PracResult9 {
 
 declare type PracStage9 = "early" | "mid";
 
-export declare function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult }: PracticeRoomProps): JSX_2.Element;
+export declare function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult, onLog }: PracticeRoomProps): JSX_2.Element;
 
 export declare interface PracticeRoomProps {
     /** 빨무 지도(앱이 받아 준다 · 지형 terrain 이 있어야 걷는 칸을 안다). */
@@ -301,6 +303,10 @@ export declare interface PracticeRoomProps {
     onKeys?: (keys: Record<string, string>) => void;
     /** 한 턴이 끝났다 — 앱이 기록을 적고 답(내 최고 · 전체 최고 · 갱신)을 돌려준다. */
     onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
+    /** ★ 이용 기록(2026-11-18, 요청: "연습실 이용 로그 · access history · 연습실 들어온 거랑 단축키 설정, 어느 연습을 했다 정도까지만") — 앱이 접속 기록
+     *  (access_history · screen_code · detail 64 자)에 적는다. 들어옴은 앱의 화면 기록(practice)이 맡고, 여기서는 둘:
+     *  prac_play(턴을 시작함 · "P 중반 BL") · prac_keys(단축키 바꿈 · "templarStorm T→R(+1)" — 맞바꿔 함께 바뀐 수 · "기본값"). */
+    onLog?: (code: PracLogCode9, detail: string) => void;
 }
 
 export declare type Race = "테란" | "프로토스" | "저그" | "랜덤";
