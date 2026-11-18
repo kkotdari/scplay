@@ -5040,9 +5040,19 @@ export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
   }
   return out;
 }
-/** 해처리 · 레어 옆 갈비의 임자색 띠(위 seamBands ★) — 가는 둘 · 하이브는 HIVE_BANDS9. */
-export const HATCH_BANDS9: readonly (readonly [number, number])[] = [[0.3, 0.37], [0.64, 0.71]];
+/** 해처리 · 레어 옆 갈비의 임자색 띠(위 seamBands ★) — 가는 둘 · 하이브는 HIVE_BANDS9.
+ *  ★ 맨 아래 끝(아가리 테 바로 위)에 하나 더(2026-11-18, 요청: "해처리 레어 갈비 임자색 제일 아래끝쪽에도 하나더 추가") — 두 둔덕의 옆선 지수가 달라
+ *  밑동에서 t 한 칸의 길이가 다르므로(해처리 6 은 밑동이 길게 눕는다) 등마루 길이로 맞춘 t 를 따로 준다: 아가리 가운데(t 0.02)에서 0.45 위 · 길이 0.5 언저리
+ *  (옛 둘 0.4 ~ 0.55 와 같은 폭). 옛: 둘 `[[0.3, 0.37], [0.64, 0.71]]` 을 둘이 함께 썼다. */
+export const HATCH_BANDS9: readonly (readonly [number, number])[] = [[0.037, 0.062], [0.3, 0.37], [0.64, 0.71]];
+export const LAIR_BANDS9: readonly (readonly [number, number])[] = [[0.05, 0.09], [0.3, 0.37], [0.64, 0.71]];
 export const HIVE_BANDS9: readonly (readonly [number, number])[] = [[0.3, 0.6]];
+/** ★ 둔덕 옆선 지수(아래 moundP ★) — 해처리 급하게 · 레어 그대로 3.2 · 하이브 완만하게. */
+export const HATCH_P9 = 6;
+export const LAIR_P9 = 3.2;
+export const HIVE_P9 = 1.2;
+/** ★ 하이브 갈비 등 높이 지수(아래 seamE ★) — 작을수록 밑동의 높은 등이 위로 오래 남아 등마루가 위로 볼록해진다. */
+export const HIVE_SEAM_E9 = 0.7;
 export function hatcheryMoundFaces(
   seamColor: string, spikeColor = "#1b1e23",
   /** 옥상 볏 — 개수·굵기·키. 해처리 셋 · 레어 넷 · 하이브 **크게 하나**(요청). */
@@ -5058,6 +5068,14 @@ export function hatcheryMoundFaces(
    *  듬성듬성 · 단 하이브는 임자색 띠 두께가 훨씬 두껍고 한두 개만 들어감" — 옛 넷(0.05–0.19 · 0.3–0.43 · 0.52–0.65 · 0.74–0.87)은 갈비가 줄무늬로 읽혔다.
    *  해처리 · 레어는 가는 둘 · 하이브는 부르는 쪽이 굵게 준다. */
   seamBands: readonly (readonly [number, number])[] = HATCH_BANDS9,
+  /** ★ 둔덕 옆선(= 그 위를 타는 옆 갈비 능선) 지수 — `r(t) = 꼭대기 + (밑동 − 꼭대기)·(1 − t)^P` 의 P. 클수록 위는 오래 수직으로 떨어지다가
+   *  밑에서 급하게 꺾여 눕고, 1 이면 곧은 원뿔, 1 아래면 위로 볼록한 돔이다. 2026-11-18, 요청: "해처리류 능선(붙어있는 갈비도 함께)의 꺾임의 급함과 완만함 조절 —
+   *  해처리 좀더 급하게 위쪽은 거의 수직으로 떨어지다가 급하게 꺾이기 · 레어 현상태 · 하이브 지금보다 더 완만해서 갈비능선이 오히려 위로 볼록한 느낌도".
+   *  옛: 셋 다 3.2(2026-09 · 그 전 2.2). 몸 · 갈비 · 갈비 들머리 · 띠 · 갈비 베는 겉면이 다 이 한 값을 탄다. */
+  moundP = LAIR_P9,
+  /** ★ 옆 갈비의 드러난 등 높이가 밑동 → 꼭대기로 주는 지수(아래 seamH9) — 기본 1.4. 하이브 0.7(2026-11-18, 위 moundP 와 같은 요청의 "갈비능선이 오히려 위로
+   *  볼록한 느낌") — 몸을 1.2 로 펴면 곧은 원뿔에 가까워 등마루가 곧은 금이 된다. 등 높이를 위로 오래 지켜 주면 등마루만 위로 볼록하게 선다(몸은 원뿔 그대로). */
+  seamE = 1.4,
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5086,7 +5104,9 @@ export function hatcheryMoundFaces(
        바닥에서 위로 올라가면서 처음엔 능선이 수평에 가깝다가 갑자기 기울기가 가팔라지면서 수직에 가까워지는 형태")
        — 옆선은 `r(t) = 꼭대기 + (밑동 − 꼭대기)·(1 − t)^P` 라 **P 가 곧 무릎의 급함**이다. 2.2 → **3.2**:
        밑동 접선이 수평에서 28° → **19°** 로 더 눕고, 중턱(t 0.5)에서 벌써 65° 로 서며 위는 거의 수직이다. */
-    const MND_P = 3.2;
+    const MND_P = moundP;   // ★ 2026-11-18 종류마다(위 moundP) — 옛 3.2 한 값
+    /* 마디 수 — 지수가 클수록 무릎이 밑동 한 뼘에 몰리므로 고른 9 마디로는 꺾임이 모난 두어 낯으로 읽힌다. 3.2 넘는 몫만큼 늘린다(해처리 5.2 → 15). */
+    const MND_SEGS9 = MND_P > 3.2 ? Math.ceil((9 * MND_P) / 3.2) : 9;
     const moundR = (t9: number): number => MND_RT + (MND_RB - MND_RT) * (1 - t9) ** MND_P;
     /* 지적: "해처리 본체 색은 짙은 살색? 연한 주황색 -> 이건 저그테마색이고 히드라덴
        막과 같은색임. 통일하되" — 여태 둔덕을 칠하지 않아 임자 색이 통째로 칠해졌다.
@@ -5104,7 +5124,7 @@ export function hatcheryMoundFaces(
        `spun` 이 반시계라 azimuth 0 의 꼭짓점을 35 로 보내는 각은 **−35** 다. */
     out.push(...tagKey(paintBase(withModelSpin(-35, () => spirePillar({
       x: 0, y: 0, z0: 0, h: MND_H, w: MND_RB, tipW: MND_RT,
-      segs: 9, sides: 6, hold: 0, taper: MND_P,
+      segs: MND_SEGS9, sides: 6, hold: 0, taper: MND_P,
     })), ZERG_PEACH), 0));   // 복숭아 살색(2026-11-15 밤 ★ 저그 종족색 둘 · 옛 RACE_BASE_TONE.zerg)
     /* ★★ **옥상 볏은 퀸즈 네스트의 갈고리 열이다 — 빙 둘러서 서로를 마주 본다**(2026-09, 요청: "지붕 위쪽의 작은 뿔
        모양 변경 · 퀸즈네스트처럼 서로 마주보는 모양으로 빙 두르기 · 해처리는 3개 레어는 4개 하이브는 크게 한 개임") —
@@ -5316,7 +5336,7 @@ export function hatcheryMoundFaces(
         const SEAM_H_BOT9 = 1.62 * seamK;
         const SEAM_H_TOP9 = 0.22 * seamK;
         const seamH9 = (t9: number): number => SEAM_H_TOP9
-          + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** 1.4;
+          + (SEAM_H_BOT9 - SEAM_H_TOP9) * (1 - t9) ** seamE;   // 지수 1.4 · 하이브 0.7(위 seamE ★ 2026-11-18)
         /* ⚠⚠ **등 높이는 반지름이 아니라 겉면 법선으로 잰다**(같은 지적의 뒷말: "옆선 바닥은 본체에 딱 붙게") —
            둔덕 밑동은 수평에서 19도로 거의 눕는다. 거기서 축을 **반지름 방향**으로 들면 그 몫이 죄다 **바깥**으로
            가므로 갈비가 발자국 밖으로 비어져 나와 허공에 떴다(실측: 밑동 축이 r 6.40 · 겉면 5.9). 옆선 (r, z)
@@ -5355,7 +5375,7 @@ export function hatcheryMoundFaces(
              — 곧 등마루가 선 갈비다. ⚠ u/v 가 어느 세계 축인지는 ref 로 못 박아야 안 흔들린다. */
           /* ⚠ 옆으로는 **죈다**(`oval` 0.5) — 안 죄면 밑변이 반지름의 1.73배라 둔덕의 완만한
              밑동에 눕는 **넓적한 판때기**가 된다(실측). 등마루가 솟아야 삼각 튜브로 읽힌다. */
-          segs: 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91, trueNormal: true,
+          segs: MND_P > 3.2 ? Math.ceil((8 * MND_P) / 3.2) : 8, sides: 12, phase: SEAM_PH9, ref: [dxr, dyr, 0], oval: 0.91, trueNormal: true,   // 마디는 둔덕과 같은 까닭으로 지수만큼(MND_SEGS9 ★)
           radOf: seamRad9,
           hold: SEAM_HOLD, taper: 1.6,
           /* ⚠⚠ **뚜껑은 `cutFace` 를 안 지난다**(2026-09, 지적: "옆기둥의 단면이 육각형인데 그럼 안 되고
@@ -18197,7 +18217,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
        적으면 된다(spore −45 · pool 270 …). */
   /* ★ **해처리류는 −22.5도 돈다**(2026-09, 요청: "해처리류 원본을 −22.5도 요잉") — 셋 다 제 빌더를
      `withModelSpin` 으로 감싼다(그 규약: SHAPE_ROT 은 2D 만 타므로 감싸개라야 2D·GL·도록이 한 자다). */
-  hatchery: () => withModelSpin(-22.5, () => hatcheryMoundFaces("#3a3f46")),
+  hatchery: () => withModelSpin(-22.5, () => hatcheryMoundFaces("#3a3f46", undefined, undefined, undefined, undefined, undefined, HATCH_BANDS9, HATCH_P9)),   // 둔덕 옆선 급하게(HATCH_P9 ★ 2026-11-18)
   /* 레어 — 해처리 + 다리 끝 굽은 뿔 셋. */
   lair: () => withModelSpin(-22.5, () => [
     /* ★ **뿔은 옆기둥 입구에서 솟는다**(2026-09, 요청: "레어랑 하이브 뿔 기둥쪽 굵기 20프로 줄이고 옆기둥 입구에서 나오는 거
@@ -18225,7 +18245,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     /* 합본(SHAPE_BUILDERS.hatchery)이 아니라 **둔덕 함수를 직접** 부른다 — 둘은 지금
        같은 것이지만, 합본을 부르면 나중에 해처리에만 무엇이 붙을 때 레어가 조용히
        따라온다. 부품을 나눠 쓰는 자리는 부품 함수여야 한다. */
-    ...hatcheryMoundFaces("#3a3f46", "#1b1e23", { n: 4, w: 0.56, h: 2.3, claw: IVORY }, 0.59),
+    ...hatcheryMoundFaces("#3a3f46", "#1b1e23", { n: 4, w: 0.56, h: 2.3, claw: IVORY }, 0.59, undefined, undefined, LAIR_BANDS9, LAIR_P9),   // 띠 맨 아래 하나 더(LAIR_BANDS9 ★ 2026-11-18)
     ...((): ShapeFace[] => {
       const h9 = mouthHorn9({ ang: -55, tipZ: 9.28, w: 2.6, fill: "#1b1e23", tipW: 0.34, taper: 1.15 });
       const k9 = depthNow(-5.324, 3.728) * 1.6;
@@ -18280,7 +18300,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
