@@ -5091,7 +5091,7 @@ export const hiveSeamH9 = (t: number): number => {
    + **곧게 위로 들기 mouthUp [0.8, 0.5]**(바깥으로 안 민다) — 아가리 앞 r 5.48 · 아가리 접선 172도(거의 수평) · 등 1.87 · 접힘 0(셈: 조합 3 만여 개 중 굵기 1.8 로는
    어떤 값도 아가리가 거의 수평이면서 본체 끝에 붙지 못했다 — 등마루가 접힌다). 아가리 뒤 등마루는 t 0.04 ~ 0.18 동안 한 점(5.31, 1.87)에 머무는 경첩이라
    아가리와 나란한 띠를 둘 자리가 없다 — 밑동 띠는 그 바로 위(HIVE_BANDS9 ★). 되물린 값: w 1.8 · HB 1.0 · mouthLift [0.9, 0.35] · 밑동 띠 [0.06, 0.15]. */
-export const HIVE_SEAM9 = { w: 1.3, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 1.0, mouthLift: [0.45, 0.35] as [number, number], mouthUp: [0.8, 0.5] as [number, number] };
+export const HIVE_SEAM9 = { w: 1.3, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 1.0, mouthLift: [0.45, 0.35] as [number, number], mouthUp: [0.8, 0.5] as [number, number], bandTilt: 30 };
 /** ★ 하이브 바닥 오징어 다리(legShape ★) — 크기 legK 0.7 → HIVE_LEG_K9 · 뿌리 둔덕 높이 t 0.4(옛: 땅) · 옆 휨 절반(2026-11-18, 요청: "갈비 사이의 촉수 같은 거를
  *  하이브만 훨씬 크게 키우고 뿌리 위치도 훨씬 위쪽으로 이동 · 휘어짐은 적게"). */
 export const HIVE_LEG_K9 = 1.2;
@@ -5133,7 +5133,7 @@ export function hatcheryMoundFaces(
    *  바깥(·조금 위)을 보고, 묻혔던 단면이 겉으로 드러난다(2026-11-18 "갈비 아래쪽의 입구 구멍이 더 보이게 각도 조절").
    *  mouthUp [L, tb] 같은 꼴로 **곧게 위(ẑ)로** 든다 — 비탈이 선 둔덕(하이브)에서 법선 들기는 아가리를 바깥으로도 밀므로 본체 끝에 맞출 때는 이쪽을 쓴다.
    *  ⚠ 꺾임 반지름이 단면(등마루까지 w)보다 작으면 굽이 안쪽(= 등마루 쪽)이 **접힌다** — tb 를 넉넉히(셈: 하이브 [0.9, 0.35] 꺾임 반지름 ≥ 2.2 > 1.8). */
-  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number; mouthLift?: [number, number]; mouthUp?: [number, number] } = {},
+  seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number; mouthLift?: [number, number]; mouthUp?: [number, number]; bandTilt?: number } = {},
   /** ★ 둔덕 밑동 반지름(기본 5.9) — 하이브 5.31(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). 몸 · 갈비 · 바닥 다리가 이 값을 탄다. */
   moundRB = 5.9,
   /** ★ 바닥 오징어 다리 꼴 — root: 뿌리를 둔덕 겉면 높이 t(0 밑동 ~ 1 꼭대기)에 두고 몸 비탈을 타고 땅으로 흘러내린다(안 주면 옛 꼴 · 땅에서 난다) ·
@@ -5441,7 +5441,7 @@ export function hatcheryMoundFaces(
            셈: u 각 −88 → 중턱 −150도). 곧 위쪽 갈비가 살에 묻혀 사라지고(t 0.9 드러난 높이 0.01) 폭은 넓어 보였으며(중턱 1.42),
            아가리 테 · 굴 속 · 구멍(t 0.02 에서 제 틀 — u 위)과 단면이 어긋났다(땅 위의 파란 날개는 이 탓이 아니라 발치 뿔 hornFaces 였다 — 하이브 끝에서 걷음).
            ẑ 기준이면 t 0 에서 u 가 위 · 비탈에서는 바깥 법선이다(해처리 · 레어는 꺾지 않으니 옛 기준 그대로). */
-        const seamPillar = spirePillar({
+        const seamPillarOf9 = (fillMode9: "old" | "seam" | "team", cut9: (x: number, y: number, z: number) => number): ShapeFace[] => spirePillar({
           // 밑동은 굵게 열고 위로 갈수록 가늘게 — 아래 단면이 곧 입구다.
           x: 0, y: 0, h: 0.8, w: SEAM_W, tipW: SEAM_TIP,
           /* ★ **t 0 단면이 곧 들머리다** — 뚜껑은 위에만 있으므로(`caps: "top"`) 아래는 열려 있고,
@@ -5468,15 +5468,51 @@ export function hatcheryMoundFaces(
           path: (t9: number): [number, number, number] => seamAxis(SEAM_T0_9 + (1 - SEAM_T0_9) * t9),
           /* ★ 꼴을 바꾼 갈비(seamShape)는 임자색 띠를 **갈비 낯 그대로** 칠하지 않아 낸다(fillAt — 띠 구간은 색 없음 = 임자 색) · 2026-11-18 —
              따로 감싼 띠 토막은 단면 방향을 제 첫 마디에서 세우고 갈비는 앞 마디에서 이어받아(평행 이송) 둘이 어긋나, 띠가 갈비 속에 묻혀 작은 네모로만 비쳤다(실측 · 1.3배로 굵혀야 덮었다). */
-          fill: seamShape.ov !== undefined ? undefined : seamColor,
-          ...(seamShape.ov !== undefined ? { fillAt: (t9: number): string | undefined => (seamBands.some(([b0, b1]) => t9 >= b0 && t9 <= b1) ? undefined : seamColor) } : {}),
+          ...(fillMode9 === "seam" ? { fill: seamColor } : fillMode9 === "team" ? {} : {
+            fill: seamShape.ov !== undefined ? undefined : seamColor,
+            ...(seamShape.ov !== undefined ? { fillAt: (t9: number): string | undefined => (seamBands.some(([b0, b1]) => t9 >= b0 && t9 <= b1) ? undefined : seamColor) } : {}),
+          }),
           /* ★★ **살 속의 반쪽은 아예 베어 낸다**(2026-09, 요청: "옆 기둥의 아래 반 잘라서 아예 안 보이게 위 반만
              남는 게 맞음") — 축을 겉면 위에 두어 '반쯤 묻힘'을 냈지만 **안쪽 반의 낯이 그대로 있어** 둔덕 살과
              같은 자리에서 z 싸움을 하고 밑동 단면도 온전한 육각으로 드러났다. `cutFace`(음수 = 파낼 쪽)로
              **둔덕 겉면**을 0 선 삼아 베면 남는 것이 정확히 바깥 반쪽이다 — 기둥이 곧 둔덕에 난 갈비가 된다.
              ⚠ 기둥 각은 육각의 **꼭짓점**(35 + k·60)이라 그 방위의 겉면 거리가 곧 `moundR`(외접)이다. */
-          cutFace: seamCut9,
+          cutFace: cut9,
         });
+        /* ★ **띠를 눕힌다 — 등마루 쪽이 위로 솟는 ∧**(bandTilt ★ · 2026-11-18, 요청(그림): "갈비 띠를 내가 그린 거처럼 · 약간 눕인다고 해야 하나") —
+           띠의 두 경계를 축에 수직인 고리가 아니라 **기울인 평면**으로 둔다: 법선 n = cos θ·T − sin θ·u(T 접선 · u 등마루 쪽). 삼각 단면을 그 평면으로 베면
+           등마루에서는 경계가 w·tan θ 만큼 위(+T)로, 옆 모서리에서는 0.5·w·tan θ 만큼 아래로 가 바깥 두 낯 위에 **∧** 가 선다(아가리 문틀과 같은 꼴).
+           낯 단위 칠(fillAt)은 경계가 계단이 되므로, 갈비를 같은 평면으로 **베어** 두 벌로 굽는다 — 띠 밖(갈비 색) · 띠 안(칠 안 함 = 임자 색). 평면은 1 차라
+           낯 안에서 곧게 베인다. 먼 데서 다시 만나지 않게 띠 가운데에서 3.2 안만. */
+        const seamPillar: ShapeFace[] = seamShape.bandTilt === undefined ? seamPillarOf9("old", seamCut9) : ((): ShapeFace[] => {
+          const th9 = ((seamShape.bandTilt ?? 0) * Math.PI) / 180;
+          const ct9 = Math.cos(th9); const st9 = Math.sin(th9);
+          const plane9 = (tb9: number): { P: [number, number, number]; n: [number, number, number] } => {
+            const P = seamAxis(tb9);
+            const A0 = seamAxis(Math.max(0, tb9 - 0.012)); const A1 = seamAxis(Math.min(1, tb9 + 0.012));
+            let tx9 = A1[0] - A0[0]; let ty9 = A1[1] - A0[1]; let tz9 = A1[2] - A0[2];
+            const tl9 = Math.hypot(tx9, ty9, tz9) || 1; tx9 /= tl9; ty9 /= tl9; tz9 /= tl9;
+            const tr9 = tx9 * dxr + ty9 * dyr;
+            let ux9 = dxr * tz9; let uy9 = dyr * tz9; let uz9 = -tr9;   // 접선을 바깥 · 위로 90도(갈비 등마루 쪽 · ref ẑ 와 같은 쪽)
+            const ul9 = Math.hypot(ux9, uy9, uz9) || 1; ux9 /= ul9; uy9 /= ul9; uz9 /= ul9;
+            return { P, n: [ct9 * tx9 - st9 * ux9, ct9 * ty9 - st9 * uy9, ct9 * tz9 - st9 * uz9] };
+          };
+          const slabs9 = seamBands.map(([b0, b1]) => ({ A: plane9(b0), B: plane9(b1), C: seamAxis((b0 + b1) / 2) }));
+          const bandIn9 = (x9: number, y9: number, z9: number): number => {
+            let best9 = -Infinity;
+            for (const { A, B, C } of slabs9) {
+              const a9 = A.n[0] * (x9 - A.P[0]) + A.n[1] * (y9 - A.P[1]) + A.n[2] * (z9 - A.P[2]);
+              const b9 = -(B.n[0] * (x9 - B.P[0]) + B.n[1] * (y9 - B.P[1]) + B.n[2] * (z9 - B.P[2]));
+              const r9 = 3.2 - Math.hypot(x9 - C[0], y9 - C[1], z9 - C[2]);
+              best9 = Math.max(best9, Math.min(a9, b9, r9));
+            }
+            return best9;
+          };
+          return [
+            ...seamPillarOf9("seam", (x9, y9, z9) => Math.min(seamCut9(x9, y9, z9), -bandIn9(x9, y9, z9))),
+            ...seamPillarOf9("team", (x9, y9, z9) => Math.min(seamCut9(x9, y9, z9), bandIn9(x9, y9, z9))),
+          ];
+        })();
         /* 캐노피·동그라미 입구 표현 모두 제거(재지적) — 옆면 기둥의 굵게 열린 아래
            단면 자체가 들머리 노릇을 한다. */
         out.push(...tagKey(seamPillar, depKey9));
