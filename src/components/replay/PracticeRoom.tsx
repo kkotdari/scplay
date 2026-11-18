@@ -46,7 +46,12 @@ export interface PracticeRoomProps {
   onKeys?: (keys: Record<string, string>) => void;
   /** 한 턴이 끝났다 — 앱이 기록을 적고 답(내 최고 · 전체 최고 · 갱신)을 돌려준다. */
   onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
+  /** ★ 이용 기록(2026-11-18, 요청: "연습실 이용 로그 · access history · 연습실 들어온 거랑 단축키 설정, 어느 연습을 했다 정도까지만") — 앱이 접속 기록
+   *  (access_history · screen_code · detail 64 자)에 적는다. 들어옴은 앱의 화면 기록(practice)이 맡고, 여기서는 둘:
+   *  prac_play(턴을 시작함 · "P 중반 BL") · prac_keys(단축키 바꿈 · "templarStorm T→R(+1)" — 맞바꿔 함께 바뀐 수 · "기본값"). */
+  onLog?: (code: PracLogCode9, detail: string) => void;
 }
+export type PracLogCode9 = "prac_play" | "prac_keys";
 /** 한 턴의 결과 — 모드(초반/중반)별로 기록한다. */
 export interface PracResult9 { mode: PracStage9; race: PracRace9; spot: string; score: number; kills: number; lostPts: number; lostN: number }
 /** 기록 답 — 이 판 전의 내 최고 · 전체 최고와 이번 판이 갱신했나. */
@@ -112,7 +117,9 @@ const pracLoadoutText9 = (stage: PracStage9, race: PracRace9): string => {
   return [...us, ...rs, ...(lo.lv ? [`공방${race === "P" ? "실드" : ""} ${lo.lv}단`] : ["공방업 없음"])].join(" · ");
 };
 
-export default function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult }: PracticeRoomProps) {
+export default function PracticeRoom({ map, className, keys: keysProp, onKeys, onResult, onLog }: PracticeRoomProps) {
+  const onLogRef = useRef(onLog); onLogRef.current = onLog;
+  const log = useCallback((code: PracLogCode9, detail: string): void => { try { onLogRef.current?.(code, detail.slice(0, 64)); } catch { /* 기록이 놀이를 막지 않는다 */ } }, []);
   const [phase, setPhase] = useState<"setup" | "loading" | "play">("setup");
   const [setup, setSetup] = useState<PracSetup9>(() => cleanSetup9(loadJson9(SETUP_LS9, DEF_SETUP9)));
   const [keys, setKeysState] = useState<Keys9>(() => { try { const v = localStorage.getItem(KEYS_LS9); return fixKeys9(v ? JSON.parse(v) : null); } catch { return defaultKeys9(); } });
@@ -159,7 +166,8 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
       {phase !== "setup" && map && terrain && (
         <PracGame key={run} map={map} terrain={terrain} setup={runSetup} keys={keys} paused={gear || !!keysOpen}
           onReady={() => setPhase("play")} onGear={() => setGear(true)} onKeys={() => setKeysOpen(runSetup.myRace)} onRestart={() => start(setup)}
-          onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} onResult={onResult} />
+          onFull={() => enterFull9(rootRef.current)} loading={phase === "loading"} onResult={onResult}
+          onTurn={() => log("prac_play", `${runSetup.myRace} ${runSetup.stage === "mid" ? "중반" : "초반"} ${runSetup.mySpot}`)} />
       )}
       {phase !== "setup" && gear && (
         <div className="scr-prac-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setGear(false); }}>
@@ -169,7 +177,7 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
       )}
       {keysOpen && (
         <div className="scr-prac-modal is-keys" onMouseDown={(e) => { if (e.target === e.currentTarget) setKeysOpen(null); }}>
-          <PracKeysPanel keys={keys} setKeys={setKeys} race={keysOpen} onClose={() => setKeysOpen(null)} />
+          <PracKeysPanel keys={keys} setKeys={setKeys} race={keysOpen} onClose={() => setKeysOpen(null)} onChanged={(d) => log("prac_keys", d)} />
         </div>
       )}
     </div>
@@ -285,8 +293,10 @@ function PracSetupPanel({ setup, onKeys, map, terrain, inGame, ready, onApply, o
 /* ── 단축키 창(2026-11-18) ─────────────────────────────────────────────────────
    공통 칸 하나(원작 3 × 3 — 이동 · 정지 · 공격 / 패트롤 · 홀드) + 종족을 골라 그 종족 유닛마다 명령 카드(같은 3 × 3 · 공통은 흐리게 · 고유만 바꾼다).
    칸을 누르고 키를 누른다(Esc 취소). 규칙은 practiceKeys9 setKey9 — 공통끼리 · 한 카드 안 고유끼리는 맞바꾸고, 고유에 공통 키는 못 준다. */
-function PracKeysPanel({ keys, setKeys, race: race0, onClose }: {
+function PracKeysPanel({ keys, setKeys, race: race0, onClose, onChanged }: {
   keys: Keys9; setKeys: (f: (k: Keys9) => Keys9) => void; race: PracRace9; onClose: () => void;
+  /** 바꾼 한 줄(이용 기록) — "templarStorm T→R(+1)"(맞바꿔 함께 바뀐 수) · "기본값". */
+  onChanged?: (detail: string) => void;
 }) {
   const [race, setRace] = useState<PracRace9>(race0);
   const [listen, setListen] = useState<string | null>(null);
@@ -299,12 +309,19 @@ function PracKeysPanel({ keys, setKeys, race: race0, onClose }: {
       e.preventDefault(); e.stopPropagation();
       const k = keyOf9(e); if (!k) return;
       const r = setKey9(keys, listen, k);
-      if ("err" in r) setMsg(r.err); else { setMsg(null); if (r.keys !== keys) setKeys(() => r.keys); }
+      if ("err" in r) setMsg(r.err);
+      else {
+        setMsg(null);
+        if (r.keys !== keys) {
+          const also = Object.keys(r.keys).filter((id) => id !== listen && r.keys[id] !== keys[id]).length;
+          setKeys(() => r.keys); onChanged?.(`${listen} ${keys[listen]}→${k}${also ? `(+${also})` : ""}`);
+        }
+      }
       setListen(null);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [listen, keys, setKeys, onClose]);
+  }, [listen, keys, setKeys, onClose, onChanged]);
   const grid = (slots: ((KeySlot9 & { common: boolean }) | null)[], edit: (s: KeySlot9 & { common: boolean }) => boolean) => (
     <div className="scr-prac-kgrid">
       {slots.map((s, i) => {
@@ -353,7 +370,7 @@ function PracKeysPanel({ keys, setKeys, race: race0, onClose }: {
       </div>
       {msg && <p className="scr-prac-kmsg">{msg}</p>}
       <div className="scr-prac-row">
-        <button type="button" className="scr-prac-pill is-sm" onClick={() => { setKeys(() => defaultKeys9()); setMsg(null); setListen(null); }}>기본값(원작)</button>
+        <button type="button" className="scr-prac-pill is-sm" onClick={() => { setKeys(() => defaultKeys9()); setMsg(null); setListen(null); onChanged?.("기본값"); }}>기본값(원작)</button>
         <span className="scr-prac-sp" />
         <button type="button" className="scr-prac-start" onClick={onClose}>닫기</button>
       </div>
@@ -372,10 +389,12 @@ const AIR_LIFT_PX9 = pracWorldPx9(AIR_LIFT_REF) * AIR_LIFT_K;
 const unitKind9 = (e: Ent9): string => (e.def.name === "Lurker" && (e.burrowed || e.burrowT > 0) ? "lurkerburrow" : UNIT_3D[e.def.name] ?? "gunner");
 
 /* ── 놀이 ──────────────────────────────────────────────────────────────────── */
-function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGear, onKeys, onRestart, onFull, loading, onResult }: {
+function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGear, onKeys, onRestart, onFull, loading, onResult, onTurn }: {
   map: ReplayMapGrid; terrain: MapTerrain; setup: PracSetup9; keys: Keys9; paused: boolean;
   onReady: () => void; onGear: () => void; onKeys: () => void; onRestart: () => void; onFull: () => void; loading: boolean;
   onResult?: (r: PracResult9) => Promise<PracRecordReply9 | null> | void;
+  /** 턴을 시작했다(이용 기록 prac_play). */
+  onTurn?: () => void;
 }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sim = useMemo(() => new PracticeSim9(terrain, setup), [terrain]);
@@ -384,6 +403,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const turnRef = useRef(turn); turnRef.current = turn;
   const [reply, setReply] = useState<PracRecordReply9 | null | "wait">(null);
   const onResultRef = useRef(onResult); onResultRef.current = onResult;
+  const onTurnRef = useRef(onTurn); onTurnRef.current = onTurn;
+  useEffect(() => { if (turn === "run") onTurnRef.current?.(); }, [turn]);   // 턴 시작 = 한 판 연습(이용 기록)
   const endTurn = (): void => {
     if (turnRef.current === "over") return;
     turnRef.current = "over"; setTurn("over");

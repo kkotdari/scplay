@@ -3840,3 +3840,10 @@ FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClic
   옛 판 이름(unload · load · burrow · siege · storm · web · irradiate)이 있으면 옛 기억이라 통째로 버리고 원작 기본값으로 선다(옛 판은 겹침을 피하느라 비켜 둔 키가 섞여 있다).
 - 셈: 패트롤 명령을 새로 넣었다(`Order9 patrol` — 가며 싸우기로 그 자리와 명령이 서는 순간의 제 자리를 오간다 · 정지 · 다른 명령까지). 웹 · 매트릭스는 한 키(옛 "웹·매트릭스")에서 카드마다 제 키로 갈랐다.
 - 🔎 하네스 scratch `prac/k1.cjs`(창 — 맞바꿈 · 거절 · 기본값 · Esc) · `k3.cjs`(수송선 공통 · 섞어 고르기 카드 · 패트롤 왕복). 헤드리스는 Pointer Lock 이 끌기를 막아 `requestPointerLock` 을 비워 돌린다.
+
+## 연습실 이용 기록 — 접속 기록(access_history)에 들어옴 · 어느 연습 · 단축키(2026-11-18)
+요청: "연습실 이용 로그 남겨야 함 좀 자세히" → "access history" → "연습실 들어온 거랑 단축키 설정, 어느 연습을 했다 정도까지만".
+- PracticeRoom `onLog(code, detail)` — `prac_play`(턴을 시작함 · "Z 중반 TR" = 종족 · 초중반 · 자리) · `prac_keys`(단축키 바꿈 · "stop S→B(+1)" — 맞바꿔 함께 바뀐 수 · "기본값").
+  들어옴은 앱의 화면 기록(`practice`)이 맡는다 — sg-api ScreenCode 목록에 practice 가 없어 여태 422 로 버려졌다(같이 고침). 앱(sg-web PracticeScreen)이 `pingAccess(code, detail)` 로 적는다.
+- 걷은 시안(같은 날 "정도까지만"으로 줄임): 판 열기 · 턴 끝(점수 · 드랍 초 · 최고 갱신) · 턴 버림(까닭) · 나감(방문 요약). 점수는 이미 practice_records 에 있다.
+- 🔎 하네스 scratch `prac/k4.cjs`(onLog 를 window.__logs 에 모은다) · 운영은 SQL 콘솔 `acclog`(날짜 · upload 뺌).
