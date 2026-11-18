@@ -5094,8 +5094,8 @@ export const hiveSeamH9 = (t: number): number => {
 export const HIVE_SEAM9 = { w: 1.3, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 1.0, mouthLift: [0.45, 0.35] as [number, number], mouthUp: [0.8, 0.5] as [number, number], bandTilt: 30 };
 /** ★ 하이브 바닥 오징어 다리(legShape ★) — 크기 legK 0.7 → HIVE_LEG_K9 · 뿌리 둔덕 높이 t 0.4(옛: 땅) · 옆 휨 절반(2026-11-18, 요청: "갈비 사이의 촉수 같은 거를
  *  하이브만 훨씬 크게 키우고 뿌리 위치도 훨씬 위쪽으로 이동 · 휘어짐은 적게"). */
-export const HIVE_LEG_K9 = 1.2;
-export const HIVE_LEG9 = { root: 0.4, curl: 0.5 };
+export const HIVE_LEG_K9 = 1.8;   // 1.2 → 1.8(같은 날, 요청: "하이브 오징어다리를 1.5배 키우고")
+export const HIVE_LEG9 = { root: 0.72, curl: 0.5 };   // 뿌리 0.4 → 0.72(같은 날 "훨씬 위쪽 옆면에 붙여줘 · 각도도 옆면 각에 맞춰서" — 꼭대기 원통 바로 아래)
 /** ★ 하이브 둔덕 밑동 반지름 — 5.9 × 0.9(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). */
 export const HIVE_MOUND_RB9 = 5.9 * 0.9;
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
@@ -5740,7 +5740,8 @@ export function hatcheryMoundFaces(
          지지 않은 형태(마운드에 쓴 거 재사용하면 됨)") — 앞 판은 주름 ±18%·낯 7 이라 마디 진 애벌레로 읽혔다.
          마운드의 자는 **주름 ±10% · 낯 10 · 마디 32**(`wT9`)다 — 같은 값으로 맞추면 매끈한 촉수로 선다. */
       const twf = (t9: number): number => Math.max(0.05,
-        tw * (1 - 0.83 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18)));
+        tw * (1 - 0.83 * t9) * (1 + 0.1 * Math.sin(t9 * Math.PI * 18))
+        * (LR9 !== undefined ? Math.min(1, 0.25 + (0.75 * t9) / 0.1) : 1));   // 몸에서 나는 다리(root ★)는 뿌리를 가늘게 — 옆면에서 자라 나오듯 눕는다
       out.push(...tagKey(spirePillar({
         x: 0, y: 0, h: 0.8, w: 1, tipW: 0.05, segs: 32, sides: 10, hold: 0, caps: "none",
         fill: spikeColor, trueNormal: true, widthOf: twf,
@@ -5751,10 +5752,13 @@ export function hatcheryMoundFaces(
           const py9 = TP[0][1] * c0 + TP[1][1] * c1 + TP[2][1] * c2 + TP[3][1] * c3;
           /* 뿌리는 둔덕 살 속이라 그 겉면 높이에서 내려온다(t 0.3 까지) · 끝은 t³ 로 살짝 들린다. */
           if (LR9 !== undefined) {
-            /* 몸 겉면 위에 눕되(굵기만큼 위) 뿌리 한 뼘(t 0.14)은 살 속으로 잠가 열린 끝을 감춘다 — 비탈이 49도라 곧게 1.6 배로는 법선으로 0.4 배만 잠겨
-               뭉툭한 끝이 드러났다(실측) · 2.8 배(법선 1.2 배). */
-            const dive9 = Math.max(0, 1 - t9 / 0.14) * tw * 2.8;
-            return [px9, py9, surfZ9(px9, py9) + twf(t9) - dive9 + 0.8 * t9 * t9 * t9];
+            /* ★ **옆면 각에 맞춰 눕는다**(같은 날, 요청: "각도도 옆면 각에 맞춰서") — 옛: 곧게 굵기만큼 위 + 뿌리 한 뼘(t 0.14)을 곧게 2.8 배 잠금 →
+               뿌리가 비탈에 박힌 말뚝처럼 서 보였다. 이제 굵기의 0.85 배를 **겉면 법선**으로 띄운다(곧은 높이 = 0.85·굵기 / cos 비탈 · 비탈은 그 자리 반지름
+               방향 겉면 높이의 기울기) — 어느 비탈에서나 같은 만큼 묻혀 옆면에 붙어 눕는다. 뿌리는 가늘게(twf ★) 시작하고 끝 한 뼘(t 0.06)만 살 속으로. */
+            const rr9 = Math.hypot(px9, py9) || 1; const ex9 = (px9 / rr9) * 0.08; const ey9 = (py9 / rr9) * 0.08;
+            const g9 = (surfZ9(px9 - ex9, py9 - ey9) - surfZ9(px9 + ex9, py9 + ey9)) / 0.16;
+            const dive9 = Math.max(0, 1 - t9 / 0.06) * tw * 0.6;
+            return [px9, py9, surfZ9(px9, py9) + (twf(t9) * 0.85) * Math.sqrt(1 + g9 * g9) - dive9 + 0.8 * t9 * t9 * t9];
           }
           const sink = Math.max(0, 1 - t9 / 0.3) * 0.62;
           return [px9, py9, twf(t9) + sink + 0.8 * t9 * t9 * t9];
