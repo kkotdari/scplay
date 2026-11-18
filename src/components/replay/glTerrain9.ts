@@ -468,8 +468,11 @@ function fanOf(loops: Loop[]): Float32Array {
   }
   return a;
 }
-/** 고리들 → 띠 정점(x, y, nx, ny) 삼각형. 점마다 이웃 두 변의 법선을 평균한 마이터(2.5 로 자른다 — 지도 귀의 직각도 선이 안 터진다). */
-function stripOf(loops: Loop[]): Float32Array {
+/** 고리들 → 띠 정점(x, y, nx, ny) 삼각형. 점마다 이웃 두 변의 법선을 평균한 마이터(2.5 로 자른다 — 지도 귀의 직각도 선이 안 터진다).
+ *  ★ bw · bh(지도 타일 수)를 주면 **지도 테두리 위의 변은 띠를 안 짓는다**(2026-11-18, 실기 지적: "지도 끝의 테두리같이 보이는 저 선을 없앨 수 있어?") —
+ *  고리는 지도 밖을 0 으로 둘러 닫으므로(contour maskLoops) 언덕이 지도 끝에 닿으면 고리가 테두리를 따라 돈다. 그 변에도 마루 테(흰 0.34) · 물가 그늘이 그어져
+ *  지도 윗변에 밝은 줄이 섰다(빨무 12시). 두 끝이 같은 테두리(x 0 · w · y 0 · h) 위에 있는 변만 뺀다. */
+function stripOf(loops: Loop[], bw = -1, bh = -1): Float32Array {
   let n = 0;
   for (const lp of loops) { const m = lp.length >> 1; if (m >= 2) n += m * 6; }
   const a = new Float32Array(n * 4);
@@ -499,6 +502,10 @@ function stripOf(loops: Loop[]): Float32Array {
     for (let i = 0; i < m; i += 1) {
       const j = (i + 1) % m;
       const xi = lp[i * 2]; const yi = lp[i * 2 + 1]; const xj = lp[j * 2]; const yj = lp[j * 2 + 1];
+      if (bw > 0) {   // 지도 테두리 위의 변(위 ★)
+        const on9 = (a9: number, b9: number, v9: number): boolean => Math.abs(a9 - v9) < 1e-4 && Math.abs(b9 - v9) < 1e-4;
+        if (on9(xi, xj, 0) || on9(xi, xj, bw) || on9(yi, yj, 0) || on9(yi, yj, bh)) continue;
+      }
       // (i+, i-, j+) (i-, j-, j+)
       a[o] = xi; a[o + 1] = yi; a[o + 2] = nx[i]; a[o + 3] = ny[i];
       a[o + 4] = xi; a[o + 5] = yi; a[o + 6] = -nx[i]; a[o + 7] = -ny[i];
@@ -509,7 +516,7 @@ function stripOf(loops: Loop[]): Float32Array {
       o += 24;
     }
   }
-  return a;
+  return o === a.length ? a : a.subarray(0, o);
 }
 function boxOf(loops: Loop[], pad: number): [number, number, number, number] {
   let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
@@ -639,7 +646,7 @@ export class GlTerrain9 {
       /* ★ 고리 솎기(2026-11-02, 요청: "띠·안개 점 솎기 적용" — 지형 삼각 ★ 와 같은 0.003칸 · 배율 8 에서 1화소 아래) — 띠·부채꼴·삼각이 다 같은 솎은 고리를 쓴다
          (면과 띠의 가장자리가 어긋나지 않게). 매끈한 등고선(Chaikin ×3)은 거의 곧은 점이 많아 몇 배 준다. `#terrthin=0` 옛길. */
       const loops = TERR_THIN_OFF9 ? loops0 : loops0.map((lp) => simplifyLoop9(lp, 0.003) as unknown as Loop);
-      const f = fanOf(loops); const s = strip ? stripOf(loops) : new Float32Array(0);
+      const f = fanOf(loops); const s = strip ? stripOf(loops, G.w, G.h) : new Float32Array(0);
       this.stat.verts += f.length / 2 + s.length / 4;
       return { fill: up(f), nFill: f.length / 2, strip: up(s), nStrip: s.length / 4, box: boxOf(loops, 1.5), tri: null, loops };
     };
