@@ -5522,9 +5522,16 @@ export function hatcheryMoundFaces(
            읽힌다. 자를 기둥과 나눠 쓰므로(seamAxis·seamW·seamRad9·seamCut9) 어느 각에서도 안 어긋난다. */
         {
           /* 아가리 단면의 틀 — 그 자리 접선에 수직인 u(바깥 반지름 쪽)·v 를 세운다. */
-          const MT9 = 0.02;
+          /* ★ 해처리 · 레어는 테 앞면을 **갈비 끝면에 맞춘다**(2026-11-18, 지적: "해처리 입구 테 위치가 끝에서 살짝 위로 밀렸네 · 아니 갈비 끝이랑 안 맞다구") —
+             옛 t 0.02 는 밑동이 거의 눕는 해처리(옆선 지수 6 · 축이 t 한 칸에 28 나아간다)에서 끝보다 0.56 안쪽(레어 0.3)이라 갈비 끝 테두리가 테 앞으로
+             한 겹 더 삐져나왔다. 이제 테 굵기(0.22·seamK)만큼만 안쪽 — 그 자리 축 속도로 t 를 푼다. 하이브는 옛 0.02(끝에서 0.07 · 그대로 둔다). */
+          const MT9 = seamShape.ov !== undefined ? 0.02 : ((): number => {
+            const a09 = seamAxis(0); const a19 = seamAxis(0.01);
+            const sp9 = Math.hypot(a19[0] - a09[0], a19[1] - a09[1], a19[2] - a09[2]) / 0.01;
+            return Math.min(0.02, (0.22 * seamK) / Math.max(1e-3, sp9));
+          })();
           const eM9 = 0.012;
-          const M0 = seamAxis(MT9 - eM9);
+          const M0 = seamAxis(Math.max(0, MT9 - eM9));
           const M1 = seamAxis(MT9 + eM9);
           const ml9 = Math.hypot(M1[0] - M0[0], M1[1] - M0[1], M1[2] - M0[2]) || 1;
           const mT: [number, number, number] = [
