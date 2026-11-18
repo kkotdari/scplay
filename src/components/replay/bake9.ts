@@ -17432,14 +17432,19 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
     const trunkW9 = (t9: number): number => (1.2 - t9 * 0.28) * (1 + 0.07 * Math.cos(t9 * TRUNK_N9 * Math.PI * 2));
     /* 단면은 **둥근 삼각**(2026-11-05, 요청: "히드라덴 코는 둥근 삼각형 모양임") — radOf 1 + 0.2·cos 3a · u 가 위라 꼭짓점 하나가 위 · 바닥은 평평한 변. */
     const TRUNK_RAD9 = (a9: number): number => 1 + 0.2 * Math.cos(3 * a9);
+    /* ★ 코는 **저그 기본 살색** · 굵은 임자색 띠 둘(2026-11-18, 요청: "히드라덴 코는 저그 기본 살색으로 하고 해처리 갈비처럼 두 개의 두꺼운 임자색 띠를 넣기") —
+       옛: 통째로 임자 색(칠 없음). 하이브 갈비와 같은 길: 기둥 색은 비우고 fillAt 이 띠 밖만 ZERG_PEACH(띠 = 색 없음 = 임자 색) · 띠 경계는 70 마디라 곱다.
+       띠는 [0.26, 0.38] · [0.6, 0.72](해처리 갈비 띠 0.07 의 1.7 배 굵기 · 코 길이를 고르게 셋으로 가른 자리). 아가리 테도 살색. */
+    const TRUNK_BANDS9: [number, number][] = [[0.26, 0.38], [0.6, 0.72]];
     out.push(...tagKey(spirePillar({
       x: 0, y: 0, h: 1, w: 1, segs: 70, sides: 15, caps: "none", trueNormal: true, ref: [0, 0, 1], phase: 0,
       path: trunkAt9, widthOf: trunkW9, radOf: TRUNK_RAD9,
+      fillAt: (t9: number): string | undefined => (TRUNK_BANDS9.some(([b0, b1]) => t9 >= b0 && t9 <= b1) ? undefined : ZERG_PEACH),
     }), 14 + depthNow(...PB(1.7, -2.2)) * 1.6));
     {
       const e9 = trunkAt9(1); const e8 = trunkAt9(0.98);
       out.push(...tagKey(tubeMouth9(e9, [e9[0] - e8[0], e9[1] - e8[1], e9[2] - e8[2]], trunkW9(1) * 1.03,
-        { th: 0.3, dep: 1.1, sides: 15, fill: null, phase: 0, radOf: TRUNK_RAD9 }), 14.5 + depthNow(e9[0], e9[1]) * 1.6));
+        { th: 0.3, dep: 1.1, sides: 15, fill: ZERG_PEACH, phase: 0, radOf: TRUNK_RAD9 }), 14.5 + depthNow(e9[0], e9[1]) * 1.6));
     }
     // 꼬리 곁의 창백한 뼈 마디 둘 — 흰색이되 임자 색은 아니다(사진의 옆 갈비).
     for (const m9 of [-1, 1] as const) {
