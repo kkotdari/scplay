@@ -5046,7 +5046,9 @@ export function zergPond9(cx: number, cy: number, R: number): ShapeFace[] {
  *  (옛 둘 0.4 ~ 0.55 와 같은 폭). 옛: 둘 `[[0.3, 0.37], [0.64, 0.71]]` 을 둘이 함께 썼다. */
 export const HATCH_BANDS9: readonly (readonly [number, number])[] = [[0.037, 0.062], [0.3, 0.37], [0.64, 0.71]];
 export const LAIR_BANDS9: readonly (readonly [number, number])[] = [[0.05, 0.09], [0.3, 0.37], [0.64, 0.71]];
-export const HIVE_BANDS9: readonly (readonly [number, number])[] = [[0.3, 0.6]];
+/** 하이브 — 가운데 띠를 반 폭으로(같은 가운데 t 0.45 · 0.3 → 0.15) · 밑동 끝(아가리 바로 위)에 같은 폭 하나 더(2026-11-18, 요청: "임자색 띠 반 정도로 얇게 하고 아래쪽 끝에도 추가").
+ *  옛: `[[0.3, 0.6]]`(굵게 하나 · 2026-11-15 밤). */
+export const HIVE_BANDS9: readonly (readonly [number, number])[] = [[0.07, 0.22], [0.375, 0.525]];
 /** ★ 둔덕 옆선 지수(아래 moundP ★) — 해처리 급하게 · 레어 그대로 3.2 · 하이브 완만하게. */
 export const HATCH_P9 = 6;
 export const LAIR_P9 = 3.2;
