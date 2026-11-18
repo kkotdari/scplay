@@ -5573,7 +5573,8 @@ export function hatcheryMoundFaces(
             x: 0, y: 0, h: 0.8, w: 0.22 * seamK, tipW: 0.22 * seamK,
             segs: 24, sides: 6, caps: "none", fill: seamColor,
             path: (t9: number): [number, number, number] => mouthAt9(RIM_PH9 + t9 * Math.PI * 2, 1),
-            mitre: true, closed: true, ref: [mT[0], mT[1], mT[2]],   // 고리 평면의 법선 — 어느 마디에서나 접선에 수직이라 틀이 안 비틀린다(평행 이송 어림이 한 바퀴 돌며 쌓던 비틀림이 이음매 단차였다)
+            mitre: seamShape.ov !== undefined, closed: true, ref: [mT[0], mT[1], mT[2]],   // 마이터는 하이브만 — 해처리 · 레어 꼭짓점(옆 죔 0.91 · 반각 36도)은 마이터면 바깥 끝이 굵기의 1.7 배로 솟아 테가 위로 밀려 보였다(같은 날 지적) · 꺾인 고리에서 비스듬히 깎여 잇는다(베벨)
+              // 고리 평면의 법선 — 어느 마디에서나 접선에 수직이라 틀이 안 비틀린다(평행 이송 어림이 한 바퀴 돌며 쌓던 비틀림이 이음매 단차였다)
             cutFace: seamCut9,
           }), depKey9 + 0.02));
           /* ⓒ 구멍(꼴을 바꾼 갈비만 · 2026-11-18, 요청: "갈비 아래쪽의 입구 구멍이 더 보이게") — 아가리를 바깥으로 꺾어(mouthLift ★) 테가 드러나도
