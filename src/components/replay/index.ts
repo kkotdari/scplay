@@ -40,5 +40,5 @@ export type { ModelCatalogGroup, ModelCatalogRace } from "./ModelCatalog";
 export { TACTIC_TERMS9 } from "./tactics9";
 export { SEARCH_ROLES9 } from "./searchIndex9";
 /* ── 수송선 드랍 연습실(2026-11-17, 요청: "연습실 기능 추가 · 수송선 드랍 연습") — 앱이 빨무 지도(지형 포함)를 받아 넘긴다(PracticeRoom 머리말). */
-export { default as PracticeRoom } from "./PracticeRoom";
+export { default as PracticeRoom, PracticeKeys } from "./PracticeRoom";
 export type { PracticeRoomProps, PracResult9, PracRecordReply9, PracLogCode9 } from "./PracticeRoom";

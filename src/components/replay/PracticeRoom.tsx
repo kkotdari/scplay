@@ -80,6 +80,8 @@ const SETUP_LS9 = "scr.prac.setup3";   // 3 — 셋째 판(종족 · 자리 · �
 const loadJson9 = <T,>(k: string, fb: T): T => { try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; } };
 const saveJson9 = (k: string, v: unknown): void => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 사생활 모드 */ } };
 const DEF_SETUP9: PracSetup9 = { myRace: "T", mySpot: "BL", stage: "early" };
+/** 이 기기에 기억한 명령 키(옛 판은 버리고 원작 기본값 — fixKeys9). */
+const loadKeys9 = (): Keys9 => { try { const v = localStorage.getItem(KEYS_LS9); return fixKeys9(v ? JSON.parse(v) : null); } catch { return defaultKeys9(); } };
 /** 설정 기억을 다듬는다(옛 값 · 사람 자리가 아닌 자리). */
 const cleanSetup9 = (s: PracSetup9): PracSetup9 => ({
   myRace: PRAC_RACES9.some((r) => r.key === s.myRace) ? s.myRace : "T",
@@ -122,7 +124,7 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
   const log = useCallback((code: PracLogCode9, detail: string): void => { try { onLogRef.current?.(code, detail.slice(0, 64)); } catch { /* 기록이 놀이를 막지 않는다 */ } }, []);
   const [phase, setPhase] = useState<"setup" | "loading" | "play">("setup");
   const [setup, setSetup] = useState<PracSetup9>(() => cleanSetup9(loadJson9(SETUP_LS9, DEF_SETUP9)));
-  const [keys, setKeysState] = useState<Keys9>(() => { try { const v = localStorage.getItem(KEYS_LS9); return fixKeys9(v ? JSON.parse(v) : null); } catch { return defaultKeys9(); } });
+  const [keys, setKeysState] = useState<Keys9>(loadKeys9);
   /* 계정에 기억된 키가 오면 그것으로(늦게 와도) — 앱에서 온 값은 앱에 되돌려 적지 않는다. 옛 판(명령 하나에 키 하나)이면 원작 기본값으로 선다(fixKeys9). */
   useEffect(() => { if (keysProp) setKeysState(fixKeys9(keysProp)); }, [keysProp]);
   /** 단축키 창 — 열린 동안은 그 종족 칸부터(설정 판의 고른 종족 · 놀이 중이면 그 판 종족) · 놀이는 멈춘다. */
@@ -160,7 +162,7 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
   return (
     <div ref={rootRef} className={`scr-prac${className ? ` ${className}` : ""}`}>
       {phase === "setup" && (
-        <PracSetupPanel setup={setup} onKeys={setKeysOpen} map={map} terrain={terrain} inGame={false}
+        <PracSetupPanel setup={setup} map={map} terrain={terrain} inGame={false}
           ready={sizeOk} onApply={start} />
       )}
       {phase !== "setup" && map && terrain && (
@@ -171,7 +173,7 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
       )}
       {phase !== "setup" && gear && (
         <div className="scr-prac-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setGear(false); }}>
-          <PracSetupPanel setup={setup} onKeys={setKeysOpen} map={map} terrain={terrain} inGame ready={sizeOk}
+          <PracSetupPanel setup={setup} map={map} terrain={terrain} inGame ready={sizeOk}
             onApply={apply} onClose={() => setGear(false)} />
         </div>
       )}
@@ -185,10 +187,8 @@ export default function PracticeRoom({ map, className, keys: keysProp, onKeys, o
 }
 
 /* ── 설정(처음 · 톱니) ─────────────────────────────────────────────────────── */
-function PracSetupPanel({ setup, onKeys, map, terrain, inGame, ready, onApply, onClose }: {
+function PracSetupPanel({ setup, map, terrain, inGame, ready, onApply, onClose }: {
   setup: PracSetup9;
-  /** 단축키 창을 연다(그 종족 칸부터). */
-  onKeys: (race: PracRace9) => void;
   map: ReplayMapGrid | null; terrain: MapTerrain | null | undefined; inGame: boolean; ready: boolean;
   onApply: (s: PracSetup9) => void; onClose?: () => void;
 }) {
@@ -237,7 +237,7 @@ function PracSetupPanel({ setup, onKeys, map, terrain, inGame, ready, onApply, o
   return (
     <div className={`scr-prac-setup${inGame ? " is-modal" : ""}`}>
       <div className="scr-prac-hrow">
-        <h2 className="scr-prac-h">빨무 드랍 연습</h2>
+        <h2 className="scr-prac-h">빨무 견제 연습</h2>
         {inGame && onClose && <button type="button" className="scr-prac-x" onClick={onClose} aria-label="닫기">×</button>}
       </div>
       <div className="scr-prac-row">
@@ -272,11 +272,7 @@ function PracSetupPanel({ setup, onKeys, map, terrain, inGame, ready, onApply, o
           </span>
         </div>
       </div>
-      <div className="scr-prac-row">
-        <span className="scr-prac-lab">단축키</span>
-        <button type="button" className="scr-prac-pill" onClick={() => onKeys(draft.myRace)}>단축키 설정</button>
-        <span className="scr-prac-dim">공통(이동 · 정지 · 공격 · 패트롤 · 홀드) 한 칸 + 유닛별 명령 카드</span>
-      </div>
+      {/* (옮김 2026-11-18, 지적: "단축키 설정은 연습실 설정이 아니라 견제연습 설정에 있잖아") 단축키 줄 — 연습실 첫 화면(앱 · 아래 PracticeKeys)으로 · 놀이 중엔 위 줄 [단축키]. */}
       <div className="scr-prac-row">
         <button type="button" className="scr-prac-start" onClick={() => onApply(draft)} disabled={!ready && !inGame}>
           {inGame ? (draft.myRace !== setup.myRace || draft.mySpot !== setup.mySpot || draft.stage !== setup.stage ? "새 턴 시작" : "닫기") : !map ? "지도를 기다리는 중…" : terrain === undefined ? "지형 푸는 중…" : !ready ? "이 지도는 빨무 지형이 아니에요" : "시작"}
@@ -374,6 +370,28 @@ function PracKeysPanel({ keys, setKeys, race: race0, onClose, onChanged }: {
         <span className="scr-prac-sp" />
         <button type="button" className="scr-prac-start" onClick={onClose}>닫기</button>
       </div>
+    </div>
+  );
+}
+
+/** ★ 연습실 공통 단축키 창(2026-11-18, 지적: "연습실에 단축키 설정은 연습실 화면에서 안 보이는 것 같아 · 견제연습 설정이 아니라") — 앱이 연습실 첫 화면(과제 카드)에서 연다.
+ *  창은 놀이판의 그것(PracKeysPanel) 그대로 · 기억도 같다(이 기기 scr.prac.keys2 + 앱 계정 onKeys) — 여기서 바꾸면 견제 연습이 그대로 쓴다. 바깥을 누르거나 Esc 로 닫는다. */
+export function PracticeKeys({ keys: keysProp, onKeys, onLog, race = "T", onClose }: {
+  /** 계정에 기억된 키(없으면 이 기기의 기억). */ keys?: Record<string, string> | null;
+  /** 바꿨다 — 앱이 계정에 적는다. */ onKeys?: (keys: Record<string, string>) => void;
+  /** 이용 기록(prac_keys). */ onLog?: (code: PracLogCode9, detail: string) => void;
+  /** 처음 펼칠 종족 탭. */ race?: PracRace9;
+  onClose: () => void;
+}) {
+  const [keys, setKeysState] = useState<Keys9>(() => (keysProp ? fixKeys9(keysProp) : loadKeys9()));
+  useEffect(() => { if (keysProp) setKeysState(fixKeys9(keysProp)); }, [keysProp]);
+  const onKeysRef = useRef(onKeys); onKeysRef.current = onKeys;
+  const setKeys = useCallback((f: (k: Keys9) => Keys9): void => {
+    setKeysState((k) => { const n = f(k); if (n !== k) { saveJson9(KEYS_LS9, n); queueMicrotask(() => onKeysRef.current?.(n)); } return n; });
+  }, []);
+  return (
+    <div className="scr-prac scr-prac-keyhost" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <PracKeysPanel keys={keys} setKeys={setKeys} race={race} onClose={onClose} onChanged={(d) => { try { onLog?.("prac_keys", d.slice(0, 64)); } catch { /* 기록이 막지 않는다 */ } }} />
     </div>
   );
 }

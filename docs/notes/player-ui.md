@@ -3847,3 +3847,9 @@ FilterSelectableUnits 0x4bc5b0 · RightClickInGame 0x47f300 · TargetingLeftClic
   들어옴은 앱의 화면 기록(`practice`)이 맡는다 — sg-api ScreenCode 목록에 practice 가 없어 여태 422 로 버려졌다(같이 고침). 앱(sg-web PracticeScreen)이 `pingAccess(code, detail)` 로 적는다.
 - 걷은 시안(같은 날 "정도까지만"으로 줄임): 판 열기 · 턴 끝(점수 · 드랍 초 · 최고 갱신) · 턴 버림(까닭) · 나감(방문 요약). 점수는 이미 practice_records 에 있다.
 - 🔎 하네스 scratch `prac/k4.cjs`(onLog 를 window.__logs 에 모은다) · 운영은 SQL 콘솔 `acclog`(날짜 · upload 뺌).
+
+## 연습실 단축키 창은 앱의 연습실 첫 화면에(2026-11-18)
+지적: "연습실에 단축키 설정은 연습실 화면에서 안 보이는 것 같아 · (설정 화면의 단축키 줄은) 연습실 설정이 아니라 견제연습 설정이잖아".
+- scplay `PracticeKeys`(export) — 놀이판의 PracKeysPanel 을 화면 전체 막(`.scr-prac.scr-prac-keyhost` · fixed · z 1000)에 띄운다. 기억은 놀이판과 같다(이 기기 `scr.prac.keys2` + 앱 onKeys).
+- 앱(sg-web PracticeScreen)은 연습실 첫 화면 제목 줄 오른끝에 [단축키 설정] · 키 상태를 첫 화면 · 과제가 나눠 쓴다(옛: 과제가 저 혼자 받고 적었다).
+- 견제 연습 설정 판의 '단축키' 줄은 걷었다 · 놀이 중 위 줄 [단축키]는 남김. 설정 판 제목 "빨무 드랍 연습" → "빨무 견제 연습".

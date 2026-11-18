@@ -6191,6 +6191,8 @@
 /* ★ 단축키 창(2026-11-18, 요청: "공통 키 칸 하나(3 × 3 원작 그리드) · 나머지는 종족별 유닛별 그리드로") — 옛 한 줄 키 목록(.scr-prac-keys · keyrow · key)을 걷었다.
    칸 = 원작 명령 카드 한 칸 꼴(위 큰 글자 키 · 아래 이름) · 공통은 유닛 카드에서 흐리게(바꿀 수 없음 · 공통 칸에서) · 듣는 칸은 노랑. 톱니 창 위에 겹친다(z 41). */
 .scr-prac-modal.is-keys { z-index: 41; }
+/* 앱 연습실 첫 화면에서 여는 단축키 창(PracticeKeys · 2026-11-18) — 화면 전체를 덮는 막 · 글자색 · 크기는 .scr-prac 의 것. */
+.scr-prac.scr-prac-keyhost { position: fixed; inset: 0; z-index: 1000; width: auto; height: auto; min-height: 0; flex-direction: row; align-items: center; justify-content: center; background: rgba(3,4,8,0.62); padding: 16px; box-sizing: border-box; }
 .scr-prac-keyset { max-width: 820px; }
 .scr-prac-ksecs { display: flex; flex-wrap: wrap; gap: 14px 28px; }
 .scr-prac-ksec h3 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: #cfd6e2; }
