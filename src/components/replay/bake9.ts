@@ -1413,6 +1413,9 @@ export function spirePillar(o: {
    *  두 방향의 평균 접선에 수직이라 꺾이는 쪽 두께가 cos(꺾임/2) 만큼 **조여** 앞뒤 낯이 그 자리에서 접혀 들어갔다. 참이면 꺾임이 11° 넘는 고리에서
    *  꺾이는 방향(b) 성분만 1/cos(꺾임/2) 로 늘려 두 낯이 한 모서리에서 만나게 한다. 매끈한 굽이(꺾임 작음)는 손대지 않는다 — 켠 쪽만 탄다. */
   mitre?: boolean;
+  /** ★ **닫힌 고리**(2026-11-18, 지적: "해처리 레어 갈비 입구 테도 똑같이 끊김") — path 의 t 0 과 1 이 같은 점인 고리(아가리 테). 끝 마디 접선을 한쪽만 보면
+   *  처음 · 끝 단면이 서로 다른 각으로 서서 이음매가 벌어지거나 엇갈린다. 참이면 접선을 t 를 감아 돌려 잰다 — 평면 고리면 평행 이송 틀도 제자리로 돌아와 맞물린다. */
+  closed?: boolean;
 }): ShapeFace[] {
   const z0 = o.z0 ?? 0;
   const segs = Math.max(1, o.segs ?? 3);
@@ -1438,8 +1441,9 @@ export function spirePillar(o: {
      세우면 어느 기울기에서도 정원(정뿔)이 된다. */
   const tangentAt = (t: number): [number, number, number] => {
     const e9 = 0.012;
-    const p1 = axis(Math.max(0, t - e9));
-    const p2 = axis(Math.min(1, t + e9));
+    /* 닫힌 고리(closed ★)는 끝 마디도 양쪽을 본다 — t 를 감아 돌려 0 과 1 의 접선이 같아야 처음 · 끝 단면이 맞물린다. */
+    const p1 = axis(o.closed ? (t - e9 + 1) % 1 : Math.max(0, t - e9));
+    const p2 = axis(o.closed ? (t + e9) % 1 : Math.min(1, t + e9));
     const d9: [number, number, number] = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
     const l9 = Math.hypot(d9[0], d9[1], d9[2]) || 1;
     return [d9[0] / l9, d9[1] / l9, d9[2] / l9];
@@ -5088,6 +5092,10 @@ export const hiveSeamH9 = (t: number): number => {
    어떤 값도 아가리가 거의 수평이면서 본체 끝에 붙지 못했다 — 등마루가 접힌다). 아가리 뒤 등마루는 t 0.04 ~ 0.18 동안 한 점(5.31, 1.87)에 머무는 경첩이라
    아가리와 나란한 띠를 둘 자리가 없다 — 밑동 띠는 그 바로 위(HIVE_BANDS9 ★). 되물린 값: w 1.8 · HB 1.0 · mouthLift [0.9, 0.35] · 밑동 띠 [0.06, 0.15]. */
 export const HIVE_SEAM9 = { w: 1.3, tip: 1.3, hAt: hiveSeamH9, ov: 0.58, flare: 1.0, mouthLift: [0.45, 0.35] as [number, number], mouthUp: [0.8, 0.5] as [number, number] };
+/** ★ 하이브 바닥 오징어 다리(legShape ★) — 크기 legK 0.7 → HIVE_LEG_K9 · 뿌리 둔덕 높이 t 0.4(옛: 땅) · 옆 휨 절반(2026-11-18, 요청: "갈비 사이의 촉수 같은 거를
+ *  하이브만 훨씬 크게 키우고 뿌리 위치도 훨씬 위쪽으로 이동 · 휘어짐은 적게"). */
+export const HIVE_LEG_K9 = 1.2;
+export const HIVE_LEG9 = { root: 0.4, curl: 0.5 };
 /** ★ 하이브 둔덕 밑동 반지름 — 5.9 × 0.9(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). */
 export const HIVE_MOUND_RB9 = 5.9 * 0.9;
 /** ★ 하이브 정수리 원통(2026-11-18) — 밑 z · 높이 · 반지름. 볏(잎)이 그 윗면에 앉는다(crown.base). */
@@ -5128,6 +5136,9 @@ export function hatcheryMoundFaces(
   seamShape: { w?: number; tip?: number; hK?: number; hBot?: number; hTop?: number; hDip?: number; hAt?: (t: number) => number; ov?: number; flare?: number; mouthLift?: [number, number]; mouthUp?: [number, number] } = {},
   /** ★ 둔덕 밑동 반지름(기본 5.9) — 하이브 5.31(2026-11-18, 요청: "뿔기둥과 바닥의 연못은 그대로 두고 본체 아래면의 지름 10프로 줄이기"). 몸 · 갈비 · 바닥 다리가 이 값을 탄다. */
   moundRB = 5.9,
+  /** ★ 바닥 오징어 다리 꼴 — root: 뿌리를 둔덕 겉면 높이 t(0 밑동 ~ 1 꼭대기)에 두고 몸 비탈을 타고 땅으로 흘러내린다(안 주면 옛 꼴 · 땅에서 난다) ·
+   *  curl: 옆으로 S 자로 휘는 몫의 배수(1 = 옛). 하이브 HIVE_LEG9 ★. */
+  legShape: { root?: number; curl?: number } = {},
 ): ShapeFace[] {
     const out: ShapeFace[] = [];
     // (이동) 여섯 다리 전부 아래 방향별 묶음에서 — 60도 균등 배치.
@@ -5518,13 +5529,15 @@ export function hatcheryMoundFaces(
              ⚠ 꼴을 바꾼 갈비(하이브)는 **이음매를 밑변 한가운데로**(각 π 에서 시작) · 꼭대기는 **마이터**(2026-11-18, 지적: "아가리 테도 위쪽이 끊기는 거") —
              각 0 에서 시작하면 관의 처음 · 끝이 하필 뾰족한 꼭대기(등마루)에서 만나는데, 끝 마디의 접선은 한쪽만 보고(t 0 · 1) 틀도 따로 굴러와
              두 다리가 꼭대기에서 엇갈려 뭉툭한 끝이 비어져 나왔다. 밑변은 곧고 땅에 묻히니 이음매가 안 보이고, 꼭대기(t 0.5 = 마디 12)는
-             꺾임 130도라 마이터로 두 낯을 한 모서리에서 만나게 한다(둘레 각 0 · 120 · 240 이 다 마디 자리에 온다). */
-          const RIM_PH9 = seamShape.ov !== undefined ? Math.PI : 0;
+             꺾임 130도라 마이터로 두 낯을 한 모서리에서 만나게 한다(둘레 각 0 · 120 · 240 이 다 마디 자리에 온다).
+             해처리 · 레어도 같은 자(같은 날, 요청: "해처리 레어 갈비 입구 테도 똑같이 끊김 하이브처럼 처리") — 그 둘은 밑변이 땅 위로 드러나 옮긴 이음매가
+             벌어져 보였다 → `closed`(끝 마디 접선을 감아 돌려 잰다)로 처음 · 끝 단면을 맞물린다. */
+          const RIM_PH9 = Math.PI;
           out.push(...tagKey(spirePillar({
             x: 0, y: 0, h: 0.8, w: 0.22 * seamK, tipW: 0.22 * seamK,
             segs: 24, sides: 6, caps: "none", fill: seamColor,
             path: (t9: number): [number, number, number] => mouthAt9(RIM_PH9 + t9 * Math.PI * 2, 1),
-            ...(seamShape.ov !== undefined ? { mitre: true } : {}),
+            mitre: true, closed: true, ref: [mT[0], mT[1], mT[2]],   // 고리 평면의 법선 — 어느 마디에서나 접선에 수직이라 틀이 안 비틀린다(평행 이송 어림이 한 바퀴 돌며 쌓던 비틀림이 이음매 단차였다)
             cutFace: seamCut9,
           }), depKey9 + 0.02));
           /* ⓒ 구멍(꼴을 바꾼 갈비만 · 2026-11-18, 요청: "갈비 아래쪽의 입구 구멍이 더 보이게") — 아가리를 바깥으로 꺾어(mouthLift ★) 테가 드러나도
@@ -5660,13 +5673,25 @@ export function hatcheryMoundFaces(
       const ta9 = (tang * Math.PI) / 180;
       const fx9 = Math.sin(ta9); const fy9 = Math.cos(ta9);
       const sx9 = -fy9; const sy9 = fx9;
-      const r09 = moundHexR9(tang, MND_RB) * 0.92;
+      /* ★ 하이브(legShape.root ★ · 2026-11-18, 요청: "갈비 사이의 촉수 같은 거를 하이브만 훨씬 크게 키우고 뿌리 위치도 훨씬 위쪽으로 · 휘어짐은 적게") —
+         뿌리를 둔덕 겉면 높이 t(root)의 그 방위 육각 겉면 안쪽(0.92)에 두고, 옆으로 휘는 몫(S 자)은 curl 배. */
+      const LR9 = legShape.root;
+      const CU9 = legShape.curl ?? 1;
+      const r09 = moundHexR9(tang, LR9 !== undefined ? moundR(LR9) : MND_RB) * 0.92;
       const TP: [number, number][] = [
         [fx9 * r09, fy9 * r09],
-        [fx9 * (r09 + tlen * 0.5) + sx9 * tlen * 0.34, fy9 * (r09 + tlen * 0.5) + sy9 * tlen * 0.34],
-        [fx9 * (r09 + tlen * 0.9) - sx9 * tlen * 0.30, fy9 * (r09 + tlen * 0.9) - sy9 * tlen * 0.30],
-        [fx9 * (r09 + tlen) - sx9 * tlen * 0.62, fy9 * (r09 + tlen) - sy9 * tlen * 0.62],
+        [fx9 * (r09 + tlen * 0.5) + sx9 * tlen * 0.34 * CU9, fy9 * (r09 + tlen * 0.5) + sy9 * tlen * 0.34 * CU9],
+        [fx9 * (r09 + tlen * 0.9) - sx9 * tlen * 0.30 * CU9, fy9 * (r09 + tlen * 0.9) - sy9 * tlen * 0.30 * CU9],
+        [fx9 * (r09 + tlen) - sx9 * tlen * 0.62 * CU9, fy9 * (r09 + tlen) - sy9 * tlen * 0.62 * CU9],
       ];
+      /* 뿌리를 몸 위에 둔 다리는 **몸 겉면을 타고** 흘러내린다 — 그 자리(방위 · 거리)의 육각 겉면 높이(moundR 를 거꾸로 푼다 · 밑동 밖은 땅 0). */
+      const surfZ9 = (px9: number, py9: number): number => {
+        const hk9 = moundHexR9((Math.atan2(px9, py9) * 180) / Math.PI, 1);
+        const rq9 = Math.hypot(px9, py9) / hk9;
+        if (rq9 >= MND_RB) return 0;
+        if (rq9 <= MND_RT) return MND_H;
+        return MND_H * (1 - ((rq9 - MND_RT) / (MND_RB - MND_RT)) ** (1 / MND_P));
+      };
       /* ★ **마디가 지면 안 된다 — 디파일러 마운드의 그 다리를 그대로 쓴다**(2026-09, 요청: "오징어다리 마디마디
          지지 않은 형태(마운드에 쓴 거 재사용하면 됨)") — 앞 판은 주름 ±18%·낯 7 이라 마디 진 애벌레로 읽혔다.
          마운드의 자는 **주름 ±10% · 낯 10 · 마디 32**(`wT9`)다 — 같은 값으로 맞추면 매끈한 촉수로 선다. */
@@ -5681,6 +5706,12 @@ export function hatcheryMoundFaces(
           const px9 = TP[0][0] * c0 + TP[1][0] * c1 + TP[2][0] * c2 + TP[3][0] * c3;
           const py9 = TP[0][1] * c0 + TP[1][1] * c1 + TP[2][1] * c2 + TP[3][1] * c3;
           /* 뿌리는 둔덕 살 속이라 그 겉면 높이에서 내려온다(t 0.3 까지) · 끝은 t³ 로 살짝 들린다. */
+          if (LR9 !== undefined) {
+            /* 몸 겉면 위에 눕되(굵기만큼 위) 뿌리 한 뼘(t 0.14)은 살 속으로 잠가 열린 끝을 감춘다 — 비탈이 49도라 곧게 1.6 배로는 법선으로 0.4 배만 잠겨
+               뭉툭한 끝이 드러났다(실측) · 2.8 배(법선 1.2 배). */
+            const dive9 = Math.max(0, 1 - t9 / 0.14) * tw * 2.8;
+            return [px9, py9, surfZ9(px9, py9) + twf(t9) - dive9 + 0.8 * t9 * t9 * t9];
+          }
           const sink = Math.max(0, 1 - t9 / 0.3) * 0.62;
           return [px9, py9, twf(t9) + sink + 0.8 * t9 * t9 * t9];
         },
@@ -18398,7 +18429,7 @@ export const SHAPE_BUILDERS: Record<string, () => ShapeFace[]> = {
       /* 하이브 옆선·가시는 진한 상아였는데 화면에서 밝게 떠 보였다(요청: "하이브
          옆선 기둥색과 뿔 세개 색 다 좀더 어둡게") — 이 건물에서만 한 단 낮춘 상아를
          쓴다. IVORY_DEEP 자체는 다른 열 곳이 함께 쓰므로 안 건드린다. */
-      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true, base: [HIVE_TOP9.r * 0.55, HIVE_TOP9.z + HIVE_TOP9.h] }, 0.7, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9, HIVE_MOUND_RB9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
+      if (hi === 1) out.push(...hatcheryMoundFaces(HIVE_IVORY, HIVE_IVORY, { n: 1, w: 1.15, h: 3.7, leaf: true, base: [HIVE_TOP9.r * 0.55, HIVE_TOP9.z + HIVE_TOP9.h] }, HIVE_LEG_K9, "#6b4a2c", 1.5, HIVE_BANDS9, HIVE_P9, HIVE_SEAM_E9, HIVE_SEAM9, HIVE_MOUND_RB9, HIVE_LEG9));   // 옆 갈비 1.5배(seamK ★) · 임자색 띠 굵게 하나(HIVE_BANDS9 ★) · 덜 퍼지고 더 높게(HIVE_SEAM9 ★)
       hi += 1;
       // 뿔은 황토색, 가시는 상아색(요청).
       // 뿔에 제 자리 깊이(지적: 가려짐) — 첫 뿔(뒤)은 둔덕 뒤, 나머지는 둔덕 앞.
