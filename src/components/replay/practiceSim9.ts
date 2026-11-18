@@ -246,7 +246,7 @@ export const unitValue9 = (name: string): number => {
 export const lostPts9 = (name: string): number => Math.max(1, Math.round(unitValue9(name) / LOST_DIV9));
 
 /** 턴 — 준비("드랍을 준비하세요" · 태우기 · 날아가기 · 이때 한 드랍은 점수 없음) → 드랍 30초("드랍을 성공시키세요" · 한 번) (2026-11-17 요청). */
-export const PRAC_PREP_SEC9 = 15; export const PRAC_DROP_SEC9 = 30;   // 준비 30 → 15초(2026-11-17 넷째 요청 "준비시간 15초로 단축")
+export const PRAC_PREP_SEC9 = 60; export const PRAC_DROP_SEC9 = 60;   // 각각 1분(2026-11-18, 요청: "견제 준비와 견제 시간 각각 1분으로 늘리기") · 옛: 15 · 30(2026-11-17 넷째 "준비 15초로 단축" · 그 전 30 · 30)
 export const PRAC_PREP_FRAMES9 = Math.round(PRAC_PREP_SEC9 / FRAME_SEC);
 export const PRAC_TURN_FRAMES9 = PRAC_PREP_FRAMES9 + Math.round(PRAC_DROP_SEC9 / FRAME_SEC);
 /** 한 프레임(ms) — 가장 빠름 23.81 fps. */

@@ -60,14 +60,11 @@ export interface PracRecordReply9 { myBest: number | null; top: number | null; t
 /* 명령 키는 공통 칸 + 유닛별 명령 카드(practiceKeys9 · 2026-11-18) — 옛 판 ACTS9(명령 하나에 키 하나 · 서로 다른 유닛도 못 겹침)는 걷었다. */
 /** 원작 보이는 화면(게임 px) — 콘솔 위 640 × 400(재생기 ORIG_VIEW9 = 20 × 12.5 타일). */
 const VIEW_W9 = 640; const VIEW_H9 = 400;
-/* ★ 화면 스크롤 원작 그대로(2026-11-17, 지적: "엣지 투 스크롤이 잘 안됨(원작수준으로 재현 필요)") — KopruluSector(kp_ui_scroll.c)의 UpdateMapScroll 0x49bf10 ·
-   GetEdgeScrollCursorId 0x43e7b0 · 속도표 0x509390: 가장자리 = 커서가 화면 끝 2px 안 · 한 걸음마다 가속 단계 0 → 6 · 그 단계의 픽셀만큼(속도 3) · 화면 자리는 8px 칸 ·
-   키(화살표)가 먼저 · 상자 끌기 중엔 안 민다 · 걸음은 15.625ms 마다(윈도 틱). 커서는 게임 화면을 누르면 갇힌다(Pointer Lock · Esc 로 푼다). */
-const SCROLL_SPEEDS9 = [
-  [0, 0, 8, 8, 16, 16, 16], [0, 0, 8, 8, 16, 16, 24], [0, 8, 8, 16, 16, 24, 24], [0, 8, 8, 16, 24, 24, 32],
-  [0, 8, 16, 16, 24, 32, 40], [0, 8, 16, 24, 32, 40, 48], [0, 8, 24, 32, 40, 56, 64],
-];
-const SCROLL_SPEED9 = 3; const SCROLL_MS9 = 15.625; const EDGE_GAME_PX9 = 2;
+/* ★ 화면 밀기는 재생기 전체화면의 그것으로(2026-11-18, 지적: "견제연습 화면이 꽉 안 차고 그래서 그런지 엣지투스크롤이 엉망 · 재생기 전체화면의 엣지투스크롤을 참고") —
+   전체화면은 **화면 맨 끝 2px**(진짜 커서 · 가두지 않는다) · 창모드는 게임 화면을 눌러 커서를 가뒀을 때만 그 틀 끝 2px. 닿는 순간 밑값으로 시작해 머물수록 빨라지고(0.8초에 최대)
+   겨눈 속도로 미끄러지듯 붙는다(시정수 0.11초 — 띠를 떠나면 같은 식이 감속). 화살표 키도 같은 길. 카메라는 8px 칸에 안 붙인다(붙이면 부드럽게 흐르지 않는다).
+   옛(2026-11-17 "원작 수준"): KopruluSector UpdateMapScroll 속도표(15.6ms 걸음 · 가속 단계 · 8px 칸) + 원작 화면(640 × 400) 네모 안쪽 띠 — 화면이 네모라 끝이 화면 끝이 아니었다. */
+const EDGE_PX9 = 2; const EDGE_MIN9 = 520; const EDGE_MAX9 = 1700; const EDGE_RAMP9 = 0.8; const EDGE_TAU9 = 0.11;   // 속도는 게임 px / 초
 /** 우클릭 대상 고리 깜빡임(원작 selectionTimer = 31 · 남은 값의 8 비트가 켜졌을 때만 고리 — 두 번 깜빡). */
 const FLASH_FRAMES9 = 31;
 /* ★ 좌 · 우클릭 원작 그대로(2026-11-17 · KopruluSector kp_ui_input.c ClickSelectAtPoint · BoxSelectUnits · FilterSelectableUnits · RightClickInGame · TargetingLeftClick):
@@ -483,10 +480,10 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   const views = useRef<Record<string, [number, number]>>({});
   const mouse = useRef({ x: 0, y: 0, in: false, down: false, sx: 0, sy: 0, box: false });
   /** 커서(게임 틀 기준 css px) · 창 안에 있나 · 갇혔나(Pointer Lock). */
-  const cur = useRef({ x: -1, y: -1, inWin: true });
+  const cur = useRef({ x: -1, y: -1, inWin: true, cx: -1, cy: -1 });
   const lockedRef = useRef(false); const [locked, setLocked] = useState(false);
   /** 스크롤 — 가속 단계 · 마지막 방향 · 걸음 누적(ms) · 키로 민 뒤 쉬는 중 · 그때의 커서. */
-  const scr = useRef({ step: 0, dx: 0, dy: 0, acc: 0, sup: false, sx: -1, sy: -1 });
+  const scr = useRef({ vx: 0, vy: 0, hold: 0 });
   const miniDrag = useRef(false);
   const btnDown = useRef<HTMLButtonElement | null>(null);
   /** 우클릭 대상 깜빡임 — id → 시작(ms). */
@@ -550,18 +547,19 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
 
   /* ── 좌표 ─────────────────────────────────────────────────── */
   const view = (): { w: number; h: number } => { const c = cvRef.current; return { w: c?.clientWidth ?? 800, h: c?.clientHeight ?? 600 }; };
-  /** 원작 화면(640 × 400 게임 px)을 캔버스 안에 가득 · 가운데 — 배율은 캔버스 크기가 정한다. */
+  /** 배율 — 원작 화면(640 × 400 게임 px)이 들어가는 크기. ★ 보이는 곳은 이제 **게임 틀 전체**(2026-11-18, 지적: "화면이 꽉 안 차고") — 넓은 화면은 옆을 더 · 높은 화면은 위아래를 더 본다.
+   *  옛: 그 네모만 그리고 밖은 검게 덮었다. */
   const fitZ = (): number => { const { w, h } = view(); return Math.max(0.1, Math.min(w / VIEW_W9, h / VIEW_H9)); };
   const toWorld = (sx: number, sy: number): [number, number] => {
     const { w, h } = view(); const { x, y, z } = cam.current;
     return [x + (sx - w / 2) / z, y + (sy - h / 2) / z];
   };
-  /** 화면 자리 — 왼쪽 위가 8px 칸 위 · 지도 안(원작 SetScreenPosition · & ~7). */
+  /** 화면 자리 — 보이는 틀 전체가 지도 안(지도보다 넓으면 가운데). 옛: 원작 네모가 8px 칸 위(SetScreenPosition · & ~7 — 부드러운 밀기와 함께 걷음). */
   const clampCam = (): void => {
     const c = cam.current; c.z = fitZ();
-    const hw = VIEW_W9 / 2; const hh = VIEW_H9 / 2;
-    const tx = Math.max(0, Math.min(sim.W - VIEW_W9, c.x - hw)); const ty = Math.max(0, Math.min(sim.H - VIEW_H9, c.y - hh));
-    c.x = Math.floor(tx / 8) * 8 + hw; c.y = Math.floor(ty / 8) * 8 + hh;
+    const { w, h } = view(); const hw = w / c.z / 2; const hh = h / c.z / 2;
+    c.x = sim.W <= hw * 2 ? sim.W / 2 : Math.max(hw, Math.min(sim.W - hw, c.x));
+    c.y = sim.H <= hh * 2 ? sim.H / 2 : Math.max(hh, Math.min(sim.H - hh, c.y));
   };
   const flash = (t: Ent9 | null): void => { if (t && !t.def.res) flashes.current.set(t.id, performance.now()); };
   /** 땅 표식(원작은 하나 — 새로 찍으면 옮겨 간다). */
@@ -573,9 +571,10 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
   };
   /** 여러 기 고르기에 들 수 있나(내 유닛 · 건물 아님 · FilterSelectableUnits). */
   const multiOk = (u: Ent9 | undefined): u is Ent9 => !!u && u.owner === 0 && !u.def.bld && !u.dead && u.inside === null;
-  /** 보이는 원작 화면(640 × 400) 안의 세계 사각. */
+  /** 보이는 화면(틀 전체) 안의 세계 사각. */
   const screenRect = (): [number, number, number, number] => {
-    const c = cam.current; return [c.x - VIEW_W9 / 2, c.y - VIEW_H9 / 2, c.x + VIEW_W9 / 2, c.y + VIEW_H9 / 2];
+    const c = cam.current; const { w, h } = view(); const hw = w / c.z / 2; const hh = h / c.z / 2;
+    return [c.x - hw, c.y - hh, c.x + hw, c.y + hh];
   };
   /** 화면 안 같은 종류(Ctrl · 더블클릭) — 남의 것 · 건물은 그 하나. Shift 면 고른 것에 더한다(12 까지). */
   const typeSelect = (t: Ent9, shift: boolean): void => {
@@ -828,6 +827,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         if (e.type === "mousemove" && e.clientX === 0 && e.clientY === 0) return;
         const a = wrap.getBoundingClientRect(); c.x = e.clientX - a.left; c.y = e.clientY - a.top;
       }
+      c.cx = e.clientX; c.cy = e.clientY;   // 전체화면 밀기는 창 끝으로 잰다(재생기와 같게)
       c.inWin = true;
     };
     const onMove = (e: MouseEvent): void => {
@@ -840,8 +840,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       if (!lockedRef.current) fromEvent(e);
       if (el === cvRef.current) {
         e.preventDefault(); gDown(e.button, e.shiftKey);
-        /* 원작처럼 커서를 화면 안에 가둔다 — 사용자 손짓(누름) 안에서만 걸 수 있다. */
-        if (!lockedRef.current && wrap.requestPointerLock) { try { const r = wrap.requestPointerLock() as unknown; if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => undefined); } catch { /* 막힌 곳 */ } }
+        /* 원작처럼 커서를 화면 안에 가둔다 — 사용자 손짓(누름) 안에서만 걸 수 있다. ★ 전체화면은 안 가둔다(2026-11-18 · 재생기처럼 진짜 커서가 화면 끝에 닿는다). */
+        if (!lockedRef.current && !document.fullscreenElement && wrap.requestPointerLock) { try { const r = wrap.requestPointerLock() as unknown; if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => undefined); } catch { /* 막힌 곳 */ } }
         return;
       }
       if (el === miniRef.current) { e.preventDefault(); miniDown(e.button, e.shiftKey); return; }
@@ -862,6 +862,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     };
     const onCtx = (e: MouseEvent): void => { if (lockedRef.current || wrap.contains(e.target as Node)) e.preventDefault(); };
     const onOut = (e: MouseEvent): void => { if (!e.relatedTarget) cur.current.inWin = false; };   // 창 밖으로 — 마지막 자리를 쥔다
+    /* 전체화면에 들면 가둔 커서를 푼다(전체화면은 진짜 커서로 화면 끝을 민다 · 2026-11-18). */
+    const onFs = (): void => { if (document.fullscreenElement && document.pointerLockElement === wrap) document.exitPointerLock(); };
     const onLock = (): void => {
       const on = document.pointerLockElement === wrap;
       lockedRef.current = on; setLocked(on);
@@ -874,7 +876,9 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     window.addEventListener("contextmenu", onCtx);
     document.addEventListener("mouseout", onOut);
     document.addEventListener("pointerlockchange", onLock);
+    document.addEventListener("fullscreenchange", onFs);
     return () => {
+      document.removeEventListener("fullscreenchange", onFs);
       window.removeEventListener("mousemove", onMove);
       wrap.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);
@@ -886,41 +890,34 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sim]);
-  /** 한 걸음 — 원작 UpdateMapScroll(키 먼저 · 아니면 가장자리 · 가속 단계 · 속도표). */
-  const scrollStep = (): void => {
+  /** 화면 밀기 한 장(dt 초) — 화살표 키 먼저 · 아니면 가장자리 · 머문 시간으로 빨라지고 겨눈 속도로 미끄러지듯(위 EDGE_* ★). 상자 끌기 · 창 동안은 안 민다. */
+  const scrollTick = (dt: number): void => {
     const sc = scr.current; const kd = keysDown.current; const m = mouse.current;
-    if (m.down && m.box) { sc.step = 0; return; }   // 상자 끌기 중엔 안 민다
-    let dx = 0; let dy = 0; let moving = false;
-    if (kd.has("ArrowLeft")) dx = -1; else if (kd.has("ArrowRight")) dx = 1;
-    if (kd.has("ArrowUp")) dy = -1; else if (kd.has("ArrowDown")) dy = 1;
-    if (dx || dy) { moving = true; sc.sup = true; sc.sx = cur.current.x; sc.sy = cur.current.y; }
-    else {
-      [dx, dy] = edgeDir();
-      if (sc.sup) { if (cur.current.x === sc.sx && cur.current.y === sc.sy) { dx = 0; dy = 0; } else sc.sup = false; }
-      moving = dx !== 0 || dy !== 0;
-      if (!moving) sc.step = 0;
+    let ux = 0; let uy = 0;
+    if (!(m.down && m.box) && !gearRef.current) {
+      if (kd.has("ArrowLeft")) ux = -1; else if (kd.has("ArrowRight")) ux = 1;
+      if (kd.has("ArrowUp")) uy = -1; else if (kd.has("ArrowDown")) uy = 1;
+      if (!ux && !uy) [ux, uy] = edgeDir();
     }
-    if (moving && sc.step < 6) sc.step += 1;
-    if (moving) { sc.dx = dx; sc.dy = dy; }
-    if (sc.step) {
-      const n = SCROLL_SPEEDS9[SCROLL_SPEED9][sc.step];
-      cam.current.x += sc.dx * n; cam.current.y += sc.dy * n; clampCam();
-    }
+    sc.hold = ux || uy ? sc.hold + dt : 0;
+    const vel = (u: number): number => (u === 0 ? 0 : u * (EDGE_MIN9 + (EDGE_MAX9 - EDGE_MIN9) * Math.min(1, sc.hold / EDGE_RAMP9)));
+    const k = 1 - Math.exp(-dt / EDGE_TAU9);
+    sc.vx += (vel(ux) - sc.vx) * k; sc.vy += (vel(uy) - sc.vy) * k;
+    if (Math.abs(sc.vx) < 2 && Math.abs(sc.vy) < 2) { sc.vx = 0; sc.vy = 0; return; }
+    cam.current.x += sc.vx * dt; cam.current.y += sc.vy * dt; clampCam();
   };
-  /** 가장자리 방향 — 갇힌 커서는 틀 끝 2 게임 px · 풀린 커서는 틀 안 끝 띠, 또는 창 밖으로 나간 마지막 자리가 끝 곁이면 그 쪽. 톱니 창 동안은 안 민다. */
+  /** 가장자리 방향 — 전체화면(안 가둠)은 창 맨 끝 2px · 가둔 커서는 틀 끝 2px · 창모드에서 안 가뒀으면 안 민다(재생기 창모드와 같다). 창 동안은 안 민다. */
   const edgeDir = (): [number, number] => {
     const w = wrapRef.current; if (!w || gearRef.current) return [0, 0];
-    const W = w.clientWidth; const H = w.clientHeight; const c = cur.current;
-    if (c.x < 0 && c.y < 0) return [0, 0];
-    const band = Math.max(2, EDGE_GAME_PX9 * fitZ());
-    if (!lockedRef.current) {
-      const inside = c.x >= 0 && c.y >= 0 && c.x < W && c.y < H;
-      if (!inside && c.inWin) return [0, 0];   // 틀 밖 앱 화면 위 — 안 민다
-      const near = c.inWin ? band : 48;          // 창 밖으로 빠져나갔으면 마지막 자리가 끝 곁(48px)이면 그 쪽으로
-      const x = Math.max(0, Math.min(W - 1, c.x)); const y = Math.max(0, Math.min(H - 1, c.y));
-      return [x <= near ? -1 : x >= W - 1 - near ? 1 : 0, y <= near ? -1 : y >= H - 1 - near ? 1 : 0];
+    const c = cur.current;
+    if (lockedRef.current) {
+      const W = w.clientWidth; const H = w.clientHeight;
+      return [c.x <= EDGE_PX9 ? -1 : c.x >= W - 1 - EDGE_PX9 ? 1 : 0, c.y <= EDGE_PX9 ? -1 : c.y >= H - 1 - EDGE_PX9 ? 1 : 0];
     }
-    return [c.x <= band ? -1 : c.x >= W - 1 - band ? 1 : 0, c.y <= band ? -1 : c.y >= H - 1 - band ? 1 : 0];
+    const fs = document.fullscreenElement;
+    if (!fs || !fs.contains(w) || !c.inWin || c.cx < 0) return [0, 0];
+    const vw = window.innerWidth; const vh = window.innerHeight;
+    return [c.cx < EDGE_PX9 ? -1 : c.cx > vw - 1 - EDGE_PX9 ? 1 : 0, c.cy < EDGE_PX9 ? -1 : c.cy > vh - 1 - EDGE_PX9 ? 1 : 0];
   };
 
   /* ── 돌리기 · 그리기 ───────────────────────────────────────── */
@@ -932,10 +929,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
       if (!pausedRef.current) { acc += dt; while (acc >= PRAC_TICK_MS9 && sim.phase !== "over") { sim.step(); acc -= PRAC_TICK_MS9; } }
       else acc = 0;
       if (sim.phase === "over" && turnRef.current === "run") endTurn();
-      /* 화면 이동 — 원작 걸음(15.625ms 마다) */
-      const sc = scr.current; sc.acc += dt;
-      let k = 0; while (sc.acc >= SCROLL_MS9 && k < 30) { sc.acc -= SCROLL_MS9; scrollStep(); k += 1; }
-      if (k === 30) sc.acc = 0;
+      /* 화면 이동 — 부드러운 밀기(scrollTick · 2026-11-18 · 옛: 원작 15.625ms 걸음) */
+      scrollTick(dt / 1000);
       clampCam();
       draw(now);
       /* 갇힌 커서 그림 — 보통 화살 · 겨눔 · 가장자리 스크롤 화살 */
@@ -971,8 +966,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     const { x: cx, y: cy, z } = cam.current;
     const sxOf = (wx: number): number => W / 2 + (wx - cx) * z;
     const syOf = (wy: number): number => H / 2 + (wy - cy) * z;
-    /* 원작 화면 네모(CSS px) — 그 밖은 위 2D 층이 검게 덮는다. */
-    const vx = (W - VIEW_W9 * z) / 2; const vy = (H - VIEW_H9 * z) / 2; const vw = VIEW_W9 * z; const vh = VIEW_H9 * z;
+    /* 보이는 네모(CSS px) — 틀 전체(2026-11-18 · 옛: 원작 화면 네모만 · 밖은 검게). */
+    const vx = 0; const vy = 0; const vw = W; const vh = H;
     const t = nowMs / 1000;
     /* ① 지형 — 재생기와 같은 GL 지형층(지도 네 귀를 화면에 · 벽띠 평면 2 · 또렷이 0.5). 판 재사용은 지형층이 열쇠(네 귀 · 배킹)로 한다. */
     const tcv = terrCvRef.current; const G = terrGeom.current;
@@ -1169,11 +1164,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     }
     c2.setLineDash([]);
     c2.restore();
-    /* 원작 화면 밖 — 검정(지형 · 몸 층은 캔버스 가득 그린다). */
+    /* (걷음 2026-11-18) 원작 화면 밖 검정 덮개 — 이제 틀 전체가 보인다. */
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c2.fillStyle = "#000";
-    if (vy > 0) { c2.fillRect(0, 0, W, vy); c2.fillRect(0, vy + vh, W, H - vy - vh); }
-    if (vx > 0) { c2.fillRect(0, vy, vx, vh); c2.fillRect(vx + vw, vy, W - vx - vw, vh); }
     /* 상자 */
     const m = mouse.current;
     if (m.down && m.box) { c2.strokeStyle = "#4dff7a"; c2.lineWidth = 1; c2.strokeRect(Math.min(m.sx, m.x) + 0.5, Math.min(m.sy, m.y) + 0.5, Math.abs(m.x - m.sx), Math.abs(m.y - m.sy)); }
@@ -1195,8 +1187,8 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
     const fm = fogRef.current.mini;
     if (fm) { g.imageSmoothingEnabled = true; g.drawImage(fm, 0, 0, c.width, c.height); }
     const { w, h } = view(); const z = cam.current.z;
-    const vw = Math.min(w, VIEW_W9 * z); const vh = Math.min(h, VIEW_H9 * z);
-    const [ax, ay] = toWorld((w - vw) / 2, (h - vh) / 2); const [bx, by] = toWorld((w + vw) / 2, (h + vh) / 2);
+    void z;
+    const [ax, ay] = toWorld(0, 0); const [bx, by] = toWorld(w, h);   // 미니맵 흰 네모 = 틀 전체(2026-11-18)
     g.strokeStyle = "#fff"; g.lineWidth = Math.max(1, dpr); g.strokeRect(ax * k, ay * k, (bx - ax) * k, (by - ay) * k);
   };
 
@@ -1255,7 +1247,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
         <span>일꾼 <b>{sim.score.kills}</b></span>
         <span className="is-loss">잃음 <b>{sim.score.lostN}</b>{sim.score.lostPts ? ` (−${sim.score.lostPts})` : ""}</span>
         {mode && <span className="scr-prac-mode">{CMD_INFO9[mode].label} — 자리를 누르세요(Esc 취소)</span>}
-        {!locked && !mode && <span className="scr-prac-dim">게임 화면을 누르면 마우스가 화면 안에 갇혀요(원작처럼 가장자리 스크롤) · Esc 로 풀기</span>}
+        {!locked && !mode && <span className="scr-prac-dim">{document.fullscreenElement ? "화면 맨 끝에 마우스를 대면 화면이 움직여요" : "게임 화면을 누르면 마우스가 화면 안에 갇혀요(가장자리 스크롤) · Esc 로 풀기 · 전체 화면이면 그냥 화면 끝"}</span>}
         <span className="scr-prac-sp" />
         <button type="button" onClick={onRestart} title="이 턴을 버리고 새 턴">턴 다시</button>
         <button type="button" onClick={onFull} title="전체 화면 — Ctrl+숫자 · F3 를 게임이 받아요">전체 화면</button>
@@ -1349,6 +1341,7 @@ function PracGame({ map, terrain, setup, keys, paused: gearPaused, onReady, onGe
           <div className={`scr-prac-banner${prep ? "" : " is-drop"}${left <= 5 ? " is-hurry" : ""}`}>
             {/* 안내(2026-11-17, 요청: "가이드 문구 드랍 준비 · 드랍 GoGo" · 멘트 "드랍을 준비하세요 · 적 기지로 드랍을 가서 일꾼 올을 노리세요 · 일꾼 올을 성공시키세요") —
                 큰 글씨 = 단계 · 그 아래 남은 초 · 멘트(드랍 단계는 드랍 전 · 뒤로 갈린다). */}
+            {/* 한 줄 · 작게(2026-11-18, 요청: "가이드 패널이 너무 많이 차지해서 한 줄로 간단하게 바꾸고 작게") — [단계 · 남은 초 · 멘트]. 옛: 세 줄(큰 단계 · 큰 숫자 · 멘트). */}
             <span className="scr-prac-banner-t">{prep ? "드랍 준비" : "드랍 GoGo"}</span>
             <b className="scr-prac-banner-n">{Math.ceil(left)}</b>
             <span className="scr-prac-banner-s">{prep ? "드랍을 준비하세요" : sim.dropAt >= 0 ? "일꾼 올을 성공시키세요" : "적 기지로 드랍을 가서 일꾼 올을 노리세요"}</span>

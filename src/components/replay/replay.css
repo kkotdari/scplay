@@ -6260,11 +6260,12 @@
 .scr-prac-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,0.85); font-size: 15px; font-weight: 700; }
 /* ★ 드랍 연습 턴(2026-11-17, 요청: "처음 30초 드랍을 준비하세요 · 이후 30초 드랍을 성공시키세요로 나누기 · 안내 문구 위쪽에 노출 카운터") — 위쪽 가운데 안내 + 남은 초 ·
    턴 앞(시작) · 뒤(점수 · 기록) 판. */
-.scr-prac-banner { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 22px 10px; border-radius: 12px; background: rgba(6, 9, 16, 0.72); border: 1px solid rgba(120, 170, 255, 0.35); pointer-events: none; text-align: center; }
-.scr-prac-banner-t { font-size: 18px; font-weight: 800; color: #cfe0ff; letter-spacing: 0.02em; }
-.scr-prac-banner-n { font-size: 34px; line-height: 1; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
-.scr-prac-banner-s { font-size: 12px; color: #9aa6b8; }
+/* 한 줄 · 작게(2026-11-18, 요청: "가이드 패널이 너무 많이 차지해서 한 줄로 간단하게 바꾸고 작게") — 위 줄 바로 밑 가운데 알약 하나. 옛: 세 줄(18 · 34 · 12px · 안쪽 8 × 22). */
+.scr-prac-banner { position: absolute; top: 38px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
+  padding: 3px 12px; border-radius: 999px; background: rgba(6, 9, 16, 0.66); border: 1px solid rgba(120, 170, 255, 0.35); pointer-events: none; font-size: 12px; }
+.scr-prac-banner-t { font-weight: 800; color: #cfe0ff; }
+.scr-prac-banner-n { min-width: 2ch; text-align: right; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+.scr-prac-banner-s { color: #9aa6b8; }
 .scr-prac-banner.is-drop { border-color: rgba(255, 196, 74, 0.55); }
 .scr-prac-banner.is-drop .scr-prac-banner-t { color: #ffd77a; }
 .scr-prac-banner.is-hurry .scr-prac-banner-n { color: #ff6a5a; }
