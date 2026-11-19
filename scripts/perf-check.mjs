@@ -1158,7 +1158,21 @@ if (flag("--shortprobe", null)) {
   await clk9(".scr-capask-dur > button:last-of-type");
   await page.screenshot({ path: `${base9}_cap.png`, timeout: 240000 });
   await clk9(".scr-capask .scr-pinask-ok");
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(500);
+  /* 사진 하나(2026-11-19) — --shortimg FILE 이 서면: 사진 단추 → 파일 → 오른위로 끌기 → 크기 60% → 추가(창 사진 _img). */
+  if (flag("--shortimg", null)) {
+    await clk9(".scr-shortimg-btn");
+    await page.waitForTimeout(200);
+    await page.setInputFiles(".scr-shortimg-file", String(flag("--shortimg")));
+    await page.waitForSelector(".scr-shortimg.is-edit", { timeout: 15000 }).catch(() => console.log("[쇼츠] 사진 편집 안 섬"));
+    const ib9 = await page.evaluate(() => { const b = document.querySelector(".scr-shortimg.is-edit")?.getBoundingClientRect(); const q = document.querySelector(".scr-shortimgs")?.getBoundingClientRect(); return b && q ? [b.left + b.width / 2, b.top + b.height / 2, q.width] : null; });
+    if (ib9) { await page.mouse.move(ib9[0], ib9[1]); await page.mouse.down(); await page.mouse.move(ib9[0] + ib9[2] * 0.2, ib9[1] - ib9[2] * 0.2, { steps: 6 }); await page.mouse.up(); }
+    await page.evaluate(() => { const r = document.querySelector(".scr-imgask-size input"); if (r instanceof HTMLInputElement) { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; set?.call(r, "35"); r.dispatchEvent(new Event("input", { bubbles: true })); } });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${base9}_img.png`, timeout: 240000 });
+    await clk9(".scr-imgask .scr-pinask-ok");
+    await page.waitForTimeout(400);
+  }
   await page.screenshot({ path: `${base9}_prev.png`, timeout: 240000 });
   await page.waitForTimeout(1600);
   await clk9(".scr-shortrec-btn.is-rec");
@@ -1172,7 +1186,7 @@ if (flag("--shortprobe", null)) {
     writeFileSync(out9, JSON.stringify(o9.clip));
     if (o9.cover) writeFileSync(`${base9}_cover.${o9.cover.startsWith("data:image/webp") ? "webp" : "jpg"}`, Buffer.from(o9.cover.split(",")[1], "base64"));
     const c9 = o9.clip;
-    console.log(`[쇼츠] 길이 ${c9.dur}초 · 게임 ${c9.t0}~${c9.t1} · 칸 ${c9.s.length} · 자막 ${JSON.stringify(c9.caps)} · 배율 ${c9.s[0][2]}→${Math.max(...c9.s.map((x) => x[2]))} · 가운데 (${c9.s[0][3]},${c9.s[0][4]})→(${c9.s[c9.s.length - 1][3]},${c9.s[c9.s.length - 1][4]}) · 표지 ${o9.cover ? Math.round(o9.cover.length / 1024) + "KB" : "없음"} · 글 ${(JSON.stringify(c9).length / 1024).toFixed(1)}KB`);
+    console.log(`[쇼츠] 길이 ${c9.dur}초 · 게임 ${c9.t0}~${c9.t1} · 칸 ${c9.s.length} · 자막 ${JSON.stringify(c9.caps)} · 사진 ${JSON.stringify((c9.imgs ?? []).map((m) => ({ ...m, src: `${m.src.slice(0, 22)}…${Math.round(m.src.length / 1024)}KB` })))} · 배율 ${c9.s[0][2]}→${Math.max(...c9.s.map((x) => x[2]))} · 가운데 (${c9.s[0][3]},${c9.s[0][4]})→(${c9.s[c9.s.length - 1][3]},${c9.s[c9.s.length - 1][4]}) · 표지 ${o9.cover ? Math.round(o9.cover.length / 1024) + "KB" : "없음"} · 글 ${(JSON.stringify(c9).length / 1024).toFixed(1)}KB`);
   }
 }
 /* --shortshots N(2026-11-19 · --short FILE 과 함께) — 토막을 N 조각 시각마다 사진(OUT_k.png · --shot 의 이름 앞) · 진행 · 시각 · 배율 · 끝남을 적는다. */

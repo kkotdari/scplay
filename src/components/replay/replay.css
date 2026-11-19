@@ -5803,8 +5803,8 @@
    무대 밖 형제는 독(미니맵만 · 위 .scr-fs-dockrow.is-fold)과 펼치기 손잡이(.scr-fs-foldfab)만 · 재생바 숨김 · 쇠판 켜 걷음. */
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb,
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb *,
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortrec-badge):not(.scr-shortrec-frame):not(.is-shortchat),
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortrec-badge):not(.scr-shortrec-frame):not(.is-shortchat) *,
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortimgs):not(.scr-shortrec-badge):not(.scr-shortrec-frame):not(.is-shortchat),
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortimgs):not(.scr-shortrec-badge):not(.scr-shortrec-frame):not(.is-shortchat) *,
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab),
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab) * {
   visibility: hidden !important;
@@ -6360,8 +6360,8 @@
 .scr-shortsave-meta { margin: 0; font-size: 13px; opacity: 0.78; }
 .scr-shortsave-err { margin: 0; font-size: 13px; color: #ff8a8a; }
 /* 쇼츠 재생 모드 — 독 접힘(미니맵만 · is-dockfold2)에 더해 무대 위 오버레이(배속 · 화면 주인 · 핀 카드…) · 펼치기 손잡이도 숨기고 누름을 안 받는다(앱이 눌러 넘긴다). */
-.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.is-shortchat),
-.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.is-shortchat) *,
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs):not(.is-shortchat),
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs):not(.is-shortchat) *,
 .scr-fs-root.is-short > .scr-fs-foldfab, .scr-fs-root.is-short > .scr-fs-foldfab * {
   visibility: hidden !important;
   pointer-events: none !important;
@@ -6382,3 +6382,17 @@
   border: 4px dashed rgba(255, 255, 255, 0.95); outline: 1px solid rgba(0, 0, 0, 0.55); outline-offset: 0;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
+/* 쇼츠 사진(RMP imgAsk9 ★ · 2026-11-19, 요청: "자막처럼 사진 첨부도 가능하게 · 몇초뜰지와 크기위치 지정") — 무대 가운데 정사각(녹화 틀과 같은 자리 · 재생은 그 정사각이 통째로 든다) 안에
+   자리(가운데) · 폭(%)으로 선다 · 자막(30000) 아래 · 들고 날 때 자막과 같은 결 · 넣는 중(is-edit)엔 점선 테 · 끌 수 있다. 판(.scr-imgask)은 덮개 없이 위에 뜬다. */
+.scr-shortimgs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 29995; pointer-events: none; }
+.scr-shortimg {
+  position: absolute; transform: translate(-50%, -50%); height: auto; max-width: none; border-radius: 6px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  animation: scr-shortcap-in 0.5s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, filter 0.35s ease; user-select: none; -webkit-user-drag: none;
+}
+.scr-shortimg.is-out { opacity: 0; filter: blur(3px); }
+.scr-shortimg.is-edit { pointer-events: auto; cursor: move; touch-action: none; outline: 3px dashed rgba(255, 255, 255, 0.95); outline-offset: 2px; animation: none; }
+.scr-shortimg-file { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
+.scr-imgask { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); z-index: 100000; width: min(340px, calc(100vw - 24px)); gap: 10px; }
+.scr-imgask-size input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: #ffd34d; }
+.scr-imgask-pick { min-height: 34px; }
+.scr-shortfab-btn.scr-shortimg-btn { color: #8fd6ff; }

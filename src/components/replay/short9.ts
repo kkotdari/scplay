@@ -9,6 +9,9 @@
 
 /** 자막 한 줄 — 토막 실초 w 부터 d 초. */
 export type ShortCap9 = { w: number; d: number; text: string };
+/** 사진 한 장(2026-11-19, 요청: "자막처럼 사진 첨부도 가능하게 · 저화질 · 몇초뜰지와 크기위치 지정") — 토막 실초 w 부터 d 초 · 자리 x · y = **쇼츠 정사각 틀 안** 가운데(0~1) ·
+ *  크기 s = 틀 한 변 몫(폭) · ar = 세로/가로 · src = 올릴 땐 data URL(긴 변 SHORT_IMG_SIDE9 · webp) → 서버가 파일로 두고 주소로 바꾼다(p = 저장소 열쇠 · 지울 때). */
+export type ShortImg9 = { w: number; d: number; x: number; y: number; s: number; ar?: number; src: string; p?: string };
 /** 쇼츠 한 토막 — v 판 · 게임 시각 [t0, t1] · 실초 길이 dur · 녹화 시작 배속 sp · 자취 s · 자막 caps · 기울기 a(90 = 평면 · 없으면 평면). */
 export type ShortClip9 = {
   v: 1;
@@ -23,6 +26,8 @@ export type ShortClip9 = {
   hw?: number;
   /** 시야 주인(2026-11-19 · 개인 화면에서 녹화하면 그 사람 게임 아이디) — 쇼츠 재생도 그 사람 안개로 연다(카메라는 자취 그대로). 없으면 전체 시야. */
   vw?: string;
+  /** 사진(위 ShortImg9). */
+  imgs?: ShortImg9[];
 };
 
 /** 녹화 상한(실초) — 넘으면 저절로 멈춘다(서버 상한 90 · sg-api shorts.py). */
@@ -34,6 +39,40 @@ export const SHORT_CAP_D9 = 5;
 export const SHORT_CAP_DMAX9 = 15;
 /** 자막 한 줄 상한(글자 · 서버와 같은 값). */
 export const SHORT_CAP_LEN9 = 120;
+/** 사진 장 수 상한 · 긴 변(px) · 화질(서버 상한 8장 · 400KB). */
+export const SHORT_IMGS_MAX9 = 8;
+export const SHORT_IMG_SIDE9 = 480;
+
+/** 고른 사진을 저화질로 — 긴 변 SHORT_IMG_SIDE9 로 줄여 webp 0.7(안 되면 jpeg 0.72) data URL · 세로/가로 비. 못 읽으면 null. */
+export const shortImgShrink9 = async (file: File): Promise<{ src: string; ar: number } | null> => {
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error("img")); im.src = url; });
+    URL.revokeObjectURL(url);
+    const w0 = img.naturalWidth || img.width;
+    const h0 = img.naturalHeight || img.height;
+    if (!(w0 > 0 && h0 > 0)) return null;
+    const k = Math.min(1, SHORT_IMG_SIDE9 / Math.max(w0, h0));
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w0 * k));
+    cv.height = Math.max(1, Math.round(h0 * k));
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.drawImage(img, 0, 0, cv.width, cv.height);
+    let src = cv.toDataURL("image/webp", 0.7);
+    if (!src.startsWith("data:image/webp")) src = cv.toDataURL("image/jpeg", 0.72);
+    return { src, ar: cv.height / cv.width };
+  } catch {
+    return null;
+  }
+};
+
+/** 지금(실초 w) 떠 있는 사진 — 들고 나는 몫(0~1)과 함께(자막과 같은 0.35초). */
+export const shortImgsAt9 = (imgs: readonly ShortImg9[], w: number): { img: ShortImg9; i: number; out: boolean }[] => {
+  const res: { img: ShortImg9; i: number; out: boolean }[] = [];
+  imgs.forEach((img, i) => { if (w >= img.w && w <= img.w + img.d) res.push({ img, i, out: w > img.w + img.d - 0.4 }); });
+  return res;
+};
 
 const r2 = (v: number): number => Math.round(v * 100) / 100;
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;
