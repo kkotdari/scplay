@@ -706,6 +706,21 @@ export declare type ShortClip9 = {
     hw?: number;
     /** 시야 주인(2026-11-19 · 개인 화면에서 녹화하면 그 사람 게임 아이디) — 쇼츠 재생도 그 사람 안개로 연다(카메라는 자취 그대로). 없으면 전체 시야. */
     vw?: string;
+    /** 사진(위 ShortImg9). */
+    imgs?: ShortImg9[];
+};
+
+/** 사진 한 장(2026-11-19, 요청: "자막처럼 사진 첨부도 가능하게 · 저화질 · 몇초뜰지와 크기위치 지정") — 토막 실초 w 부터 d 초 · 자리 x · y = **쇼츠 정사각 틀 안** 가운데(0~1) ·
+ *  크기 s = 틀 한 변 몫(폭) · ar = 세로/가로 · src = 올릴 땐 data URL(긴 변 SHORT_IMG_SIDE9 · webp) → 서버가 파일로 두고 주소로 바꾼다(p = 저장소 열쇠 · 지울 때). */
+declare type ShortImg9 = {
+    w: number;
+    d: number;
+    x: number;
+    y: number;
+    s: number;
+    ar?: number;
+    src: string;
+    p?: string;
 };
 
 /** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 색인 줄 gameIndexOf9 가 돌려준다). */
