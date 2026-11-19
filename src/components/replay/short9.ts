@@ -19,6 +19,8 @@ export type ShortClip9 = {
   s: [number, number, number, number, number][];
   caps: ShortCap9[];
   a?: number;
+  /** 녹화한 무대의 세로/가로(2026-11-19) — 재생 판이 이보다 세로로 길면 그 비만큼 당겨 녹화한 화면의 **세로 범위**를 채운다(좌우를 자른다 · RMP shortCamRef9 ★). 없으면(옛 토막) 0.75. */
+  hw?: number;
 };
 
 /** 녹화 상한(실초) — 넘으면 저절로 멈춘다(서버 상한 90 · sg-api shorts.py). */

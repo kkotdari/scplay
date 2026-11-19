@@ -14942,7 +14942,7 @@ export default function ReplayMotionPlayer({
   const chatsSorted9 = useMemo(() => (chats9 ? [...chats9].sort((a9, b9) => a9.sec - b9.sec) : []), [chats9]);
   const chatNow9 = chatsSorted9.filter((c9) => c9.sec <= t && t < c9.sec + CHAT_SHOW9 * Math.max(1, speed)).slice(-CHAT_MAX9);
   const chatNode9 = chatNow9.length > 0 ? (
-    <div className="scr-fs-chat" aria-live="polite">
+    <div className={cx("scr-fs-chat", short && "is-shortchat")} aria-live="polite">
       {chatNow9.map((c9) => {
         const pl9 = bases.some((b9) => b9.key === c9.name);
         return (
@@ -17634,7 +17634,7 @@ export default function ReplayMotionPlayer({
   onShortEndRef9.current = onShortEnd;
   const onShortProgressRef9 = useRef(onShortProgress);
   onShortProgressRef9.current = onShortProgress;
-  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; sp: number; a: number; cover: string | null } | null>(null);
+  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; sp: number; a: number; hw: number; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
   /** 녹화 화면을 다시 그리는 박자(토막 0.1초 칸) — REC 시계 · 자막 미리보기가 이 값으로 선다. */
   const [recTick9, setRecTick9] = useState(0);
@@ -17667,7 +17667,9 @@ export default function ReplayMotionPlayer({
     if (!onShortCreateRef9.current || recRef9.current || short) return;
     const t9 = tLiveRef9.current;
     const [z9, cx9, cy9] = recViewNow9();
-    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], sp: speed, a: Math.round(pitchDeg), cover: null };
+    const st9 = stageRef.current;
+    const hw9 = st9 && st9.offsetWidth > 0 ? Math.round((st9.offsetHeight / st9.offsetWidth) * 1000) / 1000 : 0.75;
+    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, cover: null };
     setRecTick9(0);
     setRecOn9(true);
     setRecSave9(null);
@@ -17689,7 +17691,7 @@ export default function ReplayMotionPlayer({
     const ts9 = r9.s.map((x9) => x9[1]);
     const clip9: ShortClip9 = {
       v: 1, t0: Math.min(...ts9), t1: Math.max(...ts9), dur: Math.round(r9.w * 100) / 100, sp: r9.sp, s: r9.s,
-      caps: r9.caps.filter((c9) => c9.w < r9.w), ...(r9.a !== 90 ? { a: r9.a } : {}),
+      caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.a !== 90 ? { a: r9.a } : {}),
     };
     setPlaying(false);
     setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "" });
@@ -17777,7 +17779,13 @@ export default function ReplayMotionPlayer({
     const bh9 = el9?.offsetHeight ?? 0;
     if (bw9 < 4 || bh9 < 4) return;
     linkHoldRef9.current = null;
-    const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0));
+    /* ★ 판 비 맞춤(2026-11-19, 지적: "폰에서 너무 저배율로 나오는데") — 1배 = 무대 가로 폭이라 PC(가로 1280 남짓)에서 녹화한 배율을 폰 9:16(가로 390)에 그대로 쓰면 같은 지도
+       가로 범위가 3분의 1 폭에 들어가 유닛이 아주 작았다. 쇼츠 자르기처럼 **녹화한 화면의 세로 범위를 재생 판 세로에 맞추고 좌우를 자른다** — 재생 판이 녹화 무대(hw)보다
+       세로로 길면 그 비만큼 당긴다(녹화 때와 타일 크기가 거의 같다). 가로로 넓으면 그대로(가로 범위를 맞추고 위아래를 자른다). */
+    const st9 = stageRef.current;
+    const hwP9 = st9 && st9.offsetWidth > 0 ? st9.offsetHeight / st9.offsetWidth : 1;
+    const hwR9 = shortRef9.current?.hw && shortRef9.current.hw > 0 ? shortRef9.current.hw : 0.75;
+    const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0 * Math.max(1, hwP9 / hwR9)));
     const lim9 = panLimit(z9);
     const p9 = {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx0) * bw9 * z9)),

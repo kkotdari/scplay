@@ -5803,8 +5803,8 @@
    무대 밖 형제는 독(미니맵만 · 위 .scr-fs-dockrow.is-fold)과 펼치기 손잡이(.scr-fs-foldfab)만 · 재생바 숨김 · 쇠판 켜 걷음. */
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb,
 .scr-fs-root.is-dockfold2 > .scr-fs-lower > .scr-tb *,
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask),
-.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask) *,
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortrec-badge):not(.is-shortchat),
+.scr-fs-root.is-dockfold2 > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-split-under):not(.scr-split):not(.scr-boxsel):not(.scr-fs-solo):not(.scr-speeddial):not(.scr-mode-ask):not(.scr-shortcaps):not(.scr-shortrec-badge):not(.is-shortchat) *,
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab),
 .scr-fs-root.is-dockfold2 > :not(.scr-fs-stage):not(.scr-fs-lower):not(.scr-fs-foldfab) * {
   visibility: hidden !important;
@@ -6342,12 +6342,18 @@
 .scr-shortsave-meta { margin: 0; font-size: 13px; opacity: 0.78; }
 .scr-shortsave-err { margin: 0; font-size: 13px; color: #ff8a8a; }
 /* 쇼츠 재생 모드 — 독 접힘(미니맵만 · is-dockfold2)에 더해 무대 위 오버레이(배속 · 화면 주인 · 핀 카드…) · 펼치기 손잡이도 숨기고 누름을 안 받는다(앱이 눌러 넘긴다). */
-.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps),
-.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps) *,
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.is-shortchat),
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.is-shortchat) *,
 .scr-fs-root.is-short > .scr-fs-foldfab, .scr-fs-root.is-short > .scr-fs-foldfab * {
   visibility: hidden !important;
   pointer-events: none !important;
 }
 .scr-fs-root.is-short, .scr-fs-root.is-short * { pointer-events: none !important; }
-/* 쇼츠 재생의 폰 미니맵은 0.62배(2026-11-19, 9:16 판에서 판 폭의 절반을 먹었다) — 왼아래 귀를 축으로 줄인다(독 접힘의 내림 translateY 는 그대로). */
-.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short.is-dockfold2 .scr-fs-dockmain > .scr-fs-minipanel { transform: translateY(var(--tb-h9, 0px)) scale(0.62); transform-origin: 0 100%; }
+/* 쇼츠 재생의 폰 미니맵은 0.62배(2026-11-19, 9:16 판에서 판 폭의 절반을 먹었다) — ★ 판 **크기를 직접** 줄인다(같은 날 지적: "미니맵 꽉 안채워진 문제" — 옛 scale(0.62) 변환은
+   미니맵이 그림 칸을 getBoundingClientRect(변환을 먹은 크기)로 재 칸의 62% 에만 그렸다 · 이름표는 % 자리라 판 전체에 퍼졌다). 받침(::before)의 솟은 몫(--ped-h)도 같은 키로. */
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short .scr-fs-dockmain > .scr-fs-minipanel {
+  height: calc(var(--mini-h) * 0.62); width: round(nearest, calc(var(--mini-h) * 0.62 * var(--scr-mini-ar, 1)), 2px);
+  --ped-h: max(0px, calc(var(--mini-h) * 0.62 - var(--plate-h)));
+}
+/* 쇼츠 재생의 경기 채팅(2026-11-19, 요청: "그 시간의 채팅도 나와야 함") — 무대 왼쪽 위(앱 보기 화면의 머리줄 아래 · 오른쪽 단추 줄 몫은 비운다). 줄 꼴 · 지속은 재생기 채팅 그대로. */
+.scr-fs-root.is-short > .scr-fs-stage > .scr-fs-chat.is-shortchat { top: max(88px, 15%); bottom: auto; left: 10px; right: auto; max-width: calc(100% - 86px); }

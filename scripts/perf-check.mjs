@@ -1182,9 +1182,8 @@ if (flag("--short", null) && flag("--shortshots", null)) {
   const sb9 = String(flag("--shot", "short.png")).replace(/\.png$/, "");
   const t09 = Date.now();
   for (let k9 = 0; k9 < n9; k9 += 1) {
-    const wantMs9 = ((k9 + 0.5) / n9) * clip9.dur * 1000;
-    const wait9 = wantMs9 - (Date.now() - t09);
-    if (wait9 > 0) await page.waitForTimeout(wait9);
+    /* 진행도로 기다린다(2026-11-19 · 쇼츠 화면 다지기로 시작이 늦어진다) — 그 조각의 가운데까지 · 상한 90초. */
+    await page.waitForFunction((p9) => (window.__shortProg9 ?? 0) >= p9 || !!window.__shortEnded9, (k9 + 0.5) / n9, { timeout: 90000, polling: 100 }).catch(() => undefined);
     await page.screenshot({ path: `${sb9}_${k9}.png`, timeout: 240000 });
     const st9 = await page.evaluate(() => ({ p: window.__shortProg9, e: window.__shortEnded9 ?? null, clk: document.querySelector(".scr-motion-clock")?.textContent ?? "" }));
     console.log(`[쇼츠 재생] ${k9}: 벽 ${((Date.now() - t09) / 1000).toFixed(1)}초 · 진행 ${(st9.p ?? 0).toFixed(2)} · 끝 ${st9.e ? "예" : "아니"} · 시계 ${st9.clk}`);
