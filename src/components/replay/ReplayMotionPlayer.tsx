@@ -17762,8 +17762,10 @@ export default function ReplayMotionPlayer({
     setPlaying(!shortPaused);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortPaused]);
-  /** 자취 한 칸의 눈을 앉힌다 — 배율이 바뀌면 상태까지(setView9 · 렌더) · 팬만이면 눈(panRef)과 렌즈 · 효과층 · 지도 벡터층 · 미니맵만(카메라 한 걸음 camStepRef9 와 같은 길) ·
-   *  상태 거울은 0.2초마다. 받은 자리는 지도 분수라 녹화한 상자와 크기가 달라도 같은 곳이다(링크 받기와 같은 셈). */
+  /** 자취 한 칸의 눈을 앉힌다 — 배율 · 팬 모두 **눈(zoomRef · panRef)과 렌즈 변환 · 효과층 · 지도 벡터층 · 미니맵만**(카메라 한 걸음 camStepRef9 와 같은 길 · 붓은 눈을 읽는다).
+   *  ★ 상태(setZoom · setPan = 재생기 전체 렌더)는 드물게만 — 배율이 움직이는 동안 0.5초 · 팬만이면 1.5초마다(2026-11-19, 지적: "사실상 버벅여서 뭐가 안보임" — 옛 셈은 배율이
+   *  조금만 바뀌어도 장마다 setView9 를 불러(자동 중계 중 녹화하면 줌 당김이 잦다) 폰에서 장마다 렌더 수십 ms · 팬도 0.2초마다 상태를 굳혔다). 끝에서 한 번 굳힌다.
+   *  받은 자리는 지도 분수라 녹화한 상자와 크기가 달라도 같은 곳이다(링크 받기와 같은 셈). */
   const shortCamRef9 = useRef<((z: number, cx: number, cy: number) => void) | null>(null);
   shortCamRef9.current = (z0: number, cx0: number, cy0: number): void => {
     if (xfGestureRef.current) return;
@@ -17778,9 +17780,10 @@ export default function ReplayMotionPlayer({
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx0) * bw9 * z9)),
       y: Math.min(centerTop9(lim9, cy0 * grid.height), Math.max(-lim9.y, (0.5 - cy0) * bh9 * z9)),
     };
-    if (Math.abs(z9 - zoomRef.current) > 0.002) { setView9(z9, p9); return; }
+    const zMoved9 = Math.abs(z9 - zoomRef.current) > 1e-4;
     const o9 = panRef.current;
-    if (Math.abs(o9.x - p9.x) < 0.05 && Math.abs(o9.y - p9.y) < 0.05) return;
+    if (!zMoved9 && Math.abs(o9.x - p9.x) < 0.05 && Math.abs(o9.y - p9.y) < 0.05) return;
+    zoomRef.current = z9;
     panRef.current = p9;
     const lens9 = lensRef.current;
     if (lens9) lens9.style.transform = z9 > 1 || p9.x !== 0 || p9.y !== 0 ? `translate(${p9.x}px, ${p9.y}px) scale(${z9})` : "";
@@ -17788,8 +17791,11 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(z9, p9);
     const now9 = performance.now();
     if (now9 - miniAtRef9.current >= 100) { miniAtRef9.current = now9; miniPaintRef.current?.(z9, p9); }
-    if (now9 - shortPanAt9.current >= 200) { shortPanAt9.current = now9; setPan(p9); }
+    if (zMoved9) shortZAt9.current = now9;
+    const gap9 = now9 - shortZAt9.current < 600 ? 500 : 1500;
+    if (now9 - shortPanAt9.current >= gap9) { shortPanAt9.current = now9; setZoom(z9); setPan(p9); }
   };
+  const shortZAt9 = useRef(0);
   /** 손짓 중 한 장 — rAF 안에서만 불린다(위). 지금 손끝 값(refs)으로 그린다. */
   const xfPaintNow = useCallback((): void => {
     const z1 = zoomRef.current;
@@ -22516,7 +22522,7 @@ export default function ReplayMotionPlayer({
           // 끝까지 봤다고 바깥에 알린다(요청) — 화면이 그때 승패를 드러낸다.
           if (ended9) { setPlaying(false); setDone(true); onFinish?.(); }
           if (sc9) onShortProgressRef9.current?.(sc9.dur > 0 ? shortWRef9.current / sc9.dur : 1);
-          if (shortEnd9 && !shortEndedRef9.current) { shortEndedRef9.current = true; setPlaying(false); onShortEndRef9.current?.(); }
+          if (shortEnd9 && !shortEndedRef9.current) { shortEndedRef9.current = true; setZoom(zoomRef.current); setPan({ ...panRef.current }); setPlaying(false); onShortEndRef9.current?.(); }
         }
       }
     };
@@ -22569,6 +22575,8 @@ export default function ReplayMotionPlayer({
   const nukeOn9 = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm");
   /* 폰 보통 이하는 0.2초(2026-10-28 덜 그리기 — React 한 장이 폰에서 15ms 안팎 · 시계 글자·인포창 숫자만 늦다 · 유닛·카메라는 틱이 칠한다). */
   reactStepRef9.current = DEV9.name === "phone" && TIER9.v < 2 ? REACT_STEP_MS9 * 2 : REACT_STEP_MS9;
+  /* 쇼츠 재생은 React 박자를 0.25초로(2026-11-19, 지적: "로딩이 좀 느리고 사실상 버벅여서 뭐가 안보임") — 독 · 재생바가 없어 렌더가 고칠 글자가 자막뿐이다(지도 · 안개 · 미니맵은 붓 틱이 민다). */
+  if (short) reactStepRef9.current = Math.max(reactStepRef9.current, 250);
   nukeOnRef9.current = nukeOn9;
 
   /* (걷어냄) 수송·드랍 어림 한 벌 — 드랍/태움 신호(drops·loads)와 수송선 자취로
