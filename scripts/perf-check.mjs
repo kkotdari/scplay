@@ -724,7 +724,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     onShare: async () => { window.__shareQ9 = window.__share9().qs; return "링크 복사됨"; },   // --sharepick 이 '보내는 순간의 링크'를 읽는다
     /* --shortrec(2026-11-19) — 쇼츠 만들기 단추를 세우고 올린 토막 · 표지를 window.__shortOut9 에 둔다 · --short FILE — 그 토막(ShortClip9 JSON)을 쇼츠 재생 모드로 연다. */
     ...(window.__shortRec ? { onShortCreate: async (clip, cover) => { window.__shortOut9 = { clip, cover }; } } : {}),
-    ...(window.__frameSide ? { frameW: window.__frameSide, frameH: window.__frameSide, guide: false } : {}),   // --frame N — 쇼츠 보기처럼 N×N 판(앱 ShortsViewer)
+    ...(window.__frameSide ? { frameW: window.__frameSide[0], frameH: window.__frameSide[1], guide: false } : {}),   // --frame W[xH] — 쇼츠 보기처럼 W×H 판(앱 ShortsViewer)
     ...(window.__shortClip ? { short: window.__shortClip, onShortEnd: () => { window.__shortEnded9 = performance.now(); }, onShortProgress: (p) => { window.__shortProg9 = p; } } : {}),
   }));
 };
@@ -1015,7 +1015,7 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
 if (REAL9) await page.evaluate((e9) => { window.__endSec = e9; }, REAL9.end);   // --real 경기 길이
 if (VEIL9) await page.evaluate(() => { window.__veil = true; });
 if (has("--shortrec")) await page.evaluate(() => { window.__shortRec = true; });
-if (flag("--frame", null)) await page.evaluate((n9) => { window.__frameSide = n9; const r9 = document.getElementById("root"); if (r9) { r9.style.width = `${n9}px`; r9.style.height = `${n9}px`; r9.style.margin = "40px auto"; r9.style.overflow = "hidden"; } }, Number(flag("--frame")));
+if (flag("--frame", null)) await page.evaluate((wh9) => { window.__frameSide = wh9; const r9 = document.getElementById("root"); if (r9) { r9.style.width = `${wh9[0]}px`; r9.style.height = `${wh9[1]}px`; r9.style.margin = "20px auto"; r9.style.overflow = "hidden"; } }, String(flag("--frame")).split("x").map(Number).concat(Number(String(flag("--frame")).split("x")[0])).slice(0, 2));
 if (flag("--short", null)) await page.evaluate((c9) => { window.__shortClip = c9; }, JSON.parse(readFileSync(String(flag("--short")), "utf8")));
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);

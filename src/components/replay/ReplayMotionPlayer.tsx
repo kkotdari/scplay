@@ -15889,7 +15889,10 @@ export default function ReplayMotionPlayer({
          자리지기의 frameStyle 이 mapViewW 를 읽는다) — 되돌리려면 이 배열에 다시 민다. */
     return `min(${caps9.join(", ")})`;
   })();
-  const stageStyle: React.CSSProperties | undefined = rowsOutside
+  /** ★ 쇼츠 판(2026-11-19, 요청: "쇼츠 비율 모바일은 세로로 길게 · 피시는 가로 4:3") — 쇼츠 재생은 넣는 쪽이 준 가로 × 세로(frameW · frameH)를 **그대로** 채운다
+   *  (지도 비를 안 따른다). 1배 = 무대 가로 폭이라(fsCoverW ★★) 녹화한 가로 범위는 그대로 · 세로로 긴 판은 위아래가 더 보인다. */
+  const shortBox9 = short && frameW !== undefined && frameW > 0 && frameH !== undefined && frameH > 0 ? { w: Math.round(frameW), h: Math.round(frameH) } : null;
+  const stageStyle: React.CSSProperties | undefined = shortBox9 ? { width: "100%", height: `${shortBox9.h}px`, maxHeight: "none" } : rowsOutside
     ? {
       aspectRatio: `${grid.width} / ${grid.height}`,
       /* 폭은 **안 건다** — 판이 이미 상한을 지고 있고(위 stageCapW9), 무대는 그 안에서
@@ -15910,6 +15913,7 @@ export default function ReplayMotionPlayer({
     : undefined;
   /** 프레임 크기 — 높이 예산이 폭을 정한다(위). 전체화면은 CSS가 화면을 채운다. */
   const frameStyle = ((): React.CSSProperties => {
+    if (shortBox9) return { width: `${shortBox9.w}px`, height: `${shortBox9.h}px` };   // 쇼츠 판(위 shortBox9 ★)
     /* ★ 폭을 **높이 예산으로 죄는 것은 넓은 배치뿐**이다(지적: "맵 오른쪽 검정 띠 여백
        보이지 저게 문제였네") — 좁은 화면에서 예산이 폭보다 작게 나오면 판이 줄 폭보다
        좁아지고, 가운데 정렬이라 좌우에 검은 띠가 남는다. 폰은 폭이 곧 화면이라 그 띠가
