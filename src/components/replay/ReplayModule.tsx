@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import ReplayMotionPlayer from "./ReplayMotionPlayer";
 import type { MotionBase, SceneLink9, ScenePin9 } from "./ReplayMotionPlayer";
+import type { ShortClip9 } from "./short9";
 import type { ReplayMapGrid } from "./mapGrid";
 import "./replay.css";
 
@@ -58,6 +59,13 @@ export interface ReplayModuleProps {
   pins?: ScenePin9[];
   onPinAdd?: (scene: SceneLink9 & { memo: string }) => void | Promise<unknown>;
   onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
+  /** ★ 쇼츠(2026-11-19 · short9.ts ★) — onShortCreate 를 주면 클래퍼 단추(녹화 · 자막 · 정지 → 토막 + 표지) · short 를 주면 쇼츠 재생 모드(장면 + 미니맵만 ·
+   *  녹화된 카메라 · 자막 연출 · 그 구간 모델만) · 끝나면 onShortEnd · 진행 onShortProgress(0~1) · shortPaused 면 멈춤. 서버 일은 앱이 한다. */
+  onShortCreate?: (clip: ShortClip9, cover: string | null) => void | Promise<unknown>;
+  short?: ShortClip9 | null;
+  onShortEnd?: () => void;
+  onShortProgress?: (p: number) => void;
+  shortPaused?: boolean;
   /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
   onGuide?: () => void;
   guide?: boolean;
@@ -86,6 +94,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete,
+  onShortCreate, short, onShortEnd, onShortProgress, shortPaused,
   onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester,
 }: ReplayModuleProps) {
   return (
@@ -99,6 +108,7 @@ export default function ReplayModule({
         onShare={onShare}
         shareLabel={shareLabel}
         pins={pins} onPinAdd={onPinAdd} onPinDelete={onPinDelete}
+        onShortCreate={onShortCreate} short={short} onShortEnd={onShortEnd} onShortProgress={onShortProgress} shortPaused={shortPaused}
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}

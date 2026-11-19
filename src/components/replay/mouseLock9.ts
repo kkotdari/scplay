@@ -51,7 +51,8 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
   /* 가짜 커서 — body 에 붙인다(조상의 변환 · overflow 를 안 탄다). 연습실 커서와 같은 꼴(초록 화살 · 가장자리 화살). */
   const cur = document.createElement("div");
   cur.setAttribute("aria-hidden", "true");
-  cur.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2147483647;display:none;";
+  /* will-change — 제 합성 층(2026-11-19, 지적: "프레임모드에서 마우스 움직임이 좀 반응이 느린느낌") — 옮길 때 다시 칠하지 않고 합성만. */
+  cur.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2147483647;display:none;will-change:transform;";
   cur.innerHTML = '<svg data-k="arrow" width="18" height="24" viewBox="0 0 18 24" style="position:absolute;left:0;top:0;overflow:visible;filter:drop-shadow(0 0 1px rgba(0,0,0,.8))"><path d="M1 1 L1 19 L6 14 L10 23 L13 22 L9 13 L16 13 Z" fill="#7dff8f" stroke="#04210a" stroke-width="1.5" stroke-linejoin="round"/></svg>'
     + '<svg data-k="scroll" width="22" height="22" viewBox="0 0 22 22" style="position:absolute;left:-11px;top:-11px;overflow:visible;display:none;filter:drop-shadow(0 0 1px rgba(0,0,0,.8))"><path d="M21 11 L8 2 L8 7 L1 7 L1 15 L8 15 L8 20 Z" fill="#7dff8f" stroke="#04210a" stroke-width="1.5" stroke-linejoin="round"/></svg>';
   document.body.appendChild(cur);
@@ -109,15 +110,27 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
     if (el) { fire(el, "pointerover", src, { relatedTarget: old }); fire(el, "mouseover", src, { relatedTarget: old }); }
   };
 
+  /** 갇힌 커서를 움직임만큼 옮긴다 — 틀 안으로 죈다(밖으로 민 몫은 안 쌓는다: 되돌리는 순간 곧장 끝에서 떨어진다). */
+  const moveBy = (dx: number, dy: number): void => {
+    /* 갇힌 뒤 첫 움직임에 크롬이 엉뚱하게 큰 movementX 를 싣는 일이 있다 — 그 한 번은 버린다(연습실과 같다). */
+    if (Math.abs(dx) > 500 || Math.abs(dy) > 500) return;
+    const B = box();
+    vx = Math.max(B.l, Math.min(B.r, vx + dx)); vy = Math.max(B.t, Math.min(B.b, vy + dy));
+    paint();
+  };
+  /* ★ 커서는 **날 사건**으로 옮긴다(2026-11-19, 지적: "프레임모드에서 마우스 움직임이 좀 반응이 느린느낌") — pointermove 는 화면 장에 맞춰 모아 오므로(rAF 정렬)
+     무거운 장면에선 한두 장 늦게 왔다. pointerrawupdate(크롬 · 보안 문맥)는 오는 대로 온다 — 받는 기기면 움직임은 그쪽만 세고(겹셈 막기) pointermove 는 사건 다시 쏘기만. */
+  let rawSeen = false;
+  const onRaw = (e: PointerEvent): void => {
+    if (!lockedOn || !e.isTrusted || e.pointerType !== "mouse") return;
+    rawSeen = true;
+    moveBy(e.movementX, e.movementY);
+  };
   /* ── 진짜 사건 삼키기(창 캡처) — 갇힌 동안의 진짜 사건만. 우리가 쏜 사건(isTrusted 거짓)은 지나간다. ── */
   const onMove = (e: PointerEvent): void => {
     if (!lockedOn || !e.isTrusted) return;
     e.stopImmediatePropagation(); e.stopPropagation();
-    /* 갇힌 뒤 첫 움직임에 크롬이 엉뚱하게 큰 movementX 를 싣는 일이 있다 — 그 한 번은 버린다(연습실과 같다). */
-    if (Math.abs(e.movementX) > 500 || Math.abs(e.movementY) > 500) return;
-    const B = box();
-    vx = Math.max(B.l, Math.min(B.r, vx + e.movementX)); vy = Math.max(B.t, Math.min(B.b, vy + e.movementY));
-    paint();
+    if (!rawSeen) moveBy(e.movementX, e.movementY);
     const el = under();
     if (down) {
       if (down.range) rangeSet(down.range, false);
@@ -211,6 +224,8 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
   const opt = { capture: true } as const;
   const optA = { capture: true, passive: false } as const;
   window.addEventListener("pointermove", onMove, opt);
+  const rawOn = typeof window !== "undefined" && "onpointerrawupdate" in window;
+  if (rawOn) window.addEventListener("pointerrawupdate" as "pointermove", onRaw, opt);
   window.addEventListener("pointerdown", onDown, opt);
   window.addEventListener("pointerup", onUp, opt);
   window.addEventListener("pointercancel", swallow, opt);
@@ -234,6 +249,7 @@ export function mouseLockInstall9(root: HTMLElement, onChange: (locked: boolean)
     release(): void { if (document.pointerLockElement === root) document.exitPointerLock(); },
     dispose(): void {
       window.removeEventListener("pointermove", onMove, opt);
+      if (rawOn) window.removeEventListener("pointerrawupdate" as "pointermove", onRaw, opt);
       window.removeEventListener("pointerdown", onDown, opt);
       window.removeEventListener("pointerup", onUp, opt);
       window.removeEventListener("pointercancel", swallow, opt);

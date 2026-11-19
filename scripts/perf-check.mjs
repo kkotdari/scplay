@@ -722,6 +722,10 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
     /* 장면 공유(배치 검증용) — 실제 앱(scplayer)이 넘기는 그 콜백이다. 버튼은 재생기가 그린다(아이콘 원). 스크랩은 2026-10-22 걷었다.
        없으면 그 줄이 빈 채라 '어디에 서는가'를 화면으로 못 가린다. */
     onShare: async () => { window.__shareQ9 = window.__share9().qs; return "링크 복사됨"; },   // --sharepick 이 '보내는 순간의 링크'를 읽는다
+    /* --shortrec(2026-11-19) — 쇼츠 만들기 단추를 세우고 올린 토막 · 표지를 window.__shortOut9 에 둔다 · --short FILE — 그 토막(ShortClip9 JSON)을 쇼츠 재생 모드로 연다. */
+    ...(window.__shortRec ? { onShortCreate: async (clip, cover) => { window.__shortOut9 = { clip, cover }; } } : {}),
+    ...(window.__frameSide ? { frameW: window.__frameSide, frameH: window.__frameSide, guide: false } : {}),   // --frame N — 쇼츠 보기처럼 N×N 판(앱 ShortsViewer)
+    ...(window.__shortClip ? { short: window.__shortClip, onShortEnd: () => { window.__shortEnded9 = performance.now(); }, onShortProgress: (p) => { window.__shortProg9 = p; } } : {}),
   }));
 };
 `;
@@ -1010,6 +1014,9 @@ await page.evaluate(([z, d, mw, mh, cx, cy, tr, t0, w9, sp9, ch9, ask9]) => {
   Number(flag("--winner", 0)), Number(flag("--speed", 1)), has("--chat"), has("--ask")]);   // --winner 1|2 — 이긴 편(로스터 칩 트로피 검산 · 끝 0.5초 안에서만 뜨므로 --t 118.9 와 함께)
 if (REAL9) await page.evaluate((e9) => { window.__endSec = e9; }, REAL9.end);   // --real 경기 길이
 if (VEIL9) await page.evaluate(() => { window.__veil = true; });
+if (has("--shortrec")) await page.evaluate(() => { window.__shortRec = true; });
+if (flag("--frame", null)) await page.evaluate((n9) => { window.__frameSide = n9; const r9 = document.getElementById("root"); if (r9) { r9.style.width = `${n9}px`; r9.style.height = `${n9}px`; r9.style.margin = "40px auto"; r9.style.overflow = "hidden"; } }, Number(flag("--frame")));
+if (flag("--short", null)) await page.evaluate((c9) => { window.__shortClip = c9; }, JSON.parse(readFileSync(String(flag("--short")), "utf8")));
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */
@@ -1129,6 +1136,62 @@ if (has("--namefit")) {
 }
 /* --pause(2026-10-12) — 들어오자마자 멈춘다(--t 그 시각의 짧은 효과 — 승하차 줄 1초 같은 것 — 를 찍을 때 · 재생 단추를 한 번 누른다). */
 if (has("--pause")) { await page.evaluate(() => { const b = document.querySelector(".scr-motion-play"); if (b instanceof HTMLElement) b.click(); }); await page.waitForTimeout(600); }
+/* --shortprobe OUT.json(2026-11-19) — 쇼츠 녹화를 한 바퀴: 클래퍼 → 1초 뒤 휠 확대 셋 · 끌기 → 자막 하나(창 사진) → 2.5초 → 정지 → 저장 창 사진 → 저장 · 토막은 OUT.json ·
+   표지는 OUT_cover.png · 사진 셋(_rec · _cap · _save). --shortrec 가 함께 서야 한다(단추). */
+if (flag("--shortprobe", null)) {
+  const out9 = String(flag("--shortprobe"));
+  const base9 = out9.replace(/\.json$/, "");
+  const clk9 = (sel) => page.evaluate((s9) => { const b9 = document.querySelector(s9); if (b9 instanceof HTMLElement) b9.click(); return !!b9; }, sel);
+  if (!(await page.$(".scr-shortrec-btn"))) console.log(`[쇼츠] 단추 없음 — 꼬리 ${await page.evaluate(() => [...document.querySelectorAll(".scr-tb-tail > *")].map((e) => e.className).join(" | "))} · 분할 ${await page.evaluate(() => !!document.querySelector(".scr-fs-stage.is-split"))}`);
+  await clk9(".scr-shortrec-btn");
+  await page.waitForTimeout(1000);
+  const mb9 = await page.evaluate(() => { const b = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return b ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
+  if (mb9) {
+    await page.mouse.move(mb9[0], mb9[1]);
+    for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); }
+  }
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${base9}_rec.png`, timeout: 240000 });
+  await clk9(".scr-shortcap-btn");
+  await page.waitForTimeout(300);
+  await page.fill(".scr-capask .scr-pinask-input", "드랍 들어갑니다 — 시험 자막");
+  await clk9(".scr-capask-dur > button:last-of-type");
+  await page.screenshot({ path: `${base9}_cap.png`, timeout: 240000 });
+  await clk9(".scr-capask .scr-pinask-ok");
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${base9}_prev.png`, timeout: 240000 });
+  await page.waitForTimeout(1600);
+  await clk9(".scr-shortrec-btn.is-rec");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${base9}_save.png`, timeout: 240000 });
+  await clk9(".scr-shortsave .scr-pinask-ok");
+  await page.waitForTimeout(400);
+  const o9 = await page.evaluate(() => window.__shortOut9 ?? null);
+  if (!o9) console.log("[쇼츠] 못 올렸다");
+  else {
+    writeFileSync(out9, JSON.stringify(o9.clip));
+    if (o9.cover) writeFileSync(`${base9}_cover.${o9.cover.startsWith("data:image/webp") ? "webp" : "jpg"}`, Buffer.from(o9.cover.split(",")[1], "base64"));
+    const c9 = o9.clip;
+    console.log(`[쇼츠] 길이 ${c9.dur}초 · 게임 ${c9.t0}~${c9.t1} · 칸 ${c9.s.length} · 자막 ${JSON.stringify(c9.caps)} · 배율 ${c9.s[0][2]}→${Math.max(...c9.s.map((x) => x[2]))} · 가운데 (${c9.s[0][3]},${c9.s[0][4]})→(${c9.s[c9.s.length - 1][3]},${c9.s[c9.s.length - 1][4]}) · 표지 ${o9.cover ? Math.round(o9.cover.length / 1024) + "KB" : "없음"} · 글 ${(JSON.stringify(c9).length / 1024).toFixed(1)}KB`);
+  }
+}
+/* --shortshots N(2026-11-19 · --short FILE 과 함께) — 토막을 N 조각 시각마다 사진(OUT_k.png · --shot 의 이름 앞) · 진행 · 시각 · 배율 · 끝남을 적는다. */
+if (flag("--short", null) && flag("--shortshots", null)) {
+  const n9 = Number(flag("--shortshots"));
+  const clip9 = JSON.parse(readFileSync(String(flag("--short")), "utf8"));
+  const sb9 = String(flag("--shot", "short.png")).replace(/\.png$/, "");
+  const t09 = Date.now();
+  for (let k9 = 0; k9 < n9; k9 += 1) {
+    const wantMs9 = ((k9 + 0.5) / n9) * clip9.dur * 1000;
+    const wait9 = wantMs9 - (Date.now() - t09);
+    if (wait9 > 0) await page.waitForTimeout(wait9);
+    await page.screenshot({ path: `${sb9}_${k9}.png`, timeout: 240000 });
+    const st9 = await page.evaluate(() => ({ p: window.__shortProg9, e: window.__shortEnded9 ?? null, clk: document.querySelector(".scr-motion-clock")?.textContent ?? "" }));
+    console.log(`[쇼츠 재생] ${k9}: 벽 ${((Date.now() - t09) / 1000).toFixed(1)}초 · 진행 ${(st9.p ?? 0).toFixed(2)} · 끝 ${st9.e ? "예" : "아니"} · 시계 ${st9.clk}`);
+  }
+  await page.waitForTimeout(Math.max(0, clip9.dur * 1000 - (Date.now() - t09) + 1500));
+  console.log(`[쇼츠 재생] 끝 알림 ${(await page.evaluate(() => window.__shortEnded9 ?? null)) ? "옴" : "안 옴"} · 진행 ${(await page.evaluate(() => window.__shortProg9 ?? 0)).toFixed(2)}`);
+}
 const SHOT = flag("--shot", null);
 /* --press <css>(2026-10-23) — 그 요소 가운데서 마우스를 눌러 둔 채(:active) 끝 사진을 찍는다(크리스탈 단추의 누름 꼴 검산). */
 /* --glms(2026-10-23) — GL 붓 flush 한 번을 gl.finish() 까지 잰다(헤드리스는 GL 도 CPU 라 끝내기까지가 곧 그리기 값 — 2D 스프라이트 판 켬/끔 견줌). 표본 동안 모아 끝에 낸다. */

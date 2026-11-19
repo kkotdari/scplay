@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Lock, Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
+import { Clapperboard, Lock, Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
 
 /* ★ 사용법은 **기능마다 한 줄 · 그 이름 옆에 PC 단축키**(2026-10-22, 요청: "단축키를 각 기능 설명부에 통합 — 기능 옆에 단축키 · 내용 전체적으로 많이 간소화") —
    옛 두 절(01 화면 도구 · 02 PC 단축키)과 도구 상자·전광판 그림은 걷었다.
@@ -82,6 +82,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Route size={15}/>} name="선" keys={<Keys k={["L"]}/>}>명령(이동 · 공격 · 패트롤) 줄과 랠리 줄 켜고 끄기.</Row>
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · 결과가 있으면 B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
+          <Row ic={<Clapperboard size={14}/>} name="쇼츠 만들기">클래퍼 단추로 녹화 시작(최대 60초 · 카메라 · 배율까지) · 녹화 중 자막 단추로 글과 보이는 시간(기본 5초)을 넣고 · 빨간 정지로 끝 → 저장하면 게임 목록 맨 위에 뜹니다.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
           <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵까지) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
           <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]", "\\"]}/>}>[ 작게 · ] 크게 · \ 처음대로.</Row>

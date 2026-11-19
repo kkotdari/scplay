@@ -6282,3 +6282,70 @@
 .scr-prac-rec .is-top { color: #ffd04a; font-size: 16px; }
 .scr-prac-rules { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(120, 170, 255, 0.08); color: #cfd6e2; font-size: 12.5px; line-height: 1.6; }
 .scr-prac-loadout { padding: 6px 10px; border-radius: 8px; background: rgba(111, 227, 111, 0.08); color: #d8f2d8; font-size: 13px; }
+
+/* ══ ★ 쇼츠(2026-11-19 · RMP 쇼츠 ★ · short9.ts) ═════════════════════════════════════════════════════════════════════════════
+   녹화 단추(클래퍼 · 핀 왼쪽) — 녹화 중엔 빨간 알약 [■ 0:12] + 자막 단추(노란 글자) · 무대 위 가운데 REC 표 · 자막(녹화 미리보기 · 쇼츠 재생 연출) ·
+   자막 창(글 · 보이는 시간) · 저장 창(표지 · 길이) · 쇼츠 재생 모드(.is-short — 장면 + 미니맵만 · 손짓 없음). */
+.scr-tb-tail .scr-shortrec-btn, .scr-tb-tail .scr-shortcap-btn { order: 0; }
+.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortrec-btn.is-rec {
+  width: auto; padding: 0 calc(10px * var(--ui)); gap: calc(5px * var(--ui)); background: #e3343d; color: #fff; box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35);
+  animation: scr-shortrec-pulse 1.6s ease-in-out infinite;
+}
+.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortrec-btn.is-rec svg { width: calc(11px * var(--ui)); height: calc(11px * var(--ui)); filter: none; }
+.scr-shortrec-time { font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortcap-btn { color: #ffd34d; }
+@keyframes scr-shortrec-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); } 50% { box-shadow: 0 0 0 5px rgba(255, 90, 96, 0.12); } }
+.scr-shortrec-badge {
+  position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 8px * var(--dk, 1)); transform: translateX(-50%); z-index: 30002;
+  display: flex; align-items: center; gap: 0.45em; padding: 0.38em 0.85em; border-radius: 999px;
+  background: rgba(10, 12, 18, 0.74); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); color: #fff;
+  font-size: round(nearest, calc(12px * var(--dk, 1)), 1px); font-weight: 700; letter-spacing: 0.06em; line-height: 1; white-space: nowrap; pointer-events: none;
+}
+.scr-shortrec-badge > i { width: 0.7em; height: 0.7em; border-radius: 50%; background: #ff3b44; box-shadow: 0 0 6px #ff3b44; animation: scr-shortrec-blink 1s steps(2, jump-none) infinite; }
+.scr-shortrec-badge > b { font-variant-numeric: tabular-nums; }
+.scr-shortrec-badge > span { opacity: 0.55; font-weight: 600; }
+.scr-shortrec-badge > em { margin-left: 0.3em; font-style: normal; color: #ffd34d; letter-spacing: 0; }
+@keyframes scr-shortrec-blink { 0% { opacity: 1; } 100% { opacity: 0.25; } }
+/* 자막 — 무대 아래쪽 가운데 · 굵은 흰 글 · 어두운 판 + 노란 왼테 · 아래에서 튀어 오르며 서고(되튐) 위로 흐리며 스러진다. 여럿이면 쌓인다. */
+.scr-shortcaps {
+  position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 30000;
+  display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
+  font-size: round(nearest, calc(clamp(15px, 3.4vmin, 28px) * var(--dk, 1)), 1px);
+}
+.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; font-size: round(nearest, clamp(16px, 4.4vmin, 32px), 1px); }
+.scr-shortcap { max-width: 100%; animation: scr-shortcap-in 0.55s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease; }
+.scr-shortcap.is-out { opacity: 0; transform: translateY(-0.4em) scale(0.97); filter: blur(3px); }
+.scr-shortcap > span {
+  display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0.4em 0.85em 0.44em 0.75em; border-radius: 0.5em; border-left: 0.22em solid #ffcf3a;
+  background: linear-gradient(180deg, rgba(8, 10, 16, 0.84), rgba(8, 10, 16, 0.66)); box-shadow: 0 0.35em 1.2em rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #fff; font-weight: 800; line-height: 1.32; letter-spacing: -0.01em; text-align: center; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+@keyframes scr-shortcap-in {
+  0% { opacity: 0; transform: translateY(0.9em) scale(0.92); filter: blur(5px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+/* 자막 창 · 저장 창(핀 메모 창 .scr-sharepick · .scr-pinask 와 같은 판) */
+.scr-capask-dur { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.scr-capask-dur > span { flex: 1; opacity: 0.75; }
+.scr-capask-dur > button {
+  width: 32px; height: 32px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08); color: inherit; font: inherit; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.scr-capask-dur > button:disabled { opacity: 0.35; cursor: default; }
+.scr-capask-dur > b { min-width: 3em; text-align: center; font-size: 15px; font-variant-numeric: tabular-nums; }
+.scr-pinask-ok:disabled { opacity: 0.45; cursor: default; }
+.scr-capask { gap: 10px; }
+.scr-shortsave { width: min(340px, calc(100vw - 32px)); gap: 8px; }
+.scr-shortsave-cover { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: #000; }
+.scr-shortsave-meta { margin: 0; font-size: 13px; opacity: 0.78; }
+.scr-shortsave-err { margin: 0; font-size: 13px; color: #ff8a8a; }
+/* 쇼츠 재생 모드 — 독 접힘(미니맵만 · is-dockfold2)에 더해 무대 위 오버레이(배속 · 화면 주인 · 핀 카드…) · 펼치기 손잡이도 숨기고 누름을 안 받는다(앱이 눌러 넘긴다). */
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps),
+.scr-fs-root.is-short > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps) *,
+.scr-fs-root.is-short > .scr-fs-foldfab, .scr-fs-root.is-short > .scr-fs-foldfab * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.scr-fs-root.is-short, .scr-fs-root.is-short * { pointer-events: none !important; }

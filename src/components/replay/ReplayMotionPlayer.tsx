@@ -14,8 +14,9 @@ import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9, natureStore9 } f
 const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, Lock, LockOpen, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Layers, Lock, LockOpen, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 import { mouseLockInstall9, mouseLockStore9, mouseLockStored9, type MouseLock9 } from "./mouseLock9";
+import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortSample9, type ShortCap9, type ShortClip9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -1228,6 +1229,9 @@ function dumpCv9(cv9: HTMLCanvasElement, name9: string): void {
   });
 }
 const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
+/** ★ 쇼츠 표지 찍기(short9 shortCoverOf9 ★ · 2026-11-19) — 녹화를 켜면 RMP 가 fn 을 걸고, 붓(UnitLayer paint)이 **칠한 바로 그 작업 안**에서 한 번 부르고 걷는다
+ *  (GL 캔버스는 preserveDrawingBuffer 가 없어 그 뒤엔 빈 판이다 — #dumpcv 와 같은 까닭). */
+const SHORT_SHOT9: { fn: (() => void) | null } = { fn: null };
 /** ★ **워커는 지도 전체를 짓는다**(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로" · "안개가 앞뒤 시각으로 튐" → "원천적인 해결법" → "다 ㄱㄱ") — 옛: 보이는 곳 + 여유만
  *  지어(컬링) 시야가 바뀔 때마다 워커가 지어 둔 장을 버리고 다시 섰다 → 새 자리 유닛이 늦게 뜨고 · 다시 지은 첫 장이 메인보다 과거면 뒤로 튀었다.
  *  이제 평면 장은 **재생 시각만의 함수**다(배율과는 원래 무관) — 드래그·줌·미니맵 이동은 받은 장을 그대로 쓰고, 다시 짓는 것은 탐색뿐이다.
@@ -8577,6 +8581,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
          안 바뀌므로 한 번도 안 돌았고, 그 사이 재생 틱이 낸 리렌더마다 그림이 튀었다. */
       for (const cv9 of [cv, glRef.current, fxRef.current, terrRef.current]) if (cv9) xfSet9(cv9, XF_ID9);
       onPainted?.(zoom, pan);
+      if (SHORT_SHOT9.fn) { const f9 = SHORT_SHOT9.fn; SHORT_SHOT9.fn = null; f9(); }   // 쇼츠 표지(위 SHORT_SHOT9 ★) — 칠한 직후 같은 작업 안
     };
     /* 부모가 손짓 중에 쥘 붓을 넘긴다 — 렌더마다 새 ops를 문 채로 갈아 끼운다. */
     if (painter) painter.current = paint;
@@ -11073,6 +11078,7 @@ export default function ReplayMotionPlayer({
   onDetailClose, onBack, frameH, frameW, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   pins, onPinAdd, onPinDelete,
+  onShortCreate, short, onShortEnd, onShortProgress, shortPaused,
   onGuide, guide = true, avatars,
   soleView, melee,
   onFinish, askMode, pending, veil, onReady, onLoadProgress, isTester = false,
@@ -11173,6 +11179,15 @@ export default function ReplayMotionPlayer({
   onPinAdd?: (scene: SceneLink9 & { memo: string }) => void | Promise<unknown>;
   /** 내 핀 지우기 — 없으면 지우기 단추가 안 선다. */
   onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
+  /** ★ 쇼츠 만들기(2026-11-19 · short9.ts ★) — 주면 툴바 꼬리에 클래퍼 단추가 선다: 누르면 녹화(시각 · 카메라 · 배율) · 녹화 중 자막 단추 · 빨간 정지 → 저장 창 →
+   *  토막(ShortClip9)과 표지(정사각 data URL · 장면 + 미니맵 · 못 찍으면 null)를 넘긴다. 던지면 안 올라간 것으로 둔다. */
+  onShortCreate?: (clip: ShortClip9, cover: string | null) => void | Promise<unknown>;
+  /** ★ 쇼츠 보기(2026-11-19) — 주면 **쇼츠 재생 모드**: 장면 + 미니맵만(독 · 재생바 · 손잡이 없음 · 손짓 안 받음) · t0 에서 녹화된 카메라 그대로 · 자막 연출 ·
+   *  그 구간에 나오는 모델만 데운다. 끝나면 onShortEnd · 진행(0~1)은 onShortProgress(초당 열 번 남짓) · shortPaused 면 멈춘다(누르고 있는 동안 따위 — 앱이 정한다). */
+  short?: ShortClip9 | null;
+  onShortEnd?: () => void;
+  onShortProgress?: (p: number) => void;
+  shortPaused?: boolean;
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
    *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
   onGuide?: () => void;
@@ -11216,9 +11231,12 @@ export default function ReplayMotionPlayer({
   const initialSec = sceneLink?.t;
   const initialSpeed = sceneLink?.s;
   const initialView = useMemo(() => {
+    /* 쇼츠 재생은 자취 첫 칸의 자리로 앉는다(링크 받기와 같은 길 — 상자가 설 때까지 기다린다) · 그 뒤는 틱이 자취를 따른다(아래 쇼츠 재생 ★). */
+    if (short && short.s.length > 0) return { z: short.s[0][2], cx: short.s[0][3], cy: short.s[0][4], deg: 90 };
     if (!sceneLink || (sceneLink.z === undefined && sceneLink.cx === undefined && sceneLink.a === undefined)) return undefined;
     return { z: sceneLink.z ?? 1, cx: sceneLink.cx ?? 0.5, cy: sceneLink.cy ?? 0.5, deg: sceneLink.a ?? 90 };
-  }, [sceneLink]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneLink]);   // short 는 한 재생기에 하나다(위 warm ★)
   const initialTrack = sceneLink?.tr
     && (sceneLink.tr === CAST_AUTO_LINK9 || basesIn.some((b9) => b9.key === sceneLink.tr))
     ? sceneLink.tr : undefined;
@@ -11230,8 +11248,8 @@ export default function ReplayMotionPlayer({
   const total = useMemo(() => (endSec && endSec > 0 ? endSec : 60), [endSec]);
 
   // 공유 링크의 시작 시각(요청) — 경기 길이 안일 때만 그 시점에서 시계를 세운다.
-  const [t, setT] = useState(() =>
-    initialSec !== undefined && initialSec > 0 && initialSec < total - 1 ? initialSec : 0);
+  const [t, setT] = useState(() => (short ? Math.min(total, Math.max(0, short.t0))
+    : initialSec !== undefined && initialSec > 0 && initialSec < total - 1 ? initialSec : 0));
   const [playing, setPlaying] = useState(true);
   /* ★ 꾸밈 날씨(weather9 ★ · 2026-11-11) — 경기 열쇠(clockKey = 경기 번호)로 짠 일정 하나(비 · 눈 중 한 종류) · 켬은 소리 목록의 '날씨' 줄(기기에 저장). 그림은 무대의 .scr-wx 겹 ·
      세기 · 번쩍임 · 멈춤은 붓 한 장마다(wxTickRef9) 겹의 style 만 고친다 · 소리는 sfx9 setRain9 · thunderClap9. */
@@ -13209,7 +13227,7 @@ export default function ReplayMotionPlayer({
   const linkPos9 = !!initialView && (initialView.z > 1.001
     || Math.abs(initialView.cx - 0.5) > 0.0005 || Math.abs(initialView.cy - 0.5) > 0.0005);
   /** 손으로 켠 자동 중계(TV · AUTO 단추) — 실제로 먹는 것은 아래 castOn(검색 중이면 꺼진 것과 같다). */
-  const [castUser9, setCastOn] = useState(linkAuto9 || (!initialTrack9 && !linkPos9));
+  const [castUser9, setCastOn] = useState(!short && (linkAuto9 || (!initialTrack9 && !linkPos9)));   // 쇼츠 재생은 녹화된 카메라가 쥔다(중계 끔)
   /* ★★ 분할보기(2026-09, 요청: "중계에 분할보기 추가 — 모든 플레이어의 화면을 동시에 보여줌 · 2명은 좌우 · 3,4명은 2x2 ·
      5,6명 3x2 · 7,8은 3*3(가운데 비움) · 독에는 화면을 누른 사람거 보여주기" · "해당 모드에서는 로스터 숨기고 대신 각 화면
      위에 닉네임과 자원 인구 apm k/d 표시" · "가능하면 스타팅 포인트 위치에 따라 배치") — 중계(자동)·개인 추적과 배타다
@@ -14054,6 +14072,7 @@ export default function ReplayMotionPlayer({
      원하면 올리면 된다. 링크가 배속을 실어 왔으면(&s=) 그것으로 시작한다 — 보낸 사람이
      보던 그 장면에는 속도도 들어 있다. */
   const [speed, setSpeed] = useState<number>(() => {
+    if (short) return Math.min(SPEED_MAX9, Math.max(SPEED_MIN9, short.sp || 1));   // 쇼츠 — 녹화 시작 배속(뒤로는 자취가 시각을 쥔다 · 아래 쇼츠 재생 ★)
     if (initialSpeed === undefined || !(initialSpeed > 1)) return 1;
     // 이어진 배속(다이얼 · 2026-10-10) — 링크 값을 다이얼 범위(1~8)로 죄어 그대로 받는다(옛 10·20 → 8).
     return uSpd9(spdU9(Math.min(SPEED_MAX9, Math.max(SPEED_MIN9, initialSpeed))), false);
@@ -14540,7 +14559,7 @@ export default function ReplayMotionPlayer({
   /* ★ **한 번에 전부 접기**(2026-11-10, 요청: "독 2단 접기 폐기 · 한 번에 전부 접기로 변경 · 접었을 때 아무것도 안 남고 미니맵, 자막/주인, 배속만 남기기" · "접기 시 지도 크기 다시 계산 필요(1배 다시 계산)"
      · "접기 시 미니맵은 무시하고 크기 재야 해") — 0 평소 · 1 접힘(옛 2단 자리 · 뿌리 is-dockfold2 · 독 is-fold). 접히면 독이 흐름에서 빠져(replay.css) 무대가 독 자리까지 커지고
      무대를 다시 재 1배(무대 폭) · 지도 전체 배율(zMin9)이 다시 선다 — 미니맵은 무대 위에 떠 있을 뿐 크기에 안 든다. 옛 3단(0 · 1 독 줄 · 2 재생바 · 오버레이)은 걷었다. */
-  const [dockFold9, setDockFold9] = useState<0 | 1>(0);
+  const [dockFold9, setDockFold9] = useState<0 | 1>(short ? 1 : 0);   // 쇼츠 재생은 접힌 독(미니맵만 · 아래 is-short ★)
   /** 실제로 접혔나 — ★ 분할보기도 **안 접는다**(2026-10, 요청: "분할화면에서 자동으로 독 접지 않기. 계산하느라 버벅임") — 접고
    *  펴는 순간마다 무대 키가 바뀌어 칸 배치·칸 배율·분할 칠하기가 통째로 다시 돌았다(맞대결 자동 분할은 그것이 장면마다였다).
    *  옛 '분할은 늘 접는다(열기 불가)'를 되물렸다 — 독은 칸을 누른 사람의 것을 든다(아래 splitPick9). */
@@ -17597,6 +17616,176 @@ export default function ReplayMotionPlayer({
     mapPaintRef.current?.(z9, p9);
     if (now9 - miniAtRef9.current >= 100) { miniAtRef9.current = now9; miniPaintRef.current?.(z9, p9); }
   };
+  /* ══ ★ 쇼츠(short9.ts ★ · 2026-11-19) ═══════════════════════════════════════════════════════════════════════════════════════
+     녹화 — 클래퍼 단추(툴바 꼬리 · onShortCreate 가 있을 때) → 토막 시계(실초 w)가 rAF 로 흐르고 0.1초마다 [w · 게임 시각 · 배율 · 화면 가운데 분수]를 적는다
+     (중계 · 추적이 쥔 카메라도 눈 zoomRef · panRef 그대로라 같이 실린다 · 멈춘 채 카메라만 옮긴 것도). 자막 단추 → 멈추고 창(글 · 초 · 기본 5초) → 그 w 에 한 줄 · 닫으면 다시 재생
+     (창이 떠 있는 동안 토막 시계도 안 간다). 빨간 정지(또는 60초) → 저장 창(표지 · 길이 · 자막 수) → 앱(onShortCreate). 표지는 녹화를 켠 다음 붓 한 장(SHORT_SHOT9).
+     재생 — `short` prop · 틱이 w 를 올려 shortAt9 로 시각을 짚고(배속이 아니라 자취가 시각을 쥔다) 카메라를 shortCamRef9 로 앉힌다 · 끝(dur)에서 onShortEnd. */
+  const onShortCreateRef9 = useRef(onShortCreate);
+  onShortCreateRef9.current = onShortCreate;
+  const onShortEndRef9 = useRef(onShortEnd);
+  onShortEndRef9.current = onShortEnd;
+  const onShortProgressRef9 = useRef(onShortProgress);
+  onShortProgressRef9.current = onShortProgress;
+  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; sp: number; a: number; cover: string | null } | null>(null);
+  const [recOn9, setRecOn9] = useState(false);
+  /** 녹화 화면을 다시 그리는 박자(토막 0.1초 칸) — REC 시계 · 자막 미리보기가 이 값으로 선다. */
+  const [recTick9, setRecTick9] = useState(0);
+  const [capAsk9, setCapAsk9] = useState<{ text: string; d: number; play: boolean } | null>(null);
+  const capAskRef9 = useRef(capAsk9);
+  capAskRef9.current = capAsk9;
+  const [recSave9, setRecSave9] = useState<{ clip: ShortClip9; cover: string | null; busy: boolean; err: string } | null>(null);
+  const [recDone9, setRecDone9] = useState(false);
+  const recDoneTm9 = useRef(0);
+  /** 지금 눈 — 배율과 화면 가운데의 지도 분수(핀 pinSceneNow9 와 같은 셈 · 자릿수는 shortSample9 가 죈다). */
+  const recViewNow9 = (): [number, number, number] => {
+    const el9 = mapRef.current;
+    const bw9 = el9?.offsetWidth ?? 0;
+    const bh9 = el9?.offsetHeight ?? 0;
+    const z9 = zoomRef.current;
+    if (bw9 <= 0 || bh9 <= 0 || !(z9 > 0)) return [z9 || 1, 0.5, 0.5];
+    const pan9 = panRef.current;
+    return [z9, Math.min(1, Math.max(0, 0.5 - pan9.x / (bw9 * z9))), Math.min(1, Math.max(0, 0.5 - pan9.y / (bh9 * z9)))];
+  };
+  /** 표지 한 장 — 무대 · 지도 상자의 캔버스 층(DOM 차례) · 독 미니맵(short9 shortCoverOf9). 붓이 칠한 직후에만 부른다(SHORT_SHOT9). */
+  const coverNow9 = (): string | null => {
+    const st9 = stageRef.current;
+    const box9 = mapRef.current;
+    if (!st9 || !box9) return null;
+    const layers9 = Array.from(box9.querySelectorAll<HTMLCanvasElement>("canvas.scr-motion-unitlayer"));
+    const mini9 = fsRootRef.current?.querySelector<HTMLCanvasElement>(".scr-fs-minipanel .scr-fs-minimap canvas") ?? null;
+    return shortCoverOf9(st9, layers9, mini9);
+  };
+  const recStart9 = (): void => {
+    if (!onShortCreateRef9.current || recRef9.current || short) return;
+    const t9 = tLiveRef9.current;
+    const [z9, cx9, cy9] = recViewNow9();
+    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], sp: speed, a: Math.round(pitchDeg), cover: null };
+    setRecTick9(0);
+    setRecOn9(true);
+    setRecSave9(null);
+    /* 표지는 다음 붓 한 장 직후(위 SHORT_SHOT9 ★) — 멈춘 판이면 한 장을 부른다. */
+    SHORT_SHOT9.fn = () => { const r9 = recRef9.current; if (r9 && !r9.cover) r9.cover = coverNow9(); };
+    requestPaint9();
+    if (!done) setPlaying(true);   // 누르면 녹화 — 멈춰 있었으면 재생도 건다
+  };
+  const recStop9 = (): void => {
+    const r9 = recRef9.current;
+    if (!r9) return;
+    recRef9.current = null;
+    if (SHORT_SHOT9.fn) SHORT_SHOT9.fn = null;
+    setRecOn9(false);
+    setCapAsk9(null);
+    const [z9, cx9, cy9] = recViewNow9();
+    if (r9.w - r9.at > 0.01) r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));
+    if (r9.w < 1) { replayToast("쇼츠가 너무 짧아요 — 1초 넘게 녹화해 주세요"); return; }
+    const ts9 = r9.s.map((x9) => x9[1]);
+    const clip9: ShortClip9 = {
+      v: 1, t0: Math.min(...ts9), t1: Math.max(...ts9), dur: Math.round(r9.w * 100) / 100, sp: r9.sp, s: r9.s,
+      caps: r9.caps.filter((c9) => c9.w < r9.w), ...(r9.a !== 90 ? { a: r9.a } : {}),
+    };
+    setPlaying(false);
+    setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "" });
+  };
+  const recStopRef9 = useRef(recStop9);
+  recStopRef9.current = recStop9;
+  /* 토막 시계 — 녹화 중 rAF 마다 실초를 올리고(자막 창이 떠 있으면 멈춤) 0.1초마다 한 칸 · 60초에서 저절로 멈춘다. */
+  useEffect(() => {
+    if (!recOn9) return undefined;
+    let raf9 = 0;
+    const step9 = (now9: number): void => {
+      raf9 = requestAnimationFrame(step9);
+      const r9 = recRef9.current;
+      if (!r9) return;
+      const dt9 = Math.min(0.25, Math.max(0, (now9 - r9.last) / 1000));
+      r9.last = now9;
+      if (capAskRef9.current) return;
+      r9.w = Math.min(SHORT_REC_MAX9, r9.w + dt9);
+      if (r9.w - r9.at < SHORT_STEP9 && r9.w < SHORT_REC_MAX9) return;
+      r9.at = r9.w;
+      const [z9, cx9, cy9] = recViewNow9();
+      r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));
+      setRecTick9(Math.round(r9.w * 10));
+      if (r9.w >= SHORT_REC_MAX9) recStopRef9.current();
+    };
+    raf9 = requestAnimationFrame(step9);
+    return () => cancelAnimationFrame(raf9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recOn9]);
+  /* 재생기가 내려가면 녹화도 접는다(남은 표지 청도). */
+  useEffect(() => () => { recRef9.current = null; SHORT_SHOT9.fn = null; if (recDoneTm9.current) window.clearTimeout(recDoneTm9.current); }, []);
+  const capOpen9 = (): void => {
+    if (!recRef9.current || capAskRef9.current) return;
+    setCapAsk9({ text: "", d: SHORT_CAP_D9, play: playing });
+    setPlaying(false);
+  };
+  const capClose9 = (save9: boolean): void => {
+    const a9 = capAskRef9.current;
+    const r9 = recRef9.current;
+    setCapAsk9(null);
+    const text9 = (a9?.text ?? "").trim().slice(0, SHORT_CAP_LEN9);
+    if (save9 && r9 && a9 && text9) {
+      r9.caps.push({ w: Math.round(r9.w * 100) / 100, d: a9.d, text: text9 });
+      setRecTick9(Math.round(r9.w * 10) + 0.5);   // 미리보기 자막이 곧장 서게(같은 칸이라도 한 번 더 그린다)
+    }
+    if (a9?.play) setPlaying(true);   // 자막 저장 중엔 일시정지 · 저장(닫음)하면 다시 재생(요청)
+  };
+  const recSaveRun9 = async (): Promise<void> => {
+    const v9 = recSave9;
+    const f9 = onShortCreateRef9.current;
+    if (!v9 || v9.busy || !f9) return;
+    setRecSave9({ ...v9, busy: true, err: "" });
+    try {
+      await f9(v9.clip, v9.cover);
+    } catch {
+      setRecSave9({ ...v9, busy: false, err: "올리지 못했어요 — 다시 눌러 주세요" });
+      return;
+    }
+    setRecSave9(null);
+    setRecDone9(true);
+    if (recDoneTm9.current) window.clearTimeout(recDoneTm9.current);
+    recDoneTm9.current = window.setTimeout(() => { recDoneTm9.current = 0; setRecDone9(false); }, 1800);
+  };
+  /** 쇼츠 재생 — 토막 시계(실초)와 끝났나. 틱이 민다(아래 재생 틱 ★). */
+  const shortRef9 = useRef(short ?? null);
+  shortRef9.current = short ?? null;
+  const shortWRef9 = useRef(0);
+  const shortEndedRef9 = useRef(false);
+  const shortPanAt9 = useRef(0);
+  /* 앱이 멈추라면 멈춘다(누르고 있는 동안 따위) · 놓으면 다시 — 끝난 토막은 되살리지 않는다. */
+  useEffect(() => {
+    if (!short || shortEndedRef9.current) return;
+    setPlaying(!shortPaused);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shortPaused]);
+  /** 자취 한 칸의 눈을 앉힌다 — 배율이 바뀌면 상태까지(setView9 · 렌더) · 팬만이면 눈(panRef)과 렌즈 · 효과층 · 지도 벡터층 · 미니맵만(카메라 한 걸음 camStepRef9 와 같은 길) ·
+   *  상태 거울은 0.2초마다. 받은 자리는 지도 분수라 녹화한 상자와 크기가 달라도 같은 곳이다(링크 받기와 같은 셈). */
+  const shortCamRef9 = useRef<((z: number, cx: number, cy: number) => void) | null>(null);
+  shortCamRef9.current = (z0: number, cx0: number, cy0: number): void => {
+    if (xfGestureRef.current) return;
+    const el9 = mapRef.current;
+    const bw9 = el9?.offsetWidth ?? 0;
+    const bh9 = el9?.offsetHeight ?? 0;
+    if (bw9 < 4 || bh9 < 4) return;
+    linkHoldRef9.current = null;
+    const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0));
+    const lim9 = panLimit(z9);
+    const p9 = {
+      x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx0) * bw9 * z9)),
+      y: Math.min(centerTop9(lim9, cy0 * grid.height), Math.max(-lim9.y, (0.5 - cy0) * bh9 * z9)),
+    };
+    if (Math.abs(z9 - zoomRef.current) > 0.002) { setView9(z9, p9); return; }
+    const o9 = panRef.current;
+    if (Math.abs(o9.x - p9.x) < 0.05 && Math.abs(o9.y - p9.y) < 0.05) return;
+    panRef.current = p9;
+    const lens9 = lensRef.current;
+    if (lens9) lens9.style.transform = z9 > 1 || p9.x !== 0 || p9.y !== 0 ? `translate(${p9.x}px, ${p9.y}px) scale(${z9})` : "";
+    if (fxLensRef.current) fxLensRef.current.style.transform = `translate(-50%, -50%) translate(${p9.x}px, ${p9.y}px)`;
+    mapPaintRef.current?.(z9, p9);
+    const now9 = performance.now();
+    if (now9 - miniAtRef9.current >= 100) { miniAtRef9.current = now9; miniPaintRef.current?.(z9, p9); }
+    if (now9 - shortPanAt9.current >= 200) { shortPanAt9.current = now9; setPan(p9); }
+  };
   /** 손짓 중 한 장 — rAF 안에서만 불린다(위). 지금 손끝 값(refs)으로 그린다. */
   const xfPaintNow = useCallback((): void => {
     const z1 = zoomRef.current;
@@ -18075,11 +18264,17 @@ export default function ReplayMotionPlayer({
       /** 방향 u(−1·0·+1)를 겨눈 속도로 — 밑값에서 시작해 머물수록 빨라진다. */
       const vel9 = (u8: number): number => (u8 === 0 ? 0
         : u8 * (EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.min(1, hold9 / EDGE_RAMP)));
-      /* 겨눈 속도로 **미끄러지듯** 붙는다(요청: "드래그 수준으로 부드럽게") — 지수 완화(시정수 0.11초). 띠 밖에서는 겨눈 속도가 0이라 같은 식이 곧 감속이다. */
+      /* 겨눈 속도로 **미끄러지듯** 붙는다(요청: "드래그 수준으로 부드럽게") — 지수 완화(시정수 0.11초).
+         ★ 떨어질 때는 **곧장** 선다(2026-11-19, 지적: "엣지투스크롤 마우스가 잘 안떨어지는느낌 부자연스럽") — 옛 셈은 멈춤도 같은 0.11초라 최고 속도(3200px/s)에서
+         끝을 떠나도 지도가 v·τ ≈ 350px 더 흘렀다. 겨눈 속도가 0 이거나 거꾸로면 0.03초(≈ 100px · 원작 밀기는 떼면 선다). 축마다 따로. */
       const TAU9 = 0.11;
-      const k9 = 1 - Math.exp(-dt9 / TAU9);
-      vx9 += (vel9(ux9) - vx9) * k9;
-      vy9 += (vel9(uy9) - vy9) * k9;
+      const TAU_STOP9 = 0.03;
+      const ease9 = (v8: number, aim8: number): number => {
+        const stop8 = aim8 === 0 || aim8 * v8 < 0 || Math.abs(aim8) < Math.abs(v8);
+        return v8 + (aim8 - v8) * (1 - Math.exp(-dt9 / (stop8 && aim8 === 0 ? TAU_STOP9 : TAU9)));
+      };
+      vx9 = ease9(vx9, vel9(ux9));
+      vy9 = ease9(vy9, vel9(uy9));
       if (Math.abs(vx9) < 1.5 && Math.abs(vy9) < 1.5) {
         vx9 = 0;
         vy9 = 0;
@@ -21868,8 +22063,12 @@ export default function ReplayMotionPlayer({
        아직 안 되어 있을 수 있다. 많이 쓰는 것부터 데우면 같은 시간에 **화면의 더 많은 몫**이
        준비된다 — 아래에서 이 수로 차례를 매긴다. */
     const useN9 = new Map<string, number>();
+    /* ★ 쇼츠 재생은 **그 구간에 사는 개체의 종류만**(2026-11-19, 요청: "로딩이 오래걸리면 안되서 해당 장면에서 필요한 모델만 로딩") — 태어남 ≤ t1 · 죽음 ≥ t0(앞뒤 2초 여유).
+       메시 · 미리 굽기 · 서버 아틀라스(sprAtlasLoad9 의 종류 목록) · 스톰 효과 메시가 다 이 목록을 따른다. short 는 한 재생기에 하나다(앱이 쇼츠마다 재생기를 새로 세운다). */
+    const win9 = short ? [short.t0 - 2, short.t1 + 2] as const : null;
     for (const e of entData.lives) {
       if (!e.kind) continue;
+      if (win9 && (e.born > win9[1] || (e.died !== null && e.died < win9[0]))) continue;
       const k9 = e.bld ? SHAPE_KIND[e.kind] : UNIT_3D[e.kind];
       if (k9) { kinds.add(k9); useN9.set(k9, (useN9.get(k9) ?? 0) + 1); }
     }
@@ -22282,7 +22481,17 @@ export default function ReplayMotionPlayer({
         const cur9 = tLiveRef9.current;
         let next9 = cur9 + advWall9 * speed;
         let ended9 = false;
-        if (next9 >= total) { next9 = total; ended9 = true; }
+        /* ★ 쇼츠 재생(위 쇼츠 ★) — 토막 시계(실초)를 올리고 자취가 시각 · 카메라를 쥔다(배속 · 경기 끝은 안 본다 · 끝은 토막 길이). */
+        const sc9 = shortRef9.current;
+        let shortEnd9 = false;
+        if (sc9) {
+          const w9 = Math.min(sc9.dur, shortWRef9.current + advWall9);
+          shortWRef9.current = w9;
+          const at9 = shortAt9(sc9, w9);
+          next9 = Math.min(total, Math.max(0, at9 ? at9.t : cur9));
+          if (at9) shortCamRef9.current?.(at9.z, at9.cx, at9.cy);
+          shortEnd9 = w9 >= sc9.dur - 1e-6;
+        } else if (next9 >= total) { next9 = total; ended9 = true; }
         tLiveRef9.current = next9;
         camStepRef9.current?.(performance.now());   // 카메라 한 걸음(위 camTickOwnRef9 ★) — 붓이 그 눈으로 칠한다
         paintFnRef9.current?.(next9);
@@ -22296,12 +22505,14 @@ export default function ReplayMotionPlayer({
         /* ★ 손짓 중엔 React 박자를 **0.4초**로(2026-10-25, 지적: "드래그시 부드러운데 중간중간 좀 멈칫") — React 한 장은 재생기 전체 렌더라 폰에서 15ms 안팎이고,
            재생 중엔 0.1초마다 돌아 끄는 동안에도 열 장에 한 장꼴로 그 장이 60Hz 한 칸(16.7ms)을 넘겼다. 손짓 중 화면은 붓(틱·손짓 붓)이 ref 로 칠하므로
            React 가 늦어도 지도는 안 멎는다 — 늦어지는 것은 시계 글자·인포창 숫자뿐이다. */
-        if (ended9 || nowR9 - reactAtRef9.current >= (xfGestureRef.current ? XF_REACT_MS9 : reactStepRef9.current)) {
+        if (ended9 || shortEnd9 || nowR9 - reactAtRef9.current >= (xfGestureRef.current ? XF_REACT_MS9 : reactStepRef9.current)) {
           reactAtRef9.current = nowR9;
           tFromTickRef9.current = next9;
           setT(next9);
           // 끝까지 봤다고 바깥에 알린다(요청) — 화면이 그때 승패를 드러낸다.
           if (ended9) { setPlaying(false); setDone(true); onFinish?.(); }
+          if (sc9) onShortProgressRef9.current?.(sc9.dur > 0 ? shortWRef9.current / sc9.dur : 1);
+          if (shortEnd9 && !shortEndedRef9.current) { shortEndedRef9.current = true; setPlaying(false); onShortEndRef9.current?.(); }
         }
       }
     };
@@ -25472,6 +25683,24 @@ export default function ReplayMotionPlayer({
   /** 툴박스 꼬리 — 핀 · 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
   const tailNode9 = (
             <div className="scr-tb-tail">
+              {/* ★ 쇼츠 만들기(위 쇼츠 ★ · 2026-11-19, 요청: "쇼츠만들기 아이콘을 독 위에 · 영화컷하는 그 아이콘 · 누르면 녹화 · 빨간 정지 누르면 끝 · 녹화 중 자막 버튼") — 핀 왼쪽.
+                  녹화 중엔 [자막 + · 빨간 정지(■ 0:12)] 둘 · 분할 보기에선 안 선다(칸마다 카메라가 달라 한 자취로 못 담는다). */}
+              {onShortCreate && !splitOn9 && !short && (recOn9 ? (
+                <>
+                  <button type="button" className="scr-kakao-share-btn scr-shortcap-btn" onClick={capOpen9} aria-label="자막 추가" title="자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다">
+                    <Captions size={18} aria-hidden />
+                  </button>
+                  <button type="button" className="scr-kakao-share-btn scr-shortrec-btn is-rec" onClick={recStop9} aria-label="녹화 끝" title="녹화 끝 — 쇼츠로 저장">
+                    <Square size={12} fill="currentColor" aria-hidden />
+                    <span className="scr-shortrec-time">{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</span>
+                  </button>
+                </>
+              ) : (
+                <button type="button" className={cx("scr-kakao-share-btn scr-shortrec-btn", recDone9 && "is-done")} onClick={recStart9}
+                  aria-label="쇼츠 만들기" title={`쇼츠 만들기 — 누르면 녹화(최대 ${SHORT_REC_MAX9}초 · 카메라 · 배율까지)`}>
+                  {recDone9 ? <Check size={18} aria-hidden /> : <Clapperboard size={18} aria-hidden />}
+                </button>
+              ))}
               {/* ★ 장면 핀 꽂기(위 pinOpen9 ★ · 2026-11-08) — 공유 단추 왼쪽 · 단축키 P · 끝나면 초록 체크. */}
               {onPinAdd && (
                 <button
@@ -25541,6 +25770,9 @@ export default function ReplayMotionPlayer({
               {!dockFold2On9 && dockFoldNode9}
             </div>
   );
+  /** 지금 떠 있는 쇼츠 자막 — 쇼츠 재생이면 그 토막 시계 · 녹화 중이면 녹화 시계(미리보기 · recTick9 가 다시 그린다). */
+  const shortCapW9 = short ? shortWRef9.current : recOn9 && recRef9.current ? recRef9.current.w : -1;
+  const shortCapsNow9 = shortCapW9 >= 0 ? shortCapsAt9(short ? short.caps : recRef9.current?.caps ?? [], shortCapW9) : [];
   const stageNode = (
     <div data-veil={veiled9 ? "" : undefined}
       /* ★ PC 표식(scr-motion-pc9)은 **이 판에도** 단다(2026-10-09, 지적: "전체화면에서 독이 작아지는데") — 전체화면이면 이 판을 document.body 로
@@ -25563,7 +25795,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
+        className={cx("scr-fs-root", short && "is-short", recOn9 && "is-rec", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         {/* ★ 2단 접기의 펼치기 손잡이는 **뿌리 오른아래**에 뜬다(2026-11-07, 실기 지적: "2단 접기 상태의 펼치기 버튼은 아래쪽으로" — 재생바가 숨은 자리(화면 가운데쯤)에 홀로 떠 있었다).
@@ -25639,6 +25871,21 @@ export default function ReplayMotionPlayer({
           {mapNode}
           {/* 상자 선택의 끄는 상자(위 boxSel9 ★) — 자리·크기는 onMapPointerMove 가 손으로 적는다(자식 없음). */}
           <div className="scr-boxsel" ref={boxElRef9} aria-hidden />
+          {/* ★ 쇼츠(위 쇼츠 ★) — 녹화 중 REC 표(무대 위 가운데) · 자막(녹화 미리보기 · 쇼츠 재생 연출 — 아래 shortCapsNow9). */}
+          {recOn9 && (
+            <div className="scr-shortrec-badge" aria-live="off">
+              <i aria-hidden />REC <b>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</b>
+              <span>/ {Math.floor(SHORT_REC_MAX9 / 60)}:{String(SHORT_REC_MAX9 % 60).padStart(2, "0")}</span>
+              {capAsk9 && <em>자막 쓰는 중 · 멈춤</em>}
+            </div>
+          )}
+          {shortCapsNow9.length > 0 && (
+            <div className="scr-shortcaps">
+              {shortCapsNow9.map(({ cap: c9, i: i9 }) => (
+                <div key={i9} className={cx("scr-shortcap", shortCapW9 > c9.w + c9.d - 0.4 && "is-out")}><span>{c9.text}</span></div>
+              ))}
+            </div>
+          )}
           {/* ★★ 단독 화면의 머리·미니맵 — **분할 칸과 같은 꼴**(2026-10-09, 요청 2·5: "단독화면의 경우도 분할화면과 똑같은 미니맵, 헤더 적용(PC/모바일
               각각의 특성도 그대로)" · "독의 미니맵은 필요가 없어(중계 꺼져도 단독화면 미니맵 위치 그대로 사용)") — 칸 머리(이름 칩 · 중계 중일 때만)는 왼위,
               미니맵은 왼아래(.scr-split-mini 와 같은 자 — 중계 중엔 그 화면의 6×6 타일 상한(--split-tile) · 꺼지면 상한 없음). 미니맵은 옛 독 미니맵
@@ -26047,6 +26294,47 @@ export default function ReplayMotionPlayer({
       </div>
     </div>, document.body) : null;
 
+  /* ★ 쇼츠 자막 창 · 저장 창(위 쇼츠 ★) — 핀 메모 창과 같은 꼴(body 포털). 자막: 한 줄(120자) · 보이는 시간(1~15초 · 기본 5) · Enter 추가 · Esc 취소.
+     저장: 표지 · 길이 · 자막 수 · [버리기 · 저장] — 못 올리면 창이 남아 다시 누른다. */
+  const capAskNode9 = capAsk9 !== null ? createPortal(
+    <div className="scr-sharepick-overlay is-top" onPointerDown={(e) => { if (e.target === e.currentTarget) capClose9(false); }}>
+      <div className="scr-sharepick scr-pinask scr-capask" role="dialog" aria-modal="true" aria-label="쇼츠 자막 추가">
+        <p className="scr-sharepick-title">자막 추가 <small>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}부터</small></p>
+        <input
+          className="scr-pinask-input" type="text" ref={(el) => { if (el && document.activeElement !== el && !el.dataset.f9) { el.dataset.f9 = "1"; el.focus(); } }}
+          maxLength={SHORT_CAP_LEN9} placeholder="자막 글" value={capAsk9.text}
+          onChange={(e) => { const v9 = e.target.value; setCapAsk9((a9) => (a9 ? { ...a9, text: v9 } : a9)); }}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); capClose9(true); } else if (e.key === "Escape") { e.preventDefault(); capClose9(false); } }}
+        />
+        <div className="scr-capask-dur" role="group" aria-label="보이는 시간">
+          <span>보이는 시간</span>
+          <button type="button" aria-label="1초 줄이기" disabled={capAsk9.d <= 1} onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: Math.max(1, a9.d - 1) } : a9))}>−</button>
+          <b>{capAsk9.d}초</b>
+          <button type="button" aria-label="1초 늘리기" disabled={capAsk9.d >= SHORT_CAP_DMAX9} onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: Math.min(SHORT_CAP_DMAX9, a9.d + 1) } : a9))}>+</button>
+        </div>
+        <div className="scr-pinask-row">
+          <button type="button" className="scr-sharepick-cancel" onClick={() => capClose9(false)}>취소</button>
+          <button type="button" className="scr-pinask-ok" disabled={!capAsk9.text.trim()} onClick={() => capClose9(true)}>추가</button>
+        </div>
+      </div>
+    </div>, document.body) : null;
+  const recSaveNode9 = recSave9 !== null ? createPortal(
+    <div className="scr-sharepick-overlay is-top">
+      <div className="scr-sharepick scr-shortsave" role="dialog" aria-modal="true" aria-label="쇼츠 저장">
+        <p className="scr-sharepick-title">쇼츠 저장</p>
+        {recSave9.cover && <img className="scr-shortsave-cover" src={recSave9.cover} alt="" />}
+        <p className="scr-shortsave-meta">
+          {Math.round(recSave9.clip.dur)}초 · 게임 {Math.floor(recSave9.clip.t0 / 60)}:{String(Math.floor(recSave9.clip.t0) % 60).padStart(2, "0")}~{Math.floor(recSave9.clip.t1 / 60)}:{String(Math.floor(recSave9.clip.t1) % 60).padStart(2, "0")}
+          {" · "}자막 {recSave9.clip.caps.length}개
+        </p>
+        {recSave9.err && <p className="scr-shortsave-err">{recSave9.err}</p>}
+        <div className="scr-pinask-row">
+          <button type="button" className="scr-sharepick-cancel" disabled={recSave9.busy} onClick={() => setRecSave9(null)}>버리기</button>
+          <button type="button" className="scr-pinask-ok" disabled={recSave9.busy} onClick={() => { void recSaveRun9(); }}>{recSave9.busy ? "올리는 중…" : "저장"}</button>
+        </div>
+      </div>
+    </div>, document.body) : null;
+
   /* ══ 몸통 — **프레임 하나와 댓글 기둥**뿐이다(요청: 일반/전체화면 통합) ═════════
      여기 있던 것들을 전부 걷었다: 맵줄(.scr-motion-maprow)·좁은 화면 로스터 줄
      (.scr-motion-rosterwrap)·합친 사이드바(sideNode/.scr-motion-sidepanel)·지도 기둥
@@ -26081,6 +26369,8 @@ export default function ReplayMotionPlayer({
       {guideNode9}
       {tailPickNode9}
       {pinAskNode9}
+      {capAskNode9}
+      {recSaveNode9}
     </div>
   );
 
