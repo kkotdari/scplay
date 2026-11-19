@@ -13194,7 +13194,8 @@ export default function ReplayMotionPlayer({
      켠다(2026-09, 요청: "중계는 자동이든 한사람이든 사용중이면 … 중계 파라미터 공유하기로 변경"). */
   const linkAuto9 = initialTrack === CAST_AUTO_LINK9;
   const initialTrack9 = linkAuto9 ? null : (initialTrack ?? null);
-  const [viewRaw, setViewRaw] = useState<string | null>(initialTrack9);
+  /* 쇼츠 재생은 녹화한 시야 주인으로(short9 vw ★ · 개인 화면에서 녹화했으면 그 사람 안개) — 로스터에 없는 이름은 무시. */
+  const [viewRaw, setViewRaw] = useState<string | null>(() => (short?.vw && basesIn.some((b9) => b9.key === short.vw) ? short.vw : initialTrack9));
   /* ══ 선수 추적(요청: "로스터 각 멤버 왼쪽에 추적 버튼 추가 · 활성화시 해당유저의 시야
      적용 + 해당유저의 현재(마지막) 유닛/건물 선택 위치를 보여줌 · 배율은 기본 줌인 값")
      ═══════════════════════════════════════════════════════════════════════════════
@@ -17634,7 +17635,7 @@ export default function ReplayMotionPlayer({
   onShortEndRef9.current = onShortEnd;
   const onShortProgressRef9 = useRef(onShortProgress);
   onShortProgressRef9.current = onShortProgress;
-  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; sp: number; a: number; hw: number; cover: string | null } | null>(null);
+  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; sp: number; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
   /** 녹화 화면을 다시 그리는 박자(토막 0.1초 칸) — REC 시계 · 자막 미리보기가 이 값으로 선다. */
   const [recTick9, setRecTick9] = useState(0);
@@ -17669,7 +17670,7 @@ export default function ReplayMotionPlayer({
     const [z9, cx9, cy9] = recViewNow9();
     const st9 = stageRef.current;
     const hw9 = st9 && st9.offsetWidth > 0 ? Math.round((st9.offsetHeight / st9.offsetWidth) * 1000) / 1000 : 0.75;
-    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, cover: null };
+    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
     setRecSave9(null);
@@ -17691,7 +17692,7 @@ export default function ReplayMotionPlayer({
     const ts9 = r9.s.map((x9) => x9[1]);
     const clip9: ShortClip9 = {
       v: 1, t0: Math.min(...ts9), t1: Math.max(...ts9), dur: Math.round(r9.w * 100) / 100, sp: r9.sp, s: r9.s,
-      caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.a !== 90 ? { a: r9.a } : {}),
+      caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.vw ? { vw: r9.vw } : {}), ...(r9.a !== 90 ? { a: r9.a } : {}),
     };
     setPlaying(false);
     setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "" });
@@ -23541,6 +23542,31 @@ export default function ReplayMotionPlayer({
         setSpeed((v) => (up9 ? SPEEDS.find((s9) => s9 > v + 1e-6) ?? SPEED_MAX9 : [...SPEEDS].reverse().find((s9) => s9 < v - 1e-6) ?? SPEED_MIN9));
       }}
     >
+      {/* ★ 쇼츠 단추(위 쇼츠 ★ · 2026-11-19 되요청: "쇼츠버튼은 독 접어도 보일 수 있게 독에서 빼서 독 위에 배치 · 쇼츠는 개인화면이나 중계에서도 사용 가능") — 툴바 꼬리에서
+          빼 **배속 다이얼 왼쪽 위**에 붙인다(다이얼을 따라 펼침 · 접힘 · 가로 배치 어디서나 같이 움직이고, 접힌 독의 펼치기 손잡이(다이얼 왼쪽 아래)와 안 겹친다). 다이얼 끌기로
+          안 번지게 누름을 끊는다. 녹화 중엔 [빨간 알약 ■ 0:12 · 그 아래 자막 단추]. 개인 화면 · 자동 중계 중에도 된다(눈이 곧 그 카메라) · 분할 보기만 안 선다. */}
+      {onShortCreate && !splitOn9 && !short && (
+        <div className="scr-shortfab" role="group" aria-label="쇼츠"
+          onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          {recOn9 ? (
+            <>
+              <button type="button" className="scr-shortfab-btn scr-shortrec-btn is-rec" onClick={recStop9} aria-label="녹화 끝" title="녹화 끝 — 쇼츠로 저장">
+                <Square size={11} fill="currentColor" aria-hidden />
+                <span className="scr-shortrec-time">{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</span>
+              </button>
+              <button type="button" className="scr-shortfab-btn scr-shortcap-btn" onClick={capOpen9} aria-label="자막 추가" title="자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다">
+                <Captions size={17} aria-hidden />
+              </button>
+            </>
+          ) : (
+            <button type="button" className={cx("scr-shortfab-btn scr-shortrec-btn", recDone9 && "is-done")} onClick={recStart9}
+              aria-label="쇼츠 만들기" title={`쇼츠 만들기 — 누르면 녹화(최대 ${SHORT_REC_MAX9}초 · 카메라 · 배율까지)`}>
+              {recDone9 ? <Check size={17} aria-hidden /> : <Clapperboard size={17} aria-hidden />}
+            </button>
+          )}
+        </div>
+      )}
       {/* 맨 위 라벨(2026-10-12, 요청: "배속창에 맨 위에 라벨 속도 넣기"). */}
       <span className="scr-speeddial-lab" aria-hidden>속도</span>
       <span className="scr-speeddial-val">×{spdTxt9(speed)}</span>
@@ -25741,24 +25767,6 @@ export default function ReplayMotionPlayer({
   /** 툴박스 꼬리 — 핀 · 공유 · 사용법(PC 프레임) · 전체화면 · 접기. 폰은 단추 줄 끝에, PC 는 한 줄의 오른끝에 선다(아래 .scr-tb). */
   const tailNode9 = (
             <div className="scr-tb-tail">
-              {/* ★ 쇼츠 만들기(위 쇼츠 ★ · 2026-11-19, 요청: "쇼츠만들기 아이콘을 독 위에 · 영화컷하는 그 아이콘 · 누르면 녹화 · 빨간 정지 누르면 끝 · 녹화 중 자막 버튼") — 핀 왼쪽.
-                  녹화 중엔 [자막 + · 빨간 정지(■ 0:12)] 둘 · 분할 보기에선 안 선다(칸마다 카메라가 달라 한 자취로 못 담는다). */}
-              {onShortCreate && !splitOn9 && !short && (recOn9 ? (
-                <>
-                  <button type="button" className="scr-kakao-share-btn scr-shortcap-btn" onClick={capOpen9} aria-label="자막 추가" title="자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다">
-                    <Captions size={18} aria-hidden />
-                  </button>
-                  <button type="button" className="scr-kakao-share-btn scr-shortrec-btn is-rec" onClick={recStop9} aria-label="녹화 끝" title="녹화 끝 — 쇼츠로 저장">
-                    <Square size={12} fill="currentColor" aria-hidden />
-                    <span className="scr-shortrec-time">{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</span>
-                  </button>
-                </>
-              ) : (
-                <button type="button" className={cx("scr-kakao-share-btn scr-shortrec-btn", recDone9 && "is-done")} onClick={recStart9}
-                  aria-label="쇼츠 만들기" title={`쇼츠 만들기 — 누르면 녹화(최대 ${SHORT_REC_MAX9}초 · 카메라 · 배율까지)`}>
-                  {recDone9 ? <Check size={18} aria-hidden /> : <Clapperboard size={18} aria-hidden />}
-                </button>
-              ))}
               {/* ★ 장면 핀 꽂기(위 pinOpen9 ★ · 2026-11-08) — 공유 단추 왼쪽 · 단축키 P · 끝나면 초록 체크. */}
               {onPinAdd && (
                 <button

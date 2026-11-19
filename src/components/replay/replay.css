@@ -6286,14 +6286,27 @@
 /* ══ ★ 쇼츠(2026-11-19 · RMP 쇼츠 ★ · short9.ts) ═════════════════════════════════════════════════════════════════════════════
    녹화 단추(클래퍼 · 핀 왼쪽) — 녹화 중엔 빨간 알약 [■ 0:12] + 자막 단추(노란 글자) · 무대 위 가운데 REC 표 · 자막(녹화 미리보기 · 쇼츠 재생 연출) ·
    자막 창(글 · 보이는 시간) · 저장 창(표지 · 길이) · 쇼츠 재생 모드(.is-short — 장면 + 미니맵만 · 손짓 없음). */
-.scr-tb-tail .scr-shortrec-btn, .scr-tb-tail .scr-shortcap-btn { order: 0; }
-.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortrec-btn.is-rec {
-  width: auto; padding: 0 calc(10px * var(--ui)); gap: calc(5px * var(--ui)); background: #e3343d; color: #fff; box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35);
+/* 쇼츠 단추 묶음(RMP speedDial9 안 · 2026-11-19 되요청 "독에서 빼서 독 위에 배치") — 배속 다이얼 왼쪽 위 귀에 붙는다(다이얼 자를 따른다 --sdk · --sd-gap). 다이얼의 끌기 손잡이 꼴(ns-resize)은 안 물려받는다. */
+.scr-shortfab {
+  position: absolute; right: calc(100% + var(--sd-gap)); top: 0; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8px * var(--sdk));
+  cursor: default; touch-action: manipulation;
+}
+.scr-shortfab-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: calc(5px * var(--sdk)); width: var(--sd-w); height: var(--sd-w); padding: 0; border: 0; border-radius: 999px;
+  background: rgba(8, 10, 14, 0.55); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.scr-shortfab-btn:hover { background: rgba(28, 32, 42, 0.75); }
+.scr-shortfab-btn:active { transform: scale(0.94); }
+.scr-shortfab-btn svg { width: calc(17px * var(--sdk)); height: calc(17px * var(--sdk)); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.scr-shortfab-btn.is-done { color: #6fe39a; }
+.scr-shortfab-btn.scr-shortrec-btn.is-rec {
+  width: auto; padding: 0 calc(11px * var(--sdk)); background: #e3343d; box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35);
   animation: scr-shortrec-pulse 1.6s ease-in-out infinite;
 }
-.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortrec-btn.is-rec svg { width: calc(11px * var(--ui)); height: calc(11px * var(--ui)); filter: none; }
-.scr-shortrec-time { font-size: calc(12px * var(--ui)); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-.scr-tb .scr-tb-tail .scr-kakao-share-btn.scr-shortcap-btn { color: #ffd34d; }
+.scr-shortfab-btn.scr-shortrec-btn.is-rec svg { width: calc(11px * var(--sdk)); height: calc(11px * var(--sdk)); filter: none; }
+.scr-shortrec-time { font-size: calc(13px * var(--sdk)); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.scr-shortfab-btn.scr-shortcap-btn { color: #ffd34d; }
 @keyframes scr-shortrec-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); } 50% { box-shadow: 0 0 0 5px rgba(255, 90, 96, 0.12); } }
 .scr-shortrec-badge {
   position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 8px * var(--dk, 1)); transform: translateX(-50%); z-index: 30002;
