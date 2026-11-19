@@ -6328,10 +6328,15 @@
 .scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 128px), 760px); font-size: round(nearest, clamp(16px, 4.4vmin, 32px), 1px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
 .scr-shortcap { max-width: 100%; animation: scr-shortcap-in 0.55s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease; }
 .scr-shortcap.is-out { opacity: 0; transform: translateY(-0.4em) scale(0.97); filter: blur(3px); }
+/* ★ 판 · 왼쪽 띠 걷고 글자 테두리만 · Pretendard(2026-11-19, 요청: "자막 패널(왼쪽띠까지) 제거하고 자막 폰트는 Pretendard 쓰기(기존에 있는 거) 그리고 자막에 테두리만 좀 줘") —
+   글꼴은 앱(sg-web)이 싣는 Pretendard · 테두리는 여덟 방향 그림자(0.07em · 모든 브라우저 같은 꼴) + 옅은 번짐. 옛: 어두운 판 + 노란 왼테 + 그늘. */
 .scr-shortcap > span {
-  display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0.4em 0.85em 0.44em 0.75em; border-radius: 0.5em; border-left: 0.22em solid #ffcf3a;
-  background: linear-gradient(180deg, rgba(8, 10, 16, 0.84), rgba(8, 10, 16, 0.66)); box-shadow: 0 0.35em 1.2em rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  color: #fff; font-weight: 800; line-height: 1.32; letter-spacing: -0.01em; text-align: center; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+  display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0 0.2em;
+  color: #fff; font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif; font-weight: 800; line-height: 1.32; letter-spacing: -0.01em; text-align: center;
+  text-shadow:
+    0.07em 0 0 #000, -0.07em 0 0 #000, 0 0.07em 0 #000, 0 -0.07em 0 #000,
+    0.05em 0.05em 0 #000, -0.05em 0.05em 0 #000, 0.05em -0.05em 0 #000, -0.05em -0.05em 0 #000,
+    0 0.1em 0.35em rgba(0, 0, 0, 0.45);
   word-break: keep-all; overflow-wrap: anywhere;
 }
 @keyframes scr-shortcap-in {
