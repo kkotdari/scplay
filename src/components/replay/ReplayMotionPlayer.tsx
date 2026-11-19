@@ -17779,13 +17779,15 @@ export default function ReplayMotionPlayer({
     const bh9 = el9?.offsetHeight ?? 0;
     if (bw9 < 4 || bh9 < 4) return;
     linkHoldRef9.current = null;
-    /* ★ 판 비 맞춤(2026-11-19, 지적: "폰에서 너무 저배율로 나오는데") — 1배 = 무대 가로 폭이라 PC(가로 1280 남짓)에서 녹화한 배율을 폰 9:16(가로 390)에 그대로 쓰면 같은 지도
-       가로 범위가 3분의 1 폭에 들어가 유닛이 아주 작았다. 쇼츠 자르기처럼 **녹화한 화면의 세로 범위를 재생 판 세로에 맞추고 좌우를 자른다** — 재생 판이 녹화 무대(hw)보다
-       세로로 길면 그 비만큼 당긴다(녹화 때와 타일 크기가 거의 같다). 가로로 넓으면 그대로(가로 범위를 맞추고 위아래를 자른다). */
+    /* ★★ **정사각 틀이 통째로 든다**(2026-11-19, 요청: "녹화시 실제 쇼츠에서 보이는 프레임을 정사각형 두꺼운 흰 점선 프레임으로 · 재생하는 화면에서는 그 정사각형은 무조건 다 나오고
+       상하좌우 남는 곳은 확대하는 형태로 · 가로가 긴 화면에선 가로가 채워지는 거") — 녹화 무대 가운데의 정사각형(한 변 = 무대 짧은 변 · 녹화 중 점선 틀 .scr-shortrec-frame)이
+       재생 판에 꼭 들어오게 배율을 고른다: 1배 = 무대 가로 폭이므로 정사각 한 변(지도 가로 몫) = min(1, hw녹화)/z녹화 · 재생 판이 그것을 담는 배율 = z녹화 × min(1, hw재생)/min(1, hw녹화).
+       세로로 긴 폰은 정사각이 가로를 꽉 채우고 위아래에 지도가 더 · 가로로 긴 판은 세로를 꽉 채우고 좌우에 더. (되물린 셈: 같은 날 앞 판 '녹화 화면 세로를 채우고 좌우를 자른다'
+       — × max(1, hw재생/hw녹화) · 정사각 좌우가 잘렸다.) 옛 토막(hw 없음)은 녹화 무대를 0.75 로 본다. */
     const st9 = stageRef.current;
     const hwP9 = st9 && st9.offsetWidth > 0 ? st9.offsetHeight / st9.offsetWidth : 1;
     const hwR9 = shortRef9.current?.hw && shortRef9.current.hw > 0 ? shortRef9.current.hw : 0.75;
-    const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0 * Math.max(1, hwP9 / hwR9)));
+    const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0 * (Math.min(1, hwP9) / Math.min(1, hwR9))));
     const lim9 = panLimit(z9);
     const p9 = {
       x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - cx0) * bw9 * z9)),
@@ -25928,6 +25930,10 @@ export default function ReplayMotionPlayer({
           {/* 상자 선택의 끄는 상자(위 boxSel9 ★) — 자리·크기는 onMapPointerMove 가 손으로 적는다(자식 없음). */}
           <div className="scr-boxsel" ref={boxElRef9} aria-hidden />
           {/* ★ 쇼츠(위 쇼츠 ★) — 녹화 중 REC 표(무대 위 가운데) · 자막(녹화 미리보기 · 쇼츠 재생 연출 — 아래 shortCapsNow9). */}
+          {/* 녹화 중 쇼츠 틀(위 shortCamRef9 ★★) — 무대 가운데 정사각(한 변 = 무대 짧은 변) · 두꺼운 흰 점선 · 틀 밖은 살짝 어둡게. 표지도 이 정사각을 찍는다(shortCoverOf9). */}
+          {recOn9 && stage.w > 0 && stage.h > 0 && (
+            <div className="scr-shortrec-frame" style={{ width: Math.min(stage.w, stage.h), height: Math.min(stage.w, stage.h) }} aria-hidden />
+          )}
           {recOn9 && (
             <div className="scr-shortrec-badge" aria-live="off">
               <i aria-hidden />REC <b>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</b>
