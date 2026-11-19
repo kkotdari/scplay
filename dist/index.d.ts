@@ -702,6 +702,8 @@ export declare type ShortClip9 = {
     s: [number, number, number, number, number][];
     caps: ShortCap9[];
     a?: number;
+    /** 녹화한 무대의 세로/가로(2026-11-19) — 재생 판이 이보다 세로로 길면 그 비만큼 당겨 녹화한 화면의 **세로 범위**를 채운다(좌우를 자른다 · RMP shortCamRef9 ★). 없으면(옛 토막) 0.75. */
+    hw?: number;
 };
 
 /** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 색인 줄 gameIndexOf9 가 돌려준다). */
