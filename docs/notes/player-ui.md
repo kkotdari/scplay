@@ -4102,3 +4102,13 @@ esc 눌렀을때 마우스가 가운데로 이동해서 불편".
   쇼츠 재생은 열 때 `short.imgs` 를 미리 받는다.
 - 서버(sg-api shorts.py): 올릴 때 data URL 을 저장소 `shorts/` 파일로 두고 `src` = 주소 · `p` = 열쇠로 바꿔 적는다. **쇼츠 지우기 · 월마감 쇼츠 걷기 모두 표지와 함께 사진 파일도 지운다**(`_asset_paths`).
 - 🔎 `node scripts/perf-check.mjs --wide --warm 0 --glblit --players 3 --units 4 --atlas spr --castoff --shortrec --shortprobe $S/rec.json --shortimg <png> --shot $S/x.png` — `_img.png`(편집) · `_prev.png`(넣은 뒤).
+
+## 쇼츠 재생 손질 — 재생 단추 · 미니맵 구석 · 자막 확대 · 화면 밖 뜀(2026-11-19)
+요청: "쇼츠 재생 버튼 빨간색 말고 라이팅 동그란 아이콘 버튼 css. 미니맵 좌하단 구석에 맞추기 · 자막 크기 확대 · 위치 이동시 화면 내에 없으면 재생기처럼 바로 점프".
+- 재생 단추(sg-web ShortsStrip 카드 가운데): `.scr-circle-btn`(라이팅 동그란 아이콘 단추 · 유리 바탕 · 테 · 호버 빛) 꼴 그대로 · `.scr-short-card-play` 는 자리만.
+  옛: 어두운 판 + 흰 테 2px · 호버 붉은 판 rgba(255, 77, 87, 0.85).
+- 미니맵: 세로 배치(폰 9:16 · PC 4:3 판 둘 다 not .is-wide 였다 — 실측)는 독 줄 · 틀 · 몸통을 static 으로 두고 판을 접힌 독(.scr-fs-lower · absolute 바닥)의 왼아래 0,0 ·
+  transform(--tb-h9) 걷음 · 테마 둘레 테(::before)는 둔다(위 · 오른 테만 보인다). 넓은 배치는 margin 0. 옛 실측: 폰 360×640 왼 39 · 아래 7px · PC 800×600 왼 94 · 아래 17px.
+- 자막 약 1.35배: 녹화 미리보기 clamp(15px, 3.4vmin, 28px) → (20px, 4.6vmin, 38px) · 쇼츠 재생 (16px, 4.4vmin, 32px) → (22px, 6vmin, 44px) · 재생 폭 상한 760 → 860.
+- 화면 밖 뜀(short9 `shortAt9` 셋째 인자 ar = 지도 세로/가로): 한 칸(0.1초) 사이 가운데 이동이 녹화 창 하나(가로 1/z · 세로 hw/(ar·z))를 넘으면 잇지 않고 칸 가운데서 뒤 칸으로 바꾼다
+  (재생기 RMP far9 — 창 하나 넘게 가면 곧장 선다 — 와 같은 자). 시각 t 는 그대로 잇는다. 옛: 미니맵 누름 · 중계 컷이 0.1초 동안 지도를 가로질러 쓸려 보였다.

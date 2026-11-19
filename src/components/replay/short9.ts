@@ -81,8 +81,11 @@ const r4 = (v: number): number => Math.round(v * 10000) / 10000;
 export const shortSample9 = (w: number, t: number, z: number, cx: number, cy: number): [number, number, number, number, number] =>
   [r2(w), r2(t), r2(z), r4(cx), r4(cy)];
 
-/** 실초 w 의 장면 — 앞뒤 두 칸을 곧게 잇는다(같은 w 의 두 칸 = 뜀 · 뒤 칸을 쓴다). 칸이 없으면 null. */
-export const shortAt9 = (clip: ShortClip9, w: number): { t: number; z: number; cx: number; cy: number } | null => {
+/** 실초 w 의 장면 — 앞뒤 두 칸을 곧게 잇는다(같은 w 의 두 칸 = 뜀 · 뒤 칸을 쓴다). 칸이 없으면 null.
+ *  ★ **화면 밖으로 옮긴 카메라는 잇지 않고 뛴다**(2026-11-19, 요청: "위치 이동시 화면 내에 없으면 재생기처럼 바로 점프") — 재생기는 창 하나 넘게 가야 하면 곧장 선다(RMP far9 ·
+ *  미니맵 누름 · 중계 컷). 자취는 0.1초 칸이라 그런 뜀이 한 칸 사이에 담기는데, 곧게 이으면 0.1초 동안 지도를 가로질러 쓸려 보였다. 한 칸 사이 가운데 이동이 녹화 창 하나
+ *  (가로 1/z · 세로 hw/(ar·z) — 1배 = 무대 폭 · ar = 지도 세로/가로)를 넘으면 그 칸 가운데서 뒤 칸으로 바로 바꾼다(시각 t 는 그대로 잇는다). 창 안의 미끄러짐 · 행군 끌림은 그대로 잇는다. */
+export const shortAt9 = (clip: ShortClip9, w: number, ar = 1): { t: number; z: number; cx: number; cy: number } | null => {
   const s = clip.s;
   if (!s.length) return null;
   if (w <= s[0][0]) return { t: s[0][1], z: s[0][2], cx: s[0][3], cy: s[0][4] };
@@ -102,7 +105,18 @@ export const shortAt9 = (clip: ShortClip9, w: number): { t: number; z: number; c
   const span = b[0] - a[0];
   const k = span > 1e-6 ? (w - a[0]) / span : 1;
   const mix = (i: number): number => a[i] + (b[i] - a[i]) * k;
+  if (shortCut9(clip, a, b, ar)) {
+    const c = k < 0.5 ? a : b;
+    return { t: mix(1), z: c[2], cx: c[3], cy: c[4] };
+  }
   return { t: mix(1), z: mix(2), cx: mix(3), cy: mix(4) };
+};
+
+/** 두 칸 사이가 화면 밖 뜀인가(위 shortAt9 ★) — 앞 칸 배율의 녹화 창 하나를 넘게 옮겼나. */
+const shortCut9 = (clip: ShortClip9, a: readonly number[], b: readonly number[], ar: number): boolean => {
+  const z = Math.max(0.05, a[2]);
+  const hw = clip.hw && clip.hw > 0 ? clip.hw : 0.75;
+  return Math.abs(b[3] - a[3]) > 1 / z || Math.abs(b[4] - a[4]) > hw / (Math.max(0.05, ar) * z);
 };
 
 /** 지금(실초 w) 떠 있는 자막 — 여럿이면 다 · 떠오름 · 스러짐 몫(0~1)과 함께. */

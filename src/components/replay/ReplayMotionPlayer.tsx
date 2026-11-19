@@ -22069,7 +22069,7 @@ export default function ReplayMotionPlayer({
     const t09 = performance.now();
     let last9 = t09;
     let good9 = 0;
-    const at09 = shortAt9(short, 0);
+    const at09 = shortAt9(short, 0, grid.width > 0 ? grid.height / grid.width : 1);
     const step9 = (now9: number): void => {
       const dt9 = now9 - last9;
       last9 = now9;
@@ -22590,7 +22590,7 @@ export default function ReplayMotionPlayer({
         if (sc9) {
           const w9 = Math.min(sc9.dur, shortWRef9.current + advWall9);
           shortWRef9.current = w9;
-          const at9 = shortAt9(sc9, w9);
+          const at9 = shortAt9(sc9, w9, grid.width > 0 ? grid.height / grid.width : 1);   // 화면 밖 뜀은 잇지 않는다(short9 shortAt9 ★)
           next9 = Math.min(total, Math.max(0, at9 ? at9.t : cur9));
           if (at9) shortCamRef9.current?.(at9.z, at9.cx, at9.cy);
           shortEnd9 = w9 >= sc9.dur - 1e-6;

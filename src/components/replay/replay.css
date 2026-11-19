@@ -6323,9 +6323,11 @@
 .scr-shortcaps {
   position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 30000;
   display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
-  font-size: round(nearest, calc(clamp(15px, 3.4vmin, 28px) * var(--dk, 1)), 1px);
+  font-size: round(nearest, calc(clamp(20px, 4.6vmin, 38px) * var(--dk, 1)), 1px);
 }
-.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 128px), 760px); font-size: round(nearest, clamp(16px, 4.4vmin, 32px), 1px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 112px), 860px); font-size: round(nearest, clamp(22px, 6vmin, 44px), 1px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+/* ↑ 자막 크기 확대(2026-11-19, 요청: "자막 크기 확대") — 약 1.35배: 녹화 미리보기 clamp(15px, 3.4vmin, 28px) → (20px, 4.6vmin, 38px) · 쇼츠 재생 (16px, 4.4vmin, 32px) → (22px, 6vmin, 44px)
+   (폰 360 폭 쇼츠: 16 → 22px · PC 800×600: 26 → 36px) · 재생 폭 상한 760 → 860 · 오른쪽 비움 128 → 112px. */
 .scr-shortcap { max-width: 100%; animation: scr-shortcap-in 0.55s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease; }
 .scr-shortcap.is-out { opacity: 0; transform: translateY(-0.4em) scale(0.97); filter: blur(3px); }
 /* ★ 판 · 왼쪽 띠 걷고 글자 테두리만 · Pretendard(2026-11-19, 요청: "자막 패널(왼쪽띠까지) 제거하고 자막 폰트는 Pretendard 쓰기(기존에 있는 거) 그리고 자막에 테두리만 좀 줘") —
@@ -6373,6 +6375,15 @@
   height: calc(var(--mini-h) * 0.62); width: round(nearest, calc(var(--mini-h) * 0.62 * var(--scr-mini-ar, 1)), 2px);
   --ped-h: max(0px, calc(var(--mini-h) * 0.62 - var(--plate-h)));
 }
+/* ★ 쇼츠 재생 미니맵은 **무대 왼아래 구석에 딱 붙는다**(2026-11-19, 요청: "미니맵 좌하단 구석에 맞추기") — 세로 배치는 독 겹(줄 · 틀 · 몸통)을 자리 없는 겹(static)으로 두고
+   판을 바닥에 띄운 독(.scr-fs-lower · 접힘이라 absolute · 바닥 = 무대 바닥 · 왼 = 무대 왼)의 왼아래에 세운다 — 재생바 키만큼 내리던 변환(--tb-h9)은 걷는다. 테마의 둘레 테(::before)는
+   그대로 둔다(왼 · 아래 몫은 무대 밖이라 잘리고 위 · 오른 테만 남아 구석에 끼운 판으로 읽힌다). 넓은 배치는 여백(--wl · --wbot)만 걷는다. 안전영역은 안 띄운다(앱 판은 9:16 이라 노치 폰에선 위아래 띠가 남아 구석이 화면 가장자리가 아니다).
+   옛: 폰은 독 몸통 안 가운데 쪽(왼 39px · 아래 7px 실측) · PC 는 6px 띄움. */
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short > .scr-fs-lower .scr-fs-dockrow,
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short > .scr-fs-lower .scr-fs-dockframe,
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short > .scr-fs-lower .scr-fs-dockmain { position: static; }
+.scr-fs-layer:not(.is-wide) .scr-fs-root.is-short .scr-fs-dockmain > .scr-fs-minipanel { position: absolute; left: 0; bottom: 0; margin: 0; transform: none; }
+.scr-fs-layer.is-wide .scr-fs-root.is-short .scr-fs-dockmain > .scr-fs-minipanel { margin: 0; }
 /* 쇼츠 재생의 경기 채팅(2026-11-19, 요청: "그 시간의 채팅도 나와야 함") — 무대 왼쪽 위(앱 보기 화면의 머리줄 아래 · 오른쪽 단추 줄 몫은 비운다). 줄 꼴 · 지속은 재생기 채팅 그대로. */
 .scr-fs-root.is-short > .scr-fs-stage > .scr-fs-chat.is-shortchat { top: max(88px, 15%); bottom: auto; left: 10px; right: auto; max-width: calc(100% - 86px); }
 /* 녹화 중 쇼츠 틀(2026-11-19, 요청: "녹화시 실제 쇼츠에서 보이는 프레임을 정사각형 두꺼운 흰 점선 프레임으로 표시") — 무대 가운데 정사각(크기는 RMP 가 무대 짧은 변으로 적는다) ·

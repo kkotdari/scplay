@@ -3285,7 +3285,7 @@ if (SHOT) {
     console.log(`[휠] ${n9} → 배율 ${await page.evaluate(() => window.__scrDiag?.zoom ?? "-")}`);
   }
   /* --rects(2026-10-25) — 판·무대·지도 상자·우주 층·독의 화면 상자(지도 밖 빈자리 가르기). */
-  if (has("--rects")) console.log("[상자] " + await page.evaluate(() => [".scr-fs-layer", ".scr-fs-root", ".scr-fs-stage", ".scr-fs-space", ".scr-motion-map", ".scr-motion-unitlayer", ".scr-fs-dockframe", ".scr-tb"].map((q) => { const e = document.querySelector(q); if (!e) return `${q} 없음`; const r = e.getBoundingClientRect(); return `${q} ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} bg ${getComputedStyle(e).backgroundColor}`; }).join("\n  ")));
+  if (has("--rects")) console.log("[상자] " + await page.evaluate(() => [".scr-fs-layer", ".scr-fs-root", ".scr-fs-stage", ".scr-fs-space", ".scr-motion-map", ".scr-motion-unitlayer", ".scr-fs-dockframe", ".scr-tb", ".scr-fs-lower", ".scr-fs-dockmain", ".scr-fs-minipanel", ".scr-fs-minimap", ".scr-shortcaps"].map((q) => { const e = document.querySelector(q); if (!e) return `${q} 없음`; const r = e.getBoundingClientRect(); return `${q} ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} bg ${getComputedStyle(e).backgroundColor}`; }).join("\n  ")));
   /* --centerprobe(2026-10-31, 지적: "피시 줌할 때 유닛층이 자리가 흔들림") — 렌즈(지도 그림 · 가운데 축 배율)와 몸·GL·효과·지형·안개 캔버스의 **변환 없는 상자 가운데**를 견준다.
      손짓 중 몸 캔버스는 transform-origin center 로 translate(p − s·p0) scale(s) 를 타므로 두 가운데가 다르면 (s − 1) × 차 만큼 밀렸다가 다시 그릴 때 제자리로 돈다(흔들림). */
   if (has("--centerprobe")) console.log("[가운데] " + await page.evaluate(() => {
