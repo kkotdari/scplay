@@ -1,7 +1,7 @@
 import { jsxs as jt, jsx as at, Fragment as Si } from "react/jsx-runtime";
 import mw, { useState as Ls, useRef as vt, useSyncExternalStore as B7, useEffect as Ds, useCallback as re, useLayoutEffect as f0, useMemo as _n, useId as lZ } from "react";
 import { createPortal as gC } from "react-dom";
-import { X as Mh, Play as P5, Lock as L7, Map as uZ, Tv as AZ, Video as cM, Palette as K7, Volume2 as k7, Route as hZ, Search as x7, Share2 as T7, Clapperboard as v7, Maximize as G7, Pause as dZ, RotateCcw as fZ, VolumeX as pZ, Layers as yZ, ChevronLeft as OO, ChevronRight as mZ, Captions as wZ, Square as bZ, Check as ww, LockOpen as MZ, Minimize as SZ, ArrowLeft as DZ, RotateCw as OZ } from "lucide-react";
+import { X as Mh, Play as P5, Lock as L7, Map as uZ, Tv as AZ, Video as cM, Palette as K7, Volume2 as k7, Route as hZ, Search as x7, Share2 as T7, Clapperboard as v7, Maximize as G7, Pause as dZ, RotateCcw as fZ, Square as pZ, Captions as yZ, Check as ww, VolumeX as mZ, Layers as wZ, ChevronLeft as OO, ChevronRight as bZ, LockOpen as MZ, Minimize as SZ, ArrowLeft as DZ, RotateCw as OZ } from "lucide-react";
 class t9 {
   constructor(s, n, o, i, e, g, I) {
     this.kind = s, this.x0 = n, this.y0 = o, this.r0 = i, this.x1 = e, this.y1 = g, this.r1 = I, this.stops = [], this.m = null, this.inv = null;
@@ -43775,7 +43775,7 @@ function qU({
     return N ? T : null;
   }, [tt]);
   typeof window < "u" && (window.__nukeLase = Mn);
-  const Wt = z === tM, Rt = Wt ? null : z ?? null, [qt, zt] = Ls(Rt), [gs, ps] = Ls(Rt), _t = !!j && (j.z > 1.001 || Math.abs(j.cx - 0.5) > 5e-4 || Math.abs(j.cy - 0.5) > 5e-4), [Jt, ns] = Ls(!m && (Wt || !Rt && !_t)), [Ms, _s] = Ls(!1), [es, vs] = Ls(null), [Qs, js] = Ls({ all: !1, cap: !1, dock: !1, mini: !1, ctl: !1 }), [vn, Fn] = Ls(() => {
+  const Wt = z === tM, Rt = Wt ? null : z ?? null, [qt, zt] = Ls(() => m != null && m.vw && n.some((d) => d.key === m.vw) ? m.vw : Rt), [gs, ps] = Ls(Rt), _t = !!j && (j.z > 1.001 || Math.abs(j.cx - 0.5) > 5e-4 || Math.abs(j.cy - 0.5) > 5e-4), [Jt, ns] = Ls(!m && (Wt || !Rt && !_t)), [Ms, _s] = Ls(!1), [es, vs] = Ls(null), [Qs, js] = Ls({ all: !1, cap: !1, dock: !1, mini: !1, ctl: !1 }), [vn, Fn] = Ls(() => {
     try {
       const d = Number(localStorage.getItem("scplay.capu"));
       return d >= 0.5 && d <= 2 ? d : 1;
@@ -44978,7 +44978,7 @@ function qU({
       d += 1, T += N.width * N.height * 4;
     });
     const E = hg();
-    return `판${"11-19 13:38".slice(6)} ${Math.round(Uo.current)}초 ×${s1.current.speed} 캔버스${d}장${(T / 1048576).toFixed(0)}MB` + (E ? ` GL${E.canvas.width}×${E.canvas.height} 아틀라스${E.sprFixedMB.toFixed(0)} 메시${E.stat.meshes} 판${E.sprStat.pages}${E.lost ? " 잃음" : ""}` : "");
+    return `판${"11-19 13:53".slice(6)} ${Math.round(Uo.current)}초 ×${s1.current.speed} 캔버스${d}장${(T / 1048576).toFixed(0)}MB` + (E ? ` GL${E.canvas.width}×${E.canvas.height} 아틀라스${E.sprFixedMB.toFixed(0)} 메시${E.stat.meshes} 판${E.sprStat.pages}${E.lost ? " 잃음" : ""}` : "");
   }, Ds(() => {
     xc(bo ? "전체화면 켬" : "전체화면 끔");
   }, [bo]), Ds(() => {
@@ -44996,7 +44996,7 @@ function qU({
         });
         let ot = 0;
         for (const wt of Be.current.values()) ot += wt.buf.byteLength;
-        const et = hg(), ht = (wt) => (wt / 1048576).toFixed(0), gt = (N = performance.memory) == null ? void 0 : N.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-19 13:38 · 재생${Math.round(Uo.current)}초(켠 뒤 ${Math.round((performance.now() - d) / 1e3)}초) ×${s1.current.speed} 배율${s1.current.zoom.toFixed(1)} · 메모리${Bc()}단 ${vu()}방 · 캔버스${_}장 ${ht(U)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${ht(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Be.current.size}장 ${ht(ot)}MB · 안개갈무리${Fo.current.length} · 효과판${ht(aA.n)}MB · 캔버스생성${P0.n}` + (gt ? ` · 힙${ht(gt)}MB` : "");
+        const et = hg(), ht = (wt) => (wt / 1048576).toFixed(0), gt = (N = performance.memory) == null ? void 0 : N.usedJSHeapSize, lt = `${(/* @__PURE__ */ new Date()).toLocaleString("ko-KR", { hour12: !1 })} · 판 11-19 13:53 · 재생${Math.round(Uo.current)}초(켠 뒤 ${Math.round((performance.now() - d) / 1e3)}초) ×${s1.current.speed} 배율${s1.current.zoom.toFixed(1)} · 메모리${Bc()}단 ${vu()}방 · 캔버스${_}장 ${ht(U)}MB` + (et ? ` · GL배킹${et.canvas.width}×${et.canvas.height} 메시${et.stat.meshes}/${et.meshMax} ${ht(et.stat.bytes)}MB 2D판${et.sprStat.pages}장×${et.sprPageMB9().toFixed(0)}MB 아틀라스${et.sprFixedMB.toFixed(0)}MB 칸${et.sprStat.cells}` : " · GL없음") + ` · 설계도${Be.current.size}장 ${ht(ot)}MB · 안개갈무리${Fo.current.length} · 효과판${ht(aA.n)}MB · 캔버스생성${P0.n}` + (gt ? ` · 힙${ht(gt)}MB` : "");
         localStorage.setItem(cv, lt);
       } catch {
       }
@@ -45648,7 +45648,7 @@ function qU({
   }, v8 = () => {
     if (!Sm.current || dr.current || m) return;
     const d = Uo.current, [T, E, N] = Om(), _ = Eg.current, U = _ && _.offsetWidth > 0 ? Math.round(_.offsetHeight / _.offsetWidth * 1e3) / 1e3 : 0.75;
-    dr.current = { w: 0, last: performance.now(), at: 0, s: [Kw(0, d, T, E, N)], caps: [], sp: _e, a: Math.round(z0), hw: U, cover: null }, Dm(0), B4(!0), Ul(null), WC.fn = () => {
+    dr.current = { w: 0, last: performance.now(), at: 0, s: [Kw(0, d, T, E, N)], caps: [], sp: _e, a: Math.round(z0), hw: U, vw: qt, cover: null }, Dm(0), B4(!0), Ul(null), WC.fn = () => {
       const ot = dr.current;
       ot && !ot.cover && (ot.cover = T8());
     }, pI(), HA || It(!0);
@@ -45670,6 +45670,7 @@ function qU({
       s: d.s,
       caps: d.caps.filter((ot) => ot.w < d.w),
       hw: d.hw,
+      ...d.vw ? { vw: d.vw } : {},
       ...d.a !== 90 ? { a: d.a } : {}
     };
     It(!1), Ul({ clip: U, cover: d.cover, busy: !1, err: "" });
@@ -48191,7 +48192,7 @@ function qU({
         " · UI ",
         hn.ui,
         " · 판 ",
-        "11-19 13:38",
+        "11-19 13:53",
         hn.ss !== 1 ? ` · 초해상 ×${hn.ss.toFixed(2)}` : "",
         Math.abs(hn.unitScale - hn.ss) > 2e-3 ? ` · ⚠재표본(유닛 ×${hn.unitScale.toFixed(4)})` : hn.scale > 0 && Math.abs(hn.scale - 1) > 2e-3 ? ` · ⚠재표본(지형 ×${hn.scale.toFixed(4)})` : "",
         hn.allocOk ? "" : " · ⚠배킹확보 실패"
@@ -48393,6 +48394,40 @@ function qU({
         FA((E) => T ? fa.find((N) => N > E + 1e-6) ?? Aa : [...fa].reverse().find((N) => N < E - 1e-6) ?? kI);
       },
       children: [
+        O && !Ro && !m && /* @__PURE__ */ at(
+          "div",
+          {
+            className: "scr-shortfab",
+            role: "group",
+            "aria-label": "쇼츠",
+            onPointerDown: (d) => d.stopPropagation(),
+            onPointerUp: (d) => d.stopPropagation(),
+            onClick: (d) => d.stopPropagation(),
+            onDoubleClick: (d) => d.stopPropagation(),
+            onKeyDown: (d) => d.stopPropagation(),
+            children: $a ? /* @__PURE__ */ jt(Si, { children: [
+              /* @__PURE__ */ jt("button", { type: "button", className: "scr-shortfab-btn scr-shortrec-btn is-rec", onClick: Bm, "aria-label": "녹화 끝", title: "녹화 끝 — 쇼츠로 저장", children: [
+                /* @__PURE__ */ at(pZ, { size: 11, fill: "currentColor", "aria-hidden": !0 }),
+                /* @__PURE__ */ jt("span", { className: "scr-shortrec-time", children: [
+                  Math.floor(ql / 600),
+                  ":",
+                  String(Math.floor(ql / 10) % 60).padStart(2, "0")
+                ] })
+              ] }),
+              /* @__PURE__ */ at("button", { type: "button", className: "scr-shortfab-btn scr-shortcap-btn", onClick: G8, "aria-label": "자막 추가", title: "자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다", children: /* @__PURE__ */ at(yZ, { size: 17, "aria-hidden": !0 }) })
+            ] }) : /* @__PURE__ */ at(
+              "button",
+              {
+                type: "button",
+                className: eo("scr-shortfab-btn scr-shortrec-btn", L4 && "is-done"),
+                onClick: v8,
+                "aria-label": "쇼츠 만들기",
+                title: `쇼츠 만들기 — 누르면 녹화(최대 ${au}초 · 카메라 · 배율까지)`,
+                children: L4 ? /* @__PURE__ */ at(ww, { size: 17, "aria-hidden": !0 }) : /* @__PURE__ */ at(v7, { size: 17, "aria-hidden": !0 })
+              }
+            )
+          }
+        ),
         /* @__PURE__ */ at("span", { className: "scr-speeddial-lab", "aria-hidden": !0, children: "속도" }),
         /* @__PURE__ */ jt("span", { className: "scr-speeddial-val", children: [
           "×",
@@ -48468,7 +48503,7 @@ function qU({
               "aria-expanded": o1 === "bgm",
               "aria-label": "소리 — 누르면 배경 음악·효과음 켜고 끄기",
               title: Q0.on ? `소리 — 음악: ${Q0.now ?? "재생 중"}` : "소리",
-              children: Q0.on || nd ? /* @__PURE__ */ at(k7, { size: 18 }) : /* @__PURE__ */ at(pZ, { size: 18 })
+              children: Q0.on || nd ? /* @__PURE__ */ at(k7, { size: 18 }) : /* @__PURE__ */ at(mZ, { size: 18 })
             }
           ),
           HD("bgm", [
@@ -48512,7 +48547,7 @@ function qU({
               "aria-expanded": o1 === "layers",
               "aria-label": "표시 — 선수 커서 · 명령 선 · 날씨 · 자연 켜고 끄기",
               title: "표시(선수 커서 · 명령 선 · 날씨 · 자연)",
-              children: /* @__PURE__ */ at(yZ, { size: 18, style: yn || !Hn || dt || ut ? void 0 : { opacity: 0.45 } })
+              children: /* @__PURE__ */ at(wZ, { size: 18, style: yn || !Hn || dt || ut ? void 0 : { opacity: 0.45 } })
             }
           ),
           HD("layers", [
@@ -48611,7 +48646,7 @@ function qU({
               !Zo && to ? /* @__PURE__ */ jt(Si, { children: [
                 /* @__PURE__ */ at("button", { type: "button", className: "scr-motion-search-step", onClick: () => g1(-1), disabled: jg.length === 0, "aria-label": "이전 결과 (B)", title: "이전 (B)", children: /* @__PURE__ */ at(OO, { size: 16 }) }),
                 /* @__PURE__ */ at("button", { type: "button", className: "scr-motion-search-count", onClick: Cm, "aria-label": `검색어 "${En}" — 누르면 고치기`, title: En, children: jg.length === 0 ? "0" : `${hr >= 0 ? hr + 1 : "–"}/${jg.length}` }),
-                /* @__PURE__ */ at("button", { type: "button", className: "scr-motion-search-step", onClick: () => g1(1), disabled: jg.length === 0, "aria-label": "다음 결과 (N)", title: "다음 (N)", children: /* @__PURE__ */ at(mZ, { size: 16 }) }),
+                /* @__PURE__ */ at("button", { type: "button", className: "scr-motion-search-step", onClick: () => g1(1), disabled: jg.length === 0, "aria-label": "다음 결과 (N)", title: "다음 (N)", children: /* @__PURE__ */ at(bZ, { size: 16 }) }),
                 /* @__PURE__ */ at("button", { type: "button", className: "scr-motion-search-step", onClick: m8, "aria-label": "검색어 지우기", title: "검색어 지우기", children: /* @__PURE__ */ at(Mh, { size: 14 }) })
               ] }) : null
             ]
@@ -49783,27 +49818,6 @@ function qU({
       }
     }
   }, IO = /* @__PURE__ */ jt("div", { className: "scr-tb-tail", children: [
-    O && !Ro && !m && ($a ? /* @__PURE__ */ jt(Si, { children: [
-      /* @__PURE__ */ at("button", { type: "button", className: "scr-kakao-share-btn scr-shortcap-btn", onClick: G8, "aria-label": "자막 추가", title: "자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다", children: /* @__PURE__ */ at(wZ, { size: 18, "aria-hidden": !0 }) }),
-      /* @__PURE__ */ jt("button", { type: "button", className: "scr-kakao-share-btn scr-shortrec-btn is-rec", onClick: Bm, "aria-label": "녹화 끝", title: "녹화 끝 — 쇼츠로 저장", children: [
-        /* @__PURE__ */ at(bZ, { size: 12, fill: "currentColor", "aria-hidden": !0 }),
-        /* @__PURE__ */ jt("span", { className: "scr-shortrec-time", children: [
-          Math.floor(ql / 600),
-          ":",
-          String(Math.floor(ql / 10) % 60).padStart(2, "0")
-        ] })
-      ] })
-    ] }) : /* @__PURE__ */ at(
-      "button",
-      {
-        type: "button",
-        className: eo("scr-kakao-share-btn scr-shortrec-btn", L4 && "is-done"),
-        onClick: v8,
-        "aria-label": "쇼츠 만들기",
-        title: `쇼츠 만들기 — 누르면 녹화(최대 ${au}초 · 카메라 · 배율까지)`,
-        children: L4 ? /* @__PURE__ */ at(ww, { size: 18, "aria-hidden": !0 }) : /* @__PURE__ */ at(v7, { size: 18, "aria-hidden": !0 })
-      }
-    )),
     w && /* @__PURE__ */ at(
       "button",
       {
