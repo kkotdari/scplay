@@ -1232,6 +1232,9 @@ const NO_ZI9 = typeof location !== "undefined" && /nozi/.test(location.hash);
 /** ★ 쇼츠 표지 찍기(short9 shortCoverOf9 ★ · 2026-11-19) — 녹화를 켜면 RMP 가 fn 을 걸고, 붓(UnitLayer paint)이 **칠한 바로 그 작업 안**에서 한 번 부르고 걷는다
  *  (GL 캔버스는 preserveDrawingBuffer 가 없어 그 뒤엔 빈 판이다 — #dumpcv 와 같은 까닭). */
 const SHORT_SHOT9: { fn: (() => void) | null } = { fn: null };
+/** 쇼츠 화면 다지기(RMP shortSettled9 ★) — 연속 이만큼의 장이 이 시간(ms) 안에 들면 다 데워졌다고 본다(30fps 남짓). */
+const SHORT_SETTLE_N9 = 15;
+const SHORT_SETTLE_MS9 = 34;
 /** ★ **워커는 지도 전체를 짓는다**(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로" · "안개가 앞뒤 시각으로 튐" → "원천적인 해결법" → "다 ㄱㄱ") — 옛: 보이는 곳 + 여유만
  *  지어(컬링) 시야가 바뀔 때마다 워커가 지어 둔 장을 버리고 다시 섰다 → 새 자리 유닛이 늦게 뜨고 · 다시 지은 첫 장이 메인보다 과거면 뒤로 튀었다.
  *  이제 평면 장은 **재생 시각만의 함수**다(배율과는 원래 무관) — 드래그·줌·미니맵 이동은 받은 장을 그대로 쓰고, 다시 짓는 것은 탐색뿐이다.
@@ -21988,7 +21991,7 @@ export default function ReplayMotionPlayer({
   if (modeAsk9 && askReady9) askLatch9.current = true;
   const askShow9 = modeAsk9 && (askReady9 || askLatch9.current);
   /** 지금 하는 로딩 일(LoadNote9 · 아래 ★) — null 이면 다 됐다(보기 모드 판이 뜬 때 포함). */
-  const loadStage9: LoadStage9 | null = (!modeAsk9 || !askShow9) ? (
+  const loadStage09: LoadStage9 | null = (!modeAsk9 || !askShow9) ? (
     pending || (!simTracks && entLoad === "loading") ? { key: "data", text: "게임 데이터 받는 중" }
       : atlasLoad9 ? { key: "atlas", text: "그래픽 소스 받는 중" }
         : warmAt ? { key: "warm", text: `모델 준비 중 ${Math.min(99, Math.round((warmAt.done / Math.max(1, warmAt.total)) * 100))}%` }
@@ -21996,6 +21999,39 @@ export default function ReplayMotionPlayer({
             : modeAsk9 && !askShow9 ? { key: "paint", text: "화면 준비 중" }
               : null
   ) : null;
+  /* ★ 쇼츠 화면 다지기(2026-11-19, 지적: "폰에서 쇼츠 재생시작하고 몇초동안은 프레임이 뚝뚝끊겨 아직도. 차라리 모델준비 시간을 더 가지면?") — 로딩 단계가 다 끝난 뒤에도
+     첫 몇 초는 셰이더 첫 컴파일 · 2D 판 미리 찍기 · 지형/안개 첫 굽기가 몰려 무거웠다. 쇼츠는 가린 채(veil) **첫 장면(t0 · 자취 첫 칸의 카메라)을 장마다 칠해 데우고**,
+     연속 SHORT_SETTLE_N9 장이 SHORT_SETTLE_MS9 안에 들면(최소 0.7초 · 최대 6초) 그때 걷는다. 그동안 시계는 안 간다(재생 틱 acc 0 — shortHoldRef9). */
+  const [shortSettled9, setShortSettled9] = useState(!short);
+  const shortHoldRef9 = useRef(!!short);
+  shortHoldRef9.current = !!short && !shortSettled9;
+  const loadDone09 = loadStage09 === null && !pending;
+  useEffect(() => {
+    if (!short || shortSettled9 || !loadDone09) return undefined;
+    let raf9 = 0;
+    const t09 = performance.now();
+    let last9 = t09;
+    let good9 = 0;
+    const at09 = shortAt9(short, 0);
+    const step9 = (now9: number): void => {
+      const dt9 = now9 - last9;
+      last9 = now9;
+      if (at09) { tLiveRef9.current = Math.min(total, Math.max(0, at09.t)); shortCamRef9.current?.(at09.z, at09.cx, at09.cy); }
+      paintFnRef9.current?.(tLiveRef9.current);
+      good9 = dt9 < SHORT_SETTLE_MS9 ? good9 + 1 : 0;
+      const el9 = now9 - t09;
+      if ((good9 >= SHORT_SETTLE_N9 && el9 >= 700) || el9 >= 6000) {
+        if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).shortSettle = `${Math.round(el9)}ms`;
+        setShortSettled9(true);
+        return;
+      }
+      raf9 = requestAnimationFrame(step9);
+    };
+    raf9 = requestAnimationFrame(step9);
+    return () => cancelAnimationFrame(raf9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [short, shortSettled9, loadDone09]);
+  const loadStage9: LoadStage9 | null = loadStage09 ?? (short && !shortSettled9 ? { key: "paint", text: "화면 준비 중" } : null);
   /* 가림(props veil ★) — 로딩이 **처음** 다 끝난 순간 걷고 onReady 를 한 번 부른다(그 뒤의 재예열·굽기 몰림으로 다시 가리지 않는다). */
   const [readyOnce9, setReadyOnce9] = useState(false);
   const onReadyRef9 = useRef(onReady); onReadyRef9.current = onReady;
@@ -22469,7 +22505,7 @@ export default function ReplayMotionPlayer({
         hold9.win = 0;
         hold9.winDt = 0;
       }
-      const acc = warmingRef.current || holding9 || introHoldRef9.current
+      const acc = warmingRef.current || holding9 || introHoldRef9.current || shortHoldRef9.current   // 쇼츠 화면 다지기 동안도(위 shortHoldRef9 ★)
         ? 0 : (c?.acc ?? 0) + dt;
       const drawnAt = c?.drawn ?? 0;
       const draw = acc > 0 && now - drawnAt >= drawGapMs();
