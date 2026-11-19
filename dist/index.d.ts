@@ -428,7 +428,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onShortCreate, short, onShortEnd, onShortProgress, shortPaused, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -486,6 +486,13 @@ export declare interface ReplayModuleProps {
         memo: string;
     }) => void | Promise<unknown>;
     onPinDelete?: (pin: ScenePin9) => void | Promise<unknown>;
+    /** ★ 쇼츠(2026-11-19 · short9.ts ★) — onShortCreate 를 주면 클래퍼 단추(녹화 · 자막 · 정지 → 토막 + 표지) · short 를 주면 쇼츠 재생 모드(장면 + 미니맵만 ·
+     *  녹화된 카메라 · 자막 연출 · 그 구간 모델만) · 끝나면 onShortEnd · 진행 onShortProgress(0~1) · shortPaused 면 멈춤. 서버 일은 앱이 한다. */
+    onShortCreate?: (clip: ShortClip9, cover: string | null) => void | Promise<unknown>;
+    short?: ShortClip9 | null;
+    onShortEnd?: () => void;
+    onShortProgress?: (p: number) => void;
+    shortPaused?: boolean;
     /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
     onGuide?: () => void;
     guide?: boolean;
@@ -676,6 +683,25 @@ declare type ShapeGalleryItem = {
      *  (터렛을 가를 때 적어 둔 그 함정이다). 그래서 **숨기기**만 한다 — 도록의 목록·도록
      *  뽑기가 이 칸을 보고 건너뛴다. */
     hidden?: true;
+};
+
+/** 자막 한 줄 — 토막 실초 w 부터 d 초. */
+export declare type ShortCap9 = {
+    w: number;
+    d: number;
+    text: string;
+};
+
+/** 쇼츠 한 토막 — v 판 · 게임 시각 [t0, t1] · 실초 길이 dur · 녹화 시작 배속 sp · 자취 s · 자막 caps · 기울기 a(90 = 평면 · 없으면 평면). */
+export declare type ShortClip9 = {
+    v: 1;
+    t0: number;
+    t1: number;
+    dur: number;
+    sp: number;
+    s: [number, number, number, number, number][];
+    caps: ShortCap9[];
+    a?: number;
 };
 
 /** 자동 완성에 늘 서는 전술 낱말(앱의 검색 꼴 · 판마다 실제로 나온 것은 색인 줄 gameIndexOf9 가 돌려준다). */
