@@ -13,8 +13,10 @@
  * 전체화면은 안 가둔다(진짜 커서가 화면 끝에 닿는다 · 연습실과 같다) — 전체화면에 들면 푼다. Esc 는 브라우저가 푼다(가두기 켬은 그대로 · 지도를 다시 누르면 갇힌다).
  */
 
-/** 가장자리 띠(px) — 가둔 커서가 틀 끝 2px 안이면 그쪽으로 민다(연습실 · 재생기 전체화면과 같다). */
-export const MLOCK_EDGE9 = 2;
+/** 가장자리 띠(px) — 가둔 커서가 틀 끝에서 이만큼 안이면 그쪽으로 민다. ★ 0 = **끝 화소 하나**(2026-11-19, 지적: "엣지투스크롤시 마우스를 안으로 옮겨도 잠깐은 붙어있는 느낌 ·
+ *  몇픽셀까지 엣지로 인식해서 그런거 같아") — 가둔 커서는 밖으로 밀면 늘 끝 화소에 붙으므로(죄기) 0 이어도 밀기는 빠짐없이 걸리고, 1px 만 안으로 와도 풀린다.
+ *  되물린 값: 2(끝 3px · 전체화면의 진짜 커서 띠 EDGE 2 는 그대로). */
+export const MLOCK_EDGE9 = 0;
 const KEY9 = "scr.mlock";
 /** 갇힌 동안 삼키는 진짜 사건(가짜 커서가 같은 이름으로 다시 쏜다 · 얹기/떠남은 커서 아래가 바뀔 때 hoverTo 가). */
 const SWALLOW9 = ["mousemove", "mousedown", "mouseup", "click", "dblclick", "auxclick", "contextmenu", "pointerover", "pointerout", "pointerenter", "pointerleave", "mouseover", "mouseout", "mouseenter", "mouseleave"];
