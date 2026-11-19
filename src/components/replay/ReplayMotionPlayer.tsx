@@ -1701,7 +1701,7 @@ const PHONE_TIERS9: readonly BenchTier9[] = [
     glMeshMax: 300, glSpec: true, decalBakeMax: 256, hitShardK: 0.8, dieShards: 16, fxQual: 0.8, fogEye: [10, 28], terrGrain: 1 },
   { name: "높음", upMs: 8, up3Ms: 18, aheadSec: 4, aheadMB: 32,
     glMeshMax: 360, yaw8Always: false,   // 사영 그림자는 이제 폰 프로필 기본(전 단 · 2026-11-03) — 옛: 높음 단만 meshShadow true
-    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 4, fxQual: 1, fogEye: [7, 36], terrGrain: 1 },
+    decalBakeMax: 384, hitShardK: 1, dieShards: 24, glMsaa: 0, fxQual: 1, fogEye: [7, 36], terrGrain: 1 },   // MSAA 4 → 0(2026-11-19 폰 발열 · 위 backCap9 ★ — MRT 색 · 깊이 · 빛 판이 표본 수만큼 커지고 장마다 풀기가 붙는다)
 ];
 /** ★ `#pctier=N`(0~3) — **폰에서도 PC 프로필·PC 단 표**로 돈다(2026-10-12, 요청: "모바일에서도 파라미터로 PC 티어 적용 가능하게") — 메시 상한·번짐·광택·
  *  사영 그림자·MSAA·앞 한도가 다 PC 값이고, 단은 N 에 못 박는다(오르기만 하는 규칙 그대로 · 벤치는 재야 단이 선다). 화면 배치(폰 UI)는 그대로다 — 그리는 예산만 PC.
@@ -1950,9 +1950,12 @@ const PHONE_DPR9 = 2;
 /** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2 · 보통·낮음 1.75(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25·26 발열로 한 칸씩 내림 · 옛 2.5/2.25/2 → 2.25/2/1.75) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
 const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
-  ? (phoneWeak9() ? WEAK_DPR9 : TIER9.v >= 2 ? 3 : TIER9.v === 1 ? 2.5 : PHONE_DPR9)   // ★ 아래 '폰 배킹 상한 올림'(2026-11-03)
+  ? (phoneWeak9() ? WEAK_DPR9 : PHONE_DPR9)   // ★ 아래 '폰 발열 — 배킹 2'(2026-11-19) · 옛 '폰 배킹 상한 올림'(2026-11-03: 높음 3 · 보통 2.5)
   : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
-/* ★ **폰 배킹 상한 올림**(2026-11-03, 분석: "폰에서 8배라도 뭉개진다" → 헤드리스 dpr 3 실측 — 몸 배킹 2(높음 2.25)라 합성기가 1.5배 늘려 흐렸다(라플라시안 4~7배 차) ·
+/* ★ **폰 발열 — 배킹은 어느 단이든 2**(2026-11-19, 요청: "폰발열이 너무 심해 그래픽 부하 줄여보자(품질 감소는 괜찮은데 프레임은 확보)") — 높음 3 → 2 · 보통 2.5 → 2(dpr 3 폰이면
+   칠하는 화소 0.44배 · 0.64배). 낮음 2 · 매우 낮음 1.75 그대로. 프레임 박자(높음 60 · 그 밖 30)는 안 건드린다. 되물린 값: 높음 3 · 보통 2.5(아래 2026-11-03 올림).
+   선명함을 견줄 때 `#backcap=3`. */
+/* (되물림) **폰 배킹 상한 올림**(2026-11-03, 분석: "폰에서 8배라도 뭉개진다" → 헤드리스 dpr 3 실측 — 몸 배킹 2(높음 2.25)라 합성기가 1.5배 늘려 흐렸다(라플라시안 4~7배 차) ·
    아틀라스는 늘 줄여 붙어 범인이 아니었다 → 요청 "상한 올리기") — 폰 높음 2.25 → **3** · 보통 2 → **2.5** · 낮음 2 그대로 · 매우 낮음(WEAK_DPR9) 그대로.
    배율 6 이상 2 누름(capSmall9)도 걷었다. 프레임이 떨어지면 실측 조절(DRS9)이 내린다. 견줌 `#backcap=N`. */
 /** ★ **실측 배킹 조절**(DRS · 같은 날) — 재생 중 그리는 간격(앞 그림 → 이번 그림)을 목표(그리기 간격 · 적어도 16.7ms)로 나눈 비의 평균(ema)을 보고,
@@ -22621,7 +22624,8 @@ export default function ReplayMotionPlayer({
      깃발만 남긴다: 핵 창 계량기(NUKEM9)가 '언제부터 언제까지가 핵 창인가'로 쓴다. */
   const nukeOn9 = castsNow.some((c9) => c9[3] === "Nuclear Strike" || c9[3] === "Psionic Storm");
   /* 폰 보통 이하는 0.2초(2026-10-28 덜 그리기 — React 한 장이 폰에서 15ms 안팎 · 시계 글자·인포창 숫자만 늦다 · 유닛·카메라는 틱이 칠한다). */
-  reactStepRef9.current = DEV9.name === "phone" && TIER9.v < 2 ? REACT_STEP_MS9 * 2 : REACT_STEP_MS9;
+  /* 폰은 어느 단이든 0.2초(2026-11-19 발열 · 위 backCap9 ★ — 재생기 전체 렌더는 폰에서 15ms 안팎 · 시계 글자 · 인포창 숫자만 늦다 · 지도 · 안개 · 미니맵은 붓 틱이 민다). 옛: 높음 0.1초. */
+  reactStepRef9.current = DEV9.name === "phone" ? REACT_STEP_MS9 * 2 : REACT_STEP_MS9;
   /* 쇼츠 재생은 React 박자를 0.25초로(2026-11-19, 지적: "로딩이 좀 느리고 사실상 버벅여서 뭐가 안보임") — 독 · 재생바가 없어 렌더가 고칠 글자가 자막뿐이다(지도 · 안개 · 미니맵은 붓 틱이 민다). */
   if (short) reactStepRef9.current = Math.max(reactStepRef9.current, 250);
   nukeOnRef9.current = nukeOn9;
