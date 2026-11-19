@@ -18279,10 +18279,10 @@ export default function ReplayMotionPlayer({
          끝을 떠나도 지도가 v·τ ≈ 350px 더 흘렀다. 겨눈 속도가 0 이거나 거꾸로면 0.03초(≈ 100px · 원작 밀기는 떼면 선다). 축마다 따로. */
       const TAU9 = 0.11;
       const TAU_STOP9 = 0.03;
-      const ease9 = (v8: number, aim8: number): number => {
-        const stop8 = aim8 === 0 || aim8 * v8 < 0 || Math.abs(aim8) < Math.abs(v8);
-        return v8 + (aim8 - v8) * (1 - Math.exp(-dt9 / (stop8 && aim8 === 0 ? TAU_STOP9 : TAU9)));
-      };
+      /* ★★ 떠나면 **그 장에 0**(같은 날 되지적: "프레임모드 엣지투스크롤시 마우스를 안으로 옮겨도 잠깐은 붙어있는 느낌") — τ 0.03 감속도 지수라 속도가 문턱(1.5px/s) 밑으로
+         가기까지 0.25초 남짓 지도가 조금씩 더 흘렀다. 원작처럼 끝을 떠나는 장에 선다(TAU_STOP9 는 걷음 · 되물린 값 0.11 → 0.03 → 0). 붙을 때는 그대로 0.11 로 부드럽게. */
+      void TAU_STOP9;
+      const ease9 = (v8: number, aim8: number): number => (aim8 === 0 ? 0 : v8 + (aim8 - v8) * (1 - Math.exp(-dt9 / TAU9)));
       vx9 = ease9(vx9, vel9(ux9));
       vy9 = ease9(vy9, vel9(uy9));
       if (Math.abs(vx9) < 1.5 && Math.abs(vy9) < 1.5) {
