@@ -6325,7 +6325,9 @@
   display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
   font-size: 36px;
 }
-.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 112px), 860px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+.scr-fs-root.is-short .scr-shortcaps { bottom: max(24%, calc(var(--dock-h0, 0px) * 1.116 + 14px)); width: min(calc(100% - 112px), 860px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+/* ↑ 아래 끝은 미니맵 위로(2026-11-19 · 미니맵 1.5배 — 폰 360×640 에서 판 키 24% 를 넘었다) — 미니맵 키 = --mini-h(= --dock-h × 1.2) × 0.93 · --dock-h 는 틀 안 값이라 여기선 설계 키
+   --dock-h0(실제 키의 상한)로 잰다(1.2 × 0.93 = 1.116) + 틈 14px. 옛: 24% 하나. */
 .scr-fs-root.is-capphone .scr-shortcaps { font-size: 24px; }
 /* ↑ 자막 글자 = **폰 24px · PC 36px 고정**(2026-11-19, 요청: "자막은 폰 24 PC 36으로") — 폰 · PC 가름은 뿌리 .is-capphone(RMP): 쇼츠 재생은 판 꼴(세로 판 = 앱의 폰 9:16 판) ·
    녹화 미리보기는 기기(smallDevice9). 되물린 값: 같은 날 "자막 크기 확대" 판 = 녹화 clamp(20px, 4.6vmin, 38px)×dk · 재생 clamp(22px, 6vmin, 44px)
@@ -6374,9 +6376,12 @@
 /* 쇼츠 재생의 폰 미니맵은 0.62배(2026-11-19, 9:16 판에서 판 폭의 절반을 먹었다) — ★ 판 **크기를 직접** 줄인다(같은 날 지적: "미니맵 꽉 안채워진 문제" — 옛 scale(0.62) 변환은
    미니맵이 그림 칸을 getBoundingClientRect(변환을 먹은 크기)로 재 칸의 62% 에만 그렸다 · 이름표는 % 자리라 판 전체에 퍼졌다). 받침(::before)의 솟은 몫(--ped-h)도 같은 키로. */
 .scr-fs-layer:not(.is-wide) .scr-fs-root.is-short .scr-fs-dockmain > .scr-fs-minipanel {
-  height: calc(var(--mini-h) * 0.62); width: round(nearest, calc(var(--mini-h) * 0.62 * var(--scr-mini-ar, 1)), 2px);
-  --ped-h: max(0px, calc(var(--mini-h) * 0.62 - var(--plate-h)));
+  height: calc(var(--mini-h) * 0.93); width: round(nearest, calc(var(--mini-h) * 0.93 * var(--scr-mini-ar, 1)), 2px);
+  --ped-h: max(0px, calc(var(--mini-h) * 0.93 - var(--plate-h)));
 }
+/* ↑ 0.62 → **0.93**(2026-11-19, 요청: "피시와 폰 모두 미니맵 크기 1.5배 정도 확대") — 앱 쇼츠 판은 폰 9:16 · PC 4:3 둘 다 세로 배치(not .is-wide · 실측)라 이 한 줄이 둘 다 쥔다
+   (실측 판: 폰 360×640 104 → 156px · PC 800×600 126 → 188px). 넓은 배치에 서는 판도 같은 1.5배(아래). */
+.scr-fs-layer.is-wide .scr-fs-root.is-short .scr-fs-dockmain > .scr-fs-minipanel { width: calc(var(--wmini-w, 0px) * 1.5); height: calc(var(--wmini-h, 0px) * 1.5); }
 /* ★ 쇼츠 재생 미니맵은 **무대 왼아래 구석에 딱 붙는다**(2026-11-19, 요청: "미니맵 좌하단 구석에 맞추기") — 세로 배치는 독 겹(줄 · 틀 · 몸통)을 자리 없는 겹(static)으로 두고
    판을 바닥에 띄운 독(.scr-fs-lower · 접힘이라 absolute · 바닥 = 무대 바닥 · 왼 = 무대 왼)의 왼아래에 세운다 — 재생바 키만큼 내리던 변환(--tb-h9)은 걷는다. 테마의 둘레 테(::before)는
    그대로 둔다(왼 · 아래 몫은 무대 밖이라 잘리고 위 · 오른 테만 남아 구석에 끼운 판으로 읽힌다). 넓은 배치는 여백(--wl · --wbot)만 걷는다. 안전영역은 안 띄운다(앱 판은 9:16 이라 노치 폰에선 위아래 띠가 남아 구석이 화면 가장자리가 아니다).
