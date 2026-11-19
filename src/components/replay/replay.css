@@ -6323,11 +6323,13 @@
 .scr-shortcaps {
   position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 30000;
   display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
-  font-size: round(nearest, calc(clamp(20px, 4.6vmin, 38px) * var(--dk, 1)), 1px);
+  font-size: 36px;
 }
-.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 112px), 860px); font-size: round(nearest, clamp(22px, 6vmin, 44px), 1px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
-/* ↑ 자막 크기 확대(2026-11-19, 요청: "자막 크기 확대") — 약 1.35배: 녹화 미리보기 clamp(15px, 3.4vmin, 28px) → (20px, 4.6vmin, 38px) · 쇼츠 재생 (16px, 4.4vmin, 32px) → (22px, 6vmin, 44px)
-   (폰 360 폭 쇼츠: 16 → 22px · PC 800×600: 26 → 36px) · 재생 폭 상한 760 → 860 · 오른쪽 비움 128 → 112px. */
+.scr-fs-root.is-short .scr-shortcaps { bottom: 24%; width: min(calc(100% - 112px), 860px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+.scr-fs-root.is-capphone .scr-shortcaps { font-size: 24px; }
+/* ↑ 자막 글자 = **폰 24px · PC 36px 고정**(2026-11-19, 요청: "자막은 폰 24 PC 36으로") — 폰 · PC 가름은 뿌리 .is-capphone(RMP): 쇼츠 재생은 판 꼴(세로 판 = 앱의 폰 9:16 판) ·
+   녹화 미리보기는 기기(smallDevice9). 되물린 값: 같은 날 "자막 크기 확대" 판 = 녹화 clamp(20px, 4.6vmin, 38px)×dk · 재생 clamp(22px, 6vmin, 44px)
+   (그 앞 옛: 녹화 clamp(15px, 3.4vmin, 28px)×dk · 재생 clamp(16px, 4.4vmin, 32px)). 재생 폭 상한 760 → 860 · 오른쪽 비움 128 → 112px. */
 .scr-shortcap { max-width: 100%; animation: scr-shortcap-in 0.55s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease; }
 .scr-shortcap.is-out { opacity: 0; transform: translateY(-0.4em) scale(0.97); filter: blur(3px); }
 /* ★ 판 · 왼쪽 띠 걷고 글자 테두리만 · Pretendard(2026-11-19, 요청: "자막 패널(왼쪽띠까지) 제거하고 자막 폰트는 Pretendard 쓰기(기존에 있는 거) 그리고 자막에 테두리만 좀 줘") —

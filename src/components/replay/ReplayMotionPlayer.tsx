@@ -25914,7 +25914,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", short && "is-short", recOn9 && "is-rec", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
+        className={cx("scr-fs-root", short && "is-short", recOn9 && "is-rec", (short ? stage.h > stage.w : smallDevice9) && "is-capphone", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         {/* ★ 2단 접기의 펼치기 손잡이는 **뿌리 오른아래**에 뜬다(2026-11-07, 실기 지적: "2단 접기 상태의 펼치기 버튼은 아래쪽으로" — 재생바가 숨은 자리(화면 가운데쯤)에 홀로 떠 있었다).
