@@ -6317,6 +6317,9 @@
 .scr-shortfab-btn.scr-shortrec-btn.is-rec.is-ready { animation: none; }
 .scr-shortfab-btn.scr-shortpause-btn:disabled { opacity: 0.35; cursor: default; transform: none; }
 .scr-shortfab-btn.scr-shortcancel-btn { color: #fff; }
+/* 녹화 단추는 글자(RMP · 2026-11-20 "시작 종료로 변경 · 버튼 라벨을 아이콘이니 헷갈림") — [시작] · [종료 0:12] · [일시정지]/[재개] 알약. 일시정지 알약은 오른끝을 다른 단추와 맞춘다. */
+.scr-shortfab-btn.is-text { width: auto; min-width: var(--sd-w); padding: 0 calc(12px * var(--sdk)); }
+.scr-shortrec-lab { font-size: calc(13px * var(--sdk)); font-weight: 800; line-height: 1; letter-spacing: 0.02em; white-space: nowrap; }
 @keyframes scr-shortrec-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); } 50% { box-shadow: 0 0 0 5px rgba(255, 90, 96, 0.12); } }
 .scr-shortrec-badge {
   position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 8px * var(--dk, 1)); transform: translateX(-50%); z-index: 30002;
