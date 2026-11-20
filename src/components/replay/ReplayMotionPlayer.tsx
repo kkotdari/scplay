@@ -26886,11 +26886,16 @@ export default function ReplayMotionPlayer({
     <div className="scr-sharepick-overlay is-top" onPointerDown={(e) => { if (e.target === e.currentTarget) capClose9(false); }}>
       <div className="scr-sharepick scr-pinask scr-capask" role="dialog" aria-modal="true" aria-label="쇼츠 자막 추가">
         <p className="scr-sharepick-title">{capAsk9.idx !== undefined ? "자막 고치기" : "자막 추가"} <small>{capAsk9.w !== undefined ? fmtW9(capAsk9.w) : `${Math.floor(recTick9 / 600)}:${String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}`}부터</small></p>
-        <input
-          className="scr-pinask-input" type="text" ref={(el) => { if (el && document.activeElement !== el && !el.dataset.f9) { el.dataset.f9 = "1"; el.focus(); } }}
-          maxLength={SHORT_CAP_LEN9} placeholder="자막 글" value={capAsk9.text}
+        {/* 여러 줄 자막(2026-11-20, 요청: "자막 시프트 엔터나 폰 엔터로 줄바꿈 가능하게") — PC: 엔터 = 추가 · 시프트+엔터 = 줄바꿈 · 폰(손가락): 엔터 = 줄바꿈(추가는 단추). 옛: 한 줄 입력칸. */}
+        <textarea
+          className="scr-pinask-input scr-capask-text" rows={2} ref={(el) => { if (el && document.activeElement !== el && !el.dataset.f9) { el.dataset.f9 = "1"; el.focus(); } }}
+          maxLength={SHORT_CAP_LEN9} placeholder={uiPhone9 || coarse ? "자막 글 (엔터 = 줄바꿈)" : "자막 글 (시프트+엔터 = 줄바꿈)"} value={capAsk9.text}
           onChange={(e) => { const v9 = e.target.value; setCapAsk9((a9) => (a9 ? { ...a9, text: v9 } : a9)); }}
-          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); capClose9(true); } else if (e.key === "Escape") { e.preventDefault(); capClose9(false); } }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Escape") { e.preventDefault(); capClose9(false); return; }
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !(uiPhone9 || coarse)) { e.preventDefault(); capClose9(true); }
+          }}
         />
         <div className="scr-capask-dur" role="group" aria-label="보이는 시간">
           <span>보이는 시간</span>

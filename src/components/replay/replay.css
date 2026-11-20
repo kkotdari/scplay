@@ -6334,7 +6334,7 @@
 @keyframes scr-shortrec-blink { 0% { opacity: 1; } 100% { opacity: 0.25; } }
 /* 자막 — 무대 아래쪽 가운데 · 굵은 흰 글 · 어두운 판 + 노란 왼테 · 아래에서 튀어 오르며 서고(되튐) 위로 흐리며 스러진다. 여럿이면 쌓인다. */
 .scr-shortcaps {
-  position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 30000;
+  position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 40003;   /* 30000 → 40003(2026-11-20 · 사진을 채팅 40001 위로 올리며 자막은 그 위 · 아래 .scr-shortimgs) */
   display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
   font-size: 36px;
 }
@@ -6357,6 +6357,7 @@
     0.05em 0.05em 0 #000, -0.05em 0.05em 0 #000, 0.05em -0.05em 0 #000, -0.05em -0.05em 0 #000,
     0 0.1em 0.35em rgba(0, 0, 0, 0.45);
   word-break: keep-all; overflow-wrap: anywhere;
+  white-space: pre-line;   /* 여러 줄 자막(2026-11-20 · 줄바꿈을 지킨다) */
 }
 @keyframes scr-shortcap-in {
   0% { opacity: 0; transform: translateY(0.9em) scale(0.92); filter: blur(5px); }
@@ -6415,7 +6416,8 @@
 }
 /* 쇼츠 사진(RMP imgAsk9 ★ · 2026-11-19, 요청: "자막처럼 사진 첨부도 가능하게 · 몇초뜰지와 크기위치 지정") — 무대 가운데 정사각(녹화 틀과 같은 자리 · 재생은 그 정사각이 통째로 든다) 안에
    자리(가운데) · 폭(%)으로 선다 · 자막(30000) 아래 · 들고 날 때 자막과 같은 결 · 넣는 중(is-edit)엔 점선 테 · 끌 수 있다. 판(.scr-imgask)은 덮개 없이 위에 뜬다. */
-.scr-shortimgs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 29995; pointer-events: none; }
+.scr-shortimgs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40002; pointer-events: none; }   /* 29995 → 40002(2026-11-20, 요청: "사진은 채팅보다 위에" — 채팅 40001 · 자막 40003 아래) */
+.scr-capask-text { min-height: 64px; resize: none; line-height: 1.4; padding-top: 8px; padding-bottom: 8px; }
 .scr-shortimg {
   position: absolute; transform: translate(-50%, -50%); transform-origin: 50% 50%; height: auto; max-width: none; object-fit: cover; border-radius: 6px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
   animation: scr-shortimg-in 0.5s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, filter 0.35s ease; user-select: none; -webkit-user-drag: none;
