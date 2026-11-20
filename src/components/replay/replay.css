@@ -6510,3 +6510,15 @@
 .scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs):not(.scr-fs-chat) * { visibility: hidden !important; }   /* 채팅은 쇼츠 자리에 남긴다(RMP chatNode9 ★) */
 .scr-fs-root.is-shortrev, .scr-fs-root.is-shortrev * { pointer-events: none !important; }
 .scr-fs-root.is-shortrev .scr-shortimg.is-edit { pointer-events: auto !important; }
+/* 가위 구간(RMP revCut9 ★ · 2026-11-20 "타임라인에서 게임 부분을 잘라내기") — 타임라인 위를 덮는 빨간 띠 · 양 끝 손잡이(끌면 끝 · 몸통 끌면 통째로) · 잘라내기는 다듬기 판의 단추. */
+.scr-shortrev-cut {
+  position: absolute; top: -2px; bottom: -2px; z-index: 3; box-sizing: border-box; min-width: 6px; cursor: grab;
+  background: repeating-linear-gradient(135deg, rgba(255, 70, 80, 0.42) 0 6px, rgba(255, 70, 80, 0.26) 6px 12px);
+  border: 2px solid #ff4650; border-radius: 4px;
+}
+.scr-shortrev-cut > i { position: absolute; top: -2px; bottom: -2px; width: 12px; cursor: ew-resize; }
+.scr-shortrev-cut > i[data-cut="a"] { left: -7px; }
+.scr-shortrev-cut > i[data-cut="b"] { right: -7px; }
+.scr-shortrev-cut > i::after { content: ""; position: absolute; left: 4px; top: 50%; width: 4px; height: 22px; margin-top: -11px; border-radius: 2px; background: #fff; box-shadow: 0 0 3px rgba(0, 0, 0, 0.6); }
+.scr-shortrev-cutinfo { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #ff9aa0; font-variant-numeric: tabular-nums; }
+.scr-shortrev-acts > button:disabled { opacity: 0.35; cursor: default; }

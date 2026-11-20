@@ -14,8 +14,8 @@ import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9, natureStore9 } f
 const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
-import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
-import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSpdAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
+import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Scissors, Undo2, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
+import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSnip9, shortSpdAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -17695,6 +17695,15 @@ export default function ReplayMotionPlayer({
   const revOn9 = recSave9 !== null;
   /** 다듬기 재생 자리(실초 w) — 그리기 틱이 shortWRef9 를 밀고 이 값은 0.1초마다 따라온다(타임라인 · 자막 · 사진 다시 그리기). */
   const [revW9, setRevW9] = useState(0);
+  /** ★ 가위(2026-11-20, 요청: "가위질 기능도 필요 · 타임라인에서 게임 부분을 잘라내기") — 타임라인 위 빨간 구간 [a, b](실초) · 양 끝 · 몸통을 끌어 맞추고 [잘라내기](short9 shortSnip9). */
+  const [revCut9, setRevCut9] = useState<{ a: number; b: number } | null>(null);
+  const revCutRef9 = useRef(revCut9);
+  revCutRef9.current = revCut9;
+  /** 되돌리기(가위 · 자막 · 사진 고침 모두) — 토막이 바뀔 때마다 앞 토막을 쌓는다(끌기 동안은 한 번만 · 30개까지). */
+  const revHist9 = useRef<ShortClip9[]>([]);
+  const revPrevClip9 = useRef<ShortClip9 | null>(null);
+  const revUndoing9 = useRef(false);
+  const [revCanUndo9, setRevCanUndo9] = useState(false);
   const [recDone9, setRecDone9] = useState(false);
   const recDoneTm9 = useRef(0);
   /** 지금 눈 — 배율과 화면 가운데의 지도 분수(핀 pinSceneNow9 와 같은 셈 · 자릿수는 shortSample9 가 죈다). */
@@ -18056,6 +18065,55 @@ export default function ReplayMotionPlayer({
     const iv9 = window.setInterval(() => setRevW9(shortWRef9.current), 100);
     return () => { window.clearInterval(iv9); setRevW9(shortWRef9.current); };
   }, [revOn9, playing]);
+  /* 되돌리기 쌓기(위 revHist9 ★) — 띠 끌기 동안은 쌓지 않고(끌기 전 토막을 쥔 채) 놓은 뒤 한 번. */
+  const revClipNow9 = recSave9?.clip ?? null;
+  useEffect(() => {
+    const c9 = revClipNow9;
+    if (!c9) { revHist9.current = []; revPrevClip9.current = null; setRevCanUndo9(false); return; }
+    if (revDrag9.current && revDrag9.current.mode !== "seek") return;
+    const p9 = revPrevClip9.current;
+    if (p9 && p9 !== c9 && !revUndoing9.current) {
+      revHist9.current.push(p9);
+      if (revHist9.current.length > 30) revHist9.current.shift();
+    }
+    revUndoing9.current = false;
+    revPrevClip9.current = c9;
+    setRevCanUndo9(revHist9.current.length > 0);
+  }, [revClipNow9]);
+  const revUndo9 = (): void => {
+    const p9 = revHist9.current.pop();
+    if (!p9) return;
+    revUndoing9.current = true;
+    setRevCut9(null);
+    setRecSave9((v9) => (v9 ? { ...v9, clip: p9, sel: null } : v9));
+    setRevCanUndo9(revHist9.current.length > 0);
+    window.setTimeout(() => revSeekRef9.current(Math.min(p9.dur, shortWRef9.current)), 0);
+  };
+  const revUndoRef9 = useRef(revUndo9);
+  revUndoRef9.current = revUndo9;
+  /** [가위] — 지금 자리부터 2초(끝에 가까우면 끝까지 · 남는 1초는 지킨다)를 고른다 · 다시 누르면 접는다. */
+  const revCutOpen9 = (): void => {
+    const c9 = recSaveRef9.current?.clip;
+    if (!c9) return;
+    if (revCutRef9.current) { setRevCut9(null); return; }
+    setPlaying(false);
+    const w9 = shortWRef9.current;
+    const a9 = Math.max(0, Math.min(w9, c9.dur - 0.5));
+    setRevCut9({ a: Math.round(a9 * 10) / 10, b: Math.round(Math.min(c9.dur, a9 + 2) * 10) / 10 });
+  };
+  /** [잘라내기] — 고른 구간을 들어내고 자른 자리로 간다. 1초는 남긴다. */
+  const revCutRun9 = (): void => {
+    const v9 = recSaveRef9.current;
+    const k9 = revCutRef9.current;
+    if (!v9 || !k9) return;
+    const len9 = Math.abs(k9.b - k9.a);
+    if (len9 < 0.1) return;
+    if (v9.clip.dur - len9 < 1) { replayToast("쇼츠는 1초 넘게 남아야 해요"); return; }
+    const c9 = shortSnip9(v9.clip, k9.a, k9.b, grid.width > 0 ? grid.height / grid.width : 1);
+    setRevCut9(null);
+    setRecSave9({ ...v9, clip: c9, sel: null });
+    window.setTimeout(() => revSeekRef9.current(Math.min(c9.dur, Math.min(k9.a, k9.b))), 0);
+  };
   const revCapOpen9 = (idx?: number): void => {
     const v9 = recSaveRef9.current;
     if (!v9 || capAskRef9.current || imgAskRef9.current) return;
@@ -18103,6 +18161,9 @@ export default function ReplayMotionPlayer({
       } else if ((e.key === "Delete" || e.key === "Backspace") && recSaveRef9.current?.sel) {
         e.preventDefault(); e.stopPropagation();
         revDelRef9.current();
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z" || e.code === "KeyZ")) {
+        e.preventDefault(); e.stopPropagation();
+        revUndoRef9.current();   // 되돌리기(위 revHist9 ★)
       }
     };
     window.addEventListener("keydown", key9, true);
@@ -18110,7 +18171,7 @@ export default function ReplayMotionPlayer({
   }, [revOn9]);
   /** 타임라인 손짓 — 빈 곳 누르고 끌기 = 그 자리로(멈춤) · 띠 = 고르기(톡 = 그 시작으로) · 띠 끌기 = 시작 옮기기 · 띠 오른끝 끌기 = 길이. */
   const revTrackRef9 = useRef<HTMLDivElement | null>(null);
-  const revDrag9 = useRef<{ id: number; mode: "seek" | "move" | "size"; k?: "cap" | "img"; i?: number; x0: number; w0: number; d0: number; moved: boolean } | null>(null);
+  const revDrag9 = useRef<{ id: number; mode: "seek" | "move" | "size" | "cutA" | "cutB" | "cutMove"; k?: "cap" | "img"; i?: number; x0: number; w0: number; d0: number; moved: boolean } | null>(null);
   const revWAtX9 = (x9: number): number => {
     const r9 = revTrackRef9.current?.getBoundingClientRect();
     const c9 = recSaveRef9.current?.clip;
@@ -18124,6 +18185,14 @@ export default function ReplayMotionPlayer({
     e.currentTarget.setPointerCapture(e.pointerId);
     if (playing) setPlaying(false);
     const tg9 = e.target as HTMLElement;
+    /* 가위 구간 — 왼끝 · 오른끝 · 몸통 끌기(위 revCut9 ★). */
+    const cutEl9 = tg9.closest<HTMLElement>("[data-cut]");
+    const cut9 = revCutRef9.current;
+    if (cutEl9 && cut9) {
+      const m9 = cutEl9.dataset.cut === "a" ? "cutA" : cutEl9.dataset.cut === "b" ? "cutB" : "cutMove";
+      revDrag9.current = { id: e.pointerId, mode: m9, x0: e.clientX, w0: cut9.a, d0: cut9.b, moved: false };
+      return;
+    }
     const seg9 = tg9.closest<HTMLElement>("[data-seg]");
     if (seg9) {
       const k9 = seg9.dataset.k === "img" ? "img" : "cap";
@@ -18143,6 +18212,18 @@ export default function ReplayMotionPlayer({
     const r9 = revTrackRef9.current?.getBoundingClientRect();
     if (!d9 || d9.id !== e.pointerId || !c9 || !r9 || r9.width <= 0) return;
     if (d9.mode === "seek") { revSeek9(revWAtX9(e.clientX)); return; }
+    if (d9.mode === "cutA" || d9.mode === "cutB" || d9.mode === "cutMove") {
+      const dw0 = ((e.clientX - d9.x0) / r9.width) * c9.dur;
+      const r10 = (v9: number): number => Math.round(v9 * 10) / 10;
+      let a9 = d9.w0;
+      let b9 = d9.d0;
+      if (d9.mode === "cutA") a9 = Math.min(b9 - 0.1, Math.max(0, d9.w0 + dw0));
+      else if (d9.mode === "cutB") b9 = Math.max(a9 + 0.1, Math.min(c9.dur, d9.d0 + dw0));
+      else { const len9 = d9.d0 - d9.w0; a9 = Math.min(c9.dur - len9, Math.max(0, d9.w0 + dw0)); b9 = a9 + len9; }
+      setRevCut9({ a: r10(a9), b: r10(b9) });
+      revSeek9(d9.mode === "cutB" ? b9 : a9);   // 끄는 끝의 장면을 보인다
+      return;
+    }
     if (Math.abs(e.clientX - d9.x0) > 3) d9.moved = true;
     if (!d9.moved || d9.k === undefined || d9.i === undefined) return;
     const dw9 = ((e.clientX - d9.x0) / r9.width) * c9.dur;
@@ -18170,7 +18251,7 @@ export default function ReplayMotionPlayer({
     const d9 = revDrag9.current;
     if (!d9 || d9.id !== e.pointerId) return;
     revDrag9.current = null;
-    if (d9.mode === "seek" || d9.k === undefined || d9.i === undefined) return;
+    if (d9.mode === "seek" || d9.mode === "cutA" || d9.mode === "cutB" || d9.mode === "cutMove" || d9.k === undefined || d9.i === undefined) return;
     const k9 = d9.k;
     const i9 = d9.i;
     if (!d9.moved) { revSeek9(d9.w0 + 0.01); return; }   // 톡 — 고르고 그 시작으로
@@ -26960,20 +27041,38 @@ export default function ReplayMotionPlayer({
               </div>
             ))}
           </div>
+          {revCut9 && (
+            <div className="scr-shortrev-cut" data-cut="m" title="잘라낼 구간 — 양 끝 · 가운데를 끌어 맞추기"
+              style={{ left: `${(revCut9.a / recSave9.clip.dur) * 100}%`, width: `${(Math.max(0, revCut9.b - revCut9.a) / recSave9.clip.dur) * 100}%` }}>
+              <i data-cut="a" aria-hidden /><i data-cut="b" aria-hidden />
+            </div>
+          )}
           <i className="scr-shortrev-at" style={{ left: `${(revW9 / Math.max(0.01, recSave9.clip.dur)) * 100}%` }} aria-hidden />
         </div>
       </div>
-      <div className="scr-shortrev-acts">
-        <button type="button" onClick={() => revCapOpen9()} title="지금 자리부터 자막"><Captions size={15} aria-hidden /> 자막</button>
-        <button type="button" onClick={() => revImgOpen9()} title="지금 자리부터 사진"><ImagePlus size={15} aria-hidden /> 사진</button>
-        <span className="scr-shortrev-gap" />
-        {revSel9 && (
-          <>
-            <button type="button" onClick={() => (revSel9.k === "cap" ? revCapOpen9(revSel9.i) : revImgOpen9(revSel9.i))}>고치기</button>
-            <button type="button" className="is-danger" onClick={revDel9}>삭제</button>
-          </>
-        )}
-      </div>
+      {revCut9 ? (
+        /* 가위 줄(위 revCut9 ★) — 고른 구간 · [잘라내기] · [취소] */
+        <div className="scr-shortrev-acts">
+          <span className="scr-shortrev-cutinfo"><Scissors size={14} aria-hidden /> {fmtW9(revCut9.a)}.{Math.round((revCut9.a % 1) * 10)} ~ {fmtW9(revCut9.b)}.{Math.round((revCut9.b % 1) * 10)} · {(revCut9.b - revCut9.a).toFixed(1)}초</span>
+          <span className="scr-shortrev-gap" />
+          <button type="button" className="is-danger" onClick={revCutRun9}>잘라내기</button>
+          <button type="button" onClick={() => setRevCut9(null)}>취소</button>
+        </div>
+      ) : (
+        <div className="scr-shortrev-acts">
+          <button type="button" onClick={() => revCapOpen9()} title="지금 자리부터 자막"><Captions size={15} aria-hidden /> 자막</button>
+          <button type="button" onClick={() => revImgOpen9()} title="지금 자리부터 사진"><ImagePlus size={15} aria-hidden /> 사진</button>
+          <button type="button" onClick={revCutOpen9} title="가위 — 잘라낼 구간을 골라 들어낸다"><Scissors size={15} aria-hidden /> 가위</button>
+          <span className="scr-shortrev-gap" />
+          {revSel9 && (
+            <>
+              <button type="button" onClick={() => (revSel9.k === "cap" ? revCapOpen9(revSel9.i) : revImgOpen9(revSel9.i))}>고치기</button>
+              <button type="button" className="is-danger" onClick={revDel9}>삭제</button>
+            </>
+          )}
+          <button type="button" onClick={revUndo9} disabled={!revCanUndo9} title="되돌리기 (Ctrl+Z)"><Undo2 size={15} aria-hidden /></button>
+        </div>
+      )}
       <p className="scr-shortsave-meta">
         {recSave9.cover && <img className="scr-shortrev-cover" src={recSave9.cover} alt="" />}
         {Math.round(recSave9.clip.dur)}초 · 자막 {recSave9.clip.caps.length}개 · 사진 {(recSave9.clip.imgs ?? []).length}장

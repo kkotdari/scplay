@@ -122,6 +122,59 @@ export const shortAt9 = (clip: ShortClip9, w: number, ar = 1): { t: number; z: n
   return { t: mix(1), z: mix(2), cx: mix(3), cy: mix(4) };
 };
 
+/** ★ 가위(2026-11-20, 요청: "가위질 기능도 필요 · 타임라인에서 게임 부분을 잘라내기") — 토막에서 실초 [a, b) 를 들어낸다.
+ *  · 자취: a 앞 칸은 그대로 + a 의 앞 끝 한 칸 · 뒤 시작 한 칸(같은 w = 뜀 — shortAt9 ★) + b 뒤 칸은 (b − a) 당긴다. 앞이 0 이면 앞 끝 칸이 없고, 뒤가 끝이면 뒤 칸이 없다.
+ *  · 배속: a 앞 칸 + a 에 b 의 배속 + b 뒤 칸 당김(같은 값이 잇따르면 하나로).
+ *  · 자막 · 사진: b 뒤에 서면 당기고 · 잘린 몫만큼 줄이고(자른 자리에서 이어 선다) · 0.3초 못 남으면 뺀다.
+ *  · 길이 dur 은 (b − a) 줄고 t0 · t1 은 남은 칸으로 다시 잰다. 자른 몫이 0.01초 이하면 그대로. */
+export const shortSnip9 = (clip: ShortClip9, a0: number, b0: number, ar = 1): ShortClip9 => {
+  const a = Math.max(0, Math.min(a0, b0));
+  const b = Math.min(clip.dur, Math.max(a0, b0));
+  const cut = b - a;
+  if (cut <= 0.01) return clip;
+  const dur = r2(clip.dur - cut);
+  const s: ShortClip9["s"] = clip.s.filter((x) => x[0] < a - 1e-6);
+  if (a > 1e-6) {
+    const p = shortAt9(clip, Math.max(0, a - 1e-3), ar);
+    if (p) s.push(shortSample9(a, p.t, p.z, p.cx, p.cy));
+  }
+  if (b < clip.dur - 1e-6) {
+    const q = shortAt9(clip, b, ar);
+    if (q) s.push(shortSample9(a, q.t, q.z, q.cx, q.cy));
+    for (const x of clip.s) if (x[0] > b + 1e-6) s.push([r2(x[0] - cut), x[1], x[2], x[3], x[4]]);
+  }
+  const sp0: [number, number][] = clip.spd && clip.spd.length ? clip.spd : [[0, clip.sp || 1]];
+  const spd: [number, number][] = sp0.filter(([w]) => w < a - 1e-6).map(([w, v]) => [w, v]);
+  if (b < clip.dur - 1e-6) {
+    spd.push([r2(a), shortSpdAt9(clip, b)]);
+    for (const [w, v] of sp0) if (w > b + 1e-6) spd.push([r2(w - cut), v]);
+  }
+  const spd1 = spd.filter((x, i) => i === 0 || Math.abs(x[1] - spd[i - 1][1]) > 1e-6);
+  const trim = <T extends { w: number; d: number }>(xs: readonly T[]): T[] => xs.flatMap((x): T[] => {
+    const e = x.w + x.d;
+    let w = x.w;
+    let d = x.d;
+    if (x.w >= b) w = x.w - cut;
+    else if (e <= a) { /* 앞 — 그대로 */ }
+    else if (x.w >= a) { w = a; d = e - cut - a; }   // 잘린 몫 안에서 섰다 — 자른 자리에서 남은 만큼
+    else d = e <= b ? a - x.w : x.d - cut;   // 앞에서 서서 자른 자리를 넘는다 — 잘린 몫만큼 줄인다
+    if (d < 0.3 || w >= dur - 0.05) return [];
+    return [{ ...x, w: r2(w), d: r2(Math.min(d, dur - w)) }];
+  });
+  const ts = s.map((x) => x[1]);
+  return {
+    ...clip,
+    dur,
+    t0: ts.length ? Math.min(...ts) : clip.t0,
+    t1: ts.length ? Math.max(...ts) : clip.t1,
+    s,
+    sp: spd1.length ? spd1[0][1] : clip.sp,
+    ...(spd1.length > 1 ? { spd: spd1 } : { spd: undefined }),
+    caps: trim(clip.caps),
+    ...(clip.imgs ? { imgs: trim(clip.imgs) } : {}),
+  };
+};
+
 /** 두 칸 사이가 화면 밖 뜀인가(위 shortAt9 ★) — 앞 칸 배율의 녹화 창 하나를 넘게 옮겼나. */
 const shortCut9 = (clip: ShortClip9, a: readonly number[], b: readonly number[], ar: number): boolean => {
   const z = Math.max(0.05, a[2]);
