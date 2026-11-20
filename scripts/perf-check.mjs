@@ -1151,6 +1151,8 @@ if (flag("--shortprobe", null)) {
     for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); }
   }
   await page.waitForTimeout(800);
+  /* 배속 내리기 둘(2026-11-20 · 1 → 0.5 · 쇼츠 배속 자취 spd 가 적히나) — 화살표 ↓ 는 문서에 건다. */
+  if (has("--shortslow")) { await page.mouse.move(5, 5); for (let i9 = 0; i9 < 2; i9 += 1) { await page.keyboard.press("ArrowDown"); await page.waitForTimeout(300); } await page.waitForTimeout(600); }
   await page.screenshot({ path: `${base9}_rec.png`, timeout: 240000 });
   await clk9(".scr-shortcap-btn");
   await page.waitForTimeout(300);
@@ -1199,6 +1201,7 @@ if (flag("--shortprobe", null)) {
     console.log(`[쇼츠] 길이 ${c9.dur}초 · 게임 ${c9.t0}~${c9.t1} · 칸 ${c9.s.length} · 자막 ${JSON.stringify(c9.caps)} · 사진 ${JSON.stringify((c9.imgs ?? []).map((m) => ({ ...m, src: `${m.src.slice(0, 22)}…${Math.round(m.src.length / 1024)}KB` })))} · 배율 ${c9.s[0][2]}→${Math.max(...c9.s.map((x) => x[2]))} · 가운데 (${c9.s[0][3]},${c9.s[0][4]})→(${c9.s[c9.s.length - 1][3]},${c9.s[c9.s.length - 1][4]}) · 표지 ${o9.cover ? Math.round(o9.cover.length / 1024) + "KB" : "없음"} · 글 ${(JSON.stringify(c9).length / 1024).toFixed(1)}KB`);
     const jumps9 = c9.s.map((x, i) => (i > 0 && x[0] === c9.s[i - 1][0] ? `w${x[0]}: t ${c9.s[i - 1][1]}→${x[1]} · z ${c9.s[i - 1][2]}→${x[2]}` : null)).filter(Boolean);
     console.log(`[쇼츠] 같은 w 두 칸(뜀) ${jumps9.length} — ${jumps9.join(" | ")}`);
+    console.log(`[쇼츠] 배속 시작 ${c9.sp} · 배속 자취 ${JSON.stringify(c9.spd ?? null)}`);
   }
 }
 /* --shortshots N(2026-11-19 · --short FILE 과 함께) — 토막을 N 조각 시각마다 사진(OUT_k.png · --shot 의 이름 앞) · 진행 · 시각 · 배율 · 끝남을 적는다. */

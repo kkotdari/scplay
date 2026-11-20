@@ -15,7 +15,7 @@ const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
 import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
-import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
+import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSpdAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -148,8 +148,10 @@ export type MotionBase = Omit<MinimapMarker, "x" | "y"> & { x?: number; y?: numb
 
 /** 걷기가 아직 없을 때 돌려주는 빈 벌 — **같은 객체**여야 memo가 프레임마다 다시 안 돈다. */
 const EMPTY_WALKS9: EngineWorld9["entWalks"] = [];
-/** 배속 사다리 — 두 배씩 넷(요청: "배속 사다리 1 2 4 8"). 옛 1·2·5·10·20은 걷었다; 링크의 &s=가 옛 값이면 가장 가까운 칸으로 앉힌다. */
-const SPEEDS = [1, 2, 4, 8] as const;
+/** 배속 사다리 — 두 배씩(요청: "배속 사다리 1 2 4 8" → 2026-11-20 "재생기 속도 0.25 0.5배 추가 · 쇼츠 녹화 시에도 가능"). 옛 1·2·5·10·20은 걷었다; 링크의 &s=가 옛 값이면 가장 가까운 칸으로 앉힌다. */
+const SPEEDS = [0.25, 0.5, 1, 2, 4, 8] as const;
+/** 다이얼 눈금 글(좁은 다이얼에 0.25 가 넘쳐 분수 글자로). */
+const spdTick9 = (s9: number): string => (s9 === 0.25 ? "¼" : s9 === 0.5 ? "½" : `${s9}`);
 /** ★ 배속 다이얼(2026-10-10, 요청: "배속 버튼 제거하고 화면 우하단에 반투명 오버레이로 배속 다이얼 · 세로로 긴 선에 배속 눈금 · 터치나 다이얼 드래그로 부드럽게 조절 ·
  *  PC 에서는 그 위에서 스크롤로도") — 배속은 이제 **이어진 값**이다(SPEEDS 는 눈금). 다이얼 자리 u(0 아래 ~ 1 위)는 log2 자라 눈금 1·2·4·8 이 고르게 선다.
  *  끌기는 눈금 곁(SPEED_SNAP9 · log2 칸)에서 그 눈금에 붙고, 휠은 안 붙는다(작은 굴림이 눈금에 갇힌다). 값은 0.05 칸으로 접는다(워커 명령이 화소마다 안 나가게). */
@@ -17647,7 +17649,7 @@ export default function ReplayMotionPlayer({
   onShortEndRef9.current = onShortEnd;
   const onShortProgressRef9 = useRef(onShortProgress);
   onShortProgressRef9.current = onShortProgress;
-  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; imgs: ShortImg9[]; sp: number; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
+  const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; imgs: ShortImg9[]; sp: number; spd: [number, number][]; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
   /** ★ 녹화 일시정지(2026-11-20, 요청: "녹화-정지 중간에 일시정지도 필요 · 일시정지 중엔 끊기고 장소나 시간을 옮겨서 다시 시작하면 그때로 바로 이어져서 녹화되게") —
    *  멈추면 토막 시계(실초 w)가 안 가고 재생도 멈춘다(그 사이 카메라 · 배율 · 시각 · 배속을 마음대로 옮긴다). 끊는 자리에 그때 장면 한 칸, 이어 녹화하면 **같은 w 에 새 장면 한 칸**을
@@ -17688,7 +17690,7 @@ export default function ReplayMotionPlayer({
     const [z9, cx9, cy9] = recViewNow9();
     const ss9 = stageSizeRef.current;   // 지도 셈이 보는 무대(녹화 중 정사각이면 1 · 위 recSq9 ★)
     const hw9 = ss9.w > 0 ? Math.round((ss9.h / ss9.w) * 1000) / 1000 : 0.75;
-    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
+    recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, spd: [[0, speed]], a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
     recPauseRef9.current = false;
@@ -17764,6 +17766,7 @@ export default function ReplayMotionPlayer({
     const ts9 = r9.s.map((x9) => x9[1]);
     const clip9: ShortClip9 = {
       v: 1, t0: Math.min(...ts9), t1: Math.max(...ts9), dur: Math.round(r9.w * 100) / 100, sp: r9.sp, s: r9.s,
+      ...(r9.spd.length > 1 ? { spd: r9.spd.filter(([w9]) => w9 < r9.w) } : {}),
       caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.imgs.some((i9) => i9.w < r9.w) ? { imgs: r9.imgs.filter((i9) => i9.w < r9.w) } : {}), ...(r9.vw ? { vw: r9.vw } : {}), ...(r9.a !== 90 ? { a: r9.a } : {}),
     };
     setPlaying(false);
@@ -17821,6 +17824,9 @@ export default function ReplayMotionPlayer({
       r9.at = r9.w;
       const [z9, cx9, cy9] = recViewNow9();
       r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));
+      /* 배속이 바뀌었으면 그 실초에 한 칸(short9 spd ★ · 2026-11-20 "재생속도도 기록"). */
+      const sp9 = speedRef9.current;
+      if (Math.abs(sp9 - r9.spd[r9.spd.length - 1][1]) > 1e-6) r9.spd.push([Math.round(r9.w * 100) / 100, sp9]);
       setRecTick9(Math.round(r9.w * 10));
       if (r9.w >= SHORT_REC_MAX9) recStopRef9.current();
     };
@@ -22683,6 +22689,9 @@ export default function ReplayMotionPlayer({
           const at9 = shortAt9(sc9, w9, grid.width > 0 ? grid.height / grid.width : 1);   // 화면 밖 뜀은 잇지 않는다(short9 shortAt9 ★)
           next9 = Math.min(total, Math.max(0, at9 ? at9.t : cur9));
           if (at9) shortCamRef9.current?.(at9.z, at9.cx, at9.cy);
+          /* 그 자리 배속(short9 spd ★) — 바뀐 장에만 상태를 건다. */
+          const spW9 = shortSpdAt9(sc9, w9);
+          if (Math.abs(spW9 - speedRef9.current) > 1e-6) { speedRef9.current = spW9; setSpeed(spW9); }
           shortEnd9 = w9 >= sc9.dur - 1e-6;
         } else if (next9 >= total) { next9 = total; ended9 = true; }
         tLiveRef9.current = next9;
@@ -23720,7 +23729,7 @@ export default function ReplayMotionPlayer({
         <i className="scr-speeddial-fill" aria-hidden style={{ height: `${spdU9(speed) * 100}%` }} />
         {SPEEDS.map((s9) => (
           <span key={s9} className={cx("scr-speeddial-tick", Math.abs(speed - s9) < 1e-6 && "is-on")} style={{ bottom: `${spdU9(s9) * 100}%` }} aria-hidden>
-            <b />{s9}
+            <b />{spdTick9(s9)}
           </span>
         ))}
         <i className="scr-speeddial-knob" aria-hidden style={{ bottom: `${spdU9(speed) * 100}%` }} />

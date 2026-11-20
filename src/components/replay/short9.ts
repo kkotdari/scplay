@@ -28,6 +28,9 @@ export type ShortClip9 = {
   vw?: string;
   /** 사진(위 ShortImg9). */
   imgs?: ShortImg9[];
+  /** 배속 자취(2026-11-20, 요청: "쇼츠 녹화 시 재생속도도 기록돼야 함") — [실초 w, 배속] · 첫 칸은 w 0(녹화 시작 배속) · 바뀐 칸만. 게임 시각은 자취 s 가 쥐고(배속은 이미 그 기울기에
+   *  든다) 이 값은 재생기의 배속 상태(효과 · 걸음 결 · 다이얼 표시)를 그 자리 그대로 맞춘다. 없으면(옛 토막) sp 하나. */
+  spd?: [number, number][];
 };
 
 /** 녹화 상한(실초) — 넘으면 저절로 멈춘다(서버 상한 90 · sg-api shorts.py). */
@@ -42,6 +45,13 @@ export const SHORT_CAP_LEN9 = 120;
 /** 사진 장 수 상한 · 긴 변(px) · 화질(서버 상한 8장 · 400KB). */
 export const SHORT_IMGS_MAX9 = 8;
 export const SHORT_IMG_SIDE9 = 480;
+
+/** 실초 w 의 배속(위 spd) — 그 앞 마지막 칸 · 없으면 녹화 시작 배속 sp. */
+export const shortSpdAt9 = (clip: ShortClip9, w: number): number => {
+  let sp = clip.sp || 1;
+  for (const [w0, v] of clip.spd ?? []) { if (w0 > w + 1e-6) break; sp = v; }
+  return sp;
+};
 
 /** 고른 사진을 저화질로 — 긴 변 SHORT_IMG_SIDE9 로 줄여 webp 0.7(안 되면 jpeg 0.72) data URL · 세로/가로 비. 못 읽으면 null. */
 export const shortImgShrink9 = async (file: File): Promise<{ src: string; ar: number } | null> => {
