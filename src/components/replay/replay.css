@@ -6334,11 +6334,13 @@
 @keyframes scr-shortrec-blink { 0% { opacity: 1; } 100% { opacity: 0.25; } }
 /* 자막 — 무대 아래쪽 가운데 · 굵은 흰 글 · 어두운 판 + 노란 왼테 · 아래에서 튀어 오르며 서고(되튐) 위로 흐리며 스러진다. 여럿이면 쌓인다. */
 .scr-shortcaps {
-  position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); width: min(88%, 760px); z-index: 40003;   /* 30000 → 40003(2026-11-20 · 사진을 채팅 40001 위로 올리며 자막은 그 위 · 아래 .scr-shortimgs) */
+  position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); width: min(88%, 760px); z-index: 40003;   /* 17% → 7%(2026-11-20, 요청: "자막이 미니맵 가려도 되니까 아래로") */   /* 30000 → 40003(2026-11-20 · 사진을 채팅 40001 위로 올리며 자막은 그 위 · 아래 .scr-shortimgs) */
   display: flex; flex-direction: column; align-items: center; gap: 0.5em; pointer-events: none;
   font-size: 36px;
 }
-.scr-fs-root.is-short .scr-shortcaps { bottom: max(24%, calc(var(--dock-h0, 0px) * 1.116 + 14px)); width: min(calc(100% - 112px), 860px); }   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
+/* 쇼츠 재생 무대는 쌓임 맥락을 안 만든다(z-index auto) — 자막 · 사진 · 채팅(40001~40003)이 독 겹(미니맵 · .scr-fs-lower)보다 위에 서고 지도는 그 아래 그대로(2026-11-20 "자막이 미니맵 가려도 되니까"). */
+.scr-fs-root.is-short > .scr-fs-stage { z-index: auto; }
+.scr-fs-root.is-short .scr-shortcaps { bottom: 7%; width: min(calc(100% - 112px), 860px); }   /* 미니맵을 가려도 된다(2026-11-20 "자막이 미니맵 가려도 되니까 아래로 내리기") — 옛: max(24%, 미니맵 키 + 14px) */   /* 오른쪽 단추 줄(앱 ShortsViewer)을 비운다 */
 /* ↑ 아래 끝은 미니맵 위로(2026-11-19 · 미니맵 1.5배 — 폰 360×640 에서 판 키 24% 를 넘었다) — 미니맵 키 = --mini-h(= --dock-h × 1.2) × 0.93 · --dock-h 는 틀 안 값이라 여기선 설계 키
    --dock-h0(실제 키의 상한)로 잰다(1.2 × 0.93 = 1.116) + 틈 14px. 옛: 24% 하나. */
 .scr-fs-root.is-capphone .scr-shortcaps { font-size: 24px; }

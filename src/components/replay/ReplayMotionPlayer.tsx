@@ -26559,7 +26559,9 @@ export default function ReplayMotionPlayer({
             </div>
           )}
           {shortCapsNow9.length > 0 && (
-            <div className="scr-shortcaps">
+            <div className="scr-shortcaps"
+              /* 녹화 · 다듬기는 무대 가운데 정사각(녹화 틀) 안 쇼츠 자리에(2026-11-20 · 아래 .scr-shortcaps ★ 7%) — 세로로 긴 무대에서도 틀 밖으로 안 나간다. */
+              style={(recOn9 || revOn9) && shortSq9 > 0 ? { bottom: `calc(50% - ${Math.round(shortSq9 / 2)}px + ${Math.round(shortSq9 * 0.07)}px)`, width: `${Math.round(Math.min(shortSq9 * 0.88, 760))}px` } : undefined}>
               {shortCapsNow9.map(({ cap: c9, i: i9 }) => (
                 <div key={i9} className={cx("scr-shortcap", shortCapW9 > c9.w + c9.d - 0.4 && "is-out")}><span>{c9.text}</span></div>
               ))}
