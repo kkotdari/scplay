@@ -175,6 +175,14 @@ export const shortSnip9 = (clip: ShortClip9, a0: number, b0: number, ar = 1): Sh
   };
 };
 
+/** 실초 w 에서 게임 시각이 멈춰 있나(녹화 중 재생을 멈춘 몫 — 카메라만 움직인다) — w 와 w + 0.3 의 시각이 같으면 멈춤. RMP 가 워커에 '멈춤'으로 알린다(RMP shortStill9 ★). */
+export const shortStillAt9 = (clip: ShortClip9, w: number, ar = 1): boolean => {
+  if (w >= clip.dur - 0.05) return false;
+  const a = shortAt9(clip, w, ar);
+  const b = shortAt9(clip, Math.min(clip.dur, w + 0.3), ar);
+  return !!a && !!b && Math.abs(b.t - a.t) < 0.01;
+};
+
 /** 두 칸 사이가 화면 밖 뜀인가(위 shortAt9 ★) — 앞 칸 배율의 녹화 창 하나를 넘게 옮겼나. */
 const shortCut9 = (clip: ShortClip9, a: readonly number[], b: readonly number[], ar: number): boolean => {
   const z = Math.max(0.05, a[2]);

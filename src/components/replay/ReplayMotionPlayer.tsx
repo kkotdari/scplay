@@ -15,7 +15,7 @@ const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
 import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Scissors, Undo2, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
-import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSnip9, shortSpdAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
+import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSnip9, shortSpdAt9, shortStillAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -11080,6 +11080,18 @@ const nextColorMode9 = (m: ColorMode9, melee: boolean, solo: boolean): ColorMode
   const ring9: ColorMode9[] = solo ? ["personal", "hero"] : ["personal", ...(melee ? [] : ["team" as const])];
   return ring9[(ring9.indexOf(m) + 1) % ring9.length] ?? "personal";
 };
+/* ★ 고치기의 보이는 시간 −/+ 는 **0.1초 단위**(2026-11-20, 요청: "고치기에서 −+로 유지시간 조절 시 0.1초 단위로 조절하고 그 아래 소수는 조절하면서 버려지게") —
+   + 는 0.1초 아래를 버리고 한 칸 위(2.37 → 2.4) · − 는 0.1초 아래가 있으면 그것만 버리고(2.37 → 2.3) 없으면 한 칸 아래(2.3 → 2.2). 아래 끝 0.5초 · 위 끝 SHORT_CAP_DMAX9.
+   새로 넣는 판(녹화 중 · 다듬기 [+자막][+사진])은 옛 1초 단위 그대로. */
+const DSTEP_MIN9 = 0.5;
+const dStep9 = (d9: number, dir9: 1 | -1): number => {
+  const k9 = d9 * 10;
+  const n9 = dir9 > 0 ? Math.floor(k9 + 1e-6) + 1 : Math.ceil(k9 - 1e-6) - 1;
+  return Math.min(SHORT_CAP_DMAX9, Math.max(DSTEP_MIN9, n9 / 10));
+};
+/** 보이는 시간 글 — 소수가 있으면 있는 만큼(2.37 · 2.4 · 5). */
+const dText9 = (d9: number): string => String(Math.round(d9 * 100) / 100);
+
 export default function ReplayMotionPlayer({
   grid: gridIn, endSec, bases: basesIn, teamOfRaw, active = true, winnerTeam, side,
   onDetailClose, onBack, frameH, frameW, loadUnitTracks, sceneLink,
@@ -18290,6 +18302,12 @@ export default function ReplayMotionPlayer({
   shortRef9.current = short ?? recSave9?.clip ?? null;   // 다듬기(위 recSave9 ★)도 그 토막을 쇼츠처럼 돌린다(그리기 틱 · 카메라 shortCamRef9)
   const shortWRef9 = useRef(0);
   const shortEndedRef9 = useRef(false);
+  /** ★ 쇼츠 · 다듬기의 **멈춘 몫**(2026-11-20, 지적: "중간에 오래 멈췄다 재생한 부분이 있는데 그래픽 준비가 안 되어서 뚝뚝 끊기네") — 녹화 중 재생을 멈춘 몫은 토막 시계(w)만 가고
+   *  게임 시각은 그대로다. 옛 길은 그동안에도 워커에 '재생 중'이라 알려, 다시 그릴 때마다(카메라 상태 · 다듬기 타임라인) 예상 시각이 실제와 벌어져 '탐색'으로 셈하고 명령을 거듭
+   *  보냈다(세대가 계속 바뀌어 앞서 지어 둔 장을 못 쓰고) — 시각이 다시 흐르는 순간 새 장을 기다리며 끊겼다. 이제 멈춘 몫은 워커에 '멈춤'으로 알리고(아래 명령 playingW9)
+   *  다시 흐르면 한 번 '재생'으로 — 여느 재생/멈춤과 같은 길. 틱이 바뀌는 순간 상태를 걸어 명령이 바로 나가게 한다(short9 shortStillAt9). */
+  const shortStillRef9 = useRef(false);
+  const [, setShortStill9] = useState(false);
   const shortPanAt9 = useRef(0);
   /* 앱이 멈추라면 멈춘다(누르고 있는 동안 따위) · 놓으면 다시 — 끝난 토막은 되살리지 않는다. */
   useEffect(() => {
@@ -19914,6 +19932,8 @@ export default function ReplayMotionPlayer({
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
+  /** 워커에 알리는 재생 — 쇼츠 · 다듬기의 멈춘 몫(게임 시각이 안 흐른다)은 '멈춤'(위 shortStillRef9 ★). */
+  const playingW9 = playing9 && !(shortRef9.current && shortStillRef9.current);
   {
     // 붓 자취의 인스턴스 번호(BRUSH_LOG9 · perf-check --pinchtrace)
     if (instIdRef9.current === 0) { INST_SEQ9 += 1; instIdRef9.current = INST_SEQ9; }
@@ -19940,22 +19960,22 @@ export default function ReplayMotionPlayer({
     const jumped9 = !c9 || Math.abs(tLiveRef9.current - pred9) > Math.max(0.3, 0.15 * speed);   // 틱의 살아 있는 시각으로 견준다(아래 t09 ★)
     /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
        굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
-    const beat9 = !!c9 && playing9 && pNow() - c9.at > 1000;
-    if (w9 && (!c9 || c9.playing !== playing9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
+    const beat9 = !!c9 && playingW9 && pNow() - c9.at > 1000;
+    if (w9 && (!c9 || c9.playing !== playingW9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
       DEV9_DIRTY9.v = false;   // 단이 바뀐 뒤 첫 cmd가 새 앞 한도를 싣는다(위 applyBenchTier9)
       /* t0 는 틱의 살아 있는 시각(tLiveRef9 — 바로 위에서 탐색이면 t 로 맞췄다) — React t 는 100ms 박자라 그만큼 늦어 워커가 뒤처졌다(ClkMsg ★). */
       const t09 = tLiveRef9.current;
       /* ★ 배속을 내리면 지금 뒤로 받아 둔 성긴 장(옛 배속 간격)을 버린다(2026-11-02, 지적: "배속 높였다가 낮출 때 뚝뚝 끊김") — 워커는 지금부터 새 간격으로 다시 짓는다
          (frameWorker cmd 의 ★). 남겨 두면 새 촘촘한 장 사이에 옛 장이 끼어 '같은 세대 먼저' 보간이 옛 장끼리 0.5초를 잇는 순간이 났다. 지금 시각 이하는 지킨다(그리는 장). */
-      if (c9 && playing9 && speed < c9.speed - 1e-6) {
+      if (c9 && playingW9 && speed < c9.speed - 1e-6) {
         const fm9 = wFramesRef.current;
         for (const [k9, f9] of fm9) if (f9.t > t09 + 1e-3) fm9.delete(k9);
       }
-      cmdSentRef9.current = { playing: playing9, t0: t09, speed, at: pNow() };
+      cmdSentRef9.current = { playing: playingW9, t0: t09, speed, at: pNow() };
       wStatRef.current.sentCmd += 1;
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
-        type: "cmd", playing: playing9, t0: t09, speed,
+        type: "cmd", playing: playingW9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
@@ -23071,6 +23091,8 @@ export default function ReplayMotionPlayer({
           const w9 = Math.min(sc9.dur, shortWRef9.current + advWall9);
           shortWRef9.current = w9;
           const at9 = shortAt9(sc9, w9, grid.width > 0 ? grid.height / grid.width : 1);   // 화면 밖 뜀은 잇지 않는다(short9 shortAt9 ★)
+          const still9 = shortStillAt9(sc9, w9, grid.width > 0 ? grid.height / grid.width : 1);   // 멈춘 몫인가(위 shortStillRef9 ★)
+          if (still9 !== shortStillRef9.current) { shortStillRef9.current = still9; setShortStill9(still9); }
           next9 = Math.min(total, Math.max(0, at9 ? at9.t : cur9));
           if (at9) shortCamRef9.current?.(at9.z, at9.cx, at9.cy);
           /* 그 자리 배속(short9 spd ★) — 바뀐 장에만 상태를 건다. */
@@ -26980,9 +27002,11 @@ export default function ReplayMotionPlayer({
         />
         <div className="scr-capask-dur" role="group" aria-label="보이는 시간">
           <span>보이는 시간</span>
-          <button type="button" aria-label="1초 줄이기" disabled={capAsk9.d <= 1} onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: Math.max(1, a9.d - 1) } : a9))}>−</button>
-          <b>{capAsk9.d}초</b>
-          <button type="button" aria-label="1초 늘리기" disabled={capAsk9.d >= SHORT_CAP_DMAX9} onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: Math.min(SHORT_CAP_DMAX9, a9.d + 1) } : a9))}>+</button>
+          <button type="button" aria-label={capAsk9.idx !== undefined ? "0.1초 줄이기" : "1초 줄이기"} disabled={capAsk9.d <= (capAsk9.idx !== undefined ? DSTEP_MIN9 : 1)}
+            onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: a9.idx !== undefined ? dStep9(a9.d, -1) : Math.max(1, a9.d - 1) } : a9))}>−</button>
+          <b>{dText9(capAsk9.d)}초</b>
+          <button type="button" aria-label={capAsk9.idx !== undefined ? "0.1초 늘리기" : "1초 늘리기"} disabled={capAsk9.d >= SHORT_CAP_DMAX9}
+            onClick={() => setCapAsk9((a9) => (a9 ? { ...a9, d: a9.idx !== undefined ? dStep9(a9.d, 1) : Math.min(SHORT_CAP_DMAX9, a9.d + 1) } : a9))}>+</button>
         </div>
         <div className="scr-pinask-row">
           <button type="button" className="scr-sharepick-cancel" onClick={() => capClose9(false)}>취소</button>
@@ -27005,9 +27029,11 @@ export default function ReplayMotionPlayer({
       </label>
       <div className="scr-capask-dur" role="group" aria-label="보이는 시간">
         <span>보이는 시간</span>
-        <button type="button" aria-label="1초 줄이기" disabled={imgAsk9.d <= 1} onClick={() => setImgAsk9((a9) => (a9 ? { ...a9, d: Math.max(1, a9.d - 1) } : a9))}>−</button>
-        <b>{imgAsk9.d}초</b>
-        <button type="button" aria-label="1초 늘리기" disabled={imgAsk9.d >= SHORT_CAP_DMAX9} onClick={() => setImgAsk9((a9) => (a9 ? { ...a9, d: Math.min(SHORT_CAP_DMAX9, a9.d + 1) } : a9))}>+</button>
+        <button type="button" aria-label={imgAsk9.idx !== undefined ? "0.1초 줄이기" : "1초 줄이기"} disabled={imgAsk9.d <= (imgAsk9.idx !== undefined ? DSTEP_MIN9 : 1)}
+          onClick={() => setImgAsk9((a9) => (a9 ? { ...a9, d: a9.idx !== undefined ? dStep9(a9.d, -1) : Math.max(1, a9.d - 1) } : a9))}>−</button>
+        <b>{dText9(imgAsk9.d)}초</b>
+        <button type="button" aria-label={imgAsk9.idx !== undefined ? "0.1초 늘리기" : "1초 늘리기"} disabled={imgAsk9.d >= SHORT_CAP_DMAX9}
+          onClick={() => setImgAsk9((a9) => (a9 ? { ...a9, d: a9.idx !== undefined ? dStep9(a9.d, 1) : Math.min(SHORT_CAP_DMAX9, a9.d + 1) } : a9))}>+</button>
       </div>
       <div className="scr-pinask-row">
         <button type="button" className="scr-sharepick-cancel" onClick={() => imgClose9(false)}>취소</button>
