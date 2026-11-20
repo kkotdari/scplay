@@ -6504,7 +6504,7 @@
 .scr-shortrev-cover { width: 28px; height: 28px; margin-right: 6px; border-radius: 3px; object-fit: cover; vertical-align: middle; }
 /* 다듬기 중 무대(.is-shortrev) — 무대 위 오버레이(배속 · 화면 주인 · 핀 · 쇼츠 단추 · 녹화 틀 …)는 숨기고 장면 · 자막 · 사진만 · 재생기 전체가 누름을 안 받는다(카메라는 토막이 쥔다 ·
    손잡이는 다듬기 판) — 고치는 사진만 끌 수 있게 되살린다. 독은 그대로 둔다(접고 펴면 무대를 다시 재 정사각이 흔들린다 · .is-short 의 미니맵 자리 옮김도 안 쓴다). */
-.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs),
-.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs) * { visibility: hidden !important; }
+.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs):not(.scr-fs-chat),
+.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs):not(.scr-fs-chat) * { visibility: hidden !important; }   /* 채팅은 쇼츠 자리에 남긴다(RMP chatNode9 ★) */
 .scr-fs-root.is-shortrev, .scr-fs-root.is-shortrev * { pointer-events: none !important; }
 .scr-fs-root.is-shortrev .scr-shortimg.is-edit { pointer-events: auto !important; }

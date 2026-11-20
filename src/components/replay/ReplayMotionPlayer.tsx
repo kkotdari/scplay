@@ -18239,8 +18239,11 @@ export default function ReplayMotionPlayer({
        재생 판에 꼭 들어오게 배율을 고른다: 1배 = 무대 가로 폭이므로 정사각 한 변(지도 가로 몫) = min(1, hw녹화)/z녹화 · 재생 판이 그것을 담는 배율 = z녹화 × min(1, hw재생)/min(1, hw녹화).
        세로로 긴 폰은 정사각이 가로를 꽉 채우고 위아래에 지도가 더 · 가로로 긴 판은 세로를 꽉 채우고 좌우에 더. (되물린 셈: 같은 날 앞 판 '녹화 화면 세로를 채우고 좌우를 자른다'
        — × max(1, hw재생/hw녹화) · 정사각 좌우가 잘렸다.) 옛 토막(hw 없음)은 녹화 무대를 0.75 로 본다. */
+    /* 재생 판의 세로/가로는 **지도 셈이 보는 무대**(stageSizeRef)로 잰다(2026-11-20, 지적: "녹화한 배율과 리뷰의 배율이 다른 거 같아" — 다듬기는 녹화 정사각 무대(상자는 그대로 ·
+       상태만 S×S · recSq9 ★)에서 도는데 옛 셈은 무대 **상자**(넓은 비)를 재 배율을 그 비만큼 줄였다. 앱 쇼츠 판은 상자 = 무대라 같다). */
+    const ss9 = stageSizeRef.current;
     const st9 = stageRef.current;
-    const hwP9 = st9 && st9.offsetWidth > 0 ? st9.offsetHeight / st9.offsetWidth : 1;
+    const hwP9 = ss9.w > 0 && ss9.h > 0 ? ss9.h / ss9.w : st9 && st9.offsetWidth > 0 ? st9.offsetHeight / st9.offsetWidth : 1;
     const hwR9 = shortRef9.current?.hw && shortRef9.current.hw > 0 ? shortRef9.current.hw : 0.75;
     const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, z0 * (Math.min(1, hwP9) / Math.min(1, hwR9))));
     const lim9 = panLimit(z9);
@@ -26563,7 +26566,17 @@ export default function ReplayMotionPlayer({
               ))}
             </div>
           )}
-          {chatNode9}
+          {/* 녹화 · 다듬기 중 채팅은 **쇼츠 자리**(2026-11-20, 요청: "녹화와 리뷰 화면에선 채팅도 쇼츠 위치에") — 무대 가운데 정사각(녹화 틀) 안의 쇼츠 재생 자리(.is-shortchat 과 같은
+              왼 10px · 위 max(88px, 15%) · 폭 정사각 − 86px)에 선다. 옛: 무대 왼아래(자막 위). */}
+          {chatNode9 && (recOn9 || revOn9) && shortSq9 > 0
+            ? React.cloneElement(chatNode9, {
+              className: "scr-fs-chat is-shortchat is-shortsq",
+              style: {
+                left: `calc(50% - ${Math.round(shortSq9 / 2)}px + 10px)`, top: `calc(50% - ${Math.round(shortSq9 / 2)}px + ${Math.round(Math.max(88, shortSq9 * 0.15))}px)`,
+                bottom: "auto", right: "auto", maxWidth: `${Math.max(120, shortSq9 - 86)}px`,
+              },
+            })
+            : chatNode9}
           {/* ★ 보기 모드 판(위 modeAsk9 ★★) — 무대 가운데 작은 판 · 무대 상자에 선다(지도 상자는 화면보다 커서 위 가장자리가 화면 밖이다) · 무대의 손짓(끌기·확대)이 누름을 가져가지 않게 막는다. 떠 있는 동안 LOADING 글자는 쉰다. */}
           {askShow9 && (
             <div
