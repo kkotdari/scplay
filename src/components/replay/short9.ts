@@ -31,6 +31,8 @@ export type ShortClip9 = {
   /** 배속 자취(2026-11-20, 요청: "쇼츠 녹화 시 재생속도도 기록돼야 함") — [실초 w, 배속] · 첫 칸은 w 0(녹화 시작 배속) · 바뀐 칸만. 게임 시각은 자취 s 가 쥐고(배속은 이미 그 기울기에
    *  든다) 이 값은 재생기의 배속 상태(효과 · 걸음 결 · 다이얼 표시)를 그 자리 그대로 맞춘다. 없으면(옛 토막) sp 하나. */
   spd?: [number, number][];
+  /** 제목(2026-11-20, 요청: "쇼츠 제목 지정 가능하게 · 마지막에 넣을 수 있음") — 다듬기 판 맨 끝 칸에서 넣는다 · 앱 카드 · 보기 머리에 선다(서버 game_shorts.title). 없으면 없음. */
+  title?: string;
 };
 
 /** 녹화 상한(실초) — 넘으면 저절로 멈춘다(서버 상한 90 · sg-api shorts.py). */
@@ -42,6 +44,8 @@ export const SHORT_CAP_D9 = 5;
 export const SHORT_CAP_DMAX9 = 15;
 /** 자막 한 줄 상한(글자 · 서버와 같은 값). */
 export const SHORT_CAP_LEN9 = 120;
+/** 제목 글자 상한(서버 SHORT_TITLE_LEN 과 같은 값). */
+export const SHORT_TITLE_LEN9 = 60;
 /** 사진 장 수 상한 · 긴 변(px) · 화질(서버 상한 8장 · 400KB). */
 export const SHORT_IMGS_MAX9 = 8;
 export const SHORT_IMG_SIDE9 = 480;

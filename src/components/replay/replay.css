@@ -6529,3 +6529,6 @@
 .scr-shortrev-cut > i::after { content: ""; position: absolute; left: 4px; top: 50%; width: 4px; height: 22px; margin-top: -11px; border-radius: 2px; background: #fff; box-shadow: 0 0 3px rgba(0, 0, 0, 0.6); }
 .scr-shortrev-cutinfo { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #ff9aa0; font-variant-numeric: tabular-nums; }
 .scr-shortrev-acts > button:disabled { opacity: 0.35; cursor: default; }
+/* 제목 칸(RMP recSave9 ★ title · 2026-11-20, 요청: "쇼츠 제목 지정 가능하게 · 마지막에 넣을 수 있음") — 판 맨 끝 · 올리기 바로 위. 폰은 16px(iOS 는 그보다 작은 글 칸에 초점이 가면 화면을 당겨 키운다). */
+.scr-shortrev-title { min-height: 36px; font-weight: 600; }
+.scr-shortrev.is-phone .scr-shortrev-title { font-size: 16px; }

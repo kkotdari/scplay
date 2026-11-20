@@ -15,7 +15,7 @@ const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
 import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Scissors, Undo2, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
-import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSnip9, shortSpdAt9, shortStillAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
+import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_TITLE_LEN9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, shortSnip9, shortSpdAt9, shortStillAt9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
 /** 툴박스가 손을 뗀 뒤 아이콘 하나로 접히기까지(2026-09, 요청: "안쓰면 몇초뒤 아이콘 하나로 최소화"). */
@@ -17700,8 +17700,9 @@ export default function ReplayMotionPlayer({
   /** ★ 녹화 뒤 **다듬기**(2026-11-20, 요청: "자막이랑 사진을 마지막에 추가 수정 삭제 가능하게 하는 툴 · 녹화가 끝나고 나서 마지막 리뷰에서 타임라인을 돌려가며 자막과 사진 넣을 수 있게" ·
    *  "이미 올린 건 고침 X") — [종료]가 옛 저장 창 대신 이 판을 연다: 정사각 무대가 토막을 쇼츠 그대로(자취가 시각 · 카메라를 쥔다 · 자막 · 사진 포함 · .is-short) 돌리고,
    *  아래(폰) · 오른쪽(PC) 판에 타임라인(재생 · 끌어 옮기기 · 자막/사진 띠)과 [+자막][+사진] · 띠를 골라 [고치기][삭제] · 띠 몸통 끌기 = 시작 옮기기 · 오른끝 끌기 = 길이.
-   *  자막 · 사진은 토막 데이터(caps · imgs)라 다시 녹화하지 않는다. [올리기]가 고친 토막을 앱(onShortCreate)에 넘긴다. sel = 고른 띠. */
-  const [recSave9, setRecSave9] = useState<{ clip: ShortClip9; cover: string | null; busy: boolean; err: string; sel: { k: "cap" | "img"; i: number } | null } | null>(null);
+   *  자막 · 사진은 토막 데이터(caps · imgs)라 다시 녹화하지 않는다. [올리기]가 고친 토막을 앱(onShortCreate)에 넘긴다. sel = 고른 띠.
+   *  title = 제목 칸(2026-11-20 · 판 맨 끝 · 선택) — 토막(clip) 밖에 둔다: 되돌리기(revHist9)는 토막을 통째로 되돌리므로 거기 두면 자막을 되돌릴 때 제목도 함께 되돌았다. 올릴 때 clip.title 로 싣는다. */
+  const [recSave9, setRecSave9] = useState<{ clip: ShortClip9; cover: string | null; busy: boolean; err: string; sel: { k: "cap" | "img"; i: number } | null; title: string } | null>(null);
   const recSaveRef9 = useRef(recSave9);
   recSaveRef9.current = recSave9;
   const revOn9 = recSave9 !== null;
@@ -17859,7 +17860,7 @@ export default function ReplayMotionPlayer({
       caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.imgs.some((i9) => i9.w < r9.w) ? { imgs: r9.imgs.filter((i9) => i9.w < r9.w) } : {}), ...(r9.vw ? { vw: r9.vw } : {}), ...(r9.a !== 90 ? { a: r9.a } : {}),
     };
     setPlaying(false);   // 다듬기(위 recSave9 ★)는 토막 시계가 쥔다 — 경기 재생은 멈추고 토막 0초에서 선다(아래 다듬기 효과)
-    setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "", sel: null });
+    setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "", sel: null, title: "" });
   };
   /* 녹화가 끝나면(저장 창이 떠도) 무대를 되돌린다(위 recSq9 ★) — 정사각에 보이던 크기 그대로 넓은 무대로. */
   useEffect(() => {
@@ -18287,7 +18288,8 @@ export default function ReplayMotionPlayer({
     if (!v9 || v9.busy || !f9) return;
     setRecSave9({ ...v9, busy: true, err: "" });   // (v9 는 다듬은 토막 — 자막 · 사진 고친 것까지)
     try {
-      await f9(v9.clip, v9.cover);
+      const t9 = v9.title.replace(/\s+/g, " ").trim().slice(0, SHORT_TITLE_LEN9);   // 제목(위 recSave9 ★) — 줄 · 겹 빈칸은 한 칸
+      await f9(t9 ? { ...v9.clip, title: t9 } : v9.clip, v9.cover);
     } catch {
       setRecSave9({ ...v9, busy: false, err: "올리지 못했어요 — 다시 눌러 주세요" });
       return;
@@ -27107,6 +27109,11 @@ export default function ReplayMotionPlayer({
         {recSave9.cover && <img className="scr-shortrev-cover" src={recSave9.cover} alt="" />}
         {Math.round(recSave9.clip.dur)}초 · 자막 {recSave9.clip.caps.length}개 · 사진 {(recSave9.clip.imgs ?? []).length}장
       </p>
+      {/* 제목(위 recSave9 ★ · 선택) — 맨 끝에 넣는다. 엔터는 칸을 놓는다(올리기는 단추로). */}
+      <input className="scr-pinask-input scr-shortrev-title" type="text" maxLength={SHORT_TITLE_LEN9} placeholder="제목 (선택)" aria-label="쇼츠 제목"
+        value={recSave9.title} disabled={recSave9.busy}
+        onChange={(e) => { const t9 = e.target.value; setRecSave9((v9) => (v9 ? { ...v9, title: t9 } : v9)); }}
+        onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur(); }} />
       {recSave9.err && <p className="scr-shortsave-err">{recSave9.err}</p>}
       <div className="scr-pinask-row">
         <button type="button" className="scr-sharepick-cancel" disabled={recSave9.busy}
