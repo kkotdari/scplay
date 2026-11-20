@@ -319,6 +319,10 @@ export declare interface PracticeRoomProps {
     onLog?: (code: PracLogCode9, detail: string) => void;
 }
 
+/** 격자를 **미리** 받기 시작한다(훅 밖 · 2026-11-20, 지적: "쇼츠 로딩이 너무 걸림") — 앱이 쇼츠 카드를 누르는 순간 경기를 받고 곧장 그 지도를 부른다(sg-web shortsPrefetch).
+ *  받았거나 받는 중이면 아무것도 안 한다. 이어 useReplayMap 이 같은 캐시를 읽는다. */
+export declare function primeReplayMap(hash: string | null | undefined): void;
+
 export declare type Race = "테란" | "프로토스" | "저그" | "랜덤";
 
 declare type RacePick = ModelCatalogRace;
