@@ -6459,3 +6459,52 @@
 .scr-edgebtn.is-r:hover svg { transform: translateX(2px); }
 .scr-edgebtn.is-t:hover svg { transform: translateY(-2px); }
 .scr-edgebtn.is-b:hover svg { transform: translateY(2px); }
+/* ★ 쇼츠 다듬기(RMP recSave9 ★ · 2026-11-20, 요청: "녹화가 끝나고 마지막 리뷰에서 타임라인을 돌려가며 자막과 사진 추가 · 수정 · 삭제") — PC 오른쪽 가운데 · 폰 아래 바닥 판.
+   타임라인 = 위 자막 띠(노랑) · 아래 사진 띠(하늘) · 흰 세로줄 = 지금 자리 · 고른 띠는 흰 테 · 띠 오른끝 손잡이(끌면 길이). 무대는 아래 .is-shortrev — 고치는 사진만 끌 수 있다. */
+.scr-sharepick.scr-shortrev {
+  position: fixed; right: calc(env(safe-area-inset-right, 0px) + 16px); top: 50%; transform: translateY(-50%); z-index: 100000;
+  width: min(380px, calc(100vw - 24px)); max-width: none; gap: 10px;
+}
+.scr-sharepick.scr-shortrev.is-phone {
+  left: 0; right: 0; top: auto; bottom: 0; transform: none; width: auto; max-height: 46vh;
+  border-radius: 12px 12px 0 0; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+}
+.scr-shortrev-ctl { display: flex; align-items: center; gap: 10px; }
+.scr-shortrev-play {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
+}
+.scr-shortrev-play:hover { background: rgba(255, 255, 255, 0.24); }
+.scr-shortrev-track {
+  position: relative; flex: 1 1 auto; min-width: 0; height: 58px; border-radius: 6px; background: rgba(255, 255, 255, 0.07);
+  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.scr-shortrev-lane { position: absolute; left: 0; right: 0; height: 24px; }
+.scr-shortrev-lane.is-cap { top: 3px; }
+.scr-shortrev-lane.is-img { bottom: 3px; }
+.scr-shortrev-seg {
+  position: absolute; top: 0; bottom: 0; min-width: 8px; box-sizing: border-box; overflow: hidden; border-radius: 4px; cursor: grab;
+  display: flex; align-items: center; padding: 0 9px 0 4px; font-size: 11px; font-weight: 700; color: #1b1400;
+}
+.scr-shortrev-lane.is-cap > .scr-shortrev-seg { background: rgba(255, 211, 77, 0.88); }
+.scr-shortrev-lane.is-img > .scr-shortrev-seg { background: rgba(143, 214, 255, 0.8); }
+.scr-shortrev-seg > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.scr-shortrev-seg.is-sel { box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(255, 255, 255, 0.5); z-index: 1; }
+.scr-shortrev-seg > i { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; background: rgba(0, 0, 0, 0.22); }
+.scr-shortrev-thumb { flex: none; width: 18px; height: 18px; border-radius: 3px; background-size: cover; background-position: center; }
+.scr-shortrev-at { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 4px rgba(0, 0, 0, 0.6); pointer-events: none; z-index: 2; }
+.scr-shortrev-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.scr-shortrev-acts > button {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 11px; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.scr-shortrev-acts > button:hover { background: rgba(255, 255, 255, 0.14); }
+.scr-shortrev-acts > button.is-danger { color: #ff8a8a; border-color: rgba(255, 138, 138, 0.45); }
+.scr-shortrev-gap { flex: 1 1 auto; }
+.scr-shortrev-cover { width: 28px; height: 28px; margin-right: 6px; border-radius: 3px; object-fit: cover; vertical-align: middle; }
+/* 다듬기 중 무대(.is-shortrev) — 무대 위 오버레이(배속 · 화면 주인 · 핀 · 쇼츠 단추 · 녹화 틀 …)는 숨기고 장면 · 자막 · 사진만 · 재생기 전체가 누름을 안 받는다(카메라는 토막이 쥔다 ·
+   손잡이는 다듬기 판) — 고치는 사진만 끌 수 있게 되살린다. 독은 그대로 둔다(접고 펴면 무대를 다시 재 정사각이 흔들린다 · .is-short 의 미니맵 자리 옮김도 안 쓴다). */
+.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs),
+.scr-fs-root.is-shortrev > .scr-fs-stage > :not(.scr-motion-map):not(.scr-fs-space):not(.scr-wx):not(.scr-wx-flash):not(.scr-shortcaps):not(.scr-shortimgs) * { visibility: hidden !important; }
+.scr-fs-root.is-shortrev, .scr-fs-root.is-shortrev * { pointer-events: none !important; }
+.scr-fs-root.is-shortrev .scr-shortimg.is-edit { pointer-events: auto !important; }

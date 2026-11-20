@@ -1,5 +1,5 @@
 import { PathRec9, fillPath9 } from "./glctx9";
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import {
   PERF9, NOSHADOW9, DPRCAP9, NODOM9, HIDECLS9, GAP9, perfHit, pNow, pAdd, pWrap,
   pFrame, perfState9, perfLine9,
@@ -17681,10 +17681,20 @@ export default function ReplayMotionPlayer({
   const recReadyRef9 = useRef(false);
   /** 녹화 화면을 다시 그리는 박자(토막 0.1초 칸) — REC 시계 · 자막 미리보기가 이 값으로 선다. */
   const [recTick9, setRecTick9] = useState(0);
-  const [capAsk9, setCapAsk9] = useState<{ text: string; d: number; play: boolean } | null>(null);
+  /** idx · w — 다듬기(아래 recSave9 ★ 리뷰)에서 고치는 자막의 자리 · 새 자막이 설 실초(없으면 녹화 중 넣기 = 지금 토막 시계). */
+  const [capAsk9, setCapAsk9] = useState<{ text: string; d: number; play: boolean; idx?: number; w?: number } | null>(null);
   const capAskRef9 = useRef(capAsk9);
   capAskRef9.current = capAsk9;
-  const [recSave9, setRecSave9] = useState<{ clip: ShortClip9; cover: string | null; busy: boolean; err: string } | null>(null);
+  /** ★ 녹화 뒤 **다듬기**(2026-11-20, 요청: "자막이랑 사진을 마지막에 추가 수정 삭제 가능하게 하는 툴 · 녹화가 끝나고 나서 마지막 리뷰에서 타임라인을 돌려가며 자막과 사진 넣을 수 있게" ·
+   *  "이미 올린 건 고침 X") — [종료]가 옛 저장 창 대신 이 판을 연다: 정사각 무대가 토막을 쇼츠 그대로(자취가 시각 · 카메라를 쥔다 · 자막 · 사진 포함 · .is-short) 돌리고,
+   *  아래(폰) · 오른쪽(PC) 판에 타임라인(재생 · 끌어 옮기기 · 자막/사진 띠)과 [+자막][+사진] · 띠를 골라 [고치기][삭제] · 띠 몸통 끌기 = 시작 옮기기 · 오른끝 끌기 = 길이.
+   *  자막 · 사진은 토막 데이터(caps · imgs)라 다시 녹화하지 않는다. [올리기]가 고친 토막을 앱(onShortCreate)에 넘긴다. sel = 고른 띠. */
+  const [recSave9, setRecSave9] = useState<{ clip: ShortClip9; cover: string | null; busy: boolean; err: string; sel: { k: "cap" | "img"; i: number } | null } | null>(null);
+  const recSaveRef9 = useRef(recSave9);
+  recSaveRef9.current = recSave9;
+  const revOn9 = recSave9 !== null;
+  /** 다듬기 재생 자리(실초 w) — 그리기 틱이 shortWRef9 를 밀고 이 값은 0.1초마다 따라온다(타임라인 · 자막 · 사진 다시 그리기). */
+  const [revW9, setRevW9] = useState(0);
   const [recDone9, setRecDone9] = useState(false);
   const recDoneTm9 = useRef(0);
   /** 지금 눈 — 배율과 화면 가운데의 지도 분수(핀 pinSceneNow9 와 같은 셈 · 자릿수는 shortSample9 가 죈다). */
@@ -17827,11 +17837,12 @@ export default function ReplayMotionPlayer({
       ...(r9.spd.length > 1 ? { spd: r9.spd.filter(([w9]) => w9 < r9.w) } : {}),
       caps: r9.caps.filter((c9) => c9.w < r9.w), hw: r9.hw, ...(r9.imgs.some((i9) => i9.w < r9.w) ? { imgs: r9.imgs.filter((i9) => i9.w < r9.w) } : {}), ...(r9.vw ? { vw: r9.vw } : {}), ...(r9.a !== 90 ? { a: r9.a } : {}),
     };
-    setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "" });   // 재생은 그대로(위 recPauseToggle9 ★ "완전 별도" · 옛: 끝내면 재생도 멈췄다)
+    setPlaying(false);   // 다듬기(위 recSave9 ★)는 토막 시계가 쥔다 — 경기 재생은 멈추고 토막 0초에서 선다(아래 다듬기 효과)
+    setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "", sel: null });
   };
   /* 녹화가 끝나면(저장 창이 떠도) 무대를 되돌린다(위 recSq9 ★) — 정사각에 보이던 크기 그대로 넓은 무대로. */
   useEffect(() => {
-    if (recOn9 || !recSq9 || recViewAfter9.current?.begin) return;
+    if (recOn9 || revOn9 || !recSq9 || recViewAfter9.current?.begin) return;   // 다듬기 동안은 정사각 그대로(쇼츠 그대로 보이게)
     const [z9, cx9, cy9] = recViewNow9();
     recViewAfter9.current = { z: z9 * (recSq9.s / Math.max(1, recSq9.w0)), cx: cx9, cy: cy9, s: recSq9.s, begin: false, at: performance.now() };
     recSqRef9.current = null;
@@ -17843,7 +17854,7 @@ export default function ReplayMotionPlayer({
     const tm9 = window.setTimeout(() => { if (recViewAfter9.current && !recViewAfter9.current.begin) recApplyViewRef9.current(); }, 700);
     return () => window.clearTimeout(tm9);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recOn9]);
+  }, [recOn9, revOn9]);
   const recStopRef9 = useRef(recStop9);
   recStopRef9.current = recStop9;
   /** 녹화 일시정지 · 이어 녹화(위 recPause9 ★) — 자막 · 사진 판이 떠 있으면 안 받는다. */
@@ -17901,7 +17912,7 @@ export default function ReplayMotionPlayer({
   /* ★ 쇼츠 사진(short9 ShortImg9 ★ · 2026-11-19, 요청: "자막처럼 사진 첨부도 가능하게 · 사진은 저화질로 올리고 몇초뜰지와 크기위치 지정 가능") — 녹화 중 사진 단추 → 멈추고(토막 시계도)
      파일 고르기(숨은 input · 같은 누름 안에서 연다) → 긴 변 480 webp 로 줄여 쇼츠 정사각 틀 안 가운데에 띄운다 → 끌어서 자리 · 판(위)에서 크기 · 몇 초(기본 5) → 추가하면 그 w 에
      한 장 · 다시 재생. 고르기를 취소하면 판이 남아 [사진 고르기] 로 다시 연다. */
-  const [imgAsk9, setImgAsk9] = useState<{ src: string | null; ar: number; x: number; y: number; s: number; d: number; play: boolean; busy: boolean } | null>(null);
+  const [imgAsk9, setImgAsk9] = useState<{ src: string | null; ar: number; x: number; y: number; s: number; d: number; play: boolean; busy: boolean; idx?: number; w?: number } | null>(null);   // idx · w = 다듬기(recSave9 ★)
   const imgAskRef9 = useRef(imgAsk9);
   imgAskRef9.current = imgAsk9;
   const imgInputRef9 = useRef<HTMLInputElement | null>(null);
@@ -17938,6 +17949,23 @@ export default function ReplayMotionPlayer({
     const a9 = imgAskRef9.current;
     const r9 = recRef9.current;
     setImgAsk9(null);
+    if (recSaveRef9.current) {   // 다듬기(recSave9 ★) — 토막의 사진을 넣거나 고친다(녹화 시계와 무관)
+      if (save9 && a9?.src) {
+        const src9 = a9.src;
+        const item9: ShortImg9 = { w: a9.w ?? 0, d: a9.d, x: Math.round(a9.x * 1000) / 1000, y: Math.round(a9.y * 1000) / 1000, s: Math.round(a9.s * 1000) / 1000, ar: Math.round(a9.ar * 1000) / 1000, src: src9 };
+        setRecSave9((v9) => {
+          if (!v9) return v9;
+          const imgs9 = [...(v9.clip.imgs ?? [])];
+          if (a9.idx !== undefined && imgs9[a9.idx]) imgs9[a9.idx] = { ...imgs9[a9.idx], ...item9 };
+          else imgs9.push(item9);
+          const keep9 = a9.idx !== undefined ? imgs9[a9.idx] : item9;
+          imgs9.sort((p9, q9) => p9.w - q9.w);
+          return { ...v9, clip: { ...v9.clip, imgs: imgs9 }, sel: { k: "img", i: imgs9.indexOf(keep9) } };
+        });
+        setRevW9(shortWRef9.current);
+      }
+      return;
+    }
     if (save9 && r9 && a9?.src) {
       r9.last = performance.now();   // 넣는 동안 흐른 실초는 안 친다(토막 시계가 그 w 에서 곧장 잇는다)
       r9.imgs.push({ w: Math.round(r9.w * 100) / 100, d: a9.d, x: Math.round(a9.x * 1000) / 1000, y: Math.round(a9.y * 1000) / 1000, s: Math.round(a9.s * 1000) / 1000, ar: Math.round(a9.ar * 1000) / 1000, src: a9.src });
@@ -17953,6 +17981,21 @@ export default function ReplayMotionPlayer({
     const r9 = recRef9.current;
     setCapAsk9(null);
     const text9 = (a9?.text ?? "").trim().slice(0, SHORT_CAP_LEN9);
+    if (recSaveRef9.current) {   // 다듬기(recSave9 ★) — 토막의 자막을 넣거나 고친다
+      if (save9 && a9 && text9) {
+        const item9: ShortCap9 = { w: a9.w ?? 0, d: a9.d, text: text9 };
+        setRecSave9((v9) => {
+          if (!v9) return v9;
+          const caps9 = [...v9.clip.caps];
+          if (a9.idx !== undefined && caps9[a9.idx]) caps9[a9.idx] = item9;
+          else caps9.push(item9);
+          caps9.sort((p9, q9) => p9.w - q9.w);
+          return { ...v9, clip: { ...v9.clip, caps: caps9 }, sel: { k: "cap", i: caps9.indexOf(item9) } };
+        });
+        setRevW9(shortWRef9.current);
+      }
+      return;
+    }
     if (save9 && r9 && a9 && text9) {
       r9.last = performance.now();
       r9.caps.push({ w: Math.round(r9.w * 100) / 100, d: a9.d, text: text9 });
@@ -17961,11 +18004,195 @@ export default function ReplayMotionPlayer({
     }
     if (a9?.play) setPlaying(true);   // 자막 저장 중엔 일시정지 · 저장(닫음)하면 다시 재생(요청)
   };
+  /* ── 다듬기(위 recSave9 ★) ── */
+  /** 토막의 실초 w 로 옮긴다 — 그 칸의 시각 · 카메라 · 배속을 앉히고(쇼츠 재생 틱과 같은 셈) 한 장 칠한다. */
+  const revSeek9 = (w: number): void => {
+    const c9 = recSaveRef9.current?.clip;
+    if (!c9) return;
+    const w9 = Math.min(c9.dur, Math.max(0, w));
+    shortWRef9.current = w9;
+    shortEndedRef9.current = false;
+    const at9 = shortAt9(c9, w9, grid.width > 0 ? grid.height / grid.width : 1);
+    if (at9) {
+      tLiveRef9.current = Math.min(total, Math.max(0, at9.t));
+      shortCamRef9.current?.(at9.z, at9.cx, at9.cy);
+      setT(tLiveRef9.current);
+    }
+    const sp9 = shortSpdAt9(c9, w9);
+    if (Math.abs(sp9 - speedRef9.current) > 1e-6) { speedRef9.current = sp9; setSpeed(sp9); }
+    setZoom(zoomRef.current);
+    setPan({ ...panRef.current });
+    setRevW9(w9);
+    requestPaint9();
+  };
+  const revSeekRef9 = useRef(revSeek9);
+  revSeekRef9.current = revSeek9;
+  /* 다듬기를 열면 — 경기 재생 · 중계를 멈추고 토막 0초에 선다 · 닫으면 배속 · 중계를 되돌린다. */
+  const revKeep9 = useRef<{ sp: number; cast: boolean } | null>(null);
+  useEffect(() => {
+    if (revOn9) {
+      revKeep9.current = { sp: speedRef9.current, cast: castUser9 };
+      if (castUser9) setCastOn(false);
+      setPlaying(false);
+      const raf9 = requestAnimationFrame(() => revSeekRef9.current(0));
+      return () => cancelAnimationFrame(raf9);
+    }
+    const k9 = revKeep9.current;
+    revKeep9.current = null;
+    if (!k9) return undefined;
+    setPlaying(false);
+    shortWRef9.current = 0;
+    shortEndedRef9.current = false;
+    if (Math.abs(k9.sp - speedRef9.current) > 1e-6) { speedRef9.current = k9.sp; setSpeed(k9.sp); }
+    if (k9.cast) setCastOn(true);
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revOn9]);
+  /* 다듬기 재생 중 — 타임라인 · 자막을 0.1초마다 따라 그린다 · 끝에서 다시 누르면 처음부터. */
+  useEffect(() => {
+    if (!revOn9 || !playing) return undefined;
+    const c9 = recSaveRef9.current?.clip;
+    if (c9 && shortWRef9.current >= c9.dur - 0.05) revSeekRef9.current(0);
+    const iv9 = window.setInterval(() => setRevW9(shortWRef9.current), 100);
+    return () => { window.clearInterval(iv9); setRevW9(shortWRef9.current); };
+  }, [revOn9, playing]);
+  const revCapOpen9 = (idx?: number): void => {
+    const v9 = recSaveRef9.current;
+    if (!v9 || capAskRef9.current || imgAskRef9.current) return;
+    const cur9 = idx !== undefined ? v9.clip.caps[idx] : undefined;
+    setPlaying(false);
+    setCapAsk9({ text: cur9?.text ?? "", d: cur9?.d ?? SHORT_CAP_D9, play: false, idx, w: cur9 ? cur9.w : Math.round(Math.min(v9.clip.dur - 0.2, shortWRef9.current) * 100) / 100 });
+  };
+  const revImgOpen9 = (idx?: number): void => {
+    const v9 = recSaveRef9.current;
+    if (!v9 || capAskRef9.current || imgAskRef9.current) return;
+    const imgs9 = v9.clip.imgs ?? [];
+    const cur9 = idx !== undefined ? imgs9[idx] : undefined;
+    if (!cur9 && imgs9.length >= SHORT_IMGS_MAX9) { replayToast(`사진은 ${SHORT_IMGS_MAX9}장까지예요`); return; }
+    setPlaying(false);
+    setImgAsk9({
+      src: cur9?.src ?? null, ar: cur9?.ar ?? 1, x: cur9?.x ?? 0.5, y: cur9?.y ?? 0.5, s: cur9?.s ?? 0.45, d: cur9?.d ?? SHORT_CAP_D9, play: false, busy: false,
+      idx, w: cur9 ? cur9.w : Math.round(Math.min(v9.clip.dur - 0.2, shortWRef9.current) * 100) / 100,
+    });
+    if (!cur9) { const in9 = imgInputRef9.current; if (in9) { in9.value = ""; in9.click(); } }   // 같은 누름 안에서 연다
+  };
+  const revDel9 = (): void => {
+    setRecSave9((v9) => {
+      if (!v9?.sel) return v9;
+      const { k, i } = v9.sel;
+      const clip9: ShortClip9 = k === "cap"
+        ? { ...v9.clip, caps: v9.clip.caps.filter((_c9, j9) => j9 !== i) }
+        : { ...v9.clip, imgs: (v9.clip.imgs ?? []).filter((_m9, j9) => j9 !== i) };
+      return { ...v9, clip: clip9, sel: null };
+    });
+  };
+  const revDelRef9 = useRef(revDel9);
+  revDelRef9.current = revDel9;
+  /* 다듬기 키 — ←→ 1초 옮기기(경기 감기 대신) · ↑↓(배속)는 막는다(배속은 토막이 쥔다) · Delete 고른 띠 지우기 · 스페이스는 재생기 키 그대로(재생/멈춤). */
+  useEffect(() => {
+    if (!revOn9) return undefined;
+    const key9 = (e: KeyboardEvent): void => {
+      const t9 = e.target as HTMLElement | null;
+      if (t9 && (t9.tagName === "INPUT" || t9.tagName === "TEXTAREA" || t9.isContentEditable)) return;
+      if (capAskRef9.current || imgAskRef9.current) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault(); e.stopPropagation();
+        revSeekRef9.current(shortWRef9.current + (e.key === "ArrowRight" ? 1 : -1));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault(); e.stopPropagation();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && recSaveRef9.current?.sel) {
+        e.preventDefault(); e.stopPropagation();
+        revDelRef9.current();
+      }
+    };
+    window.addEventListener("keydown", key9, true);
+    return () => window.removeEventListener("keydown", key9, true);
+  }, [revOn9]);
+  /** 타임라인 손짓 — 빈 곳 누르고 끌기 = 그 자리로(멈춤) · 띠 = 고르기(톡 = 그 시작으로) · 띠 끌기 = 시작 옮기기 · 띠 오른끝 끌기 = 길이. */
+  const revTrackRef9 = useRef<HTMLDivElement | null>(null);
+  const revDrag9 = useRef<{ id: number; mode: "seek" | "move" | "size"; k?: "cap" | "img"; i?: number; x0: number; w0: number; d0: number; moved: boolean } | null>(null);
+  const revWAtX9 = (x9: number): number => {
+    const r9 = revTrackRef9.current?.getBoundingClientRect();
+    const c9 = recSaveRef9.current?.clip;
+    if (!r9 || !c9 || r9.width <= 0) return 0;
+    return Math.min(c9.dur, Math.max(0, ((x9 - r9.left) / r9.width) * c9.dur));
+  };
+  const revDown9 = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    const c9 = recSaveRef9.current?.clip;
+    if (!c9 || e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (playing) setPlaying(false);
+    const tg9 = e.target as HTMLElement;
+    const seg9 = tg9.closest<HTMLElement>("[data-seg]");
+    if (seg9) {
+      const k9 = seg9.dataset.k === "img" ? "img" : "cap";
+      const i9 = Number(seg9.dataset.i);
+      const it9 = k9 === "cap" ? c9.caps[i9] : (c9.imgs ?? [])[i9];
+      if (!it9) return;
+      revDrag9.current = { id: e.pointerId, mode: tg9.closest("[data-size]") ? "size" : "move", k: k9, i: i9, x0: e.clientX, w0: it9.w, d0: it9.d, moved: false };
+      setRecSave9((v9) => (v9 ? { ...v9, sel: { k: k9, i: i9 } } : v9));
+      return;
+    }
+    revDrag9.current = { id: e.pointerId, mode: "seek", x0: e.clientX, w0: 0, d0: 0, moved: false };
+    revSeek9(revWAtX9(e.clientX));
+  };
+  const revMove9 = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    const d9 = revDrag9.current;
+    const c9 = recSaveRef9.current?.clip;
+    const r9 = revTrackRef9.current?.getBoundingClientRect();
+    if (!d9 || d9.id !== e.pointerId || !c9 || !r9 || r9.width <= 0) return;
+    if (d9.mode === "seek") { revSeek9(revWAtX9(e.clientX)); return; }
+    if (Math.abs(e.clientX - d9.x0) > 3) d9.moved = true;
+    if (!d9.moved || d9.k === undefined || d9.i === undefined) return;
+    const dw9 = ((e.clientX - d9.x0) / r9.width) * c9.dur;
+    const r1 = (v9: number): number => Math.round(v9 * 10) / 10;
+    const k9 = d9.k;
+    const i9 = d9.i;
+    const w9 = r1(Math.min(c9.dur - 0.2, Math.max(0, d9.w0 + dw9)));
+    const dd9 = r1(Math.min(SHORT_CAP_DMAX9, Math.max(0.5, d9.d0 + dw9)));
+    setRecSave9((v9) => {
+      if (!v9) return v9;
+      if (k9 === "cap") {
+        const caps9 = [...v9.clip.caps];
+        if (!caps9[i9]) return v9;
+        caps9[i9] = d9.mode === "move" ? { ...caps9[i9], w: w9 } : { ...caps9[i9], d: dd9 };
+        return { ...v9, clip: { ...v9.clip, caps: caps9 } };
+      }
+      const imgs9 = [...(v9.clip.imgs ?? [])];
+      if (!imgs9[i9]) return v9;
+      imgs9[i9] = d9.mode === "move" ? { ...imgs9[i9], w: w9 } : { ...imgs9[i9], d: dd9 };
+      return { ...v9, clip: { ...v9.clip, imgs: imgs9 } };
+    });
+    revSeek9(d9.mode === "move" ? w9 + 0.01 : Math.max(0, Math.min(c9.dur, d9.w0 + dd9 - 0.05)));   // 옮기면 그 시작 · 늘이면 그 끝 장면을 보인다
+  };
+  const revUp9 = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    const d9 = revDrag9.current;
+    if (!d9 || d9.id !== e.pointerId) return;
+    revDrag9.current = null;
+    if (d9.mode === "seek" || d9.k === undefined || d9.i === undefined) return;
+    const k9 = d9.k;
+    const i9 = d9.i;
+    if (!d9.moved) { revSeek9(d9.w0 + 0.01); return; }   // 톡 — 고르고 그 시작으로
+    setRecSave9((v9) => {   // 끌기가 끝나면 시작 차례로 다시 늘어세운다(고른 띠는 따라간다)
+      if (!v9) return v9;
+      if (k9 === "cap") {
+        const caps9 = [...v9.clip.caps];
+        const it9 = caps9[i9];
+        caps9.sort((p9, q9) => p9.w - q9.w);
+        return { ...v9, clip: { ...v9.clip, caps: caps9 }, sel: { k: "cap", i: caps9.indexOf(it9) } };
+      }
+      const imgs9 = [...(v9.clip.imgs ?? [])];
+      const it9 = imgs9[i9];
+      imgs9.sort((p9, q9) => p9.w - q9.w);
+      return { ...v9, clip: { ...v9.clip, imgs: imgs9 }, sel: { k: "img", i: imgs9.indexOf(it9) } };
+    });
+  };
   const recSaveRun9 = async (): Promise<void> => {
     const v9 = recSave9;
     const f9 = onShortCreateRef9.current;
     if (!v9 || v9.busy || !f9) return;
-    setRecSave9({ ...v9, busy: true, err: "" });
+    setRecSave9({ ...v9, busy: true, err: "" });   // (v9 는 다듬은 토막 — 자막 · 사진 고친 것까지)
     try {
       await f9(v9.clip, v9.cover);
     } catch {
@@ -17979,7 +18206,7 @@ export default function ReplayMotionPlayer({
   };
   /** 쇼츠 재생 — 토막 시계(실초)와 끝났나. 틱이 민다(아래 재생 틱 ★). */
   const shortRef9 = useRef(short ?? null);
-  shortRef9.current = short ?? null;
+  shortRef9.current = short ?? recSave9?.clip ?? null;   // 다듬기(위 recSave9 ★)도 그 토막을 쇼츠처럼 돌린다(그리기 틱 · 카메라 shortCamRef9)
   const shortWRef9 = useRef(0);
   const shortEndedRef9 = useRef(false);
   const shortPanAt9 = useRef(0);
@@ -26061,10 +26288,13 @@ export default function ReplayMotionPlayer({
             </div>
   );
   /** 지금 떠 있는 쇼츠 자막 — 쇼츠 재생이면 그 토막 시계 · 녹화 중이면 녹화 시계(미리보기 · recTick9 가 다시 그린다). */
-  const shortCapW9 = short ? shortWRef9.current : recOn9 && recRef9.current ? recRef9.current.w : -1;
-  const shortCapsNow9 = shortCapW9 >= 0 ? shortCapsAt9(short ? short.caps : recRef9.current?.caps ?? [], shortCapW9) : [];
+  const revClip9 = recSave9?.clip ?? null;   // 다듬기(recSave9 ★) — 그 토막의 자막 · 사진을 토막 시계로
+  const shortCapW9 = short || revClip9 ? shortWRef9.current : recOn9 && recRef9.current ? recRef9.current.w : -1;
+  const shortCapsNow9 = shortCapW9 >= 0 ? shortCapsAt9(short ? short.caps : revClip9 ? revClip9.caps : recRef9.current?.caps ?? [], shortCapW9) : [];
   /** 지금 떠 있는 쇼츠 사진(위 imgAsk9 ★) — 자막과 같은 시계 · 넣는 중(편집)이면 그 한 장을 끌 수 있게 얹는다. 자리는 무대 가운데 정사각(녹화 틀 · 재생은 그 정사각이 통째로 든다). */
-  const shortImgsNow9 = shortCapW9 >= 0 ? shortImgsAt9(short ? short.imgs ?? [] : recRef9.current?.imgs ?? [], shortCapW9) : [];
+  const shortImgsNow9 = shortCapW9 >= 0
+    ? shortImgsAt9(short ? short.imgs ?? [] : revClip9 ? (revClip9.imgs ?? []).filter((_m9, j9) => j9 !== imgAsk9?.idx) : recRef9.current?.imgs ?? [], shortCapW9)
+    : [];   // 다듬기에서 고치는 사진은 빼고(판의 끌 수 있는 사진이 대신 선다)
   const shortSq9 = stage.w > 0 && stage.h > 0 ? Math.min(stage.w, stage.h) : 0;
   const stageNode = (
     <div data-veil={veiled9 ? "" : undefined}
@@ -26088,7 +26318,7 @@ export default function ReplayMotionPlayer({
           맞춰서"). 폭은 아이콘 줄·조종부의 왼 끝이 함께 보는 값이라(--scr-mini-w) 셋이
           한 식에서 나와야 안 어긋난다. */}
       <div
-        className={cx("scr-fs-root", short && "is-short", recOn9 && "is-rec", (short ? stage.h > stage.w : smallDevice9) && "is-capphone", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
+        className={cx("scr-fs-root", short && "is-short", revOn9 && "is-shortrev", recOn9 && "is-rec", (smallDevice9 || (!!short && stage.h > stage.w)) && "is-capphone", uiHide9.all && "is-uihide-all", uiHide9.cap && "is-uihide-cap", uiHide9.dock && "is-uihide-dock", uiHide9.mini && "is-uihide-mini", uiHide9.ctl && "is-uihide-ctl", dockFold2On9 && "is-dockfold2")} ref={fsRootRef}
         style={{ ["--scr-mini-ar" as string]: `${grid.width / Math.max(1, grid.height)}` } as React.CSSProperties}
       >
         {/* ★ 2단 접기의 펼치기 손잡이는 **뿌리 오른아래**에 뜬다(2026-11-07, 실기 지적: "2단 접기 상태의 펼치기 버튼은 아래쪽으로" — 재생바가 숨은 자리(화면 가운데쯤)에 홀로 떠 있었다).
@@ -26637,10 +26867,12 @@ export default function ReplayMotionPlayer({
 
   /* ★ 쇼츠 자막 창 · 저장 창(위 쇼츠 ★) — 핀 메모 창과 같은 꼴(body 포털). 자막: 한 줄(120자) · 보이는 시간(1~15초 · 기본 5) · Enter 추가 · Esc 취소.
      저장: 표지 · 길이 · 자막 수 · [버리기 · 저장] — 못 올리면 창이 남아 다시 누른다. */
+  /** 실초 → "0:12"(다듬기 · 자막 · 사진 판 머리). */
+  const fmtW9 = (w9: number): string => `${Math.floor(w9 / 60)}:${String(Math.floor(w9) % 60).padStart(2, "0")}`;
   const capAskNode9 = capAsk9 !== null ? createPortal(
     <div className="scr-sharepick-overlay is-top" onPointerDown={(e) => { if (e.target === e.currentTarget) capClose9(false); }}>
       <div className="scr-sharepick scr-pinask scr-capask" role="dialog" aria-modal="true" aria-label="쇼츠 자막 추가">
-        <p className="scr-sharepick-title">자막 추가 <small>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}부터</small></p>
+        <p className="scr-sharepick-title">{capAsk9.idx !== undefined ? "자막 고치기" : "자막 추가"} <small>{capAsk9.w !== undefined ? fmtW9(capAsk9.w) : `${Math.floor(recTick9 / 600)}:${String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}`}부터</small></p>
         <input
           className="scr-pinask-input" type="text" ref={(el) => { if (el && document.activeElement !== el && !el.dataset.f9) { el.dataset.f9 = "1"; el.focus(); } }}
           maxLength={SHORT_CAP_LEN9} placeholder="자막 글" value={capAsk9.text}
@@ -26655,14 +26887,14 @@ export default function ReplayMotionPlayer({
         </div>
         <div className="scr-pinask-row">
           <button type="button" className="scr-sharepick-cancel" onClick={() => capClose9(false)}>취소</button>
-          <button type="button" className="scr-pinask-ok" disabled={!capAsk9.text.trim()} onClick={() => capClose9(true)}>추가</button>
+          <button type="button" className="scr-pinask-ok" disabled={!capAsk9.text.trim()} onClick={() => capClose9(true)}>{capAsk9.idx !== undefined ? "고치기" : "추가"}</button>
         </div>
       </div>
     </div>, document.body) : null;
   /* 사진 판(위 imgAsk9 ★) — 덮개 없이 위에 떠서(무대의 사진을 끌 수 있게) [사진 고르기 · 크기 · 보이는 시간 · 취소 · 추가]. */
   const imgAskNode9 = imgAsk9 !== null ? createPortal(
     <div className="scr-sharepick scr-imgask" role="dialog" aria-label="쇼츠 사진 추가" onPointerDown={(e) => e.stopPropagation()}>
-      <p className="scr-sharepick-title">사진 추가 <small>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}부터 · 끌어서 자리</small></p>
+      <p className="scr-sharepick-title">{imgAsk9.idx !== undefined ? "사진 고치기" : "사진 추가"} <small>{imgAsk9.w !== undefined ? fmtW9(imgAsk9.w) : `${Math.floor(recTick9 / 600)}:${String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}`}부터 · 끌어서 자리</small></p>
       <button type="button" className="scr-sharepick-cancel scr-imgask-pick" disabled={imgAsk9.busy} onClick={() => { const in9 = imgInputRef9.current; if (in9) { in9.value = ""; in9.click(); } }}>
         {imgAsk9.busy ? "줄이는 중…" : imgAsk9.src ? "다른 사진 고르기" : "사진 고르기"}
       </button>
@@ -26680,23 +26912,59 @@ export default function ReplayMotionPlayer({
       </div>
       <div className="scr-pinask-row">
         <button type="button" className="scr-sharepick-cancel" onClick={() => imgClose9(false)}>취소</button>
-        <button type="button" className="scr-pinask-ok" disabled={!imgAsk9.src || imgAsk9.busy} onClick={() => imgClose9(true)}>추가</button>
+        <button type="button" className="scr-pinask-ok" disabled={!imgAsk9.src || imgAsk9.busy} onClick={() => imgClose9(true)}>{imgAsk9.idx !== undefined ? "고치기" : "추가"}</button>
       </div>
     </div>, document.body) : null;
-  const recSaveNode9 = recSave9 !== null ? createPortal(
-    <div className="scr-sharepick-overlay is-top">
-      <div className="scr-sharepick scr-shortsave" role="dialog" aria-modal="true" aria-label="쇼츠 저장">
-        <p className="scr-sharepick-title">쇼츠 저장</p>
-        {recSave9.cover && <img className="scr-shortsave-cover" src={recSave9.cover} alt="" />}
-        <p className="scr-shortsave-meta">
-          {Math.round(recSave9.clip.dur)}초 · 게임 {Math.floor(recSave9.clip.t0 / 60)}:{String(Math.floor(recSave9.clip.t0) % 60).padStart(2, "0")}~{Math.floor(recSave9.clip.t1 / 60)}:{String(Math.floor(recSave9.clip.t1) % 60).padStart(2, "0")}
-          {" · "}자막 {recSave9.clip.caps.length}개
-        </p>
-        {recSave9.err && <p className="scr-shortsave-err">{recSave9.err}</p>}
-        <div className="scr-pinask-row">
-          <button type="button" className="scr-sharepick-cancel" disabled={recSave9.busy} onClick={() => setRecSave9(null)}>버리기</button>
-          <button type="button" className="scr-pinask-ok" disabled={recSave9.busy} onClick={() => { void recSaveRun9(); }}>{recSave9.busy ? "올리는 중…" : "저장"}</button>
+  /* 다듬기 판(위 recSave9 ★) — PC 는 오른쪽 · 폰은 아래 바닥 판. 사진 판(imgAsk9)이 뜨면 폰은 자리를 비킨다(같은 아래 자리). 옛: 저장 창(표지 · 길이 · 자막 수 · 버리기 · 저장). */
+  const revSel9 = recSave9?.sel ?? null;
+  const recSaveNode9 = recSave9 !== null && !(uiPhone9 && imgAsk9) ? createPortal(
+    <div className={cx("scr-sharepick scr-shortrev", uiPhone9 && "is-phone")} role="dialog" aria-label="쇼츠 다듬기" onPointerDown={(e) => e.stopPropagation()}>
+      <p className="scr-sharepick-title">쇼츠 다듬기 <small>{fmtW9(revW9)} / {fmtW9(recSave9.clip.dur)}</small></p>
+      <div className="scr-shortrev-ctl">
+        <button type="button" className="scr-shortrev-play" onClick={() => setPlaying((v9) => !v9)} aria-label={playing ? "멈춤" : "재생"} title={playing ? "멈춤 (스페이스)" : "재생 (스페이스)"}>
+          {playing ? <Pause size={16} fill="currentColor" aria-hidden /> : <Play size={16} fill="currentColor" aria-hidden />}
+        </button>
+        <div className="scr-shortrev-track" ref={revTrackRef9} onPointerDown={revDown9} onPointerMove={revMove9} onPointerUp={revUp9} onPointerCancel={revUp9}
+          title="눌러 옮기기 · 띠를 끌면 시작 · 오른끝을 끌면 길이">
+          <div className="scr-shortrev-lane is-cap" aria-label="자막">
+            {recSave9.clip.caps.map((c9, i9) => (
+              <div key={`c${i9}`} data-seg="" data-k="cap" data-i={i9} className={cx("scr-shortrev-seg", revSel9?.k === "cap" && revSel9.i === i9 && "is-sel")}
+                style={{ left: `${(c9.w / recSave9.clip.dur) * 100}%`, width: `${(Math.min(c9.d, recSave9.clip.dur - c9.w) / recSave9.clip.dur) * 100}%` }} title={c9.text}>
+                <span>{c9.text}</span><i data-size="" aria-hidden />
+              </div>
+            ))}
+          </div>
+          <div className="scr-shortrev-lane is-img" aria-label="사진">
+            {(recSave9.clip.imgs ?? []).map((m9, i9) => (
+              <div key={`m${i9}`} data-seg="" data-k="img" data-i={i9} className={cx("scr-shortrev-seg", revSel9?.k === "img" && revSel9.i === i9 && "is-sel")}
+                style={{ left: `${(m9.w / recSave9.clip.dur) * 100}%`, width: `${(Math.min(m9.d, recSave9.clip.dur - m9.w) / recSave9.clip.dur) * 100}%` }} title="사진">
+                <span className="scr-shortrev-thumb" style={{ backgroundImage: `url(${m9.src})` }} aria-hidden /><i data-size="" aria-hidden />
+              </div>
+            ))}
+          </div>
+          <i className="scr-shortrev-at" style={{ left: `${(revW9 / Math.max(0.01, recSave9.clip.dur)) * 100}%` }} aria-hidden />
         </div>
+      </div>
+      <div className="scr-shortrev-acts">
+        <button type="button" onClick={() => revCapOpen9()} title="지금 자리부터 자막"><Captions size={15} aria-hidden /> 자막</button>
+        <button type="button" onClick={() => revImgOpen9()} title="지금 자리부터 사진"><ImagePlus size={15} aria-hidden /> 사진</button>
+        <span className="scr-shortrev-gap" />
+        {revSel9 && (
+          <>
+            <button type="button" onClick={() => (revSel9.k === "cap" ? revCapOpen9(revSel9.i) : revImgOpen9(revSel9.i))}>고치기</button>
+            <button type="button" className="is-danger" onClick={revDel9}>삭제</button>
+          </>
+        )}
+      </div>
+      <p className="scr-shortsave-meta">
+        {recSave9.cover && <img className="scr-shortrev-cover" src={recSave9.cover} alt="" />}
+        {Math.round(recSave9.clip.dur)}초 · 자막 {recSave9.clip.caps.length}개 · 사진 {(recSave9.clip.imgs ?? []).length}장
+      </p>
+      {recSave9.err && <p className="scr-shortsave-err">{recSave9.err}</p>}
+      <div className="scr-pinask-row">
+        <button type="button" className="scr-sharepick-cancel" disabled={recSave9.busy}
+          onClick={() => { if (window.confirm("녹화한 쇼츠를 버릴까요? 되돌릴 수 없어요.")) setRecSave9(null); }}>버리기</button>
+        <button type="button" className="scr-pinask-ok" disabled={recSave9.busy} onClick={() => { void recSaveRun9(); }}>{recSave9.busy ? "올리는 중…" : "올리기"}</button>
       </div>
     </div>, document.body) : null;
 
