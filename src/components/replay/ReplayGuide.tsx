@@ -82,7 +82,7 @@ export default function ReplayGuide({ onClose }: {
           <Row ic={<Route size={15}/>} name="선" keys={<Keys k={["L"]}/>}>명령(이동 · 공격 · 패트롤) 줄과 랠리 줄 켜고 끄기.</Row>
           <Row ic={<Search size={15}/>} name="검색" keys={<><Keys k={["F"]}/><Keys k={["B", "N"]}/></>}>사람 · 유닛 · 전술로 장면 찾기(예: "정구 드랍") · 결과가 있으면 B · N 이전 · 다음.</Row>
           <Row ic={<Share2 size={14}/>} name="장면 공유" keys={<Keys k={["X"]}/>}>지금 장면을 링크로.</Row>
-          <Row ic={<Clapperboard size={14}/>} name="쇼츠 만들기">클래퍼 단추로 녹화 시작(최대 60초 · 카메라 · 배율까지) · 녹화 중 자막 단추로 글과 보이는 시간(기본 5초)을 넣고 · 빨간 정지로 끝 → 저장하면 게임 목록 맨 위에 뜹니다.</Row>
+          <Row ic={<Clapperboard size={14}/>} name="쇼츠 만들기">클래퍼 단추로 녹화 시작(최대 60초 · 카메라 · 배율까지) · 녹화 중 자막 · 사진 단추로 글 · 사진과 보이는 시간(기본 5초)을 넣고 · ❚❚ 일시정지 동안은 안 찍히니 자리 · 시각을 옮긴 뒤 ▶ 로 이어 녹화 · 빨간 정지로 끝 → 저장하면 게임 목록 맨 위에 뜹니다.</Row>
           <Row ic={<Maximize size={15}/>} name="전체화면" keys={<><Keys k={["Alt", "Enter"]} plus/><Keys k={["Esc"]}/></>}/>
           <Row ic={<T s="UI"/>} name="UI 숨기기" keys={<><Keys k={["H"]}/><Keys k={["K"]}/><Keys k={["J"]}/><Keys k={["U"]}/></>}>H 모두 · K 자막 · 채팅 · 화면 주인 · J 독(미니맵까지) · U 중계 토글 · 배율 · 배속 단추 · 다시 누르면 보임.</Row>
           <Row ic={<T s="가"/>} name="자막 크기" keys={<Keys k={["[", "]", "\\"]}/>}>[ 작게 · ] 크게 · \ 처음대로.</Row>

@@ -6307,6 +6307,12 @@
 .scr-shortfab-btn.scr-shortrec-btn.is-rec svg { width: calc(11px * var(--sdk)); height: calc(11px * var(--sdk)); filter: none; }
 .scr-shortrec-time { font-size: calc(13px * var(--sdk)); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .scr-shortfab-btn.scr-shortcap-btn { color: #ffd34d; }
+/* 녹화 일시정지(RMP recPause9 ★ · 2026-11-20) — 정지 알약 아래 동그라미(❚❚ · 멈춘 동안은 빨간 ▶ = 이어 녹화). 멈춘 동안 알약은 숨쉬기를 멈추고 흐려지며 REC 표 · 틀은 노랗게. */
+.scr-shortfab-btn.scr-shortpause-btn.is-paused { background: #e3343d; color: #fff; box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); animation: scr-shortrec-pulse 1.6s ease-in-out infinite; }
+.scr-shortfab-btn.scr-shortpause-btn svg { width: calc(15px * var(--sdk)); height: calc(15px * var(--sdk)); }
+.scr-shortfab-btn.scr-shortrec-btn.is-rec.is-paused { animation: none; background: #8d2a30; box-shadow: none; }
+.scr-shortrec-badge.is-paused > i { background: #ffd34d; box-shadow: 0 0 6px #ffd34d; animation: none; }
+.scr-shortrec-frame.is-paused { border-color: rgba(255, 211, 77, 0.9); }
 @keyframes scr-shortrec-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); } 50% { box-shadow: 0 0 0 5px rgba(255, 90, 96, 0.12); } }
 .scr-shortrec-badge {
   position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 8px * var(--dk, 1)); transform: translateX(-50%); z-index: 30002;

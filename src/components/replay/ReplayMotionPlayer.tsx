@@ -17640,6 +17640,11 @@ export default function ReplayMotionPlayer({
   onShortProgressRef9.current = onShortProgress;
   const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; imgs: ShortImg9[]; sp: number; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
+  /** ★ 녹화 일시정지(2026-11-20, 요청: "녹화-정지 중간에 일시정지도 필요 · 일시정지 중엔 끊기고 장소나 시간을 옮겨서 다시 시작하면 그때로 바로 이어져서 녹화되게") —
+   *  멈추면 토막 시계(실초 w)가 안 가고 재생도 멈춘다(그 사이 카메라 · 배율 · 시각 · 배속을 마음대로 옮긴다). 끊는 자리에 그때 장면 한 칸, 이어 녹화하면 **같은 w 에 새 장면 한 칸**을
+   *  적는다 — 같은 w 의 두 칸 = 뜀(short9 shortAt9)이라 쇼츠는 그 자리에서 곧장 새 장소 · 새 시각으로 넘어간다. 멈춘 채 끝내면 멈춘 자리까지가 토막이다. */
+  const [recPause9, setRecPause9] = useState(false);
+  const recPauseRef9 = useRef(false);
   /** 녹화 화면을 다시 그리는 박자(토막 0.1초 칸) — REC 시계 · 자막 미리보기가 이 값으로 선다. */
   const [recTick9, setRecTick9] = useState(0);
   const [capAsk9, setCapAsk9] = useState<{ text: string; d: number; play: boolean } | null>(null);
@@ -17676,6 +17681,8 @@ export default function ReplayMotionPlayer({
     recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
+    recPauseRef9.current = false;
+    setRecPause9(false);
     setRecSave9(null);
     /* 표지는 다음 붓 한 장 직후(위 SHORT_SHOT9 ★) — 멈춘 판이면 한 장을 부른다. */
     SHORT_SHOT9.fn = () => { const r9 = recRef9.current; if (r9 && !r9.cover) r9.cover = coverNow9(); };
@@ -17688,10 +17695,13 @@ export default function ReplayMotionPlayer({
     recRef9.current = null;
     if (SHORT_SHOT9.fn) SHORT_SHOT9.fn = null;
     setRecOn9(false);
+    const paused9 = recPauseRef9.current;
+    recPauseRef9.current = false;
+    setRecPause9(false);
     setCapAsk9(null);
     setImgAsk9(null);
     const [z9, cx9, cy9] = recViewNow9();
-    if (r9.w - r9.at > 0.01) r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));
+    if (!paused9 && r9.w - r9.at > 0.01) r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));   // 멈춘 채 끝내면 멈춘 자리(이미 적은 칸)까지
     if (r9.w < 1) { replayToast("쇼츠가 너무 짧아요 — 1초 넘게 녹화해 주세요"); return; }
     const ts9 = r9.s.map((x9) => x9[1]);
     const clip9: ShortClip9 = {
@@ -17703,6 +17713,25 @@ export default function ReplayMotionPlayer({
   };
   const recStopRef9 = useRef(recStop9);
   recStopRef9.current = recStop9;
+  /** 녹화 일시정지 · 이어 녹화(위 recPause9 ★) — 자막 · 사진 판이 떠 있으면 안 받는다. */
+  const recPauseToggle9 = (): void => {
+    const r9 = recRef9.current;
+    if (!r9 || capAskRef9.current || imgAskRef9.current) return;
+    const [z9, cx9, cy9] = recViewNow9();
+    r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));   // 멈춤: 끊는 자리의 장면 · 이어: 같은 w 의 새 장면(뜀)
+    r9.at = r9.w;
+    if (!recPauseRef9.current) {
+      recPauseRef9.current = true;
+      setRecPause9(true);
+      setPlaying(false);
+    } else {
+      r9.last = performance.now();
+      recPauseRef9.current = false;
+      setRecPause9(false);
+      if (!done) setPlaying(true);
+    }
+    setRecTick9(Math.round(r9.w * 10) + (recPauseRef9.current ? 0.25 : 0));
+  };
   /* 토막 시계 — 녹화 중 rAF 마다 실초를 올리고(자막 창이 떠 있으면 멈춤) 0.1초마다 한 칸 · 60초에서 저절로 멈춘다. */
   useEffect(() => {
     if (!recOn9) return undefined;
@@ -17713,7 +17742,7 @@ export default function ReplayMotionPlayer({
       if (!r9) return;
       const dt9 = Math.min(0.25, Math.max(0, (now9 - r9.last) / 1000));
       r9.last = now9;
-      if (capAskRef9.current || imgAskRef9.current) return;   // 자막 · 사진 넣는 동안은 토막 시계가 안 간다
+      if (capAskRef9.current || imgAskRef9.current || recPauseRef9.current) return;   // 자막 · 사진 넣는 동안 · 일시정지 동안은 토막 시계가 안 간다
       r9.w = Math.min(SHORT_REC_MAX9, r9.w + dt9);
       if (r9.w - r9.at < SHORT_STEP9 && r9.w < SHORT_REC_MAX9) return;
       r9.at = r9.w;
@@ -23598,9 +23627,14 @@ export default function ReplayMotionPlayer({
           onDoubleClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           {recOn9 ? (
             <>
-              <button type="button" className="scr-shortfab-btn scr-shortrec-btn is-rec" onClick={recStop9} aria-label="녹화 끝" title="녹화 끝 — 쇼츠로 저장">
+              <button type="button" className={cx("scr-shortfab-btn scr-shortrec-btn is-rec", recPause9 && "is-paused")} onClick={recStop9} aria-label="녹화 끝" title="녹화 끝 — 쇼츠로 저장">
                 <Square size={11} fill="currentColor" aria-hidden />
                 <span className="scr-shortrec-time">{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</span>
+              </button>
+              <button type="button" className={cx("scr-shortfab-btn scr-shortpause-btn", recPause9 && "is-paused")} onClick={recPauseToggle9}
+                aria-pressed={recPause9} aria-label={recPause9 ? "이어 녹화" : "녹화 일시정지"}
+                title={recPause9 ? "이어 녹화 — 지금 자리 · 시각에서 곧장 이어진다" : "녹화 일시정지 — 멈춘 동안은 안 찍힌다(자리 · 시각을 옮겨도 된다)"}>
+                {recPause9 ? <Play size={16} fill="currentColor" aria-hidden /> : <Pause size={16} fill="currentColor" aria-hidden />}
               </button>
               <button type="button" className="scr-shortfab-btn scr-shortcap-btn" onClick={capOpen9} aria-label="자막 추가" title="자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다">
                 <Captions size={17} aria-hidden />
@@ -25993,13 +26027,13 @@ export default function ReplayMotionPlayer({
           {/* ★ 쇼츠(위 쇼츠 ★) — 녹화 중 REC 표(무대 위 가운데) · 자막(녹화 미리보기 · 쇼츠 재생 연출 — 아래 shortCapsNow9). */}
           {/* 녹화 중 쇼츠 틀(위 shortCamRef9 ★★) — 무대 가운데 정사각(한 변 = 무대 짧은 변) · 두꺼운 흰 점선 · 틀 밖은 살짝 어둡게. 표지도 이 정사각을 찍는다(shortCoverOf9). */}
           {recOn9 && stage.w > 0 && stage.h > 0 && (
-            <div className="scr-shortrec-frame" style={{ width: Math.min(stage.w, stage.h), height: Math.min(stage.w, stage.h) }} aria-hidden />
+            <div className={cx("scr-shortrec-frame", recPause9 && "is-paused")} style={{ width: Math.min(stage.w, stage.h), height: Math.min(stage.w, stage.h) }} aria-hidden />
           )}
           {recOn9 && (
-            <div className="scr-shortrec-badge" aria-live="off">
-              <i aria-hidden />REC <b>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</b>
+            <div className={cx("scr-shortrec-badge", recPause9 && "is-paused")} aria-live="off">
+              <i aria-hidden />{recPause9 ? "일시정지" : "REC"} <b>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</b>
               <span>/ {Math.floor(SHORT_REC_MAX9 / 60)}:{String(SHORT_REC_MAX9 % 60).padStart(2, "0")}</span>
-              {capAsk9 && <em>자막 쓰는 중 · 멈춤</em>}
+              {capAsk9 ? <em>자막 쓰는 중 · 멈춤</em> : recPause9 ? <em>자리 · 시각을 옮기고 ▶ 로 이어 녹화</em> : null}
             </div>
           )}
           {shortSq9 > 0 && (shortImgsNow9.length > 0 || !!imgAsk9?.src) && (

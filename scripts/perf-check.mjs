@@ -1174,6 +1174,16 @@ if (flag("--shortprobe", null)) {
     await page.waitForTimeout(400);
   }
   await page.screenshot({ path: `${base9}_prev.png`, timeout: 240000 });
+  /* 일시정지(2026-11-20 · --shortpause) — ❚❚ → 1.5초 쉼(토막 시계가 안 가야) · 진행바 +30초 · 휠 축소 둘 → 사진 _pause → ▶ 이어 녹화. 끝에 같은 w 두 칸(뜀) 수를 적는다. */
+  if (has("--shortpause")) {
+    await clk9(".scr-shortpause-btn");
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { const r = document.querySelector(".scr-motion-range"); if (r instanceof HTMLInputElement) { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; set?.call(r, String(Math.min(Number(r.max), Number(r.value) + 30))); r.dispatchEvent(new Event("input", { bubbles: true })); r.dispatchEvent(new Event("change", { bubbles: true })); } });
+    if (mb9) { await page.mouse.move(mb9[0], mb9[1]); for (let i9 = 0; i9 < 2; i9 += 1) { await page.mouse.wheel(0, 120); await page.waitForTimeout(250); } }
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${base9}_pause.png`, timeout: 240000 });
+    await clk9(".scr-shortpause-btn");
+  }
   await page.waitForTimeout(1600);
   await clk9(".scr-shortrec-btn.is-rec");
   await page.waitForTimeout(400);
@@ -1187,6 +1197,8 @@ if (flag("--shortprobe", null)) {
     if (o9.cover) writeFileSync(`${base9}_cover.${o9.cover.startsWith("data:image/webp") ? "webp" : "jpg"}`, Buffer.from(o9.cover.split(",")[1], "base64"));
     const c9 = o9.clip;
     console.log(`[쇼츠] 길이 ${c9.dur}초 · 게임 ${c9.t0}~${c9.t1} · 칸 ${c9.s.length} · 자막 ${JSON.stringify(c9.caps)} · 사진 ${JSON.stringify((c9.imgs ?? []).map((m) => ({ ...m, src: `${m.src.slice(0, 22)}…${Math.round(m.src.length / 1024)}KB` })))} · 배율 ${c9.s[0][2]}→${Math.max(...c9.s.map((x) => x[2]))} · 가운데 (${c9.s[0][3]},${c9.s[0][4]})→(${c9.s[c9.s.length - 1][3]},${c9.s[c9.s.length - 1][4]}) · 표지 ${o9.cover ? Math.round(o9.cover.length / 1024) + "KB" : "없음"} · 글 ${(JSON.stringify(c9).length / 1024).toFixed(1)}KB`);
+    const jumps9 = c9.s.map((x, i) => (i > 0 && x[0] === c9.s[i - 1][0] ? `w${x[0]}: t ${c9.s[i - 1][1]}→${x[1]} · z ${c9.s[i - 1][2]}→${x[2]}` : null)).filter(Boolean);
+    console.log(`[쇼츠] 같은 w 두 칸(뜀) ${jumps9.length} — ${jumps9.join(" | ")}`);
   }
 }
 /* --shortshots N(2026-11-19 · --short FILE 과 함께) — 토막을 N 조각 시각마다 사진(OUT_k.png · --shot 의 이름 앞) · 진행 · 시각 · 배율 · 끝남을 적는다. */
