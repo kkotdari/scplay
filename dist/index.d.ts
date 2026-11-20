@@ -604,6 +604,10 @@ declare interface ReplayPlayerSignals {
     cmdCountByThird: [number, number, number];
 }
 
+/** ★ 재생기 채비를 미리(2026-11-20, 지적: "쇼츠 3초 이내") — 앱이 목록 화면에서 한가할 때 · 쇼츠 카드를 누를 때 부른다. 서버 아틀라스의 판 표 · 해독기 · 풀기 워커(폰 1 — 위 예열의
+ *  workers 와 같은 수) · 푼 단 캐시를 연다(sprAtlasPrime9). 받기 · 풀기 · GPU 는 첫 재생기가 한다. 아틀라스를 안 꽂은 앱이면 아무것도 안 한다. */
+export declare function replayPrewarm9(): void;
+
 declare type ReplayRaceBadgeComponent = ComponentType<{
     race: string;
     size?: number;
