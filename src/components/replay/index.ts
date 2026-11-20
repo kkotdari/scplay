@@ -11,7 +11,7 @@ export type { ReplayChrome, ReplayChromeMember } from "./chrome";
 export { setReplayBgm } from "./useBgm";
 export { setReplaySpriteAtlas } from "./sprAtlas9";
 export type { ReplayBgmTrack } from "./useBgm";
-export { setReplayMapFetcher, useReplayMap, useReplayMapTick, cachedReplayMap } from "./useReplayMap";
+export { setReplayMapFetcher, useReplayMap, useReplayMapTick, cachedReplayMap, primeReplayMap } from "./useReplayMap";
 export type { ReplayMapFetcher } from "./useReplayMap";
 
 // 자료의 꼴 — 앱이 채워 넘기는 것들.

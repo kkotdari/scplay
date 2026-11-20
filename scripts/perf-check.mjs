@@ -977,6 +977,18 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
    (옛 실측과 견주려고). --hash ui=… 를 주면 그 값. */
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
 const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");   // 실측 배킹 조절(DRS)은 재생기가 자동 조종(navigator.webdriver)에서 스스로 끈다(옛 drs=0 해시 · --drs 는 걷었다 · 2026-11-05)
+/* --stageprobe(2026-11-20, 지적: "쇼츠 로딩이 너무 걸림") — 뜬 때부터 로딩 글(simnote)이 바뀌는 때 · 긴 작업(longtask)을 적어 끝에 단계별 걸린 시간을 찍는다. */
+if (has("--stageprobe")) await page.addInitScript(() => {
+  window.__stg9 = []; window.__lt9 = [];
+  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt9.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ["longtask"] }); } catch {}
+  let last9 = null;
+  const tick9 = () => {
+    const t9 = document.querySelector(".scr-motion-simnote.is-in")?.textContent?.replace(/\s*\d+%$/, "") ?? (window.__veilReadyAt ? "준비" : "-");
+    if (t9 !== last9) { last9 = t9; window.__stg9.push([Math.round(performance.now()), t9]); }
+    if (!window.__veilReadyAt || t9 !== "준비") setTimeout(tick9, 50);
+  };
+  setTimeout(tick9, 0);
+});
 await page.goto(`http://perf-check.local/${hash9 ? `#${hash9}` : ""}`);
 /* 앱 CSS — 레이어 크기·자리·이펙트가 전부 클래스에 실려 있어 없으면 화면이 안 선다.
    빌드 산출물(dist)의 CSS를 그대로 얹는다(npm run build가 먼저 돌아 있어야 한다). */
@@ -1052,7 +1064,7 @@ else if (has("--sprdump")) {   // 아틀라스 덤프(2026-11-13 · 클라우드
     console.log("  [준비 기다림]", Math.round((Date.now() - t9) / 1000), "s", await page.evaluate(() => (window.__scrDiag || {}).warm9 ?? "-"));
   }
 }
-else await page.waitForFunction("(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
+else await page.waitForFunction(has("--stageprobe") ? "!!window.__veilReadyAt" : "(window.__spritePerf && (window.__spritePerf.last.blit + window.__spritePerf.last.direct) > 0) || (window.__glInst9 > 0)", null, { timeout: Number(flag("--readyms", 30000)) });   // --readyms N — 준비 기다림(헤드리스는 미리 굽기 수천 칸이 분 단위라 길게)
 /* --sprdump OUTDIR(2026-10-25 · 서버 아틀라스 굽기 — scripts/spr-atlas.mjs 가 부른다) — 재생기를 `#sprdump=Q` 로 열었을 때 모든 종류의 미리 굽기가 끝나기를(window.__sprDumpDone)
    기다렸다가 gl9 의 동적 판 픽셀(색 · 임자색·켜짐 · 빛 — GL 행 차례)을 OUTDIR/p{i}.{c,t,e}.raw 로, 칸 표를 OUTDIR/cells.json 으로 쓰고 끝난다. */
 if (has("--sprdump")) {
@@ -1439,6 +1451,14 @@ if (has("--zoomlockprobe")) {
     const z2 = await z9(); const [zw2, zk2] = await poke9();
     console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
   }
+}
+if (has("--stageprobe")) {
+  await page.waitForFunction(() => !!window.__veilReadyAt, null, { timeout: Number(flag("--stagewait", 90000)) }).catch(() => console.log("[단계] 준비 안 옴(시간 넘음)"));
+  await page.waitForTimeout(200);
+  const [st9, lt9] = await page.evaluate(() => [window.__stg9 ?? [], window.__lt9 ?? []]);
+  console.log(`[단계] ${st9.map((q, i) => `${q[1]} @${q[0]}${i + 1 < st9.length ? ` (${st9[i + 1][0] - q[0]}ms)` : ""}`).join(" → ")}`);
+  const sum9 = lt9.reduce((a, q) => a + q[1], 0);
+  console.log(`[긴 작업] ${lt9.length}개 · 합 ${sum9}ms · 큰 것 ${[...lt9].sort((a, b) => b[1] - a[1]).slice(0, 8).map((q) => `${q[1]}ms@${q[0]}`).join(" ")}`);
 }
 /* --veilprobe(2026-10-30, 요청: "재생기는 모든 정보가 다 도착하고 화면이 준비되면 그때 그리기") — veil 로 열어 걷히는 때(onReady)와 가림(data-veil)을 찍는다. */
 if (VEIL9) {

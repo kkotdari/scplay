@@ -132,6 +132,14 @@ export function useReplayMapTick(): void {
   }, []);
 }
 
+/** 격자를 **미리** 받기 시작한다(훅 밖 · 2026-11-20, 지적: "쇼츠 로딩이 너무 걸림") — 앱이 쇼츠 카드를 누르는 순간 경기를 받고 곧장 그 지도를 부른다(sg-web shortsPrefetch).
+ *  받았거나 받는 중이면 아무것도 안 한다. 이어 useReplayMap 이 같은 캐시를 읽는다. */
+export function primeReplayMap(hash: string | null | undefined): void {
+  if (!hash || cache.has(hash) || inflight.has(hash) || waiting.has(hash)) return;
+  waiting.add(hash);
+  schedule();
+}
+
 /** 그 해시의 맵 격자 — 서버에 없으면 null, '아직 조회 중'이면 undefined.
  *  (구분 이유·지적: 조회 중을 null로 뭉개면 카드가 첫 그림에 옛 로스터 폼을 그렸다가
  *  격자가 도착하면 재생 화면으로 갈아타며 로스터가 깜빡하고 사라져 보였다.) */

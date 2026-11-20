@@ -1236,6 +1236,8 @@ const SHORT_SHOT9: { fn: (() => void) | null } = { fn: null };
 /** 쇼츠 화면 다지기(RMP shortSettled9 ★) — 연속 이만큼의 장이 이 시간(ms) 안에 들면 다 데워졌다고 본다(30fps 남짓). */
 const SHORT_SETTLE_N9 = 15;
 const SHORT_SETTLE_MS9 = 34;
+/** 다지기 상한(ms) — 6000 → 3000(2026-11-20, 지적: "PC 에서 쇼츠 로딩이 너무 걸림" · 아래 shortSettled9 ★ 둘째). */
+const SHORT_SETTLE_MAX9 = 3000;
 /** ★ **워커는 지도 전체를 짓는다**(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로" · "안개가 앞뒤 시각으로 튐" → "원천적인 해결법" → "다 ㄱㄱ") — 옛: 보이는 곳 + 여유만
  *  지어(컬링) 시야가 바뀔 때마다 워커가 지어 둔 장을 버리고 다시 섰다 → 새 자리 유닛이 늦게 뜨고 · 다시 지은 첫 장이 메인보다 과거면 뒤로 튀었다.
  *  이제 평면 장은 **재생 시각만의 함수**다(배율과는 원래 무관) — 드래그·줌·미니맵 이동은 받은 장을 그대로 쓰고, 다시 짓는 것은 탐색뿐이다.
@@ -22572,17 +22574,23 @@ export default function ReplayMotionPlayer({
     let raf9 = 0;
     const t09 = performance.now();
     let last9 = t09;
-    let good9 = 0;
+    /* ★ 둘째(2026-11-20, 지적: "PC 에서 쇼츠 로딩이 너무 걸림") — 옛 문은 '연속 15장이 34ms 안'이었다. PC 첫 판은 뒤에서 아틀라스 나머지 묶음을 싣는 장(텍스처 올리기)이
+       띄엄띄엄 끼어 셈이 0 으로 돌기 일쑤였고, 장이 늘 34ms 를 넘는 기기(큰 정사각 · 높은 배킹)는 끝내 못 넘어 **매번 6초**를 채웠다. 이제 '고른가'를 본다:
+       지난 15장 가운데 그 15장 가운데값의 1.6배(적어도 34ms)를 넘는 장이 한 장 이하면 다진 것 · 최소 0.6초 · 상한 3초(SHORT_SETTLE_MAX9). 되물린 값: 연속 15장 < 34ms · 0.7초 · 6초. */
+    const dts9: number[] = [];
     const at09 = shortAt9(short, 0, grid.width > 0 ? grid.height / grid.width : 1);
     const step9 = (now9: number): void => {
       const dt9 = now9 - last9;
       last9 = now9;
       if (at09) { tLiveRef9.current = Math.min(total, Math.max(0, at09.t)); shortCamRef9.current?.(at09.z, at09.cx, at09.cy); }
       paintFnRef9.current?.(tLiveRef9.current);
-      good9 = dt9 < SHORT_SETTLE_MS9 ? good9 + 1 : 0;
+      dts9.push(dt9); if (dts9.length > SHORT_SETTLE_N9) dts9.shift();
+      const med9 = dts9.length ? [...dts9].sort((a9, b9) => a9 - b9)[dts9.length >> 1] : 0;
+      const lim9 = Math.max(SHORT_SETTLE_MS9, med9 * 1.6);
+      const bad9 = dts9.reduce((n9, d9) => n9 + (d9 >= lim9 ? 1 : 0), 0);
       const el9 = now9 - t09;
-      if ((good9 >= SHORT_SETTLE_N9 && el9 >= 700) || el9 >= 6000) {
-        if (scrDiagOn()) (SCR_DIAG as unknown as Record<string, unknown>).shortSettle = `${Math.round(el9)}ms`;
+      if ((dts9.length >= SHORT_SETTLE_N9 && bad9 <= 1 && el9 >= 600) || el9 >= SHORT_SETTLE_MAX9) {
+        (SCR_DIAG as unknown as Record<string, unknown>).shortSettle = `${Math.round(el9)}ms·장${Math.round(med9)}ms${el9 >= SHORT_SETTLE_MAX9 ? "·상한" : ""}`;   // 늘 적는다(앱의 쇼츠 로딩 줄이 읽는다)
         setShortSettled9(true);
         return;
       }
@@ -22833,7 +22841,12 @@ export default function ReplayMotionPlayer({
            나머지는 뒤에서 싣는다(풀기는 워커 · 싣기는 묶음마다 한 박자 쉬며). 옛: 다 실릴 때까지(15초 상한) 기다렸다. 뒤에서 실리는 종류는 그 사이 재생 중 굽기로 그려지다가
            실리면 고정 칸이 이긴다(sprAtlasAdd9 — 같은 열쇠) · 그 종류의 동적 미리 굽기는 건너뛴다(atlasPend9). */
         const core9 = Math.max(6, Math.ceil(kinds9.length * ATLAS_CORE9));
-        const release9 = (): void => { if (atlasWait9) { atlasWait9 = false; setAtlasLoad9(false); } };
+        const release9 = (): void => {
+          if (atlasWait9) {
+            atlasWait9 = false; setAtlasLoad9(false);
+            (SCR_DIAG as unknown as Record<string, unknown>).atlasCore = `${Math.round(performance.now() - atlasT09)}ms·앞${core9}/${kinds9.length}종`;   // 재생을 연 때(앱의 쇼츠 로딩 줄 · 2026-11-20)
+          }
+        };
         sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
           /* (2026-11-03 요잉 32 · "고성능 피시는 교체 없이 쭉") — PC 높은 단은 32방 묶음(o)까지 다 GPU 에 올리게 2048MB · 그 아래는 1024MB 에서 넘치면 교체(sprAtlas9 교체 ★).
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
