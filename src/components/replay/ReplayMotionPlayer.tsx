@@ -14932,9 +14932,13 @@ export default function ReplayMotionPlayer({
   /** 판 뿌리(.scr-fs-root) — 휠은 지도 상자가 아니라 **판 전체**가 받는다(아래 onWheel). */
   const fsRootRef = useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  /** ★ 녹화 중 정사각 무대(2026-11-20, 요청: "팬리미트를 건드리지 말고 녹화 중 스테이지 자체를 정사각형으로 변경 · 녹화 끝나면 다시 원래대로") — 녹화 단추를 누르면 무대를
-   *  한 변 = 그때 무대의 짧은 변(s)인 정사각으로 줄여 가운데 세운다(아래 stageStyle) · 끝나면 되돌린다. w0 · h0 = 줄이기 전 무대(되돌릴 때 배율 셈). 아래 recStart9 ★. */
+  /** ★ 녹화 중 정사각 지도(2026-11-20, 요청: "팬리미트를 건드리지 말고 녹화 중 스테이지 자체를 정사각형으로 변경 · 녹화 끝나면 다시 원래대로" → 같은 날 "버튼들은 그 자리에 두고
+   *  지도만 정사각으로 나오는 게 나을 듯") — 무대 **상자(버튼 · 다이얼 · 토글이 사는 곳)는 그대로** 두고, 지도 셈이 보는 무대 크기(stage 상태 · stageSizeRef)만 한 변 s = 그때 무대의
+   *  짧은 변인 정사각으로 바꾼다(아래 무대 재기 read ★) · 지도 상자는 그 정사각 자리(무대 가운데)에 앉는다(지도 상자 style ★). 덮는 판 · 배율 · 팬 한계 · 캔버스가 다 정사각
+   *  기준이라 지도는 정사각 안에만 그려지고 그 끝이 곧 지도 끝이다. w0 · h0 = 무대 상자 크기(되돌릴 때 · 자리 셈). 아래 recStart9 ★. */
   const [recSq9, setRecSq9] = useState<{ s: number; w0: number; h0: number } | null>(null);
+  const recSqRef9 = useRef(recSq9);
+  recSqRef9.current = recSq9;
   /* ★ **자막·화면 주인 크기의 무대 높이 자**(2026-10-12, 요청: "화면 주인과 자막 부분도 해상도에 따라 크기 다르게 — 저해상도에서 너무 크게 나와") — PC 크기는 해상도 단(--dks · 창 세로
      FHD·QHD·UHD 세 칸)만 따라 FHD 아래 창(노트북 768 등)에서도 자막 32·이름표 34px 그대로였다. 무대 높이 × CAP_STAGE_K9 를 자막 글자 크기의 목표로 삼아 단 값(32·dks)보다 작으면
      그 몫(--capk · 0.5~1)만큼 줄인다 — 큰 창은 그대로(상한 1). 폰은 기기 단(--dk)이 이미 맞아 1. */
@@ -15901,10 +15905,7 @@ export default function ReplayMotionPlayer({
   /** ★ 쇼츠 판(2026-11-19, 요청: "쇼츠 비율 모바일은 세로로 길게 · 피시는 가로 4:3") — 쇼츠 재생은 넣는 쪽이 준 가로 × 세로(frameW · frameH)를 **그대로** 채운다
    *  (지도 비를 안 따른다). 1배 = 무대 가로 폭이라(fsCoverW ★★) 녹화한 가로 범위는 그대로 · 세로로 긴 판은 위아래가 더 보인다. */
   const shortBox9 = short && frameW !== undefined && frameW > 0 && frameH !== undefined && frameH > 0 ? { w: Math.round(frameW), h: Math.round(frameH) } : null;
-  const stageStyle: React.CSSProperties | undefined = shortBox9 ? { width: "100%", height: `${shortBox9.h}px`, maxHeight: "none" } : recSq9
-    /* 녹화 중 정사각 무대(위 recSq9 ★) — 프레임(격자 1행) · 전체화면(세로 flex) · 넓은 배치(한 칸 격자) 어디서나 가운데 정사각(margin auto · 자기 정렬 가운데). */
-    ? { width: `${recSq9.s}px`, height: `${recSq9.s}px`, maxHeight: "none", aspectRatio: "auto", flex: "none", justifySelf: "center", alignSelf: "center", margin: "auto" }
-    : rowsOutside
+  const stageStyle: React.CSSProperties | undefined = shortBox9 ? { width: "100%", height: `${shortBox9.h}px`, maxHeight: "none" } : rowsOutside
     ? {
       aspectRatio: `${grid.width} / ${grid.height}`,
       /* 폭은 **안 건다** — 판이 이미 상한을 지고 있고(위 stageCapW9), 무대는 그 안에서
@@ -16769,8 +16770,11 @@ export default function ReplayMotionPlayer({
       const el9 = stageRef.current;
       if (!el9) return;
       const v = { w: el9.clientWidth, h: el9.clientHeight };
+      /* 녹화 중 정사각 지도(위 recSq9 ★) — 무대 상자는 그대로지만 지도 셈은 정사각 한 변으로 본다. */
+      const rq9 = recSqRef9.current;
+      if (rq9 && v.w > 0 && v.h > 0) { v.w = rq9.s; v.h = rq9.s; }
       // 주소창 여닫힘은 안 따라간다(위 stageHold9) — 회전·전체화면 전환 사건만 붙든 값을 갈아 끼운다.
-      if (v.w > 0 && v.h > 0 && window.matchMedia?.("(pointer: coarse)").matches) {
+      else if (v.w > 0 && v.h > 0 && window.matchMedia?.("(pointer: coarse)").matches) {
         const force9 = ev instanceof Event
           && (ev.type === "orientationchange" || ev.type === "fullscreenchange" || ev.type === "webkitfullscreenchange");
         const m9 = stageHold9.current;
@@ -17682,8 +17686,8 @@ export default function ReplayMotionPlayer({
     if (!onShortCreateRef9.current || recRef9.current || short) return;
     const t9 = tLiveRef9.current;
     const [z9, cx9, cy9] = recViewNow9();
-    const st9 = stageRef.current;
-    const hw9 = st9 && st9.offsetWidth > 0 ? Math.round((st9.offsetHeight / st9.offsetWidth) * 1000) / 1000 : 0.75;
+    const ss9 = stageSizeRef.current;   // 지도 셈이 보는 무대(녹화 중 정사각이면 1 · 위 recSq9 ★)
+    const hw9 = ss9.w > 0 ? Math.round((ss9.h / ss9.w) * 1000) / 1000 : 0.75;
     recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
@@ -17697,7 +17701,7 @@ export default function ReplayMotionPlayer({
   };
   const recBeginRef9 = useRef(recBegin9);
   recBeginRef9.current = recBegin9;
-  /** 정사각 무대로 바꾸거나 되돌릴 때 이어 갈 눈(위 recSq9 ★) — 배율은 무대 폭 비만큼 곱해 **같은 크기**로 보이게(녹화 틀 안에 보이던 그대로 · 되돌리면 정사각에 보이던 그대로) ·
+  /** 정사각 지도로 바꾸거나 되돌릴 때 이어 갈 눈(위 recSq9 ★) — 배율은 무대 폭 비만큼 곱해 **같은 크기**로 보이게(녹화 틀 안에 보이던 그대로 · 되돌리면 정사각에 보이던 그대로) ·
    *  가운데(지도 분수)는 그대로. begin = 무대가 서면 녹화를 시작한다. at = 건 시각(무대가 끝내 정사각으로 안 서면 0.7초 뒤 그대로 간다). */
   const recViewAfter9 = useRef<{ z: number; cx: number; cy: number; s: number; begin: boolean; at: number } | null>(null);
   const recApplyView9 = (): void => {
@@ -17726,17 +17730,21 @@ export default function ReplayMotionPlayer({
     const sq9 = Math.abs(stage.w - v9.s) < 3 && Math.abs(stage.h - v9.s) < 3;
     if (v9.begin ? sq9 : !sq9) recApplyViewRef9.current();
   }, [stage.w, stage.h]);
-  /** 녹화 단추 — 무대를 정사각으로 바꾸고(위 recSq9 ★) 선 뒤 녹화를 시작한다. 이미 정사각이면 곧장. */
+  /** 녹화 단추 — 지도를 정사각으로 바꾸고(위 recSq9 ★) 선 뒤 녹화를 시작한다. 무대가 이미 정사각이면 곧장. */
   const recStart9 = (): void => {
     if (!onShortCreateRef9.current || recRef9.current || short || recSq9) return;
     const st9 = stageRef.current;
-    const w09 = st9?.offsetWidth ?? 0;
-    const h09 = st9?.offsetHeight ?? 0;
+    const w09 = st9?.clientWidth ?? 0;
+    const h09 = st9?.clientHeight ?? 0;
     const s9 = Math.floor(Math.min(w09, h09));
     if (s9 < 40 || Math.abs(w09 - h09) < 3) { recBegin9(); return; }
     const [z9, cx9, cy9] = recViewNow9();
     recViewAfter9.current = { z: z9 * (w09 / s9), cx: cx9, cy: cy9, s: s9, begin: true, at: performance.now() };
-    setRecSq9({ s: s9, w0: w09, h0: h09 });
+    const rq9 = { s: s9, w0: w09, h0: h09 };
+    recSqRef9.current = rq9;
+    setRecSq9(rq9);
+    stageSizeRef.current = { w: s9, h: s9 };   // 지도 셈이 보는 무대(위 무대 재기 read ★) — 상자는 안 바뀌어 관찰자가 안 오니 손으로 심는다
+    setStage({ w: s9, h: s9 });
     window.setTimeout(() => { if (recViewAfter9.current?.begin) recApplyViewRef9.current(); }, 700);
   };
   const recStop9 = (): void => {
@@ -17766,7 +17774,12 @@ export default function ReplayMotionPlayer({
     if (recOn9 || !recSq9 || recViewAfter9.current?.begin) return;
     const [z9, cx9, cy9] = recViewNow9();
     recViewAfter9.current = { z: z9 * (recSq9.s / Math.max(1, recSq9.w0)), cx: cx9, cy: cy9, s: recSq9.s, begin: false, at: performance.now() };
+    recSqRef9.current = null;
     setRecSq9(null);
+    const st9 = stageRef.current;
+    const v9 = { w: st9?.clientWidth || recSq9.w0, h: st9?.clientHeight || recSq9.h0 };
+    stageSizeRef.current = v9;
+    setStage(v9);
     const tm9 = window.setTimeout(() => { if (recViewAfter9.current && !recViewAfter9.current.begin) recApplyViewRef9.current(); }, 700);
     return () => window.clearTimeout(tm9);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -25184,7 +25197,7 @@ export default function ReplayMotionPlayer({
                  + 변환 −447.5 였다. 크롬은 합성 층의 **레이아웃 자리는 정수로 반올림**하고(paint offset snapping) **변환은 그대로** 두므로 둘이 0.5px 어긋나
                  안의 캔버스(유닛·GL·지형·안개)가 통째로 반 칸 보간됐다. DOM(getBoundingClientRect)은 정수를 돌려줘 진단에 안 잡혔고, --snx 되밀기는 그 DOM 을
                  믿어 오히려 더 밀기도 했다. 변환 없이 정수 left/top 이면 반올림할 것이 없다. */
-              left: `${Math.round((stage.w - fsCoverW) / 2)}px`,
+              left: `${Math.round((stage.w - fsCoverW) / 2) + (recSq9 ? Math.round((recSq9.w0 - recSq9.s) / 2) : 0)}px`,   // 녹화 중 정사각 지도는 무대 가운데 정사각 자리(위 recSq9 ★)
               /* ★ 상자는 **창 한가운데**에 앉는다 — 2D·3D가 한 식이다(지적: "여전히 맵
                  세로가 무대를 넘치는 경우는 아예 여백 도화지가 안 보이는데? 2D에서") ─────
                  여기 있던 것은 `bottom: 0`, 곧 상자를 **무대** 바닥에 붙이는 것이었다.
@@ -25199,7 +25212,7 @@ export default function ReplayMotionPlayer({
                  경우(fsCoverH = fitH9)에는 이 식이 그대로 `bottom: 0`이 된다.
                  3D도 같은 식이면 된다 — 회전이 그림을 상자 안 가운데로 눌러 놓으므로
                  상자 가운데가 곧 그림 가운데다. */
-              top: `${Math.round((stage.h - fsCoverH) / 2)}px`,
+              top: `${Math.round((stage.h - fsCoverH) / 2) + (recSq9 ? Math.round((recSq9.h0 - recSq9.s) / 2) : 0)}px`,
               /* ★ **독 뒤까지 그린다 — 폰도**(2026-10-23, 요청: "폰에서도 독 뒤까지 지도 그리기") — PC 는 상자가 무대보다 세로로 커(폭 덮기) 독 자리까지 상자가 내려가
                  무대의 clip-path 늘림(--dock-under)만으로 보였다. 폰 세로는 상자 키 = 무대 키라 상자 아래가 곧 끝이다. 상자(카메라·팬 한계의 자)는 그대로 두고 **캔버스들만**
                  (유닛·GL·지형·효과·안개 — .scr-motion-unitlayer 의 bottom) 독 키에서 상자가 이미 내려간 몫을 뺀 만큼 아래로 늘린다. 1배에서는 지도 아랫변이 무대 아랫변이라

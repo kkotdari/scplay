@@ -6445,5 +6445,3 @@
 .scr-edgebtn.is-r:hover svg { transform: translateX(2px); }
 .scr-edgebtn.is-t:hover svg { transform: translateY(-2px); }
 .scr-edgebtn.is-b:hover svg { transform: translateY(2px); }
-/* 녹화 중 정사각 무대(RMP recSq9 ★ · 2026-11-20) — 무대 양옆(또는 위아래)의 빈 몫은 어둡게(뿌리 바탕 · 쪽 바탕이 비치지 않게). */
-.scr-fs-root.is-rec { background: #05070a; }
