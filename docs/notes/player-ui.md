@@ -4178,3 +4178,10 @@ esc 눌렀을때 마우스가 가운데로 이동해서 불편".
 - `recPauseToggle9`(녹화 일시정지 · 재개) · `recStop9`(종료 → 저장 창)는 재생 상태를 안 건드린다(대기 · 시작 `recGo9` 와 같게). 자막 · 사진 창만 옛처럼 멈추고 닫으면 되돌린다(넣는 동안 토막 시계도 멈춤).
 - 녹화 단추는 글자 알약(`.is-text` · `.scr-shortrec-lab`) — [시작](대기) · [종료 0:12](녹화 중) · [일시정지]/[재개]. 배지 안내도 "[시작]" · "[재개]".
 - 되물린 값: 일시정지 때 `setPlaying(false)` · 재개 때 `if (!done) setPlaying(true)` · 종료 때 `setPlaying(false)` · 아이콘 ● · ■ · ❚❚/▶.
+
+## 쇼츠 사진 들기 자리 · 단추를 눌러도 초점은 재생기에(2026-11-20)
+- 지적: "쇼츠에 그림 넣으면 왜 우하단 구석에서 나와서 내가 정한 위치로 가지" — `.scr-shortimg` 는 `transform: translate(-50%, -50%)` 로 가운데를 맞추는데 들기 애니메이션이
+  자막 것(`scr-shortcap-in` · transform 을 통째로 씀)이라 들 동안 가운데 맞춤이 빠졌다(반 폭 · 반 높이만큼 오른아래). 사진만 `scr-shortimg-in`(translate 를 품은 키프레임).
+- 요청: "버튼들 누를 때마다 포커싱이 맵에서 벗어나서 스페이스나 키로 이동 등이 안 돼서 불편 · 포커싱은 맵에 유지" — RMP `rootRef` 곁 효과(문서 mousedown 캡처):
+  `.scr-motion` 안 단추 · role=button/slider/tab · 고리 · label 을 마우스로 누르면 기본 동작(초점 옮김)을 막고, 이미 그런 칸에 초점이 있으면 놓는다. 입력칸 · role=dialog 창은 여느대로 ·
+  Tab 초점은 그대로. 쇼츠 단추 묶음의 `onKeyDown` stopPropagation(키를 끊었다)도 걷었다.

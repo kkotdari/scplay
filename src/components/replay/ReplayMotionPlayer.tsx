@@ -14294,6 +14294,24 @@ export default function ReplayMotionPlayer({
      (맵 왼쪽 + 오른쪽 댓글 기둥)를 쓴다. 좁은 자리는 그대로 세로 배치다. 닫기(X·Esc)는
      여전히 상세에서만이다. */
   const rootRef = useRef<HTMLDivElement | null>(null);
+  /* ★ 단추를 눌러도 초점은 지도(재생기)에(2026-11-20, 요청: "버튼들 누를 때마다 포커싱이 맵에서 벗어나서 스페이스나 키로 이동 등이 안 돼서 불편 · 포커싱은 맵에 유지") —
+     재생기 안의 단추 · 단추 역할 칸 · 다이얼(슬라이더) · 고리를 **마우스로 누를 때** 초점을 옮기지 않는다(mousedown 기본 동작 막기 · 누름 · click 은 그대로).
+     이미 그런 칸에 초점이 있으면 놓는다(문서 몸으로). 키보드 Tab 으로 옮긴 초점은 그대로(접근성). 입력칸 · 글 칸은 건드리지 않는다.
+     옛: 누른 단추가 초점을 쥐어 화살표가 다이얼 · 단추 몫이 되거나(쇼츠 단추 묶음은 키를 아예 끊었다) 재생기 키가 안 먹었다. */
+  useEffect(() => {
+    const keep9 = (e: MouseEvent): void => {
+      if (e.button !== 0) return;
+      const t9 = e.target as HTMLElement | null;
+      if (!t9 || typeof t9.closest !== "function" || !t9.closest(".scr-motion")) return;
+      if (t9.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;   // 글 칸 · 창(자막 · 사진 · 핀 · 공유 고르기)은 여느대로
+      if (!t9.closest("button, [role='button'], [role='slider'], [role='tab'], a[href], label")) return;
+      e.preventDefault();
+      const a9 = document.activeElement as HTMLElement | null;
+      if (a9 && a9 !== document.body && a9.closest?.(".scr-motion") && a9.matches("button, [role='button'], [role='slider'], [role='tab'], a[href]")) a9.blur();
+    };
+    document.addEventListener("mousedown", keep9, true);
+    return () => document.removeEventListener("mousedown", keep9, true);
+  }, []);
   /* ★ 뿌리가 **붙는 때**를 잡는다(지적: "stargayte에서는 부모 폭이 860px 이상이 돼도
      .scr-motion-wide가 안 붙어") — 아래 관찰자는 마운트 때 한 번만 달렸다. 그때 뿌리가 아직
      없으면(자료를 기다리는 동안 다른 갈래를 그리거나, 담는 쪽이 늦게 앉히면) 부모를 못 잡고
@@ -23733,7 +23751,7 @@ export default function ReplayMotionPlayer({
       {onShortCreate && !splitOn9 && !short && (
         <div className="scr-shortfab" role="group" aria-label="쇼츠"
           onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          onDoubleClick={(e) => e.stopPropagation()}>   {/* 키는 안 끊는다 — 단추를 눌러도 스페이스 · 화살표 등 재생기 키가 그대로 먹게(2026-11-20 · 아래 focusKeep9 ★) */}
           {recOn9 ? (
             <>
               {recReady9 ? (
