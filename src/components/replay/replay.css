@@ -3962,6 +3962,7 @@
    크기 세 단(s/m/l = 살아 있는 건물 ≤5 · ≤14 · 그 위) · 어두움(is-dim · 흐리고 잿빛). 누르면 그 사람 카메라(전광판 카메라 단추와 같은 일 · 폰은 전광판이 없어
    이것이 사람 고르기다) — 겹층은 포인터를 안 받고 칩만 받는다(미니맵 짚기와 안 섞이게 칩이 거품을 끊는다). 글자는 PC 7/8/10(1080p · --dks) · 폰 6.5/7.5/9·dk. */
 .scr-fs-minitags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.scr-fs-minimap > canvas.scr-fs-minitop { z-index: 2; pointer-events: none; }   /* 보는 자리 테두리 — 이름표 위(ReplayFullscreenMinimap cvTopRef ★ · 2026-11-20) */
 .scr-fs-minitag {
   position: absolute; transform: translate(-50%, -50%); pointer-events: none;   /* 그림뿐 — 손짓은 캔버스로(2026-10-09, 요청: "미니맵 네임칩 터치 시 화면 설정 기능 제거") */
   display: inline-block; max-width: 46%; white-space: nowrap; box-sizing: border-box;   /* 자르기(말줄임)는 안쪽 글자 칸이 — 겉은 팀 배지가 걸치도록 안 자른다(2026-10-11) */

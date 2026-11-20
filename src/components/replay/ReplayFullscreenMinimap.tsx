@@ -139,6 +139,9 @@ export default function ReplayFullscreenMinimap({
 }): React.ReactElement {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const cvRef = useRef<HTMLCanvasElement | null>(null);
+  /** ★ 보는 자리 테두리는 **이름표 위** 캔버스에(2026-11-20, 지적: "미니맵에서 화면 프레임이 닉네임택 밑에 깔리네 · 위에 있어야") — 지도 캔버스 → 이름표 겹(.scr-fs-minitags z 1) →
+   *  이 투명 캔버스(.scr-fs-minitop z 2). 옛: 테두리를 지도 캔버스에 그려 이름표가 덮었다. */
+  const cvTopRef = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   /** 지형으로 구운 배경 한 장 — 맵이 바뀔 때만 굽는다(타일 하나 3px). */
   const bgRef = useRef<HTMLCanvasElement | null>(null);
@@ -283,6 +286,16 @@ export default function ReplayFullscreenMinimap({
     if (!c) return;
     c.setTransform(B, 0, 0, B, 0, 0);
     c.clearRect(0, 0, w, h);
+    /* 테두리 캔버스(위 cvTopRef ★) — 같은 크기 · 같은 배킹으로 맞추고 비운다. 없으면 지도 캔버스에 그대로(옛). */
+    const top9 = cvTopRef.current;
+    let vc: CanvasRenderingContext2D = c;
+    if (top9) {
+      if (top9.width !== cv.width || top9.height !== cv.height) { top9.width = cv.width; top9.height = cv.height; }
+      top9.style.width = `${w}px`;
+      top9.style.height = `${h}px`;
+      const tc9 = top9.getContext("2d");
+      if (tc9) { tc9.setTransform(B, 0, 0, B, 0, 0); tc9.clearRect(0, 0, w, h); vc = tc9; }
+    }
     // ① 지도 — 그림이 있으면 깔고, 없으면 어두운 바탕.
     c.fillStyle = "#12161c";
     c.fillRect(0, 0, w, h);
@@ -492,12 +505,12 @@ export default function ReplayFullscreenMinimap({
       w / 2 + (cap9(qx) * w - w / 2) * k9,
       h / 2 + (cap9(qy) * h - h / 2) * k9,
     ] as [number, number]);
-    c.strokeStyle = vw9.color ?? viewColor ?? "rgba(255,255,255,.92)";
-    c.lineWidth = LW9;
-    c.beginPath();
-    pts.forEach(([qx, qy], i) => { if (i === 0) c.moveTo(qx, qy); else c.lineTo(qx, qy); });
-    c.closePath();
-    c.stroke();
+    vc.strokeStyle = vw9.color ?? viewColor ?? "rgba(255,255,255,.92)";
+    vc.lineWidth = LW9;
+    vc.beginPath();
+    pts.forEach(([qx, qy], i) => { if (i === 0) vc.moveTo(qx, qy); else vc.lineTo(qx, qy); });
+    vc.closePath();
+    vc.stroke();
     }
     };
     if (painter) painter.current = paint;
@@ -609,6 +622,7 @@ export default function ReplayFullscreenMinimap({
           ))}
         </div>
       )}
+      <canvas ref={cvTopRef} className="scr-fs-minitop" aria-hidden style={warming ? { opacity: 0 } : undefined} />
     </div>
   );
 }
