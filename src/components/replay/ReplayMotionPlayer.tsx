@@ -18304,8 +18304,8 @@ export default function ReplayMotionPlayer({
   const shortEndedRef9 = useRef(false);
   /** ★ 쇼츠 · 다듬기의 **멈춘 몫**(2026-11-20, 지적: "중간에 오래 멈췄다 재생한 부분이 있는데 그래픽 준비가 안 되어서 뚝뚝 끊기네") — 녹화 중 재생을 멈춘 몫은 토막 시계(w)만 가고
    *  게임 시각은 그대로다. 옛 길은 그동안에도 워커에 '재생 중'이라 알려, 다시 그릴 때마다(카메라 상태 · 다듬기 타임라인) 예상 시각이 실제와 벌어져 '탐색'으로 셈하고 명령을 거듭
-   *  보냈다(세대가 계속 바뀌어 앞서 지어 둔 장을 못 쓰고) — 시각이 다시 흐르는 순간 새 장을 기다리며 끊겼다. 이제 멈춘 몫은 워커에 '멈춤'으로 알리고(아래 명령 playingW9)
-   *  다시 흐르면 한 번 '재생'으로 — 여느 재생/멈춤과 같은 길. 틱이 바뀌는 순간 상태를 걸어 명령이 바로 나가게 한다(short9 shortStillAt9). */
+   *  보냈다 — 시각이 다시 흐르는 순간 끊겼다. 이제 멈춘 몫엔 탐색 판정이 시각을 앞으로 셈하지 않는다(아래 stillW9 · 워커는 '재생 중' 그대로 앞날 장을 지어 둔다).
+   *  틱이 바뀌는 순간 상태를 걸어 한 번 다시 그린다(short9 shortStillAt9). */
   const shortStillRef9 = useRef(false);
   const [, setShortStill9] = useState(false);
   const shortPanAt9 = useRef(0);
@@ -19932,8 +19932,10 @@ export default function ReplayMotionPlayer({
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
   const playing9 = playing && active;
-  /** 워커에 알리는 재생 — 쇼츠 · 다듬기의 멈춘 몫(게임 시각이 안 흐른다)은 '멈춤'(위 shortStillRef9 ★). */
-  const playingW9 = playing9 && !(shortRef9.current && shortStillRef9.current);
+  /** 쇼츠 · 다듬기의 멈춘 몫(게임 시각이 안 흐른다 · 위 shortStillRef9 ★) — 워커에는 '재생 중' 그대로 두어 앞날 장을 지어 두게 하고(다시 흐를 때 곧장 쓴다),
+   *  아래 탐색 판정만 시각을 앞으로 셈하지 않는다. (같은 날 앞 판은 '멈춤'으로 알렸다 — 앞날을 안 지어 다시 흐를 때 몇 초 따라잡느라 끊겼다 · 되물림.) */
+  const stillW9 = !!(shortRef9.current && shortStillRef9.current);
+  const playingW9 = playing9;
   {
     // 붓 자취의 인스턴스 번호(BRUSH_LOG9 · perf-check --pinchtrace)
     if (instIdRef9.current === 0) { INST_SEQ9 += 1; instIdRef9.current = INST_SEQ9; }
@@ -19956,7 +19958,7 @@ export default function ReplayMotionPlayer({
   {
     const w9 = frameWorkerRef.current;
     const c9 = cmdSentRef9.current;
-    const pred9 = c9 ? (c9.playing ? c9.t0 + ((pNow() - c9.at) / 1000) * c9.speed : c9.t0) : Number.NaN;
+    const pred9 = c9 ? (c9.playing && !stillW9 ? c9.t0 + ((pNow() - c9.at) / 1000) * c9.speed : c9.t0) : Number.NaN;   // 멈춘 몫은 앞으로 셈하지 않는다(위 stillW9)
     const jumped9 = !c9 || Math.abs(tLiveRef9.current - pred9) > Math.max(0.3, 0.15 * speed);   // 틱의 살아 있는 시각으로 견준다(아래 t09 ★)
     /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
        굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
