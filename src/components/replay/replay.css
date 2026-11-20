@@ -6417,16 +6417,16 @@
    자리(가운데) · 폭(%)으로 선다 · 자막(30000) 아래 · 들고 날 때 자막과 같은 결 · 넣는 중(is-edit)엔 점선 테 · 끌 수 있다. 판(.scr-imgask)은 덮개 없이 위에 뜬다. */
 .scr-shortimgs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 29995; pointer-events: none; }
 .scr-shortimg {
-  position: absolute; transform: translate(-50%, -50%); height: auto; max-width: none; border-radius: 6px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  position: absolute; transform: translate(-50%, -50%); transform-origin: 50% 50%; height: auto; max-width: none; object-fit: cover; border-radius: 6px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
   animation: scr-shortimg-in 0.5s cubic-bezier(0.18, 0.9, 0.24, 1.2) backwards; transition: opacity 0.35s ease, filter 0.35s ease; user-select: none; -webkit-user-drag: none;
 }
 /* 사진 들기 — 자막 결(scr-shortcap-in)과 같되 **가운데 맞춤 translate(-50%, -50%)를 품는다**(2026-11-20, 지적: "그림 넣으면 왜 우하단 구석에서 나와서 내가 정한 위치로 가지" —
    자막 키프레임의 transform 이 가운데 맞춤을 덮어 그림 반 폭 · 반 높이만큼 오른아래에서 떠올라 끝에 제자리로 튀었다). */
 @keyframes scr-shortimg-in {
-  0% { opacity: 0; transform: translate(-50%, calc(-50% + 0.9em)) scale(0.92); filter: blur(5px); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.88); filter: blur(4px); }
   60% { opacity: 1; filter: blur(0); }
   100% { opacity: 1; transform: translate(-50%, -50%); filter: none; }
-}
+}   /* (같은 날 둘째, 지적: "아직도 사진이 우하단에서 나와서 열리는 걸로 보여") — 아래에서 떠오르는 결도 걷고 **제자리에서 커지며** 든다 · 높이는 ar 로 미리 잡는다(RMP). 바로 앞(되물림): translate(-50%, calc(-50% + 0.9em)) scale(0.92) */
 .scr-shortimg.is-out { opacity: 0; filter: blur(3px); }
 .scr-shortimg.is-edit { pointer-events: auto; cursor: move; touch-action: none; outline: 3px dashed rgba(255, 255, 255, 0.95); outline-offset: 2px; animation: none; }
 .scr-shortimg-file { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }

@@ -17922,13 +17922,27 @@ export default function ReplayMotionPlayer({
       setImgAsk9((a9) => (a9 ? { ...a9, src: got9.src, ar: got9.ar, busy: false } : a9));
     });
   };
+  /** ★ 자막 · 사진을 넣으면 녹화를 저절로 잇는다(2026-11-20, 요청: "사진 등록 시 자막처럼 그때부터 지정한 시간 동안 나오는 걸로 해서 자동 녹화 재개") — 녹화 일시정지 중이었으면
+   *  재개(같은 w 에 지금 장면 한 칸 · recPauseToggle9 의 재개와 같은 셈). 자막 · 사진은 넣은 그 w 부터 고른 초 동안 선다(그 사이 녹화 시계는 멈춰 있었다). */
+  const recResumeAfterAsk9 = (): void => {
+    const r9 = recRef9.current;
+    if (!r9 || recReadyRef9.current || !recPauseRef9.current) return;
+    const [z9, cx9, cy9] = recViewNow9();
+    r9.s.push(shortSample9(r9.w, tLiveRef9.current, z9, cx9, cy9));
+    r9.at = r9.w;
+    r9.last = performance.now();
+    recPauseRef9.current = false;
+    setRecPause9(false);
+  };
   const imgClose9 = (save9: boolean): void => {
     const a9 = imgAskRef9.current;
     const r9 = recRef9.current;
     setImgAsk9(null);
     if (save9 && r9 && a9?.src) {
+      r9.last = performance.now();   // 넣는 동안 흐른 실초는 안 친다(토막 시계가 그 w 에서 곧장 잇는다)
       r9.imgs.push({ w: Math.round(r9.w * 100) / 100, d: a9.d, x: Math.round(a9.x * 1000) / 1000, y: Math.round(a9.y * 1000) / 1000, s: Math.round(a9.s * 1000) / 1000, ar: Math.round(a9.ar * 1000) / 1000, src: a9.src });
       setRecTick9(Math.round(r9.w * 10) + 0.25);
+      recResumeAfterAsk9();
     }
     if (a9?.play) setPlaying(true);
   };
@@ -17940,8 +17954,10 @@ export default function ReplayMotionPlayer({
     setCapAsk9(null);
     const text9 = (a9?.text ?? "").trim().slice(0, SHORT_CAP_LEN9);
     if (save9 && r9 && a9 && text9) {
+      r9.last = performance.now();
       r9.caps.push({ w: Math.round(r9.w * 100) / 100, d: a9.d, text: text9 });
       setRecTick9(Math.round(r9.w * 10) + 0.5);   // 미리보기 자막이 곧장 서게(같은 칸이라도 한 번 더 그린다)
+      recResumeAfterAsk9();   // 녹화 일시정지 중이었으면 잇는다(위 ★)
     }
     if (a9?.play) setPlaying(true);   // 자막 저장 중엔 일시정지 · 저장(닫음)하면 다시 재생(요청)
   };
@@ -26177,12 +26193,12 @@ export default function ReplayMotionPlayer({
           {shortSq9 > 0 && (shortImgsNow9.length > 0 || !!imgAsk9?.src) && (
             <div className="scr-shortimgs" style={{ width: shortSq9, height: shortSq9 }}>
               {shortImgsNow9.map(({ img: m9, i: i9, out: o9 }) => (
-                <img key={i9} className={cx("scr-shortimg", o9 && "is-out")} src={m9.src} alt="" draggable={false}
-                  style={{ left: `${m9.x * 100}%`, top: `${m9.y * 100}%`, width: `${m9.s * 100}%` }} />
+                <img key={i9} className={cx("scr-shortimg", o9 && "is-out")} src={m9.src} alt="" draggable={false} decoding="sync"
+                  style={{ left: `${m9.x * 100}%`, top: `${m9.y * 100}%`, width: `${m9.s * 100}%`, aspectRatio: m9.ar ? `1 / ${m9.ar}` : undefined }} />   /* 받기 전에도 제 높이(ar) — 그림이 풀리며 가운데가 밀리지 않게 */
               ))}
               {imgAsk9?.src && (
                 <img className="scr-shortimg is-edit" src={imgAsk9.src} alt="" draggable={false}
-                  style={{ left: `${imgAsk9.x * 100}%`, top: `${imgAsk9.y * 100}%`, width: `${imgAsk9.s * 100}%` }}
+                  style={{ left: `${imgAsk9.x * 100}%`, top: `${imgAsk9.y * 100}%`, width: `${imgAsk9.s * 100}%`, aspectRatio: `1 / ${imgAsk9.ar || 1}` }}
                   onPointerDown={(e) => {
                     e.stopPropagation(); e.preventDefault();
                     const box9 = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
