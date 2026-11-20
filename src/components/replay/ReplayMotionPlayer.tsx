@@ -14,8 +14,7 @@ import { NATURE9, drawNature9, drawNatureSky9, natureOnStored9, natureStore9 } f
 const SKY_CV_ON9 = true;
 let skyDirty9 = false;
 import { SfxCues9 } from "./sfx9Cues";
-import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, ImagePlus, Layers, Lock, LockOpen, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
-import { mouseLockInstall9, mouseLockStore9, mouseLockStored9, type MouseLock9 } from "./mouseLock9";
+import { Captions, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, ImagePlus, Layers, Maximize, Minimize, Palette, Pause, Play, RotateCcw, Search, Share2, Square, Tv, Video, Volume2, VolumeX, X } from "lucide-react";
 import { SHORT_CAP_D9, SHORT_CAP_DMAX9, SHORT_CAP_LEN9, SHORT_IMGS_MAX9, SHORT_REC_MAX9, SHORT_STEP9, shortAt9, shortCapsAt9, shortCoverOf9, shortImgShrink9, shortImgsAt9, shortSample9, type ShortCap9, type ShortClip9, type ShortImg9 } from "./short9";
 /** 건설 명령 고스트 판의 색(원작의 배치 미리보기 초록) — 짙기는 op.plateAlpha 가 든다. */
 const GHOST_PLATE_COL9 = "#3ee06a";
@@ -14555,11 +14554,11 @@ export default function ReplayMotionPlayer({
   const boxElRef9 = useRef<HTMLDivElement | null>(null);
   const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
   useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
-  /** ★ 창모드 마우스 가두기(2026-11-18 · mouseLock9) — 켬(기억 scr.mlock · 손대지 않은 기기는 켬)이면 지도를 누를 때 커서가 재생기 안에 갇히고 가짜 커서가 선다.
-   *  갇힌 커서가 틀 끝 2px 에 닿으면 가장자리 밀기(아래 엣지 effect). 꼬리의 자물쇠 단추가 풀기 · 가두기 토글 · Esc 는 브라우저가 푼다(켬은 그대로). 전체화면은 안 가둔다. */
-  const [mlockOn9, setMlockOn9] = useState<boolean>(() => mouseLockStored9());
-  const [mlocked9, setMlocked9] = useState(false);
-  const mlockRef9 = useRef<MouseLock9 | null>(null);
+  /** ★ 프레임(창)모드 엣지 스크롤 **단추**(2026-11-20, 요청: "프레임모드의 마우스 가두기와 엣지투스크롤 폐기하고 엣지스크롤 버튼을 두는 걸로 · 그 위에 올리면 스크롤되는 식 ·
+   *  적당한 크기에 반투명으로") — 무대 네 변 가운데의 반투명 단추(.scr-edgebtns) 위에 마우스가 있는 동안 그쪽으로 민다(아래 엣지 effect · 전체화면의 화면 끝 밀기와 같은 속도 · 머문 시간 자).
+   *  값 = 미는 방향(팬 부호 · 왼 단추 [1,0] · 오른 [-1,0] · 위 [0,1] · 아래 [0,-1]) · 안 올렸으면 [0,0]. 되물린 것: 2026-11-18 마우스 가두기(mouseLock9 · 포인터 잠금 + 가짜 커서 ·
+   *  가둔 커서가 틀 끝 2px 에 닿으면 밀기 · 꼬리 자물쇠 토글) — 파일째 걷었다. */
+  const edgeHoverRef9 = useRef<[number, number]>([0, 0]);
   /** 하단 독 접기 **3단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 평소: 미니맵·플레이바·인포창·전광판·자막·오버레이 다 · 1단: 미니맵·플레이바·자막·오버레이만 ·
    *  2단: 미니맵·자막만") — 0 평소 · 1 독 줄(인포창·전광판) 숨김 · 2 재생바·오버레이(배속·배율·모드 토글·채팅·화면 주인·요약)까지 숨김. 손잡이는 2단에서도 남는다(replay.css is-dockfold2).
    *  옛 판은 켬/끔 둘(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
@@ -15045,6 +15044,8 @@ export default function ReplayMotionPlayer({
    *  자는 **칸**이다: 가장 큰 것(4×4 건물)이 제 발자리에서 네 칸만큼 솟는다. */
   const BAND_TILES = 4;
   const bandRef = useRef(0);
+  /** 쇼츠 정사각 창으로 팬 한계를 잴까(아래 panLimit ★ · 녹화 중 · 쇼츠 재생) — 렌더가 적는다(아래 recOn9 뒤). */
+  const sqCamRef9 = useRef(!!short);
   /* 창 크기(winW·winH)도 함께 내놓는다 — 추적 카메라가 "지금 그 점이 가장자리에
      닿았나"를 재는 데 쓴다. 한계와 같은 자를 써야 판정과 이동이 안 어긋난다. */
   const panLimit = useCallback((z: number): {
@@ -15054,8 +15055,13 @@ export default function ReplayMotionPlayer({
     if (cov.w <= 0 || cov.h <= 0) return { x: 0, y: 0, yTop: 0, winW: 0, winH: 0, band: 0 };
     const st = stageSizeRef.current;
     const k9 = pitchKRef.current;
-    /** 가로로 보이는 몫 — 무대 폭(지도가 그보다 좁으면 지도 폭). */
-    const winW = st.w > 0 ? Math.min(st.w, cov.w) : cov.w;
+    /* ★ **쇼츠 정사각 창**(2026-11-20, 지적: "치명적 문제 — 정사각형 프레임으로 했을 때 내가 보여주고 싶은 부분이 절대 안 들어갈 수 있는 문제 · 쇼츠 촬영모드 가동 시 무대 자체가
+       쇼츠 프레임 정사각형 영역으로 바뀌던지") — 녹화 중 · 쇼츠 재생은 보이는 창을 무대가 아니라 **무대 가운데 정사각(한 변 = 무대 짧은 변 · 녹화 틀)**으로 잰다. 옛 셈은 넓은 무대의
+       양끝이 지도 끝에 닿으면 멈춰 가운데 정사각이 지도 좌우(세로 무대면 위아래) 가장자리에 영영 못 닿았다 · 쇼츠 재생도 그 자리를 무대 한계로 눌러 틀이 밀렸다.
+       창이 좁아지는 만큼 더 끌린다(정사각 밖은 지도 너머가 보여도 된다 — 쇼츠에 안 든다). 추적 · 중계 카메라도 같은 창으로 잰다(대상을 틀 안에 붙든다). */
+    const sq9 = sqCamRef9.current && st.w > 0 && st.h > 0 ? Math.min(st.w, st.h) : 0;
+    /** 가로로 보이는 몫 — 무대 폭(지도가 그보다 좁으면 지도 폭) · 쇼츠 정사각이면 그 한 변. */
+    const winW = sq9 > 0 ? Math.min(sq9, cov.w) : st.w > 0 ? Math.min(st.w, cov.w) : cov.w;
     /* ★ 세로로 **화면에 실제로 서는 몫**으로 잰다(지적: "3D에서 줌인 상태로 드래그
        가능한 범위가 너무 넓어. 이미 지도는 끝났는데도 드래그는 계속 가능해") ────────────
        눕힌 지도가 화면에서 차지하는 세로는 상자 세로의 k배다(k = pitchSpan, 45도에서
@@ -15065,7 +15071,8 @@ export default function ReplayMotionPlayer({
        perspective rotateX) 여기 곱할 자는 그 k 하나다. 창의 세로도 무대가 아니라
        **지도 상자**다(그 둘은 그림 여유만큼 다르다).
        가로는 눕혀도 안 줄어든다 — 가까운 변이 상자 폭을 그대로 쓴다(사다리꼴의 밑변). */
-    const winH = viewHRef.current > 0 ? viewHRef.current : (st.h > 0 ? st.h : cov.h * k9);
+    const winH0 = viewHRef.current > 0 ? viewHRef.current : (st.h > 0 ? st.h : cov.h * k9);
+    const winH = sq9 > 0 ? Math.min(winH0, sq9) : winH0;
     /* 위쪽만 더 연다 — 아래·좌우는 그대로다(솟는 방향이 위 하나라 아래는 열 까닭이 없다).
        창의 절반을 넘지는 않는다: 그보다 열면 지도가 아니라 하늘을 보는 창이 된다. */
     const band9 = Math.min(bandRef.current * z, winH * 0.45);
@@ -17640,6 +17647,7 @@ export default function ReplayMotionPlayer({
   onShortProgressRef9.current = onShortProgress;
   const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; imgs: ShortImg9[]; sp: number; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
+  sqCamRef9.current = recOn9 || !!short;
   /** ★ 녹화 일시정지(2026-11-20, 요청: "녹화-정지 중간에 일시정지도 필요 · 일시정지 중엔 끊기고 장소나 시간을 옮겨서 다시 시작하면 그때로 바로 이어져서 녹화되게") —
    *  멈추면 토막 시계(실초 w)가 안 가고 재생도 멈춘다(그 사이 카메라 · 배율 · 시각 · 배속을 마음대로 옮긴다). 끊는 자리에 그때 장면 한 칸, 이어 녹화하면 **같은 w 에 새 장면 한 칸**을
    *  적는다 — 같은 w 의 두 칸 = 뜀(short9 shortAt9)이라 쇼츠는 그 자리에서 곧장 새 장소 · 새 시각으로 넘어간다. 멈춘 채 끝내면 멈춘 자리까지가 토막이다. */
@@ -17681,6 +17689,7 @@ export default function ReplayMotionPlayer({
     recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
+    sqCamRef9.current = true;
     recPauseRef9.current = false;
     setRecPause9(false);
     setRecSave9(null);
@@ -17695,6 +17704,7 @@ export default function ReplayMotionPlayer({
     recRef9.current = null;
     if (SHORT_SHOT9.fn) SHORT_SHOT9.fn = null;
     setRecOn9(false);
+    sqCamRef9.current = !!short;
     const paused9 = recPauseRef9.current;
     recPauseRef9.current = false;
     setRecPause9(false);
@@ -18266,21 +18276,9 @@ export default function ReplayMotionPlayer({
      전체화면은 종전대로 화면 맨 끝 2px(마우스가 더 못 나가니 닿을 수 있다) · 창모드는 마우스가 틀 밖으로 나가 버리므로 **지도 틀 안쪽 18px 띠**가 끝이고,
      틀 밖으로 나가면 민 것을 놓는다(겨눈 속도 0 → 감속). 조작부가 떠 있을 때 안 미는 규칙은 전체화면 몫만(창모드 조종부는 지도 밖에 있다). */
   /* ★★★ 창모드 엣지 스크롤은 **걷었다**(2026-10-25, 요청: "피시 윈도우모드의 엣지투 스크롤 제거") — 다시 전체화면에서만 돈다(아래 창모드 갈래는 fsOn 이 늘 참이라 안 탄다). */
-  /* 가두기 장치(mouseLock9) — PC(마우스) 몫 · 뿌리(.scr-fs-root — 무대 · 독 · 재생바)를 가둔다. 전체화면은 장치가 스스로 푼다. */
-  useEffect(() => {
-    if (uiPhone9 || coarse) return undefined;
-    /* 뿌리는 무대 포털(stageHost9) 안에 선다 — 첫 커밋에 아직 없으면 다음 장들에서 다시 본다. */
-    let L9: MouseLock9 | null = null; let raf9 = 0;
-    const tryOn9 = (): void => {
-      const root9 = fsRootRef.current;
-      if (!root9) { raf9 = requestAnimationFrame(tryOn9); return; }
-      L9 = mouseLockInstall9(root9, setMlocked9); mlockRef9.current = L9;
-    };
-    tryOn9();
-    return () => { cancelAnimationFrame(raf9); if (L9) { L9.dispose(); if (mlockRef9.current === L9) mlockRef9.current = null; } setMlocked9(false); };
-  }, [uiPhone9, coarse]);
   /* ★★★★ 창모드 엣지 스크롤 **다시**(2026-11-18, 요청: "창모드, 전체화면 모두 엣지투스크롤 적용하고 창모드에선 견제엽습실처럼 마우스 가두기") — 창모드는
-     **가둔 커서**(mouseLock9 · 위 mlockOn9 ★)가 재생기 틀 끝 2px 에 닿을 때만 민다(옛 10-24 의 18px 띠는 아니다 — 안 가뒀으면 안 민다 · 연습실과 같다). 전체화면은 그대로. */
+     **가둔 커서**(mouseLock9)가 재생기 틀 끝 2px 에 닿을 때만 민다(옛 10-24 의 18px 띠는 아니다 — 안 가뒀으면 안 민다 · 연습실과 같다). 전체화면은 그대로.
+     → 2026-11-20 가두기를 걷고 **엣지 스크롤 단추**(위 edgeHoverRef9 ★)로 바꿨다 — 창모드는 단추 위에 마우스가 있을 때만 민다. */
   useEffect(() => {
     if (uiPhone9) return undefined;
     /* ★ 가장자리는 이제 **화면을 민다**(요청: "피시 전체화면에서 상하좌우 모서리는
@@ -18306,7 +18304,7 @@ export default function ReplayMotionPlayer({
        빠르기의 자를 **머문 시간**으로 바꾼다: 닿는 순간 520px/s 로 시작해 0.8초 머물면
        1900px/s 에 닿는다. 깊이로 재던 때와 같은 두 끝을 시간 축에 옮긴 것이라, 살짝 밀고
        떼는 손짓은 여전히 느리고 눌러 두면 빨라진다. */
-    const EDGE = 2;   // 미는 띠 폭(px) — 전체화면 화면 맨 끝(창모드는 가둔 커서 · mouseLock9 MLOCK_EDGE9 · 옛 창모드 18px 띠는 걷음)
+    const EDGE = 2;   // 미는 띠 폭(px) — 전체화면 화면 맨 끝(창모드는 엣지 스크롤 단추 · 위 edgeHoverRef9 ★ · 옛 가둔 커서 · 18px 띠는 걷음)
     /* ★ 빠르게(2026-11-18, 지적: "엣지투스크롤이 좀 중간에 뚝뚝 튀는거 같고 속도가 너무 느려") — 520 → 900 · 1900 → 3200 · 0.8 → 0.5초. */
     const EDGE_MIN = 900;     // 끝에 닿는 순간의 초당 픽셀(옛 520)
     const EDGE_MAX = 3200;    // 계속 붙어 있을 때의 초당 픽셀(옛 1900)
@@ -18338,6 +18336,7 @@ export default function ReplayMotionPlayer({
       if (!el9 || dt9 <= 0 || (fsOn && mx9 < 0)) return;
       /* 추적 중에는 가장자리로도 안 민다(요청) — 밀던 중이었으면 그 손짓을 접는다. */
       if (trackLockRef.current || splitOnRef9.current || camLockRef9.current || boxDragRef9.current) {   // 분할보기·카메라 잠금·상자 끌기(boxDragRef9 ★)도 가장자리로 안 민다
+        if (scrDiagOn()) SCR_DIAG.edge = `잠김 추적 ${trackLockRef.current ? 1 : 0} 분할 ${splitOnRef9.current ? 1 : 0} 카메라 ${camLockRef9.current ? 1 : 0} 상자 ${boxDragRef9.current ? 1 : 0}`;
         if (edgeOn) { edgeOn = false; vx9 = 0; vy9 = 0; endGestureXf(); }
         return;
       }
@@ -18352,9 +18351,8 @@ export default function ReplayMotionPlayer({
           ux9 = mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
           uy9 = my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
         } else {
-          /* 창모드 — 가둔 커서의 가장자리(mouseLock9 edgeDir · 틀 = 재생기 뿌리를 창으로 자른 상자 · 끝 2px). 안 가뒀으면 0. 오른쪽 끝(+1)이면 팬은 음수. */
-          const [ex9, ey9] = mlockRef9.current?.edgeDir() ?? [0, 0];
-          ux9 = -ex9; uy9 = -ey9;
+          /* 창모드 — 마우스가 올라간 엣지 스크롤 단추의 방향(위 edgeHoverRef9 ★ · 팬 부호 그대로). 안 올렸으면 0. */
+          [ux9, uy9] = edgeHoverRef9.current;
         }
       }
       // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
@@ -18396,6 +18394,8 @@ export default function ReplayMotionPlayer({
       if (edgeOn) endGestureXf();
     };
   }, [fsOn, uiPhone9, fsWake, beginGestureXf, endGestureXf, gestureFrame9, panLimit]);
+  /* 엣지 스크롤 단추(위 edgeHoverRef9 ★)가 내려가면(전체화면 · 분할 · 쇼츠) 떼기(pointerleave)가 안 오므로 방향을 비운다. 밝아짐은 CSS :hover 몫(올리고 뗄 때 재생기 전체 렌더를 안 부른다). */
+  useEffect(() => { edgeHoverRef9.current = [0, 0]; }, [fsOn, splitOn9]);
   /* 렌즈 변환은 리액트 스타일이 아니라 이 effect가 쓴다(위 렌즈 상자 주석) — 손짓
      동안의 직접 변환과 싸우지 않게. 캔버스에 걸어 뒀던 임시 변환도 여기서 걷는다:
      자식(UnitLayer)의 그리기 effect가 먼저 돌아, 이 시점엔 이미 새 배율로 또렷하다. */
@@ -21184,8 +21184,6 @@ export default function ReplayMotionPlayer({
     };
   }, [fsOn]);
   const onMapPointerDown = (e: React.PointerEvent) => {
-    /* 창모드 가두기(위 mlockOn9 ★) — 진짜 마우스 누름이 가둔다(포인터 잠금은 사용자 손짓 안에서만 걸린다). 이 누름은 그대로 지도 누름이기도 하다(연습실과 같다). */
-    if (mlockOn9 && !fsOn && !uiPhone9 && e.pointerType === "mouse" && e.nativeEvent.isTrusted && !document.pointerLockElement) mlockRef9.current?.request(e.nativeEvent);
     /* 미끄러지던 관성을 붙잡는다 — 그 누름은 멈춤이지 클릭이 아니다(떼도 몸을 안 집는다 · 위 관성 ★). */
     const flung9 = flingRef9.current.raf !== 0;
     flingStop9();
@@ -25886,25 +25884,6 @@ export default function ReplayMotionPlayer({
                   <QMarkIcon size={18} />
                 </button>
               )}
-              {/* ★ 마우스 가두기 토글(2026-11-18, 요청: "마우스 풀기 버튼 필요하긴 함" · "풀기 가두기 토글") — PC 창모드만 · 전체화면 단추 왼쪽.
-                  켬 → 끔: 곧장 푼다 · 끔 → 켬: 곧장 가둔다(이 누름이 손짓). 갇힌 동안에도 가짜 커서로 누를 수 있다(mouseLock9). */}
-              {!uiPhone9 && !coarse && !fsOn && (
-                <button
-                  type="button"
-                  className={cx("scr-kakao-share-btn", mlockOn9 && "is-done")}
-                  data-mlock={mlockOn9 ? (mlocked9 ? "locked" : "on") : "off"}
-                  onClick={(e) => {
-                    const L9 = mlockRef9.current;
-                    if (mlockOn9) { setMlockOn9(false); mouseLockStore9(false); L9?.release(); return; }
-                    setMlockOn9(true); mouseLockStore9(true);
-                    if (L9 && e.nativeEvent.isTrusted) L9.request(e.nativeEvent, false);
-                  }}
-                  aria-label={mlockOn9 ? "마우스 풀기" : "마우스 가두기"}
-                  title={mlockOn9 ? "마우스 가두기 켬 — 누르면 풀기 (Esc 는 잠깐 풀기)" : "마우스 가두기 — 지도를 누르면 커서가 재생기 안에 갇혀 화면 끝에서 밀린다"}
-                >
-                  {mlockOn9 ? <Lock size={18} aria-hidden /> : <LockOpen size={18} aria-hidden />}
-                </button>
-              )}
               {/* 전체화면 켜고 끄기는 줄의 **맨 오른쪽**이다(2026-09, 요청: "전체화면 온오프 버튼은 가장 오른쪽에 배치"). */}
               <button
                 type="button"
@@ -26024,6 +26003,20 @@ export default function ReplayMotionPlayer({
           {mapNode}
           {/* 상자 선택의 끄는 상자(위 boxSel9 ★) — 자리·크기는 onMapPointerMove 가 손으로 적는다(자식 없음). */}
           <div className="scr-boxsel" ref={boxElRef9} aria-hidden />
+          {/* ★ 엣지 스크롤 단추(위 edgeHoverRef9 ★) — PC 창모드 · 무대 네 변 가운데 · 올리면 민다(누름은 지도로 안 샌다). 분할 보기 · 쇼츠 재생엔 안 선다. */}
+          {!fsOn && !uiPhone9 && !coarse && !short && !splitOn9 && (
+            <div className="scr-edgebtns" aria-hidden>
+              {([["l", 1, 0], ["r", -1, 0], ["t", 0, 1], ["b", 0, -1]] as const).map(([k9, ux9, uy9]) => (
+                <button key={k9} type="button" tabIndex={-1} className={cx("scr-edgebtn", `is-${k9}`)}
+                  onPointerEnter={(e) => { if (e.pointerType === "mouse") edgeHoverRef9.current = [ux9, uy9]; }}
+                  onPointerLeave={() => { edgeHoverRef9.current = [0, 0]; }}
+                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+                  {k9 === "l" ? <ChevronLeft aria-hidden /> : k9 === "r" ? <ChevronRight aria-hidden /> : k9 === "t" ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
+                </button>
+              ))}
+            </div>
+          )}
           {/* ★ 쇼츠(위 쇼츠 ★) — 녹화 중 REC 표(무대 위 가운데) · 자막(녹화 미리보기 · 쇼츠 재생 연출 — 아래 shortCapsNow9). */}
           {/* 녹화 중 쇼츠 틀(위 shortCamRef9 ★★) — 무대 가운데 정사각(한 변 = 무대 짧은 변) · 두꺼운 흰 점선 · 틀 밖은 살짝 어둡게. 표지도 이 정사각을 찍는다(shortCoverOf9). */}
           {recOn9 && stage.w > 0 && stage.h > 0 && (

@@ -1217,6 +1217,51 @@ if (flag("--short", null) && flag("--shortshots", null)) {
   await page.waitForTimeout(Math.max(0, clip9.dur * 1000 - (Date.now() - t09) + 1500));
   console.log(`[쇼츠 재생] 끝 알림 ${(await page.evaluate(() => window.__shortEnded9 ?? null)) ? "옴" : "안 옴"} · 진행 ${(await page.evaluate(() => window.__shortProg9 ?? 0)).toFixed(2)}`);
 }
+/* --sqprobe(2026-11-20 · 쇼츠 정사각 창 팬 한계 · --shortrec 와 함께) — 녹화 전 · 녹화 중 각각 지도를 오른쪽 아래로 크게 끌어 지도 왼 · 위 끝이 정사각 틀 왼 · 위 끝에 닿나(px). */
+if (has("--sqprobe")) {
+  const box9 = () => page.evaluate(() => {
+    const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)]; };
+    return { map: r(".scr-motion-map .scr-motion-lens") ?? r(".scr-motion-lens"), stage: r(".scr-fs-stage"), sq: r(".scr-shortrec-frame") };
+  });
+  const drag9 = async () => {
+    const st9 = (await box9()).stage; if (!st9) return;
+    const cx9 = (st9[0] + st9[2]) / 2; const cy9 = (st9[1] + st9[3]) / 2;
+    for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.move(cx9, cy9); await page.mouse.down({ button: "right" }); await page.mouse.move(cx9 + 900, cy9 + 900, { steps: 8 }); await page.mouse.up({ button: "right" }); await page.waitForTimeout(400); }
+  };
+  const mc9 = await page.evaluate(() => { const b = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return b ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
+  if (mc9) { await page.mouse.move(mc9[0], mc9[1]); for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); } await page.waitForTimeout(800); }
+  await drag9();
+  console.log(`[정사각 창] 녹화 전 ${JSON.stringify(await box9())}`);
+  await page.evaluate(() => { const b = document.querySelector(".scr-shortrec-btn"); if (b instanceof HTMLElement) b.click(); });
+  await page.waitForTimeout(800);
+  await drag9();
+  console.log(`[정사각 창] 녹화 중 ${JSON.stringify(await box9())}`);
+  const SQ9 = flag("--shot", null);
+  if (SQ9) await page.screenshot({ path: String(SQ9).replace(/\.png$/, "_sq.png"), timeout: 240000 });
+}
+/* --edgeprobe(2026-11-20 · PC 창모드 엣지 스크롤 단추) — 오른 · 아래 단추 위에 1.2초씩 마우스를 올려 렌즈 변환(팬)이 그쪽으로 갔나 · 떼면 서나 · 사진 _edge. */
+if (has("--edgeprobe")) {
+  const lens9 = () => page.evaluate(() => (document.querySelector(".scr-motion-lens") instanceof HTMLElement ? document.querySelector(".scr-motion-lens").style.transform : "?"));
+  const n9 = await page.evaluate(() => document.querySelectorAll(".scr-edgebtn").length);
+  const mc9 = await page.evaluate(() => { const b = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return b ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
+  if (mc9) { await page.mouse.move(mc9[0], mc9[1]); for (let i9 = 0; i9 < 4; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); } await page.waitForTimeout(600); }   // 당겨야 밀 자리가 난다
+  console.log(`[엣지 단추] ${n9}개 · 처음 ${await lens9()}`);
+  for (const k9 of ["r", "b"]) {
+    const bb9 = await page.evaluate((q) => { const r = document.querySelector(q)?.getBoundingClientRect(); return r ? [r.left + r.width / 2, r.top + r.height / 2, Math.round(r.width), Math.round(r.height)] : null; }, `.scr-edgebtn.is-${k9}`);
+    if (!bb9) { console.log(`[엣지 단추] ${k9} 없음`); continue; }
+    await page.mouse.move(bb9[0], bb9[1]);
+    await page.waitForTimeout(1200);
+    const on9 = await lens9();
+    console.log(`[엣지 단추] ${k9} 맨 위 ${await page.evaluate((xy) => { const e = document.elementFromPoint(xy[0], xy[1]); return e ? `${e.tagName}.${String(e.className?.baseVal ?? e.className).slice(0, 60)}` : "없음"; }, bb9)} · 진단 ${await page.evaluate(() => (window.__scrDiag || {}).edge ?? "-")}`);
+    await page.mouse.move(bb9[0] - (k9 === "r" ? 200 : 0), bb9[1] - (k9 === "b" ? 200 : 0));
+    await page.waitForTimeout(500);
+    const off9 = await lens9();
+    await page.waitForTimeout(500);
+    console.log(`[엣지 단추] ${k9} ${bb9[2]}×${bb9[3]} @${Math.round(bb9[0])},${Math.round(bb9[1])} · 올림 1.2초 ${on9} · 뗀 뒤 ${off9} · 0.5초 더 ${await lens9()}`);
+  }
+  const SH9 = flag("--shot", null);
+  if (SH9) await page.screenshot({ path: String(SH9).replace(/\.png$/, "_edge.png"), timeout: 240000 });
+}
 const SHOT = flag("--shot", null);
 /* --press <css>(2026-10-23) — 그 요소 가운데서 마우스를 눌러 둔 채(:active) 끝 사진을 찍는다(크리스탈 단추의 누름 꼴 검산). */
 /* --glms(2026-10-23) — GL 붓 flush 한 번을 gl.finish() 까지 잰다(헤드리스는 GL 도 CPU 라 끝내기까지가 곧 그리기 값 — 2D 스프라이트 판 켬/끔 견줌). 표본 동안 모아 끝에 낸다. */

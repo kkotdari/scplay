@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Clapperboard, Lock, Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
+import { ChevronsLeftRight, Clapperboard, Map as MapIcon, Maximize, Palette, Play, Route, Search, Share2, Tv, Video, Volume2, X } from "lucide-react";
 
 /* ★ 사용법은 **기능마다 한 줄 · 그 이름 옆에 PC 단축키**(2026-10-22, 요청: "단축키를 각 기능 설명부에 통합 — 기능 옆에 단축키 · 내용 전체적으로 많이 간소화") —
    옛 두 절(01 화면 도구 · 02 PC 단축키)과 도구 상자·전광판 그림은 걷었다.
@@ -62,7 +62,7 @@ export default function ReplayGuide({ onClose }: {
         <ul className="scr-guide-legend">
           <Row ic={<T s="↔"/>} name="움직이기" keys={<Keys k={["W", "A", "S", "D"]}/>}>끌기(PC 는 오른쪽 버튼) · PC 는 마우스를 화면 끝에 대도 밀립니다.</Row>
           <Row ic={<T s="▭"/>} name="상자 선택" keys={<Keys k={["끌기"]}/>}>PC 에서 왼쪽 버튼으로 끌면 여러 유닛을 고릅니다(개인 추적 중엔 안 됨).</Row>
-          <Row ic={<Lock size={14}/>} name="마우스 가두기">PC 창모드 — 자물쇠 단추가 켜져 있으면 지도를 누를 때 커서가 재생기 안에 갇혀 화면 끝에서 밀립니다. 단추로 풀기 · 가두기(Esc 는 잠깐 풀기).</Row>
+          <Row ic={<ChevronsLeftRight size={14}/>} name="엣지 스크롤 단추">PC 창모드 — 화면 네 변 가운데의 반투명 화살표 단추 위에 마우스를 올려 두면 그쪽으로 화면이 밀립니다(오래 올려 둘수록 빨라짐 · 전체화면은 화면 끝).</Row>
           <Row ic={<T s="휠"/>} name="확대 / 축소">휠 · 핀치 · 두 번 누르기(기본 배율 ↔ 지도 전체).</Row>
           <Row ic={<MapIcon size={15}/>} name="미니맵" keys={<Keys k={["N"]}/>}>누르면 그 자리로(중계 중에는 잠김) · N 보이기 / 숨기기.</Row>
         </ul>
