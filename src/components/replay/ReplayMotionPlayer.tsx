@@ -14932,6 +14932,9 @@ export default function ReplayMotionPlayer({
   /** 판 뿌리(.scr-fs-root) — 휠은 지도 상자가 아니라 **판 전체**가 받는다(아래 onWheel). */
   const fsRootRef = useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  /** ★ 녹화 중 정사각 무대(2026-11-20, 요청: "팬리미트를 건드리지 말고 녹화 중 스테이지 자체를 정사각형으로 변경 · 녹화 끝나면 다시 원래대로") — 녹화 단추를 누르면 무대를
+   *  한 변 = 그때 무대의 짧은 변(s)인 정사각으로 줄여 가운데 세운다(아래 stageStyle) · 끝나면 되돌린다. w0 · h0 = 줄이기 전 무대(되돌릴 때 배율 셈). 아래 recStart9 ★. */
+  const [recSq9, setRecSq9] = useState<{ s: number; w0: number; h0: number } | null>(null);
   /* ★ **자막·화면 주인 크기의 무대 높이 자**(2026-10-12, 요청: "화면 주인과 자막 부분도 해상도에 따라 크기 다르게 — 저해상도에서 너무 크게 나와") — PC 크기는 해상도 단(--dks · 창 세로
      FHD·QHD·UHD 세 칸)만 따라 FHD 아래 창(노트북 768 등)에서도 자막 32·이름표 34px 그대로였다. 무대 높이 × CAP_STAGE_K9 를 자막 글자 크기의 목표로 삼아 단 값(32·dks)보다 작으면
      그 몫(--capk · 0.5~1)만큼 줄인다 — 큰 창은 그대로(상한 1). 폰은 기기 단(--dk)이 이미 맞아 1. */
@@ -15044,8 +15047,6 @@ export default function ReplayMotionPlayer({
    *  자는 **칸**이다: 가장 큰 것(4×4 건물)이 제 발자리에서 네 칸만큼 솟는다. */
   const BAND_TILES = 4;
   const bandRef = useRef(0);
-  /** 쇼츠 정사각 창으로 팬 한계를 잴까(아래 panLimit ★ · 녹화 중 · 쇼츠 재생) — 렌더가 적는다(아래 recOn9 뒤). */
-  const sqCamRef9 = useRef(!!short);
   /* 창 크기(winW·winH)도 함께 내놓는다 — 추적 카메라가 "지금 그 점이 가장자리에
      닿았나"를 재는 데 쓴다. 한계와 같은 자를 써야 판정과 이동이 안 어긋난다. */
   const panLimit = useCallback((z: number): {
@@ -15055,13 +15056,8 @@ export default function ReplayMotionPlayer({
     if (cov.w <= 0 || cov.h <= 0) return { x: 0, y: 0, yTop: 0, winW: 0, winH: 0, band: 0 };
     const st = stageSizeRef.current;
     const k9 = pitchKRef.current;
-    /* ★ **쇼츠 정사각 창**(2026-11-20, 지적: "치명적 문제 — 정사각형 프레임으로 했을 때 내가 보여주고 싶은 부분이 절대 안 들어갈 수 있는 문제 · 쇼츠 촬영모드 가동 시 무대 자체가
-       쇼츠 프레임 정사각형 영역으로 바뀌던지") — 녹화 중 · 쇼츠 재생은 보이는 창을 무대가 아니라 **무대 가운데 정사각(한 변 = 무대 짧은 변 · 녹화 틀)**으로 잰다. 옛 셈은 넓은 무대의
-       양끝이 지도 끝에 닿으면 멈춰 가운데 정사각이 지도 좌우(세로 무대면 위아래) 가장자리에 영영 못 닿았다 · 쇼츠 재생도 그 자리를 무대 한계로 눌러 틀이 밀렸다.
-       창이 좁아지는 만큼 더 끌린다(정사각 밖은 지도 너머가 보여도 된다 — 쇼츠에 안 든다). 추적 · 중계 카메라도 같은 창으로 잰다(대상을 틀 안에 붙든다). */
-    const sq9 = sqCamRef9.current && st.w > 0 && st.h > 0 ? Math.min(st.w, st.h) : 0;
-    /** 가로로 보이는 몫 — 무대 폭(지도가 그보다 좁으면 지도 폭) · 쇼츠 정사각이면 그 한 변. */
-    const winW = sq9 > 0 ? Math.min(sq9, cov.w) : st.w > 0 ? Math.min(st.w, cov.w) : cov.w;
+    /** 가로로 보이는 몫 — 무대 폭(지도가 그보다 좁으면 지도 폭). */
+    const winW = st.w > 0 ? Math.min(st.w, cov.w) : cov.w;
     /* ★ 세로로 **화면에 실제로 서는 몫**으로 잰다(지적: "3D에서 줌인 상태로 드래그
        가능한 범위가 너무 넓어. 이미 지도는 끝났는데도 드래그는 계속 가능해") ────────────
        눕힌 지도가 화면에서 차지하는 세로는 상자 세로의 k배다(k = pitchSpan, 45도에서
@@ -15071,8 +15067,7 @@ export default function ReplayMotionPlayer({
        perspective rotateX) 여기 곱할 자는 그 k 하나다. 창의 세로도 무대가 아니라
        **지도 상자**다(그 둘은 그림 여유만큼 다르다).
        가로는 눕혀도 안 줄어든다 — 가까운 변이 상자 폭을 그대로 쓴다(사다리꼴의 밑변). */
-    const winH0 = viewHRef.current > 0 ? viewHRef.current : (st.h > 0 ? st.h : cov.h * k9);
-    const winH = sq9 > 0 ? Math.min(winH0, sq9) : winH0;
+    const winH = viewHRef.current > 0 ? viewHRef.current : (st.h > 0 ? st.h : cov.h * k9);
     /* 위쪽만 더 연다 — 아래·좌우는 그대로다(솟는 방향이 위 하나라 아래는 열 까닭이 없다).
        창의 절반을 넘지는 않는다: 그보다 열면 지도가 아니라 하늘을 보는 창이 된다. */
     const band9 = Math.min(bandRef.current * z, winH * 0.45);
@@ -15906,7 +15901,10 @@ export default function ReplayMotionPlayer({
   /** ★ 쇼츠 판(2026-11-19, 요청: "쇼츠 비율 모바일은 세로로 길게 · 피시는 가로 4:3") — 쇼츠 재생은 넣는 쪽이 준 가로 × 세로(frameW · frameH)를 **그대로** 채운다
    *  (지도 비를 안 따른다). 1배 = 무대 가로 폭이라(fsCoverW ★★) 녹화한 가로 범위는 그대로 · 세로로 긴 판은 위아래가 더 보인다. */
   const shortBox9 = short && frameW !== undefined && frameW > 0 && frameH !== undefined && frameH > 0 ? { w: Math.round(frameW), h: Math.round(frameH) } : null;
-  const stageStyle: React.CSSProperties | undefined = shortBox9 ? { width: "100%", height: `${shortBox9.h}px`, maxHeight: "none" } : rowsOutside
+  const stageStyle: React.CSSProperties | undefined = shortBox9 ? { width: "100%", height: `${shortBox9.h}px`, maxHeight: "none" } : recSq9
+    /* 녹화 중 정사각 무대(위 recSq9 ★) — 프레임(격자 1행) · 전체화면(세로 flex) · 넓은 배치(한 칸 격자) 어디서나 가운데 정사각(margin auto · 자기 정렬 가운데). */
+    ? { width: `${recSq9.s}px`, height: `${recSq9.s}px`, maxHeight: "none", aspectRatio: "auto", flex: "none", justifySelf: "center", alignSelf: "center", margin: "auto" }
+    : rowsOutside
     ? {
       aspectRatio: `${grid.width} / ${grid.height}`,
       /* 폭은 **안 건다** — 판이 이미 상한을 지고 있고(위 stageCapW9), 무대는 그 안에서
@@ -17647,7 +17645,6 @@ export default function ReplayMotionPlayer({
   onShortProgressRef9.current = onShortProgress;
   const recRef9 = useRef<{ w: number; last: number; at: number; s: ShortClip9["s"]; caps: ShortCap9[]; imgs: ShortImg9[]; sp: number; a: number; hw: number; vw: string | null; cover: string | null } | null>(null);
   const [recOn9, setRecOn9] = useState(false);
-  sqCamRef9.current = recOn9 || !!short;
   /** ★ 녹화 일시정지(2026-11-20, 요청: "녹화-정지 중간에 일시정지도 필요 · 일시정지 중엔 끊기고 장소나 시간을 옮겨서 다시 시작하면 그때로 바로 이어져서 녹화되게") —
    *  멈추면 토막 시계(실초 w)가 안 가고 재생도 멈춘다(그 사이 카메라 · 배율 · 시각 · 배속을 마음대로 옮긴다). 끊는 자리에 그때 장면 한 칸, 이어 녹화하면 **같은 w 에 새 장면 한 칸**을
    *  적는다 — 같은 w 의 두 칸 = 뜀(short9 shortAt9)이라 쇼츠는 그 자리에서 곧장 새 장소 · 새 시각으로 넘어간다. 멈춘 채 끝내면 멈춘 자리까지가 토막이다. */
@@ -17680,7 +17677,8 @@ export default function ReplayMotionPlayer({
     const mini9 = fsRootRef.current?.querySelector<HTMLCanvasElement>(".scr-fs-minipanel .scr-fs-minimap canvas") ?? null;
     return shortCoverOf9(st9, layers9, mini9);
   };
-  const recStart9 = (): void => {
+  /** 녹화를 실제로 시작한다(무대가 정사각으로 선 뒤 · 아래 recStart9 ★). */
+  const recBegin9 = (): void => {
     if (!onShortCreateRef9.current || recRef9.current || short) return;
     const t9 = tLiveRef9.current;
     const [z9, cx9, cy9] = recViewNow9();
@@ -17689,7 +17687,6 @@ export default function ReplayMotionPlayer({
     recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
-    sqCamRef9.current = true;
     recPauseRef9.current = false;
     setRecPause9(false);
     setRecSave9(null);
@@ -17698,13 +17695,56 @@ export default function ReplayMotionPlayer({
     requestPaint9();
     if (!done) setPlaying(true);   // 누르면 녹화 — 멈춰 있었으면 재생도 건다
   };
+  const recBeginRef9 = useRef(recBegin9);
+  recBeginRef9.current = recBegin9;
+  /** 정사각 무대로 바꾸거나 되돌릴 때 이어 갈 눈(위 recSq9 ★) — 배율은 무대 폭 비만큼 곱해 **같은 크기**로 보이게(녹화 틀 안에 보이던 그대로 · 되돌리면 정사각에 보이던 그대로) ·
+   *  가운데(지도 분수)는 그대로. begin = 무대가 서면 녹화를 시작한다. at = 건 시각(무대가 끝내 정사각으로 안 서면 0.7초 뒤 그대로 간다). */
+  const recViewAfter9 = useRef<{ z: number; cx: number; cy: number; s: number; begin: boolean; at: number } | null>(null);
+  const recApplyView9 = (): void => {
+    const v9 = recViewAfter9.current;
+    if (!v9) return;
+    recViewAfter9.current = null;
+    const el9 = mapRef.current;
+    const bw9 = el9?.offsetWidth ?? 0;
+    const bh9 = el9?.offsetHeight ?? 0;
+    if (bw9 >= 4 && bh9 >= 4) {
+      const z9 = Math.min(ZOOM_MAX, Math.max(zMinRef9.current, v9.z));
+      const lim9 = panLimit(z9);
+      setView9(z9, {
+        x: Math.min(lim9.x, Math.max(-lim9.x, (0.5 - v9.cx) * bw9 * z9)),
+        y: Math.min(centerTop9(lim9, v9.cy * grid.height), Math.max(-lim9.y, (0.5 - v9.cy) * bh9 * z9)),
+      });
+    }
+    if (v9.begin) recBeginRef9.current();
+  };
+  const recApplyViewRef9 = useRef(recApplyView9);
+  recApplyViewRef9.current = recApplyView9;
+  /* 무대가 정사각으로 섰으면(또는 되돌아갔으면) 눈을 잇는다 — 무대 크기 상태가 바뀐 뒤 같은 장(지도 상자도 새 크기)에서. */
+  useLayoutEffect(() => {
+    const v9 = recViewAfter9.current;
+    if (!v9) return;
+    const sq9 = Math.abs(stage.w - v9.s) < 3 && Math.abs(stage.h - v9.s) < 3;
+    if (v9.begin ? sq9 : !sq9) recApplyViewRef9.current();
+  }, [stage.w, stage.h]);
+  /** 녹화 단추 — 무대를 정사각으로 바꾸고(위 recSq9 ★) 선 뒤 녹화를 시작한다. 이미 정사각이면 곧장. */
+  const recStart9 = (): void => {
+    if (!onShortCreateRef9.current || recRef9.current || short || recSq9) return;
+    const st9 = stageRef.current;
+    const w09 = st9?.offsetWidth ?? 0;
+    const h09 = st9?.offsetHeight ?? 0;
+    const s9 = Math.floor(Math.min(w09, h09));
+    if (s9 < 40 || Math.abs(w09 - h09) < 3) { recBegin9(); return; }
+    const [z9, cx9, cy9] = recViewNow9();
+    recViewAfter9.current = { z: z9 * (w09 / s9), cx: cx9, cy: cy9, s: s9, begin: true, at: performance.now() };
+    setRecSq9({ s: s9, w0: w09, h0: h09 });
+    window.setTimeout(() => { if (recViewAfter9.current?.begin) recApplyViewRef9.current(); }, 700);
+  };
   const recStop9 = (): void => {
     const r9 = recRef9.current;
     if (!r9) return;
     recRef9.current = null;
     if (SHORT_SHOT9.fn) SHORT_SHOT9.fn = null;
     setRecOn9(false);
-    sqCamRef9.current = !!short;
     const paused9 = recPauseRef9.current;
     recPauseRef9.current = false;
     setRecPause9(false);
@@ -17721,6 +17761,16 @@ export default function ReplayMotionPlayer({
     setPlaying(false);
     setRecSave9({ clip: clip9, cover: r9.cover, busy: false, err: "" });
   };
+  /* 녹화가 끝나면(저장 창이 떠도) 무대를 되돌린다(위 recSq9 ★) — 정사각에 보이던 크기 그대로 넓은 무대로. */
+  useEffect(() => {
+    if (recOn9 || !recSq9 || recViewAfter9.current?.begin) return;
+    const [z9, cx9, cy9] = recViewNow9();
+    recViewAfter9.current = { z: z9 * (recSq9.s / Math.max(1, recSq9.w0)), cx: cx9, cy: cy9, s: recSq9.s, begin: false, at: performance.now() };
+    setRecSq9(null);
+    const tm9 = window.setTimeout(() => { if (recViewAfter9.current && !recViewAfter9.current.begin) recApplyViewRef9.current(); }, 700);
+    return () => window.clearTimeout(tm9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recOn9]);
   const recStopRef9 = useRef(recStop9);
   recStopRef9.current = recStop9;
   /** 녹화 일시정지 · 이어 녹화(위 recPause9 ★) — 자막 · 사진 판이 떠 있으면 안 받는다. */

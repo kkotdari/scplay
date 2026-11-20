@@ -6426,7 +6426,8 @@
 .scr-shortfab-btn.scr-shortimg-btn { color: #8fd6ff; }
 /* ★ 엣지 스크롤 단추(RMP edgeHoverRef9 ★ · 2026-11-20, 요청: "프레임모드의 마우스 가두기와 엣지투스크롤 폐기하고 엣지스크롤 버튼을 두는 걸로 · 그 위에 올리면 스크롤 ·
    적당한 크기에 반투명으로") — PC 창모드 무대 네 변 가운데. 좌우 34×84 · 위아래 84×34(× --sdk · 배속 다이얼과 같은 자) · 어두운 반투명 판 + 흰 갈매기(0.7) · 올리면 짙어지고
-   갈매기가 그쪽으로 살짝 나간다. 오른 단추는 배율 · 배속 다이얼 줄(--sd-room) 왼쪽 · 아래 단추는 배속 다이얼 바닥(--over-cap)과 같은 높이(넓은 배치의 재생바 · 독 위).
+   갈매기가 그쪽으로 살짝 나간다. 네 단추 모두 무대 끝에서 --eb-g(6·sdk) 안쪽(같은 날 되요청: "상좌는 끝인데 우하가 이상해" — 옛: 오른 단추는 다이얼 줄(--sd-room) 왼쪽 ·
+   아래 단추는 배속 다이얼 바닥(--over-cap) 높이였다).
    다이얼 · 쇼츠 단추(z 30001)보다 아래 겹(29980)이라 겹치면 그쪽이 먼저 받는다. 독 접힘(is-dockfold2)에도 남고 U(is-uihide-ctl)로 숨는다. */
 .scr-edgebtns { position: absolute; inset: 0; z-index: 29980; pointer-events: none; --eb-l: calc(84px * var(--sdk, 1)); --eb-s: calc(34px * var(--sdk, 1)); --eb-g: calc(6px * var(--sdk, 1)); }
 .scr-edgebtn {
@@ -6436,11 +6437,13 @@
 }
 .scr-edgebtn svg { width: calc(20px * var(--sdk, 1)); height: calc(20px * var(--sdk, 1)); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); transition: transform 0.15s ease; }
 .scr-edgebtn.is-l { left: var(--eb-g); top: 50%; width: var(--eb-s); height: var(--eb-l); transform: translateY(-50%); }
-.scr-edgebtn.is-r { right: calc(var(--sd-room, 0px) + var(--eb-g)); top: 50%; width: var(--eb-s); height: var(--eb-l); transform: translateY(-50%); }
+.scr-edgebtn.is-r { right: var(--eb-g); top: 50%; width: var(--eb-s); height: var(--eb-l); transform: translateY(-50%); }
 .scr-edgebtn.is-t { top: var(--eb-g); left: 50%; width: var(--eb-l); height: var(--eb-s); transform: translateX(-50%); }
-.scr-edgebtn.is-b { bottom: max(var(--eb-g), var(--over-cap, 0px)); left: 50%; width: var(--eb-l); height: var(--eb-s); transform: translateX(-50%); }
+.scr-edgebtn.is-b { bottom: var(--eb-g); left: 50%; width: var(--eb-l); height: var(--eb-s); transform: translateX(-50%); }
 .scr-edgebtn:hover { background: rgba(8, 10, 14, 0.5); color: #fff; }
 .scr-edgebtn.is-l:hover svg { transform: translateX(-2px); }
 .scr-edgebtn.is-r:hover svg { transform: translateX(2px); }
 .scr-edgebtn.is-t:hover svg { transform: translateY(-2px); }
 .scr-edgebtn.is-b:hover svg { transform: translateY(2px); }
+/* 녹화 중 정사각 무대(RMP recSq9 ★ · 2026-11-20) — 무대 양옆(또는 위아래)의 빈 몫은 어둡게(뿌리 바탕 · 쪽 바탕이 비치지 않게). */
+.scr-fs-root.is-rec { background: #05070a; }

@@ -1217,27 +1217,20 @@ if (flag("--short", null) && flag("--shortshots", null)) {
   await page.waitForTimeout(Math.max(0, clip9.dur * 1000 - (Date.now() - t09) + 1500));
   console.log(`[쇼츠 재생] 끝 알림 ${(await page.evaluate(() => window.__shortEnded9 ?? null)) ? "옴" : "안 옴"} · 진행 ${(await page.evaluate(() => window.__shortProg9 ?? 0)).toFixed(2)}`);
 }
-/* --sqprobe(2026-11-20 · 쇼츠 정사각 창 팬 한계 · --shortrec 와 함께) — 녹화 전 · 녹화 중 각각 지도를 오른쪽 아래로 크게 끌어 지도 왼 · 위 끝이 정사각 틀 왼 · 위 끝에 닿나(px). */
+/* --sqprobe(2026-11-20 · 쇼츠 녹화 = 정사각 무대 · --shortrec 와 함께) — 녹화 전 · 녹화 중 · 정지 뒤 무대 · 지도 상자 · 배율(렌즈) · 녹화 틀 상자를 적고 녹화 중 사진 _sq. */
 if (has("--sqprobe")) {
   const box9 = () => page.evaluate(() => {
-    const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)]; };
-    return { map: r(".scr-motion-map .scr-motion-lens") ?? r(".scr-motion-lens"), stage: r(".scr-fs-stage"), sq: r(".scr-shortrec-frame") };
+    const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; };
+    const lens = document.querySelector(".scr-motion-lens");
+    return { stage: r(".scr-fs-stage"), map: r(".scr-motion-map"), frame: r(".scr-shortrec-frame"), lens: lens instanceof HTMLElement ? lens.style.transform : "?", z: document.querySelector(".scr-zoomdial-val")?.textContent ?? "?", rec: !!document.querySelector(".scr-shortrec-btn.is-rec") };
   });
-  const drag9 = async () => {
-    const st9 = (await box9()).stage; if (!st9) return;
-    const cx9 = (st9[0] + st9[2]) / 2; const cy9 = (st9[1] + st9[3]) / 2;
-    for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.move(cx9, cy9); await page.mouse.down({ button: "right" }); await page.mouse.move(cx9 + 900, cy9 + 900, { steps: 8 }); await page.mouse.up({ button: "right" }); await page.waitForTimeout(400); }
-  };
-  const mc9 = await page.evaluate(() => { const b = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return b ? [b.left + b.width / 2, b.top + b.height / 2] : null; });
-  if (mc9) { await page.mouse.move(mc9[0], mc9[1]); for (let i9 = 0; i9 < 3; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); } await page.waitForTimeout(800); }
-  await drag9();
-  console.log(`[정사각 창] 녹화 전 ${JSON.stringify(await box9())}`);
+  console.log(`[정사각 무대] 녹화 전 ${JSON.stringify(await box9())}`);
   await page.evaluate(() => { const b = document.querySelector(".scr-shortrec-btn"); if (b instanceof HTMLElement) b.click(); });
-  await page.waitForTimeout(800);
-  await drag9();
-  console.log(`[정사각 창] 녹화 중 ${JSON.stringify(await box9())}`);
+  for (const w9 of [1500, 4000, 8000]) { await page.waitForTimeout(w9); console.log(`[정사각 무대] 녹화 중 +${w9} ${JSON.stringify(await box9())}`); }
   const SQ9 = flag("--shot", null);
   if (SQ9) await page.screenshot({ path: String(SQ9).replace(/\.png$/, "_sq.png"), timeout: 240000 });
+  await page.evaluate(() => { const b = document.querySelector(".scr-shortrec-btn.is-rec"); if (b instanceof HTMLElement) b.click(); });
+  for (const w9 of [1500, 4000, 8000]) { await page.waitForTimeout(w9); console.log(`[정사각 무대] 정지 뒤 +${w9} ${JSON.stringify(await box9())}`); }
 }
 /* --edgeprobe(2026-11-20 · PC 창모드 엣지 스크롤 단추) — 오른 · 아래 단추 위에 1.2초씩 마우스를 올려 렌즈 변환(팬)이 그쪽으로 갔나 · 떼면 서나 · 사진 _edge. */
 if (has("--edgeprobe")) {
