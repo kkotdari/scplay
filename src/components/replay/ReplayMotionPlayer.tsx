@@ -120,7 +120,7 @@ import {
   pitchFlatSet9, BAKE_ENV9, BAKE_POOL, DECAL_KINDS, stageFaces, TURRET_BACK9, SPIN_KINDS, HEAD_KINDS, LIT_KINDS, LOD_INK_DECO, LOD_INK_POINT, NO_CREEP9, OCT_XZ, PITCH_3D, PITCH_DEGS, SCAN_MS9, SHAPE_BUILDERS, SHAPE_ROT, spriteSideMax9, STORM_STAGES, bldLitNow, bldSpinNow, canvasBytes, flatOf, geyserDry, glossFaces, headAimNow, headTag, headYawNow, litTag, lodCap, lodOf, lodPenalty, lodZoom, mineralLv, mineralVar, paintBase, pathBox, pathOf, pitchFlatNow, pitchTag, poseNow, poseTag, quarterDome, rasterBld9, releaseCanvas, resolveShapeFaces, rodFaces, scvCarry, shadeBoost, tone9, spikeHorn, spinTag, spirePillar, sunkenFire, sunkenTongue, sunkenTongueFaces, tierTableOf, headYawSet, bldLitSet, bldSpinRawSet9, bldSpinSet, poseSet, poseSet9, lodSetCap, lodSetZoom, lodNoteFrame, SHAPE_GALLERY,
   GAS_KINDS9, warmShapeFaces9,
 } from "./bake9";
-import { sprAtlasLoad9, sprAtlasOn9, sprSwapStat9 } from "./sprAtlas9";
+import { sprAtlasLoad9, sprAtlasOn9, sprAtlasPrime9, sprSwapStat9 } from "./sprAtlas9";
 import { glUnits9, glLostCv9, glAlive9, glSprTune9, glSprHold9, glNow9, glGen9, GL_SPR9, GL_PRE9, glBakeMsTake9, glScrubSet9, glScrubbing9, gasTops9, MESH_SHADOW9, GL_CANVAS_KINDS9, GL_ON9, GL_BLIT9, GL_WARM9, GL_GLOW_KINDS9, SHADOW_ALPHA9, camOf9, CAM_TOP9, SPR_YAW32_9, glIconOk9, glIconRequest9, type GlUnits9, type GlFoot9, type GlRing9 } from "./gl9";
 import { buildSearchIndex9, searchNorm9, SEARCH_ACTS9, SEARCH_ROLES9, type SearchFacet9, type SearchHit9, type SearchIndex9 } from "./searchIndex9";
 import { koEul9, koGa9, koWa9 } from "../../utils/koJosa";
@@ -975,6 +975,12 @@ const ATLAS_WANT9 = (): 8 | 16 | 32 => {
   if (lv9 === 1) return 16;   // (2026-11-03 "셋 다 같은 상한 · 뒤에서 최대한 받아 채워넣기") — 웹·PWA·앱 모두 32방을 상한까지 올리고 넘친 묶음은 교체 · 옛: 앱 32 · 웹 16 ← 앱 16 · 웹 8
   return TIER9.v === 0 ? 16 : 32;
 };
+/** ★ 재생기 채비를 미리(2026-11-20, 지적: "쇼츠 3초 이내") — 앱이 목록 화면에서 한가할 때 · 쇼츠 카드를 누를 때 부른다. 서버 아틀라스의 판 표 · 해독기 · 풀기 워커(폰 1 — 위 예열의
+ *  workers 와 같은 수) · 푼 단 캐시를 연다(sprAtlasPrime9). 받기 · 풀기 · GPU 는 첫 재생기가 한다. 아틀라스를 안 꽂은 앱이면 아무것도 안 한다. */
+export function replayPrewarm9(): void {
+  if (!sprAtlasOn9()) return;
+  sprAtlasPrime9(DEV9.name === "phone" ? 1 : undefined);
+}
 /** 재생기 테마(메탈·홀로그램)의 모듈 공유 자리(2026-10-24 · modeTheme9 의 ★) — 살아 있는 재생기 수 · 마지막으로 내려간 시각. */
 const THEME_PICK9: { v: "metal" | "holo" | "neon" | null; alive: number; gone: number } = { v: null, alive: 0, gone: -1e9 };
 /** 이 손짓에서 **보기가 실제로 움직였나**(배율·팬이 손짓 시작 자리와 달라졌나) — 안 움직였으면 붓이 손짓 몫(배킹 내림·그림자 접기)을 안 탄다(2026-10-23, 지적:
@@ -22603,6 +22609,7 @@ export default function ReplayMotionPlayer({
   const loadStage9: LoadStage9 | null = loadStage09 ?? (short && !shortSettled9 ? { key: "paint", text: "화면 준비 중" } : null);
   /* 가림(props veil ★) — 로딩이 **처음** 다 끝난 순간 걷고 onReady 를 한 번 부른다(그 뒤의 재예열·굽기 몰림으로 다시 가리지 않는다). */
   const [readyOnce9, setReadyOnce9] = useState(false);
+  const readyOnceRef9 = useRef(false); readyOnceRef9.current = readyOnce9;   // 예열 걸음이 읽는다(가림 중 큰 걸음 ★)
   const onReadyRef9 = useRef(onReady); onReadyRef9.current = onReady;
   useEffect(() => {
     if (readyOnce9 || pending || loadStage9 !== null) return;
@@ -22874,7 +22881,10 @@ export default function ReplayMotionPlayer({
       const t0 = performance.now();
       let n9 = 0;
       LOAD9.warmN = jobs.length;
-      while (i9 < jobs.length && n9 < 8 && performance.now() - t0 < 6) {
+      /* ★ 가림(veil) 중 첫 예열은 한 장 20ms · 32 일감까지(2026-11-20, 지적: "쇼츠 3초 이내") — 6ms · 8 은 LOADING 글자 애니메이션이 멎지 않게 한 값인데, 가림 중엔 판이 안 보이고
+         앱의 로딩 표식(쇼츠 별 · 워드마크)은 CSS 애니메이션이라 메인 스레드를 조금 더 써도 된다 — 일감 수백이 수십 장에 끝난다. 다시 도는 예열(quiet)은 종전대로. */
+      const big9 = !!veil && !quiet9 && !readyOnceRef9.current;
+      while (i9 < jobs.length && n9 < (big9 ? 32 : 8) && performance.now() - t0 < (big9 ? 20 : 6)) {
         n9 += 1;
         const j9 = jobs[i9];
         i9 += 1;

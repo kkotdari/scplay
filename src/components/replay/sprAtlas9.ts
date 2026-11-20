@@ -104,6 +104,12 @@ function pool9(want?: number): Promise<Pool9 | null> {
   })();
   return poolP9;
 }
+/** ★ 풀기 채비를 미리(2026-11-20, 지적: "쇼츠 3초 이내") — 판 표 · 해독기(wasm) · 풀기 워커 · 푼 단 캐시(IndexedDB)를 연다. 첫 쇼츠 · 첫 경기가 그 몫(수백 ms)을 안 기다리게
+ *  앱이 목록 화면에서 한가할 때 부른다(RMP replayPrewarm9). 받기 · 풀기 · GPU 는 안 건드린다 — 워커는 서서 기다린다. 워커 수는 처음 선 수 그대로 산다(폰 1). */
+export function sprAtlasPrime9(workers?: number): void {
+  if (!BASE) return;
+  void index9(); void db9(); void pool9(workers).catch(() => null); void basis9().catch(() => null);
+}
 /** 켜 하나를 풀 워커에게(가장 한가한 것) — 바이트는 옮긴다(받은 버퍼는 이 뒤로 못 쓴다). */
 function poolRun9(pl9: Pool9, buf: ArrayBuffer, tf: number, maxLv: number): Promise<Levels9 | null> {
   let k9 = 0; for (let i9 = 1; i9 < pl9.ws.length; i9 += 1) if (pl9.busy[i9] < pl9.busy[k9]) k9 = i9;
@@ -278,7 +284,11 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
       const rank9 = (j: (typeof jobs)[number]): number => (j.par === "c" || j.par === "d" ? 4 : 0) + (coreSet9.has(j.kind) ? 0 : 2) + (j.par === "b" || j.par === "d" ? 1 : 0);
       jobs.sort((x, y) => rank9(x) - rank9(y));   // 안정 정렬 — 같은 칸 안은 많이 쓰는 차례 그대로
     }
-    let coreLeft9 = jobs.filter((j) => coreSet9.has(j.kind)).length;
+    /* ★ 앞 종류의 몫은 **짝 · 홀(a · b)만** 센다(2026-11-20, 지적: "쇼츠가 3초 이내에 로딩되면 좋겠는데") — 32방 보충(c · d)은 위 차례에서 **나머지 종류의 a · b 뒤**로 미뤄 두었는데
+       셈에는 들어 있어, PC(32방)는 앞 종류가 다 실린 때 = 거의 모든 종류의 a · b 까지 실린 때였다(15종 쇼츠면 60 묶음 중 42). c · d 는 빠진 동안 가까운 칸으로 그리므로(gl9 sprFill ★)
+       기다릴 까닭이 없다. 폰(8 · 16방)은 c · d 가 없어 그대로. 되물린 값: 앞 종류의 모든 묶음(c · d 포함). */
+    const coreJob9 = (j: (typeof jobs)[number]): boolean => coreSet9.has(j.kind) && j.par !== "c" && j.par !== "d";
+    let coreLeft9 = jobs.filter(coreJob9).length;
     const coreTot9 = coreLeft9;
     opt.onProgress?.(0, coreTot9);
     const coreDone9 = (): void => { if (!cored9) { r.coreMs = Math.round(performance.now() - t0); core9(); } };
@@ -286,7 +296,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const settle9 = (j: (typeof jobs)[number]): void => {
       const n = (left9.get(j.kind) ?? 1) - 1; left9.set(j.kind, n);
       if (n <= 0) opt.pending?.delete(j.kind);
-      if (coreSet9.has(j.kind)) { coreLeft9 -= 1; opt.onProgress?.(coreTot9 - Math.max(0, coreLeft9), coreTot9); if (coreLeft9 <= 0) coreDone9(); }
+      if (coreJob9(j)) { coreLeft9 -= 1; opt.onProgress?.(coreTot9 - Math.max(0, coreLeft9), coreTot9); if (coreLeft9 <= 0) coreDone9(); }
     };
     /* 받기 + 풀기는 겹쳐서(워커가 있으면 워커 수 × 2 · 없으면 여섯) · 싣기는 차례대로(GL) — 바이트 상한에 닿으면 그만. */
     const url = (j: (typeof jobs)[number], ly: string): string => `${BASE}/k/${j.ch.files[opt.res][ly]}`;

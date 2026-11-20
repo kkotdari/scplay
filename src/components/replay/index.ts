@@ -27,7 +27,7 @@ export type { MotionBase } from "./ReplayMotionPlayer";
 export { TEAM_COLOR } from "./markers";
 
 // 재생 시각과 장면 링크 — 앱은 sceneLinkQueryOf9(짓기)·sceneLinkOf9(풀기)만 부르고 값은 안 만진다.
-export { playbackClockOf, SCENE_LINK_KEYS9, sceneLinkQueryOf9, sceneLinkOf9 } from "./ReplayMotionPlayer";
+export { playbackClockOf, SCENE_LINK_KEYS9, sceneLinkQueryOf9, sceneLinkOf9, replayPrewarm9 } from "./ReplayMotionPlayer";
 export type { ScenePin9 } from "./ReplayMotionPlayer";   // 장면 핀(2026-11-08)
 export type { ShortCap9, ShortClip9 } from "./short9";   // 쇼츠(2026-11-19 · 토막 한 벌 — 앱은 나르기만 한다)
 
