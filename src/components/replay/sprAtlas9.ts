@@ -287,7 +287,12 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     /* ★ 앞 종류의 몫은 **짝 · 홀(a · b)만** 센다(2026-11-20, 지적: "쇼츠가 3초 이내에 로딩되면 좋겠는데") — 32방 보충(c · d)은 위 차례에서 **나머지 종류의 a · b 뒤**로 미뤄 두었는데
        셈에는 들어 있어, PC(32방)는 앞 종류가 다 실린 때 = 거의 모든 종류의 a · b 까지 실린 때였다(15종 쇼츠면 60 묶음 중 42). c · d 는 빠진 동안 가까운 칸으로 그리므로(gl9 sprFill ★)
        기다릴 까닭이 없다. 폰(8 · 16방)은 c · d 가 없어 그대로. 되물린 값: 앞 종류의 모든 묶음(c · d 포함). */
-    const coreJob9 = (j: (typeof jobs)[number]): boolean => coreSet9.has(j.kind) && j.par !== "c" && j.par !== "d";
+    /* ★ 둘째(같은 날, 지적: "좀 무거운 장면은 로딩이 엄청 오래 걸리고 로딩 중에 탭이 터지기도") — 위 첫 손질은 나머지 종류(70%)의 a 도 안 기다려, 재생을 열 때 그 몸들은 칸이
+       **하나도 없었다**: 붓은 가까운 칸이 없으면 그 자리에서 메시로 굽는다(gl9 want — 대기 묶음이어도 가까운 칸이 없으면 굽기 · PC 는 MSAA · 한 장 96칸 · 다른 요잉 미리 찍기 24) →
+       무거운 장면일수록 동적 판이 폭증(PC 판 36장 상한 · 장마다 수십 MB)하고 '모델 굽는 중'(bakeHold)이 로딩을 붙잡았다. 이제 앞 = **모든 종류의 a(8방)** + 앞 종류의 b —
+       묶음 차례의 앞 세 칸(앞 a → 앞 b → 나머지 a)이라 차례를 안 바꾼다. 모든 몸에 가까운 칸이 있어 나머지(b · c · d)는 교체 고리 · 가까운 칸으로 기다린다(굽지 않는다).
+       되물린 값: 앞 종류 a·b 만(위 첫 손질) ← 앞 종류 모든 묶음(c · d 포함 · 옛). */
+    const coreJob9 = (j: (typeof jobs)[number]): boolean => j.par === "a" || (coreSet9.has(j.kind) && j.par === "b");
     let coreLeft9 = jobs.filter(coreJob9).length;
     const coreTot9 = coreLeft9;
     opt.onProgress?.(0, coreTot9);
