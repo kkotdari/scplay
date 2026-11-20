@@ -17693,13 +17693,17 @@ export default function ReplayMotionPlayer({
     recRef9.current = { w: 0, last: performance.now(), at: 0, s: [shortSample9(0, t9, z9, cx9, cy9)], caps: [], imgs: [], sp: speed, spd: [[0, speed]], a: Math.round(pitchDeg), hw: hw9, vw: viewRaw, cover: null };   // vw — 개인 화면이면 그 사람 시야(short9 ★)
     setRecTick9(0);
     setRecOn9(true);
-    recPauseRef9.current = false;
-    setRecPause9(false);
+    /* ★ 녹화는 **일시정지로 시작**한다(2026-11-20, 요청: "일시정지 상태에서 쇼츠 녹화 시작 시 자동으로 플레이로 전환되지 않게 · 녹화 시작 시 녹화가 아닌 일시정지 상태로") —
+       정사각 무대에서 자리 · 시각 · 배율을 맞춘 뒤 ▶(이어 녹화)를 눌러야 토막 시계가 간다. 재생도 멈춘다(녹화 일시정지와 같은 꼴 · 위 recPause9 ★).
+       ▶ 을 누르면 recPauseToggle9 가 같은 w(0)에 새 장면을 적는다 — 쇼츠는 그 장면에서 시작한다(첫 칸은 뜀으로 덮인다).
+       옛: 곧장 REC · 멈춰 있었으면 재생도 걸었다(if (!done) setPlaying(true)). */
+    recPauseRef9.current = true;
+    setRecPause9(true);
+    setPlaying(false);
     setRecSave9(null);
     /* 표지는 다음 붓 한 장 직후(위 SHORT_SHOT9 ★) — 멈춘 판이면 한 장을 부른다. */
     SHORT_SHOT9.fn = () => { const r9 = recRef9.current; if (r9 && !r9.cover) r9.cover = coverNow9(); };
     requestPaint9();
-    if (!done) setPlaying(true);   // 누르면 녹화 — 멈춰 있었으면 재생도 건다
   };
   const recBeginRef9 = useRef(recBegin9);
   recBeginRef9.current = recBegin9;
@@ -23702,8 +23706,8 @@ export default function ReplayMotionPlayer({
                 <span className="scr-shortrec-time">{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</span>
               </button>
               <button type="button" className={cx("scr-shortfab-btn scr-shortpause-btn", recPause9 && "is-paused")} onClick={recPauseToggle9}
-                aria-pressed={recPause9} aria-label={recPause9 ? "이어 녹화" : "녹화 일시정지"}
-                title={recPause9 ? "이어 녹화 — 지금 자리 · 시각에서 곧장 이어진다" : "녹화 일시정지 — 멈춘 동안은 안 찍힌다(자리 · 시각을 옮겨도 된다)"}>
+                aria-pressed={recPause9} aria-label={recPause9 ? (recTick9 === 0 ? "녹화 시작" : "이어 녹화") : "녹화 일시정지"}
+                title={recPause9 ? (recTick9 === 0 ? "녹화 시작 — 지금 자리 · 시각에서 찍기 시작한다" : "이어 녹화 — 지금 자리 · 시각에서 곧장 이어진다") : "녹화 일시정지 — 멈춘 동안은 안 찍힌다(자리 · 시각을 옮겨도 된다)"}>
                 {recPause9 ? <Play size={16} fill="currentColor" aria-hidden /> : <Pause size={16} fill="currentColor" aria-hidden />}
               </button>
               <button type="button" className="scr-shortfab-btn scr-shortcap-btn" onClick={capOpen9} aria-label="자막 추가" title="자막 추가 — 멈추고 글을 넣으면 그 자리부터 보인다">
@@ -26098,7 +26102,7 @@ export default function ReplayMotionPlayer({
             <div className={cx("scr-shortrec-badge", recPause9 && "is-paused")} aria-live="off">
               <i aria-hidden />{recPause9 ? "일시정지" : "REC"} <b>{Math.floor(recTick9 / 600)}:{String(Math.floor(recTick9 / 10) % 60).padStart(2, "0")}</b>
               <span>/ {Math.floor(SHORT_REC_MAX9 / 60)}:{String(SHORT_REC_MAX9 % 60).padStart(2, "0")}</span>
-              {capAsk9 ? <em>자막 쓰는 중 · 멈춤</em> : recPause9 ? <em>자리 · 시각을 옮기고 ▶ 로 이어 녹화</em> : null}
+              {capAsk9 ? <em>자막 쓰는 중 · 멈춤</em> : recPause9 ? <em>{recTick9 === 0 ? "자리 · 시각을 맞추고 ▶ 로 녹화 시작" : "자리 · 시각을 옮기고 ▶ 로 이어 녹화"}</em> : null}
             </div>
           )}
           {shortSq9 > 0 && (shortImgsNow9.length > 0 || !!imgAsk9?.src) && (
