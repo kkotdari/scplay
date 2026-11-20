@@ -6313,6 +6313,10 @@
 .scr-shortfab-btn.scr-shortrec-btn.is-rec.is-paused { animation: none; background: #8d2a30; box-shadow: none; }
 .scr-shortrec-badge.is-paused > i { background: #ffd34d; box-shadow: 0 0 6px #ffd34d; animation: none; }
 .scr-shortrec-frame.is-paused { border-color: rgba(255, 211, 77, 0.9); }
+/* 녹화 대기(RMP recReady9 ★ · 2026-11-20 "녹화 버튼이 보이고 일시정지 버튼은 비활성 상태로") — [● 0:00] 빨간 알약은 숨쉬지 않고 · 일시정지는 흐리게 꺼짐 · ✕ 는 흰 글. */
+.scr-shortfab-btn.scr-shortrec-btn.is-rec.is-ready { animation: none; }
+.scr-shortfab-btn.scr-shortpause-btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+.scr-shortfab-btn.scr-shortcancel-btn { color: #fff; }
 @keyframes scr-shortrec-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 90, 96, 0.35); } 50% { box-shadow: 0 0 0 5px rgba(255, 90, 96, 0.12); } }
 .scr-shortrec-badge {
   position: absolute; left: 50%; top: calc(var(--safe-top, 0px) + 8px * var(--dk, 1)); transform: translateX(-50%); z-index: 30002;
