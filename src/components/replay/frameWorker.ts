@@ -56,7 +56,12 @@ type WantMsg = { type: "want"; what: "walks" | "selpts"; raw?: string };
  *  50ms 마다 보낸다. 워커는 그 값에 제 시계를 붙인다(옛: 명령 cmd 의 t0 — React 렌더의 t 라 틱보다 최대 한 박자 늦고, 0.3초·배속×0.15초 어긋날 때까지
  *  안 맞췄다 → 다시 짓는 첫 장이 메인보다 **과거**에 떨어져 유닛·안개가 뒤로 튀었다). 세대(gen)는 안 올린다 — 지어 둔 장은 그대로 쓴다. */
 type ClkMsg = { type: "clk"; t: number };
-type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg | ClkMsg;
+/** ★ 워커 물려쓰기(2026-11-21, 요청: "쇼츠 로딩 더 아주 빠르게") — 재생기가 내려갈 때 워커를 끄지 않고 'park'(세계 · 참값 · 엔진 · 시야를 비우고 쉰다) · 다음 재생기가 집어
+ *  'sess'(세션 번호)로 깨운다. 그 뒤로 워커가 보내는 모든 말에 sess 가 붙고 메인은 제 번호가 아닌 말(옛 재생기 때 지어 길에 있던 장)을 버린다. 워커 코드 컴파일 · 초기화를 판마다 안 한다. */
+type ParkMsg = { type: "park" };
+type SessMsg = { type: "sess"; sess: number };
+type Msg = WorldMsg | TruthMsg | ViewMsg | CmdMsg | WantMsg | ClkMsg | ParkMsg | SessMsg;
+let sess9 = 0;
 
 let world: EngineWorld9 | null = null;
 let truthData: TruthTracks | null = null;
@@ -142,7 +147,8 @@ const clockT = (): number => (clock.playing
   : clock.t0);
 const post = (m: unknown, transfer?: Transferable[]): void => {
   const w = self as unknown as Worker;
-  if (transfer && transfer.length > 0) w.postMessage(m, transfer); else w.postMessage(m);
+  const m9 = sess9 > 0 && m && typeof m === "object" ? { ...(m as Record<string, unknown>), sess: sess9 } : m;   // 세션 번호(위 ParkMsg ★)
+  if (transfer && transfer.length > 0) w.postMessage(m9, transfer); else w.postMessage(m9);
 };
 
 /** 프레임 사이 게임 시각 간격. 기본 speed/30초. 짓기가 그보다 오래 걸리면(폰·긴 경기) 간격을 벌려 시계를 따라간다 —
@@ -342,7 +348,17 @@ const inWorker9 = typeof document === "undefined" && typeof self !== "undefined"
 if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
   const m = ev.data;
   try {
-    if (m.type === "world") {
+    if (m.type === "sess") {
+      sess9 = m.sess;
+    } else if (m.type === "park") {
+      /* 쉰다(위 ParkMsg ★) — 짓던 일을 멈추고 다 비운다. 다음 재생기가 sess · world · truth · view · cmd 를 새로 보낸다. */
+      if (pumpTimer !== 0) { clearTimeout(pumpTimer); pumpTimer = 0; }
+      world = null; truthData = null; worldParams = null; view = null; engine = null;
+      subs.clear(); subExpSent.clear();
+      built = []; nextT = -1; winStartT = -1; lastCur = -1;
+      fogSent = { explored: null, visNow: null, visSrc: null };
+      clock = { playing: false, t0: 0, speed: 1, at: 0, aheadSec: AHEAD_WALL_SEC, aheadBytes: AHEAD_BYTES };
+    } else if (m.type === "world") {
       worldParams = { grid: m.grid, bases: m.bases, teamMap: m.teamMap, total: m.total };
       deriveNow();
     } else if (m.type === "truth") {

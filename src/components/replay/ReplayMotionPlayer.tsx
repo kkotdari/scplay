@@ -6813,6 +6813,10 @@ export function paintFxList9(
   WOUND_BOX9.clear();   // 이 프레임 몸 상자는 다 썼다(위 WOUND_BOX9)
 }
 
+/** ★ 쉬는 프레임 워커(2026-11-21, 요청: "쇼츠 로딩 더 아주 빠르게" · frameWorker ParkMsg ★) — 재생기가 내려가면 워커를 끄지 않고 여기 맡기고(park), 다음 재생기가 집는다
+ *  (워커 코드 컴파일 · 초기화를 판마다 안 한다 — 쇼츠를 넘길 때마다 드는 몫). 하나만 맡긴다. 세션 번호로 옛 재생기의 말을 거른다. */
+let parkedWorker9: Worker | null = null;
+let workerSess9 = 0;
 /** 판을 넘어 사는 GL 캔버스(UnitLayer 의 GL 캔버스 물려주기 ★) — 처음 선 GL 층의 캔버스. */
 let glKeepCv9: HTMLCanvasElement | null = null;
 /** 잃은 GL 캔버스를 마지막으로 갈아 끼운 때(ms · 붓의 ★ 문맥 잃음). */
@@ -11903,32 +11907,48 @@ export default function ReplayMotionPlayer({
     let w9: Worker | null = null;
     let dead9 = false;
     const frames9 = wFramesRef.current;
-    /* ★ 워커 모듈은 **동적으로** 부른다 — vite는 `?worker&inline`을 인라인 워커 생성자로 만들고,
-       도구 스크립트의 esbuild 번들(model-shot·perf-check…)은 그 접미사를 몰라 보통 모듈로 묶는다
-       (default가 없다). 그 경우 그냥 워커 없이 간다 — 도구는 워커가 필요 없다. */
-    void import("./frameWorker?worker&inline").then((mod9) => {
-      if (dead9) return;
-      const Ctor9 = (mod9 as { default?: unknown }).default;
-      if (typeof Ctor9 !== "function") { wStatRef.current.err = "워커 모듈 없음(도구 번들)"; return; }
-      const lw09 = pNow();
-      try { w9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
-      LOAD9.wkMs = pNow() - lw09;
-      wire9(w9);
-      frameWorkerRef.current = w9;
+    const mySess9 = ++workerSess9;   // 이 재생기의 세션(위 parkedWorker9 ★)
+    /** 워커를 세운 뒤 할 일(새로 열었든 쉬던 것을 집었든). */
+    const start9 = (wk9: Worker): void => {
+      w9 = wk9;
+      wire9(wk9);
+      wk9.postMessage({ type: "sess", sess: mySess9 });
+      frameWorkerRef.current = wk9;
       viewSentRef9.current = null;
       cmdSentRef9.current = null;
+      truthSentRef9.current = undefined;
       if (worldMsgRef9.current) {
         wStatRef.current.sentWorld += 1;
         wStatRef.current.ready = false;
         wStatRef.current.worldAt = pNow();
-        w9.postMessage(worldMsgRef9.current);
+        wk9.postMessage(worldMsgRef9.current);
       }
-      postTruth9(w9);
+      postTruth9(wk9);
       setWorkerTick9((k9) => k9 + 1);
+    };
+    const parked9 = parkedWorker9;
+    parkedWorker9 = null;
+    /* ★ 워커 모듈은 **동적으로** 부른다 — vite는 `?worker&inline`을 인라인 워커 생성자로 만들고,
+       도구 스크립트의 esbuild 번들(model-shot·perf-check…)은 그 접미사를 몰라 보통 모듈로 묶는다
+       (default가 없다). 그 경우 그냥 워커 없이 간다 — 도구는 워커가 필요 없다. */
+    if (parked9) {
+      /* 쉬던 워커를 집는다(위 parkedWorker9 ★) — 다음 틱에(아래 wire9 가 선 뒤) */
+      LOAD9.wkMs = 0;
+      queueMicrotask(() => { if (dead9) { parked9.terminate(); return; } start9(parked9); });
+    } else void import("./frameWorker?worker&inline").then((mod9) => {
+      if (dead9) return;
+      const Ctor9 = (mod9 as { default?: unknown }).default;
+      if (typeof Ctor9 !== "function") { wStatRef.current.err = "워커 모듈 없음(도구 번들)"; return; }
+      const lw09 = pNow();
+      let nw9: Worker;
+      try { nw9 = new (Ctor9 as new () => Worker)(); } catch (e9) { wStatRef.current.err = `워커 생성 실패 ${String(e9).slice(0, 80)}`; return; }
+      LOAD9.wkMs = pNow() - lw09;
+      start9(nw9);
     }).catch((e9) => { wStatRef.current.err = `워커 모듈 못 부름 ${String(e9).slice(0, 80)}`; });
     const wire9 = (wk9: Worker): void => {
     wk9.onmessage = (ev: MessageEvent<{ type: string; message?: string; ui?: WorldUi9 } & Partial<PackedFrame9>>) => {
       if (dead9) return;
+      { const s9 = (ev.data as { sess?: number }).sess; if (typeof s9 === "number" && s9 !== mySess9) return; }   // 다른 재생기(쉬기 전) 때의 말은 버린다(위 parkedWorker9 ★)
       /* 이 실마리에서 워커 장을 받는 값(위 WORK9) — 푸는 것은 워커여도 **받는 것은 메인**이다. */
       const wk09 = pNow();
       const m9 = ev.data;
@@ -12157,7 +12177,15 @@ export default function ReplayMotionPlayer({
       console.error("[scplay] 프레임 워커 messageerror");
     };
     };
-    return () => { dead9 = true; w9?.terminate(); frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; eyeSnapsRef9.current = []; };
+    return () => {
+      dead9 = true;
+      /* 내려갈 때 워커는 쉬게 맡긴다(위 parkedWorker9 ★) — 오류가 난 워커 · 이미 하나 맡겨 둔 때는 끈다. */
+      if (w9 && !wStatRef.current.err && !parkedWorker9) {
+        w9.onmessage = null; w9.onerror = null; w9.onmessageerror = null;
+        try { w9.postMessage({ type: "park" }); parkedWorker9 = w9; } catch { w9.terminate(); }
+      } else w9?.terminate();
+      frameWorkerRef.current = null; frames9.clear(); fogSnapsRef9.current = []; eyeSnapsRef9.current = [];
+    };
   }, []);
   /* 세계의 작은 조각(지도·기지·팀·길이) — 참값·개체는 안 싣는다(참값은 위 postTruth9로 한 번 넘기고, 개체 표는
      워커가 참값에서 스스로 만든다). 이 조각이 바뀌면 워커가 든 참값으로 다시 센다. */
@@ -22633,8 +22661,11 @@ export default function ReplayMotionPlayer({
       const lim9 = Math.max(SHORT_SETTLE_MS9, med9 * 1.6);
       const bad9 = dts9.reduce((n9, d9) => n9 + (d9 >= lim9 ? 1 : 0), 0);
       const el9 = now9 - t09;
-      if ((dts9.length >= SHORT_SETTLE_N9 && bad9 <= 1 && el9 >= 600) || el9 >= SHORT_SETTLE_MAX9) {
-        (SCR_DIAG as unknown as Record<string, unknown>).shortSettle = `${Math.round(el9)}ms·장${Math.round(med9)}ms${el9 >= SHORT_SETTLE_MAX9 ? "·상한" : ""}`;   // 늘 적는다(앱의 쇼츠 로딩 줄이 읽는다)
+      /* 쇼츠 가벼운 판(SHORT_LITE9 ★)은 최소 0.25초 · 상한 1.5초(2026-11-21, 요청: "쇼츠 로딩 더 아주 빠르게") — 가벼운 판은 첫 장들의 몰림이 작다. 되물린 값: 0.6 · 3초. */
+      const minMs9 = SHORT_LITE9.on ? 250 : 600;
+      const maxMs9 = SHORT_LITE9.on ? 1500 : SHORT_SETTLE_MAX9;
+      if ((dts9.length >= Math.min(SHORT_SETTLE_N9, SHORT_LITE9.on ? 10 : SHORT_SETTLE_N9) && bad9 <= 1 && el9 >= minMs9) || el9 >= maxMs9) {
+        (SCR_DIAG as unknown as Record<string, unknown>).shortSettle = `${Math.round(el9)}ms·장${Math.round(med9)}ms${el9 >= maxMs9 ? "·상한" : ""}`;   // 늘 적는다(앱의 쇼츠 로딩 줄이 읽는다)
         setShortSettled9(true);
         return;
       }

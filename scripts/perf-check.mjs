@@ -2516,6 +2516,8 @@ if (SHOT) {
     console.log(`[다시 열기] 아틀라스 앞: ${at0}`);
     console.log(`[다시 열기] 뒤에 받은 것: ${(globalThis.__atlasUrls ?? []).slice(an0).join(" ") || "없음"}`);
     console.log(`[다시 열기] 아틀라스 뒤: ${at1}`);
+    /* 워커 물려쓰기(2026-11-21 · RMP parkedWorker9 ★) — 다시 연 재생기가 장을 받는지(got) · 워커 세우기 ms(물려쓰면 0). */
+    console.log(`[다시 열기] 워커 ${await page.evaluate(() => window.__scrDiag?.worker ?? "-")}`);
   }
   /* --losegl [ms](2026-11-02, 지적: "아이폰 pwa 로 보다가 갑자기 모델이 하나도 안나옴 지형은 보임 그후 다른 게임으로 들어가도 안나옴") — GL 문맥을 일부러 잃게 하고
      (WEBGL_lose_context) 붓이 캔버스를 갈아 끼워 벌을 새로 여는지 · 그린 수가 다시 오르는지 · 다시 열기(다음 경기)에도 사는지 찍는다. 기다림 ms 기본 6000. */
