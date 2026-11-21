@@ -451,7 +451,8 @@ export declare interface ReplayModuleProps {
             name: string;
             text: string;
             scope?: "team" | "all";
-        }[];
+        }[]; /** 쇼츠 참값 꾸러미(utils/truthPack ★ · 있으면 motion 대신) */
+        truthPack?: string | null;
     }>;
     /** 이긴 편(트로피). 모르면 undefined. */
     winnerTeam?: 1 | 2;
