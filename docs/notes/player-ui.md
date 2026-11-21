@@ -4300,3 +4300,13 @@ esc 눌렀을때 마우스가 가운데로 이동해서 불편".
   같은 실측: 멈춘 몫 내내 앞 장 일정(378) · 고를 장 없음 0 · 다시 흐른 뒤 뒤짐 최대 27ms(한 장 간격). 되물린 값: 둘째(워커 재생 그대로) ← 첫째(워커 멈춤 · 앞날 안 지음).
 - 🔎 `perf-check --frame 300x300 --short still.json --hash gl=0 --lagprobe --lagwait 240000` — 틱마다 [벽 ms · 지금 시각 · 고른 장 시각 · 앞 장 수 · 세대](RMP frameAt9 의
   `window.__lag9` · 있을 때만 적는다)를 1초 칸으로 찍는다. still.json = 움직임 2초 → 멈춤 4초 → 움직임 4초(합성).
+
+## 쇼츠 즉시 멈춤 줄(shortHoldRef)(2026-11-21)
+지적: "쇼츠 이전 · 다음 · 일시정지 · 닫기 반응속도 느린데 즉각 반응하도록".
+- 까닭: 앱의 멈춤이 `shortPaused` prop 이라 바뀔 때마다 재생기 전체가 두 번(prop · setPlaying) 다시 그려진 뒤에야 섰다(폰 수십~수백 ms). 이전 · 다음 · 닫기는 옛 재생기
+  허물기(정리 effect 수백) · 새로 세우기가 누른 그 장에 몰렸다.
+- 이제 `shortHoldRef`(ReplayModule · RMP prop · { current: boolean }) — 앱이 .current 를 바꾸면 그리기 틱이 그 장에 시계를 붙잡고(acc 0 · 장 안 그림) 워커에 곧장
+  '멈춤 + 앞날 짓기'(pre · 멈춘 몫과 같은 길)를 보낸다(`sendCmd9` — 렌더 길과 틱이 함께 쓰는 워커 명령 · 틱은 sendCmdRef9). 풀면 같은 길로 '재생'. React playing 은 그대로라
+  렌더가 없다. 렌더 길의 stillW9 도 이 줄을 본다(렌더가 끼어도 같은 명령). `shortPaused` 는 그대로 둔다(옛 앱).
+- 앱(sg-web ShortsViewer 즉시 반응 ★): 멈춤 = 줄만 · 이전 · 다음 = 머리 · 막대 · 새 표지 · 별이 먼저(stageId 가 한 장 뒤 따라가며 옛 재생기를 허문다 · 그 사이 옛 재생기는 줄로 섬 ·
+  옛 진행 · 끝은 버림) · 닫기 = 곧장 숨기고(is-closing) 허무는 일은 그린 뒤.

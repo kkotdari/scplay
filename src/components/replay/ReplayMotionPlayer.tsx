@@ -11105,7 +11105,7 @@ export default function ReplayMotionPlayer({
   onDetailClose, onBack, frameH, frameW, loadUnitTracks, sceneLink,
   clockKey, shareNode, onShare, shareLabel = "장면 공유",
   pins, onPinAdd, onPinDelete,
-  onShortCreate, short, onShortEnd, onShortProgress, shortPaused,
+  onShortCreate, short, onShortEnd, onShortProgress, shortPaused, shortHoldRef,
   onGuide, guide = true, avatars,
   soleView, melee,
   onFinish, askMode, pending, veil, onReady, onLoadProgress, isTester = false,
@@ -11215,6 +11215,10 @@ export default function ReplayMotionPlayer({
   onShortEnd?: () => void;
   onShortProgress?: (p: number) => void;
   shortPaused?: boolean;
+  /** ★ 쇼츠 즉시 멈춤 줄(2026-11-21, 지적: "쇼츠 이전 · 다음 · 일시정지 · 닫기 반응속도 느린데 즉각 반응하도록") — shortPaused 는 prop 이라 재생기 전체가 두 번 다시
+   *  그려진 뒤에야 섰다(폰 수십~수백 ms). 이 줄은 앱이 .current 를 바꾸면 그리기 틱이 곧장 시계를 붙잡고(acc 0 · 장 안 그림) 틱이 워커에 '멈춤 + 앞날 짓기'(pre)를 바로
+   *  보낸다 — React 상태(playing)는 그대로라 렌더가 없고, 풀면 같은 길로 곧장 다시 간다(지어 둔 장을 쓴다). 멈춘 몫(stillW9)과 같은 워커 길. */
+  shortHoldRef?: { current: boolean };
   /** 사용법(요청: 공통) — 공유 버튼 옆 '사용법' 버튼. 기본은 재생기가 제 덮개(ReplayGuide)를 띄우고, onGuide를 주면 앱이 대신
    *  연다(제 라우팅으로 띄우고 싶을 때). guide=false면 버튼을 안 낸다. */
   onGuide?: () => void;
@@ -18318,6 +18322,9 @@ export default function ReplayMotionPlayer({
    *  틱이 바뀌는 순간 상태를 걸어 한 번 다시 그린다(short9 shortStillAt9). */
   const shortStillRef9 = useRef(false);
   const [, setShortStill9] = useState(false);
+  /** 앱의 즉시 멈춤 줄(props shortHoldRef ★) — 틱이 읽는다 · 지난 장의 값(바뀐 장에 워커 명령). */
+  const shortHoldPropRef9 = useRef(shortHoldRef); shortHoldPropRef9.current = shortHoldRef;
+  const extHoldWasRef9 = useRef(false);
   const shortPanAt9 = useRef(0);
   /* 앱이 멈추라면 멈춘다(누르고 있는 동안 따위) · 놓으면 다시 — 끝난 토막은 되살리지 않는다. */
   useEffect(() => {
@@ -19941,6 +19948,24 @@ export default function ReplayMotionPlayer({
   }
   /* 명령(요청: 주인 → 설계 일꾼, 바뀔 때만) — 재생/정지·배속·탐색. 탐색은 "보낸 명령으로 예측한 시각과 지금 t의
      차"로 안다(0.3초 또는 배속×0.15초). 시계가 무거운 프레임에 밀려 처지면 그것도 같은 자로 다시 맞춘다. */
+  /** 워커 명령 보내기(아래 렌더 길 · 그리기 틱의 즉시 멈춤 줄(shortHoldRef ★)이 함께 쓴다 — 틱은 sendCmdRef9 로). */
+  const sendCmd9 = (playingW: boolean, preW: boolean, t09: number, sp: number): void => {
+    const w9 = frameWorkerRef.current;
+    if (!w9) return;
+    {
+      cmdSentRef9.current = { playing: playingW, t0: t09, speed: sp, at: pNow(), pre: preW };
+      wStatRef.current.sentCmd += 1;
+      // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
+      w9.postMessage({
+        type: "cmd", playing: playingW, pre: preW, t0: t09, speed: sp,
+        aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
+        /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
+           그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
+        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,   // 폰 10 → 15 → 10(2026-11-02 — 끊김의 뿌리인 뜬 높이를 장 사이 보간에 넣고 되돌림 · lerpFrame9 ★ 뜬 높이)   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
+      });
+    }
+  }
+  const sendCmdRef9 = useRef(sendCmd9); sendCmdRef9.current = sendCmd9;
   const playing9 = playing && active;
   /** 쇼츠 · 다듬기의 멈춘 몫(게임 시각이 안 흐른다 · 위 shortStillRef9 ★) — 워커에는 '재생 중' 그대로 두어 앞날 장을 지어 두게 하고(다시 흐를 때 곧장 쓴다),
    *  아래 탐색 판정만 시각을 앞으로 셈하지 않는다. (같은 날 앞 판은 '멈춤'으로 알렸다 — 앞날을 안 지어 다시 흐를 때 몇 초 따라잡느라 끊겼다 · 되물림.) */
@@ -19949,7 +19974,7 @@ export default function ReplayMotionPlayer({
      t0 를 멈춘 시각으로 되돌릴 때마다 '되감기'로 읽어 **엔진 기억을 비우고 처음부터 다시 지었다**(헤드리스 실측: 멈춘 몫 동안 앞 장 450장 넘게 쌓이고 고를 장이 비는 틱이 났다).
      그 판에서 다시 흐르면 새로 지은 장을 기다리며 끊겼다. 이제 멈춘 몫엔 워커에 **'멈춤 + 앞날 짓기'(pre)** — 시계는 멈춘 시각에 서 있고(되감기 · clk 와 무관) 짓기만
      재생처럼 앞 한도까지 해 둔다. 다시 흐르면 '재생'으로 바꿔 지어 둔 장을 곧장 쓴다. 되물린 값: 둘째(워커 재생 그대로) ← 첫째(워커 멈춤 · 앞날 안 지음). */
-  const stillW9 = !!(shortRef9.current && shortStillRef9.current);
+  const stillW9 = !!(shortRef9.current && (shortStillRef9.current || shortHoldRef?.current));   // 앱의 즉시 멈춤 줄(shortHoldRef ★)도 멈춘 몫과 같다
   const playingW9 = playing9 && !stillW9;
   const preW9 = playing9 && stillW9;
   {
@@ -19989,16 +20014,7 @@ export default function ReplayMotionPlayer({
         const fm9 = wFramesRef.current;
         for (const [k9, f9] of fm9) if (f9.t > t09 + 1e-3) fm9.delete(k9);
       }
-      cmdSentRef9.current = { playing: playingW9, t0: t09, speed, at: pNow(), pre: preW9 };
-      wStatRef.current.sentCmd += 1;
-      // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
-      w9.postMessage({
-        type: "cmd", playing: playingW9, pre: preW9, t0: t09, speed,
-        aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
-        /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
-           그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
-        fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,   // 폰 10 → 15 → 10(2026-11-02 — 끊김의 뿌리인 뜬 높이를 장 사이 보간에 넣고 되돌림 · lerpFrame9 ★ 뜬 높이)   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
-      });
+      sendCmd9(playingW9, preW9, t09, speed);
     }
   }
   /** 설계도 고르기 — t보다 앞서지 않은 것 중 가장 늦은 것, 없으면 바로 뒤의 것. 2초 안이면 낡아도 든다(빈 화면보다
@@ -23097,7 +23113,14 @@ export default function ReplayMotionPlayer({
         hold9.win = 0;
         hold9.winDt = 0;
       }
-      const acc = warmingRef.current || holding9 || introHoldRef9.current || shortHoldRef9.current   // 쇼츠 화면 다지기 동안도(위 shortHoldRef9 ★)
+      /* 앱의 즉시 멈춤 줄(props shortHoldRef ★) — 바뀌는 그 장에 워커에도 곧장 알린다(멈춤 + 앞날 짓기 / 재생 · 렌더 없이). */
+      const ext9 = !!(shortRef9.current && shortHoldPropRef9.current?.current);
+      if (ext9 !== extHoldWasRef9.current) {
+        extHoldWasRef9.current = ext9;
+        const still9 = ext9 || shortStillRef9.current;
+        sendCmdRef9.current(!still9, still9, tLiveRef9.current, speedRef9.current);
+      }
+      const acc = warmingRef.current || holding9 || introHoldRef9.current || shortHoldRef9.current || ext9   // 쇼츠 화면 다지기 · 앱의 즉시 멈춤 동안도(위 shortHoldRef9 · shortHoldRef ★)
         ? 0 : (c?.acc ?? 0) + dt;
       const drawnAt = c?.drawn ?? 0;
       const draw = acc > 0 && now - drawnAt >= drawGapMs();

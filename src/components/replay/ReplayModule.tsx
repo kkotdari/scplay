@@ -66,6 +66,8 @@ export interface ReplayModuleProps {
   onShortEnd?: () => void;
   onShortProgress?: (p: number) => void;
   shortPaused?: boolean;
+  /** 쇼츠 즉시 멈춤 줄(2026-11-21 · RMP shortHoldRef ★) — 앱이 .current 를 바꾸면 다음 장부터 곧장 서고 · 풀면 곧장 간다(재생기 렌더 없음). */
+  shortHoldRef?: { current: boolean };
   /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
   onGuide?: () => void;
   guide?: boolean;
@@ -94,7 +96,7 @@ export default function ReplayModule({
   winnerTeam, melee, soleView, active = true,
   sceneLink, clockKey,
   onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete,
-  onShortCreate, short, onShortEnd, onShortProgress, shortPaused,
+  onShortCreate, short, onShortEnd, onShortProgress, shortPaused, shortHoldRef,
   onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester,
 }: ReplayModuleProps) {
   return (
@@ -108,7 +110,7 @@ export default function ReplayModule({
         onShare={onShare}
         shareLabel={shareLabel}
         pins={pins} onPinAdd={onPinAdd} onPinDelete={onPinDelete}
-        onShortCreate={onShortCreate} short={short} onShortEnd={onShortEnd} onShortProgress={onShortProgress} shortPaused={shortPaused}
+        onShortCreate={onShortCreate} short={short} onShortEnd={onShortEnd} onShortProgress={onShortProgress} shortPaused={shortPaused} shortHoldRef={shortHoldRef}
         onGuide={onGuide}
         guide={guide}
         onDetailClose={onDetailClose}
