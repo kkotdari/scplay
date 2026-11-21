@@ -47,7 +47,10 @@ type WorldMsg = {
 type TruthMsg = { type: "truth"; truth: TruthTracks | null };
 type ViewMsg = { type: "view"; view: EngineView9; seq?: number; /** 안개 갈래(시야 주인·전체시야·안개 켬이 바뀔 때만 오른다) */ fogSeq?: number;
   /** 손짓이 도는 중의 시야인가 — 참이면 앞으로 안 짓고 **지금 한 장**만 짓는다(아래 ★). */ live?: boolean };
-type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number; /** 장 간격 바탕(초당 장 · 폰 20 · PC 30) */ fps?: number };
+type CmdMsg = { type: "cmd"; playing: boolean; t0: number; speed: number; aheadSec?: number; aheadBytes?: number; /** 장 간격 바탕(초당 장 · 폰 20 · PC 30) */ fps?: number;
+  /** ★ 멈춘 채 앞날 짓기(2026-11-21, 지적: "녹화 중 일시정지 후 재생한 곳 — 재생 부분에서 아직도 렉") — playing 거짓 + pre 참이면 시계는 t0 에 서 있고(clk · 2.5초 상한 · 되감기 판정과 무관),
+   *  짓기만 재생처럼 t0 부터 앞 한도까지 한다. 쇼츠의 멈춘 몫(게임 시각이 안 흐르는 구간)이 쓴다 — 다시 흐를 때 그 장을 곧장 쓴다. */
+  pre?: boolean };
 type WantMsg = { type: "want"; what: "walks" | "selpts"; raw?: string };
 /** ★ 시계 맞춤(2026-10-25, 지적: "줌시 모델 자체가 타이밍이 뒤로 가는 경우" → "원천적인 해결" · 시계는 메인 하나) — 메인 틱이 그린 재생 시각을
  *  50ms 마다 보낸다. 워커는 그 값에 제 시계를 붙인다(옛: 명령 cmd 의 t0 — React 렌더의 t 라 틱보다 최대 한 박자 늦고, 0.3초·배속×0.15초 어긋날 때까지
@@ -90,7 +93,7 @@ const syncSubs = (): void => {
   }
 };
 /** 주인의 명령 + 받은 벽시계 시각 — 지금 시각은 이것으로 센다(clockT). */
-let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number; fps?: number } = {
+let clock: { playing: boolean; t0: number; speed: number; at: number; aheadSec: number; aheadBytes: number; fps?: number; pre?: boolean } = {
   playing: false, t0: 0, speed: 1, at: 0, aheadSec: AHEAD_WALL_SEC, aheadBytes: AHEAD_BYTES,
 };
 /** 다음에 지을 프레임의 시각. 음수면 '지금 시각부터 새로'. */
@@ -170,7 +173,7 @@ const emit = (t: number): number => {
   const t0 = nowMs();
   // 감기·탐색 장인가 — 시계가 멈춘 채 지난 장과 0.06초 넘게 떨어진 시각을 짓는다(engine build의 still 주석).
   const lastT9 = built.length ? built[built.length - 1].t : -1;
-  const still9 = !!clock && !clock.playing && lastT9 >= 0 && Math.abs(t - lastT9) > 0.06;
+  const still9 = !!clock && !clock.playing && !clock.pre && lastT9 >= 0 && Math.abs(t - lastT9) > 0.06;   // 멈춘 채 앞날 짓기(pre)는 재생 장처럼 잇는다
   const f: Frame9 = engine.build(t, still9);
   const t1 = nowMs();
   const body = pack9({ unitOps: f.unitOps, fxOps: f.fxOps, miniExtra: f.miniExtra, gasBusy: f.gasBusy });
@@ -247,7 +250,7 @@ const pump = (): void => {
      안개·방향·사격 위상을 처음부터 다시 쌓아 첫 장들이 무거워진다(폰에서 짓기가 191ms까지 오르던 나선의 한 축). */
   else if (cur > nextT + step * 2) restartFrom(cur, false);
   lastCur = cur;
-  if (!clock.playing) {
+  if (!clock.playing && !clock.pre) {
     // 멈춤: 그 시각의 프레임이 창 안에 없을 때만 한 장.
     const have = built.some((b) => Math.abs(b.t - cur) <= step * 1.5);
     if (!have) { emit(cur); nextT = cur + step; winStartT = Math.min(winStartT < 0 ? cur : winStartT, cur); }
@@ -412,7 +415,7 @@ if (inWorker9) self.onmessage = (ev: MessageEvent<Msg>): void => {
       const slower9 = m.playing && m.speed < clock.speed - 1e-6;
       clock = {
         playing: m.playing, t0: m.t0, speed: m.speed, at: nowMs(),
-        aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES, fps: m.fps,
+        aheadSec: m.aheadSec ?? AHEAD_WALL_SEC, aheadBytes: m.aheadBytes ?? AHEAD_BYTES, fps: m.fps, pre: !m.playing && !!m.pre,
       };
       /* ★ 배속을 **내리면** 지금 시각부터 새 간격으로 다시 짓는다(2026-11-02, 지적: "배속 높였다가 낮출 때 뚝뚝 끊기는 현상 · 아마 이전 배속에서 짓던 간격으로 지어서?") —
          맞다: 장 간격은 speed / fps(stepNow)라 16배속이면 경기 0.53초 · 앞으로 aheadSec × 16초까지 그 간격으로 지어 둔 채(built · nextT) 1배로 내려오면,

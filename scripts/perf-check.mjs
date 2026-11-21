@@ -978,6 +978,8 @@ await page.route("http://perf-check.local/*", (r) => r.fulfill({
 const uiPin9 = WIDE && !has("--vw") && !has("--vh") && !/(^|,)ui=/.test(String(flag("--hash", "") || "")) ? "ui=1" : "";
 const hash9 = [uiPin9, has("--diag") ? "diag" : "", has("--3d") ? "3d=1" : "", has("--crowd") ? `crowd=${flag("--crowd", 2)}` : "", has("--theme") ? `theme=${flag("--theme")}` : "", String(flag("--hash", "") || ""), has("--glblit") ? "" : "glblit=0", has("--bloom") || /glbloom=/.test(String(flag("--hash", "") || "")) ? "" : "glbloom=0", has("--mrt") || /glmrt=/.test(String(flag("--hash", "") || "")) ? "" : "glmrt=0"].filter(Boolean).join(",");   // 실측 배킹 조절(DRS)은 재생기가 자동 조종(navigator.webdriver)에서 스스로 끈다(옛 drs=0 해시 · --drs 는 걷었다 · 2026-11-05)
 /* --stageprobe(2026-11-20, 지적: "쇼츠 로딩이 너무 걸림") — 뜬 때부터 로딩 글(simnote)이 바뀌는 때 · 긴 작업(longtask)을 적어 끝에 단계별 걸린 시간을 찍는다. */
+/* --lagprobe(2026-11-21, 지적: "녹화 중 일시정지 후 재생한 곳 — 재생 부분에서 렉") — 붓이 고른 워커 장의 시각 · 지금 뒤 장 수를 틱마다 적는다(RMP frameAt9 의 window.__lag9). */
+if (has("--lagprobe")) await page.addInitScript(() => { window.__lag9 = []; });
 if (has("--stageprobe")) await page.addInitScript(() => {
   window.__stg9 = []; window.__lt9 = [];
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt9.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ["longtask"] }); } catch {}
@@ -1451,6 +1453,24 @@ if (has("--zoomlockprobe")) {
     const z2 = await z9(); const [zw2, zk2] = await poke9();
     console.log(`[배율 잠금] 놓은 뒤 · 전 ${z2} · 휠 뒤 ${zw2} · ↑ 뒤 ${zk2}`);
   }
+}
+if (has("--lagprobe")) {
+  await page.waitForFunction(() => !!window.__shortEnded9, null, { timeout: Number(flag("--lagwait", 120000)) }).catch(() => console.log("[렉] 토막이 안 끝남(시간 넘음)"));
+  const lg9 = await page.evaluate(() => window.__lag9 ?? []);
+  const t0 = lg9.length ? lg9[0][0] : 0;
+  /* 1초 칸마다: 장 수 · 벽 간격 최대 · 고른 장이 지금보다 뒤진 최대(ms) · 고른 장 없음 · 지금 뒤 장 최소 · 같은 장 거듭 */
+  const rows9 = new Map();
+  let prev9 = null;
+  for (const q of lg9) {
+    const k = Math.floor((q[0] - t0) / 1000);
+    const r = rows9.get(k) ?? { n: 0, gap: 0, lag: 0, none: 0, ahMin: 1e9, same: 0, t: q[1] };
+    r.n += 1; if (prev9) r.gap = Math.max(r.gap, q[0] - prev9[0]);
+    if (q[2] < 0) r.none += 1; else r.lag = Math.max(r.lag, Math.round((q[1] - q[2]) * 1000));
+    r.ahMin = Math.min(r.ahMin, q[3]);
+    if (prev9 && q[2] === prev9[2] && q[1] > prev9[1] + 1e-4) r.same += 1;
+    rows9.set(k, r); prev9 = q;
+  }
+  for (const [k, r] of [...rows9].sort((a, b) => a[0] - b[0])) console.log(`[렉] ${k}s 시각${r.t.toFixed(2)} 장${r.n} 벽간격최대${r.gap}ms 뒤짐최대${r.lag}ms 없음${r.none} 앞장최소${r.ahMin} 같은장${r.same}`);
 }
 if (has("--stageprobe")) {
   await page.waitForFunction(() => !!window.__veilReadyAt, null, { timeout: Number(flag("--stagewait", 90000)) }).catch(() => console.log("[단계] 준비 안 옴(시간 넘음)"));

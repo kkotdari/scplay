@@ -11818,7 +11818,7 @@ export default function ReplayMotionPlayer({
   /** 주인의 지금 상태(렌더마다 갱신) — 프레임 버림·안개 판 정리의 자. */
   const cmdNowRef9 = useRef<{ playing: boolean; t: number; speed: number }>({ playing: false, t: 0, speed: 1 });
   /** 워커에 보낸 마지막 명령 — 바뀔 때만 다시 보낸다(주인의 명령은 매 프레임이 아니다). */
-  const cmdSentRef9 = useRef<{ playing: boolean; t0: number; speed: number; at: number } | null>(null);
+  const cmdSentRef9 = useRef<{ playing: boolean; t0: number; speed: number; at: number; pre?: boolean } | null>(null);
   const viewSentRef9 = useRef<{ key: string; colors: Record<string, string> } | null>(null);
   /** 워커가 (다시) 서면 렌더를 한 번 일으켜 시점·명령을 보내게 한다(멈춘 화면은 렌더가 없다). */
   const [workerTick9, setWorkerTick9] = useState(0);
@@ -19944,8 +19944,14 @@ export default function ReplayMotionPlayer({
   const playing9 = playing && active;
   /** 쇼츠 · 다듬기의 멈춘 몫(게임 시각이 안 흐른다 · 위 shortStillRef9 ★) — 워커에는 '재생 중' 그대로 두어 앞날 장을 지어 두게 하고(다시 흐를 때 곧장 쓴다),
    *  아래 탐색 판정만 시각을 앞으로 셈하지 않는다. (같은 날 앞 판은 '멈춤'으로 알렸다 — 앞날을 안 지어 다시 흐를 때 몇 초 따라잡느라 끊겼다 · 되물림.) */
+  /* ★ 셋째(2026-11-21, 지적: "녹화 중 일시정지 후 재생한 곳 — 재생 부분에서 아직도 렉") — 둘째 판(워커에 '재생 중' 그대로)은 워커 시계가 멈춘 시각에서 저절로 흘러가는 것을
+     clk(50ms)가 붙잡아 두는 데 기댔다. 메인이 잠깐만 멎어도(그림 · 사진 · GC) clk 가 늦어 차가 0.3초를 넘으면 워커는 clk 를 안 듣고 제 시계로 앞서 갔고, 1초 심장박동이
+     t0 를 멈춘 시각으로 되돌릴 때마다 '되감기'로 읽어 **엔진 기억을 비우고 처음부터 다시 지었다**(헤드리스 실측: 멈춘 몫 동안 앞 장 450장 넘게 쌓이고 고를 장이 비는 틱이 났다).
+     그 판에서 다시 흐르면 새로 지은 장을 기다리며 끊겼다. 이제 멈춘 몫엔 워커에 **'멈춤 + 앞날 짓기'(pre)** — 시계는 멈춘 시각에 서 있고(되감기 · clk 와 무관) 짓기만
+     재생처럼 앞 한도까지 해 둔다. 다시 흐르면 '재생'으로 바꿔 지어 둔 장을 곧장 쓴다. 되물린 값: 둘째(워커 재생 그대로) ← 첫째(워커 멈춤 · 앞날 안 지음). */
   const stillW9 = !!(shortRef9.current && shortStillRef9.current);
-  const playingW9 = playing9;
+  const playingW9 = playing9 && !stillW9;
+  const preW9 = playing9 && stillW9;
   {
     // 붓 자취의 인스턴스 번호(BRUSH_LOG9 · perf-check --pinchtrace)
     if (instIdRef9.current === 0) { INST_SEQ9 += 1; instIdRef9.current = INST_SEQ9; }
@@ -19973,7 +19979,7 @@ export default function ReplayMotionPlayer({
     /* 심장박동 — 재생 중엔 1초마다 한 번은 보낸다(값이 그대로여도). 워커는 마지막 명령 뒤 2.5초까지만 제 시계로
        굴리므로, 주인이 멎으면(굽기 홀드·백그라운드) 워커도 곧 선다. */
     const beat9 = !!c9 && playingW9 && pNow() - c9.at > 1000;
-    if (w9 && (!c9 || c9.playing !== playingW9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
+    if (w9 && (!c9 || c9.playing !== playingW9 || !!c9.pre !== preW9 || c9.speed !== speed || jumped9 || beat9 || DEV9_DIRTY9.v)) {
       DEV9_DIRTY9.v = false;   // 단이 바뀐 뒤 첫 cmd가 새 앞 한도를 싣는다(위 applyBenchTier9)
       /* t0 는 틱의 살아 있는 시각(tLiveRef9 — 바로 위에서 탐색이면 t 로 맞췄다) — React t 는 100ms 박자라 그만큼 늦어 워커가 뒤처졌다(ClkMsg ★). */
       const t09 = tLiveRef9.current;
@@ -19983,11 +19989,11 @@ export default function ReplayMotionPlayer({
         const fm9 = wFramesRef.current;
         for (const [k9, f9] of fm9) if (f9.t > t09 + 1e-3) fm9.delete(k9);
       }
-      cmdSentRef9.current = { playing: playingW9, t0: t09, speed, at: pNow() };
+      cmdSentRef9.current = { playing: playingW9, t0: t09, speed, at: pNow(), pre: preW9 };
       wStatRef.current.sentCmd += 1;
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
-        type: "cmd", playing: playingW9, t0: t09, speed,
+        type: "cmd", playing: playingW9, pre: preW9, t0: t09, speed,
         aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
@@ -20548,6 +20554,8 @@ export default function ReplayMotionPlayer({
   /** 시각 t의 프레임 — 설계도를 골라(pickWorkerFrame9) 앞·뒤 장 사이를 보간한다. count9면 붓 통계도 센다(틱). */
   const frameAt9 = (tNow9: number, count9: boolean): Frame9 => {
     const wPacked9 = pickWorkerFrame9(tNow9);
+    /* 진단(perf-check --lagprobe · window.__lag9 가 있을 때만) — [벽 ms, 지금 시각, 고른 장 시각, 지금 뒤 장 수, 고른 장 세대]. */
+    { const lg9 = count9 ? (window as unknown as { __lag9?: number[][] }).__lag9 : undefined; if (lg9) { let ah9 = 0; for (const f9 of wFramesRef.current.values()) if (f9.t > tNow9) ah9 += 1; lg9.push([Math.round(performance.now()), tNow9, wPacked9 ? wPacked9.t : -1, ah9, wPacked9 ? wPacked9.gen : -1]); if (lg9.length > 4000) lg9.shift(); } }
     if (count9) {
       const bs9 = brushStatRef9.current;
       if (bs9.lastT >= 0 && tNow9 > bs9.lastT) { const st9 = (tNow9 - bs9.lastT) * 1000; bs9.stepSum += st9; bs9.stepMax = Math.max(bs9.stepMax, st9); bs9.stepN += 1; }
