@@ -1958,9 +1958,16 @@ const phoneLow9 = (): boolean => DEV9.name === "phone" && TIER9.v === 0;
 const PHONE_DPR9 = 2;
 /** ★ **배킹 상한을 성능 단으로**(2026-10-25, 지적: "GPU 화소 수 조정도 필요해 보여(성능에 맞춰서)") — 폰 높음 2 · 보통·낮음 1.75(PHONE_DPR9) · 매우 낮음 WEAK_DPR9 1.75(2026-10-25·26 발열로 한 칸씩 내림 · 옛 2.5/2.25/2 → 2.25/2/1.75) ·
  *  PC 낮음 1.5 · 보통 2 · 높음 이상 기기 그대로(∞). 그 아래에서 **실측 조절**(DRS9)이 더 내린다. */
-const backCap9 = (): number => BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
+/** ★ **쇼츠 가벼운 판**(2026-11-21, 요청: "쇼츠용은 좀 더 사양 조절해서 더 빠르고 중간 렉 없게") — 쇼츠 재생(props short)이 선 동안 켠다(RMP 마운트 · 하나뿐):
+ *  배킹 상한 1.5 · 번짐 · MSAA 끔 · 서버 아틀라스는 PC 도 1배(h) · 16방(풀기 · 싣기 · GPU 몫이 PC 2배 · 32방의 1/8 남짓) · 동적 채우기 끔 · 늘림 상한 없음(늘 판으로 —
+ *  메시로 물러나지 않는다) · 워커 앞 짓기 4초 · 1.5배 바이트(무거운 싸움에서 장이 모자라 끊기지 않게). 정사각 작은 판이라 화질 몫이 적다. 경기 상세 재생기는 그대로. */
+const SHORT_LITE9 = { on: false };
+const SHORT_LITE_BACK9 = 1.5;
+const aheadSecNow9 = (): number => (SHORT_LITE9.on ? Math.max(DEV9.aheadSec, 4) : DEV9.aheadSec);
+const aheadMBNow9 = (): number => (SHORT_LITE9.on ? DEV9.aheadMB * 1.5 : DEV9.aheadMB);
+const backCap9 = (): number => Math.min(SHORT_LITE9.on ? SHORT_LITE_BACK9 : Infinity, BACKCAP9 > 0 ? BACKCAP9 : (DEV9.name === "phone"
   ? (phoneWeak9() ? WEAK_DPR9 : PHONE_DPR9)   // ★ 아래 '폰 발열 — 배킹 2'(2026-11-19) · 옛 '폰 배킹 상한 올림'(2026-11-03: 높음 3 · 보통 2.5)
-  : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity);
+  : TIER9.v === 0 ? 1.5 : TIER9.v === 1 ? 2 : Infinity));
 /* ★ **폰 발열 — 배킹은 어느 단이든 2**(2026-11-19, 요청: "폰발열이 너무 심해 그래픽 부하 줄여보자(품질 감소는 괜찮은데 프레임은 확보)") — 높음 3 → 2 · 보통 2.5 → 2(dpr 3 폰이면
    칠하는 화소 0.44배 · 0.64배). 낮음 2 · 매우 낮음 1.75 그대로. 프레임 박자(높음 60 · 그 밖 30)는 안 건드린다. 되물린 값: 높음 3 · 보통 2.5(아래 2026-11-03 올림).
    선명함을 견줄 때 `#backcap=3`. */
@@ -7108,7 +7115,7 @@ function UnitLayer({ ops: opsProp, fx: fxProp, opsSrc, fxSrc, zoom, pan, tilePx,
           console.warn("[gl9] 문맥 잃음 — 캔버스 갈아 끼움");
         }
       }
-      const gl9 = glUnits9(glRef.current, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★)
+      const gl9 = glUnits9(glRef.current, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2 && !SHORT_LITE9.on, DEV9.glSpec, SHORT_LITE9.on ? 0 : DEV9.glMsaa);   // 사다리 2단은 번짐 끔(FQ9 ★) · 쇼츠 가벼운 판은 번짐 · MSAA 끔(SHORT_LITE9 ★)
       /* 판 늘려 찍기 상한(gl9 sprUpMax · 2026-10-24, 지적: "PC 에서 확대 시 너무 무뎌져") — PC 높음 이상 1.25 · 보통 1.6 · 낮음·폰은 끔(메시 길이 더 무겁다). 단이 오르면 다음 장에 따라온다. */
       /* ★ 상한 1.0(2026-10-24, 지적: "PC 확대했을 때 선명한 유닛·건물과 아닌 게 있는데") — 1.25·1.6 로 두니 상한 안쪽(1.0~1.25배 늘림)의 판은 살짝 흐리고 넘은 몸은 메시라 또렷해
          둘이 섞여 보였다. 조금이라도 늘려야 하면 메시로 — 줄여 찍는 판(≤1)은 안 흐리므로 화면이 고르다. */
@@ -12059,14 +12066,14 @@ export default function ReplayMotionPlayer({
            React도 아닌 1918ms 프레임이 나온 자리가 여기로 의심된다).
            같은 자(DEV9)로 맞춘다: 앞은 예산 초 × 배속 + 1초, 그리고 바이트가 예산을 넘으면 **가장 먼
            앞 장부터** 버린다. 붓이 드는 것은 늘 't 이하 가장 늦은 장'이라 앞을 잘라도 안 굶는다. */
-        const aheadMax9 = DEV9.aheadSec * Math.max(1, cmdNowRef9.current.speed) + 1;
+        const aheadMax9 = aheadSecNow9() * Math.max(1, cmdNowRef9.current.speed) + 1;
         if (frames9.size > 8) {
           /* 뒤 창은 장 두 칸(곡선 보간이 앞 장의 앞까지 본다 · herm9) — 폰 초당 5장 × 배속이면 한 칸이 게임 0.2 × 배속초다. */
           const back9 = Math.max(0.5, 0.45 * Math.max(1, cmdNowRef9.current.speed));
           for (const [k9, f9] of frames9) if (f9.t < tNow9 - back9 || f9.t > tNow9 + aheadMax9) frames9.delete(k9);
           let by9 = 0;
           for (const f9 of frames9.values()) by9 += f9.buf.byteLength;
-          const cap9 = DEV9.aheadMB * 1024 * 1024;
+          const cap9 = aheadMBNow9() * 1024 * 1024;
           if (by9 > cap9) {
             const far9 = [...frames9.entries()].sort((a9, b9) => b9[1].t - a9[1].t);
             for (const [k9, f9] of far9) {
@@ -18324,6 +18331,13 @@ export default function ReplayMotionPlayer({
   const [, setShortStill9] = useState(false);
   /** 앱의 즉시 멈춤 줄(props shortHoldRef ★) — 틱이 읽는다 · 지난 장의 값(바뀐 장에 워커 명령). */
   const shortHoldPropRef9 = useRef(shortHoldRef); shortHoldPropRef9.current = shortHoldRef;
+  /* 쇼츠 가벼운 판(SHORT_LITE9 ★)은 쇼츠 재생이 선 동안만 — 렌더 중에 켜 두어 첫 붓 · 예열부터 먹고(아래 effect 가 내린다). */
+  if (short) SHORT_LITE9.on = true;
+  useLayoutEffect(() => {
+    if (!short) return undefined;
+    SHORT_LITE9.on = true;
+    return () => { SHORT_LITE9.on = false; };
+  }, [!!short]);   // eslint-disable-line react-hooks/exhaustive-deps
   const extHoldWasRef9 = useRef(false);
   const shortPanAt9 = useRef(0);
   /* 앱이 멈추라면 멈춘다(누르고 있는 동안 따위) · 놓으면 다시 — 끝난 토막은 되살리지 않는다. */
@@ -19958,7 +19972,7 @@ export default function ReplayMotionPlayer({
       // 앞으로 지어 둘 한도는 기기가 정한다 — 폰은 2초·5MB(스크린샷 한 번의 요동에도 터진다), PC는 3초·10MB.
       w9.postMessage({
         type: "cmd", playing: playingW, pre: preW, t0: t09, speed: sp,
-        aheadSec: DEV9.aheadSec, aheadBytes: DEV9.aheadMB * 1024 * 1024,
+        aheadSec: aheadSecNow9(), aheadBytes: aheadMBNow9() * 1024 * 1024,   // 쇼츠 가벼운 판은 4초 · 1.5배(SHORT_LITE9 ★)
         /* 장 간격의 바탕 — 폰 초당 **10장**(2026-10-29, 실기: "10 괜찮아" · 직선 보간 LIN9 ★ 과 짝 — 옛 2026-10-28 의 5장 + 곡선 보간은 폰에서 끊겨 보였다 ·
            그 전 20 → 10 → 5) · PC 30(2026-10-25 · NO_CULL9 ★). 짓기가 길면 워커가 더 벌린다(stepNow). `#wfps=N` 으로 견준다. */
         fps: WFPS9 > 0 ? WFPS9 : DEV9.name === "phone" ? 10 : 30,   // 폰 10 → 15 → 10(2026-11-02 — 끊김의 뿌리인 뜬 높이를 장 사이 보간에 넣고 되돌림 · lerpFrame9 ★ 뜬 높이)   // 10 → 5(2026-10-29, 실기: "이펙트만 문제라 wfps 는 5로 둬도 될 듯" — 효과 밀기 FXADV9 ★ 를 켠 뒤) → 도로 10(같은 날, 실기: "wfps 10으로 올리기 · 지금 모든 애니메이션 류가 끊겨 보임")
@@ -22692,8 +22706,10 @@ export default function ReplayMotionPlayer({
        붓이 쓰는 그 캔버스(.scr-motion-gl9)로 같은 인자로 세우고 판 조율(sprTune9)까지 맞춘 뒤 일감을 짠다. 캔버스가 아직 없으면 종전대로(벌이 서면 아래 glGen9S 로 다시 돈다). */
     if (GL_ON9 && !glNow9()) {
       const cv9 = mapRef.current?.querySelector<HTMLCanvasElement>(".scr-motion-gl9") ?? null;
-      if (cv9) { glUnits9(cv9, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2, DEV9.glSpec, DEV9.glMsaa); sprTune9(); }
+      if (cv9) { glUnits9(cv9, meshMaxNow9(), DEV9.glBloom && FQ9.lv < 2 && !SHORT_LITE9.on, DEV9.glSpec, SHORT_LITE9.on ? 0 : DEV9.glMsaa); sprTune9(); }
     } else if (glNow9()) sprTune9();
+    /* 쇼츠 가벼운 판(SHORT_LITE9 ★) — 동적 채우기 끔 · 미리 찍기는 16방 걸음 · 늘림 상한 없음(1배 판을 늘려 그린다). 다음 경기 재생기의 예열이 sprTune9 로 되돌린다. */
+    { const g9 = glNow9(); if (g9 && SHORT_LITE9.on) { g9.sprFillMax = 0; g9.sprWarmStep = Math.max(2, g9.sprWarmStep); g9.sprUpMax = Infinity; } }
     warmGenRef9.current = glGen9();
     const warmNo9 = warmRuns9.current;
     SCR_DIAG.warm9 = `#${warmNo9}${quiet9 ? "q" : ""} gl${glNow9() ? glGen9() : "없음"} 시작`;
@@ -22845,7 +22861,7 @@ export default function ReplayMotionPlayer({
     /** 미리 굽기 방향 수 — 폰은 16(32 를 다 미리 굽기엔 무겁다 · 사이는 교체·채우기). */
     /* 폰은 16방까지 · **받는 아틀라스 방향 수를 안 넘는다**(2026-11-08, 실기 지적: "폰에서 로딩이 길어졌어 · 초반 퍼센티지에서" — 메모리 2단(8방 아틀라스)에서 예열이 16방을 굽느라
        나머지 8방을 폰에서 손수 굽고, 판까지 좁아 굽고 비우기를 되풀이했다). 모자란 방향은 재생 중 가까운 칸 · 채우기. */
-    const preWant9 = (): number => (DEV9.name === "phone" ? Math.min(16, ATLAS_WANT9()) : ATLAS_WANT9());
+    const preWant9 = (): number => (DEV9.name === "phone" || SHORT_LITE9.on ? Math.min(16, ATLAS_WANT9()) : ATLAS_WANT9());
     const preYaws9 = (g9: GlUnits9): number[] => { const st9 = Math.max(1, Math.round(g9.sprYaw / preWant9())); return Array.from({ length: Math.ceil(g9.sprYaw / st9) }, (_, i9) => i9 * st9); };
     const preStep9 = DEV9.name === "phone" ? 8 : 24;
     /* ★ 걸음은 **장 길이에 맞춘다**(2026-10-24, 지적: "팝업 뜬 상태에서 화면 멈춤 · 처음 로딩 애니메이션 멈추지 않게") — 한 장에 preStep9 장을 못 박으면 무거운 장(GPU 굽기 몰림)에
@@ -22867,7 +22883,7 @@ export default function ReplayMotionPlayer({
         /* 해상도는 성능 단으로(2026-10-25, 지적: "성능이 높으면 더 높은 해상도로 구운 패키지를 받으면 되는 거 아닌가") — PC 는 2 배(f) · 폰은 단과 무관하게 1 배(h).
            ⚠ 폰 높음 2 배는 되물렸다(같은 날 실측 폰 2단 · 5인 합성 세계: f 는 33 묶음 중 12 만 256MB 에 들어 나머지를 재생 중에 구웠다 · h 는 33 묶음 89MB · 놓침 0).
            2 배 벌은 1 배의 네 배 화소이고 그 대부분이 유닛이라(전 종류 짝 칸 유닛 f 759MB · 건물 325MB) '유닛만 2 배'도 안 든다. 상한에 닿으면 덜 쓰는 종류부터 빠진다. */
-        const res9: "f" | "h" = ph9 ? "h" : "f";
+        const res9: "f" | "h" = ph9 || SHORT_LITE9.on ? "h" : "f";   // 쇼츠 가벼운 판은 PC 도 1배(SHORT_LITE9 ★)
         /* ★ **많이 쓰는 종류만 기다린다**(2026-10-26, 요청 2 — "1, 2 ㄱㄱ") — 앞 ATLAS_CORE9 몫(많이 쓰는 차례 · 적어도 6 종류)의 묶음이 실리면 예열을 풀어 재생을 시작하고
            나머지는 뒤에서 싣는다(풀기는 워커 · 싣기는 묶음마다 한 박자 쉬며). 옛: 다 실릴 때까지(15초 상한) 기다렸다. 뒤에서 실리는 종류는 그 사이 재생 중 굽기로 그려지다가
            실리면 고정 칸이 이긴다(sprAtlasAdd9 — 같은 열쇠) · 그 종류의 동적 미리 굽기는 건너뛴다(atlasPend9). */
@@ -22878,12 +22894,12 @@ export default function ReplayMotionPlayer({
             (SCR_DIAG as unknown as Record<string, unknown>).atlasCore = `${Math.round(performance.now() - atlasT09)}ms·앞${core9}/${kinds9.length}종`;   // 재생을 연 때(앱의 쇼츠 로딩 줄 · 2026-11-20)
           }
         };
-        sprAtlasLoad9(g09, kinds9, { res: res9, want: ATLAS_WANT9(), em: ph9 ? DEV9.glBloom : true,
+        sprAtlasLoad9(g09, kinds9, { res: res9, want: SHORT_LITE9.on ? (Math.min(16, ATLAS_WANT9()) as 8 | 16) : ATLAS_WANT9(), em: ph9 || SHORT_LITE9.on ? DEV9.glBloom && !SHORT_LITE9.on : true,
           /* (2026-11-03 요잉 32 · "고성능 피시는 교체 없이 쭉") — PC 높은 단은 32방 묶음(o)까지 다 GPU 에 올리게 2048MB · 그 아래는 1024MB 에서 넘치면 교체(sprAtlas9 교체 ★).
              푼 단 캐시는 대기 묶음까지 다 담게 PC 1500 → 3000 · 폰 400 → 800(저장소 몫 40% 안에서). */
           mbCap: (ph9 ? (TIER9.v >= 2 ? 200 : TIER9.v === 1 ? 160 : 128) * (IOS9 ? 1 : 1.75) : TIER9.v >= 2 ? 2048 : 1024) * memK9(),   // × 메모리 단(위 memK9 ★)   // 아이폰은 ×1(위 IOS9 ★ · 200/160/128MB)   // 폰은 웹·PWA·앱 같은 상한(350/280/224MB) — 묶음 차례(a → b → c·d)대로 넘칠 때까지 올리고 나머지는 교체
           core: core9, onCore: release9, pending: atlasPend9, workers: ph9 ? 1 : undefined, cacheMB: ph9 ? 800 : 3000,
-          slowPrefetchMs: IOS9 ? 20000 : undefined, noPrefetch: memLv9() >= 1, noDrop: memLv9() >= 1,   // 메모리 단 1 이상은 뒤에서 받아 풀기 안 함(위 memLv9 ★ · sprAtlas9 noPrefetch · 2026-11-08)   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
+          slowPrefetchMs: IOS9 ? 20000 : undefined, noPrefetch: memLv9() >= 1 || SHORT_LITE9.on, noDrop: memLv9() >= 1 || SHORT_LITE9.on,   // 쇼츠 가벼운 판은 뒤에서 받아 풀기 · 32방 교체 · 내리기 없음(재생 중 일을 안 만든다 · SHORT_LITE9 ★)   // 메모리 단 1 이상은 뒤에서 받아 풀기 안 함(위 memLv9 ★ · sprAtlas9 noPrefetch · 2026-11-08)   // 아이폰은 뒤에서 받아 풀기를 20초 뒤 천천히 · 회전 뒤 쉼(sprAtlas9 ★ 천천히)   // 푼 단 캐시(sprAtlas9 ★ · 2026-11-01)
           onProgress: (d9: number, t9: number) => setAtlasProg9(t9 > 0 ? d9 / t9 : 1) })   // 폰 풀기 워커 1(2026-10-26 · 순간 발열 · sprAtlas9 pool9)
           .then((r9) => {
             SCR_DIAG.atlas = `메모리${memLv9()}단·${ATLAS_WANT9()}방·칸${r9.cells}·${r9.mb.toFixed(0)}MB·${r9.fmt}·묶음${r9.chunks}·물림${r9.kept}·걷음${r9.dropped}·없음${r9.miss}·${r9.ms}ms(앞${core9}종 ${r9.coreMs}ms·워커${r9.workers}·받기·풀기 대기${Math.round(r9.waitMs)}·싣기${Math.round(r9.workMs)}·받음${r9.netMB.toFixed(1)}MB·캐시${r9.hit}/${r9.layers}켜 ${r9.hitMB.toFixed(0)}MB)${r9.err ? "·" + r9.err : ""}`;

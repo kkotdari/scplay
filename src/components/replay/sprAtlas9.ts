@@ -270,7 +270,8 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
     const jobs: { kind: string; par: Par9; ch: Chunk9 }[] = [];
     for (const kind of kinds) {
       const e = idx.kinds[kind]; if (!e) { r.miss += 1; continue; }
-      for (const par of pars9) { const ch = e[par]; if (!ch) continue; if (done.has(`${kind}.${par}.${opt.res}`)) r.kept += 1; else if (!bad.has(`${kind}.${par}.${opt.res}`)) jobs.push({ kind, par, ch }); }
+      /* 1배(h)를 바라는데 2배(f)가 이미 실려 있으면 그대로 쓴다(2026-11-21 · 쇼츠 가벼운 판 — 경기 상세에서 실은 2배를 두고 1배를 또 싣지 않게). */
+      for (const par of pars9) { const ch = e[par]; if (!ch) continue; if (done.has(`${kind}.${par}.${opt.res}`) || (opt.res === "h" && done.has(`${kind}.${par}.f`))) r.kept += 1; else if (!bad.has(`${kind}.${par}.${opt.res}`)) jobs.push({ kind, par, ch }); }
     }
     /* 종류마다 남은 묶음 수 — 다 처리되면(실림·실패·건너뜀) pending 에서 뺀다 · 앞 종류(core)의 묶음이 다 처리되면 onCore. */
     const left9 = new Map<string, number>();
@@ -353,7 +354,7 @@ export async function sprAtlasLoad9(g9: GlUnits9, kinds: string[], opt: { res: "
         const jb9 = { kind, par, ch }; all9.set(`${kind}.${par}`, jb9);
         const tg9 = `${kind}.${par}.${opt.res}`;
         if (opt.noPrefetch && !pars9.includes(par)) continue;   // 받아 풀기를 안 하는 기기(아이폰)는 기기 몫(want) 밖 방향을 교체로도 안 올린다(옛 세션 캐시에 담긴 c·d 가 GPU 를 오가며 메모리를 흔들었다)
-        if (!done.has(tg9) && !bad.has(tg9)) by9.set(`${kind}.${par}`, jb9);   // 본 싣기가 올리면 뺀다(put9 뒤)
+        if (!done.has(tg9) && !bad.has(tg9) && !(opt.res === "h" && done.has(`${kind}.${par}.f`))) by9.set(`${kind}.${par}`, jb9);   // 본 싣기가 올리면 뺀다(put9 뒤) · 2배가 이미 있으면 대기 아님(위 ★)
       }
     }
     const A9 = idx.yaw || 16;
