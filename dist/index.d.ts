@@ -432,7 +432,7 @@ export declare interface ReplayMapGrid {
     tileset?: number | null;
 }
 
-export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onShortCreate, short, onShortEnd, onShortProgress, shortPaused, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
+export declare function ReplayModule({ grid, endSec, bases, teamOfRaw, loadUnitTracks, winnerTeam, melee, soleView, active, sceneLink, clockKey, onFinish, onDetailClose, onBack, frameH, frameW, shareNode, onShare, shareLabel, pins, onPinAdd, onPinDelete, onShortCreate, short, onShortEnd, onShortProgress, shortPaused, shortHoldRef, onGuide, guide, side, menu, avatars, askMode, pending, veil, onReady, onLoadProgress, isTester, }: ReplayModuleProps): JSX_2.Element;
 
 export declare interface ReplayModuleProps {
     /** 지도 격자 — 이것이 없으면 그릴 것이 없다(부르는 쪽이 먼저 가린다). */
@@ -497,6 +497,10 @@ export declare interface ReplayModuleProps {
     onShortEnd?: () => void;
     onShortProgress?: (p: number) => void;
     shortPaused?: boolean;
+    /** 쇼츠 즉시 멈춤 줄(2026-11-21 · RMP shortHoldRef ★) — 앱이 .current 를 바꾸면 다음 장부터 곧장 서고 · 풀면 곧장 간다(재생기 렌더 없음). */
+    shortHoldRef?: {
+        current: boolean;
+    };
     /** 사용법 버튼(공통) — 앱이 제 라우팅으로 열고 싶으면 onGuide, 버튼을 안 내려면 guide=false. */
     onGuide?: () => void;
     guide?: boolean;
