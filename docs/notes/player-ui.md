@@ -4328,3 +4328,16 @@ esc 눌렀을때 마우스가 가운데로 이동해서 불편".
   인라인 워커(번들 수백 KB)의 컴파일 · 초기화를 쇼츠마다 · 경기마다 안 한다. 오류 난 워커 · 이미 하나 맡긴 때는 끈다(하나만 맡김).
   🔎 `perf-check --hash gl=0,diag --remount 20000 --shot x.png` — `[다시 열기] 워커 on got N used M`(다시 연 재생기가 장을 받아 쓰는지).
 - 다지기(SHORT_LITE9): 최소 0.6 → 0.25초 · 상한 3 → 1.5초 · 고름을 보는 장 15 → 10. 앱(sg-web) 판 페이드 0.35 → 0.15초.
+
+## 쇼츠 참값 꾸러미(truthPack)(2026-11-21)
+요청: "쇼츠 로딩 더 아주 빠르게" → "진행해"(경기 전체 참값 대신 쇼츠 구간만).
+- `src/utils/truthPack.ts` — `trimTruth(tr, t0, t1)`: 구간 [t0 − 2, t1 + 2] · 몸은 그 구간에 산 것만 · 열쇠는 앞 마지막 한 칸 ~ 뒤 첫 한 칸 · hp/ic/tgt · 에너지는 앞 한 짝 + 구간 ·
+  자원 · 자원밭 · 탑승 · 선택 · 명령은 열쇠마다 앞 한 줄 + 구간 · 연구 · 상태(판 16)는 구간 끝까지 · 건설 명령 30초 앞부터 · 탄 · 데미지 · 채집 · 핑 · APM · 킬 · 사격은 구간만 ·
+  안개 타일(판 17)은 구간 시작 상태(처음 값과 다른 칸)를 A − 0.001 초 한 묶음으로 찍고 구간 변화(밝힌 곳 · 크립 그대로). 시각은 경기 절대 초 그대로.
+  `packTruth` / `unpackTruth` — 꼴과 무관한 이진(null · 수 · 글 · 배열 · 객체 · Map · 형식 배열 · 타일 시간축 · 머리 SPK1 · 판 SHORT_PACK_VER 1) · `decodeShortPack(b64)` 은 zlib 를 푼다.
+- 분석기(cli) `shortpack {motion, t0, t1}` → `{pack(zlib base64), ver, tracks}` · sg-api `GET /api/shorts/{id}/tracks` 가 처음 볼 때 굽고 `game_shorts.track_pack` 에 둔다
+  (지문 = 판 · 구간 · 경기 참값 sha1 — 참값을 다시 구우면 다시 굽는다) · 재생기 `loadUnitTracks` 가 `truthPack` 을 주면 motion 대신 그것(못 풀면 motion 으로).
+- 실측(합성 60초 경기 · 10초 구간 · 노드): 왕복 같음 · 열쇠 대조 어긋남 0 · 202KB(OBWT b64) → 46KB · 열쇠 97,849 → 12,998. 실제 경기(15~25분)는 구간 밖 몸 · 열쇠가 대부분이라 더 준다.
+  🔎 `node_modules/esbuild/bin/esbuild <test>.ts --bundle --platform=node` 로 trim → pack → deflate → decodeShortPack 왕복 · `PERF_MOTION_IN=synth.json perf-check --short clip.json --shortpack`
+  (분석기로 구워 재생기에 넘긴다 · 합성 뭉치는 `PERF_MOTION_OUT=synth.json perf-check …` 로 뽑는다).
+- 판(SHORT_PACK_VER)을 올리면 sg-api shorts.py SHORT_PACK_VER 도 같이(지문이 바뀌어 다시 굽는다).

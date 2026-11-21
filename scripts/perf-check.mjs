@@ -715,7 +715,7 @@ window.__mount = (motion, players, walkJson, terrainB64) => {
       ...(window.__speed > 1 ? { s: window.__speed } : {}),   // --speed N(2026-10-12) — 배속(&s=) · 헤드리스는 느려 창 끝까지 기다리는 탐침(--searchwait)에 쓴다
     },
     /* --chat(2026-10-19) — 경기 채팅 넷(사람 셋 · 관전자 하나 · 긴 글 하나) · 42~45초 · 열리는 46초에 다 5초 창 안이다(재생기 왼아래 채팅). */
-    loadUnitTracks: async () => ({ motion, ...(window.__chat ? { chats: [
+    loadUnitTracks: async () => ({ motion: window.__truthPack ? null : motion, ...(window.__truthPack ? { truthPack: window.__truthPack } : {}), ...(window.__chat ? { chats: [
       { sec: 42, name: "정구", text: "ㅎㅇ 잘 부탁드립니다", scope: "all" }, { sec: 43, name: "수달이", text: "ㄱㄱ", scope: "team" },   // scope = 팀챗·전체 배지(2026-10-26)
       { sec: 44, name: "관전자", text: "오 핵이다" },
       { sec: 45, name: "Rex", text: "이번 판은 진짜 길게 가 봅시다 앞마당 먹고 하이브까지 가는 걸로 다들 화이팅" }] } : {}) }),
@@ -1031,6 +1031,19 @@ if (VEIL9) await page.evaluate(() => { window.__veil = true; });
 if (has("--shortrec")) await page.evaluate(() => { window.__shortRec = true; });
 if (flag("--frame", null)) await page.evaluate((wh9) => { window.__frameSide = wh9; const r9 = document.getElementById("root"); if (r9) { r9.style.width = `${wh9[0]}px`; r9.style.height = `${wh9[1]}px`; r9.style.margin = "20px auto"; r9.style.overflow = "hidden"; } }, String(flag("--frame")).split("x").map(Number).concat(Number(String(flag("--frame")).split("x")[0])).slice(0, 2));
 if (flag("--short", null)) await page.evaluate((c9) => { window.__shortClip = c9; }, JSON.parse(readFileSync(String(flag("--short")), "utf8")));
+/* --shortpack(2026-11-21 · utils/truthPack ★) — 쇼츠 토막 구간으로 자른 참값 꾸러미를 분석기(dist/analyzer.mjs shortpack)로 구워 motion 대신 넘긴다(앱의 쇼츠 보기와 같은 길). */
+if (has("--shortpack") && flag("--short", null)) {
+  const { execFileSync } = await import("node:child_process");
+  const c9 = JSON.parse(readFileSync(String(flag("--short")), "utf8"));
+  const mo9 = process.env.PERF_MOTION_IN ? JSON.parse(readFileSync(process.env.PERF_MOTION_IN, "utf8")).motion : null;
+  if (!mo9) console.log("[꾸러미] PERF_MOTION_IN(합성 뭉치 파일)이 있어야 한다");
+  else {
+    const out9 = JSON.parse(execFileSync("node", [join(ROOT, "dist/analyzer.mjs")], { input: JSON.stringify({ jobs: [{ cmd: "shortpack", motion: mo9, t0: c9.t0, t1: c9.t1 }] }), maxBuffer: 1 << 28 }).toString());
+    const r9 = out9.results[0];
+    console.log(`[꾸러미] ${r9.ok ? `${(r9.value.pack.length / 1024).toFixed(1)}KB · 트랙 ${r9.value.tracks}` : r9.error}`);
+    if (r9.ok) await page.evaluate((p9) => { window.__truthPack = p9; }, r9.value.pack);
+  }
+}
 if (has("--res")) await page.evaluate((rx) => { window.__resx = rx; }, RES_EXTRA9.filter((r) => !r[2]));   // --res 미네랄(간헐천은 본래 자리)
 await page.evaluate(([m, pl, wj, tb]) => window.__mount(m, pl, wj, tb), [world.motion, world.players, walkFixture, makeTerrain()]);
 /* --loadshot x.png(2026-10-16, 요청: "모델 굽는 중 등의 표시를 모두 L O A D I N G 글자 띄우기로") — 올린 직후 로딩 표시(.scr-motion-simnote)가 서면 그 둘레를 찍고 글을 적는다. */

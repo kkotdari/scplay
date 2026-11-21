@@ -87,6 +87,7 @@ import {
   TRUTH_ST_MOVE as ST_MOVE, kT, tkN, tkT, tkV, tkAt, tkLast, EMPTY_TICKS, type Ticks, st16At, ST16 } from "../../utils/openbwTracks";
 import { BW_UNIT_NAME } from "../../utils/bwUnitNames";
 import type { TileTL17, BltCols17 } from "../../utils/openbwTracks";
+import { decodeShortPack } from "../../utils/truthPack";
 import { bwUpgradeName, BW_TECH_NAME } from "../../utils/bwUpgradeNames";
 /* 자취 읽기는 유틸로 나갔다(과제 #61) — 코어가 걸음의 진실이 된 뒤로 이 파일의
    몫이 아니고, 밖에 있어야 자로 잴 수 있다(scripts/pos-check.mjs). */
@@ -11170,7 +11171,7 @@ export default function ReplayMotionPlayer({
    *  (자리·방향·상태·종류·체력·업그레이드·마법·핑·로스터). 없으면 재생기는 아무것도
    *  안 그리고 "재생할 수 없는 게임"이라고만 말한다(요청: 폴백 없음). */
   /** 자취 받기 — chats(2026-10-10 · 있으면)는 경기 채팅 [초 · 말한 사람(게임 이름) · 글]: 중계 자막의 gg 선언·노엘 외침(cast9 ★★). */
-  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string; scope?: "team" | "all" }[] }>;
+  loadUnitTracks?: () => Promise<{ motion: string | null; chats?: { sec: number; name: string; text: string; scope?: "team" | "all" }[]; /** 쇼츠 참값 꾸러미(utils/truthPack ★ · 있으면 motion 대신) */ truthPack?: string | null }>;
   /** 링크로 받은 장면 한 벌(`sceneLinkOf9` 가 푼 그대로 — 앱은 안 만진다): 시작 시각(&t=) · 배속(&s= · 사다리에
    *  없는 값은 가장 가까운 칸) · 자리(&z=·&cx=·&cy=·&a= · 지도 상자가 실제로 서고 나서 한 번만 건다) · 카메라 임자
    *  (&tr= · 그 판의 게임 아이디면 그 사람을 **추적한 채로**, `*`(CAST_AUTO_LINK9)면 **자동 중계를 켠 채로** 시작 ·
@@ -11556,7 +11557,9 @@ export default function ReplayMotionPlayer({
          이 안에 자리·체력·업그레이드·마법·핑·로스터가 다 들어 있다. */
       const got = await loadUnitTracks();
       if (got.chats && got.chats.length > 0) setChats9(got.chats);
-      const truth = got.motion ? await decodeTruthTracks(got.motion) : null;
+      /* 쇼츠 참값 꾸러미(2026-11-21 · utils/truthPack ★) — 구간만 자른 참값이라 풀기 · 개체 표 · 워커 세계가 다 작다. 못 풀면 경기 전체 참값(motion)으로. */
+      const packed9 = got.truthPack ? await decodeShortPack(got.truthPack) : null;
+      const truth = packed9 ?? (got.motion ? await decodeTruthTracks(got.motion) : null);
       /* ★ 못 쓴 까닭을 **반드시 적어 둔다**(지적: "지금 모든 경기가 거의 다 재생할 수
          없는 게임이에요라고 나온다") — 여태 진단(truthVer)은 성공 갈래 **안**에만
          있었다. 그래서 정작 알고 싶은 실패한 판에서는 판 번호가 0으로 남아, 서버가

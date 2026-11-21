@@ -5,7 +5,8 @@
    일마다 따로 잡는다 — 하나가 깨져도 나머지는 돌려준다. parse 의 error 는 사람이 읽는 까닭(등록 화면에 그대로 뜬다 · parse: true).
    thumb 는 PNG 를 base64 로(value.png). 캔버스는 @napi-rs/canvas(번들 밖 · 서버의 analyzer/node_modules). */
 import { readFileSync } from "node:fs";
-import { curvesFromTracks, drawMapThumb, gameIndexOf9, parseReplayBuffer, ReplayParseError, type GameIndexOpts9, type MapThumbGrid } from "./index";
+import { deflateSync } from "node:zlib";
+import { curvesFromTracks, decodeTruthTracks, drawMapThumb, gameIndexOf9, packTruth, parseReplayBuffer, ReplayParseError, SHORT_PACK_VER, trimTruth, type GameIndexOpts9, type MapThumbGrid } from "./index";
 
 /** 캔버스는 썸네일 일에서만 부른다 — 읽기 · 곡선 · 색인은 @napi-rs/canvas 없이도 돈다. 지형 붓(utils/contour loopsPath)이 전역 Path2D 를 쓴다. */
 async function canvasLib(): Promise<typeof import("@napi-rs/canvas")> {
@@ -18,7 +19,9 @@ type Job =
   | { cmd: "parse"; path: string; name: string }
   | { cmd: "curves"; motion: string }
   | ({ cmd: "index"; motion: string } & GameIndexOpts9)
-  | { cmd: "thumb"; grid: MapThumbGrid };
+  | { cmd: "thumb"; grid: MapThumbGrid }
+  /** 쇼츠 참값 꾸러미(2026-11-21 · utils/truthPack ★) — 경기 참값을 [t0, t1](±2초)로 잘라 zlib base64 로. 판(ver)이 바뀌면 서버가 다시 굽는다. */
+  | { cmd: "shortpack"; motion: string; t0: number; t1: number };
 
 async function run(job: Job): Promise<unknown> {
   switch (job.cmd) {
@@ -30,6 +33,12 @@ async function run(job: Job): Promise<unknown> {
       const { cmd: _c, motion, ...opts } = job;
       void _c;
       return gameIndexOf9(motion, opts);
+    }
+    case "shortpack": {
+      const tr = await decodeTruthTracks(job.motion);
+      if (!tr) throw new Error("참값을 못 풀었다");
+      const cut = trimTruth(tr, job.t0, job.t1);
+      return { pack: deflateSync(packTruth(cut), { level: 9 }).toString("base64"), ver: SHORT_PACK_VER, tracks: cut.tracks.length };
     }
     case "thumb": {
       const { grid } = job;

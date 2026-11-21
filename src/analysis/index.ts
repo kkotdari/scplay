@@ -8,4 +8,6 @@ export type { PlayerCurves } from "./curves";
 export { drawMapThumb, MAP_THUMB_VER } from "./thumb";
 export type { MapThumbGrid } from "./thumb";
 export { gameIndexOf9 } from "../components/replay/gameIndex9";
+export { trimTruth, packTruth, SHORT_PACK_VER } from "../utils/truthPack";
+export { decodeTruthTracks } from "../utils/openbwTracks";
 export type { GameIndexOpts9 } from "../components/replay/gameIndex9";
