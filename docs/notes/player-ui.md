@@ -4341,3 +4341,9 @@ esc 눌렀을때 마우스가 가운데로 이동해서 불편".
   🔎 `node_modules/esbuild/bin/esbuild <test>.ts --bundle --platform=node` 로 trim → pack → deflate → decodeShortPack 왕복 · `PERF_MOTION_IN=synth.json perf-check --short clip.json --shortpack`
   (분석기로 구워 재생기에 넘긴다 · 합성 뭉치는 `PERF_MOTION_OUT=synth.json perf-check …` 로 뽑는다).
 - 판(SHORT_PACK_VER)을 올리면 sg-api shorts.py SHORT_PACK_VER 도 같이(지문이 바뀌어 다시 굽는다).
+
+## 여럿 고른 격자 칸 테 = 몸 색(2026-11-22)
+요청: "재생기에서 상자 선택 시 각 유닛의 임자색 혹은 팀색으로 테두리"(원작 스샷 — 칸마다 그 임자 색 테).
+- 인포 격자(6×2 · `.scr-motion-infodock-cell`) 칸 테 = `o9.color`(지금 색 모드의 몸 색 — 임자색 · 팀색 · 주인공색 모드면 그 색) · 실루엣은 체력색(hpCol9) 그대로 ·
+  격자 칸 테 1 → 2px. 되물린 값: 테 = 체력색.
+- 상자 선택 규칙(가장 많이 든 임자 한 사람 · 유닛 먼저)은 그대로라 상자 선택 격자는 보통 한 색이다 — 화면 주인의 선택(ownerSel9)도 같은 칸을 쓴다.

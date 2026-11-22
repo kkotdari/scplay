@@ -25637,7 +25637,9 @@ export default function ReplayMotionPlayer({
                     <button
                       key={o9.pickKey ?? k} type="button" className="scr-motion-infodock-cell"
                       title={o9.pickBld ? BUILDING_KO[o9.pickName ?? ""] ?? o9.pickName : UNIT_KO[o9.pickName ?? ""] ?? o9.pickName}
-                      style={{ borderColor: hpCol9(r9) }}
+                      /* 칸 테는 그 몸의 색(임자색 · 팀색 — 지금 색 모드의 몸 색 op.color · 2026-11-22, 요청: "상자 선택 시 각 유닛의 임자색 혹은 팀색으로 테두리") ·
+                         그림(실루엣)은 체력색 그대로. 되물린 값: 테 = 체력색(hpCol9). */
+                      style={{ borderColor: o9.color || hpCol9(r9) }}
                       onClick={() => { if (o9.pickKey && trackRaw === null) setPicked(o9.pickKey); }}   // 개인 추적은 보는 사람이 안 고른다(pickAt ★)
                     >
                       {silIcon9(o9.pickName ?? "", !!o9.pickBld, hpCol9(r9), "scr-motion-infodock-gico")}
