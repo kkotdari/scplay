@@ -22186,8 +22186,10 @@ export default function ReplayMotionPlayer({
     setPicked(best);
     return best !== null;
   };
-  /** 상자 선택(위 boxSel9 ★) — 상자 안(몸 가운데)의 몸을 고른다. 원작처럼 **유닛이 먼저**: 유닛이 하나라도 들면 유닛만 · 가장 많이 든 임자 한 사람의 것 ·
-   *  상자 가운데에서 가까운 차례로 열둘까지(인포창 6×2 격자). 유닛이 없으면 가운데에서 가장 가까운 건물 하나. 자원·잔상은 안 집는다. 하나면 picked. */
+  /** 상자 선택(위 boxSel9 ★) — 상자 안(몸 가운데)의 몸을 고른다. 원작처럼 **유닛이 먼저**: 유닛이 하나라도 들면 유닛만 ·
+   *  상자 가운데에서 가까운 차례로 열둘까지(인포창 6×2 격자 · 칸 테두리는 임자색). 유닛이 없으면 가운데에서 가장 가까운 건물 하나. 자원·잔상은 안 집는다. 하나면 picked.
+   *  ★ 여러 임자를 섞는다(2026-11-22, 요청: "여러 사람 유닛을 섞어서 고르게 → 원작대로" — 원작 리플레이 화면은 임자를 안 가린다 ·
+   *  되물림: 같은 날 처음 판은 상자에 가장 많이 든 임자 한 사람의 유닛만 골랐다). */
   const boxPick9 = (x0: number, y0: number, x1: number, y1: number): void => {
     const el = mapRef.current;
     if (!el) return;
@@ -22206,11 +22208,7 @@ export default function ReplayMotionPlayer({
     }
     let keys9: string[] = [];
     if (units9.length > 0) {
-      const byRaw9 = new Map<string, number>();
-      for (const [o] of units9) byRaw9.set(o.pickRaw ?? "", (byRaw9.get(o.pickRaw ?? "") ?? 0) + 1);
-      let top9 = ""; let topN9 = -1;
-      for (const [raw9, n9] of byRaw9) if (n9 > topN9) { top9 = raw9; topN9 = n9; }
-      keys9 = units9.filter(([o]) => (o.pickRaw ?? "") === top9).sort((a9, b9) => a9[1] - b9[1]).slice(0, 12).map(([o]) => o.pickKey as string);
+      keys9 = units9.sort((a9, b9) => a9[1] - b9[1]).slice(0, 12).map(([o]) => o.pickKey as string);
     } else if (blds9.length > 0) {
       keys9 = [blds9.sort((a9, b9) => a9[1] - b9[1])[0][0].pickKey as string];
     }
