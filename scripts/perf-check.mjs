@@ -1285,30 +1285,31 @@ if (has("--edgeprobe")) {
   const SH9 = flag("--shot", null);
   if (SH9) await page.screenshot({ path: String(SH9).replace(/\.png$/, "_edge.png"), timeout: 240000 });
 }
-/* --outprobe(2026-11-24 · PC 창모드 창 밖으로 나가면 민다 — RMP outU9 ★) — 지도 오른끝 안쪽에서 창 오른쪽 밖으로 나가 1.2초 · 렌즈가 갔나 · 다시 들어오면 서나.
-   CDP 마우스가 창 밖 좌표로 가면 크로뮴이 relatedTarget 없는 mouseout 을 쏜다(안 쏘면 그 줄에 '사건 없음'). */
+/* --outprobe(2026-11-24 · PC 창모드 무대 밖으로 넘으면 민다 — RMP outU9 ★) — 무대 안 → 무대 오른변 8px 밖 1.2초 · 렌즈가 갔나 · 다시 들어오면 서나 · 오른 위 모서리 바깥(대각선). */
 if (has("--outprobe")) {
   const lens9 = () => page.evaluate(() => (document.querySelector(".scr-motion-lens") instanceof HTMLElement ? document.querySelector(".scr-motion-lens").style.transform : "?"));
-  await page.evaluate(() => { window.__out9 = 0; window.addEventListener("mouseout", (e) => { if (e.relatedTarget === null) window.__out9 += 1; }); });
-  const mb9 = await page.evaluate(() => { const b = document.querySelector(".scr-motion-map")?.getBoundingClientRect(); return b ? [b.left, b.top, b.right, b.bottom] : null; });
+  const sb9 = await page.evaluate(() => { const b = document.querySelector(".scr-fs-stage")?.getBoundingClientRect(); return b ? [b.left, b.top, b.right, b.bottom] : null; });
   const vw9 = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
-  if (mb9) {
-    const cy9 = (mb9[1] + mb9[3]) / 2;
-    await page.mouse.move((mb9[0] + mb9[2]) / 2, cy9);
+  if (sb9) {
+    const cx9 = (sb9[0] + sb9[2]) / 2; const cy9 = (sb9[1] + sb9[3]) / 2;
+    await page.mouse.move(cx9, cy9);
     for (let i9 = 0; i9 < 4; i9 += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(250); }
     await page.waitForTimeout(600);
-    const l0 = await lens9();
-    await page.mouse.move(mb9[2] - 6, cy9, { steps: 4 });
-    await page.mouse.move(vw9[0] + 40, cy9, { steps: 2 });
-    await page.waitForTimeout(1200);
-    const l1 = await lens9();
-    const dg9 = await page.evaluate(() => (window.__scrDiag || {}).edge ?? "-");
-    await page.mouse.move(mb9[2] - 200, cy9, { steps: 3 });
-    await page.waitForTimeout(400);
-    const l2 = await lens9();
-    await page.waitForTimeout(500);
-    console.log(`[창 밖 밀기] 지도 ${mb9.map(Math.round).join(",")} · 창 ${vw9.join("×")} · 나감 사건 ${await page.evaluate(() => window.__out9)} · 처음 ${l0} · 나가 1.2초 ${l1} · 진단 ${dg9} · 들어온 뒤 ${l2} · 0.5초 더 ${await lens9()}`);
-  } else console.log("[창 밖 밀기] 지도 없음");
+    for (const [nm9, x9, y9] of [["오른", Math.min(vw9[0] - 1, sb9[2] + 8), cy9], ["오른위 모서리", Math.min(vw9[0] - 1, sb9[2] + 8), sb9[1] + 20]]) {
+      await page.mouse.move(cx9, cy9, { steps: 2 });
+      await page.waitForTimeout(400);
+      const l0 = await lens9();
+      await page.mouse.move(x9, y9, { steps: 4 });
+      await page.waitForTimeout(1200);
+      const l1 = await lens9();
+      const dg9 = await page.evaluate(() => (window.__scrDiag || {}).edge ?? "-");
+      await page.mouse.move(cx9, cy9, { steps: 3 });
+      await page.waitForTimeout(400);
+      const l2 = await lens9();
+      await page.waitForTimeout(500);
+      console.log(`[무대 밖 밀기] ${nm9} @${Math.round(x9)},${Math.round(y9)} · 무대 ${sb9.map(Math.round).join(",")} · 창 ${vw9.join("×")} · 전 ${l0} · 1.2초 ${l1} · 진단 ${dg9} · 들어온 뒤 ${l2} · 0.5초 더 ${await lens9()}`);
+    }
+  } else console.log("[무대 밖 밀기] 무대 없음");
 }
 const SHOT = flag("--shot", null);
 /* --press <css>(2026-10-23) — 그 요소 가운데서 마우스를 눌러 둔 채(:active) 끝 사진을 찍는다(크리스탈 단추의 누름 꼴 검산). */

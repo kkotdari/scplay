@@ -14636,11 +14636,6 @@ export default function ReplayMotionPlayer({
   const boxElRef9 = useRef<HTMLDivElement | null>(null);
   const boxSet9 = useMemo(() => (boxSel9 ? new Set(boxSel9) : null), [boxSel9]);
   useEffect(() => { if (picked !== null) setBoxSel9(null); }, [picked]);
-  /** ★ 프레임(창)모드 엣지 스크롤 **단추**(2026-11-20, 요청: "프레임모드의 마우스 가두기와 엣지투스크롤 폐기하고 엣지스크롤 버튼을 두는 걸로 · 그 위에 올리면 스크롤되는 식 ·
-   *  적당한 크기에 반투명으로") — 무대 네 변 가운데의 반투명 단추(.scr-edgebtns) 위에 마우스가 있는 동안 그쪽으로 민다(아래 엣지 effect · 전체화면의 화면 끝 밀기와 같은 속도 · 머문 시간 자).
-   *  값 = 미는 방향(팬 부호 · 왼 단추 [1,0] · 오른 [-1,0] · 위 [0,1] · 아래 [0,-1]) · 안 올렸으면 [0,0]. 되물린 것: 2026-11-18 마우스 가두기(mouseLock9 · 포인터 잠금 + 가짜 커서 ·
-   *  가둔 커서가 틀 끝 2px 에 닿으면 밀기 · 꼬리 자물쇠 토글) — 파일째 걷었다. */
-  const edgeHoverRef9 = useRef<[number, number]>([0, 0]);
   /** 하단 독 접기 **3단**(2026-11-07, 요청: "독 접기 버튼을 3단계로 — 평소: 미니맵·플레이바·인포창·전광판·자막·오버레이 다 · 1단: 미니맵·플레이바·자막·오버레이만 ·
    *  2단: 미니맵·자막만") — 0 평소 · 1 독 줄(인포창·전광판) 숨김 · 2 재생바·오버레이(배속·배율·모드 토글·채팅·화면 주인·요약)까지 숨김. 손잡이는 2단에서도 남는다(replay.css is-dockfold2).
    *  옛 판은 켬/끔 둘(요청: 접기 버튼 — 폰에서 지도를 덜 가리게). */
@@ -18850,30 +18845,41 @@ export default function ReplayMotionPlayer({
     let vy9 = 0;
     let raf9 = 0;
     let last9 = 0;
-    /* ★ 창모드 **창 밖으로 나가면 민다**(2026-11-24, 요청: "피시에서 프레임모드시 마우스 가두기 없이 엣지 벗어나면 엣지투스크롤되게") — 웹 페이지는 커서를 못 붙드니
-       (가두기는 2026-11-20 걷음) 브라우저 창 밖으로 나간 **변**을 기억해 돌아올 때까지 그쪽으로 민다(엣지 단추와 같은 속도 · 머문 시간 자). 지도 틀(mapRef) 둘레 OUT_NEAR9 안에서
-       나갔을 때만 — 독 · 재생바 · 사이트 머리를 지나 나간 것은 안 민다. 두 변 OUT_SIDE9 안(모서리)이면 대각선. 창 안으로 다시 움직이면(pointermove) · 창이 초점을 잃으면(blur — 다른 앱을
-       눌렀다) · 탭이 숨으면 놓는다. 엣지 단추(edgeHoverRef9)는 그대로 둔다(단추가 먼저). */
-    const OUT_NEAR9 = 48;   // 나가기 직전 커서가 지도 틀에서 이만큼(px) 안이었어야 민다
-    const OUT_SIDE9 = 24;   // 나간 점이 창 변에서 이만큼(px) 안이면 그 변으로 나갔다
-    const OUT_CORNER9 = 0.15;   // 모서리 몫(지도 틀 변 길이 비) — 이 안에서 나가면 대각선
+    /* ★ 창모드 **무대 밖으로 나가면 민다**(2026-11-24, 요청: "피시에서 프레임모드시 마우스 가두기 없이 엣지 벗어나면 엣지투스크롤되게" · "대각선도 적용되야함" ·
+       되지적: "엣지 스크롤 잘 안 돼 · 안먹히는 경우도 많고 늦게 발동하기도 하고") — 첫 판은 **브라우저 창 밖**으로 나가야만 밀었다: 최대화한 창은 좌 · 우 · 아래가 화면 끝이라
+       커서가 창을 못 나가 안 먹혔고, 무대가 창 끝에서 떨어져 있으면(사이트 게임 화면 좌우 여백 40px · 위 뒤로 줄) 그만큼 더 가야 해 늦었다.
+       이제 커서가 **무대(stageRef) 변을 넘는 순간** 그쪽으로 민다(전체화면 끝 밀기와 같은 속도 · 머문 시간 자) — 무대 변에서 OUT_BAND9 안쪽(창 끝 포함)까지만 · 그 너머(옆 판 · 아래 글)는 안 민다.
+       무대 변이 창 끝에 붙어 있으면 창 끝 2px 가 그 변이다(전체화면과 같다). 아래 변은 독(조작부)이 붙어 있어 안 민다 — 무대가 창 아래 끝까지 닿았을 때 창 끝 2px · 모서리 대각선만.
+       대각선: 무대 모서리 바깥(두 변을 다 넘음) · 한 변을 넘은 자리가 그 변의 모서리 몫(변 길이 × OUT_CORNER9 · 최소 60px) 안이면 옆 변 쪽으로도.
+       단추 · 링크 · 입력 위(뒤로 단추 등)는 안 민다 · 마우스 단추를 누른 채(끌기)면 안 민다. 창 밖으로 나가면 나가기 직전 방향을 그대로(또는 나간 점으로 셈) 돌아올 때까지 ·
+       창이 초점을 잃거나(다른 앱) 탭이 숨으면 놓는다. 옛 엣지 단추는 같은 날 걷었다. */
+    const OUT_BAND9 = 64;       // 무대 변 바깥 이만큼(px)까지가 미는 자리
+    const OUT_CORNER9 = 0.15;   // 모서리 몫(무대 변 길이 비) — 이 안에서 넘으면 대각선
     let outU9: [number, number] = [0, 0];
-    let nearMap9 = false;    // 마지막 움직임이 지도 틀 둘레 안이었나
-    const onOut9 = (e: MouseEvent): void => {
-      if (fsOn || e.relatedTarget !== null) return;
-      if (!nearMap9) { outU9 = [0, 0]; return; }
+    const outDir9 = (x9: number, y9: number, t9: EventTarget | null): [number, number] => {
+      const sr9 = stageRef.current?.getBoundingClientRect();
+      if (!sr9 || sr9.width <= 0 || sr9.height <= 0) return [0, 0];
+      if (t9 instanceof Element && t9.closest("button, a, input, select, textarea, [role='button'], [role='dialog'], .scr-modal-overlay")) return [0, 0];
+      if (stageRef.current?.closest(".scr-fs-root.is-short")) return [0, 0];   // 쇼츠 재생은 카메라가 자취를 따른다
       const vw9 = window.innerWidth; const vh9 = window.innerHeight;
-      const x9 = e.clientX; const y9 = e.clientY;
-      let ox9 = x9 <= OUT_SIDE9 ? 1 : x9 >= vw9 - OUT_SIDE9 ? -1 : 0;
-      let oy9 = y9 <= OUT_SIDE9 ? 1 : y9 >= vh9 - OUT_SIDE9 ? -1 : 0;
-      /* ★ 대각선(같은 날, 요청: "대각선도 적용되야함") — 한 변으로 나갔어도 그 점이 지도 틀 모서리 몫(변 길이의 OUT_CORNER9 · 최소 60px) 안이면 옆 변 쪽으로도 민다. */
-      const rb9 = mapRef.current?.getBoundingClientRect();
-      if (rb9 && (ox9 === 0) !== (oy9 === 0)) {
-        const cw9 = Math.max(60, rb9.width * OUT_CORNER9); const ch9 = Math.max(60, rb9.height * OUT_CORNER9);
-        if (oy9 === 0) oy9 = y9 <= rb9.top + ch9 ? 1 : y9 >= rb9.bottom - ch9 ? -1 : 0;
-        else ox9 = x9 <= rb9.left + cw9 ? 1 : x9 >= rb9.right - cw9 ? -1 : 0;
+      const L9 = Math.max(sr9.left, 2); const R9 = Math.min(sr9.right, vw9 - 2); const T9 = Math.max(sr9.top, 2);
+      const inY9 = y9 >= sr9.top - OUT_BAND9 && y9 <= sr9.bottom;
+      const inX9 = x9 >= sr9.left - OUT_BAND9 && x9 <= sr9.right + OUT_BAND9;
+      let ox9 = inY9 && x9 < L9 && x9 >= sr9.left - OUT_BAND9 ? 1 : inY9 && x9 > R9 && x9 <= sr9.right + OUT_BAND9 ? -1 : 0;
+      let oy9 = inX9 && y9 < T9 && y9 >= sr9.top - OUT_BAND9 ? 1 : 0;
+      if (oy9 === 0 && inX9 && sr9.bottom >= vh9 - 2 && y9 > vh9 - 3) oy9 = -1;   // 무대가 창 아래 끝까지 — 창 끝 2px
+      if (ox9 !== 0 && oy9 === 0) {
+        const ch9 = Math.max(60, sr9.height * OUT_CORNER9);
+        oy9 = y9 <= sr9.top + ch9 ? 1 : y9 >= sr9.bottom - ch9 ? -1 : 0;
+      } else if (oy9 !== 0 && ox9 === 0) {
+        const cw9 = Math.max(60, sr9.width * OUT_CORNER9);
+        ox9 = x9 <= sr9.left + cw9 ? 1 : x9 >= sr9.right - cw9 ? -1 : 0;
       }
-      outU9 = [ox9, oy9];
+      return [ox9, oy9];
+    };
+    const onOut9 = (e: MouseEvent): void => {
+      if (fsOn || e.relatedTarget !== null || e.buttons !== 0) return;
+      if (outU9[0] === 0 && outU9[1] === 0) outU9 = outDir9(e.clientX, e.clientY, null);
     };
     const outOff9 = (): void => { outU9 = [0, 0]; };
     const onVis9 = (): void => { if (document.hidden) outU9 = [0, 0]; };
@@ -18881,11 +18887,7 @@ export default function ReplayMotionPlayer({
       if (e.pointerType !== "mouse") return;
       mx9 = e.clientX;
       my9 = e.clientY;
-      outU9 = [0, 0];
-      if (!fsOn) {
-        const rb9 = mapRef.current?.getBoundingClientRect();
-        nearMap9 = !!rb9 && mx9 >= rb9.left - OUT_NEAR9 && mx9 <= rb9.right + OUT_NEAR9 && my9 >= rb9.top - OUT_NEAR9 && my9 <= rb9.bottom + OUT_NEAR9;
-      }
+      outU9 = fsOn || e.buttons !== 0 ? [0, 0] : outDir9(mx9, my9, e.target);
       if (!fsOn) return;
       /* 이미 떠 있는 조작부 위에 마우스가 있으면 계속 깨어 있는다 — 버튼을 겨누는
          동안 사라지면 누를 수가 없다(전체화면 몫 · 위 fs effect 의 ★ "이미 떠 있을 때만"). */
@@ -18916,10 +18918,8 @@ export default function ReplayMotionPlayer({
           ux9 = mx9 < EDGE ? 1 : mx9 > vw9 - 1 - EDGE ? -1 : 0;
           uy9 = my9 < EDGE ? 1 : my9 > vh9 - 1 - EDGE ? -1 : 0;
         } else {
-          /* 창모드 — 마우스가 올라간 엣지 스크롤 단추의 방향(위 edgeHoverRef9 ★ · 팬 부호 그대로). 안 올렸으면 0. */
-          [ux9, uy9] = edgeHoverRef9.current;
-          /* 단추에 안 올렸으면 창 밖으로 나간 변(위 outU9 ★). */
-          if (ux9 === 0 && uy9 === 0) [ux9, uy9] = outU9;
+          /* 창모드 — 무대 밖으로 넘은 변(위 outU9 ★ · 팬 부호 그대로). 옛 엣지 스크롤 단추(edgeHoverRef9 · 2026-11-20 ~ 11-24)는 걷었다. */
+          [ux9, uy9] = outU9;
         }
       }
       // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
@@ -18967,8 +18967,6 @@ export default function ReplayMotionPlayer({
       if (edgeOn) endGestureXf();
     };
   }, [fsOn, uiPhone9, fsWake, beginGestureXf, endGestureXf, gestureFrame9, panLimit]);
-  /* 엣지 스크롤 단추(위 edgeHoverRef9 ★)가 내려가면(전체화면 · 분할 · 쇼츠) 떼기(pointerleave)가 안 오므로 방향을 비운다. 밝아짐은 CSS :hover 몫(올리고 뗄 때 재생기 전체 렌더를 안 부른다). */
-  useEffect(() => { edgeHoverRef9.current = [0, 0]; }, [fsOn, splitOn9]);
   /* 렌즈 변환은 리액트 스타일이 아니라 이 effect가 쓴다(위 렌즈 상자 주석) — 손짓
      동안의 직접 변환과 싸우지 않게. 캔버스에 걸어 뒀던 임시 변환도 여기서 걷는다:
      자식(UnitLayer)의 그리기 effect가 먼저 돌아, 이 시점엔 이미 새 배율로 또렷하다. */
@@ -26648,20 +26646,7 @@ export default function ReplayMotionPlayer({
           {mapNode}
           {/* 상자 선택의 끄는 상자(위 boxSel9 ★) — 자리·크기는 onMapPointerMove 가 손으로 적는다(자식 없음). */}
           <div className="scr-boxsel" ref={boxElRef9} aria-hidden />
-          {/* ★ 엣지 스크롤 단추(위 edgeHoverRef9 ★) — PC 창모드 · 무대 네 변 가운데 · 올리면 민다(누름은 지도로 안 샌다). 분할 보기 · 쇼츠 재생엔 안 선다. */}
-          {!fsOn && !uiPhone9 && !coarse && !short && !splitOn9 && (
-            <div className="scr-edgebtns" aria-hidden>
-              {([["l", 1, 0], ["r", -1, 0], ["t", 0, 1], ["b", 0, -1]] as const).map(([k9, ux9, uy9]) => (
-                <button key={k9} type="button" tabIndex={-1} className={cx("scr-edgebtn", `is-${k9}`)}
-                  onPointerEnter={(e) => { if (e.pointerType === "mouse") edgeHoverRef9.current = [ux9, uy9]; }}
-                  onPointerLeave={() => { edgeHoverRef9.current = [0, 0]; }}
-                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                  onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-                  {k9 === "l" ? <ChevronLeft aria-hidden /> : k9 === "r" ? <ChevronRight aria-hidden /> : k9 === "t" ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* (걷음 2026-11-24, 요청: "이제 프레임모드의 스크롤 버튼은 제거해줘") 엣지 스크롤 단추(.scr-edgebtns) — 창모드는 무대 밖으로 넘으면 민다(엣지 effect outU9 ★). */}
           {/* ★ 쇼츠(위 쇼츠 ★) — 녹화 중 REC 표(무대 위 가운데) · 자막(녹화 미리보기 · 쇼츠 재생 연출 — 아래 shortCapsNow9). */}
           {/* 녹화 중 쇼츠 틀(위 shortCamRef9 ★★) — 무대 가운데 정사각(한 변 = 무대 짧은 변) · 두꺼운 흰 점선 · 틀 밖은 살짝 어둡게. 표지도 이 정사각을 찍는다(shortCoverOf9). */}
           {recOn9 && stage.w > 0 && stage.h > 0 && (
