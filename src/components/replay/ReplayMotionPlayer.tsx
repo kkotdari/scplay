@@ -18850,10 +18850,42 @@ export default function ReplayMotionPlayer({
     let vy9 = 0;
     let raf9 = 0;
     let last9 = 0;
+    /* ★ 창모드 **창 밖으로 나가면 민다**(2026-11-24, 요청: "피시에서 프레임모드시 마우스 가두기 없이 엣지 벗어나면 엣지투스크롤되게") — 웹 페이지는 커서를 못 붙드니
+       (가두기는 2026-11-20 걷음) 브라우저 창 밖으로 나간 **변**을 기억해 돌아올 때까지 그쪽으로 민다(엣지 단추와 같은 속도 · 머문 시간 자). 지도 틀(mapRef) 둘레 OUT_NEAR9 안에서
+       나갔을 때만 — 독 · 재생바 · 사이트 머리를 지나 나간 것은 안 민다. 두 변 OUT_SIDE9 안(모서리)이면 대각선. 창 안으로 다시 움직이면(pointermove) · 창이 초점을 잃으면(blur — 다른 앱을
+       눌렀다) · 탭이 숨으면 놓는다. 엣지 단추(edgeHoverRef9)는 그대로 둔다(단추가 먼저). */
+    const OUT_NEAR9 = 48;   // 나가기 직전 커서가 지도 틀에서 이만큼(px) 안이었어야 민다
+    const OUT_SIDE9 = 24;   // 나간 점이 창 변에서 이만큼(px) 안이면 그 변으로 나갔다
+    const OUT_CORNER9 = 0.15;   // 모서리 몫(지도 틀 변 길이 비) — 이 안에서 나가면 대각선
+    let outU9: [number, number] = [0, 0];
+    let nearMap9 = false;    // 마지막 움직임이 지도 틀 둘레 안이었나
+    const onOut9 = (e: MouseEvent): void => {
+      if (fsOn || e.relatedTarget !== null) return;
+      if (!nearMap9) { outU9 = [0, 0]; return; }
+      const vw9 = window.innerWidth; const vh9 = window.innerHeight;
+      const x9 = e.clientX; const y9 = e.clientY;
+      let ox9 = x9 <= OUT_SIDE9 ? 1 : x9 >= vw9 - OUT_SIDE9 ? -1 : 0;
+      let oy9 = y9 <= OUT_SIDE9 ? 1 : y9 >= vh9 - OUT_SIDE9 ? -1 : 0;
+      /* ★ 대각선(같은 날, 요청: "대각선도 적용되야함") — 한 변으로 나갔어도 그 점이 지도 틀 모서리 몫(변 길이의 OUT_CORNER9 · 최소 60px) 안이면 옆 변 쪽으로도 민다. */
+      const rb9 = mapRef.current?.getBoundingClientRect();
+      if (rb9 && (ox9 === 0) !== (oy9 === 0)) {
+        const cw9 = Math.max(60, rb9.width * OUT_CORNER9); const ch9 = Math.max(60, rb9.height * OUT_CORNER9);
+        if (oy9 === 0) oy9 = y9 <= rb9.top + ch9 ? 1 : y9 >= rb9.bottom - ch9 ? -1 : 0;
+        else ox9 = x9 <= rb9.left + cw9 ? 1 : x9 >= rb9.right - cw9 ? -1 : 0;
+      }
+      outU9 = [ox9, oy9];
+    };
+    const outOff9 = (): void => { outU9 = [0, 0]; };
+    const onVis9 = (): void => { if (document.hidden) outU9 = [0, 0]; };
     const onMove = (e: PointerEvent): void => {
       if (e.pointerType !== "mouse") return;
       mx9 = e.clientX;
       my9 = e.clientY;
+      outU9 = [0, 0];
+      if (!fsOn) {
+        const rb9 = mapRef.current?.getBoundingClientRect();
+        nearMap9 = !!rb9 && mx9 >= rb9.left - OUT_NEAR9 && mx9 <= rb9.right + OUT_NEAR9 && my9 >= rb9.top - OUT_NEAR9 && my9 <= rb9.bottom + OUT_NEAR9;
+      }
       if (!fsOn) return;
       /* 이미 떠 있는 조작부 위에 마우스가 있으면 계속 깨어 있는다 — 버튼을 겨누는
          동안 사라지면 누를 수가 없다(전체화면 몫 · 위 fs effect 의 ★ "이미 떠 있을 때만"). */
@@ -18886,6 +18918,8 @@ export default function ReplayMotionPlayer({
         } else {
           /* 창모드 — 마우스가 올라간 엣지 스크롤 단추의 방향(위 edgeHoverRef9 ★ · 팬 부호 그대로). 안 올렸으면 0. */
           [ux9, uy9] = edgeHoverRef9.current;
+          /* 단추에 안 올렸으면 창 밖으로 나간 변(위 outU9 ★). */
+          if (ux9 === 0 && uy9 === 0) [ux9, uy9] = outU9;
         }
       }
       // 머문 시간이 곧 빠르기의 자다(위 ★★) — 끝에서 떨어지면 처음으로 돌아간다.
@@ -18920,9 +18954,15 @@ export default function ReplayMotionPlayer({
       gestureFrame9();   // 같은 장에서 붓까지(위 gestureFrame9 ★)
     };
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("mouseout", onOut9);
+    window.addEventListener("blur", outOff9);
+    document.addEventListener("visibilitychange", onVis9);
     raf9 = requestAnimationFrame(step9);
     return () => {
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("mouseout", onOut9);
+      window.removeEventListener("blur", outOff9);
+      document.removeEventListener("visibilitychange", onVis9);
       cancelAnimationFrame(raf9);
       if (edgeOn) endGestureXf();
     };
